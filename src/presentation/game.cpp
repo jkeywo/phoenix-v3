@@ -5,12 +5,17 @@
 #include <cmath>
 #include <algorithm>
 #include <sstream>
+#include <qrcodegen.hpp>
+#include <RmlUi/Core/Elements/ElementFormControl.h>
 namespace phoenix {
 namespace {
 std::string mission, slot, ship, notice, radar_reading;
 std::int64_t desired_speed = 0, desired_heading = 0;
 std::map<std::string,Texture2D> textures;
 RenderTexture2D scene{};
+Texture2D invitation{};
+std::string invitation_url;
+bool show_invitation = false;
 float azimuth = 0.7f, elevation = 0.8f, distance = 160;
 Vector3 focus{};
 float game_top = 200;
@@ -23,6 +28,29 @@ std::string escape(std::string value) {
     return result;
 }
 std::string label(const Application& app, const std::string& text) { return app.pseudo_locale ? "[ "+text+" ~~~ ]" : text; }
+std::string query(const std::string& value) {
+    const char* hex = "0123456789ABCDEF"; std::string result;
+    for (unsigned char c : value) {
+        if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '-' || c == '_' || c == '.' || c == '~') result += c;
+        else { result += '%'; result += hex[c>>4]; result += hex[c&15]; }
+    }
+    return result;
+}
+void make_invitation(const Application& app, bool gm) {
+    const auto& page = app.join_page;
+    const bool https = page.starts_with("https://"), http = page.starts_with("http://");
+    if ((!https && !http) || page.size()>1024 || page.find_first_of("?#@\r\n\t ")!=std::string::npos || page.find('\0')!=std::string::npos) throw std::runtime_error("Enter a plain HTTP/HTTPS launcher URL without a query or fragment");
+    const std::size_t begin = https ? 8u : 7u; const auto end = page.find('/',begin);
+    if (page.substr(begin,end==std::string::npos?std::string::npos:end-begin).empty()) throw std::runtime_error("The launcher URL needs a host");
+    if (!app.session || app.session->invitation_code().empty()) throw std::runtime_error("No ship-server invitation is available");
+    const auto url = page+"?type="+(gm?"workshop&mode=gm":"client")+"&code="+query(app.session->invitation_code())+"&service="+query(app.network_service);
+    const auto qr = qrcodegen::QrCode::encodeText(url.c_str(),qrcodegen::QrCode::Ecc::MEDIUM);
+    auto image = GenImageColor((qr.getSize()+8)*4,(qr.getSize()+8)*4,WHITE);
+    for (int y=0;y<qr.getSize();++y) for (int x=0;x<qr.getSize();++x) if (qr.getModule(x,y)) ImageDrawRectangle(&image,(x+4)*4,(y+4)*4,4,4,BLACK);
+    auto texture = LoadTextureFromImage(image); UnloadImage(image);
+    if (!texture.id) throw std::runtime_error("Could not render the invitation QR");
+    if (invitation.id) UnloadTexture(invitation); invitation = texture; invitation_url = url; show_invitation = true;
+}
 void next(std::string& value, const std::vector<std::string>& choices) {
     auto found = std::find(choices.begin(),choices.end(),value);
     value = choices.empty() ? "" : (found == choices.end() || ++found == choices.end() ? choices.front() : *found);
@@ -58,6 +86,8 @@ bool action(Application& app, const std::string& id) {
     try {
         auto& session = *app.session;
         if (id == "game.import" && !session.running()) request_file("game-pack");
+        else if (id == "game.hide-qr") show_invitation = false;
+        else if (id == "game.copy-invite" && !invitation_url.empty()) { copy_text(invitation_url); notice = "Copying invitation link..."; }
         else if (id == "game.load") request_file("game-save");
         else if (id == "game.save" && session.running()) { save_after = session.ticks(); notice = "Saving after the next local tick boundary."; }
         else if (id == "game.resume" && session.recovery_pending()) {
@@ -116,8 +146,20 @@ Texture2D texture(const Catalog& catalog, const std::string& asset) {
 }
 }
 void prepare_game_screen(Application& app, Rml::ElementDocument& document) {
+    if(auto result=take_copy_result())notice=result->empty()?"Invitation link copied.":*result;
     app.screen_controls.clear();
-    app.screen_action = [&app](const std::string& id) { return action(app,id); };
+    app.screen_action = [&app,&document](const std::string& id) {
+        auto input = [&](const char* name) { auto* control=dynamic_cast<Rml::ElementFormControl*>(document.GetElementById(name)); if(!control)throw std::runtime_error("Connection field is unavailable");return control->GetValue(); };
+        try {
+            if ((id == "game.connect-client" || id == "game.connect-gm") && app.connect) {
+                app.connect(input("join-code"),input("join-service"),input("join-profile"),id == "game.connect-gm");close_game_scene();notice.clear();return true;
+            }
+            if (id == "game.qr-client" || id == "game.qr-gm") {
+                app.join_page = input("join-page"); make_invitation(app,id == "game.qr-gm");notice = "Scan or copy the invitation. The joining device must be able to reach the launcher and service.";return true;
+            }
+        } catch(const std::exception& error) { notice=error.what();return false; }
+        return action(app,id);
+    };
     std::string markup, network_markup, description = "Choose a mode to begin.";
     game_top = 200;
     if (app.screen == Screen::client_lobby) description = "Connect to your ship server, verify its content and claim an available station.";
@@ -193,6 +235,13 @@ void prepare_game_screen(Application& app, Rml::ElementDocument& document) {
                 for (const auto& [id,text] : app.session->lobby_controls()) network_markup += button(id,text);
         }
     }
+    if (app.screen == Screen::client_lobby && app.connect && (!app.session || !app.session->observation())) {
+        markup = "<div class=\"connection\"><label>Network code (room/server)</label><input id=\"join-code\" type=\"text\" value=\""+escape(app.network_code)+"\"/><label>Network service</label><input id=\"join-service\" type=\"text\" value=\""+escape(app.network_service)+"\"/><label>Local profile</label><input id=\"join-profile\" type=\"text\" value=\""+escape(app.network_profile)+"\"/>"+button("game.connect-client","Connect console")+button("game.connect-gm","Request GM inspection")+"</div>";
+    }
+    if ((app.screen == Screen::home || app.screen == Screen::server_lobby) && app.can_host && app.session && app.session->networked()) {
+        if (show_invitation) { markup=button("game.hide-qr","Close invitation")+button("game.copy-invite","Copy invitation link"); description=invitation_url; }
+        else markup += "<div class=\"connection\"><label>Launcher page URL for joining devices</label><input id=\"join-page\" type=\"text\" value=\""+escape(app.join_page)+"\"/>"+button("game.qr-client","Show console QR")+button("game.qr-gm","Show GM QR")+"</div>";
+    }
     if (!notice.empty()) description += " "+notice;
     app.accessible_status = description;
     auto* game = document.GetElementById("game");
@@ -211,7 +260,13 @@ void prepare_game_screen(Application& app, Rml::ElementDocument& document) {
     previous_description = displayed;
 }
 void draw_game_scene(const Application& app) {
-    if (!app.session || !app.session->running()) return;
+    if (!app.session) return;
+    if (show_invitation && invitation.id && (app.screen == Screen::home || app.screen == Screen::server_lobby)) {
+        const int modules=invitation.width/4;
+        const int scale=std::max(1,std::min((GetScreenWidth()-40)/modules,(GetScreenHeight()-static_cast<int>(game_top)-90)/modules));
+        DrawTextureEx(invitation,{20,game_top+70},0,scale/4.f,WHITE);return;
+    }
+    if (!app.session->running()) return;
     if (app.screen == Screen::viewscreen) {
         if (GetMouseY() >= game_top) {
             auto delta = GetMouseDelta();
@@ -266,5 +321,5 @@ void draw_game_scene(const Application& app) {
         }
     }
 }
-void close_game_scene() { for (auto [id,value] : textures) UnloadTexture(value); textures.clear(); if (scene.id) UnloadRenderTexture(scene); scene = {}; }
+void close_game_scene() { for (auto [id,value] : textures) UnloadTexture(value); textures.clear(); if (scene.id) UnloadRenderTexture(scene); scene = {}; if(invitation.id)UnloadTexture(invitation);invitation={};show_invitation=false;invitation_url.clear(); }
 }

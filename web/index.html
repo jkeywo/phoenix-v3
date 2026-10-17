@@ -47,7 +47,7 @@ if (type !== null && !allowed.has(type)) {
   // Arguments are hints. C++ admission must grant authority independently.
   window.Module = {
     canvas: document.getElementById('canvas'),
-    arguments: ['--mode', mode, '--code', code, '--slot', slot, '--service', service, '--profile', profile],
+    arguments: ['--mode', mode, '--code', code, '--slot', slot, '--service', service, '--profile', profile, '--page', location.origin + location.pathname],
     print: console.log,
     printErr: console.error,
     postRun: [() => { document.getElementById('status').textContent = 'Running ' + type; }],

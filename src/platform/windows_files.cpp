@@ -7,6 +7,7 @@
 namespace phoenix {
 namespace {
 std::optional<ImportedFile> imported;
+std::optional<std::string> copied;
 std::string utf8(const std::wstring& value) {
     auto length = WideCharToMultiByte(CP_UTF8,0,value.data(),static_cast<int>(value.size()),nullptr,0,nullptr,nullptr);
     std::string result(length,'\0'); WideCharToMultiByte(CP_UTF8,0,value.data(),static_cast<int>(value.size()),result.data(),length,nullptr,nullptr); return result;
@@ -23,6 +24,20 @@ void request_file(const std::string& purpose) {
     catch (const std::exception& error) { imported = ImportedFile{purpose,{},{},error.what()}; }
 }
 std::optional<ImportedFile> take_imported_file() { auto result = std::move(imported); imported.reset(); return result; }
+void copy_text(const std::string& text) {
+    copied = "Could not copy the invitation link";
+    if (text.find('\0')!=std::string::npos || text.size()>8192 || !OpenClipboard(GetActiveWindow())) return;
+    const int length=MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,text.c_str(),-1,nullptr,0);
+    HGLOBAL memory=length?GlobalAlloc(GMEM_MOVEABLE,static_cast<SIZE_T>(length)*sizeof(wchar_t)):nullptr;
+    if(memory){
+        auto* buffer=static_cast<wchar_t*>(GlobalLock(memory));
+        if(buffer){MultiByteToWideChar(CP_UTF8,MB_ERR_INVALID_CHARS,text.c_str(),-1,buffer,length);GlobalUnlock(memory);
+            if(EmptyClipboard()&&SetClipboardData(CF_UNICODETEXT,memory)){memory=nullptr;copied="";}}
+        if(memory)GlobalFree(memory);
+    }
+    CloseClipboard();
+}
+std::optional<std::string> take_copy_result() { auto result=std::move(copied);copied.reset();return result; }
 void export_file(const std::string& filename, const Bytes& bytes) {
     wchar_t path[32768]{};
     auto name = std::filesystem::path(std::u8string(filename.begin(),filename.end())).wstring();

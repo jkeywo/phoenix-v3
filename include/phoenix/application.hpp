@@ -10,6 +10,8 @@ enum class Screen { home, server_lobby, client_lobby, viewscreen, console, works
 struct Application {
     Screen screen = Screen::home;
     std::string network_code;
+    std::string network_service = "ws://127.0.0.1:9080/phoenix", network_profile = "default", join_page;
+    std::function<void(const std::string&,const std::string&,const std::string&,bool)> connect;
     std::string status = "Foundation build";
     std::string accessible_status;
     std::vector<std::string> packs;

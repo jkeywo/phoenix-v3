@@ -75,6 +75,9 @@ void open_window() {
     .widget { position:absolute; box-sizing:border-box; border:1px #315a70; padding:10px; overflow:auto; }
     .widget h3 { display:block; font-size:20px; margin-bottom:8px; }
     .widget button { display:block; width:200px; font-size:16px; padding:4px; }
+    .connection { display:block; width:100%; margin-top:12px; }
+    .connection label { display:block; font-size:16px; }
+    .connection input { display:block; width:700px; height:26px; font-size:18px; background:#173142; color:#d9e9ef; border:1px #76c9e8; margin:4px 0 8px; }
     </style></head><body><h1>PHOENIX / SETTLED DARK</h1>
     <div id="nav"><button id="home">Home</button><button id="host">New game</button><button id="join">Join console</button>
     <button id="view">Viewscreen</button><button id="edit">Workshop</button><button id="locale">Toggle pseudo-localisation</button></div>

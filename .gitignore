@@ -15,3 +15,5 @@ node_modules/
 .venv/
 dist/
 /raw/
+/userdata/
+/userdata.client/

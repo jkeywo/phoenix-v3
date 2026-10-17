@@ -32,10 +32,12 @@ int main(int argc, char** argv) {
         if (std::string(argv[i]) == "--code") app.network_code = argv[i+1];
         if (std::string(argv[i]) == "--service") network.link.url = argv[i+1];
         if (std::string(argv[i]) == "--profile") network.profile = argv[i+1];
+        if (std::string(argv[i]) == "--page") app.join_page = argv[i+1];
 #ifdef PHOENIX_WORKSHOP
         if (std::string(argv[i]) == "--mode" && std::string(argv[i+1]) == "gm") app.screen = phoenix::Screen::gm;
 #endif
     }
+    app.network_service = network.link.url; app.network_profile = network.profile;
     if (!app.network_code.empty()) {
         auto separator = app.network_code.find('/');
         network.link.room = app.network_code.substr(0,separator);

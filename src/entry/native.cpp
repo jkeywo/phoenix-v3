@@ -19,6 +19,9 @@ int main(int argc, char** argv) {
     phoenix::NetworkOptions network;
     network.link.url = "ws://127.0.0.1:9080/phoenix";
     bool remote = false, gm = false, local_only = false;
+    bool qr_smoke = false;
+    bool join_smoke = false, join_submitted = false, claim_submitted = false;
+    unsigned join_ready_frames = 0;
     int smoke_frames = 0;
     bool workshop_smoke = false;
     std::string workshop_pack;
@@ -37,6 +40,9 @@ int main(int argc, char** argv) {
         if (argument == "--profile" && i+1 < argc) network.profile = argv[++i];
         if (argument == "--data" && i+1 < argc) network.data_location = argv[++i];
         if (argument == "--code" && i+1 < argc) app.network_code = argv[++i];
+        if (argument == "--page" && i+1 < argc) app.join_page = argv[++i];
+        if (argument == "--qr-smoke") { qr_smoke = true; smoke_frames = 6; app.screen = phoenix::Screen::server_lobby; }
+        if (argument == "--join-smoke") { join_smoke = true; remote = true; }
         if (std::strcmp(argv[i], "--smoke") == 0) smoke_frames = 6;
         if (std::strcmp(argv[i], "--workshop") == 0) { app.screen = phoenix::Screen::workshop; workshop_smoke = true; }
         if (std::strcmp(argv[i], "--workshop-pack") == 0 && i+1 < argc) { workshop_pack = argv[++i]; app.screen = phoenix::Screen::workshop; workshop_smoke = true; }
@@ -59,6 +65,16 @@ int main(int argc, char** argv) {
         app.session = local_only ? phoenix::make_local_session() : remote ? phoenix::make_network_client(network) : phoenix::make_network_host(network);
     } catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }
     if (remote) { app.can_host = false; app.screen = gm ? phoenix::Screen::gm : phoenix::Screen::client_lobby; }
+    app.network_service = network.link.url; app.network_profile = network.profile;
+    app.connect = [&app,network](const std::string& code,const std::string& service,const std::string& profile,bool inspector) mutable {
+        const auto split = code.find('/');
+        if (split == std::string::npos || !split || split+1 == code.size()) throw std::runtime_error("Enter a network code in room/server form");
+        auto options = network; options.link.room = code.substr(0,split); options.server = code.substr(split+1); options.link.self.clear(); options.link.url = service; options.profile = profile; options.inspector = inspector;
+        phoenix::verify_link_options({service,options.link.room,options.server});
+        auto connected = phoenix::make_network_client(options);
+        app.session = std::move(connected); app.can_host = false; app.screen = inspector ? phoenix::Screen::gm : phoenix::Screen::client_lobby;
+        app.network_code = code; app.network_service = service; app.network_profile = profile;
+    };
     phoenix::open_window();
     if (argc > 1 && std::strcmp(argv[1], "--platform-check") == 0) {
         app.screen = phoenix::Screen::client_lobby;
@@ -87,6 +103,7 @@ int main(int argc, char** argv) {
         catch (const std::exception& error) { std::cerr << error.what() << '\n'; phoenix::end_tools(); phoenix::close_window(); return 1; }
     }
     double accumulated = 0;
+    const auto smoke_started = GetTime();
     while (!phoenix::close_requested()) {
         app.session->poll();
         accumulated += std::min(static_cast<double>(GetFrameTime()),0.25);
@@ -95,8 +112,16 @@ int main(int argc, char** argv) {
         phoenix::draw_screen(app);
         if (app.screen == phoenix::Screen::workshop || app.screen == phoenix::Screen::gm) phoenix::draw_workshop(app);
         EndDrawing();
+        if (join_smoke) {
+            if (!join_submitted) { phoenix::invoke_navigation(app,"game.connect-client"); join_submitted = true; }
+            if (!claim_submitted) for (const auto& [id,label] : app.session->lobby_controls()) if (id == "network.claim") { phoenix::invoke_navigation(app,id); claim_submitted = true; }
+            if (app.session->observation() && app.screen == phoenix::Screen::console) ++join_ready_frames; else join_ready_frames = 0;
+            if (join_ready_frames >= 3) { TakeScreenshot("network-console-smoke.png"); std::cout << "Native join form, station claim and permitted console: PASS\n"; break; }
+            if (GetTime()-smoke_started > 20) { std::cerr << "Native join smoke failed: " << app.session->connection_status() << '\n'; phoenix::end_tools(); phoenix::close_window(); return 1; }
+        }
+        if (qr_smoke && smoke_frames == 6) phoenix::invoke_navigation(app,"game.qr-client");
         if (smoke_frames && --smoke_frames == 0) {
-            TakeScreenshot(workshop_smoke ? "workshop-smoke.png" : app.screen == phoenix::Screen::console ? "console-smoke.png" : app.screen == phoenix::Screen::viewscreen ? "viewscreen-smoke.png" : "home-smoke.png");
+            TakeScreenshot(qr_smoke ? "invitation-smoke.png" : workshop_smoke ? "workshop-smoke.png" : app.screen == phoenix::Screen::console ? "console-smoke.png" : app.screen == phoenix::Screen::viewscreen ? "viewscreen-smoke.png" : "home-smoke.png");
             break;
         }
     }

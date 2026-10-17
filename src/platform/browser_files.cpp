@@ -1,6 +1,13 @@
 #include <phoenix/files.hpp>
 #include <emscripten.h>
-namespace { std::optional<phoenix::ImportedFile> imported; }
+namespace { std::optional<phoenix::ImportedFile> imported; std::optional<std::string> copied; }
+extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_copy_result(const char* error) { copied = error; }
+EM_JS(void, copy_browser_text, (const char* text), {
+    const value = UTF8ToString(text);
+    const reply = error => Module.ccall('phoenix_copy_result',null,['string'],[error]);
+    if (!navigator.clipboard || !window.isSecureContext) { reply('Clipboard access requires HTTPS or localhost. The invitation URL is shown above.'); return; }
+    navigator.clipboard.writeText(value).then(()=>reply(""),error=>reply('Could not copy the link: '+String(error)));
+});
 extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_import_file(const char* purpose, const char* name, const unsigned char* bytes, unsigned size) {
     if (size > 32*1024*1024) { imported = phoenix::ImportedFile{purpose,name,{},"File exceeds 32 MiB"}; return; }
     imported = phoenix::ImportedFile{purpose,name,phoenix::Bytes(bytes,bytes+size),{}};
@@ -33,4 +40,6 @@ namespace phoenix {
 void request_file(const std::string& purpose) { choose_file(purpose.c_str()); }
 std::optional<ImportedFile> take_imported_file() { auto result = std::move(imported); imported.reset(); return result; }
 void export_file(const std::string& filename, const Bytes& bytes) { download_file(filename.c_str(),bytes.data(),static_cast<unsigned>(bytes.size())); }
+void copy_text(const std::string& text) { copied.reset(); copy_browser_text(text.c_str()); }
+std::optional<std::string> take_copy_result() { auto result=std::move(copied);copied.reset();return result; }
 }
