@@ -2,9 +2,11 @@
 
 A fresh rewrite of Project Phoenix, using the previous project as a design and implementation reference, in the Settled Dark setting.
 
-Start with the [source guide](docs/source-guide.md) and the [agreed setting direction](docs/settled-dark-direction.md).
+Start with the **[consolidated Game Design Document](docs/GDD.md)**. It defines the intended gameplay, crew responsibilities, Settled Dark setting, authoring behavior and validation scenarios for Phoenix V3, with coverage of all 216 reviewed catalogue entries and 76 architecture decisions.
 
-This repository currently contains planning references only. No runtime, engine choice, build system or V3 delivery plan has been selected. Historical implementation claims refer to Phoenix V2 and do not describe working V3 features.
+This repository contains the V3 design and historical references; it has no V3 runtime yet. Engine, implementation stack, build system and delivery sequence remain to be selected. Equipment tuning and player workload require prototyping and playtesting. Historical implementation claims refer to Phoenix V2 and do not describe working V3 features.
+
+The [source guide](docs/source-guide.md) explains the inputs; the [prior setting agreement](docs/settled-dark-direction.md) preserves the earlier pivot decisions. The consolidated GDD incorporates those decisions and the subsequent V3 consolidation choices. Historical snapshots remain unchanged.
 
 ## Reference material
 
