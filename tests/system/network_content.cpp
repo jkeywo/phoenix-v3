@@ -1,0 +1,58 @@
+#include <phoenix/wire.hpp>
+#include <iostream>
+#include <stdexcept>
+using namespace phoenix;
+void require(bool value,const char* message) { if (!value) throw std::runtime_error(message); }
+int main() {
+    try {
+        const std::string key(64,'a');
+        auto encoded=encode_packet({"synthetic","a","b","command",{{"value",42}}},key);
+        // Independent Node crypto HMAC-SHA256 result for this canonical synthetic envelope.
+        require(Json::parse(encoded).at("mac")=="3408c0a866d65aa27b4a3b4032463fcaa6a83760e494e19deb5643ccd1e973ba","Wire authentication must match an independent HMAC implementation");
+        require(decode_packet(encoded,"a","b","synthetic",key).has_value(),"Correct session/route/key must admit the shared C++ packet");
+        auto altered=Json::parse(encoded); altered["body"]["value"]=99;
+        require(!decode_packet(altered.dump(),"a","b","synthetic",key) && !decode_packet(encoded,"outsider","b","synthetic",key) && !decode_packet(encoded,"a","b","other-session",key),"Forged payload, sender or session must be refused");
+        auto unsigned_command=encode_packet({"synthetic","a","b","command",{{"value",42}}},"");
+        require(!decode_packet(unsigned_command,"a","b","synthetic",""),"A URL/discovery hint must not become an unsigned operating command");
+        auto hello=encode_packet({"synthetic","a","b","hello",{{"role","client"}}},"");
+        require(decode_packet(hello,"a","b","synthetic","").has_value(),"Bounded unsigned hello may request admission without granting it");
+        auto token=random_token(); require(token.size()==64 && token.find_first_not_of("0123456789abcdef")==std::string::npos && token!=random_token(),"Platform must supply independent cryptographic session tokens");
+        Pack base; base.manifest={{"schema",1},{"id","test-core"}};
+        base.files["definitions.json"]=read_file(std::string(PHOENIX_FIXTURE_DIR)+"/definitions.json");
+        base.files["assets/pixel.png"]=read_file(std::string(PHOENIX_FIXTURE_DIR)+"/pixel.png");
+        // Incompressible synthetic data forces several bounded transfer chunks.
+        Bytes bulk(65537); std::uint32_t random=1234567;
+        for (auto& byte : bulk) { random^=random<<13; random^=random>>17; random^=random<<5; byte=static_cast<std::uint8_t>(random); }
+        base.files["notes/synthetic.bin"]=bulk;
+        Pack mod; mod.manifest={{"schema",1},{"id","test-addon"},{"dependencies",Json::array({"test-core"})}};
+        mod.files["definitions.json"]=json_bytes(Json{{"schema",1},{"entities",Json::array({{{"id","test.additional"},{"extends","test.ship"},{"render",{{"scale",3}}}}})}});
+        const std::vector<Bytes> originals{write_pack(base),write_pack(mod)};
+        PackSource source(originals); PackTransfer receiver(source.offer());
+        require(!receiver.ready() && receiver.received_bytes()==0,"Content must not be ready before transfer and full ordered resolution");
+        auto first=receiver.requests(0,4); require(first.size()==4 && receiver.requests(1,4).empty(),"Sliding transfer window must bound outstanding chunk requests");
+        require(receiver.requests(2001,4).size()==4,"Timed-out requests must retry without abandoning content identity");
+        std::reverse(first.begin(),first.end());
+        for (const auto& request : first) {
+            auto chunk=source.chunk(request);
+            auto packet=encode_packet({"synthetic","a","b","pack-chunk",chunk},key);
+            auto admitted=decode_packet(packet,"a","b","synthetic",key);
+            require(admitted && receiver.accept(admitted->body),"Authenticated out-of-order chunks must pass through the real archive transfer path");
+            require(!receiver.accept(admitted->body),"Identical duplicate chunks must be idempotent");
+        }
+        for (unsigned round=0; !receiver.ready() && round<100; ++round) for (const auto& request : receiver.requests(2100+round*2001,4)) receiver.accept(source.chunk(request));
+        require(receiver.ready() && receiver.received_bytes()==receiver.total_bytes() && receiver.archives()==originals,"Transfer must preserve exact original archives and resolve before readiness");
+        require(receiver.catalog().entities.contains("test.additional"),"Transferred dependent definitions must resolve through production loaders");
+        std::map<std::string,Bytes> cache; for (const auto& bytes : originals) cache[sha256(bytes)]=bytes;
+        PackTransfer cached(source.offer(),cache); require(cached.ready() && cached.requests(0).empty(),"Verified cached archives must avoid redundant transfer");
+        auto broken_cache=cache; broken_cache.begin()->second[0]^=1; PackTransfer reload(source.offer(),broken_cache);
+        require(!reload.ready() && !reload.requests(0).empty(),"A corrupt cache hit must be re-fetched instead of trusted by filename");
+        auto bad_offer=source.offer(); bad_offer["packs"][0]["size"]=100000000;
+        bool refused=false; try { PackTransfer oversized(bad_offer); } catch (const std::exception&) { refused=true; }
+        require(refused,"Oversized offers must fail before allocating the advertised archive");
+        PackTransfer conflict(source.offer()); auto chunk=source.chunk({{"pack",0},{"offset",0}}); conflict.accept(chunk);
+        chunk["data"]=std::string(chunk.at("data").get<std::string>().size(),'A'); refused=false;
+        try { conflict.accept(chunk); } catch (const std::exception&) { refused=true; }
+        require(refused,"Conflicting repeats must not overwrite previously received archive bytes");
+        std::cout << "PASS authenticated C++ packets, bounded ordered pack transfer, retries, duplicate handling and verified cache use\n";
+    } catch (const std::exception& error) { std::cerr << "FAIL " << error.what() << '\n'; return 1; }
+}
