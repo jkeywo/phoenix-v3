@@ -31,19 +31,20 @@ void verify_tree(const Json &tree, const std::string &source)
 			const auto &key = field.key();
 			if (key == "ticks" || key == "next")
 				continue;
-			if (key == "radar_enabled" || key == "engine_enabled")
+			auto spec = operating_action(key);
+			if (!spec)
+				throw std::runtime_error(source + ": unsupported state output '" + key + "'");
+			if (spec->boolean)
 			{
 				if (!field.value().is_boolean())
 					throw std::runtime_error(source + ": " + key + " must be boolean");
 			}
-			else if (key == "speed_mm_s" || key == "heading_mdeg")
+			else
 			{
-				if (!field.value().is_number_integer() || field.value().get<std::int64_t>() < 0 ||
-				    field.value().get<std::int64_t>() > (key == "heading_mdeg" ? 359999 : 1000000000))
+				if (!field.value().is_number_integer() ||
+				    !operating_value_valid(*spec, field.value().get<std::int64_t>()))
 					throw std::runtime_error(source + ": invalid " + key);
 			}
-			else
-				throw std::runtime_error(source + ": unsupported state output '" + key + "'");
 		}
 	}
 }
@@ -64,10 +65,7 @@ TreeProgram compile_tree(const Json &definition)
 		{
 			if (field.key() == "ticks" || field.key() == "next")
 				continue;
-			auto action = field.key() == "speed_mm_s"       ? TreeAction::Speed
-			              : field.key() == "heading_mdeg"   ? TreeAction::Heading
-			              : field.key() == "engine_enabled" ? TreeAction::EngineEnabled
-			                                                : TreeAction::RadarEnabled;
+			auto action = operating_action(field.key())->action;
 			result.outputs.push_back({action, field.value().is_boolean() ? (field.value().get<bool>() ? 1 : 0)
 			                                                             : field.value().get<std::int64_t>()});
 		}
@@ -83,23 +81,21 @@ std::span<const TreeOutput> step_tree(const TreeProgram &program, TreeCursor &cu
 		cursor.state = program.initial;
 	const auto &node = program.nodes[cursor.state];
 	std::span<const TreeOutput> outputs;
-	if (!cursor.entered)
+	if (cursor.elapsed == 0)
 	{
 		outputs = std::span<const TreeOutput>(program.outputs).subspan(node.output_begin, node.output_count);
-		cursor.entered = true;
 	}
 	if (++cursor.elapsed >= node.ticks)
 	{
 		cursor.state = node.next;
 		cursor.elapsed = 0;
-		cursor.entered = false;
 	}
 	return outputs;
 }
 TreeState save_tree(const TreeProgram &program, const TreeCursor &cursor)
 {
 	return {cursor.state == TreeCursor::unset ? std::string{} : program.names[cursor.state], cursor.elapsed,
-	        cursor.entered};
+	        cursor.elapsed != 0};
 }
 TreeCursor load_tree(const TreeProgram &program, const TreeState &saved)
 {
@@ -113,7 +109,7 @@ TreeCursor load_tree(const TreeProgram &program, const TreeState &saved)
 		throw std::runtime_error("saved tree: invalid entry/elapsed combination");
 	for (std::size_t index = 0; index < program.nodes.size(); ++index)
 		if (program.names[index] == saved.state && saved.elapsed < program.nodes[index].ticks)
-			return {index, saved.elapsed, saved.entered};
+			return {index, saved.elapsed};
 	throw std::runtime_error("saved tree: invalid continuation");
 }
 } // namespace phoenix

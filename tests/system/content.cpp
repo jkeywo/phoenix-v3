@@ -33,22 +33,47 @@ int main()
 {
 	try
 	{
-		Pack base;
+		PackDraft base;
 		base.manifest = {{"schema", 1}, {"id", "test-core"}};
 		base.files["definitions.json"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json");
 		base.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
 		auto bytes = write_pack(base);
 		auto loaded = read_pack(bytes);
-		require(loaded.hash == sha256(bytes), "pack identity must be the SHA256 of transferred archive bytes");
+		require(loaded.hash() == sha256(bytes), "pack identity must be the SHA256 of transferred archive bytes");
 		auto catalog = resolve_packs({loaded});
-		auto changed_after_load = loaded;
+		auto shared = loaded;
+		require(shared.archive_owner() == loaded.archive_owner(),
+		        "loaded pack copies must share immutable archive storage");
+		auto changed_after_load = loaded.draft();
 		changed_after_load.manifest["id"] = "different";
+		require(loaded.manifest().at("id") == "test-core" && loaded.archive() == bytes,
+		        "editing a draft must not change the loaded archive or decoded content");
+		auto named = loaded.draft();
+		const std::string longest_path = "notes/" + std::string(505, 'a');
+		named.files[longest_path] = {1};
+		require(read_pack(write_pack(named)).files().contains(longest_path),
+		        "the longest supported draft path must survive archive loading");
+		named.files[longest_path + "a"] = {1};
 		rejected(
 		    [&]
 		    {
-			    resolve_packs({changed_after_load});
+			    resolve_draft({}, named);
 		    },
-		    "modified since load");
+		    "path exceeds supported length");
+		rejected(
+		    [&]
+		    {
+			    write_pack(named);
+		    },
+		    "path exceeds supported length");
+		named = loaded.draft();
+		named.files["notes/directory/"] = {1};
+		rejected(
+		    [&]
+		    {
+			    resolve_draft({}, named);
+		    },
+		    "unsafe path");
 		require(catalog.entities.at("test.variant")["systems"].contains("engine"),
 		        "inheritance must resolve through the production loader");
 		require(catalog.entities.at("test.variant")["render"]["scale"] == 2,
@@ -57,7 +82,7 @@ int main()
 		defs["entities"][0]["systems"]["engine"]["max_speed_mm_s"] = 31000;
 		base.files["definitions.json"] = json_bytes(defs);
 		resolve_packs({read_pack(write_pack(base))});
-		Pack mod;
+		PackDraft mod;
 		mod.manifest = {
 		    {"schema", 1}, {"id", "test-mod"}, {"dependencies", {"test-core"}}, {"overrides", {"test.ship"}}};
 		Json replacement = defs["entities"][0];

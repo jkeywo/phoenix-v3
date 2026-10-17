@@ -4,30 +4,32 @@ Phoenix's first-party public interfaces are named C++20 modules. Import them by 
 
 ## Interfaces and dependencies
 
-| Modules                                              | Owning target            | Responsibility                                                                  |
-| ---------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------- |
-| `phoenix.input`, `phoenix.contracts`, `phoenix.data` | `phoenix_foundation`     | Console routing, permitted commands/observations, and shared JSON/byte aliases. |
-| `phoenix.content`                                    | `phoenix_content`        | Packs, catalog verification, behavior trees and Workshop documents.             |
-| `phoenix.simulation`                                 | `phoenix_simulation`     | Authoritative world; Flecs and collision helpers remain internal.               |
-| `phoenix.transport`                                  | `phoenix_transport`      | Opaque native/browser peer links.                                               |
-| `phoenix.wire`                                       | `phoenix_wire`           | Authenticated packets, secure tokens and bounded content transfer.              |
-| `phoenix.blobs`                                      | `phoenix_blobs`          | Asynchronous persistent byte storage.                                           |
-| `phoenix.replication`                                | `phoenix_replication`    | Transport-independent consensus actor and durable transactions.                 |
-| `phoenix.persistence`                                | `phoenix_persistence`    | Native/browser peer journals.                                                   |
-| `phoenix.fleet`                                      | `phoenix_fleet`          | Authenticated fixed-roster driver, without simulation.                          |
-| `phoenix.session.api`                                | `phoenix_session_api`    | Shared session interface and setup/network options, without authority.          |
-| `phoenix.session.local`                              | `phoenix_session`        | Local session factory and server-only `HostAccess`.                             |
-| `phoenix.network.host`                               | `phoenix_network_host`   | Network host factory and implementation.                                        |
-| `phoenix.network.client`                             | `phoenix_network_client` | Network client/GM factory and implementation.                                   |
-| `phoenix.fleet_setup`                                | `phoenix_fleet_setup`    | Server-only prepared fleets, bundles and durable runtime.                       |
-| `phoenix.application`, `phoenix.navigation`          | `phoenix_core`           | Application state, translation and permitted navigation.                        |
-| `phoenix.presentation`                               | `phoenix_presentation`   | Screens and native/browser accessibility adapters.                              |
-| `phoenix.tools`                                      | `phoenix_tools`          | Workshop/GM tool UI.                                                            |
-| `phoenix.files`                                      | `phoenix_files`          | Native/browser user file and clipboard services.                                |
+| Modules                                              | Owning target            | Responsibility                                                                                |
+| ---------------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------- |
+| `phoenix.input`, `phoenix.contracts`, `phoenix.data` | `phoenix_foundation`     | Console routing, shared command rules, JSON/bytes, hashes, bounded file IO and secure tokens. |
+| `phoenix.content`                                    | `phoenix_content`        | Packs, catalog verification, behavior trees and Workshop documents.                           |
+| `phoenix.simulation`                                 | `phoenix_simulation`     | Authoritative world; Flecs and collision helpers remain internal.                             |
+| `phoenix.transport`                                  | `phoenix_transport`      | Opaque native/browser peer links.                                                             |
+| `phoenix.wire`                                       | `phoenix_wire`           | Authenticated packets and bounded content transfer.                                           |
+| `phoenix.blobs`                                      | `phoenix_blobs`          | Asynchronous persistent byte storage.                                                         |
+| `phoenix.replication`                                | `phoenix_replication`    | Transport-independent consensus actor and durable transactions.                               |
+| `phoenix.persistence`                                | `phoenix_persistence`    | Native/browser peer journals and their shared consensus durability coordinator.               |
+| `phoenix.fleet`                                      | `phoenix_fleet`          | Authenticated fixed-roster driver, without simulation.                                        |
+| `phoenix.session.api`                                | `phoenix_session_api`    | Shared session interface and setup/network options, without authority.                        |
+| `phoenix.session.local`                              | `phoenix_session`        | Local session factory and server-only `HostAccess`.                                           |
+| `phoenix.network.host`                               | `phoenix_network_host`   | Network host factory and implementation.                                                      |
+| `phoenix.network.client`                             | `phoenix_network_client` | Network client/GM factory and implementation.                                                 |
+| `phoenix.fleet_setup`                                | `phoenix_fleet_setup`    | Server-only prepared fleets, bundles and durable runtime.                                     |
+| `phoenix.application`, `phoenix.navigation`          | `phoenix_core`           | Application state, translation and permitted navigation.                                      |
+| `phoenix.presentation`                               | `phoenix_presentation`   | Screens and native/browser accessibility adapters.                                            |
+| `phoenix.tools`                                      | `phoenix_tools`          | Workshop/GM tool UI.                                                                          |
+| `phoenix.files`                                      | `phoenix_files`          | Native/browser user file and clipboard services.                                              |
 
 `SessionPort` has one declaration owner: `phoenix.session.api`. Application state imports that interface instead of redeclaring the class. Session factories belong to their implementations, so importing the shared interface does not offer authoritative factories. `HostAccess` is exported only by the server-side local-session module for use by host/fleet composition.
 
 Content, transport and replication depend on the foundation rather than application state. Application depends on the shared session API. This keeps the import/link graph acyclic. CMake rejects simulation, Flecs, local-session, network-host and fleet-setup dependencies in shared frontend layers; client and Workshop executable guards remain in place. Simulation continues to exclude graphics and tools.
+
+Blob storage depends only on the foundation; journal storage depends on replication. Neither needs the content/archive stack for hashing or file IO. Native and browser transports share a private C++ policy for discovery, signalling envelopes and route selection. Platform adapters retain socket and WebRTC mechanics. `DurableConsensus` owns journal recovery and write acknowledgements; host/fleet drivers retain their application-specific commit handling.
 
 ## Authoring module code
 

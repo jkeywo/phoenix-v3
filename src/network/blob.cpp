@@ -6,19 +6,28 @@ module;
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
 module phoenix.blobs;
-import phoenix.content;
 #include "blob_internal.hpp"
+
+namespace phoenix
+{
+bool BlobStore::write(std::uint64_t request, const std::string &key, std::shared_ptr<const Bytes> bytes)
+{
+	if (!bytes)
+		throw std::invalid_argument("Persistent blob payload is missing");
+	return write(request, key, *bytes);
+}
+} // namespace phoenix
 
 namespace phoenix::blobs
 {
 void verify_key(const std::string &key)
 {
-	if (key.empty() || key.size() > 128 ||
-	    key.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-") != std::string::npos)
+	if (!valid_identifier(key))
 		throw std::runtime_error("Invalid persistent blob key");
 }
 Bytes encode(const std::string &key, const Bytes &bytes)

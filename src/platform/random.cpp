@@ -7,15 +7,10 @@ module;
 #include <windows.h>
 #include <bcrypt.h>
 #endif
-#include <cstdint>
-#include <map>
-#include <nlohmann/json.hpp>
-#include <optional>
-#include <span>
 #include <string>
-#include <vector>
+#include <stdexcept>
 
-module phoenix.wire;
+module phoenix.data;
 
 #ifdef __EMSCRIPTEN__
 // clang-format off: embedded JavaScript must retain its operators.

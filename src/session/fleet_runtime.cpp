@@ -85,7 +85,7 @@ struct FleetRuntime::Impl
 		    value.at("profile") != options.profile || !value.at("journal_expected").is_boolean())
 			throw std::runtime_error("Stored server identity belongs to another profile or route");
 		const std::string bundle = value.at("bundle");
-		if (bundle.size() != 64 || bundle.find_first_not_of("0123456789abcdef") != std::string::npos)
+		if (!valid_hex_token(bundle))
 			throw std::runtime_error("Stored server bundle identity is invalid");
 	}
 	void identify()

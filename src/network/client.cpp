@@ -33,7 +33,7 @@ class NetworkClient final : public SessionPort
 	{
 		JobType type;
 		std::string key, offer;
-		Bytes bytes;
+		std::shared_ptr<const Bytes> bytes;
 		std::uint64_t version = 0, request = 0;
 	};
 	NetworkOptions options_;
@@ -53,6 +53,7 @@ class NetworkClient final : public SessionPort
 	std::uint64_t now_ = 0, last_hello_ = 0, last_heartbeat_ = 0, last_state_ = 0, tick_ = 0, sequence_ = 0,
 	              job_id_ = 0, profile_version_ = 0;
 	unsigned cache_pending_ = 0;
+	std::uint64_t generation_ = 0;
 	std::chrono::steady_clock::time_point last_poll_ = std::chrono::steady_clock::now();
 	std::string role() const
 	{
@@ -69,7 +70,8 @@ class NetworkClient final : public SessionPort
 		                            {"epoch", epoch_},
 		                            {"nonce", nonce_},
 		                            {"role", role()}});
-		jobs_.push_front({JobType::profile, profile_key_, {}, std::move(data), ++profile_version_});
+		jobs_.push_front(
+		    {JobType::profile, profile_key_, {}, std::make_shared<const Bytes>(std::move(data)), ++profile_version_});
 	}
 	void connect()
 	{
@@ -100,7 +102,7 @@ class NetworkClient final : public SessionPort
 	{
 		if (cache_pending_ || offer_.is_null())
 			return;
-		transfer_ = std::make_unique<PackTransfer>(offer_, cache_);
+		transfer_ = std::make_unique<PackTransfer>(offer_, std::move(cache_));
 		cache_.clear();
 		if (transfer_->ready())
 			content_ready();
@@ -109,8 +111,8 @@ class NetworkClient final : public SessionPort
 	{
 		if (!transfer_ || !transfer_->ready())
 			return;
-		for (const auto &bytes : transfer_->archives())
-			jobs_.push_back({JobType::cache_write, sha256(bytes), offer_id_, bytes});
+		for (const auto &pack : transfer_->uncached_packs())
+			jobs_.push_back({JobType::cache_write, pack.hash(), offer_id_, pack.archive_owner()});
 		message_ = options_.inspector ? "Verified content; waiting for host GM approval"
 		                              : "Verified content; waiting for station selection";
 	}
@@ -144,7 +146,7 @@ class NetworkClient final : public SessionPort
 				options_.link.self = self;
 				key_ = profile.at("key");
 				epoch_ = profile.at("epoch");
-				if (!key_.empty() && !network::token(key_))
+				if (!key_.empty() && !valid_hex_token(key_))
 					throw std::runtime_error("Stored client credential is invalid");
 				recovering_ = !key_.empty();
 				if (key_.empty())
@@ -187,10 +189,12 @@ class NetworkClient final : public SessionPort
 				if (lobby->body.at("nonce") != nonce_ || lobby->body.at("role") != role())
 					return;
 				const std::string key = lobby->body.at("key"), epoch = lobby->body.at("epoch");
-				if (!network::token(key) || !network::token(epoch))
+				if (!valid_hex_token(key) || !valid_hex_token(epoch))
 					throw std::runtime_error("Invalid welcome credential/epoch");
 				if (key_ != key || epoch_ != epoch)
 				{
+					if (epoch_ != epoch)
+						++generation_;
 					key_ = key;
 					epoch_ = epoch;
 					observation_.reset();
@@ -232,7 +236,7 @@ class NetworkClient final : public SessionPort
 		if (packet->type == "pack-offer")
 		{
 			const std::string token = body.at("offer");
-			if (!network::token(token))
+			if (!valid_hex_token(token))
 				return;
 			if (token == offer_id_)
 				return;
@@ -243,7 +247,7 @@ class NetworkClient final : public SessionPort
 			cache_.clear();
 			cache_pending_ = 0;
 			// Validate the bounded offer before requesting cached records or allocating from it.
-			PackTransfer validated(offer_);
+			PackTransfer::validate_offer(offer_);
 			for (const auto &pack : offer_.at("packs"))
 			{
 				jobs_.push_back({JobType::cache_read, pack.at("hash"), offer_id_});
@@ -284,7 +288,7 @@ class NetworkClient final : public SessionPort
 			{
 				auto view = network::read_observation(body.at("observation"), transfer_->catalog());
 				const std::string lease = body.at("lease");
-				if (!network::token(lease))
+				if (!valid_hex_token(lease))
 					return;
 				if (lease_ != lease)
 				{
@@ -380,6 +384,10 @@ public:
 	std::uint64_t ticks() const override
 	{
 		return tick_;
+	}
+	std::uint64_t generation() const override
+	{
+		return generation_;
 	}
 	bool command(const OperatingCommand &command) override
 	{

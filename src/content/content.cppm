@@ -1,6 +1,7 @@
 module;
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include <span>
 #include <string>
@@ -8,20 +9,34 @@ module;
 
 export module phoenix.content;
 export import phoenix.data;
+export import phoenix.contracts;
 
 export namespace phoenix
 {
 struct Catalog;
-struct Pack
+struct PackDraft
 {
 	Json manifest;
 	std::map<std::string, Bytes> files;
-	std::string hash;
+};
+// Loaded packs share immutable decoded content and the exact original archive.
+// Editing requires a separate draft; a draft has no transferable archive identity.
+class Pack
+{
+public:
+	const Json &manifest() const;
+	const std::map<std::string, Bytes> &files() const;
+	const std::string &hash() const;
+	const Bytes &archive() const;
+	std::shared_ptr<const Bytes> archive_owner() const;
+	PackDraft draft() const;
 
 private:
-	Bytes archive_;
+	struct Storage;
+	std::shared_ptr<const Storage> storage_;
+	explicit Pack(std::shared_ptr<const Storage> storage);
 	friend Pack read_pack(std::span<const std::uint8_t> bytes);
-	friend Catalog resolve_packs(const std::vector<Pack> &ordered);
+	friend Pack read_pack(Bytes &&bytes);
 };
 struct Catalog
 {
@@ -32,12 +47,19 @@ struct Catalog
 // Throws an actionable exception. ZIP is read into bounded memory, never
 // extracted to caller-controlled paths on disk.
 Pack read_pack(std::span<const std::uint8_t> bytes);
-Bytes write_pack(const Pack &pack);
+Pack read_pack(Bytes &&bytes);
+Bytes write_pack(const PackDraft &pack);
+void verify_pack_draft(const PackDraft &pack);
 Catalog resolve_packs(const std::vector<Pack> &ordered);
+// Authoring preview only: the final draft is deliberately absent from archive identities.
+Catalog resolve_draft(const std::vector<Pack> &libraries, const PackDraft &draft);
 void verify_catalog(const Catalog &catalog);
-Bytes read_file(const std::string &path);
-void write_file(const std::string &path, std::span<const std::uint8_t> bytes);
-std::string sha256(std::span<const std::uint8_t> bytes);
+struct WidgetBinding
+{
+	const char *kind;
+	const char *binding;
+};
+std::span<const WidgetBinding> widget_bindings();
 Bytes json_bytes(const Json &json);
 Json parse_json(std::span<const std::uint8_t> bytes, const std::string &source);
 } // namespace phoenix
@@ -53,13 +75,7 @@ struct TreeState
 // Each state emits bounded operating requests on entry, waits a declared tick
 // duration and follows a named transition. Requests still require admission.
 void verify_tree(const Json &definition, const std::string &source);
-enum class TreeAction
-{
-	Speed,
-	Heading,
-	EngineEnabled,
-	RadarEnabled
-};
+using TreeAction = OperatingAction;
 struct TreeOutput
 {
 	TreeAction action;
@@ -83,7 +99,6 @@ struct TreeCursor
 	static inline constexpr std::size_t unset = static_cast<std::size_t>(-1);
 	std::size_t state = unset;
 	std::uint64_t elapsed = 0;
-	bool entered = false;
 };
 TreeProgram compile_tree(const Json &definition);
 std::span<const TreeOutput> step_tree(const TreeProgram &program, TreeCursor &cursor);
@@ -132,7 +147,7 @@ public:
 	{
 		return pack_.manifest;
 	}
-	const Pack &pack() const
+	const PackDraft &pack() const
 	{
 		return pack_;
 	}
@@ -142,7 +157,7 @@ public:
 	}
 
 private:
-	Pack pack_;
+	PackDraft pack_;
 	Json definitions_;
 	std::size_t map_index_ = 0;
 	std::vector<Pack> libraries_;

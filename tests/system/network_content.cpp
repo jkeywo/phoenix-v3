@@ -2,6 +2,7 @@
 #include <stdexcept>
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <span>
@@ -43,7 +44,7 @@ int main()
 		require(token.size() == 64 && token.find_first_not_of("0123456789abcdef") == std::string::npos &&
 		            token != random_token(),
 		        "Platform must supply independent cryptographic session tokens");
-		Pack base;
+		PackDraft base;
 		base.manifest = {{"schema", 1}, {"id", "test-core"}};
 		base.files["definitions.json"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json");
 		base.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
@@ -58,7 +59,7 @@ int main()
 			byte = static_cast<std::uint8_t>(random);
 		}
 		base.files["notes/synthetic.bin"] = bulk;
-		Pack mod;
+		PackDraft mod;
 		mod.manifest = {{"schema", 1}, {"id", "test-addon"}, {"dependencies", Json::array({"test-core"})}};
 		mod.files["definitions.json"] = json_bytes(
 		    Json{{"schema", 1},
@@ -88,7 +89,8 @@ int main()
 			for (const auto &request : receiver.requests(2100 + round * 2001, 4))
 				receiver.accept(source.chunk(request));
 		require(receiver.ready() && receiver.received_bytes() == receiver.total_bytes() &&
-		            receiver.archives() == originals,
+		            receiver.packs().size() == originals.size() && receiver.packs()[0].archive() == originals[0] &&
+		            receiver.packs()[1].archive() == originals[1],
 		        "Transfer must preserve exact original archives and resolve before readiness");
 		require(receiver.catalog().entities.contains("test.additional"),
 		        "Transferred dependent definitions must resolve through production loaders");
@@ -97,17 +99,28 @@ int main()
 			cache[sha256(bytes)] = bytes;
 		PackTransfer cached(source.offer(), cache);
 		require(cached.ready() && cached.requests(0).empty(), "Verified cached archives must avoid redundant transfer");
+		require(cached.uncached_packs().empty(), "Verified persistent cache hits must not be rewritten");
+		require(receiver.uncached_packs().size() == originals.size(),
+		        "Downloaded archives must be available for persistent caching");
+		auto owner = receiver.uncached_packs()[0].archive_owner();
+		require(owner.get() == &receiver.packs()[0].archive() && *owner == originals[0],
+		        "Queued cache writes must retain immutable verified bytes without another archive copy");
 		auto broken_cache = cache;
 		broken_cache.begin()->second[0] ^= 1;
 		PackTransfer reload(source.offer(), broken_cache);
 		require(!reload.ready() && !reload.requests(0).empty(),
 		        "A corrupt cache hit must be re-fetched instead of trusted by filename");
+		for (unsigned round = 0; !reload.ready() && round < 100; ++round)
+			for (const auto &request : reload.requests(round * 2001, 4))
+				reload.accept(source.chunk(request));
+		require(reload.ready() && reload.uncached_packs().size() == 1,
+		        "Only repaired cache content must be scheduled for persistence");
 		auto bad_offer = source.offer();
 		bad_offer["packs"][0]["size"] = 100000000;
 		bool refused = false;
 		try
 		{
-			PackTransfer oversized(bad_offer);
+			PackTransfer::validate_offer(bad_offer);
 		}
 		catch (const std::exception &)
 		{

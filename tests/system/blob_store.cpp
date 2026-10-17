@@ -51,7 +51,7 @@ int main()
 		require(store->read(1, "missing"), "Missing cache lookup must be accepted");
 		auto missing = wait(*store);
 		require(!missing.bytes && missing.error.empty(), "A cache miss must differ from storage corruption");
-		Pack pack;
+		PackDraft pack;
 		pack.manifest = {{"schema", 1}, {"id", "test-core"}};
 		pack.files["definitions.json"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json");
 		pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
@@ -65,9 +65,21 @@ int main()
 		    json_bytes(Json{{"schema", 1}, {"id", "synthetic-peer"}, {"credential", std::string(64, 'a')}});
 		require(store->write(4, "profile.synthetic", profile) && wait(*store).error.empty(),
 		        "Synthetic session profile must persist through the same platform store");
+		// Exercise the public payload bound through the real record encoder and
+		// native file reader: the on-disk integrity header adds bytes to this size.
+		auto maximum = std::make_shared<const Bytes>(32 * 1024 * 1024, 0xa5);
+		require(store->write(8, "maximum.synthetic", maximum) && wait(*store).error.empty(),
+		        "A maximum-size blob payload must be accepted and durably stored");
 		store.reset();
 		store = open_blob_store(root.string());
 		require(wait(*store).error.empty(), "Persistent cache must reopen");
+		require(store->read(9, "maximum.synthetic"), "Maximum-size blob lookup must be accepted");
+		{
+			auto largest = wait(*store);
+			require(largest.error.empty() && largest.bytes && *largest.bytes == *maximum,
+			        "Maximum-size payload plus its integrity header must survive reopening");
+		}
+		maximum.reset();
 		require(store->read(5, key), "Reopened cache lookup must be accepted");
 		auto loaded = wait(*store);
 		if (!loaded.error.empty())
@@ -91,7 +103,8 @@ int main()
 		require(!wait(*store).error.empty(), "A corrupt stored pack must be refused rather than made ready");
 		store.reset();
 		clean();
-		std::cout << "PASS persistent exact pack cache, profile round trip, backpressure and corrupt-record refusal\n";
+		std::cout << "PASS persistent exact pack cache, maximum payload, profile round trip, backpressure and "
+		             "corrupt-record refusal\n";
 	}
 	catch (const std::exception &error)
 	{

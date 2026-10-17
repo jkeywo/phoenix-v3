@@ -51,10 +51,6 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 		throw std::runtime_error("Invalid projected operating request");
 	return result;
 }
-static inline bool token(const std::string &text)
-{
-	return text.size() == 64 && text.find_first_not_of("0123456789abcdef") == std::string::npos;
-}
 static inline std::uint64_t counter(const Json &value)
 {
 	if (!value.is_number_integer() || (!value.is_number_unsigned() && value.get<std::int64_t>() < 0))

@@ -77,7 +77,15 @@ void inherit(std::map<std::string, Json> &definitions, const std::string &kind)
 		visit(id);
 }
 } // namespace
-Catalog resolve_packs(const std::vector<Pack> &ordered)
+namespace
+{
+struct PackView
+{
+	const Json &manifest;
+	const std::map<std::string, Bytes> &files;
+	std::string hash;
+};
+Catalog resolve(const std::vector<PackView> &ordered)
 {
 	Catalog result;
 	std::set<std::string> loaded, global_ids;
@@ -86,16 +94,6 @@ Catalog resolve_packs(const std::vector<Pack> &ordered)
 		const auto format = pack.manifest.value("format", std::string{});
 		if (format == "phoenix-runtime-save" || format == "phoenix-fleet-setup")
 			invalid("pack", "session/setup containers are not gameplay packs; use their dedicated loader");
-		std::string archive_hash;
-		if (!pack.archive_.empty())
-		{
-			auto original = read_pack(pack.archive_);
-			if (original.files != pack.files || original.manifest != pack.manifest)
-				invalid("pack", "modified since load; export and reload before selecting for play");
-			archive_hash = original.hash;
-		}
-		else
-			archive_hash = sha256(write_pack(pack));
 		auto id = text(pack.manifest, "id", "manifest");
 		if (!loaded.insert(id).second)
 			invalid(id, "duplicate pack id");
@@ -141,7 +139,8 @@ Catalog resolve_packs(const std::vector<Pack> &ordered)
 		for (const auto &[path, bytes] : pack.files)
 			if (path.starts_with("assets/"))
 				result.assets[id + ":" + path] = bytes;
-		result.ordered_packs.emplace_back(id, archive_hash);
+		if (!pack.hash.empty())
+			result.ordered_packs.emplace_back(id, pack.hash);
 	}
 	inherit(result.entities, "entities");
 	inherit(result.maps, "maps");
@@ -150,8 +149,34 @@ Catalog resolve_packs(const std::vector<Pack> &ordered)
 	verify_catalog(result);
 	return result;
 }
+} // namespace
+Catalog resolve_packs(const std::vector<Pack> &ordered)
+{
+	std::vector<PackView> views;
+	for (const auto &pack : ordered)
+		views.push_back({pack.manifest(), pack.files(), pack.hash()});
+	return resolve(views);
+}
+Catalog resolve_draft(const std::vector<Pack> &libraries, const PackDraft &draft)
+{
+	verify_pack_draft(draft);
+	std::vector<PackView> views;
+	for (const auto &pack : libraries)
+		views.push_back({pack.manifest(), pack.files(), pack.hash()});
+	views.push_back({draft.manifest, draft.files, {}});
+	return resolve(views);
+}
+std::span<const WidgetBinding> widget_bindings()
+{
+	static constexpr WidgetBinding bindings[] = {{"radar", "radar.contacts"},
+	                                             {"throttle", "engine.desired_speed"},
+	                                             {"heading", "steering.desired_heading"},
+	                                             {"status", "ship.status"}};
+	return bindings;
+}
 void verify_catalog(const Catalog &catalog)
 {
+	std::set<std::string> verified_images;
 	for (const auto &[id, tree] : catalog.trees)
 		verify_tree(tree, "trees." + id);
 	for (const auto &[id, entity] : catalog.entities)
@@ -174,6 +199,8 @@ void verify_catalog(const Catalog &catalog)
 		{
 			if (!asset.is_string() || !catalog.assets.contains(asset.get<std::string>()))
 				invalid(path + ".render.images", "unresolved image reference");
+			if (!verified_images.insert(asset.get<std::string>()).second)
+				continue;
 			const auto &bytes = catalog.assets.at(asset.get<std::string>());
 			static const std::uint8_t signature[] = {137, 80, 78, 71, 13, 10, 26, 10};
 			if (bytes.size() < 24 || !std::equal(std::begin(signature), std::end(signature), bytes.begin()))
@@ -230,19 +257,30 @@ void verify_catalog(const Catalog &catalog)
 		    (!entity["controller"].is_string() || !catalog.trees.contains(entity["controller"].get<std::string>())))
 			invalid(path + ".controller", "unresolved state tree");
 		if (entity.contains("controller"))
+		{
+			const auto &systems = entity.at("systems");
+			OperatingCapabilities capabilities;
+			if (systems.contains("engine"))
+				capabilities.engine_max_speed = systems.at("engine").at("max_speed_mm_s").get<std::int64_t>();
+			capabilities.steering = systems.contains("steering");
+			capabilities.radar = systems.contains("radar");
 			for (const auto &state : catalog.trees.at(entity["controller"].get<std::string>()).at("states"))
 			{
-				const auto &systems = entity.at("systems");
-				if ((state.contains("speed_mm_s") || state.contains("engine_enabled")) && !systems.contains("engine"))
-					invalid(path + ".controller", "engine output requires an engine");
-				if (state.contains("speed_mm_s") && state["speed_mm_s"].get<std::int64_t>() >
-				                                        systems.at("engine").at("max_speed_mm_s").get<std::int64_t>())
-					invalid(path + ".controller", "speed output exceeds the engine capability");
-				if (state.contains("heading_mdeg") && !systems.contains("steering"))
-					invalid(path + ".controller", "heading output requires steering");
-				if (state.contains("radar_enabled") && !systems.contains("radar"))
-					invalid(path + ".controller", "radar output requires radar");
+				for (const auto &output : operating_actions)
+				{
+					const std::string name(output.name);
+					if (!state.contains(name))
+						continue;
+					if (!capabilities.contains(output.system))
+						invalid(path + ".controller",
+						        name + " output requires " + std::string(operating_system_name(output.system)));
+					const auto value = output.boolean ? static_cast<std::int64_t>(state[name].get<bool>())
+					                                  : state[name].get<std::int64_t>();
+					if (!operating_permitted(output.action, value, capabilities))
+						invalid(path + ".controller", "speed output exceeds the engine capability");
+				}
 			}
+		}
 	}
 	for (const auto &[id, console] : catalog.consoles)
 	{
@@ -257,11 +295,12 @@ void verify_catalog(const Catalog &catalog)
 				invalid(path + "." + widget_id, "duplicate widget id");
 			auto kind = text(widget, "kind", path + "." + widget_id);
 			auto binding = text(widget, "binding", path + "." + widget_id);
-			const std::map<std::string, std::string> bindings{{"radar", "radar.contacts"},
-			                                                  {"throttle", "engine.desired_speed"},
-			                                                  {"heading", "steering.desired_heading"},
-			                                                  {"status", "ship.status"}};
-			if (!bindings.contains(kind) || binding != bindings.at(kind))
+			const auto bindings = widget_bindings();
+			if (std::none_of(bindings.begin(), bindings.end(),
+			                 [&](const auto &entry)
+			                 {
+				                 return kind == entry.kind && binding == entry.binding;
+			                 }))
 				invalid(path + "." + widget_id, "unsupported widget/binding combination");
 			text(widget, "label", path + "." + widget_id);
 			auto x = integer(widget, "x", path, 0, 1000), y = integer(widget, "y", path, 0, 1000);

@@ -31,7 +31,7 @@ struct Cluster
 	Catalog content;
 	explicit Cluster(std::vector<std::string> peers) : roster(std::move(peers))
 	{
-		Pack pack;
+		PackDraft pack;
 		pack.manifest = {{"schema", 1}, {"id", "test-core"}};
 		pack.files["definitions.json"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json");
 		pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");

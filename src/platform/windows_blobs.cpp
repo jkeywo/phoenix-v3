@@ -10,11 +10,11 @@ module;
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
 module phoenix.blobs;
-import phoenix.wire;
 #include "../network/blob_internal.hpp"
 
 namespace phoenix
@@ -25,7 +25,7 @@ class WindowsBlobs final : public BlobStore
 {
 	std::filesystem::path root_;
 	std::future<BlobResult> pending_;
-	bool ready_ = false, failed_ = false;
+	bool ready_ = false;
 	std::filesystem::path path(const std::string &key) const
 	{
 		return root_ / (sha256(Bytes(key.begin(), key.end())) + ".blob");
@@ -53,7 +53,7 @@ public:
 	}
 	bool read(std::uint64_t request, const std::string &key) override
 	{
-		if (!ready_ || failed_ || pending_.valid())
+		if (!ready_ || pending_.valid())
 			return false;
 		blobs::verify_key(key);
 		auto file = path(key);
@@ -67,11 +67,10 @@ public:
 			                      {
 				                      if (!std::filesystem::exists(file))
 					                      return result;
-				                      if (std::filesystem::file_size(file) > blobs::max_bytes + 1024)
-					                      throw std::runtime_error("Persistent blob exceeds bounds");
 				                      const auto encoded = file.u8string();
 				                      result.bytes =
-				                          blobs::decode(key, read_file(std::string(encoded.begin(), encoded.end())));
+				                          blobs::decode(key, read_file(std::string(encoded.begin(), encoded.end()),
+				                                                       blobs::max_bytes + 1024));
 			                      }
 			                      catch (const std::exception &error)
 			                      {
@@ -83,10 +82,21 @@ public:
 	}
 	bool write(std::uint64_t request, const std::string &key, const Bytes &bytes) override
 	{
-		if (!ready_ || failed_ || pending_.valid())
+		if (!ready_ || pending_.valid())
 			return false;
 		blobs::verify_key(key);
 		if (bytes.size() > blobs::max_bytes)
+			throw std::runtime_error("Persistent blob exceeds bounds");
+		return write(request, key, std::make_shared<const Bytes>(bytes));
+	}
+	bool write(std::uint64_t request, const std::string &key, std::shared_ptr<const Bytes> bytes) override
+	{
+		if (!ready_ || pending_.valid())
+			return false;
+		if (!bytes)
+			throw std::invalid_argument("Persistent blob payload is missing");
+		blobs::verify_key(key);
+		if (bytes->size() > blobs::max_bytes)
 			throw std::runtime_error("Persistent blob exceeds bounds");
 		auto file = path(key), temporary = root_ / (random_token() + ".tmp");
 		pending_ = std::async(
@@ -99,7 +109,7 @@ public:
 			    HANDLE handle = INVALID_HANDLE_VALUE;
 			    try
 			    {
-				    auto encoded = blobs::encode(key, bytes);
+				    auto encoded = blobs::encode(key, *bytes);
 				    handle = CreateFileW(temporary.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW,
 				                         FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH, nullptr);
 				    if (handle == INVALID_HANDLE_VALUE)
@@ -132,10 +142,7 @@ public:
 			return {};
 		auto result = pending_.get();
 		if (result.opened)
-		{
 			ready_ = result.error.empty();
-			failed_ = !ready_;
-		}
 		return result;
 	}
 };

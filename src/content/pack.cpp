@@ -1,11 +1,8 @@
 module;
 #include <miniz.h>
-#include <picosha2.h>
-#include <fstream>
 #include <memory>
 #include <stdexcept>
 #include <set>
-#include <filesystem>
 #include <cstdint>
 #include <map>
 #include <nlohmann/json.hpp>
@@ -24,7 +21,10 @@ constexpr std::size_t max_file = 16 * 1024 * 1024;
 constexpr std::size_t max_total = 64 * 1024 * 1024;
 void path_check(const std::string &path)
 {
-	if (path.empty() || path.front() == '/' || path.find_first_of("\\:\0", 0, 3) != std::string::npos)
+	if (path.size() >= MZ_ZIP_MAX_ARCHIVE_FILENAME_SIZE)
+		throw std::runtime_error("pack: entry path exceeds supported length");
+	if (path.empty() || path.front() == '/' || path.back() == '/' ||
+	    path.find_first_of("\\:\0", 0, 3) != std::string::npos)
 		throw std::runtime_error("pack: unsafe path '" + path + "'");
 	std::size_t start = 0;
 	while (start < path.size())
@@ -62,9 +62,38 @@ void validate_manifest(const Json &manifest)
 	}
 }
 } // namespace
-std::string sha256(std::span<const std::uint8_t> bytes)
+struct Pack::Storage
 {
-	return picosha2::hash256_hex_string(bytes.begin(), bytes.end());
+	PackDraft content;
+	std::string hash;
+	Bytes archive;
+};
+Pack::Pack(std::shared_ptr<const Storage> storage) : storage_(std::move(storage))
+{
+}
+const Json &Pack::manifest() const
+{
+	return storage_->content.manifest;
+}
+const std::map<std::string, Bytes> &Pack::files() const
+{
+	return storage_->content.files;
+}
+const std::string &Pack::hash() const
+{
+	return storage_->hash;
+}
+const Bytes &Pack::archive() const
+{
+	return storage_->archive;
+}
+std::shared_ptr<const Bytes> Pack::archive_owner() const
+{
+	return {storage_, &storage_->archive};
+}
+PackDraft Pack::draft() const
+{
+	return storage_->content;
 }
 Bytes json_bytes(const Json &json)
 {
@@ -82,31 +111,15 @@ Json parse_json(std::span<const std::uint8_t> bytes, const std::string &source)
 		throw std::runtime_error(source + ": " + error.what());
 	}
 }
-Bytes read_file(const std::string &path)
-{
-	std::ifstream input(std::filesystem::path(std::u8string(path.begin(), path.end())),
-	                    std::ios::binary | std::ios::ate);
-	if (!input)
-		throw std::runtime_error("Cannot open '" + path + "'");
-	auto length = input.tellg();
-	if (length < 0 || length > max_archive)
-		throw std::runtime_error(path + ": file exceeds 32 MiB limit");
-	Bytes result(static_cast<std::size_t>(length));
-	input.seekg(0);
-	if (!input.read(reinterpret_cast<char *>(result.data()), static_cast<std::streamsize>(result.size())))
-		throw std::runtime_error(path + ": read failed");
-	return result;
-}
-void write_file(const std::string &path, std::span<const std::uint8_t> bytes)
-{
-	std::ofstream output(std::filesystem::path(std::u8string(path.begin(), path.end())),
-	                     std::ios::binary | std::ios::trunc);
-	if (!output ||
-	    !output.write(reinterpret_cast<const char *>(bytes.data()), static_cast<std::streamsize>(bytes.size())))
-		throw std::runtime_error(path + ": write failed");
-}
 Pack read_pack(std::span<const std::uint8_t> bytes)
 {
+	if (bytes.size() > max_archive)
+		throw std::runtime_error("pack: archive exceeds 32 MiB limit");
+	return read_pack(Bytes(bytes.begin(), bytes.end()));
+}
+Pack read_pack(Bytes &&archive)
+{
+	const std::span<const std::uint8_t> bytes(archive);
 	if (bytes.size() > max_archive)
 		throw std::runtime_error("pack: archive exceeds 32 MiB limit");
 	mz_zip_archive zip{};
@@ -120,9 +133,9 @@ Pack read_pack(std::span<const std::uint8_t> bytes)
 			mz_zip_reader_end(zip);
 		}
 	} end{&zip};
-	Pack result;
-	result.hash = sha256(bytes);
-	result.archive_.assign(bytes.begin(), bytes.end());
+	auto storage = std::make_shared<Pack::Storage>();
+	auto &result = storage->content;
+	storage->hash = sha256(bytes);
 	auto count = mz_zip_reader_get_num_files(&zip);
 	if (count > 1024)
 		throw std::runtime_error("pack: more than 1024 entries");
@@ -152,17 +165,32 @@ Pack read_pack(std::span<const std::uint8_t> bytes)
 		throw std::runtime_error("pack: missing manifest.json or definitions.json");
 	result.manifest = parse_json(result.files.at("manifest.json"), "manifest.json");
 	validate_manifest(result.manifest);
-	return result;
+	storage->archive = std::move(archive);
+	return Pack(std::move(storage));
 }
-Bytes write_pack(const Pack &pack)
+void verify_pack_draft(const PackDraft &pack)
 {
 	validate_manifest(pack.manifest);
-	auto files = pack.files;
-	files["manifest.json"] = json_bytes(pack.manifest);
-	if (!files.contains("definitions.json"))
+	if (!pack.files.contains("definitions.json"))
 		throw std::runtime_error("pack: missing definitions.json");
-	if (files.size() > 1024)
+	if (pack.files.size() + (pack.files.contains("manifest.json") ? 0 : 1) > 1024)
 		throw std::runtime_error("pack: more than 1024 entries");
+	std::size_t total = json_bytes(pack.manifest).size();
+	if (total > max_file)
+		throw std::runtime_error("manifest.json: oversized pack entry");
+	for (const auto &[path, bytes] : pack.files)
+	{
+		path_check(path);
+		if (path == "manifest.json")
+			continue;
+		if (bytes.size() > max_file || bytes.size() > max_total - total)
+			throw std::runtime_error(path + ": oversized pack entry");
+		total += bytes.size();
+	}
+}
+Bytes write_pack(const PackDraft &pack)
+{
+	verify_pack_draft(pack);
 	mz_zip_archive zip{};
 	if (!mz_zip_writer_init_heap(&zip, 0, 0))
 		throw std::runtime_error("pack: cannot initialise ZIP writer");
@@ -174,16 +202,26 @@ Bytes write_pack(const Pack &pack)
 			mz_zip_writer_end(zip);
 		}
 	} end{&zip};
-	std::size_t total = 0;
-	for (const auto &[path, bytes] : files)
+	auto add = [&](const std::string &path, const Bytes &bytes)
 	{
-		path_check(path);
-		if (bytes.size() > max_file || bytes.size() > max_total - total)
-			throw std::runtime_error(path + ": oversized pack entry");
-		total += bytes.size();
 		if (!mz_zip_writer_add_mem(&zip, path.c_str(), bytes.data(), bytes.size(), MZ_BEST_SPEED))
 			throw std::runtime_error(path + ": ZIP write failed");
+	};
+	// Preserve the original sorted entry order without copying every asset buffer.
+	const auto manifest = json_bytes(pack.manifest);
+	bool manifest_added = false;
+	for (const auto &[path, bytes] : pack.files)
+	{
+		if (!manifest_added && path >= "manifest.json")
+		{
+			add("manifest.json", manifest);
+			manifest_added = true;
+		}
+		if (path != "manifest.json")
+			add(path, bytes);
 	}
+	if (!manifest_added)
+		add("manifest.json", manifest);
 	void *output = nullptr;
 	std::size_t size = 0;
 	if (!mz_zip_writer_finalize_heap_archive(&zip, &output, &size))

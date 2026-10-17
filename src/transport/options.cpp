@@ -5,19 +5,14 @@ module;
 #include <vector>
 
 module phoenix.transport;
+import phoenix.data;
 
 namespace phoenix
 {
 void verify_link_options(const LinkOptions &options)
 {
-	const auto identity = [](const std::string &name)
-	{
-		return !name.empty() && name.size() <= 128 &&
-		       name.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-") ==
-		           std::string::npos;
-	};
 	const auto &url = options.url;
-	if (!identity(options.self) || !identity(options.room) || url.size() > 2048 ||
+	if (!valid_identifier(options.self) || !valid_identifier(options.room) || url.size() > 2048 ||
 	    url.find_first_of("\r\n\t ") != std::string::npos || url.find('\0') != std::string::npos)
 		throw std::runtime_error("Invalid transport identity or URL");
 	bool secure = url.rfind("wss://", 0) == 0, plain = url.rfind("ws://", 0) == 0;

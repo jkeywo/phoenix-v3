@@ -19,7 +19,7 @@ WorkshopDocument::WorkshopDocument()
 }
 void WorkshopDocument::reset()
 {
-	pack_ = Pack{};
+	pack_ = PackDraft{};
 	pack_.manifest = {{"schema", 1}, {"id", "workshop"}};
 	libraries_.clear();
 	library_catalog_ = Catalog{};
@@ -50,7 +50,7 @@ void WorkshopDocument::load_pack(std::span<const std::uint8_t> archive)
 	auto order = libraries_;
 	order.push_back(loaded);
 	auto resolved = resolve_packs(order);
-	auto definitions = parse_json(loaded.files.at("definitions.json"), "definitions.json");
+	auto definitions = parse_json(loaded.files().at("definitions.json"), "definitions.json");
 	for (auto kind : {"entities", "maps", "consoles", "trees"})
 		if (!definitions.contains(kind))
 			definitions[kind] = Json::array();
@@ -66,9 +66,7 @@ void WorkshopDocument::load_pack(std::span<const std::uint8_t> archive)
 	if (definitions["maps"].empty())
 		definitions["maps"].push_back(
 		    {{"id", "workshop.map"}, {"entities", Json::array()}, {"ship_slots", Json::array()}});
-	pack_ = Pack{};
-	pack_.manifest = loaded.manifest;
-	pack_.files = std::move(loaded.files);
+	pack_ = loaded.draft();
 	definitions_ = std::move(definitions);
 	map_index_ = 0;
 }
@@ -78,7 +76,7 @@ void WorkshopDocument::load_dependency(std::span<const std::uint8_t> archive)
 	auto order = libraries_;
 	order.push_back(library);
 	auto catalog = resolve_packs(order);
-	auto id = library.manifest.at("id").get<std::string>();
+	auto id = library.manifest().at("id").get<std::string>();
 	if (id == pack_.manifest.at("id").get<std::string>())
 		throw std::runtime_error("Rename the authored pack before loading a dependency with the same id");
 	libraries_ = std::move(order);
@@ -121,21 +119,19 @@ void WorkshopDocument::rename_pack(const std::string &id)
 }
 Catalog WorkshopDocument::verify() const
 {
-	Pack draft;
+	PackDraft draft;
 	draft.manifest = pack_.manifest;
 	draft.files = pack_.files;
 	draft.files["definitions.json"] = json_bytes(definitions_);
-	auto order = libraries_;
-	order.push_back(read_pack(write_pack(draft)));
-	return resolve_packs(order);
+	return resolve_draft(libraries_, draft);
 }
 Bytes WorkshopDocument::export_pack() const
 {
-	verify();
-	Pack draft;
+	PackDraft draft;
 	draft.manifest = pack_.manifest;
 	draft.files = pack_.files;
 	draft.files["definitions.json"] = json_bytes(definitions_);
+	resolve_draft(libraries_, draft);
 	return write_pack(draft);
 }
 void WorkshopDocument::load_map(std::span<const std::uint8_t> bytes)

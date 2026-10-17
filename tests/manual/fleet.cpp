@@ -145,7 +145,7 @@ int main(int argc, char **argv)
 		}
 		if (mismatch)
 			definitions["entities"][0]["systems"]["engine"]["max_speed_mm_s"] = 18000;
-		Pack pack;
+		PackDraft pack;
 		pack.manifest = {{"schema", 1}, {"id", "test-core"}};
 		pack.files["definitions.json"] = json_bytes(definitions);
 		pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");

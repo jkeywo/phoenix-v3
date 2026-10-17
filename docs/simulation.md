@@ -6,6 +6,8 @@ The simulation library owns Flecs components and advances explicit **20 Hz ticks
 
 `World::load` compiles verified equipment definitions into typed settings and state trees into flat node/output arrays. Runtime cursors use numeric indices; state names remain separate for save compatibility. No authored JSON lookup, string action dispatch or tree-output allocation occurs inside the simulation systems.
 
+The operating-action descriptors in `phoenix.contracts` own command names, value types, ranges and required capabilities. Authored tree validation/compilation and external-command admission use those same definitions; author diagnostics and console ownership checks remain at their respective boundaries. Runtime tree entry is derived from elapsed ticks, while schema-1 saves retain and validate the original `entered` field.
+
 Flecs stores separate stable identity, definition metadata, pose, motion and collider components. Only fitted entities receive engine, steering, radar and controller components. `Movable` selects finite-mass entities; `Claimed` excludes human-controlled entities from delegated work. Claim changes happen between ticks. The stable-ID map remains a command/save boundary index, rather than a simulation iteration source.
 
 Each tick applies the admitted typed command queue in submission order, then explicitly runs six Flecs systems:

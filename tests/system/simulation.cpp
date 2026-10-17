@@ -21,7 +21,7 @@ void require(bool value, const char *contract)
 }
 Catalog load(Json definitions)
 {
-	Pack pack;
+	PackDraft pack;
 	pack.manifest = {{"schema", 1}, {"id", "test-core"}};
 	pack.files["definitions.json"] = json_bytes(definitions);
 	pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
@@ -43,11 +43,16 @@ int main(int argc, char **)
 		Json trace = Json::array();
 		World engine;
 		engine.load(catalog, "test.map");
+		require(engine.can_claim(101, 1) && engine.can_claim(102, 1) && !engine.observe(101),
+		        "checking console eligibility must not acquire ownership");
 		require(engine.claim(101, 1), "a vacant ship must admit one console claim");
 		require(!engine.claim(102, 1) && !engine.submit(102, {1, "speed_mm_s", 1000}),
 		        "unclaimed/other-console commands must have no effect");
 		require(!engine.submit(101, {2, "speed_mm_s", 1000}) && !engine.submit(101, {1, "speed_mm_s", 999999}),
 		        "wrong ship and requests beyond capability must be refused");
+		require(!engine.submit(101, {1, "unknown", 0}) && !engine.submit(101, {1, "engine_enabled", 2}) &&
+		            !engine.submit(101, {1, "radar_enabled", -1}) && !engine.submit(101, {1, "heading_mdeg", 360000}),
+		        "external requests must obey the supported action types and ranges");
 		require(engine.observe(101)->contacts.size() == 1 && engine.observe(101)->contacts[0].id == 2,
 		        "radar must expose the in-range contact and omit the out-of-range entity");
 		engine.submit(101, {1, "speed_mm_s", 5000});
@@ -138,6 +143,18 @@ int main(int argc, char **)
 		                                     {"heading_mdeg", 135000},
 		                                     {"radar_enabled", false}}}}}}});
 		auto ai_content = load(ai_data);
+		for (int boundary : {0, 9, 16})
+		{
+			World before, after;
+			before.load(ai_content, "test.map");
+			for (int tick = 0; tick < boundary; ++tick)
+				before.tick();
+			after.restore(ai_content, before.save());
+			before.tick();
+			after.tick();
+			require(before.save() == after.save(),
+			        "unentered initial and transitioned tree states must resume with the same entry outputs");
+		}
 		World radar_tree;
 		radar_tree.load(ai_content, "test.map");
 		for (int tick = 0; tick < 10; ++tick)

@@ -26,6 +26,9 @@ public:
 	virtual ~BlobStore() = default;
 	virtual bool read(std::uint64_t request, const std::string &key) = 0;
 	virtual bool write(std::uint64_t request, const std::string &key, const Bytes &bytes) = 0;
+	// Immutable ownership avoids a payload copy when an adapter retains work
+	// asynchronously. Synchronous adapters can use the ordinary byte view.
+	virtual bool write(std::uint64_t request, const std::string &key, std::shared_ptr<const Bytes> bytes);
 	virtual std::optional<BlobResult> poll() = 0;
 };
 // Native: portable data directory. Browser: origin-local IndexedDB namespace.

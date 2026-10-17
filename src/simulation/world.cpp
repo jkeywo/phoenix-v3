@@ -72,30 +72,15 @@ BodyView view(EntityId id, const Definition &definition, const Pose &pose, const
 }
 std::optional<TreeOutput> decode(const OperatingCommand &command)
 {
-	if (command.action == "speed_mm_s")
-		return TreeOutput{TreeAction::Speed, command.value};
-	if (command.action == "heading_mdeg")
-		return TreeOutput{TreeAction::Heading, command.value};
-	if (command.action == "engine_enabled")
-		return TreeOutput{TreeAction::EngineEnabled, command.value};
-	if (command.action == "radar_enabled")
-		return TreeOutput{TreeAction::RadarEnabled, command.value};
+	if (auto spec = operating_action(command.action))
+		return TreeOutput{spec->action, command.value};
 	return {};
 }
 bool admissible(TreeOutput output, const Engine *engine, const Steering *steering, const Radar *radar)
 {
-	switch (output.action)
-	{
-	case TreeAction::Speed:
-		return engine && output.value >= 0 && output.value <= engine->max_speed;
-	case TreeAction::Heading:
-		return steering && output.value >= 0 && output.value < 360000;
-	case TreeAction::EngineEnabled:
-		return engine && (output.value == 0 || output.value == 1);
-	case TreeAction::RadarEnabled:
-		return radar && (output.value == 0 || output.value == 1);
-	}
-	return false;
+	return operating_permitted(
+	    output.action, output.value,
+	    {engine ? std::optional{engine->max_speed} : std::nullopt, steering != nullptr, radar != nullptr});
 }
 void apply(TreeOutput output, Engine *engine, Steering *steering, Radar *radar)
 {
@@ -416,15 +401,19 @@ void World::load(const Catalog &content, const std::string &map, const std::map<
 	candidate->index_contacts.run();
 	impl_ = std::move(candidate);
 }
-bool World::claim(std::uint64_t console, EntityId ship)
+bool World::can_claim(std::uint64_t console, EntityId ship) const
 {
 	if (!console || impl_->claims.contains(console) || !impl_->entities.contains(ship))
 		return false;
 	auto entity = impl_->entities.at(ship);
-	if (entity.has<Claimed>() || !entity.has<Movable>() || !entity.has<Engine>() || !entity.has<Steering>())
+	return !entity.has<Claimed>() && entity.has<Movable>() && entity.has<Engine>() && entity.has<Steering>();
+}
+bool World::claim(std::uint64_t console, EntityId ship)
+{
+	if (!can_claim(console, ship))
 		return false;
 	impl_->claims[console] = ship;
-	entity.add<Claimed>();
+	impl_->entities.at(ship).add<Claimed>();
 	return true;
 }
 std::optional<EntityId> World::ship_for_slot(const std::string &slot) const

@@ -22,7 +22,7 @@ int main()
 {
 	try
 	{
-		Pack pack;
+		PackDraft pack;
 		pack.manifest = {{"schema", 1}, {"id", "test-core"}};
 		pack.files["definitions.json"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json");
 		pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
@@ -43,6 +43,7 @@ int main()
 		require(refused && session->catalog().ordered_packs == identity,
 		        "A failed import must preserve the selected content");
 		session->start({"test.map", {{"test.slot", "test.ship"}}, "test.slot"});
+		const auto started_generation = session->generation();
 		auto own = session->observation()->own.id;
 		require(session->viewscreen().size() == 2 && own != 1,
 		        "Selected slot must create and claim its own ship, not a map entity");
@@ -62,7 +63,8 @@ int main()
 		{
 			refused = true;
 		}
-		require(refused && session->ticks() == 20 && session->observation()->own.x > before,
+		require(refused && session->generation() == started_generation && session->ticks() == 20 &&
+		            session->observation()->own.x > before,
 		        "Failed setup must preserve the running world");
 		refused = false;
 		try
@@ -93,15 +95,25 @@ int main()
 		}
 		auto state = [](const Bytes &archive)
 		{
-			return parse_json(read_pack(archive).files.at("session.json"), "session.json").at("state");
+			return parse_json(read_pack(archive).files().at("session.json"), "session.json").at("state");
 		};
 		require(state(session->save()) == state(recovered->save()),
 		        "Fresh console recovery must preserve tick, motion, requests, remainders and delegated work");
-		auto corrupt = read_pack(portable);
+		auto server = make_host_world();
+		server->restore(portable);
+		server->resume_server();
+		require(server->running() && !server->observation() && !server->command({own, "speed_mm_s", 1000}),
+		        "Server recovery must activate simulation without claiming its local console");
+		require(server->authoritative_world().can_claim(1, own),
+		        "Server activation must leave the station available for real admission");
+		server->tick();
+		require(server->ticks() == paused_tick + 1, "Server recovery must resume authoritative ticks");
+		auto corrupt = read_pack(portable).draft();
 		auto data = parse_json(corrupt.files.at("session.json"), "session.json");
 		data["state"]["packs"][0][1] = "wrong-hash";
 		corrupt.files["session.json"] = json_bytes(data);
 		auto before_restore = state(recovered->save());
+		const auto recovered_generation = recovered->generation();
 		refused = false;
 		try
 		{
@@ -111,10 +123,20 @@ int main()
 		{
 			refused = true;
 		}
-		require(refused && state(recovered->save()) == before_restore,
+		require(refused && recovered->generation() == recovered_generation &&
+		            state(recovered->save()) == before_restore,
 		        "A mismatched portable save must leave the running session unchanged");
+		recovered->restore(portable);
+		require(recovered->generation() != recovered_generation && recovered->catalog().ordered_packs == identity,
+		        "Replacing a world with identical packs must invalidate session presentation state");
+		const auto replaced_generation = recovered->generation();
+		recovered->resume_local();
+		recovered->tick();
+		require(recovered->generation() == replaced_generation,
+		        "Console admission and ordinary ticks must preserve the session generation");
 		session->clear_packs();
-		require(!session->running() && !session->observation() && session->catalog().ordered_packs.empty(),
+		require(session->generation() != started_generation && !session->running() && !session->observation() &&
+		            session->catalog().ordered_packs.empty(),
 		        "Reset must release authority and content together");
 		std::cout << "PASS local setup, rollback, admission, projections and portable paused recovery\n";
 	}

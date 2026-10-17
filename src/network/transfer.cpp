@@ -69,23 +69,37 @@ Bytes unbase64(const std::string &text)
 	return bytes;
 }
 } // namespace
-PackSource::PackSource(std::vector<Bytes> archives) : archives_(std::move(archives))
+PackSource::PackSource(std::vector<Bytes> archives)
 {
-	if (archives_.empty() || archives_.size() > 32)
+	if (archives.empty() || archives.size() > 32)
 		throw std::runtime_error("Select one to 32 packs for transfer");
-	std::vector<Pack> verified;
+	std::size_t total = 0;
+	for (const auto &archive : archives)
+	{
+		if (archive.empty() || archive.size() > max_archive || archive.size() > max_total - total)
+			throw std::runtime_error("Selected transfer content exceeds 64 MiB total or 32 MiB per pack");
+		total += archive.size();
+	}
+	std::vector<Pack> packs;
+	for (auto &archive : archives)
+		packs.push_back(read_pack(std::move(archive)));
+	*this = PackSource(std::move(packs));
+}
+PackSource::PackSource(std::vector<Pack> packs) : packs_(std::move(packs))
+{
+	if (packs_.empty() || packs_.size() > 32)
+		throw std::runtime_error("Select one to 32 packs for transfer");
 	offer_ = {{"schema", 1}, {"packs", Json::array()}};
 	std::size_t total = 0;
-	for (const auto &archive : archives_)
+	for (const auto &pack : packs_)
 	{
+		const auto &archive = pack.archive();
 		total += archive.size();
 		if (archive.empty() || archive.size() > max_archive || total > max_total)
 			throw std::runtime_error("Selected transfer content exceeds 64 MiB total or 32 MiB per pack");
-		verified.push_back(read_pack(archive));
-		const auto &pack = verified.back();
-		offer_["packs"].push_back({{"id", pack.manifest.at("id")}, {"hash", pack.hash}, {"size", archive.size()}});
+		offer_["packs"].push_back({{"id", pack.manifest().at("id")}, {"hash", pack.hash()}, {"size", archive.size()}});
 	}
-	resolve_packs(verified);
+	resolve_packs(packs_);
 }
 Json PackSource::offer() const
 {
@@ -93,9 +107,9 @@ Json PackSource::offer() const
 }
 Json PackSource::chunk(const Json &request) const
 {
-	auto index = size(request.at("pack"), archives_.size() - 1),
-	     offset = size(request.at("offset"), archives_.at(index).size());
-	const auto &bytes = archives_.at(index);
+	auto index = size(request.at("pack"), packs_.size() - 1),
+	     offset = size(request.at("offset"), packs_.at(index).archive().size());
+	const auto &bytes = packs_.at(index).archive();
 	if (offset >= bytes.size() || offset % chunk_size)
 		throw std::runtime_error("Pack chunk offset must be aligned and inside its archive");
 	auto end = std::min(bytes.size(), offset + chunk_size);
@@ -104,35 +118,47 @@ Json PackSource::chunk(const Json &request) const
 	        {"offset", offset},
 	        {"data", base64(Bytes(bytes.begin() + offset, bytes.begin() + end))}};
 }
-PackTransfer::PackTransfer(const Json &offer, const std::map<std::string, Bytes> &cache)
+void PackTransfer::validate_offer(const Json &offer)
 {
 	if (offer.at("schema") != 1 || !offer.at("packs").is_array() || offer.at("packs").empty() ||
 	    offer.at("packs").size() > 32)
 		throw std::runtime_error("Invalid pack offer");
 	std::set<std::string> ids;
+	std::size_t total = 0;
+	for (const auto &entry : offer.at("packs"))
+	{
+		const std::string id = entry.at("id"), hash = entry.at("hash");
+		auto length = size(entry.at("size"), max_archive);
+		if (!length || !ids.insert(id).second || !valid_hex_token(hash) || length > max_total - total)
+			throw std::runtime_error("Invalid or oversized ordered pack offer");
+		total += length;
+	}
+}
+PackTransfer::PackTransfer(const Json &offer, std::map<std::string, Bytes> cache)
+{
+	validate_offer(offer);
 	for (const auto &entry : offer.at("packs"))
 	{
 		Pending pack;
 		pack.id = entry.at("id");
 		pack.hash = entry.at("hash");
-		auto length = size(entry.at("size"), max_archive);
-		if (!length || !ids.insert(pack.id).second || pack.hash.size() != 64 ||
-		    pack.hash.find_first_not_of("0123456789abcdef") != std::string::npos || length > max_total - total_)
-			throw std::runtime_error("Invalid or oversized ordered pack offer");
-		total_ += length;
-		pack.bytes.resize(length);
-		pack.received.resize((length + chunk_size - 1) / chunk_size, false);
-		pack.deadlines.resize(pack.received.size(), 0);
+		pack.length = size(entry.at("size"), max_archive);
+		total_ += pack.length;
 		auto found = cache.find(pack.hash);
-		if (found != cache.end() && found->second.size() == length && sha256(found->second) == pack.hash)
+		if (found != cache.end() && found->second.size() == pack.length && sha256(found->second) == pack.hash)
 		{
-			auto archive = read_pack(found->second);
-			if (archive.manifest.at("id") != pack.id)
+			auto archive = read_pack(std::move(found->second));
+			if (archive.manifest().at("id") != pack.id)
 				throw std::runtime_error("Cached archive does not match offered pack identity");
-			pack.bytes = found->second;
-			std::fill(pack.received.begin(), pack.received.end(), true);
-			pack.complete = true;
-			received_ += length;
+			pack.verified = std::move(archive);
+			pack.cached = true;
+			received_ += pack.length;
+		}
+		else
+		{
+			pack.bytes.resize(pack.length);
+			pack.received.resize((pack.length + chunk_size - 1) / chunk_size, false);
+			pack.deadlines.resize(pack.received.size(), 0);
 		}
 		packs_.push_back(std::move(pack));
 	}
@@ -166,17 +192,18 @@ bool PackTransfer::accept(const Json &chunk)
 	auto &pack = packs_.at(index);
 	if (chunk.at("hash") != pack.hash)
 		throw std::runtime_error("Chunk belongs to different offered content");
-	auto offset = size(chunk.at("offset"), pack.bytes.size());
-	if (offset >= pack.bytes.size() || offset % chunk_size)
+	auto offset = size(chunk.at("offset"), pack.length);
+	if (offset >= pack.length || offset % chunk_size)
 		throw std::runtime_error("Invalid pack chunk offset");
 	auto bytes = unbase64(chunk.at("data"));
-	auto expected = std::min(chunk_size, pack.bytes.size() - offset);
+	auto expected = std::min(chunk_size, pack.length - offset);
 	if (bytes.size() != expected)
 		throw std::runtime_error("Pack chunk length mismatch");
 	auto block = offset / chunk_size;
-	if (pack.received[block])
+	if (pack.verified || pack.received[block])
 	{
-		if (!std::equal(bytes.begin(), bytes.end(), pack.bytes.begin() + offset))
+		const auto &original = pack.verified ? pack.verified->archive() : pack.bytes;
+		if (!std::equal(bytes.begin(), bytes.end(), original.begin() + offset))
 			throw std::runtime_error("Conflicting repeated pack chunk");
 		return false;
 	}
@@ -189,9 +216,12 @@ bool PackTransfer::accept(const Json &chunk)
 		                return value;
 	                }))
 	{
-		if (sha256(pack.bytes) != pack.hash || read_pack(pack.bytes).manifest.at("id") != pack.id)
+		if (sha256(pack.bytes) != pack.hash)
 			throw std::runtime_error("Transferred archive failed hash/identity verification");
-		pack.complete = true;
+		auto verified = read_pack(std::move(pack.bytes));
+		if (verified.manifest().at("id") != pack.id)
+			throw std::runtime_error("Transferred archive failed hash/identity verification");
+		pack.verified = std::move(verified);
 		resolve();
 	}
 	return true;
@@ -201,13 +231,13 @@ void PackTransfer::resolve()
 	if (!std::all_of(packs_.begin(), packs_.end(),
 	                 [](const Pending &pack)
 	                 {
-		                 return pack.complete;
+		                 return pack.verified.has_value();
 	                 }))
 		return;
-	std::vector<Pack> ordered;
+	ordered_.clear();
 	for (const auto &pack : packs_)
-		ordered.push_back(read_pack(pack.bytes));
-	catalog_ = resolve_packs(ordered);
+		ordered_.push_back(*pack.verified);
+	catalog_ = resolve_packs(ordered_);
 	ready_ = true;
 }
 bool PackTransfer::ready() const
@@ -228,13 +258,20 @@ const Catalog &PackTransfer::catalog() const
 		throw std::runtime_error("Content is not verified/ready");
 	return catalog_;
 }
-std::vector<Bytes> PackTransfer::archives() const
+const std::vector<Pack> &PackTransfer::packs() const
 {
 	if (!ready_)
 		throw std::runtime_error("Content is not verified/ready");
-	std::vector<Bytes> result;
+	return ordered_;
+}
+std::vector<Pack> PackTransfer::uncached_packs() const
+{
+	if (!ready_)
+		throw std::runtime_error("Content is not verified/ready");
+	std::vector<Pack> result;
 	for (const auto &pack : packs_)
-		result.push_back(pack.bytes);
+		if (!pack.cached)
+			result.push_back(*pack.verified);
 	return result;
 }
 } // namespace phoenix

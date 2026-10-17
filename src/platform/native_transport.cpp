@@ -10,7 +10,6 @@ module;
 #include <deque>
 #include <map>
 #include <mutex>
-#include <set>
 #include <memory>
 #include <string>
 #include <vector>
@@ -51,7 +50,7 @@ struct Inbox
 		std::lock_guard lock(mutex);
 		if (stopped)
 			return;
-		if (events.size() >= 1024 || bytes + event.data.size() > 8 * 1024 * 1024)
+		if (events.size() >= link_queue_limit || bytes + event.data.size() > link_queue_bytes)
 		{
 			overflow = true;
 			return;
@@ -60,12 +59,6 @@ struct Inbox
 		events.push_back(std::move(event));
 	}
 };
-bool name(const std::string &value)
-{
-	return !value.empty() && value.size() <= 128 &&
-	       value.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-") ==
-	           std::string::npos;
-}
 std::string system_roots()
 {
 	HCERTSTORE store = CertOpenSystemStoreW(0, L"ROOT");
@@ -109,10 +102,10 @@ class NativeTransport final : public PeerTransport
 		bool remote = false;
 	};
 	LinkOptions options_;
+	LinkPolicy policy_;
 	std::shared_ptr<Inbox> inbox_ = std::make_shared<Inbox>();
 	std::shared_ptr<rtc::WebSocket> socket_;
 	std::map<std::string, Peer> peers_;
-	std::set<std::string> discovered_;
 	std::chrono::steady_clock::time_point retry_{};
 	void connect()
 	{
@@ -122,7 +115,7 @@ class NativeTransport final : public PeerTransport
 			socket_->forceClose();
 		}
 		rtc::WebSocketConfiguration config;
-		config.maxMessageSize = 262144;
+		config.maxMessageSize = link_envelope_limit;
 		config.connectionTimeout = std::chrono::seconds(10);
 		if (!options_.ca_certificate_file.empty())
 			config.caCertificatePemFile = options_.ca_certificate_file;
@@ -163,9 +156,12 @@ class NativeTransport final : public PeerTransport
 	}
 	bool envelope(const std::string &op, const std::string &peer, const std::string &data)
 	{
-		if (!socket_ || !socket_->isOpen() || socket_->bufferedAmount() > 4 * 1024 * 1024)
+		if (!socket_ || !socket_->isOpen() || socket_->bufferedAmount() > link_buffer_limit)
 			return false;
-		socket_->send(Json{{"schema", 1}, {"op", op}, {"to", peer}, {"data", data}}.dump());
+		const auto bytes = link_envelope(op, peer, data);
+		if (bytes.empty())
+			return false;
+		socket_->send(bytes);
 		return true;
 	}
 	void attach(const std::string &id, const std::shared_ptr<rtc::DataChannel> &channel)
@@ -205,7 +201,7 @@ class NativeTransport final : public PeerTransport
 		    [weak, id](rtc::message_variant message)
 		    {
 			    if (auto text = std::get_if<std::string>(&message))
-				    if (text->size() <= 65536)
+				    if (text->size() <= link_packet_limit)
 					    if (auto inbox = weak.lock())
 						    inbox->push({Event::packet, id, *text});
 		    });
@@ -215,10 +211,10 @@ class NativeTransport final : public PeerTransport
 		auto found = peers_.find(id);
 		if (found != peers_.end())
 			return found->second;
-		if (peers_.size() >= 32)
+		if (peers_.size() >= link_peer_limit)
 			throw std::runtime_error("Direct peer capacity reached; use available relay routes");
 		rtc::Configuration config;
-		config.maxMessageSize = 65536;
+		config.maxMessageSize = link_packet_limit;
 		for (const auto &server : options_.ice_servers)
 			config.iceServers.emplace_back(server);
 		auto connection = std::make_shared<rtc::PeerConnection>(config);
@@ -256,19 +252,8 @@ class NativeTransport final : public PeerTransport
 			attach(id, connection->createDataChannel("phoenix"));
 		return peer;
 	}
-	void discovered(const std::string &id, std::vector<LinkNotice> &notices)
-	{
-		if (id == options_.self || !name(id) || discovered_.size() >= 32)
-			return;
-		if (discovered_.insert(id).second)
-			notices.push_back({LinkEvent::discovered, id});
-		if (!options_.force_relay && options_.self < id)
-			create(id, true);
-	}
 	void signal(const std::string &id, const std::string &bytes)
 	{
-		if (options_.force_relay || !discovered_.contains(id))
-			return;
 		const auto value = Json::parse(bytes);
 		auto &peer = create(id, false);
 		if (value.contains("sdp"))
@@ -287,13 +272,13 @@ class NativeTransport final : public PeerTransport
 			rtc::Candidate candidate(value.at("candidate").get<std::string>(), value.value("mid", std::string("0")));
 			if (peer.remote)
 				peer.connection->addRemoteCandidate(candidate);
-			else if (peer.candidates.size() < 64)
+			else if (peer.candidates.size() < link_candidate_limit)
 				peer.candidates.push_back(std::move(candidate));
 		}
 	}
 
 public:
-	explicit NativeTransport(LinkOptions options) : options_(std::move(options))
+	explicit NativeTransport(LinkOptions options) : options_(std::move(options)), policy_(options_)
 	{
 		verify_link_options(options_);
 		connect();
@@ -340,8 +325,7 @@ public:
 				switch (event.type)
 				{
 				case Event::ws_open:
-					socket_->send(
-					    Json{{"schema", 1}, {"op", "hello"}, {"room", options_.room}, {"peer", options_.self}}.dump());
+					socket_->send(link_hello(options_));
 					break;
 				case Event::ws_closed:
 					notices.push_back({LinkEvent::signalling_lost});
@@ -349,30 +333,11 @@ public:
 					break;
 				case Event::ws_packet:
 				{
-					auto value = Json::parse(event.data);
-					if (value.at("schema") != 1)
-						break;
-					const std::string op = value.at("op");
-					if (op == "ready")
-					{
-						notices.push_back({LinkEvent::signalling_ready});
-						for (const auto &id : value.at("peers"))
-							discovered(id, notices);
-					}
-					else if (op == "arrived")
-						discovered(value.at("peer"), notices);
-					else if (op == "left")
-					{
-						const std::string id = value.at("peer");
-						discovered_.erase(id);
-						notices.push_back({LinkEvent::discovery_lost, id});
-					}
-					else if (op == "signal")
-						signal(value.at("from"), value.at("data"));
-					else if (op == "relay" && discovered_.contains(value.at("from").get<std::string>()))
-						notices.push_back({LinkEvent::packet, value.at("from"), value.at("data"), false});
-					else if (op == "error")
-						notices.push_back({LinkEvent::error, {}, value.at("message")});
+					for (const auto &action : policy_.receive(event.data, notices))
+						if (action.kind == LinkAction::Kind::initiate)
+							create(action.peer, true);
+						else
+							signal(action.peer, action.data);
 					break;
 				}
 				case Event::signal:
@@ -413,14 +378,14 @@ public:
 	}
 	bool send(const std::string &id, const std::string &bytes) override
 	{
-		if (bytes.size() > 65536 || bytes.find('\0') != std::string::npos || !name(id) || id == options_.self)
-			return false;
 		auto peer = peers_.find(id);
-		if (!options_.force_relay && peer != peers_.end() && peer->second.channel && peer->second.channel->isOpen())
+		const auto channel = peer != peers_.end() ? peer->second.channel : nullptr;
+		const auto route =
+		    policy_.route(id, bytes, channel && channel->isOpen(), channel ? channel->bufferedAmount() : 0);
+		if (route == LinkRoute::unavailable)
+			return false;
+		if (route == LinkRoute::direct)
 		{
-			auto &channel = peer->second.channel;
-			if (channel->bufferedAmount() > 4 * 1024 * 1024)
-				return false;
 			try
 			{
 				channel->send(bytes);
@@ -430,7 +395,7 @@ public:
 			{
 			}
 		}
-		return discovered_.contains(id) && envelope("relay", id, bytes);
+		return policy_.route(id, bytes, false, 0) == LinkRoute::relay && envelope("relay", id, bytes);
 	}
 };
 } // namespace

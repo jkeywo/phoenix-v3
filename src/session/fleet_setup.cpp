@@ -14,23 +14,10 @@ import phoenix.wire;
 
 namespace phoenix
 {
-namespace
-{
-bool identity(const std::string &value)
-{
-	return !value.empty() && value.size() <= 128 &&
-	       value.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-") ==
-	           std::string::npos;
-}
-bool token(const std::string &value)
-{
-	return value.size() == 64 && value.find_first_not_of("0123456789abcdef") == std::string::npos;
-}
-} // namespace
 Bytes export_fleet_setup(const HostAccess &source, const GameSetup &selection, const std::string &room)
 {
 	const auto &catalog = source.catalog();
-	if (!identity(room) || !catalog.maps.contains(selection.mission))
+	if (!valid_identifier(room) || !catalog.maps.contains(selection.mission))
 		throw std::runtime_error("Select a verified mission and valid fleet room");
 	const auto &slots = catalog.maps.at(selection.mission).at("ship_slots");
 	if (slots.empty() || slots.size() > 16)
@@ -70,17 +57,15 @@ Bytes export_fleet_setup(const HostAccess &source, const GameSetup &selection, c
 	if (creator.empty())
 		throw std::runtime_error("Choose the local ship slot before creating the fleet setup");
 	auto candidate = make_host_world();
-	for (const auto &pack : source.content_archives())
-		candidate->add_pack(pack);
-	candidate->start(game);
-	candidate->authoritative_world().clear_claims();
-	// Exercise each selected ship through the same admission used by a real station.
+	for (const auto &pack : source.content_packs())
+		candidate->add_verified_pack(pack);
+	candidate->start_server(game);
+	// Validate each selected ship through the same admission used by a real station.
 	std::uint64_t console = 1;
 	for (const auto &[id, ship] : game.ships)
-		if (!candidate->authoritative_world().claim(console++, *candidate->authoritative_world().ship_for_slot(id)))
+		if (!candidate->authoritative_world().can_claim(console++, *candidate->authoritative_world().ship_for_slot(id)))
 			throw std::runtime_error("A selected fleet ship cannot admit its authored console: " + id);
-	candidate->authoritative_world().clear_claims();
-	auto container = read_pack(candidate->save());
+	auto container = candidate->save_container();
 	container.manifest["format"] = "phoenix-fleet-setup";
 	container.files["fleet.json"] = json_bytes(Json{{"schema", 1},
 	                                                {"room", room},
@@ -92,13 +77,14 @@ Bytes export_fleet_setup(const HostAccess &source, const GameSetup &selection, c
 }
 PreparedFleet read_fleet_setup(const Bytes &archive, const std::string &member)
 {
-	auto container = read_pack(archive);
+	auto container = read_pack(archive).draft();
 	if (container.manifest.value("format", std::string{}) != "phoenix-fleet-setup")
 		throw std::runtime_error("Select a private Phoenix fleet setup ZIP");
 	if (container.files.at("fleet.json").size() > 65536)
 		throw std::runtime_error("Fleet setup metadata exceeds bounds");
 	auto plan = parse_json(container.files.at("fleet.json"), "fleet.json");
-	if (plan.at("schema") != 1 || !token(plan.at("session")) || !token(plan.at("key")) || !identity(plan.at("room")) ||
+	if (plan.at("schema") != 1 || !valid_hex_token(plan.at("session").get<std::string>()) ||
+	    !valid_hex_token(plan.at("key").get<std::string>()) || !valid_identifier(plan.at("room").get<std::string>()) ||
 	    !plan.at("members").is_object() || plan.at("members").empty() || plan.at("members").size() > 16)
 		throw std::runtime_error("Invalid fixed fleet roster, room or credential");
 	const std::string self = member.empty() ? plan.at("creator").get<std::string>() : member;
@@ -108,7 +94,7 @@ PreparedFleet read_fleet_setup(const Bytes &archive, const std::string &member)
 	std::set<std::string> slots;
 	for (const auto &[server, slot] : plan.at("members").items())
 	{
-		if (!identity(server) || !slot.is_string() || !slots.insert(slot.get<std::string>()).second ||
+		if (!valid_identifier(server) || !slot.is_string() || !slots.insert(slot.get<std::string>()).second ||
 		    !data.at("ships").contains(slot.get<std::string>()))
 			throw std::runtime_error("Each fixed server must own a distinct selected ship slot");
 	}
@@ -118,9 +104,8 @@ PreparedFleet read_fleet_setup(const Bytes &archive, const std::string &member)
 	container.files["session.json"] = json_bytes(data);
 	container.manifest["format"] = "phoenix-runtime-save";
 	auto world = make_host_world();
-	world->restore(write_pack(container));
-	world->resume_local();
-	world->authoritative_world().clear_claims();
+	world->restore_container(container);
+	world->resume_server();
 	return {std::move(plan), self, std::move(world), archive};
 }
 } // namespace phoenix

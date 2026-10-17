@@ -16,15 +16,9 @@ namespace phoenix
 {
 namespace
 {
-bool identity(const std::string &name)
-{
-	return !name.empty() && name.size() <= 128 &&
-	       name.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-") ==
-	           std::string::npos;
-}
 Bytes key_bytes(const std::string &key)
 {
-	if (key.size() != 64 || key.find_first_not_of("0123456789abcdef") != std::string::npos)
+	if (!valid_hex_token(key))
 		throw std::runtime_error("Protocol key must be 32 bytes of lowercase hexadecimal");
 	Bytes bytes;
 	for (std::size_t i = 0; i < key.size(); i += 2)
@@ -58,8 +52,8 @@ bool equal(const std::string &a, const std::string &b)
 }
 Json object(const GamePacket &packet)
 {
-	if (!identity(packet.session) || !identity(packet.from) || !identity(packet.to) || !identity(packet.type) ||
-	    !packet.body.is_object())
+	if (!valid_identifier(packet.session) || !valid_identifier(packet.from) || !valid_identifier(packet.to) ||
+	    !valid_identifier(packet.type) || !packet.body.is_object())
 		throw std::runtime_error("Invalid game packet envelope");
 	return {{"schema", 1},     {"session", packet.session}, {"from", packet.from},
 	        {"to", packet.to}, {"type", packet.type},       {"body", packet.body}};

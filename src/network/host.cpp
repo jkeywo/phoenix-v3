@@ -38,16 +38,17 @@ class NetworkHost final : public SessionPort
 	};
 	NetworkOptions options_;
 	std::shared_ptr<HostAccess> world_ = make_host_world();
+	std::uint64_t generation_base_ = 0;
 	std::unique_ptr<PeerTransport> transport_;
-	std::unique_ptr<PeerStore> store_;
-	std::unique_ptr<PeerConsensus> consensus_;
+	std::unique_ptr<DurableConsensus> journal_;
+	PeerConsensus *consensus_ = nullptr;
 	std::unique_ptr<PackSource> source_;
 	std::map<std::string, Client> clients_;
 	std::deque<Input> inputs_;
 	std::deque<Json> intents_;
 	std::string epoch_ = random_token(), offer_ = random_token(), message_, owner_, lease_, proposal_;
 	std::uint64_t console_ = 0, next_console_ = 2, last_sequence_ = 0, now_ = 0, last_projection_ = 0;
-	bool writing_ = false, want_local_ = false, fault_ = false;
+	bool want_local_ = false, fault_ = false;
 	std::chrono::steady_clock::time_point last_poll_ = std::chrono::steady_clock::now();
 	static constexpr const char *local = "local-console";
 	EntityId ship() const
@@ -84,8 +85,8 @@ class NetworkHost final : public SessionPort
 	void refresh_source()
 	{
 		source_.reset();
-		if (!world_->content_archives().empty())
-			source_ = std::make_unique<PackSource>(world_->content_archives());
+		if (!world_->content_packs().empty())
+			source_ = std::make_unique<PackSource>(world_->content_packs());
 		offer_ = random_token();
 		for (auto &[id, client] : clients_)
 		{
@@ -159,12 +160,13 @@ class NetworkHost final : public SessionPort
 	}
 	void begin_log()
 	{
-		consensus_.reset();
-		store_.reset();
-		writing_ = false;
+		consensus_ = nullptr;
+		journal_.reset();
 		proposal_.clear();
 		fault_ = false;
-		store_ = open_peer_store(options_.data_location + "/peers/" + options_.profile + "-" + epoch_ + ".journal");
+		journal_ = std::make_unique<DurableConsensus>(
+		    PeerRoster{epoch_, options_.link.self, {options_.link.self}},
+		    options_.data_location + "/peers/" + options_.profile + "-" + epoch_ + ".journal", JournalRecovery::fresh);
 		message_ = "Opening durable ship-server log";
 	}
 	void hello(const std::string &sender, const std::string &bytes)
@@ -191,7 +193,7 @@ class NetworkHost final : public SessionPort
 			return;
 		}
 		const std::string role = packet->body.at("role"), nonce = packet->body.at("nonce");
-		if ((role != "client" && role != "gm") || !network::token(nonce))
+		if ((role != "client" && role != "gm") || !valid_hex_token(nonce))
 			return;
 		if (found == clients_.end())
 		{
@@ -400,8 +402,8 @@ public:
 	{
 		for (const auto &[id, client] : clients_)
 			send(id, "refused", {{"reason", "Session ended; join again"}}, true);
-		consensus_.reset();
-		store_.reset();
+		consensus_ = nullptr;
+		journal_.reset();
 		world_->clear_packs();
 		source_.reset();
 		clients_.clear();
@@ -422,8 +424,7 @@ public:
 	{
 		if (world_->running() || world_->recovery_pending())
 			throw std::runtime_error("End the current session before starting another");
-		world_->start(setup);
-		world_->authoritative_world().clear_claims();
+		world_->start_server(setup);
 		owner_.clear();
 		console_ = 0;
 		inputs_.clear();
@@ -447,13 +448,13 @@ public:
 		auto candidate = make_host_world();
 		candidate->restore(archive);
 		clear_packs();
+		generation_base_ += world_->generation();
 		world_ = std::move(candidate);
 		refresh_source();
 	}
 	void resume_local() override
 	{
-		world_->resume_local();
-		world_->authoritative_world().clear_claims();
+		world_->resume_server();
 		begin_log();
 		want_local_ = true;
 	}
@@ -483,6 +484,10 @@ public:
 	std::uint64_t ticks() const override
 	{
 		return world_->ticks();
+	}
+	std::uint64_t generation() const override
+	{
+		return generation_base_ + world_->generation();
 	}
 	bool command(const OperatingCommand &command) override
 	{
@@ -588,38 +593,17 @@ public:
 				if (event.kind == LinkEvent::error)
 					message_ = event.data;
 			}
-			if (store_)
-				if (auto event = store_->poll())
-				{
-					if (!event->error.empty())
-					{
-						if (consensus_ && !event->opened)
-							consensus_->persisted(event->generation, false);
-						throw std::runtime_error(event->error);
-					}
-					if (event->opened)
-					{
-						if (!event->restored.is_null())
-							throw std::runtime_error("Unexpected existing log for a new session epoch");
-						consensus_ = std::make_unique<PeerConsensus>(
-						    PeerRoster{epoch_, options_.link.self, {options_.link.self}});
-					}
-					else if (consensus_)
-					{
-						consensus_->persisted(event->generation, true);
-						writing_ = false;
-					}
-				}
+			if (journal_)
+			{
+				journal_->poll();
+				consensus_ = journal_->peer();
+			}
 			if (consensus_)
 			{
 				consensus_->elapse(elapsed);
 				for (const auto &entry : consensus_->take_committed())
 					apply(entry);
-				if (consensus_->role() == PeerRole::failed)
-					throw std::runtime_error("Peer consensus stopped after storage failure");
-				if (!writing_)
-					if (auto write = consensus_->pending_write())
-						writing_ = store_->write(*write);
+				journal_->flush();
 			}
 			if (available() && proposal_.empty() && !consensus_->pending_write())
 				while (!intents_.empty())

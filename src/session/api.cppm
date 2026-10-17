@@ -32,6 +32,11 @@ class SessionPort
 {
 public:
 	virtual ~SessionPort() = default;
+	// Changes only when the session's world is replaced or cleared, never for a tick or claim.
+	virtual std::uint64_t generation() const
+	{
+		return 0;
+	}
 	virtual void add_pack(const Bytes &archive) = 0;
 	virtual void clear_packs() = 0;
 	virtual const Catalog &catalog() const = 0;

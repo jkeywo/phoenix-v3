@@ -29,16 +29,6 @@ std::uint64_t number(const WireJson &value)
 		throw std::runtime_error("Consensus counter exceeds supported bound");
 	return result;
 }
-bool identity(const std::string &value)
-{
-	return !value.empty() && value.size() <= 128 &&
-	       std::all_of(value.begin(), value.end(),
-	                   [](unsigned char c)
-	                   {
-		                   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') ||
-		                          c == '-' || c == '_' || c == '.';
-	                   });
-}
 } // namespace
 struct PeerConsensus::Impl
 {
@@ -70,11 +60,12 @@ struct PeerConsensus::Impl
 	explicit Impl(PeerRoster roster) : config(std::move(roster))
 	{
 		std::set<std::string> members(config.members.begin(), config.members.end());
-		if (!identity(config.session) || !identity(config.self) || members.size() != config.members.size() ||
-		    members.empty() || members.size() > 16 || !members.contains(config.self))
+		if (!valid_identifier(config.session) || !valid_identifier(config.self) ||
+		    members.size() != config.members.size() || members.empty() || members.size() > 16 ||
+		    !members.contains(config.self))
 			throw std::runtime_error("Invalid fixed peer roster");
 		for (const auto &member : members)
-			if (!identity(member))
+			if (!valid_identifier(member))
 				throw std::runtime_error("Invalid peer identity");
 		std::sort(config.members.begin(), config.members.end());
 	}
@@ -615,13 +606,14 @@ void apply_peer_write(WireJson &recovered, const WireJson &transaction)
 		throw std::runtime_error("Invalid durable peer transaction");
 	const auto from = number(t.at("from")), term = number(t.at("term")), commit = number(t.at("commit"));
 	PeerRoster config{t.at("session"), t.at("self"), t.at("roster").get<std::vector<std::string>>()};
-	if (!identity(config.self) || !identity(config.session) || config.members.empty() || config.members.size() > 16 ||
+	if (!valid_identifier(config.self) || !valid_identifier(config.session) || config.members.empty() ||
+	    config.members.size() > 16 ||
 	    std::find(config.members.begin(), config.members.end(), config.self) == config.members.end() ||
 	    !std::is_sorted(config.members.begin(), config.members.end()) ||
 	    std::adjacent_find(config.members.begin(), config.members.end()) != config.members.end())
 		throw std::runtime_error("Invalid durable peer identity/roster");
 	for (const auto &peer : config.members)
-		if (!identity(peer))
+		if (!valid_identifier(peer))
 			throw std::runtime_error("Invalid durable peer identity");
 	const auto vote = t.at("voted").get<std::string>();
 	if (!vote.empty() && !std::binary_search(config.members.begin(), config.members.end(), vote))

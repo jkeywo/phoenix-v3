@@ -10,7 +10,7 @@ module;
 #include <vector>
 
 module phoenix.persistence;
-import phoenix.content;
+import phoenix.data;
 #include "store_internal.hpp"
 
 namespace phoenix::storage

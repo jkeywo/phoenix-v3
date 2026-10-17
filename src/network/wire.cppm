@@ -1,6 +1,7 @@
 module;
 #include <cstdint>
 #include <map>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <span>
@@ -17,7 +18,6 @@ struct GamePacket
 	std::string session, from, to, type;
 	Json body;
 };
-std::string random_token();
 std::string encode_packet(const GamePacket &packet, const std::string &key);
 std::optional<GamePacket> decode_packet(const std::string &bytes, const std::string &sender,
                                         const std::string &recipient, const std::string &session,
@@ -26,37 +26,45 @@ class PackSource
 {
 public:
 	explicit PackSource(std::vector<Bytes> archives);
+	explicit PackSource(std::vector<Pack> packs);
 	Json offer() const;
 	Json chunk(const Json &request) const;
 
 private:
-	std::vector<Bytes> archives_;
+	std::vector<Pack> packs_;
 	Json offer_;
 };
 class PackTransfer
 {
 public:
 	// Cache entries are rehashed/reloaded; cached filenames never establish identity.
-	explicit PackTransfer(const Json &offer, const std::map<std::string, Bytes> &cache = {});
+	explicit PackTransfer(const Json &offer, std::map<std::string, Bytes> cache = {});
+	// Validate the complete metadata before cache I/O or archive buffer allocation.
+	static void validate_offer(const Json &offer);
 	std::vector<Json> requests(std::uint64_t now_ms, unsigned window = 4);
 	bool accept(const Json &chunk);
 	bool ready() const;
 	std::size_t received_bytes() const;
 	std::size_t total_bytes() const;
 	const Catalog &catalog() const;
-	std::vector<Bytes> archives() const;
+	const std::vector<Pack> &packs() const;
+	// Only downloaded/repaired entries need persistent cache writes.
+	std::vector<Pack> uncached_packs() const;
 
 private:
 	struct Pending
 	{
 		std::string id, hash;
 		Bytes bytes;
+		std::optional<Pack> verified;
+		std::size_t length = 0;
 		std::vector<bool> received;
 		std::vector<std::uint64_t> deadlines;
-		bool complete = false;
+		bool cached = false;
 	};
 	std::vector<Pending> packs_;
 	Catalog catalog_;
+	std::vector<Pack> ordered_;
 	std::size_t received_ = 0, total_ = 0;
 	bool ready_ = false;
 	void resolve();

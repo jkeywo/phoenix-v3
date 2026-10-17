@@ -27,7 +27,7 @@ int main()
 		second["id"] = "test.second";
 		second["x_mm"] = 50000;
 		definitions["maps"][0]["ship_slots"].push_back(second);
-		Pack pack;
+		PackDraft pack;
 		pack.manifest = {{"schema", 1}, {"id", "test-core"}};
 		pack.files["definitions.json"] = json_bytes(definitions);
 		pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
@@ -37,7 +37,7 @@ int main()
 		const auto bundle =
 		    export_fleet_setup(*source, {"test.map", {{"test.slot", "test.ship"}}, "test.slot"}, "test-fleet");
 		auto first = read_fleet_setup(bundle, "ship1"), other = read_fleet_setup(bundle, "ship2");
-		require(first.world->content_archives() == std::vector<Bytes>{exact},
+		require(first.world->content_packs().size() == 1 && first.world->content_packs().front().archive() == exact,
 		        "Fleet setup must preserve the exact original archives");
 		require(first.world->authoritative_world().save() == other.world->authoritative_world().save(),
 		        "Different ship servers must begin with the same complete verified world");
@@ -65,7 +65,7 @@ int main()
 			refused = true;
 		}
 		require(refused, "A setup cannot admit a server outside the fixed roster");
-		auto invalid = read_pack(bundle);
+		auto invalid = read_pack(bundle).draft();
 		auto plan = parse_json(invalid.files.at("fleet.json"), "fleet.json");
 		plan["members"]["ship2"] = plan["members"]["ship1"];
 		invalid.files["fleet.json"] = json_bytes(plan);

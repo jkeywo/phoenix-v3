@@ -6,6 +6,24 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Static dependencies" FORCE)
 include(FetchContent)
+
+function(phoenix_fixture target)
+	if(EMSCRIPTEN)
+		target_compile_definitions(${target} PRIVATE PHOENIX_FIXTURE_DIR="/fixtures/content")
+		target_link_options(
+			${target}
+			PRIVATE
+				"-sALLOW_MEMORY_GROWTH=1"
+				"-sSTACK_SIZE=1048576"
+				"-sSTACK_OVERFLOW_CHECK=2"
+				"--preload-file"
+				"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/content@/fixtures/content"
+		)
+	else()
+		target_compile_definitions(${target} PRIVATE PHOENIX_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/content")
+	endif()
+endfunction()
+
 set(FETCHCONTENT_QUIET OFF)
 set(BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(FLECS_SHARED OFF CACHE BOOL "" FORCE)
@@ -104,7 +122,11 @@ add_library(
 	${imgui_SOURCE_DIR}/imgui_widgets.cpp
 )
 target_include_directories(phoenix_imgui PUBLIC ${imgui_SOURCE_DIR})
-add_library(phoenix_foundation STATIC src/core/input.cpp)
+add_library(phoenix_foundation STATIC src/core/input.cpp src/core/data.cpp src/platform/random.cpp)
+target_include_directories(phoenix_foundation PRIVATE ${picosha2_SOURCE_DIR})
+if(NOT EMSCRIPTEN)
+	target_link_libraries(phoenix_foundation PRIVATE bcrypt)
+endif()
 target_sources(
 	phoenix_foundation
 	PUBLIC FILE_SET CXX_MODULES FILES src/core/input.cppm src/core/contracts.cppm src/core/data.cppm
@@ -112,6 +134,7 @@ target_sources(
 target_link_libraries(phoenix_foundation PUBLIC nlohmann_json::nlohmann_json)
 if(EMSCRIPTEN)
 	target_compile_options(phoenix_foundation PUBLIC -fexceptions)
+	target_link_options(phoenix_foundation INTERFACE -fexceptions)
 endif()
 add_library(phoenix_session_api STATIC)
 target_link_libraries(phoenix_session_api PUBLIC phoenix_content phoenix_transport)
@@ -128,18 +151,15 @@ add_library(
 	src/behavior/tree.cpp
 )
 target_link_libraries(phoenix_content PUBLIC phoenix_foundation nlohmann_json::nlohmann_json PRIVATE phoenix_zip)
-add_library(phoenix_persistence STATIC src/replication/store.cpp)
-target_link_libraries(phoenix_persistence PUBLIC phoenix_replication PRIVATE phoenix_content)
+add_library(phoenix_persistence STATIC src/replication/store.cpp src/replication/durable.cpp)
+target_link_libraries(phoenix_persistence PUBLIC phoenix_replication)
 if(EMSCRIPTEN)
 	target_sources(phoenix_persistence PRIVATE src/platform/browser_store.cpp)
-	target_compile_options(phoenix_persistence PRIVATE -fexceptions)
 	add_executable(phoenix_storage_probe tests/manual/browser_store.cpp)
 	target_link_libraries(phoenix_storage_probe PRIVATE phoenix_persistence)
-	target_compile_options(phoenix_storage_probe PRIVATE -fexceptions)
 	target_link_options(
 		phoenix_storage_probe
 		PRIVATE
-			-fexceptions
 			"-sALLOW_MEMORY_GROWTH=1"
 			"-sSTACK_SIZE=1048576"
 			"-sEXPORTED_FUNCTIONS=['_main','_malloc','_free']"
@@ -149,21 +169,14 @@ if(EMSCRIPTEN)
 else()
 	target_sources(phoenix_persistence PRIVATE src/platform/windows_store.cpp)
 endif()
-target_include_directories(phoenix_content PRIVATE ${picosha2_SOURCE_DIR})
 target_include_directories(phoenix_content PRIVATE ${raylib_SOURCE_DIR}/src/external)
-add_library(phoenix_wire STATIC src/network/packet.cpp src/network/transfer.cpp src/platform/random.cpp)
+add_library(phoenix_wire STATIC src/network/packet.cpp src/network/transfer.cpp)
 target_link_libraries(phoenix_wire PUBLIC phoenix_content)
 target_include_directories(phoenix_wire PRIVATE ${picosha2_SOURCE_DIR})
-if(EMSCRIPTEN)
-	target_compile_options(phoenix_wire PRIVATE -fexceptions)
-else()
-	target_link_libraries(phoenix_wire PRIVATE bcrypt)
-endif()
 add_library(phoenix_blobs STATIC src/network/blob.cpp)
-target_link_libraries(phoenix_blobs PUBLIC phoenix_wire)
+target_link_libraries(phoenix_blobs PUBLIC phoenix_foundation)
 if(EMSCRIPTEN)
 	target_sources(phoenix_blobs PRIVATE src/platform/browser_blobs.cpp)
-	target_compile_options(phoenix_blobs PRIVATE -fexceptions)
 else()
 	target_sources(phoenix_blobs PRIVATE src/platform/windows_blobs.cpp)
 endif()
@@ -183,48 +196,30 @@ else()
 	add_test(NAME system.input-and-semantics COMMAND phoenix_system_tests)
 	add_executable(phoenix_content_tests tests/system/content.cpp)
 	target_link_libraries(phoenix_content_tests PRIVATE phoenix_content)
-	target_compile_definitions(
-		phoenix_content_tests
-		PRIVATE PHOENIX_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/content"
-	)
+	phoenix_fixture(phoenix_content_tests)
 	add_test(NAME system.content-and-packs COMMAND phoenix_content_tests)
 	add_executable(phoenix_simulation_tests tests/system/simulation.cpp)
 	target_link_libraries(phoenix_simulation_tests PRIVATE phoenix_simulation)
-	target_compile_definitions(
-		phoenix_simulation_tests
-		PRIVATE PHOENIX_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/content"
-	)
+	phoenix_fixture(phoenix_simulation_tests)
 	add_test(NAME system.motion-radar-trees COMMAND phoenix_simulation_tests)
 	add_executable(phoenix_session_tests tests/system/session.cpp)
 	target_link_libraries(phoenix_session_tests PRIVATE phoenix_session)
-	target_compile_definitions(
-		phoenix_session_tests
-		PRIVATE PHOENIX_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/content"
-	)
+	phoenix_fixture(phoenix_session_tests)
 	add_test(NAME system.local-session COMMAND phoenix_session_tests)
 	add_executable(phoenix_replication_tests tests/system/replication.cpp)
 	target_link_libraries(phoenix_replication_tests PRIVATE phoenix_replication phoenix_simulation)
-	target_compile_definitions(
-		phoenix_replication_tests
-		PRIVATE PHOENIX_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/content"
-	)
+	phoenix_fixture(phoenix_replication_tests)
 	add_test(NAME system.peer-consensus COMMAND phoenix_replication_tests)
 	add_executable(phoenix_store_tests tests/system/peer_store.cpp)
 	target_link_libraries(phoenix_store_tests PRIVATE phoenix_persistence phoenix_content)
 	add_test(NAME system.peer-storage COMMAND phoenix_store_tests)
 	add_executable(phoenix_transfer_tests tests/system/network_content.cpp)
 	target_link_libraries(phoenix_transfer_tests PRIVATE phoenix_wire)
-	target_compile_definitions(
-		phoenix_transfer_tests
-		PRIVATE PHOENIX_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/content"
-	)
+	phoenix_fixture(phoenix_transfer_tests)
 	add_test(NAME system.network-content COMMAND phoenix_transfer_tests)
 	add_executable(phoenix_blob_tests tests/system/blob_store.cpp)
-	target_link_libraries(phoenix_blob_tests PRIVATE phoenix_blobs)
-	target_compile_definitions(
-		phoenix_blob_tests
-		PRIVATE PHOENIX_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/content"
-	)
+	target_link_libraries(phoenix_blob_tests PRIVATE phoenix_blobs phoenix_wire)
+	phoenix_fixture(phoenix_blob_tests)
 	add_test(NAME system.persistent-content COMMAND phoenix_blob_tests)
 	add_executable(phoenix_verify src/entry/verify.cpp)
 	target_link_libraries(phoenix_verify PRIVATE phoenix_content)
@@ -267,26 +262,17 @@ add_library(
 target_link_libraries(phoenix_tools PUBLIC phoenix_presentation phoenix_imgui phoenix_content)
 if(EMSCRIPTEN)
 	target_sources(phoenix_files PRIVATE src/platform/browser_files.cpp)
-	target_compile_options(phoenix_tools PRIVATE -fexceptions)
 else()
 	target_sources(phoenix_files PRIVATE src/platform/windows_files.cpp)
 	target_link_libraries(phoenix_files PRIVATE comdlg32)
 endif()
 if(EMSCRIPTEN)
 	add_executable(phoenix_blob_probe tests/manual/browser_blobs.cpp)
-	target_link_libraries(phoenix_blob_probe PRIVATE phoenix_blobs)
-	target_compile_definitions(phoenix_blob_probe PRIVATE PHOENIX_FIXTURE_DIR="/fixtures/content")
-	target_compile_options(phoenix_blob_probe PRIVATE -fexceptions)
+	target_link_libraries(phoenix_blob_probe PRIVATE phoenix_blobs phoenix_wire)
+	phoenix_fixture(phoenix_blob_probe)
 	target_link_options(
 		phoenix_blob_probe
-		PRIVATE
-			-fexceptions
-			"-sALLOW_MEMORY_GROWTH=1"
-			"-sSTACK_SIZE=1048576"
-			"-sEXPORTED_FUNCTIONS=['_main','_malloc','_free']"
-			"-sEXPORTED_RUNTIME_METHODS=['ccall']"
-			"--preload-file"
-			"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/content@/fixtures/content"
+		PRIVATE "-sEXPORTED_FUNCTIONS=['_main','_malloc','_free']" "-sEXPORTED_RUNTIME_METHODS=['ccall']"
 	)
 	configure_file(web/blob-probe.html "${CMAKE_CURRENT_BINARY_DIR}/blob-probe.html" COPYONLY)
 	add_executable(phoenix_build_check src/entry/build_check.cpp)
@@ -297,78 +283,19 @@ if(EMSCRIPTEN)
 	)
 	add_executable(phoenix_content_check tests/system/content.cpp)
 	target_link_libraries(phoenix_content_check PRIVATE phoenix_content)
-	target_compile_definitions(phoenix_content_check PRIVATE PHOENIX_FIXTURE_DIR="/fixtures/content")
-	target_compile_options(phoenix_content PRIVATE -fexceptions)
-	target_compile_options(phoenix_simulation PRIVATE -fexceptions)
-	target_compile_options(phoenix_session PRIVATE -fexceptions)
-	target_compile_options(phoenix_replication PRIVATE -fexceptions)
+	phoenix_fixture(phoenix_content_check)
 	add_executable(phoenix_transfer_check tests/system/network_content.cpp)
 	target_link_libraries(phoenix_transfer_check PRIVATE phoenix_wire)
-	target_compile_definitions(phoenix_transfer_check PRIVATE PHOENIX_FIXTURE_DIR="/fixtures/content")
-	target_compile_options(phoenix_transfer_check PRIVATE -fexceptions)
-	target_link_options(
-		phoenix_transfer_check
-		PRIVATE
-			-fexceptions
-			"-sALLOW_MEMORY_GROWTH=1"
-			"-sSTACK_SIZE=1048576"
-			"-sSTACK_OVERFLOW_CHECK=2"
-			"--preload-file"
-			"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/content@/fixtures/content"
-	)
+	phoenix_fixture(phoenix_transfer_check)
 	add_executable(phoenix_replication_check tests/system/replication.cpp)
 	target_link_libraries(phoenix_replication_check PRIVATE phoenix_replication phoenix_simulation)
-	target_compile_definitions(phoenix_replication_check PRIVATE PHOENIX_FIXTURE_DIR="/fixtures/content")
-	target_compile_options(phoenix_replication_check PRIVATE -fexceptions)
-	target_link_options(
-		phoenix_replication_check
-		PRIVATE
-			-fexceptions
-			"-sALLOW_MEMORY_GROWTH=1"
-			"-sSTACK_SIZE=1048576"
-			"-sSTACK_OVERFLOW_CHECK=2"
-			"--preload-file"
-			"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/content@/fixtures/content"
-	)
+	phoenix_fixture(phoenix_replication_check)
 	add_executable(phoenix_session_check tests/system/session.cpp)
 	target_link_libraries(phoenix_session_check PRIVATE phoenix_session)
-	target_compile_definitions(phoenix_session_check PRIVATE PHOENIX_FIXTURE_DIR="/fixtures/content")
-	target_compile_options(phoenix_session_check PRIVATE -fexceptions)
-	target_link_options(
-		phoenix_session_check
-		PRIVATE
-			-fexceptions
-			"-sALLOW_MEMORY_GROWTH=1"
-			"-sSTACK_SIZE=1048576"
-			"-sSTACK_OVERFLOW_CHECK=2"
-			"--preload-file"
-			"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/content@/fixtures/content"
-	)
-	target_compile_options(phoenix_content_check PRIVATE -fexceptions)
-	target_link_options(
-		phoenix_content_check
-		PRIVATE
-			-fexceptions
-			"-sALLOW_MEMORY_GROWTH=1"
-			"-sSTACK_SIZE=1048576"
-			"-sSTACK_OVERFLOW_CHECK=2"
-			"--preload-file"
-			"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/content@/fixtures/content"
-	)
+	phoenix_fixture(phoenix_session_check)
 	add_executable(phoenix_simulation_check tests/system/simulation.cpp)
 	target_link_libraries(phoenix_simulation_check PRIVATE phoenix_simulation)
-	target_compile_definitions(phoenix_simulation_check PRIVATE PHOENIX_FIXTURE_DIR="/fixtures/content")
-	target_compile_options(phoenix_simulation_check PRIVATE -fexceptions)
-	target_link_options(
-		phoenix_simulation_check
-		PRIVATE
-			-fexceptions
-			"-sALLOW_MEMORY_GROWTH=1"
-			"-sSTACK_SIZE=1048576"
-			"-sSTACK_OVERFLOW_CHECK=2"
-			"--preload-file"
-			"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/content@/fixtures/content"
-	)
+	phoenix_fixture(phoenix_simulation_check)
 	foreach(role IN ITEMS server client workshop)
 		add_executable(${role} src/entry/web.cpp)
 		target_compile_definitions(${role} PRIVATE PHOENIX_ROLE="${role}")
@@ -385,18 +312,12 @@ if(EMSCRIPTEN)
 		)
 		target_link_options(${role} PRIVATE "--preload-file" "${CMAKE_CURRENT_BINARY_DIR}/assets@/assets")
 		target_link_options(${role} PRIVATE "-sEXPORTED_RUNTIME_METHODS=['ccall']")
-		target_compile_options(${role} PRIVATE -fexceptions)
-		target_link_options(${role} PRIVATE -fexceptions "-sEXPORTED_FUNCTIONS=['_main','_malloc','_free']")
+		target_link_options(${role} PRIVATE "-sEXPORTED_FUNCTIONS=['_main','_malloc','_free']")
 	endforeach()
-	target_compile_options(phoenix_presentation PRIVATE -fexceptions)
 	target_link_libraries(server PRIVATE phoenix_network_host)
 	target_link_libraries(client PRIVATE phoenix_network_client)
-	target_compile_options(server PRIVATE -fexceptions)
-	target_link_options(server PRIVATE -fexceptions)
 	target_compile_definitions(server PRIVATE PHOENIX_SERVER=1)
 	target_link_libraries(workshop PRIVATE phoenix_tools phoenix_network_client)
-	target_compile_options(workshop PRIVATE -fexceptions)
-	target_link_options(workshop PRIVATE -fexceptions "-sEXPORTED_FUNCTIONS=['_main','_malloc','_free']")
 	target_compile_definitions(workshop PRIVATE PHOENIX_WORKSHOP=1)
 	configure_file(web/index.html "${CMAKE_CURRENT_BINARY_DIR}/index.html" COPYONLY)
 else()
@@ -410,11 +331,10 @@ else()
 endif()
 
 include(cmake/Networking.cmake)
-add_library(phoenix_transport STATIC src/transport/options.cpp)
+add_library(phoenix_transport STATIC src/transport/options.cpp src/transport/policy.cpp)
 target_link_libraries(phoenix_transport PUBLIC phoenix_foundation PRIVATE nlohmann_json::nlohmann_json)
 if(EMSCRIPTEN)
 	target_sources(phoenix_transport PRIVATE src/platform/browser_transport.cpp)
-	target_compile_options(phoenix_transport PRIVATE -fexceptions)
 else()
 	target_sources(phoenix_transport PRIVATE src/platform/native_transport.cpp)
 	target_link_libraries(phoenix_transport PRIVATE datachannel-static crypt32)
@@ -422,11 +342,9 @@ endif()
 add_executable(phoenix_network_probe tests/manual/network.cpp)
 target_link_libraries(phoenix_network_probe PRIVATE phoenix_transport nlohmann_json::nlohmann_json)
 if(EMSCRIPTEN)
-	target_compile_options(phoenix_network_probe PRIVATE -fexceptions)
 	target_link_options(
 		phoenix_network_probe
 		PRIVATE
-			-fexceptions
 			"-sALLOW_MEMORY_GROWTH=1"
 			"-sSTACK_SIZE=1048576"
 			"-sEXPORTED_FUNCTIONS=['_main','_malloc','_free']"
@@ -437,62 +355,35 @@ endif()
 add_library(phoenix_network_client STATIC src/network/client.cpp)
 add_library(phoenix_fleet STATIC src/replication/fleet.cpp)
 target_link_libraries(phoenix_fleet PUBLIC phoenix_persistence phoenix_wire phoenix_transport)
-if(EMSCRIPTEN)
-	target_compile_options(phoenix_fleet PRIVATE -fexceptions)
-endif()
-target_link_libraries(phoenix_network_client PUBLIC phoenix_session_api phoenix_blobs phoenix_transport)
+target_link_libraries(phoenix_network_client PUBLIC phoenix_session_api phoenix_blobs phoenix_transport phoenix_wire)
 add_library(phoenix_network_host STATIC src/network/host.cpp)
 add_library(phoenix_fleet_setup STATIC src/session/fleet_setup.cpp src/session/fleet_runtime.cpp)
 target_link_libraries(phoenix_fleet_setup PUBLIC phoenix_session phoenix_wire phoenix_fleet phoenix_blobs)
 if(EMSCRIPTEN)
-	target_compile_options(phoenix_fleet_setup PRIVATE -fexceptions)
 	add_executable(phoenix_fleet_setup_check tests/system/fleet_setup.cpp)
 	target_link_libraries(phoenix_fleet_setup_check PRIVATE phoenix_fleet_setup)
-	target_compile_definitions(phoenix_fleet_setup_check PRIVATE PHOENIX_FIXTURE_DIR="/fixtures/content")
-	target_compile_options(phoenix_fleet_setup_check PRIVATE -fexceptions)
-	target_link_options(
-		phoenix_fleet_setup_check
-		PRIVATE
-			-fexceptions
-			"-sALLOW_MEMORY_GROWTH=1"
-			"-sSTACK_SIZE=1048576"
-			"--preload-file"
-			"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/content@/fixtures/content"
-	)
+	phoenix_fixture(phoenix_fleet_setup_check)
 else()
 	add_executable(phoenix_fleet_setup_tests tests/system/fleet_setup.cpp)
 	target_link_libraries(phoenix_fleet_setup_tests PRIVATE phoenix_fleet_setup)
-	target_compile_definitions(
-		phoenix_fleet_setup_tests
-		PRIVATE PHOENIX_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/content"
-	)
+	phoenix_fixture(phoenix_fleet_setup_tests)
 	add_test(NAME system.fleet-setup COMMAND phoenix_fleet_setup_tests)
 	add_executable(phoenix_fleet_runtime_tests tests/system/fleet_runtime.cpp)
 	target_link_libraries(phoenix_fleet_runtime_tests PRIVATE phoenix_fleet_setup)
-	target_compile_definitions(
-		phoenix_fleet_runtime_tests
-		PRIVATE PHOENIX_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/content"
-	)
+	phoenix_fixture(phoenix_fleet_runtime_tests)
 	add_test(NAME system.fleet-runtime COMMAND phoenix_fleet_runtime_tests)
 endif()
-target_link_libraries(phoenix_network_host PUBLIC phoenix_session phoenix_blobs phoenix_transport phoenix_persistence)
-if(EMSCRIPTEN)
-	target_compile_options(phoenix_network_client PRIVATE -fexceptions)
-	target_compile_options(phoenix_network_host PRIVATE -fexceptions)
-endif()
+target_link_libraries(
+	phoenix_network_host
+	PUBLIC phoenix_session phoenix_blobs phoenix_transport phoenix_persistence phoenix_wire
+)
 if(NOT EMSCRIPTEN)
 	add_executable(phoenix_fleet_probe tests/manual/fleet.cpp)
 	target_link_libraries(phoenix_fleet_probe PRIVATE phoenix_fleet phoenix_simulation)
-	target_compile_definitions(
-		phoenix_fleet_probe
-		PRIVATE PHOENIX_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/content"
-	)
+	phoenix_fixture(phoenix_fleet_probe)
 	add_executable(phoenix_session_probe tests/manual/session.cpp)
 	target_link_libraries(phoenix_session_probe PRIVATE phoenix_network_host phoenix_network_client)
-	target_compile_definitions(
-		phoenix_session_probe
-		PRIVATE PHOENIX_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/content"
-	)
+	phoenix_fixture(phoenix_session_probe)
 endif()
 include(cmake/Boundaries.cmake)
 phoenix_forbid_dependency(phoenix_network_client phoenix_simulation "")
@@ -512,7 +403,6 @@ if(EMSCRIPTEN)
 	add_executable(phoenix_input_check tests/system/input_and_semantics.cpp)
 	target_link_libraries(phoenix_input_check PRIVATE phoenix_core)
 	set_property(TARGET phoenix_input_check PROPERTY CXX_SCAN_FOR_MODULES ON)
-	target_link_options(phoenix_input_check PRIVATE -fexceptions)
 endif()
 
 include(cmake/Modules.cmake)

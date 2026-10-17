@@ -48,7 +48,7 @@ void frame()
 			{
 				if (require_existing)
 					throw std::runtime_error("Previously cached pack did not survive reload");
-				Pack pack;
+				PackDraft pack;
 				pack.manifest = {{"schema", 1}, {"id", "test-core"}};
 				pack.files["definitions.json"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json");
 				pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");

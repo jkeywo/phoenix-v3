@@ -66,7 +66,7 @@ int main(int argc, char **argv)
 		auto session = host ? make_network_host(options) : make_network_client(options);
 		if (host)
 		{
-			Pack pack;
+			PackDraft pack;
 			pack.manifest = {{"schema", 1}, {"id", "test-core"}};
 			auto definitions =
 			    parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "synthetic fixture");

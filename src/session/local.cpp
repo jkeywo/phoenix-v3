@@ -21,14 +21,18 @@ namespace
 class LocalSession final : public HostAccess
 {
 	std::vector<Pack> packs_;
-	std::vector<Bytes> archives_;
 	Catalog catalog_;
 	std::unique_ptr<World> world_;
 	GameSetup setup_;
 	bool active_ = false;
+	std::uint64_t generation_ = 0;
 	static constexpr std::uint64_t local_console = 1;
 
 public:
+	std::uint64_t generation() const override
+	{
+		return generation_;
+	}
 	World &authoritative_world() override
 	{
 		if (!world_)
@@ -41,9 +45,9 @@ public:
 			throw std::runtime_error("No authoritative world is loaded");
 		return *world_;
 	}
-	const std::vector<Bytes> &content_archives() const override
+	const std::vector<Pack> &content_packs() const override
 	{
-		return archives_;
+		return packs_;
 	}
 	const GameSetup &setup() const override
 	{
@@ -51,35 +55,44 @@ public:
 	}
 	void add_pack(const Bytes &archive) override
 	{
+		add_verified_pack(read_pack(archive));
+	}
+	void add_verified_pack(const Pack &pack) override
+	{
 		if (world_)
 			throw std::runtime_error("End the running session before changing packs");
 		if (packs_.size() >= 32)
 			throw std::runtime_error("At most 32 ordered packs are supported");
 		auto candidate = packs_;
-		candidate.push_back(read_pack(archive));
-		if (candidate.back().manifest.value("format", std::string{}) == "phoenix-runtime-save")
+		candidate.push_back(pack);
+		if (candidate.back().manifest().value("format", std::string{}) == "phoenix-runtime-save")
 			throw std::runtime_error("Use Load runtime save for this ZIP");
 		auto resolved = resolve_packs(candidate);
-		auto archives = archives_;
-		archives.push_back(archive);
 		packs_ = std::move(candidate);
-		archives_ = std::move(archives);
 		catalog_ = std::move(resolved);
 	}
 	void clear_packs() override
 	{
 		world_.reset();
 		packs_.clear();
-		archives_.clear();
 		catalog_ = {};
 		setup_ = {};
 		active_ = false;
+		++generation_;
 	}
 	const Catalog &catalog() const override
 	{
 		return catalog_;
 	}
 	void start(const GameSetup &setup) override
+	{
+		start_world(setup, true);
+	}
+	void start_server(const GameSetup &setup) override
+	{
+		start_world(setup, false);
+	}
+	void start_world(const GameSetup &setup, bool claim_local)
 	{
 		if (!catalog_.maps.contains(setup.mission))
 			throw std::runtime_error("Select a loaded mission");
@@ -91,11 +104,14 @@ public:
 		auto candidate = std::make_unique<World>();
 		candidate->load(catalog_, setup.mission, setup.ships);
 		const auto controlled = candidate->ship_for_slot(setup.local_slot);
-		if (!controlled || !candidate->claim(local_console, *controlled))
+		if (!controlled || !candidate->can_claim(local_console, *controlled))
 			throw std::runtime_error("The selected ship cannot admit a local console");
+		if (claim_local)
+			candidate->claim(local_console, *controlled);
 		setup_ = setup;
 		world_ = std::move(candidate);
 		active_ = true;
+		++generation_;
 	}
 	bool running() const override
 	{
@@ -107,18 +123,22 @@ public:
 	}
 	Bytes save() const override
 	{
+		return write_pack(save_container());
+	}
+	PackDraft save_container() const override
+	{
 		if (!running())
 			throw std::runtime_error("Only a running local session can be saved");
 		auto state = world_->save();
-		Pack container;
+		PackDraft container;
 		container.manifest = {{"schema", 1}, {"id", "phoenix-session-save"}, {"format", "phoenix-runtime-save"}};
 		container.files["definitions.json"] = json_bytes(Json{{"schema", 1}});
 		Json paths = Json::array();
 		constexpr std::size_t chunk_size = 8 * 1024 * 1024;
-		for (std::size_t i = 0; i < archives_.size(); ++i)
+		for (std::size_t i = 0; i < packs_.size(); ++i)
 		{
 			Json chunks = Json::array();
-			const auto &bytes = archives_[i];
+			const auto &bytes = packs_[i].archive();
 			for (std::size_t offset = 0; offset < bytes.size(); offset += chunk_size)
 			{
 				auto path = "packs/" + std::to_string(i) + "/" + std::to_string(offset / chunk_size) + ".bin";
@@ -134,11 +154,14 @@ public:
 		                                                  {"local_slot", setup_.local_slot},
 		                                                  {"packs", paths},
 		                                                  {"state", state}});
-		return write_pack(container);
+		return container;
 	}
 	void restore(const Bytes &archive) override
 	{
-		const auto container = read_pack(archive);
+		restore_container(read_pack(archive).draft());
+	}
+	void restore_container(const PackDraft &container) override
+	{
 		if (container.manifest.value("format", std::string{}) != "phoenix-runtime-save")
 			throw std::runtime_error("Select a Phoenix runtime save ZIP");
 		const auto data = parse_json(container.files.at("session.json"), "session.json");
@@ -158,23 +181,28 @@ public:
 					throw std::runtime_error("Saved pack exceeds archive limits");
 				bytes.insert(bytes.end(), chunk.begin(), chunk.end());
 			}
-			candidate.add_pack(bytes);
+			candidate.packs_.push_back(read_pack(std::move(bytes)));
 		}
+		candidate.catalog_ = resolve_packs(candidate.packs_);
 		GameSetup setup{data.at("mission"), data.at("ships").get<std::map<std::string, std::string>>(),
 		                data.at("local_slot")};
 		// Verify that recovery can admit the selected console before touching live state.
-		candidate.start(setup);
+		candidate.start_server(setup);
 		candidate.world_->restore(candidate.catalog_, data.at("state"));
 		if (data.at("state").at("map") != setup.mission || data.at("state").at("ships") != Json(setup.ships))
 			throw std::runtime_error("Saved setup and world disagree");
+		// A portable save carries historical claims, never a live operator lease.
 		candidate.world_->clear_claims();
+		const auto controlled = candidate.world_->ship_for_slot(setup.local_slot);
+		if (!controlled || !candidate.world_->can_claim(local_console, *controlled))
+			throw std::runtime_error("The recovered ship cannot admit a local console");
 		candidate.active_ = false;
 		packs_ = std::move(candidate.packs_);
-		archives_ = std::move(candidate.archives_);
 		catalog_ = std::move(candidate.catalog_);
 		setup_ = std::move(candidate.setup_);
 		world_ = std::move(candidate.world_);
 		active_ = false;
+		++generation_;
 	}
 	void resume_local() override
 	{
@@ -183,6 +211,12 @@ public:
 		auto ship = world_->ship_for_slot(setup_.local_slot);
 		if (!ship || !world_->claim(local_console, *ship))
 			throw std::runtime_error("Recovery console claim was refused");
+		active_ = true;
+	}
+	void resume_server() override
+	{
+		if (!recovery_pending())
+			throw std::runtime_error("There is no paused recovery session");
 		active_ = true;
 	}
 	void tick() override

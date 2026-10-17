@@ -20,7 +20,12 @@ class HostAccess : public SessionPort
 public:
 	virtual World &authoritative_world() = 0;
 	virtual const World &authoritative_world() const = 0;
-	virtual const std::vector<Bytes> &content_archives() const = 0;
+	virtual const std::vector<Pack> &content_packs() const = 0;
+	virtual void add_verified_pack(const Pack &pack) = 0;
+	virtual void start_server(const GameSetup &setup) = 0;
+	virtual void resume_server() = 0;
+	virtual PackDraft save_container() const = 0;
+	virtual void restore_container(const PackDraft &container) = 0;
 	virtual const GameSetup &setup() const = 0;
 };
 std::shared_ptr<HostAccess> make_host_world();

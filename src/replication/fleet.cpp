@@ -33,8 +33,8 @@ struct FleetCommit::Impl
 	};
 	FleetOptions options;
 	std::unique_ptr<PeerTransport> transport;
-	std::unique_ptr<PeerStore> store;
-	std::unique_ptr<PeerConsensus> core;
+	std::unique_ptr<DurableConsensus> journal;
+	PeerConsensus *core = nullptr;
 	std::map<std::string, Seen> seen;
 	std::map<std::string, std::string> presence;
 	std::map<std::string, std::set<std::string>> retired;
@@ -45,18 +45,13 @@ struct FleetCommit::Impl
 	std::string boot = random_token(), error, leader_status_peer, inflight_id;
 	std::uint64_t now = 0, last_hello = 0, last_retry = 0, status_time = 0, status_term = 0, status_commit = 0,
 	              barrier_term = 0, observed_term = 0;
-	bool writing = false, playing = false, broken = false, inflight = false, was_available = false, bootstrap = false,
-	     durable = false, active = true;
+	bool playing = false, broken = false, inflight = false, was_available = false, bootstrap = false, active = true;
 	std::chrono::steady_clock::time_point previous = std::chrono::steady_clock::now();
-	static bool token(const std::string &value)
-	{
-		return value.size() == 64 && value.find_first_not_of("0123456789abcdef") == std::string::npos;
-	}
 	explicit Impl(FleetOptions config, std::unique_ptr<PeerTransport> route)
 	    : options(std::move(config)), transport(std::move(route))
 	{
 		active = !options.activation_required;
-		if (!token(options.key) || !token(options.fingerprint) || options.journal.empty() ||
+		if (!valid_hex_token(options.key) || !valid_hex_token(options.fingerprint) || options.journal.empty() ||
 		    options.link.self != options.roster.self)
 			throw std::runtime_error("Invalid fleet key, fingerprint, journal or route identity");
 		std::sort(options.roster.members.begin(), options.roster.members.end());
@@ -65,7 +60,9 @@ struct FleetCommit::Impl
 		verify_link_options(options.link);
 		if (!transport)
 			transport = open_peer_transport(options.link);
-		store = open_peer_store(options.journal);
+		journal = std::make_unique<DurableConsensus>(options.roster, options.journal,
+		                                             options.require_existing ? JournalRecovery::require
+		                                                                      : JournalRecovery::allow);
 	}
 	bool is_member(const std::string &peer) const
 	{
@@ -120,7 +117,7 @@ struct FleetCommit::Impl
 		if (packet->type == "fleet-hello")
 		{
 			const std::string fingerprint = body.at("fingerprint"), incarnation = body.at("boot");
-			if (fingerprint != options.fingerprint || !token(incarnation))
+			if (fingerprint != options.fingerprint || !valid_hex_token(incarnation))
 			{
 				error = "A fixed-roster peer has different verified initial content: " + notice.peer;
 				return;
@@ -155,7 +152,7 @@ struct FleetCommit::Impl
 		{
 			const std::string incarnation = body.at("boot"), id = body.at("request");
 			auto active = presence.find(notice.peer);
-			if (!token(id) || active == presence.end() || active->second != incarnation ||
+			if (!valid_hex_token(id) || active == presence.end() || active->second != incarnation ||
 			    !body.at("value").is_object() || body.at("value").dump().size() > 44000)
 				return;
 			enqueue({notice.peer, incarnation, id, body.at("value")});
@@ -185,7 +182,7 @@ struct FleetCommit::Impl
 			if (members.size() != options.roster.members.size())
 				throw std::runtime_error("Fleet start changed its fixed roster");
 			for (const auto &id : options.roster.members)
-				if (!members.contains(id) || !token(members.at(id)))
+				if (!members.contains(id) || !valid_hex_token(members.at(id)))
 					throw std::runtime_error("Fleet start has an invalid member incarnation");
 			presence = std::move(members);
 			playing = true;
@@ -193,7 +190,7 @@ struct FleetCommit::Impl
 		else if (kind == "fleet-presence")
 		{
 			const std::string peer = value.at("peer"), incarnation = value.at("boot");
-			if (!playing || !is_member(peer) || (!incarnation.empty() && !token(incarnation)))
+			if (!playing || !is_member(peer) || (!incarnation.empty() && !valid_hex_token(incarnation)))
 				throw std::runtime_error("Committed presence changed the fixed roster");
 			const auto old = presence.find(peer);
 			if (old != presence.end() && old->second != incarnation)
@@ -219,7 +216,7 @@ struct FleetCommit::Impl
 		{
 			const std::string origin = value.at("origin"), incarnation = value.at("boot"),
 			                  request = value.at("request");
-			if (!is_member(origin) || !token(request))
+			if (!is_member(origin) || !valid_hex_token(request))
 				throw std::runtime_error("Committed frame has an invalid origin or request");
 			own_requests.erase(request);
 			if (!completed.insert(request).second)
@@ -298,24 +295,11 @@ struct FleetCommit::Impl
 		now += std::max<std::int64_t>(0, elapsed);
 		try
 		{
-			if (auto result = store->poll())
+			journal->poll();
+			if (!core && journal->peer())
 			{
-				if (!result->error.empty())
-					throw std::runtime_error(result->error);
-				if (result->opened)
-				{
-					if (options.require_existing && result->restored.is_null())
-						throw std::runtime_error("The original durable peer journal is missing");
-					bootstrap = result->restored.is_null();
-					durable = !bootstrap;
-					core = std::make_unique<PeerConsensus>(options.roster, result->restored);
-				}
-				else if (core)
-				{
-					core->persisted(result->generation, true);
-					writing = false;
-					durable = true;
-				}
+				core = journal->peer();
+				bootstrap = !journal->restored();
 			}
 			for (const auto &notice : transport->poll())
 				if (core)
@@ -345,8 +329,6 @@ struct FleetCommit::Impl
 				core->elapse(static_cast<unsigned>(std::min<std::int64_t>(1000, std::max<std::int64_t>(0, elapsed))));
 			for (auto entry : core->take_committed())
 				apply(std::move(entry));
-			if (core->role() == PeerRole::failed)
-				throw std::runtime_error("Peer consensus stopped after failed durability");
 			if (core->term() != observed_term)
 			{
 				observed_term = core->term();
@@ -356,9 +338,7 @@ struct FleetCommit::Impl
 			}
 			for (const auto &delivery : core->take_deliveries())
 				send(delivery.peer, "fleet-log", delivery.packet);
-			if (!writing)
-				if (auto write = core->pending_write())
-					writing = store->write(*write);
+			journal->flush();
 			const bool available = authority();
 			if (was_available && !available)
 			{
@@ -366,7 +346,7 @@ struct FleetCommit::Impl
 				requests.clear();
 			}
 			was_available = available;
-			if (active && durable && now - last_hello >= 150)
+			if (active && journal->durable() && now - last_hello >= 150)
 			{
 				for (const auto &peer : options.roster.members)
 					if (peer != options.roster.self)
@@ -474,7 +454,7 @@ bool FleetCommit::started() const
 }
 bool FleetCommit::storage_ready() const
 {
-	return impl_->durable && !impl_->broken;
+	return impl_->journal->durable() && !impl_->broken;
 }
 bool FleetCommit::activate()
 {
