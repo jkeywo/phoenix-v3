@@ -1,6 +1,6 @@
 #pragma once
 #include <phoenix/content.hpp>
-#include <phoenix/contracts.hpp>
+import phoenix.contracts;
 #include <phoenix/transport.hpp>
 #include <memory>
 #include <optional>

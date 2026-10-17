@@ -1,7 +1,15 @@
-#include <phoenix/input.hpp>
+module;
+#include <cstdint>
+#include <map>
+#include <optional>
+#include <string>
+#include <vector>
 #include <algorithm>
 #include <cmath>
 #include <set>
+
+module phoenix.input;
+
 namespace phoenix
 {
 bool InputRouter::contains(ConsoleId id) const

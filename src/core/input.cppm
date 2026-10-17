@@ -1,10 +1,13 @@
-#pragma once
+module;
 #include <cstdint>
 #include <map>
 #include <optional>
 #include <string>
 #include <vector>
-namespace phoenix
+
+export module phoenix.input;
+
+export namespace phoenix
 {
 using ConsoleId = std::uint64_t;
 struct ConsoleRegion

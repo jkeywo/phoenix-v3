@@ -1,7 +1,8 @@
-#include <phoenix/input.hpp>
 #include <phoenix/semantics.hpp>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
+import phoenix.input;
 using namespace phoenix;
 void require(bool value, const char *contract)
 {

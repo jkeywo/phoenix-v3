@@ -23,6 +23,11 @@ try
 	Push-Location build/web
 	try
 	{
+		& "$repo/.tools/emsdk/node/24.19.0_64bit/node.exe" phoenix_input_check.js
+		if ($LASTEXITCODE)
+		{
+			throw "WASM input/semantics integration failed"
+		}
 		& "$repo/.tools/emsdk/node/24.19.0_64bit/node.exe" phoenix_build_check.js
 		if ($LASTEXITCODE)
 		{

@@ -1,8 +1,11 @@
-#pragma once
+module;
 #include <cstdint>
 #include <string>
 #include <vector>
-namespace phoenix
+
+export module phoenix.contracts;
+
+export namespace phoenix
 {
 using EntityId = std::uint64_t;
 struct BodyView

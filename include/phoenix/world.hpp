@@ -2,7 +2,7 @@
 #include <memory>
 #include <optional>
 #include <phoenix/content.hpp>
-#include <phoenix/contracts.hpp>
+import phoenix.contracts;
 namespace phoenix
 {
 class World

@@ -53,7 +53,7 @@ async function main() {
 				fs.lstatSync(file).isFile(),
 		)
 		.sort();
-	const cpp = files.filter((file) => /\.(?:c|cc|cpp|cxx|h|hh|hpp|hxx)$/.test(file));
+	const cpp = files.filter((file) => /\.(?:c|cc|cpp|cppm|cxx|h|hh|hpp|hxx)$/.test(file));
 	const cmake = files.filter((file) => /(^|\/)CMakeLists\.txt$|\.cmake$/.test(file));
 	const powershell = files.filter((file) => /\.ps(?:1|d1|m1)$/.test(file));
 	let drift = false;
