@@ -26,16 +26,19 @@ void draw_workshop(Application& app) {
     io.AddMousePosEvent(static_cast<float>(GetMouseX()), static_cast<float>(GetMouseY()));
     for (int i = 0; i < 3; ++i) io.AddMouseButtonEvent(i, IsMouseButtonDown(i));
     io.AddMouseWheelEvent(0, GetMouseWheelMove());
-    io.AddKeyEvent(ImGuiMod_Ctrl, IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL));
-    io.AddKeyEvent(ImGuiMod_Shift, IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT));
+    bool keyboard = graphics_has_keyboard_focus();
+    static bool previous_focus = true;
+    if (keyboard != previous_focus) { io.AddFocusEvent(keyboard); previous_focus = keyboard; }
+    io.AddKeyEvent(ImGuiMod_Ctrl, keyboard && (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)));
+    io.AddKeyEvent(ImGuiMod_Shift, keyboard && (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)));
     const std::pair<int, ImGuiKey> keys[] = {
         {KEY_TAB,ImGuiKey_Tab},{KEY_ENTER,ImGuiKey_Enter},{KEY_SPACE,ImGuiKey_Space},
         {KEY_ESCAPE,ImGuiKey_Escape},{KEY_BACKSPACE,ImGuiKey_Backspace},{KEY_DELETE,ImGuiKey_Delete},
         {KEY_LEFT,ImGuiKey_LeftArrow},{KEY_RIGHT,ImGuiKey_RightArrow},{KEY_UP,ImGuiKey_UpArrow},{KEY_DOWN,ImGuiKey_DownArrow},
         {KEY_HOME,ImGuiKey_Home},{KEY_END,ImGuiKey_End},{KEY_A,ImGuiKey_A},{KEY_C,ImGuiKey_C},{KEY_V,ImGuiKey_V},{KEY_X,ImGuiKey_X},{KEY_Z,ImGuiKey_Z}
     };
-    for (auto [key, imgui_key] : keys) io.AddKeyEvent(imgui_key, IsKeyDown(key));
-    for (int character; (character = GetCharPressed()) != 0;) io.AddInputCharacter(character);
+    for (auto [key, imgui_key] : keys) io.AddKeyEvent(imgui_key, keyboard && IsKeyDown(key));
+    for (int character; (character = GetCharPressed()) != 0;) if (keyboard) io.AddInputCharacter(character);
     ImGui::NewFrame();
     render_editor(app);
     ImGui::Render();

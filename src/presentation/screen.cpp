@@ -5,6 +5,10 @@
 #include <phoenix/semantics.hpp>
 #include <stdexcept>
 #include <filesystem>
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+EM_JS(bool, phoenix_canvas_has_focus, (), { return document.activeElement === Module.canvas; });
+#endif
 namespace phoenix {
 namespace {
 UiSystem system;
@@ -56,7 +60,7 @@ void open_window() {
     if (!Rml::LoadFontFace(font)) throw std::runtime_error("Could not load player UI font: " + font);
     context = Rml::CreateContext("navigation", {GetScreenWidth(), GetScreenHeight()});
     document = context->LoadDocumentFromMemory(R"(<rml><head><style>
-    body { font-family:LatoLatin; font-size:20px; color:#d9e9ef; padding:32px; }
+    body { display:block; width:100%; box-sizing:border-box; font-family:LatoLatin; font-size:20px; color:#d9e9ef; padding:32px; }
     h1, h2, p { display:block; }
     h1 { font-size:30px; color:#76c9e8; margin-bottom:24px; }
     h2 { font-size:24px; margin:24px 0; }
@@ -73,6 +77,13 @@ void open_window() {
     document->Show();
 }
 bool close_requested() { return WindowShouldClose(); }
+bool graphics_has_keyboard_focus() {
+#ifdef __EMSCRIPTEN__
+    return phoenix_canvas_has_focus();
+#else
+    return IsWindowFocused();
+#endif
+}
 void draw_screen(Application& app) {
     ClearBackground({8, 15, 25, 255});
     current_app = &app;
@@ -95,11 +106,13 @@ void draw_screen(Application& app) {
         {KEY_BACKSPACE,Rml::Input::KI_BACK}, {KEY_ESCAPE,Rml::Input::KI_ESCAPE},
         {KEY_LEFT,Rml::Input::KI_LEFT}, {KEY_RIGHT,Rml::Input::KI_RIGHT}, {KEY_UP,Rml::Input::KI_UP}, {KEY_DOWN,Rml::Input::KI_DOWN}
     };
+    const bool keyboard = graphics_has_keyboard_focus();
+    if (!keyboard && context->GetFocusElement()) context->GetFocusElement()->Blur();
     for (auto [key, rml_key] : keys) {
-        if (IsKeyPressed(key)) context->ProcessKeyDown(rml_key, modifiers);
-        if (IsKeyReleased(key)) context->ProcessKeyUp(rml_key, modifiers);
+        if (keyboard && IsKeyPressed(key)) context->ProcessKeyDown(rml_key, modifiers);
+        if (!keyboard || IsKeyReleased(key)) context->ProcessKeyUp(rml_key, modifiers);
     }
-    for (int character; (character = GetCharPressed()) != 0;) context->ProcessTextInput(static_cast<Rml::Character>(character));
+    for (int character; (character = GetCharPressed()) != 0;) if (keyboard) context->ProcessTextInput(static_cast<Rml::Character>(character));
     context->Update();
     context->Render();
 }

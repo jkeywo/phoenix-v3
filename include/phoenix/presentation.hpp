@@ -3,6 +3,7 @@
 namespace phoenix {
 void open_window();
 bool close_requested();
+bool graphics_has_keyboard_focus();
 void draw_screen(Application& app);
 void close_window();
 void begin_tools();
