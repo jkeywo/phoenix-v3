@@ -11,6 +11,7 @@
 
 import phoenix.session.api;
 import phoenix.session.local;
+import phoenix.console;
 
 using namespace phoenix;
 void require(bool result, const char *message)
@@ -44,10 +45,24 @@ int main()
 			auto ship = multi->observation()->own.id;
 			require(multi->console_seats().size() == 2 && multi->claim_console(2, {ship, "sensors"}),
 			        "session exposes and admits separate Console routes");
+			ConsoleModel helm, sensors;
+			helm.refresh(multi, 1);
+			sensors.refresh(multi, 2);
+			require(helm.layout() && sensors.layout() && helm.act("game.faster/widget") &&
+			            helm.act("game.faster/widget"),
+			        "headless model resolves authored layouts and accumulates same-tick actions");
+			require(helm.requested_speed() > 0 && sensors.requested_speed() == 0 && !sensors.act("game.faster") &&
+			            !helm.act("game.contacts"),
+			        "each presentation model respects its own authority and state");
+			require(sensors.act("game.contacts/radar") && !sensors.announcement().empty(),
+			        "radar semantics use the permitted projection");
 			require(multi->console_command(2, {ship, "radar_enabled", 0}) &&
 			            !multi->console_command(2, {ship, "speed_mm_s", 1}),
 			        "session route preserves System authority");
 			multi->tick();
+			helm.refresh(multi);
+			require(helm.requested_speed() == multi->observation()->requested_speed,
+			        "model reconciles pending requests with committed observations");
 			auto recovered = make_local_session();
 			recovered->restore(multi->save());
 			require(recovered->recovery_pending() && !recovered->console_observation(2),
@@ -56,6 +71,12 @@ int main()
 			require(recovered->observation()->console == "helm" && recovered->claim_console(2, {ship, "sensors"}) &&
 			            !recovered->console_observation(2)->radar_enabled,
 			        "schema-2 recovery preserves selection and System state with fresh claims");
+			sensors.refresh(recovered, 2);
+			require(sensors.announcement().empty(), "model clears old announcements when a session is replaced");
+			recovered->release_console(2);
+			sensors.refresh(recovered, 2);
+			require(!sensors.observation() && !sensors.layout() && !sensors.act("game.contacts"),
+			        "lost claim removes Console content and actions");
 		}
 		auto session = make_local_session();
 		require(!session->command({1, "speed_mm_s", 1}) && !session->observation(),

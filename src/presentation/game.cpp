@@ -19,6 +19,7 @@ module;
 
 module phoenix.presentation;
 import phoenix.application;
+import phoenix.console;
 import phoenix.files;
 import phoenix.session.api;
 #include "game.hpp"
@@ -51,8 +52,8 @@ Texture2D TextureCache::load(const std::string &id, std::span<const std::uint8_t
 struct GameScreen::State
 {
 	FileImportInbox imports;
-	std::string mission, slot, ship, notice, radar_reading;
-	std::int64_t desired_speed = 0, desired_heading = 0;
+	std::string mission, slot, ship, seat, notice;
+	ConsoleModel console_model;
 	TextureCache textures;
 	RenderTexture2D scene{};
 	Texture2D invitation{};
@@ -62,7 +63,6 @@ struct GameScreen::State
 	Vector3 focus{};
 	float game_top = 200;
 	std::optional<std::uint64_t> save_after;
-	std::optional<std::uint64_t> requested_at;
 	std::weak_ptr<SessionPort> owner;
 	std::uint64_t generation = 0;
 	std::vector<std::pair<std::string, std::string>> content_identity;
@@ -83,10 +83,9 @@ struct GameScreen::State
 		slot.clear();
 		ship.clear();
 		notice.clear();
-		radar_reading.clear();
-		desired_speed = desired_heading = 0;
+		seat.clear();
+		console_model.reset();
 		save_after.reset();
-		requested_at.reset();
 		observation.reset();
 		was_running = false;
 		azimuth = 0.7f;
@@ -218,20 +217,17 @@ struct GameScreen::State
 		auto available_ships = ships(catalog);
 		if (std::find(available_ships.begin(), available_ships.end(), ship) == available_ships.end())
 			ship = available_ships.empty() ? "" : available_ships.front();
+		auto available_seats = seats(catalog);
+		if (std::find(available_seats.begin(), available_seats.end(), seat) == available_seats.end())
+			seat = available_seats.empty() ? "" : available_seats.front();
 	}
-	std::string contacts_text(const Observation &observation)
+	std::vector<std::string> seats(const Catalog &catalog)
 	{
-		std::ostringstream text;
-		text << "Radar: " << observation.contacts.size() << " contacts.";
-		for (const auto &contact : observation.contacts)
-		{
-			auto x = static_cast<double>(contact.x - observation.own.x),
-			     y = static_cast<double>(contact.y - observation.own.y);
-			auto bearing = std::fmod(std::atan2(y, x) * 180 / pi + 360, 360.0);
-			text << " " << contact.definition << " #" << contact.id << ", " << static_cast<int>(std::hypot(x, y) / 1000)
-			     << " m, bearing " << static_cast<int>(bearing) << " degrees.";
-		}
-		return text.str();
+		std::vector<std::string> result;
+		if (catalog.entities.contains(ship))
+			for (const auto &spec : resolve_consoles(catalog, ship))
+				result.push_back(spec.id);
+		return result;
 	}
 	bool action(Application &app, const std::string &id)
 	{
@@ -264,11 +260,6 @@ struct GameScreen::State
 			else if (id == "game.resume" && session.recovery_pending())
 			{
 				session.resume_local();
-				if (auto observation = session.observation())
-				{
-					desired_heading = observation->requested_heading;
-					desired_speed = observation->requested_speed;
-				}
 				notice = "Resuming at the saved tick. Waiting for the local console claim.";
 				app.screen = Screen::console;
 			}
@@ -291,13 +282,14 @@ struct GameScreen::State
 			}
 			else if (id == "game.ship" && !session.running())
 				next(ship, ships(session.catalog()));
+			else if (id == "game.seat" && !session.running())
+				next(seat, seats(session.catalog()));
 			else if (id == "game.start" && !session.running())
 			{
-				session.start({mission, {{slot, ship}}, slot});
+				session.start({mission, {{slot, ship}}, slot, seat});
 				bind_session(app);
 				if (auto own = session.focus_body())
 				{
-					desired_heading = own->heading;
 					focus = {own->x / 1000.f, 0, -own->y / 1000.f};
 				}
 				notice = "Session started.";
@@ -309,43 +301,10 @@ struct GameScreen::State
 				app.screen = Screen::viewscreen;
 			else if (session.running())
 			{
-				const auto observation = session.observation();
-				if (!observation)
-					return false;
-				const auto &systems = session.catalog().entities.at(observation->own.definition).at("systems");
-				OperatingCommand command{observation->own.id, "", 0};
-				auto speed = desired_speed, heading = desired_heading;
-				const auto control = id.substr(0, id.find('/'));
-				if ((control == "game.faster" || control == "game.slower") && systems.contains("engine"))
-				{
-					auto maximum = systems.at("engine").at("max_speed_mm_s").get<std::int64_t>();
-					speed = std::clamp(speed + (control == "game.faster" ? 1 : -1) *
-					                               std::max<std::int64_t>(1, maximum / 20),
-					                   std::int64_t{0}, maximum);
-					command.action = "speed_mm_s";
-					command.value = speed;
-				}
-				else if (control == "game.left" || control == "game.right")
-				{
-					heading = (heading + (control == "game.left" ? 5000 : 355000)) % 360000;
-					command.action = "heading_mdeg";
-					command.value = heading;
-				}
-				else if (control == "game.contacts")
-				{
-					radar_reading = contacts_text(*observation);
-					notice = radar_reading;
-					return true;
-				}
-				else
-					return false;
-				if (!session.command(command))
-					throw std::runtime_error("The server refused that control request");
-				desired_speed = speed;
-				desired_heading = heading;
-				requested_at = session.ticks();
-				notice = "Requested speed " + std::to_string(speed / 1000.0) + " m/s; heading " +
-				         std::to_string(heading / 1000) + " degrees.";
+				console_model.refresh(app.session);
+				const bool accepted = console_model.act(id);
+				notice = console_model.announcement();
+				return accepted;
 			}
 			else
 				return false;
@@ -371,11 +330,7 @@ struct GameScreen::State
 	}
 	const Json *console_definition(const Application &app)
 	{
-		if (!observation)
-			return nullptr;
-		const auto &catalog = app.session->catalog();
-		const auto &entity = catalog.entities.at(observation->own.definition);
-		return &catalog.consoles.at(entity.at("console").get<std::string>());
+		return console_model.layout();
 	}
 	void prepare(Application &app, Rml::ElementDocument &document)
 	{
@@ -477,16 +432,11 @@ struct GameScreen::State
 			}
 			const auto &catalog = app.session->catalog();
 			normalise(catalog);
-			auto next_observation = app.session->observation();
-			if (observation && (!next_observation || observation->own.id != next_observation->own.id))
-			{
-				if (notice == radar_reading)
-					notice.clear();
-				radar_reading.clear();
-				requested_at.reset();
-				desired_speed = desired_heading = 0;
-			}
-			observation = std::move(next_observation);
+			const auto previous_announcement = console_model.announcement();
+			console_model.refresh(app.session);
+			if (notice == previous_announcement && console_model.announcement().empty())
+				notice.clear();
+			observation = console_model.observation();
 			const auto focus_body =
 			    observation ? std::optional(observation->own)
 			                : (app.can_host && app.session->networked() ? app.session->focus_body() : std::nullopt);
@@ -495,19 +445,8 @@ struct GameScreen::State
 				if (auto own = focus_body)
 					focus = {own->x / 1000.f, 0, -own->y / 1000.f};
 				close_resources();
-				radar_reading.clear();
-				requested_at.reset();
 			}
 			was_running = app.session->running();
-			if (app.session->running() && (!requested_at || app.session->ticks() > *requested_at))
-			{
-				if (observation)
-				{
-					desired_speed = observation->requested_speed;
-					desired_heading = observation->requested_heading;
-					requested_at.reset();
-				}
-			}
 			if (app.screen == Screen::client_lobby && observation)
 				app.screen = Screen::console;
 			if ((app.screen == Screen::home || app.screen == Screen::server_lobby) && app.can_host)
@@ -531,7 +470,7 @@ struct GameScreen::State
 						markup += button("game.mission", "Mission: " + mission) +
 						          button("game.slot", "Ship slot: " + slot) + button("game.ship", "Ship: " + ship);
 					if (!ship.empty())
-						markup += button("game.start", "Start session");
+						markup += button("game.seat", "Console: " + seat) + button("game.start", "Start session");
 				}
 				else
 					markup = button("game.scene", "Open viewscreen") + button("game.console", "Open ship console") +
@@ -567,8 +506,7 @@ struct GameScreen::State
 						if (kind == "radar")
 						{
 							markup += button("game.contacts" + suffix, "Read current radar contacts");
-							if (!radar_reading.empty())
-								app.screen_controls.back().second += ". " + radar_reading;
+							app.screen_controls.back().second += ". " + console_model.contacts_text();
 						}
 						if (kind == "throttle")
 							markup += button("game.slower" + suffix, "Decrease desired speed") +

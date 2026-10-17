@@ -1,5 +1,7 @@
 # C++20 module ownership
 
+`phoenix.console` is owned by `phoenix_core`. `ConsoleModel` holds one route's permitted observation, authored layout, pending desired values and semantic announcement. It resolves commands through `SessionPort` and has no renderer, platform input or authoritative dependency. Session replacement, content identity, generation, route and claim changes invalidate its state. `GameScreen` renders this model and retains graphics resource ownership.
+
 Phoenix's first-party public interfaces are named C++20 modules. Import them by name; the previous public `include/phoenix/*.hpp` headers have been removed. The binaries still link static libraries. Third-party dependencies retain their normal headers and pinned versions.
 
 ## Interfaces and dependencies

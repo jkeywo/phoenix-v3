@@ -14,6 +14,7 @@ target_sources(phoenix_network_client PUBLIC FILE_SET CXX_MODULES FILES src/netw
 target_sources(phoenix_fleet_setup PUBLIC FILE_SET CXX_MODULES FILES src/session/fleet_setup.cppm)
 target_sources(phoenix_core PUBLIC FILE_SET CXX_MODULES FILES src/core/application.cppm)
 target_sources(phoenix_core PUBLIC FILE_SET CXX_MODULES FILES src/core/navigation.cppm)
+target_sources(phoenix_core PUBLIC FILE_SET CXX_MODULES FILES src/core/console.cppm)
 target_sources(phoenix_presentation PUBLIC FILE_SET CXX_MODULES FILES src/presentation/presentation.cppm)
 target_sources(phoenix_tools PUBLIC FILE_SET CXX_MODULES FILES src/tools/tools.cppm)
 target_sources(phoenix_files PUBLIC FILE_SET CXX_MODULES FILES src/platform/files.cppm)
