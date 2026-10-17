@@ -15,13 +15,15 @@ select,input,button { font:inherit } #status { padding:0 1rem }
 <form method="get">
 <label>Role <select name="type"><option value="server">Ship server</option><option value="client">Console</option><option value="workshop">Workshop / GM</option></select></label>
 <label>Mode <select name="mode"><option value="editor">Editor</option><option value="gm">GM inspector</option></select></label>
-<label>Network code <input name="code" maxlength="64"></label>
+<label>Network code <input name="code" maxlength="160"></label>
+<label>Network service <input name="service" type="url" placeholder="wss://your-host/phoenix"></label>
+<label>Local profile <input name="profile" value="default" maxlength="64"></label>
 <label>Preferred ship slot <input name="slot" maxlength="64"></label>
 <button>Launch</button>
 </form>
 </header>
 <p id="status" role="status">Choose a role to launch.</p>
-<div id="semantics" aria-label="Player console"></div>
+<div id="semantics" aria-label="Player console"><p id="player-status" role="status" aria-live="polite"></p></div>
 <canvas id="canvas" tabindex="0" aria-label="Phoenix game graphics"></canvas>
 <script>
 'use strict';
@@ -32,16 +34,20 @@ if (type !== null && !allowed.has(type)) {
   document.getElementById('status').textContent = 'Unknown role. Select a role above.';
 } else if (allowed.has(type)) {
   const mode = params.get('mode') === 'gm' ? 'gm' : 'editor';
-  const code = (params.get('code') || '').slice(0, 64);
+  const code = (params.get('code') || '').slice(0, 160);
+  const service = params.get('service') || (['localhost','127.0.0.1'].includes(location.hostname) ? 'ws://127.0.0.1:9080/phoenix' : 'wss://' + location.host + '/phoenix');
+  const profile = (params.get('profile') || 'default').slice(0,64);
   const slot = (params.get('slot') || '').slice(0, 64);
   document.querySelector('[name=type]').value = type;
   document.querySelector('[name=mode]').value = mode;
   document.querySelector('[name=code]').value = code;
+  document.querySelector('[name=service]').value = service;
+  document.querySelector('[name=profile]').value = profile;
   document.querySelector('[name=slot]').value = slot;
   // Arguments are hints. C++ admission must grant authority independently.
   window.Module = {
     canvas: document.getElementById('canvas'),
-    arguments: ['--mode', mode, '--code', code, '--slot', slot],
+    arguments: ['--mode', mode, '--code', code, '--slot', slot, '--service', service, '--profile', profile],
     print: console.log,
     printErr: console.error,
     postRun: [() => { document.getElementById('status').textContent = 'Running ' + type; }],

@@ -2,7 +2,9 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { WebSocket } from 'ws';
 import { createSignallingServer } from './server.mjs';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { spawn } from 'node:child_process';
 const open = url => new Promise((resolve,reject)=> { const socket=new WebSocket(url); socket.once('open',()=>resolve(socket)); socket.once('error',reject); });
 function receiver(socket) {
@@ -32,6 +34,41 @@ test('isolated discovery, connection-bound routing, opaque relay and duplicate i
   } finally { for (const socket of sockets) socket.terminate(); await service.close(); }
 });
 test('public plaintext bind is refused',()=> { assert.throws(()=>createSignallingServer({host:'0.0.0.0'}),/requires TLS/); });
+
+test('live sessions verify content, commit controls, approve GM and explicitly replace disconnected operators', {skip:!process.env.PHOENIX_SESSION_PROBE,timeout:60000},async()=> {
+  const service=createSignallingServer({port:0}), address=await service.listen();
+  const url=`ws://127.0.0.1:${address.port}/phoenix`, directory=mkdtempSync(join(tmpdir(),'phoenix-session-'));
+  const children=[];
+  const run=(args,profile)=> {
+    const child=spawn(process.env.PHOENIX_SESSION_PROBE,['--url',url,'--room','live-integration','--data',join(directory,profile),'--seconds','12',...args],{windowsHide:true});
+    children.push(child); let output='';
+    child.stdout.on('data',bytes=> { output+=bytes; }); child.stderr.on('data',bytes=> { output+=bytes; });
+    const result=new Promise((resolve,reject)=> {
+      child.once('error',reject); child.once('exit',code=>resolve({code,get output(){return output;}}));
+    });
+    return {child,result};
+  };
+  let host;
+  try {
+    host=run(['--host','--self','host','--approve-gm','--seconds','55'],'host');
+    const first=await run(['--self','first'],'first').result;
+    assert.equal(first.code,0,first.output); assert.match(first.output,/PASS remote verified content/);
+    const gm=await run(['--gm','--self','gm'],'gm').result;
+    assert.equal(gm.code,0,gm.output); assert.match(gm.output,/PASS host-approved read-only GM/);
+    // Expiry uses the application's heartbeat timeout, independently of discovery.
+    await new Promise(resolve=>setTimeout(resolve,3200));
+    const pending=await run(['--self','replacement'],'replacement').result;
+    assert.equal(pending.code,0,pending.output); assert.match(pending.output,/NEEDS_CONFIRM/);
+    const replacement=await run(['--self','replacement','--confirm'],'replacement').result;
+    assert.equal(replacement.code,0,replacement.output); assert.match(replacement.output,/PASS remote verified content/);
+    const previous=await run(['--self','first','--blocked'],'first').result;
+    assert.equal(previous.code,0,previous.output); assert.match(previous.output,/PASS unclaimed\/previous operator/);
+  } finally {
+    for (const child of children) child.kill();
+    if (host) await host.result;
+    await service.close(); rmSync(directory,{recursive:true,force:true,maxRetries:10,retryDelay:100});
+  }
+});
 test('native verified WSS accepts the test CA and refuses an untrusted certificate', {skip:!process.env.PHOENIX_NATIVE_PROBE},async()=> {
   const certificate=process.env.PHOENIX_TEST_CERT, key=process.env.PHOENIX_TEST_KEY;
   const service=createSignallingServer({port:0,tls:{cert:readFileSync(certificate),key:readFileSync(key)}});

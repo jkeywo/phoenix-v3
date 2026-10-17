@@ -1,0 +1,15 @@
+# Network play
+
+The four applications now share C++ session admission, verified content transfer and permitted projections. Run the signalling service described in [network setup](network-transport.md), then serve `build/web` over HTTP on loopback or HTTPS on a public host. Public signalling requires WSS; no public service is deployed by this repository.
+
+Native starts a ship server by default. Import ordered packs and start a mission through Home, or pass `--game-pack path.zip --mission map.id --slot slot.id --ship ship.id`. The invitation is `room/server`, shown in the status. `--service`, `--profile` and `--data` select the service URL and local storage namespace. `--local-only` preserves the offline adapter for manual smoke captures.
+
+Join from another native application with `--client --code room/server --service ws://127.0.0.1:9080/phoenix`, or select Console in the HTML launcher. Select Workshop / GM and GM inspector, or use native `--gm`, for read-only inspection. Use distinct local profile names for independently operated clients on the same machine/origin. Browser roles use the same `code`, `service` and `profile` parameters. `slot` remains a launcher hint; this version operates the host's selected ship slot.
+
+The client persists its identity/credential before readiness, checks its persistent archive cache, transfers missing exact packs and runs the production content verifier. It then explicitly claims the single authored ship console. The host can claim it locally instead. Speed and heading requests pass through capability, ownership, lease, sequence and quorum checks; only durably committed tick frames execute. Player traffic contains the claimed ship and range-filtered radar contacts. Approved GM traffic contains full authoritative inspection, displayed in docked map, entity and property panels. GM cannot submit operating commands or edit the world.
+
+Disconnected stations expire after three seconds without application heartbeats. Another operator must confirm replacement, which creates a fresh committed lease. The original persisted identity can reconnect to its own reservation; reconnecting discards queued inputs and renews the lease before control resumes. Clients wait for their own server rather than migrating authority. Runtime ZIP export and paused recovery remain server operations.
+
+This is a playable **single-server** network session. Its consensus roster currently contains that server alone. Fleet roster negotiation, transport of peer-consensus packets, durable server identity/world reconstruction, multi-server catch-up and fleet recovery remain separate unfinished work. Projections currently fit one bounded transport packet; large-world projection streaming is also pending. This does not complete the fleet or six-screen acceptance criteria.
+
+`scripts/check.ps1` includes a synthetic real-process host/client/GM journey through the signalling service, verifying content, actual movement, filtered contacts, host approval and confirmed replacement. The fixture is independent of shipped tuning. Actual browser journeys are recorded in [network play smoke evidence](smoke/network-play.md).

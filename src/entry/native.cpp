@@ -16,7 +16,9 @@ int main(int argc, char** argv) {
     phoenix::Application app;
     app.can_host = true;
     app.can_edit = true;
-    app.session = phoenix::make_local_session();
+    phoenix::NetworkOptions network;
+    network.link.url = "ws://127.0.0.1:9080/phoenix";
+    bool remote = false, gm = false, local_only = false;
     int smoke_frames = 0;
     bool workshop_smoke = false;
     std::string workshop_pack;
@@ -26,6 +28,15 @@ int main(int argc, char** argv) {
     std::string runtime_save;
     bool resume_local = false;
     for (int i = 1; i < argc; ++i) {
+        const std::string argument = argv[i];
+        if (argument == "--client") remote = true;
+        if (argument == "--gm") { remote = true; gm = true; }
+        if (argument == "--local-only") local_only = true;
+        if (argument == "--relay") network.link.force_relay = true;
+        if (argument == "--service" && i+1 < argc) network.link.url = argv[++i];
+        if (argument == "--profile" && i+1 < argc) network.profile = argv[++i];
+        if (argument == "--data" && i+1 < argc) network.data_location = argv[++i];
+        if (argument == "--code" && i+1 < argc) app.network_code = argv[++i];
         if (std::strcmp(argv[i], "--smoke") == 0) smoke_frames = 6;
         if (std::strcmp(argv[i], "--workshop") == 0) { app.screen = phoenix::Screen::workshop; workshop_smoke = true; }
         if (std::strcmp(argv[i], "--workshop-pack") == 0 && i+1 < argc) { workshop_pack = argv[++i]; app.screen = phoenix::Screen::workshop; workshop_smoke = true; }
@@ -37,6 +48,17 @@ int main(int argc, char** argv) {
         if (std::strcmp(argv[i], "--runtime-save") == 0 && i+1 < argc) runtime_save = argv[++i];
         if (std::strcmp(argv[i], "--resume-local") == 0) resume_local = true;
     }
+    if (!app.network_code.empty()) {
+        auto separator = app.network_code.find('/');
+        network.link.room = app.network_code.substr(0,separator);
+        if (separator != std::string::npos) network.server = app.network_code.substr(separator+1);
+    }
+    network.inspector = gm;
+    if (!remote) network.link.self = network.server;
+    try {
+        app.session = local_only ? phoenix::make_local_session() : remote ? phoenix::make_network_client(network) : phoenix::make_network_host(network);
+    } catch (const std::exception& error) { std::cerr << error.what() << '\n'; return 1; }
+    if (remote) { app.can_host = false; app.screen = gm ? phoenix::Screen::gm : phoenix::Screen::client_lobby; }
     phoenix::open_window();
     if (argc > 1 && std::strcmp(argv[1], "--platform-check") == 0) {
         app.screen = phoenix::Screen::client_lobby;
@@ -66,6 +88,7 @@ int main(int argc, char** argv) {
     }
     double accumulated = 0;
     while (!phoenix::close_requested()) {
+        app.session->poll();
         accumulated += std::min(static_cast<double>(GetFrameTime()),0.25);
         while (accumulated >= 1.0/phoenix::World::ticks_per_second) { app.session->tick(); accumulated -= 1.0/phoenix::World::ticks_per_second; }
         BeginDrawing();

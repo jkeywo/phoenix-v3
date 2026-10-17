@@ -1,6 +1,7 @@
 #include <phoenix/presentation.hpp>
 #include <phoenix/workshop.hpp>
 #include <phoenix/files.hpp>
+#include <phoenix/session.hpp>
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <misc/cpp/imgui_stdlib.h>
@@ -313,7 +314,45 @@ void render_editor(Application& app) {
             ImGui::EndMainMenuBar();
         }
         if (readonly) {
-            ImGui::Begin("Map"); ImGui::TextWrapped("No approved GM connection. Live world inspection is not implemented yet."); ImGui::End();
+            const auto state = app.session ? app.session->inspection() : Json(nullptr);
+            ImGui::Begin("Status"); ImGui::TextWrapped("%s",app.session ? app.session->connection_status().c_str() : "Connect to a ship server to request read-only inspection."); ImGui::End();
+            if (state.is_null()) {
+                ImGui::Begin("Map"); ImGui::TextWrapped("Waiting for host approval. Live world data is unavailable."); ImGui::End();
+                return;
+            }
+            ImGui::Begin("Entities");
+            for (const auto& value : state.at("bodies")) {
+                const auto& body = value.at("body");
+                const auto id = body.at("id").get<std::uint64_t>();
+                const auto label = std::to_string(id)+" / "+body.at("definition").get<std::string>();
+                if (ImGui::Selectable(label.c_str(),editor.selected == id)) editor.selected = id;
+            }
+            ImGui::End();
+            ImGui::Begin("Properties");
+            for (const auto& value : state.at("bodies")) if (value.at("body").at("id") == editor.selected) {
+                const auto details = value.dump(2); ImGui::TextUnformatted(details.c_str());
+            }
+            ImGui::End();
+            ImGui::Begin("Map");
+            ImGui::Text("Committed tick %llu / read only",static_cast<unsigned long long>(app.session->ticks()));
+            const auto origin = ImGui::GetCursorScreenPos(), size = ImGui::GetContentRegionAvail();
+            ImGui::InvisibleButton("Live map",ImVec2(std::max(1.f,size.x),std::max(1.f,size.y)),ImGuiButtonFlags_MouseButtonLeft|ImGuiButtonFlags_MouseButtonMiddle);
+            if (ImGui::IsItemHovered()) {
+                auto& io = ImGui::GetIO(); editor.zoom = std::clamp(editor.zoom*std::pow(1.15f,io.MouseWheel),0.000001f,1.f);
+                if (ImGui::IsMouseDragging(ImGuiMouseButton_Middle)) { editor.pan_x += io.MouseDelta.x; editor.pan_y += io.MouseDelta.y; }
+            }
+            auto* draw = ImGui::GetWindowDrawList();
+            draw->PushClipRect(origin,ImVec2(origin.x+size.x,origin.y+size.y),true);
+            for (const auto& value : state.at("bodies")) {
+                const auto& body = value.at("body"); const auto id = body.at("id").get<std::uint64_t>();
+                ImVec2 point(origin.x+size.x/2+editor.pan_x+body.at("position").at("x").get<float>()*editor.zoom,
+                             origin.y+size.y/2+editor.pan_y-body.at("position").at("y").get<float>()*editor.zoom);
+                draw->AddCircleFilled(point,6,editor.selected == id ? IM_COL32(255,220,100,255) : IM_COL32(100,200,240,255));
+                auto label = std::to_string(id); draw->AddText(ImVec2(point.x+8,point.y),IM_COL32_WHITE,label.c_str());
+                const auto mouse = ImGui::GetIO().MousePos;
+                if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left) && std::hypot(mouse.x-point.x,mouse.y-point.y)<12) editor.selected = id;
+            }
+            draw->PopClipRect(); ImGui::End();
             return;
         }
         ImGui::Begin("Entities");

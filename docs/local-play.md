@@ -2,7 +2,7 @@
 
 Build with `./scripts/build.ps1 -Target native`. The build produces `build/native/training.zip` from the editable starter content in `content/training/`, independently of the synthetic integration fixtures.
 
-Run `build/native/Release/native.exe`. In Home or New game, add ZIP packs in dependency order. Mission, ship slot and ship buttons cycle through the resolved choices. Start local session creates the selected ship and claims its authored console through the host admission boundary. Invalid pack imports or setup leave the previous verified selection/session intact.
+Run `build/native/Release/native.exe --local-only` for this offline adapter. In Home or New game, add ZIP packs in dependency order. Mission, ship slot and ship buttons cycle through the resolved choices. Start session creates the selected ship and claims its authored console through the host admission boundary. Invalid pack imports or setup leave the previous verified selection/session intact. Native's default mode now supports [network play](network-play.md), with an explicit local or remote station claim.
 
 The viewscreen renders the full local server world with camera-facing or eight-direction billboards. Right-drag to orbit, middle-drag to pan and use the wheel to zoom. Eight-way frame selection uses the camera bearing relative to each entity's heading. Scale is billboard height in metres.
 
@@ -14,17 +14,17 @@ Runtime saves use the same bounded ZIP container as packs, with a `phoenix-runti
 
 End session and clear packs releases the running world and returns to content selection. Imported content cannot be changed during play. Workshop can still be opened independently; there is no hot reload into a running session.
 
-For the browser, build with `./scripts/build.ps1 -Target web`, serve `build/web` over HTTP, and select Ship server in the launcher. Import the same training ZIP using the C++ home screen. The server WASM runs the local simulation. Console WASM and Workshop WASM do not link authoritative simulation; remote connection/claims remain pending.
+For the browser, build with `./scripts/build.ps1 -Target web`, serve `build/web` over HTTP, and select Ship server in the launcher. Import the same training ZIP using the C++ home screen. The server WASM runs authoritative simulation through durable committed frames; claim its local console or connect a remote client. Console WASM and Workshop WASM do not link authoritative simulation.
 
 Manual native captures can be invoked with:
 
 ```powershell
-./build/native/Release/native.exe --game-pack ./build/native/training.zip --mission training.navigation --slot training.player --ship training.survey --smoke
-./build/native/Release/native.exe --game-pack ./build/native/training.zip --mission training.navigation --slot training.player --ship training.survey --console --smoke
+./build/native/Release/native.exe --local-only --game-pack ./build/native/training.zip --mission training.navigation --slot training.player --ship training.survey --smoke
+./build/native/Release/native.exe --local-only --game-pack ./build/native/training.zip --mission training.navigation --slot training.player --ship training.survey --console --smoke
 ```
 
 Captures are written to the working directory as `viewscreen-smoke.png` or `console-smoke.png`. These are manually invoked smoke evidence, not automatic pixel tests or performance guarantees.
 
 `native.exe --runtime-save path/to/phoenix-session.zip` verifies a runtime save and opens its paused recovery lobby. Add `--resume-local --console` to explicitly reclaim the local console on launch. This also accepts saves exported by server WASM; no separately installed content is needed.
 
-This is one local server and one local console in a shared window, with no peer roster, network transport, consensus, QR admission or reconnect yet. It does not establish the six-screen/60 Hz or five-device targets. The server loop currently advances local fixed ticks; fleet play must replace that scheduler with committed tick frames before it can be enabled. Portable saves currently cover this local session, not recovery of a networked fleet.
+The offline adapter is one local server and one local console. Default network sessions add transport, durable singleton consensus, station leases and reconnection. Neither establishes the six-screen/60 Hz or five-device targets. Portable saves cover one server's selected world, not recovery of a networked fleet.

@@ -88,13 +88,14 @@ bool World::release(std::uint64_t console) {
     impl_->pending.erase(std::remove_if(impl_->pending.begin(),impl_->pending.end(),[&](const auto& command){return command.target == found->second;}),impl_->pending.end());
     impl_->claims.erase(found); return true;
 }
-bool World::submit(std::uint64_t console, const OperatingCommand& command) {
+bool World::can_submit(std::uint64_t console, const OperatingCommand& command) const {
     auto claim = impl_->claims.find(console);
     if (claim == impl_->claims.end() || claim->second != command.target || impl_->pending.size() >= 4096) return false;
     const auto& body = impl_->entities.at(command.target).get<Body>();
     if (!admissible(impl_->content.entities.at(body.definition),command.action,command.value)) return false;
-    impl_->pending.push_back(command); return true;
+    return true;
 }
+bool World::submit(std::uint64_t console, const OperatingCommand& command) { if (!can_submit(console,command)) return false; impl_->pending.push_back(command); return true; }
 void World::clear_claims() { impl_->claims.clear(); impl_->pending.clear(); }
 void World::tick() {
     for (const auto& command : impl_->pending) apply(impl_->entities.at(command.target).get_mut<Operation>(),command.action,command.value);

@@ -1,6 +1,7 @@
 #pragma once
 #include <phoenix/content.hpp>
 #include <phoenix/contracts.hpp>
+#include <phoenix/transport.hpp>
 #include <memory>
 #include <optional>
 namespace phoenix {
@@ -9,8 +10,12 @@ struct GameSetup {
     std::map<std::string,std::string> ships;
     std::string local_slot;
 };
+struct NetworkOptions {
+    LinkOptions link;
+    std::string server, data_location = "userdata", profile = "default";
+    bool inspector = false;
+};
 // The frontend sees content and projections, never the authoritative ECS.
-// This first adapter is a single, local ship server; it is not fleet consensus.
 class SessionPort {
 public:
     virtual ~SessionPort() = default;
@@ -28,6 +33,16 @@ public:
     virtual bool command(const OperatingCommand& command) = 0;
     virtual std::optional<Observation> observation() const = 0;
     virtual std::vector<BodyView> viewscreen() const = 0;
+    virtual void poll() {}
+    virtual bool networked() const { return false; }
+    virtual std::string connection_status() const { return {}; }
+    virtual std::string invitation_code() const { return {}; }
+    virtual std::vector<std::pair<std::string,std::string>> lobby_controls() const { return {}; }
+    virtual bool session_action(const std::string&) { return false; }
+    virtual Json inspection() const { return nullptr; }
+    virtual std::optional<BodyView> focus_body() const { auto value=observation(); return value?std::optional(value->own):std::nullopt; }
 };
 std::shared_ptr<SessionPort> make_local_session();
+std::shared_ptr<SessionPort> make_network_host(NetworkOptions options);
+std::shared_ptr<SessionPort> make_network_client(NetworkOptions options);
 }

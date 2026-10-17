@@ -18,6 +18,7 @@ public:
     // Recovery discards transport ownership without changing saved operations.
     void clear_claims();
     bool submit(std::uint64_t console, const OperatingCommand& command);
+    bool can_submit(std::uint64_t console, const OperatingCommand& command) const;
     std::optional<Observation> observe(std::uint64_t console) const;
     std::vector<BodyView> inspect() const;
     Json save() const;

@@ -11,7 +11,7 @@ Windows requires Python, Git and Visual Studio 2022 with the C++ desktop workloa
 python -m http.server 8080 --directory build/web
 ```
 
-Open `http://localhost:8080/`. The launcher accepts `type=server|client|workshop`, `mode=editor|gm`, `code` and `slot`. Connection parameters are hints and cannot grant authority. Browser networking is not implemented yet.
+Open `http://localhost:8080/`. The launcher accepts `type=server|client|workshop`, `mode=editor|gm`, `code`, `slot`, `service` and `profile`. Connection parameters are hints and cannot grant authority. Start the signalling service for [network play](network-play.md).
 
 Bootstrap installs CMake 3.31.6, Ninja 1.11.1.3 and Emscripten 6.0.12 into ignored `.tools/`; it does not alter the system installation. Initial configuration downloads dependency source archives. CMake pins each by commit and SHA-256: Flecs 4.1.5, raylib 6.0, RmlUi 6.1, ImGui 1.92.0 docking and FreeType 2.13.3. `CMakeLists.txt` contains the immutable revisions and hashes. Fonts retain their upstream licence in the build assets.
 
@@ -25,7 +25,7 @@ The bounded automated `system.input-and-semantics` case supplies synthetic prese
 
 GitHub Actions runs the same non-graphical gate for code/build changes. CMake rejects transitive simulation/Flecs dependencies in browser client or Workshop targets, and graphics/tools dependencies in simulation. Manual smoke captures remain separate from CI.
 
-The simulation integration case exercises real Flecs-backed fixed ticks, local admission, range-filtered radar, collision pairs and resumed delegated tree work. The gate compares native/WASM continuation within the same synthetic fixture/run, without a stored expected world hash. The [simulation notes](simulation.md) state its present limits; the live networked game is not implemented yet.
+The simulation integration case exercises real Flecs-backed fixed ticks, local admission, range-filtered radar, collision pairs and resumed delegated tree work. The gate compares native/WASM continuation within the same synthetic fixture/run, without a stored expected world hash. The [simulation notes](simulation.md) state its present limits. The service gate also exercises real native host/client/GM processes through production admission and projections.
 
 Native builds also produce a verified starter pack at `build/native/training.zip` and the `phoenix_pack` source-folder packaging utility. See [local play](local-play.md) for starting an authored mission in native or server WASM. The fourth native system case and its WASM equivalent exercise the local session adapter, transactional setup/import, command ownership, content-inclusive runtime saves and paused recovery with a fresh console claim. These assertions use synthetic content and compare continuation within the same run.
 

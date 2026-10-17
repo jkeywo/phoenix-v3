@@ -13,6 +13,7 @@ std::map<std::string,Texture2D> textures;
 RenderTexture2D scene{};
 float azimuth = 0.7f, elevation = 0.8f, distance = 160;
 Vector3 focus{};
+float game_top = 200;
 std::optional<std::uint64_t> save_after;
 std::optional<std::uint64_t> requested_at;
 constexpr float pi = 3.14159265358979323846f;
@@ -51,15 +52,18 @@ std::string contacts_text(const Observation& observation) {
     return text.str();
 }
 bool action(Application& app, const std::string& id) {
-    if (!app.session || id.rfind("game.",0) != 0) return false;
+    if (!app.session) return false;
+    if (id.rfind("network.",0) == 0) return app.session->session_action(id);
+    if (id.rfind("game.",0) != 0) return false;
     try {
         auto& session = *app.session;
         if (id == "game.import" && !session.running()) request_file("game-pack");
         else if (id == "game.load") request_file("game-save");
         else if (id == "game.save" && session.running()) { save_after = session.ticks(); notice = "Saving after the next local tick boundary."; }
         else if (id == "game.resume" && session.recovery_pending()) {
-            session.resume_local(); auto observation = *session.observation(); desired_heading = observation.requested_heading;
-            desired_speed = observation.requested_speed; notice = "Local console reclaimed. Saved engine requests remain in effect until changed."; app.screen = Screen::console;
+            session.resume_local();
+            if (auto observation = session.observation()) { desired_heading = observation->requested_heading; desired_speed = observation->requested_speed; }
+            notice = "Resuming at the saved tick. Waiting for the local console claim."; app.screen = Screen::console;
         }
         else if (id == "game.clear") { session.clear_packs(); close_game_scene(); mission.clear(); slot.clear(); ship.clear(); radar_reading.clear(); save_after.reset(); notice = "Session ended; content selection cleared."; }
         else if (id == "game.mission" && !session.running()) { next(mission,missions(session.catalog())); slot.clear(); ship.clear(); }
@@ -67,8 +71,8 @@ bool action(Application& app, const std::string& id) {
         else if (id == "game.ship" && !session.running()) next(ship,ships(session.catalog()));
         else if (id == "game.start" && !session.running()) {
             session.start({mission,{{slot,ship}},slot}); desired_speed = 0; radar_reading.clear();
-            auto own = session.observation()->own; desired_heading = own.heading;
-            focus = {own.x/1000.f,0,-own.y/1000.f}; notice = "Local session running. Network peers are not connected."; app.screen = Screen::viewscreen;
+            if (auto own = session.focus_body()) { desired_heading = own->heading; focus = {own->x/1000.f,0,-own->y/1000.f}; }
+            notice = "Session started."; app.screen = Screen::viewscreen;
         }
         else if (id == "game.console" && session.running()) app.screen = Screen::console;
         else if (id == "game.scene" && session.running()) app.screen = Screen::viewscreen;
@@ -94,7 +98,7 @@ bool action(Application& app, const std::string& id) {
         normalise(session.catalog()); return true;
     } catch (const std::exception& error) { notice = error.what(); return false; }
 }
-Rectangle area() { return {20,300,static_cast<float>(GetScreenWidth()-40),std::max(80.f,static_cast<float>(GetScreenHeight()-320))}; }
+Rectangle area() { return {20,game_top,static_cast<float>(GetScreenWidth()-40),std::max(80.f,static_cast<float>(GetScreenHeight())-game_top-20)}; }
 Rectangle widget_rect(const Json& widget) {
     auto a = area(); return {a.x+a.width*widget.at("x").get<float>()/1000, a.y+a.height*widget.at("y").get<float>()/1000,
         a.width*widget.at("width").get<float>()/1000,a.height*widget.at("height").get<float>()/1000};
@@ -114,8 +118,9 @@ Texture2D texture(const Catalog& catalog, const std::string& asset) {
 void prepare_game_screen(Application& app, Rml::ElementDocument& document) {
     app.screen_controls.clear();
     app.screen_action = [&app](const std::string& id) { return action(app,id); };
-    std::string markup, description = "Choose a mode to begin.";
-    if (app.screen == Screen::client_lobby) description = "Console lobby. Remote connection and authorised station claims are not implemented yet.";
+    std::string markup, network_markup, description = "Choose a mode to begin.";
+    game_top = 200;
+    if (app.screen == Screen::client_lobby) description = "Connect to your ship server, verify its content and claim an available station.";
     if (app.screen == Screen::viewscreen || app.screen == Screen::console) description = "No local mission is running.";
     auto button = [&](const std::string& id,const std::string& text) {
         app.screen_controls.emplace_back(id,text);
@@ -141,16 +146,16 @@ void prepare_game_screen(Application& app, Rml::ElementDocument& document) {
         const auto& catalog = app.session->catalog(); normalise(catalog);
         static bool was_running = false;
         if (app.session->running() && !was_running) {
-            const auto own = app.session->observation()->own;
-            focus = {own.x/1000.f,0,-own.y/1000.f}; requested_at.reset();
+            if (auto own = app.session->focus_body()) focus = {own->x/1000.f,0,-own->y/1000.f};
+            close_game_scene(); requested_at.reset();
         }
         was_running = app.session->running();
         if (app.session->running() && (!requested_at || app.session->ticks() > *requested_at)) {
-            const auto observation = *app.session->observation();
-            desired_speed = observation.requested_speed; desired_heading = observation.requested_heading; requested_at.reset();
+            if (auto observation = app.session->observation()) { desired_speed = observation->requested_speed; desired_heading = observation->requested_heading; requested_at.reset(); }
         }
-        if (app.screen == Screen::home || app.screen == Screen::server_lobby) {
-            description = "Single local ship server. Import base packs before dependent mods. ";
+        if (app.screen == Screen::client_lobby && app.session->observation()) app.screen = Screen::console;
+        if ((app.screen == Screen::home || app.screen == Screen::server_lobby) && app.can_host) {
+            description = "Import base packs before dependent mods. ";
             for (const auto& [id,hash] : catalog.ordered_packs) description += id+" ["+hash.substr(0,12)+"] ";
             if (app.session->recovery_pending()) {
                 description = "Recovery lobby / tick "+std::to_string(app.session->ticks())+". No live station claim. ";
@@ -158,11 +163,11 @@ void prepare_game_screen(Application& app, Rml::ElementDocument& document) {
             } else if (!app.session->running()) {
                 markup = button("game.import","Add ZIP pack")+button("game.clear","Clear packs")+button("game.load","Load runtime save");
                 if (!catalog.maps.empty()) markup += button("game.mission","Mission: "+mission)+button("game.slot","Ship slot: "+slot)+button("game.ship","Ship: "+ship);
-                if (!ship.empty()) markup += button("game.start","Start local session");
+                if (!ship.empty()) markup += button("game.start","Start session");
             } else markup = button("game.scene","Open viewscreen")+button("game.console","Open ship console")+button("game.save","Save runtime ZIP")+button("game.load","Load runtime save")+button("game.clear","End session and clear packs");
         } else if ((app.screen == Screen::viewscreen || app.screen == Screen::console) && app.session->running()) {
-            const auto own = app.session->observation()->own;
-            description = "Local tick "+std::to_string(app.session->ticks())+" / position "+std::to_string(own.x/1000)+", "+std::to_string(own.y/1000)+" m / speed "+std::to_string(static_cast<int>(std::hypot(static_cast<double>(own.vx),static_cast<double>(own.vy))/1000))+" m/s / heading "+std::to_string(own.heading/1000)+" degrees.";
+            description = "Tick "+std::to_string(app.session->ticks());
+            if (auto own = app.session->focus_body()) description += " / position "+std::to_string(own->x/1000)+", "+std::to_string(own->y/1000)+" m / speed "+std::to_string(static_cast<int>(std::hypot(static_cast<double>(own->vx),static_cast<double>(own->vy))/1000))+" m/s / heading "+std::to_string(own->heading/1000)+" degrees.";
             if (app.screen == Screen::viewscreen) description += " Right drag: orbit; middle drag: pan; wheel: zoom.";
             if (app.screen == Screen::viewscreen) markup = button("game.console","Open ship console");
             else if (const auto* console = console_definition(app)) {
@@ -182,13 +187,25 @@ void prepare_game_screen(Application& app, Rml::ElementDocument& document) {
                 }
             }
         }
+        if (app.session->networked()) {
+            description += " "+app.session->connection_status();
+            if (app.screen != Screen::gm && app.screen != Screen::workshop)
+                for (const auto& [id,text] : app.session->lobby_controls()) network_markup += button(id,text);
+        }
     }
     if (!notice.empty()) description += " "+notice;
+    app.accessible_status = description;
     auto* game = document.GetElementById("game");
+    auto* session_controls = document.GetElementById("session-controls");
+    game_top = std::max(200.f,session_controls->GetAbsoluteTop()+session_controls->GetOffsetHeight()+12);
+    document.GetElementById("description")->SetProperty("width",std::to_string(std::max(40,GetScreenWidth()-40))+"px");
+    session_controls->SetProperty("width",std::to_string(std::max(40,GetScreenWidth()-40))+"px");
     game->SetProperty("width",std::to_string(std::max(40,GetScreenWidth()-40))+"px");
-    game->SetProperty("height",std::to_string(std::max(80,GetScreenHeight()-320))+"px");
-    static std::string previous_markup, previous_description;
+    game->SetProperty("top",std::to_string(static_cast<int>(game_top))+"px");
+    game->SetProperty("height",std::to_string(std::max(80,GetScreenHeight()-static_cast<int>(game_top)-20))+"px");
+    static std::string previous_markup, previous_description, previous_network;
     if (markup != previous_markup) { game->SetInnerRML(markup); previous_markup = markup; }
+    if (network_markup != previous_network) { document.GetElementById("session-controls")->SetInnerRML(network_markup); previous_network = network_markup; }
     const auto displayed = escape(label(app,description));
     if (displayed != previous_description) document.GetElementById("description")->SetInnerRML(displayed);
     previous_description = displayed;
@@ -196,7 +213,7 @@ void prepare_game_screen(Application& app, Rml::ElementDocument& document) {
 void draw_game_scene(const Application& app) {
     if (!app.session || !app.session->running()) return;
     if (app.screen == Screen::viewscreen) {
-        if (GetMouseY() >= 300) {
+        if (GetMouseY() >= game_top) {
             auto delta = GetMouseDelta();
             if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT)) { azimuth -= delta.x*0.005f; elevation = std::clamp(elevation+delta.y*0.005f,0.15f,1.5f); }
             if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) { focus.x -= delta.x*distance/700; focus.z -= delta.y*distance/700; }

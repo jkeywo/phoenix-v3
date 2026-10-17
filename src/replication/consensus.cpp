@@ -51,7 +51,7 @@ struct PeerConsensus::Impl {
         return 800+static_cast<unsigned>((hash+term*317)%800);
     }
     bool quorum() const {
-        if (role != PeerRole::leader || write) return false;
+        if (role != PeerRole::leader) return false;
         std::size_t count = 1;
         for (const auto& [peer,time] : heard) if (peer != config.self && now-time <= 1500) ++count;
         return count >= majority();
@@ -228,7 +228,7 @@ bool PeerConsensus::receive(const std::string& sender, const WireJson& packet) {
 }
 bool PeerConsensus::propose(const WireJson& value) {
     auto& s = *impl_;
-    if (!s.quorum() || s.log.size() >= max_entries || value.dump().size() > max_payload) return false;
+    if (s.write || !s.quorum() || s.log.size() >= max_entries || value.dump().size() > max_payload) return false;
     s.dirty_from = std::min(s.dirty_from,s.log.size()); s.log.push_back({s.term,value}); s.dirty = true; s.broadcast(); s.advance_commit(); s.finish(); return true;
 }
 std::optional<DurableWrite> PeerConsensus::pending_write() const { return impl_->write; }

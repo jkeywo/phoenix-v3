@@ -60,22 +60,25 @@ void open_window() {
     document = context->LoadDocumentFromMemory(R"(<rml><head><style>
     body { display:block; width:100%; box-sizing:border-box; font-family:LatoLatin; font-size:20px; color:#d9e9ef; padding:20px; }
     h1, h2, p { display:block; }
-    h1 { font-size:30px; color:#76c9e8; margin-bottom:12px; }
-    h2 { font-size:24px; margin:12px 0; }
+    h1 { font-size:22px; color:#76c9e8; margin-bottom:6px; }
+    h2 { font-size:20px; margin:4px 0; }
     #nav { display:flex; flex-wrap:wrap; }
-    button { display:block; flex-shrink:0; width:170px; max-width:90%; padding:8px 12px; margin:0 8px 8px 0; background:#173142; border:1px #76c9e8; }
+    button { display:inline-block; width:170px; padding:8px 12px; margin:0 8px 8px 0; background:#173142; border:1px #76c9e8; }
     button:hover, button:focus { background:#315a70; }
+    #nav button { width:130px; padding:4px 8px; font-size:16px; }
+    #session-controls { display:block; width:100%; }
+    #session-controls button { width:250px; font-size:16px; padding:4px 8px; }
     p { max-width:1100px; line-height:1.5; }
-    #description { max-height:80px; overflow:auto; }
-    #game { position:absolute; top:300px; left:20px; right:20px; bottom:20px; display:flex; flex-wrap:wrap; align-content:flex-start; }
+    #description { width:100%; max-height:50px; overflow:auto; font-size:16px; }
+    #game { position:absolute; top:200px; left:20px; right:20px; bottom:20px; display:block; }
     #game button { width:250px; }
     .widget { position:absolute; box-sizing:border-box; border:1px #315a70; padding:10px; overflow:auto; }
     .widget h3 { display:block; font-size:20px; margin-bottom:8px; }
-    .widget button { width:90%; }
+    .widget button { display:block; width:200px; font-size:16px; padding:4px; }
     </style></head><body><h1>PHOENIX / SETTLED DARK</h1>
     <div id="nav"><button id="home">Home</button><button id="host">New game</button><button id="join">Join console</button>
     <button id="view">Viewscreen</button><button id="edit">Workshop</button><button id="locale">Toggle pseudo-localisation</button></div>
-    <h2 id="heading">Home</h2><p id="description"></p><div id="game"></div></body></rml>)");
+    <h2 id="heading">Home</h2><p id="description"></p><div id="session-controls"></div><div id="game"></div></body></rml>)");
     if (!document) throw std::runtime_error("Could not load home screen");
     document->AddEventListener("click", &navigation);
     document->Show();

@@ -11,6 +11,7 @@ struct Application {
     Screen screen = Screen::home;
     std::string network_code;
     std::string status = "Foundation build";
+    std::string accessible_status;
     std::vector<std::string> packs;
     bool can_host = false;
     bool can_edit = false;

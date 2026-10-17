@@ -1,10 +1,11 @@
 #include <phoenix/session.hpp>
+#include "authority.hpp"
 #include <phoenix/world.hpp>
 #include <algorithm>
 #include <stdexcept>
 namespace phoenix {
 namespace {
-class LocalSession final : public SessionPort {
+class LocalSession final : public HostAccess {
     std::vector<Pack> packs_;
     std::vector<Bytes> archives_;
     Catalog catalog_;
@@ -13,6 +14,10 @@ class LocalSession final : public SessionPort {
     bool active_ = false;
     static constexpr std::uint64_t local_console = 1;
 public:
+    World& authoritative_world() override { if (!world_) throw std::runtime_error("No authoritative world is loaded"); return *world_; }
+    const World& authoritative_world() const override { if (!world_) throw std::runtime_error("No authoritative world is loaded"); return *world_; }
+    const std::vector<Bytes>& content_archives() const override { return archives_; }
+    const GameSetup& setup() const override { return setup_; }
     void add_pack(const Bytes& archive) override {
         if (world_) throw std::runtime_error("End the running session before changing packs");
         if (packs_.size() >= 32) throw std::runtime_error("At most 32 ordered packs are supported");
@@ -98,5 +103,6 @@ public:
     std::vector<BodyView> viewscreen() const override { return running() ? world_->inspect() : std::vector<BodyView>{}; }
 };
 }
-std::shared_ptr<SessionPort> make_local_session() { return std::make_shared<LocalSession>(); }
+std::shared_ptr<HostAccess> make_host_world() { return std::make_shared<LocalSession>(); }
+std::shared_ptr<SessionPort> make_local_session() { return make_host_world(); }
 }

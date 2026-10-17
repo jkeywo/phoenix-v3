@@ -1,6 +1,7 @@
 #include <phoenix/semantics.hpp>
 #include <emscripten.h>
 #include <deque>
+#include <chrono>
 namespace {
 std::deque<std::string> actions;
 }
@@ -9,7 +10,7 @@ extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_semantic_action(const char* id) {
 }
 EM_JS(void, begin_semantics, (), {
     const root = document.getElementById('semantics');
-    for (const child of root.children) child.dataset.stale = 'true';
+    for (const child of root.children) if (child.dataset.action) child.dataset.stale = 'true';
 });
 EM_JS(void, append_semantic_button, (const char* id, const char* label), {
     const action = UTF8ToString(id);
@@ -26,8 +27,15 @@ EM_JS(void, end_semantics, (), {
     const root = document.getElementById('semantics');
     for (const child of Array.from(root.children)) if (child.dataset.stale) child.remove();
 });
+EM_JS(void, update_semantic_status, (const char* text), {
+    const status = document.getElementById('player-status');
+    if (status && status.textContent !== UTF8ToString(text)) status.textContent = UTF8ToString(text);
+});
 namespace phoenix {
 void publish_semantics(const Application& app) {
+    static auto next_status = std::chrono::steady_clock::time_point{};
+    const auto now = std::chrono::steady_clock::now();
+    if (now >= next_status) { update_semantic_status(app.accessible_status.c_str()); next_status = now+std::chrono::seconds(1); }
     static std::vector<SemanticControl> previous;
     auto controls = navigation_controls(app);
     bool changed = previous.size() != controls.size();
