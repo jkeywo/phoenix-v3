@@ -32,6 +32,7 @@ struct World::Impl {
     Catalog content;
     std::string map;
     std::map<std::string,std::string> ships;
+    std::map<std::string,EntityId> slot_entities;
     std::map<EntityId,flecs::entity> entities;
     std::map<std::uint64_t,EntityId> claims;
     std::vector<OperatingCommand> pending;
@@ -64,6 +65,7 @@ void World::load(const Catalog& content, const std::string& map, const std::map<
         if (!slots.contains(slot)) throw std::runtime_error("Unknown ship slot: "+slot);
         const auto& allowed = slots.at(slot).at("allowed_ships");
         if (std::find(allowed.begin(),allowed.end(),Json(ship)) == allowed.end()) throw std::runtime_error("Ship is not allowed in slot: "+slot);
+        candidate->slot_entities[slot] = next;
         candidate->create(next++,ship,slots.at(slot));
     }
     impl_ = std::move(candidate);
@@ -73,6 +75,11 @@ bool World::claim(std::uint64_t console, EntityId ship) {
     const auto& body = impl_->entities.at(ship).get<Body>(); const auto& systems = impl_->content.entities.at(body.definition).at("systems");
     if (!body.mass || !systems.contains("engine") || !systems.contains("steering")) return false;
     impl_->claims[console] = ship; return true;
+}
+std::optional<EntityId> World::ship_for_slot(const std::string& slot) const {
+    auto found = impl_->slot_entities.find(slot);
+    if (found == impl_->slot_entities.end()) return {};
+    return found->second;
 }
 bool World::release(std::uint64_t console) {
     auto found = impl_->claims.find(console); if (found == impl_->claims.end()) return false;

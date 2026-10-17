@@ -2,11 +2,8 @@
 #include <memory>
 #include <optional>
 #include <phoenix/content.hpp>
+#include <phoenix/contracts.hpp>
 namespace phoenix {
-using EntityId = std::uint64_t;
-struct BodyView { EntityId id; std::string definition; std::int64_t x, y, vx, vy, heading; };
-struct Observation { BodyView own; std::vector<BodyView> contacts; };
-struct OperatingCommand { EntityId target; std::string action; std::int64_t value; };
 class World {
 public:
     static constexpr int ticks_per_second = 20;
@@ -16,6 +13,7 @@ public:
     unsigned long long ticks() const;
     void load(const Catalog& content, const std::string& map, const std::map<std::string,std::string>& ships = {});
     bool claim(std::uint64_t console, EntityId ship);
+    std::optional<EntityId> ship_for_slot(const std::string& slot) const;
     bool release(std::uint64_t console);
     bool submit(std::uint64_t console, const OperatingCommand& command);
     std::optional<Observation> observe(std::uint64_t console) const;
