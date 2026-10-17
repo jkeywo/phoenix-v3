@@ -5,6 +5,7 @@
 #include <memory>
 #include <stdexcept>
 #include <set>
+#include <filesystem>
 namespace phoenix {
 namespace {
 constexpr std::size_t max_archive = 32 * 1024 * 1024;
@@ -40,7 +41,7 @@ Json parse_json(std::span<const std::uint8_t> bytes, const std::string& source) 
     catch (const std::exception& error) { throw std::runtime_error(source+": "+error.what()); }
 }
 Bytes read_file(const std::string& path) {
-    std::ifstream input(path,std::ios::binary|std::ios::ate);
+    std::ifstream input(std::filesystem::path(std::u8string(path.begin(),path.end())),std::ios::binary|std::ios::ate);
     if (!input) throw std::runtime_error("Cannot open '"+path+"'");
     auto length = input.tellg();
     if (length < 0 || length > max_archive) throw std::runtime_error(path+": file exceeds 32 MiB limit");
@@ -49,7 +50,7 @@ Bytes read_file(const std::string& path) {
     return result;
 }
 void write_file(const std::string& path, std::span<const std::uint8_t> bytes) {
-    std::ofstream output(path,std::ios::binary|std::ios::trunc);
+    std::ofstream output(std::filesystem::path(std::u8string(path.begin(),path.end())),std::ios::binary|std::ios::trunc);
     if (!output || !output.write(reinterpret_cast<const char*>(bytes.data()),static_cast<std::streamsize>(bytes.size()))) throw std::runtime_error(path+": write failed");
 }
 Pack read_pack(std::span<const std::uint8_t> bytes) {

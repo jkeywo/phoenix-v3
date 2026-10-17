@@ -16,9 +16,11 @@ int main(int argc, char** argv) {
     app.can_edit = true;
     int smoke_frames = 0;
     bool workshop_smoke = false;
+    std::string workshop_pack;
     for (int i = 1; i < argc; ++i) {
         if (std::strcmp(argv[i], "--smoke") == 0) smoke_frames = 6;
         if (std::strcmp(argv[i], "--workshop") == 0) { app.screen = phoenix::Screen::workshop; workshop_smoke = true; }
+        if (std::strcmp(argv[i], "--workshop-pack") == 0 && i+1 < argc) { workshop_pack = argv[++i]; app.screen = phoenix::Screen::workshop; workshop_smoke = true; }
     }
     phoenix::open_window();
     if (argc > 1 && std::strcmp(argv[1], "--platform-check") == 0) {
@@ -29,6 +31,10 @@ int main(int argc, char** argv) {
         return passed ? 0 : 1;
     }
     phoenix::begin_tools();
+    if (!workshop_pack.empty()) {
+        try { phoenix::open_workshop_pack(workshop_pack); }
+        catch (const std::exception& error) { std::cerr << error.what() << '\n'; phoenix::end_tools(); phoenix::close_window(); return 1; }
+    }
     while (!phoenix::close_requested()) {
         world.tick();
         BeginDrawing();

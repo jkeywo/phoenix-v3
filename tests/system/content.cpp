@@ -1,4 +1,5 @@
 #include <phoenix/content.hpp>
+#include <phoenix/workshop.hpp>
 #include <iostream>
 #include <stdexcept>
 using namespace phoenix;
@@ -46,6 +47,33 @@ int main() {
         rejected([&]{resolve_packs({read_pack(write_pack(base))});},"inheritance cycle");
         base.files["../escape"] = {1}; rejected([&]{write_pack(base);},"unsafe path");
         require(sha256(Bytes{'a','b','c'}) == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", "content hash must match the SHA256 format contract");
+        WorkshopDocument workshop;
+        workshop.import_image("pixel.png",read_file(std::string(PHOENIX_FIXTURE_DIR)+"/pixel.png"));
+        auto definition = workshop.create_entity();
+        auto instance = workshop.place(definition,1000,2000);
+        workshop.duplicate(instance);
+        require(workshop.map()["entities"].size() == 2,"Workshop duplicate must create a separate stable instance");
+        workshop.map()["ship_slots"].push_back({{"id","crew"},{"x_mm",0},{"y_mm",0},{"heading_mdeg",0},{"allowed_ships",Json::array({definition})}});
+        auto saved_map = workshop.save_map();
+        workshop.erase(instance);
+        workshop.load_map(saved_map);
+        require(workshop.map()["entities"].size() == 2,"map load must restore authored transforms and instances");
+        auto authored = workshop.export_pack();
+        WorkshopDocument reopened; reopened.load_pack(authored);
+        auto reloaded = resolve_packs({read_pack(reopened.export_pack())});
+        require(reloaded.maps.at("workshop.map")["ship_slots"][0]["allowed_ships"][0] == definition,"export/import must preserve allowed ships and include required assets");
+        auto original = reopened.map();
+        rejected([&]{reopened.load_map(json_bytes({{"id","bad"},{"entities",Json::array({{{"id",1},{"definition","missing"},{"x_mm",0},{"y_mm",0},{"heading_mdeg",0}}})},{"ship_slots",Json::array()}}));},"unknown entity");
+        require(reopened.map() == original,"refused map load must retain the editable document");
+        WorkshopDocument authored_mod;
+        authored_mod.rename_pack("authored-mod");
+        authored_mod.load_dependency(authored);
+        auto derived = authored_mod.create_entity(definition);
+        authored_mod.place(derived,0,0);
+        auto mod_archive = authored_mod.export_pack();
+        auto combined = resolve_packs({read_pack(authored),read_pack(mod_archive)});
+        require(combined.entities.at(derived)["systems"].contains("engine"),"Workshop mod must inherit real dependency content without embedding a second copy");
+        require(combined.maps.contains("authored-mod.map"),"renaming a pack must update namespaced map identities");
         std::cout << "PASS pack round trip, inheritance, ordered overrides and runnable-content verification\n";
     } catch (const std::exception& error) { std::cerr << "FAIL " << error.what() << '\n'; return 1; }
 }

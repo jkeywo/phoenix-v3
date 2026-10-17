@@ -4,6 +4,8 @@
 #include <rlgl.h>
 #include <cstdint>
 namespace phoenix {
+void render_editor(Application& app);
+void close_editor();
 namespace { Texture2D font_texture{}; }
 void begin_tools() {
     ImGui::CreateContext();
@@ -35,34 +37,7 @@ void draw_workshop(Application& app) {
     for (auto [key, imgui_key] : keys) io.AddKeyEvent(imgui_key, IsKeyDown(key));
     for (int character; (character = GetCharPressed()) != 0;) io.AddInputCharacter(character);
     ImGui::NewFrame();
-    ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport());
-    if (ImGui::BeginMainMenuBar()) {
-        if (ImGui::BeginMenu("Phoenix")) {
-            if (ImGui::MenuItem("Home")) app.screen = Screen::home;
-            ImGui::EndMenu();
-        }
-        ImGui::TextUnformatted(app.screen == Screen::gm ? "GM inspector" : "Workshop");
-        ImGui::EndMainMenuBar();
-    }
-    ImGui::SetNextWindowPos({20,60}, ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize({220,430}, ImGuiCond_FirstUseEver);
-    ImGui::Begin("Entities");
-    ImGui::TextUnformatted("No map loaded.");
-    ImGui::End();
-    ImGui::SetNextWindowPos({260,60}, ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize({650,570}, ImGuiCond_FirstUseEver);
-    ImGui::Begin("Map");
-    ImGui::TextUnformatted("Map authoring follows content integration.");
-    auto origin = ImGui::GetCursorScreenPos();
-    auto size = ImGui::GetContentRegionAvail();
-    auto* draw = ImGui::GetWindowDrawList();
-    draw->AddRectFilled(origin, {origin.x + size.x,origin.y + size.y}, IM_COL32(8,15,25,255));
-    for (float x = 0; x < size.x; x += 40) draw->AddLine({origin.x+x,origin.y},{origin.x+x,origin.y+size.y},IM_COL32(32,58,70,255));
-    for (float y = 0; y < size.y; y += 40) draw->AddLine({origin.x,origin.y+y},{origin.x+size.x,origin.y+y},IM_COL32(32,58,70,255));
-    ImGui::End();
-    ImGui::SetNextWindowPos({930,60}, ImGuiCond_FirstUseEver);
-    ImGui::SetNextWindowSize({300,430}, ImGuiCond_FirstUseEver);
-    ImGui::Begin("Properties"); ImGui::TextWrapped("Select an entity to inspect its properties."); ImGui::End();
+    render_editor(app);
     ImGui::Render();
     rlDrawRenderBatchActive();
     rlDisableBackfaceCulling();
@@ -90,5 +65,5 @@ void draw_workshop(Application& app) {
     rlDrawRenderBatchActive();
     rlEnableBackfaceCulling();
 }
-void end_tools() { UnloadTexture(font_texture); ImGui::DestroyContext(); }
+void end_tools() { close_editor(); UnloadTexture(font_texture); ImGui::DestroyContext(); }
 }

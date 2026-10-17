@@ -21,7 +21,7 @@ The initial build uses CMake and static libraries with commit/hash-pinned depend
 
 ## Runtime boundaries
 
-Run one authoritative simulation, independently of the number of local screens. A client process can show several Console projections while retaining each Console's control and knowledge boundaries. Remote phone clients need their permitted state and local UI, not an authoritative copy of every hidden world object.
+Run one simulation per participating ship server, independently of that server's local screen count. Each ship server maintains the replicated deterministic full world and advances committed peer-consensus inputs/tick frames; the [implementation plan](implementation-plan.md) specifies roster, quorum and recovery rules. A client process can show several Console projections while retaining each Console's control and knowledge boundaries. Remote phone clients need their permitted state and local UI, not an authoritative copy of every hidden world object. Replication is not implemented yet.
 
 The native/browser adapters translate platform events, services and asynchronous outcomes into supported application inputs. Keep gameplay rules, screens, widgets, state trees and job logic in C++ and authored data. Renderers consume presentation projections rather than unrestricted simulation internals. Headless system integration tests use the same content loader, admission and execution mechanisms without opening graphics windows.
 

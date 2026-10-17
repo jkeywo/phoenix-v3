@@ -1,0 +1,16 @@
+# Workshop foundation
+
+Run `native.exe --workshop`, or launch `?type=workshop` from the browser build. The same C++ editor runs on both platforms. Native uses Windows file dialogs; browser builds use file selection and downloads. Browser exports are real downloaded files, not temporary in-memory saves.
+
+1. In **Definitions**, set a unique pack ID and apply it. Import a PNG, then create an entity definition. A draft can be incomplete; verification/export names missing or incompatible fields.
+2. Select a definition and edit its camera-facing/eight-direction images, render scale, engine/steering/radar capabilities and circle/box dimensions/mass in **Properties**. Mass zero means static scenery. These fields author data; gameplay execution follows in the simulation increment.
+3. Double-click the map to place the selected definition. Click an instance to select it, drag to move it, and edit its heading/position numerically. **Entities** supplies duplicate/delete. Middle-drag pans and the wheel zooms. The map shows first-image thumbnails and heading markers; this is not the final 3D billboard renderer.
+4. **Ship slots** adds named spawn transforms. Pick the allowed ships; verification requires each choice to have an engine, steering and positive mass.
+5. **Consoles** creates reusable console definitions. Add radar/throttle/heading/status widgets, edit labels and the bounded 1000-by-1000 layout, and view the layout preview. Bindings use the supported vocabulary. The preview is a wire layout, not a live RmlUi console with running systems yet. Assign an authored console in the entity properties.
+6. **File** creates/selects maps, loads/saves map JSON, and exports/opens verified ZIP packs. Use the map dropdown to switch among maps in a pack. Map JSON references definitions supplied by the current pack/dependencies; ZIP export includes the pack's own definitions and imported assets.
+
+To author a mod, first give it its own pack ID. **Load dependency pack** imports a base pack (then further dependencies in order). Dependency definitions/assets are read-only. Select a dependency entity in Definitions and create a derived entity, then flatten it to edit resolved fields. Export includes the mod and dependency manifest, not copies of the base pack. Select the base before the mod when verifying/loading them. When reopening a dependent mod, load its dependencies first. The general loader supports explicit overrides; the current editor creates derived definitions rather than an override-authoring UI.
+
+`native.exe --workshop-pack path/to/pack.zip` opens a standalone pack directly. Adding `--smoke` takes a six-frame capture and exits. A refused map/pack load preserves the current document. Loaded inherited definitions are flattened for editing; the general loader still supports inheritance.
+
+Remaining work includes game-start pack selection, automatic transfer/cache, live RmlUi console previews, full tools localisation/text shaping, broader authoring vocabulary, and runtime viewscreen rendering. GM mode shows an unconnected read-only surface until approved live inspection is implemented. Hardware input and screen-reader/performance acceptance remain recorded separately.
