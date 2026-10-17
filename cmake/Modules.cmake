@@ -19,6 +19,7 @@ target_sources(phoenix_core PUBLIC FILE_SET CXX_MODULES FILES src/core/console.c
 target_sources(phoenix_presentation PUBLIC FILE_SET CXX_MODULES FILES src/presentation/presentation.cppm)
 target_sources(phoenix_tools PUBLIC FILE_SET CXX_MODULES FILES src/tools/tools.cppm)
 target_sources(phoenix_files PUBLIC FILE_SET CXX_MODULES FILES src/platform/files.cppm)
+target_sources(phoenix_devices PUBLIC FILE_SET CXX_MODULES FILES src/platform/devices.cppm)
 
 # Scan first-party sources and consumers, never the vendored libraries.
 get_property(phoenix_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)

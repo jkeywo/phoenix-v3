@@ -27,8 +27,26 @@ class UiRenderer final : public Rml::RenderInterface
 	};
 	bool scissor_ = false;
 	Rml::Rectanglei region_{};
+	Vector2 origin_{};
+	Rectangle viewport_{0, 0, 100000, 100000};
+	void clip()
+	{
+		auto x = std::max(viewport_.x, origin_.x + region_.Left());
+		auto y = std::max(viewport_.y, origin_.y + region_.Top());
+		auto right = std::min(viewport_.x + viewport_.width, origin_.x + region_.Right());
+		auto bottom = std::min(viewport_.y + viewport_.height, origin_.y + region_.Bottom());
+		BeginScissorMode(static_cast<int>(x), static_cast<int>(y), static_cast<int>(std::max(0.f, right - x)),
+		                 static_cast<int>(std::max(0.f, bottom - y)));
+	}
 
 public:
+	void viewport(Rectangle area)
+	{
+		origin_ = {area.x, area.y};
+		viewport_ = area;
+		BeginScissorMode(static_cast<int>(area.x), static_cast<int>(area.y), static_cast<int>(area.width),
+		                 static_cast<int>(area.height));
+	}
 	Rml::CompiledGeometryHandle CompileGeometry(Rml::Span<const Rml::Vertex> v, Rml::Span<const int> i) override
 	{
 		return reinterpret_cast<Rml::CompiledGeometryHandle>(new Geometry{v, i});
@@ -49,7 +67,7 @@ public:
 			const auto &v = geometry.vertices[index];
 			rlColor4ub(v.colour.red, v.colour.green, v.colour.blue, v.colour.alpha);
 			rlTexCoord2f(v.tex_coord.x, v.tex_coord.y);
-			rlVertex2f(v.position.x + offset.x, v.position.y + offset.y);
+			rlVertex2f(v.position.x + offset.x + origin_.x, v.position.y + offset.y + origin_.y);
 		}
 		rlEnd();
 		rlSetTexture(0);
@@ -84,7 +102,10 @@ public:
 			EndScissorMode();
 		scissor_ = enabled;
 		if (enabled)
-			BeginScissorMode(region_.Left(), region_.Top(), region_.Width(), region_.Height());
+			clip();
+		else
+			BeginScissorMode(static_cast<int>(viewport_.x), static_cast<int>(viewport_.y),
+			                 static_cast<int>(viewport_.width), static_cast<int>(viewport_.height));
 	}
 	void SetScissorRegion(Rml::Rectanglei region) override
 	{
@@ -92,7 +113,7 @@ public:
 		if (scissor_)
 		{
 			EndScissorMode();
-			BeginScissorMode(region.Left(), region.Top(), region.Width(), region.Height());
+			clip();
 		}
 	}
 };

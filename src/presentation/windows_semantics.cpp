@@ -15,6 +15,7 @@ module;
 #include <string>
 #include <utility>
 #include <vector>
+#include <nlohmann/json.hpp>
 
 module phoenix.presentation;
 import phoenix.navigation;
@@ -29,6 +30,10 @@ struct Shared
 	std::mutex mutex;
 	std::vector<SemanticControl> controls;
 	std::deque<std::string> actions;
+	std::deque<std::string> focuses;
+	int revision = 0;
+	std::weak_ptr<SessionPort> session;
+	std::uint64_t generation = 0;
 	int focus = -1;
 	bool active = true;
 };
@@ -48,6 +53,12 @@ class Provider final : public IRawElementProviderSimple,
 	std::atomic<ULONG> refs_{1};
 	std::shared_ptr<Shared> state_;
 	int index_;
+	int revision_;
+	bool valid() const
+	{
+		return state_->active &&
+		       (index_ < 0 || (revision_ == state_->revision && index_ < static_cast<int>(state_->controls.size())));
+	}
 	IUnknown *marshaler_ = nullptr;
 	Provider *make(int index)
 	{
@@ -55,7 +66,8 @@ class Provider final : public IRawElementProviderSimple,
 	}
 
 public:
-	Provider(std::shared_ptr<Shared> shared, int index) : state_(std::move(shared)), index_(index)
+	Provider(std::shared_ptr<Shared> shared, int index)
+	    : state_(std::move(shared)), index_(index), revision_(state_->revision)
 	{
 		CoCreateFreeThreadedMarshaler(static_cast<IRawElementProviderSimple *>(this), &marshaler_);
 	}
@@ -120,9 +132,7 @@ public:
 			return E_POINTER;
 		VariantInit(result);
 		std::lock_guard lock(state_->mutex);
-		if (!state_->active)
-			return UIA_E_ELEMENTNOTAVAILABLE;
-		if (index_ >= static_cast<int>(state_->controls.size()))
+		if (!valid())
 			return UIA_E_ELEMENTNOTAVAILABLE;
 		if (id == UIA_ControlTypePropertyId)
 		{
@@ -142,6 +152,8 @@ public:
 		{
 			result->vt = VT_BOOL;
 			result->boolVal = VARIANT_TRUE;
+			if (id == UIA_IsEnabledPropertyId && index_ >= 0)
+				result->boolVal = state_->controls[index_].placement.enabled ? VARIANT_TRUE : VARIANT_FALSE;
 		}
 		else if (id == UIA_HasKeyboardFocusPropertyId)
 		{
@@ -163,7 +175,7 @@ public:
 			return E_POINTER;
 		*result = nullptr;
 		std::lock_guard lock(state_->mutex);
-		if (!state_->active)
+		if (!valid())
 			return UIA_E_ELEMENTNOTAVAILABLE;
 		int count = static_cast<int>(state_->controls.size());
 		if (index_ < 0 && count && direction == NavigateDirection_FirstChild)
@@ -182,12 +194,13 @@ public:
 	{
 		if (!result)
 			return E_POINTER;
-		*result = SafeArrayCreateVector(VT_I4, 0, 3);
+		*result = SafeArrayCreateVector(VT_I4, 0, 4);
 		if (!*result)
 			return E_OUTOFMEMORY;
 		int values[] = {UiaAppendRuntimeId,
-		                static_cast<int>(reinterpret_cast<std::uintptr_t>(state_->window) & 0x7fffffff), index_ + 1};
-		for (LONG i = 0; i < 3; ++i)
+		                static_cast<int>(reinterpret_cast<std::uintptr_t>(state_->window) & 0x7fffffff), index_ + 1,
+		                revision_};
+		for (LONG i = 0; i < 4; ++i)
 			SafeArrayPutElement(*result, &i, &values[i]);
 		return S_OK;
 	}
@@ -195,6 +208,18 @@ public:
 	{
 		if (!result)
 			return E_POINTER;
+		std::lock_guard lock(state_->mutex);
+		if (!valid())
+			return UIA_E_ELEMENTNOTAVAILABLE;
+		if (index_ >= 0)
+		{
+			POINT origin{};
+			ClientToScreen(state_->window, &origin);
+			const auto &box = state_->controls[index_].placement;
+			*result = {origin.x + static_cast<double>(box.x), origin.y + static_cast<double>(box.y), box.width,
+			           box.height};
+			return S_OK;
+		}
 		RECT rect{};
 		GetWindowRect(state_->window, &rect);
 		*result = {static_cast<double>(rect.left), static_cast<double>(rect.top),
@@ -212,9 +237,10 @@ public:
 	{
 		{
 			std::lock_guard lock(state_->mutex);
-			if (!state_->active)
+			if (!valid())
 				return UIA_E_ELEMENTNOTAVAILABLE;
-			state_->focus = index_;
+			if (index_ >= 0 && state_->focuses.size() < 64)
+				state_->focuses.push_back(state_->controls[index_].id);
 		}
 		UiaRaiseAutomationEvent(this, UIA_AutomationFocusChangedEventId);
 		return S_OK;
@@ -226,10 +252,26 @@ public:
 		*result = make(-1);
 		return S_OK;
 	}
-	HRESULT STDMETHODCALLTYPE ElementProviderFromPoint(double, double, IRawElementProviderFragment **result) override
+	HRESULT STDMETHODCALLTYPE ElementProviderFromPoint(double x, double y,
+	                                                   IRawElementProviderFragment **result) override
 	{
 		if (!result)
 			return E_POINTER;
+		std::lock_guard lock(state_->mutex);
+		if (!state_->active)
+			return UIA_E_ELEMENTNOTAVAILABLE;
+		POINT origin{};
+		ClientToScreen(state_->window, &origin);
+		for (int i = static_cast<int>(state_->controls.size()) - 1; i >= 0; --i)
+		{
+			const auto &box = state_->controls[i].placement;
+			if (x >= origin.x + box.x && y >= origin.y + box.y && x < origin.x + box.x + box.width &&
+			    y < origin.y + box.y + box.height)
+			{
+				*result = make(i);
+				return S_OK;
+			}
+		}
 		*result = make(-1);
 		return S_OK;
 	}
@@ -244,8 +286,10 @@ public:
 	HRESULT STDMETHODCALLTYPE Invoke() override
 	{
 		std::lock_guard lock(state_->mutex);
-		if (!state_->active || index_ < 0 || index_ >= static_cast<int>(state_->controls.size()))
+		if (!valid() || index_ < 0)
 			return UIA_E_ELEMENTNOTAVAILABLE;
+		if (!state_->controls[index_].placement.enabled)
+			return UIA_E_ELEMENTNOTENABLED;
 		if (state_->actions.size() < 64)
 			state_->actions.push_back(state_->controls[index_].id);
 		return S_OK;
@@ -274,17 +318,41 @@ void publish_semantics(const Application &app)
 	if (!state)
 		return;
 	std::lock_guard lock(state->mutex);
-	state->controls = navigation_controls(app);
+	auto controls = navigation_controls(app);
+	const bool replaced =
+	    state->session.lock() != app.session || (app.session && state->generation != app.session->generation());
+	bool changed = replaced || controls.size() != state->controls.size();
+	if (replaced)
+	{
+		state->session = app.session;
+		state->generation = app.session ? app.session->generation() : 0;
+		state->actions.clear();
+		state->focuses.clear();
+	}
+	for (std::size_t i = 0; !changed && i < controls.size(); ++i)
+		changed = controls[i].id != state->controls[i].id;
+	if (changed)
+		++state->revision;
+	state->focus = -1;
+	for (std::size_t i = 0; i < controls.size(); ++i)
+		if (controls[i].placement.focused)
+			state->focus = static_cast<int>(i);
+	state->controls = std::move(controls);
 }
 void drain_semantic_actions(Application &app)
 {
 	if (!state)
 		return;
 	std::deque<std::string> pending;
+	std::deque<std::string> focuses;
 	{
 		std::lock_guard lock(state->mutex);
 		pending.swap(state->actions);
+		focuses.swap(state->focuses);
 	}
+	for (const auto &id : focuses)
+		if (app.focus_control)
+			app.focus_control(id);
 	for (const auto &action : pending)
 		invoke_navigation(app, action);
 }

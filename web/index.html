@@ -43,23 +43,38 @@
 		}
 
 		#semantics {
+			position: fixed;
+			inset: 0;
+			pointer-events: none;
+			z-index: 2;
+		}
+		#semantics .placed {
+			position: fixed;
+			opacity: 0;
+			overflow: hidden;
+		}
+		#semantics .placed:focus {
+			opacity: 1;
+			background: #173142;
+			color: #d9e9ef;
+			outline: 2px solid #76c9e8;
+		}
+		#semantics .fallback,
+		#player-status {
 			position: absolute;
 			width: 1px;
 			height: 1px;
 			overflow: hidden;
 			clip-path: inset(50%);
 		}
-
-		#semantics:focus-within {
-			position: fixed;
-			bottom: 0;
-			left: 0;
+		#semantics .fallback:focus {
 			width: auto;
 			height: auto;
 			clip-path: none;
-			padding: 1rem;
+			bottom: 0;
+			left: 0;
 			background: #173142;
-			z-index: 2;
+			color: #d9e9ef;
 		}
 	</style>
 	<header>

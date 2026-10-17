@@ -3,6 +3,11 @@ module;
 #include <RmlUi/Core.h>
 #include <stdexcept>
 #include <filesystem>
+#include <algorithm>
+#include <map>
+#include <set>
+#include <optional>
+#include <nlohmann/json.hpp>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 // clang-format off: embedded JavaScript must retain its operators.
@@ -22,8 +27,11 @@ EM_JS(int, phoenix_canvas_height, (), { return Math.max(1,Module.canvas.clientHe
 module phoenix.presentation;
 import phoenix.application;
 import phoenix.navigation;
+import phoenix.console;
+import phoenix.devices;
 #include "rml_backend.hpp"
 #include "game.hpp"
+#include "consoles.hpp"
 
 namespace phoenix
 {
@@ -35,6 +43,35 @@ Rml::Context *context = nullptr;
 Rml::ElementDocument *document = nullptr;
 Application *current_app = nullptr;
 std::unique_ptr<GameScreen> game_screen;
+std::map<ConsoleId, std::unique_ptr<ConsoleSurface>> console_surfaces;
+InputRouter input;
+std::set<std::string> gamepads;
+std::map<std::uint64_t, PointerInput> captures;
+std::optional<ConsoleId> mouse_capture;
+bool console_mode = false;
+std::vector<ConsoleRegion> displayed_regions;
+Rml::Context *routed_context(ConsoleId route)
+{
+	if (!console_mode)
+		return context;
+	auto found = console_surfaces.find(route);
+	return found == console_surfaces.end() ? nullptr : &found->second->context();
+}
+void cancel_captures()
+{
+	for (const auto &[id, point] : captures)
+	{
+		if (auto *context = routed_context(point.console))
+			context->ProcessTouchCancel({{static_cast<Rml::TouchId>(id), {point.x, point.y}}});
+		input.pointer_up(id, point.x, point.y);
+	}
+	captures.clear();
+	if (mouse_capture)
+		if (auto *context = routed_context(*mouse_capture))
+			for (int button = 0; button < 3; ++button)
+				context->ProcessMouseButtonUp(button, 0);
+	mouse_capture.reset();
+}
 Screen shown = Screen::gm;
 struct Navigation : Rml::EventListener
 {
@@ -73,6 +110,7 @@ void open_window()
 	SetTargetFPS(60);
 	SetExitKey(KEY_NULL);
 	install_native_accessibility(GetWindowHandle());
+	open_devices(GetWindowHandle());
 	Rml::SetSystemInterface(&system);
 	Rml::SetRenderInterface(&renderer);
 	if (!Rml::Initialise())
@@ -136,53 +174,254 @@ void draw_screen(Application &app)
 #endif
 	ClearBackground({8, 15, 25, 255});
 	current_app = &app;
-	drain_semantic_actions(app);
-	update_document(app);
-	game_screen->prepare(app, *document);
+	const bool show_consoles = app.screen == Screen::console;
+	if (show_consoles != console_mode)
+	{
+		cancel_captures();
+		console_mode = show_consoles;
+	}
+	app.console_surface_active = console_mode;
+	app.control_placements.clear();
+	std::vector<ConsoleRegion> regions =
+	    console_mode && !app.console_regions.empty()
+	        ? app.console_regions
+	        : std::vector<ConsoleRegion>{
+	              {1, 0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())}};
+	for (const auto &pad : gamepads)
+	{
+		auto assigned = app.gamepad_assignments.find(pad);
+		if (!console_mode || assigned == app.gamepad_assignments.end() ||
+		    std::none_of(regions.begin(), regions.end(),
+		                 [&](const auto &region)
+		                 {
+			                 return region.console == assigned->second;
+		                 }))
+			input.assign_gamepad(pad, {});
+	}
+	if (regions != displayed_regions)
+	{
+		cancel_captures();
+		displayed_regions = regions;
+	}
+	if (!input.set_regions(regions))
+	{
+		cancel_captures();
+		if (!input.set_regions(regions))
+			throw std::runtime_error("Invalid Console display regions");
+	}
+	if (!input.keyboard_console())
+		input.select_keyboard(regions.front().console);
+	if (console_mode)
+	{
+		app.screen_controls.clear();
+		std::erase_if(console_surfaces,
+		              [&](const auto &entry)
+		              {
+			              return std::none_of(regions.begin(), regions.end(),
+			                                  [&](const auto &region)
+			                                  {
+				                                  return region.console == entry.first;
+			                                  });
+		              });
+		for (const auto &region : regions)
+			if (!console_surfaces.contains(region.console))
+				console_surfaces[region.console] = std::make_unique<ConsoleSurface>(region.console);
+		app.screen_action = [](const std::string &id)
+		{
+			for (auto &[route, surface] : console_surfaces)
+				if (surface->action(id))
+					return true;
+			return false;
+		};
+		app.focus_control = [](const std::string &id)
+		{
+			for (auto &[route, surface] : console_surfaces)
+				if (id.starts_with("console/" + std::to_string(route) + "/"))
+				{
+					input.select_keyboard(route);
+					surface->focus(id);
+				}
+		};
+		for (const auto &region : regions)
+			console_surfaces.at(region.console)->prepare(app, region, gamepads);
+	}
+	else
+	{
+		update_document(app);
+		game_screen->prepare(app, *document);
+		app.focus_control = [](const std::string &id)
+		{
+			if (auto *element = document->GetElementById(id))
+				element->Focus(true);
+		};
+	}
 	publish_semantics(app);
+	drain_semantic_actions(app);
+	for (const auto &event : poll_devices())
+	{
+		if (event.kind == DeviceEventKind::Added)
+			gamepads.insert(event.device);
+		else if (event.kind == DeviceEventKind::Removed)
+		{
+			input.disconnect_gamepad(event.device);
+			app.gamepad_assignments.erase(event.device);
+			gamepads.erase(event.device);
+		}
+		else if (event.kind == DeviceEventKind::Gamepad)
+		{
+			if (console_mode && graphics_has_keyboard_focus())
+			{
+				auto found = app.gamepad_assignments.find(event.device);
+				if (found != app.gamepad_assignments.end())
+					input.assign_gamepad(event.device, found->second);
+				input.gamepad(event.device, event.control, event.value);
+			}
+		}
+		else
+		{
+			if (app.screen == Screen::workshop || app.screen == Screen::gm)
+			{
+				cancel_captures();
+				continue;
+			}
+			auto point = event.kind == DeviceEventKind::Down   ? input.pointer_down(event.contact, event.x, event.y)
+			             : event.kind == DeviceEventKind::Move ? input.pointer_move(event.contact, event.x, event.y)
+			                                                   : input.pointer_up(event.contact, event.x, event.y);
+			if (!point)
+				continue;
+			if (auto *target = routed_context(point->console))
+			{
+				Rml::TouchList touches{{static_cast<Rml::TouchId>(event.contact), {point->x, point->y}}};
+				if (event.kind == DeviceEventKind::Down)
+				{
+					input.select_keyboard(point->console);
+					target->ProcessTouchStart(touches, 0);
+				}
+				if (event.kind == DeviceEventKind::Move)
+					target->ProcessTouchMove(touches, 0);
+				if (event.kind == DeviceEventKind::Up)
+					target->ProcessTouchEnd(touches, 0);
+				if (event.kind == DeviceEventKind::Cancel)
+					target->ProcessTouchCancel(touches);
+			}
+			if (point->released)
+				captures.erase(event.contact);
+			else
+				captures[event.contact] = *point;
+		}
+	}
+	for (const auto &event : input.drain_gamepad_inputs())
+		if (console_mode && event.value > 0 && console_surfaces.contains(event.console))
+			console_surfaces.at(event.console)
+			    ->action("console/" + std::to_string(event.console) + "/" + event.control);
 	if (app.screen == Screen::workshop || app.screen == Screen::gm)
+	{
+		publish_semantics(app);
 		return;
-	game_screen->draw(app);
+	}
+	if (!console_mode)
+		game_screen->draw(app);
 	context->SetDimensions({GetScreenWidth(), GetScreenHeight()});
 	int modifiers = 0;
 	if (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT))
 		modifiers |= Rml::Input::KM_SHIFT;
 	if (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL))
 		modifiers |= Rml::Input::KM_CTRL;
-	context->ProcessMouseMove(GetMouseX(), GetMouseY(), modifiers);
+	std::optional<ConsoleId> hovered;
+	for (const auto &region : regions)
+		if (GetMouseX() >= region.x && GetMouseY() >= region.y && GetMouseX() < region.x + region.width &&
+		    GetMouseY() < region.y + region.height)
+			hovered = region.console;
+	const auto mouse = mouse_capture ? mouse_capture : hovered;
+	Rml::Context *mouse_context = mouse ? routed_context(*mouse) : nullptr;
+	if (mouse_context)
+		for (const auto &region : regions)
+			if (region.console == *mouse)
+				mouse_context->ProcessMouseMove(static_cast<int>(GetMouseX() - region.x),
+				                                static_cast<int>(GetMouseY() - region.y), modifiers);
 	for (int i = 0; i < 3; ++i)
 	{
-		if (IsMouseButtonPressed(i))
-			context->ProcessMouseButtonDown(i, modifiers);
-		if (IsMouseButtonReleased(i))
-			context->ProcessMouseButtonUp(i, modifiers);
+		if (mouse_context && IsMouseButtonPressed(i))
+		{
+			mouse_capture = mouse;
+			input.select_keyboard(*mouse);
+			mouse_context->ProcessMouseButtonDown(i, modifiers);
+		}
+		if (mouse_context && IsMouseButtonReleased(i))
+			mouse_context->ProcessMouseButtonUp(i, modifiers);
 	}
-	context->ProcessMouseWheel(-GetMouseWheelMove(), modifiers);
+	if (!IsMouseButtonDown(0) && !IsMouseButtonDown(1) && !IsMouseButtonDown(2))
+		mouse_capture.reset();
+	if (mouse_context)
+		mouse_context->ProcessMouseWheel(-GetMouseWheelMove(), modifiers);
 	const std::pair<int, Rml::Input::KeyIdentifier> keys[] = {
 	    {KEY_TAB, Rml::Input::KI_TAB},        {KEY_ENTER, Rml::Input::KI_RETURN},  {KEY_SPACE, Rml::Input::KI_SPACE},
 	    {KEY_BACKSPACE, Rml::Input::KI_BACK}, {KEY_ESCAPE, Rml::Input::KI_ESCAPE}, {KEY_LEFT, Rml::Input::KI_LEFT},
 	    {KEY_RIGHT, Rml::Input::KI_RIGHT},    {KEY_UP, Rml::Input::KI_UP},         {KEY_DOWN, Rml::Input::KI_DOWN}};
 	const bool keyboard = graphics_has_keyboard_focus();
-	if (!keyboard && context->GetFocusElement())
-		context->GetFocusElement()->Blur();
+	auto *keyboard_context = input.keyboard_console() ? routed_context(*input.keyboard_console()) : context;
+	if (!keyboard)
+	{
+		cancel_captures();
+		for (const auto &pad : gamepads)
+			input.assign_gamepad(pad, {});
+	}
 	for (auto [key, rml_key] : keys)
 	{
-		if (keyboard && IsKeyPressed(key))
-			context->ProcessKeyDown(rml_key, modifiers);
+		if (keyboard && keyboard_context && IsKeyPressed(key))
+			keyboard_context->ProcessKeyDown(rml_key, modifiers);
 		if (!keyboard || IsKeyReleased(key))
-			context->ProcessKeyUp(rml_key, modifiers);
+			for (const auto &region : regions)
+				if (auto *target = routed_context(region.console))
+					target->ProcessKeyUp(rml_key, modifiers);
 	}
 	for (int character; (character = GetCharPressed()) != 0;)
-		if (keyboard)
-			context->ProcessTextInput(static_cast<Rml::Character>(character));
-	context->Update();
-	context->Render();
+		if (keyboard && keyboard_context)
+			keyboard_context->ProcessTextInput(static_cast<Rml::Character>(character));
+	if (console_mode)
+	{
+		for (const auto &region : regions)
+		{
+			auto &surface = *console_surfaces.at(region.console);
+			surface.context().Update();
+			surface.draw(region);
+			renderer.viewport({region.x, region.y, region.width, region.height});
+			surface.context().Render();
+			EndScissorMode();
+		}
+		for (auto &[name, placement] : app.control_placements)
+			if (!input.keyboard_console() ||
+			    !name.starts_with("console/" + std::to_string(*input.keyboard_console()) + "/"))
+				placement.focused = false;
+	}
+	else
+	{
+		context->Update();
+		renderer.viewport({0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())});
+		context->Render();
+		EndScissorMode();
+		for (const auto &control : navigation_controls(app))
+			if (auto *element = document->GetElementById(control.id))
+			{
+				auto position = element->GetAbsoluteOffset(Rml::BoxArea::Border);
+				app.control_placements[control.id] = {position.x,
+				                                      position.y,
+				                                      element->GetOffsetWidth(),
+				                                      element->GetOffsetHeight(),
+				                                      context->GetFocusElement() == element,
+				                                      true};
+			}
+	}
+	publish_semantics(app);
 }
 void close_window()
 {
 	if (current_app)
 		current_app->screen_action = {};
 	game_screen.reset();
+	cancel_captures();
+	console_surfaces.clear();
+	close_devices(GetWindowHandle());
 	remove_native_accessibility(GetWindowHandle());
 	Rml::Shutdown();
 	current_app = nullptr;

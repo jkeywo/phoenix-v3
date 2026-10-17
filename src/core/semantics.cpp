@@ -28,6 +28,8 @@ std::vector<SemanticControl> navigation_controls(const Application &app)
 	std::vector<SemanticControl> controls;
 	for (const char *id : {"home", "host", "join", "view", "edit", "locale"})
 	{
+		if (app.console_surface_active)
+			break;
 		if (std::string(id) == "host" && !app.can_host)
 			continue;
 		if (std::string(id) == "edit" && !app.can_edit)
@@ -36,6 +38,9 @@ std::vector<SemanticControl> navigation_controls(const Application &app)
 	}
 	for (const auto &[id, label] : app.screen_controls)
 		controls.push_back({id, app.pseudo_locale ? "[ " + label + " ~~~ ]" : label});
+	for (auto &control : controls)
+		if (auto found = app.control_placements.find(control.id); found != app.control_placements.end())
+			control.placement = found->second;
 	return controls;
 }
 bool invoke_navigation(Application &app, const std::string &id)

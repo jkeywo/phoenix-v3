@@ -68,6 +68,13 @@ int main()
 		invoke_navigation(client, "locale");
 		require(navigation_controls(client).front().label == translate("home", true),
 		        "graphics and semantics must share translated names");
+		client.console_surface_active = true;
+		client.screen_controls = {{"console/11/game.faster", "Increase speed"},
+		                          {"console/22/game.contacts", "Read radar contacts"}};
+		client.control_placements["console/22/game.contacts"] = {1920, 100, 300, 40, true, true};
+		const auto semantics = navigation_controls(client);
+		require(semantics.size() == 2 && semantics[1].placement.x == 1920 && semantics[1].placement.focused,
+		        "Console semantics must retain per-region geometry and focus without unrelated global navigation");
 		std::cout << "PASS console routing, safe release, semantic admission and translation\n";
 	}
 	catch (const std::exception &error)

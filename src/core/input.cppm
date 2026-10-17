@@ -14,6 +14,7 @@ struct ConsoleRegion
 {
 	ConsoleId console;
 	float x, y, width, height;
+	bool operator==(const ConsoleRegion &) const = default;
 };
 struct ConsoleInput
 {

@@ -47,10 +47,16 @@ int main(int argc, char **argv)
 	std::string mission, slot, ship;
 	bool console = false;
 	std::string runtime_save;
+	std::string display_layout;
+	bool span_displays = false;
 	bool resume_local = false;
 	for (int i = 1; i < argc; ++i)
 	{
 		const std::string argument = argv[i];
+		if (argument == "--span-displays")
+			span_displays = true;
+		if (argument == "--display-layout" && i + 1 < argc)
+			display_layout = argv[++i];
 		if (argument == "--client")
 			remote = true;
 		if (argument == "--gm")
@@ -162,6 +168,81 @@ int main(int argc, char **argv)
 		app.network_profile = profile;
 	};
 	phoenix::open_window();
+	if (span_displays && display_layout.empty())
+	{
+		const int count = GetMonitorCount();
+		float left = 0, top = 0, right = 0, bottom = 0;
+		for (int monitor = 0; monitor < count; ++monitor)
+		{
+			const auto position = GetMonitorPosition(monitor);
+			const float width = static_cast<float>(GetMonitorWidth(monitor)),
+			            height = static_cast<float>(GetMonitorHeight(monitor));
+			if (app.console_regions.size() == 6 || std::any_of(app.console_regions.begin(), app.console_regions.end(),
+			                                                   [&](const auto &region)
+			                                                   {
+				                                                   return position.x < region.x + region.width &&
+				                                                          position.x + width > region.x &&
+				                                                          position.y < region.y + region.height &&
+				                                                          position.y + height > region.y;
+			                                                   }))
+				continue;
+			if (!monitor)
+			{
+				left = position.x;
+				top = position.y;
+			}
+			left = std::min(left, position.x);
+			top = std::min(top, position.y);
+			right = std::max(right, position.x + width);
+			bottom = std::max(bottom, position.y + height);
+			app.console_regions.push_back(
+			    {static_cast<std::uint64_t>(app.console_regions.size() + 1), position.x, position.y, width, height});
+			std::cout << "Display " << monitor + 1 << ": " << GetMonitorName(monitor) << " / " << position.x << ','
+			          << position.y << " / " << width << 'x' << height << '\n';
+		}
+		for (auto &region : app.console_regions)
+		{
+			region.x -= left;
+			region.y -= top;
+		}
+		SetWindowState(FLAG_WINDOW_UNDECORATED);
+		ClearWindowState(FLAG_WINDOW_RESIZABLE);
+		SetWindowSize(static_cast<int>(right - left), static_cast<int>(bottom - top));
+		SetWindowPosition(static_cast<int>(left), static_cast<int>(top));
+	}
+	if (!display_layout.empty())
+	{
+		try
+		{
+			const auto bytes = phoenix::read_file(display_layout);
+			const auto layout = nlohmann::json::parse(bytes);
+			const int width = layout.at("width"), height = layout.at("height");
+			if (width < 320 || height < 240 || width > 16384 || height > 16384)
+				throw std::runtime_error("Invalid display window dimensions");
+			for (const auto &region : layout.at("regions"))
+			{
+				phoenix::ConsoleRegion value{region.at("route"), region.at("x"), region.at("y"), region.at("width"),
+				                             region.at("height")};
+				if (value.x < 0 || value.y < 0 || value.x + value.width > width || value.y + value.height > height)
+					throw std::runtime_error("Console region is outside the display window");
+				app.console_regions.push_back(value);
+			}
+			phoenix::InputRouter validator;
+			if (app.console_regions.empty() || app.console_regions.size() > 6 ||
+			    !validator.set_regions(app.console_regions))
+				throw std::runtime_error("Display layout requires one to six non-overlapping Console regions");
+			SetWindowState(FLAG_WINDOW_UNDECORATED);
+			ClearWindowState(FLAG_WINDOW_RESIZABLE);
+			SetWindowSize(width, height);
+			SetWindowPosition(layout.value("x", 0), layout.value("y", 0));
+		}
+		catch (const std::exception &error)
+		{
+			std::cerr << "Display layout: " << error.what() << '\n';
+			phoenix::close_window();
+			return 1;
+		}
+	}
 	if (argc > 1 && std::strcmp(argv[1], "--platform-check") == 0)
 	{
 		app.screen = phoenix::Screen::client_lobby;

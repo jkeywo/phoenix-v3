@@ -58,8 +58,8 @@ set(RMLUI_SAMPLES OFF CACHE BOOL "" FORCE)
 set(RMLUI_TESTS OFF CACHE BOOL "" FORCE)
 FetchContent_Declare(
 	rmlui
-	URL https://codeload.github.com/mikke89/RmlUi/tar.gz/613b206bb313808fc45924b3e6ecfbcf35b91438
-	URL_HASH SHA256=9B2D208E66AC4C7E8382664599DBE66F9BDA35D8739ABF41D94C3223F81CE663
+	URL https://codeload.github.com/mikke89/RmlUi/tar.gz/refs/tags/6.2
+	URL_HASH SHA256=814C3FF7B9666280338D8F0DDA85979F5DAF028D01C85FC8975431D1E2FD8E8B
 	DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_Declare(
@@ -69,6 +69,29 @@ FetchContent_Declare(
 	DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(rmlui imgui)
+if(NOT EMSCRIPTEN)
+	set(SDL_SHARED OFF CACHE BOOL "" FORCE)
+	set(SDL_STATIC ON CACHE BOOL "" FORCE)
+	set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
+	set(SDL_TESTS OFF CACHE BOOL "" FORCE)
+	set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
+	set(SDL_VIDEO OFF CACHE BOOL "" FORCE)
+	set(SDL_AUDIO OFF CACHE BOOL "" FORCE)
+	set(SDL_RENDER OFF CACHE BOOL "" FORCE)
+	set(SDL_GPU OFF CACHE BOOL "" FORCE)
+	set(SDL_CAMERA OFF CACHE BOOL "" FORCE)
+	set(SDL_HIDAPI ON CACHE BOOL "" FORCE)
+	set(SDL_JOYSTICK ON CACHE BOOL "" FORCE)
+	set(SDL_HAPTIC OFF CACHE BOOL "" FORCE)
+	set(SDL_SENSOR OFF CACHE BOOL "" FORCE)
+	FetchContent_Declare(
+		sdl
+		URL https://codeload.github.com/libsdl-org/SDL/tar.gz/refs/tags/release-3.4.16
+		URL_HASH SHA256=C2EE715E42EC520C4D11FD8D249EF1D2B2BAF4AD31148B72B3B000276C0B3633
+		DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+	)
+	FetchContent_MakeAvailable(sdl)
+endif()
 FetchContent_Declare(
 	json
 	URL https://codeload.github.com/nlohmann/json/tar.gz/9cca280a4d0ccf0c08f47a99aa71d1b0e52f8d03
@@ -189,6 +212,14 @@ target_link_libraries(phoenix_session PUBLIC phoenix_simulation phoenix_session_
 add_library(phoenix_files STATIC src/platform/imports.cpp)
 target_link_libraries(phoenix_files PUBLIC phoenix_content)
 add_library(phoenix_presentation STATIC src/presentation/screen.cpp src/presentation/game.cpp)
+add_library(phoenix_devices STATIC)
+if(EMSCRIPTEN)
+	target_sources(phoenix_devices PRIVATE src/platform/browser_devices.cpp)
+	target_compile_options(phoenix_devices PUBLIC -fexceptions)
+else()
+	target_sources(phoenix_devices PRIVATE src/platform/windows_devices.cpp)
+	target_link_libraries(phoenix_devices PRIVATE SDL3::SDL3-static comctl32)
+endif()
 if(EMSCRIPTEN)
 	target_sources(phoenix_presentation PRIVATE src/presentation/browser_semantics.cpp)
 else()
@@ -244,7 +275,7 @@ endif()
 target_link_libraries(
 	phoenix_presentation
 	PUBLIC phoenix_core phoenix_content phoenix_files raylib RmlUi::RmlUi
-	PRIVATE phoenix_qr
+	PRIVATE phoenix_qr phoenix_devices
 )
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/assets")
 configure_file(
