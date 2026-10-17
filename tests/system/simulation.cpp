@@ -1,4 +1,5 @@
 #include <iostream>
+#include <algorithm>
 #include <stdexcept>
 #include <limits>
 #include <cstdint>
@@ -39,6 +40,7 @@ int main(int argc, char **)
 		fixture["maps"][0]["entities"] = Json::array(
 		    {instance(1, "test.ship", 0), instance(2, "test.ship", 10000), instance(3, "test.ship", 200000)});
 		auto catalog = load(fixture);
+		Json trace = Json::array();
 		World engine;
 		engine.load(catalog, "test.map");
 		require(engine.claim(101, 1), "a vacant ship must admit one console claim");
@@ -88,6 +90,7 @@ int main(int argc, char **)
 			collision.submit(2, {2, "speed_mm_s", 10000});
 			for (int tick = 0; tick < 80; ++tick)
 				collision.tick();
+			trace.push_back(collision.save().at("bodies"));
 			auto bodies = collision.inspect();
 			require(bodies[0].x < bodies[1].x && bodies[1].x - bodies[0].x >= 1998,
 			        "circle-circle/circle-box/box-box contacts must prevent crossing");
@@ -112,6 +115,7 @@ int main(int argc, char **)
 			angled.submit(1, {1, "speed_mm_s", 4000});
 			for (int tick = 0; tick < 35; ++tick)
 				angled.tick();
+			trace.push_back(angled.save().at("bodies"));
 			auto bodies = angled.inspect();
 			require(bodies[0].y != 0 && bodies[1].x == 0 && bodies[1].y == 0,
 			        "oriented box normals must deflect both circles and boxes while static geometry stays anchored");
@@ -169,8 +173,94 @@ int main(int argc, char **)
 		}
 		require(refused && continuous.save() == resumed.save(),
 		        "invalid restoration must preserve the previous live state");
+
+		// Mixed capabilities and allocation order must not change physical ordering.
+		auto mixed = ai_data;
+		for (int kind = 0; kind < 5; ++kind)
+		{
+			auto definition = fixture["entities"][0];
+			definition["id"] = "test.kind" + std::to_string(kind);
+			definition.erase("console");
+			if (kind < 3)
+			{
+				definition["systems"] = Json::object();
+				const std::string capability = kind == 0 ? "engine" : kind == 1 ? "steering" : "radar";
+				definition["systems"][capability] = fixture["entities"][0]["systems"][capability];
+			}
+			if (kind == 3)
+				definition["systems"] = Json::object();
+			if (kind == 4)
+			{
+				definition["collision"] = {
+				    {"shape", "box"}, {"half_width_mm", 800}, {"half_length_mm", 1200}, {"mass_grams", 0}};
+				definition["controller"] = "test.patrol";
+			}
+			mixed["entities"].push_back(definition);
+		}
+		mixed["entities"][0]["systems"]["engine"]["acceleration_mm_s2"] = 2003;
+		mixed["entities"][0]["systems"]["steering"]["turn_mdeg_s"] = 90007;
+		mixed["maps"][0]["entities"] = Json::array();
+		for (int id = 1; id <= 18; ++id)
+		{
+			auto placed = instance(id, id % 6 == 0 ? "test.ship" : "test.kind" + std::to_string(id % 6 - 1),
+			                       (id % 6) * 1100 - 3000, (id * 17003) % 360000);
+			placed["y_mm"] = (id / 6) * 1100 - 1500;
+			mixed["maps"][0]["entities"].push_back(placed);
+		}
+		auto mixed_content = load(mixed);
+		World ordered, reordered;
+		ordered.load(mixed_content, "test.map");
+		std::reverse(mixed["maps"][0]["entities"].begin(), mixed["maps"][0]["entities"].end());
+		reordered.load(load(mixed), "test.map");
+		for (int tick = 0; tick < 45; ++tick)
+		{
+			for (auto *world : {&ordered, &reordered})
+			{
+				if (tick == 3)
+				{
+					require(world->claim(77, 6), "mixed-world ship must be claimable");
+					world->submit(77, {6, "speed_mm_s", 2333});
+					world->submit(77, {6, "heading_mdeg", 274001});
+				}
+				if (tick == 11)
+					world->release(77);
+				if (tick == 16)
+					world->claim(88, 12);
+				if (tick == 21)
+					world->clear_claims();
+				world->tick();
+			}
+			require(ordered.save().at("bodies") == reordered.save().at("bodies"),
+			        "entity allocation and capability layout must not change collision/tree/motion order");
+			trace.push_back(ordered.save().at("bodies"));
+		}
+
+		// Explicit schema-1 wire data: even inactive fields accepted by old saves
+		// must survive a round trip when the runtime no longer stores an Operation.
+		auto legacy = ordered.save();
+		legacy["bodies"][3]["operation"] = {{"speed", 123},
+		                                    {"heading", 23456},
+		                                    {"acceleration_remainder", 7},
+		                                    {"turn_remainder", 9},
+		                                    {"engine_enabled", false},
+		                                    {"radar_enabled", false},
+		                                    {"tree", {{"state", "unused"}, {"elapsed", 5}, {"entered", true}}}};
+		World legacy_resume;
+		legacy_resume.restore(mixed_content, legacy);
+		require(legacy_resume.save() == legacy, "schema-1 fields must round-trip without loss or renaming");
+		World mixed_resume;
+		mixed_resume.restore(mixed_content, ordered.save());
+		for (int tick = 0; tick < 30; ++tick)
+		{
+			ordered.tick();
+			mixed_resume.tick();
+			legacy_resume.tick();
+			require(ordered.save() == mixed_resume.save(), "mixed-capability worlds must resume exactly");
+			trace.push_back(legacy_resume.save().at("bodies"));
+		}
+		trace.push_back(continuous.save().at("bodies"));
 		if (argc > 1)
-			std::cout << continuous.save().at("bodies").dump() << '\n';
+			std::cout << trace.dump() << '\n';
 		else
 			std::cout << "PASS motion, admission, radar, collision pairs and state-tree save/resume\n";
 	}
