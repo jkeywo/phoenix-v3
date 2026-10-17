@@ -24,9 +24,9 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Vec, x, y)
 namespace phoenix
 {
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(TreeState, state, elapsed, entered)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Body, id, definition, position, velocity, remainder, heading)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Operation, speed, heading, acceleration_remainder, turn_remainder, engine_enabled,
-                                   radar_enabled, tree)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SavedBody, id, definition, position, velocity, remainder, heading)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SavedOperation, speed, heading, acceleration_remainder, turn_remainder,
+                                   engine_enabled, radar_enabled, tree)
 namespace
 {
 constexpr std::int64_t rate = World::ticks_per_second;
@@ -34,77 +34,301 @@ struct Clock
 {
 	std::uint64_t tick = 0;
 };
-BodyView view(const Body &b)
+struct CompiledDefinition
 {
-	return {b.id, b.definition, b.position.x, b.position.y, b.velocity.x, b.velocity.y, b.heading};
+	Collider collider;
+	std::optional<Engine> engine;
+	std::optional<Steering> steering;
+	std::optional<Radar> radar;
+	std::optional<std::size_t> controller;
+};
+struct PendingCommand
+{
+	EntityId target;
+	TreeOutput output;
+};
+struct CollisionEntry
+{
+	EntityId id;
+	Pose *pose;
+	Motion *motion;
+	CollisionBody body;
+};
+BodyView view(EntityId id, const Definition &definition, const Pose &pose, const Motion &motion)
+{
+	return {id, definition.name, pose.position.x, pose.position.y, motion.velocity.x, motion.velocity.y, pose.heading};
 }
-bool admissible(const Json &definition, const std::string &action, std::int64_t value)
+std::optional<TreeOutput> decode(const OperatingCommand &command)
 {
-	const auto &systems = definition.at("systems");
-	if (action == "speed_mm_s")
-		return systems.contains("engine") && value >= 0 &&
-		       value <= systems["engine"]["max_speed_mm_s"].get<std::int64_t>();
-	if (action == "heading_mdeg")
-		return systems.contains("steering") && value >= 0 && value < 360000;
-	if (action == "engine_enabled")
-		return systems.contains("engine") && (value == 0 || value == 1);
-	if (action == "radar_enabled")
-		return systems.contains("radar") && (value == 0 || value == 1);
+	if (command.action == "speed_mm_s")
+		return TreeOutput{TreeAction::Speed, command.value};
+	if (command.action == "heading_mdeg")
+		return TreeOutput{TreeAction::Heading, command.value};
+	if (command.action == "engine_enabled")
+		return TreeOutput{TreeAction::EngineEnabled, command.value};
+	if (command.action == "radar_enabled")
+		return TreeOutput{TreeAction::RadarEnabled, command.value};
+	return {};
+}
+bool admissible(TreeOutput output, const Engine *engine, const Steering *steering, const Radar *radar)
+{
+	switch (output.action)
+	{
+	case TreeAction::Speed:
+		return engine && output.value >= 0 && output.value <= engine->max_speed;
+	case TreeAction::Heading:
+		return steering && output.value >= 0 && output.value < 360000;
+	case TreeAction::EngineEnabled:
+		return engine && (output.value == 0 || output.value == 1);
+	case TreeAction::RadarEnabled:
+		return radar && (output.value == 0 || output.value == 1);
+	}
 	return false;
 }
-void apply(Operation &operation, const std::string &action, std::int64_t value)
+void apply(TreeOutput output, Engine *engine, Steering *steering, Radar *radar)
 {
-	if (action == "speed_mm_s")
-		operation.speed = value;
-	if (action == "heading_mdeg")
-		operation.heading = value;
-	if (action == "engine_enabled")
-		operation.engine_enabled = value != 0;
-	if (action == "radar_enabled")
-		operation.radar_enabled = value != 0;
+	// Both controllers and admitted external commands use this capability gate.
+	if (!admissible(output, engine, steering, radar))
+		return;
+	switch (output.action)
+	{
+	case TreeAction::Speed:
+		engine->speed = output.value;
+		break;
+	case TreeAction::Heading:
+		steering->heading = output.value;
+		break;
+	case TreeAction::EngineEnabled:
+		engine->enabled = output.value != 0;
+		break;
+	case TreeAction::RadarEnabled:
+		radar->enabled = output.value != 0;
+		break;
+	}
 }
 } // namespace
 struct World::Impl
 {
+	// Declare the world before its handles so cached queries are destroyed first.
 	flecs::world ecs;
-	Catalog content;
+	std::vector<std::pair<std::string, std::string>> packs;
+	std::map<std::string, CompiledDefinition> definitions;
+	std::vector<TreeProgram> programs;
 	std::string map;
 	std::map<std::string, std::string> ships;
 	std::map<std::string, EntityId> slot_entities;
+	// This is a boundary lookup index, never the tick's iteration source.
 	std::map<EntityId, flecs::entity> entities;
 	std::map<std::uint64_t, EntityId> claims;
-	std::vector<OperatingCommand> pending;
+	std::vector<PendingCommand> pending;
+	std::vector<CollisionEntry> collisions;
+	flecs::query<const StableId, const Definition, const Pose, const Motion> bodies;
+	flecs::query<const StableId, const Pose> contacts;
+	flecs::system controllers, steering, engines, integrate, resolve_collisions;
+
 	Impl()
 	{
 		ecs.set<Clock>({0});
+		bodies = ecs.query_builder<const StableId, const Definition, const Pose, const Motion>().cached().build();
+		contacts = ecs.query_builder<const StableId, const Pose>().cached().build();
+		controllers = ecs.system<Controller, Engine *, Steering *, Radar *>("Controllers")
+		                  .kind(0)
+		                  .without<Claimed>()
+		                  .each(
+		                      [this](Controller &controller, Engine *engine, Steering *turn, Radar *radar)
+		                      {
+			                      for (auto output : step_tree(programs[controller.program], controller.cursor))
+				                      apply(output, engine, turn, radar);
+		                      });
+		steering = ecs.system<Pose, Steering>("Steering")
+		               .kind(0)
+		               .with<Movable>()
+		               .each(
+		                   [](Pose &pose, Steering &turn)
+		                   {
+			                   auto available = turn.rate + turn.remainder;
+			                   auto step = available / rate;
+			                   turn.remainder = available % rate;
+			                   auto difference = (turn.heading - pose.heading + 540000) % 360000 - 180000;
+			                   pose.heading = (pose.heading + std::clamp(difference, -step, step) + 360000) % 360000;
+		                   });
+		engines = ecs.system<const Pose, Motion, Engine>("Engines").kind(0).with<Movable>().each(
+		    [](const Pose &pose, Motion &motion, Engine &engine)
+		    {
+			    if (!engine.enabled)
+				    return;
+			    auto available = engine.acceleration + engine.remainder;
+			    auto step = available / rate;
+			    engine.remainder = available % rate;
+			    auto desired = fixed::scale(fixed::direction(pose.heading), engine.speed);
+			    auto delta = desired - motion.velocity;
+			    auto magnitude = fixed::length(delta);
+			    motion.velocity =
+			        magnitude <= step ? desired : motion.velocity + fixed::scale(fixed::normal(delta), step);
+		    });
+		integrate = ecs.system<Pose, Motion>("Integrate")
+		                .kind(0)
+		                .with<Movable>()
+		                .each(
+		                    [](Pose &pose, Motion &motion)
+		                    {
+			                    motion.velocity.x = std::clamp(motion.velocity.x, -fixed::unit, fixed::unit);
+			                    motion.velocity.y = std::clamp(motion.velocity.y, -fixed::unit, fixed::unit);
+			                    motion.remainder = motion.remainder + motion.velocity;
+			                    pose.position =
+			                        pose.position + fixed::Vec{motion.remainder.x / rate, motion.remainder.y / rate};
+			                    motion.remainder.x %= rate;
+			                    motion.remainder.y %= rate;
+			                    pose.position.x = std::clamp(pose.position.x, -fixed::unit, fixed::unit);
+			                    pose.position.y = std::clamp(pose.position.y, -fixed::unit, fixed::unit);
+		                    });
+		resolve_collisions =
+		    ecs.system<const StableId, Pose, Motion, const Collider>("Collisions")
+		        .kind(0)
+		        .run(
+		            [this](flecs::iter &it)
+		            {
+			            collisions.clear();
+			            while (it.next())
+			            {
+				            auto ids = it.field<const StableId>(0);
+				            auto poses = it.field<Pose>(1);
+				            auto motions = it.field<Motion>(2);
+				            auto shapes = it.field<const Collider>(3);
+				            for (auto row : it)
+					            collisions.push_back(
+					                {ids[row].id, &poses[row], &motions[row], {poses[row], motions[row], shapes[row]}});
+			            }
+			            std::sort(collisions.begin(), collisions.end(),
+			                      [](const auto &a, const auto &b)
+			                      {
+				                      return a.id < b.id;
+			                      });
+			            // Sequential resolution can move a body into a later pair. Keep every
+			            // pair, in schema-1 stable-ID order, including across all four passes.
+			            for (int pass = 0; pass < 4; ++pass)
+				            for (std::size_t a = 0; a < collisions.size(); ++a)
+					            for (std::size_t b = a + 1; b < collisions.size(); ++b)
+						            collide(collisions[a].body, collisions[b].body);
+			            // No structural changes occur in this phase; pointers never escape it.
+			            for (auto &entry : collisions)
+			            {
+				            entry.pose->position = entry.body.position;
+				            entry.motion->velocity = entry.body.velocity;
+			            }
+			            collisions.clear();
+		            });
 	}
-	bool owned(EntityId id) const
+	void compile(const Catalog &content)
 	{
-		for (auto [console, entity] : claims)
-			if (entity == id)
-				return true;
-		return false;
+		packs = content.ordered_packs;
+		std::map<std::string, std::size_t> tree_ids;
+		for (const auto &[name, tree] : content.trees)
+		{
+			tree_ids.emplace(name, programs.size());
+			programs.push_back(compile_tree(tree));
+		}
+		for (const auto &[name, definition] : content.entities)
+		{
+			CompiledDefinition result;
+			const auto &collision = definition.at("collision");
+			result.collider.mass = collision.at("mass_grams");
+			result.collider.box = collision.at("shape") == "box";
+			if (result.collider.box)
+			{
+				result.collider.half_width = collision.at("half_width_mm");
+				result.collider.half_length = collision.at("half_length_mm");
+			}
+			else
+				result.collider.radius = collision.at("radius_mm");
+			const auto &systems = definition.at("systems");
+			if (systems.contains("engine"))
+				result.engine = Engine{systems["engine"]["max_speed_mm_s"], systems["engine"]["acceleration_mm_s2"]};
+			if (systems.contains("steering"))
+				result.steering = Steering{systems["steering"]["turn_mdeg_s"]};
+			if (systems.contains("radar"))
+				result.radar = Radar{systems["radar"]["range_mm"]};
+			if (definition.contains("controller"))
+				result.controller = tree_ids.at(definition.at("controller").get<std::string>());
+			definitions.emplace(name, result);
+		}
 	}
 	void create(EntityId id, const std::string &definition, const Json &transform)
 	{
-		const auto &collision = content.entities.at(definition).at("collision");
-		Body body;
-		body.id = id;
-		body.definition = definition;
-		body.position = {transform.at("x_mm"), transform.at("y_mm")};
-		body.heading = transform.at("heading_mdeg");
-		body.mass = collision.at("mass_grams");
-		body.box = collision.at("shape") == "box";
-		if (body.box)
+		const auto &data = definitions.at(definition);
+		Pose pose{{transform.at("x_mm"), transform.at("y_mm")}, transform.at("heading_mdeg")};
+		auto entity = ecs.entity()
+		                  .set<StableId>({id})
+		                  .set<Definition>({definition})
+		                  .set<Pose>(pose)
+		                  .set<Motion>({})
+		                  .set<Collider>(data.collider);
+		if (data.collider.mass)
+			entity.add<Movable>();
+		if (data.engine)
+			entity.set<Engine>(*data.engine);
+		if (data.steering)
 		{
-			body.half_width = collision.at("half_width_mm");
-			body.half_length = collision.at("half_length_mm");
+			auto turn = *data.steering;
+			turn.heading = pose.heading;
+			entity.set<Steering>(turn);
 		}
-		else
-			body.radius = collision.at("radius_mm");
-		Operation operation;
-		operation.heading = body.heading;
-		entities[id] = ecs.entity().set<Body>(body).set<Operation>(operation);
+		if (data.radar)
+			entity.set<Radar>(*data.radar);
+		if (data.controller)
+			entity.set<Controller>({*data.controller, {}});
+		entities.emplace(id, entity);
+	}
+	SavedOperation operation(flecs::entity entity) const
+	{
+		SavedOperation result;
+		result.heading = entity.get<Pose>().heading;
+		if (auto legacy = entity.try_get<LegacyOperation>())
+			result = legacy->value;
+		if (auto engine = entity.try_get<Engine>())
+		{
+			result.speed = engine->speed;
+			result.acceleration_remainder = engine->remainder;
+			result.engine_enabled = engine->enabled;
+		}
+		if (auto turn = entity.try_get<Steering>())
+		{
+			result.heading = turn->heading;
+			result.turn_remainder = turn->remainder;
+		}
+		if (auto radar = entity.try_get<Radar>())
+			result.radar_enabled = radar->enabled;
+		if (auto controller = entity.try_get<Controller>())
+			result.tree = save_tree(programs[controller->program], controller->cursor);
+		return result;
+	}
+	void restore_operation(flecs::entity entity, const SavedOperation &operation)
+	{
+		// Old schema-1 saves allowed inactive fields even without fitted systems.
+		// Retain them only at this cold compatibility boundary.
+		if ((!entity.has<Engine>() &&
+		     (operation.speed || operation.acceleration_remainder || !operation.engine_enabled)) ||
+		    (!entity.has<Steering>() &&
+		     (operation.heading != entity.get<Pose>().heading || operation.turn_remainder)) ||
+		    (!entity.has<Radar>() && !operation.radar_enabled) ||
+		    (!entity.has<Controller>() &&
+		     (!operation.tree.state.empty() || operation.tree.elapsed || operation.tree.entered)))
+			entity.set<LegacyOperation>({operation});
+		if (auto engine = entity.try_get_mut<Engine>())
+		{
+			engine->speed = operation.speed;
+			engine->remainder = operation.acceleration_remainder;
+			engine->enabled = operation.engine_enabled;
+		}
+		if (auto turn = entity.try_get_mut<Steering>())
+		{
+			turn->heading = operation.heading;
+			turn->remainder = operation.turn_remainder;
+		}
+		if (auto radar = entity.try_get_mut<Radar>())
+			radar->enabled = operation.radar_enabled;
+		if (auto controller = entity.try_get_mut<Controller>())
+			controller->cursor = load_tree(programs[controller->program], operation.tree);
 	}
 };
 World::World() : impl_(std::make_unique<Impl>())
@@ -117,9 +341,7 @@ void World::load(const Catalog &content, const std::string &map, const std::map<
 	if (!content.maps.contains(map))
 		throw std::runtime_error("Unknown map: " + map);
 	auto candidate = std::make_unique<Impl>();
-	candidate->content.entities = content.entities;
-	candidate->content.trees = content.trees;
-	candidate->content.ordered_packs = content.ordered_packs;
+	candidate->compile(content);
 	candidate->map = map;
 	candidate->ships = ships;
 	const auto &data = content.maps.at(map);
@@ -147,13 +369,13 @@ void World::load(const Catalog &content, const std::string &map, const std::map<
 }
 bool World::claim(std::uint64_t console, EntityId ship)
 {
-	if (!console || impl_->claims.contains(console) || impl_->owned(ship) || !impl_->entities.contains(ship))
+	if (!console || impl_->claims.contains(console) || !impl_->entities.contains(ship))
 		return false;
-	const auto &body = impl_->entities.at(ship).get<Body>();
-	const auto &systems = impl_->content.entities.at(body.definition).at("systems");
-	if (!body.mass || !systems.contains("engine") || !systems.contains("steering"))
+	auto entity = impl_->entities.at(ship);
+	if (entity.has<Claimed>() || !entity.has<Movable>() || !entity.has<Engine>() || !entity.has<Steering>())
 		return false;
 	impl_->claims[console] = ship;
+	entity.add<Claimed>();
 	return true;
 }
 std::optional<EntityId> World::ship_for_slot(const std::string &slot) const
@@ -169,16 +391,19 @@ bool World::release(std::uint64_t console)
 	if (found == impl_->claims.end())
 		return false;
 	auto entity = impl_->entities.at(found->second);
-	auto &operation = entity.get_mut<Operation>();
-	operation.tree = {};
-	operation.speed = 0;
-	operation.heading = entity.get<Body>().heading;
+	entity.get_mut<Engine>().speed = 0;
+	entity.get_mut<Steering>().heading = entity.get<Pose>().heading;
+	if (auto controller = entity.try_get_mut<Controller>())
+		controller->cursor = {};
+	if (auto legacy = entity.try_get_mut<LegacyOperation>())
+		legacy->value.tree = {};
 	impl_->pending.erase(std::remove_if(impl_->pending.begin(), impl_->pending.end(),
 	                                    [&](const auto &command)
 	                                    {
 		                                    return command.target == found->second;
 	                                    }),
 	                     impl_->pending.end());
+	entity.remove<Claimed>();
 	impl_->claims.erase(found);
 	return true;
 }
@@ -187,81 +412,40 @@ bool World::can_submit(std::uint64_t console, const OperatingCommand &command) c
 	auto claim = impl_->claims.find(console);
 	if (claim == impl_->claims.end() || claim->second != command.target || impl_->pending.size() >= 4096)
 		return false;
-	const auto &body = impl_->entities.at(command.target).get<Body>();
-	if (!admissible(impl_->content.entities.at(body.definition), command.action, command.value))
-		return false;
-	return true;
+	auto output = decode(command);
+	auto entity = impl_->entities.at(command.target);
+	return output && admissible(*output, entity.try_get<Engine>(), entity.try_get<Steering>(), entity.try_get<Radar>());
 }
 bool World::submit(std::uint64_t console, const OperatingCommand &command)
 {
 	if (!can_submit(console, command))
 		return false;
-	impl_->pending.push_back(command);
+	impl_->pending.push_back({command.target, *decode(command)});
 	return true;
 }
 void World::clear_claims()
 {
+	for (auto [console, id] : impl_->claims)
+		impl_->entities.at(id).remove<Claimed>();
 	impl_->claims.clear();
 	impl_->pending.clear();
 }
 void World::tick()
 {
 	for (const auto &command : impl_->pending)
-		apply(impl_->entities.at(command.target).get_mut<Operation>(), command.action, command.value);
-	impl_->pending.clear();
-	for (const auto &[id, entity] : impl_->entities)
 	{
-		auto &body = entity.get_mut<Body>();
-		auto &operation = entity.get_mut<Operation>();
-		const auto &definition = impl_->content.entities.at(body.definition);
-		const auto &systems = definition.at("systems");
-		if (!impl_->owned(id) && definition.contains("controller"))
-		{
-			auto outputs =
-			    step_tree(impl_->content.trees.at(definition.at("controller").get<std::string>()), operation.tree);
-			for (auto output = outputs.begin(); output != outputs.end(); ++output)
-			{
-				auto value = output.value().is_boolean() ? (output.value().get<bool>() ? 1 : 0)
-				                                         : output.value().get<std::int64_t>();
-				if (admissible(definition, output.key(), value))
-					apply(operation, output.key(), value);
-			}
-		}
-		if (!body.mass)
-			continue;
-		if (systems.contains("steering"))
-		{
-			auto turn = systems["steering"]["turn_mdeg_s"].get<std::int64_t>() + operation.turn_remainder;
-			auto step = turn / rate;
-			operation.turn_remainder = turn % rate;
-			auto difference = (operation.heading - body.heading + 540000) % 360000 - 180000;
-			body.heading = (body.heading + std::clamp(difference, -step, step) + 360000) % 360000;
-		}
-		if (systems.contains("engine") && operation.engine_enabled)
-		{
-			auto available =
-			    systems["engine"]["acceleration_mm_s2"].get<std::int64_t>() + operation.acceleration_remainder;
-			auto step = available / rate;
-			operation.acceleration_remainder = available % rate;
-			auto desired = fixed::scale(fixed::direction(body.heading), operation.speed);
-			auto delta = desired - body.velocity;
-			auto magnitude = fixed::length(delta);
-			body.velocity = magnitude <= step ? desired : body.velocity + fixed::scale(fixed::normal(delta), step);
-		}
-		body.velocity.x = std::clamp(body.velocity.x, -fixed::unit, fixed::unit);
-		body.velocity.y = std::clamp(body.velocity.y, -fixed::unit, fixed::unit);
-		body.remainder = body.remainder + body.velocity;
-		body.position = body.position + fixed::Vec{body.remainder.x / rate, body.remainder.y / rate};
-		body.remainder.x %= rate;
-		body.remainder.y %= rate;
-		body.position.x = std::clamp(body.position.x, -fixed::unit, fixed::unit);
-		body.position.y = std::clamp(body.position.y, -fixed::unit, fixed::unit);
+		auto entity = impl_->entities.at(command.target);
+		apply(command.output, entity.try_get_mut<Engine>(), entity.try_get_mut<Steering>(),
+		      entity.try_get_mut<Radar>());
 	}
-	// Stable authored IDs define collision order, independently of ECS storage.
-	for (int pass = 0; pass < 4; ++pass)
-		for (auto a = impl_->entities.begin(); a != impl_->entities.end(); ++a)
-			for (auto b = std::next(a); b != impl_->entities.end(); ++b)
-				collide(a->second.get_mut<Body>(), b->second.get_mut<Body>());
+	impl_->pending.clear();
+	// Explicit fixed-tick phases. Each pre-collision row operates only on itself,
+	// so archetype/table ordering cannot affect gameplay. No wall-clock progress.
+	impl_->controllers.run();
+	impl_->steering.run();
+	impl_->engines.run();
+	impl_->integrate.run();
+	impl_->resolve_collisions.run();
 	++impl_->ecs.get_mut<Clock>().tick;
 }
 unsigned long long World::ticks() const
@@ -271,8 +455,17 @@ unsigned long long World::ticks() const
 std::vector<BodyView> World::inspect() const
 {
 	std::vector<BodyView> result;
-	for (const auto &[id, entity] : impl_->entities)
-		result.push_back(view(entity.get<Body>()));
+	result.reserve(impl_->entities.size());
+	impl_->bodies.each(
+	    [&](const StableId &id, const Definition &definition, const Pose &pose, const Motion &motion)
+	    {
+		    result.push_back(view(id.id, definition, pose, motion));
+	    });
+	std::sort(result.begin(), result.end(),
+	          [](const auto &a, const auto &b)
+	          {
+		          return a.id < b.id;
+	          });
 	return result;
 }
 std::optional<Observation> World::observe(std::uint64_t console) const
@@ -281,35 +474,40 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 	if (found == impl_->claims.end())
 		return {};
 	auto entity = impl_->entities.at(found->second);
-	const auto &own = entity.get<Body>();
-	Observation result{view(own), {}};
-	const auto &operation = entity.get<Operation>();
-	result.requested_speed = operation.speed;
-	result.requested_heading = operation.heading;
-	result.engine_enabled = operation.engine_enabled;
-	result.radar_enabled = operation.radar_enabled;
-	const auto &systems = impl_->content.entities.at(own.definition).at("systems");
-	if (!systems.contains("radar") || !entity.get<Operation>().radar_enabled)
+	const auto &own = entity.get<Pose>();
+	Observation result{view(found->second, entity.get<Definition>(), own, entity.get<Motion>()), {}};
+	const auto &engine = entity.get<Engine>();
+	result.requested_speed = engine.speed;
+	result.requested_heading = entity.get<Steering>().heading;
+	result.engine_enabled = engine.enabled;
+	auto radar = entity.try_get<Radar>();
+	result.radar_enabled = radar ? radar->enabled : impl_->operation(entity).radar_enabled;
+	if (!radar || !radar->enabled)
 		return result;
-	auto range = systems["radar"]["range_mm"].get<std::int64_t>();
-	for (const auto &[id, other] : impl_->entities)
-		if (id != found->second && fixed::length(other.get<Body>().position - own.position) <= range)
-			result.contacts.push_back(view(other.get<Body>()));
+	impl_->contacts.each(
+	    [&](flecs::entity other, const StableId &id, const Pose &pose)
+	    {
+		    if (id.id != found->second && fixed::length(pose.position - own.position) <= radar->range)
+			    result.contacts.push_back(view(id.id, other.get<Definition>(), pose, other.get<Motion>()));
+	    });
+	std::sort(result.contacts.begin(), result.contacts.end(),
+	          [](const auto &a, const auto &b)
+	          {
+		          return a.id < b.id;
+	          });
 	return result;
 }
 Json World::save() const
 {
 	if (!impl_->pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 1},
-	            {"tick", ticks()},
-	            {"map", impl_->map},
-	            {"ships", impl_->ships},
-	            {"packs", impl_->content.ordered_packs},
-	            {"claims", impl_->claims},
-	            {"bodies", Json::array()}};
+	Json result{{"schema", 1},           {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
 	for (const auto &[id, entity] : impl_->entities)
-		result["bodies"].push_back({{"body", entity.get<Body>()}, {"operation", entity.get<Operation>()}});
+	{
+		SavedBody body{entity.get<Pose>(), entity.get<Motion>(), id, entity.get<Definition>().name};
+		result["bodies"].push_back({{"body", body}, {"operation", impl_->operation(entity)}});
+	}
 	return result;
 }
 void World::restore(const Catalog &content, const Json &saved)
@@ -323,15 +521,14 @@ void World::restore(const Catalog &content, const Json &saved)
 	std::set<EntityId> seen;
 	for (const auto &value : saved.at("bodies"))
 	{
-		auto restored = value.at("body").get<Body>();
-		auto operation = value.at("operation").get<Operation>();
+		auto restored = value.at("body").get<SavedBody>();
+		auto operation = value.at("operation").get<SavedOperation>();
 		if (!seen.insert(restored.id).second || !candidate.impl_->entities.contains(restored.id))
 			throw std::runtime_error("Saved state duplicate/unknown entity");
 		auto entity = candidate.impl_->entities.at(restored.id);
-		auto &body = entity.get_mut<Body>();
-		if (restored.definition != body.definition)
+		if (restored.definition != entity.get<Definition>().name)
 			throw std::runtime_error("Saved state definition mismatch");
-		if (!body.mass && (restored.velocity.x || restored.velocity.y))
+		if (!entity.has<Movable>() && (restored.velocity.x || restored.velocity.y))
 			throw std::runtime_error("Saved static entity cannot have velocity");
 		for (auto v : {restored.position.x, restored.position.y, restored.velocity.x, restored.velocity.y})
 			if (v < -fixed::unit || v > fixed::unit)
@@ -342,18 +539,11 @@ void World::restore(const Catalog &content, const Json &saved)
 		    operation.acceleration_remainder >= rate || operation.turn_remainder < 0 ||
 		    operation.turn_remainder >= rate)
 			throw std::runtime_error("Saved state invalid numeric remainder/heading");
-		const auto &definition = content.entities.at(body.definition);
-		if (operation.speed < 0 || operation.speed > fixed::unit ||
-		    (definition["systems"].contains("engine") && !admissible(definition, "speed_mm_s", operation.speed)))
+		auto engine = entity.try_get<Engine>();
+		if (operation.speed < 0 || operation.speed > fixed::unit || (engine && operation.speed > engine->max_speed))
 			throw std::runtime_error("Saved state invalid speed request");
-		if (definition.contains("controller"))
-			operation.tree = load_tree(content.trees.at(definition.at("controller").get<std::string>()),
-			                           value.at("operation").at("tree"));
-		body.position = restored.position;
-		body.velocity = restored.velocity;
-		body.remainder = restored.remainder;
-		body.heading = restored.heading;
-		entity.set<Operation>(operation);
+		entity.set<Pose>({restored.position, restored.heading}).set<Motion>({restored.velocity, restored.remainder});
+		candidate.impl_->restore_operation(entity, operation);
 	}
 	for (const auto &[console, ship] : saved.at("claims").get<std::map<std::uint64_t, EntityId>>())
 		if (!candidate.claim(console, ship))

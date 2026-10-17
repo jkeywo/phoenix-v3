@@ -53,9 +53,42 @@ struct TreeState
 // Each state emits bounded operating requests on entry, waits a declared tick
 // duration and follows a named transition. Requests still require admission.
 void verify_tree(const Json &definition, const std::string &source);
-Json step_tree(const Json &definition, TreeState &state);
-Json save_tree(const TreeState &state);
-TreeState load_tree(const Json &definition, const Json &saved);
+enum class TreeAction
+{
+	Speed,
+	Heading,
+	EngineEnabled,
+	RadarEnabled
+};
+struct TreeOutput
+{
+	TreeAction action;
+	std::int64_t value;
+};
+struct TreeNode
+{
+	std::uint64_t ticks;
+	std::size_t next, output_begin, output_count;
+};
+struct TreeProgram
+{
+	std::size_t initial;
+	std::vector<TreeNode> nodes;
+	std::vector<TreeOutput> outputs;
+	// Names are needed only for save/load compatibility, not tree execution.
+	std::vector<std::string> names;
+};
+struct TreeCursor
+{
+	static inline constexpr std::size_t unset = static_cast<std::size_t>(-1);
+	std::size_t state = unset;
+	std::uint64_t elapsed = 0;
+	bool entered = false;
+};
+TreeProgram compile_tree(const Json &definition);
+std::span<const TreeOutput> step_tree(const TreeProgram &program, TreeCursor &cursor);
+TreeState save_tree(const TreeProgram &program, const TreeCursor &cursor);
+TreeCursor load_tree(const TreeProgram &program, const TreeState &saved);
 } // namespace phoenix
 
 export namespace phoenix

@@ -47,46 +47,73 @@ void verify_tree(const Json &tree, const std::string &source)
 		}
 	}
 }
-Json step_tree(const Json &definition, TreeState &state)
+TreeProgram compile_tree(const Json &definition)
 {
-	if (state.state.empty())
-		state.state = definition.at("initial").get<std::string>();
-	const auto &current = definition.at("states").at(state.state);
-	Json outputs = Json::object();
-	if (!state.entered)
+	verify_tree(definition, "controller");
+	std::map<std::string, std::size_t> indices;
+	for (auto it = definition.at("states").begin(); it != definition.at("states").end(); ++it)
+		indices.emplace(it.key(), indices.size());
+	TreeProgram result{indices.at(definition.at("initial").get<std::string>()), {}, {}, {}};
+	for (auto it = definition.at("states").begin(); it != definition.at("states").end(); ++it)
 	{
-		outputs = current;
-		outputs.erase("ticks");
-		outputs.erase("next");
-		state.entered = true;
+		const auto &state = it.value();
+		TreeNode node{state.at("ticks").get<std::uint64_t>(), indices.at(state.at("next").get<std::string>()),
+		              result.outputs.size(), 0};
+		// Retain the authored JSON object's stable output ordering at the boundary.
+		for (auto field = state.begin(); field != state.end(); ++field)
+		{
+			if (field.key() == "ticks" || field.key() == "next")
+				continue;
+			auto action = field.key() == "speed_mm_s"       ? TreeAction::Speed
+			              : field.key() == "heading_mdeg"   ? TreeAction::Heading
+			              : field.key() == "engine_enabled" ? TreeAction::EngineEnabled
+			                                                : TreeAction::RadarEnabled;
+			result.outputs.push_back({action, field.value().is_boolean() ? (field.value().get<bool>() ? 1 : 0)
+			                                                             : field.value().get<std::int64_t>()});
+		}
+		node.output_count = result.outputs.size() - node.output_begin;
+		result.nodes.push_back(node);
+		result.names.push_back(it.key());
 	}
-	if (++state.elapsed >= current.at("ticks").get<std::uint64_t>())
+	return result;
+}
+std::span<const TreeOutput> step_tree(const TreeProgram &program, TreeCursor &cursor)
+{
+	if (cursor.state == TreeCursor::unset)
+		cursor.state = program.initial;
+	const auto &node = program.nodes[cursor.state];
+	std::span<const TreeOutput> outputs;
+	if (!cursor.entered)
 	{
-		state.state = current.at("next").get<std::string>();
-		state.elapsed = 0;
-		state.entered = false;
+		outputs = std::span<const TreeOutput>(program.outputs).subspan(node.output_begin, node.output_count);
+		cursor.entered = true;
+	}
+	if (++cursor.elapsed >= node.ticks)
+	{
+		cursor.state = node.next;
+		cursor.elapsed = 0;
+		cursor.entered = false;
 	}
 	return outputs;
 }
-Json save_tree(const TreeState &state)
+TreeState save_tree(const TreeProgram &program, const TreeCursor &cursor)
 {
-	return {{"state", state.state}, {"elapsed", state.elapsed}, {"entered", state.entered}};
+	return {cursor.state == TreeCursor::unset ? std::string{} : program.names[cursor.state], cursor.elapsed,
+	        cursor.entered};
 }
-TreeState load_tree(const Json &definition, const Json &saved)
+TreeCursor load_tree(const TreeProgram &program, const TreeState &saved)
 {
-	TreeState result{saved.at("state").get<std::string>(), saved.at("elapsed").get<std::uint64_t>(),
-	                 saved.at("entered").get<bool>()};
-	if (result.state.empty())
+	if (saved.state.empty())
 	{
-		if (result.elapsed || result.entered)
+		if (saved.elapsed || saved.entered)
 			throw std::runtime_error("saved tree: invalid initial state");
-		return result;
+		return {};
 	}
-	if ((!result.entered && result.elapsed != 0) || (result.entered && result.elapsed == 0))
+	if ((!saved.entered && saved.elapsed != 0) || (saved.entered && saved.elapsed == 0))
 		throw std::runtime_error("saved tree: invalid entry/elapsed combination");
-	if (!definition.at("states").contains(result.state) ||
-	    result.elapsed >= definition.at("states").at(result.state).at("ticks").get<std::uint64_t>())
-		throw std::runtime_error("saved tree: invalid continuation");
-	return result;
+	for (std::size_t index = 0; index < program.nodes.size(); ++index)
+		if (program.names[index] == saved.state && saved.elapsed < program.nodes[index].ticks)
+			return {index, saved.elapsed, saved.entered};
+	throw std::runtime_error("saved tree: invalid continuation");
 }
 } // namespace phoenix

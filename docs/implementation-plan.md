@@ -26,6 +26,8 @@ RmlUi is the player UI; ImGui docking is Workshop/GM. Player screen readers are 
 
 ## Execution record
 
+- Data-oriented simulation refactor: equipment and controller definitions compile to typed runtime data; five explicit Flecs systems process controller, steering, engine, motion and collision phases. Cached queries supply inspection/radar projections, with stable-ID ordering at public and collision boundaries. Schema-1 saves retain their fields and continuation behavior. Expanded synthetic traces match the pre-refactor run and native/WASM execution; all ten native cases, WASM checks and five network-service cases pass. Collision pairs remain quadratic and radar scans remain linear; no performance acceptance is claimed. See [simulation execution and compatibility](simulation.md).
+
 - First-party C++20 named modules: 21 interfaces now cover foundation, content, simulation, networking, storage, fleet/session composition and UI. Shared session declarations and implementation factories have distinct owners; frontend dependency guards exclude authoritative targets. Native and WASM builds and the automatic behavioral/network gate pass. See [module ownership and verification](modules.md). This is a source/build refactor, not additional gameplay or manual acceptance evidence.
 
 - Build targets and basic dependency integration: implemented. Native home/Workshop and all three WASM applications build and launch. RmlUi draws through the raylib backend; ImGui draws dockable tool windows. This proves basic compatibility, not the full presentation/accessibility increment. See [foundation evidence](smoke/foundation.md).

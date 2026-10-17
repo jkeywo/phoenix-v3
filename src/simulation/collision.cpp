@@ -24,7 +24,7 @@ Vec perpendicular(Vec axis)
 {
 	return {-axis.y, axis.x};
 }
-std::int64_t radius(const Body &body, Vec axis)
+std::int64_t radius(const CollisionBody &body, Vec axis)
 {
 	auto x = fixed::direction(body.heading), y = perpendicular(x);
 	return body.box ? (body.half_width * std::abs(fixed::dot(axis, x) / fixed::unit) +
@@ -37,7 +37,7 @@ struct Contact
 	Vec normal;
 	std::int64_t depth = 0;
 };
-Contact circle_box(const Body &circle, const Body &box)
+Contact circle_box(const CollisionBody &circle, const CollisionBody &box)
 {
 	auto x = fixed::direction(box.heading), y = perpendicular(x), delta = circle.position - box.position;
 	Vec local{fixed::dot(delta, x) / fixed::unit, fixed::dot(delta, y) / fixed::unit};
@@ -53,7 +53,7 @@ Contact circle_box(const Body &circle, const Body &box)
 	return px <= py ? Contact{local.x >= 0 ? -x : x, circle.radius + px}
 	                : Contact{local.y >= 0 ? -y : y, circle.radius + py};
 }
-Contact contact(const Body &a, const Body &b)
+Contact contact(const CollisionBody &a, const CollisionBody &b)
 {
 	if (!a.box && !b.box)
 	{
@@ -84,11 +84,11 @@ Contact contact(const Body &a, const Body &b)
 	return result;
 }
 } // namespace
-void collide(Body &a, Body &b)
+void collide(CollisionBody &a, CollisionBody &b)
 {
 	if (!a.mass && !b.mass)
 		return;
-	auto extent = [](const Body &body)
+	auto extent = [](const CollisionBody &body)
 	{
 		return body.box ? body.half_width + body.half_length : body.radius;
 	};
