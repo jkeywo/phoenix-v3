@@ -26,4 +26,5 @@ try {
         if ($LASTEXITCODE) { throw 'WASM simulation trace failed' }
         if ($nativeTrace -cne $wasmTrace) { throw 'Native/WASM continuation differs in the same controlled fixture' }
     } finally { Pop-Location }
+    & "$PSScriptRoot/check-network-service.ps1"
 } finally { Pop-Location }
