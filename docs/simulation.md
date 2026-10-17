@@ -8,15 +8,26 @@ The simulation library owns Flecs components and advances explicit **20 Hz ticks
 
 Flecs stores separate stable identity, definition metadata, pose, motion and collider components. Only fitted entities receive engine, steering, radar and controller components. `Movable` selects finite-mass entities; `Claimed` excludes human-controlled entities from delegated work. Claim changes happen between ticks. The stable-ID map remains a command/save boundary index, rather than a simulation iteration source.
 
-Each tick applies the admitted typed command queue in submission order, then explicitly runs five Flecs systems:
+Each tick applies the admitted typed command queue in submission order, then explicitly runs six Flecs systems:
 
 1. Controllers emit typed requests through the same capability checks as player requests.
 2. Steering updates headings for movable entities with steering.
 3. Engines update velocity for movable entities with engines.
 4. Integration advances movable poses and integer remainders.
-5. Collision processing gathers numeric data through a Flecs table iterator, sorts by stable ID, resolves four sequential pair passes and writes positions/velocities back to ECS.
+5. Collision processing gathers numeric data through a Flecs table iterator, sorts by stable ID, builds a bounds tree, resolves four sequential candidate-pair passes and writes positions/velocities back to ECS.
+6. Radar indexing gathers the final positions through a Flecs table iterator and rebuilds a separate point-bounds tree for observation queries.
 
-The first four systems operate independently on each entity, so table iteration order cannot affect their results. Collision scratch storage is reused between ticks; component pointers are held only during that phase, with no structural changes. The pair algorithm is still **O(n²)**. A spatial broad phase remains future work: it must account for positional corrections creating new later contacts within a pass while preserving the existing pair order. Radar and inspection use cached Flecs queries and sort their public outputs by stable ID; radar remains a linear scan per observation. No speedup or performance target is claimed without measurement.
+The first four systems operate independently on each entity, so table iteration order cannot affect their results. Collision scratch storage is reused between ticks; component pointers are held only during that phase, with no structural changes. Inspection uses a cached Flecs query; radar uses its spatial index. Both sort public outputs by stable ID.
+
+### Spatial indexes
+
+Both indexes use a flat, balanced bounding-volume hierarchy with integer bounds, median spatial splits and reusable vector storage. Construction uses O(n log n) work and O(n) storage; a changed leaf refits its ancestors in O(log n). There is no world-sized grid, cell-size tuning or expansion proportional to collider size. Circle bounds use radius; box bounds use half-width plus half-length, matching the existing conservative rejection for rotated boxes.
+
+For each collision body in stable-ID order, the tree returns the lowest overlapping ID after the last visited pair. After resolution, both changed bounds are refitted before requesting the next candidate. Consequently, corrections that create new later contacts are seen in the same pass, while previously visited pairs are not revisited until the next pass. Skipped pairs are exactly those rejected by the original conservative bounds check; the narrow phase and integer response are unchanged. This preserves the original sequential collision behavior without enumerating every distant pair.
+
+Radar queries the point tree with an inclusive range square, then applies the existing integer distance check to each candidate. Point bounds deliberately exclude collider extents: radar range is measured between entity positions. The index is ready immediately after load/restore and rebuilt after each tick's collision corrections. It holds stable entity handles and copied positions, never component pointers across claim changes. Indexes are derived data and are not serialized.
+
+Sparse worlds avoid most pair and radar-distance checks. Dense or world-spanning bounds can still produce all collision pairs or all radar candidates; no universal subquadratic bound or measured frame-rate improvement is claimed.
 
 ## Runtime contracts
 
@@ -35,3 +46,5 @@ The **schema-1 save format is unchanged**: `body` and `operation` records retain
 The native and WASM integration case loads synthetic content through the production ZIP/JSON/PNG loader, exercises the real admission/Flecs execution/observation paths and compares resumed work with uninterrupted work. The automatic gate also compares native/WASM continuation from the same controlled run. There is no historical world hash or production ship speed golden.
 
 The ECS refactor extends that case with mixed fitted capabilities, static controllers, fractional rates, reversed entity creation order, dense contacts, claim/release/recovery transitions and schema-1 inactive-field round trips. A temporary pre-refactor trace captured these synthetic scenarios for before/after comparison; it is not a checked-in golden or a production balance assertion.
+
+Spatial-index checks additionally exercise correction-created contacts, radar refresh after collisions and motion, inclusive negative-coordinate range edges, sparse populations, empty/single-entity worlds, large colliders at the coordinate limit and immediate observation after restore. The indexed native/WASM traces match a temporary pre-index run of the same synthetic scenarios.

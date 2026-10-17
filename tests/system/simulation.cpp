@@ -259,6 +259,80 @@ int main(int argc, char **)
 			trace.push_back(legacy_resume.save().at("bodies"));
 		}
 		trace.push_back(continuous.save().at("bodies"));
+
+		// Resolving the first pair moves entity 1 into a previously distant
+		// higher-ID pair. A broad phase must discover it during the same pass.
+		auto chain_data = fixture;
+		chain_data["entities"][1] = fixture["entities"][0];
+		chain_data["entities"][1]["id"] = "test.anchor";
+		chain_data["entities"][1]["systems"] = Json::object();
+		chain_data["entities"][1]["collision"]["mass_grams"] = 0;
+		chain_data["entities"][0]["systems"]["radar"]["range_mm"] = 2100;
+		chain_data["maps"][0]["entities"] = Json::array(
+		    {instance(1, "test.ship", 0), instance(2, "test.anchor", -1500), instance(3, "test.ship", 2400)});
+		World chain;
+		chain.load(load(chain_data), "test.map");
+		chain.claim(1, 1);
+		require(chain.observe(1)->contacts.size() == 1, "pre-collision radar must omit the initially distant body");
+		chain.tick();
+		// Equal-mass splits push entity 3 by 51, 26, 13 and 6 mm in the
+		// four passes. Deferring a newly discovered pair to the next pass differs.
+		require(chain.inspect()[0].x == 495 && chain.inspect()[1].x == -1500 && chain.inspect()[2].x == 2496,
+		        "collision correction must discover newly overlapping later pairs in the same pass");
+		require(chain.observe(1)->contacts.size() == 2,
+		        "radar index must use corrected positions immediately after collision resolution");
+		trace.push_back(chain.save().at("bodies"));
+
+		// Sparse space, negative coordinates and inclusive integer radar bounds.
+		auto radar_data = chain_data;
+		radar_data["entities"][0]["systems"]["radar"]["range_mm"] = 100000;
+		radar_data["entities"][1]["collision"]["radius_mm"] = 1;
+		radar_data["maps"][0]["entities"] =
+		    Json::array({instance(1, "test.ship", -500000), instance(2, "test.anchor", -400000),
+		                 instance(3, "test.anchor", -399999), instance(4, "test.anchor", -600000),
+		                 instance(5, "test.anchor", -600001)});
+		for (int id = 6; id < 134; ++id)
+			radar_data["maps"][0]["entities"].push_back(instance(id, "test.anchor", id * 1000000));
+		auto radar_content = load(radar_data);
+		World indexed_radar;
+		indexed_radar.load(radar_content, "test.map");
+		indexed_radar.claim(1, 1);
+		auto visible = indexed_radar.observe(1)->contacts;
+		require(visible.size() == 2 && visible[0].id == 2 && visible[1].id == 4,
+		        "radar index must be ready on load and include exact negative-coordinate range boundaries");
+		indexed_radar.submit(1, {1, "speed_mm_s", 10000});
+		for (int tick = 0; tick < 8; ++tick)
+			indexed_radar.tick();
+		visible = indexed_radar.observe(1)->contacts;
+		require(visible.size() == 2 && visible[0].id == 2 && visible[1].id == 3,
+		        "radar candidates must follow movement across range boundaries");
+		World radar_restored;
+		radar_restored.restore(radar_content, indexed_radar.save());
+		visible = radar_restored.observe(1)->contacts;
+		require(visible.size() == 2 && visible[0].id == 2 && visible[1].id == 3,
+		        "restoration must rebuild radar candidates before the first tick");
+		trace.push_back(indexed_radar.save().at("bodies"));
+
+		// Degenerate populations and very large bounds cannot rely on grid-sized
+		// expansion or a minimum number of leaves.
+		auto edge_data = radar_data;
+		edge_data["maps"][0]["entities"] = Json::array();
+		World edge;
+		edge.load(load(edge_data), "test.map");
+		edge.tick();
+		require(edge.inspect().empty(), "empty spatial indexes must support ticks and inspection");
+		edge_data["maps"][0]["entities"] = Json::array({instance(1, "test.ship", -1000000000)});
+		edge.load(load(edge_data), "test.map");
+		edge.claim(1, 1);
+		edge.tick();
+		require(edge.observe(1)->contacts.empty(), "a one-leaf index must exclude the observing ship");
+		edge_data["entities"][1]["collision"]["radius_mm"] = 1000000000;
+		edge_data["maps"][0]["entities"] =
+		    Json::array({instance(1, "test.ship", 999999000), instance(2, "test.anchor", 0)});
+		edge.load(load(edge_data), "test.map");
+		edge.tick();
+		require(edge.inspect()[0].x == 1000000000 && edge.inspect()[1].x == 0,
+		        "large collider bounds must retain contacts at the supported coordinate limit");
 		if (argc > 1)
 			std::cout << trace.dump() << '\n';
 		else

@@ -16,6 +16,7 @@ module;
 module phoenix.simulation;
 import phoenix.content;
 #include "body.hpp"
+#include "spatial.hpp"
 
 namespace phoenix::fixed
 {
@@ -54,6 +55,17 @@ struct CollisionEntry
 	Motion *motion;
 	CollisionBody body;
 };
+struct ContactEntry
+{
+	EntityId id;
+	flecs::entity entity;
+	fixed::Vec position;
+};
+Bounds collision_bounds(const CollisionBody &body)
+{
+	// Match the existing conservative circle/rotated-box rejection exactly.
+	return Bounds::around(body.position, body.box ? body.half_width + body.half_length : body.radius);
+}
 BodyView view(EntityId id, const Definition &definition, const Pose &pose, const Motion &motion)
 {
 	return {id, definition.name, pose.position.x, pose.position.y, motion.velocity.x, motion.velocity.y, pose.heading};
@@ -122,15 +134,16 @@ struct World::Impl
 	std::map<std::uint64_t, EntityId> claims;
 	std::vector<PendingCommand> pending;
 	std::vector<CollisionEntry> collisions;
+	std::vector<ContactEntry> contact_rows;
+	std::vector<Bounds> collision_boxes, contact_boxes;
+	SpatialIndex collision_index, contact_index;
 	flecs::query<const StableId, const Definition, const Pose, const Motion> bodies;
-	flecs::query<const StableId, const Pose> contacts;
-	flecs::system controllers, steering, engines, integrate, resolve_collisions;
+	flecs::system controllers, steering, engines, integrate, resolve_collisions, index_contacts;
 
 	Impl()
 	{
 		ecs.set<Clock>({0});
 		bodies = ecs.query_builder<const StableId, const Definition, const Pose, const Motion>().cached().build();
-		contacts = ecs.query_builder<const StableId, const Pose>().cached().build();
 		controllers = ecs.system<Controller, Engine *, Steering *, Radar *>("Controllers")
 		                  .kind(0)
 		                  .without<Claimed>()
@@ -204,12 +217,28 @@ struct World::Impl
 			                      {
 				                      return a.id < b.id;
 			                      });
-			            // Sequential resolution can move a body into a later pair. Keep every
-			            // pair, in schema-1 stable-ID order, including across all four passes.
+			            collision_boxes.clear();
+			            for (const auto &entry : collisions)
+				            collision_boxes.push_back(collision_bounds(entry.body));
+			            collision_index.rebuild(collision_boxes);
+			            // Re-query after each pair: correction can create a later contact.
+			            // Already visited pairs stay visited until the next pass, exactly
+			            // as in the original stable-ID nested loop.
 			            for (int pass = 0; pass < 4; ++pass)
 				            for (std::size_t a = 0; a < collisions.size(); ++a)
-					            for (std::size_t b = a + 1; b < collisions.size(); ++b)
+				            {
+					            auto begin = a + 1;
+					            for (;;)
+					            {
+						            auto b = collision_index.first(collision_bounds(collisions[a].body), begin);
+						            if (b == SpatialIndex::none)
+							            break;
 						            collide(collisions[a].body, collisions[b].body);
+						            collision_index.update(a, collision_bounds(collisions[a].body));
+						            collision_index.update(b, collision_bounds(collisions[b].body));
+						            begin = b + 1;
+					            }
+				            }
 			            // No structural changes occur in this phase; pointers never escape it.
 			            for (auto &entry : collisions)
 			            {
@@ -218,6 +247,25 @@ struct World::Impl
 			            }
 			            collisions.clear();
 		            });
+		index_contacts = ecs.system<const StableId, const Pose>("IndexContacts")
+		                     .kind(0)
+		                     .run(
+		                         [this](flecs::iter &it)
+		                         {
+			                         contact_rows.clear();
+			                         contact_boxes.clear();
+			                         while (it.next())
+			                         {
+				                         auto ids = it.field<const StableId>(0);
+				                         auto poses = it.field<const Pose>(1);
+				                         for (auto row : it)
+				                         {
+					                         contact_rows.push_back({ids[row].id, it.entity(row), poses[row].position});
+					                         contact_boxes.push_back(Bounds::around(poses[row].position, 0));
+				                         }
+			                         }
+			                         contact_index.rebuild(contact_boxes);
+		                         });
 	}
 	void compile(const Catalog &content)
 	{
@@ -365,6 +413,7 @@ void World::load(const Catalog &content, const std::string &map, const std::map<
 		candidate->slot_entities[slot] = next;
 		candidate->create(next++, ship, slots.at(slot));
 	}
+	candidate->index_contacts.run();
 	impl_ = std::move(candidate);
 }
 bool World::claim(std::uint64_t console, EntityId ship)
@@ -446,6 +495,7 @@ void World::tick()
 	impl_->engines.run();
 	impl_->integrate.run();
 	impl_->resolve_collisions.run();
+	impl_->index_contacts.run();
 	++impl_->ecs.get_mut<Clock>().tick;
 }
 unsigned long long World::ticks() const
@@ -484,11 +534,14 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 	result.radar_enabled = radar ? radar->enabled : impl_->operation(entity).radar_enabled;
 	if (!radar || !radar->enabled)
 		return result;
-	impl_->contacts.each(
-	    [&](flecs::entity other, const StableId &id, const Pose &pose)
+	impl_->contact_index.each(
+	    Bounds::around(own.position, radar->range),
+	    [&](std::size_t row)
 	    {
-		    if (id.id != found->second && fixed::length(pose.position - own.position) <= radar->range)
-			    result.contacts.push_back(view(id.id, other.get<Definition>(), pose, other.get<Motion>()));
+		    const auto &contact = impl_->contact_rows[row];
+		    if (contact.id != found->second && fixed::length(contact.position - own.position) <= radar->range)
+			    result.contacts.push_back(view(contact.id, contact.entity.get<Definition>(), contact.entity.get<Pose>(),
+			                                   contact.entity.get<Motion>()));
 	    });
 	std::sort(result.contacts.begin(), result.contacts.end(),
 	          [](const auto &a, const auto &b)
@@ -552,6 +605,7 @@ void World::restore(const Catalog &content, const Json &saved)
 	if (tick < 0)
 		throw std::runtime_error("Saved state invalid tick");
 	candidate.impl_->ecs.get_mut<Clock>().tick = static_cast<std::uint64_t>(tick);
+	candidate.impl_->index_contacts.run();
 	impl_ = std::move(candidate.impl_);
 }
 } // namespace phoenix
