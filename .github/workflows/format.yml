@@ -1,0 +1,20 @@
+name: Formatting
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  format:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install pinned formatting tools
+        shell: pwsh
+        run: ./scripts/bootstrap-format.ps1
+      - name: Check authored files
+        shell: pwsh
+        run: ./scripts/format.ps1 -Check

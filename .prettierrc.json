@@ -1,0 +1,18 @@
+{
+	"useTabs": true,
+	"tabWidth": 4,
+	"printWidth": 120,
+	"endOfLine": "lf",
+	"proseWrap": "preserve",
+	"embeddedLanguageFormatting": "auto",
+	"overrides": [
+		{
+			"files": ["*.md", "*.yml", "*.yaml", ".clang-format", ".gersemirc"],
+			"options": { "useTabs": false, "tabWidth": 2 }
+		},
+		{
+			"files": "*.md",
+			"options": { "embeddedLanguageFormatting": "off" }
+		}
+	]
+}

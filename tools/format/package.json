@@ -1,0 +1,9 @@
+{
+	"name": "phoenix-v3-formatting",
+	"private": true,
+	"version": "1.0.0",
+	"engines": { "node": ">=22" },
+	"devDependencies": {
+		"prettier": "3.9.10"
+	}
+}

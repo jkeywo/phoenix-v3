@@ -1,0 +1,8 @@
+references/**
+build/**
+.tools/**
+.cache/**
+out/**
+target/**
+dist/**
+**/node_modules/**

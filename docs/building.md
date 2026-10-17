@@ -1,5 +1,25 @@
 # Building Phoenix V3
 
+## Formatting
+
+Formatting uses Python 3.10+, Node.js 22+ (with npm), and PowerShell 7 on Windows. It is independent of the native/WebAssembly build:
+
+```powershell
+./scripts/bootstrap-format.ps1
+./scripts/format.ps1
+./scripts/format.ps1 -Check
+```
+
+Bootstrap installs pinned clang-format, gersemi, Prettier and PSScriptAnalyzer versions into ignored local tool directories. The npm dependency tree is locked in `tools/format/package-lock.json`. Use `-Python <executable>` or `-Npm <executable>` on bootstrap when those tools are not on PATH; the existing Emscripten Python installation is also recognised.
+
+The format command covers tracked and non-ignored untracked authored files, including uncommitted edits. It never stages or commits changes. `-Check` reports drift and fails without editing files; the separate Formatting GitHub Actions job runs that same check without building the game.
+
+C++ and PowerShell use tabs (display width four) and next-line opening braces. Prettier handles JavaScript, HTML, CSS, JSON, YAML and Markdown, using its standard same-line braces for JavaScript/CSS, including scripts and styles inside HTML. YAML and Markdown retain spaces for syntax and portable rendering, and prose wrapping is preserved. CMake uses tabs through gersemi. `.editorconfig` shares the whitespace defaults with editors; configure format-on-save to use the corresponding repository formatter/configuration and pinned version.
+
+The command explicitly selects authored roots and excludes `references/`, dependencies, generated directories, lockfiles and minified files. RML/RCSS dialects are excluded pending formatter compatibility validation. C++ raw string assets are preserved, and Emscripten JavaScript macro bodies are protected from C++ formatting. Do not run a blanket formatter over historical snapshots or build output.
+
+## Game build
+
 Windows requires Python, Git and Visual Studio 2022 with the C++ desktop workload/Windows SDK. Run from the repository root in PowerShell:
 
 ```powershell

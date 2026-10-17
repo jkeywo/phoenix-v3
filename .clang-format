@@ -1,0 +1,16 @@
+BasedOnStyle: LLVM
+UseTab: ForIndentation
+IndentWidth: 4
+TabWidth: 4
+AccessModifierOffset: -4
+ColumnLimit: 120
+BreakBeforeBraces: Allman
+AllowShortBlocksOnASingleLine: Never
+AllowShortFunctionsOnASingleLine: None
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+AllowShortLambdasOnASingleLine: None
+SortIncludes: Never
+ReflowComments: Never
+# Embedded JavaScript must not be parsed/reprinted as C++.
+WhitespaceSensitiveMacros: [EM_JS, EM_ASM, EM_ASM_, EM_ASM_INT, EM_ASM_DOUBLE, EM_ASM_PTR, MAIN_THREAD_EM_ASM]
