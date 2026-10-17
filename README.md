@@ -12,6 +12,12 @@ The [Workshop foundation](docs/workshop.md) authors map/entity/console data and 
 
 The [source guide](docs/source-guide.md) explains the inputs; the [prior setting agreement](docs/settled-dark-direction.md) preserves the earlier pivot decisions. The consolidated GDD incorporates those decisions and the subsequent V3 consolidation choices. Historical snapshots remain unchanged.
 
+## Hosted browser build
+
+[Open Phoenix V3](https://jkeywo.github.io/phoenix-v3/). Download the [training pack](https://jkeywo.github.io/phoenix-v3/training.zip), launch **Ship server**, then import the ZIP in the game. Console and Workshop / GM are available from the same launcher. Multiplayer requires a separately hosted WSS signalling service; enter its URL in **Network service**.
+
+Every push to `main` builds, verifies and deploys the browser apps through [GitHub Actions](https://github.com/jkeywo/phoenix-v3/actions/workflows/build.yml). See [hosting details](docs/building.md#github-pages).
+
 ## Reference material
 
 - [Old federated GDD](references/phoenix-v2/docs/gdd/index.md).

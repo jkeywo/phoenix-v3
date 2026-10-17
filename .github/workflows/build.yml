@@ -1,20 +1,7 @@
-name: Build and verify
+name: Build, verify and deploy
 on:
   push:
     branches: [main]
-    paths:
-      [
-        "CMakeLists.txt",
-        "cmake/**",
-        "include/**",
-        "src/**",
-        "tests/**",
-        "scripts/**",
-        "web/**",
-        "content/**",
-        "service/**",
-        ".github/workflows/**",
-      ]
   pull_request:
     paths:
       [
@@ -32,6 +19,9 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
   foundation:
     runs-on: windows-2022
@@ -44,3 +34,40 @@ jobs:
       - name: Build, verify and run synthetic system integration
         shell: pwsh
         run: ./scripts/check.ps1
+      - name: Stage public browser files
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $site = New-Item -ItemType Directory -Path build/pages
+          Copy-Item -LiteralPath build/web/index.html -Destination $site
+          foreach ($role in @('server', 'client', 'workshop'))
+          {
+            foreach ($extension in @('js', 'wasm', 'data'))
+            {
+              Copy-Item -LiteralPath "build/web/$role.$extension" -Destination $site
+            }
+          }
+          Copy-Item -LiteralPath build/native/training.zip -Destination $site
+          Set-Content -LiteralPath build/pages/revision.txt -Value $env:GITHUB_SHA
+      - name: Upload GitHub Pages artifact
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        with:
+          path: build/pages
+  deploy:
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: foundation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+      - name: Deploy verified build
+        id: deployment
+        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
