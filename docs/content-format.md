@@ -2,6 +2,10 @@
 
 This is schema 1 for the foundation vocabulary, not the complete GDD equipment schema. Packs contain `manifest.json`, `definitions.json` and PNG files under `assets/`. Packs use ZIP; their identity is SHA-256 of the exact archive bytes. Limits are 32 MiB archived, 16 MiB per entry, 64 MiB expanded and 1024 entries. File paths must be relative, shorter than 512 bytes, and have no trailing slash, traversal, backslashes or drive prefixes. Archives are decoded into bounded memory, never extracted to paths supplied by the archive.
 
+Definitions schema 2 also supports explicit Stations. Each entity's `stations` array contains `{id, consoles:[...]}`; each Console contains `{id, definition, systems:[...], feeds:[...]}`. `definition` resolves a Console layout. `systems` assigns exclusive control of fitted `engine`, `steering` and/or `radar`; `feeds` adds read access. Control also grants its own feed. Every fitted System has exactly one controlling Console; read-only Consoles may have empty `systems`. Station and Console identities are stable strings, unique within their ship, with at most 32 of each. These bindings describe support for the existing Systems, not additional gameplay equipment.
+
+An explicit Station entity cannot also use legacy `console` or `controller`. Optional `controllers` maps fitted System names to existing tree definitions; each tree may output only to that System. Unclaimed Systems run independently. Existing entities normalize to one `main` Console with their original layout, all fitted System controls/feeds and original whole-ship controller behavior. No existing pack needs conversion. New ship rosters and playable layouts are not included in this change.
+
 Manifest example:
 
 ```json

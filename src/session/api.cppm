@@ -20,6 +20,13 @@ struct GameSetup
 	std::string mission;
 	std::map<std::string, std::string> ships;
 	std::string local_slot;
+	std::string local_console;
+};
+struct ConsoleSeat
+{
+	ConsoleAddress address;
+	ConsoleSpec spec;
+	bool available = false;
 };
 struct NetworkOptions
 {
@@ -51,6 +58,26 @@ public:
 	virtual bool command(const OperatingCommand &command) = 0;
 	virtual std::optional<Observation> observation() const = 0;
 	virtual std::vector<BodyView> viewscreen() const = 0;
+	virtual std::vector<ConsoleSeat> console_seats() const
+	{
+		return {};
+	}
+	virtual bool claim_console(std::uint64_t, const ConsoleAddress &)
+	{
+		return false;
+	}
+	virtual bool release_console(std::uint64_t)
+	{
+		return false;
+	}
+	virtual bool console_command(std::uint64_t route, const OperatingCommand &value)
+	{
+		return route == 1 && command(value);
+	}
+	virtual std::optional<Observation> console_observation(std::uint64_t route) const
+	{
+		return route == 1 ? observation() : std::nullopt;
+	}
 	virtual void poll()
 	{
 	}

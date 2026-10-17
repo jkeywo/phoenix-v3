@@ -40,6 +40,81 @@ int main(int argc, char **)
 		fixture["maps"][0]["entities"] = Json::array(
 		    {instance(1, "test.ship", 0), instance(2, "test.ship", 10000), instance(3, "test.ship", 200000)});
 		auto catalog = load(fixture);
+		{
+			auto stations = fixture;
+			stations["schema"] = 2;
+			auto &ship = stations["entities"][0];
+			ship.erase("console");
+			stations["consoles"].push_back({{"id", "test.empty"}, {"widgets", Json::array()}});
+			ship["stations"] = Json::array(
+			    {{{"id", "bridge"},
+			      {"consoles",
+			       Json::array({{{"id", "helm"}, {"definition", "test.empty"}, {"systems", {"engine", "steering"}}},
+			                    {{"id", "sensors"}, {"definition", "test.empty"}, {"systems", {"radar"}}},
+			                    {{"id", "observer"},
+			                     {"definition", "test.empty"},
+			                     {"systems", Json::array()},
+			                     {"feeds", {"radar"}}}})}}});
+			stations["trees"] =
+			    Json::array({{{"id", "test.autopilot"},
+			                  {"initial", "run"},
+			                  {"states", {{"run", {{"speed_mm_s", 3000}, {"ticks", 10}, {"next", "run"}}}}}}});
+			ship["controllers"] = {{"engine", "test.autopilot"}};
+			auto content = load(stations);
+			World world;
+			world.load(content, "test.map");
+			require(!world.claim(1, 1), "multiple Consoles require an explicit seat");
+			require(world.claim(1, 1, "helm") && world.claim(2, 1, "sensors") && world.claim(3, 1, "observer") &&
+			            world.claim(4, 2, "helm"),
+			        "different Consoles and ships can be crewed independently");
+			require(!world.claim(5, 1, "helm") && !world.submit(2, {1, "speed_mm_s", 1000}) &&
+			            !world.submit(1, {1, "radar_enabled", 0}) && !world.submit(3, {1, "radar_enabled", 0}),
+			        "Console ownership and read-only feeds constrain commands");
+			require(!world.submit(1, {1, "speed_mm_s", 1000, "radar"}) &&
+			            world.submit(1, {1, "speed_mm_s", 1000, "engine"}),
+			        "qualified commands cannot alias another System");
+			require(world.observe(1)->contacts.empty() && world.observe(2)->contacts.size() == 1 &&
+			            world.observe(3)->contacts.size() == 1,
+			        "radar projection follows explicit feeds");
+			world.tick();
+			require(world.observe(1)->requested_speed == 1000 && world.observe(2)->requested_speed == 0,
+			        "controllers yield only owned Systems and feeds hide unbound requests");
+			world.submit(1, {1, "speed_mm_s", 2000});
+			world.submit(2, {1, "radar_enabled", 0});
+			world.release(2);
+			world.tick();
+			require(world.observe(1)->requested_speed == 2000 && !world.observe(3)->contacts.empty(),
+			        "release cancels only its own queued requests");
+			world.release(1);
+			world.tick();
+			require(world.claim(1, 1, "helm") && world.observe(1)->requested_speed == 3000,
+			        "released System controller resumes independently");
+			auto saved = world.save();
+			require(saved["schema"] == 2, "explicit Stations use versioned save state");
+			World resumed;
+			resumed.restore(content, saved);
+			require(resumed.save() == saved, "Console claims and independent controllers survive round-trip");
+			world.release(1);
+			resumed.release(1);
+			for (int i = 0; i < 5; ++i)
+			{
+				world.tick();
+				resumed.tick();
+			}
+			require(world.save() == resumed.save(), "per-System continuation is deterministic");
+			auto invalid = stations;
+			invalid["entities"][0]["stations"][0]["consoles"][1]["systems"].push_back("engine");
+			bool rejected = false;
+			try
+			{
+				load(invalid);
+			}
+			catch (const std::exception &)
+			{
+				rejected = true;
+			}
+			require(rejected, "authored System ownership cannot overlap");
+		}
 		Json trace = Json::array();
 		World engine;
 		engine.load(catalog, "test.map");

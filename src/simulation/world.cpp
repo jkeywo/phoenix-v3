@@ -1,6 +1,7 @@
 module;
 #include <flecs.h>
 #include <algorithm>
+#include <array>
 #include <set>
 #include <stdexcept>
 #include <cstdint>
@@ -25,6 +26,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Vec, x, y)
 namespace phoenix
 {
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(TreeState, state, elapsed, entered)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ConsoleAddress, ship, console)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SavedBody, id, definition, position, velocity, remainder, heading)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SavedOperation, speed, heading, acceleration_remainder, turn_remainder,
                                    engine_enabled, radar_enabled, tree)
@@ -42,9 +44,13 @@ struct CompiledDefinition
 	std::optional<Steering> steering;
 	std::optional<Radar> radar;
 	std::optional<std::size_t> controller;
+	std::vector<ConsoleSpec> consoles;
+	SystemControllers system_controllers;
+	bool explicit_stations = false;
 };
 struct PendingCommand
 {
+	std::uint64_t claimant;
 	EntityId target;
 	TreeOutput output;
 };
@@ -116,14 +122,15 @@ struct World::Impl
 	std::map<std::string, EntityId> slot_entities;
 	// This is a boundary lookup index, never the tick's iteration source.
 	std::map<EntityId, flecs::entity> entities;
-	std::map<std::uint64_t, EntityId> claims;
+	std::map<std::uint64_t, ConsoleAddress> claims;
+	bool explicit_stations = false;
 	std::vector<PendingCommand> pending;
 	std::vector<CollisionEntry> collisions;
 	std::vector<ContactEntry> contact_rows;
 	std::vector<Bounds> collision_boxes, contact_boxes;
 	SpatialIndex collision_index, contact_index;
 	flecs::query<const StableId, const Definition, const Pose, const Motion> bodies;
-	flecs::system controllers, steering, engines, integrate, resolve_collisions, index_contacts;
+	flecs::system controllers, system_controllers, steering, engines, integrate, resolve_collisions, index_contacts;
 
 	Impl()
 	{
@@ -138,6 +145,18 @@ struct World::Impl
 			                      for (auto output : step_tree(programs[controller.program], controller.cursor))
 				                      apply(output, engine, turn, radar);
 		                      });
+		system_controllers =
+		    ecs.system<SystemControllers, const ControlClaims, Engine *, Steering *, Radar *>("SystemControllers")
+		        .kind(0)
+		        .each(
+		            [this](SystemControllers &controllers, const ControlClaims &claims, Engine *engine, Steering *turn,
+		                   Radar *radar)
+		            {
+			            for (std::size_t i = 0; i < controllers.values.size(); ++i)
+				            if (auto &controller = controllers.values[i]; controller && !(claims.held & (1u << i)))
+					            for (auto output : step_tree(programs[controller->program], controller->cursor))
+						            apply(output, engine, turn, radar);
+		            });
 		steering = ecs.system<Pose, Steering>("Steering")
 		               .kind(0)
 		               .with<Movable>()
@@ -264,6 +283,16 @@ struct World::Impl
 		for (const auto &[name, definition] : content.entities)
 		{
 			CompiledDefinition result;
+			result.consoles = resolve_consoles(content, name);
+			result.explicit_stations = definition.contains("stations");
+			if (definition.contains("controllers"))
+				for (auto system : {OperatingSystem::Engine, OperatingSystem::Steering, OperatingSystem::Radar})
+				{
+					const std::string key(operating_system_name(system));
+					if (definition["controllers"].contains(key))
+						result.system_controllers.values[static_cast<std::size_t>(system)] =
+						    Controller{tree_ids.at(definition["controllers"][key].get<std::string>()), {}};
+				}
 			const auto &collision = definition.at("collision");
 			result.collider.mass = collision.at("mass_grams");
 			result.collider.box = collision.at("shape") == "box";
@@ -289,6 +318,7 @@ struct World::Impl
 	void create(EntityId id, const std::string &definition, const Json &transform)
 	{
 		const auto &data = definitions.at(definition);
+		explicit_stations |= data.explicit_stations;
 		Pose pose{{transform.at("x_mm"), transform.at("y_mm")}, transform.at("heading_mdeg")};
 		auto entity = ecs.entity()
 		                  .set<StableId>({id})
@@ -310,7 +340,21 @@ struct World::Impl
 			entity.set<Radar>(*data.radar);
 		if (data.controller)
 			entity.set<Controller>({*data.controller, {}});
+		if (data.explicit_stations)
+			entity.set<SystemControllers>(data.system_controllers).set<ControlClaims>({});
 		entities.emplace(id, entity);
+	}
+	const CompiledDefinition &definition(EntityId ship) const
+	{
+		return definitions.at(entities.at(ship).get<Definition>().name);
+	}
+	const ConsoleSpec *seat(EntityId ship, const std::string &name) const
+	{
+		const auto &seats = definition(ship).consoles;
+		for (const auto &seat : seats)
+			if (seat.id == name || (name.empty() && seats.size() == 1))
+				return &seat;
+		return nullptr;
 	}
 	SavedOperation operation(flecs::entity entity) const
 	{
@@ -401,19 +445,35 @@ void World::load(const Catalog &content, const std::string &map, const std::map<
 	candidate->index_contacts.run();
 	impl_ = std::move(candidate);
 }
-bool World::can_claim(std::uint64_t console, EntityId ship) const
+std::vector<ConsoleSpec> World::consoles(EntityId ship) const
+{
+	return impl_->entities.contains(ship) ? impl_->definition(ship).consoles : std::vector<ConsoleSpec>{};
+}
+bool World::can_claim(std::uint64_t console, EntityId ship, const std::string &name) const
 {
 	if (!console || impl_->claims.contains(console) || !impl_->entities.contains(ship))
 		return false;
-	auto entity = impl_->entities.at(ship);
-	return !entity.has<Claimed>() && entity.has<Movable>() && entity.has<Engine>() && entity.has<Steering>();
-}
-bool World::claim(std::uint64_t console, EntityId ship)
-{
-	if (!can_claim(console, ship))
+	auto seat = impl_->seat(ship, name);
+	if (!seat)
 		return false;
-	impl_->claims[console] = ship;
-	impl_->entities.at(ship).add<Claimed>();
+	for (const auto &[owner, address] : impl_->claims)
+		if (address.ship == ship && address.console == seat->id)
+			return false;
+	auto entity = impl_->entities.at(ship);
+	return impl_->definition(ship).explicit_stations ||
+	       (entity.has<Movable>() && entity.has<Engine>() && entity.has<Steering>());
+}
+bool World::claim(std::uint64_t console, EntityId ship, const std::string &name)
+{
+	if (!can_claim(console, ship, name))
+		return false;
+	const auto &seat = *impl_->seat(ship, name);
+	impl_->claims[console] = {ship, seat.id};
+	auto entity = impl_->entities.at(ship);
+	if (auto claims = entity.try_get_mut<ControlClaims>())
+		claims->held |= seat.controls;
+	else
+		entity.add<Claimed>();
 	return true;
 }
 std::optional<EntityId> World::ship_for_slot(const std::string &slot) const
@@ -428,9 +488,22 @@ bool World::release(std::uint64_t console)
 	auto found = impl_->claims.find(console);
 	if (found == impl_->claims.end())
 		return false;
-	auto entity = impl_->entities.at(found->second);
-	entity.get_mut<Engine>().speed = 0;
-	entity.get_mut<Steering>().heading = entity.get<Pose>().heading;
+	auto entity = impl_->entities.at(found->second.ship);
+	const auto &seat = *impl_->seat(found->second.ship, found->second.console);
+	if (auto claims = entity.try_get_mut<ControlClaims>())
+	{
+		claims->held &= static_cast<SystemMask>(~seat.controls);
+		// Only controllers for this Console restart; other Consoles keep their state.
+		auto &controllers = entity.get_mut<SystemControllers>();
+		for (std::size_t i = 0; i < controllers.values.size(); ++i)
+			if ((seat.controls & (1u << i)) && controllers.values[i])
+				controllers.values[i]->cursor = {};
+	}
+	else
+	{
+		entity.get_mut<Engine>().speed = 0;
+		entity.get_mut<Steering>().heading = entity.get<Pose>().heading;
+	}
 	if (auto controller = entity.try_get_mut<Controller>())
 		controller->cursor = {};
 	if (auto legacy = entity.try_get_mut<LegacyOperation>())
@@ -438,7 +511,7 @@ bool World::release(std::uint64_t console)
 	impl_->pending.erase(std::remove_if(impl_->pending.begin(), impl_->pending.end(),
 	                                    [&](const auto &command)
 	                                    {
-		                                    return command.target == found->second;
+		                                    return command.claimant == console;
 	                                    }),
 	                     impl_->pending.end());
 	entity.remove<Claimed>();
@@ -448,9 +521,15 @@ bool World::release(std::uint64_t console)
 bool World::can_submit(std::uint64_t console, const OperatingCommand &command) const
 {
 	auto claim = impl_->claims.find(console);
-	if (claim == impl_->claims.end() || claim->second != command.target || impl_->pending.size() >= 4096)
+	if (claim == impl_->claims.end() || claim->second.ship != command.target || impl_->pending.size() >= 4096)
 		return false;
 	auto output = decode(command);
+	if (!output)
+		return false;
+	const auto system = operating_action(output->action).system;
+	if (!(impl_->seat(command.target, claim->second.console)->controls & system_bit(system)) ||
+	    (!command.system.empty() && command.system != operating_system_name(system)))
+		return false;
 	auto entity = impl_->entities.at(command.target);
 	return output && admissible(*output, entity.try_get<Engine>(), entity.try_get<Steering>(), entity.try_get<Radar>());
 }
@@ -458,13 +537,18 @@ bool World::submit(std::uint64_t console, const OperatingCommand &command)
 {
 	if (!can_submit(console, command))
 		return false;
-	impl_->pending.push_back({command.target, *decode(command)});
+	impl_->pending.push_back({console, command.target, *decode(command)});
 	return true;
 }
 void World::clear_claims()
 {
-	for (auto [console, id] : impl_->claims)
-		impl_->entities.at(id).remove<Claimed>();
+	for (const auto &[console, address] : impl_->claims)
+	{
+		auto entity = impl_->entities.at(address.ship);
+		entity.remove<Claimed>();
+		if (auto claims = entity.try_get_mut<ControlClaims>())
+			claims->held = 0;
+	}
 	impl_->claims.clear();
 	impl_->pending.clear();
 }
@@ -480,6 +564,7 @@ void World::tick()
 	// Explicit fixed-tick phases. Each pre-collision row operates only on itself,
 	// so archetype/table ordering cannot affect gameplay. No wall-clock progress.
 	impl_->controllers.run();
+	impl_->system_controllers.run();
 	impl_->steering.run();
 	impl_->engines.run();
 	impl_->integrate.run();
@@ -512,13 +597,24 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 	auto found = impl_->claims.find(console);
 	if (found == impl_->claims.end())
 		return {};
-	auto entity = impl_->entities.at(found->second);
+	auto entity = impl_->entities.at(found->second.ship);
 	const auto &own = entity.get<Pose>();
-	Observation result{view(found->second, entity.get<Definition>(), own, entity.get<Motion>()), {}};
-	const auto &engine = entity.get<Engine>();
-	result.requested_speed = engine.speed;
-	result.requested_heading = entity.get<Steering>().heading;
-	result.engine_enabled = engine.enabled;
+	const auto &seat = *impl_->seat(found->second.ship, found->second.console);
+	Observation result{view(found->second.ship, entity.get<Definition>(), own, entity.get<Motion>()), {}};
+	result.console = seat.id;
+	result.controls = seat.controls;
+	result.feeds = seat.feeds;
+	result.engine_enabled = false;
+	result.radar_enabled = false;
+	if (auto engine = entity.try_get<Engine>(); engine && (seat.feeds & system_bit(OperatingSystem::Engine)))
+	{
+		result.requested_speed = engine->speed;
+		result.engine_enabled = engine->enabled;
+	}
+	if (auto turn = entity.try_get<Steering>(); turn && (seat.feeds & system_bit(OperatingSystem::Steering)))
+		result.requested_heading = turn->heading;
+	if (!(seat.feeds & system_bit(OperatingSystem::Radar)))
+		return result;
 	auto radar = entity.try_get<Radar>();
 	result.radar_enabled = radar ? radar->enabled : impl_->operation(entity).radar_enabled;
 	if (!radar || !radar->enabled)
@@ -528,7 +624,7 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 	    [&](std::size_t row)
 	    {
 		    const auto &contact = impl_->contact_rows[row];
-		    if (contact.id != found->second && fixed::length(contact.position - own.position) <= radar->range)
+		    if (contact.id != found->second.ship && fixed::length(contact.position - own.position) <= radar->range)
 			    result.contacts.push_back(view(contact.id, contact.entity.get<Definition>(), contact.entity.get<Pose>(),
 			                                   contact.entity.get<Motion>()));
 	    });
@@ -543,21 +639,43 @@ Json World::save() const
 {
 	if (!impl_->pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 1},           {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
-	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
+	Json result{{"schema", 1},           {"tick", ticks()},       {"map", impl_->map},
+	            {"ships", impl_->ships}, {"packs", impl_->packs}, {"bodies", Json::array()}};
+	if (impl_->explicit_stations)
+	{
+		result["schema"] = 2;
+		result["claims"] = impl_->claims;
+	}
+	else
+	{
+		std::map<std::uint64_t, EntityId> legacy;
+		for (const auto &[owner, address] : impl_->claims)
+			legacy[owner] = address.ship;
+		result["claims"] = legacy;
+	}
 	for (const auto &[id, entity] : impl_->entities)
 	{
 		SavedBody body{entity.get<Pose>(), entity.get<Motion>(), id, entity.get<Definition>().name};
 		result["bodies"].push_back({{"body", body}, {"operation", impl_->operation(entity)}});
+		if (auto controllers = entity.try_get<SystemControllers>())
+		{
+			auto &saved = result["bodies"].back()["controllers"] = Json::object();
+			for (std::size_t i = 0; i < controllers->values.size(); ++i)
+				if (const auto &controller = controllers->values[i])
+					saved[std::string(operating_system_name(static_cast<OperatingSystem>(i)))] =
+					    save_tree(impl_->programs[controller->program], controller->cursor);
+		}
 	}
 	return result;
 }
 void World::restore(const Catalog &content, const Json &saved)
 {
-	if (saved.at("schema") != 1 || saved.at("packs") != Json(content.ordered_packs))
+	if ((saved.at("schema") != 1 && saved.at("schema") != 2) || saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error("Saved state schema/content identity mismatch");
 	World candidate;
 	candidate.load(content, saved.at("map"), saved.at("ships").get<std::map<std::string, std::string>>());
+	if (candidate.impl_->explicit_stations && saved.at("schema") != 2)
+		throw std::runtime_error("Explicit Stations require a schema-2 save");
 	if (!saved.at("bodies").is_array() || saved.at("bodies").size() != candidate.impl_->entities.size())
 		throw std::runtime_error("Saved state entity roster mismatch");
 	std::set<EntityId> seen;
@@ -586,10 +704,37 @@ void World::restore(const Catalog &content, const Json &saved)
 			throw std::runtime_error("Saved state invalid speed request");
 		entity.set<Pose>({restored.position, restored.heading}).set<Motion>({restored.velocity, restored.remainder});
 		candidate.impl_->restore_operation(entity, operation);
+		if (auto controllers = entity.try_get_mut<SystemControllers>())
+		{
+			const auto &states = value.at("controllers");
+			if (!states.is_object())
+				throw std::runtime_error("Invalid System controller states");
+			std::size_t count = 0;
+			for (std::size_t i = 0; i < controllers->values.size(); ++i)
+				if (auto &controller = controllers->values[i])
+				{
+					++count;
+					controller->cursor =
+					    load_tree(candidate.impl_->programs[controller->program],
+					              states.at(std::string(operating_system_name(static_cast<OperatingSystem>(i))))
+					                  .get<TreeState>());
+				}
+			if (states.size() != count)
+				throw std::runtime_error("System controller roster mismatch");
+		}
 	}
-	for (const auto &[console, ship] : saved.at("claims").get<std::map<std::uint64_t, EntityId>>())
-		if (!candidate.claim(console, ship))
-			throw std::runtime_error("Saved state invalid claim");
+	if (saved.at("schema") == 1)
+	{
+		for (const auto &[console, ship] : saved.at("claims").get<std::map<std::uint64_t, EntityId>>())
+			if (!candidate.claim(console, ship))
+				throw std::runtime_error("Saved state invalid claim");
+	}
+	else
+	{
+		for (const auto &[console, address] : saved.at("claims").get<std::map<std::uint64_t, ConsoleAddress>>())
+			if (!candidate.claim(console, address.ship, address.console))
+				throw std::runtime_error("Saved state invalid claim");
+	}
 	auto tick = saved.at("tick").get<std::int64_t>();
 	if (tick < 0)
 		throw std::runtime_error("Saved state invalid tick");

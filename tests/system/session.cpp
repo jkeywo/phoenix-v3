@@ -26,6 +26,37 @@ int main()
 		pack.manifest = {{"schema", 1}, {"id", "test-core"}};
 		pack.files["definitions.json"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json");
 		pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+		{
+			auto multi_pack = pack;
+			auto data = parse_json(multi_pack.files.at("definitions.json"), "stations fixture");
+			data["schema"] = 2;
+			data["entities"][0].erase("console");
+			data["consoles"].push_back({{"id", "test.empty"}, {"widgets", Json::array()}});
+			data["entities"][0]["stations"] = Json::array(
+			    {{{"id", "bridge"},
+			      {"consoles",
+			       Json::array({{{"id", "helm"}, {"definition", "test.empty"}, {"systems", {"engine", "steering"}}},
+			                    {{"id", "sensors"}, {"definition", "test.empty"}, {"systems", {"radar"}}}})}}});
+			multi_pack.files["definitions.json"] = json_bytes(data);
+			auto multi = make_local_session();
+			multi->add_pack(write_pack(multi_pack));
+			multi->start({"test.map", {{"test.slot", "test.ship"}}, "test.slot", "helm"});
+			auto ship = multi->observation()->own.id;
+			require(multi->console_seats().size() == 2 && multi->claim_console(2, {ship, "sensors"}),
+			        "session exposes and admits separate Console routes");
+			require(multi->console_command(2, {ship, "radar_enabled", 0}) &&
+			            !multi->console_command(2, {ship, "speed_mm_s", 1}),
+			        "session route preserves System authority");
+			multi->tick();
+			auto recovered = make_local_session();
+			recovered->restore(multi->save());
+			require(recovered->recovery_pending() && !recovered->console_observation(2),
+			        "portable recovery clears all Console routes");
+			recovered->resume_local();
+			require(recovered->observation()->console == "helm" && recovered->claim_console(2, {ship, "sensors"}) &&
+			            !recovered->console_observation(2)->radar_enabled,
+			        "schema-2 recovery preserves selection and System state with fresh claims");
+		}
 		auto session = make_local_session();
 		require(!session->command({1, "speed_mm_s", 1}) && !session->observation(),
 		        "Idle session must expose no claimed projection or commands");

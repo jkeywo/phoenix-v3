@@ -54,6 +54,13 @@ Catalog resolve_packs(const std::vector<Pack> &ordered);
 // Authoring preview only: the final draft is deliberately absent from archive identities.
 Catalog resolve_draft(const std::vector<Pack> &libraries, const PackDraft &draft);
 void verify_catalog(const Catalog &catalog);
+struct ConsoleSpec
+{
+	std::string id, station, definition;
+	SystemMask controls = 0, feeds = 0;
+};
+// Resolves legacy single-console content and verifies explicit station ownership.
+std::vector<ConsoleSpec> resolve_consoles(const Catalog &catalog, const std::string &entity);
 struct WidgetBinding
 {
 	const char *kind;

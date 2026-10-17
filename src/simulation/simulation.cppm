@@ -23,8 +23,9 @@ public:
 	void tick();
 	unsigned long long ticks() const;
 	void load(const Catalog &content, const std::string &map, const std::map<std::string, std::string> &ships = {});
-	bool claim(std::uint64_t console, EntityId ship);
-	bool can_claim(std::uint64_t console, EntityId ship) const;
+	bool claim(std::uint64_t console, EntityId ship, const std::string &seat = {});
+	bool can_claim(std::uint64_t console, EntityId ship, const std::string &seat = {}) const;
+	std::vector<ConsoleSpec> consoles(EntityId ship) const;
 	std::optional<EntityId> ship_for_slot(const std::string &slot) const;
 	bool release(std::uint64_t console);
 	// Recovery discards transport ownership without changing saved operations.

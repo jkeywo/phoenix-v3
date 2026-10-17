@@ -49,6 +49,14 @@ struct Controller
 	std::size_t program = 0;
 	TreeCursor cursor;
 };
+struct SystemControllers
+{
+	std::array<std::optional<Controller>, 3> values;
+};
+struct ControlClaims
+{
+	SystemMask held = 0;
+};
 // Transient numeric collision workspace; authoritative state remains in ECS.
 struct CollisionBody : Pose, Motion, Collider
 {

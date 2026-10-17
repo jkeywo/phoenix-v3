@@ -103,8 +103,8 @@ Catalog resolve(const std::vector<PackView> &ordered)
 				invalid(id + ".dependencies", "dependency must appear earlier in the selected pack order");
 		}
 		auto definitions = parse_json(pack.files.at("definitions.json"), id + "/definitions.json");
-		if (!definitions.is_object() || definitions.value("schema", 0) != 1)
-			invalid(id + "/definitions.json", "expected schema 1 object");
+		if (!definitions.is_object() || (definitions.value("schema", 0) != 1 && definitions.value("schema", 0) != 2))
+			invalid(id + "/definitions.json", "expected schema 1 or 2 object");
 		std::set<std::string> overrides;
 		for (const auto &override_id : pack.manifest.value("overrides", Json::array()))
 			overrides.insert(override_id.get<std::string>());
@@ -256,6 +256,29 @@ void verify_catalog(const Catalog &catalog)
 		if (entity.contains("controller") &&
 		    (!entity["controller"].is_string() || !catalog.trees.contains(entity["controller"].get<std::string>())))
 			invalid(path + ".controller", "unresolved state tree");
+		resolve_consoles(catalog, id);
+		if (entity.contains("controllers"))
+		{
+			if (!entity.contains("stations") || !entity["controllers"].is_object())
+				invalid(path + ".controllers", "per-System controllers require explicit Stations");
+			for (auto it = entity["controllers"].begin(); it != entity["controllers"].end(); ++it)
+			{
+				if (!entity["systems"].contains(it.key()) || !it.value().is_string() ||
+				    !catalog.trees.contains(it.value().get<std::string>()))
+					invalid(path + ".controllers." + it.key(), "unresolved System or tree");
+				for (const auto &state : catalog.trees.at(it.value().get<std::string>()).at("states"))
+					for (const auto &spec : operating_actions)
+						if (state.contains(std::string(spec.name)))
+						{
+							if (operating_system_name(spec.system) != it.key())
+								invalid(path + ".controllers." + it.key(), "tree writes another System");
+							if (spec.action == OperatingAction::Speed &&
+							    state.at(std::string(spec.name)).get<std::int64_t>() >
+							        entity["systems"]["engine"]["max_speed_mm_s"].get<std::int64_t>())
+								invalid(path + ".controllers." + it.key(), "speed output exceeds engine capability");
+						}
+			}
+		}
 		if (entity.contains("controller"))
 		{
 			const auto &systems = entity.at("systems");

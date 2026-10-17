@@ -147,6 +147,7 @@ add_library(
 	STATIC
 	src/content/pack.cpp
 	src/content/catalog.cpp
+	src/content/stations.cpp
 	src/content/workshop.cpp
 	src/behavior/tree.cpp
 )

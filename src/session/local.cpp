@@ -99,15 +99,15 @@ public:
 		if (!setup.ships.contains(setup.local_slot))
 			throw std::runtime_error("Select a ship for the local slot");
 		const auto &ship = catalog_.entities.at(setup.ships.at(setup.local_slot));
-		if (!ship.contains("console"))
+		if (!ship.contains("console") && !ship.contains("stations"))
 			throw std::runtime_error("The local ship needs an authored console");
 		auto candidate = std::make_unique<World>();
 		candidate->load(catalog_, setup.mission, setup.ships);
 		const auto controlled = candidate->ship_for_slot(setup.local_slot);
-		if (!controlled || !candidate->can_claim(local_console, *controlled))
+		if (!controlled || !candidate->can_claim(local_console, *controlled, setup.local_console))
 			throw std::runtime_error("The selected ship cannot admit a local console");
 		if (claim_local)
-			candidate->claim(local_console, *controlled);
+			candidate->claim(local_console, *controlled, setup.local_console);
 		setup_ = setup;
 		world_ = std::move(candidate);
 		active_ = true;
@@ -148,12 +148,15 @@ public:
 			}
 			paths.push_back(chunks);
 		}
-		container.files["session.json"] = json_bytes(Json{{"schema", 1},
-		                                                  {"mission", setup_.mission},
-		                                                  {"ships", setup_.ships},
-		                                                  {"local_slot", setup_.local_slot},
-		                                                  {"packs", paths},
-		                                                  {"state", state}});
+		auto data = Json{{"schema", state.at("schema")},
+		                 {"mission", setup_.mission},
+		                 {"ships", setup_.ships},
+		                 {"local_slot", setup_.local_slot},
+		                 {"packs", paths},
+		                 {"state", state}};
+		if (state.at("schema") == 2)
+			data["local_console"] = setup_.local_console;
+		container.files["session.json"] = json_bytes(data);
 		return container;
 	}
 	void restore(const Bytes &archive) override
@@ -165,8 +168,8 @@ public:
 		if (container.manifest.value("format", std::string{}) != "phoenix-runtime-save")
 			throw std::runtime_error("Select a Phoenix runtime save ZIP");
 		const auto data = parse_json(container.files.at("session.json"), "session.json");
-		if (data.at("schema") != 1 || !data.at("packs").is_array() || data.at("packs").empty() ||
-		    data.at("packs").size() > 32)
+		if ((data.at("schema") != 1 && data.at("schema") != 2) || !data.at("packs").is_array() ||
+		    data.at("packs").empty() || data.at("packs").size() > 32)
 			throw std::runtime_error("Unsupported runtime save content roster");
 		LocalSession candidate;
 		for (const auto &chunks : data.at("packs"))
@@ -185,7 +188,7 @@ public:
 		}
 		candidate.catalog_ = resolve_packs(candidate.packs_);
 		GameSetup setup{data.at("mission"), data.at("ships").get<std::map<std::string, std::string>>(),
-		                data.at("local_slot")};
+		                data.at("local_slot"), data.value("local_console", std::string{})};
 		// Verify that recovery can admit the selected console before touching live state.
 		candidate.start_server(setup);
 		candidate.world_->restore(candidate.catalog_, data.at("state"));
@@ -194,7 +197,7 @@ public:
 		// A portable save carries historical claims, never a live operator lease.
 		candidate.world_->clear_claims();
 		const auto controlled = candidate.world_->ship_for_slot(setup.local_slot);
-		if (!controlled || !candidate.world_->can_claim(local_console, *controlled))
+		if (!controlled || !candidate.world_->can_claim(local_console, *controlled, setup.local_console))
 			throw std::runtime_error("The recovered ship cannot admit a local console");
 		candidate.active_ = false;
 		packs_ = std::move(candidate.packs_);
@@ -209,7 +212,7 @@ public:
 		if (!recovery_pending())
 			throw std::runtime_error("There is no paused recovery session");
 		auto ship = world_->ship_for_slot(setup_.local_slot);
-		if (!ship || !world_->claim(local_console, *ship))
+		if (!ship || !world_->claim(local_console, *ship, setup_.local_console))
 			throw std::runtime_error("Recovery console claim was refused");
 		active_ = true;
 	}
@@ -239,6 +242,33 @@ public:
 	std::vector<BodyView> viewscreen() const override
 	{
 		return running() ? world_->inspect() : std::vector<BodyView>{};
+	}
+	std::vector<ConsoleSeat> console_seats() const override
+	{
+		std::vector<ConsoleSeat> result;
+		if (!running())
+			return result;
+		for (const auto &[slot, definition] : setup_.ships)
+			if (auto ship = world_->ship_for_slot(slot))
+				for (const auto &seat : world_->consoles(*ship))
+					result.push_back({{*ship, seat.id}, seat, world_->can_claim(UINT64_MAX, *ship, seat.id)});
+		return result;
+	}
+	bool claim_console(std::uint64_t route, const ConsoleAddress &seat) override
+	{
+		return running() && world_->claim(route, seat.ship, seat.console);
+	}
+	bool release_console(std::uint64_t route) override
+	{
+		return running() && world_->release(route);
+	}
+	bool console_command(std::uint64_t route, const OperatingCommand &value) override
+	{
+		return running() && world_->submit(route, value);
+	}
+	std::optional<Observation> console_observation(std::uint64_t route) const override
+	{
+		return running() ? world_->observe(route) : std::nullopt;
 	}
 };
 } // namespace

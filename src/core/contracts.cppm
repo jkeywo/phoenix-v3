@@ -25,6 +25,17 @@ enum class OperatingSystem
 	Steering,
 	Radar
 };
+using SystemMask = std::uint8_t;
+constexpr SystemMask system_bit(OperatingSystem system)
+{
+	return static_cast<SystemMask>(1u << static_cast<unsigned>(system));
+}
+struct ConsoleAddress
+{
+	EntityId ship = 0;
+	std::string console;
+	bool operator==(const ConsoleAddress &) const = default;
+};
 struct OperatingActionSpec
 {
 	OperatingAction action;
@@ -103,11 +114,15 @@ struct Observation
 	std::vector<BodyView> contacts;
 	std::int64_t requested_speed = 0, requested_heading = 0;
 	bool engine_enabled = true, radar_enabled = true;
+	std::string console;
+	SystemMask controls = 7, feeds = 7;
 };
 struct OperatingCommand
 {
 	EntityId target;
 	std::string action;
 	std::int64_t value;
+	// Empty in schema-1 commands; otherwise the fitted System identity on this ship.
+	std::string system;
 };
 } // namespace phoenix

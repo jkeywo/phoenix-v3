@@ -1,5 +1,7 @@
 # Foundation implementation plan
 
+Independent Console/System foundation: explicit Stations normalize to bounded Console seats, fitted Systems have exclusive control owners and explicit read feeds, and typed Flecs controllers yield independently. Local session routes support multiple ships/Consoles. Schema-2 portable saves preserve Console selection and controller continuation while clearing live claims; existing schema-1 packs and saves remain supported. Native/WASM synthetic content, simulation and session checks pass. Display routing and playable network/fleet integration remain separate outstanding work.
+
 Approved scope, 17 October 2026. The GDD remains the full game design. This plan delivers a small end-to-end test of its architecture, rather than all GDD systems. Commit each verified logical step. The execution record below distinguishes implemented code from remaining work.
 
 ## Delivery sequence
