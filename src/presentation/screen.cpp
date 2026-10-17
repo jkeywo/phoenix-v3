@@ -2,6 +2,7 @@
 #include <raylib.h>
 #include <RmlUi/Core.h>
 #include "rml_backend.hpp"
+#include <phoenix/semantics.hpp>
 #include <stdexcept>
 #include <filesystem>
 namespace phoenix {
@@ -15,15 +16,17 @@ Screen shown = Screen::gm;
 struct Navigation : Rml::EventListener {
     void ProcessEvent(Rml::Event& event) override {
         if (!current_app) return;
-        const auto id = event.GetTargetElement()->GetId();
-        if (id == "home") current_app->screen = Screen::home;
-        else if (id == "host" && current_app->can_host) current_app->screen = Screen::server_lobby;
-        else if (id == "join") current_app->screen = Screen::client_lobby;
-        else if (id == "view") current_app->screen = Screen::viewscreen;
-        else if (id == "edit" && current_app->can_edit) current_app->screen = Screen::workshop;
+        invoke_navigation(*current_app, event.GetTargetElement()->GetId());
     }
 } navigation;
 void update_document(Application& app) {
+    static bool labels_ready = false;
+    static bool pseudo_shown = false;
+    if (!labels_ready || pseudo_shown != app.pseudo_locale) {
+        for (const auto& control : navigation_controls(app)) document->GetElementById(control.id)->SetInnerRML(control.label);
+        labels_ready = true;
+        pseudo_shown = app.pseudo_locale;
+    }
     if (shown == app.screen) return;
     shown = app.screen;
     document->GetElementById("heading")->SetInnerRML(screen_name(app.screen));
@@ -41,6 +44,7 @@ void open_window() {
     InitWindow(1280, 720, "Phoenix V3");
     SetTargetFPS(60);
     SetExitKey(KEY_NULL);
+    install_native_accessibility(GetWindowHandle());
     Rml::SetSystemInterface(&system);
     Rml::SetRenderInterface(&renderer);
     if (!Rml::Initialise()) throw std::runtime_error("RmlUi initialisation failed");
@@ -56,12 +60,13 @@ void open_window() {
     h1, h2, p { display:block; }
     h1 { font-size:30px; color:#76c9e8; margin-bottom:24px; }
     h2 { font-size:24px; margin:24px 0; }
-    button { padding:12px 20px; margin:0 12px 12px 0; background:#173142; border:1px #76c9e8; }
+    #nav { display:flex; flex-wrap:wrap; }
+    button { display:block; flex-shrink:0; width:230px; max-width:90%; padding:12px 20px; margin:0 12px 12px 0; background:#173142; border:1px #76c9e8; }
     button:hover, button:focus { background:#315a70; }
     p { max-width:900px; line-height:1.5; }
     </style></head><body><h1>PHOENIX / SETTLED DARK</h1>
-    <button id="home">Home</button><button id="host">New game</button><button id="join">Join console</button>
-    <button id="view">Viewscreen</button><button id="edit">Workshop</button>
+    <div id="nav"><button id="home">Home</button><button id="host">New game</button><button id="join">Join console</button>
+    <button id="view">Viewscreen</button><button id="edit">Workshop</button><button id="locale">Toggle pseudo-localisation</button></div>
     <h2 id="heading">Home</h2><p id="description"></p></body></rml>)");
     if (!document) throw std::runtime_error("Could not load home screen");
     document->AddEventListener("click", &navigation);
@@ -71,6 +76,8 @@ bool close_requested() { return WindowShouldClose(); }
 void draw_screen(Application& app) {
     ClearBackground({8, 15, 25, 255});
     current_app = &app;
+    drain_semantic_actions(app);
+    publish_semantics(app);
     if (app.screen == Screen::workshop || app.screen == Screen::gm) return;
     update_document(app);
     context->SetDimensions({GetScreenWidth(), GetScreenHeight()});
@@ -96,5 +103,5 @@ void draw_screen(Application& app) {
     context->Update();
     context->Render();
 }
-void close_window() { Rml::Shutdown(); current_app = nullptr; context = nullptr; document = nullptr; CloseWindow(); }
+void close_window() { remove_native_accessibility(GetWindowHandle()); Rml::Shutdown(); current_app = nullptr; context = nullptr; document = nullptr; CloseWindow(); }
 }

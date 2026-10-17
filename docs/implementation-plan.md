@@ -27,5 +27,6 @@ RmlUi is the player UI; ImGui docking is Workshop/GM. Player screen readers are 
 ## Execution record
 
 - Build targets and basic dependency integration: implemented. Native home/Workshop and all three WASM applications build and launch. RmlUi draws through the raylib backend; ImGui draws dockable tool windows. This proves basic compatibility, not the full presentation/accessibility increment. See [foundation evidence](smoke/foundation.md).
-- Presentation, content, authoring, packs, simulation, networking, consensus and continuity: pending.
+- Presentation/platform: shared semantic navigation, browser accessible buttons, a Windows UI Automation provider and pseudo-localised navigation are implemented. The focused routing contract supports arbitrary regions, captured contacts, five independently assigned controller identities and neutral release. Native/browser device backends, separate console contexts, radar semantics, accurate UIA per-control bounds/focus, complete translations, shaping/IME and actual screen-reader operation remain pending. These foundations do not constitute the complete increment 1 proof.
+- Content, authoring, packs, gameplay simulation, networking, consensus and continuity: pending.
 - No physical device, screen-reader or six-screen performance claims have been established.

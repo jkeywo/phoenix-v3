@@ -10,6 +10,7 @@ struct Application {
     std::vector<std::string> packs;
     bool can_host = false;
     bool can_edit = false;
+    bool pseudo_locale = false;
 };
 const char* screen_name(Screen screen);
 }

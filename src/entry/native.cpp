@@ -1,5 +1,6 @@
 #include <phoenix/presentation.hpp>
 #include <phoenix/world.hpp>
+#include <phoenix/semantics.hpp>
 #include <raylib.h>
 #include <cstring>
 #include <iostream>
@@ -20,6 +21,13 @@ int main(int argc, char** argv) {
         if (std::strcmp(argv[i], "--workshop") == 0) { app.screen = phoenix::Screen::workshop; workshop_smoke = true; }
     }
     phoenix::open_window();
+    if (argc > 1 && std::strcmp(argv[1], "--platform-check") == 0) {
+        app.screen = phoenix::Screen::client_lobby;
+        bool passed = phoenix::probe_native_accessibility(app);
+        phoenix::close_window();
+        std::cout << "Native UIA label/invoke queue: " << (passed ? "PASS" : "FAIL") << '\n';
+        return passed ? 0 : 1;
+    }
     phoenix::begin_tools();
     while (!phoenix::close_requested()) {
         world.tick();
