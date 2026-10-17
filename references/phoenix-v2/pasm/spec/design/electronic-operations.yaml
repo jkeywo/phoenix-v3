@@ -1,0 +1,137 @@
+entities:
+  - decision: redesign-shared-emp-comms-disruption
+    core:
+      status: accepted
+      confidence: confirmed
+      origin: ai
+      title: Bounded Comms Disruption Reuses Actual EMP Weapon Machinery
+      summary: "The first S021 disruption consumer is actual Comms-Console-owned finite generic bolt equipment using existing acquired targeting, physical impact, component EMP/resistance and status owners. No separate hacking/controller/job or hostile actuator authority is introduced."
+      rationale:
+        - "[ai] Root approved this bounded use before runtime; increment-17-disruptor.md fixes the contract. The optional six-seat Cruiser adds a Console/tab and actual bank, resource/room/damage bindings without changing base hulls. Explicit permitted TacticalRadar/shared-lock feeds and ordinary per-bank admitted Human/AI control are required; co-hosting grants no information or authority."
+        - "The real paid projectile obeys mount, geometry, shield/material/deck/compartment impact and eligible deposit. Existing finite EMP expiry and resistance supply counterplay; physical collateral remains. SignalProtection is not silently extended to physical EMP immunity, and reports disclose no private enemy interior/effect census."
+        - "Actual reusable screen/builder/semantic action reachability, accepted Workshop history/Preview/Test, Human and ordinary AI paid effects/refusals, automatic restoration, fresh JSON360/full captures/digests and malformed no-write evidence precede exit. This is one bounded disruption example, not hidden information access, takeover, full S021 possibility coverage or a verified increment17 exit."
+  - decision: redesign-electronic-equipment-signal-contract
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Electronic Operations Extend Actual Signal and Equipment Owners
+      summary: "Increment 17 adopts G024/S018–21/S026–27 using 14 signal geometry/evidence, 15 actual mounts/conditions and 16 channels/links/security. Jamming, spoofing, finite protection, bounded access and emissions retain normal resource, authority and individual System AI rules; no hostile actuator takeover or second transport."
+      rationale:
+        - "docs/gameplay-redesign/implementation/increment-17.md fixes implementation/exit contracts. Parallel runtime entry requires integrated 16 channel consumer and 14/15 foundations; full completion retains verified 14/15/16 exits. Preparation changes no runtime or acceptance status."
+        - "[ai] Migrate one existing environmental interference consumer equivalently, then author a real paid jammer affecting an actual 16 link and friendly coverage. Regions supplies shared geometry/falloff/path sampling, not a second environment simulation. Moving emitters use authoritative pose and actual mount bearing/work/Operation; effect-specific exposure/path composition cannot double-count identical influence."
+        - "Reference Cruiser Comms owns jamming/disruption and Science electronic protection through authored Console assignments, not role-name rules. Each actual System keeps one controller, normal admitted commands and explicit feeds. No message-capacity budget or universal electronic-warfare planner is added."
+  - decision: redesign-electronic-evidence-and-finite-protection
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Known Effects and Finite System Protection Preserve Uncertainty
+      summary: "Jamming can affect friendlies and supported links/sensing. Own emission and known interference are visible, but source attribution requires actual evidence/reports. Finite protection prioritises compatible Systems; simplified Station presets map to the same capacity, without component allocation or universal immunity."
+      rationale:
+        - "AD69–71 share shape/source/falloff and signal-specific field/terrain sampling while effect processors retain their semantics. A jammer need not be an opaque wall. 16 receipts still require real return links; central host knowledge cannot reveal remote outcomes or hidden emitter UUID/position/strength."
+        - "[ai] Paid grants bound actual influence; disabled/unfunded emitters cannot act. Current protection/degraded status uses ordinary System observations. Temporary interference/protection does not erase physical faults, portable EMP/resistance or held history; stopping preserves real costs and hardware state."
+  - decision: redesign-electronic-deception-and-emission-authority
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Deception Changes Evidence and Emissions Do Not Seize Human Controls
+      summary: "Onboard spoofing creates supported dated signals/reports through canonical observations, without moving actors or changing material truth. Bounded access/disruption never commands enemy Systems. Cloak/emitting actions affect detectability without a universal cloak-off rule; low-emission human profiles warn rather than block or require overrides."
+      rationale:
+        - "[ai] Copies retain origin/sample/receipt/confidence and do not improve evidence. Contradictions/history remain. Apparent spoofed bodies gain no actual collider, and public metadata cannot prove a synthetic decoy false. 19 owns actual engineless battery/spoofer decoys and their lifecycle."
+        - "S021 uses supported evidence, delivery, prerequisites, finite work/lifetime and counterplay, not network intrusion, enemy control-source changes or a coding puzzle. 16 captured-only decoding/keys retain their authority; waiting does not grant universal plaintext."
+        - "S026–27 emissions have real acquisition consequences under profile/resource limits. Preserve earned/predicted observations; only particular authored hardware incompatibilities force transitions. Humans can deliberately emit normally, and ordinary AI follows actual intent/context without privileged risk information."
+  - decision: redesign-electronic-authoring-and-continuation
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Electronic Equipment Is Authorable and Continuable Before Exit
+      summary: "Accepted Workshop profiles bind actual Systems/resources/rooms/mounts/feeds and expose supported finite effect/protection/access/emission controls. Canonical intent/work/evidence is saved once, current influence rebuilt before restored use, and full-candidate owner/claim/clock validation precedes writes."
+      rationale:
+        - "[ai] Actual Human/AI paid traversal, friendly interference, finite protection, asymmetric receipts, contradictory spoof evidence, bounded access and cloak/exposure/history require targeted proof. Fresh JSON continuation needs at least 360 complete captures/digests and different-LocalShip peers plus malformed no-write cases. Browser/native authoring, shipped content, performance and 2/4/6/8-human workload remain separate; initial integration is not a verified exit."
+
+  - decision: redesign-comms-jammer-receiver-exposure
+    core:
+      status: accepted
+      confidence: confirmed
+      title: First Jammer Shares Paid Mounts and One Receiver Exposure Factor
+      summary: "The first 17 runtime slice migrates existing CommsJammed denial equivalently, then fits a distinct Comms JammingEmitter with sole retained generic enabled/target channels, actual paid shared mount and permitted dated aiming. Equipment interference changes each receiver endpoint reach once; conversation-path attenuation remains separate."
+      rationale:
+        - "[ai] Adopted in docs/gameplay-redesign/implementation/increment-17.md before runtime. Existing CommsJammed maps exactly to zero endpoint factor, absence to one. Stable source-UUID/System exposure sums authored strength, shared falloff/actual coverage, natural emitter-to-receiver Comms transmission and actual continuous grant; factor 1/(1+exposure) scales each endpoint's own reach once across real radio, returned outcomes and fictional hail. Natural conversation path stays at its existing owner."
+        - "Target/traversal uses only exact owning Console permitted dated full-XYZ observations, never hidden live pose fallback. Physical source/receiver positions execute effects only. Zero-distance self exposure is full falloff/coverage with clear zero-length path; friendly and own radios have no secret immunity. Existing shared mount/arc/geometry remain authoritative."
+        - "Own emitting/waiting/interference notices do not expose unseen source identity/location/strength, victim census or hidden success. Original local read/decision history and actual return-link semantics survive interference. Ordinary per-System tree and admitted controls share the same generic intent and never mutate Tactical selection."
+        - "Derived paid emissions are cleared on restore and recomputed on ordinary funded boundary before links, without bootstrap credit or saved victim state. Canonical channels/mount/power/conditions/evidence retain one owner and immediate snapshot/digest/preflight integration. Workshop composition/history/Preview/Test, real friendly/hostile/self-link cases, 360 JSON continuation and no-write negatives are required; native/human/full17 exit is not claimed. Sensors effects, protection, spoof/access, cloak/emission and19 physical decoys remain subsequent slices."
+
+  - decision: redesign-comms-jammer-input-paid-boundary
+    core:
+      status: accepted
+      confidence: confirmed
+      title: One Current Paid Boundary Precedes Hail and Radio
+      summary: "Jammer AI/admitted channels precede its actual Input work boundary, then the same range owner refreshes before Hail when real jammer equipment exists. Later Physics radio/returns and Broadcast notices consume that same paid tick; Physics traversal affects the next emission."
+      rationale:
+        - "[ai] Preserve existing fictional Hail/Respond Input and normal Broadcast range-refresh owners. Add only an explicitly named Input invocation of the same update_comms_range_flags after paid jammer work and before Hail, conditional on actual jammer presence. No alternate range map, controller or repeated channel application."
+        - "[ai] Actual reserve pays before later same-step distribution. Actual late-spawn/restore boundary: missing current-tick work contributes zero physical exposure, never a free global denial or prior/bootstrap influence; other actual paid sources remain effective. Receiver notice may remain unknown until processing, independently of the physical factor. Current actual shared mount bearing owns coverage; later paid traversal changes next-step coverage. Restore supplies no derived work credit or receiver census."
+
+  - decision: redesign-comms-jammer-explicit-request
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Jamming Selection Uses an Explicit Comms Request
+      summary: "Jam{target} extends existing typed mission/doctrine requests with Comms relevance only. The same individual jammer tree reads its explicitly bound request feed and selects an available permitted full-XYZ contact only when retained target intent is empty."
+      rationale:
+        - "[ai] Adopted before directive/runtime edits. Reuse existing directive codec/effect/editor and per-System original reading frontier, with a real authored reference request. Unknown target observations, absent Viewscreen feed or Tactical-primary-only context cannot supply a selection; no true pose/name lookup or separate planner is introduced. Explicit manual target remains independent."
+
+  - decision: redesign-sensors-interference-system-protection
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Sensors Interference and Finite Protection Use Actual Receiver Systems
+      summary: "The next 17 slice extends the same paid jammer with closed Comms/Sensors effect and fits a Science SignalProtection System. Actual ordered System priorities allocate finite capability before supported receiver reach is degraded once; no hidden-exposure selection, natural immunity or second controller."
+      rationale:
+        - "[ai] Adopted in docs/gameplay-redesign/implementation/increment-17.md before runtime. Sensors equipment exposure uses natural Sensors emitter-to-receiver transmission; Broad/Focused/Passive finite usable reach is scaled once while existing natural field/terrain rules and held/predicted history remain separate. SensorBlind is not claimed to have already equivalent coverage."
+        - "One canonical generic enabled/system_priority commandstore serves the actual per-System tree, UI and save owner. Profile eligibility names actual supported own Comms/Broad/Focused/Passive Systems and positive costs. Walk declared/user order, reserve whole costs that fit finite capacity, and never prioritise by secret exposure. Station presets expand to those same actual IDs."
+        - "Enabled operational protection pays even without interference. Current paid fraction scales bounded suppression, not capacity; current allocated suppression subtracts from equipment exposure before 1/(1+remaining exposure). Unprocessed/unfunded protection is neutral. Natural CommsJammed, terrain, physical faults and EMP remain separate; no lost evidence is resurrected. Own notices disclose no hostile strength, attribution or receiver census."
+        - "Reference data, real Human/ordinary AI capacity conflict/payment/acquisition/recovery/history, different-LocalShip JSON360 continuation and candidate no-write cases are required. This adoption claims no native or full17 acceptance and leaves spoof/access/cloak/emission/19-decoy scope explicit."
+
+  - decision: redesign-generic-channel-typed-initial-values
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Typed Authored Initial Values Instantiate Only Canonical Channel Intent
+      summary: "Optional generic channel initial values are accepted only when kind/bounds/actual owner validation succeeds. Existing absent defaults remain exact; creation initialises the sole commandstore and restore retains saved intent."
+      rationale:
+        - "[ai] The finite protection reference needs an authored enabled state and ordered System priorities without hidden desired-state storage. system_priority is bounded, duplicate-free and restricted to the actual profile's eligible own Systems. Boolean/entity_target remain closed existing kinds."
+        - "Composition, Workshop rebind/history/Preview/Test and snapshot shape validation preserve exact type and ownership. Absent initial keeps Boolean false/entity_target None/priority empty. Initial values are creation inputs, not a second live authority or a restore-time override. Integrator owns central compatibility and schedule joins."
+
+  - decision: redesign-physical-transponder-evidence
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Paid Transponder Claims Change Ordinary Broad Identity Evidence
+      summary: "The next S019 consumer is an actual composed IdentityEmitter with one generic enabled intent, real PowerInput/Operation and authored false callsign/optional declared faction. Current fully funded work can replace only ordinary Broad identity measurement after physical acquisition; actual body, source association, classification, assessment, collider and targeting remain unchanged."
+      rationale:
+        - "[ai] Adopted in increment-17.md before runtime. One ordinary per-System tree and admitted human control share canonical generic intent; actual Workshop profile, owner Console and compartment/resource rules remain. Stable actual System order picks a current claim, partial/unfunded/offline/disabled work makes none, and restore clears derived emissions before recomputation without saved work credit."
+        - "No fake actor UUID, phantom/selectability shortcut, public spoof bit, hidden route comparison or AI truth oracle. False identity carries no real dossier references. Independent focused/Comms evidence, original history and explicit attachments remain under normal knowledge rules; claims grant no relationship/permission/control change. Physical decoys belong to19; apparent empty-space contacts require a separate earned acquisition/aim contract."
+        - "Acceptance requires actual paid Human/AI operation, observer isolation, real-body targeting, contradictory evidence, Workshop editing and fresh JSON 360 complete captures/digests plus malformed no-write cases. This contract claims no runtime, browser/native or increment17 exit."
+
+  - decision: redesign-paid-concealment-and-shared-signatures
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Actual Machinery Signatures Compete With Paid Concealment
+      summary: "Extract existing Passive signature measurement with equivalent strongest-cause/tie behaviour, then use real optional composed concealment equipment whose current paid work suppresses acquisition while actual operating emissions weaken suppression without forcing a cloak off."
+      rationale:
+        - "[ai] Adopted after root review in increment-17.md before runtime. The pure shared helper first preserves existing Passive behaviour; later signature additions and sensing changes receive separate gameplay/balance evidence. Real reactor output and System work are measured at the existing physical measurement phase, after actual same-tick machinery operation; no pre-work signature cache, desired-power substitute or observer-awareness oracle."
+        - "One ordinary per-System tree and generic Boolean enabled intent serve the fitted PowerInput/Operation/Console/compartment owner. Actual current paid fraction bounds suppression; unprocessed, unfunded, Offline or disabled fields are neutral and restore clears derived work. The first finite profile uses perceptibility 1 - suppression*paid_fraction/(1+actual_emission/emission_scale), strictly greater than zero, with stable actual System selection."
+        - "Apply each target perceptibility once to Broad/focused acquisition and Passive measured emission, separately from existing receiver protection/interference, natural paths and terrain. Physical body, observer-local alias/aim, acquired history, uncertainty and prediction remain unchanged. Real high emission can reveal the ship while cloak intent remains enabled; no universal decloak rule, erased tracks, fictitious actor or public cloak/success flag."
+        - "Own generic details and Workshop expose actual intent, work, profile and operating causes without a receiver census. Acceptance requires actual Human/ordinary AI, partial/no-work bounds, real acquired/lost/recovered contact with cloak still on, knowledge isolation, Workshop, fresh JSON360/no-write and separate intentional balance evidence. S021 information/access/disruption and S027 advisory profiles remain distinct selected scope; this adoption claims no full17 exit."
+
+  - decision: redesign-advisory-emission-command-intent
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Emission Intent Advises Human Controls and Ordinary System Policy
+      summary: "S027 extends the existing data-owned Command capability with Normal/LowEmission intent and explicit own Console feeds. Actual machinery measurements supply advisory high-emission markers without restricting Human controls; ordinary per-System policies use only their permitted intent, alert and mission context."
+      rationale:
+        - "[ai] Root approved the bounded next contract before runtime in increment-17.md. Command ownership is authored, never hard-coded to Captain or a seat. No new global AI, free sensors, foreign awareness or cross-System controller is introduced. Co-hosting grants no profile knowledge. Missing optional support preserves current behaviour."
+        - "LowEmission is intent, not a physical signature ceiling. Actual paid reactor, propulsion, active sensing, weapons, communications and auxiliary work retain real consequences, including weakening paid concealment. Human high-emission controls stay usable with no override, clamp or rejection; known own measurements and authored presentation thresholds drive warnings without an observer census or success bit."
+        - "Canonical Command intent joins existing admission, capture/digest/restore/reconnect and explicit feed contracts. Workshop authors actual supported data and policies through accepted history/Preview/Test. Required evidence includes advisory Human high work, actual ordinary policy/urgency response, Console isolation, real signatures and fresh JSON/no-write continuation; a flag or unused tree fact alone does not close S027. Actual cloak host proof precedes further runtime expansion."
+        - "First composition: optional closed emission_profile data on exactly one actual Command-kind System, with initial Normal/LowEmission and finite positive advisory rate threshold. Command publishes intent only; per-System status derives its own actual paid work/output and shared signature cause through its permitted profile feed. No automatic machinery census is granted to Command. An optional transponder ordinary tree demonstrates quiet normal operation and supported alert response; Human machinery controls remain unrestricted."

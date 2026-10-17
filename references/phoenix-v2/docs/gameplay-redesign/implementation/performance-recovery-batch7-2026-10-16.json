@@ -1,0 +1,3017 @@
+{
+  "schema_version": 3,
+  "date": "2026-10-16",
+  "generatedUtc": "2026-10-16T22:00:52.684Z",
+  "status": "verified-optimisations-merged-old-speed-not-recovered",
+  "pushPerformed": false,
+  "comparisons": {
+    "combat_test": {
+      "control": {
+        "mean": 4.0000501060284765,
+        "p50": 3.8541,
+        "p95": 5.5317,
+        "p99": 6.3602
+      },
+      "current": {
+        "mean": 3.6406462587094803,
+        "p50": 3.5163,
+        "p95": 5.1237,
+        "p99": 6.1511
+      },
+      "old": {
+        "mean": 1.267421448046047,
+        "p50": 1.2163,
+        "p95": 1.6766999999999999,
+        "p99": 2.154
+      },
+      "changePercent": {
+        "mean": -8.984983632513465,
+        "p50": -8.764692146026299,
+        "p95": -7.375671131840111,
+        "p99": -3.287632464387913
+      },
+      "bare": {
+        "controlSeconds": 13.7082847,
+        "currentSeconds": 12.5739973,
+        "oldSeconds": 3.5699024,
+        "changePercent": -8.274466315978978
+      },
+      "timesOld": {
+        "mean": 2.8724827596394054,
+        "p95": 3.0558239398819116,
+        "bare": 3.522224389103747
+      },
+      "furtherReductionToOldPercent": {
+        "mean": 65.18691029061097,
+        "p95": 67.27560161601967,
+        "bare": 71.60885027389024
+      }
+    },
+    "falling_skyway": {
+      "control": {
+        "mean": 2.6396238715540785,
+        "p50": 2.6220000000000003,
+        "p95": 3.4862,
+        "p99": 4.3466
+      },
+      "current": {
+        "mean": 2.5560036958497423,
+        "p50": 2.5261,
+        "p95": 3.3717,
+        "p99": 4.0242
+      },
+      "old": {
+        "mean": 1.1752601029990908,
+        "p50": 1.1472,
+        "p95": 1.5517,
+        "p99": 1.9122
+      },
+      "changePercent": {
+        "mean": -3.1678822352483427,
+        "p50": -3.65751334858887,
+        "p95": -3.284378406287647,
+        "p99": -7.417291676252679
+      },
+      "bare": {
+        "controlSeconds": 9.5618924,
+        "currentSeconds": 9.2761762,
+        "oldSeconds": 3.15632,
+        "changePercent": -2.9880716917500494
+      },
+      "timesOld": {
+        "mean": 2.1748408623139652,
+        "p95": 2.172907134110975,
+        "bare": 2.9389213387742688
+      },
+      "furtherReductionToOldPercent": {
+        "mean": 54.01962427099011,
+        "p95": 53.97870510425008,
+        "bare": 65.97391067237382
+      }
+    }
+  },
+  "scope": "Performance-only batches5–7 merged. Existing rules0.79 and retuned authored content preserved. Gameplay increments13–24 and further optimisation work are not continued as part of this reporting request.",
+  "integration": {
+    "measuredCommit": "eaed7c9f0ba6734592bb1f4efb554a9aee5de465",
+    "measuredRuntimeSha256": "30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697",
+    "measuredBinarySha256": "eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1",
+    "mergeCommit": "9e10ba16b371dfcc54c2565981e10732e99d65da",
+    "mergeRuntimeByteIdentityVerified": true,
+    "scopedFileCount": 3498,
+    "mechanicalFormattingCommit": "83cdee682887d31f2e36d4efa227cd6bffd8e140",
+    "wikiCommit": "f42ad549b464a31576fb98af80765f48c71cafe4",
+    "generatedAfterCommit": "f42ad549b464a31576fb98af80765f48c71cafe4",
+    "postMergeChanges": "Four inherited formatting issues corrected separately; eight current wiki pages updated. No fresh native compile/timing claim for formatting or documentation commits."
+  },
+  "workload": {
+    "cpu": "Intel(R) Core(TM) Ultra 9 275HX",
+    "logicalCpus": 24,
+    "platform": "Windows native headless",
+    "powerPlan": "High performance (captured hardware record)",
+    "ship": "Alliance Cruiser",
+    "seed": 42,
+    "worlds": [
+      "combat_test",
+      "falling_skyway"
+    ],
+    "simulationSeconds": 60,
+    "fixedTicks": 3600,
+    "profile": "measure",
+    "requestedFeatures": [
+      "headless"
+    ],
+    "defaultFeatures": true,
+    "optLevel": 3,
+    "codegenUnits": 16,
+    "executor": "Single-threaded simulation under the ordinary explicit-seed path",
+    "phaseWarmupUpdates": 300,
+    "retainedAppUpdateSamplesPerRun": 3301,
+    "retainedFixedInvocationsPerRun": 3300,
+    "runDesign": "Three repetitions per world per configuration. Alternate control/candidate configuration blocks and world order. Separate phase and entirely uninstrumented runs.",
+    "quietCriterion": "No competing compiler; background CPU <=1 core per run; reject whole invalid sets without dropping samples."
+  },
+  "evidence": {
+    "rules079-control-paired-b7": {
+      "mode": "phases",
+      "valid": true,
+      "acceptanceEligible": true,
+      "measurementRole": "acceptance",
+      "worlds": {
+        "combat_test": {
+          "update": {
+            "mean": 4.0000501060284765,
+            "p50": 3.8541,
+            "p95": 5.5317,
+            "p99": 6.3602
+          },
+          "processWallSeconds": 18.6817138,
+          "pollingWallSeconds": 18.8456535
+        },
+        "falling_skyway": {
+          "update": {
+            "mean": 2.6396238715540785,
+            "p50": 2.6220000000000003,
+            "p95": 3.4862,
+            "p99": 4.3466
+          },
+          "processWallSeconds": 14.2136124,
+          "pollingWallSeconds": 14.4846411
+        }
+      },
+      "runs": [
+        {
+          "name": "combat_test-0",
+          "backgroundCpuCores": 0.2135623388721041,
+          "update": {
+            "count": 3301,
+            "mean": 3.9627467737049487,
+            "p50": 3.8056,
+            "p95": 5.4707,
+            "p99": 6.3602,
+            "max": 9.8006,
+            "over16_67": 0
+          },
+          "processWallSeconds": 18.6733011,
+          "continuation": {
+            "tick": 3600,
+            "digest": "4a419dc7ec59da70"
+          },
+          "problems": []
+        },
+        {
+          "name": "falling_skyway-0",
+          "backgroundCpuCores": 0.4407250636314585,
+          "update": {
+            "count": 3301,
+            "mean": 2.6396238715540785,
+            "p50": 2.6215,
+            "p95": 3.5274,
+            "p99": 4.3466,
+            "max": 6.231000000000001,
+            "over16_67": 0
+          },
+          "processWallSeconds": 14.2136124,
+          "continuation": {
+            "tick": 3600,
+            "digest": "22190fbd13826108"
+          },
+          "problems": []
+        },
+        {
+          "name": "falling_skyway-1",
+          "backgroundCpuCores": 0.2330726789530774,
+          "update": {
+            "count": 3301,
+            "mean": 2.647819054831869,
+            "p50": 2.6335,
+            "p95": 3.4862,
+            "p99": 4.7418,
+            "max": 9.3537,
+            "over16_67": 0
+          },
+          "processWallSeconds": 14.24713,
+          "continuation": {
+            "tick": 3600,
+            "digest": "22190fbd13826108"
+          },
+          "problems": []
+        },
+        {
+          "name": "combat_test-1",
+          "backgroundCpuCores": 0.5716983136578555,
+          "update": {
+            "count": 3301,
+            "mean": 4.0000501060284765,
+            "p50": 3.8848,
+            "p95": 5.5317,
+            "p99": 6.273199999999999,
+            "max": 9.745800000000001,
+            "over16_67": 0
+          },
+          "processWallSeconds": 18.6817138,
+          "continuation": {
+            "tick": 3600,
+            "digest": "4a419dc7ec59da70"
+          },
+          "problems": []
+        },
+        {
+          "name": "combat_test-2",
+          "backgroundCpuCores": 0.4181505756658411,
+          "update": {
+            "count": 3301,
+            "mean": 4.002849591033015,
+            "p50": 3.8541,
+            "p95": 5.6354999999999995,
+            "p99": 6.6719,
+            "max": 10.695500000000001,
+            "over16_67": 0
+          },
+          "processWallSeconds": 18.7209488,
+          "continuation": {
+            "tick": 3600,
+            "digest": "4a419dc7ec59da70"
+          },
+          "problems": []
+        },
+        {
+          "name": "falling_skyway-2",
+          "backgroundCpuCores": 0.1878027003924926,
+          "update": {
+            "count": 3301,
+            "mean": 2.6120263859436506,
+            "p50": 2.6220000000000003,
+            "p95": 3.3935,
+            "p99": 3.8994,
+            "max": 6.023899999999999,
+            "over16_67": 0
+          },
+          "processWallSeconds": 14.0576672,
+          "continuation": {
+            "tick": 3600,
+            "digest": "22190fbd13826108"
+          },
+          "problems": []
+        }
+      ]
+    },
+    "batch7-paired": {
+      "mode": "phases",
+      "valid": true,
+      "acceptanceEligible": true,
+      "measurementRole": "acceptance",
+      "worlds": {
+        "combat_test": {
+          "update": {
+            "mean": 3.6406462587094803,
+            "p50": 3.5163,
+            "p95": 5.1237,
+            "p99": 6.1511
+          },
+          "processWallSeconds": 17.5397733,
+          "pollingWallSeconds": 17.7434929
+        },
+        "falling_skyway": {
+          "update": {
+            "mean": 2.5560036958497423,
+            "p50": 2.5261,
+            "p95": 3.3717,
+            "p99": 4.0242
+          },
+          "processWallSeconds": 13.9328878,
+          "pollingWallSeconds": 14.442604
+        }
+      },
+      "runs": [
+        {
+          "name": "combat_test-0",
+          "backgroundCpuCores": 0.37794476682616207,
+          "update": {
+            "count": 3301,
+            "mean": 3.6406462587094803,
+            "p50": 3.5163,
+            "p95": 5.1237,
+            "p99": 6.1511,
+            "max": 8.569,
+            "over16_67": 0
+          },
+          "processWallSeconds": 17.5397733,
+          "continuation": {
+            "tick": 3600,
+            "digest": "4a419dc7ec59da70"
+          },
+          "problems": []
+        },
+        {
+          "name": "falling_skyway-0",
+          "backgroundCpuCores": 0.39185756044776315,
+          "update": {
+            "count": 3301,
+            "mean": 2.567694456225389,
+            "p50": 2.5261,
+            "p95": 3.4164,
+            "p99": 4.7382,
+            "max": 6.8532,
+            "over16_67": 0
+          },
+          "processWallSeconds": 13.9328878,
+          "continuation": {
+            "tick": 3600,
+            "digest": "22190fbd13826108"
+          },
+          "problems": []
+        },
+        {
+          "name": "falling_skyway-1",
+          "backgroundCpuCores": 0.4529740937820827,
+          "update": {
+            "count": 3301,
+            "mean": 2.54318088458043,
+            "p50": 2.5254000000000003,
+            "p95": 3.3114,
+            "p99": 3.9991999999999996,
+            "max": 8.088700000000001,
+            "over16_67": 0
+          },
+          "processWallSeconds": 13.849855,
+          "continuation": {
+            "tick": 3600,
+            "digest": "22190fbd13826108"
+          },
+          "problems": []
+        },
+        {
+          "name": "combat_test-1",
+          "backgroundCpuCores": 0.3498576082079013,
+          "update": {
+            "count": 3301,
+            "mean": 3.6347904574371435,
+            "p50": 3.5017,
+            "p95": 5.069500000000001,
+            "p99": 5.9293000000000005,
+            "max": 8.4131,
+            "over16_67": 0
+          },
+          "processWallSeconds": 17.3879828,
+          "continuation": {
+            "tick": 3600,
+            "digest": "4a419dc7ec59da70"
+          },
+          "problems": []
+        },
+        {
+          "name": "combat_test-2",
+          "backgroundCpuCores": 0.37987429835145053,
+          "update": {
+            "count": 3301,
+            "mean": 3.67673832172069,
+            "p50": 3.5225,
+            "p95": 5.1894,
+            "p99": 6.4879,
+            "max": 8.3836,
+            "over16_67": 0
+          },
+          "processWallSeconds": 17.5537167,
+          "continuation": {
+            "tick": 3600,
+            "digest": "4a419dc7ec59da70"
+          },
+          "problems": []
+        },
+        {
+          "name": "falling_skyway-2",
+          "backgroundCpuCores": 0.34228989098193113,
+          "update": {
+            "count": 3301,
+            "mean": 2.5560036958497423,
+            "p50": 2.5351000000000004,
+            "p95": 3.3717,
+            "p99": 4.0242,
+            "max": 6.4910000000000005,
+            "over16_67": 0
+          },
+          "processWallSeconds": 14.1388224,
+          "continuation": {
+            "tick": 3600,
+            "digest": "22190fbd13826108"
+          },
+          "problems": []
+        }
+      ]
+    },
+    "rules079-control-bare-b7": {
+      "mode": "whole-process",
+      "valid": true,
+      "acceptanceEligible": true,
+      "measurementRole": "acceptance",
+      "worlds": {
+        "combat_test": {
+          "update": null,
+          "processWallSeconds": 13.7082847,
+          "pollingWallSeconds": 13.9669986
+        },
+        "falling_skyway": {
+          "update": null,
+          "processWallSeconds": 9.5618924,
+          "pollingWallSeconds": 9.6611944
+        }
+      },
+      "runs": [
+        {
+          "name": "combat_test-0",
+          "backgroundCpuCores": 0.4800129146775646,
+          "update": null,
+          "processWallSeconds": 13.7082847,
+          "continuation": null,
+          "problems": []
+        },
+        {
+          "name": "falling_skyway-0",
+          "backgroundCpuCores": 0.4387774051180335,
+          "update": null,
+          "processWallSeconds": 9.5618924,
+          "continuation": null,
+          "problems": []
+        },
+        {
+          "name": "falling_skyway-1",
+          "backgroundCpuCores": 0.3410102717256486,
+          "update": null,
+          "processWallSeconds": 9.5709642,
+          "continuation": null,
+          "problems": []
+        },
+        {
+          "name": "combat_test-1",
+          "backgroundCpuCores": 0.40369066663687353,
+          "update": null,
+          "processWallSeconds": 13.4040704,
+          "continuation": null,
+          "problems": []
+        },
+        {
+          "name": "combat_test-2",
+          "backgroundCpuCores": 0.3140520475452802,
+          "update": null,
+          "processWallSeconds": 13.8173778,
+          "continuation": null,
+          "problems": []
+        },
+        {
+          "name": "falling_skyway-2",
+          "backgroundCpuCores": 0.3820433260897279,
+          "update": null,
+          "processWallSeconds": 9.4651868,
+          "continuation": null,
+          "problems": []
+        }
+      ]
+    },
+    "batch7-bare": {
+      "mode": "whole-process",
+      "valid": true,
+      "acceptanceEligible": true,
+      "measurementRole": "acceptance",
+      "worlds": {
+        "combat_test": {
+          "update": null,
+          "processWallSeconds": 12.5739973,
+          "pollingWallSeconds": 12.8490442
+        },
+        "falling_skyway": {
+          "update": null,
+          "processWallSeconds": 9.2761762,
+          "pollingWallSeconds": 9.6832213
+        }
+      },
+      "runs": [
+        {
+          "name": "combat_test-0",
+          "backgroundCpuCores": 0.32100574635710805,
+          "update": null,
+          "processWallSeconds": 12.4988845,
+          "continuation": null,
+          "problems": []
+        },
+        {
+          "name": "falling_skyway-0",
+          "backgroundCpuCores": 0.32114699559961385,
+          "update": null,
+          "processWallSeconds": 9.2761762,
+          "continuation": null,
+          "problems": []
+        },
+        {
+          "name": "falling_skyway-1",
+          "backgroundCpuCores": 0.4443964028102226,
+          "update": null,
+          "processWallSeconds": 9.2713524,
+          "continuation": null,
+          "problems": []
+        },
+        {
+          "name": "combat_test-1",
+          "backgroundCpuCores": 0.36502153408038157,
+          "update": null,
+          "processWallSeconds": 12.7077819,
+          "continuation": null,
+          "problems": []
+        },
+        {
+          "name": "combat_test-2",
+          "backgroundCpuCores": 0.43948119392397794,
+          "update": null,
+          "processWallSeconds": 12.5739973,
+          "continuation": null,
+          "problems": []
+        },
+        {
+          "name": "falling_skyway-2",
+          "backgroundCpuCores": 0.178339001897955,
+          "update": null,
+          "processWallSeconds": 9.45425,
+          "continuation": null,
+          "problems": []
+        }
+      ]
+    },
+    "batch7-leaves": {
+      "mode": "phases",
+      "valid": true,
+      "acceptanceEligible": false,
+      "measurementRole": "diagnostic-only",
+      "worlds": {
+        "combat_test": {
+          "update": {
+            "mean": 3.779347349288092,
+            "p50": 3.6407000000000003,
+            "p95": 5.256,
+            "p99": 6.3709999999999996
+          },
+          "processWallSeconds": 21.2402631,
+          "pollingWallSeconds": 21.4638865
+        },
+        "falling_skyway": {
+          "update": {
+            "mean": 2.5953685549833416,
+            "p50": 2.5867,
+            "p95": 3.335,
+            "p99": 4.0191
+          },
+          "processWallSeconds": 17.1854487,
+          "pollingWallSeconds": 17.7199442
+        }
+      },
+      "runs": [
+        {
+          "name": "combat_test-0",
+          "backgroundCpuCores": 0.41458129323518006,
+          "update": {
+            "count": 3301,
+            "mean": 3.8974591941835808,
+            "p50": 3.7129,
+            "p95": 5.548,
+            "p99": 6.8234,
+            "max": 11.877,
+            "over16_67": 0
+          },
+          "processWallSeconds": 21.6768206,
+          "continuation": {
+            "tick": 3600,
+            "digest": "4a419dc7ec59da70"
+          },
+          "problems": []
+        },
+        {
+          "name": "falling_skyway-0",
+          "backgroundCpuCores": 0.2819457763279961,
+          "update": {
+            "count": 3301,
+            "mean": 2.5953685549833416,
+            "p50": 2.5968,
+            "p95": 3.335,
+            "p99": 4.0191,
+            "max": 7.3326,
+            "over16_67": 0
+          },
+          "processWallSeconds": 17.2677584,
+          "continuation": {
+            "tick": 3600,
+            "digest": "22190fbd13826108"
+          },
+          "problems": []
+        },
+        {
+          "name": "falling_skyway-1",
+          "backgroundCpuCores": 0.2604609840718761,
+          "update": {
+            "count": 3301,
+            "mean": 2.5956617691608646,
+            "p50": 2.5867,
+            "p95": 3.3518,
+            "p99": 4.5985000000000005,
+            "max": 8.189200000000001,
+            "over16_67": 0
+          },
+          "processWallSeconds": 17.1854487,
+          "continuation": {
+            "tick": 3600,
+            "digest": "22190fbd13826108"
+          },
+          "problems": []
+        },
+        {
+          "name": "combat_test-1",
+          "backgroundCpuCores": 0.2022681528451206,
+          "update": {
+            "count": 3301,
+            "mean": 3.764297970312032,
+            "p50": 3.6135,
+            "p95": 5.1748,
+            "p99": 5.8365,
+            "max": 12.4382,
+            "over16_67": 0
+          },
+          "processWallSeconds": 21.1281452,
+          "continuation": {
+            "tick": 3600,
+            "digest": "4a419dc7ec59da70"
+          },
+          "problems": []
+        },
+        {
+          "name": "combat_test-2",
+          "backgroundCpuCores": 0.27533542882269596,
+          "update": {
+            "count": 3301,
+            "mean": 3.779347349288092,
+            "p50": 3.6407000000000003,
+            "p95": 5.256,
+            "p99": 6.3709999999999996,
+            "max": 11.1662,
+            "over16_67": 0
+          },
+          "processWallSeconds": 21.2402631,
+          "continuation": {
+            "tick": 3600,
+            "digest": "4a419dc7ec59da70"
+          },
+          "problems": []
+        },
+        {
+          "name": "falling_skyway-2",
+          "backgroundCpuCores": 0.2831993122243722,
+          "update": {
+            "count": 3301,
+            "mean": 2.580443168736745,
+            "p50": 2.5655,
+            "p95": 3.2845,
+            "p99": 3.78,
+            "max": 7.6965,
+            "over16_67": 0
+          },
+          "processWallSeconds": 17.1560142,
+          "continuation": {
+            "tick": 3600,
+            "digest": "22190fbd13826108"
+          },
+          "problems": []
+        }
+      ]
+    }
+  },
+  "correctness": {
+    "acceptedTimingRuns": 24,
+    "diagnosticLeafRuns": 6,
+    "phaseAndLeafFinalDigestRuns": 18,
+    "reportComparison": "All mode-specific reports match in full except ONLY admit_to_broadcast p50_ms,p75_ms,max_ms latency quantiles. Counts and entries are retained. Bare report hashes match exactly.",
+    "finalDigests": {
+      "combat_test": {
+        "tick": 3600,
+        "digest": "4a419dc7ec59da70"
+      },
+      "falling_skyway": {
+        "tick": 3600,
+        "digest": "22190fbd13826108"
+      }
+    },
+    "bareContinuationNotRecorded": true
+  },
+  "validation": {
+    "executedPasses": 336,
+    "distinctTestNames": 332,
+    "ownerPasses": 331,
+    "releasePasses": 5,
+    "source": {
+      "sourceRevision": "eaed7c9f0ba6734592bb1f4efb554a9aee5de465",
+      "runtimeSourceSha256": "30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697",
+      "runtimeSourceClean": true,
+      "repositoryDirty": false,
+      "exampleSha256": "191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c"
+    },
+    "checks": [
+      {
+        "command": "npm run layers:check",
+        "result": "PASS"
+      },
+      {
+        "command": "node scripts/check-layers.mjs --dependency-tree",
+        "result": "PASS"
+      },
+      {
+        "command": "cargo fmt -- --check",
+        "result": "PASS after separate formatting cleanup; first run found four inherited files"
+      }
+    ],
+    "fullWorkspaceGatesRun": false,
+    "pushPerformed": false,
+    "notes": [
+      "Selected owner and release tests passed; this is not the full workspace test suite or a CI claim.",
+      "First owner compile exposed missing re-export/imports; second attempt exposed an invalid newly authored report fixture; both failed attempts remain retained.",
+      "An earlier broader Navigation run had24 failures classified as inherited by source review; the new selected pass is not a rerun or resolution of those24 tests.",
+      "Browser/device and human acceptance were not rerun for this headless performance report."
+    ]
+  },
+  "diagnostic": {
+    "combat_test": {
+      "fixedSteps": [
+        {
+          "fixed_step": "TickPowerSystem",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.251375515151515,
+          "run_mean_observed_ms": [
+            0.2534718787878796,
+            0.24653239393939402,
+            0.251375515151515
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.2534718787878796,
+            0.24653239393939402,
+            0.251375515151515
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(180v1)",
+              "name": "phoenix_simulation::ship::energy_runtime::tick_power_system",
+              "fixed_steps": [
+                "TickPowerSystem"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Physics"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "BroadcastBlackboardUpdates",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.2022744242424241,
+          "run_mean_observed_ms": [
+            0.2059433939393942,
+            0.2022744242424241,
+            0.19180930303030286
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.2059433939393942,
+            0.2022744242424241,
+            0.19180930303030286
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(235v1)",
+              "name": "phoenix_simulation::server_app::broadcast_publish::broadcast_blackboard_updates",
+              "fixed_steps": [
+                "BroadcastBlackboardUpdates"
+              ],
+              "matching_phase_rows": [
+                [
+                  "PublishAggregate"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "BuildHelmAiSurfacesFrame",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.16806451515151513,
+          "run_mean_observed_ms": [
+            0.17061839393939407,
+            0.1648944242424243,
+            0.16806451515151513
+          ],
+          "present_invocations": [
+            1650,
+            1650,
+            1650
+          ],
+          "run_interval_counts": [
+            1650,
+            1650,
+            1650
+          ],
+          "run_mean_when_present_ms": [
+            0.34123678787878814,
+            0.3297888484848486,
+            0.33612903030303026
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(77v1)",
+              "name": "phoenix_simulation::ship::helm_ai::surfaces::build_helm_ai_surfaces_frame",
+              "fixed_steps": [
+                "BuildHelmAiSurfacesFrame"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Physics"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "PublishRepairBlackboard",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.11131081818181826,
+          "run_mean_observed_ms": [
+            0.11131081818181826,
+            0.11084845454545456,
+            0.111779272727273
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.11131081818181826,
+            0.11084845454545456,
+            0.111779272727273
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(177v1)",
+              "name": "phoenix_simulation::console::repair::server::publish_repair_blackboard",
+              "fixed_steps": [
+                "PublishRepairBlackboard"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Publish"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "PublishTacticalRadarBlackboard",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.10584881818181811,
+          "run_mean_observed_ms": [
+            0.10876845454545452,
+            0.10350963636363644,
+            0.10584881818181811
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.10876845454545452,
+            0.10350963636363644,
+            0.10584881818181811
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(157v1)",
+              "name": "phoenix_simulation::console::weapons::blackboard::publish_tactical_radar_blackboard",
+              "fixed_steps": [
+                "PublishTacticalRadarBlackboard"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Publish"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "PublishSensorRadarBlackboard",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.09819166666666697,
+          "run_mean_observed_ms": [
+            0.10268330303030274,
+            0.09746518181818169,
+            0.09819166666666697
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.10268330303030274,
+            0.09746518181818169,
+            0.09819166666666697
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(198v1)",
+              "name": "phoenix_simulation::ship::sensors::publish_sensor_radar_blackboard",
+              "fixed_steps": [
+                "PublishSensorRadarBlackboard"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Publish"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "AiTargetSelection",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.07595221212121203,
+          "run_mean_observed_ms": [
+            0.07881636363636366,
+            0.07595221212121203,
+            0.07380472727272733
+          ],
+          "present_invocations": [
+            1650,
+            1650,
+            1650
+          ],
+          "run_interval_counts": [
+            1650,
+            1650,
+            1650
+          ],
+          "run_mean_when_present_ms": [
+            0.1576327272727273,
+            0.15190442424242406,
+            0.14760945454545465
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(136v1)",
+              "name": "phoenix_simulation::console::weapons::server::ai_target_selection",
+              "fixed_steps": [
+                "AiTargetSelection"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Input"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "AiPowerAllocation",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.07039015151515163,
+          "run_mean_observed_ms": [
+            0.0727181515151515,
+            0.06974754545454555,
+            0.07039015151515163
+          ],
+          "present_invocations": [
+            1650,
+            1650,
+            1650
+          ],
+          "run_interval_counts": [
+            1650,
+            1650,
+            1650
+          ],
+          "run_mean_when_present_ms": [
+            0.145436303030303,
+            0.1394950909090911,
+            0.14078030303030326
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(41v1)",
+              "name": "phoenix_simulation::console_ai::server::ai_power_allocation",
+              "fixed_steps": [
+                "AiPowerAllocation"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Physics"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "PublishNavigationBlackboard",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.062739787878788,
+          "run_mean_observed_ms": [
+            0.062739787878788,
+            0.06081951515151514,
+            0.06299684848484834
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.062739787878788,
+            0.06081951515151514,
+            0.06299684848484834
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(206v1)",
+              "name": "phoenix_simulation::console::navigation::server::publish_navigation_blackboard",
+              "fixed_steps": [
+                "PublishNavigationBlackboard"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Publish"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "PublishWeaponsCoreBlackboard",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.06226187878787886,
+          "run_mean_observed_ms": [
+            0.06276590909090905,
+            0.06226187878787886,
+            0.06042742424242433
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.06276590909090905,
+            0.06226187878787886,
+            0.06042742424242433
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(156v1)",
+              "name": "phoenix_simulation::console::weapons::blackboard::publish_weapons_core_blackboard",
+              "fixed_steps": [
+                "PublishWeaponsCoreBlackboard"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Publish"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "TickRepairTeams",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.05538072727272724,
+          "run_mean_observed_ms": [
+            0.05942618181818168,
+            0.05383963636363642,
+            0.05538072727272724
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.05942618181818168,
+            0.05383963636363642,
+            0.05538072727272724
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(174v1)",
+              "name": "phoenix_simulation::console::repair::server::tick_repair_teams",
+              "fixed_steps": [
+                "TickRepairTeams"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Physics"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "PublishPowerBlackboard",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.05447896969696958,
+          "run_mean_observed_ms": [
+            0.05563960606060611,
+            0.052986272727272514,
+            0.05447896969696958
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.05563960606060611,
+            0.052986272727272514,
+            0.05447896969696958
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(184v1)",
+              "name": "phoenix_simulation::ship::energy_publication::publish_power_blackboard",
+              "fixed_steps": [
+                "PublishPowerBlackboard"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Publish"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "DetectDamageTierCrossings",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.05176884848484842,
+          "run_mean_observed_ms": [
+            0.052920212121212125,
+            0.051016272727272806,
+            0.05176884848484842
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.052920212121212125,
+            0.051016272727272806,
+            0.05176884848484842
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(96v1)",
+              "name": "phoenix_simulation::ship::damage_sync::detect_damage_tier_crossings",
+              "fixed_steps": [
+                "DetectDamageTierCrossings"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Damage"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "SimDispatch",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.0498693939393943,
+          "run_mean_observed_ms": [
+            0.050337151515151654,
+            0.0498693939393943,
+            0.048584000000000245
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.050337151515151654,
+            0.0498693939393943,
+            0.048584000000000245
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(178v1)",
+              "name": "phoenix_simulation::core::broadcast::broadcaster::dispatch<phoenix_simulation::core::broadcast::sim::Sim>",
+              "fixed_steps": [
+                "SimDispatch"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Broadcast"
+                ]
+              ]
+            }
+          ]
+        }
+      ],
+      "unattributedAggregate": {
+        "fixed_step": "<unattributed>",
+        "duration_available": true,
+        "median_per_run_mean_observed_ms": 0.5219591818181808,
+        "run_mean_observed_ms": [
+          0.5341213939393938,
+          0.5132912424242418,
+          0.5219591818181808
+        ],
+        "present_invocations": [
+          3300,
+          3300,
+          3300
+        ],
+        "run_interval_counts": [
+          542853,
+          542853,
+          542853
+        ],
+        "run_mean_when_present_ms": [
+          0.5341213939393938,
+          0.5132912424242418,
+          0.5219591818181808
+        ],
+        "schedule_systems": []
+      },
+      "nameGroups": [
+        {
+          "name_group": "phoenix_simulation::science::broad::tick",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.21901830303030245,
+          "run_mean_observed_ms": [
+            0.2237557575757574,
+            0.21672287878787877,
+            0.21901830303030245
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.2237557575757574,
+            0.21672287878787877,
+            0.21901830303030245
+          ],
+          "kind": "NAMEGROUP",
+          "matching_schedule_rows": [
+            {
+              "node": "SystemKey(330v1)",
+              "name": "phoenix_simulation::science::broad::tick",
+              "fixed_steps": []
+            }
+          ],
+          "run_nested_or_auxiliary_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_ambiguous_at_entry_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_live_system_spans_at_drain_histograms": [
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            }
+          ],
+          "count_source": "intervals and flags from raw unattributed spans; live-System span count at frame drain is separate"
+        },
+        {
+          "name_group": "phoenix_simulation::resources::recovery_server::tick",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.02313942424242418,
+          "run_mean_observed_ms": [
+            0.023951696969696925,
+            0.022797666666666664,
+            0.02313942424242418
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.023951696969696925,
+            0.022797666666666664,
+            0.02313942424242418
+          ],
+          "kind": "NAMEGROUP",
+          "matching_schedule_rows": [
+            {
+              "node": "SystemKey(280v1)",
+              "name": "phoenix_simulation::resources::recovery_server::tick",
+              "fixed_steps": []
+            }
+          ],
+          "run_nested_or_auxiliary_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_ambiguous_at_entry_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_live_system_spans_at_drain_histograms": [
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            }
+          ],
+          "count_source": "intervals and flags from raw unattributed spans; live-System span count at frame drain is separate"
+        },
+        {
+          "name_group": "phoenix_simulation::resources::production_server::tick",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.02242669696969693,
+          "run_mean_observed_ms": [
+            0.022765696969696887,
+            0.022069363636363564,
+            0.02242669696969693
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.022765696969696887,
+            0.022069363636363564,
+            0.02242669696969693
+          ],
+          "kind": "NAMEGROUP",
+          "matching_schedule_rows": [
+            {
+              "node": "SystemKey(274v1)",
+              "name": "phoenix_simulation::resources::production_server::tick",
+              "fixed_steps": []
+            }
+          ],
+          "run_nested_or_auxiliary_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_ambiguous_at_entry_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_live_system_spans_at_drain_histograms": [
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            }
+          ],
+          "count_source": "intervals and flags from raw unattributed spans; live-System span count at frame drain is separate"
+        },
+        {
+          "name_group": "phoenix_simulation::resources::ports_server::prepare",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.022102545454545455,
+          "run_mean_observed_ms": [
+            0.023022969696969695,
+            0.02163709090909089,
+            0.022102545454545455
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.023022969696969695,
+            0.02163709090909089,
+            0.022102545454545455
+          ],
+          "kind": "NAMEGROUP",
+          "matching_schedule_rows": [
+            {
+              "node": "SystemKey(283v1)",
+              "name": "phoenix_simulation::resources::ports_server::prepare",
+              "fixed_steps": []
+            }
+          ],
+          "run_nested_or_auxiliary_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_ambiguous_at_entry_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_live_system_spans_at_drain_histograms": [
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            }
+          ],
+          "count_source": "intervals and flags from raw unattributed spans; live-System span count at frame drain is separate"
+        },
+        {
+          "name_group": "phoenix_simulation::resources::recovery_server::publish",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.018877212121212104,
+          "run_mean_observed_ms": [
+            0.018917636363636383,
+            0.018765484848484913,
+            0.018877212121212104
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.018917636363636383,
+            0.018765484848484913,
+            0.018877212121212104
+          ],
+          "kind": "NAMEGROUP",
+          "matching_schedule_rows": [
+            {
+              "node": "SystemKey(282v1)",
+              "name": "phoenix_simulation::resources::recovery_server::publish",
+              "fixed_steps": []
+            }
+          ],
+          "run_nested_or_auxiliary_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_ambiguous_at_entry_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_live_system_spans_at_drain_histograms": [
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            }
+          ],
+          "count_source": "intervals and flags from raw unattributed spans; live-System span count at frame drain is separate"
+        },
+        {
+          "name_group": "phoenix_simulation::resources::logistics_server::tick",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.017974666666666687,
+          "run_mean_observed_ms": [
+            0.01809018181818188,
+            0.01732187878787881,
+            0.017974666666666687
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.01809018181818188,
+            0.01732187878787881,
+            0.017974666666666687
+          ],
+          "kind": "NAMEGROUP",
+          "matching_schedule_rows": [
+            {
+              "node": "SystemKey(269v1)",
+              "name": "phoenix_simulation::resources::logistics_server::tick",
+              "fixed_steps": []
+            }
+          ],
+          "run_nested_or_auxiliary_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_ambiguous_at_entry_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_live_system_spans_at_drain_histograms": [
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            }
+          ],
+          "count_source": "intervals and flags from raw unattributed spans; live-System span count at frame drain is separate"
+        },
+        {
+          "name_group": "phoenix_simulation::objective_instances::reconcile_memberships",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.015165818181818187,
+          "run_mean_observed_ms": [
+            0.016257787878787882,
+            0.014706242424242425,
+            0.015165818181818187
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.016257787878787882,
+            0.014706242424242425,
+            0.015165818181818187
+          ],
+          "kind": "NAMEGROUP",
+          "matching_schedule_rows": [
+            {
+              "node": "SystemKey(351v1)",
+              "name": "phoenix_simulation::objective_instances::reconcile_memberships",
+              "fixed_steps": []
+            }
+          ],
+          "run_nested_or_auxiliary_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_ambiguous_at_entry_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_live_system_spans_at_drain_histograms": [
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            }
+          ],
+          "count_source": "intervals and flags from raw unattributed spans; live-System span count at frame drain is separate"
+        },
+        {
+          "name_group": "phoenix_simulation::resources::logistics_server::publish",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.014995272727272831,
+          "run_mean_observed_ms": [
+            0.014995272727272831,
+            0.014832333333333439,
+            0.015485393939394042
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.014995272727272831,
+            0.014832333333333439,
+            0.015485393939394042
+          ],
+          "kind": "NAMEGROUP",
+          "matching_schedule_rows": [
+            {
+              "node": "SystemKey(272v1)",
+              "name": "phoenix_simulation::resources::logistics_server::publish",
+              "fixed_steps": []
+            }
+          ],
+          "run_nested_or_auxiliary_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_ambiguous_at_entry_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_live_system_spans_at_drain_histograms": [
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            }
+          ],
+          "count_source": "intervals and flags from raw unattributed spans; live-System span count at frame drain is separate"
+        }
+      ],
+      "earlierAllocationLeaders": [
+        {
+          "name": "phoenix_simulation::server_app::broadcast_publish::broadcast_blackboard_updates",
+          "requestsPerFixedUpdate": 4138.651818181818,
+          "requestedBytesPerFixedUpdate": 557116.4003030303
+        },
+        {
+          "name": "phoenix_simulation::console::weapons::blackboard::publish_tactical_radar_blackboard",
+          "requestsPerFixedUpdate": 2664.119090909091,
+          "requestedBytesPerFixedUpdate": 425325.71575757576
+        },
+        {
+          "name": "phoenix_simulation::ship::sensors::publish_sensor_radar_blackboard",
+          "requestsPerFixedUpdate": 2617.649090909091,
+          "requestedBytesPerFixedUpdate": 419407.83090909093
+        },
+        {
+          "name": "phoenix_simulation::ship::helm_ai::surfaces::build_helm_ai_surfaces_frame",
+          "requestsPerFixedUpdate": 1266.6751515151514,
+          "requestedBytesPerFixedUpdate": 225103.98757575758
+        },
+        {
+          "name": "phoenix_simulation::science::broad::tick",
+          "requestsPerFixedUpdate": 616.5263636363636,
+          "requestedBytesPerFixedUpdate": 188754.80696969698
+        },
+        {
+          "name": "phoenix_simulation::console::repair::server::tick_repair_teams",
+          "requestsPerFixedUpdate": 723.000303030303,
+          "requestedBytesPerFixedUpdate": 94362.3103030303
+        },
+        {
+          "name": "phoenix_simulation::console::weapons::server::ai_target_selection",
+          "requestsPerFixedUpdate": 1170.8021212121212,
+          "requestedBytesPerFixedUpdate": 91637.68151515152
+        },
+        {
+          "name": "phoenix_simulation::console_ai::server::ai_power_allocation",
+          "requestsPerFixedUpdate": 1199.0730303030302,
+          "requestedBytesPerFixedUpdate": 76898.67969696969
+        },
+        {
+          "name": "phoenix_simulation::ship::energy_runtime::tick_power_system",
+          "requestsPerFixedUpdate": 649.7833333333333,
+          "requestedBytesPerFixedUpdate": 70561.02333333333
+        },
+        {
+          "name": "phoenix_simulation::console::navigation::server::operate_navigation_ai",
+          "requestsPerFixedUpdate": 384.340303030303,
+          "requestedBytesPerFixedUpdate": 61984.48121212121
+        }
+      ]
+    },
+    "falling_skyway": {
+      "fixedSteps": [
+        {
+          "fixed_step": "TickPowerSystem",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.2776678181818185,
+          "run_mean_observed_ms": [
+            0.2776678181818185,
+            0.27907206060606143,
+            0.27427854545454566
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.2776678181818185,
+            0.27907206060606143,
+            0.27427854545454566
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(180v1)",
+              "name": "phoenix_simulation::ship::energy_runtime::tick_power_system",
+              "fixed_steps": [
+                "TickPowerSystem"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Physics"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "PublishRepairBlackboard",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.13299654545454523,
+          "run_mean_observed_ms": [
+            0.13325712121212102,
+            0.13299654545454523,
+            0.1303686969696971
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.13325712121212102,
+            0.13299654545454523,
+            0.1303686969696971
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(177v1)",
+              "name": "phoenix_simulation::console::repair::server::publish_repair_blackboard",
+              "fixed_steps": [
+                "PublishRepairBlackboard"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Publish"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "AiPowerAllocation",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.09242036363636352,
+          "run_mean_observed_ms": [
+            0.0931650909090911,
+            0.09242036363636352,
+            0.09092796969696965
+          ],
+          "present_invocations": [
+            1650,
+            1650,
+            1650
+          ],
+          "run_interval_counts": [
+            1650,
+            1650,
+            1650
+          ],
+          "run_mean_when_present_ms": [
+            0.1863301818181822,
+            0.18484072727272705,
+            0.1818559393939393
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(41v1)",
+              "name": "phoenix_simulation::console_ai::server::ai_power_allocation",
+              "fixed_steps": [
+                "AiPowerAllocation"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Physics"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "PublishPowerBlackboard",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.06163539393939389,
+          "run_mean_observed_ms": [
+            0.06163539393939389,
+            0.06234024242424235,
+            0.06017475757575739
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.06163539393939389,
+            0.06234024242424235,
+            0.06017475757575739
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(184v1)",
+              "name": "phoenix_simulation::ship::energy_publication::publish_power_blackboard",
+              "fixed_steps": [
+                "PublishPowerBlackboard"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Publish"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "DetectDamageTierCrossings",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.05948106060606048,
+          "run_mean_observed_ms": [
+            0.0605209393939393,
+            0.05948106060606048,
+            0.059105878787878714
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.0605209393939393,
+            0.05948106060606048,
+            0.059105878787878714
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(96v1)",
+              "name": "phoenix_simulation::ship::damage_sync::detect_damage_tier_crossings",
+              "fixed_steps": [
+                "DetectDamageTierCrossings"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Damage"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "TickRepairTeams",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.05639384848484844,
+          "run_mean_observed_ms": [
+            0.056074090909090955,
+            0.05811421212121225,
+            0.05639384848484844
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.056074090909090955,
+            0.05811421212121225,
+            0.05639384848484844
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(174v1)",
+              "name": "phoenix_simulation::console::repair::server::tick_repair_teams",
+              "fixed_steps": [
+                "TickRepairTeams"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Physics"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "SimDispatch",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.05343857575757566,
+          "run_mean_observed_ms": [
+            0.0528092424242425,
+            0.053871454545454354,
+            0.05343857575757566
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.0528092424242425,
+            0.053871454545454354,
+            0.05343857575757566
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(178v1)",
+              "name": "phoenix_simulation::core::broadcast::broadcaster::dispatch<phoenix_simulation::core::broadcast::sim::Sim>",
+              "fixed_steps": [
+                "SimDispatch"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Broadcast"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "BroadcastBlackboardUpdates",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.04927284848484847,
+          "run_mean_observed_ms": [
+            0.04885403030303026,
+            0.04927284848484847,
+            0.05085690909090898
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.04885403030303026,
+            0.04927284848484847,
+            0.05085690909090898
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(235v1)",
+              "name": "phoenix_simulation::server_app::broadcast_publish::broadcast_blackboard_updates",
+              "fixed_steps": [
+                "BroadcastBlackboardUpdates"
+              ],
+              "matching_phase_rows": [
+                [
+                  "PublishAggregate"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "OperateNavigationAi",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.04454763636363623,
+          "run_mean_observed_ms": [
+            0.04454763636363623,
+            0.04506315151515158,
+            0.04348496969696973
+          ],
+          "present_invocations": [
+            1650,
+            1650,
+            1650
+          ],
+          "run_interval_counts": [
+            1650,
+            1650,
+            1650
+          ],
+          "run_mean_when_present_ms": [
+            0.08909527272727245,
+            0.09012630303030315,
+            0.08696993939393946
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(204v1)",
+              "name": "phoenix_simulation::console::navigation::server::operate_navigation_ai",
+              "fixed_steps": [
+                "OperateNavigationAi"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Physics"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "AiShieldFocus",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.04251339393939396,
+          "run_mean_observed_ms": [
+            0.043071696969696975,
+            0.04251339393939396,
+            0.042106060606060626
+          ],
+          "present_invocations": [
+            1650,
+            1650,
+            1650
+          ],
+          "run_interval_counts": [
+            1650,
+            1650,
+            1650
+          ],
+          "run_mean_when_present_ms": [
+            0.08614339393939395,
+            0.08502678787878792,
+            0.08421212121212125
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(40v1)",
+              "name": "phoenix_simulation::console_ai::server::shields_tree::ai_shields",
+              "fixed_steps": [
+                "AiShieldFocus"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Physics"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "SyncConsoleDamageTiers",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.028822909090909045,
+          "run_mean_observed_ms": [
+            0.028822909090909045,
+            0.029298090909090847,
+            0.028016666666666676
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.028822909090909045,
+            0.029298090909090847,
+            0.028016666666666676
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(95v1)",
+              "name": "phoenix_simulation::ship::damage_sync::sync_console_damage_tiers",
+              "fixed_steps": [
+                "SyncConsoleDamageTiers"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Damage"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "PublishDossierBlackboard",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.02866845454545447,
+          "run_mean_observed_ms": [
+            0.0284385151515151,
+            0.02866845454545447,
+            0.029299212121212063
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.0284385151515151,
+            0.02866845454545447,
+            0.029299212121212063
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(316v1)",
+              "name": "phoenix_simulation::dossier::server::publish_dossier_blackboard",
+              "fixed_steps": [
+                "PublishDossierBlackboard"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Publish"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "PublishNavigationBlackboard",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.028463363636363613,
+          "run_mean_observed_ms": [
+            0.02953657575757575,
+            0.02837421212121208,
+            0.028463363636363613
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.02953657575757575,
+            0.02837421212121208,
+            0.028463363636363613
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(206v1)",
+              "name": "phoenix_simulation::console::navigation::server::publish_navigation_blackboard",
+              "fixed_steps": [
+                "PublishNavigationBlackboard"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Publish"
+                ]
+              ]
+            }
+          ]
+        },
+        {
+          "fixed_step": "BuildHelmAiSurfacesFrame",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.016000030303030308,
+          "run_mean_observed_ms": [
+            0.015964333333333344,
+            0.016000030303030308,
+            0.01631999999999999
+          ],
+          "present_invocations": [
+            1650,
+            1650,
+            1650
+          ],
+          "run_interval_counts": [
+            1650,
+            1650,
+            1650
+          ],
+          "run_mean_when_present_ms": [
+            0.03192866666666669,
+            0.032000060606060615,
+            0.03263999999999998
+          ],
+          "schedule_systems": [
+            {
+              "node": "SystemKey(77v1)",
+              "name": "phoenix_simulation::ship::helm_ai::surfaces::build_helm_ai_surfaces_frame",
+              "fixed_steps": [
+                "BuildHelmAiSurfacesFrame"
+              ],
+              "matching_phase_rows": [
+                [
+                  "Physics"
+                ]
+              ]
+            }
+          ]
+        }
+      ],
+      "unattributedAggregate": {
+        "fixed_step": "<unattributed>",
+        "duration_available": true,
+        "median_per_run_mean_observed_ms": 0.2897433333333332,
+        "run_mean_observed_ms": [
+          0.2897433333333332,
+          0.29188845454545403,
+          0.2855117878787879
+        ],
+        "present_invocations": [
+          3300,
+          3300,
+          3300
+        ],
+        "run_interval_counts": [
+          542850,
+          542850,
+          542850
+        ],
+        "run_mean_when_present_ms": [
+          0.2897433333333332,
+          0.29188845454545403,
+          0.2855117878787879
+        ],
+        "schedule_systems": []
+      },
+      "nameGroups": [
+        {
+          "name_group": "phoenix_simulation::science::broad::tick",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.026104060606060703,
+          "run_mean_observed_ms": [
+            0.026104060606060703,
+            0.027133515151515228,
+            0.025874212121212135
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.026104060606060703,
+            0.027133515151515228,
+            0.025874212121212135
+          ],
+          "kind": "NAMEGROUP",
+          "matching_schedule_rows": [
+            {
+              "node": "SystemKey(330v1)",
+              "name": "phoenix_simulation::science::broad::tick",
+              "fixed_steps": []
+            }
+          ],
+          "run_nested_or_auxiliary_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_ambiguous_at_entry_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_live_system_spans_at_drain_histograms": [
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            }
+          ],
+          "count_source": "intervals and flags from raw unattributed spans; live-System span count at frame drain is separate"
+        },
+        {
+          "name_group": "phoenix_simulation::resources::production_server::tick",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.02249533333333337,
+          "run_mean_observed_ms": [
+            0.02249533333333337,
+            0.022623575757575697,
+            0.0221657272727272
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.02249533333333337,
+            0.022623575757575697,
+            0.0221657272727272
+          ],
+          "kind": "NAMEGROUP",
+          "matching_schedule_rows": [
+            {
+              "node": "SystemKey(274v1)",
+              "name": "phoenix_simulation::resources::production_server::tick",
+              "fixed_steps": []
+            }
+          ],
+          "run_nested_or_auxiliary_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_ambiguous_at_entry_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_live_system_spans_at_drain_histograms": [
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            }
+          ],
+          "count_source": "intervals and flags from raw unattributed spans; live-System span count at frame drain is separate"
+        },
+        {
+          "name_group": "phoenix_simulation::resources::ports_server::prepare",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.019440454545454667,
+          "run_mean_observed_ms": [
+            0.019384333333333392,
+            0.019744090909091048,
+            0.019440454545454667
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.019384333333333392,
+            0.019744090909091048,
+            0.019440454545454667
+          ],
+          "kind": "NAMEGROUP",
+          "matching_schedule_rows": [
+            {
+              "node": "SystemKey(283v1)",
+              "name": "phoenix_simulation::resources::ports_server::prepare",
+              "fixed_steps": []
+            }
+          ],
+          "run_nested_or_auxiliary_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_ambiguous_at_entry_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_live_system_spans_at_drain_histograms": [
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            }
+          ],
+          "count_source": "intervals and flags from raw unattributed spans; live-System span count at frame drain is separate"
+        },
+        {
+          "name_group": "phoenix_simulation::resources::logistics_server::tick",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.017359666666666714,
+          "run_mean_observed_ms": [
+            0.017359666666666714,
+            0.017518787878787856,
+            0.016352606060606054
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.017359666666666714,
+            0.017518787878787856,
+            0.016352606060606054
+          ],
+          "kind": "NAMEGROUP",
+          "matching_schedule_rows": [
+            {
+              "node": "SystemKey(269v1)",
+              "name": "phoenix_simulation::resources::logistics_server::tick",
+              "fixed_steps": []
+            }
+          ],
+          "run_nested_or_auxiliary_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_ambiguous_at_entry_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_live_system_spans_at_drain_histograms": [
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            }
+          ],
+          "count_source": "intervals and flags from raw unattributed spans; live-System span count at frame drain is separate"
+        },
+        {
+          "name_group": "phoenix_simulation::objective_instances::reconcile_memberships",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.015747515151515144,
+          "run_mean_observed_ms": [
+            0.015747515151515144,
+            0.01584330303030301,
+            0.015407939393939455
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.015747515151515144,
+            0.01584330303030301,
+            0.015407939393939455
+          ],
+          "kind": "NAMEGROUP",
+          "matching_schedule_rows": [
+            {
+              "node": "SystemKey(351v1)",
+              "name": "phoenix_simulation::objective_instances::reconcile_memberships",
+              "fixed_steps": []
+            }
+          ],
+          "run_nested_or_auxiliary_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_ambiguous_at_entry_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_live_system_spans_at_drain_histograms": [
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            }
+          ],
+          "count_source": "intervals and flags from raw unattributed spans; live-System span count at frame drain is separate"
+        },
+        {
+          "name_group": "phoenix_simulation::resources::logistics_server::publish",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.014673121212121137,
+          "run_mean_observed_ms": [
+            0.014673121212121137,
+            0.014593303030302927,
+            0.015017484848484669
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.014673121212121137,
+            0.014593303030302927,
+            0.015017484848484669
+          ],
+          "kind": "NAMEGROUP",
+          "matching_schedule_rows": [
+            {
+              "node": "SystemKey(272v1)",
+              "name": "phoenix_simulation::resources::logistics_server::publish",
+              "fixed_steps": []
+            }
+          ],
+          "run_nested_or_auxiliary_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_ambiguous_at_entry_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_live_system_spans_at_drain_histograms": [
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            }
+          ],
+          "count_source": "intervals and flags from raw unattributed spans; live-System span count at frame drain is separate"
+        },
+        {
+          "name_group": "phoenix_simulation::comms::server::update_comms_range_flags",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.013523272727272728,
+          "run_mean_observed_ms": [
+            0.013523272727272728,
+            0.014456848484848473,
+            0.013257272727272711
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.013523272727272728,
+            0.014456848484848473,
+            0.013257272727272711
+          ],
+          "kind": "NAMEGROUP",
+          "matching_schedule_rows": [
+            {
+              "node": "SystemKey(264v1)",
+              "name": "phoenix_simulation::comms::server::update_comms_range_flags",
+              "fixed_steps": []
+            }
+          ],
+          "run_nested_or_auxiliary_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_ambiguous_at_entry_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_live_system_spans_at_drain_histograms": [
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            }
+          ],
+          "count_source": "intervals and flags from raw unattributed spans; live-System span count at frame drain is separate"
+        },
+        {
+          "name_group": "phoenix_simulation::science::passive::tick",
+          "duration_available": true,
+          "median_per_run_mean_observed_ms": 0.009144696969697006,
+          "run_mean_observed_ms": [
+            0.009144696969697006,
+            0.008983484848484758,
+            0.009407242424242521
+          ],
+          "present_invocations": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_interval_counts": [
+            3300,
+            3300,
+            3300
+          ],
+          "run_mean_when_present_ms": [
+            0.009144696969697006,
+            0.008983484848484758,
+            0.009407242424242521
+          ],
+          "kind": "NAMEGROUP",
+          "matching_schedule_rows": [
+            {
+              "node": "SystemKey(319v1)",
+              "name": "phoenix_simulation::science::passive::tick",
+              "fixed_steps": []
+            }
+          ],
+          "run_nested_or_auxiliary_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_ambiguous_at_entry_intervals": [
+            0,
+            0,
+            0
+          ],
+          "run_live_system_spans_at_drain_histograms": [
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            },
+            {
+              "1": 3300
+            }
+          ],
+          "count_source": "intervals and flags from raw unattributed spans; live-System span count at frame drain is separate"
+        }
+      ],
+      "earlierAllocationLeaders": [
+        {
+          "name": "phoenix_simulation::console::navigation::server::operate_navigation_ai",
+          "requestsPerFixedUpdate": 855.2415151515152,
+          "requestedBytesPerFixedUpdate": 121222.70454545454
+        },
+        {
+          "name": "phoenix_simulation::ship::energy_runtime::tick_power_system",
+          "requestsPerFixedUpdate": 1054.0490909090909,
+          "requestedBytesPerFixedUpdate": 111756.75363636363
+        },
+        {
+          "name": "phoenix_simulation::console_ai::server::ai_power_allocation",
+          "requestsPerFixedUpdate": 1867.8421212121211,
+          "requestedBytesPerFixedUpdate": 109606.6103030303
+        },
+        {
+          "name": "phoenix_simulation::server_app::broadcast_publish::broadcast_blackboard_updates",
+          "requestsPerFixedUpdate": 996.8672727272727,
+          "requestedBytesPerFixedUpdate": 97457.89666666667
+        },
+        {
+          "name": "phoenix_simulation::console::repair::server::tick_repair_teams",
+          "requestsPerFixedUpdate": 723,
+          "requestedBytesPerFixedUpdate": 94362
+        },
+        {
+          "name": "phoenix_simulation::console::repair::server::publish_repair_blackboard",
+          "requestsPerFixedUpdate": 904,
+          "requestedBytesPerFixedUpdate": 72410
+        },
+        {
+          "name": "phoenix_simulation::console_ai::server::shields_tree::ai_shields",
+          "requestsPerFixedUpdate": 556.5,
+          "requestedBytesPerFixedUpdate": 37328
+        },
+        {
+          "name": "phoenix_simulation::dossier::server::publish_dossier_blackboard",
+          "requestsPerFixedUpdate": 433.0293939393939,
+          "requestedBytesPerFixedUpdate": 35285.357575757575
+        },
+        {
+          "name": "phoenix_simulation::resources::production_server::tick",
+          "requestsPerFixedUpdate": 306.47030303030306,
+          "requestedBytesPerFixedUpdate": 25554.37696969697
+        },
+        {
+          "name": "phoenix_simulation::console::navigation::server::publish_navigation_blackboard",
+          "requestsPerFixedUpdate": 354.02969696969694,
+          "requestedBytesPerFixedUpdate": 22399.70909090909
+        }
+      ]
+    }
+  },
+  "diagnosticLimits": [
+    "Leaf values are observed wall spans, may overlap and include observer costs; they are not exclusive CPU shares and must not be added.",
+    "Broad name-group timing sits within the unattributed aggregate; do not count it twice.",
+    "Allocation captures are from the earlier B5/rules0.78 diagnostic build. They identify allocation traffic, not current B7 allocation totals or CPU time.",
+    "Requested allocation bytes are not RSS, live memory or memory leaks; other threads and work outside FixedUpdate are excluded."
+  ],
+  "historical": {
+    "earlierReport": "performance-recovery-2026-10-16.html",
+    "rules077CombatMeanImprovementPercent": 19.64,
+    "rules077CombatP95ImprovementPercent": 37.41,
+    "scope": "Earlier B4 results use rules0.77 and different content. Do not add these percentages to the current rules0.79 result or pool samples. Old binary has different gameplay/content and serves as the absolute speed target, not the correctness reference."
+  },
+  "mergedChanges": [
+    "Compact immutable SystemId storage and direct publication/registry ID formatting, preserving wire identity.",
+    "Borrowed query inputs and metadata in radar, Broad sensing, approaches and Helm views.",
+    "Batched physical binding factors, reusable power-network scratch storage and explicit invariant validation.",
+    "Repair interior sharing and status-row allocation reuse.",
+    "Fitted radar projection-buffer reuse while recomputing current facts, provenance and geometry.",
+    "Immutable compiled AI tree ancestry/task/call metadata; live validation, per-System continuation and traces remain intact."
+  ],
+  "heldCandidates": [
+    {
+      "commit": "35a3cbead99a8b62d8b28496b5654500af2165dc",
+      "topic": "Clone-on-duplicate selector borrowing",
+      "status": "Source-reviewed only; uncompiled/unmeasured and not merged",
+      "combinedWorktreeCommit": "16a32aae3dc353a0d098213846a08524821def27"
+    },
+    {
+      "commit": "43d888543a911f321d5fb6aa30329846b8211ed6",
+      "topic": "Compact private AiFacts names",
+      "status": "Source-reviewed only; uncompiled/unmeasured and not merged",
+      "combinedWorktreeCommit": "16a32aae3dc353a0d098213846a08524821def27"
+    },
+    {
+      "commit": "0c928228f79525aa585b7c616682f30dbb92de6c",
+      "topic": "Navigation borrowed inputs and lazy formation reads",
+      "status": "Source-reviewed only; uncompiled/unmeasured and not merged",
+      "combinedWorktreeCommit": "16a32aae3dc353a0d098213846a08524821def27"
+    },
+    {
+      "commit": "84a24a13c29133d282acd9af36c58e0fd7c0ba18",
+      "topic": "Exclusive retired delivery-buffer recycling",
+      "status": "Source-reviewed only; uncompiled/unmeasured and not merged",
+      "combinedWorktreeCommit": "16a32aae3dc353a0d098213846a08524821def27"
+    }
+  ],
+  "researchTool": {
+    "commit": "0914f51d9135531b8a94b52e966285102844fe7c",
+    "scope": "Allocation diagnostic tool is committed on its research branch, verified with11 tests and6 matching full captures; retained separately from the shipped optimisation merge."
+  },
+  "provenance": [
+    {
+      "path": ".phoenix/perf-recovery-rules079-control-paired-b7/summary.json",
+      "sha256": "85d1e07bebfa6204349a3579a0263de15730661efe66f12b25267e3b59666017"
+    },
+    {
+      "path": ".phoenix/perf-recovery-batch7-paired/summary.json",
+      "sha256": "b3cb66fb4bc5c9f541d3cba4138d074e79b3f609fc16c11a0ca1654a8743abad"
+    },
+    {
+      "path": ".phoenix/perf-recovery-rules079-control-bare-b7/summary.json",
+      "sha256": "10380928bb5ddf40beb49c155bd0644cb5318ebc12b957b1cb76bf06c95a1858"
+    },
+    {
+      "path": ".phoenix/perf-recovery-batch7-bare/summary.json",
+      "sha256": "3d78ba13335679edc3ac35ba259c3083623504b962859a46feab2586aab5fbe5"
+    },
+    {
+      "path": ".phoenix/perf-recovery-batch7-leaves/summary.json",
+      "sha256": "57760ed2b7e718bbf9f4b9b0c0658c94840a28e73655d89db8049ecba30a5102"
+    },
+    {
+      "path": ".phoenix/perf-recovery-old-refresh/summary.json",
+      "sha256": "44bd8be6cf6f90b28607793182ab650bab6ad2cee6e31ad0578ef2e0c72e9382"
+    },
+    {
+      "path": ".phoenix/perf-recovery-old-refresh-whole/summary.json",
+      "sha256": "bc7869d35cae97e8b8df9023f29494fe072f6b09c5506f5ce79c990a4d4133f7"
+    },
+    {
+      "path": ".phoenix/perf-recovery-batch7-build-receipt.json",
+      "sha256": "d32d56b575805a9a1a0b57456f795975cedd7fae393a003bb5162eaf9e45d912"
+    },
+    {
+      "path": ".phoenix/perf-recovery-batch7-frozen-dependency-evidence.json",
+      "sha256": "8dfdff2d12f45155e4a906f2b65a09995e083fa5e789e0ac96fc98d5f7e9a482"
+    },
+    {
+      "path": ".phoenix/perf-recovery-batch7-validation.json",
+      "sha256": "42af82675e8dc404cb587663e1bbfa5244427b15af0d59cda74a88e1ebd04923"
+    },
+    {
+      "path": ".phoenix/perf-recovery-batch7-tested-source.json",
+      "sha256": "38140ed2f39b4479e3737a69a83c0a6943dfc85b15a30094a01f435e50410f1c"
+    },
+    {
+      "path": ".phoenix/perf-rules079-gameplay-reference.json",
+      "sha256": "b7a5a8107382c8c93ff72f30ca40350667e2ec32462fea22999712fdcb9a4b8d"
+    },
+    {
+      "path": ".phoenix/perf-recovery-rules079-control-build-receipt.json",
+      "sha256": "b7fc67fdbf74ff25c6e7066615e013a0d9b690b415dd4f319d486f7779e65e16"
+    },
+    {
+      "path": ".phoenix/perf-rules078-final-content-exact-proof.json",
+      "sha256": "043ace187247a3acb281c859150e08bae1b3d12d7f6d8fb847892fd6a81edece"
+    },
+    {
+      "path": ".phoenix/perf-recovery-batch7-leaf-ranking.json",
+      "sha256": "2523f2c2c83f681d571bb07829abe20e72064ec95d200b6872367e0c2611bd3b"
+    },
+    {
+      "path": ".phoenix/perf-allocation-batch5-rules078-analysis.json",
+      "sha256": "12605fadca22d4ba0cde40755a755e67dc60c4828a50624c558df9271547c00b"
+    },
+    {
+      "path": ".phoenix/perf-allocation-current0914-validation.json",
+      "sha256": "a786b9addb194f984463802f176730b615fa33a1cbfc2e063ce7d464ebd3bf91"
+    }
+  ]
+}

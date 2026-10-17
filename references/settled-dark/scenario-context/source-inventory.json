@@ -1,0 +1,266 @@
+[
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Factions Overview.md",
+    "preserved": "archive/legacy-lore/Factions Overview.md",
+    "sha256": "086de92137d4c0f8a3a0feb8297e08a49d1e2a33b780dcb6e3fbb4907fc4bc18",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Home.md",
+    "preserved": "archive/legacy-lore/Home.md",
+    "sha256": "b5fb599dd5bd42b52b9c9fa2aa61868e09e731fa95a6519cdae00ab88c2208d4",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Rules.md",
+    "preserved": "archive/legacy-lore/Rules.md",
+    "sha256": "5ec49c3b7335d15208ed5b2e7e8a50b691d378ab6c22ffbcabf8bbe0d2d22659",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Setting.md",
+    "preserved": "archive/legacy-lore/Setting.md",
+    "sha256": "0aa56540af96a510b23679e5e512b3a96d2abc6626bac12a6a8e92db75e86c4e",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Systems Overview.md",
+    "preserved": "archive/legacy-lore/Systems Overview.md",
+    "sha256": "26e05f85d55da2406c7d6bcf60d85f05f5cb8c65cbc4125e60476fb98ac306c8",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\The Ascendant.md",
+    "preserved": "archive/legacy-lore/The Ascendant.md",
+    "sha256": "59d14c9203b53101de2cb5322e9ec55f55bd9c51f7c31eb3cfe7017256c168cb",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\The Throne Eternal.md",
+    "preserved": "archive/legacy-lore/The Throne Eternal.md",
+    "sha256": "892754a9b7e001bd648c132dbf247935440a8e2749c9db4d869e0e5a67bc63cc",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Factions\\Administratum.md",
+    "preserved": "archive/legacy-lore/Factions/Administratum.md",
+    "sha256": "c7727c1a3a7855c8c209b2c234c611c411354645232f5d4378929b208e780121",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Factions\\Ductus Guild.md",
+    "preserved": "archive/legacy-lore/Factions/Ductus Guild.md",
+    "sha256": "a53baa56dbdc5ef93f04444f5a3bd2b6eb71d653fbe2d71bfad786106ff0d7ab",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Factions\\Ecclesiatum Perpetua.md",
+    "preserved": "archive/legacy-lore/Factions/Ecclesiatum Perpetua.md",
+    "sha256": "c716f7f7929e389b69f8529e36de3ec337b90d39d5a2ce4d38cb55970b9253b5",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Factions\\House Aethon.md",
+    "preserved": "archive/legacy-lore/Factions/House Aethon.md",
+    "sha256": "a6bb5fe6a886ced4ef4cbc9623f525eb53e8a69429845e71885e4712e868e953",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Factions\\House Caelifen.md",
+    "preserved": "archive/legacy-lore/Factions/House Caelifen.md",
+    "sha256": "5ebb90fadde581e10bedfc4a718152161a3634f725d83ceb0a6e50c923c19af9",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Factions\\House Mourne.md",
+    "preserved": "archive/legacy-lore/Factions/House Mourne.md",
+    "sha256": "b5c8056c05a2da446f808ba0e7086e3c6c6526bd83c027e7e492c7c3cc68f67b",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Factions\\House Ondrak.md",
+    "preserved": "archive/legacy-lore/Factions/House Ondrak.md",
+    "sha256": "f9694492d2fb223b02792f621e546652cd7af383a891627510238cc007716cfd",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Factions\\House Vethara.md",
+    "preserved": "archive/legacy-lore/Factions/House Vethara.md",
+    "sha256": "c5d0e570eb35ebb4f1d8d40cd456fec580d2b106b748e0e5194fa81fcc1df0d5",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Factions\\Janissariat High Command.md",
+    "preserved": "archive/legacy-lore/Factions/Janissariat High Command.md",
+    "sha256": "b2be36ae1f33085e4e167951af22ab3891c02d47de088e1d9ff965f72cf99adf",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Game\\Core Mechanics.md",
+    "preserved": "archive/legacy-lore/Game/Core Mechanics.md",
+    "sha256": "fa3677c80f6508942d38b13e62c997f80650277df049a4b05112114dadd3b57d",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Game\\Crisis Events.md",
+    "preserved": "archive/legacy-lore/Game/Crisis Events.md",
+    "sha256": "9a5f6d703f3524ba2901360fdcff6281be77df9500143cc0c7d95608a044e449",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Game\\Fringe Campaigns.md",
+    "preserved": "archive/legacy-lore/Game/Fringe Campaigns.md",
+    "sha256": "a0c89db770842dfbb46c208bea8dabe09a81fa0bed7e59a57c5c3765b3aac0a9",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Game\\The Charter of Settlement.md",
+    "preserved": "archive/legacy-lore/Game/The Charter of Settlement.md",
+    "sha256": "156f72d359272e0b037689ad5452053aacf6d112d833f46ef936c60055f380fa",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Game\\The Conspiracy.md",
+    "preserved": "archive/legacy-lore/Game/The Conspiracy.md",
+    "sha256": "6561fcfba7556a58ff1d23c3027181478ba84e7ddc7c55e9cd0fd6734aa6030a",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Game\\The Five Pillars.md",
+    "preserved": "archive/legacy-lore/Game/The Five Pillars.md",
+    "sha256": "04879b6683409b9d7998cbc2726882a76bd6b629983d717e1540ce2fbd77153d",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Lore\\Charter Legitimacy Thread.md",
+    "preserved": "archive/legacy-lore/Lore/Charter Legitimacy Thread.md",
+    "sha256": "e8ce4f8c97d6c0e89d07d4a2807be9bba1daa63b3b3aa666afb364e7612bd41f",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Lore\\Fraying Conditioning Thread.md",
+    "preserved": "archive/legacy-lore/Lore/Fraying Conditioning Thread.md",
+    "sha256": "bef4feb02697f616ca1f6608110185e24d408a19afc34bfa537cd8e2914dc3a2",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Lore\\Pre-Human Presence Thread.md",
+    "preserved": "archive/legacy-lore/Lore/Pre-Human Presence Thread.md",
+    "sha256": "896a4e038086cbb86b310c7bc66cea4e08c73c140126764d926aac7a3b5236e6",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Lore\\Void Integrity Thread.md",
+    "preserved": "archive/legacy-lore/Lore/Void Integrity Thread.md",
+    "sha256": "946c5d28325ab36abed8a2f1f5a7cc4af497a161aa1a7a6b8a8acb9128526bd9",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\MMDL\\converting_mmdl_back_to_game_materials.md",
+    "preserved": "archive/legacy-lore/MMDL/converting_mmdl_back_to_game_materials.md",
+    "sha256": "bdb241a7196232b20b61a269992e756d082d2709594ab897903c47e38886d7eb",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\MMDL\\mmdl_shared_core_concepts_v0_2.md",
+    "preserved": "archive/legacy-lore/MMDL/mmdl_shared_core_concepts_v0_2.md",
+    "sha256": "6f4a678cc052732c8ef160eec06c8a65a5410f985cc40220c9f7f05bd85d2160",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\MMDL\\throne_of_ashes.mmdl.md",
+    "preserved": "archive/legacy-lore/MMDL/throne_of_ashes.mmdl.md",
+    "sha256": "311706f845e941601e76a05767dc10070e70634f24180b09189d65c6a24966d1",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\MMDL\\throne_of_ashes_players_guide.md",
+    "preserved": "archive/legacy-lore/MMDL/throne_of_ashes_players_guide.md",
+    "sha256": "015e506188799d9a38d316c11aabf67401e1c0d788441ae0df1272785fb39b09",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\MMDL\\turning_game_rules_to_mmdl.md",
+    "preserved": "archive/legacy-lore/MMDL/turning_game_rules_to_mmdl.md",
+    "sha256": "bfb9d18e15d8755de5712f7c848bedc363714e329a7747a7aaf6b20793b801fb",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\MMDL\\working_with_mmdl.md",
+    "preserved": "archive/legacy-lore/MMDL/working_with_mmdl.md",
+    "sha256": "51a381d48d0962a576d540f134ff69fe772e5cba2f1d075082f5c41a9df8e922",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\MMDL\\writing_good_rulebooks.md",
+    "preserved": "archive/legacy-lore/MMDL/writing_good_rulebooks.md",
+    "sha256": "a43831461eed8cdd9a08c9952da111ccedf4fa57f9b3886b9d360bf7f0bd6488",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Systems\\Caelifen-Ondrak Arm.md",
+    "preserved": "archive/legacy-lore/Systems/Caelifen-Ondrak Arm.md",
+    "sha256": "bf4baabfcfac381dadd6ec9ad124cf2450672e751fd369e8fa013aa054dbfd77",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Systems\\Ecclesiatum-Vethara Arm.md",
+    "preserved": "archive/legacy-lore/Systems/Ecclesiatum-Vethara Arm.md",
+    "sha256": "9a3197a3d876ad621d013619506a2811dc6ae3713be6859e8f79c32cb4b2037a",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Systems\\Outer Meridian Arm.md",
+    "preserved": "archive/legacy-lore/Systems/Outer Meridian Arm.md",
+    "sha256": "f0a31386bb15352ed6cdfa02a65caeaa88c2c9a5288a7b9bde76e588bda5cd47",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Systems\\Southern Houses Arm.md",
+    "preserved": "archive/legacy-lore/Systems/Southern Houses Arm.md",
+    "sha256": "126d56f9ebd28cfcf760532c460bf2b2863f4eeb20582350618c3b00a090d890",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Systems\\The Core.md",
+    "preserved": "archive/legacy-lore/Systems/The Core.md",
+    "sha256": "5821a35e9d5fe3ebc8b476621bd45695935509d954ad4868d97e67abe5339f08",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\TheVoidThrone\\Systems\\Vethis Cluster.md",
+    "preserved": "archive/legacy-lore/Systems/Vethis Cluster.md",
+    "sha256": "5e5aa1177659aa014112a0bdf820b715636894c742383f2b6eadbdb35c270c86",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\analogue-projects\\GameProjects\\void_throne\\source\\package.spec.yaml",
+    "preserved": "archive/legacy-gamespec/package.spec.yaml",
+    "sha256": "101b4527d600d6a259f928ae2fd1e296859b736334206a92e72bfecd54c35448",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\analogue-projects\\GameProjects\\void_throne\\source\\game\\councils.gamespec.md",
+    "preserved": "archive/legacy-gamespec/game/councils.gamespec.md",
+    "sha256": "b489f17601905a9e977a01a0f283582972d7aaffed0683939dc89b796c40b571",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\analogue-projects\\GameProjects\\void_throne\\source\\game\\factions.gamespec.md",
+    "preserved": "archive/legacy-gamespec/game/factions.gamespec.md",
+    "sha256": "97bafa9d1190ee5e0db1ac39e1bc3482a7e9ef9e2d9967cbd01c0a38b34634de",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\analogue-projects\\GameProjects\\void_throne\\source\\game\\game.md",
+    "preserved": "archive/legacy-gamespec/game/game.md",
+    "sha256": "01dd38af47a43f3a6b2f0334eecd77df64a072fd7fdaa79d7a9017aa02764e52",
+    "authority": "historical source; current prototype adaptations take precedence"
+  },
+  {
+    "original": "C:\\AnalogueGames\\analogue-projects\\GameProjects\\void_throne\\source\\scenarios\\charter_day.gamespec.md",
+    "preserved": "archive/legacy-gamespec/scenarios/charter_day.gamespec.md",
+    "sha256": "088df729622b2d724a469ff79952b94653da4339e8fcf0ddad04ba0fe7d8333a",
+    "authority": "historical source; current prototype adaptations take precedence"
+  }
+]

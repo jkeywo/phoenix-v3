@@ -1,0 +1,135 @@
+entities:
+  - decision: redesign-personnel-finite-teams-and-expertise
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Finite Teams Work Without Mandatory Named Officers
+      summary: "Increment 20 extends existing team/job/navigation consumers with stable overlapping competencies and optional exclusive Duty Officer bonuses. Officers travel automatically on the actual ship map; destination bonuses start only on arrival. Basic assistance needs no named operator, rarity ladder or additional AI skill tree."
+      rationale:
+        - "Selected G012/G061/G064/G068–71/G076/G110 and S028–30/S040/S079–82/S085/S087–88/S100/S102; detailed contracts live in docs/gameplay-redesign/implementation/increment-20.md. Local work may follow 15 initial integration/targeted checks under parallel-work; full completion requires 14/19 verified exits. Preparation starts no runtime."
+        - "[ai] First attach actual expertise to an existing Repair team/compatible System using real navigation and finite commitment, then migrate actual Security/Medical consumers. Reuse shared underlying team/jobs, physical cursor and normal admitted Human/AI commands; do not introduce a global crew planner or duplicate movement timer."
+        - "[ai] First local consumer: an accepted officer posting joins one actual Repair team only while both are idle and co-located at that team's authored home. Custody then references the existing team navigation; posting/release cannot teleport to an away team. At most one officer supports a team. A finite authored mechanical-repair work multiplier affects only compatible on-site physical remedy progress, separately from travel time, energy grants and finite parts. Optional demonstration multiplier 1.25 is provisional authoring, not a fleet balance claim; no officer keeps the unchanged baseline."
+  - decision: redesign-personnel-single-custody-with-carried-craft
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Personnel Have One Actual Location Across Ships and Craft
+      summary: "Shared 19/20 contract: 19 owns actual craft/deployment/motion/capacity; 20 owns actual personnel identity, condition and custody. Passenger lists derive from that same custody. Every person/officer/team is in one actual compartment, carried craft/berth or committed transfer job, never duplicate passenger stock."
+      rationale:
+        - "[ai] Existing navigation owns actual cursor/crossing; assignment is intent, not a second location. Stage actual source, access/link, compatible receiving space and exclusive job/team claim before committing a transfer. Handoff occurs at actual completion. Cancellation/loss retains physical position and supported return/recovery, not instant home/refund or replacement people."
+        - "[ai] Adopt this interface before either passenger implementation without mutual whole-increment completion dependency. Simulation joins actual candidate source/destination owners, including materialised carriers, before restore writes. 16 request/receipt delivery is not custody; 18 motion and 19 craft remain real consumers. 21 workforce uses the same underlying teams/custody."
+  - decision: redesign-personnel-shared-boundaries-medical-and-authority
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Access Safety and Capture Keep One Physical Authority
+      summary: "AD75–76 bind routing and containment to one actual boundary state; automatic routes cannot reopen deliberate seals. Medical uses coarse minor/severe conditions and actual treatment. Explicit lethal circumstances may permanently remove simulated officers while humans retain useful participation. Capture transfers whole-ship operational authority, not partial System controls."
+      rationale:
+        - "[ai] Existing compartment damage, equipment, energy and finite resources govern life support, suppression, isolation and team-built bypasses. No numerical pressure-flow simulator, duplicate door state, automatic deterioration/repeated death rolls, mandatory cloning or routine-healing manoeuvre constraint. G110 permits specific disclosed mission-critical constraints while Helm retains authority."
+        - "G069 away checks display exact percentages and factors. First supported checks include only displayed modifiers in the advertised result; explicit new circumstances do not covertly change it. Persist deterministic outcome frontiers to prevent rerolls. Routine away work follows approved jobs without compulsory prompt sequences."
+        - "AD56–57 whole-ship capture uses actual Session ownership/admission, retains physical assets and individual controllers, and grants readable captured Console records only under normal access with original evidence age/uncertainty. Transport needs suitable established evidence, not a universal pad; signalling/pickup/capacity remain actual."
+  - decision: redesign-personnel-authoring-and-continuation
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Personnel Work Has Accepted Authoring and Complete Continuation
+      summary: "Supported rosters/competencies/postings/risk/treatment/boundary/transport profiles use existing accepted Workshop history/includes/Preview/Test. Canonical team, custody, job and condition state is saved once; whole-candidate capacity/location/claim/clock validation precedes writes. Local source never claims external operations or verified acceptance."
+      rationale:
+        - "[ai] Prove actual Human/AI travel/work/transfer, finite resources, cancellation, no duplicated identities/bonuses, injury/lethal disclosure, exact outcomes/no reroll and useful loss participation. Fresh JSON continuation requires at least 360 complete capture/digest comparisons, different-LocalShip peers and malformed no-write candidates. Physical browser/native, shipped content, performance and 2/4/6/8-human workload remain separate."
+
+  - decision: redesign-security-shared-job-migration
+    core:
+      status: accepted
+      confidence: confirmed
+      origin: ai
+      title: Security Assignments Use the Existing Shared Team Commitment
+      summary: "Increment20 structurally moves the finite Security muster onto TeamJobs with one JobId mint and one canonical assignment through deployment, paid work and return. Existing authored action consequences and ordinary AI remain equivalent before local route and medical changes."
+      rationale:
+        - "[ai] Remove the independently saved assignment vector. Idle availability is derived; completion/cancellation/failure remains on the same activity until actual return releases its Job. Returning teams cannot receive a fresh assignment. No duplicate roster, timer, movement, outcome pool or crew AI."
+        - "[ai] Save and digest complete canonical job state including mint, clock and outcomes. Whole candidate validation checks accepted owner/count, IDs, finite phases and nonfuture execution before writes; root advances compatibility and rejects unsupported older payloads. Detail and retained external-crossing boundary live in implementation/increment-20.md."
+
+  - decision: redesign-security-physical-local-work
+    core:
+      status: accepted
+      confidence: confirmed
+      origin: ai
+      title: Local Security Uses the Existing Physical Route Owner
+      summary: "Optional local-only Security profiles bind existing finite teams to actual home compartments and closed local containment/evacuation work. The shared Job retains one actual InteriorGraph cursor; deployment and return use routes instead of duplicate phase timers."
+      rationale:
+        - "[ai] The normal Human/Backfill dispatch, priority, paid Security work and authored consequences remain in use. Actual access blockers and crossing interlocks govern movement; recall or machinery loss returns the same team without teleporting. Work begins only at destination and release only at actual home."
+        - "[ai] Local-only optional references preserve shipped external-only behavior. Mixed external work waits for actual19craft/transfer custody. Accepted homes/actions/energy/topology, saved cursor/work/result joins and Workshop history/Test are required; a source tracer is not hazard, Medical, boarding or increment20 acceptance. Detailed contract lives in implementation/increment-20.md."
+
+  - decision: redesign-personnel-local-treatment-consumer
+    core:
+      status: accepted
+      confidence: confirmed
+      origin: ai
+      title: Actual Local Treatment Borrows the Existing Finite Team
+      summary: "Optional care profiles treat a named officer's single coarse condition through a typed Treatment activity in the existing Repair TeamJobs. The actual team and navigation cursor remain exclusive across repair, fitting, external work and treatment; no extra medical roster, controller, health pool or movement state is created."
+      rationale:
+        - "[ai] First patients retain actual home-compartment custody, with accepted treatment equipment in that same compartment. An eligible MedicalCare team must physically reach the patient/service before paid work and return to its actual home before its Job releases. Posting, recall, interruption and restore never teleport a patient or team. One active Treatment claims one patient; this claim is derived from the same actual jobs."
+        - "[ai] Fit/minor/severe conditions live only in PersonnelState. Initial condition may be authored setup; this does not claim injury propagation, away casualties or death delivered. Unfit officers cannot provide expertise or be newly posted. Completed actual treatment changes that same condition to fit once. No automatic deterioration or reroll."
+        - "[ai] The accepted profile binds actual installed service machinery, finite work terms and medication through the established resource service/stock owner. Stock is consumed once when treatment actually begins, with working configured port replenishment in the optional reference. Waiting for medication or power is visible. No free stock, duplicate reservations or refund after committed use."
+        - "[ai] Ordinary Human and Repair AI commands share existing admission and permitted Personnel knowledge; selected plot surgery may use existing human-seeking Console policy rather than a universal manual minigame. Accepted Workshop edit/history/validation/Preview/Test and whole-candidate condition/job/site/stock joins are part of the slice. Native continuation and human acceptance remain explicit integration work."
+
+  - decision: redesign-personnel-retained-single-roster
+    core:
+      status: accepted
+      confidence: confirmed
+      origin: ai
+      title: One Retained Personnel Roster Outlives Its Origin Ship
+      summary: "Before passengers, structurally move canonical PersonnelState from entity components into one Gameplay PersonnelRoster resource keyed by stable origin actor UUID and officer ID. Retain the finite accepted definition and source provenance; existing posting, expertise and care consumers join that same owner with equivalent live behaviour."
+      rationale:
+        - "[ai] Remove per-entity canonical maps completely, without a dual-write adapter or second people pool. CompiledPersonnel remains an accepted derived entity binding. The global roster is not a global crew planner or shared AI knowledge: only the explicitly permitted local Console projection reaches players and per-System AI."
+        - "[ai] Ordinary entity destruction, removal, events and objective semantics stay intact. Actual on-board people receive an explicit terminal loss record on removal; future living off-ship custody survives origin loss through this same owner. No protected wreck, substitute actor, replacement people, teleport or occupancy immunity. Restore suppression does not manufacture casualties while replacing bootstrap entities."
+        - "[ai] Capture, digest and restore the roster once globally, including accepted immutable definition/provenance and terminal history. Before writes, validate exact finite populations, active origin/profile and actual Repair job/cursor joins, removed-origin terminal closure, source resolution, clocks and identity uniqueness. Missing required global state and unsupported old per-entity payloads are explicit refusals."
+        - "[ai] Passenger berths and transfer jobs follow only after this structural migration is verified. This slice creates no unconsumed passenger location or new transfer controller. Physical browser/native and full increment20 acceptance remain separate from owner/source evidence."
+
+  - decision: redesign-personnel-owned-carrier-transfer-consumer
+    core:
+      status: accepted
+      confidence: confirmed
+      origin: ai
+      title: Actual Escort Jobs Move Officers Into Actual Carried Berths
+      summary: "After the retained-roster structural verification, a bounded owned-carrier loop joins the existing finite Repair TeamJobs and actual Bay lifecycle. A team collects one named officer at the actual source compartment, escorts them along its existing cursor and hands them into one accepted berth of an actual carried craft; recovery precedes a physical return handoff."
+      rationale:
+        - "[ai] Keep closed persisted destination requests with the established Repair work/request owner. Humans can request or clear officer/destination intent and explicitly assign an eligible team; delegated ordinary Repair AI selects an eligible finite team through the same admitted boundary. No unconditional auto-board policy, second queue/controller or invented global crew planner. Pending intent is not custody or reserved berth space."
+        - "[ai] Dispatch carries the exact immutable destination request actually observed by the Human or ordinary AI. The existing admitted consumer compares it with the current canonical request before planning, claiming a team or minting a Job. A changed order is refused without writes; a held GUI action also retains request and selected-destination identity so an unchanged custody clock cannot operate unseen replacement intent."
+        - "[ai] One typed transfer activity retains the actual JobId, finite team and cursor through collection, escort, handoff and return. The officer leaves source custody only at actual collection; escorted custody references that same actual Job/cursor. The berth becomes custody only at physical handoff. Claims derive from actual active jobs and roster occupants, not a second manifest or reservation counter."
+        - "[ai] First consumer serializes one active crew handoff per Bay; other destination intents remain pending. Ordinary component repairs may coexist, with actual damaged equipment readiness pausing handoff; refit and physical stripping may not concurrently remove claimed Bay equipment. Actual carried parent/bay, accepted berth capacity, operational/access readiness and mutually exclusive Bay handling/crew handoff claims must be checked before each physical transition. Retarget, recall or blocked access preserves actual position and committed work; no teleport, immediate home, duplicate occupant or stale-host command. Off-ship personnel provide no original-ship manning bonus."
+        - "[ai] Origin loss retains living off-ship officers in the same roster; actual host/craft loss records the supported terminal outcome without occupancy immunity or replacement people. Whole-candidate restore joins the actual craft graph, berth allocations, origin provenance and same team/job/cursor before writes. Ordinary actor removal/events remain intact. No foreign disembarkation, rescue/capture completion or participant recovery is claimed by the first owned loop."
+        - "[ai] First authorable reference is a finite battery-only engineless carried pod on the existing ordinary entity path, with accepted passenger berths. Existing probes retain zero berths and their current lifecycle. Human/Backfill continuation, blocked/recall/loss/capacity malformed no-write cases, Workshop editing and fresh 360-step complete capture/digest evidence accompany the real consumer; broader craft and personnel exits remain open."
+        - "[ai] First-loop permitted knowledge is conservative: exact local officer/team/escort facts and actual locally stored own-pod manifests through an explicit Bay feed. Deployed, foreign-carried and remotely Lost officers are indistinguishable in live controls and ordinary AI inputs; retained actual departure history is not refreshed into current remote condition/loss. Prove paired hidden-state variants yield identical permitted projections. Later dated Comms telemetry is a separate consumer, never an implicit global-roster read."
+
+
+  - decision: redesign-personnel-explicit-holder-and-reference
+    core:
+      status: accepted
+      confidence: confirmed
+      origin: ai
+      title: Stable Personnel References and Actual Holders Precede Foreign Rescue
+      summary: "First structurally replace implicit origin-local references with a typed PersonRef(origin actor UUID, officer ID) and explicit actual holder on on-ship compartment/team custody. Keep the one retained roster and equivalent own posting, care and carried-pod journeys before enabling a foreign rescue consumer."
+      rationale:
+        - "[ai] Origin identity, immutable accepted definition and current physical holder are distinct. PersonRef refers into the existing origin/officer map and never mints a new person, second roster, index authority or duplicated location. Requests, actual transfer work and controls carry the typed stable reference. Actual compartment/team custody names its actor; escort custody continues to reference the same actual actor/team/Job/cursor, and craft custody continues to name the actual craft/berth."
+        - "[ai] The structural migration must preserve existing own-ship posting, physical treatment, expertise, escort, recall/retarget, loss and full continuation outcomes. Commands still enter the same System admission and ordinary per-System AI. Do not enable guessed foreign work while only the reference migration exists. Convert authored fixtures, projections, Workshop-supported references, capture/digest/restore and strict malformed no-write guards together; unsupported old payloads require an explicit compatibility refusal."
+        - "[ai] Current physical holder controls ordinary loss consequences; destroying the origin must not kill people aboard another actual holder. Removing a real holder resolves only its actual occupants. No protected wreck, copy, reroll or teleport. Original-ship expertise and manning cannot follow a departed person merely because their retained origin row still exists."
+        - "[ai] Permitted knowledge follows actual local custody and explicit feeds. A receiving Console can learn the actual manifest or aboard people through its current-custody feed; the origin Console cannot infer remote survivor condition, receiving location or loss from the global roster. Retained dated departure facts remain historical. Paired hidden remote variants must remain indistinguishable to the origin's individual System AI and controls."
+        - "[ai] After the structural migration is verified, the next bounded real consumer may escort a named survivor from an actually recovered stored pod into an accepted finite receiving compartment on that carrier, using the same exclusive finite team, Job and interior cursor. Receiving capacity and committed claims derive from actual capacities/custody/jobs; recovery, intent or destination selection alone never changes passenger custody or completes a rescue. Foreign disembarkation must be delivered with real authoring, ordinary Human/AI operation and complete continuation evidence before any rescue/capture/away-mission completion claim."
+
+
+  - decision: redesign-occupied-craft-negotiated-bay-reception
+    core:
+      status: accepted
+      confidence: confirmed
+      origin: ai
+      title: Accepted Bay Reception Retains Actual Occupied Craft
+      summary: "The first physical receiving-facility consumer accepts a specific craft through ordinary Comms, then recovers that actual deployed entity through the receiving Bay's ordinary admitted controller. Personnel remain AboardCraft in their original finite berths and the single retained roster; foreign compartment disembarkation is separate."
+      rationale:
+        - "[ai] Append the closed ReceiveCraft request with a bounded proposed craft identity to the existing generic Comms model. Human or ordinary Comms AI reads and accepts/declines using its existing recipient-local progress and paid radio. A claimed UUID is information, never proof of ownership, physical pose or receiver machinery authority. Existing MediaCall and FormUp retain their supported independent semantics; ReportStatus-only planner guards remain strict until a real receiving operator is adopted."
+        - "[ai] Bay knowledge requires an explicit Comms feed. Its derived accepted-reception rows retain the exact immutable original Comms request reference and actual decision tick; machinery target resolution additionally requires that receiver's current earned Broad alias through its existing sensor feed. Missing/stale knowledge yields no actionable handle. Co-hosted tabs, global roster access and a received request do not manufacture that observation. Sender choices use existing permitted own stored-craft knowledge."
+        - "[ai] Comms acceptance never emits machinery control. A Human Bay operator separately selects the exact accepted request and actual current contact through normal RecoverCraft admission. Its optional reception binding must still match the current permitted accepted request before any Job claim or mint. An ordinary installed Bay state tree consumes the same accepted facts, emits the existing recover channel and uses the same admitted command boundary. The receiving reference facility authors accepted-target recovery rather than arbitrary contact selection; no additional controller, queue or reservation registry is introduced."
+        - "[ai] One existing Bay Job retains its actual owner, ID, immutable reception order and paid work. Normal range, parent speed/fixed pose, Operation, fitting/access, finite occupied/reserved space, competing claims, energy, loss and cancellation guards remain authoritative. The original request and accepted lineage survive local dismissal and source/origin loss. New consent or a changed request cannot retarget an already committed Job; generic recovery without an explicit binding cannot silently claim a negotiated reception."
+        - "[ai] Only the physical commit that successfully changes the same craft to Carried(receiver, Bay) and completes that same Bay Job may record a receipt. The typed receipt contains the exact original accepted order and decision tick, actual ActivityJob(receiver UUID, Bay SystemId, JobId), actual craft identity, handoff tick and sorted unique stable PersonRefs acquired aboard that craft. Historical receipt facts never become a second manifest, location owner or current remote condition feed. Paid Job execution, actual physical handoff/completion and later returned-radio receipt clocks remain distinct; Bay work gains no invented team-home phase."
+        - "[ai] Store the actual order/receipt with existing Bay work and complete the same recipient's existing request facts only after that committed handoff. Return the dated physical receipt using the ordinary paid Comms outcome path. Existing CommunicationReturned can carry this first genuine result; do not add an unused Activity kind, planner primitive or generated evacuation template. Any later mission binding must validate the actual nested physical scope and original order lineage, rather than infer success from current Carried state or an authored flag."
+        - "[ai] Preserve one accepted population and actual craft identity across recovery and origin loss. Actual receiver destruction removes its actually stored craft and resolves its real occupants through ordinary destruction/custody hooks; occupancy gives no invulnerability. Exact local manifest information uses the actual current-custody Bay projection, while origin Systems remain ignorant of hidden remote survival/condition until an ordinary dated Comms report genuinely arrives. No foreign-room, medical/posting bonus or captured-vessel-control outcome is implied."
+        - "[ai] Deliver one ordinary equipped fixed facility with a finite paid Bay, dedicated compartment/access and explicit sensor/Comms knowledge feeds. Extend existing Workshop accepted editing/history/validation/Preview/Test for the supported data and tree facts. Prove Human Comms/Bay independence, ordinary AI, request/alias and finite-capacity guards, positive paid work, duplicate/stale no-write refusal, source/origin/receiver loss and full fresh-JSON continuation. Source implementation and quiet owner proofs remain separate from network/device, full reception, Patrol, capture and increment19/20/21 exits."

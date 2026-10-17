@@ -1,0 +1,1526 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Four optimisation candidates — 17 October 2026</title><style>:root{font-family:system-ui,sans-serif;color:#e7edf5;background:#0b1422;line-height:1.55}body{max-width:1180px;margin:auto;padding:36px 24px}h1{font-size:2rem;line-height:1.2}h2{margin-top:2rem}p{max-width:90ch}.lead{font-size:1.2rem;color:#d4e7ff}.muted{color:#9fb1c9;overflow-wrap:anywhere;font-size:.84rem}.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px}article{border:1px solid #33465f;background:#111f32;border-radius:10px;padding:18px}h3{margin-top:0}.decision{font-weight:700;color:#f5d99d}table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}th,td{text-align:left;padding:12px;border-bottom:1px solid #33465f}th{background:#15263b}td:nth-child(n+3){white-space:nowrap;text-align:right}.table-wrap{overflow:auto}details{margin-top:25px}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.8rem;color:#b8c9df}a{color:#9fcfff}code{overflow-wrap:anywhere}footer{margin:36px 0;color:#9fb1c9}</style><p class="muted">Baseline update: the achieved publication-buffer values were <a href="performance-baseline-2026-10-17.html">adopted as the new local reference on 17 October 2026</a>. Historical old-speed recovery is deferred for now; this report retains its original measurements.</p><h1>Four optimisation candidates</h1><p class="muted">17 October 2026 · Headless performance · Frozen B7 control</p><p class="lead">Merged retired publication buffers only. Combat improves with a small Skyway regression; the other three candidates remain unmerged.</p><div class="cards"><article><h3>Selector borrowing</h3><p class="decision">hold-unmerged</p><p>Qualified whole-process repeats show small/mixed differences across paired rounds and worlds; no repeatable performance benefit established.</p><p class="muted">888dd77cf19ceb2270dafe0c58859c7029cf8015</p><p>Isolated owner tests: 20 passed.</p></article><article><h3>Compact AiFacts keys</h3><p class="decision">hold-unmerged</p><p>Two fully qualified paired matrices show small, mixed effects; Combat whole-process medians are slower in both and Falling Skyway improvements are small and shrink on repeat. No reliable useful gain established.</p><p class="muted">caa3e74fc034050a1e55522ebe8502eeec6d377a</p><p>Isolated owner tests: 83 passed.</p></article><article><h3>Navigation input borrowing</h3><p class="decision">hold-unmerged</p><p>Two fully qualified matrices do not establish a benefit. Combat phase and whole-process medians are slower in both; the repeat is slower in every Combat pair. Skyway also shows no repeatable useful gain.</p><p class="muted">4a987dcdded6bd88a2a41a0a8ddc2b64e2677771</p><p>Isolated owner tests: 2 passed.</p></article><article><h3>Retired publication buffers</h3><p class="decision">integrated</p><p>Both qualified matrices show repeatable Combat improvements in all six paired phase and whole-process rounds. Accept the bounded raw-buffer pool for that heavier-workload benefit, explicitly retaining the small Skyway regression: phase +0.25/+0.11 percent and whole-process +0.58/+1.06 percent. This is not a universal gain or old-speed recovery.</p><p class="muted">8ccb2e59aeea7d4c49a768712efcb3847a32929a</p><p>Isolated owner tests: 15 passed.</p></article></div><h2>Paired timing results</h2><p>Percentage change from each attempt’s paired control. Negative is faster. Each cell compares medians of three runs. Excluded phase matrices exceeded the unchanged background-CPU limit and do not support an acceptance claim.</p><div class="table-wrap"><table><thead><tr><th>Candidate</th><th>Attempt</th><th>Combat update</th><th>Skyway update</th><th>Combat whole process</th><th>Skyway whole process</th></tr></thead><tbody><tr><td>Selector borrowing</td><td>b8-selector-a</td><td>excluded</td><td>excluded</td><td>-0.66%</td><td>-3.85%</td></tr><tr><td>Selector borrowing</td><td>b8-selector-b</td><td>excluded</td><td>excluded</td><td>-0.29%</td><td>+1.56%</td></tr><tr><td>Compact AiFacts keys</td><td>b8-facts-a</td><td>-0.14%</td><td>-0.74%</td><td>+0.38%</td><td>-0.65%</td></tr><tr><td>Compact AiFacts keys</td><td>b8-facts-b</td><td>+0.70%</td><td>-0.05%</td><td>+0.32%</td><td>-0.20%</td></tr><tr><td>Navigation input borrowing</td><td>b8-navigation-a</td><td>+0.53%</td><td>+0.42%</td><td>+0.43%</td><td>-0.11%</td></tr><tr><td>Navigation input borrowing</td><td>b8-navigation-b</td><td>+0.88%</td><td>+0.41%</td><td>+0.84%</td><td>+1.73%</td></tr><tr><td>Retired publication buffers</td><td>b8-publication-a</td><td>-3.14%</td><td>+0.25%</td><td>-2.43%</td><td>+0.58%</td></tr><tr><td>Retired publication buffers</td><td>b8-publication-b</td><td>-3.43%</td><td>+0.11%</td><td>-2.93%</td><td>+1.06%</td></tr></tbody></table></div><h2>Correctness and scope</h2><p>456 selected owner tests passed for the four-candidate combination, including 17 new comparison tests. Individual tests and gameplay/digest checks are attached to each decision. Gameplay-report comparisons omit only three elapsed-latency quantiles.</p><p>Each timing attempt uses a Cruiser on all Backfill, seed 42 and 60 simulated seconds in Combat Test and Falling Skyway. Builds use the normal optimised measure profile. Phase captures retain 3,301 update samples per run; separate whole-process runs measure elapsed execution without phase instrumentation.</p><p>These results do not establish full repository CI, browser/device acceptance, a complete mission save/resume replay or recovery of the historical old speed. The frozen source trees, build receipts and local capture evidence are retained. Timings compare isolated candidates with B7; concurrent CI fixes and the complete integrated main tree were not reprofiled here.</p><details><summary>Source, methods and full evidence ledger</summary><pre>{
+  &quot;schemaVersion&quot;: 1,
+  &quot;date&quot;: &quot;2026-10-17&quot;,
+  &quot;generatedUtc&quot;: &quot;2026-10-17T02:28:29.774Z&quot;,
+  &quot;status&quot;: &quot;complete-publication-integrated&quot;,
+  &quot;integration&quot;: {
+    &quot;selectedCandidate&quot;: &quot;publication&quot;,
+    &quot;selectedCommit&quot;: &quot;e4e61c5877adf9a05d2c690ea46ed706365718c7&quot;,
+    &quot;mainHeadAtVerification&quot;: &quot;e4e61c5877adf9a05d2c690ea46ed706365718c7&quot;,
+    &quot;mainContainsSelectedCommit&quot;: true,
+    &quot;measuredRevision&quot;: &quot;8ccb2e59aeea7d4c49a768712efcb3847a32929a&quot;,
+    &quot;sourceProof&quot;: {
+      &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-selected-source-proof.json&quot;,
+      &quot;sha256&quot;: &quot;001d50ae6f5fb913754f7ab3feb9ed437a983438e01f577164c40921a458a405&quot;,
+      &quot;definition&quot;: {
+        &quot;measuredRevision&quot;: &quot;8ccb2e59aeea7d4c49a768712efcb3847a32929a&quot;,
+        &quot;selectedCommit&quot;: &quot;e4e61c5877adf9a05d2c690ea46ed706365718c7&quot;,
+        &quot;files&quot;: [
+          {
+            &quot;path&quot;: &quot;crates/phoenix-simulation/src/ship/console_publication.rs&quot;,
+            &quot;measuredSha256&quot;: &quot;07a2d616d553ccc75f69d6a56e415e4e67312de80ebb68af391cc5cfa7228b4e&quot;,
+            &quot;selectedSha256&quot;: &quot;07a2d616d553ccc75f69d6a56e415e4e67312de80ebb68af391cc5cfa7228b4e&quot;,
+            &quot;byteIdentical&quot;: true,
+            &quot;normalization&quot;: null
+          },
+          {
+            &quot;path&quot;: &quot;crates/phoenix-simulation/src/ship/console_publication_buffers.rs&quot;,
+            &quot;measuredSha256&quot;: &quot;6325188fc5028ea1d0f8ad776b2703990c1154dc7984f7ee347a3d1ea3574ff8&quot;,
+            &quot;selectedSha256&quot;: &quot;6325188fc5028ea1d0f8ad776b2703990c1154dc7984f7ee347a3d1ea3574ff8&quot;,
+            &quot;byteIdentical&quot;: true,
+            &quot;normalization&quot;: null
+          },
+          {
+            &quot;path&quot;: &quot;crates/phoenix-simulation/src/ship/console_publication_buffer_tests.rs&quot;,
+            &quot;measuredSha256&quot;: &quot;9760a8b21c41078583ed4a88809cbcd9adb7f3eaacf336749b432509c2195673&quot;,
+            &quot;selectedSha256&quot;: &quot;9760a8b21c41078583ed4a88809cbcd9adb7f3eaacf336749b432509c2195673&quot;,
+            &quot;byteIdentical&quot;: true,
+            &quot;normalization&quot;: null
+          },
+          {
+            &quot;path&quot;: &quot;crates/phoenix-simulation/src/ship/console_publication_reference.rs&quot;,
+            &quot;measuredSha256&quot;: &quot;550b09f2bf4a0c6436e950350af90cb75dc6786ae9ae1255acc30c62ba5d6952&quot;,
+            &quot;selectedSha256&quot;: &quot;b420800432826006cfba62e3e827bd793160be02713ae110adf2345b0efbe6b5&quot;,
+            &quot;byteIdentical&quot;: false,
+            &quot;normalization&quot;: &quot;Remove one final newline from cfg(test) reference helper only&quot;
+          }
+        ],
+        &quot;borrowScopeJoin&quot;: &quot;The measured resource_scope implementation subsumes ee1b8f22 lexical cleanup and releases the cache borrow before SimOutbox access.&quot;,
+        &quot;runtimeFilesByteIdentical&quot;: true,
+        &quot;generatedUtc&quot;: &quot;2026-10-17T02:27:01.882Z&quot;
+      }
+    },
+    &quot;runtimeFilesByteIdenticalToMeasured&quot;: true,
+    &quot;testReferenceDifference&quot;: &quot;One trailing test-only newline removed for rustfmt&quot;,
+    &quot;otherCandidatesMerged&quot;: [],
+    &quot;pushPerformedByThisTask&quot;: false,
+    &quot;fullIntegratedGateOwner&quot;: &quot;Separate $fix-ci chat; full gate success is not claimed by this candidate report&quot;,
+    &quot;timingsScope&quot;: &quot;Isolated candidate versus frozen B7, not a reprofile of concurrent CI fixes or full main&quot;,
+    &quot;verifiedUtc&quot;: &quot;2026-10-17T02:28:29.676Z&quot;
+  },
+  &quot;pushPerformed&quot;: false,
+  &quot;scope&quot;: &quot;Only the four pending performance candidates. Existing networking, cadence, content, balance and knowledge limits are preserved.&quot;,
+  &quot;control&quot;: {
+    &quot;revision&quot;: &quot;eaed7c9f0ba6734592bb1f4efb554a9aee5de465&quot;,
+    &quot;runtimeSourceSha256&quot;: &quot;30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697&quot;,
+    &quot;binarySha256&quot;: &quot;eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1&quot;
+  },
+  &quot;method&quot;: {
+    &quot;ship&quot;: &quot;Cruiser&quot;,
+    &quot;worlds&quot;: [
+      &quot;combat_test&quot;,
+      &quot;falling_skyway&quot;
+    ],
+    &quot;seed&quot;: 42,
+    &quot;simulatedSeconds&quot;: 60,
+    &quot;crew&quot;: &quot;all Backfill&quot;,
+    &quot;roundsPerAttemptAndMode&quot;: 3,
+    &quot;order&quot;: &quot;Alternating control/candidate pairs&quot;,
+    &quot;phase&quot;: &quot;Mean update milliseconds per run; discard first 300 of 3601 samples, retain 3301; report median of three run means&quot;,
+    &quot;wholeProcess&quot;: &quot;Process wall seconds, median of three runs; captures without phase instrumentation&quot;,
+    &quot;validity&quot;: &quot;All six runs per role/mode complete; no compiler; original background CPU &lt;=1 core cap; pinned binary/source/content proofs; full gameplay-report equivalence excluding only three wall-clock latency quantiles; phase final-digest equality&quot;,
+    &quot;decision&quot;: &quot;Manual review of qualified evidence and repeatability. Negative percentage means faster. No noisy-run omissions, no acceptance threshold changes.&quot;,
+    &quot;build&quot;: &quot;Normal measure profile: opt3, thin LTO,16 codegen units; same profile for every candidate and control&quot;
+  },
+  &quot;correctness&quot;: {
+    &quot;combinedEvidence&quot;: {
+      &quot;path&quot;: &quot;.phoenix/perf-recovery-batch8-correctness-evidence.json&quot;,
+      &quot;sha256&quot;: &quot;5278ef5e76c534acaee6c38186438c455a38fa9a773575d224a7900a2f29c524&quot;
+    },
+    &quot;totalCombinedOwnerPassed&quot;: 456,
+    &quot;newComparisonTests&quot;: 17,
+    &quot;scope&quot;: &quot;Selected Model/Contracts/Gameplay/Simulation owner tests, including all four candidates together. Individual owner tests are recorded separately per candidate.&quot;
+  },
+  &quot;limitations&quot;: [
+    &quot;Two fixed-seed headless scenarios are not a comprehensive workload suite.&quot;,
+    &quot;Phase final digests are not a full mission save/resume replay.&quot;,
+    &quot;Browser/native-device acceptance and full repository gates are not established by these owner tests.&quot;,
+    &quot;Old-speed recovery is not established by these candidate comparisons.&quot;,
+    &quot;Timings measure isolated candidates against frozen B7. Concurrent CI fixes and the complete integrated main tree were not reprofiled in this report.&quot;
+  ],
+  &quot;candidates&quot;: [
+    {
+      &quot;key&quot;: &quot;selector&quot;,
+      &quot;name&quot;: &quot;Selector borrowing&quot;,
+      &quot;decisionEvidence&quot;: {
+        &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-selector-decision.json&quot;,
+        &quot;sha256&quot;: &quot;33aad4bdd6fcea3301b5d8293875df1d29c695cd3df869c620ffb3dbf80e81c8&quot;
+      },
+      &quot;candidate&quot;: &quot;Selector borrowing&quot;,
+      &quot;sourceRevision&quot;: &quot;888dd77cf19ceb2270dafe0c58859c7029cf8015&quot;,
+      &quot;decision&quot;: &quot;hold-unmerged&quot;,
+      &quot;reason&quot;: &quot;Qualified whole-process repeats show small/mixed differences across paired rounds and worlds; no repeatable performance benefit established.&quot;,
+      &quot;correctness&quot;: {
+        &quot;isolatedOwnerPassed&quot;: 20,
+        &quot;combinedOwnerPassed&quot;: 456,
+        &quot;newCandidateTests&quot;: 4,
+        &quot;aarComparisonsPassed&quot;: 48,
+        &quot;phaseFinalDigestComparisonsPassed&quot;: 24
+      },
+      &quot;scope&quot;: &quot;Headless Cruiser, combat_test and falling_skyway, seed42,60simulatedseconds; allBackfill. Phase timing matrices remain ineligible where background CPU exceeds original1corecap. No claim of full save/resume, browser or complete CI validation.&quot;,
+      &quot;attempts&quot;: [
+        {
+          &quot;stage&quot;: &quot;b8-selector-a&quot;,
+          &quot;evidence&quot;: {
+            &quot;control-phase&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-selector-a-control-phase/summary.json&quot;,
+              &quot;sha256&quot;: &quot;df5b296ff542a835442e8c85aef3f14eb5e2997e1b657b163da9effe5490bf06&quot;,
+              &quot;valid&quot;: false,
+              &quot;problems&quot;: [
+                &quot;Background CPU not quiet&quot;,
+                &quot;Background CPU not quiet&quot;,
+                &quot;Background CPU not quiet&quot;
+              ]
+            },
+            &quot;phase&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-selector-a-phase/summary.json&quot;,
+              &quot;sha256&quot;: &quot;d2473532247685f7a9504475c66a4ea6c517697eee919aa5e2d8b0ada31ca165&quot;,
+              &quot;valid&quot;: false,
+              &quot;problems&quot;: [
+                &quot;Background CPU not quiet&quot;,
+                &quot;Background CPU not quiet&quot;,
+                &quot;Background CPU not quiet&quot;
+              ]
+            },
+            &quot;control-bare&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-selector-a-control-bare/summary.json&quot;,
+              &quot;sha256&quot;: &quot;7724dd11f7f3a0cc4402791e7f03599dd43c2c8f184c82954e9a4601cce10913&quot;,
+              &quot;valid&quot;: true,
+              &quot;problems&quot;: []
+            },
+            &quot;bare&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-selector-a-bare/summary.json&quot;,
+              &quot;sha256&quot;: &quot;176e725571f30eca4ecb288c5a938e3533661ecdfb8eee003daed01d252db129&quot;,
+              &quot;valid&quot;: true,
+              &quot;problems&quot;: []
+            }
+          },
+          &quot;wholeProcess&quot;: {
+            &quot;combat_test&quot;: {
+              &quot;controlSeconds&quot;: 12.985235,
+              &quot;candidateSeconds&quot;: 12.8994059,
+              &quot;medianDeltaPercent&quot;: -0.6609745607222384,
+              &quot;rounds&quot;: [
+                {
+                  &quot;round&quot;: 0,
+                  &quot;controlSeconds&quot;: 12.985235,
+                  &quot;candidateSeconds&quot;: 12.8994059,
+                  &quot;deltaPercent&quot;: -0.6609745607222384
+                },
+                {
+                  &quot;round&quot;: 1,
+                  &quot;controlSeconds&quot;: 13.0921211,
+                  &quot;candidateSeconds&quot;: 12.524652,
+                  &quot;deltaPercent&quot;: -4.334432103595498
+                },
+                {
+                  &quot;round&quot;: 2,
+                  &quot;controlSeconds&quot;: 12.5890449,
+                  &quot;candidateSeconds&quot;: 12.9883958,
+                  &quot;deltaPercent&quot;: 3.1722096725542714
+                }
+              ]
+            },
+            &quot;falling_skyway&quot;: {
+              &quot;controlSeconds&quot;: 9.6889095,
+              &quot;candidateSeconds&quot;: 9.3158504,
+              &quot;medianDeltaPercent&quot;: -3.8503724283935004,
+              &quot;rounds&quot;: [
+                {
+                  &quot;round&quot;: 0,
+                  &quot;controlSeconds&quot;: 10.7903822,
+                  &quot;candidateSeconds&quot;: 9.2586238,
+                  &quot;deltaPercent&quot;: -14.195589846669188
+                },
+                {
+                  &quot;round&quot;: 1,
+                  &quot;controlSeconds&quot;: 9.6889095,
+                  &quot;candidateSeconds&quot;: 9.3158504,
+                  &quot;deltaPercent&quot;: -3.8503724283935004
+                },
+                {
+                  &quot;round&quot;: 2,
+                  &quot;controlSeconds&quot;: 9.5899521,
+                  &quot;candidateSeconds&quot;: 9.51253,
+                  &quot;deltaPercent&quot;: -0.807325200300002
+                }
+              ]
+            }
+          }
+        },
+        {
+          &quot;stage&quot;: &quot;b8-selector-b&quot;,
+          &quot;evidence&quot;: {
+            &quot;control-phase&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-selector-b-control-phase/summary.json&quot;,
+              &quot;sha256&quot;: &quot;5b30cd0aa3ce0b5e30663ea730ad0fba8bac86a7e2602f13db208706ee869bbd&quot;,
+              &quot;valid&quot;: false,
+              &quot;problems&quot;: [
+                &quot;Background CPU not quiet&quot;,
+                &quot;Background CPU not quiet&quot;,
+                &quot;Background CPU not quiet&quot;
+              ]
+            },
+            &quot;phase&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-selector-b-phase/summary.json&quot;,
+              &quot;sha256&quot;: &quot;9314487a07592acc9a17addc03500fde275055c7d0c53b60cb333dfbb6499b39&quot;,
+              &quot;valid&quot;: true,
+              &quot;problems&quot;: []
+            },
+            &quot;control-bare&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-selector-b-control-bare/summary.json&quot;,
+              &quot;sha256&quot;: &quot;54dfbe62779368f8fd1eb83efe88ff91c515da2c544c932e19a39b758058e071&quot;,
+              &quot;valid&quot;: true,
+              &quot;problems&quot;: []
+            },
+            &quot;bare&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-selector-b-bare/summary.json&quot;,
+              &quot;sha256&quot;: &quot;e553836d951648fd279862ad5ac1f0bcdcd9b134b1398bfeccb28bcdcbfcbe35&quot;,
+              &quot;valid&quot;: true,
+              &quot;problems&quot;: []
+            }
+          },
+          &quot;wholeProcess&quot;: {
+            &quot;combat_test&quot;: {
+              &quot;controlSeconds&quot;: 12.6020922,
+              &quot;candidateSeconds&quot;: 12.5655446,
+              &quot;medianDeltaPercent&quot;: -0.29001216163137,
+              &quot;rounds&quot;: [
+                {
+                  &quot;round&quot;: 0,
+                  &quot;controlSeconds&quot;: 12.9334359,
+                  &quot;candidateSeconds&quot;: 12.8444089,
+                  &quot;deltaPercent&quot;: -0.6883476339029082
+                },
+                {
+                  &quot;round&quot;: 1,
+                  &quot;controlSeconds&quot;: 12.514454,
+                  &quot;candidateSeconds&quot;: 12.4688198,
+                  &quot;deltaPercent&quot;: -0.3646519456621977
+                },
+                {
+                  &quot;round&quot;: 2,
+                  &quot;controlSeconds&quot;: 12.6020922,
+                  &quot;candidateSeconds&quot;: 12.5655446,
+                  &quot;deltaPercent&quot;: -0.29001216163137
+                }
+              ]
+            },
+            &quot;falling_skyway&quot;: {
+              &quot;controlSeconds&quot;: 9.2230964,
+              &quot;candidateSeconds&quot;: 9.3667662,
+              &quot;medianDeltaPercent&quot;: 1.5577176445862762,
+              &quot;rounds&quot;: [
+                {
+                  &quot;round&quot;: 0,
+                  &quot;controlSeconds&quot;: 9.2230964,
+                  &quot;candidateSeconds&quot;: 9.4190346,
+                  &quot;deltaPercent&quot;: 2.1244297088773845
+                },
+                {
+                  &quot;round&quot;: 1,
+                  &quot;controlSeconds&quot;: 9.1983152,
+                  &quot;candidateSeconds&quot;: 9.3215192,
+                  &quot;deltaPercent&quot;: 1.339419201464187
+                },
+                {
+                  &quot;round&quot;: 2,
+                  &quot;controlSeconds&quot;: 9.3460986,
+                  &quot;candidateSeconds&quot;: 9.3667662,
+                  &quot;deltaPercent&quot;: 0.22113612197500743
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      &quot;key&quot;: &quot;facts&quot;,
+      &quot;name&quot;: &quot;Compact AiFacts keys&quot;,
+      &quot;decisionEvidence&quot;: {
+        &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-facts-decision.json&quot;,
+        &quot;sha256&quot;: &quot;6abedc4348c9192e7aeead8c0750b773ae408c2ea9222386f02bdbd6408aaed6&quot;
+      },
+      &quot;candidate&quot;: &quot;facts&quot;,
+      &quot;decision&quot;: &quot;hold-unmerged&quot;,
+      &quot;reason&quot;: &quot;Two fully qualified paired matrices show small, mixed effects; Combat whole-process medians are slower in both and Falling Skyway improvements are small and shrink on repeat. No reliable useful gain established.&quot;,
+      &quot;sourceRevision&quot;: &quot;caa3e74fc034050a1e55522ebe8502eeec6d377a&quot;,
+      &quot;runtimeSourceSha256&quot;: &quot;9b352705f3a963e64a063afaae46d36e96c10471924e91a3b2b1d3a5c5aaf075&quot;,
+      &quot;binarySha256&quot;: &quot;68664d5e54397e4a9648aa9d37369d9a7087ce0bcf53e6a29e2aede49b3fe9a3&quot;,
+      &quot;correctness&quot;: {
+        &quot;isolatedOwnerPassed&quot;: 83,
+        &quot;log&quot;: &quot;.phoenix/perf-recovery-b8-facts-a-owner-tests.log&quot;,
+        &quot;logSha256&quot;: &quot;cc3b6188412626a8bc0027ab3ddb8a466cfda974b231a4279565c460f76e5fd5&quot;,
+        &quot;combinedOwnerEvidence&quot;: &quot;.phoenix/perf-recovery-batch8-correctness-evidence.json&quot;,
+        &quot;combinedOwnerEvidenceSha256&quot;: &quot;5278ef5e76c534acaee6c38186438c455a38fa9a773575d224a7900a2f29c524&quot;
+      },
+      &quot;scope&quot;: &quot;Headless Cruiser; combat_test and falling_skyway; seed42; 60 simulated seconds; all Backfill. No claim of browser acceptance, full CI or full save/resume replay.&quot;,
+      &quot;attempts&quot;: [
+        {
+          &quot;stage&quot;: &quot;b8-facts-a&quot;,
+          &quot;evidence&quot;: {
+            &quot;control-phase&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-facts-a-control-phase/summary.json&quot;,
+              &quot;sha256&quot;: &quot;fd81e8abee259a3d158d20f44e3c9c16c3a6a4fe6e8b12b9296b4cca9a3e95ed&quot;,
+              &quot;valid&quot;: true,
+              &quot;acceptanceEligible&quot;: true,
+              &quot;problems&quot;: [],
+              &quot;runs&quot;: 6,
+              &quot;source&quot;: {
+                &quot;sourceRevision&quot;: &quot;eaed7c9f0ba6734592bb1f4efb554a9aee5de465&quot;,
+                &quot;runtimeSourceSha256&quot;: &quot;30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697&quot;,
+                &quot;runtimeSourceClean&quot;: true,
+                &quot;repositoryDirty&quot;: false,
+                &quot;exampleSha256&quot;: &quot;191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c&quot;
+              },
+              &quot;binarySha256&quot;: &quot;eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1&quot;
+            },
+            &quot;phase&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-facts-a-phase/summary.json&quot;,
+              &quot;sha256&quot;: &quot;e82cd012042aaa146e42c84227fc9f8a35f9cdfec4c779fc54b2767a75303df1&quot;,
+              &quot;valid&quot;: true,
+              &quot;acceptanceEligible&quot;: true,
+              &quot;problems&quot;: [],
+              &quot;runs&quot;: 6,
+              &quot;source&quot;: {
+                &quot;sourceRevision&quot;: &quot;caa3e74fc034050a1e55522ebe8502eeec6d377a&quot;,
+                &quot;runtimeSourceSha256&quot;: &quot;9b352705f3a963e64a063afaae46d36e96c10471924e91a3b2b1d3a5c5aaf075&quot;,
+                &quot;runtimeSourceClean&quot;: true,
+                &quot;repositoryDirty&quot;: false,
+                &quot;exampleSha256&quot;: &quot;191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c&quot;
+              },
+              &quot;binarySha256&quot;: &quot;68664d5e54397e4a9648aa9d37369d9a7087ce0bcf53e6a29e2aede49b3fe9a3&quot;
+            },
+            &quot;control-bare&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-facts-a-control-bare/summary.json&quot;,
+              &quot;sha256&quot;: &quot;abfa934d3e62515e649e5e7c70a75b3f125c4de2014fb07a151eb82bd00cdbdb&quot;,
+              &quot;valid&quot;: true,
+              &quot;acceptanceEligible&quot;: true,
+              &quot;problems&quot;: [],
+              &quot;runs&quot;: 6,
+              &quot;source&quot;: {
+                &quot;sourceRevision&quot;: &quot;eaed7c9f0ba6734592bb1f4efb554a9aee5de465&quot;,
+                &quot;runtimeSourceSha256&quot;: &quot;30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697&quot;,
+                &quot;runtimeSourceClean&quot;: true,
+                &quot;repositoryDirty&quot;: false,
+                &quot;exampleSha256&quot;: &quot;191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c&quot;
+              },
+              &quot;binarySha256&quot;: &quot;eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1&quot;
+            },
+            &quot;bare&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-facts-a-bare/summary.json&quot;,
+              &quot;sha256&quot;: &quot;ac08c3697352d76d9d1240894b57457ea221cea90a6b920e54149eec3c8f86e4&quot;,
+              &quot;valid&quot;: true,
+              &quot;acceptanceEligible&quot;: true,
+              &quot;problems&quot;: [],
+              &quot;runs&quot;: 6,
+              &quot;source&quot;: {
+                &quot;sourceRevision&quot;: &quot;caa3e74fc034050a1e55522ebe8502eeec6d377a&quot;,
+                &quot;runtimeSourceSha256&quot;: &quot;9b352705f3a963e64a063afaae46d36e96c10471924e91a3b2b1d3a5c5aaf075&quot;,
+                &quot;runtimeSourceClean&quot;: true,
+                &quot;repositoryDirty&quot;: false,
+                &quot;exampleSha256&quot;: &quot;191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c&quot;
+              },
+              &quot;binarySha256&quot;: &quot;68664d5e54397e4a9648aa9d37369d9a7087ce0bcf53e6a29e2aede49b3fe9a3&quot;
+            }
+          },
+          &quot;qualified&quot;: true,
+          &quot;comparison&quot;: {
+            &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-facts-a-comparison.json&quot;,
+            &quot;sha256&quot;: &quot;e2c209e68f1894153c7a35dd681b3d5fe7a42accc3f41c96c296ae886d62d791&quot;
+          },
+          &quot;worlds&quot;: {
+            &quot;combat_test&quot;: {
+              &quot;phase&quot;: {
+                &quot;metric&quot;: &quot;update.mean&quot;,
+                &quot;control&quot;: 3.5819059073008184,
+                &quot;candidate&quot;: 3.577021054225994,
+                &quot;deltaPercent&quot;: -0.13637580665833982,
+                &quot;pairedMedianDeltaPercent&quot;: 0.5250911304734318,
+                &quot;rounds&quot;: [
+                  {
+                    &quot;round&quot;: 0,
+                    &quot;control&quot;: 3.6276252650711855,
+                    &quot;candidate&quot;: 3.5632164192668907,
+                    &quot;deltaPercent&quot;: -1.7755099024273413
+                  },
+                  {
+                    &quot;round&quot;: 1,
+                    &quot;control&quot;: 3.5819059073008184,
+                    &quot;candidate&quot;: 3.600714177521959,
+                    &quot;deltaPercent&quot;: 0.5250911304734318
+                  },
+                  {
+                    &quot;round&quot;: 2,
+                    &quot;control&quot;: 3.5540124507724884,
+                    &quot;candidate&quot;: 3.577021054225994,
+                    &quot;deltaPercent&quot;: 0.6473979416843356
+                  }
+                ],
+                &quot;allPairedRoundsFaster&quot;: false
+              },
+              &quot;bare&quot;: {
+                &quot;metric&quot;: &quot;processWallSeconds&quot;,
+                &quot;control&quot;: 12.3748649,
+                &quot;candidate&quot;: 12.4223766,
+                &quot;deltaPercent&quot;: 0.3839371208004039,
+                &quot;pairedMedianDeltaPercent&quot;: -0.00029172035648228345,
+                &quot;rounds&quot;: [
+                  {
+                    &quot;round&quot;: 0,
+                    &quot;control&quot;: 12.6148743,
+                    &quot;candidate&quot;: 12.5002301,
+                    &quot;deltaPercent&quot;: -0.908801762693745
+                  },
+                  {
+                    &quot;round&quot;: 1,
+                    &quot;control&quot;: 12.3748649,
+                    &quot;candidate&quot;: 12.3748288,
+                    &quot;deltaPercent&quot;: -0.00029172035648228345
+                  },
+                  {
+                    &quot;round&quot;: 2,
+                    &quot;control&quot;: 12.3314356,
+                    &quot;candidate&quot;: 12.4223766,
+                    &quot;deltaPercent&quot;: 0.7374729346192099
+                  }
+                ],
+                &quot;allPairedRoundsFaster&quot;: false
+              }
+            },
+            &quot;falling_skyway&quot;: {
+              &quot;phase&quot;: {
+                &quot;metric&quot;: &quot;update.mean&quot;,
+                &quot;control&quot;: 2.537867797637079,
+                &quot;candidate&quot;: 2.5192127840048517,
+                &quot;deltaPercent&quot;: -0.7350664069104118,
+                &quot;pairedMedianDeltaPercent&quot;: -0.5212884481047064,
+                &quot;rounds&quot;: [
+                  {
+                    &quot;round&quot;: 0,
+                    &quot;control&quot;: 2.539417661314752,
+                    &quot;candidate&quot;: 2.5127626476825218,
+                    &quot;deltaPercent&quot;: -1.0496506359820357
+                  },
+                  {
+                    &quot;round&quot;: 1,
+                    &quot;control&quot;: 2.532413965465011,
+                    &quot;candidate&quot;: 2.5192127840048517,
+                    &quot;deltaPercent&quot;: -0.5212884481047064
+                  },
+                  {
+                    &quot;round&quot;: 2,
+                    &quot;control&quot;: 2.537867797637079,
+                    &quot;candidate&quot;: 2.564094789457741,
+                    &quot;deltaPercent&quot;: 1.033426242496982
+                  }
+                ],
+                &quot;allPairedRoundsFaster&quot;: false
+              },
+              &quot;bare&quot;: {
+                &quot;metric&quot;: &quot;processWallSeconds&quot;,
+                &quot;control&quot;: 9.2505182,
+                &quot;candidate&quot;: 9.1904266,
+                &quot;deltaPercent&quot;: -0.6496025271319428,
+                &quot;pairedMedianDeltaPercent&quot;: -1.6774650610133057,
+                &quot;rounds&quot;: [
+                  {
+                    &quot;round&quot;: 0,
+                    &quot;control&quot;: 9.1995245,
+                    &quot;candidate&quot;: 9.2098579,
+                    &quot;deltaPercent&quot;: 0.1123253707297378
+                  },
+                  {
+                    &quot;round&quot;: 1,
+                    &quot;control&quot;: 9.347223,
+                    &quot;candidate&quot;: 9.1904266,
+                    &quot;deltaPercent&quot;: -1.6774650610133057
+                  },
+                  {
+                    &quot;round&quot;: 2,
+                    &quot;control&quot;: 9.2505182,
+                    &quot;candidate&quot;: 9.0900662,
+                    &quot;deltaPercent&quot;: -1.7345190456465431
+                  }
+                ],
+                &quot;allPairedRoundsFaster&quot;: false
+              }
+            }
+          }
+        },
+        {
+          &quot;stage&quot;: &quot;b8-facts-b&quot;,
+          &quot;evidence&quot;: {
+            &quot;control-phase&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-facts-b-control-phase/summary.json&quot;,
+              &quot;sha256&quot;: &quot;b845bf5227aa7aa850cdee4469297e4b3c17c70b72df377e8fc1fa9c432136e6&quot;,
+              &quot;valid&quot;: true,
+              &quot;acceptanceEligible&quot;: true,
+              &quot;problems&quot;: [],
+              &quot;runs&quot;: 6,
+              &quot;source&quot;: {
+                &quot;sourceRevision&quot;: &quot;eaed7c9f0ba6734592bb1f4efb554a9aee5de465&quot;,
+                &quot;runtimeSourceSha256&quot;: &quot;30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697&quot;,
+                &quot;runtimeSourceClean&quot;: true,
+                &quot;repositoryDirty&quot;: false,
+                &quot;exampleSha256&quot;: &quot;191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c&quot;
+              },
+              &quot;binarySha256&quot;: &quot;eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1&quot;
+            },
+            &quot;phase&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-facts-b-phase/summary.json&quot;,
+              &quot;sha256&quot;: &quot;6e1b5f057aacee3a36fc13c5c35d0050536118980d1c5e0fdc6dc0a8656d9525&quot;,
+              &quot;valid&quot;: true,
+              &quot;acceptanceEligible&quot;: true,
+              &quot;problems&quot;: [],
+              &quot;runs&quot;: 6,
+              &quot;source&quot;: {
+                &quot;sourceRevision&quot;: &quot;caa3e74fc034050a1e55522ebe8502eeec6d377a&quot;,
+                &quot;runtimeSourceSha256&quot;: &quot;9b352705f3a963e64a063afaae46d36e96c10471924e91a3b2b1d3a5c5aaf075&quot;,
+                &quot;runtimeSourceClean&quot;: true,
+                &quot;repositoryDirty&quot;: false,
+                &quot;exampleSha256&quot;: &quot;191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c&quot;
+              },
+              &quot;binarySha256&quot;: &quot;68664d5e54397e4a9648aa9d37369d9a7087ce0bcf53e6a29e2aede49b3fe9a3&quot;
+            },
+            &quot;control-bare&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-facts-b-control-bare/summary.json&quot;,
+              &quot;sha256&quot;: &quot;a7a38dba33e4c0a1cd21f282e7881fb234cbe93b237a44dc05cab65bdced329d&quot;,
+              &quot;valid&quot;: true,
+              &quot;acceptanceEligible&quot;: true,
+              &quot;problems&quot;: [],
+              &quot;runs&quot;: 6,
+              &quot;source&quot;: {
+                &quot;sourceRevision&quot;: &quot;eaed7c9f0ba6734592bb1f4efb554a9aee5de465&quot;,
+                &quot;runtimeSourceSha256&quot;: &quot;30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697&quot;,
+                &quot;runtimeSourceClean&quot;: true,
+                &quot;repositoryDirty&quot;: false,
+                &quot;exampleSha256&quot;: &quot;191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c&quot;
+              },
+              &quot;binarySha256&quot;: &quot;eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1&quot;
+            },
+            &quot;bare&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-facts-b-bare/summary.json&quot;,
+              &quot;sha256&quot;: &quot;10b28fcce75ced0a9122818756a99ffd064f135594927c62baf00a8751485dd3&quot;,
+              &quot;valid&quot;: true,
+              &quot;acceptanceEligible&quot;: true,
+              &quot;problems&quot;: [],
+              &quot;runs&quot;: 6,
+              &quot;source&quot;: {
+                &quot;sourceRevision&quot;: &quot;caa3e74fc034050a1e55522ebe8502eeec6d377a&quot;,
+                &quot;runtimeSourceSha256&quot;: &quot;9b352705f3a963e64a063afaae46d36e96c10471924e91a3b2b1d3a5c5aaf075&quot;,
+                &quot;runtimeSourceClean&quot;: true,
+                &quot;repositoryDirty&quot;: false,
+                &quot;exampleSha256&quot;: &quot;191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c&quot;
+              },
+              &quot;binarySha256&quot;: &quot;68664d5e54397e4a9648aa9d37369d9a7087ce0bcf53e6a29e2aede49b3fe9a3&quot;
+            }
+          },
+          &quot;qualified&quot;: true,
+          &quot;comparison&quot;: {
+            &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-facts-b-comparison.json&quot;,
+            &quot;sha256&quot;: &quot;3d768bbd5b7cde34f2f30b675ecc70f119c0cb2e8d2e79ab827516b94cecea9d&quot;
+          },
+          &quot;worlds&quot;: {
+            &quot;combat_test&quot;: {
+              &quot;phase&quot;: {
+                &quot;metric&quot;: &quot;update.mean&quot;,
+                &quot;control&quot;: 3.5372887609815145,
+                &quot;candidate&quot;: 3.562147743108156,
+                &quot;deltaPercent&quot;: 0.7027693752585717,
+                &quot;pairedMedianDeltaPercent&quot;: 1.1563289672914312,
+                &quot;rounds&quot;: [
+                  {
+                    &quot;round&quot;: 0,
+                    &quot;control&quot;: 3.5214284459254794,
+                    &quot;candidate&quot;: 3.562147743108156,
+                    &quot;deltaPercent&quot;: 1.1563289672914312
+                  },
+                  {
+                    &quot;round&quot;: 1,
+                    &quot;control&quot;: 3.5372887609815145,
+                    &quot;candidate&quot;: 3.5845760072705284,
+                    &quot;deltaPercent&quot;: 1.3368217718220166
+                  },
+                  {
+                    &quot;round&quot;: 2,
+                    &quot;control&quot;: 3.585450045440774,
+                    &quot;candidate&quot;: 3.5130793698879113,
+                    &quot;deltaPercent&quot;: -2.0184544376762092
+                  }
+                ],
+                &quot;allPairedRoundsFaster&quot;: false
+              },
+              &quot;bare&quot;: {
+                &quot;metric&quot;: &quot;processWallSeconds&quot;,
+                &quot;control&quot;: 12.4307721,
+                &quot;candidate&quot;: 12.4708068,
+                &quot;deltaPercent&quot;: 0.3220612499202691,
+                &quot;pairedMedianDeltaPercent&quot;: 0.22052312323235235,
+                &quot;rounds&quot;: [
+                  {
+                    &quot;round&quot;: 0,
+                    &quot;control&quot;: 12.4433663,
+                    &quot;candidate&quot;: 12.4708068,
+                    &quot;deltaPercent&quot;: 0.22052312323235235
+                  },
+                  {
+                    &quot;round&quot;: 1,
+                    &quot;control&quot;: 12.4103186,
+                    &quot;candidate&quot;: 12.5558173,
+                    &quot;deltaPercent&quot;: 1.1724010050797595
+                  },
+                  {
+                    &quot;round&quot;: 2,
+                    &quot;control&quot;: 12.4307721,
+                    &quot;candidate&quot;: 12.3200805,
+                    &quot;deltaPercent&quot;: -0.8904643984262273
+                  }
+                ],
+                &quot;allPairedRoundsFaster&quot;: false
+              }
+            },
+            &quot;falling_skyway&quot;: {
+              &quot;phase&quot;: {
+                &quot;metric&quot;: &quot;update.mean&quot;,
+                &quot;control&quot;: 2.505006482883977,
+                &quot;candidate&quot;: 2.5036803392911273,
+                &quot;deltaPercent&quot;: -0.052939726979184254,
+                &quot;pairedMedianDeltaPercent&quot;: -0.054428668870942776,
+                &quot;rounds&quot;: [
+                  {
+                    &quot;round&quot;: 0,
+                    &quot;control&quot;: 2.4924638594365383,
+                    &quot;candidate&quot;: 2.4752538624659257,
+                    &quot;deltaPercent&quot;: -0.6904813044913416
+                  },
+                  {
+                    &quot;round&quot;: 1,
+                    &quot;control&quot;: 2.505006482883977,
+                    &quot;candidate&quot;: 2.5036803392911273,
+                    &quot;deltaPercent&quot;: -0.052939726979184254
+                  },
+                  {
+                    &quot;round&quot;: 2,
+                    &quot;control&quot;: 2.5230836110269586,
+                    &quot;candidate&quot;: 2.5217103302029757,
+                    &quot;deltaPercent&quot;: -0.054428668870942776
+                  }
+                ],
+                &quot;allPairedRoundsFaster&quot;: true
+              },
+              &quot;bare&quot;: {
+                &quot;metric&quot;: &quot;processWallSeconds&quot;,
+                &quot;control&quot;: 9.1988968,
+                &quot;candidate&quot;: 9.1801784,
+                &quot;deltaPercent&quot;: -0.20348527010325412,
+                &quot;pairedMedianDeltaPercent&quot;: -0.2947438626090815,
+                &quot;rounds&quot;: [
+                  {
+                    &quot;round&quot;: 0,
+                    &quot;control&quot;: 9.2073164,
+                    &quot;candidate&quot;: 9.1801784,
+                    &quot;deltaPercent&quot;: -0.2947438626090815
+                  },
+                  {
+                    &quot;round&quot;: 1,
+                    &quot;control&quot;: 9.1988968,
+                    &quot;candidate&quot;: 9.2030225,
+                    &quot;deltaPercent&quot;: 0.04484994331059866
+                  },
+                  {
+                    &quot;round&quot;: 2,
+                    &quot;control&quot;: 9.1805269,
+                    &quot;candidate&quot;: 9.0962928,
+                    &quot;deltaPercent&quot;: -0.9175301256401758
+                  }
+                ],
+                &quot;allPairedRoundsFaster&quot;: false
+              }
+            }
+          }
+        }
+      ],
+      &quot;generatedUtc&quot;: &quot;2026-10-17T00:57:36.255Z&quot;
+    },
+    {
+      &quot;key&quot;: &quot;navigation&quot;,
+      &quot;name&quot;: &quot;Navigation input borrowing&quot;,
+      &quot;decisionEvidence&quot;: {
+        &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-navigation-decision.json&quot;,
+        &quot;sha256&quot;: &quot;0ea1aa3ed2b8593ff2e3de81da991926fc1d51ff593a05d6d9378c0bed5f15dd&quot;
+      },
+      &quot;candidate&quot;: &quot;navigation&quot;,
+      &quot;decision&quot;: &quot;hold-unmerged&quot;,
+      &quot;reason&quot;: &quot;Two fully qualified matrices do not establish a benefit. Combat phase and whole-process medians are slower in both; the repeat is slower in every Combat pair. Skyway also shows no repeatable useful gain.&quot;,
+      &quot;sourceRevision&quot;: &quot;4a987dcdded6bd88a2a41a0a8ddc2b64e2677771&quot;,
+      &quot;runtimeSourceSha256&quot;: &quot;f577529c15311c7b2242c28cf23a9f34a99696743460ce7c474f1b9767017879&quot;,
+      &quot;binarySha256&quot;: &quot;bbf4a38b53bd40734786c8b466357737d575a2d2c09ad620857dee4c575a7ce0&quot;,
+      &quot;correctness&quot;: {
+        &quot;isolatedOwnerPassed&quot;: 2,
+        &quot;log&quot;: &quot;.phoenix/perf-recovery-b8-navigation-a-owner-tests.log&quot;,
+        &quot;logSha256&quot;: &quot;340fb3e0ac293f46c52022e8cffd3c8809698e239a4db623237c539e425cabae&quot;,
+        &quot;combinedOwnerEvidence&quot;: &quot;.phoenix/perf-recovery-batch8-correctness-evidence.json&quot;,
+        &quot;combinedOwnerEvidenceSha256&quot;: &quot;5278ef5e76c534acaee6c38186438c455a38fa9a773575d224a7900a2f29c524&quot;
+      },
+      &quot;scope&quot;: &quot;Headless Cruiser; combat_test and falling_skyway; seed42; 60 simulated seconds; all Backfill. No claim of browser acceptance, full CI or full save/resume replay.&quot;,
+      &quot;attempts&quot;: [
+        {
+          &quot;stage&quot;: &quot;b8-navigation-a&quot;,
+          &quot;evidence&quot;: {
+            &quot;control-phase&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-navigation-a-control-phase/summary.json&quot;,
+              &quot;sha256&quot;: &quot;0ac28dc9687523c9ff6b5c3a7e5517504d2141f25b6287ad3d311ac4100b533c&quot;,
+              &quot;valid&quot;: true,
+              &quot;acceptanceEligible&quot;: true,
+              &quot;problems&quot;: [],
+              &quot;runs&quot;: 6,
+              &quot;source&quot;: {
+                &quot;sourceRevision&quot;: &quot;eaed7c9f0ba6734592bb1f4efb554a9aee5de465&quot;,
+                &quot;runtimeSourceSha256&quot;: &quot;30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697&quot;,
+                &quot;runtimeSourceClean&quot;: true,
+                &quot;repositoryDirty&quot;: false,
+                &quot;exampleSha256&quot;: &quot;191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c&quot;
+              },
+              &quot;binarySha256&quot;: &quot;eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1&quot;
+            },
+            &quot;phase&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-navigation-a-phase/summary.json&quot;,
+              &quot;sha256&quot;: &quot;d612b1a1d215afb157ed10484ff6cbb0b35608c521100fb2e5554beffbc8820a&quot;,
+              &quot;valid&quot;: true,
+              &quot;acceptanceEligible&quot;: true,
+              &quot;problems&quot;: [],
+              &quot;runs&quot;: 6,
+              &quot;source&quot;: {
+                &quot;sourceRevision&quot;: &quot;4a987dcdded6bd88a2a41a0a8ddc2b64e2677771&quot;,
+                &quot;runtimeSourceSha256&quot;: &quot;f577529c15311c7b2242c28cf23a9f34a99696743460ce7c474f1b9767017879&quot;,
+                &quot;runtimeSourceClean&quot;: true,
+                &quot;repositoryDirty&quot;: false,
+                &quot;exampleSha256&quot;: &quot;191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c&quot;
+              },
+              &quot;binarySha256&quot;: &quot;bbf4a38b53bd40734786c8b466357737d575a2d2c09ad620857dee4c575a7ce0&quot;
+            },
+            &quot;control-bare&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-navigation-a-control-bare/summary.json&quot;,
+              &quot;sha256&quot;: &quot;0557fc9295d322cad14bc92b6b1e46ba491365ca4db7ef0824fa6b7697d0dd41&quot;,
+              &quot;valid&quot;: true,
+              &quot;acceptanceEligible&quot;: true,
+              &quot;problems&quot;: [],
+              &quot;runs&quot;: 6,
+              &quot;source&quot;: {
+                &quot;sourceRevision&quot;: &quot;eaed7c9f0ba6734592bb1f4efb554a9aee5de465&quot;,
+                &quot;runtimeSourceSha256&quot;: &quot;30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697&quot;,
+                &quot;runtimeSourceClean&quot;: true,
+                &quot;repositoryDirty&quot;: false,
+                &quot;exampleSha256&quot;: &quot;191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c&quot;
+              },
+              &quot;binarySha256&quot;: &quot;eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1&quot;
+            },
+            &quot;bare&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-navigation-a-bare/summary.json&quot;,
+              &quot;sha256&quot;: &quot;c38b057bd8e340e6a317541dbc0c38674e71cc1e3fe96ea60f70ca699e6f4bcc&quot;,
+              &quot;valid&quot;: true,
+              &quot;acceptanceEligible&quot;: true,
+              &quot;problems&quot;: [],
+              &quot;runs&quot;: 6,
+              &quot;source&quot;: {
+                &quot;sourceRevision&quot;: &quot;4a987dcdded6bd88a2a41a0a8ddc2b64e2677771&quot;,
+                &quot;runtimeSourceSha256&quot;: &quot;f577529c15311c7b2242c28cf23a9f34a99696743460ce7c474f1b9767017879&quot;,
+                &quot;runtimeSourceClean&quot;: true,
+                &quot;repositoryDirty&quot;: false,
+                &quot;exampleSha256&quot;: &quot;191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c&quot;
+              },
+              &quot;binarySha256&quot;: &quot;bbf4a38b53bd40734786c8b466357737d575a2d2c09ad620857dee4c575a7ce0&quot;
+            }
+          },
+          &quot;qualified&quot;: true,
+          &quot;comparison&quot;: {
+            &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-navigation-a-comparison.json&quot;,
+            &quot;sha256&quot;: &quot;d0cb6ea328b3b9b515022b29931fe924347d642f371ebb8577fcdb857fd67671&quot;
+          },
+          &quot;worlds&quot;: {
+            &quot;combat_test&quot;: {
+              &quot;phase&quot;: {
+                &quot;metric&quot;: &quot;update.mean&quot;,
+                &quot;control&quot;: 3.5179221448046003,
+                &quot;candidate&quot;: 3.536612056952435,
+                &quot;deltaPercent&quot;: 0.5312770259977784,
+                &quot;pairedMedianDeltaPercent&quot;: 0.5312770259977784,
+                &quot;rounds&quot;: [
+                  {
+                    &quot;round&quot;: 0,
+                    &quot;control&quot;: 3.5179221448046003,
+                    &quot;candidate&quot;: 3.536612056952435,
+                    &quot;deltaPercent&quot;: 0.5312770259977784
+                  },
+                  {
+                    &quot;round&quot;: 1,
+                    &quot;control&quot;: 3.4631907906694974,
+                    &quot;candidate&quot;: 3.506524719781879,
+                    &quot;deltaPercent&quot;: 1.2512717817664498
+                  },
+                  {
+                    &quot;round&quot;: 2,
+                    &quot;control&quot;: 3.6754594062405412,
+                    &quot;candidate&quot;: 3.570770463495915,
+                    &quot;deltaPercent&quot;: -2.848322649595192
+                  }
+                ],
+                &quot;allPairedRoundsFaster&quot;: false
+              },
+              &quot;bare&quot;: {
+                &quot;metric&quot;: &quot;processWallSeconds&quot;,
+                &quot;control&quot;: 12.3613518,
+                &quot;candidate&quot;: 12.4140261,
+                &quot;deltaPercent&quot;: 0.42612087134352716,
+                &quot;pairedMedianDeltaPercent&quot;: -0.2992205108182322,
+                &quot;rounds&quot;: [
+                  {
+                    &quot;round&quot;: 0,
+                    &quot;control&quot;: 12.3506383,
+                    &quot;candidate&quot;: 12.4628708,
+                    &quot;deltaPercent&quot;: 0.9087182158026508
+                  },
+                  {
+                    &quot;round&quot;: 1,
+                    &quot;control&quot;: 12.3613518,
+                    &quot;candidate&quot;: 12.3243641,
+                    &quot;deltaPercent&quot;: -0.2992205108182322
+                  },
+                  {
+                    &quot;round&quot;: 2,
+                    &quot;control&quot;: 12.5685762,
+                    &quot;candidate&quot;: 12.4140261,
+                    &quot;deltaPercent&quot;: -1.2296547957437065
+                  }
+                ],
+                &quot;allPairedRoundsFaster&quot;: false
+              }
+            },
+            &quot;falling_skyway&quot;: {
+              &quot;phase&quot;: {
+                &quot;metric&quot;: &quot;update.mean&quot;,
+                &quot;control&quot;: 2.4967392608300534,
+                &quot;candidate&quot;: 2.507268767040291,
+                &quot;deltaPercent&quot;: 0.421730309425139,
+                &quot;pairedMedianDeltaPercent&quot;: 0.12354314223788077,
+                &quot;rounds&quot;: [
+                  {
+                    &quot;round&quot;: 0,
+                    &quot;control&quot;: 2.511818570130264,
+                    &quot;candidate&quot;: 2.507268767040291,
+                    &quot;deltaPercent&quot;: -0.1811358170561328
+                  },
+                  {
+                    &quot;round&quot;: 1,
+                    &quot;control&quot;: 2.4967392608300534,
+                    &quot;candidate&quot;: 2.4998238109663697,
+                    &quot;deltaPercent&quot;: 0.12354314223788077
+                  },
+                  {
+                    &quot;round&quot;: 2,
+                    &quot;control&quot;: 2.4919028173280817,
+                    &quot;candidate&quot;: 2.5342442290215077,
+                    &quot;deltaPercent&quot;: 1.6991598307523947
+                  }
+                ],
+                &quot;allPairedRoundsFaster&quot;: false
+              },
+              &quot;bare&quot;: {
+                &quot;metric&quot;: &quot;processWallSeconds&quot;,
+                &quot;control&quot;: 9.1836401,
+                &quot;candidate&quot;: 9.173808,
+                &quot;deltaPercent&quot;: -0.10706103345666795,
+                &quot;pairedMedianDeltaPercent&quot;: 0.40224681714171595,
+                &quot;rounds&quot;: [
+                  {
+                    &quot;round&quot;: 0,
+                    &quot;control&quot;: 9.2048984,
+                    &quot;candidate&quot;: 9.1441385,
+                    &quot;deltaPercent&quot;: -0.660082244905591
+                  },
+                  {
+                    &quot;round&quot;: 1,
+                    &quot;control&quot;: 9.1836401,
+                    &quot;candidate&quot;: 9.220581,
+                    &quot;deltaPercent&quot;: 0.40224681714171595
+                  },
+                  {
+                    &quot;round&quot;: 2,
+                    &quot;control&quot;: 9.1103222,
+                    &quot;candidate&quot;: 9.173808,
+                    &quot;deltaPercent&quot;: 0.6968557050594626
+                  }
+                ],
+                &quot;allPairedRoundsFaster&quot;: false
+              }
+            }
+          }
+        },
+        {
+          &quot;stage&quot;: &quot;b8-navigation-b&quot;,
+          &quot;evidence&quot;: {
+            &quot;control-phase&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-navigation-b-control-phase/summary.json&quot;,
+              &quot;sha256&quot;: &quot;d1b3d00b9b8d0084a7e73074a88f8df515978798d012de242bd28e3abd2faa2b&quot;,
+              &quot;valid&quot;: true,
+              &quot;acceptanceEligible&quot;: true,
+              &quot;problems&quot;: [],
+              &quot;runs&quot;: 6,
+              &quot;source&quot;: {
+                &quot;sourceRevision&quot;: &quot;eaed7c9f0ba6734592bb1f4efb554a9aee5de465&quot;,
+                &quot;runtimeSourceSha256&quot;: &quot;30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697&quot;,
+                &quot;runtimeSourceClean&quot;: true,
+                &quot;repositoryDirty&quot;: false,
+                &quot;exampleSha256&quot;: &quot;191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c&quot;
+              },
+              &quot;binarySha256&quot;: &quot;eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1&quot;
+            },
+            &quot;phase&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-navigation-b-phase/summary.json&quot;,
+              &quot;sha256&quot;: &quot;d2953bc03e56660e511f339edf3a30d2637b5975d96eb5f66c1af807a9ceae84&quot;,
+              &quot;valid&quot;: true,
+              &quot;acceptanceEligible&quot;: true,
+              &quot;problems&quot;: [],
+              &quot;runs&quot;: 6,
+              &quot;source&quot;: {
+                &quot;sourceRevision&quot;: &quot;4a987dcdded6bd88a2a41a0a8ddc2b64e2677771&quot;,
+                &quot;runtimeSourceSha256&quot;: &quot;f577529c15311c7b2242c28cf23a9f34a99696743460ce7c474f1b9767017879&quot;,
+                &quot;runtimeSourceClean&quot;: true,
+                &quot;repositoryDirty&quot;: false,
+                &quot;exampleSha256&quot;: &quot;191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c&quot;
+              },
+              &quot;binarySha256&quot;: &quot;bbf4a38b53bd40734786c8b466357737d575a2d2c09ad620857dee4c575a7ce0&quot;
+            },
+            &quot;control-bare&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-navigation-b-control-bare/summary.json&quot;,
+              &quot;sha256&quot;: &quot;6113ce1d3e8009d518ffb9cefcf0bae166afd732de9c6fcf963e871a94a6aee0&quot;,
+              &quot;valid&quot;: true,
+              &quot;acceptanceEligible&quot;: true,
+              &quot;problems&quot;: [],
+              &quot;runs&quot;: 6,
+              &quot;source&quot;: {
+                &quot;sourceRevision&quot;: &quot;eaed7c9f0ba6734592bb1f4efb554a9aee5de465&quot;,
+                &quot;runtimeSourceSha256&quot;: &quot;30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697&quot;,
+                &quot;runtimeSourceClean&quot;: true,
+                &quot;repositoryDirty&quot;: false,
+                &quot;exampleSha256&quot;: &quot;191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c&quot;
+              },
+              &quot;binarySha256&quot;: &quot;eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1&quot;
+            },
+            &quot;bare&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-navigation-b-bare/summary.json&quot;,
+              &quot;sha256&quot;: &quot;5bfe3e734a42d6dd0901509ee9fc48ae594b3cccace89841f7271a958c3c8568&quot;,
+              &quot;valid&quot;: true,
+              &quot;acceptanceEligible&quot;: true,
+              &quot;problems&quot;: [],
+              &quot;runs&quot;: 6,
+              &quot;source&quot;: {
+                &quot;sourceRevision&quot;: &quot;4a987dcdded6bd88a2a41a0a8ddc2b64e2677771&quot;,
+                &quot;runtimeSourceSha256&quot;: &quot;f577529c15311c7b2242c28cf23a9f34a99696743460ce7c474f1b9767017879&quot;,
+                &quot;runtimeSourceClean&quot;: true,
+                &quot;repositoryDirty&quot;: false,
+                &quot;exampleSha256&quot;: &quot;191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c&quot;
+              },
+              &quot;binarySha256&quot;: &quot;bbf4a38b53bd40734786c8b466357737d575a2d2c09ad620857dee4c575a7ce0&quot;
+            }
+          },
+          &quot;qualified&quot;: true,
+          &quot;comparison&quot;: {
+            &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-navigation-b-comparison.json&quot;,
+            &quot;sha256&quot;: &quot;ed6382ec967d4016bfb099798ec5174e699d77a4539488662ef7f815964acdd9&quot;
+          },
+          &quot;worlds&quot;: {
+            &quot;combat_test&quot;: {
+              &quot;phase&quot;: {
+                &quot;metric&quot;: &quot;update.mean&quot;,
+                &quot;control&quot;: 3.5353732808239973,
+                &quot;candidate&quot;: 3.566546925174187,
+                &quot;deltaPercent&quot;: 0.8817638725527654,
+                &quot;pairedMedianDeltaPercent&quot;: 1.0125936152749704,
+                &quot;rounds&quot;: [
+                  {
+                    &quot;round&quot;: 0,
+                    &quot;control&quot;: 3.5353732808239973,
+                    &quot;candidate&quot;: 3.5456396849439575,
+                    &quot;deltaPercent&quot;: 0.29039095180261043
+                  },
+                  {
+                    &quot;round&quot;: 1,
+                    &quot;control&quot;: 3.5796691002726555,
+                    &quot;candidate&quot;: 3.615916601029987,
+                    &quot;deltaPercent&quot;: 1.0125936152749704
+                  },
+                  {
+                    &quot;round&quot;: 2,
+                    &quot;control&quot;: 3.5216835201454106,
+                    &quot;candidate&quot;: 3.566546925174187,
+                    &quot;deltaPercent&quot;: 1.2739192710571556
+                  }
+                ],
+                &quot;allPairedRoundsFaster&quot;: false
+              },
+              &quot;bare&quot;: {
+                &quot;metric&quot;: &quot;processWallSeconds&quot;,
+                &quot;control&quot;: 12.3536576,
+                &quot;candidate&quot;: 12.4576465,
+                &quot;deltaPercent&quot;: 0.8417660855356557,
+                &quot;pairedMedianDeltaPercent&quot;: 0.8417660855356557,
+                &quot;rounds&quot;: [
+                  {
+                    &quot;round&quot;: 0,
+                    &quot;control&quot;: 12.3765792,
+                    &quot;candidate&quot;: 12.4650052,
+                    &quot;deltaPercent&quot;: 0.7144623612960865
+                  },
+                  {
+                    &quot;round&quot;: 1,
+                    &quot;control&quot;: 12.3536576,
+                    &quot;candidate&quot;: 12.4576465,
+                    &quot;deltaPercent&quot;: 0.8417660855356557
+                  },
+                  {
+                    &quot;round&quot;: 2,
+                    &quot;control&quot;: 12.222508,
+                    &quot;candidate&quot;: 12.4351546,
+                    &quot;deltaPercent&quot;: 1.7397951386082244
+                  }
+                ],
+                &quot;allPairedRoundsFaster&quot;: false
+              }
+            },
+            &quot;falling_skyway&quot;: {
+              &quot;phase&quot;: {
+                &quot;metric&quot;: &quot;update.mean&quot;,
+                &quot;control&quot;: 2.499423720084824,
+                &quot;candidate&quot;: 2.509739412299304,
+                &quot;deltaPercent&quot;: 0.412722826129297,
+                &quot;pairedMedianDeltaPercent&quot;: 0.20375786628190617,
+                &quot;rounds&quot;: [
+                  {
+                    &quot;round&quot;: 0,
+                    &quot;control&quot;: 2.4922206301120875,
+                    &quot;candidate&quot;: 2.5201927597697664,
+                    &quot;deltaPercent&quot;: 1.1223777429537174
+                  },
+                  {
+                    &quot;round&quot;: 1,
+                    &quot;control&quot;: 2.504636019388071,
+                    &quot;candidate&quot;: 2.509739412299304,
+                    &quot;deltaPercent&quot;: 0.20375786628190617
+                  },
+                  {
+                    &quot;round&quot;: 2,
+                    &quot;control&quot;: 2.499423720084824,
+                    &quot;candidate&quot;: 2.498285186307181,
+                    &quot;deltaPercent&quot;: -0.04555185135253215
+                  }
+                ],
+                &quot;allPairedRoundsFaster&quot;: false
+              },
+              &quot;bare&quot;: {
+                &quot;metric&quot;: &quot;processWallSeconds&quot;,
+                &quot;control&quot;: 9.0827114,
+                &quot;candidate&quot;: 9.2399811,
+                &quot;deltaPercent&quot;: 1.7315280985367387,
+                &quot;pairedMedianDeltaPercent&quot;: 0.7611912897878659,
+                &quot;rounds&quot;: [
+                  {
+                    &quot;round&quot;: 0,
+                    &quot;control&quot;: 9.0585759,
+                    &quot;candidate&quot;: 9.2600537,
+                    &quot;deltaPercent&quot;: 2.224166383592374
+                  },
+                  {
+                    &quot;round&quot;: 1,
+                    &quot;control&quot;: 9.1701785,
+                    &quot;candidate&quot;: 9.2399811,
+                    &quot;deltaPercent&quot;: 0.7611912897878659
+                  },
+                  {
+                    &quot;round&quot;: 2,
+                    &quot;control&quot;: 9.0827114,
+                    &quot;candidate&quot;: 9.0287196,
+                    &quot;deltaPercent&quot;: -0.5944458391576757
+                  }
+                ],
+                &quot;allPairedRoundsFaster&quot;: false
+              }
+            }
+          }
+        }
+      ],
+      &quot;generatedUtc&quot;: &quot;2026-10-17T02:22:52.548Z&quot;
+    },
+    {
+      &quot;key&quot;: &quot;publication&quot;,
+      &quot;name&quot;: &quot;Retired publication buffers&quot;,
+      &quot;decisionEvidence&quot;: {
+        &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-publication-decision.json&quot;,
+        &quot;sha256&quot;: &quot;c6506bc619e7160213910ffedee78589016e68ff04aabc715fe3dcbeb8c8f021&quot;
+      },
+      &quot;candidate&quot;: &quot;publication&quot;,
+      &quot;decision&quot;: &quot;accept-for-integration&quot;,
+      &quot;reason&quot;: &quot;Both qualified matrices show repeatable Combat improvements in all six paired phase and whole-process rounds. Accept the bounded raw-buffer pool for that heavier-workload benefit, explicitly retaining the small Skyway regression: phase +0.25/+0.11 percent and whole-process +0.58/+1.06 percent. This is not a universal gain or old-speed recovery.&quot;,
+      &quot;sourceRevision&quot;: &quot;8ccb2e59aeea7d4c49a768712efcb3847a32929a&quot;,
+      &quot;runtimeSourceSha256&quot;: &quot;d16bee728fb30622d3b50fc4df259422a9881d57e409adfa951eb857fa8fc9e5&quot;,
+      &quot;binarySha256&quot;: &quot;110db6c76526ad7b59c9834eb252a2fac8597dbac0932a17594d8a055ee9fa01&quot;,
+      &quot;correctness&quot;: {
+        &quot;isolatedOwnerPassed&quot;: 15,
+        &quot;log&quot;: &quot;.phoenix/perf-recovery-b8-publication-a-owner-tests.log&quot;,
+        &quot;logSha256&quot;: &quot;0557a358df9796f8b541b7d885e6a12cc00e359d5e8271e780a5591460a883a8&quot;,
+        &quot;combinedOwnerEvidence&quot;: &quot;.phoenix/perf-recovery-batch8-correctness-evidence.json&quot;,
+        &quot;combinedOwnerEvidenceSha256&quot;: &quot;5278ef5e76c534acaee6c38186438c455a38fa9a773575d224a7900a2f29c524&quot;
+      },
+      &quot;scope&quot;: &quot;Headless Cruiser; combat_test and falling_skyway; seed42; 60 simulated seconds; all Backfill. No claim of browser acceptance, full CI or full save/resume replay.&quot;,
+      &quot;attempts&quot;: [
+        {
+          &quot;stage&quot;: &quot;b8-publication-a&quot;,
+          &quot;evidence&quot;: {
+            &quot;control-phase&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-publication-a-control-phase/summary.json&quot;,
+              &quot;sha256&quot;: &quot;38c2cb612655b0ae3c19eadc048f2886fff6af01490266fc96274d73a6f31a0d&quot;,
+              &quot;valid&quot;: true,
+              &quot;acceptanceEligible&quot;: true,
+              &quot;problems&quot;: [],
+              &quot;runs&quot;: 6,
+              &quot;source&quot;: {
+                &quot;sourceRevision&quot;: &quot;eaed7c9f0ba6734592bb1f4efb554a9aee5de465&quot;,
+                &quot;runtimeSourceSha256&quot;: &quot;30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697&quot;,
+                &quot;runtimeSourceClean&quot;: true,
+                &quot;repositoryDirty&quot;: false,
+                &quot;exampleSha256&quot;: &quot;191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c&quot;
+              },
+              &quot;binarySha256&quot;: &quot;eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1&quot;
+            },
+            &quot;phase&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-publication-a-phase/summary.json&quot;,
+              &quot;sha256&quot;: &quot;e5f2b6e14d62301fdde31c0ffaf0a62ac91822c15c80a633121f6a12b387b51d&quot;,
+              &quot;valid&quot;: true,
+              &quot;acceptanceEligible&quot;: true,
+              &quot;problems&quot;: [],
+              &quot;runs&quot;: 6,
+              &quot;source&quot;: {
+                &quot;sourceRevision&quot;: &quot;8ccb2e59aeea7d4c49a768712efcb3847a32929a&quot;,
+                &quot;runtimeSourceSha256&quot;: &quot;d16bee728fb30622d3b50fc4df259422a9881d57e409adfa951eb857fa8fc9e5&quot;,
+                &quot;runtimeSourceClean&quot;: true,
+                &quot;repositoryDirty&quot;: false,
+                &quot;exampleSha256&quot;: &quot;191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c&quot;
+              },
+              &quot;binarySha256&quot;: &quot;110db6c76526ad7b59c9834eb252a2fac8597dbac0932a17594d8a055ee9fa01&quot;
+            },
+            &quot;control-bare&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-publication-a-control-bare/summary.json&quot;,
+              &quot;sha256&quot;: &quot;99fc5ee6474afb583e372f55a067ca38483f94038697499821569c7b548d00d0&quot;,
+              &quot;valid&quot;: true,
+              &quot;acceptanceEligible&quot;: true,
+              &quot;problems&quot;: [],
+              &quot;runs&quot;: 6,
+              &quot;source&quot;: {
+                &quot;sourceRevision&quot;: &quot;eaed7c9f0ba6734592bb1f4efb554a9aee5de465&quot;,
+                &quot;runtimeSourceSha256&quot;: &quot;30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697&quot;,
+                &quot;runtimeSourceClean&quot;: true,
+                &quot;repositoryDirty&quot;: false,
+                &quot;exampleSha256&quot;: &quot;191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c&quot;
+              },
+              &quot;binarySha256&quot;: &quot;eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1&quot;
+            },
+            &quot;bare&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-publication-a-bare/summary.json&quot;,
+              &quot;sha256&quot;: &quot;54719ea7be97f56c2ce56b54bcd88fdabe7432083425a01e96793a5bfa9cfe81&quot;,
+              &quot;valid&quot;: true,
+              &quot;acceptanceEligible&quot;: true,
+              &quot;problems&quot;: [],
+              &quot;runs&quot;: 6,
+              &quot;source&quot;: {
+                &quot;sourceRevision&quot;: &quot;8ccb2e59aeea7d4c49a768712efcb3847a32929a&quot;,
+                &quot;runtimeSourceSha256&quot;: &quot;d16bee728fb30622d3b50fc4df259422a9881d57e409adfa951eb857fa8fc9e5&quot;,
+                &quot;runtimeSourceClean&quot;: true,
+                &quot;repositoryDirty&quot;: false,
+                &quot;exampleSha256&quot;: &quot;191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c&quot;
+              },
+              &quot;binarySha256&quot;: &quot;110db6c76526ad7b59c9834eb252a2fac8597dbac0932a17594d8a055ee9fa01&quot;
+            }
+          },
+          &quot;qualified&quot;: true,
+          &quot;comparison&quot;: {
+            &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-publication-a-comparison.json&quot;,
+            &quot;sha256&quot;: &quot;f7e342a7ec277d6db19d43a6dc1c4bc8922c6aab8f6c3f0b5c37eff856c7dd03&quot;
+          },
+          &quot;worlds&quot;: {
+            &quot;combat_test&quot;: {
+              &quot;phase&quot;: {
+                &quot;metric&quot;: &quot;update.mean&quot;,
+                &quot;control&quot;: 3.5478451378370184,
+                &quot;candidate&quot;: 3.4364245380187817,
+                &quot;deltaPercent&quot;: -3.1405147487966634,
+                &quot;pairedMedianDeltaPercent&quot;: -3.1405147487966634,
+                &quot;rounds&quot;: [
+                  {
+                    &quot;round&quot;: 0,
+                    &quot;control&quot;: 3.5478451378370184,
+                    &quot;candidate&quot;: 3.4364245380187817,
+                    &quot;deltaPercent&quot;: -3.1405147487966634
+                  },
+                  {
+                    &quot;round&quot;: 1,
+                    &quot;control&quot;: 3.5315171160254386,
+                    &quot;candidate&quot;: 3.4150417752196285,
+                    &quot;deltaPercent&quot;: -3.2981672459483358
+                  },
+                  {
+                    &quot;round&quot;: 2,
+                    &quot;control&quot;: 3.5499029385034855,
+                    &quot;candidate&quot;: 3.4555240836110377,
+                    &quot;deltaPercent&quot;: -2.658631983110915
+                  }
+                ],
+                &quot;allPairedRoundsFaster&quot;: true
+              },
+              &quot;bare&quot;: {
+                &quot;metric&quot;: &quot;processWallSeconds&quot;,
+                &quot;control&quot;: 12.331317,
+                &quot;candidate&quot;: 12.0314841,
+                &quot;deltaPercent&quot;: -2.4314750808855257,
+                &quot;pairedMedianDeltaPercent&quot;: -2.4314750808855257,
+                &quot;rounds&quot;: [
+                  {
+                    &quot;round&quot;: 0,
+                    &quot;control&quot;: 12.331317,
+                    &quot;candidate&quot;: 12.0314841,
+                    &quot;deltaPercent&quot;: -2.4314750808855257
+                  },
+                  {
+                    &quot;round&quot;: 1,
+                    &quot;control&quot;: 12.3488227,
+                    &quot;candidate&quot;: 12.0068445,
+                    &quot;deltaPercent&quot;: -2.7693182444023523
+                  },
+                  {
+                    &quot;round&quot;: 2,
+                    &quot;control&quot;: 12.3131241,
+                    &quot;candidate&quot;: 12.0317659,
+                    &quot;deltaPercent&quot;: -2.285026916930044
+                  }
+                ],
+                &quot;allPairedRoundsFaster&quot;: true
+              }
+            },
+            &quot;falling_skyway&quot;: {
+              &quot;phase&quot;: {
+                &quot;metric&quot;: &quot;update.mean&quot;,
+                &quot;control&quot;: 2.5038583762496187,
+                &quot;candidate&quot;: 2.510022508330811,
+                &quot;deltaPercent&quot;: 0.2461853329909669,
+                &quot;pairedMedianDeltaPercent&quot;: 0.04058542613023519,
+                &quot;rounds&quot;: [
+                  {
+                    &quot;round&quot;: 0,
+                    &quot;control&quot;: 2.51306573765526,
+                    &quot;candidate&quot;: 2.510022508330811,
+                    &quot;deltaPercent&quot;: -0.12109628804570782
+                  },
+                  {
+                    &quot;round&quot;: 1,
+                    &quot;control&quot;: 2.5026033020296894,
+                    &quot;candidate&quot;: 2.5036189942441673,
+                    &quot;deltaPercent&quot;: 0.04058542613023519
+                  },
+                  {
+                    &quot;round&quot;: 2,
+                    &quot;control&quot;: 2.5038583762496187,
+                    &quot;candidate&quot;: 2.563673311117838,
+                    &quot;deltaPercent&quot;: 2.3889104685630214
+                  }
+                ],
+                &quot;allPairedRoundsFaster&quot;: false
+              },
+              &quot;bare&quot;: {
+                &quot;metric&quot;: &quot;processWallSeconds&quot;,
+                &quot;control&quot;: 9.1532715,
+                &quot;candidate&quot;: 9.2064148,
+                &quot;deltaPercent&quot;: 0.5805935069226109,
+                &quot;pairedMedianDeltaPercent&quot;: 0.5805935069226109,
+                &quot;rounds&quot;: [
+                  {
+                    &quot;round&quot;: 0,
+                    &quot;control&quot;: 9.1564321,
+                    &quot;candidate&quot;: 9.2318084,
+                    &quot;deltaPercent&quot;: 0.8232060171122768
+                  },
+                  {
+                    &quot;round&quot;: 1,
+                    &quot;control&quot;: 9.1532715,
+                    &quot;candidate&quot;: 9.2064148,
+                    &quot;deltaPercent&quot;: 0.5805935069226109
+                  },
+                  {
+                    &quot;round&quot;: 2,
+                    &quot;control&quot;: 9.1025433,
+                    &quot;candidate&quot;: 9.142185,
+                    &quot;deltaPercent&quot;: 0.4355013614711245
+                  }
+                ],
+                &quot;allPairedRoundsFaster&quot;: false
+              }
+            }
+          }
+        },
+        {
+          &quot;stage&quot;: &quot;b8-publication-b&quot;,
+          &quot;evidence&quot;: {
+            &quot;control-phase&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-publication-b-control-phase/summary.json&quot;,
+              &quot;sha256&quot;: &quot;d7fe88d1161ba5771c077387293cd68aefe3c4207aadb3874d740d353c98b6f9&quot;,
+              &quot;valid&quot;: true,
+              &quot;acceptanceEligible&quot;: true,
+              &quot;problems&quot;: [],
+              &quot;runs&quot;: 6,
+              &quot;source&quot;: {
+                &quot;sourceRevision&quot;: &quot;eaed7c9f0ba6734592bb1f4efb554a9aee5de465&quot;,
+                &quot;runtimeSourceSha256&quot;: &quot;30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697&quot;,
+                &quot;runtimeSourceClean&quot;: true,
+                &quot;repositoryDirty&quot;: false,
+                &quot;exampleSha256&quot;: &quot;191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c&quot;
+              },
+              &quot;binarySha256&quot;: &quot;eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1&quot;
+            },
+            &quot;phase&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-publication-b-phase/summary.json&quot;,
+              &quot;sha256&quot;: &quot;f8a16d82320e490c500d22fb6f0a215f5073a0ecd8390802e007d83b9a09f182&quot;,
+              &quot;valid&quot;: true,
+              &quot;acceptanceEligible&quot;: true,
+              &quot;problems&quot;: [],
+              &quot;runs&quot;: 6,
+              &quot;source&quot;: {
+                &quot;sourceRevision&quot;: &quot;8ccb2e59aeea7d4c49a768712efcb3847a32929a&quot;,
+                &quot;runtimeSourceSha256&quot;: &quot;d16bee728fb30622d3b50fc4df259422a9881d57e409adfa951eb857fa8fc9e5&quot;,
+                &quot;runtimeSourceClean&quot;: true,
+                &quot;repositoryDirty&quot;: false,
+                &quot;exampleSha256&quot;: &quot;191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c&quot;
+              },
+              &quot;binarySha256&quot;: &quot;110db6c76526ad7b59c9834eb252a2fac8597dbac0932a17594d8a055ee9fa01&quot;
+            },
+            &quot;control-bare&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-publication-b-control-bare/summary.json&quot;,
+              &quot;sha256&quot;: &quot;5b1bdc7292f6a175b7427dbdd1df0465a4c1984f6ebb9fdc6955edba7f1df700&quot;,
+              &quot;valid&quot;: true,
+              &quot;acceptanceEligible&quot;: true,
+              &quot;problems&quot;: [],
+              &quot;runs&quot;: 6,
+              &quot;source&quot;: {
+                &quot;sourceRevision&quot;: &quot;eaed7c9f0ba6734592bb1f4efb554a9aee5de465&quot;,
+                &quot;runtimeSourceSha256&quot;: &quot;30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697&quot;,
+                &quot;runtimeSourceClean&quot;: true,
+                &quot;repositoryDirty&quot;: false,
+                &quot;exampleSha256&quot;: &quot;191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c&quot;
+              },
+              &quot;binarySha256&quot;: &quot;eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1&quot;
+            },
+            &quot;bare&quot;: {
+              &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-publication-b-bare/summary.json&quot;,
+              &quot;sha256&quot;: &quot;516277dbe094ef49b0cce679dc085a4be949150001a1b0607894585c5098d8c7&quot;,
+              &quot;valid&quot;: true,
+              &quot;acceptanceEligible&quot;: true,
+              &quot;problems&quot;: [],
+              &quot;runs&quot;: 6,
+              &quot;source&quot;: {
+                &quot;sourceRevision&quot;: &quot;8ccb2e59aeea7d4c49a768712efcb3847a32929a&quot;,
+                &quot;runtimeSourceSha256&quot;: &quot;d16bee728fb30622d3b50fc4df259422a9881d57e409adfa951eb857fa8fc9e5&quot;,
+                &quot;runtimeSourceClean&quot;: true,
+                &quot;repositoryDirty&quot;: false,
+                &quot;exampleSha256&quot;: &quot;191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c&quot;
+              },
+              &quot;binarySha256&quot;: &quot;110db6c76526ad7b59c9834eb252a2fac8597dbac0932a17594d8a055ee9fa01&quot;
+            }
+          },
+          &quot;qualified&quot;: true,
+          &quot;comparison&quot;: {
+            &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-publication-b-comparison.json&quot;,
+            &quot;sha256&quot;: &quot;f37f4914b003ee10ba3f6588994d816ded57797f953cfb7987ebc267cf33631a&quot;
+          },
+          &quot;worlds&quot;: {
+            &quot;combat_test&quot;: {
+              &quot;phase&quot;: {
+                &quot;metric&quot;: &quot;update.mean&quot;,
+                &quot;control&quot;: 3.5446235686155707,
+                &quot;candidate&quot;: 3.42291817631021,
+                &quot;deltaPercent&quot;: -3.4335209352821416,
+                &quot;pairedMedianDeltaPercent&quot;: -3.6795410915526516,
+                &quot;rounds&quot;: [
+                  {
+                    &quot;round&quot;: 0,
+                    &quot;control&quot;: 3.553677188730689,
+                    &quot;candidate&quot;: 3.42291817631021,
+                    &quot;deltaPercent&quot;: -3.6795410915526516
+                  },
+                  {
+                    &quot;round&quot;: 1,
+                    &quot;control&quot;: 3.5144956982732496,
+                    &quot;candidate&quot;: 3.44391963041503,
+                    &quot;deltaPercent&quot;: -2.0081421039409686
+                  },
+                  {
+                    &quot;round&quot;: 2,
+                    &quot;control&quot;: 3.5446235686155707,
+                    &quot;candidate&quot;: 3.3980223871554114,
+                    &quot;deltaPercent&quot;: -4.135874476437495
+                  }
+                ],
+                &quot;allPairedRoundsFaster&quot;: true
+              },
+              &quot;bare&quot;: {
+                &quot;metric&quot;: &quot;processWallSeconds&quot;,
+                &quot;control&quot;: 12.3718899,
+                &quot;candidate&quot;: 12.0094997,
+                &quot;deltaPercent&quot;: -2.929141812036329,
+                &quot;pairedMedianDeltaPercent&quot;: -2.572904403231069,
+                &quot;rounds&quot;: [
+                  {
+                    &quot;round&quot;: 0,
+                    &quot;control&quot;: 12.3718899,
+                    &quot;candidate&quot;: 12.053573,
+                    &quot;deltaPercent&quot;: -2.572904403231069
+                  },
+                  {
+                    &quot;round&quot;: 1,
+                    &quot;control&quot;: 12.3094947,
+                    &quot;candidate&quot;: 12.0008878,
+                    &quot;deltaPercent&quot;: -2.5070639170915787
+                  },
+                  {
+                    &quot;round&quot;: 2,
+                    &quot;control&quot;: 12.4304432,
+                    &quot;candidate&quot;: 12.0094997,
+                    &quot;deltaPercent&quot;: -3.386391725759219
+                  }
+                ],
+                &quot;allPairedRoundsFaster&quot;: true
+              }
+            },
+            &quot;falling_skyway&quot;: {
+              &quot;phase&quot;: {
+                &quot;metric&quot;: &quot;update.mean&quot;,
+                &quot;control&quot;: 2.4752940624053315,
+                &quot;candidate&quot;: 2.4780043926083017,
+                &quot;deltaPercent&quot;: 0.10949528155601573,
+                &quot;pairedMedianDeltaPercent&quot;: 0.10949528155601573,
+                &quot;rounds&quot;: [
+                  {
+                    &quot;round&quot;: 0,
+                    &quot;control&quot;: 2.4931823083913978,
+                    &quot;candidate&quot;: 2.471307876401093,
+                    &quot;deltaPercent&quot;: -0.8773699346686814
+                  },
+                  {
+                    &quot;round&quot;: 1,
+                    &quot;control&quot;: 2.4752940624053315,
+                    &quot;candidate&quot;: 2.4780043926083017,
+                    &quot;deltaPercent&quot;: 0.10949528155601573
+                  },
+                  {
+                    &quot;round&quot;: 2,
+                    &quot;control&quot;: 2.464104180551345,
+                    &quot;candidate&quot;: 2.48992044834899,
+                    &quot;deltaPercent&quot;: 1.047693843523656
+                  }
+                ],
+                &quot;allPairedRoundsFaster&quot;: false
+              },
+              &quot;bare&quot;: {
+                &quot;metric&quot;: &quot;processWallSeconds&quot;,
+                &quot;control&quot;: 9.0654821,
+                &quot;candidate&quot;: 9.1611791,
+                &quot;deltaPercent&quot;: 1.055619535115504,
+                &quot;pairedMedianDeltaPercent&quot;: 0.623296139981333,
+                &quot;rounds&quot;: [
+                  {
+                    &quot;round&quot;: 0,
+                    &quot;control&quot;: 9.013778,
+                    &quot;candidate&quot;: 9.2313484,
+                    &quot;deltaPercent&quot;: 2.413753700168786
+                  },
+                  {
+                    &quot;round&quot;: 1,
+                    &quot;control&quot;: 9.164303,
+                    &quot;candidate&quot;: 9.1611791,
+                    &quot;deltaPercent&quot;: -0.03408769875897777
+                  },
+                  {
+                    &quot;round&quot;: 2,
+                    &quot;control&quot;: 9.0654821,
+                    &quot;candidate&quot;: 9.1219869,
+                    &quot;deltaPercent&quot;: 0.623296139981333
+                  }
+                ],
+                &quot;allPairedRoundsFaster&quot;: false
+              }
+            }
+          }
+        }
+      ],
+      &quot;generatedUtc&quot;: &quot;2026-10-17T02:24:11.776Z&quot;
+    }
+  ]
+}</pre></details><footer>Control revision <code>eaed7c9f0ba6734592bb1f4efb554a9aee5de465</code>. This task did not push. <a href="performance-candidates-batch8-2026-10-17.json">Machine-readable evidence</a>.</footer></html>

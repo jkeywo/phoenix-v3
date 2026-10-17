@@ -1,0 +1,450 @@
+{
+  "schemaVersion": 1,
+  "id": "headless-cruiser-measure-local-2026-10-17",
+  "status": "adopted-current-local-reference",
+  "adoptedDate": "2026-10-17",
+  "timezone": "Europe/London",
+  "generatedUtc": "2026-10-17T08:35:45.932Z",
+  "decision": "User accepts the achieved performance as the new baseline. Further pursuit of historical old-speed recovery is deferred for now.",
+  "historicalRecoveryTarget": {
+    "status": "deferred",
+    "historicalComparisonsPreserved": true,
+    "documents": [
+      "performance-recovery-batch7-2026-10-16.json",
+      "performance-candidates-batch8-2026-10-17.json"
+    ]
+  },
+  "scope": {
+    "runtime": "headless",
+    "ship": "Alliance Cruiser",
+    "crew": "all Backfill",
+    "seed": 42,
+    "simulatedSeconds": 60,
+    "profile": "measure",
+    "optLevel": 3,
+    "lto": "thin",
+    "codegenUnits": 16,
+    "requestedFeatures": [
+      "headless"
+    ],
+    "defaultFeatures": true,
+    "phaseInstrumentation": "ordinary phase capture; no leaves or named wrappers",
+    "runsPerWorldPerMode": 6,
+    "batches": 2,
+    "roundsPerBatch": 3,
+    "warmupUpdatesDiscardedPerPhaseRun": 300,
+    "retainedUpdatesPerPhaseRun": 3301,
+    "phaseMeaning": "Median of six per-run means/percentiles; this is not a percentile calculated from pooled update samples.",
+    "wholeProcessMeaning": "Median of six process wall durations from runs without phase instrumentation; excludes PowerShell polling delay.",
+    "aggregation": "All six valid candidate runs from both batches, equally weighted. Even medians average the two central values; no fastest-run selection."
+  },
+  "comparisonPolicy": {
+    "referenceForFutureLocalComparisons": true,
+    "requireMatchingWorkloadMachineProfileAndInstrumentation": true,
+    "automaticGate": false,
+    "newToleranceIntroduced": false,
+    "existingCiAndDemoBudgetsChanged": false
+  },
+  "implementation": {
+    "measuredRevision": "8ccb2e59aeea7d4c49a768712efcb3847a32929a",
+    "runtimeSourceSha256": "d16bee728fb30622d3b50fc4df259422a9881d57e409adfa951eb857fa8fc9e5",
+    "binarySha256": "110db6c76526ad7b59c9834eb252a2fac8597dbac0932a17594d8a055ee9fa01",
+    "acceptedIntegrationCommit": "e4e61c5877adf9a05d2c690ea46ed706365718c7",
+    "sourceEvidence": {
+      "path": "docs/gameplay-redesign/implementation/performance-candidates-batch8-2026-10-17.json",
+      "sha256": "c4afa61ecae5bd24bf92560cac715afa312353a2e9b9b93d7a1e1d62b111fac8"
+    },
+    "buildReceipt": ".phoenix/perf-recovery-b8-publication-a-build-receipt.json",
+    "buildReceiptSha256": "0ccdc963b3bbd66bc1d4b093ace68676b46b7b3c9dcab52b88285ca94fa28418"
+  },
+  "contentProof": {
+    "path": ".phoenix/perf-rules078-final-content-exact-proof.json",
+    "sha256": "043ace187247a3acb281c859150e08bae1b3d12d7f6d8fb847892fd6a81edece"
+  },
+  "gameplayReference": {
+    "path": "C:/Coding/project-phoenix-v2/.phoenix/perf-rules079-gameplay-reference.json",
+    "sha256": "b7a5a8107382c8c93ff72f30ca40350667e2ec32462fea22999712fdcb9a4b8d"
+  },
+  "hardware": {
+    "capturedUtc": "2026-10-16T11:42:26.7598684Z",
+    "gpu": "Intel(R) Graphics / NVIDIA GeForce RTX 5090 Laptop GPU",
+    "driver": "32.0.101.8628 / 32.0.16.1714",
+    "adapters": [
+      {
+        "Name": "Intel(R) Graphics",
+        "DriverVersion": "32.0.101.8628",
+        "DriverDate": "2026-03-24T00:00:00+00:00",
+        "VideoModeDescription": "3840 x 2400 x 4294967296 colors"
+      },
+      {
+        "Name": "NVIDIA GeForce RTX 5090 Laptop GPU",
+        "DriverVersion": "32.0.16.1714",
+        "DriverDate": "2026-09-17T01:00:00+01:00",
+        "VideoModeDescription": "1920 x 1080 x 4294967296 colors"
+      }
+    ],
+    "powerMode": "Power Scheme GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (High performance)",
+    "displays": [
+      {
+        "device": "\\\\.\\DISPLAY1",
+        "identity": "\\\\.\\DISPLAY1@1920x1200",
+        "width": 1920,
+        "height": 1200,
+        "x": -1920,
+        "y": 0,
+        "scalePercent": 125,
+        "dpi": 120,
+        "primary": false
+      },
+      {
+        "device": "\\\\.\\DISPLAY5",
+        "identity": "\\\\.\\DISPLAY5@1920x1080",
+        "width": 1920,
+        "height": 1080,
+        "x": 0,
+        "y": 0,
+        "scalePercent": 100,
+        "dpi": 96,
+        "primary": true
+      }
+    ],
+    "note": "Physical desktop modes and effective OS scale; actual wgpu adapter selection must also be retained from the host log."
+  },
+  "worlds": {
+    "combat_test": {
+      "values": {
+        "medianRunMeanMs": 3.429671357164496,
+        "medianRunP50Ms": 3.32555,
+        "medianRunP95Ms": 4.755000000000001,
+        "medianRunP99Ms": 5.2974,
+        "medianProcessWallSeconds": 12.0204919
+      },
+      "phaseRuns": [
+        {
+          "batch": "b8-publication-a",
+          "name": "combat_test-0",
+          "retainedUpdates": 3301,
+          "update": {
+            "count": 3301,
+            "mean": 3.4364245380187817,
+            "p50": 3.3279,
+            "p95": 4.7641,
+            "p99": 5.3067,
+            "max": 9.2086,
+            "over16_67": 0
+          },
+          "finalContinuation": {
+            "tick": 3600,
+            "digest": "4a419dc7ec59da70"
+          }
+        },
+        {
+          "batch": "b8-publication-a",
+          "name": "combat_test-1",
+          "retainedUpdates": 3301,
+          "update": {
+            "count": 3301,
+            "mean": 3.4150417752196285,
+            "p50": 3.332,
+            "p95": 4.7364,
+            "p99": 5.3723,
+            "max": 9.1716,
+            "over16_67": 0
+          },
+          "finalContinuation": {
+            "tick": 3600,
+            "digest": "4a419dc7ec59da70"
+          }
+        },
+        {
+          "batch": "b8-publication-a",
+          "name": "combat_test-2",
+          "retainedUpdates": 3301,
+          "update": {
+            "count": 3301,
+            "mean": 3.4555240836110377,
+            "p50": 3.3303,
+            "p95": 4.8556,
+            "p99": 5.6273,
+            "max": 9.589500000000001,
+            "over16_67": 0
+          },
+          "finalContinuation": {
+            "tick": 3600,
+            "digest": "4a419dc7ec59da70"
+          }
+        },
+        {
+          "batch": "b8-publication-b",
+          "name": "combat_test-0",
+          "retainedUpdates": 3301,
+          "update": {
+            "count": 3301,
+            "mean": 3.42291817631021,
+            "p50": 3.3211,
+            "p95": 4.7488,
+            "p99": 5.2547999999999995,
+            "max": 7.7121,
+            "over16_67": 0
+          },
+          "finalContinuation": {
+            "tick": 3600,
+            "digest": "4a419dc7ec59da70"
+          }
+        },
+        {
+          "batch": "b8-publication-b",
+          "name": "combat_test-1",
+          "retainedUpdates": 3301,
+          "update": {
+            "count": 3301,
+            "mean": 3.44391963041503,
+            "p50": 3.3232,
+            "p95": 4.7612000000000005,
+            "p99": 5.288099999999999,
+            "max": 7.7397,
+            "over16_67": 0
+          },
+          "finalContinuation": {
+            "tick": 3600,
+            "digest": "4a419dc7ec59da70"
+          }
+        },
+        {
+          "batch": "b8-publication-b",
+          "name": "combat_test-2",
+          "retainedUpdates": 3301,
+          "update": {
+            "count": 3301,
+            "mean": 3.3980223871554114,
+            "p50": 3.2959,
+            "p95": 4.7135,
+            "p99": 5.1616,
+            "max": 8.0892,
+            "over16_67": 0
+          },
+          "finalContinuation": {
+            "tick": 3600,
+            "digest": "4a419dc7ec59da70"
+          }
+        }
+      ],
+      "wholeProcessRuns": [
+        {
+          "batch": "b8-publication-a",
+          "name": "combat_test-0",
+          "processWallSeconds": 12.0314841
+        },
+        {
+          "batch": "b8-publication-a",
+          "name": "combat_test-1",
+          "processWallSeconds": 12.0068445
+        },
+        {
+          "batch": "b8-publication-a",
+          "name": "combat_test-2",
+          "processWallSeconds": 12.0317659
+        },
+        {
+          "batch": "b8-publication-b",
+          "name": "combat_test-0",
+          "processWallSeconds": 12.053573
+        },
+        {
+          "batch": "b8-publication-b",
+          "name": "combat_test-1",
+          "processWallSeconds": 12.0008878
+        },
+        {
+          "batch": "b8-publication-b",
+          "name": "combat_test-2",
+          "processWallSeconds": 12.0094997
+        }
+      ]
+    },
+    "falling_skyway": {
+      "values": {
+        "medianRunMeanMs": 2.4967697212965785,
+        "medianRunP50Ms": 2.5021000000000004,
+        "medianRunP95Ms": 3.2746499999999994,
+        "medianRunP99Ms": 3.613,
+        "medianProcessWallSeconds": 9.18379695
+      },
+      "phaseRuns": [
+        {
+          "batch": "b8-publication-a",
+          "name": "falling_skyway-0",
+          "retainedUpdates": 3301,
+          "update": {
+            "count": 3301,
+            "mean": 2.510022508330811,
+            "p50": 2.5014,
+            "p95": 3.2916999999999996,
+            "p99": 3.7785,
+            "max": 7.678800000000001,
+            "over16_67": 0
+          },
+          "finalContinuation": {
+            "tick": 3600,
+            "digest": "22190fbd13826108"
+          }
+        },
+        {
+          "batch": "b8-publication-a",
+          "name": "falling_skyway-1",
+          "retainedUpdates": 3301,
+          "update": {
+            "count": 3301,
+            "mean": 2.5036189942441673,
+            "p50": 2.5018000000000002,
+            "p95": 3.2938,
+            "p99": 3.6675,
+            "max": 6.5533,
+            "over16_67": 0
+          },
+          "finalContinuation": {
+            "tick": 3600,
+            "digest": "22190fbd13826108"
+          }
+        },
+        {
+          "batch": "b8-publication-a",
+          "name": "falling_skyway-2",
+          "retainedUpdates": 3301,
+          "update": {
+            "count": 3301,
+            "mean": 2.563673311117838,
+            "p50": 2.5052999999999996,
+            "p95": 3.4382,
+            "p99": 4.9704,
+            "max": 9.6523,
+            "over16_67": 0
+          },
+          "finalContinuation": {
+            "tick": 3600,
+            "digest": "22190fbd13826108"
+          }
+        },
+        {
+          "batch": "b8-publication-b",
+          "name": "falling_skyway-0",
+          "retainedUpdates": 3301,
+          "update": {
+            "count": 3301,
+            "mean": 2.471307876401093,
+            "p50": 2.4799,
+            "p95": 3.2575999999999996,
+            "p99": 3.5471,
+            "max": 4.8576,
+            "over16_67": 0
+          },
+          "finalContinuation": {
+            "tick": 3600,
+            "digest": "22190fbd13826108"
+          }
+        },
+        {
+          "batch": "b8-publication-b",
+          "name": "falling_skyway-1",
+          "retainedUpdates": 3301,
+          "update": {
+            "count": 3301,
+            "mean": 2.4780043926083017,
+            "p50": 2.5024,
+            "p95": 3.2312,
+            "p99": 3.5580999999999996,
+            "max": 5.7863999999999995,
+            "over16_67": 0
+          },
+          "finalContinuation": {
+            "tick": 3600,
+            "digest": "22190fbd13826108"
+          }
+        },
+        {
+          "batch": "b8-publication-b",
+          "name": "falling_skyway-2",
+          "retainedUpdates": 3301,
+          "update": {
+            "count": 3301,
+            "mean": 2.48992044834899,
+            "p50": 2.506,
+            "p95": 3.2481,
+            "p99": 3.5585,
+            "max": 4.1059,
+            "over16_67": 0
+          },
+          "finalContinuation": {
+            "tick": 3600,
+            "digest": "22190fbd13826108"
+          }
+        }
+      ],
+      "wholeProcessRuns": [
+        {
+          "batch": "b8-publication-a",
+          "name": "falling_skyway-0",
+          "processWallSeconds": 9.2318084
+        },
+        {
+          "batch": "b8-publication-a",
+          "name": "falling_skyway-1",
+          "processWallSeconds": 9.2064148
+        },
+        {
+          "batch": "b8-publication-a",
+          "name": "falling_skyway-2",
+          "processWallSeconds": 9.142185
+        },
+        {
+          "batch": "b8-publication-b",
+          "name": "falling_skyway-0",
+          "processWallSeconds": 9.2313484
+        },
+        {
+          "batch": "b8-publication-b",
+          "name": "falling_skyway-1",
+          "processWallSeconds": 9.1611791
+        },
+        {
+          "batch": "b8-publication-b",
+          "name": "falling_skyway-2",
+          "processWallSeconds": 9.1219869
+        }
+      ]
+    }
+  },
+  "evidence": [
+    {
+      "path": ".phoenix/perf-recovery-b8-publication-a-phase/summary.json",
+      "sha256": "e5f2b6e14d62301fdde31c0ffaf0a62ac91822c15c80a633121f6a12b387b51d",
+      "receipt": ".phoenix/perf-recovery-b8-publication-a-phase/receipt.json",
+      "receiptSha256": "b149166cb03cebd9ad2561a02370958226b4727055a527c6a02a386f47b2ba98"
+    },
+    {
+      "path": ".phoenix/perf-recovery-b8-publication-a-bare/summary.json",
+      "sha256": "54719ea7be97f56c2ce56b54bcd88fdabe7432083425a01e96793a5bfa9cfe81",
+      "receipt": ".phoenix/perf-recovery-b8-publication-a-bare/receipt.json",
+      "receiptSha256": "a965889345a2259f61ad5739a6993ee775d7d22513f573e5f52abe56f5bca0c6"
+    },
+    {
+      "path": ".phoenix/perf-recovery-b8-publication-b-phase/summary.json",
+      "sha256": "f8a16d82320e490c500d22fb6f0a215f5073a0ecd8390802e007d83b9a09f182",
+      "receipt": ".phoenix/perf-recovery-b8-publication-b-phase/receipt.json",
+      "receiptSha256": "2fe973ea6eb02f32a4938b9fe0003cf619f8b0705014be8306fad08e1b17fb88"
+    },
+    {
+      "path": ".phoenix/perf-recovery-b8-publication-b-bare/summary.json",
+      "sha256": "516277dbe094ef49b0cce679dc085a4be949150001a1b0607894585c5098d8c7",
+      "receipt": ".phoenix/perf-recovery-b8-publication-b-bare/receipt.json",
+      "receiptSha256": "f292ac67a6cd8a1fa866fadfc7983bd6aede16eb765cc0a4a6389bed03d7d706"
+    }
+  ],
+  "limitations": [
+    "Adoption uses existing verified captures; it is not a fresh measurement of ongoing CI fixes or the latest working tree.",
+    "Machine-local Windows measure/Cruiser values do not replace Linux release/default-world CI or demo expectations.",
+    "The recorded hardware inventory has no CPU model; retain the original profiling host and raw receipts for like-for-like comparisons.",
+    "No browser/native rendering, network, human workload or full save/resume acceptance is inferred.",
+    "The prior publication selection includes its documented small Skyway regression; the adopted reference includes it."
+  ]
+}

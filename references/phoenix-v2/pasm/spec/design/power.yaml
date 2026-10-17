@@ -1,0 +1,162 @@
+entities:
+  - role: power-operator
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Power Operator
+      summary: "Engineering allocates incoming energy flow and coolant across authored coarse/fine groups, manages local reserves and reactor thermal state, and rations scarce supply. Minimal controls expose a priority list and no/low/high cooling; depth changes presentation over the same physical network."
+    game_design:
+      architecture_links: [ship-power-controller]
+      responsibilities: [set power-group allocation, manage battery reserve, respond to reactor and battery availability]
+      player_verbs: [set-power-group-allocation]
+      protected_decisions: [human-power-allocation]
+      visible_information: [power-grid-information, power-brownout-information]
+
+  - role: power-ai-operator-role
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Power AI Operator
+      summary: "The individual reactor System AI executes an authored supported state tree over its permitted Console energy readings, emits the same bounded commands as a human and retains private continuation through delegation or hosting changes."
+    game_design:
+      architecture_links: [authored-power-ai-rule-evaluator]
+
+  - verb: set-power-group-allocation
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Set Power Group Allocation
+      summary: "Power commands incoming flow, cooling and ordered priorities through the reactor System admission boundary. The legacy rung payload translates to a desired flow only; it stores no competing allocation physics and does not amplify equipment output."
+    game_design:
+      architecture_links: [ship-power-controller]
+      owner_role: power-operator
+      inputs: [authored power group, desired incoming flow, desired cooling, ordered priority]
+      resolution: host-authoritative
+      outputs: [updated power-group allocation]
+
+  - decision: human-power-allocation
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Human Power Allocation
+      summary: A human Power operator owns allocation while the power system is human-controlled.
+    game_design:
+      enforcement_links: [ship-power-controller]
+      owner_role: power-operator
+      protected: true
+      must_not_be: [overridden by Power AI while human-controlled]
+
+  - decision: coldable-power-group
+    core:
+      status: rejected
+      confidence: confirmed
+      origin: ai
+      title: A Power Group May Be Commanded Cold
+      summary: "The former rule that zero incoming allocation means weapons restraint is superseded. Charged local reserves can keep working without intake; explicit Tactical restraint is a separate admitted intent."
+      rationale:
+        - "Increment 8 adopts consumer-local-energy-flow, reactor-local-capacitor-and-thermal-state and finite-coolant-and-saved-flow-cuts. Earlier group amplifiers, ranked-rung AI and ship-wide exhaustion lock are superseded. Existing System identity, Console knowledge, admission and transport remain."
+
+  - decision: ai-power-allocation-rules
+    core:
+      status: accepted
+      confidence: confirmed
+      title: AI Power Allocation Rules
+      summary: "Power uses the same individual-System supported state-tree host as other migrated controllers. Numeric facts come from the permitted Power Console view; literals and output bounds derive from actual hardware. No old ranked-rung policy or second controller operates the reactor."
+      rationale:
+        - "Increment 8 adopts consumer-local-energy-flow, reactor-local-capacitor-and-thermal-state and finite-coolant-and-saved-flow-cuts. Earlier group amplifiers, ranked-rung AI and ship-wide exhaustion lock are superseded. Existing System identity, Console knowledge, admission and transport remain."
+    game_design:
+      enforcement_links: [authored-power-ai-rule-evaluator]
+      owner_role: power-ai-operator-role
+      protected: true
+      must_not_be: [operating while human-controlled, reading unbound Console information, bypassing admitted commands, running a second Power controller]
+
+  - information: power-grid-information
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Power Grid Information
+      summary: "The Power Console receives desired and effective incoming flows/cooling, priority order, cut/restoration state, each local reserve and thermal stop, reactor generation/capacitor/ramp readings and real coolant stock plus withdrawn fractional credit. Co-hosting never grants another Console knowledge."
+      rationale:
+        - "Increment 8 adopts consumer-local-energy-flow, reactor-local-capacitor-and-thermal-state and finite-coolant-and-saved-flow-cuts. Earlier group amplifiers, ranked-rung AI and ship-wide exhaustion lock are superseded. Existing System identity, Console knowledge, admission and transport remain."
+    game_design:
+      enforcement_links: [ship-power-state]
+      visibility: role-visible
+      permitted_viewers: [power-operator]
+      architectural_enforcement: [ship-power-state replicates the authoritative power blackboard]
+
+  - information: power-brownout-information
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Power Brownout Information
+      summary: "New incoming-flow cuts are reported to each affected Console, including descendants of coarse groups. A cut retains reserves and desired settings; low supply never freezes allocation controls. Reports use normal communication delivery and do not replace human coordination."
+    game_design:
+      enforcement_links: [ship-power-controller]
+      visibility: role-visible
+      permitted_viewers: [power-operator, power-ai-operator-role]
+      architectural_enforcement: [ship-power-controller produces brownout state and coordination advisories]
+
+  - mechanic: authored-power-group-ai-rules
+    core:
+      status: implemented
+      confidence: confirmed
+      title: Authored Power Group AI Rules
+      summary: "Validated config.ai on the reactor compiles once into a supported numeric state tree. The host reads local reserve/heat/output observations through its Console, evaluates only while AI-operated, preserves private state and emits combined flow/cooling settings through normal admission. There is no hidden fallback generator or legacy policy controller."
+    game_design:
+      architecture_links: [authored-power-ai-rule-evaluator]
+      participating_roles: [power-ai-operator-role]
+      reads: [power-grid-information, power-brownout-information]
+      resolution: host-authoritative
+      outputs: [rule-derived group allocations]
+    implementation:
+      status: declared
+      paths: [crates/phoenix-simulation/src/console_ai/server.rs, crates/phoenix-simulation/src/ai/state_tree_runtime.rs, crates/phoenix-sim-gameplay/src/resources/energy_ai.rs, crates/phoenix-sim-gameplay/src/ai/host.rs]
+      symbols: [ai_power_allocation, compile_ship_trees_with_energy, power_numeric_bindings, decide_tree_with_numbers, ShipAiTreeRuntime]
+      tests: [cargo test, crates/phoenix-sim-gameplay/src/modifiers/power_system_tests.rs]
+
+  # --- Band-D supply/demand redesign (2026-08-17 customisation grill). ---
+  # These decisions REDESIGN the model above. The entities above describe the
+  # delivered boost/amplifier model (a group level is a group-wide multiplier);
+  # the entities below describe the per-component supply/demand model band D
+  # migrates it onto. See roadmap-broken-tithe-foundation and, for why the
+  # redesign is forced, roadmap-ship-customisation.
+
+  - decision: power-supply-demand-model
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Per-Component Supply/Demand Power
+      summary: "Incoming energy replenishes local System batteries. Actual continuous work consumes its affordable fraction; a discrete action commits its entire cost before ammunition or effects. Fullness-dependent passive drain and gross charging/depletion heat create ongoing management. Authored nested groups allocate supply without an additional simulation store."
+      rationale:
+        - "Increment 8 adopts consumer-local-energy-flow, reactor-local-capacitor-and-thermal-state and finite-coolant-and-saved-flow-cuts. Earlier group amplifiers, ranked-rung AI and ship-wide exhaustion lock are superseded. Existing System identity, Console knowledge, admission and transport remain."
+    game_design:
+      must_not_be: [expressed as a group-wide multiplier that makes a stronger component cost nothing extra, allowed to brown out an idle ship, a second control intelligence separate from the fine-system policy runtime]
+
+  - decision: power-energy-exhaustion-lock-retained
+    core:
+      status: rejected
+      confidence: confirmed
+      title: Energy Failure — Battery Then Exhaustion Lock (Retained)
+      summary: "The earlier ship-wide battery exhaustion lock is rejected by the selected redesign. Supply shortfall cuts incoming flow deterministically, retains commanded values and restores feasible flow automatically; it does not force every System down or freeze controls."
+      rationale:
+        - "Increment 8 adopts consumer-local-energy-flow, reactor-local-capacitor-and-thermal-state and finite-coolant-and-saved-flow-cuts. Earlier group amplifiers, ranked-rung AI and ship-wide exhaustion lock are superseded. Existing System identity, Console knowledge, admission and transport remain."
+
+  - decision: power-heat-overpower-band
+    core:
+      status: rejected
+      confidence: confirmed
+      title: Heat — The Per-System Overpower Band
+      summary: "The earlier generic allocation-to-output overpower band is superseded. Heat follows actual gross charging/depletion, coolant consumes real stock for heat removed, and thermal trip/recovery has hysteresis. Equipment-specific effects remain authored capabilities rather than free group multipliers."
+      rationale:
+        - "Increment 8 adopts consumer-local-energy-flow, reactor-local-capacitor-and-thermal-state and finite-coolant-and-saved-flow-cuts. Earlier group amplifiers, ranked-rung AI and ship-wide exhaustion lock are superseded. Existing System identity, Console knowledge, admission and transport remain."
+
+  - decision: power-reactor-customisable-profile
+    core:
+      status: proposed
+      confidence: confirmed
+      title: Reactor As A Customisable Component
+      summary: "Reactors have authored generation, ramp, capacitor, intake and thermal/cooling hardware profiles using the shared energy mechanism. Runtime stock replenishment is ordinary service transfer. Player equipment selection and refitting remain increment 13; no mission-only reactor upgrade exception or fitting currency is introduced."
+      rationale:
+        - "Increment 8 adopts consumer-local-energy-flow, reactor-local-capacitor-and-thermal-state and finite-coolant-and-saved-flow-cuts. Earlier group amplifiers, ranked-rung AI and ship-wide exhaustion lock are superseded. Existing System identity, Console knowledge, admission and transport remain."
+    game_design:
+      must_not_be: [an additional mandatory global battery, a separate fitting currency]

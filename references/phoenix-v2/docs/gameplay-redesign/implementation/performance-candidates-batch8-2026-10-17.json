@@ -1,0 +1,1526 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-17",
+  "generatedUtc": "2026-10-17T02:28:29.774Z",
+  "status": "complete-publication-integrated",
+  "integration": {
+    "selectedCandidate": "publication",
+    "selectedCommit": "e4e61c5877adf9a05d2c690ea46ed706365718c7",
+    "mainHeadAtVerification": "e4e61c5877adf9a05d2c690ea46ed706365718c7",
+    "mainContainsSelectedCommit": true,
+    "measuredRevision": "8ccb2e59aeea7d4c49a768712efcb3847a32929a",
+    "sourceProof": {
+      "path": ".phoenix/perf-recovery-b8-selected-source-proof.json",
+      "sha256": "001d50ae6f5fb913754f7ab3feb9ed437a983438e01f577164c40921a458a405",
+      "definition": {
+        "measuredRevision": "8ccb2e59aeea7d4c49a768712efcb3847a32929a",
+        "selectedCommit": "e4e61c5877adf9a05d2c690ea46ed706365718c7",
+        "files": [
+          {
+            "path": "crates/phoenix-simulation/src/ship/console_publication.rs",
+            "measuredSha256": "07a2d616d553ccc75f69d6a56e415e4e67312de80ebb68af391cc5cfa7228b4e",
+            "selectedSha256": "07a2d616d553ccc75f69d6a56e415e4e67312de80ebb68af391cc5cfa7228b4e",
+            "byteIdentical": true,
+            "normalization": null
+          },
+          {
+            "path": "crates/phoenix-simulation/src/ship/console_publication_buffers.rs",
+            "measuredSha256": "6325188fc5028ea1d0f8ad776b2703990c1154dc7984f7ee347a3d1ea3574ff8",
+            "selectedSha256": "6325188fc5028ea1d0f8ad776b2703990c1154dc7984f7ee347a3d1ea3574ff8",
+            "byteIdentical": true,
+            "normalization": null
+          },
+          {
+            "path": "crates/phoenix-simulation/src/ship/console_publication_buffer_tests.rs",
+            "measuredSha256": "9760a8b21c41078583ed4a88809cbcd9adb7f3eaacf336749b432509c2195673",
+            "selectedSha256": "9760a8b21c41078583ed4a88809cbcd9adb7f3eaacf336749b432509c2195673",
+            "byteIdentical": true,
+            "normalization": null
+          },
+          {
+            "path": "crates/phoenix-simulation/src/ship/console_publication_reference.rs",
+            "measuredSha256": "550b09f2bf4a0c6436e950350af90cb75dc6786ae9ae1255acc30c62ba5d6952",
+            "selectedSha256": "b420800432826006cfba62e3e827bd793160be02713ae110adf2345b0efbe6b5",
+            "byteIdentical": false,
+            "normalization": "Remove one final newline from cfg(test) reference helper only"
+          }
+        ],
+        "borrowScopeJoin": "The measured resource_scope implementation subsumes ee1b8f22 lexical cleanup and releases the cache borrow before SimOutbox access.",
+        "runtimeFilesByteIdentical": true,
+        "generatedUtc": "2026-10-17T02:27:01.882Z"
+      }
+    },
+    "runtimeFilesByteIdenticalToMeasured": true,
+    "testReferenceDifference": "One trailing test-only newline removed for rustfmt",
+    "otherCandidatesMerged": [],
+    "pushPerformedByThisTask": false,
+    "fullIntegratedGateOwner": "Separate $fix-ci chat; full gate success is not claimed by this candidate report",
+    "timingsScope": "Isolated candidate versus frozen B7, not a reprofile of concurrent CI fixes or full main",
+    "verifiedUtc": "2026-10-17T02:28:29.676Z"
+  },
+  "pushPerformed": false,
+  "scope": "Only the four pending performance candidates. Existing networking, cadence, content, balance and knowledge limits are preserved.",
+  "control": {
+    "revision": "eaed7c9f0ba6734592bb1f4efb554a9aee5de465",
+    "runtimeSourceSha256": "30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697",
+    "binarySha256": "eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1"
+  },
+  "method": {
+    "ship": "Cruiser",
+    "worlds": [
+      "combat_test",
+      "falling_skyway"
+    ],
+    "seed": 42,
+    "simulatedSeconds": 60,
+    "crew": "all Backfill",
+    "roundsPerAttemptAndMode": 3,
+    "order": "Alternating control/candidate pairs",
+    "phase": "Mean update milliseconds per run; discard first 300 of 3601 samples, retain 3301; report median of three run means",
+    "wholeProcess": "Process wall seconds, median of three runs; captures without phase instrumentation",
+    "validity": "All six runs per role/mode complete; no compiler; original background CPU <=1 core cap; pinned binary/source/content proofs; full gameplay-report equivalence excluding only three wall-clock latency quantiles; phase final-digest equality",
+    "decision": "Manual review of qualified evidence and repeatability. Negative percentage means faster. No noisy-run omissions, no acceptance threshold changes.",
+    "build": "Normal measure profile: opt3, thin LTO,16 codegen units; same profile for every candidate and control"
+  },
+  "correctness": {
+    "combinedEvidence": {
+      "path": ".phoenix/perf-recovery-batch8-correctness-evidence.json",
+      "sha256": "5278ef5e76c534acaee6c38186438c455a38fa9a773575d224a7900a2f29c524"
+    },
+    "totalCombinedOwnerPassed": 456,
+    "newComparisonTests": 17,
+    "scope": "Selected Model/Contracts/Gameplay/Simulation owner tests, including all four candidates together. Individual owner tests are recorded separately per candidate."
+  },
+  "limitations": [
+    "Two fixed-seed headless scenarios are not a comprehensive workload suite.",
+    "Phase final digests are not a full mission save/resume replay.",
+    "Browser/native-device acceptance and full repository gates are not established by these owner tests.",
+    "Old-speed recovery is not established by these candidate comparisons.",
+    "Timings measure isolated candidates against frozen B7. Concurrent CI fixes and the complete integrated main tree were not reprofiled in this report."
+  ],
+  "candidates": [
+    {
+      "key": "selector",
+      "name": "Selector borrowing",
+      "decisionEvidence": {
+        "path": ".phoenix/perf-recovery-b8-selector-decision.json",
+        "sha256": "33aad4bdd6fcea3301b5d8293875df1d29c695cd3df869c620ffb3dbf80e81c8"
+      },
+      "candidate": "Selector borrowing",
+      "sourceRevision": "888dd77cf19ceb2270dafe0c58859c7029cf8015",
+      "decision": "hold-unmerged",
+      "reason": "Qualified whole-process repeats show small/mixed differences across paired rounds and worlds; no repeatable performance benefit established.",
+      "correctness": {
+        "isolatedOwnerPassed": 20,
+        "combinedOwnerPassed": 456,
+        "newCandidateTests": 4,
+        "aarComparisonsPassed": 48,
+        "phaseFinalDigestComparisonsPassed": 24
+      },
+      "scope": "Headless Cruiser, combat_test and falling_skyway, seed42,60simulatedseconds; allBackfill. Phase timing matrices remain ineligible where background CPU exceeds original1corecap. No claim of full save/resume, browser or complete CI validation.",
+      "attempts": [
+        {
+          "stage": "b8-selector-a",
+          "evidence": {
+            "control-phase": {
+              "path": ".phoenix/perf-recovery-b8-selector-a-control-phase/summary.json",
+              "sha256": "df5b296ff542a835442e8c85aef3f14eb5e2997e1b657b163da9effe5490bf06",
+              "valid": false,
+              "problems": [
+                "Background CPU not quiet",
+                "Background CPU not quiet",
+                "Background CPU not quiet"
+              ]
+            },
+            "phase": {
+              "path": ".phoenix/perf-recovery-b8-selector-a-phase/summary.json",
+              "sha256": "d2473532247685f7a9504475c66a4ea6c517697eee919aa5e2d8b0ada31ca165",
+              "valid": false,
+              "problems": [
+                "Background CPU not quiet",
+                "Background CPU not quiet",
+                "Background CPU not quiet"
+              ]
+            },
+            "control-bare": {
+              "path": ".phoenix/perf-recovery-b8-selector-a-control-bare/summary.json",
+              "sha256": "7724dd11f7f3a0cc4402791e7f03599dd43c2c8f184c82954e9a4601cce10913",
+              "valid": true,
+              "problems": []
+            },
+            "bare": {
+              "path": ".phoenix/perf-recovery-b8-selector-a-bare/summary.json",
+              "sha256": "176e725571f30eca4ecb288c5a938e3533661ecdfb8eee003daed01d252db129",
+              "valid": true,
+              "problems": []
+            }
+          },
+          "wholeProcess": {
+            "combat_test": {
+              "controlSeconds": 12.985235,
+              "candidateSeconds": 12.8994059,
+              "medianDeltaPercent": -0.6609745607222384,
+              "rounds": [
+                {
+                  "round": 0,
+                  "controlSeconds": 12.985235,
+                  "candidateSeconds": 12.8994059,
+                  "deltaPercent": -0.6609745607222384
+                },
+                {
+                  "round": 1,
+                  "controlSeconds": 13.0921211,
+                  "candidateSeconds": 12.524652,
+                  "deltaPercent": -4.334432103595498
+                },
+                {
+                  "round": 2,
+                  "controlSeconds": 12.5890449,
+                  "candidateSeconds": 12.9883958,
+                  "deltaPercent": 3.1722096725542714
+                }
+              ]
+            },
+            "falling_skyway": {
+              "controlSeconds": 9.6889095,
+              "candidateSeconds": 9.3158504,
+              "medianDeltaPercent": -3.8503724283935004,
+              "rounds": [
+                {
+                  "round": 0,
+                  "controlSeconds": 10.7903822,
+                  "candidateSeconds": 9.2586238,
+                  "deltaPercent": -14.195589846669188
+                },
+                {
+                  "round": 1,
+                  "controlSeconds": 9.6889095,
+                  "candidateSeconds": 9.3158504,
+                  "deltaPercent": -3.8503724283935004
+                },
+                {
+                  "round": 2,
+                  "controlSeconds": 9.5899521,
+                  "candidateSeconds": 9.51253,
+                  "deltaPercent": -0.807325200300002
+                }
+              ]
+            }
+          }
+        },
+        {
+          "stage": "b8-selector-b",
+          "evidence": {
+            "control-phase": {
+              "path": ".phoenix/perf-recovery-b8-selector-b-control-phase/summary.json",
+              "sha256": "5b30cd0aa3ce0b5e30663ea730ad0fba8bac86a7e2602f13db208706ee869bbd",
+              "valid": false,
+              "problems": [
+                "Background CPU not quiet",
+                "Background CPU not quiet",
+                "Background CPU not quiet"
+              ]
+            },
+            "phase": {
+              "path": ".phoenix/perf-recovery-b8-selector-b-phase/summary.json",
+              "sha256": "9314487a07592acc9a17addc03500fde275055c7d0c53b60cb333dfbb6499b39",
+              "valid": true,
+              "problems": []
+            },
+            "control-bare": {
+              "path": ".phoenix/perf-recovery-b8-selector-b-control-bare/summary.json",
+              "sha256": "54dfbe62779368f8fd1eb83efe88ff91c515da2c544c932e19a39b758058e071",
+              "valid": true,
+              "problems": []
+            },
+            "bare": {
+              "path": ".phoenix/perf-recovery-b8-selector-b-bare/summary.json",
+              "sha256": "e553836d951648fd279862ad5ac1f0bcdcd9b134b1398bfeccb28bcdcbfcbe35",
+              "valid": true,
+              "problems": []
+            }
+          },
+          "wholeProcess": {
+            "combat_test": {
+              "controlSeconds": 12.6020922,
+              "candidateSeconds": 12.5655446,
+              "medianDeltaPercent": -0.29001216163137,
+              "rounds": [
+                {
+                  "round": 0,
+                  "controlSeconds": 12.9334359,
+                  "candidateSeconds": 12.8444089,
+                  "deltaPercent": -0.6883476339029082
+                },
+                {
+                  "round": 1,
+                  "controlSeconds": 12.514454,
+                  "candidateSeconds": 12.4688198,
+                  "deltaPercent": -0.3646519456621977
+                },
+                {
+                  "round": 2,
+                  "controlSeconds": 12.6020922,
+                  "candidateSeconds": 12.5655446,
+                  "deltaPercent": -0.29001216163137
+                }
+              ]
+            },
+            "falling_skyway": {
+              "controlSeconds": 9.2230964,
+              "candidateSeconds": 9.3667662,
+              "medianDeltaPercent": 1.5577176445862762,
+              "rounds": [
+                {
+                  "round": 0,
+                  "controlSeconds": 9.2230964,
+                  "candidateSeconds": 9.4190346,
+                  "deltaPercent": 2.1244297088773845
+                },
+                {
+                  "round": 1,
+                  "controlSeconds": 9.1983152,
+                  "candidateSeconds": 9.3215192,
+                  "deltaPercent": 1.339419201464187
+                },
+                {
+                  "round": 2,
+                  "controlSeconds": 9.3460986,
+                  "candidateSeconds": 9.3667662,
+                  "deltaPercent": 0.22113612197500743
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "key": "facts",
+      "name": "Compact AiFacts keys",
+      "decisionEvidence": {
+        "path": ".phoenix/perf-recovery-b8-facts-decision.json",
+        "sha256": "6abedc4348c9192e7aeead8c0750b773ae408c2ea9222386f02bdbd6408aaed6"
+      },
+      "candidate": "facts",
+      "decision": "hold-unmerged",
+      "reason": "Two fully qualified paired matrices show small, mixed effects; Combat whole-process medians are slower in both and Falling Skyway improvements are small and shrink on repeat. No reliable useful gain established.",
+      "sourceRevision": "caa3e74fc034050a1e55522ebe8502eeec6d377a",
+      "runtimeSourceSha256": "9b352705f3a963e64a063afaae46d36e96c10471924e91a3b2b1d3a5c5aaf075",
+      "binarySha256": "68664d5e54397e4a9648aa9d37369d9a7087ce0bcf53e6a29e2aede49b3fe9a3",
+      "correctness": {
+        "isolatedOwnerPassed": 83,
+        "log": ".phoenix/perf-recovery-b8-facts-a-owner-tests.log",
+        "logSha256": "cc3b6188412626a8bc0027ab3ddb8a466cfda974b231a4279565c460f76e5fd5",
+        "combinedOwnerEvidence": ".phoenix/perf-recovery-batch8-correctness-evidence.json",
+        "combinedOwnerEvidenceSha256": "5278ef5e76c534acaee6c38186438c455a38fa9a773575d224a7900a2f29c524"
+      },
+      "scope": "Headless Cruiser; combat_test and falling_skyway; seed42; 60 simulated seconds; all Backfill. No claim of browser acceptance, full CI or full save/resume replay.",
+      "attempts": [
+        {
+          "stage": "b8-facts-a",
+          "evidence": {
+            "control-phase": {
+              "path": ".phoenix/perf-recovery-b8-facts-a-control-phase/summary.json",
+              "sha256": "fd81e8abee259a3d158d20f44e3c9c16c3a6a4fe6e8b12b9296b4cca9a3e95ed",
+              "valid": true,
+              "acceptanceEligible": true,
+              "problems": [],
+              "runs": 6,
+              "source": {
+                "sourceRevision": "eaed7c9f0ba6734592bb1f4efb554a9aee5de465",
+                "runtimeSourceSha256": "30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697",
+                "runtimeSourceClean": true,
+                "repositoryDirty": false,
+                "exampleSha256": "191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c"
+              },
+              "binarySha256": "eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1"
+            },
+            "phase": {
+              "path": ".phoenix/perf-recovery-b8-facts-a-phase/summary.json",
+              "sha256": "e82cd012042aaa146e42c84227fc9f8a35f9cdfec4c779fc54b2767a75303df1",
+              "valid": true,
+              "acceptanceEligible": true,
+              "problems": [],
+              "runs": 6,
+              "source": {
+                "sourceRevision": "caa3e74fc034050a1e55522ebe8502eeec6d377a",
+                "runtimeSourceSha256": "9b352705f3a963e64a063afaae46d36e96c10471924e91a3b2b1d3a5c5aaf075",
+                "runtimeSourceClean": true,
+                "repositoryDirty": false,
+                "exampleSha256": "191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c"
+              },
+              "binarySha256": "68664d5e54397e4a9648aa9d37369d9a7087ce0bcf53e6a29e2aede49b3fe9a3"
+            },
+            "control-bare": {
+              "path": ".phoenix/perf-recovery-b8-facts-a-control-bare/summary.json",
+              "sha256": "abfa934d3e62515e649e5e7c70a75b3f125c4de2014fb07a151eb82bd00cdbdb",
+              "valid": true,
+              "acceptanceEligible": true,
+              "problems": [],
+              "runs": 6,
+              "source": {
+                "sourceRevision": "eaed7c9f0ba6734592bb1f4efb554a9aee5de465",
+                "runtimeSourceSha256": "30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697",
+                "runtimeSourceClean": true,
+                "repositoryDirty": false,
+                "exampleSha256": "191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c"
+              },
+              "binarySha256": "eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1"
+            },
+            "bare": {
+              "path": ".phoenix/perf-recovery-b8-facts-a-bare/summary.json",
+              "sha256": "ac08c3697352d76d9d1240894b57457ea221cea90a6b920e54149eec3c8f86e4",
+              "valid": true,
+              "acceptanceEligible": true,
+              "problems": [],
+              "runs": 6,
+              "source": {
+                "sourceRevision": "caa3e74fc034050a1e55522ebe8502eeec6d377a",
+                "runtimeSourceSha256": "9b352705f3a963e64a063afaae46d36e96c10471924e91a3b2b1d3a5c5aaf075",
+                "runtimeSourceClean": true,
+                "repositoryDirty": false,
+                "exampleSha256": "191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c"
+              },
+              "binarySha256": "68664d5e54397e4a9648aa9d37369d9a7087ce0bcf53e6a29e2aede49b3fe9a3"
+            }
+          },
+          "qualified": true,
+          "comparison": {
+            "path": ".phoenix/perf-recovery-b8-facts-a-comparison.json",
+            "sha256": "e2c209e68f1894153c7a35dd681b3d5fe7a42accc3f41c96c296ae886d62d791"
+          },
+          "worlds": {
+            "combat_test": {
+              "phase": {
+                "metric": "update.mean",
+                "control": 3.5819059073008184,
+                "candidate": 3.577021054225994,
+                "deltaPercent": -0.13637580665833982,
+                "pairedMedianDeltaPercent": 0.5250911304734318,
+                "rounds": [
+                  {
+                    "round": 0,
+                    "control": 3.6276252650711855,
+                    "candidate": 3.5632164192668907,
+                    "deltaPercent": -1.7755099024273413
+                  },
+                  {
+                    "round": 1,
+                    "control": 3.5819059073008184,
+                    "candidate": 3.600714177521959,
+                    "deltaPercent": 0.5250911304734318
+                  },
+                  {
+                    "round": 2,
+                    "control": 3.5540124507724884,
+                    "candidate": 3.577021054225994,
+                    "deltaPercent": 0.6473979416843356
+                  }
+                ],
+                "allPairedRoundsFaster": false
+              },
+              "bare": {
+                "metric": "processWallSeconds",
+                "control": 12.3748649,
+                "candidate": 12.4223766,
+                "deltaPercent": 0.3839371208004039,
+                "pairedMedianDeltaPercent": -0.00029172035648228345,
+                "rounds": [
+                  {
+                    "round": 0,
+                    "control": 12.6148743,
+                    "candidate": 12.5002301,
+                    "deltaPercent": -0.908801762693745
+                  },
+                  {
+                    "round": 1,
+                    "control": 12.3748649,
+                    "candidate": 12.3748288,
+                    "deltaPercent": -0.00029172035648228345
+                  },
+                  {
+                    "round": 2,
+                    "control": 12.3314356,
+                    "candidate": 12.4223766,
+                    "deltaPercent": 0.7374729346192099
+                  }
+                ],
+                "allPairedRoundsFaster": false
+              }
+            },
+            "falling_skyway": {
+              "phase": {
+                "metric": "update.mean",
+                "control": 2.537867797637079,
+                "candidate": 2.5192127840048517,
+                "deltaPercent": -0.7350664069104118,
+                "pairedMedianDeltaPercent": -0.5212884481047064,
+                "rounds": [
+                  {
+                    "round": 0,
+                    "control": 2.539417661314752,
+                    "candidate": 2.5127626476825218,
+                    "deltaPercent": -1.0496506359820357
+                  },
+                  {
+                    "round": 1,
+                    "control": 2.532413965465011,
+                    "candidate": 2.5192127840048517,
+                    "deltaPercent": -0.5212884481047064
+                  },
+                  {
+                    "round": 2,
+                    "control": 2.537867797637079,
+                    "candidate": 2.564094789457741,
+                    "deltaPercent": 1.033426242496982
+                  }
+                ],
+                "allPairedRoundsFaster": false
+              },
+              "bare": {
+                "metric": "processWallSeconds",
+                "control": 9.2505182,
+                "candidate": 9.1904266,
+                "deltaPercent": -0.6496025271319428,
+                "pairedMedianDeltaPercent": -1.6774650610133057,
+                "rounds": [
+                  {
+                    "round": 0,
+                    "control": 9.1995245,
+                    "candidate": 9.2098579,
+                    "deltaPercent": 0.1123253707297378
+                  },
+                  {
+                    "round": 1,
+                    "control": 9.347223,
+                    "candidate": 9.1904266,
+                    "deltaPercent": -1.6774650610133057
+                  },
+                  {
+                    "round": 2,
+                    "control": 9.2505182,
+                    "candidate": 9.0900662,
+                    "deltaPercent": -1.7345190456465431
+                  }
+                ],
+                "allPairedRoundsFaster": false
+              }
+            }
+          }
+        },
+        {
+          "stage": "b8-facts-b",
+          "evidence": {
+            "control-phase": {
+              "path": ".phoenix/perf-recovery-b8-facts-b-control-phase/summary.json",
+              "sha256": "b845bf5227aa7aa850cdee4469297e4b3c17c70b72df377e8fc1fa9c432136e6",
+              "valid": true,
+              "acceptanceEligible": true,
+              "problems": [],
+              "runs": 6,
+              "source": {
+                "sourceRevision": "eaed7c9f0ba6734592bb1f4efb554a9aee5de465",
+                "runtimeSourceSha256": "30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697",
+                "runtimeSourceClean": true,
+                "repositoryDirty": false,
+                "exampleSha256": "191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c"
+              },
+              "binarySha256": "eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1"
+            },
+            "phase": {
+              "path": ".phoenix/perf-recovery-b8-facts-b-phase/summary.json",
+              "sha256": "6e1b5f057aacee3a36fc13c5c35d0050536118980d1c5e0fdc6dc0a8656d9525",
+              "valid": true,
+              "acceptanceEligible": true,
+              "problems": [],
+              "runs": 6,
+              "source": {
+                "sourceRevision": "caa3e74fc034050a1e55522ebe8502eeec6d377a",
+                "runtimeSourceSha256": "9b352705f3a963e64a063afaae46d36e96c10471924e91a3b2b1d3a5c5aaf075",
+                "runtimeSourceClean": true,
+                "repositoryDirty": false,
+                "exampleSha256": "191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c"
+              },
+              "binarySha256": "68664d5e54397e4a9648aa9d37369d9a7087ce0bcf53e6a29e2aede49b3fe9a3"
+            },
+            "control-bare": {
+              "path": ".phoenix/perf-recovery-b8-facts-b-control-bare/summary.json",
+              "sha256": "a7a38dba33e4c0a1cd21f282e7881fb234cbe93b237a44dc05cab65bdced329d",
+              "valid": true,
+              "acceptanceEligible": true,
+              "problems": [],
+              "runs": 6,
+              "source": {
+                "sourceRevision": "eaed7c9f0ba6734592bb1f4efb554a9aee5de465",
+                "runtimeSourceSha256": "30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697",
+                "runtimeSourceClean": true,
+                "repositoryDirty": false,
+                "exampleSha256": "191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c"
+              },
+              "binarySha256": "eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1"
+            },
+            "bare": {
+              "path": ".phoenix/perf-recovery-b8-facts-b-bare/summary.json",
+              "sha256": "10b28fcce75ced0a9122818756a99ffd064f135594927c62baf00a8751485dd3",
+              "valid": true,
+              "acceptanceEligible": true,
+              "problems": [],
+              "runs": 6,
+              "source": {
+                "sourceRevision": "caa3e74fc034050a1e55522ebe8502eeec6d377a",
+                "runtimeSourceSha256": "9b352705f3a963e64a063afaae46d36e96c10471924e91a3b2b1d3a5c5aaf075",
+                "runtimeSourceClean": true,
+                "repositoryDirty": false,
+                "exampleSha256": "191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c"
+              },
+              "binarySha256": "68664d5e54397e4a9648aa9d37369d9a7087ce0bcf53e6a29e2aede49b3fe9a3"
+            }
+          },
+          "qualified": true,
+          "comparison": {
+            "path": ".phoenix/perf-recovery-b8-facts-b-comparison.json",
+            "sha256": "3d768bbd5b7cde34f2f30b675ecc70f119c0cb2e8d2e79ab827516b94cecea9d"
+          },
+          "worlds": {
+            "combat_test": {
+              "phase": {
+                "metric": "update.mean",
+                "control": 3.5372887609815145,
+                "candidate": 3.562147743108156,
+                "deltaPercent": 0.7027693752585717,
+                "pairedMedianDeltaPercent": 1.1563289672914312,
+                "rounds": [
+                  {
+                    "round": 0,
+                    "control": 3.5214284459254794,
+                    "candidate": 3.562147743108156,
+                    "deltaPercent": 1.1563289672914312
+                  },
+                  {
+                    "round": 1,
+                    "control": 3.5372887609815145,
+                    "candidate": 3.5845760072705284,
+                    "deltaPercent": 1.3368217718220166
+                  },
+                  {
+                    "round": 2,
+                    "control": 3.585450045440774,
+                    "candidate": 3.5130793698879113,
+                    "deltaPercent": -2.0184544376762092
+                  }
+                ],
+                "allPairedRoundsFaster": false
+              },
+              "bare": {
+                "metric": "processWallSeconds",
+                "control": 12.4307721,
+                "candidate": 12.4708068,
+                "deltaPercent": 0.3220612499202691,
+                "pairedMedianDeltaPercent": 0.22052312323235235,
+                "rounds": [
+                  {
+                    "round": 0,
+                    "control": 12.4433663,
+                    "candidate": 12.4708068,
+                    "deltaPercent": 0.22052312323235235
+                  },
+                  {
+                    "round": 1,
+                    "control": 12.4103186,
+                    "candidate": 12.5558173,
+                    "deltaPercent": 1.1724010050797595
+                  },
+                  {
+                    "round": 2,
+                    "control": 12.4307721,
+                    "candidate": 12.3200805,
+                    "deltaPercent": -0.8904643984262273
+                  }
+                ],
+                "allPairedRoundsFaster": false
+              }
+            },
+            "falling_skyway": {
+              "phase": {
+                "metric": "update.mean",
+                "control": 2.505006482883977,
+                "candidate": 2.5036803392911273,
+                "deltaPercent": -0.052939726979184254,
+                "pairedMedianDeltaPercent": -0.054428668870942776,
+                "rounds": [
+                  {
+                    "round": 0,
+                    "control": 2.4924638594365383,
+                    "candidate": 2.4752538624659257,
+                    "deltaPercent": -0.6904813044913416
+                  },
+                  {
+                    "round": 1,
+                    "control": 2.505006482883977,
+                    "candidate": 2.5036803392911273,
+                    "deltaPercent": -0.052939726979184254
+                  },
+                  {
+                    "round": 2,
+                    "control": 2.5230836110269586,
+                    "candidate": 2.5217103302029757,
+                    "deltaPercent": -0.054428668870942776
+                  }
+                ],
+                "allPairedRoundsFaster": true
+              },
+              "bare": {
+                "metric": "processWallSeconds",
+                "control": 9.1988968,
+                "candidate": 9.1801784,
+                "deltaPercent": -0.20348527010325412,
+                "pairedMedianDeltaPercent": -0.2947438626090815,
+                "rounds": [
+                  {
+                    "round": 0,
+                    "control": 9.2073164,
+                    "candidate": 9.1801784,
+                    "deltaPercent": -0.2947438626090815
+                  },
+                  {
+                    "round": 1,
+                    "control": 9.1988968,
+                    "candidate": 9.2030225,
+                    "deltaPercent": 0.04484994331059866
+                  },
+                  {
+                    "round": 2,
+                    "control": 9.1805269,
+                    "candidate": 9.0962928,
+                    "deltaPercent": -0.9175301256401758
+                  }
+                ],
+                "allPairedRoundsFaster": false
+              }
+            }
+          }
+        }
+      ],
+      "generatedUtc": "2026-10-17T00:57:36.255Z"
+    },
+    {
+      "key": "navigation",
+      "name": "Navigation input borrowing",
+      "decisionEvidence": {
+        "path": ".phoenix/perf-recovery-b8-navigation-decision.json",
+        "sha256": "0ea1aa3ed2b8593ff2e3de81da991926fc1d51ff593a05d6d9378c0bed5f15dd"
+      },
+      "candidate": "navigation",
+      "decision": "hold-unmerged",
+      "reason": "Two fully qualified matrices do not establish a benefit. Combat phase and whole-process medians are slower in both; the repeat is slower in every Combat pair. Skyway also shows no repeatable useful gain.",
+      "sourceRevision": "4a987dcdded6bd88a2a41a0a8ddc2b64e2677771",
+      "runtimeSourceSha256": "f577529c15311c7b2242c28cf23a9f34a99696743460ce7c474f1b9767017879",
+      "binarySha256": "bbf4a38b53bd40734786c8b466357737d575a2d2c09ad620857dee4c575a7ce0",
+      "correctness": {
+        "isolatedOwnerPassed": 2,
+        "log": ".phoenix/perf-recovery-b8-navigation-a-owner-tests.log",
+        "logSha256": "340fb3e0ac293f46c52022e8cffd3c8809698e239a4db623237c539e425cabae",
+        "combinedOwnerEvidence": ".phoenix/perf-recovery-batch8-correctness-evidence.json",
+        "combinedOwnerEvidenceSha256": "5278ef5e76c534acaee6c38186438c455a38fa9a773575d224a7900a2f29c524"
+      },
+      "scope": "Headless Cruiser; combat_test and falling_skyway; seed42; 60 simulated seconds; all Backfill. No claim of browser acceptance, full CI or full save/resume replay.",
+      "attempts": [
+        {
+          "stage": "b8-navigation-a",
+          "evidence": {
+            "control-phase": {
+              "path": ".phoenix/perf-recovery-b8-navigation-a-control-phase/summary.json",
+              "sha256": "0ac28dc9687523c9ff6b5c3a7e5517504d2141f25b6287ad3d311ac4100b533c",
+              "valid": true,
+              "acceptanceEligible": true,
+              "problems": [],
+              "runs": 6,
+              "source": {
+                "sourceRevision": "eaed7c9f0ba6734592bb1f4efb554a9aee5de465",
+                "runtimeSourceSha256": "30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697",
+                "runtimeSourceClean": true,
+                "repositoryDirty": false,
+                "exampleSha256": "191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c"
+              },
+              "binarySha256": "eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1"
+            },
+            "phase": {
+              "path": ".phoenix/perf-recovery-b8-navigation-a-phase/summary.json",
+              "sha256": "d612b1a1d215afb157ed10484ff6cbb0b35608c521100fb2e5554beffbc8820a",
+              "valid": true,
+              "acceptanceEligible": true,
+              "problems": [],
+              "runs": 6,
+              "source": {
+                "sourceRevision": "4a987dcdded6bd88a2a41a0a8ddc2b64e2677771",
+                "runtimeSourceSha256": "f577529c15311c7b2242c28cf23a9f34a99696743460ce7c474f1b9767017879",
+                "runtimeSourceClean": true,
+                "repositoryDirty": false,
+                "exampleSha256": "191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c"
+              },
+              "binarySha256": "bbf4a38b53bd40734786c8b466357737d575a2d2c09ad620857dee4c575a7ce0"
+            },
+            "control-bare": {
+              "path": ".phoenix/perf-recovery-b8-navigation-a-control-bare/summary.json",
+              "sha256": "0557fc9295d322cad14bc92b6b1e46ba491365ca4db7ef0824fa6b7697d0dd41",
+              "valid": true,
+              "acceptanceEligible": true,
+              "problems": [],
+              "runs": 6,
+              "source": {
+                "sourceRevision": "eaed7c9f0ba6734592bb1f4efb554a9aee5de465",
+                "runtimeSourceSha256": "30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697",
+                "runtimeSourceClean": true,
+                "repositoryDirty": false,
+                "exampleSha256": "191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c"
+              },
+              "binarySha256": "eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1"
+            },
+            "bare": {
+              "path": ".phoenix/perf-recovery-b8-navigation-a-bare/summary.json",
+              "sha256": "c38b057bd8e340e6a317541dbc0c38674e71cc1e3fe96ea60f70ca699e6f4bcc",
+              "valid": true,
+              "acceptanceEligible": true,
+              "problems": [],
+              "runs": 6,
+              "source": {
+                "sourceRevision": "4a987dcdded6bd88a2a41a0a8ddc2b64e2677771",
+                "runtimeSourceSha256": "f577529c15311c7b2242c28cf23a9f34a99696743460ce7c474f1b9767017879",
+                "runtimeSourceClean": true,
+                "repositoryDirty": false,
+                "exampleSha256": "191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c"
+              },
+              "binarySha256": "bbf4a38b53bd40734786c8b466357737d575a2d2c09ad620857dee4c575a7ce0"
+            }
+          },
+          "qualified": true,
+          "comparison": {
+            "path": ".phoenix/perf-recovery-b8-navigation-a-comparison.json",
+            "sha256": "d0cb6ea328b3b9b515022b29931fe924347d642f371ebb8577fcdb857fd67671"
+          },
+          "worlds": {
+            "combat_test": {
+              "phase": {
+                "metric": "update.mean",
+                "control": 3.5179221448046003,
+                "candidate": 3.536612056952435,
+                "deltaPercent": 0.5312770259977784,
+                "pairedMedianDeltaPercent": 0.5312770259977784,
+                "rounds": [
+                  {
+                    "round": 0,
+                    "control": 3.5179221448046003,
+                    "candidate": 3.536612056952435,
+                    "deltaPercent": 0.5312770259977784
+                  },
+                  {
+                    "round": 1,
+                    "control": 3.4631907906694974,
+                    "candidate": 3.506524719781879,
+                    "deltaPercent": 1.2512717817664498
+                  },
+                  {
+                    "round": 2,
+                    "control": 3.6754594062405412,
+                    "candidate": 3.570770463495915,
+                    "deltaPercent": -2.848322649595192
+                  }
+                ],
+                "allPairedRoundsFaster": false
+              },
+              "bare": {
+                "metric": "processWallSeconds",
+                "control": 12.3613518,
+                "candidate": 12.4140261,
+                "deltaPercent": 0.42612087134352716,
+                "pairedMedianDeltaPercent": -0.2992205108182322,
+                "rounds": [
+                  {
+                    "round": 0,
+                    "control": 12.3506383,
+                    "candidate": 12.4628708,
+                    "deltaPercent": 0.9087182158026508
+                  },
+                  {
+                    "round": 1,
+                    "control": 12.3613518,
+                    "candidate": 12.3243641,
+                    "deltaPercent": -0.2992205108182322
+                  },
+                  {
+                    "round": 2,
+                    "control": 12.5685762,
+                    "candidate": 12.4140261,
+                    "deltaPercent": -1.2296547957437065
+                  }
+                ],
+                "allPairedRoundsFaster": false
+              }
+            },
+            "falling_skyway": {
+              "phase": {
+                "metric": "update.mean",
+                "control": 2.4967392608300534,
+                "candidate": 2.507268767040291,
+                "deltaPercent": 0.421730309425139,
+                "pairedMedianDeltaPercent": 0.12354314223788077,
+                "rounds": [
+                  {
+                    "round": 0,
+                    "control": 2.511818570130264,
+                    "candidate": 2.507268767040291,
+                    "deltaPercent": -0.1811358170561328
+                  },
+                  {
+                    "round": 1,
+                    "control": 2.4967392608300534,
+                    "candidate": 2.4998238109663697,
+                    "deltaPercent": 0.12354314223788077
+                  },
+                  {
+                    "round": 2,
+                    "control": 2.4919028173280817,
+                    "candidate": 2.5342442290215077,
+                    "deltaPercent": 1.6991598307523947
+                  }
+                ],
+                "allPairedRoundsFaster": false
+              },
+              "bare": {
+                "metric": "processWallSeconds",
+                "control": 9.1836401,
+                "candidate": 9.173808,
+                "deltaPercent": -0.10706103345666795,
+                "pairedMedianDeltaPercent": 0.40224681714171595,
+                "rounds": [
+                  {
+                    "round": 0,
+                    "control": 9.2048984,
+                    "candidate": 9.1441385,
+                    "deltaPercent": -0.660082244905591
+                  },
+                  {
+                    "round": 1,
+                    "control": 9.1836401,
+                    "candidate": 9.220581,
+                    "deltaPercent": 0.40224681714171595
+                  },
+                  {
+                    "round": 2,
+                    "control": 9.1103222,
+                    "candidate": 9.173808,
+                    "deltaPercent": 0.6968557050594626
+                  }
+                ],
+                "allPairedRoundsFaster": false
+              }
+            }
+          }
+        },
+        {
+          "stage": "b8-navigation-b",
+          "evidence": {
+            "control-phase": {
+              "path": ".phoenix/perf-recovery-b8-navigation-b-control-phase/summary.json",
+              "sha256": "d1b3d00b9b8d0084a7e73074a88f8df515978798d012de242bd28e3abd2faa2b",
+              "valid": true,
+              "acceptanceEligible": true,
+              "problems": [],
+              "runs": 6,
+              "source": {
+                "sourceRevision": "eaed7c9f0ba6734592bb1f4efb554a9aee5de465",
+                "runtimeSourceSha256": "30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697",
+                "runtimeSourceClean": true,
+                "repositoryDirty": false,
+                "exampleSha256": "191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c"
+              },
+              "binarySha256": "eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1"
+            },
+            "phase": {
+              "path": ".phoenix/perf-recovery-b8-navigation-b-phase/summary.json",
+              "sha256": "d2953bc03e56660e511f339edf3a30d2637b5975d96eb5f66c1af807a9ceae84",
+              "valid": true,
+              "acceptanceEligible": true,
+              "problems": [],
+              "runs": 6,
+              "source": {
+                "sourceRevision": "4a987dcdded6bd88a2a41a0a8ddc2b64e2677771",
+                "runtimeSourceSha256": "f577529c15311c7b2242c28cf23a9f34a99696743460ce7c474f1b9767017879",
+                "runtimeSourceClean": true,
+                "repositoryDirty": false,
+                "exampleSha256": "191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c"
+              },
+              "binarySha256": "bbf4a38b53bd40734786c8b466357737d575a2d2c09ad620857dee4c575a7ce0"
+            },
+            "control-bare": {
+              "path": ".phoenix/perf-recovery-b8-navigation-b-control-bare/summary.json",
+              "sha256": "6113ce1d3e8009d518ffb9cefcf0bae166afd732de9c6fcf963e871a94a6aee0",
+              "valid": true,
+              "acceptanceEligible": true,
+              "problems": [],
+              "runs": 6,
+              "source": {
+                "sourceRevision": "eaed7c9f0ba6734592bb1f4efb554a9aee5de465",
+                "runtimeSourceSha256": "30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697",
+                "runtimeSourceClean": true,
+                "repositoryDirty": false,
+                "exampleSha256": "191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c"
+              },
+              "binarySha256": "eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1"
+            },
+            "bare": {
+              "path": ".phoenix/perf-recovery-b8-navigation-b-bare/summary.json",
+              "sha256": "5bfe3e734a42d6dd0901509ee9fc48ae594b3cccace89841f7271a958c3c8568",
+              "valid": true,
+              "acceptanceEligible": true,
+              "problems": [],
+              "runs": 6,
+              "source": {
+                "sourceRevision": "4a987dcdded6bd88a2a41a0a8ddc2b64e2677771",
+                "runtimeSourceSha256": "f577529c15311c7b2242c28cf23a9f34a99696743460ce7c474f1b9767017879",
+                "runtimeSourceClean": true,
+                "repositoryDirty": false,
+                "exampleSha256": "191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c"
+              },
+              "binarySha256": "bbf4a38b53bd40734786c8b466357737d575a2d2c09ad620857dee4c575a7ce0"
+            }
+          },
+          "qualified": true,
+          "comparison": {
+            "path": ".phoenix/perf-recovery-b8-navigation-b-comparison.json",
+            "sha256": "ed6382ec967d4016bfb099798ec5174e699d77a4539488662ef7f815964acdd9"
+          },
+          "worlds": {
+            "combat_test": {
+              "phase": {
+                "metric": "update.mean",
+                "control": 3.5353732808239973,
+                "candidate": 3.566546925174187,
+                "deltaPercent": 0.8817638725527654,
+                "pairedMedianDeltaPercent": 1.0125936152749704,
+                "rounds": [
+                  {
+                    "round": 0,
+                    "control": 3.5353732808239973,
+                    "candidate": 3.5456396849439575,
+                    "deltaPercent": 0.29039095180261043
+                  },
+                  {
+                    "round": 1,
+                    "control": 3.5796691002726555,
+                    "candidate": 3.615916601029987,
+                    "deltaPercent": 1.0125936152749704
+                  },
+                  {
+                    "round": 2,
+                    "control": 3.5216835201454106,
+                    "candidate": 3.566546925174187,
+                    "deltaPercent": 1.2739192710571556
+                  }
+                ],
+                "allPairedRoundsFaster": false
+              },
+              "bare": {
+                "metric": "processWallSeconds",
+                "control": 12.3536576,
+                "candidate": 12.4576465,
+                "deltaPercent": 0.8417660855356557,
+                "pairedMedianDeltaPercent": 0.8417660855356557,
+                "rounds": [
+                  {
+                    "round": 0,
+                    "control": 12.3765792,
+                    "candidate": 12.4650052,
+                    "deltaPercent": 0.7144623612960865
+                  },
+                  {
+                    "round": 1,
+                    "control": 12.3536576,
+                    "candidate": 12.4576465,
+                    "deltaPercent": 0.8417660855356557
+                  },
+                  {
+                    "round": 2,
+                    "control": 12.222508,
+                    "candidate": 12.4351546,
+                    "deltaPercent": 1.7397951386082244
+                  }
+                ],
+                "allPairedRoundsFaster": false
+              }
+            },
+            "falling_skyway": {
+              "phase": {
+                "metric": "update.mean",
+                "control": 2.499423720084824,
+                "candidate": 2.509739412299304,
+                "deltaPercent": 0.412722826129297,
+                "pairedMedianDeltaPercent": 0.20375786628190617,
+                "rounds": [
+                  {
+                    "round": 0,
+                    "control": 2.4922206301120875,
+                    "candidate": 2.5201927597697664,
+                    "deltaPercent": 1.1223777429537174
+                  },
+                  {
+                    "round": 1,
+                    "control": 2.504636019388071,
+                    "candidate": 2.509739412299304,
+                    "deltaPercent": 0.20375786628190617
+                  },
+                  {
+                    "round": 2,
+                    "control": 2.499423720084824,
+                    "candidate": 2.498285186307181,
+                    "deltaPercent": -0.04555185135253215
+                  }
+                ],
+                "allPairedRoundsFaster": false
+              },
+              "bare": {
+                "metric": "processWallSeconds",
+                "control": 9.0827114,
+                "candidate": 9.2399811,
+                "deltaPercent": 1.7315280985367387,
+                "pairedMedianDeltaPercent": 0.7611912897878659,
+                "rounds": [
+                  {
+                    "round": 0,
+                    "control": 9.0585759,
+                    "candidate": 9.2600537,
+                    "deltaPercent": 2.224166383592374
+                  },
+                  {
+                    "round": 1,
+                    "control": 9.1701785,
+                    "candidate": 9.2399811,
+                    "deltaPercent": 0.7611912897878659
+                  },
+                  {
+                    "round": 2,
+                    "control": 9.0827114,
+                    "candidate": 9.0287196,
+                    "deltaPercent": -0.5944458391576757
+                  }
+                ],
+                "allPairedRoundsFaster": false
+              }
+            }
+          }
+        }
+      ],
+      "generatedUtc": "2026-10-17T02:22:52.548Z"
+    },
+    {
+      "key": "publication",
+      "name": "Retired publication buffers",
+      "decisionEvidence": {
+        "path": ".phoenix/perf-recovery-b8-publication-decision.json",
+        "sha256": "c6506bc619e7160213910ffedee78589016e68ff04aabc715fe3dcbeb8c8f021"
+      },
+      "candidate": "publication",
+      "decision": "accept-for-integration",
+      "reason": "Both qualified matrices show repeatable Combat improvements in all six paired phase and whole-process rounds. Accept the bounded raw-buffer pool for that heavier-workload benefit, explicitly retaining the small Skyway regression: phase +0.25/+0.11 percent and whole-process +0.58/+1.06 percent. This is not a universal gain or old-speed recovery.",
+      "sourceRevision": "8ccb2e59aeea7d4c49a768712efcb3847a32929a",
+      "runtimeSourceSha256": "d16bee728fb30622d3b50fc4df259422a9881d57e409adfa951eb857fa8fc9e5",
+      "binarySha256": "110db6c76526ad7b59c9834eb252a2fac8597dbac0932a17594d8a055ee9fa01",
+      "correctness": {
+        "isolatedOwnerPassed": 15,
+        "log": ".phoenix/perf-recovery-b8-publication-a-owner-tests.log",
+        "logSha256": "0557a358df9796f8b541b7d885e6a12cc00e359d5e8271e780a5591460a883a8",
+        "combinedOwnerEvidence": ".phoenix/perf-recovery-batch8-correctness-evidence.json",
+        "combinedOwnerEvidenceSha256": "5278ef5e76c534acaee6c38186438c455a38fa9a773575d224a7900a2f29c524"
+      },
+      "scope": "Headless Cruiser; combat_test and falling_skyway; seed42; 60 simulated seconds; all Backfill. No claim of browser acceptance, full CI or full save/resume replay.",
+      "attempts": [
+        {
+          "stage": "b8-publication-a",
+          "evidence": {
+            "control-phase": {
+              "path": ".phoenix/perf-recovery-b8-publication-a-control-phase/summary.json",
+              "sha256": "38c2cb612655b0ae3c19eadc048f2886fff6af01490266fc96274d73a6f31a0d",
+              "valid": true,
+              "acceptanceEligible": true,
+              "problems": [],
+              "runs": 6,
+              "source": {
+                "sourceRevision": "eaed7c9f0ba6734592bb1f4efb554a9aee5de465",
+                "runtimeSourceSha256": "30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697",
+                "runtimeSourceClean": true,
+                "repositoryDirty": false,
+                "exampleSha256": "191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c"
+              },
+              "binarySha256": "eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1"
+            },
+            "phase": {
+              "path": ".phoenix/perf-recovery-b8-publication-a-phase/summary.json",
+              "sha256": "e5f2b6e14d62301fdde31c0ffaf0a62ac91822c15c80a633121f6a12b387b51d",
+              "valid": true,
+              "acceptanceEligible": true,
+              "problems": [],
+              "runs": 6,
+              "source": {
+                "sourceRevision": "8ccb2e59aeea7d4c49a768712efcb3847a32929a",
+                "runtimeSourceSha256": "d16bee728fb30622d3b50fc4df259422a9881d57e409adfa951eb857fa8fc9e5",
+                "runtimeSourceClean": true,
+                "repositoryDirty": false,
+                "exampleSha256": "191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c"
+              },
+              "binarySha256": "110db6c76526ad7b59c9834eb252a2fac8597dbac0932a17594d8a055ee9fa01"
+            },
+            "control-bare": {
+              "path": ".phoenix/perf-recovery-b8-publication-a-control-bare/summary.json",
+              "sha256": "99fc5ee6474afb583e372f55a067ca38483f94038697499821569c7b548d00d0",
+              "valid": true,
+              "acceptanceEligible": true,
+              "problems": [],
+              "runs": 6,
+              "source": {
+                "sourceRevision": "eaed7c9f0ba6734592bb1f4efb554a9aee5de465",
+                "runtimeSourceSha256": "30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697",
+                "runtimeSourceClean": true,
+                "repositoryDirty": false,
+                "exampleSha256": "191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c"
+              },
+              "binarySha256": "eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1"
+            },
+            "bare": {
+              "path": ".phoenix/perf-recovery-b8-publication-a-bare/summary.json",
+              "sha256": "54719ea7be97f56c2ce56b54bcd88fdabe7432083425a01e96793a5bfa9cfe81",
+              "valid": true,
+              "acceptanceEligible": true,
+              "problems": [],
+              "runs": 6,
+              "source": {
+                "sourceRevision": "8ccb2e59aeea7d4c49a768712efcb3847a32929a",
+                "runtimeSourceSha256": "d16bee728fb30622d3b50fc4df259422a9881d57e409adfa951eb857fa8fc9e5",
+                "runtimeSourceClean": true,
+                "repositoryDirty": false,
+                "exampleSha256": "191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c"
+              },
+              "binarySha256": "110db6c76526ad7b59c9834eb252a2fac8597dbac0932a17594d8a055ee9fa01"
+            }
+          },
+          "qualified": true,
+          "comparison": {
+            "path": ".phoenix/perf-recovery-b8-publication-a-comparison.json",
+            "sha256": "f7e342a7ec277d6db19d43a6dc1c4bc8922c6aab8f6c3f0b5c37eff856c7dd03"
+          },
+          "worlds": {
+            "combat_test": {
+              "phase": {
+                "metric": "update.mean",
+                "control": 3.5478451378370184,
+                "candidate": 3.4364245380187817,
+                "deltaPercent": -3.1405147487966634,
+                "pairedMedianDeltaPercent": -3.1405147487966634,
+                "rounds": [
+                  {
+                    "round": 0,
+                    "control": 3.5478451378370184,
+                    "candidate": 3.4364245380187817,
+                    "deltaPercent": -3.1405147487966634
+                  },
+                  {
+                    "round": 1,
+                    "control": 3.5315171160254386,
+                    "candidate": 3.4150417752196285,
+                    "deltaPercent": -3.2981672459483358
+                  },
+                  {
+                    "round": 2,
+                    "control": 3.5499029385034855,
+                    "candidate": 3.4555240836110377,
+                    "deltaPercent": -2.658631983110915
+                  }
+                ],
+                "allPairedRoundsFaster": true
+              },
+              "bare": {
+                "metric": "processWallSeconds",
+                "control": 12.331317,
+                "candidate": 12.0314841,
+                "deltaPercent": -2.4314750808855257,
+                "pairedMedianDeltaPercent": -2.4314750808855257,
+                "rounds": [
+                  {
+                    "round": 0,
+                    "control": 12.331317,
+                    "candidate": 12.0314841,
+                    "deltaPercent": -2.4314750808855257
+                  },
+                  {
+                    "round": 1,
+                    "control": 12.3488227,
+                    "candidate": 12.0068445,
+                    "deltaPercent": -2.7693182444023523
+                  },
+                  {
+                    "round": 2,
+                    "control": 12.3131241,
+                    "candidate": 12.0317659,
+                    "deltaPercent": -2.285026916930044
+                  }
+                ],
+                "allPairedRoundsFaster": true
+              }
+            },
+            "falling_skyway": {
+              "phase": {
+                "metric": "update.mean",
+                "control": 2.5038583762496187,
+                "candidate": 2.510022508330811,
+                "deltaPercent": 0.2461853329909669,
+                "pairedMedianDeltaPercent": 0.04058542613023519,
+                "rounds": [
+                  {
+                    "round": 0,
+                    "control": 2.51306573765526,
+                    "candidate": 2.510022508330811,
+                    "deltaPercent": -0.12109628804570782
+                  },
+                  {
+                    "round": 1,
+                    "control": 2.5026033020296894,
+                    "candidate": 2.5036189942441673,
+                    "deltaPercent": 0.04058542613023519
+                  },
+                  {
+                    "round": 2,
+                    "control": 2.5038583762496187,
+                    "candidate": 2.563673311117838,
+                    "deltaPercent": 2.3889104685630214
+                  }
+                ],
+                "allPairedRoundsFaster": false
+              },
+              "bare": {
+                "metric": "processWallSeconds",
+                "control": 9.1532715,
+                "candidate": 9.2064148,
+                "deltaPercent": 0.5805935069226109,
+                "pairedMedianDeltaPercent": 0.5805935069226109,
+                "rounds": [
+                  {
+                    "round": 0,
+                    "control": 9.1564321,
+                    "candidate": 9.2318084,
+                    "deltaPercent": 0.8232060171122768
+                  },
+                  {
+                    "round": 1,
+                    "control": 9.1532715,
+                    "candidate": 9.2064148,
+                    "deltaPercent": 0.5805935069226109
+                  },
+                  {
+                    "round": 2,
+                    "control": 9.1025433,
+                    "candidate": 9.142185,
+                    "deltaPercent": 0.4355013614711245
+                  }
+                ],
+                "allPairedRoundsFaster": false
+              }
+            }
+          }
+        },
+        {
+          "stage": "b8-publication-b",
+          "evidence": {
+            "control-phase": {
+              "path": ".phoenix/perf-recovery-b8-publication-b-control-phase/summary.json",
+              "sha256": "d7fe88d1161ba5771c077387293cd68aefe3c4207aadb3874d740d353c98b6f9",
+              "valid": true,
+              "acceptanceEligible": true,
+              "problems": [],
+              "runs": 6,
+              "source": {
+                "sourceRevision": "eaed7c9f0ba6734592bb1f4efb554a9aee5de465",
+                "runtimeSourceSha256": "30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697",
+                "runtimeSourceClean": true,
+                "repositoryDirty": false,
+                "exampleSha256": "191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c"
+              },
+              "binarySha256": "eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1"
+            },
+            "phase": {
+              "path": ".phoenix/perf-recovery-b8-publication-b-phase/summary.json",
+              "sha256": "f8a16d82320e490c500d22fb6f0a215f5073a0ecd8390802e007d83b9a09f182",
+              "valid": true,
+              "acceptanceEligible": true,
+              "problems": [],
+              "runs": 6,
+              "source": {
+                "sourceRevision": "8ccb2e59aeea7d4c49a768712efcb3847a32929a",
+                "runtimeSourceSha256": "d16bee728fb30622d3b50fc4df259422a9881d57e409adfa951eb857fa8fc9e5",
+                "runtimeSourceClean": true,
+                "repositoryDirty": false,
+                "exampleSha256": "191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c"
+              },
+              "binarySha256": "110db6c76526ad7b59c9834eb252a2fac8597dbac0932a17594d8a055ee9fa01"
+            },
+            "control-bare": {
+              "path": ".phoenix/perf-recovery-b8-publication-b-control-bare/summary.json",
+              "sha256": "5b1bdc7292f6a175b7427dbdd1df0465a4c1984f6ebb9fdc6955edba7f1df700",
+              "valid": true,
+              "acceptanceEligible": true,
+              "problems": [],
+              "runs": 6,
+              "source": {
+                "sourceRevision": "eaed7c9f0ba6734592bb1f4efb554a9aee5de465",
+                "runtimeSourceSha256": "30d5fd1f7989253c5de307a0cbdb1b24ed199e842d70dab09bcd192d837c4697",
+                "runtimeSourceClean": true,
+                "repositoryDirty": false,
+                "exampleSha256": "191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c"
+              },
+              "binarySha256": "eae5cc1c02b97a7b905e951af1ceeb0b17660ede2c614716b89a4a86465573f1"
+            },
+            "bare": {
+              "path": ".phoenix/perf-recovery-b8-publication-b-bare/summary.json",
+              "sha256": "516277dbe094ef49b0cce679dc085a4be949150001a1b0607894585c5098d8c7",
+              "valid": true,
+              "acceptanceEligible": true,
+              "problems": [],
+              "runs": 6,
+              "source": {
+                "sourceRevision": "8ccb2e59aeea7d4c49a768712efcb3847a32929a",
+                "runtimeSourceSha256": "d16bee728fb30622d3b50fc4df259422a9881d57e409adfa951eb857fa8fc9e5",
+                "runtimeSourceClean": true,
+                "repositoryDirty": false,
+                "exampleSha256": "191635f3f52de979f60891e2b78f9d7f269de405d4e75a0a711bc8d617cff46c"
+              },
+              "binarySha256": "110db6c76526ad7b59c9834eb252a2fac8597dbac0932a17594d8a055ee9fa01"
+            }
+          },
+          "qualified": true,
+          "comparison": {
+            "path": ".phoenix/perf-recovery-b8-publication-b-comparison.json",
+            "sha256": "f37f4914b003ee10ba3f6588994d816ded57797f953cfb7987ebc267cf33631a"
+          },
+          "worlds": {
+            "combat_test": {
+              "phase": {
+                "metric": "update.mean",
+                "control": 3.5446235686155707,
+                "candidate": 3.42291817631021,
+                "deltaPercent": -3.4335209352821416,
+                "pairedMedianDeltaPercent": -3.6795410915526516,
+                "rounds": [
+                  {
+                    "round": 0,
+                    "control": 3.553677188730689,
+                    "candidate": 3.42291817631021,
+                    "deltaPercent": -3.6795410915526516
+                  },
+                  {
+                    "round": 1,
+                    "control": 3.5144956982732496,
+                    "candidate": 3.44391963041503,
+                    "deltaPercent": -2.0081421039409686
+                  },
+                  {
+                    "round": 2,
+                    "control": 3.5446235686155707,
+                    "candidate": 3.3980223871554114,
+                    "deltaPercent": -4.135874476437495
+                  }
+                ],
+                "allPairedRoundsFaster": true
+              },
+              "bare": {
+                "metric": "processWallSeconds",
+                "control": 12.3718899,
+                "candidate": 12.0094997,
+                "deltaPercent": -2.929141812036329,
+                "pairedMedianDeltaPercent": -2.572904403231069,
+                "rounds": [
+                  {
+                    "round": 0,
+                    "control": 12.3718899,
+                    "candidate": 12.053573,
+                    "deltaPercent": -2.572904403231069
+                  },
+                  {
+                    "round": 1,
+                    "control": 12.3094947,
+                    "candidate": 12.0008878,
+                    "deltaPercent": -2.5070639170915787
+                  },
+                  {
+                    "round": 2,
+                    "control": 12.4304432,
+                    "candidate": 12.0094997,
+                    "deltaPercent": -3.386391725759219
+                  }
+                ],
+                "allPairedRoundsFaster": true
+              }
+            },
+            "falling_skyway": {
+              "phase": {
+                "metric": "update.mean",
+                "control": 2.4752940624053315,
+                "candidate": 2.4780043926083017,
+                "deltaPercent": 0.10949528155601573,
+                "pairedMedianDeltaPercent": 0.10949528155601573,
+                "rounds": [
+                  {
+                    "round": 0,
+                    "control": 2.4931823083913978,
+                    "candidate": 2.471307876401093,
+                    "deltaPercent": -0.8773699346686814
+                  },
+                  {
+                    "round": 1,
+                    "control": 2.4752940624053315,
+                    "candidate": 2.4780043926083017,
+                    "deltaPercent": 0.10949528155601573
+                  },
+                  {
+                    "round": 2,
+                    "control": 2.464104180551345,
+                    "candidate": 2.48992044834899,
+                    "deltaPercent": 1.047693843523656
+                  }
+                ],
+                "allPairedRoundsFaster": false
+              },
+              "bare": {
+                "metric": "processWallSeconds",
+                "control": 9.0654821,
+                "candidate": 9.1611791,
+                "deltaPercent": 1.055619535115504,
+                "pairedMedianDeltaPercent": 0.623296139981333,
+                "rounds": [
+                  {
+                    "round": 0,
+                    "control": 9.013778,
+                    "candidate": 9.2313484,
+                    "deltaPercent": 2.413753700168786
+                  },
+                  {
+                    "round": 1,
+                    "control": 9.164303,
+                    "candidate": 9.1611791,
+                    "deltaPercent": -0.03408769875897777
+                  },
+                  {
+                    "round": 2,
+                    "control": 9.0654821,
+                    "candidate": 9.1219869,
+                    "deltaPercent": 0.623296139981333
+                  }
+                ],
+                "allPairedRoundsFaster": false
+              }
+            }
+          }
+        }
+      ],
+      "generatedUtc": "2026-10-17T02:24:11.776Z"
+    }
+  ]
+}

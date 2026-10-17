@@ -1,0 +1,56 @@
+entities:
+  - decision: dynasty-player-cruiser-six-seat-baseline
+    core:
+      status: implemented
+      confidence: confirmed
+      title: Dynasty Player Cruiser Six-Station Baseline
+      summary: "The selectable Dynasty player cruiser is a distinct composed hull, separate from the existing Harrow NPC cruiser. Its six claimable Stations are Command (Captain and Comms), Helm (movement and Navigation), Gunnery (weapons), Sensors (detection and scanning), Power (energy), and Damage Control (shields and repair). Every responsibility remains an ordinary authored System assignment, so human operators and Backfill use the same admission and projection paths."
+      rationale:
+        - "Issue #1521 establishes the playable role split before the later strike-reserve and weapon-boost enhancements. It composes the proven player-cruiser equipment baseline and specialises identity, presentation and ownership without changing NPC encounter content."
+        - "Dedicated console documents compose the shared family components and action adapters. A Station regrouping never widens authority or creates a human-only combat path."
+    game_design:
+      must_not_be: [implemented by exposing or retuning the Harrow NPC cruiser, granted human-only combat behaviour, dependent on all six seats being occupied]
+    implementation:
+      status: declared
+      paths: [assets/entities/dynasty_player_cruiser.toml, gui/dynasty-cruiser/, tests/dynasty_player_cruiser.rs]
+      tests: [cargo test --test dynasty_player_cruiser]
+  - decision: dynasty-strike-reserve-allocation
+    core:
+      status: implemented
+      confidence: confirmed
+      title: Dynasty Strike Reserve Allocation
+      summary: "The authored strike_reserve reactor policy stores generation explicitly assigned to its charging group in the ordinary per-ship battery continuation. Charging shares the demand allocation budget, so raising it reduces the budget available to Helm, weapons and shields. Zero charging holds stored charge; unallocated generation is not captured. No decay, cooldown or empty-reserve allocation lock applies. Existing reactors retain their battery drain and brownout rules."
+      rationale:
+        - "Power operates the existing admitted SetPowerGroupAllocation controls and bounded gauge. Ordinary authored Power Backfill uses that same applier. The reserve is not a second independently writable storage pool."
+        - "The charging group must be authored with a zero floor. Units per allocated level and capacity must be positive and finite. Backfill can restart a zero charging group through ordinary allocation commands; zero on an equipment demand still preserves the cold-order rule. Strike-reserve allocation and charge participate in snapshot continuation and the entity digest; existing reactor digest scope is unchanged."
+    implementation:
+      status: declared
+      paths: [crates/phoenix-sim-gameplay/src/modifiers/power_system.rs, crates/phoenix-sim-gameplay/src/entities/config/power.rs, crates/phoenix-simulation/src/sim_digest.rs, assets/entities/dynasty_player_cruiser.toml, gui/dynasty-cruiser/power.html]
+      tests: [cargo test --lib strike_reserve_conserves, cargo test --test dynasty_player_cruiser, crates/phoenix-sim-gameplay/src/modifiers/power_system_tests.rs]
+  - decision: dynasty-global-strike-boost
+    core:
+      status: implemented
+      confidence: confirmed
+      title: Dynasty Global Strike Boost
+      summary: "Gunnery toggles one ship-wide boost through the ordinary phaser-control command target. Each authored firing weapon pays its cost at actual emission and applies only its authored damage multiplier. A beam pays once per cycle; every blaster bolt and torpedo round pays once. An unpaid attack fires normally and disables boost until an explicit admitted enable command."
+      rationale:
+        - "Power and Gunnery publish the same reserve charge, charging state, enabled state and persistent depletion explanation. Enabling costs nothing. Basic Backfill explicitly enables at the authored ai_enable_at charge threshold through ordinary admission on the shared AI cadence."
+        - "Existing fixed-step ordering arbitrates simultaneous families: blaster emissions, delayed torpedo bursts, beam starts, immediate torpedo launches. Authored bank order and admitted command order arbitrate within each family. Paid damage bonuses remain attached to active attacks through snapshot restore and participate in the reserve hull digest."
+    implementation:
+      status: declared
+      paths: [crates/phoenix-sim-gameplay/src/modifiers/strike_reserve.rs, crates/phoenix-simulation/src/console/weapons/strike.rs, crates/phoenix-simulation/src/console/weapons/beam.rs, crates/phoenix-simulation/src/console/weapons/blaster.rs, crates/phoenix-simulation/src/console/weapons/torpedo.rs, crates/phoenix-simulation/src/snapshot/mod.rs, gui/components/ph-strike-reserve.js]
+      tests: [cargo test --lib strike_, npx vitest run tests/client/strike-reserve.test.js, crates/phoenix-sim-gameplay/src/modifiers/strike_reserve_tests.rs]
+  - decision: dynasty-backfill-strike-cycle
+    core:
+      status: implemented
+      confidence: confirmed
+      title: Dynasty Backfill Strike Cycle
+      summary: "Dynasty's authored Engines and Steering machines coordinate charge, approach, attack and recovery using the ordinary ship-wide strike switch. Power charges while boost is off and yields those pips while boost is on. Gunnery explicitly re-enables at the authored reserve threshold. Helm closes only with a live target and combat posture, holds a firing bearing inside the attack range, and returns to a recovery orbit after depletion or disengagement."
+      rationale:
+        - "The charge and boost facts are own-ship observations, visible through existing policy inspection. Helm transition guards read them; actuator rules and downstream movement, allocation and weapon contracts remain shared with human operators. Existing non-reserve hulls receive no reserve facts or doctrine replacement."
+        - "The same authored policies run when all Stations are Backfill and when Command, Sensors and Damage Control are occupied by humans. Different fleet hosts must agree through depletion and a subsequent re-enable."
+        - "Attack ranges, movement speeds and reserve thresholds are authored tuning proposals; parity acceptance belongs to the separate seeded Dynasty balance evaluation."
+    implementation:
+      status: declared
+      paths: [assets/entities/dynasty_player_cruiser.toml, crates/phoenix-sim-gameplay/src/entities/ai_flag_hosts.rs, crates/phoenix-simulation/src/ship/power.rs, crates/phoenix-simulation/src/ship/helm_ai/mod.rs, tests/dynasty_backfill.rs]
+      tests: [cargo test --features headless --test dynasty_backfill]

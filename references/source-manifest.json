@@ -1,0 +1,1282 @@
+{
+  "collected_at_utc": "2026-10-17T13:15:19.7825954Z",
+  "phoenix_v2_head": "7b48b49a49b5f6517350f0daf4f27799a7c0685a",
+  "phoenix_v2_reference_status": [
+    " M docs/gameplay-redesign/implementation/README.md",
+    " M docs/gameplay-redesign/implementation/verification-8-12.json"
+  ],
+  "snapshot_policy": "Copy tracked reference files from the current working tree; no source code, build outputs, Git history or credentials. References retain historical content and may link outside this snapshot.",
+  "settled_dark_decision_source": "Codex thread 01a13b70-2aef-7453-93fe-453c47eecd7c, completed 18-issue review final summary",
+  "files": [
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\README.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/README.md",
+      "sha256": "8e76612e6cc6278ab7f0a71f6be1e89f0fff995e490dc2707b49665850129d06"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\architecture\\README.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/architecture/README.md",
+      "sha256": "a9eab2062dc0ca394254610dc7913dbe9196f51b03cc27260eeb64debfb557c2"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\architecture\\ai-state-trees.html",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/architecture/ai-state-trees.html",
+      "sha256": "fdf8f5336b9a451ca13e95f0f950216fd0c1508cd7f9fe6e4e2f04f07302c702"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\architecture\\feature-reconciliation.html",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/architecture/feature-reconciliation.html",
+      "sha256": "d3cf7e2eae5801e259b57bec32abf924f3b475f338500e2d21d8280dbe01111e"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\architecture\\index.html",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/architecture/index.html",
+      "sha256": "77bf16f05457936248276e22d7b5e74ae3dc8b4187b9bff362cb86a6856a47d4"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\game-systems.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/game-systems.md",
+      "sha256": "260af7aa4947c521d0e173444340bd20bb19af39a802e40f6a9c53ae669e3a38"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\README.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/README.md",
+      "sha256": "94b206ea074117b18ebf81dc306460a80421481debaf067ccd66881d1917a67e"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\balance-headless-profile-2026-10-16.html",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/balance-headless-profile-2026-10-16.html",
+      "sha256": "a3fb287b8d248c9a19b2fc17a7e0a7cae6c6a4f4f0b6923e8948587b47c0a943"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\balance-headless-profile-2026-10-16.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/balance-headless-profile-2026-10-16.json",
+      "sha256": "c10e458c801af5b9bff6478b9eba3b994140c6b8d3a52024a415bbc5cb584846"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\baseline.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/baseline.json",
+      "sha256": "017d3bdf7e05503073fc43d80294f70dc2617b88b23d97d8d08c6b5f857bce21"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\baseline.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/baseline.md",
+      "sha256": "9b96d1b18b7921f2e070783e456b9ea4f979c5ec9773486201ad23e99eb37559"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\capture-acquisition-contract.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/capture-acquisition-contract.md",
+      "sha256": "413e2e748f9fc07b1dc9b47929db070fcfcebe213107089f0d57c9ff07a1e2f7"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\capture-acquisition-implementation.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/capture-acquisition-implementation.md",
+      "sha256": "fa8dec472f522cdb3787a5eacb181abf13990425d02f679d4dfb30a8f634bfc4"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\combat-balance-corrections-2026-10-16.html",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/combat-balance-corrections-2026-10-16.html",
+      "sha256": "9c0a39b2733334d532926454b6057addbc5d1181170e73e656dbd9fa8ccb91c4"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\combat-balance-corrections-2026-10-16.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/combat-balance-corrections-2026-10-16.json",
+      "sha256": "647ead37f4569c9f6ee1346f27bc4e3d51d2d82c55337c81eb13c05f4cb0d868"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\combat-checkpoint.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/combat-checkpoint.json",
+      "sha256": "5d347841857c824b724c81a7ca9d5eeb7f2f7e046ca4439519cd87a13fd1417f"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\comms-checkpoint.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/comms-checkpoint.json",
+      "sha256": "bfc1b78ae2dbc3e5c86ce5f267441033a82d03943638e295661225232d08264f"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\comms-radio-checkpoint.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/comms-radio-checkpoint.json",
+      "sha256": "a196289aa5888522e7063eb8ffd5f0ce038ca19f2615d0f8d32db0c38d0fdef0"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\composition-baseline.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/composition-baseline.json",
+      "sha256": "a5d175d817c78e0af317593e20d1904a1b4edbc56794c2f9fe6bd217a62ef204"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\composition-baseline.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/composition-baseline.md",
+      "sha256": "b24867e231c3a1173cf0ed1fff3e90e736b65f82f40c837a1a334cad956a997d"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\composition-validation.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/composition-validation.json",
+      "sha256": "53358322ce1230f06862cdf013f2a0abfb59e47ac5322581c7dc63e9903a5bd7"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\console-baseline.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/console-baseline.json",
+      "sha256": "7c2baa4a5b401a555d867c84b1e40a389b41474046ab49fffdeb36b57bc280cb"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\console-baseline.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/console-baseline.md",
+      "sha256": "0dd0acea189cb3927cb9565be6e76b9a595ec208bffbf2ded50d13573905b744"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\console-validation.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/console-validation.json",
+      "sha256": "c41a88bcbd9d7f132b710ef4534b200c9828a0bae0604d5c723b52c5a4d9ca05"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\cruiser-balance-followup-2026-10-16.html",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/cruiser-balance-followup-2026-10-16.html",
+      "sha256": "9b682f3963ada086b5b8d241935aeb449a9bec65d8100a27a0c88dfb15a4b876"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\cruiser-balance-followup-2026-10-16.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/cruiser-balance-followup-2026-10-16.json",
+      "sha256": "82f4e7ad7d1005728a3577e15b38b7c2554d36f4867fbe3b6db2e7f15da3d5e5"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\cruiser-combat-effectiveness-2026-10-16.html",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/cruiser-combat-effectiveness-2026-10-16.html",
+      "sha256": "ead4689d6e705c35d77b2d3e63ab4113b924e735e5313c72cf84c48e965d7399"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\cruiser-combat-effectiveness-2026-10-16.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/cruiser-combat-effectiveness-2026-10-16.json",
+      "sha256": "6a740b81e85d32295cd2c9ba5d782429533db43c6d41f4dabb5415fa0f634c19"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\destroyer-engagement-2026-10-16.html",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/destroyer-engagement-2026-10-16.html",
+      "sha256": "800b9e380f2d8ec8cc8eb9c43191881de2f369cee1acb31f3ac3d9b3ecb2aaef"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\destroyer-engagement-2026-10-16.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/destroyer-engagement-2026-10-16.json",
+      "sha256": "c1967720744200aa9f2996b88ef2f2d0accb2e39750a04cc1170b828cc33861d"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\destroyer7-pursuit-and-neutralization-2026-10-16.html",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/destroyer7-pursuit-and-neutralization-2026-10-16.html",
+      "sha256": "d2aa286741595c619198d956cf73f5fd21ef65c2754f941f23afad7d3cdfdaf4"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\destroyer7-pursuit-and-neutralization-2026-10-16.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/destroyer7-pursuit-and-neutralization-2026-10-16.json",
+      "sha256": "f97782008086e27a1fcccc07a8ea37027bdf3e7883662b4e6ce95971d86cb8c1"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\energy-browser-build.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/energy-browser-build.json",
+      "sha256": "f23c391b226860cad8442a67767a6092d85aef98ab9c6c6484bd30c8d1c1385b"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\energy-browser-validation.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/energy-browser-validation.json",
+      "sha256": "da800e5883cc4f7863e35a261231e2cbf7ddf1d247e605da84387a72108240bc"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\energy-native-targeted-validation.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/energy-native-targeted-validation.json",
+      "sha256": "7ee3e489e4fc40ca894d75e2f3f53405f8725834596226fc2e81058f4f7b4962"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-10.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-10.md",
+      "sha256": "1cb954be371ded23362a749559431100aaabd9a4df3c507842675d42592e7872"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-11.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-11.md",
+      "sha256": "00db27e6a89449929db9f1659755769bb8cd28b996e1622b3579602b4ce4fc8b"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-12.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-12.md",
+      "sha256": "2d5a92313045e465a7fc57f7465caaaaaa57c3c1dc7d423cbcc2422d1d3296a5"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-13-rehearsal.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-13-rehearsal.md",
+      "sha256": "c9d2f320268220614300b2221aa5782a53ef0303e03943d8c55540d422909105"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-13.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-13.md",
+      "sha256": "d1841d28f5defba811fd631e05abd3db043c2445109d31695270874329f1bbbc"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-14.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-14.md",
+      "sha256": "2fda6efb86905a434482404459318406b31b6a07d0a93f9343352002ac2f164d"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-15-loaders.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-15-loaders.md",
+      "sha256": "759f4f3aab4cb62841c7678ec643a2ec91b33996983b82a7af7fa1d40564d021"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-15-marking.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-15-marking.md",
+      "sha256": "94191987e776b358bc6ef7d633eb40d8459c19a0f7851231f3f8c145a738e7ea"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-15-ordnance.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-15-ordnance.md",
+      "sha256": "f1945533bcb98cdef1dbf34e1efdeb41ddbdbdc02f5ca8934e8f7b6e1e917558"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-15.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-15.md",
+      "sha256": "2124dcd3d74ae0ac89df126f7b1da26f6bb5cf9c062991d30c4ead9afcd346d1"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-16-decoded-claims.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-16-decoded-claims.md",
+      "sha256": "6382c4f940e36285aa2a112873221f954b51782b5785a452f02ba5c65e0f64bf"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-16-decoding.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-16-decoding.md",
+      "sha256": "8ecb7ce7650248fa356fbcc58bfbec636f4a6dd98c9e9a1d87524ca89ede4ec3"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-16-listening.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-16-listening.md",
+      "sha256": "e57947337ce29eb5341d4b179777ce2be09114bb8a166f10dba60b4bc6eb5277"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-16-media-contract.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-16-media-contract.md",
+      "sha256": "642c2041352b414d90960d28dac511f109263bb5236da9c93efa8e2a625eb558"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-16-media-handoff.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-16-media-handoff.md",
+      "sha256": "8f9d8e33ef96a2b1abbe1d3c2106b62f0ad2941c331f770a685607bb5ce9dcb8"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-16-npc-radio-contacts.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-16-npc-radio-contacts.md",
+      "sha256": "c9bf72ff396c731d29c8f8dd3230420fdd5a3ca95891d562050a5f2d5f4fdc88"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-16.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-16.md",
+      "sha256": "c107c74d3525bb8b7776079778c0c1d1421b23ec55d0ba0134970b7cf2c1eb7a"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-17-disruptor.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-17-disruptor.md",
+      "sha256": "924e52b750c4f81c411202a0a2e5a4e72a2b2490dc61a37b1e2d9c58934c4cf0"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-17.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-17.md",
+      "sha256": "b6db1b3fabca2e4e830e8127b3038217771f455470a3dcbd967b119584f0f43e"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-18.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-18.md",
+      "sha256": "e6f831b24403496c6367e0eece3fc980c418d812fde674bb8e2c45b9ee69ebe9"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-19-moving-craft-proposal.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-19-moving-craft-proposal.md",
+      "sha256": "f705146ee9e3d74a332c8bd63ec46151195440adc56d084d35c193c850275dcf"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-19-moving-craft.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-19-moving-craft.md",
+      "sha256": "625ae356f2a8a5ed21db2d2ea1758161073f7dabaf2b919ca18da49f850b443f"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-19-voyage-comms.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-19-voyage-comms.md",
+      "sha256": "eec8684de8f7b5a5de70497bc6aa5d58e13da9e54a6490b197b459861710d164"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-19.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-19.md",
+      "sha256": "a9b3f507aee94536e21539cda844d69cdf07aa9dde5b0cc0fbc95d269872ff8c"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-2.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-2.md",
+      "sha256": "cb798b5598d6bc916bab77ea634f5b019a1a6c1e07a41b58209f16974d7ef957"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-20.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-20.md",
+      "sha256": "a4b344058da133cc6ec6e37deadab75697fc5efc0958fc3e1e7a33180de2fa44"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-21-staffed-port-contract.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-21-staffed-port-contract.md",
+      "sha256": "ea31d820b18892dde5ec63a09db693637e09aca5fc727945d64385348b53cc62"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-21.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-21.md",
+      "sha256": "7f2ca24582955bb52f683c9968ddcd52f7918a5ff5edda2ab0f2ed37136e4323"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-22-acquire-vessel-contract.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-22-acquire-vessel-contract.md",
+      "sha256": "a2d51bc089e549a48d714956f277c45dcc28710e0fbeb2f3edea63fdb8cd6cdd"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-22.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-22.md",
+      "sha256": "5b44f292bd7b041e9baf09fcedf87bd18f22e3b2ab69b7b58ee915cd4644f8e4"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-23.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-23.md",
+      "sha256": "3a136f775d36cc80d2d0a61ea3111823312bf656d7125eaa27c9c8afdc5289e5"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-24-comms.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-24-comms.md",
+      "sha256": "830e1e2b474c8dccf701b8c9757f824a30f93b6e38f15915b18c71d4c484ae16"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-24.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-24.md",
+      "sha256": "a03ed977871c163ecb82e3077f3136a61996bcc18513b1b226835940285b61f8"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-3.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-3.md",
+      "sha256": "9b1eb971f4363074ee429c17ee6999edf81baa8ac318173e68f37561d72fdc17"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-4.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-4.md",
+      "sha256": "e2e005f48acfc9f80a771e2a6bbd4cb6d7dae316795f698268f7835c7d6cb148"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-5.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-5.md",
+      "sha256": "88e813d88fcfd56c8ca95150c9ef4fba50c1faa30bd22031ee21ed3b618526f4"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-6.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-6.md",
+      "sha256": "8f1a086ae5e66e52243d7614bc390ccd260c1aa3c3983b961ae9db6beeb83887"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-7.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-7.md",
+      "sha256": "84d0b8856490ad89e024c3999c1b48d99585e5c6ed01e2687dabf171673e0bd4"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-8-energy-tuning.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-8-energy-tuning.md",
+      "sha256": "b5231edd8c8472d562fb56c23e6266225315798d3e13c1e56b6d9b88d1ff1583"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-8.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-8.md",
+      "sha256": "d6715be096cca217c38481ae03eebe6eaaa91c3ff2e90befa8df9b182beddfdc"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\increment-9.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/increment-9.md",
+      "sha256": "93fd797d79e031c2533d47995a590a0576e6a06a2f011141a8393cb584075e60"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\index.html",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/index.html",
+      "sha256": "e90238468a9272be0bedf86986b56f6c1cbb8bfd9c34b02b17c98c5fd8e595a5"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\interiors-native-targeted-validation.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/interiors-native-targeted-validation.json",
+      "sha256": "6b910f69312a672887ee5e500b461c0b77154daa39fbaf32f6dea95184d16268"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\jobs-baseline.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/jobs-baseline.json",
+      "sha256": "6ff77e215161af0fa3f3b2513a5213bb40665076a96d994d7c1055f5abd02de3"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\jobs-baseline.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/jobs-baseline.md",
+      "sha256": "f956ab65eb101e6885c45ab0a916334f649ec54e29887085545abd326af206cb"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\jobs-validation.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/jobs-validation.json",
+      "sha256": "9779d404ce0c0824fc9f92a8a47e1e2272c49026f79a0bf236aa0cc5420041f5"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\logistics-native-targeted-validation.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/logistics-native-targeted-validation.json",
+      "sha256": "3e7fd24a2788a551ea2aeb194c36a881be10740cf8a01abd766344f0cf011a31"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\migration-ledger.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/migration-ledger.json",
+      "sha256": "8e9f364d9aa7af8d9d46ccd33790f2fc82a627d118fc507dd8d4c052d4a5b7e7"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\observations-baseline.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/observations-baseline.json",
+      "sha256": "2a96c2adc6aad901427b0116ec2c0910e281643f56305c588527f1376eda8b46"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\observations-baseline.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/observations-baseline.md",
+      "sha256": "8a48fa1aded04bfd864e8ea5d92407f94514ec7e1bbf955026f710d7a8c52bc2"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\observations-validation.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/observations-validation.json",
+      "sha256": "7567504bc8fe3b5fcd33814d25c83b306645a920a17f44f913d31d11ffe39a0a"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\parallel-checkpoint.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/parallel-checkpoint.json",
+      "sha256": "4869509912d6ebb9600c52a17688a4d46fdbfe8a86bbe859a69458744e0479c6"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\parallel-work.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/parallel-work.md",
+      "sha256": "9aab245487c3786096c87445f9b4e53f52b9a2da079232298a469e20d899aee9"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\performance-baseline-2026-10-17.html",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/performance-baseline-2026-10-17.html",
+      "sha256": "53678f578fc5fa977f5c484c2d39e2847d0ab7c3a57f0ed75b20ecde5258be2e"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\performance-baseline-2026-10-17.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/performance-baseline-2026-10-17.json",
+      "sha256": "29bd65175ba15e3a003db7b94547573d7ca712555aa4a40b07d77c7845be3662"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\performance-candidates-batch8-2026-10-17.html",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/performance-candidates-batch8-2026-10-17.html",
+      "sha256": "deefce6e0701729779e64924258a6dce615e262874c986cdd963c070b91ab783"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\performance-candidates-batch8-2026-10-17.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/performance-candidates-batch8-2026-10-17.json",
+      "sha256": "c4afa61ecae5bd24bf92560cac715afa312353a2e9b9b93d7a1e1d62b111fac8"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\performance-recovery-2026-10-16.html",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/performance-recovery-2026-10-16.html",
+      "sha256": "9174dfd38a70a5b91c87b48646006af373b55a442180499fd2e542b6316a6be8"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\performance-recovery-2026-10-16.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/performance-recovery-2026-10-16.json",
+      "sha256": "63e4c1354a70b3c335bac52783452f32d3eb2e0487ec7c3a8cdb412534f8a7c4"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\performance-recovery-batch7-2026-10-16.html",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/performance-recovery-batch7-2026-10-16.html",
+      "sha256": "de3ac2784fe2e21153281a9b9bfa0afe84e0f953db6564c704e1826d79c3adb7"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\performance-recovery-batch7-2026-10-16.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/performance-recovery-batch7-2026-10-16.json",
+      "sha256": "6b1aee8f74eb37be7231976918dc75b47c13977bd9e1971d32d76d3dbfceba1e"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\physical-native-targeted-validation.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/physical-native-targeted-validation.json",
+      "sha256": "af3e8cd8a0d084acbf74235583dd7c773af4ba81e66de39418960522d969be19"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\resources-baseline.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/resources-baseline.json",
+      "sha256": "c655709fd197e39d07f8109286eb575aa5e4aff50df97ae30baf7d5ef39483cf"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\resources-baseline.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/resources-baseline.md",
+      "sha256": "aa0130b175958b02c2916092803ca691c42481f79910430f5eaadde6bd7c9bf0"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\resources-validation.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/resources-validation.json",
+      "sha256": "427a39e9ccb3f932bad3829f59f6a3c8d4bfb0cd041fda3e137105fc0fc01824"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\tree-baseline.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/tree-baseline.json",
+      "sha256": "473d06535d017eac603a382b6a1bf546372f8c34c4bed5031d7667cdeb4bfd33"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\tree-baseline.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/tree-baseline.md",
+      "sha256": "f81cf55d16036335612a741616e3ce0a84d9760bd5e40b1967717068dfc791fb"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\tree-validation.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/tree-validation.json",
+      "sha256": "c07cdf97a8a8947b1676ac8409a5c4ab336d695eeaa9857fa76475a4c95fdc3e"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\validation.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/validation.json",
+      "sha256": "79ad592bb206f98464824fdf622e3830ba443605747691daef09d2ce8569fc2a"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\verification-8-12.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/verification-8-12.json",
+      "sha256": "85ff9400249a65a889f7ae968576da234ccc33bb4fcce382513e3e65a64c0843"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\warhawk-combat-effectiveness-2026-10-16.html",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/warhawk-combat-effectiveness-2026-10-16.html",
+      "sha256": "ca451420403f8466fbcf30b67b6aab9a771d8962aa72dff31ae201ac1c2abf0c"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\warhawk-combat-effectiveness-2026-10-16.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/warhawk-combat-effectiveness-2026-10-16.json",
+      "sha256": "d159a097311272859a99abb08987171ac952d44d34397a5b9c962fb7dea4fb39"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\weapons-baseline.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/weapons-baseline.json",
+      "sha256": "faa584edcff5f5b9c2535e3e4889fc567358fafeba7e2a4f389e5df00f24ae8f"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\weapons-baseline.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/weapons-baseline.md",
+      "sha256": "5bfe4bbb210ef9a70439800767e85d8abf59929856bbf19242bc96ac13a6b1e0"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\implementation\\weapons-validation.json",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/implementation/weapons-validation.json",
+      "sha256": "fad37b1f454d09c236aa109c20e1fd9d2376dd53fa05944c4529dedba3fcfd32"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\research\\README.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/research/README.md",
+      "sha256": "7bdc06eb360203f7a8b7576536dcd460ae6724686545d1448b0e4a973dfc3b1b"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\research\\comparable-games-and-falling-frontier.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/research/comparable-games-and-falling-frontier.md",
+      "sha256": "f8a92e55a4bd432b5aa0947601bc664886ac052bd22154f5211bb98076b24110"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\research\\dropfleet-commander.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/research/dropfleet-commander.md",
+      "sha256": "14d1e9462cd78973cee3a041162aab4a49ac3d2a8e2c5af5bf8edd27c3301742"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\research\\eve-probe-scanning.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/research/eve-probe-scanning.md",
+      "sha256": "3b0cabc3e26c581c561dd1f258d421313188983e7a34c336d0f60684ec80203e"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\research\\feature-gap-analysis-master.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/research/feature-gap-analysis-master.md",
+      "sha256": "f108a86d94ed3b0e83315a9fcb48c51101e22bcfcd46d690694ca8bb158c2187"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\research\\functional-ship-customisation.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/research/functional-ship-customisation.md",
+      "sha256": "c492c5ef29109d125af563dcae7edcf79f02ad2aed281b66fc1a5a4cd8ad73ae"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\research\\sto-duty-officers.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/research/sto-duty-officers.md",
+      "sha256": "e10ca7badf54a2abc58efdf8fbb6b509d0079ab0acbcbacfe25d535e3c4558ae"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\ship-systems.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/ship-systems.md",
+      "sha256": "e66d1be03d13fdf9c9d903e2098022f7e3cbb13e86b4cb9c6325486d0d9355e3"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gameplay-redesign\\system-review.md",
+      "destination": "references/phoenix-v2/docs/gameplay-redesign/system-review.md",
+      "sha256": "26402651fad7e89a3025335ac5e69abb4dc393cedb15e9c3185f3e9139e64ced"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\content\\scenarios\\alliance-convoy-escort.md",
+      "destination": "references/phoenix-v2/docs/gdd/content/scenarios/alliance-convoy-escort.md",
+      "sha256": "3778f552a48df1d8781113198f1885396d76b5502577b20eab098614919ffb75"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\content\\scenarios\\combat-test.md",
+      "destination": "references/phoenix-v2/docs/gdd/content/scenarios/combat-test.md",
+      "sha256": "08b1a23c4b7b55ab6bf7a8c637817adfda911d600c10a0dc8b82e2b88cf26972"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\content\\scenarios\\cruiser-elimination.md",
+      "destination": "references/phoenix-v2/docs/gdd/content/scenarios/cruiser-elimination.md",
+      "sha256": "bd1c82f638d61dbfb38bcf5eb0607068e487f30fb17e477d2f63c51c5e314345"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\content\\scenarios\\falling-skyway.md",
+      "destination": "references/phoenix-v2/docs/gdd/content/scenarios/falling-skyway.md",
+      "sha256": "69def04b5c6ebcdbc3ab6baed089962bdded6f3407b677571deeb59c346c048f"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\content\\ships\\alliance-ships.md",
+      "destination": "references/phoenix-v2/docs/gdd/content/ships/alliance-ships.md",
+      "sha256": "afb117932984167ded53de7110c7ab36bfc68d40ef2a97942be3fef79c7045b4"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\content\\ships\\dynasty-ships.md",
+      "destination": "references/phoenix-v2/docs/gdd/content/ships/dynasty-ships.md",
+      "sha256": "c1e85800d9d3e2f2c72a87622de1916de1af6da492fee0ac02293ddf1af1b239"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\content\\ships\\harrow-ships.md",
+      "destination": "references/phoenix-v2/docs/gdd/content/ships/harrow-ships.md",
+      "sha256": "e408794b640c48f944a856281fba39b69fa365ae5c0ee072ef2c6b31fd2d5559"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\foundation\\campaign-continuity.md",
+      "destination": "references/phoenix-v2/docs/gdd/foundation/campaign-continuity.md",
+      "sha256": "9531687895381c218ebe91f8541f5c4fc0331abd3d00217fbc47f77fe03ce7dd"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\foundation\\current-baseline.md",
+      "destination": "references/phoenix-v2/docs/gdd/foundation/current-baseline.md",
+      "sha256": "5e023a468a790a2ff0e6687509a8c40b9a4ad9246d9f9f365e9bdafe15cdba50"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\foundation\\difficulty-balance-playtesting.md",
+      "destination": "references/phoenix-v2/docs/gdd/foundation/difficulty-balance-playtesting.md",
+      "sha256": "0cb8813d7452ebd5aecfe7ea971d6ab5ac9b70b260d5b5dd5a49893977987125"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\foundation\\game-lifecycle.md",
+      "destination": "references/phoenix-v2/docs/gdd/foundation/game-lifecycle.md",
+      "sha256": "d777a8d4011cc5abeb6b4f8d9979cf720eb172f4ddf32de8573e7923e3fe0d50"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\foundation\\onboarding-accessibility.md",
+      "destination": "references/phoenix-v2/docs/gdd/foundation/onboarding-accessibility.md",
+      "sha256": "efae08990a363064f45f0802515af4f9a3db40b43634baa19e6c681d2d147c28"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\foundation\\overview.md",
+      "destination": "references/phoenix-v2/docs/gdd/foundation/overview.md",
+      "sha256": "892bdff3ee17051634bd2e2c05645b11dbc479d6cc45d837b5f6cd805faa4426"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\foundation\\thin-margin-setting.md",
+      "destination": "references/phoenix-v2/docs/gdd/foundation/thin-margin-setting.md",
+      "sha256": "51860de543b2a5c941acc5f77920082653513b1afdf80d723409618d82f1282e"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\future\\future-modes.md",
+      "destination": "references/phoenix-v2/docs/gdd/future/future-modes.md",
+      "sha256": "a390e43ddc0c32d44c3154160af4f633bc1c3bdb3bea519fecfec1e0286bb49b"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\future\\planned-not-scheduled.md",
+      "destination": "references/phoenix-v2/docs/gdd/future/planned-not-scheduled.md",
+      "sha256": "a7bb1054587c60fc6438d9b2d6d31125ca74a438bd945b1c6c26ee849dd47d01"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\future\\release-bands-g-i.md",
+      "destination": "references/phoenix-v2/docs/gdd/future/release-bands-g-i.md",
+      "sha256": "e194541e4198a574ff7866cc6ec1566c7b00e6ecc0e05ea5a21ccd7ae0051440"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\future\\roadmap-baseline.md",
+      "destination": "references/phoenix-v2/docs/gdd/future/roadmap-baseline.md",
+      "sha256": "5b58933310aa80649bf8ce934f1526ac0ea35097bfe54dc46b267c682f92ade4"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\index.md",
+      "destination": "references/phoenix-v2/docs/gdd/index.md",
+      "sha256": "51119238429a139061c5d2acba41c6f2c824d7400aa946101902e5117a4a513c"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\mechanics\\command-and-crew-control.md",
+      "destination": "references/phoenix-v2/docs/gdd/mechanics/command-and-crew-control.md",
+      "sha256": "f121b03bec9e6f44efeea21cfc506e97d9e682f07ebbbb7f911b9b5d8288a5ad"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\mechanics\\comms-commitments.md",
+      "destination": "references/phoenix-v2/docs/gdd/mechanics/comms-commitments.md",
+      "sha256": "87c14bb1f098acdba362d921c601048859e347b5eb9a0a1cfa0488bd13e5c51d"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\mechanics\\damage-repair.md",
+      "destination": "references/phoenix-v2/docs/gdd/mechanics/damage-repair.md",
+      "sha256": "2ebb64edc8a198911ba71b48594826377167bfe8dfa514c4c7dd05959b797948"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\mechanics\\duty-teams-and-operations.md",
+      "destination": "references/phoenix-v2/docs/gdd/mechanics/duty-teams-and-operations.md",
+      "sha256": "578a5ea6e50dc1697cf93e2ecc335cac114d88b5b8cf908ea44db4669aeb4269"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\mechanics\\external-operations.md",
+      "destination": "references/phoenix-v2/docs/gdd/mechanics/external-operations.md",
+      "sha256": "2dbb2227f102ff4d0e4a8dbb59cef16d1205564b8441adc0dd4d0d36cd6b53d4"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\mechanics\\movement.md",
+      "destination": "references/phoenix-v2/docs/gdd/mechanics/movement.md",
+      "sha256": "8e49c636cd09322ca52315b673db3c058651002164bbe31c299dd9e3ff85f8cb"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\mechanics\\navigation-relative-motion.md",
+      "destination": "references/phoenix-v2/docs/gdd/mechanics/navigation-relative-motion.md",
+      "sha256": "866ca86247b5f0011c314dd5f61975509f4e5346f44522440e27e18f96a0498a"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\mechanics\\power-resource-network.md",
+      "destination": "references/phoenix-v2/docs/gdd/mechanics/power-resource-network.md",
+      "sha256": "5dba5fa2a4c43f6480348ce97f3ef58ddfcf185ca03df13f7f4e7304098c62f5"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\mechanics\\sensors-epistemics.md",
+      "destination": "references/phoenix-v2/docs/gdd/mechanics/sensors-epistemics.md",
+      "sha256": "919a9d51643fbed6cd728c4eb98f48860f6182c938c5f5e865efac62688ba119"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\mechanics\\shields.md",
+      "destination": "references/phoenix-v2/docs/gdd/mechanics/shields.md",
+      "sha256": "9af9f85cd8b38b8cce5f2d251285b620184d79331707e80dc4bef96bd05e91d3"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\mechanics\\targeting-weapons.md",
+      "destination": "references/phoenix-v2/docs/gdd/mechanics/targeting-weapons.md",
+      "sha256": "12b5143502e68516985a9cb897a4b76f2931ffd33ebd8d6c559d047a4bea787e"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\systems\\ai-and-backfill.md",
+      "destination": "references/phoenix-v2/docs/gdd/systems/ai-and-backfill.md",
+      "sha256": "ad1bd9557523278d0ccbbeaffeb8ae7a8c6633396ded3a830810441c075fc2ba"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\systems\\entity-authoring.md",
+      "destination": "references/phoenix-v2/docs/gdd/systems/entity-authoring.md",
+      "sha256": "3e44776ce08b672fea3b6964a91e46b25d26f2f367675253db944ef67110e4b2"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\systems\\gm-and-workshop.md",
+      "destination": "references/phoenix-v2/docs/gdd/systems/gm-and-workshop.md",
+      "sha256": "9774b4aca528ca3cbd736ee71fac65f3e5ccf394706ab1da9258d3e4fe4a9746"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\systems\\native-network-foundation.md",
+      "destination": "references/phoenix-v2/docs/gdd/systems/native-network-foundation.md",
+      "sha256": "99afe10b07ee5c45e81390992e04860b958e347a55dcc854b3402f24f38eefed"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\systems\\scenario-authoring.md",
+      "destination": "references/phoenix-v2/docs/gdd/systems/scenario-authoring.md",
+      "sha256": "41d7f1dc1fb8a12d3d94d5041a33c8870b5544b4a068e9389bf1408e3877baff"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\systems\\ships-and-systems.md",
+      "destination": "references/phoenix-v2/docs/gdd/systems/ships-and-systems.md",
+      "sha256": "7dab45ff1b348cf1e35fba6ea31c90a275413e4bcbde15609c27a70149306502"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\systems\\station-experiences.md",
+      "destination": "references/phoenix-v2/docs/gdd/systems/station-experiences.md",
+      "sha256": "d5224ff4f17883533d7bdb784b525b20c892d60435547581e809f578777caf25"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\docs\\gdd\\systems\\world-environmental-systems.md",
+      "destination": "references/phoenix-v2/docs/gdd/systems/world-environmental-systems.md",
+      "sha256": "364d8ae614783d2f099735709431b9035b2d9bd0e1f0d3d101ad5bf76954bfd2"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\accessibility-programme.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/accessibility-programme.yaml",
+      "sha256": "1692e5b39ce5f51781ebd0cd1434cc6351d34041157088822e1e0571a73b5064"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\ai-state-trees.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/ai-state-trees.yaml",
+      "sha256": "63b00235f9d064963e8a0d7abdb0c2c924368ea1385ee39ec632b4f1228601cb"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\alliance-convoy-escort.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/alliance-convoy-escort.yaml",
+      "sha256": "11f66db3b7f1c8d2c04ab28101e0e40b8c7c18d7f02dca6fd4a6de0d7e01ba65"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\automatic-logistics-and-production.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/automatic-logistics-and-production.yaml",
+      "sha256": "db3d725dc77c9d6b6dc34223259c29636927854994970722eff7be96a50c703f"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\celestial-city-materials.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/celestial-city-materials.yaml",
+      "sha256": "06fde3ed33f854dfff931acb13d671e696a448ea3f7097148ec878ee54c444ca"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\common-observations.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/common-observations.yaml",
+      "sha256": "0c385f0733f8684bc23ddb7fbb29ef161500dce3b6295365d35b3989b70d0065"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\comms-channels.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/comms-channels.yaml",
+      "sha256": "ab76e983dee02e8b32ac813c1939030a143940acd069f2c6153d06561f3cb6f0"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\comms-media.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/comms-media.yaml",
+      "sha256": "8adca636fa8e5023f9566daf15eb127a337487bf6b57aa57e9809157590819f8"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\comms.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/comms.yaml",
+      "sha256": "bc24367b848239a5b399f36b23ef47b42c41f09e45c025f1247a94e2aed8c6df"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\component-damage-and-restoration.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/component-damage-and-restoration.yaml",
+      "sha256": "87cef10e881c36d5abff779898fe8a181a957a074dba96ae82111dbaad3a053b"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\configurable-weapons.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/configurable-weapons.yaml",
+      "sha256": "9348955c76ae90ff49cef97060ce7c25b24518783077d5ab00fc70837986f1dc"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\console-complexity.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/console-complexity.yaml",
+      "sha256": "2af8f8eacda9d494117077a24b9677af5ade7ab751092ab844758885c508e4ba"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\console-ownership.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/console-ownership.yaml",
+      "sha256": "0de309f3be735d63ea43dc9badd7fbd0eeedf60eec854f9d529b558f0a54e690"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\cruiser-elimination.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/cruiser-elimination.yaml",
+      "sha256": "3f71c83ac6cef756ec8a5694d142406814301cc8bebdcfd4fe1d76e2ae0049ce"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\deployables-craft.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/deployables-craft.yaml",
+      "sha256": "879c1db0a09ab3a40a81885dcbc15dc49612e58ab2c69808f9970bd28de4daf7"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\dynasty-balance.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/dynasty-balance.yaml",
+      "sha256": "989fbba2e9331aef89fbe752527ebf7e1cefb82e6559f5881adf9dfed07b58a7"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\dynasty-console-onboarding.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/dynasty-console-onboarding.yaml",
+      "sha256": "dd120008e0cf50578bd5e218229176d76ac8ad9f90fd52705df02cf05cc071fd"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\dynasty-player-cruiser.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/dynasty-player-cruiser.yaml",
+      "sha256": "676fd6246781c5f9e17f4dc73c7e768d8059e450a6adccb312f18d48ccae3bd3"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\editor-authoring.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/editor-authoring.yaml",
+      "sha256": "ece84bb9ef2b3eccdf23188652994ca9fbe08986d063e06a39f6179761810790"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\electronic-operations.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/electronic-operations.yaml",
+      "sha256": "230a62a8acc9b4b426258c6f364ed0723fe53bd34e66f3eb95f161b47c2bdff0"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\engineering-diagnosis.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/engineering-diagnosis.yaml",
+      "sha256": "bdebfdf42a818857e60289788ce4b88ce9d14cde041ac256ae6fbd94a1410b40"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\equipment-fitting-and-refitting.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/equipment-fitting-and-refitting.yaml",
+      "sha256": "c6f5c9a1e540765d937aa0a9da52e1a5beedeb25c9886af5ed3608251f194d39"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\facilities-actors.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/facilities-actors.yaml",
+      "sha256": "092bfd5f745b3b4f553222928814f969ff2c6f609922d96e0c1d6852a11be3b9"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\facility-service-workforce.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/facility-service-workforce.yaml",
+      "sha256": "d24fa1e62594e0ff1ffea0adfb8d5930189874db222c4d0913d50b0e71f40930"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\falling-skyway.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/falling-skyway.yaml",
+      "sha256": "33aeefa5dc9fc6a44df843db868d7e3cf48bd6bdd96deadad0eb3e776c12b2ad"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\fields-epistemics.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/fields-epistemics.yaml",
+      "sha256": "f863ae1dc65c2087cbb7f3c0cde746fbea81bb93c469264764a8c64dc03f030c"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\game-flow.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/game-flow.yaml",
+      "sha256": "5458658c78ee57d1948d3591e03655b813cd1b8ade5ece90760edc2b74d02a0c"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\gameplay-redesign.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/gameplay-redesign.yaml",
+      "sha256": "6faa247818b345b49005a9dcde34e85036dc42f9937e8eb965ceb4133992f385"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\gm-console-t2.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/gm-console-t2.yaml",
+      "sha256": "c03d9fbade3f768cf891c40d666558fd01a7af6c356ea06092ac4dad7e6fbb17"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\gm-console-t3.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/gm-console-t3.yaml",
+      "sha256": "ab31b1f5cf50ecd81ebc4d8c21dce2d209b40ee897421cb5d615f82f3688b217"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\helm-controls.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/helm-controls.yaml",
+      "sha256": "41f28730336ff349efca57a9efa1a67df09a798247dd4ef3ca200c069ba684ce"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\host-debug-controls.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/host-debug-controls.yaml",
+      "sha256": "cb4dc06c28ee3b5e041ddbfbe00018226aa1ccb71a5ba1051039bd4eb660bf91"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\interior-layout-and-team-routes.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/interior-layout-and-team-routes.yaml",
+      "sha256": "88dab252b94d78961d84c83e5a1c6004e04cb95e06a43d9a768b898a33fd5575"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\layered-combat.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/layered-combat.yaml",
+      "sha256": "a1a63faadd7d14d01e72f7fc9d7f0f03e579c6fd45cefc780fb74ba35af79abe"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\local-energy-and-thermal.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/local-energy-and-thermal.yaml",
+      "sha256": "71e2523091a86002b9385d901cde335a1ca4d1acde2c2404d1e2270db8ea845c"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\marking-beacon-payload.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/marking-beacon-payload.yaml",
+      "sha256": "3e4bf80cffe520048bb5c96a4c2f1b79cf17c622745252560d4eb012668de743"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\movement-transit.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/movement-transit.yaml",
+      "sha256": "6fc15a48c275da6ba0b25dbc13aceea69f85ea71e85dbb60490434a9640494f8"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\native-bridge-operation.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/native-bridge-operation.yaml",
+      "sha256": "24b08034289d95c034312ead955b8edd224c5137bb48f85542e47a4f2303b9e7"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\natural-planet-materials.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/natural-planet-materials.yaml",
+      "sha256": "fc70757879d6097d4e44539911954eb9d381d2448b4887478f942a59d5f7fe33"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\navigation.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/navigation.yaml",
+      "sha256": "f80cfe60ffd452c89fda6bd76e8ea9abe966303ebaaa906016e7b09868065f17"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\ordnance-flight.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/ordnance-flight.yaml",
+      "sha256": "f9a072ea10201187523168d711e0c330d0e18b0ed553a0a04b9b1fc8389c2dcc"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\p2p-design-deltas.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/p2p-design-deltas.yaml",
+      "sha256": "6ec6842d42bcafbc69d9f41fb50bc161efbf3162ced817d50fe30b844c6cc432"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\personnel-custody.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/personnel-custody.yaml",
+      "sha256": "143578a2bc15a14d798594ee2626904a712c62dd8817e642393d3120d5f695d4"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\power.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/power.yaml",
+      "sha256": "8ee2b225cfb89300a0fdab56262f1387165be98c86670d9c7917b557d3822377"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\red-alert.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/red-alert.yaml",
+      "sha256": "acc4f6a0a17be52ed4b89b7f97ed17d6a519cef51d3533f25e77e6591dc1d93c"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\resource-stores.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/resource-stores.yaml",
+      "sha256": "c35d50beb405cb985dbb0f92ad2d3d914f307ae6de2d28816281a9ecbd06c840"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\sensing-and-environment.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/sensing-and-environment.yaml",
+      "sha256": "5a0ebd543c4dc2d6b00aa46815b1f244d03d686b6cbd89f338ccab21b5e2da2f"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\sensors.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/sensors.yaml",
+      "sha256": "2bad12ebccccd0e23c435ff29f54ad7738afe172a11abb23f428ccfb853ad3db"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\shared-jobs.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/shared-jobs.yaml",
+      "sha256": "acb3e83079ff79d801298d2258e32a052dadee83273453926b20e577be0aeba0"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\shared-loader-groups.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/shared-loader-groups.yaml",
+      "sha256": "6c1b0a30f0adfdde8402bd1a9f7cc97e94b5efbb9ec850f0da4e104e8698eb58"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\shield-energy-and-protection.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/shield-energy-and-protection.yaml",
+      "sha256": "93c56c33a1df179f682e70a63b2a3543f426c3e4d4e0e35972e7e363d65363fe"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\shields.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/shields.yaml",
+      "sha256": "55f25e6496f03582b31f3340f15b9a2819486b3f19f2574d3dbe43307625b852"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\ship-customisation.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/ship-customisation.yaml",
+      "sha256": "2bd93c41a1f281a104dd8645e2dbf58a4b8ccf9087f48dc68ab77d7048736d70"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\ship-manuals.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/ship-manuals.yaml",
+      "sha256": "b112ac65b0b783939b3ac3e4d82f148ab454ce9866964bebc51832cfdb6d070e"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\simulation-differentiation.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/simulation-differentiation.yaml",
+      "sha256": "2d5a5c019ad4609c9c91632d455dfb6da12b50ba8f547326a8c980a36c5c9c7b"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\station-ratings.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/station-ratings.yaml",
+      "sha256": "a663d28328600345a22d44c8586d4470366b52a559ad0cf37c42a646efb1a25d"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\system-composition.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/system-composition.yaml",
+      "sha256": "baa0110b7cf9c623fe6a48747489fcefc32bb14a911ae96fd7a914844980276f"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\t2-platform-input-feedback.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/t2-platform-input-feedback.yaml",
+      "sha256": "a6d254af59f9cbc437966bb90fa1b408ce66a73c6bd324bf39cd043c0bc702b9"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\t4-audio-feedback.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/t4-audio-feedback.yaml",
+      "sha256": "37f9f8f73c94e8b60aa9d5a15b27c9b21cded299ad0abbf71cf9fa188c2a49f9"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\t4-information-control.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/t4-information-control.yaml",
+      "sha256": "8a8ba0062c465f992b9831b02eee526b21db80ba47f86acadfb198bf18a50892"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\t4-presentation.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/t4-presentation.yaml",
+      "sha256": "9d655d41a3fea2408b54648b972a0c427b7c3b5e5ac8d4fd8516cff317eb8dc9"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\vessel-acquisition-activities.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/vessel-acquisition-activities.yaml",
+      "sha256": "377233489153899a489309d5672bab020d86dcafdf8e62b31477e88c041f5eee"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\design\\viewscreen.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/design/viewscreen.yaml",
+      "sha256": "de7654a873e13eef377bd33b06c780b81515c2406e8fc6b206598363b77d2387"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\roadmap\\gameplay-redesign.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/roadmap/gameplay-redesign.yaml",
+      "sha256": "4e5c178f89aa8ada0f1b5c1a40b92846b47657850f1263f36810b95dc974e132"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\roadmap\\gm-console-milestones.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/roadmap/gm-console-milestones.yaml",
+      "sha256": "ef4ced605d75a35dda6e478f4e21ce824854d01fe413f7cb8a8f966ea7b6c1a7"
+    },
+    {
+      "source": "C:\\Coding\\project-phoenix-v2\\pasm\\spec\\roadmap\\phoenix-delivery-roadmap.yaml",
+      "destination": "references/phoenix-v2/pasm/spec/roadmap/phoenix-delivery-roadmap.yaml",
+      "sha256": "17e80c1a04034ba8cb002e33f10b25c8bf679bff70bec6a623837d3f278f6fa3"
+    },
+    {
+      "source": "C:\\AnalogueGames\\analogue-projects\\GameProjects\\_shared_worlds\\settled_dark\\world.md",
+      "destination": "references/settled-dark/shared-world/world.md",
+      "sha256": "8a31959a4037f3eac2baf003901ed75e0ec8f96175ca63f468476645c27eb8a7"
+    },
+    {
+      "source": "C:\\AnalogueGames\\analogue-projects\\GameProjects\\_shared_worlds\\settled_dark\\world.spec.yaml",
+      "destination": "references/settled-dark/shared-world/world.spec.yaml",
+      "sha256": "c81c2dd2fac6574350f757d664091d9d4a5769e2828609c991c66feeab9c9dec"
+    },
+    {
+      "source": "C:\\AnalogueGames\\analogue-projects\\GameProjects\\_shared_worlds\\settled_dark\\chronology\\eras.md",
+      "destination": "references/settled-dark/shared-world/chronology/eras.md",
+      "sha256": "691200062208399e61c2c5b8fc51f5a3eafe092916c99a7b84401d58cf3db364"
+    },
+    {
+      "source": "C:\\AnalogueGames\\analogue-projects\\GameProjects\\_shared_worlds\\settled_dark\\entities\\odyssey_era.md",
+      "destination": "references/settled-dark/shared-world/entities/odyssey_era.md",
+      "sha256": "9bfce062a684fcde52b360bf30a47bb02afb3e330e40e24929b04eb4e3784393"
+    },
+    {
+      "source": "C:\\AnalogueGames\\analogue-projects\\GameProjects\\_shared_worlds\\settled_dark\\entities\\settlement_era.md",
+      "destination": "references/settled-dark/shared-world/entities/settlement_era.md",
+      "sha256": "dd79945514fc47cf5848fc3f52405390d9b6058e39d7f9faad938e78ef0e6764"
+    },
+    {
+      "source": "C:\\AnalogueGames\\TheVoidThrone\\Setting.md",
+      "destination": "references/settled-dark/original-setting/Setting.md",
+      "sha256": "0aa56540af96a510b23679e5e512b3a96d2abc6626bac12a6a8e92db75e86c4e"
+    },
+    {
+      "source": "C:\\AnalogueGames\\TheVoidThrone\\Factions Overview.md",
+      "destination": "references/settled-dark/original-setting/Factions Overview.md",
+      "sha256": "086de92137d4c0f8a3a0feb8297e08a49d1e2a33b780dcb6e3fbb4907fc4bc18"
+    },
+    {
+      "source": "C:\\AnalogueGames\\TheVoidThrone\\Systems Overview.md",
+      "destination": "references/settled-dark/original-setting/Systems Overview.md",
+      "sha256": "26e05f85d55da2406c7d6bcf60d85f05f5cb8c65cbc4125e60476fb98ac306c8"
+    },
+    {
+      "source": "C:\\AnalogueGames\\TheVoidThrone\\The Ascendant.md",
+      "destination": "references/settled-dark/original-setting/The Ascendant.md",
+      "sha256": "59d14c9203b53101de2cb5322e9ec55f55bd9c51f7c31eb3cfe7017256c168cb"
+    },
+    {
+      "source": "C:\\AnalogueGames\\TheVoidThrone\\The Throne Eternal.md",
+      "destination": "references/settled-dark/original-setting/The Throne Eternal.md",
+      "sha256": "892754a9b7e001bd648c132dbf247935440a8e2749c9db4d869e0e5a67bc63cc"
+    },
+    {
+      "source": "C:\\AnalogueGames\\TheVoidThrone\\Factions\\Administratum.md",
+      "destination": "references/settled-dark/original-setting/Factions/Administratum.md",
+      "sha256": "c7727c1a3a7855c8c209b2c234c611c411354645232f5d4378929b208e780121"
+    },
+    {
+      "source": "C:\\AnalogueGames\\TheVoidThrone\\Factions\\Ductus Guild.md",
+      "destination": "references/settled-dark/original-setting/Factions/Ductus Guild.md",
+      "sha256": "a53baa56dbdc5ef93f04444f5a3bd2b6eb71d653fbe2d71bfad786106ff0d7ab"
+    },
+    {
+      "source": "C:\\AnalogueGames\\TheVoidThrone\\Factions\\Ecclesiatum Perpetua.md",
+      "destination": "references/settled-dark/original-setting/Factions/Ecclesiatum Perpetua.md",
+      "sha256": "c716f7f7929e389b69f8529e36de3ec337b90d39d5a2ce4d38cb55970b9253b5"
+    },
+    {
+      "source": "C:\\AnalogueGames\\TheVoidThrone\\Factions\\House Aethon.md",
+      "destination": "references/settled-dark/original-setting/Factions/House Aethon.md",
+      "sha256": "a6bb5fe6a886ced4ef4cbc9623f525eb53e8a69429845e71885e4712e868e953"
+    },
+    {
+      "source": "C:\\AnalogueGames\\TheVoidThrone\\Factions\\House Caelifen.md",
+      "destination": "references/settled-dark/original-setting/Factions/House Caelifen.md",
+      "sha256": "5ebb90fadde581e10bedfc4a718152161a3634f725d83ceb0a6e50c923c19af9"
+    },
+    {
+      "source": "C:\\AnalogueGames\\TheVoidThrone\\Factions\\House Mourne.md",
+      "destination": "references/settled-dark/original-setting/Factions/House Mourne.md",
+      "sha256": "b5c8056c05a2da446f808ba0e7086e3c6c6526bd83c027e7e492c7c3cc68f67b"
+    },
+    {
+      "source": "C:\\AnalogueGames\\TheVoidThrone\\Factions\\House Ondrak.md",
+      "destination": "references/settled-dark/original-setting/Factions/House Ondrak.md",
+      "sha256": "f9694492d2fb223b02792f621e546652cd7af383a891627510238cc007716cfd"
+    },
+    {
+      "source": "C:\\AnalogueGames\\TheVoidThrone\\Factions\\House Vethara.md",
+      "destination": "references/settled-dark/original-setting/Factions/House Vethara.md",
+      "sha256": "c5d0e570eb35ebb4f1d8d40cd456fec580d2b106b748e0e5194fa81fcc1df0d5"
+    },
+    {
+      "source": "C:\\AnalogueGames\\TheVoidThrone\\Factions\\Janissariat High Command.md",
+      "destination": "references/settled-dark/original-setting/Factions/Janissariat High Command.md",
+      "sha256": "b2be36ae1f33085e4e167951af22ab3891c02d47de088e1d9ff965f72cf99adf"
+    },
+    {
+      "source": "C:\\AnalogueGames\\TheVoidThrone\\Systems\\Caelifen-Ondrak Arm.md",
+      "destination": "references/settled-dark/original-setting/Systems/Caelifen-Ondrak Arm.md",
+      "sha256": "bf4baabfcfac381dadd6ec9ad124cf2450672e751fd369e8fa013aa054dbfd77"
+    },
+    {
+      "source": "C:\\AnalogueGames\\TheVoidThrone\\Systems\\Ecclesiatum-Vethara Arm.md",
+      "destination": "references/settled-dark/original-setting/Systems/Ecclesiatum-Vethara Arm.md",
+      "sha256": "9a3197a3d876ad621d013619506a2811dc6ae3713be6859e8f79c32cb4b2037a"
+    },
+    {
+      "source": "C:\\AnalogueGames\\TheVoidThrone\\Systems\\Outer Meridian Arm.md",
+      "destination": "references/settled-dark/original-setting/Systems/Outer Meridian Arm.md",
+      "sha256": "f0a31386bb15352ed6cdfa02a65caeaa88c2c9a5288a7b9bde76e588bda5cd47"
+    },
+    {
+      "source": "C:\\AnalogueGames\\TheVoidThrone\\Systems\\Southern Houses Arm.md",
+      "destination": "references/settled-dark/original-setting/Systems/Southern Houses Arm.md",
+      "sha256": "126d56f9ebd28cfcf760532c460bf2b2863f4eeb20582350618c3b00a090d890"
+    },
+    {
+      "source": "C:\\AnalogueGames\\TheVoidThrone\\Systems\\The Core.md",
+      "destination": "references/settled-dark/original-setting/Systems/The Core.md",
+      "sha256": "5821a35e9d5fe3ebc8b476621bd45695935509d954ad4868d97e67abe5339f08"
+    },
+    {
+      "source": "C:\\AnalogueGames\\TheVoidThrone\\Systems\\Vethis Cluster.md",
+      "destination": "references/settled-dark/original-setting/Systems/Vethis Cluster.md",
+      "sha256": "5e5aa1177659aa014112a0bdf820b715636894c742383f2b6eadbdb35c270c86"
+    },
+    {
+      "source": "C:\\AnalogueGames\\TheVoidThrone\\Lore\\Charter Legitimacy Thread.md",
+      "destination": "references/settled-dark/original-setting/Lore/Charter Legitimacy Thread.md",
+      "sha256": "e8ce4f8c97d6c0e89d07d4a2807be9bba1daa63b3b3aa666afb364e7612bd41f"
+    },
+    {
+      "source": "C:\\AnalogueGames\\TheVoidThrone\\Lore\\Fraying Conditioning Thread.md",
+      "destination": "references/settled-dark/original-setting/Lore/Fraying Conditioning Thread.md",
+      "sha256": "bef4feb02697f616ca1f6608110185e24d408a19afc34bfa537cd8e2914dc3a2"
+    },
+    {
+      "source": "C:\\AnalogueGames\\TheVoidThrone\\Lore\\Pre-Human Presence Thread.md",
+      "destination": "references/settled-dark/original-setting/Lore/Pre-Human Presence Thread.md",
+      "sha256": "896a4e038086cbb86b310c7bc66cea4e08c73c140126764d926aac7a3b5236e6"
+    },
+    {
+      "source": "C:\\AnalogueGames\\TheVoidThrone\\Lore\\Void Integrity Thread.md",
+      "destination": "references/settled-dark/original-setting/Lore/Void Integrity Thread.md",
+      "sha256": "946c5d28325ab36abed8a2f1f5a7cc4af497a161aa1a7a6b8a8acb9128526bd9"
+    },
+    {
+      "source": "C:\\AnalogueGames\\void-throne\\lore\\scenario-setting.json",
+      "destination": "references/settled-dark/scenario-context/scenario-setting.json",
+      "sha256": "b32aefd3439332c0aba819333f2d81038a2ff99008dbd3f37216da66a937a339"
+    },
+    {
+      "source": "C:\\AnalogueGames\\void-throne\\lore\\source-inventory.json",
+      "destination": "references/settled-dark/scenario-context/source-inventory.json",
+      "sha256": "bac7393e35e57cf51f5bb558d44e22fd36a467dddf5a7bc6d964eead10ca152d"
+    }
+  ]
+}

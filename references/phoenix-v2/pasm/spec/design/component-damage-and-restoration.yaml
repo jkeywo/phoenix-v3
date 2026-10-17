@@ -1,0 +1,61 @@
+entities:
+  - decision: public-neutralization-and-recoverable-defeat
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Public Neutralization Is Distinct From Physical Destruction
+      summary: "Recoverable propulsion-and-power disablement never destroys an entity or unseats its crew. An engineless actor is neutralized only when generation, usable reserves and its fitted operational capabilities are unavailable. A coarse lifecycle indication is public through normally available contacts, equally to human and AI operators; internal causes and buffers remain private. Actual catastrophe/despawn keeps the literal destruction event."
+      rationale:
+        - "[ai] Increment 11 needs a working defeat condition under the selected recoverable damage model. Authored combat defeat objectives migrate to explicit neutralization conditions; effects requiring literal destruction retain their existing condition."
+        - "[ai] Membership follows current entity UUIDs, so a healthy replacement sharing a name is not defeated by its predecessor's history. Recovery and repeated disablement use an explicit observation frontier and normal event continuation."
+  - decision: compartment-structure-and-component-conditions
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Compartments Own Structure; Components Own Conditions
+      summary: "G057 and AD39–50 replace primary System percentage damage with compartment structural HP and individually identified component conditions. A System and its components occupy its authored compartment independently of Console ownership. Components have no HP pool, precise internal position or path-proximity weighting. Damage events, deposited amount/type and susceptibility produce faults; structural thresholds are not a recurring fault generator."
+      rationale:
+        - "Selected G057 and architecture AD37–50 in docs/gameplay-redesign/system-review.md and docs/gameplay-redesign/architecture/index.html. Existing System IDs, command admission, individual AI and knowledge limits remain."
+        - "AD49–50: zero compartment HP applies a compartment-sourced disabling condition. It clears at an authored fraction strictly above zero and below full HP, and reapplies only at zero. Structural recovery removes only that source; unrelated faults persist."
+
+  - decision: planar-material-penetration-and-weighted-decks
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Trace Planar Hits Through a Weighted Selected Deck
+      summary: "AD39–46 select a weighted random deck independently of shot height, then trace the actual incoming planar direction through its compartments. Ordinary lines distribute across the facing profile; supported informed targeting aims toward the known equipment compartment without guaranteeing its deck or component. Penetration and payload are separate authored parameters. Compartment material resistance scales with traversed distance and weakens progressively with structural HP."
+      rationale:
+        - "No second hit/miss roll, wall HP, local hole grid, component coordinates or material overrides below compartment scope. Projectile arrival direction must not be replaced with its launcher's current bearing."
+        - "Payload deposition must conserve the incident budget across compartments and eligible components. Tick splitting and continuous beams must not manufacture extra faults through event-count probability. Exact formulas are implementation choices pending adoption, not selected tuning."
+
+  - decision: condition-appropriate-team-restoration-and-parts
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Repair Components and Structure With Real Teams and Parts
+      summary: "G058, G064, S075–77 and AD48–51 require supported component restoration and structural work using actual access, teams, time and typed parts where required. One team works each component task; distinct components can be repaired concurrently, including while another team restores their compartment. The compartment disabling condition blocks operation, not repair by itself. Most destroyed components permit supported field replacement; explicitly catastrophic exceptions do not."
+      rationale:
+        - "Teams automatically choose full restoration when possible, otherwise a supported fallback patch. A patch remains indefinitely at reduced effectiveness without spreading or an expiry/rework timer; it does not prevent new damage. No routine patch-versus-full menu or compulsory restart puzzle."
+        - "Operators and individual AI use readings, symptoms and known faults. Ambiguous faults require supported observation-only diagnosis or arrival. A report or shared feed grants information, never control, and a component completion report must retain any known structural limitation."
+
+  - decision: repairable-disablement-distinct-from-physical-destruction
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Preserve Recoverable Disablement Without Automatic Ship Deletion
+      summary: "G064 and AD52 distinguish recoverable loss of operational propulsion and power from physical destruction. Compartment HP depletion alone does not destroy a ship. Supported catastrophe may destroy it; crew may abandon earlier. Ordinary actors assess the target using permitted evidence and objectives, with later recovery or hostility still relevant. Intentionally engineless entities and charged local reserves require appropriate interpretation."
+      rationale:
+        - "Increment 11 must remove old hull-is-zero destruction and wreck gates from migrated ship consumers together with introducing working restoration. Existing scenario catastrophe, destroyed events and loss continuation require explicit migration, not an invisible aggregate-HP compatibility latch."
+        - "Broader evacuation, boarding and capture execution remain their scheduled increments. AD53–55 authority and return-to-service selections remain intact; they are not claimed implemented by this milestone."
+
+  - decision: component-damage-increment-eleven-adoption-draft
+    core:
+      status: accepted
+      confidence: confirmed
+      origin: ai
+      title: Adopt the Complete Damage and Restoration Migration Contracts
+      summary: "After increment 10 initial commit 22b31f57, adopt explicit System damage-component definitions with closed operation/intake/cooling bindings; physical/laser impact profiles; compartment HP and material distance resistance; conserved penetration/payload deposition; persisted amount-based fault dose; typed structural/component job targets; and bounded stages reserved and consumed against actual stocks. Damage, availability, reports, parts, restoration, defeat, Workshop and continuation land together. No completed runtime or playable exit is claimed."
+      rationale:
+        - "[ai] Concrete integration vocabulary is adopted in docs/gameplay-redesign/implementation/increment-11.md. Numerical coefficients remain explicit authored tuning to validate. The later user-authorized pipeline permits pinned validation after each initial commit while main advances; initial implementation does not establish verified exit."
+        - "[ai] The one canonical ECS damage wrapper lives in Gameplay and is re-exported by Simulation. Crew repair orders retain baseline controller/ownership and GM disablement while tool availability controls paid acceleration. Authored positive manual work fractions, actual teams, access and finite parts provide a restoration path when the Repair compartment or its tools fail; no second AI policy or resource store is introduced."
+        - "Remove interior.repair_placements, SystemHull/ShipArcHull primary ship damage and their repair/availability writers in this increment. Any retained asteroid or legacy wire projection has a named independent owner and no competing ship HP. Automatic deliveries/production stay increment 12; fitting 13; advanced sensing 14; broader personnel 20."

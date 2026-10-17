@@ -1,0 +1,47 @@
+{
+  "revision": "2026-10-14",
+  "established_facts": [
+    {
+      "source": "archive/legacy-lore/Systems/Southern Houses Arm.md",
+      "facts": [
+        "Sorenne's Fall is a star system with forty million inhabitants beneath a battle debris field.",
+        "Its civil administration continued after House Sorenne stopped sending orders.",
+        "The Sorenne Flag makes irregular, unregistered supply deliveries."
+      ]
+    },
+    {
+      "source": "archive/legacy-lore/Game/Fringe Campaigns.md",
+      "facts": [
+        "Campaign Ash pursues the remnant fleet of House Sorenne.",
+        "The Sorenne Flag scattered rather than surrender at Pale Meridian."
+      ]
+    },
+    {
+      "source": "archive/legacy-lore/Systems/Vethis Cluster.md",
+      "facts": [
+        "The Narrow links the inner systems and the southern rim."
+      ]
+    }
+  ],
+  "scenario_additions": [
+    "Sorenne’s Fall depends on supplies through the Narrow.",
+    "Spear waits for passage to a Sorenne Flag anchorage beyond the crossing; a local patrol is the Raid target.",
+    "Named player assets, fixed traffic-linked target appearances and the two-month crisis are prototype arrangements."
+  ],
+  "stability": {
+    "meaning": "Supplies and functioning civil services in Sorenne's Fall; not loyalty to the Dominion.",
+    "labels": {
+      "4": "Secure",
+      "3": "Functioning",
+      "2": "Strained",
+      "1": "Failing",
+      "0": "Emergency"
+    },
+    "mechanical_change": false
+  },
+  "compatibility": "Current materials display Stability. Internal communities fields preserve compatibility with saved sessions. Archived reports and transcripts retain the terminology and fiction used in their actual run.",
+  "distinctions": [
+    "New Sorenne is a different world, not Sorenne's Fall.",
+    "Vethis civilian resistance is not the military target in this scenario."
+  ]
+}

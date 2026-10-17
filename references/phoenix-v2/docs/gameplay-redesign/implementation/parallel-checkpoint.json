@@ -1,0 +1,948 @@
+{
+  "date": "2026-10-16",
+  "status": "partial",
+  "current_summary": {
+    "source": "Runtime e027e568 (45/88/0.75); matching browser and Workshop selections pass. Actual baseline at 9bd7bab6 passes six determinism checks but unchanged Cruiser balance fails 11/16 with zero wins. Headless timing costs regress. Verification collected with failures; paused, no automated exits 8-12; 13-24 parked.",
+    "verification_8_12": {
+      "status": "open; selected native owner and host batches failed; no increment closure or push",
+      "evidence_document_donor": "65bcceb4, docs/acceptance/1562-integrated-8-12.md, integrated with this checkpoint packet",
+      "native_owners": "34aa3e04:1250PASS/55FAIL; Content12/0,Gameplay521/0,World11/0,Simulation706/55. .phoenix/verify-8-12-native-owners.log. Later fixture corrections require their own retries.",
+      "owner_retry": "9a3b2f89:141PASS/6FAIL,42.34s; .phoenix/verify-8-12-corrected-owner-retry.log. Energy/thrust/shield notification and three restore failures remain; fixes under review. This selected retry does not replace the original1250/55 result.",
+      "host": "9493bc5a:10PASS/8FAIL; Activity3/0,Facility2/0,FittingFacility0/2,Logistics1/2,Physical3/0,Production1/1,Recovery0/3. .phoenix/verify-8-12-whole-host.log. No green combined host result.",
+      "production_diagnostic": "8bc01405:0PASS/1FAIL; all360 fullcapture/digest comparisons matched, but actual secondbatch exhausted reserve with no intake and stopped at9.355852/10. Normal Engineering priority correction2d34c831 is integrated as0e47b03b, native verification pending. No deadline extension or energy grant.",
+      "shield_host": "895e234d runtime with67d581cb proof:1PASS,50.95sbuild/7.49sexecution, including360 paid/current-credit continuation and no-write. .phoenix/verify-9-shield-whole-host.log.",
+      "client": "Original19files223PASS/2FAIL. Production affected retry3/3PASS; corrected Workshop affected surfaces53/53PASS. Current21file selection121PASS at5cb35b1a; .phoenix/verify-8-12-current-client-retry.log. These do not relabel the failed original batches. Browser/render discovery1 is not execution.",
+      "pasm": "Clean450836ac:validateOK1202entities/630nonerrors; scanPASS4154files/8685dependencies/18packages; traceabilityPASS246rows. No later-current whole gate claim.",
+      "pending": "Integrated fixture corrections and isolated donors require affected native retries. Real browser/render, native-device, multiplayer, balance/performance and station-workload acceptance remain separate. Broader13-24 delivery/acceptance remains open; Patrol/War/Sandbox/Director are not delivered."
+    },
+    "current_followup": {
+      "host": "Atbc5ada43 all5 actual decoy/capture/formation host cases PASS,28.51sbuild; .phoenix/resumed-decoy-capture-formation-native-retry.log. First efcddb08 attempt failed test-only ConsoleKnowledgeView.values compilation; bc5 uses actual permission-filtered get. Turret2 and census4 retain priorfd3 evidence; emission2/reception2 retain35f evidence, not one current integrated batch.",
+      "radio": "At300add84 non_roster_ owner2PASS; first broader radio16PASS/1FAIL sparse publication fixture. Corrected e01556d2; all17 radio tests including whole JSON360 PASS in the later83PASS/4FAIL Simulation owner batch. Earlier logs retained; current .phoenix/resumed-radio-delivery-acquisition-simulation-owners-retry.log.",
+      "integrated_packets": "Planned delivery eaab88ca/4b83da63/4193b79e; shared loaders fc3e093b through4637d5d2; Comms EMP e6f976f8/61a98e60/6f68dbcc; bounded acquisition8cd58a09/17eb7c05/e6265e2b; centralepochs and real EMP owner test registration0ca0d986.",
+      "accepted_owner_batch": "At0ca0d986 selected4owner batch completed16PASS/1FAIL,2m10build: Content2PASS,Model1PASS,Session1PASS,Gameplay12PASS/1FAIL. Shared-loader full inherited recipe and handling pass; disruption hull is refused UnsupportedSimplifiedSystem(comms,Std,blaster-disruptor), requires data correction before host execution. Log .phoenix/resumed-equipment-accepted-and-acquisition-owners.log.",
+      "client": "At0ca0d986 combined7affectedfiles150PASS; .phoenix/resumed-loader-disruption-acquisition-client.log. No device/native acceptance inferred.",
+      "simulation_compile": "Initial selected Simulation run failed compilation; corrected3010e849/09fbfebc/e5d2d5b0. Renderer-free lib/tests cargo check PASS1m05. Actual owner retry83PASS/4FAIL: two beam cases blocked by now-fixed EMP recipe, two acquisition restore fixtures lost real Broad owners. Fixture correction3a1e7e6e integrated, retry running. Logs .phoenix/resumed-integrated-simulation-owner-check.log, .phoenix/resumed-radio-delivery-acquisition-simulation-owners-retry.log and .phoenix/resumed-acquisition-owner-fixture-retry.log.",
+      "pasm": "Four existing authoritative state owns mirrors correctedb093f606. Targeted clean-worktree pasm validate at donor54cf235e PASS1176entities/625informationalfindings,0errors. Earlier clean d24 validation failed4missingmirror errors. No whole-current scan/trace/finalgate claim.",
+      "accepted_recipe_retries": "EMP auxiliary Console correction27e579fa actual accepted native1PASS, .phoenix/resumed-disruptor-actual-accepted-retry.log. Ordinary unarmed Full3D utility hull accepted native1PASS atc3c3500b, .phoenix/resumed-utility-actual-accepted-owner.log. Neither is a host gameplay/flight result.",
+      "new_host_batch": "At86fc659c code/c3c3500b equipment, four targets fail before gameplay: TickSecurityTeams singleton contains team tick plus acquisition commit, not duplicate physical execution. Shared loader2, maintenance4 and disruption/census targets blocked. Correction210cd6e9 keeps singleton on physical tick and same-step completion before following owner; integrated, native retry pending. Log .phoenix/resumed-loaders-disruption-maintenance-host.log.",
+      "listening": "Coherent consumer a04b3448 plus historical dated-view correction9b2f894d integrated; central epochs52a9f4b7. First native selection failed on missing test SystemId import, corrected ab501fa4; retry7PASS (Model2/Gameplay5 incl actual accepted recipe),1m07build. .phoenix/resumed-listening-accepted-and-pure-owners-retry.log. First client selection143PASS/1FAIL action inventory; corrected retry4files144PASS .phoenix/resumed-listening-client-integration-retry.log. Renderer-free Simulation lib/tests check PASS1m00 .phoenix/resumed-listening-simulation-compile.log. Actual combined Radio/traffic/Security/retained-beam owner run currently pending .phoenix/resumed-listening-security-beam-simulation-owners.log.",
+      "acquisition_followup": "At3a1e7e6e acquisition8tests7PASS/1FAIL after4m10build: real paid continuation digest differs. Source analysis finds five normal run-scope resources absent in sparse fixture but inserted by restore. Reviewed fixture-only0c1c1ff3 initializes those owners and adds immediate capture/digest diagnostics without weakening folds/restore; native retry pending in combined Simulation owner run.",
+      "remaining": "Finish increments8–12 verification and necessary fixes, commit evidence, then pause. Later implementation lanes and their WIP are parked; do not resume through24 without user instruction."
+    },
+    "latest_host_result": {
+      "source": "fd3d06de; runtime correction28bc37c8",
+      "command": "cargo test -p project-phoenix --features headless,host --no-fail-fast with8explicit integration targets",
+      "result": "11passed/12failed;59.54sbuild. Census4/0,turret2/0,emission1/1,personnel4/2,decoy0/2,capture0/2,formation0/1,optionalmaintenance0/4.",
+      "log": ".phoenix/resumed-eight-host-corrected-order-native.log",
+      "corrections": "cef7aa37 fixes actual empty-arc shield Console synthesis (guards retained);a78aa4c9 uses actual fixture EntityId and explicit public Formation label;bb29a06d opts receiving equipment into normal Hailable roster. 35f62881 adds read-only exact stock/tick diagnostic; no physical assertions weakened.",
+      "rules": "49289494 advances only simulation rules0.67 for corrected observation timing/generated Console roster; protocol41/snapshot84 unchanged.",
+      "accepted_loader": "At49289494,3actual resolvedsource→EntityConfig::from_toml Gameplay regressions PASS,1m19build. .phoenix/resumed-decoy-actual-loader-owner.log",
+      "affected_retry": "At35f62881,8selected cases across5targets completed5passed/3failed: emission2/0,reception2/0,decoy1/1,formation0/1,optionalmaintenance0/1. Decoy ordinaryAI launch passes; the Human case expects fixture ID instead of actual accepted public name. Formation begins outside its actual50-unit radar range. Maintenance diagnostic proves real local stock8→0 in one actual tick, then ordinary restocking restores8 before discovery. Log .phoenix/resumed-five-affected-host-native.log; build1m35.",
+      "reviewed_followups": "77b83e11 fixes only decoy public-name proof expectations against actual accepted content. ba9e0513 implements adopted16f347cc NPC own-radio contacts via actual paid public endpoints, preserving crew knowledge bounds. 300add84 corrects Formation fixture geometry and explicitly requires earned identity/motion. All source reviewed; native verification pending. Scoped planned-delivery demand extension is being prepared in an isolated planner lane.",
+      "radio_owner_retry": "At300add84 non_roster_2PASS; broader radio16PASS/1FAIL. Sparse publication correction e01556d2 is integrated; current_followup records the pending retry and current source.",
+      "remaining": "The actual decoy/capture/Formation cases now pass atbc5ada43. Autonomous maintenance and newly integrated packet verification remain; see current_followup. No increment closure or push."
+    },
+    "eight_host_native": {
+      "source": "f1643e85",
+      "compile": "PASS,9.14s: cargo check -p project-phoenix --features headless,host --lib and eight explicit integration-test targets. Initial API/import failures corrected in593814b0/f1643e85 without dropping paid-work, authority, current-observation or continuation assertions.",
+      "compile_log": ".phoenix/resumed-eight-host-target-check-retry.log",
+      "execution": "Build completed7m25s;0passed/23failed across8targets. Every case refused boot on the same accepted catalogue error: battery_turret.toml replaces energy but omits required reactor. No gameplay execution result. Data-only correction is being prepared, with current f1643e85 binaries retained for an explicitly pinned content retry.",
+      "catalogue_corrections": "3e0af042/7b9daead complete atomic energy;34e9bc5e restores inherited decks/rooms/placements;9a65aeb6 adds the ordinary receiver compartment connection. Actual f164binary now loads the catalogue, then fails FixedUpdate schedule initialization. Native catalogue logs retain the intermediate errors; no guard/physics/tuning relaxation.",
+      "schedule_diagnostic": "52fccfe5 adds an explicit contradictory-edge/path diagnostic without reordering constraints;7674709d fixes its platform HashMap type annotation. Actual authoritative-state target rebuilding at7674709d, log .phoenix/resumed-host-schedule-cycle-diagnostic-retry.log. Initial diagnostic compile failure retained separately.",
+      "physical_alias_correction": "78bb14ae corrects exact inventory to8RNG+4mint+1reconnect aliases, explicitly checking existing PowerFlowRng→SimRng; actual count was13, not stale12. Native assertion retry pending.",
+      "targets": [
+        "comms_capture_continuation",
+        "emission_continuation",
+        "formation_continuation",
+        "battery_turret_continuation",
+        "battery_decoy_continuation",
+        "personnel_craft_continuation",
+        "optional_maintenance_continuation",
+        "authoritative_state_enumeration"
+      ],
+      "log": ".phoenix/resumed-eight-host-native.log"
+    },
+    "per_increment_report": "README.md#per-increment-progress--16-october-2026",
+    "closed_increments": [
+      0
+    ],
+    "initial_automated_exits": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "remaining_scope": "All physical-device and human acceptance; integrated exits for 8–24; unfinished runtime and authored modes listed per increment in README.md.",
+    "independent_scope_audit_8_to_15": {
+      "source": "1c060268; read-only review, no test execution",
+      "core_8_to_12": "Selected energy, shield, interior, damage and logistics mechanisms are implemented; combined continuation, current matching Workshop/browser journeys and balance/performance/workload acceptance remain.",
+      "fitting_13": "Beam/reactor field/facility fitting, spares, intact salvage and favourites exist. Direct personal-plan disposable rehearsal and whole-fit sustained/burst/thermal/cooling forecasts remain unimplemented. Additional equipment families are not inferred as mandatory from the approved bounded adapters.",
+      "sensing_14": "Core sensing/fields/history mechanisms exist. Current knowledge/presentation/Workshop acceptance and migration of the legacy raw-UUID instant-survey proof remain.",
+      "combat_15": "Physical marking payloads and optional shared loader groups/priorities remain unimplemented. Full-host illumination/link-loss/payload and multiple viable engagement-style evidence remain unverified.",
+      "scope": "Coolant recycling stays provisional; general mines and moving craft remain increment19. No increment closure inferred."
+    },
+    "integrated_since_last_host_batch": "Sector transit and Workshop routes; complete fixed-interval work receipts; shared signatures and paid concealment; bounded optional maintenance execution; physical carried-personnel escort with exact destination-request admission; measured formation Navigation. Full-host proof sources are integrated, not yet executed.",
+    "content_authoring_retry": {
+      "source": "ca4c4b26; no subsequent content fixture change",
+      "command": "cargo test -p phoenix-content-preparation --lib --no-default-features -- authoring::composition::tests",
+      "result": "17 passed,0 failed; actual accepted physical catalogue hull recipe.",
+      "log": ".phoenix/resumed-complete-hull-content-native-retry.log"
+    },
+    "simulation_owner_retry": {
+      "source": "4b278710",
+      "result": "291 passed, 5 failed after correcting the missing PassiveSignature test import. Reviewed fixture corrections for the five failures are integrated but not yet executed.",
+      "log": ".phoenix/resumed-sector-roster-energy-simulation-owner-retry.log",
+      "corrections": [
+        "a75687f5 (separate Content catalogue fixture)",
+        "fe49438a (complete actual Power hull construction)",
+        "e91e78b1 (real optional Jamming effect insertion)",
+        "8453abcf (normal Personnel run resources and real publication baseline)"
+      ]
+    },
+    "push": "Not performed. Full integration gate and outstanding acceptance have not passed.",
+    "compatibility": {
+      "protocol": 45,
+      "snapshot": 88,
+      "rules": "0.75"
+    },
+    "current_four_owner_native": {
+      "source": "3f783eec",
+      "status": "completed with failures; corrections are being integrated, not yet native verified",
+      "owners": [
+        "phoenix-content-preparation",
+        "phoenix-sim-gameplay",
+        "phoenix-sim-world",
+        "phoenix-simulation"
+      ],
+      "results": {
+        "phoenix-content-preparation": {
+          "passed": 15,
+          "failed": 2
+        },
+        "phoenix-sim-gameplay": {
+          "passed": 29,
+          "failed": 0
+        },
+        "phoenix-sim-world": {
+          "passed": 11,
+          "failed": 0
+        },
+        "phoenix-simulation": {
+          "passed": 319,
+          "failed": 29
+        }
+      },
+      "log": ".phoenix/resumed-four-owner-integrated-native-retry.log",
+      "corrections": "240299b3 restores actual base Science rating assignments on the optional cloak hull. aa857479 installs the normal Power fixture clock and retains old RepairActivity Postcard ordinals. Further fixture corrections pending."
+    },
+    "target_compilation": {
+      "source": "283a78a4; predates the latest exact-dispatch and Formation Navigation changes",
+      "result": "Five selected full-host targets compile in 8.65s; one existing headless-only native-audio dead-code warning remains.",
+      "log": ".phoenix/resumed-five-new-host-target-check-retry.log"
+    },
+    "client": {
+      "source": "3f783eec plus exact action-map inventory correction committed aa857479",
+      "result": "13 affected files initially 193 passed, 1 failed (new Formation command missing from exact inventory). Corrected inventory focused retry passed all 123 tests in that file; not a green original batch. Strict strings6386 clean; dependency layers passed.",
+      "logs": [
+        ".phoenix/resumed-integrated-thirteen-client.log",
+        ".phoenix/resumed-formation-action-inventory-retry.log"
+      ]
+    },
+    "asset_only_retries": [
+      {
+        "binary_source": "3f783eec",
+        "content_source": "240299b3",
+        "result": "Cloak filters: 9 passed, 1 failed; remaining fault intended an incomplete fitting pair but still retained the ordinary compiled fitting. Assertions retained.",
+        "log": ".phoenix/resumed-cloak-asset-only-native-retry.log"
+      },
+      {
+        "binary_source": "3f783eec",
+        "content_source": "240299b3",
+        "result": "Scripted Comms filters: 26 passed, 3 failed. Two bare fixture mesh-crew owner omissions and one intentional debug script panic remain under correction.",
+        "log": ".phoenix/resumed-comms-cloak-asset-only-native-retry.log"
+      }
+    ],
+    "latest_native": {
+      "source": "f1e339fe",
+      "command": "cargo test -p phoenix-simulation -p phoenix-sim-gameplay -p phoenix-sim-world --lib --no-default-features --no-fail-fast -- concealment power identity personnel planning formation signatures comms::scripted sim_digest::tests security::server science::passive world::dispatch world::layers snapshot::transit console::helm:: console::navigation::server::knowledge_tests console::comms::server::tests::opportunity_responses console::repair::",
+      "result": "Gameplay109 passed, World25 passed; Simulation637 passed,23 failed. Broader selection than the preceding four-owner run. Prior Formation, cloak, terminal personnel and exact digest regressions now pass.",
+      "log": ".phoenix/resumed-three-owner-corrected-native.log",
+      "corrections": "00d3d9dd full Power machinery capture schema;84ef2f91 stored craft capture schema;ebf566a4 dynamic unresolved Comms callback fixture;651d85bb actual energy/AI input/integrator fixtures;e225d662 funded retained Repair adapter fixtures. Reviewed corrections retain gameplay/restore/payment assertions."
+    },
+    "funded_fixture_retry": {
+      "source": "e225d662",
+      "status": "151 passed/1 failed originally; final authored Power policy test passes at9d9e8746 after44977d8e correction.",
+      "log": ".phoenix/resumed-funded-fixtures-native-retry.log",
+      "result": "151 passed,1 failed; all selected Repair, sparse hardware, craft capture and Comms corrections pass. The Power-only retry at26d003e2 still failed on a static passive receiver authored at0.15 rather than its0.25 hardware ceiling. 44977d8e corrects expectations to actual authored guarded targets and stable defaults.",
+      "retry_log": ".phoenix/resumed-authored-power-policy-native-retry.log"
+    },
+    "prepared_media": {
+      "branch": "codex/comms-media-integration",
+      "source": "30a49c77",
+      "status": "Superseded by integrated_comms; retained below as historical isolated evidence, not a current worktree-only status.",
+      "source_review": "Worker canonical/transport, root physical joins, independent native bridge reviews passed. Conflict resolutions retain both concealment and media guards.",
+      "client": "15 affected files initially261 passed/2 stale Navigation projection expectations failed; final focused23-test Comms Console retry passes after exact fields were updated. All263 selected tests have passing evidence after retries; initial batch was not green.",
+      "logs": [
+        ".phoenix/resumed-prepared-media-client.log",
+        ".phoenix/resumed-prepared-media-navigation-retry2.log",
+        ".phoenix/resumed-prepared-media-client-build.log"
+      ],
+      "static": "Strict strings6404 with no findings; dependency layers pass; pure JS client build stamps36/phoenix-base/4.",
+      "compatibility": {
+        "protocol": 36,
+        "snapshot": 79,
+        "rules": "0.61"
+      }
+    },
+    "integrated_comms": {
+      "source": "c10a6a14",
+      "status": "Media and paid decoding source integrated; selected owner checks pass at9d9e8746, full-host/native edge/device acceptance pending.",
+      "media_merge": "5d5a59a9",
+      "capture_merge": "7ce553d6",
+      "actual_console_fix": "14b4b6f7",
+      "compatibility": "37/80/0.62",
+      "source_review": "Canonical owner, knowledge, snapshot, census/fold, transport/native bridge and actual Console controls reviewed independently. Both capture and media use the existing radio pass; capture settles before final paid media-carrier derivation.",
+      "client": "Integrated9-file batch609 passed/1 failed: exact action inventory omitted the new capture action. Corrected focused action-map retry123 passed; all610 selected tests have positive evidence after retry, not a passing initial batch. Prior actual media Console-to-wire/mounted-composer5-file batch581 passed.",
+      "logs": [
+        ".phoenix/resumed-integrated-comms-capture-client.log",
+        ".phoenix/resumed-capture-action-inventory-retry.log",
+        ".phoenix/resumed-media-actual-console-client.log",
+        ".phoenix/resumed-integrated-media-capture-check.log",
+        ".phoenix/resumed-integrated-media-capture-check-retry.log"
+      ],
+      "remaining": "Native full-host/native edge/live two-human/two-host/device/Workshop acceptance, finite listening priorities/public chatter and applicable request lifecycle/contextual consumers. Safe typed claims now source-integrated but native unexecuted. Dynamic keys and relay-hop/retransmission capture need separately selected future consumers. Unknown/old relay policy refuses optional media.",
+      "compile": "Renderer-free Simulation including tests passes after two test-only constructor/import corrections;46.55s. Initial compile failed on those two fixture compilation errors. Native execution remains pending."
+    },
+    "integrated_native_media_capture": {
+      "source": "9d9e8746; subsequent9c3adff3 was documentation only",
+      "command": "cargo test -p phoenix-model -p phoenix-transport -p phoenix-sim-gameplay -p phoenix-simulation --lib --no-default-features --no-fail-fast -- media capture authored_power_trees_drive_actual_finite_hardware_without_legacy_policy optional_namespace_exact_fold_characterization",
+      "results": {
+        "phoenix-model": {
+          "passed": 4,
+          "failed": 0
+        },
+        "phoenix-sim-gameplay": {
+          "passed": 10,
+          "failed": 0
+        },
+        "phoenix-simulation": {
+          "passed": 76,
+          "failed": 3
+        },
+        "phoenix-transport": {
+          "passed": 0,
+          "failed": 0,
+          "note": "This selection/configuration had no transport tests; explicit native owner run below provides actual execution."
+        }
+      },
+      "build": "8m41s; Simulation tests10.78s",
+      "log": ".phoenix/resumed-integrated-media-capture-native.log",
+      "passing": "All selected actual media/capture owner, paid route/decoder, owner/kind admission, snapshot no-write/historical-source and final authored Power policy checks pass.",
+      "failures": [
+        "world::server::tests::spawn_immediate_entities_wires_behaviour_for_npc_with_anchor: fixture missing required interior",
+        "snapshot::recovery_tests::recovery_capture_json_and_restore_keep_disabled_fraction_and_receipt: fitted-tool owner validation",
+        "console::weapons::server::tests::firing_beam_retains_captured_target_when_combat_lock_changes: lost expected retained target"
+      ],
+      "correction_lane": "Reviewed corrections integrated3cebf1eb; native retry pending. Beam retention was a real machinery aim regression; the other two were missing accepted fixture setup."
+    },
+    "integrated_native_codec": {
+      "source": "same9d9e8746 freshly compiled Simulation executable",
+      "command": "phoenix_simulation-d920f9d6624e4bd2.exe core::codec::tests",
+      "result": "188 passed,0 failed",
+      "log": ".phoenix/resumed-integrated-codec-native.log"
+    },
+    "integrated_native_transport": {
+      "source": "same9d9e8746 Transport source;9c3adff3 documentation only",
+      "command": "cargo test -p phoenix-transport --lib --features native,test-support",
+      "result": "7 passed,0 failed;8.16s build, no runtime rebuild of other owners",
+      "log": ".phoenix/resumed-integrated-native-transport-owner.log"
+    },
+    "later_source_integration": {
+      "source": "b243bcc6",
+      "helm": "31f358c4 integrates permitted per-axis follow intent, retained plan provenance and actual formation JSON360 source proof. Native unexecuted.",
+      "planning": "034f3a2e integrates future repair dispositions/prerequisites, actual work-footprint monitoring and additional optional-maintenance continuation proof. Native unexecuted.",
+      "turret": "99e47c9b→4bf5033e→deef9dcf→23c434c5 integrate ordinary finite fixed beam turret acceptance, data/Workshop source tests and actual launch/fire/store JSON360 source proofs. Native unexecuted.",
+      "owner_check": "Renderer-free Simulation including tests compiles58.82s atb243bcc6; one unused Command SystemId import then removed. Earlier checks failed first on unnecessary PlanIntentRequest Eq, then one empty-pod fixture missing people; both corrected.",
+      "review": "Prepared branches and central joins independently source reviewed. String conflict resolutions preserve both additive key sets; strict strings6446 clean before turret added its one name.",
+      "reception": "627e7e37 integrates compound personnel references, actual holder checks, exact consent-bound paid Bay receipt and static receiver joins;80a80e22 adds actual Human/AI radio+physical freshJSON360/loss/forgery proof source.",
+      "emissions": "8a835f67 integrates explicit actual-owner Command intent, same permitted ordinary transponder AI and per-System actual paid-work advisory sampled in SimDispatch before FixedLast; actual host JSON360 proof source included.",
+      "decoy": "b324f27b→ba76f014→974ac64e integrate finite ordinary physical identity decoy/data/Workshop and actual Human/AI launch/acquire/recover/exhaustion JSON360 proof source.",
+      "typed_claims": "952ca599→c1860fc9→7f99ab79 integrate only safe attributed original typed content after paid decoding, including a unit ReceiveCraft claim that strips the craft identity.",
+      "owner_check_log": ".phoenix/resumed-emission-decoy-reception-owner-check.log",
+      "client": "Final19 affected client/Workshop files664 passed,0 failed;1.86s. Preceding15-file batch653 passed/1 new Helm exact-inventory failure; focused inventory retry123 passed before final green19-file batch.",
+      "client_log": ".phoenix/resumed-all-integrated-lane-client.log",
+      "static": "Strict strings6485 no errors/warnings; dependency-tree rules pass.",
+      "host_compilation": "Eight selected full-host targets attempted with root headless,host. Four targets blocked by test API/import mistakes: Formation and Emission used a non-direct Gameplay crate; Formation treated sender_uuid String as Option; Turret used nonexistent EnergyState.emitted_work and old RecoverCraft payload; Decoy used nonexistent BroadTrack.predicted and old RecoverCraft payload. Narrow corrections in progress; no host compile/execution pass claimed.",
+      "host_compilation_log": ".phoenix/resumed-eight-host-target-check.log"
+    },
+    "last_published_comment": "https://github.com/jkeywo/project-phoenix-v2/issues/1562#issuecomment-6204915653",
+    "verification_8_12_followup": {
+      "owner": {
+        "source": "4ceb7d8a",
+        "passed": 425,
+        "failed": 15,
+        "seconds": 507.6,
+        "original_failures_passing": 52,
+        "original_failures_remaining": 3,
+        "corrections_integrated": "37c165a4",
+        "retry": "Running combined four-owner selection; .phoenix/verify-8-12-final-native-owners.log"
+      },
+      "host": {
+        "source": "dd1490ae",
+        "passed": 8,
+        "failed": 1,
+        "recovery": "3/3 PASS20.31s, full JSON360 after logical collision-time correction",
+        "production": "2/2 PASS16.61s, actual second batch and every JSON360 state/digest",
+        "energy_continuation": "2/2 PASS19.70s",
+        "fitting": "1/1; real facility refit passes; intact salvage outside unchanged range because vacant Helm moves receiving ship; ordinary held-Helm correction0931723a pending native"
+      },
+      "pasm": {
+        "source": "4ceb7d8a",
+        "validate": "PASS1202 entities",
+        "scan": "PASS",
+        "traceability": "PASS246 rows"
+      },
+      "browser": "Client component Chromium43/43 PASS25.4s; actual matching-host/render and reconnect remain open.",
+      "remaining": "Finish owner and salvage retries, real Workshop/host browser, explicit reconnect, balance/performance, then commit evidence and pause. No later implementation."
+    },
+    "previous_current_summary_header_before_rules75": {
+      "source": "Runtime4ceb7d8a (protocol45/snapshot88/rules0.74), owner fixture batch37c165a4 and held-Helm fixture0931723a; combined owner retry in progress; later lanes parked under the user pause instruction.",
+      "compatibility": {
+        "protocol": 45,
+        "snapshot": 88,
+        "rules": "0.74"
+      }
+    },
+    "latest_verification_8_12": {
+      "cutoff_source": "9bd7bab6",
+      "status": "Targeted verification completed with failures; work paused. Selected native/browser/Workshop checks pass, unchanged balance fails. No new automated exits, formal closure, full CI pass or push.",
+      "evidence_document": "docs/acceptance/1562-integrated-8-12.md; final source-pinned comparison in verification-8-12.json; previous failed runs and pins preserved.",
+      "native_owner_union": {
+        "source": "8ac62cce",
+        "rules": "0.74",
+        "passed": 1618,
+        "failed": 0,
+        "owners": {
+          "content_preparation": 12,
+          "gameplay": 521,
+          "world": 11,
+          "simulation": 1074
+        },
+        "log": ".phoenix/verify-8-12-green-native-owners.log"
+      },
+      "current_host_batch": {
+        "source": "e027e568",
+        "rules": "0.75",
+        "passed": 19,
+        "failed": 0,
+        "targets": {
+          "activity_foundation_continuation": 3,
+          "facility_supply_continuation": 2,
+          "fitting_facility_continuation": 2,
+          "logistics_continuation": 3,
+          "physical_damage_routes": 3,
+          "production_continuation": 2,
+          "recovery_continuation": 3,
+          "shield_energy_continuation": 1
+        },
+        "scope": "Real paid work, finite stocks, malformed-state refusal and full JSON continuation; intact salvage now reaches actual preserved assembly transfer and ordinary AI Repair installation. No Human-device or full-workspace inference.",
+        "log": ".phoenix/verify-8-12-current-hosts-rules75.log"
+      },
+      "energy_resume": {
+        "source": "e027e568",
+        "rules": "0.75",
+        "passed": 2,
+        "failed": 0,
+        "other_filtered": 89,
+        "log": ".phoenix/verify-8-12-current-energy-resume-rules75.log"
+      },
+      "motion_restore": {
+        "implementation": "18e99858",
+        "rules_version_commit": "e027e568",
+        "contract": "Authoritative empty retained plan frontier clears existing bootstrap map; mixed rows preserve UUID remapping. No replan, cadence, payment or fold-coverage change.",
+        "regression_passed": 3,
+        "capture_owner_passed": 5,
+        "initial_wrong_filter": "Compilation succeeded but zero tests selected; not verification. Historical log retained."
+      },
+      "matching_browser_artifacts": {
+        "build_source": "ded6653a",
+        "runtime_source": "e027e568 plus WASM-only imports a794ac49",
+        "profile": "dev",
+        "client_stamp": "45/phoenix-base/4",
+        "built": [
+          "host WASM",
+          "client",
+          "preview WASM"
+        ],
+        "workshop_packaging": "2ea96d97",
+        "receipt": ".phoenix/verify-8-12-browser-artifact-receipt.json"
+      },
+      "matching_host_browser": {
+        "test_source": "dbfd0027",
+        "runtime_rules": "0.75",
+        "passed": 15,
+        "failed": 0,
+        "elapsed": "3.3 minutes",
+        "scope": "Energy crew journeys, engineering, measured weapons restraint/fire, browser reconnect/sever/revive, save portability and Station damage popup. Development browser bundle; no native-display or Human acceptance inference.",
+        "log": ".phoenix/verify-8-12-final-host-browser.log"
+      },
+      "workshop_render": {
+        "packaging_fix": "2ea96d97 adds eight existing required editor modules to the explicit copy list; no new gameplay capability.",
+        "disposable_test_and_factions_passes": [
+          {
+            "source": "2ea96d97",
+            "passed": 2,
+            "failed": 0,
+            "seconds": [
+              38.3,
+              49.8
+            ]
+          },
+          {
+            "source": "956a385c",
+            "passed": 2,
+            "failed": 0,
+            "seconds": [
+              34,
+              48.6
+            ]
+          }
+        ],
+        "resource_status": "PASS at 9bd7bab6: real resource-authoring/history/reload/export/mesh Preview/disposable-Test journey, 5.1 minutes.",
+        "resource_fixture_corrections": {
+          "956a385c": "Remove the new primary torpedoes resource from inherited additional Umbilical choices; preserve remaining resource choices.",
+          "9bd7bab6": "Select an actual unfitted Beam and the same finite Energy consumer for positive edits, preserving exact fitted-default machinery."
+        },
+        "three_case_retry": {
+          "source": "9bd7bab6",
+          "passed": 3,
+          "failed": 0,
+          "elapsed": "6.1 minutes",
+          "cases": {
+            "resources": "5.1 minutes",
+            "factions": "19.0s",
+            "disposable_test_runtime": "35.1s"
+          },
+          "log": ".phoenix/verify-8-12-workshop-unfitted-render.log",
+          "scope": "Real browser providers/Rust validation/mesh Preview/Test; no native-display or Human acceptance inference."
+        }
+      },
+      "measurement": {
+        "binary_compile": "PASS, 12m 30s",
+        "source": "9bd7bab63230f1e653802cc995d15a3353d5076c",
+        "profile": "measure",
+        "timing_capture": "Collected; 6/6 seeded-report/replay/continuation checks pass. Median/p95 tick costs regress 3.5-4.8x; zero of 19806 measured ticks exceeds 16.67ms. Not performance acceptance.",
+        "balance_capture": "FAIL, exit1: 20 duels,0wins,0losses,7draws,13timeouts. Five checks pass,seven explicitly fail,four TTK checks lack data and also fail. No ratified threshold changes.",
+        "receipt": "docs/gameplay-redesign/implementation/verification-8-12.json",
+        "raw_baseline": ".phoenix/redesign-baseline/2026-10-16-verify-8-12",
+        "raw_balance": ".phoenix/redesign-baseline/2026-10-16-verify-8-12-cruiser",
+        "scope": "Same-machine headless diagnostic on integrated main including later mechanisms. No exclusive causal attribution, render/device or workload acceptance."
+      },
+      "pasm": {
+        "source": "e027e568",
+        "validate": "Status: OK; 1202 entities, 630 non-error findings.",
+        "scan": "Validation: OK; 4157 files, 8696 dependencies, 18 packages.",
+        "traceability": "Validation: OK; 246 rows.",
+        "logs": [
+          ".phoenix/verify-8-12-rules75-validate.log",
+          ".phoenix/verify-8-12-rules75-scan.log",
+          ".phoenix/verify-8-12-rules75-traceability.log"
+        ]
+      },
+      "bounded_wiki": {
+        "source": "e027e568",
+        "scope": "Seven affected pages and index/source references; no issues. Not a repository-wide wiki gate.",
+        "receipt": ".phoenix/verify-8-12-bounded-wiki-lint-e027e568.json"
+      },
+      "remaining": [
+        "Resolve unchanged Cruiser balance failures before automated exits 8-12.",
+        "Assess measured headless performance increase.",
+        "Human/device and station-workload acceptance remain separate.",
+        "Required final integration gates before any push."
+      ],
+      "pause_instruction": "Paused after collecting the requested 8-12 verification with failed balance and performance regressions recorded. No implementation of 13-24 resumes without user instruction.",
+      "parked_increments": [
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24
+      ],
+      "history": "Earlier failed runs, source pins and archives elsewhere in this JSON are preserved; this scoped current record supersedes their old pending-status wording without relabelling historical executions."
+    },
+    "recorded_passes_8_12": {
+      "marked_on": "2026-10-17",
+      "tests_rerun": false,
+      "scope": "Existing source-pinned execution results only; subsequent runtime edits are not certified. Shared counts overlap. Overall exits and unrelated acceptance remain separate.",
+      "evidence_document": "docs/acceptance/1562-integrated-8-12.md",
+      "per_increment": [
+        {
+          "increment": 8,
+          "acceptance": "docs/acceptance/1562-local-energy.md",
+          "checks": [
+            {
+              "status": "passed",
+              "description": "Energy/Power owner checks, including allocation, reserves, thermal state, ordinary AI and command authority, passed within the selected 1618-test owner union.",
+              "source": "8ac62cce",
+              "evidence": ".phoenix/verify-8-12-green-native-owners.log"
+            },
+            {
+              "status": "passed",
+              "description": "Both selected whole-host Energy resume checks passed (2/2), preserving next-tick state and ordinary Backfill continuation.",
+              "source": "e027e568",
+              "evidence": ".phoenix/verify-8-12-current-energy-resume-rules75.log"
+            },
+            {
+              "status": "passed",
+              "description": "Actual Courier/Destroyer Energy operation and paid weapon restraint/fire passed within the 15/15 matching-host browser selection.",
+              "source": "dbfd0027",
+              "evidence": ".phoenix/verify-8-12-final-host-browser.log"
+            },
+            {
+              "status": "passed",
+              "description": "Energy hardware edits, history, reload/export, mesh Preview and disposable Test passed within the 3/3 Workshop render selection.",
+              "source": "9bd7bab6",
+              "evidence": ".phoenix/verify-8-12-workshop-unfitted-render.log"
+            }
+          ]
+        },
+        {
+          "increment": 9,
+          "acceptance": "docs/acceptance/1562-shield-energy.md",
+          "checks": [
+            {
+              "status": "passed",
+              "description": "Shield/energy owner checks passed within the selected 1618-test owner union.",
+              "source": "8ac62cce",
+              "evidence": ".phoenix/verify-8-12-green-native-owners.log"
+            },
+            {
+              "status": "passed",
+              "description": "Paid shield upkeep/recharge, reserve exhaustion, battery-mediated redistribution, 360-step full JSON continuation and malformed-state refusal passed (1/1 whole-host target).",
+              "source": "e027e568",
+              "evidence": ".phoenix/verify-8-12-current-hosts-rules75.log"
+            },
+            {
+              "status": "passed",
+              "description": "Two default and one pinned fresh-process shield continuation runs passed, with identical complete traces.",
+              "source": "00cf53c3",
+              "evidence": ".phoenix/verify-8-12-shield-reconnect-receipt.json"
+            },
+            {
+              "status": "passed",
+              "description": "Shield authoring and real Preview/Test passed within the 3/3 Workshop render selection.",
+              "source": "9bd7bab6",
+              "evidence": ".phoenix/verify-8-12-workshop-unfitted-render.log"
+            }
+          ]
+        },
+        {
+          "increment": 10,
+          "acceptance": "docs/acceptance/1562-interiors.md",
+          "checks": [
+            {
+              "status": "passed",
+              "description": "The physical damage/routes whole-host target passed 3/3: actual paid team routes, JSON continuation and peers with different LocalShip identities.",
+              "source": "e027e568",
+              "evidence": ".phoenix/verify-8-12-current-hosts-rules75.log"
+            },
+            {
+              "status": "passed",
+              "description": "The strict shipped-content corpus passed: 83 worlds, 277 entity instances, 119 overrides and 186 layouts, including 91 zero-team layouts.",
+              "source": "e027e568",
+              "evidence": ".phoenix/verify-8-12-current-hosts-rules75.log"
+            },
+            {
+              "status": "passed",
+              "description": "Layout/material edits, history, reload/export, actual mesh Preview and disposable Test passed within the 3/3 Workshop render selection.",
+              "source": "9bd7bab6",
+              "evidence": ".phoenix/verify-8-12-workshop-unfitted-render.log"
+            }
+          ]
+        },
+        {
+          "increment": 11,
+          "acceptance": "docs/acceptance/1562-physical-damage.md",
+          "checks": [
+            {
+              "status": "passed",
+              "description": "Damage, repair and affected authority/restore owner checks passed within the selected 1618-test owner union.",
+              "source": "8ac62cce",
+              "evidence": ".phoenix/verify-8-12-green-native-owners.log"
+            },
+            {
+              "status": "passed",
+              "description": "The physical damage/routes whole-host target passed 3/3 with actual restoration paths, full continuation and the strict shipped-content corpus.",
+              "source": "e027e568",
+              "evidence": ".phoenix/verify-8-12-current-hosts-rules75.log"
+            },
+            {
+              "status": "passed",
+              "description": "The Repair reconnect comparison passed: parent 1/1, comparing three passing fresh child processes and their complete state/cache/digest traces.",
+              "source": "00cf53c3",
+              "evidence": ".phoenix/verify-8-12-repair-reconnect-summary.txt"
+            },
+            {
+              "status": "passed",
+              "description": "The actual Station damage popup, save portability and browser reconnect journeys passed within the 15/15 matching-host selection.",
+              "source": "dbfd0027",
+              "evidence": ".phoenix/verify-8-12-final-host-browser.log"
+            },
+            {
+              "status": "passed",
+              "description": "Damage authoring, history, reload/export and real Preview/Test passed within the 3/3 Workshop render selection.",
+              "source": "9bd7bab6",
+              "evidence": ".phoenix/verify-8-12-workshop-unfitted-render.log"
+            }
+          ]
+        },
+        {
+          "increment": 12,
+          "acceptance": "docs/acceptance/1562-logistics-production.md",
+          "checks": [
+            {
+              "status": "passed",
+              "description": "Resource/logistics/production/recovery owner checks passed within the selected 1618-test owner union.",
+              "source": "8ac62cce",
+              "evidence": ".phoenix/verify-8-12-green-native-owners.log"
+            },
+            {
+              "status": "passed",
+              "description": "Whole-host Logistics 3/3, Production 2/2, Recovery 3/3 and Facility supply 2/2 passed with finite stocks, actual completion, full continuation and malformed-state refusal.",
+              "source": "e027e568",
+              "evidence": ".phoenix/verify-8-12-current-hosts-rules75.log"
+            },
+            {
+              "status": "passed",
+              "description": "Both Fitting/facility continuation cases passed, including intact-equipment recovery and ordinary AI Repair fetching/installing the preserved assembly.",
+              "source": "e027e568",
+              "evidence": ".phoenix/verify-8-12-current-hosts-rules75.log"
+            },
+            {
+              "status": "passed",
+              "description": "Resource/service-link authoring, history, reload/export and real Preview/Test passed within the 3/3 Workshop render selection.",
+              "source": "9bd7bab6",
+              "evidence": ".phoenix/verify-8-12-workshop-unfitted-render.log"
+            }
+          ]
+        }
+      ],
+      "shared_checks": [
+        {
+          "status": "passed",
+          "description": "6/6 seeded-report, replay and continuation agreement checks",
+          "source": "9bd7bab6",
+          "evidence": ".phoenix/redesign-baseline/2026-10-16-verify-8-12/summary.json"
+        },
+        {
+          "status": "passed",
+          "description": "PASM validate, scan and traceability; bounded affected-wiki reference check",
+          "source": "e027e568",
+          "evidence": "docs/acceptance/1562-integrated-8-12.md"
+        }
+      ],
+      "overall_increment_status": "Unchanged; passing checks recorded individually without declaring full milestone closure."
+    }
+  },
+  "scope": "Integrated communication, movement, illumination, local personnel and equipment-bound facility checkpoints; no increment exit",
+  "source": "873ca2d9 plus authored illumination power-group correction ba716438; later fixture corrections are not part of this executable",
+  "compile": {
+    "command": "cargo check -p phoenix-simulation --tests --no-default-features",
+    "result": "passed after four bounded integration corrections",
+    "log": ".phoenix/parallel-integrated-check-retry.log"
+  },
+  "native": {
+    "command": "phoenix_simulation-d920f9d6624e4bd2.exe comms:: guided_ guidance_ helm_movement console::helm::control lateral_owner_tests console::weapons::illumination illumination_ flight_carrier:: pdc:: assignments:: mounts:: personnel ports_equipment ports_server boost",
+    "result": "287 passed, 8 failed, 4344 filtered out; 77.11 seconds",
+    "log": ".phoenix/parallel-integrated-native-data-retry.log",
+    "log_sha256": "a057849c7c5338bd051416ac60f52459acda20ebcae89db449cf4057da8af751",
+    "executable_sha256": "14612fad1af8789ce2cd7fe483f5fa6b96364ecb0a1e285c8ba61b684fa3d8ba",
+    "new_positive_evidence": [
+      "Actual paid radio inbox and reserves continue through JSON and reject malformed copies before writes",
+      "Renamed lateral publication follows actual owner condition/source and exact Console feed",
+      "Five actual illumination emitter cases: paid matching assistance, unavailable evidence, receiver absence, Offline source and original-source concealment",
+      "Local personnel custody and snapshot owner cases",
+      "Existing guided flight, PDC, mounts and communication owner cases"
+    ],
+    "failed_cases": {
+      "movement": "Two manually promoted owner fixtures omitted the normal high-fidelity actuator bundle; correction integrated as 9f657b83, rebuilt execution pending",
+      "illumination": "AI fixture replaced App schedule resources with a bare World; correction integrated as 4770c21a, rebuilt execution pending",
+      "facility": "Five cases used a legacy finite-stock visitor fixture without actual damage/repair owners; correction integrated as 5e66d584, rebuilt execution pending"
+    },
+    "initial_failure": "172 passed, 122 failed. Of those failures, 115 shared the missing authored illumination admission power group. Original log retained as .phoenix/parallel-integrated-native.log."
+  },
+  "client": {
+    "command": "npx vitest run (18 affected client and Workshop suites)",
+    "result": "548 passed, 0 failed",
+    "log": ".phoenix/parallel-integrated-client.log",
+    "bundle": "node scripts/build-client.mjs passed; protocol 17"
+  },
+  "design": {
+    "validate": "passed; 1123 entities, 614 informational findings, Status OK",
+    "scan": "passed; .phoenix/parallel-integrated-pasm-scan.log",
+    "traceability": "passed; 246 rows",
+    "wiki": "72 pages, 70 index entries, 2043 references, no findings",
+    "strings": "6037 strings, zero errors or warnings",
+    "layers": "dependency-tree check passed"
+  },
+  "later_integrated_checkpoints": {
+    "dock": "370baf93 integrates paid mobile separation and stationary release; fcf386de joins shared no-write preflight, protocol 18 and rules 0.32",
+    "torpedo_ai": "d859208e corrects a real cross-ship authority leak: the firing ship's rating now governs auto-fire rather than this host's unrelated Tactical holder; rules 0.33",
+    "compile": "cargo check -p phoenix-simulation --tests --no-default-features passes after adding moves_body to exhaustive schema coverage; .phoenix/parallel-dock-rating-check-retry.log",
+    "client": "30 tests pass across six merged Dock/illumination suites; .phoenix/parallel-dock-illumination-client.log",
+    "bundles": "Client and Workshop authoring build; client stamp 18/phoenix-base/4",
+    "native": "Rebuilt suite: 343 passed, 7 failed, 4298 filtered out, 76.66 seconds. .phoenix/parallel-dock-rating-native.log; SHA256 a5c242f2a207d9d6d0c8a48733be8153e1df4c3ce353db512eddb16e2c31715c. Six illumination emitter cases, two illumination snapshots, four Boost cases and four corrected facility cases pass. Remaining Dock lifecycle, facility ResourceServices and weapon fixture identity/energy corrections are integrated but not rebuilt."
+  },
+  "full_host_attempt": {
+    "command": "cargo test -p project-phoenix --features headless --test pdc_gameplay_continuation --test helm_movement_continuation",
+    "helm": "Retry after 44e9f9a2 passes actual paid Direct movement, neutral coasting and turning, then fails the first complete JSON continuation comparison after restore. First-difference diagnostic added; full continuation remains unverified.",
+    "helm_log": ".phoenix/parallel-integrated-full-host.log",
+    "pdc": "Retry after d859208e still fails both probes: ordinary foe emits no rounds. Actual loaded tubes, AI ownership, source paid sensing and alert/launch conditions under investigation. No continuation exit.",
+    "pdc_log": ".phoenix/parallel-integrated-pdc-full-host.log",
+    "continuation": "Neither full-host probe reached its required continuation exit on this attempt",
+    "retry_log": ".phoenix/pdc-producer-helm-retry.log"
+  },
+  "pending": [
+    "Finish current actual-host planner/PDC/protection retry; resolve real Logistics frontier and demonstrate genuine finite saturation without weakening witnesses",
+    "Full-host illumination and radio journeys",
+    "Remaining runtime scope in increments 16 through 24",
+    "Browser/native devices, multiplayer peers, performance, balance and human workload acceptance",
+    "Required final integrated gates before any push"
+  ],
+  "latest_integrated_native": {
+    "source": "8539f5cd plus UI-only be202c0d/182a675c; executable predates later corrections",
+    "command": "cargo test -p phoenix-simulation --lib --no-default-features -- comms:: guided_ guidance_ helm_movement console::helm:: control::tests lateral_owner_tests illumination:: flight_carrier:: pdc:: assignments:: mounts:: personnel ports_equipment ports_server boost dock:: umbilical:: ai_torpedo_auto_fire npc_torpedo_ai power_ai_tests activity_ activities::",
+    "result": "394 passed, 9 failed, 4265 filtered out; 112.04 seconds",
+    "log": ".phoenix/parallel-requests-activities-native.log",
+    "log_sha256": "6234cea4c60c0db2a12b1091d02c389be71c843639e764cf113a21440b8719ed",
+    "new_positive_evidence": [
+      "All seven failures from the previous 343-pass run pass",
+      "All ten Power AI cases pass",
+      "Activity snapshot and malformed-evidence refusal cases pass"
+    ],
+    "failures": {
+      "comms": "One ordinary policy failed to answer a heard/read typed status request; corrected in 057427c5, execution pending",
+      "helm": "Five legacy publication fixtures omitted real paid radar equipment; corrected in f2b3d0da, execution pending",
+      "activities": "Three physical fixtures did not establish the actual Repair visit scope or local stock deficit; corrected in 837c2b82, execution pending"
+    }
+  },
+  "latest_full_host_attempt": {
+    "source": "182a675c; runtime through 8539f5cd",
+    "log": ".phoenix/power-helm-full-host-retry.log",
+    "helm": "Failed finite-reserve assertion before continuation: Minimal allocation ignores manually set fine flows and the reactor capacitor still exports stored energy. Probe now explicitly selects Manual and zeroes the three tested intake flows through admitted commands (8dd26833); retry pending.",
+    "pdc": "Both probes failed because ordinary foe launched no rounds. Real World spawn ignored authored heading, sending foe out of contact range before classification; actual spawn owner corrected in c94de029 without changing test geometry or combat tuning. Retry pending.",
+    "exit": "No full-host continuation exit claimed"
+  },
+  "latest_pure_electronic": {
+    "source": "c94de029",
+    "command": "cargo test -p phoenix-sim-gameplay --lib -- electronic:: regions::interference",
+    "result": "4 passed, 0 failed, 1656 filtered out",
+    "log": ".phoenix/electronics-pure-geometry-tests.log"
+  },
+  "latest_client_bundle": {
+    "command": "node scripts/build-client.mjs",
+    "result": "passed; 19/phoenix-base/4",
+    "log": ".phoenix/current-console-client-build.log"
+  },
+  "latest_design_validation": {
+    "command": "uv run pasm validate",
+    "result": "passed; 1126 entities, 614 informational findings, Status OK",
+    "log": ".phoenix/parallel-requests-activities-pasm.log",
+    "limitation": "Development validation during ongoing lane integration; not the final pinned gate"
+  },
+  "targeted_native_retry": {
+    "source": "c94de029 runtime; executable built before subsequent activity-support and finite-battery changes",
+    "command": "cargo test -p phoenix-simulation --lib --no-default-features -- request_tests console::helm::server::tests console::repair::server::activity_tests logistics_server::tests::activities world_setup_authored_pose scenario_activity",
+    "result": "30 passed, 0 failed, 4642 filtered out; 0.42 seconds",
+    "log": ".phoenix/parallel-native-retry.log",
+    "limitation": "The two incorrect heading filter spellings matched no cases; heading tests were explicitly run separately below. This retry is not a passing rerun of the complete 403-case selection."
+  },
+  "authored_heading": {
+    "command": "phoenix_simulation-d920f9d6624e4bd2.exe authored_pose_tests",
+    "result": "2 passed, 0 failed, 4670 filtered out; 0.35 seconds",
+    "log": ".phoenix/authored-heading-owner-tests.log"
+  },
+  "finite_battery": {
+    "source": "a28bb93a",
+    "owner": "3 passed; cargo test -p phoenix-sim-gameplay --lib -- battery_only; .phoenix/battery-energy-owner-tests.log",
+    "workshop": "45 passed across four affected files; .phoenix/battery-authoring-client-corrected.log",
+    "limitation": "Actual-host continuation pending. Deployment/recovery is not implemented by this prerequisite."
+  },
+  "latest_wiki": {
+    "result": "73 pages, 71 indexed, 2066 references, no findings",
+    "log": ".phoenix/parallel-lanes-wiki-current.log"
+  },
+  "activity_authoring": {
+    "source": "1ec203f8,1f7dd0c5,47b4981f",
+    "client": "58 passed across two integrated files; .phoenix/activity-authoring-integrated-client.log",
+    "bundle": "Workshop Authoring build passed; .phoenix/activity-authoring-integrated-build.log",
+    "strings": "6105 strings, zero errors/warnings; .phoenix/activity-authoring-integrated-strings.log",
+    "limitation": "New shared support native tests and full-host physical lifecycle demonstration remain pending"
+  },
+  "actual_host_continuation": {
+    "scope": "Actual ordinary host producers, complete JSON capture/digest comparison for 360 steps each; predates integrated jammer/transit runtime",
+    "comms_requests": "Passed, 5.42 seconds; .phoenix/parallel-real-host-continuation.log",
+    "helm": "Passed, 4.83 seconds, including Human-to-ordinary-AI handoff; .phoenix/parallel-real-host-continuation.log",
+    "finite_probe": "Passed, 5.98 seconds with corrected collider length and positive intake capacity; .phoenix/battery-real-host-positive-intake-retry.log",
+    "repair_delivery": "Passed, 4.66 seconds, actual repair/delivery/recall/refusal and malformed no-write candidates; .phoenix/activities-pdc-actual-host.log",
+    "pdc": "Two cases failed before the observed shield-ray uncertainty correction. Read-only diagnostics found 111/222 loaded, in-range, in-arc launch opportunities but no usable observed shield cover. Contract fecd72a8 and correction 76b9c2a2 preserve evidence-only decisions and tuning. Integrated execution pending.",
+    "limitation": "No full increment exit, physical-device acceptance, performance or balance acceptance"
+  },
+  "electronic_transit_integration": {
+    "source": "909a47b6 compiled Transit/jammer join; f0d720a4 adds reviewed Transit HUD; 3d38a890 adopts next protection contract",
+    "compile": "cargo check -p phoenix-simulation --tests --no-default-features passed; .phoenix/transit-jamming-integrated-check-retry.log",
+    "owner_tests": "Model jammer: 1 passed; Gameplay jammer/shield-ray/battery/activity: 9 passed; Content activity support: 2 passed. Logs .phoenix/jamming-model-owner.log, .phoenix/jamming-gameplay-owner.log, .phoenix/activity-content-owner.log",
+    "client": "38 tests passed across the two matched Transit/shared-console suites; .phoenix/transit-jamming-hud.log. Earlier integrated jammer controls: 52 passed; .phoenix/jamming-integrated-client.log",
+    "bundle": "Client build passed, stamp 21/phoenix-base/4; .phoenix/transit-client-build.log",
+    "runtime_status": "Actual paid Comms jammer and local Transit core integrated; native and actual-host execution pending. Sensors/protection contract adopted before runtime. No full 17/18 exit."
+  },
+  "actual_host_integrated_retry": {
+    "source": "Runtime through 909a47b6; Personnel test 7341e333 and Transit test 7bb48028; corrected reference data 33b17e18. Already-built executables predate typed channel defaults 37b8b6ba.",
+    "initial_refusal": "All six targets refused initial boot because LocalJump's new local fuel stock lacked explicit Stock feeds. Corrected by adding the exact feed to Helm and Engineering; knowledge isolation remains intact. Original .phoenix/integrated-transit-jamming-host.log retained.",
+    "repair_and_personnel": "2 passed, 10.36 seconds: actual Repair/delivery and same-hull posted versus unposted 1.25 expertise comparison, partial-work JSON360, exact parts and custody; .phoenix/activity_foundation_continuation-ee39066824d50aa1.exe.current.log",
+    "finite_probe": "1 passed, 6.34 seconds; .phoenix/battery_probe_continuation-e2ce3423c7cad293.exe.current.log",
+    "comms": "1 passed, 5.26 seconds; .phoenix/comms_request_continuation-8a5ac6fb18924e9b.exe.current.log",
+    "helm": "1 passed, 5.07 seconds; .phoenix/helm_movement_continuation-7729ded574618af9.exe.current.log",
+    "local_jump": "1 passed, 42.56 seconds: joined preparation, malformed no-write candidates, Human/AI handoff, exact JSON360, one arrival/commit and real finite Logistics replenishment; .phoenix/local_jump_continuation-18e6c4158f340b84.exe.current.log",
+    "jamming": "Failed ordinary-AI emission prerequisite. Explicit public target-name correction b8966838 still fails; diagnostics in progress. .phoenix/jamming-public-target-retry.log",
+    "pdc": "Both actual producer cases still fail after shield uncertainty correction; no observed launch. Read-only timing diagnostics added to distinguish assessment availability from firing geometry. No tuning or assertion change. .phoenix/pdc_gameplay_continuation-fd5a3c46a87ce0da.exe.current.log",
+    "design": "Integrated PASM validate passed, Status OK; .phoenix/electronic-transit-pasm.log. Wiki 74 pages, 72 indexed, 2086 references, no findings; .phoenix/electronic-transit-wiki.log. Strings 6137, zero errors/warnings.",
+    "limitation": "Six passing tests do not establish a passing whole batch, full increment exits, different-LocalShip multiplayer, physical-device or performance/balance/workload acceptance. Final pre-push gates remain pending."
+  },
+  "latest_reviewed_integration": {
+    "source": "fb255fc4: HTN core f8a32b67, root compatibility/schema a7e1bf11, actual-host tracer e93d83f4; protocol22/snapshot63/rules0.43",
+    "compile": "cargo check -p phoenix-simulation --tests --no-default-features: passed39.78s; .phoenix/planner-broad-integrated-check-final.log. Includes four bounded imports/schema/iterator fixture corrections.",
+    "client": "492 passed,6files,1.36s; .phoenix/planning-integrated-client-retry.log. Initial2 Repair DTO expectations corrected for actual optional Personnel/planned defaults.",
+    "bundle": "Client passed22/phoenix-base/4; .phoenix/planning-client-build.log",
+    "layers": "Dependency-tree passed with approved path access; .phoenix/planner-broad-layers-approved.log",
+    "native": "12 passed,1 failed,4682filtered,0.79s; .phoenix/ordnance-jammer-native.log. All7 actual Jam owner cases,4 Jam snapshot/recipe cases and actual paid Broad ordnance privacy/selection regression pass. Alternate-drive bare capture lacked7 legacy optional component registrations;01544273 corrects fixture, rerun pending.",
+    "actual_jammer": "1 passed,7.71s; .phoenix/producer-timing-diagnostics-retry.log, runtime through37b8b6ba and true Input-phase payment observer c0b787fb/1786629d. Ordinary AI reads explicit heard request, pays actual work, complete JSON360 and stop/no-write checks. Same batch PDC2failed; not an all-green batch.",
+    "actual_missiles": "New optional provisional Missile Cruiser7a7ef720 retains ordinary AI/assessment/loading/finite resources, uses artillery hold80 and speed5/range600 rounds. Actual cached host launches2/4 rounds but both PDC cases still fail: .phoenix/pdc-missile-artillery-reference.log,24.07s. Executable predates Broad selection correction5985c80e.",
+    "broad_correction": "5985c80e honors explicit Missile selection grant in actual paid Broad producer and canonical missile classification. Default no-grant remains unselectable; native regression passes, no hidden launcher/guidance/UUID disclosure. Fresh actual-host run pending.",
+    "in_progress": "Fresh4target headless host batch .phoenix/planner-broad-full-host.log at fb255fc4; no result claimed yet.",
+    "limit": "No full increment exit, physical devices, multi-LocalShip acceptance, performance/balance/workload acceptance or final integrated gates. No push."
+  },
+  "latest_parallel_join": {
+    "source": "ddc410ed (runtime); later00563a0f changes adopted probe contracts only; protocol23/snapshot65/rules0.45",
+    "runtime": "Reviewed real protection allocation/payment/capture plus Comms, Broad, Focused and Passive receiver joins6c49a920; normal own Human/AI actuationc9e88ed9; deterministic rating-to-protection-to-interference orderddc410ed. Protection UI/Workshop and native gameplay evidence pending.",
+    "planner": "Original bounded choice explanationsae55828f and actual accepted-source Workshop/privileged graph inspectionaaa1eff0 integrated. Source reviews passed; no physical job dispatcher or additional knowledge grant.",
+    "compile": "Renderer-free Simulation test check passed56.63s before controller (.phoenix/protection-planning-integrated-check.log), then29.36s after controller (.phoenix/protection-controller-integrated-check.log).",
+    "world_owner": "4 planner tests passed,575filtered,0.01s; .phoenix/imported-planner-world-owner.log. Exact imported typed closure, alternatives, invalid recursion, atomic release/history and original bounded explanation JSON.",
+    "content_owner": "5 tests passed,311filtered,0.30s; .phoenix/planner-craft-owner-tests-retry.log. Imported domain capability/import2 and actual Transit source validation3. Initial compile found two fixture loaders missing required absence_is_final;52daad98 corrects authoritative fixture semantics.",
+    "craft_model": "Initial Model1pass/1fail exposed internally tagged unit variant accepting extra custody fields.56c242b6 preserves deployed wire shape with a closed struct variant; retry2pass,72filtered; .phoenix/craft-closed-model-retry.log. Physical Bay consumer remains open.",
+    "authoring": "27 tests passed across5 integrated planner/activities/Scenario/Scripts/Transit files,5.84s; .phoenix/planning-transit-authoring-integrated.log. Merged Workshop bundle passes; .phoenix/planning-protection-workshop-build.log.",
+    "prior_full_host": "Fresh runtimefb255fc4:4pass/3fail across7tests (Activity2/1, Jam1/0, localJump1/0, PDC0/2),6m08compile; .phoenix/planner-broad-full-host.log. Jam7.88s and localJump50.79s pass. Imported HTN completes360 comparisons then fails energy witness; ebf456b2 now observes actual fixed intervals including command-helper ticks. PDCsingle reaches real AI targeting/firing and launcher-loss survival but lacks strict existing-roster readiness for its runtime carrier;8d2d95b7 uses validated delayed rebuild. Larger salvo still has no qualified missile handle/firing;163778ed adds read-only track continuity diagnostics. Corrections not yet native-proven.",
+    "design": "PASM validate1134entities/614informationalfindings StatusOK, scan0, traceability246rows0. Logs .phoenix/planner-integrated-{pasm,scan,traceability}.log. Development scan recordedbbff5bb4 and includes local worktree copies(36090files/197packages); not a final pinned clean-tree gate. Wiki74pages/72indexed/2094refs/0findings; .phoenix/planner-world-wiki-lint.log before latest authoring article.",
+    "running": "Current actual-host planner/PDC/protection batch at e4821a72 plus adopted optional precision/origin reference data: .phoenix/planner-pdc-protection-integrated-retry.log. Native result pending. Prior build at87a8bfa6 failed before tests because a projection used pure SystemHull as a Bevy component; independently reviewed e4821a72 reads the existing EntitySystemHull wrapper.",
+    "remaining": "No increment exits. Remaining16-24 runtime scope, authoring/playable joins, physical devices/multiplayer, workload/balance/performance and final integration gates remain required. No push.",
+    "latest_boot_retry": "Optional protection Cruiser inherited Guard rating omitted its new System, correctly refusing all7 tests before gameplay. Reviewed5d90d61b adds its explicit simplified policy. Cached same-runtime retry then booted and yielded Activity2pass/1fail, Jam1pass, localJump1pass, PDC0pass/2fail. Imported HTN exact360 comparison passed before missing actual Logistics payment witness;09e8b862 adds read-only frontier diagnostics. PDCsingle actual ordinaryAI interception and launcher-loss JSON360 passed before an energy witness omitted passive loss; reviewed3a6c9810 observes the actual TickPowerSystem debit.",
+    "protection_authoring": "Integrated0b92a722/87a8bfa6 plus label-wrapper correctione4821a72: exact own-source controls, ordered priorities, common status, accepted Workshop composition/tree/profile editing. Targeted integrated3files11tests passed2.16s; .phoenix/protection-controls-integrated.log. Actual protection full-host test c824019b remains native pending. Browser source donor uses provided permitted publications only and is not evidence of the Rust/network path.",
+    "pdc_reference_probe": "Adopted5a95db10 optional equipment correction: explicit existing missile barrel markers, Tactical position_error0.05 with actual continuous cost1.5; all other resolved atomic profile fields unchanged. Resolver deep equality passed. Cached actual saturation probe now classifies/intercepts all4rounds across2paid cycles, so the unchanged saturation assertion still fails: .phoenix/pdc-separated-precision-data-probe.log. A genuinely heavier concurrent physical attack is being prepared; no controller, uncertainty or assertion weakening."
+  },
+  "pause_checkpoint": {
+    "reason": "User requested: Pause everything the next time it commits.",
+    "next_commit": "Reviewed optional Missile Cruiser barrel origins and paid precision PDC reference; independent source review and exact resolved-profile comparison passed.",
+    "lanes": "All three implementation agents interrupted; preserve their worktrees and uncommitted work. No dependent increment exit claimed.",
+    "native": "Actual-host planner/PDC/protection batch still compiling at pause request. Stop after this commit; incomplete execution is not a passing test result. Log .phoenix/planner-pdc-protection-integrated-retry.log.",
+    "pdc": "Cached executable with optional reference data physically intercepted all4 rounds across2cycles; existing saturation assertion fails. Prepare a genuinely heavier concurrent two-NPC attack on resume without weakening bank limits, real-impact or conservation checks.",
+    "remaining": "Actual Logistics frontier diagnosis, protection host execution, source-only owner tests and remaining16–24 scope remain open. No push."
+  },
+  "resumed_checkpoint": {
+    "date": "2026-10-15",
+    "source": "80d01378 runtime; c55f0df8/68c8a11c adopted temporal and craft-loss contracts",
+    "status": "User resumed implementation through24. Communications, craft and planner worktrees preserved and restarted; independent local Personnel/facility and PDC validation subtasks use isolated worktrees.",
+    "native": "First resumed batch failed linking before tests with1785 unresolved anonymous LLVM symbols in Simulation output. After the earlier forced pause, cargo clean -p phoenix-simulation removed only that package artifacts; same actual-host3target batch is rebuilding in .phoenix/resumed-planner-pdc-protection-native-clean-retry.log. No passing native result claimed.",
+    "reviews": "Temporal source review found historical owner/Station eligibility and actual-holder presence gaps. Corrections in the planner worktree pending review/integration. Craft continuation must include Disabled stored actors in canonical capture/roster/digest without re-enabling operational queries.",
+    "pending": "All remaining16–24 runtime joins and acceptance remain open; no push or full exit."
+  },
+  "resumed_validation": {
+    "date": "2026-10-15",
+    "integrated_source": "0c79e1a2; protocol25/snapshot67/rules0.47",
+    "reviewed_joins": "Real finite Bay/probe custody and ordinary controls/Workshop; canonical Disabled actor capture/action addressing; one Presentation visibility gate; Security shared TeamJobs; closed physical-versus-Comms ActivityExecution identity; actual drive gravity-response configuration. Each substantive donor received independent source review.",
+    "content_owner": "30 passed,0 failed,290 filtered; cargo test -p phoenix-content-preparation --lib -- craft planning authoring::tests::; .phoenix/resumed-craft-content-owner-tests-current-fixture.log. Seven initial authoring failures were stale epoch3 dependencies versus current epoch4 packs and an invalid legacy equipment fixture. Original negative mismatch/include/curation assertions retained; production conversion guards unchanged.",
+    "renderer_free": "cargo check -p phoenix-simulation --tests --no-default-features passed44.55s at aa53accf runtime; .phoenix/resumed-simulation-renderer-free-check-final.log. Later gravity/action-target donors require their native check.",
+    "gameplay_owner": "5 Security tests passed in .phoenix/resumed-shared-jobs-owner-tests-retry.log; 9 Bay/profile tests passed in .phoenix/resumed-bay-owner-tests.log. These cover their earlier pinned runtime before local Security routes/gravity additions.",
+    "client": "36 passed across6 integrated Bay/protection/shared status/composition/Transit files,7.07s; .phoenix/resumed-merged-bay-protection-gravity-client.log. The merged check caught omitted Bay editor eligibility; 4a404a01 restores supported controls without changing validation.",
+    "pdc_prior_native": "The fresh single-attack interception test passed with finite payment, launcher-loss rebuild and full JSON360/digest comparison. Prior two-tube reference did not saturate actual defence; reviewed85f17216 adds a physically concurrent two-NPC attack, with native stronger assertions pending.",
+    "planner_prior_native": "Two actual repair/personnel cases passed; imported HTN test exposed an insufficient6s continuation window for authored5s return travel plus2s work. Reviewed572e7934 extends comparison to1200steps, retaining real stock/payment/credit assertions. Fresh native result pending.",
+    "running": "Actual5target headless batch at0c79e1a2: activity_foundation_continuation, pdc_gameplay_continuation, protection_continuation, comms_relay_continuation, physical_probe_continuation. --no-fail-fast collects all target results. .phoenix/resumed-five-host-integration.log; no result claimed while compiling.",
+    "open": "Joint planned Comms execution donor, remaining16-24 runtime scope, authored Patrol/War/Sandbox and generation/Director, integrated owner/native checks, physical-device/multiplayer/workload/performance/balance evidence and final pre-push gates. No full increment exit or push."
+  },
+  "resumed_host_evidence": {
+    "source": "0c79e1a2 runtime plus typed physical assertion fix da0d4a2c; protocol25/snapshot67/rules0.47",
+    "command": "cargo test -p project-phoenix --features headless --no-fail-fast --test activity_foundation_continuation --test pdc_gameplay_continuation --test protection_continuation --test comms_relay_continuation --test physical_probe_continuation -- --nocapture",
+    "log": ".phoenix/resumed-five-host-integration-typed-retry.log",
+    "result": "6 passed,2 failed across5 targets. Not an all-green batch.",
+    "activities": "3 passed16.34s: actual Repair/Logistics credit and malformed no-write; officer paid-work/custody; imported partial-order HTN with1200 complete capture/digest comparisons and actual finite work/return/delivery outcomes.",
+    "pdc": "2 passed13.62s: ordinary finite interception with launcher-loss JSON360 continuation; concurrent two-NPC saturation with actual payload impact, flight/source counts and conservation.",
+    "probe": "1 passed12.48s: joined real paid launch/recovery, same physical actor/custody/history and JSON360 continuation.",
+    "relay": "Failed before sending because the authored ordinary Cruiser did not opt into hailable. Reviewed test-only public recipient profile59e879df plus new planning fixture8d3c243f retain normal permitted contact acquisition. Fresh retry pending.",
+    "protection": "Failed afterJSON360 because the optional protection fit received effective flow0 at low priority and exhausted its actual reserve. Reviewed204d1ea2 prioritizes that finite intake, with unchanged output/cost/capacity and stronger every-step paid witnesses on both hosts. Fresh retry pending.",
+    "compile_correction": "First five-target build failed before executing tests because two root Activity assertions still addressed retired .job. da0d4a2c uses the closed physical accessor; the same batch was rerun, not described as initially passing."
+  },
+  "resumed_planned_comms_security_join": {
+    "source": "ed685e3b; protocol26/snapshot68/rules0.48",
+    "runtime": "74b72898 actual normal planned Comms initiation;506a096c actual emission/heard receipt HTN bindings;8ee4f17e full-host tracer;5b6e6c6b real local Security routes/authoring; compatibility66917660.",
+    "client": "461 passed6files2.87s; .phoenix/resumed-comms-security-integrated-client.log.",
+    "compile": "Initial renderer-free tests exposed scoped test imports, old FlagStore calls, exhaustive local Security field coverage and a closed activity match; e9709a8c corrects them. ed685e3b pins an otherwise ambiguous generic routine-priority fixture. Final check running in .phoenix/resumed-comms-security-integrated-check-final.log.",
+    "pasm_pinned": "At513967e4: validate1142entities/615informational findings StatusOK; scan3883files/18packages ValidationOK; traceability246rows ValidationOK. .phoenix/resumed-pinned-integrated-{pasm,scan,traceability}.log. Explicit spec/workspace roots target the clean pinned validation worktree; the first live-root attempt encountered a disappearing worker file and was not a passing gate.",
+    "remaining": "New runtime/native evidence, later16-24 scope, devices/multiplayer/workload/balance/performance and final integrated gates remain open. No full increment exit or push."
+  },
+  "late_resumed_integration": {
+    "source": "3e580c79 runtime/test source; protocol28/snapshot71/rules0.51",
+    "integrated": "Real Scenario-applied causal ticks6232b59e; frozen installed Transit profile/cost guard7499aa74; full hardened/hazard host tracers2a8684bb/ce60053e; finite actual local Treatmentd49e9e8f with shared-step join5eae0a30 and early roster guard9296f6c8; actual Medical hostproofd3975596; actual vessel supply334452ec/7f222f7e/93ce5626; received Formation coordinationf76ebe33; existing-promise root gate6a23cf3c. Full sector, movement Formation execution, broader personnel/external operations and modes remain open.",
+    "renderer_free": "cargo check -p phoenix-simulation --tests --no-default-features passed40.22s at116c7f97. .phoenix/resumed-treatment-facilities-promise-check-retry.log. Initial two failures were a scoped Comms test helper and nonstatic Treatment feedback slice; fixed without changing supported command scope.",
+    "client": "600 passed8files8.09s at116c7f97; .phoenix/resumed-treatment-facilities-promise-client-retry.log. Initial one exact action inventory failure omitted the three supported Bay commands; explicit expected inventory corrected, no action behavior disabled.",
+    "host_compile": "All12 selected headless host targets check successfully at3e580c79; .phoenix/resumed-twelve-host-target-check-final.log. The hardened candidate forgery now uses supported serialized typed state rather than an unavailable direct sibling crate path; no manifest dependency added.",
+    "owner_baseline": "Model17/Gameplay69/World14 passed (100total) before the later Scenario/Treatment/Promise joins, .phoenix/resumed-comms-security-world-owner-tests.log. First Simulation selection12pass2fail (actual-source participation fixtures); exact additional owner114pass4fail (two stale Security data expectations and digest characterizations); actual Comms bridge2pass; actual Activity/snapshot9pass4fail (runtime-only fixture definitions). Logs retain all failures. These were separate filtered runs, not a green full suite.",
+    "owner_corrections": "Explicit Human Repair source0ed02153 makes both failed temporal cases pass in native retry; exact cooldown capture/restore/change regression passes. 6d0d375b pins all42 current stages and migrated Repair/Umbilical/Security namespaces from actual native output, independently verified, production hashing unchanged.35dedd32 authors the snapshot fixture declarations in accepted WorldConfig. bde8b467 replaces obsolete Security legacy projection assertions with exact canonical shared-compartment durability assertions. Final affected owner retry remains pending.",
+    "running": "Full12target headless --no-fail-fast batch at3e580c79: .phoenix/resumed-twelve-host-integration.log. No result claimed while compiling.",
+    "worktrees": "Removed clean integrated resumed-integration, facility-actors and pdc-saturation worktrees after checking absolute paths, clean state and patch equivalence. Branches preserved. Active Comms, craft, planner and personnel trees remain isolated.",
+    "remaining": "Actual12target outcomes/fixes, new owner tests and Presentation privacy proof, remaining16-24 implementation including full23Patrol→War→Sandbox and24opportunity/admission/pacing, all crew-size/device/multiplayer/workload/performance/balance evidence and final integrated gates. No full increment exit, PRD closure or push."
+  },
+  "resumed_twelve_host_result": {
+    "source": "Compiled runtime/test3e580c79; actual assets636cdb24/9bd61743. Later source commits are not covered by these native outcomes.",
+    "initial": "All12 targets initially refused boot on equal-priority fleet Comms response rules. Next data-only retry refused incomplete atomic logistics in optional facility_supply_cruiser. Both source-reviewed content fixes retain normal validation and full resources.",
+    "log": ".phoenix/resumed-twelve-host-composed-content-retry.log",
+    "result": "15 passed,5 failed across12 targets; NOT a green full batch.",
+    "passed": "Activity3; relay1; local/hardenedJump2; Medical2; PDC2; physicalProbe1; plannedComms2; Protection1; Security1. Actual paid work/finite stocks, current authority and complete JSON continuation assertions retained.",
+    "failed": "Commitment2 (synthetic _self sender not admitted to physical response); hazard1 (wrong Flags.set arity); facility2 (uncharted ports and Captain retaining visiting Human Navigation).",
+    "corrections": "def2205b uses actual hailable sender/real selected response and typed integer flag.313adfcd charts only fixed ports and releases/reclaims actual crew control with explicit AI-source assertions. Fresh native retry pending."
+  },
+  "identity_retained_roster_integration": {
+    "source": "32aa19c9; protocol29/snapshot73/rules0.53",
+    "identity": "de424432/44ce5c0b/b7ac8f91: real paid physical identity, ordinary per-System tree/admitted toggle, acquired-only Broad substitution, exact candidate ownership, shared permitted status, derived claim cleared on restore. Independent source PASS after complete three-step Input ordering correction.",
+    "personnel": "c15ff6ec/6c505d15/5ff69a49/03550acc: one global finite roster, immutable accepted actor/source identity and terminal loss, existing care/posting/bonus consumers, global persistence/preflight/fold. Independent source PASS; no per-entity duplicate state or wreck-lifetime protection. Actual Activity/Medical proofs migrated to global owner.",
+    "compile": "Simulation tests no-default-features PASS33.78s, .phoenix/resumed-retained-roster-identity-check-retry.log. All13 headless host targets check PASS48.63s, .phoenix/resumed-roster-thirteen-host-target-check.log. Initial roster String validation error fixed5ff69a49; original log retained.",
+    "client": "Identity/Workshop/action-map128PASS3files1.04s; .phoenix/resumed-identity-client-retry.log. New supported action explicitly added to exact inventory after initial failure. Strict strings6312/0errors/0warnings.",
+    "builds": "Client and Workshop build PASS; client stamp29/phoenix-base/4. Wiki75pages/73indexed/2133refs/no findings; ledger216entries25dependencyorderedincrements PASS.",
+    "running": "Actual13target headless --no-fail-fast at32aa19c9: .phoenix/resumed-thirteen-host-roster-identity-native.log. No result claimed while compiling. Clean pinned32aa PASM validation pending.",
+    "owner_checks": "New Content destination selection first failed to compile an older exhaustive ActivityRequest fixture after Communication was added.2c5f2cf4 extends the exact actor reassignment to that closed variant; fresh owner retry pending. Latest Simulation owner/digest/Security/snapshot fixture corrections and Presentation privacy still need actual fresh execution.",
+    "remaining": "Actual13 outcomes/fixes; sector/formation execution; carried personnel; Comms media/decode and remaining electronic operations; optional HTN real discovery/acceptance/work; full authored continuing modes and generation/pacing; crew-size/device/multiplayer/workload/balance/performance and final integrated gates. No full increment exit, closure or push."
+  },
+  "resumed_thirteen_host_result": {
+    "source": "Runtime/test32aa19c9; corrected clearance fixture94cdc166. Later63ea0b17 provenance hardening is not included in these binary results.",
+    "command": "cargo test -p project-phoenix --features headless --no-fail-fast,13 explicit targets,--nocapture;7m15s build. .phoenix/resumed-thirteen-host-roster-identity-native.log",
+    "initial": "20 passed,1 failed across13 targets; only hazard-clearance failed because Flags.set is an internal Rust method, not a registered Rhai method. Not an initially green batch.",
+    "retry": "After94cdc166 uses the actual registered index assignment, the same freshly linked hazard executable passed1/1 in15.90s; .phoenix/resumed-hazard-registered-api-native-retry.log. Original failures preserved.",
+    "passing": "Activity3; commitmentaccept/refuse2; physicalfacilitysupply2; relay1; hazard1; identity1; local/hardenedjump2; Medical2; PDC2; probe1; plannedComms2; Protection1; Security1. All13 selected targets have positive results after the focused fixture retry; this is not a green full repository suite.",
+    "pasm": "Clean pinned32aa19c9: validate1152entities/621informationalfindings/StatusOK; scan3940files/18packages/8292dependencies/ValidationOK; traceability246rows/ValidationOK. Logs resumed-roster-pinned-{pasm,scan,traceability}.log. Temporary clean validation worktree removed after exact path/clean-state checks.",
+    "remaining": "Fresh owner terminal-personnel/identity/sector and existing corrected snapshot/digest/Security/Presentation tests; ongoing16-24 implementation and physicaldevice/multiplayer/workload/balance/performance acceptance; full integrated gates. No full increment exit/PRD closure/push."
+  },
+  "execution_limit": {
+    "requested": "2026-10-16",
+    "instruction": "Pause after finishing increments 8–12.",
+    "current_work": "Verify increments 8–12, resolve necessary failures, commit evidence, then pause.",
+    "later_lanes": "Parked immediately; preserve isolated commits and uncommitted work. No later implementation or integration until user resumes."
+  }
+}

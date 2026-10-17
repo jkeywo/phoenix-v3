@@ -1,0 +1,82 @@
+entities:
+  - decision: console-complexity-star-ladder
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Console Complexity Star Ladder
+      summary: "Every station runs at a star rating built from authored rungs: an ordered ladder of station ratings, each rung declaring per-system control depth (AI / simplified / detailed). Star 0 is Backfill; rung count varies per station (typically 3-5 stars at the top). A scenario may additionally force individual systems detailed, leaving a station legitimately between rungs — the effective per-system state is the maximum of the chosen rung and the scenario floor, and the overlay never snaps the rung."
+      rationale:
+        - "Rungs extend the existing StationRatingConfig (a detailed_systems list beside automated_systems), so star selection, live mid-round change, Backfill fallback, and the lobby's ratings-length signal all reuse the delivered rating machinery."
+        - "Authored bundles beat derived arithmetic: designers curate coherent depth combinations per station (the Thorium station-set lesson), while the scenario overlay covers the between-rung states without unauthored rung synthesis."
+        - "Simplified means a limited AI — the fine-system policy runtime with authority scoped to that system — drives the full model from summary-surface settings, preserving AI/human symmetry; detailed means direct control of the full model."
+        - "[ai] The initial runtime proves Simplified through Repair: the holder sets standing or named-system priorities while the existing AI exclusively dispatches and recalls teams. Other kinds require a summary-intent adapter before a rung may leave them simplified; validation refuses unsupported modes rather than enabling competing human and AI actuator writers."
+        - "[ai] Authored order remains most-detailed first, preserving legacy first-rating defaults and visiting-station ordering. The picker displays the reverse ordinal of those authored rungs; Backfill is zero. Omitted detailed_systems preserves legacy direct control for every non-automated system."
+        - "[ai] Cruiser #1083 uses only supported controls, per the 2026-09-29 user instruction: Captain and Science have two rungs, Helm and Tactical three, Engineering four, and human-seeking Comms/Navigation/Command one. No new behavior is added to reach the typical three-to-five range. Scenario floor tests exercise the resolver input; world-authored family/kind selectors remain #1067."
+    game_design:
+      must_not_be: [derived arithmetically from system counts instead of authored, changed by a player who does not hold the station]
+
+  - decision: console-complexity-scenario-floor
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Scenario Detail Floor
+      summary: "Scenarios declare required-detailed systems through first-class world-TOML vocabulary naming console families or system kinds, never per-hull system ids, so the requirement applies to whatever hull the crew selects in the lobby. The floor is applied inside the pure rating resolver. The same vocabulary can mark additional systems human-seeking."
+      rationale:
+        - "Hull-agnostic by construction: a scenario cannot know the lobby's hull choice, so requirements expressed as entity overrides would silently miss — and the player ship discards world overrides at spawn today. The entity-override merge policy is deliberately left untouched by this feature."
+    game_design:
+      must_not_be: [expressed as per-hull entity overrides, used to lower a station below its authored default]
+
+  - decision: console-complexity-detail-screens
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Per-System Detail Screens
+      summary: "Detailed systems surface through per-system detail screens rendered by a generalised overlay host that console-core mounts when a keyed payload carries detail state — full-frame on phones, zero per-console HTML edits, state carried by the per-system blackboard publication. Detail screens are always accessible, including in combat; the binding authoring rule is that any action needed under time pressure must also exist on the station's summary surface, so detail screens hold planning, diagnosis, and configuration."
+      rationale:
+        - "Phone-depth doctrine from the 2026-08-13 bridge-simulator survey: at most two coupled variables plus a trend and an automation toggle per real-time screen; presets applied in one tap; depth placed in the gaps between phones (number hand-offs, two-officer handshakes); degradation expressed as unreliability rather than smaller numbers; automation always available and always worse than a competent human."
+        - "The existing guardrail stands: a rating tunes what a console offers its own operator, never whether ship state reaches the rest of the bridge (#873), and no simulation path branches on human-versus-AI downstream of command admission."
+    game_design:
+      must_not_be: [the only home of a time-pressured action, locked out at red alert]
+
+  - decision: console-complexity-human-seeking-stations
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Human-Seeking Stations
+      summary: "A human-seeking station retains its complete station identity, systems and UI while resolving onto a directly player-held host station, where the shared Hero Bar presents it as a peer tab. Primary stations remain separately claimable; auxiliary stations such as Command, and now the Destroyer's Navigation and Comms, have no dedicated claimable lobby seat. Resolution prefers a direct active holder, then walks only the station's finite authored fallback list, then assigns AI. A visiting station uses its own authored visiting rating, raised where necessary by the scenario detail floor, and never changes the host station's rating."
+      rationale:
+        - "Station-scale movement preserves authored UI, alerts, health and control depth instead of rebuilding fragments of a station on every possible host. Comms and Navigation migrate from the delivered fine-system seek onto this complete-station model."
+        - "[ai] Auxiliary vs visiting is an orthogonal, per-station authored distinction. On the Alliance Destroyer, Navigation and Comms now author auxiliary=true while staying human_seeking with their host_order fallback: they lose their claimable lobby seat but still resolve a host and present on the Hero Bar — the same shape as the Command station (#1107). The hull therefore offers four crewable seats (captain, helm, tactical, engineering); navigation, comms and command are auxiliary. Comms drops navigation from its host_order because a human-seeking station is never directly held and so can never host another."
+        - "Only directly player-held stations are eligible hosts. A visiting station cannot host another visiting station, preventing nested tabs, transitive authority and cycles."
+        - "Fallback lists are deliberately partial. Compatibility is an authored design choice, so an exhausted list reaches AI even if an unrelated human remains seated. Battleship content in Band D uses Power → Repair → AI and Shields → Sensors → AI."
+        - "A disconnected or AFK direct holder retains seat ownership but is temporarily ineligible; the station seeks a fallback host and returns intact when its holder becomes active. Accessibility eligibility applies to the complete visiting surface at its scenario-required rating, while the player's private settings remain undisclosed."
+        - "Placement is automatic. The host player is not asked to understand or manually decline the resolver."
+    game_design:
+      must_not_be: [split into independently moving systems, allowed to inflate the host station's star rating, nested through another visiting station, exposed as a manual placement puzzle]
+
+  - decision: console-shared-hero-bar
+    core:
+      status: accepted
+      confidence: confirmed
+      title: Shared Station Hero Bar
+      summary: "Every console uses one shared Hero Bar shell. It pins the directly held station first, follows with visiting stations in hull-authored order, and shows the selected station's name, rating and authoritative capacity-weighted health. Every tab retains a separate health indicator and an importance indicator for off-screen events. Selecting a tab swaps the complete station surface without discarding local UI context."
+      rationale:
+        - "Alerts never replace health and never reorder tabs. One-off important events remain unread until their station is visited; continuing critical conditions remain indicated until resolved. Alert semantics come from authoritative or authored station events rather than client guesses."
+        - "The host publishes station health as current damageable-system capacity divided by maximum capacity. Clients do not infer it from their recipient-specific detail projection; a station with no damageable systems has a neutral no-damage-model state."
+        - "If a selected visiting station leaves, focus returns to the primary tab. A later return restores its session-local UI state but does not steal focus."
+    game_design:
+      must_not_be: [implemented independently by each console page, allowed to hide station health behind an alert, reordered in response to urgency]
+
+  - decision: console-complexity-command-station-stances
+    core:
+      status: accepted
+      confidence: confirmed
+      origin: ai
+      title: Command Station and Stances
+      summary: "Command is an auxiliary, data-authored human-seeking station (issue #1107) that directs one AI-controlled proving station by selecting a stance from that station's authored catalogue. The stance seeds a posture into the target station's existing AI policy hosts — in the same broad manner Red Alert informs behaviour — and never operates, buffs, or bypasses any fine system. On the Alliance Destroyer, Command is hosted by Captain through hull data and directs Tactical while Tactical is AI-controlled."
+      rationale:
+        - "[ai] Command works at station scale: it tells an AI-controlled station what posture to adopt, then that station's existing authored policies decide how its individual systems act. A human Command operator may select only an authored stance, never invent one; the operator gains no second set of fine-system controls."
+        - "[ai] Every directed station authors standard stances plus two mandatory alert-neutral fallbacks (normal-alert-neutral, high-alert-neutral). The prior direct Red-Alert AI fire branches migrate onto this stance path: high-alert-neutral behaves as 'at red alert', normal-alert-neutral as 'stood down'. red_alert remains an AI fact, and an uncommanded hull is byte-identical to prior behaviour because the effective posture then tracks the ship's own red alert."
+        - "[ai] Changing alert level switches neutral-to-neutral only when the station is already in a neutral stance; it never overwrites a deliberately selected standard stance. A standard stance may author persist_behind_human so a durable order survives a human handoff. Human and AI Command use the same catalogue, lifecycle and authoritative application path."
+    game_design:
+      must_not_be: [offered as a claimable lobby seat, granted a second set of fine-system controls, allowed to buff or directly operate a target system, allowed to bypass admission or cooldown or range or arc, allowed to overwrite an explicit standard stance on an alert-level change, allowed to select a stance outside the target's authored catalogue]

@@ -1,0 +1,26 @@
+entities:
+  - component: gm-t4-presentation-cues
+    core:
+      status: implemented
+      confidence: confirmed
+      origin: ai
+      title: Per-Ship Viewscreen Presentation Cues
+      summary: "M8 issue #1468 stages a receiving player ship's shared display through one typed GM and scenario owner: force/release a camera or radar/chart mode, show/clear a title card, or take over with an existing eligible Comms message. Browser and native surfaces consume the same current state. Audio #1466 extends this dispatch with a validated authored Sound occurrence, emitted through the existing room audio owners."
+      rationale:
+        - "[ai] GmAction::Presentation appends to the canonical action vocabulary, preserves attribution/idempotency and revalidates at the agreed apply tick. Declarative presentation and Rhai force_view/title_card/incoming_comms/clear_presentation resolve the same receiving ship and call the same owner. No direct window or ECS editing path."
+        - "[ai] View and card durations are explicit positive simulation-tick values. A pause holds those cues. Active state is per ship and participates in snapshot/digest; expiry, missing ships and mission reset remove it. Rendering and reconnect cannot extend a deadline or recreate an expired cue. Sound is an ephemeral occurrence and never enters this active state or a playback history."
+        - "[ai] Forced view is a layer over normal Viewscreen arbitration. Crew requests continue updating their underlying selection; release or expiry reveals the latest selection. Camera names must exist in the receiving ship's authoritative primary rig."
+        - "[ai] Incoming takeover names an existing Comms message, never creates a message or widens routing. Eligibility and orphaning are checked on application and live rendering; exact literal text and authored interpolation retain existing Comms semantics."
+        - "[ai] Cards are current presentation only, with no history/backlog/replay. GM action journal bookkeeping remains canonical. Titles contain bounded operator text; informative sound and playback comfort/device behavior stay in the audio plan."
+        - "[ai] Shared GM forms and cards support keyboard focus, non-colour outcome text, enlarged wrapping text, forced colours and structured text alternatives. No animation or sound is needed to operate them."
+    architecture:
+      kind: gm-presentation-control
+      authority: authoritative
+      owns: [t4-audio-live-catalog]
+      coordinates: [gm-milestone-presentation]
+      runs_in: [host-browser-runtime, native-host-runtime, headless-runtime]
+    implementation:
+      status: declared
+      paths: [crates/phoenix-simulation/src/gm/operations/presentation.rs, crates/phoenix-simulation/src/gm/actions/action.rs, crates/phoenix-simulation/src/core/codec.rs, crates/phoenix-model/src/messages.rs, crates/phoenix-sim-world/src/world/config.rs, crates/phoenix-simulation/src/world/dispatch.rs, crates/phoenix-sim-world/src/world/script/effects.rs, crates/phoenix-simulation/src/world/server/mod.rs, crates/phoenix-simulation/src/gm/observation/projection.rs, crates/phoenix-simulation/src/gm/observation/activity.rs, crates/phoenix-simulation/src/snapshot/mod.rs, crates/phoenix-simulation/src/sim_digest.rs, crates/phoenix-simulation/src/lockstep/mod.rs, crates/phoenix-sim-gameplay/src/ship/viewscreen.rs, crates/phoenix-sim-gameplay/src/ship/state.rs, crates/phoenix-presentation/src/server/viewscreen_border.rs, gui/gm-presentation-panel.js, gui/presentation-card.js, gui/presentation-card.css, gui/gm-workspace.js, gui/native-gm-workspace.js, gui/viewscreen-hud.html, server.html]
+      symbols: [PresentationCue, PresentationState, PresentationControl, apply_scenario_command, PresentationHud, card_wire, createGmPresentationPanel, createPresentationCard]
+      tests: [tests/gm_presentation.rs, crates/phoenix-sim-world/src/world/script/effects.rs, tests/client/gm-presentation-panel.test.js, tests/smoke/gm-presentation.spec.js, tests/smoke/gm-presentation-runtime.render.spec.js, crates/phoenix-simulation/src/gm/actions/action_tests.rs, crates/phoenix-simulation/src/core/codec_mesh_frame_tests.rs, crates/phoenix-model/src/messages_view_mode_tests.rs, crates/phoenix-sim-world/src/world/script/effects_tests.rs, crates/phoenix-simulation/src/gm/observation/projection_tests.rs, crates/phoenix-simulation/src/lockstep/tests.rs, crates/phoenix-sim-gameplay/src/ship/viewscreen_tests.rs, crates/phoenix-sim-gameplay/src/ship/state_tests.rs, crates/phoenix-presentation/src/server/viewscreen_border_tests.rs]

@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+target/
+node_modules/
+.venv/
+dist/
+build/

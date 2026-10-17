@@ -1,0 +1,450 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Accepted headless performance baseline — 17 October 2026</title><style>html{font:16px/1.6 system-ui,sans-serif;color:#e7edf5;background:#0b1422}body{max-width:1120px;margin:auto;padding:30px 24px}h1{line-height:1.2}p{max-width:90ch}.lead{font-size:1.15rem;color:#c7e1ff}.muted{color:#a7bad0}table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}th,td{padding:13px;border-bottom:1px solid #34485f;text-align:right;white-space:nowrap}th:first-child{text-align:left}thead{background:#17283d}.scroll{overflow-x:auto}a{color:#9fcfff}pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.8rem}details{margin-top:24px}code{overflow-wrap:anywhere}</style><h1>Accepted headless performance baseline</h1><p class="muted">Adopted 17 October 2026 · Local Windows host · Cruiser · measure profile</p><p class="lead">These achieved values are the new reference for future local performance comparisons. Recovery of the historical old speed is deferred for now.</p><div class="scroll"><table><thead><tr><th>Scenario</th><th>Run mean, ms</th><th>Run p50, ms</th><th>Run p95, ms</th><th>Run p99, ms</th><th>Whole process, s</th></tr></thead><tbody><tr><th>Combat Test</th><td>3.430</td><td>3.326</td><td>4.755</td><td>5.297</td><td>12.020</td></tr><tr><th>Falling Skyway</th><td>2.497</td><td>2.502</td><td>3.275</td><td>3.613</td><td>9.184</td></tr></tbody></table></div><p class="muted">Every cell is the median of six valid per-run statistics across both accepted batches. The update percentiles are not pooled percentiles. Scroll the table sideways on narrow screens.</p><h2>Reference workload</h2><p>Each run uses the Alliance Cruiser on all Backfill, seed 42 and 60 simulated seconds. Phase runs discard the first 300 updates and retain 3,301. Separate runs without phase instrumentation supply process wall time. All six runs from both batches contribute equally; no fastest-run selection is used.</p><p>The measured implementation includes the accepted publication-buffer optimisation. Its small Skyway cost is included in this baseline. Source, executable, content, gameplay-report and final-digest evidence remain attached to the <a href="performance-candidates-batch8-2026-10-17.html">four-candidate report</a>.</p><h2>How to use it</h2><p>Compare future local runs using the same machine, workload, build profile and instrumentation. This adoption changes the reference, not the game. It introduces no new automatic timing gate or regression tolerance and does not replace the separate CI/demo baseline for Linux release/default-world runs.</p><p>These are adopted verified captures, not a fresh measurement of ongoing CI fixes or the latest working tree. Historical speed comparisons remain available as history; they are no longer the active recovery target.</p><p><a href="performance-baseline-2026-10-17.json">Machine-readable values and provenance</a> · <a href="performance-recovery-batch7-2026-10-16.html">Historical recovery comparison</a></p><details><summary>Complete adopted record</summary><pre>{
+  &quot;schemaVersion&quot;: 1,
+  &quot;id&quot;: &quot;headless-cruiser-measure-local-2026-10-17&quot;,
+  &quot;status&quot;: &quot;adopted-current-local-reference&quot;,
+  &quot;adoptedDate&quot;: &quot;2026-10-17&quot;,
+  &quot;timezone&quot;: &quot;Europe/London&quot;,
+  &quot;generatedUtc&quot;: &quot;2026-10-17T08:35:45.932Z&quot;,
+  &quot;decision&quot;: &quot;User accepts the achieved performance as the new baseline. Further pursuit of historical old-speed recovery is deferred for now.&quot;,
+  &quot;historicalRecoveryTarget&quot;: {
+    &quot;status&quot;: &quot;deferred&quot;,
+    &quot;historicalComparisonsPreserved&quot;: true,
+    &quot;documents&quot;: [
+      &quot;performance-recovery-batch7-2026-10-16.json&quot;,
+      &quot;performance-candidates-batch8-2026-10-17.json&quot;
+    ]
+  },
+  &quot;scope&quot;: {
+    &quot;runtime&quot;: &quot;headless&quot;,
+    &quot;ship&quot;: &quot;Alliance Cruiser&quot;,
+    &quot;crew&quot;: &quot;all Backfill&quot;,
+    &quot;seed&quot;: 42,
+    &quot;simulatedSeconds&quot;: 60,
+    &quot;profile&quot;: &quot;measure&quot;,
+    &quot;optLevel&quot;: 3,
+    &quot;lto&quot;: &quot;thin&quot;,
+    &quot;codegenUnits&quot;: 16,
+    &quot;requestedFeatures&quot;: [
+      &quot;headless&quot;
+    ],
+    &quot;defaultFeatures&quot;: true,
+    &quot;phaseInstrumentation&quot;: &quot;ordinary phase capture; no leaves or named wrappers&quot;,
+    &quot;runsPerWorldPerMode&quot;: 6,
+    &quot;batches&quot;: 2,
+    &quot;roundsPerBatch&quot;: 3,
+    &quot;warmupUpdatesDiscardedPerPhaseRun&quot;: 300,
+    &quot;retainedUpdatesPerPhaseRun&quot;: 3301,
+    &quot;phaseMeaning&quot;: &quot;Median of six per-run means/percentiles; this is not a percentile calculated from pooled update samples.&quot;,
+    &quot;wholeProcessMeaning&quot;: &quot;Median of six process wall durations from runs without phase instrumentation; excludes PowerShell polling delay.&quot;,
+    &quot;aggregation&quot;: &quot;All six valid candidate runs from both batches, equally weighted. Even medians average the two central values; no fastest-run selection.&quot;
+  },
+  &quot;comparisonPolicy&quot;: {
+    &quot;referenceForFutureLocalComparisons&quot;: true,
+    &quot;requireMatchingWorkloadMachineProfileAndInstrumentation&quot;: true,
+    &quot;automaticGate&quot;: false,
+    &quot;newToleranceIntroduced&quot;: false,
+    &quot;existingCiAndDemoBudgetsChanged&quot;: false
+  },
+  &quot;implementation&quot;: {
+    &quot;measuredRevision&quot;: &quot;8ccb2e59aeea7d4c49a768712efcb3847a32929a&quot;,
+    &quot;runtimeSourceSha256&quot;: &quot;d16bee728fb30622d3b50fc4df259422a9881d57e409adfa951eb857fa8fc9e5&quot;,
+    &quot;binarySha256&quot;: &quot;110db6c76526ad7b59c9834eb252a2fac8597dbac0932a17594d8a055ee9fa01&quot;,
+    &quot;acceptedIntegrationCommit&quot;: &quot;e4e61c5877adf9a05d2c690ea46ed706365718c7&quot;,
+    &quot;sourceEvidence&quot;: {
+      &quot;path&quot;: &quot;docs/gameplay-redesign/implementation/performance-candidates-batch8-2026-10-17.json&quot;,
+      &quot;sha256&quot;: &quot;c4afa61ecae5bd24bf92560cac715afa312353a2e9b9b93d7a1e1d62b111fac8&quot;
+    },
+    &quot;buildReceipt&quot;: &quot;.phoenix/perf-recovery-b8-publication-a-build-receipt.json&quot;,
+    &quot;buildReceiptSha256&quot;: &quot;0ccdc963b3bbd66bc1d4b093ace68676b46b7b3c9dcab52b88285ca94fa28418&quot;
+  },
+  &quot;contentProof&quot;: {
+    &quot;path&quot;: &quot;.phoenix/perf-rules078-final-content-exact-proof.json&quot;,
+    &quot;sha256&quot;: &quot;043ace187247a3acb281c859150e08bae1b3d12d7f6d8fb847892fd6a81edece&quot;
+  },
+  &quot;gameplayReference&quot;: {
+    &quot;path&quot;: &quot;C:/Coding/project-phoenix-v2/.phoenix/perf-rules079-gameplay-reference.json&quot;,
+    &quot;sha256&quot;: &quot;b7a5a8107382c8c93ff72f30ca40350667e2ec32462fea22999712fdcb9a4b8d&quot;
+  },
+  &quot;hardware&quot;: {
+    &quot;capturedUtc&quot;: &quot;2026-10-16T11:42:26.7598684Z&quot;,
+    &quot;gpu&quot;: &quot;Intel(R) Graphics / NVIDIA GeForce RTX 5090 Laptop GPU&quot;,
+    &quot;driver&quot;: &quot;32.0.101.8628 / 32.0.16.1714&quot;,
+    &quot;adapters&quot;: [
+      {
+        &quot;Name&quot;: &quot;Intel(R) Graphics&quot;,
+        &quot;DriverVersion&quot;: &quot;32.0.101.8628&quot;,
+        &quot;DriverDate&quot;: &quot;2026-03-24T00:00:00+00:00&quot;,
+        &quot;VideoModeDescription&quot;: &quot;3840 x 2400 x 4294967296 colors&quot;
+      },
+      {
+        &quot;Name&quot;: &quot;NVIDIA GeForce RTX 5090 Laptop GPU&quot;,
+        &quot;DriverVersion&quot;: &quot;32.0.16.1714&quot;,
+        &quot;DriverDate&quot;: &quot;2026-09-17T01:00:00+01:00&quot;,
+        &quot;VideoModeDescription&quot;: &quot;1920 x 1080 x 4294967296 colors&quot;
+      }
+    ],
+    &quot;powerMode&quot;: &quot;Power Scheme GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (High performance)&quot;,
+    &quot;displays&quot;: [
+      {
+        &quot;device&quot;: &quot;\\\\.\\DISPLAY1&quot;,
+        &quot;identity&quot;: &quot;\\\\.\\DISPLAY1@1920x1200&quot;,
+        &quot;width&quot;: 1920,
+        &quot;height&quot;: 1200,
+        &quot;x&quot;: -1920,
+        &quot;y&quot;: 0,
+        &quot;scalePercent&quot;: 125,
+        &quot;dpi&quot;: 120,
+        &quot;primary&quot;: false
+      },
+      {
+        &quot;device&quot;: &quot;\\\\.\\DISPLAY5&quot;,
+        &quot;identity&quot;: &quot;\\\\.\\DISPLAY5@1920x1080&quot;,
+        &quot;width&quot;: 1920,
+        &quot;height&quot;: 1080,
+        &quot;x&quot;: 0,
+        &quot;y&quot;: 0,
+        &quot;scalePercent&quot;: 100,
+        &quot;dpi&quot;: 96,
+        &quot;primary&quot;: true
+      }
+    ],
+    &quot;note&quot;: &quot;Physical desktop modes and effective OS scale; actual wgpu adapter selection must also be retained from the host log.&quot;
+  },
+  &quot;worlds&quot;: {
+    &quot;combat_test&quot;: {
+      &quot;values&quot;: {
+        &quot;medianRunMeanMs&quot;: 3.429671357164496,
+        &quot;medianRunP50Ms&quot;: 3.32555,
+        &quot;medianRunP95Ms&quot;: 4.755000000000001,
+        &quot;medianRunP99Ms&quot;: 5.2974,
+        &quot;medianProcessWallSeconds&quot;: 12.0204919
+      },
+      &quot;phaseRuns&quot;: [
+        {
+          &quot;batch&quot;: &quot;b8-publication-a&quot;,
+          &quot;name&quot;: &quot;combat_test-0&quot;,
+          &quot;retainedUpdates&quot;: 3301,
+          &quot;update&quot;: {
+            &quot;count&quot;: 3301,
+            &quot;mean&quot;: 3.4364245380187817,
+            &quot;p50&quot;: 3.3279,
+            &quot;p95&quot;: 4.7641,
+            &quot;p99&quot;: 5.3067,
+            &quot;max&quot;: 9.2086,
+            &quot;over16_67&quot;: 0
+          },
+          &quot;finalContinuation&quot;: {
+            &quot;tick&quot;: 3600,
+            &quot;digest&quot;: &quot;4a419dc7ec59da70&quot;
+          }
+        },
+        {
+          &quot;batch&quot;: &quot;b8-publication-a&quot;,
+          &quot;name&quot;: &quot;combat_test-1&quot;,
+          &quot;retainedUpdates&quot;: 3301,
+          &quot;update&quot;: {
+            &quot;count&quot;: 3301,
+            &quot;mean&quot;: 3.4150417752196285,
+            &quot;p50&quot;: 3.332,
+            &quot;p95&quot;: 4.7364,
+            &quot;p99&quot;: 5.3723,
+            &quot;max&quot;: 9.1716,
+            &quot;over16_67&quot;: 0
+          },
+          &quot;finalContinuation&quot;: {
+            &quot;tick&quot;: 3600,
+            &quot;digest&quot;: &quot;4a419dc7ec59da70&quot;
+          }
+        },
+        {
+          &quot;batch&quot;: &quot;b8-publication-a&quot;,
+          &quot;name&quot;: &quot;combat_test-2&quot;,
+          &quot;retainedUpdates&quot;: 3301,
+          &quot;update&quot;: {
+            &quot;count&quot;: 3301,
+            &quot;mean&quot;: 3.4555240836110377,
+            &quot;p50&quot;: 3.3303,
+            &quot;p95&quot;: 4.8556,
+            &quot;p99&quot;: 5.6273,
+            &quot;max&quot;: 9.589500000000001,
+            &quot;over16_67&quot;: 0
+          },
+          &quot;finalContinuation&quot;: {
+            &quot;tick&quot;: 3600,
+            &quot;digest&quot;: &quot;4a419dc7ec59da70&quot;
+          }
+        },
+        {
+          &quot;batch&quot;: &quot;b8-publication-b&quot;,
+          &quot;name&quot;: &quot;combat_test-0&quot;,
+          &quot;retainedUpdates&quot;: 3301,
+          &quot;update&quot;: {
+            &quot;count&quot;: 3301,
+            &quot;mean&quot;: 3.42291817631021,
+            &quot;p50&quot;: 3.3211,
+            &quot;p95&quot;: 4.7488,
+            &quot;p99&quot;: 5.2547999999999995,
+            &quot;max&quot;: 7.7121,
+            &quot;over16_67&quot;: 0
+          },
+          &quot;finalContinuation&quot;: {
+            &quot;tick&quot;: 3600,
+            &quot;digest&quot;: &quot;4a419dc7ec59da70&quot;
+          }
+        },
+        {
+          &quot;batch&quot;: &quot;b8-publication-b&quot;,
+          &quot;name&quot;: &quot;combat_test-1&quot;,
+          &quot;retainedUpdates&quot;: 3301,
+          &quot;update&quot;: {
+            &quot;count&quot;: 3301,
+            &quot;mean&quot;: 3.44391963041503,
+            &quot;p50&quot;: 3.3232,
+            &quot;p95&quot;: 4.7612000000000005,
+            &quot;p99&quot;: 5.288099999999999,
+            &quot;max&quot;: 7.7397,
+            &quot;over16_67&quot;: 0
+          },
+          &quot;finalContinuation&quot;: {
+            &quot;tick&quot;: 3600,
+            &quot;digest&quot;: &quot;4a419dc7ec59da70&quot;
+          }
+        },
+        {
+          &quot;batch&quot;: &quot;b8-publication-b&quot;,
+          &quot;name&quot;: &quot;combat_test-2&quot;,
+          &quot;retainedUpdates&quot;: 3301,
+          &quot;update&quot;: {
+            &quot;count&quot;: 3301,
+            &quot;mean&quot;: 3.3980223871554114,
+            &quot;p50&quot;: 3.2959,
+            &quot;p95&quot;: 4.7135,
+            &quot;p99&quot;: 5.1616,
+            &quot;max&quot;: 8.0892,
+            &quot;over16_67&quot;: 0
+          },
+          &quot;finalContinuation&quot;: {
+            &quot;tick&quot;: 3600,
+            &quot;digest&quot;: &quot;4a419dc7ec59da70&quot;
+          }
+        }
+      ],
+      &quot;wholeProcessRuns&quot;: [
+        {
+          &quot;batch&quot;: &quot;b8-publication-a&quot;,
+          &quot;name&quot;: &quot;combat_test-0&quot;,
+          &quot;processWallSeconds&quot;: 12.0314841
+        },
+        {
+          &quot;batch&quot;: &quot;b8-publication-a&quot;,
+          &quot;name&quot;: &quot;combat_test-1&quot;,
+          &quot;processWallSeconds&quot;: 12.0068445
+        },
+        {
+          &quot;batch&quot;: &quot;b8-publication-a&quot;,
+          &quot;name&quot;: &quot;combat_test-2&quot;,
+          &quot;processWallSeconds&quot;: 12.0317659
+        },
+        {
+          &quot;batch&quot;: &quot;b8-publication-b&quot;,
+          &quot;name&quot;: &quot;combat_test-0&quot;,
+          &quot;processWallSeconds&quot;: 12.053573
+        },
+        {
+          &quot;batch&quot;: &quot;b8-publication-b&quot;,
+          &quot;name&quot;: &quot;combat_test-1&quot;,
+          &quot;processWallSeconds&quot;: 12.0008878
+        },
+        {
+          &quot;batch&quot;: &quot;b8-publication-b&quot;,
+          &quot;name&quot;: &quot;combat_test-2&quot;,
+          &quot;processWallSeconds&quot;: 12.0094997
+        }
+      ]
+    },
+    &quot;falling_skyway&quot;: {
+      &quot;values&quot;: {
+        &quot;medianRunMeanMs&quot;: 2.4967697212965785,
+        &quot;medianRunP50Ms&quot;: 2.5021000000000004,
+        &quot;medianRunP95Ms&quot;: 3.2746499999999994,
+        &quot;medianRunP99Ms&quot;: 3.613,
+        &quot;medianProcessWallSeconds&quot;: 9.18379695
+      },
+      &quot;phaseRuns&quot;: [
+        {
+          &quot;batch&quot;: &quot;b8-publication-a&quot;,
+          &quot;name&quot;: &quot;falling_skyway-0&quot;,
+          &quot;retainedUpdates&quot;: 3301,
+          &quot;update&quot;: {
+            &quot;count&quot;: 3301,
+            &quot;mean&quot;: 2.510022508330811,
+            &quot;p50&quot;: 2.5014,
+            &quot;p95&quot;: 3.2916999999999996,
+            &quot;p99&quot;: 3.7785,
+            &quot;max&quot;: 7.678800000000001,
+            &quot;over16_67&quot;: 0
+          },
+          &quot;finalContinuation&quot;: {
+            &quot;tick&quot;: 3600,
+            &quot;digest&quot;: &quot;22190fbd13826108&quot;
+          }
+        },
+        {
+          &quot;batch&quot;: &quot;b8-publication-a&quot;,
+          &quot;name&quot;: &quot;falling_skyway-1&quot;,
+          &quot;retainedUpdates&quot;: 3301,
+          &quot;update&quot;: {
+            &quot;count&quot;: 3301,
+            &quot;mean&quot;: 2.5036189942441673,
+            &quot;p50&quot;: 2.5018000000000002,
+            &quot;p95&quot;: 3.2938,
+            &quot;p99&quot;: 3.6675,
+            &quot;max&quot;: 6.5533,
+            &quot;over16_67&quot;: 0
+          },
+          &quot;finalContinuation&quot;: {
+            &quot;tick&quot;: 3600,
+            &quot;digest&quot;: &quot;22190fbd13826108&quot;
+          }
+        },
+        {
+          &quot;batch&quot;: &quot;b8-publication-a&quot;,
+          &quot;name&quot;: &quot;falling_skyway-2&quot;,
+          &quot;retainedUpdates&quot;: 3301,
+          &quot;update&quot;: {
+            &quot;count&quot;: 3301,
+            &quot;mean&quot;: 2.563673311117838,
+            &quot;p50&quot;: 2.5052999999999996,
+            &quot;p95&quot;: 3.4382,
+            &quot;p99&quot;: 4.9704,
+            &quot;max&quot;: 9.6523,
+            &quot;over16_67&quot;: 0
+          },
+          &quot;finalContinuation&quot;: {
+            &quot;tick&quot;: 3600,
+            &quot;digest&quot;: &quot;22190fbd13826108&quot;
+          }
+        },
+        {
+          &quot;batch&quot;: &quot;b8-publication-b&quot;,
+          &quot;name&quot;: &quot;falling_skyway-0&quot;,
+          &quot;retainedUpdates&quot;: 3301,
+          &quot;update&quot;: {
+            &quot;count&quot;: 3301,
+            &quot;mean&quot;: 2.471307876401093,
+            &quot;p50&quot;: 2.4799,
+            &quot;p95&quot;: 3.2575999999999996,
+            &quot;p99&quot;: 3.5471,
+            &quot;max&quot;: 4.8576,
+            &quot;over16_67&quot;: 0
+          },
+          &quot;finalContinuation&quot;: {
+            &quot;tick&quot;: 3600,
+            &quot;digest&quot;: &quot;22190fbd13826108&quot;
+          }
+        },
+        {
+          &quot;batch&quot;: &quot;b8-publication-b&quot;,
+          &quot;name&quot;: &quot;falling_skyway-1&quot;,
+          &quot;retainedUpdates&quot;: 3301,
+          &quot;update&quot;: {
+            &quot;count&quot;: 3301,
+            &quot;mean&quot;: 2.4780043926083017,
+            &quot;p50&quot;: 2.5024,
+            &quot;p95&quot;: 3.2312,
+            &quot;p99&quot;: 3.5580999999999996,
+            &quot;max&quot;: 5.7863999999999995,
+            &quot;over16_67&quot;: 0
+          },
+          &quot;finalContinuation&quot;: {
+            &quot;tick&quot;: 3600,
+            &quot;digest&quot;: &quot;22190fbd13826108&quot;
+          }
+        },
+        {
+          &quot;batch&quot;: &quot;b8-publication-b&quot;,
+          &quot;name&quot;: &quot;falling_skyway-2&quot;,
+          &quot;retainedUpdates&quot;: 3301,
+          &quot;update&quot;: {
+            &quot;count&quot;: 3301,
+            &quot;mean&quot;: 2.48992044834899,
+            &quot;p50&quot;: 2.506,
+            &quot;p95&quot;: 3.2481,
+            &quot;p99&quot;: 3.5585,
+            &quot;max&quot;: 4.1059,
+            &quot;over16_67&quot;: 0
+          },
+          &quot;finalContinuation&quot;: {
+            &quot;tick&quot;: 3600,
+            &quot;digest&quot;: &quot;22190fbd13826108&quot;
+          }
+        }
+      ],
+      &quot;wholeProcessRuns&quot;: [
+        {
+          &quot;batch&quot;: &quot;b8-publication-a&quot;,
+          &quot;name&quot;: &quot;falling_skyway-0&quot;,
+          &quot;processWallSeconds&quot;: 9.2318084
+        },
+        {
+          &quot;batch&quot;: &quot;b8-publication-a&quot;,
+          &quot;name&quot;: &quot;falling_skyway-1&quot;,
+          &quot;processWallSeconds&quot;: 9.2064148
+        },
+        {
+          &quot;batch&quot;: &quot;b8-publication-a&quot;,
+          &quot;name&quot;: &quot;falling_skyway-2&quot;,
+          &quot;processWallSeconds&quot;: 9.142185
+        },
+        {
+          &quot;batch&quot;: &quot;b8-publication-b&quot;,
+          &quot;name&quot;: &quot;falling_skyway-0&quot;,
+          &quot;processWallSeconds&quot;: 9.2313484
+        },
+        {
+          &quot;batch&quot;: &quot;b8-publication-b&quot;,
+          &quot;name&quot;: &quot;falling_skyway-1&quot;,
+          &quot;processWallSeconds&quot;: 9.1611791
+        },
+        {
+          &quot;batch&quot;: &quot;b8-publication-b&quot;,
+          &quot;name&quot;: &quot;falling_skyway-2&quot;,
+          &quot;processWallSeconds&quot;: 9.1219869
+        }
+      ]
+    }
+  },
+  &quot;evidence&quot;: [
+    {
+      &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-publication-a-phase/summary.json&quot;,
+      &quot;sha256&quot;: &quot;e5f2b6e14d62301fdde31c0ffaf0a62ac91822c15c80a633121f6a12b387b51d&quot;,
+      &quot;receipt&quot;: &quot;.phoenix/perf-recovery-b8-publication-a-phase/receipt.json&quot;,
+      &quot;receiptSha256&quot;: &quot;b149166cb03cebd9ad2561a02370958226b4727055a527c6a02a386f47b2ba98&quot;
+    },
+    {
+      &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-publication-a-bare/summary.json&quot;,
+      &quot;sha256&quot;: &quot;54719ea7be97f56c2ce56b54bcd88fdabe7432083425a01e96793a5bfa9cfe81&quot;,
+      &quot;receipt&quot;: &quot;.phoenix/perf-recovery-b8-publication-a-bare/receipt.json&quot;,
+      &quot;receiptSha256&quot;: &quot;a965889345a2259f61ad5739a6993ee775d7d22513f573e5f52abe56f5bca0c6&quot;
+    },
+    {
+      &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-publication-b-phase/summary.json&quot;,
+      &quot;sha256&quot;: &quot;f8a16d82320e490c500d22fb6f0a215f5073a0ecd8390802e007d83b9a09f182&quot;,
+      &quot;receipt&quot;: &quot;.phoenix/perf-recovery-b8-publication-b-phase/receipt.json&quot;,
+      &quot;receiptSha256&quot;: &quot;2fe973ea6eb02f32a4938b9fe0003cf619f8b0705014be8306fad08e1b17fb88&quot;
+    },
+    {
+      &quot;path&quot;: &quot;.phoenix/perf-recovery-b8-publication-b-bare/summary.json&quot;,
+      &quot;sha256&quot;: &quot;516277dbe094ef49b0cce679dc085a4be949150001a1b0607894585c5098d8c7&quot;,
+      &quot;receipt&quot;: &quot;.phoenix/perf-recovery-b8-publication-b-bare/receipt.json&quot;,
+      &quot;receiptSha256&quot;: &quot;f292ac67a6cd8a1fa866fadfc7983bd6aede16eb765cc0a4a6389bed03d7d706&quot;
+    }
+  ],
+  &quot;limitations&quot;: [
+    &quot;Adoption uses existing verified captures; it is not a fresh measurement of ongoing CI fixes or the latest working tree.&quot;,
+    &quot;Machine-local Windows measure/Cruiser values do not replace Linux release/default-world CI or demo expectations.&quot;,
+    &quot;The recorded hardware inventory has no CPU model; retain the original profiling host and raw receipts for like-for-like comparisons.&quot;,
+    &quot;No browser/native rendering, network, human workload or full save/resume acceptance is inferred.&quot;,
+    &quot;The prior publication selection includes its documented small Skyway regression; the adopted reference includes it.&quot;
+  ]
+}</pre></details></html>
