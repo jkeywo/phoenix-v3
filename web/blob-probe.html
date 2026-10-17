@@ -1,7 +1,26 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><title>Phoenix persistent-cache probe</title>
-<h1>Phoenix persistent-cache probe</h1><p id="result" role="status">Starting...</p><button id="reload">Reload and require cache recovery</button>
-<script>
-const params=new URLSearchParams(location.search),key=params.get('key')||'manual-blob-probe';
-document.getElementById('reload').onclick=()=>{const url=new URL(location.href);url.searchParams.set('recover','1');location.href=url;};
-window.Module={arguments:[key,params.get('recover')==='1'?'recover':'create'],print:console.log,printErr:console.error,onAbort:reason=>{document.getElementById('result').textContent='FAIL '+reason;}};
-</script><script src="phoenix_blob_probe.js"></script></html>
+<!doctype html>
+<html lang="en">
+	<meta charset="utf-8" />
+	<title>Phoenix persistent-cache probe</title>
+	<h1>Phoenix persistent-cache probe</h1>
+	<p id="result" role="status">Starting...</p>
+	<button id="reload">Reload and require cache recovery</button>
+	<script>
+		const params = new URLSearchParams(location.search),
+			key = params.get("key") || "manual-blob-probe";
+		document.getElementById("reload").onclick = () => {
+			const url = new URL(location.href);
+			url.searchParams.set("recover", "1");
+			location.href = url;
+		};
+		window.Module = {
+			arguments: [key, params.get("recover") === "1" ? "recover" : "create"],
+			print: console.log,
+			printErr: console.error,
+			onAbort: (reason) => {
+				document.getElementById("result").textContent = "FAIL " + reason;
+			},
+		};
+	</script>
+	<script src="phoenix_blob_probe.js"></script>
+</html>

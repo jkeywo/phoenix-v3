@@ -2,19 +2,44 @@
 #include <emscripten.h>
 #include <deque>
 #include <map>
-namespace {
-struct BrowserState { std::deque<phoenix::PeerStoreResult> results; phoenix::WireJson recovered; bool ready = false, busy = true, failed = false; };
-std::map<unsigned,BrowserState*> stores;
+namespace
+{
+struct BrowserState
+{
+	std::deque<phoenix::PeerStoreResult> results;
+	phoenix::WireJson recovered;
+	bool ready = false, busy = true, failed = false;
+};
+std::map<unsigned, BrowserState *> stores;
 unsigned next_store = 1;
+} // namespace
+extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_store_result(unsigned id, double generation, int opened, int success,
+                                                          const char *journal, const char *error)
+{
+	auto found = stores.find(id);
+	if (found == stores.end())
+		return;
+	auto &state = *found->second;
+	phoenix::PeerStoreResult result{opened != 0, static_cast<std::uint64_t>(generation), nullptr,
+	                                error ? error : "Browser peer storage allocation failed"};
+	try
+	{
+		if (!success)
+			throw std::runtime_error(result.error.empty() ? "Browser peer storage failed" : result.error);
+		if (opened)
+		{
+			result.restored = phoenix::storage::replay(journal, true).state;
+			state.recovered = result.restored;
+		}
+	}
+	catch (const std::exception &failure)
+	{
+		result.error = failure.what();
+		state.failed = true;
+	}
+	state.results.push_back(std::move(result));
 }
-extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_store_result(unsigned id, double generation, int opened, int success, const char* journal, const char* error) {
-    auto found = stores.find(id); if (found == stores.end()) return;
-    auto& state = *found->second;
-    phoenix::PeerStoreResult result{opened != 0,static_cast<std::uint64_t>(generation),nullptr,error ? error : "Browser peer storage allocation failed"};
-    try { if (!success) throw std::runtime_error(result.error.empty() ? "Browser peer storage failed" : result.error); if (opened) { result.restored = phoenix::storage::replay(journal,true).state; state.recovered = result.restored; } }
-    catch (const std::exception& failure) { result.error = failure.what(); state.failed = true; }
-    state.results.push_back(std::move(result));
-}
+// clang-format off: embedded JavaScript must retain its operators.
 EM_JS(void, open_browser_store, (unsigned id, const char* location), {
     const namespace = UTF8ToString(location);
     const registry = Module.phoenixPeerStores || (Module.phoenixPeerStores = new Map());
@@ -79,25 +104,52 @@ EM_JS(void, close_browser_store, (unsigned id), {
     const state = registry.get(id); if (!state) return;
     state.closed = true; if (state.db) state.db.close(); if (!state.pending && state.release) state.release(); registry.delete(id);
 });
-namespace phoenix {
-namespace {
-class BrowserStore final : public PeerStore {
-    unsigned id_;
-    BrowserState state_;
+// clang-format on
+namespace phoenix
+{
+namespace
+{
+class BrowserStore final : public PeerStore
+{
+	unsigned id_;
+	BrowserState state_;
+
 public:
-    explicit BrowserStore(const std::string& location) : id_(next_store++) { stores[id_] = &state_; open_browser_store(id_,location.c_str()); }
-    ~BrowserStore() override { stores.erase(id_); close_browser_store(id_); }
-    bool write(const DurableWrite& transaction) override {
-        if (!state_.ready || state_.busy || state_.failed) return false;
-        const auto record = storage::encode(transaction.transaction); apply_peer_write(state_.recovered,transaction.transaction); state_.busy = true;
-        write_browser_store(id_,static_cast<double>(transaction.generation),record.c_str()); return true;
-    }
-    std::optional<PeerStoreResult> poll() override {
-        if (state_.results.empty()) return {};
-        auto result = std::move(state_.results.front()); state_.results.pop_front(); state_.busy = false;
-        if (result.opened && result.error.empty()) state_.ready = true; return result;
-    }
+	explicit BrowserStore(const std::string &location) : id_(next_store++)
+	{
+		stores[id_] = &state_;
+		open_browser_store(id_, location.c_str());
+	}
+	~BrowserStore() override
+	{
+		stores.erase(id_);
+		close_browser_store(id_);
+	}
+	bool write(const DurableWrite &transaction) override
+	{
+		if (!state_.ready || state_.busy || state_.failed)
+			return false;
+		const auto record = storage::encode(transaction.transaction);
+		apply_peer_write(state_.recovered, transaction.transaction);
+		state_.busy = true;
+		write_browser_store(id_, static_cast<double>(transaction.generation), record.c_str());
+		return true;
+	}
+	std::optional<PeerStoreResult> poll() override
+	{
+		if (state_.results.empty())
+			return {};
+		auto result = std::move(state_.results.front());
+		state_.results.pop_front();
+		state_.busy = false;
+		if (result.opened && result.error.empty())
+			state_.ready = true;
+		return result;
+	}
 };
+} // namespace
+std::unique_ptr<PeerStore> open_peer_store(const std::string &location)
+{
+	return std::make_unique<BrowserStore>(location);
 }
-std::unique_ptr<PeerStore> open_peer_store(const std::string& location) { return std::make_unique<BrowserStore>(location); }
-}
+} // namespace phoenix

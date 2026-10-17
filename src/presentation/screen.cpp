@@ -8,56 +8,71 @@
 #include <filesystem>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+// clang-format off: embedded JavaScript must retain its operators.
 EM_JS(bool, phoenix_canvas_has_focus, (), { return document.activeElement === Module.canvas; });
 EM_JS(int, phoenix_canvas_width, (), { return Math.max(1,Module.canvas.clientWidth); });
 EM_JS(int, phoenix_canvas_height, (), { return Math.max(1,Module.canvas.clientHeight); });
+// clang-format on
 #endif
-namespace phoenix {
-namespace {
+namespace phoenix
+{
+namespace
+{
 UiSystem system;
 UiRenderer renderer;
-Rml::Context* context = nullptr;
-Rml::ElementDocument* document = nullptr;
-Application* current_app = nullptr;
+Rml::Context *context = nullptr;
+Rml::ElementDocument *document = nullptr;
+Application *current_app = nullptr;
 Screen shown = Screen::gm;
-struct Navigation : Rml::EventListener {
-    void ProcessEvent(Rml::Event& event) override {
-        if (!current_app) return;
-        invoke_navigation(*current_app, event.GetTargetElement()->GetId());
-    }
+struct Navigation : Rml::EventListener
+{
+	void ProcessEvent(Rml::Event &event) override
+	{
+		if (!current_app)
+			return;
+		invoke_navigation(*current_app, event.GetTargetElement()->GetId());
+	}
 } navigation;
-void update_document(Application& app) {
-    static bool labels_ready = false;
-    static bool pseudo_shown = false;
-    if (!labels_ready || pseudo_shown != app.pseudo_locale) {
-        for (const auto& control : navigation_controls(app)) if (auto* element = document->GetElementById(control.id)) element->SetInnerRML(control.label);
-        labels_ready = true;
-        pseudo_shown = app.pseudo_locale;
-    }
-    if (shown == app.screen) return;
-    shown = app.screen;
-    document->GetElementById("heading")->SetInnerRML(screen_name(app.screen));
-    document->GetElementById("host")->SetProperty("display", app.can_host ? "inline-block" : "none");
-    document->GetElementById("edit")->SetProperty("display", app.can_edit ? "inline-block" : "none");
+void update_document(Application &app)
+{
+	static bool labels_ready = false;
+	static bool pseudo_shown = false;
+	if (!labels_ready || pseudo_shown != app.pseudo_locale)
+	{
+		for (const auto &control : navigation_controls(app))
+			if (auto *element = document->GetElementById(control.id))
+				element->SetInnerRML(control.label);
+		labels_ready = true;
+		pseudo_shown = app.pseudo_locale;
+	}
+	if (shown == app.screen)
+		return;
+	shown = app.screen;
+	document->GetElementById("heading")->SetInnerRML(screen_name(app.screen));
+	document->GetElementById("host")->SetProperty("display", app.can_host ? "inline-block" : "none");
+	document->GetElementById("edit")->SetProperty("display", app.can_edit ? "inline-block" : "none");
 }
-}
-void open_window() {
-    SetConfigFlags(FLAG_WINDOW_RESIZABLE);
-    InitWindow(1280, 720, "Phoenix V3");
-    SetTargetFPS(60);
-    SetExitKey(KEY_NULL);
-    install_native_accessibility(GetWindowHandle());
-    Rml::SetSystemInterface(&system);
-    Rml::SetRenderInterface(&renderer);
-    if (!Rml::Initialise()) throw std::runtime_error("RmlUi initialisation failed");
+} // namespace
+void open_window()
+{
+	SetConfigFlags(FLAG_WINDOW_RESIZABLE);
+	InitWindow(1280, 720, "Phoenix V3");
+	SetTargetFPS(60);
+	SetExitKey(KEY_NULL);
+	install_native_accessibility(GetWindowHandle());
+	Rml::SetSystemInterface(&system);
+	Rml::SetRenderInterface(&renderer);
+	if (!Rml::Initialise())
+		throw std::runtime_error("RmlUi initialisation failed");
 #ifdef __EMSCRIPTEN__
-    const std::string font = "/assets/LatoLatin-Regular.ttf";
+	const std::string font = "/assets/LatoLatin-Regular.ttf";
 #else
-    const std::string font = std::string(GetApplicationDirectory()) + "assets/LatoLatin-Regular.ttf";
+	const std::string font = std::string(GetApplicationDirectory()) + "assets/LatoLatin-Regular.ttf";
 #endif
-    if (!Rml::LoadFontFace(font)) throw std::runtime_error("Could not load player UI font: " + font);
-    context = Rml::CreateContext("navigation", {GetScreenWidth(), GetScreenHeight()});
-    document = context->LoadDocumentFromMemory(R"(<rml><head><style>
+	if (!Rml::LoadFontFace(font))
+		throw std::runtime_error("Could not load player UI font: " + font);
+	context = Rml::CreateContext("navigation", {GetScreenWidth(), GetScreenHeight()});
+	document = context->LoadDocumentFromMemory(R"(<rml><head><style>
     body { display:block; width:100%; box-sizing:border-box; font-family:LatoLatin; font-size:20px; color:#d9e9ef; padding:20px; }
     h1, h2, p { display:block; }
     h1 { font-size:22px; color:#76c9e8; margin-bottom:6px; }
@@ -82,55 +97,82 @@ void open_window() {
     <div id="nav"><button id="home">Home</button><button id="host">New game</button><button id="join">Join console</button>
     <button id="view">Viewscreen</button><button id="edit">Workshop</button><button id="locale">Toggle pseudo-localisation</button></div>
     <h2 id="heading">Home</h2><p id="description"></p><div id="session-controls"></div><div id="game"></div></body></rml>)");
-    if (!document) throw std::runtime_error("Could not load home screen");
-    document->AddEventListener("click", &navigation);
-    document->Show();
+	if (!document)
+		throw std::runtime_error("Could not load home screen");
+	document->AddEventListener("click", &navigation);
+	document->Show();
 }
-bool close_requested() { return WindowShouldClose(); }
-bool graphics_has_keyboard_focus() {
+bool close_requested()
+{
+	return WindowShouldClose();
+}
+bool graphics_has_keyboard_focus()
+{
 #ifdef __EMSCRIPTEN__
-    return phoenix_canvas_has_focus();
+	return phoenix_canvas_has_focus();
 #else
-    return IsWindowFocused();
+	return IsWindowFocused();
 #endif
 }
-void draw_screen(Application& app) {
+void draw_screen(Application &app)
+{
 #ifdef __EMSCRIPTEN__
-    const int width = phoenix_canvas_width(), height = phoenix_canvas_height();
-    if (width != GetScreenWidth() || height != GetScreenHeight()) SetWindowSize(width,height);
+	const int width = phoenix_canvas_width(), height = phoenix_canvas_height();
+	if (width != GetScreenWidth() || height != GetScreenHeight())
+		SetWindowSize(width, height);
 #endif
-    ClearBackground({8, 15, 25, 255});
-    current_app = &app;
-    drain_semantic_actions(app);
-    update_document(app);
-    prepare_game_screen(app,*document);
-    publish_semantics(app);
-    if (app.screen == Screen::workshop || app.screen == Screen::gm) return;
-    draw_game_scene(app);
-    context->SetDimensions({GetScreenWidth(), GetScreenHeight()});
-    int modifiers = 0;
-    if (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)) modifiers |= Rml::Input::KM_SHIFT;
-    if (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)) modifiers |= Rml::Input::KM_CTRL;
-    context->ProcessMouseMove(GetMouseX(), GetMouseY(), modifiers);
-    for (int i = 0; i < 3; ++i) {
-        if (IsMouseButtonPressed(i)) context->ProcessMouseButtonDown(i, modifiers);
-        if (IsMouseButtonReleased(i)) context->ProcessMouseButtonUp(i, modifiers);
-    }
-    context->ProcessMouseWheel(-GetMouseWheelMove(), modifiers);
-    const std::pair<int, Rml::Input::KeyIdentifier> keys[] = {
-        {KEY_TAB,Rml::Input::KI_TAB}, {KEY_ENTER,Rml::Input::KI_RETURN}, {KEY_SPACE,Rml::Input::KI_SPACE},
-        {KEY_BACKSPACE,Rml::Input::KI_BACK}, {KEY_ESCAPE,Rml::Input::KI_ESCAPE},
-        {KEY_LEFT,Rml::Input::KI_LEFT}, {KEY_RIGHT,Rml::Input::KI_RIGHT}, {KEY_UP,Rml::Input::KI_UP}, {KEY_DOWN,Rml::Input::KI_DOWN}
-    };
-    const bool keyboard = graphics_has_keyboard_focus();
-    if (!keyboard && context->GetFocusElement()) context->GetFocusElement()->Blur();
-    for (auto [key, rml_key] : keys) {
-        if (keyboard && IsKeyPressed(key)) context->ProcessKeyDown(rml_key, modifiers);
-        if (!keyboard || IsKeyReleased(key)) context->ProcessKeyUp(rml_key, modifiers);
-    }
-    for (int character; (character = GetCharPressed()) != 0;) if (keyboard) context->ProcessTextInput(static_cast<Rml::Character>(character));
-    context->Update();
-    context->Render();
+	ClearBackground({8, 15, 25, 255});
+	current_app = &app;
+	drain_semantic_actions(app);
+	update_document(app);
+	prepare_game_screen(app, *document);
+	publish_semantics(app);
+	if (app.screen == Screen::workshop || app.screen == Screen::gm)
+		return;
+	draw_game_scene(app);
+	context->SetDimensions({GetScreenWidth(), GetScreenHeight()});
+	int modifiers = 0;
+	if (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT))
+		modifiers |= Rml::Input::KM_SHIFT;
+	if (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL))
+		modifiers |= Rml::Input::KM_CTRL;
+	context->ProcessMouseMove(GetMouseX(), GetMouseY(), modifiers);
+	for (int i = 0; i < 3; ++i)
+	{
+		if (IsMouseButtonPressed(i))
+			context->ProcessMouseButtonDown(i, modifiers);
+		if (IsMouseButtonReleased(i))
+			context->ProcessMouseButtonUp(i, modifiers);
+	}
+	context->ProcessMouseWheel(-GetMouseWheelMove(), modifiers);
+	const std::pair<int, Rml::Input::KeyIdentifier> keys[] = {
+	    {KEY_TAB, Rml::Input::KI_TAB},        {KEY_ENTER, Rml::Input::KI_RETURN},  {KEY_SPACE, Rml::Input::KI_SPACE},
+	    {KEY_BACKSPACE, Rml::Input::KI_BACK}, {KEY_ESCAPE, Rml::Input::KI_ESCAPE}, {KEY_LEFT, Rml::Input::KI_LEFT},
+	    {KEY_RIGHT, Rml::Input::KI_RIGHT},    {KEY_UP, Rml::Input::KI_UP},         {KEY_DOWN, Rml::Input::KI_DOWN}};
+	const bool keyboard = graphics_has_keyboard_focus();
+	if (!keyboard && context->GetFocusElement())
+		context->GetFocusElement()->Blur();
+	for (auto [key, rml_key] : keys)
+	{
+		if (keyboard && IsKeyPressed(key))
+			context->ProcessKeyDown(rml_key, modifiers);
+		if (!keyboard || IsKeyReleased(key))
+			context->ProcessKeyUp(rml_key, modifiers);
+	}
+	for (int character; (character = GetCharPressed()) != 0;)
+		if (keyboard)
+			context->ProcessTextInput(static_cast<Rml::Character>(character));
+	context->Update();
+	context->Render();
 }
-void close_window() { close_game_scene(); remove_native_accessibility(GetWindowHandle()); Rml::Shutdown(); current_app = nullptr; context = nullptr; document = nullptr; CloseWindow(); }
+void close_window()
+{
+	close_game_scene();
+	remove_native_accessibility(GetWindowHandle());
+	Rml::Shutdown();
+	current_app = nullptr;
+	context = nullptr;
+	document = nullptr;
+	CloseWindow();
 }
+} // namespace phoenix

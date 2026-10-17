@@ -1,7 +1,15 @@
 #include <phoenix/files.hpp>
 #include <emscripten.h>
-namespace { std::optional<phoenix::ImportedFile> imported; std::optional<std::string> copied; }
-extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_copy_result(const char* error) { copied = error; }
+namespace
+{
+std::optional<phoenix::ImportedFile> imported;
+std::optional<std::string> copied;
+} // namespace
+extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_copy_result(const char *error)
+{
+	copied = error;
+}
+// clang-format off: embedded JavaScript must retain its operators.
 EM_JS(void, copy_browser_text, (const char* text), {
     const value = UTF8ToString(text);
     const reply = error => Module.ccall('phoenix_copy_result',null,['string'],[error]);
@@ -32,14 +40,36 @@ EM_JS(void, choose_file, (const char* purpose), {
 });
 EM_JS(void, download_file, (const char* filename, const unsigned char* bytes, unsigned size), {
     const blob = new Blob([HEAPU8.slice(bytes,bytes+size)],{type:'application/octet-stream'});
+// clang-format on
     const url = URL.createObjectURL(blob); const anchor = document.createElement('a');
     anchor.href = url; anchor.download = UTF8ToString(filename); anchor.click();
     setTimeout(() => URL.revokeObjectURL(url),60000);
 });
-namespace phoenix {
-void request_file(const std::string& purpose) { choose_file(purpose.c_str()); }
-std::optional<ImportedFile> take_imported_file() { auto result = std::move(imported); imported.reset(); return result; }
-void export_file(const std::string& filename, const Bytes& bytes) { download_file(filename.c_str(),bytes.data(),static_cast<unsigned>(bytes.size())); }
-void copy_text(const std::string& text) { copied.reset(); copy_browser_text(text.c_str()); }
-std::optional<std::string> take_copy_result() { auto result=std::move(copied);copied.reset();return result; }
+namespace phoenix
+{
+void request_file(const std::string &purpose)
+{
+	choose_file(purpose.c_str());
 }
+std::optional<ImportedFile> take_imported_file()
+{
+	auto result = std::move(imported);
+	imported.reset();
+	return result;
+}
+void export_file(const std::string &filename, const Bytes &bytes)
+{
+	download_file(filename.c_str(), bytes.data(), static_cast<unsigned>(bytes.size()));
+}
+void copy_text(const std::string &text)
+{
+	copied.reset();
+	copy_browser_text(text.c_str());
+}
+std::optional<std::string> take_copy_result()
+{
+	auto result = std::move(copied);
+	copied.reset();
+	return result;
+}
+} // namespace phoenix

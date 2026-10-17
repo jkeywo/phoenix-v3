@@ -1,12 +1,26 @@
 <!doctype html>
-<html lang="en"><meta charset="utf-8"><title>Phoenix durable-storage probe</title>
-<h1>Phoenix durable-storage probe</h1>
-<p id="result" role="status">Starting C++ storage integration probe...</p>
-<button id="reload">Reload and verify persistence</button>
-<script>
-const params = new URLSearchParams(location.search);
-const key = params.get('key') || 'manual-storage-probe';
-document.getElementById('reload').onclick = () => { const url = new URL(location.href); url.searchParams.set('recover','1'); location.href = url; };
-window.Module = { arguments:[key,params.get('recover') === '1' ? 'recover' : 'create'], print:console.log, printErr:console.error,
-onAbort:reason => { document.getElementById('result').textContent = 'FAIL '+reason; } };
-</script><script src="phoenix_storage_probe.js"></script></html>
+<html lang="en">
+	<meta charset="utf-8" />
+	<title>Phoenix durable-storage probe</title>
+	<h1>Phoenix durable-storage probe</h1>
+	<p id="result" role="status">Starting C++ storage integration probe...</p>
+	<button id="reload">Reload and verify persistence</button>
+	<script>
+		const params = new URLSearchParams(location.search);
+		const key = params.get("key") || "manual-storage-probe";
+		document.getElementById("reload").onclick = () => {
+			const url = new URL(location.href);
+			url.searchParams.set("recover", "1");
+			location.href = url;
+		};
+		window.Module = {
+			arguments: [key, params.get("recover") === "1" ? "recover" : "create"],
+			print: console.log,
+			printErr: console.error,
+			onAbort: (reason) => {
+				document.getElementById("result").textContent = "FAIL " + reason;
+			},
+		};
+	</script>
+	<script src="phoenix_storage_probe.js"></script>
+</html>

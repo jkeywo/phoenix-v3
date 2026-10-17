@@ -3,28 +3,31 @@
 #include <optional>
 #include <phoenix/content.hpp>
 #include <phoenix/contracts.hpp>
-namespace phoenix {
-class World {
+namespace phoenix
+{
+class World
+{
 public:
-    static constexpr int ticks_per_second = 20;
-    World();
-    ~World();
-    void tick();
-    unsigned long long ticks() const;
-    void load(const Catalog& content, const std::string& map, const std::map<std::string,std::string>& ships = {});
-    bool claim(std::uint64_t console, EntityId ship);
-    std::optional<EntityId> ship_for_slot(const std::string& slot) const;
-    bool release(std::uint64_t console);
-    // Recovery discards transport ownership without changing saved operations.
-    void clear_claims();
-    bool submit(std::uint64_t console, const OperatingCommand& command);
-    bool can_submit(std::uint64_t console, const OperatingCommand& command) const;
-    std::optional<Observation> observe(std::uint64_t console) const;
-    std::vector<BodyView> inspect() const;
-    Json save() const;
-    void restore(const Catalog& content, const Json& saved);
+	static constexpr int ticks_per_second = 20;
+	World();
+	~World();
+	void tick();
+	unsigned long long ticks() const;
+	void load(const Catalog &content, const std::string &map, const std::map<std::string, std::string> &ships = {});
+	bool claim(std::uint64_t console, EntityId ship);
+	std::optional<EntityId> ship_for_slot(const std::string &slot) const;
+	bool release(std::uint64_t console);
+	// Recovery discards transport ownership without changing saved operations.
+	void clear_claims();
+	bool submit(std::uint64_t console, const OperatingCommand &command);
+	bool can_submit(std::uint64_t console, const OperatingCommand &command) const;
+	std::optional<Observation> observe(std::uint64_t console) const;
+	std::vector<BodyView> inspect() const;
+	Json save() const;
+	void restore(const Catalog &content, const Json &saved);
+
 private:
-    struct Impl;
-    std::unique_ptr<Impl> impl_;
+	struct Impl;
+	std::unique_ptr<Impl> impl_;
 };
-}
+} // namespace phoenix

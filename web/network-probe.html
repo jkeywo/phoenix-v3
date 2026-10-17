@@ -1,10 +1,31 @@
 <!doctype html>
-<html lang="en"><meta charset="utf-8"><title>Phoenix transport probe</title>
-<h1>Phoenix native/browser transport probe</h1><p id="result" role="status">Starting...</p>
-<script>
-const params = new URLSearchParams(location.search);
-const args=['--url',params.get('url')||'ws://127.0.0.1:9080/phoenix','--room',params.get('room')||'synthetic-network','--self',params.get('self')||'browser','--remote',params.get('remote')||'native'];
-if (params.get('relay') === '1') args.push('--relay');
-if (params.get('echo') === '1') args.unshift('--echo');
-window.Module={arguments:args,print:console.log,printErr:console.error,onAbort:reason=> {document.getElementById('result').textContent='FAIL '+reason;}};
-</script><script src="phoenix_network_probe.js"></script></html>
+<html lang="en">
+	<meta charset="utf-8" />
+	<title>Phoenix transport probe</title>
+	<h1>Phoenix native/browser transport probe</h1>
+	<p id="result" role="status">Starting...</p>
+	<script>
+		const params = new URLSearchParams(location.search);
+		const args = [
+			"--url",
+			params.get("url") || "ws://127.0.0.1:9080/phoenix",
+			"--room",
+			params.get("room") || "synthetic-network",
+			"--self",
+			params.get("self") || "browser",
+			"--remote",
+			params.get("remote") || "native",
+		];
+		if (params.get("relay") === "1") args.push("--relay");
+		if (params.get("echo") === "1") args.unshift("--echo");
+		window.Module = {
+			arguments: args,
+			print: console.log,
+			printErr: console.error,
+			onAbort: (reason) => {
+				document.getElementById("result").textContent = "FAIL " + reason;
+			},
+		};
+	</script>
+	<script src="phoenix_network_probe.js"></script>
+</html>

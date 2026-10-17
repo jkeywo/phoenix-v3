@@ -3,17 +3,34 @@
 #include <emscripten.h>
 #include <deque>
 #include <map>
-namespace {
-struct Queue { std::deque<phoenix::LinkNotice> notices; std::size_t bytes = 0; bool overflow = false; };
-std::map<unsigned,Queue*> queues;
+namespace
+{
+struct Queue
+{
+	std::deque<phoenix::LinkNotice> notices;
+	std::size_t bytes = 0;
+	bool overflow = false;
+};
+std::map<unsigned, Queue *> queues;
 unsigned next_link = 1;
+} // namespace
+extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_link_notice(unsigned id, int kind, const char *peer, const char *bytes,
+                                                         int direct)
+{
+	auto found = queues.find(id);
+	if (found == queues.end())
+		return;
+	auto &queue = *found->second;
+	const std::string data = bytes ? bytes : "";
+	if (queue.notices.size() >= 1024 || queue.bytes + data.size() > 8 * 1024 * 1024)
+	{
+		queue.overflow = true;
+		return;
+	}
+	queue.bytes += data.size();
+	queue.notices.push_back({static_cast<phoenix::LinkEvent>(kind), peer ? peer : "", data, direct != 0});
 }
-extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_link_notice(unsigned id, int kind, const char* peer, const char* bytes, int direct) {
-    auto found = queues.find(id); if (found == queues.end()) return;
-    auto& queue = *found->second; const std::string data = bytes ? bytes : "";
-    if (queue.notices.size() >= 1024 || queue.bytes+data.size() > 8*1024*1024) { queue.overflow = true; return; }
-    queue.bytes += data.size(); queue.notices.push_back({static_cast<phoenix::LinkEvent>(kind),peer ? peer : "",data,direct != 0});
-}
+// clang-format off: embedded JavaScript must retain its operators.
 EM_JS(void, open_browser_transport, (unsigned id, const char* configuration), {
     const config = JSON.parse(UTF8ToString(configuration));
     const registry = Module.phoenixLinks || (Module.phoenixLinks = new Map());
@@ -115,28 +132,65 @@ EM_JS(void, close_browser_transport, (unsigned id), {
     state.closed=true; if (state.retry) clearTimeout(state.retry); if (state.socket) state.socket.close();
     for (const link of state.peers.values()) { if (link.channel) link.channel.close(); link.pc.close(); } registry.delete(id);
 });
-namespace phoenix {
-namespace {
-class BrowserTransport final : public PeerTransport {
-    unsigned id_;
-    Queue queue_;
+// clang-format on
+namespace phoenix
+{
+namespace
+{
+class BrowserTransport final : public PeerTransport
+{
+	unsigned id_;
+	Queue queue_;
+
 public:
-    explicit BrowserTransport(const LinkOptions& options) : id_(next_link++) {
-        verify_link_options(options);
-        queues[id_] = &queue_;
-        const nlohmann::json config{{"url",options.url},{"room",options.room},{"self",options.self},{"force_relay",options.force_relay},{"ice_servers",options.ice_servers},{"events",{
-            {"signalling_ready",static_cast<int>(LinkEvent::signalling_ready)},{"signalling_lost",static_cast<int>(LinkEvent::signalling_lost)},{"discovered",static_cast<int>(LinkEvent::discovered)},{"discovery_lost",static_cast<int>(LinkEvent::discovery_lost)},
-            {"direct_ready",static_cast<int>(LinkEvent::direct_ready)},{"direct_lost",static_cast<int>(LinkEvent::direct_lost)},{"packet",static_cast<int>(LinkEvent::packet)},{"error",static_cast<int>(LinkEvent::error)}}}};
-        open_browser_transport(id_,config.dump().c_str());
-    }
-    ~BrowserTransport() override { queues.erase(id_); close_browser_transport(id_); }
-    std::vector<LinkNotice> poll() override {
-        std::vector<LinkNotice> result; if (queue_.overflow) result.push_back({LinkEvent::error,{},"Transport receive backpressure; packets dropped"});
-        while (!queue_.notices.empty()) { result.push_back(std::move(queue_.notices.front())); queue_.notices.pop_front(); }
-        queue_.bytes = 0; queue_.overflow = false; return result;
-    }
-    bool send(const std::string& peer, const std::string& bytes) override { return bytes.size() <= 65536 && peer.find('\0') == std::string::npos && bytes.find('\0') == std::string::npos && send_browser_packet(id_,peer.c_str(),bytes.c_str()); }
+	explicit BrowserTransport(const LinkOptions &options) : id_(next_link++)
+	{
+		verify_link_options(options);
+		queues[id_] = &queue_;
+		const nlohmann::json config{{"url", options.url},
+		                            {"room", options.room},
+		                            {"self", options.self},
+		                            {"force_relay", options.force_relay},
+		                            {"ice_servers", options.ice_servers},
+		                            {"events",
+		                             {{"signalling_ready", static_cast<int>(LinkEvent::signalling_ready)},
+		                              {"signalling_lost", static_cast<int>(LinkEvent::signalling_lost)},
+		                              {"discovered", static_cast<int>(LinkEvent::discovered)},
+		                              {"discovery_lost", static_cast<int>(LinkEvent::discovery_lost)},
+		                              {"direct_ready", static_cast<int>(LinkEvent::direct_ready)},
+		                              {"direct_lost", static_cast<int>(LinkEvent::direct_lost)},
+		                              {"packet", static_cast<int>(LinkEvent::packet)},
+		                              {"error", static_cast<int>(LinkEvent::error)}}}};
+		open_browser_transport(id_, config.dump().c_str());
+	}
+	~BrowserTransport() override
+	{
+		queues.erase(id_);
+		close_browser_transport(id_);
+	}
+	std::vector<LinkNotice> poll() override
+	{
+		std::vector<LinkNotice> result;
+		if (queue_.overflow)
+			result.push_back({LinkEvent::error, {}, "Transport receive backpressure; packets dropped"});
+		while (!queue_.notices.empty())
+		{
+			result.push_back(std::move(queue_.notices.front()));
+			queue_.notices.pop_front();
+		}
+		queue_.bytes = 0;
+		queue_.overflow = false;
+		return result;
+	}
+	bool send(const std::string &peer, const std::string &bytes) override
+	{
+		return bytes.size() <= 65536 && peer.find('\0') == std::string::npos && bytes.find('\0') == std::string::npos &&
+		       send_browser_packet(id_, peer.c_str(), bytes.c_str());
+	}
 };
+} // namespace
+std::unique_ptr<PeerTransport> open_peer_transport(const LinkOptions &options)
+{
+	return std::make_unique<BrowserTransport>(options);
 }
-std::unique_ptr<PeerTransport> open_peer_transport(const LinkOptions& options) { return std::make_unique<BrowserTransport>(options); }
-}
+} // namespace phoenix

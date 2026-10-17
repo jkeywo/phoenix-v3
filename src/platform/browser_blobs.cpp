@@ -2,17 +2,44 @@
 #include <emscripten.h>
 #include <deque>
 #include <map>
-namespace {
-struct State { std::deque<phoenix::BlobResult> results; bool ready=false,busy=true; };
-std::map<unsigned,State*> states; unsigned next=1;
+namespace
+{
+struct State
+{
+	std::deque<phoenix::BlobResult> results;
+	bool ready = false, busy = true;
+};
+std::map<unsigned, State *> states;
+unsigned next = 1;
+} // namespace
+extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_blob_result(unsigned id, double request, int opened, const char *key,
+                                                         const unsigned char *bytes, unsigned size, int exists,
+                                                         const char *error)
+{
+	auto found = states.find(id);
+	if (found == states.end())
+		return;
+	phoenix::BlobResult result;
+	result.opened = opened;
+	result.request = static_cast<std::uint64_t>(request);
+	result.key = key ? key : "";
+	result.error = error ? error : "Browser blob allocation failed";
+	try
+	{
+		if (result.error.empty() && exists)
+		{
+			if (size > phoenix::blobs::max_bytes + 1024)
+				throw std::runtime_error("Persistent blob exceeds bounds");
+			result.bytes = phoenix::blobs::decode(result.key, phoenix::Bytes(bytes, bytes + size));
+		}
+	}
+	catch (const std::exception &failure)
+	{
+		result.error = failure.what();
+	}
+	found->second->results.push_back(std::move(result));
 }
-extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_blob_result(unsigned id,double request,int opened,const char* key,const unsigned char* bytes,unsigned size,int exists,const char* error) {
-    auto found=states.find(id); if (found==states.end()) return;
-    phoenix::BlobResult result; result.opened=opened; result.request=static_cast<std::uint64_t>(request); result.key=key?key:""; result.error=error?error:"Browser blob allocation failed";
-    try { if (result.error.empty() && exists) { if (size>phoenix::blobs::max_bytes+1024) throw std::runtime_error("Persistent blob exceeds bounds"); result.bytes=phoenix::blobs::decode(result.key,phoenix::Bytes(bytes,bytes+size)); } }
-    catch (const std::exception& failure) { result.error=failure.what(); }
-    found->second->results.push_back(std::move(result));
-}
+// clang-format off: embedded JavaScript must retain its operators.
 EM_JS(void, open_browser_blobs, (unsigned id,const char* location), {
     const namespace=UTF8ToString(location), registry=Module.phoenixBlobs||(Module.phoenixBlobs=new Map());
     const state={db:null,closed:false}; registry.set(id,state);
@@ -48,17 +75,61 @@ EM_JS(void, browser_blob_operation, (unsigned id,double request,const char* key,
     }catch(error){state.reply(request,false,name,null,String(error));}
 });
 EM_JS(void, close_browser_blobs,(unsigned id),{const registry=Module.phoenixBlobs;if(!registry)return;const state=registry.get(id);if(!state)return;state.closed=true;if(state.db)state.db.close();registry.delete(id);});
-namespace phoenix {
-namespace {
-class BrowserBlobs final : public BlobStore {
-    unsigned id_; State state_;
+// clang-format on
+namespace phoenix
+{
+namespace
+{
+class BrowserBlobs final : public BlobStore
+{
+	unsigned id_;
+	State state_;
+
 public:
-    explicit BrowserBlobs(const std::string& location):id_(next++){states[id_]=&state_;open_browser_blobs(id_,location.c_str());}
-    ~BrowserBlobs()override{states.erase(id_);close_browser_blobs(id_);}
-    bool read(std::uint64_t request,const std::string& key)override{if(!state_.ready||state_.busy)return false;blobs::verify_key(key);state_.busy=true;browser_blob_operation(id_,static_cast<double>(request),key.c_str(),nullptr,0,false);return true;}
-    bool write(std::uint64_t request,const std::string& key,const Bytes& bytes)override{if(!state_.ready||state_.busy)return false;auto encoded=blobs::encode(key,bytes);state_.busy=true;browser_blob_operation(id_,static_cast<double>(request),key.c_str(),encoded.data(),static_cast<unsigned>(encoded.size()),true);return true;}
-    std::optional<BlobResult> poll()override{if(state_.results.empty())return {};auto result=std::move(state_.results.front());state_.results.pop_front();state_.busy=false;if(result.opened)state_.ready=result.error.empty();return result;}
+	explicit BrowserBlobs(const std::string &location) : id_(next++)
+	{
+		states[id_] = &state_;
+		open_browser_blobs(id_, location.c_str());
+	}
+	~BrowserBlobs() override
+	{
+		states.erase(id_);
+		close_browser_blobs(id_);
+	}
+	bool read(std::uint64_t request, const std::string &key) override
+	{
+		if (!state_.ready || state_.busy)
+			return false;
+		blobs::verify_key(key);
+		state_.busy = true;
+		browser_blob_operation(id_, static_cast<double>(request), key.c_str(), nullptr, 0, false);
+		return true;
+	}
+	bool write(std::uint64_t request, const std::string &key, const Bytes &bytes) override
+	{
+		if (!state_.ready || state_.busy)
+			return false;
+		auto encoded = blobs::encode(key, bytes);
+		state_.busy = true;
+		browser_blob_operation(id_, static_cast<double>(request), key.c_str(), encoded.data(),
+		                       static_cast<unsigned>(encoded.size()), true);
+		return true;
+	}
+	std::optional<BlobResult> poll() override
+	{
+		if (state_.results.empty())
+			return {};
+		auto result = std::move(state_.results.front());
+		state_.results.pop_front();
+		state_.busy = false;
+		if (result.opened)
+			state_.ready = result.error.empty();
+		return result;
+	}
 };
+} // namespace
+std::unique_ptr<BlobStore> open_blob_store(const std::string &location)
+{
+	return std::make_unique<BrowserBlobs>(location);
 }
-std::unique_ptr<BlobStore> open_blob_store(const std::string& location){return std::make_unique<BrowserBlobs>(location);}
-}
+} // namespace phoenix

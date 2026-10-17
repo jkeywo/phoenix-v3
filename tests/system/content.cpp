@@ -3,77 +3,167 @@
 #include <iostream>
 #include <stdexcept>
 using namespace phoenix;
-void require(bool value, const char* contract) { if (!value) throw std::runtime_error(contract); }
-template<class Function> void rejected(Function function, const std::string& diagnostic) {
-    try { function(); } catch (const std::exception& error) { if (std::string(error.what()).find(diagnostic) != std::string::npos) return; throw; }
-    throw std::runtime_error("Expected refusal: "+diagnostic);
+void require(bool value, const char *contract)
+{
+	if (!value)
+		throw std::runtime_error(contract);
 }
-int main() {
-    try {
-        Pack base;
-        base.manifest = {{"schema",1},{"id","test-core"}};
-        base.files["definitions.json"] = read_file(std::string(PHOENIX_FIXTURE_DIR)+"/definitions.json");
-        base.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR)+"/pixel.png");
-        auto bytes = write_pack(base); auto loaded = read_pack(bytes);
-        require(loaded.hash == sha256(bytes), "pack identity must be the SHA256 of transferred archive bytes");
-        auto catalog = resolve_packs({loaded});
-        auto changed_after_load = loaded;
-        changed_after_load.manifest["id"] = "different";
-        rejected([&]{resolve_packs({changed_after_load});},"modified since load");
-        require(catalog.entities.at("test.variant")["systems"].contains("engine"), "inheritance must resolve through the production loader");
-        require(catalog.entities.at("test.variant")["render"]["scale"] == 2, "child patch must preserve inherited render fields");
-        auto defs = parse_json(base.files.at("definitions.json"),"fixture");
-        defs["entities"][0]["systems"]["engine"]["max_speed_mm_s"] = 31000;
-        base.files["definitions.json"] = json_bytes(defs);
-        resolve_packs({read_pack(write_pack(base))});
-        Pack mod; mod.manifest = {{"schema",1},{"id","test-mod"},{"dependencies",{"test-core"}},{"overrides",{"test.ship"}}};
-        Json replacement = defs["entities"][0]; replacement["render"]["scale"] = 3;
-        mod.files["definitions.json"] = json_bytes({{"schema",1},{"entities",Json::array({replacement})}});
-        auto mod_loaded = read_pack(write_pack(mod));
-        auto modded = resolve_packs({loaded,mod_loaded});
-        require(modded.entities.at("test.variant")["render"]["scale"] == 2, "child's explicit scale must survive parent override");
-        require(modded.entities.at("test.ship")["render"]["scale"] == 3, "explicit later override must win");
-        rejected([&]{resolve_packs({mod_loaded,loaded});},"earlier");
-        mod.manifest.erase("overrides");
-        rejected([&]{resolve_packs({loaded,read_pack(write_pack(mod))});},"explicit override");
-        auto broken = catalog; broken.maps.at("test.map")["ship_slots"][0]["allowed_ships"] = {"missing"};
-        rejected([&]{verify_catalog(broken);},"allowed ship");
-        broken = catalog; broken.consoles.at("test.console")["widgets"][0]["binding"] = "world.hidden_truth";
-        rejected([&]{verify_catalog(broken);},"unsupported widget/binding");
-        broken = catalog; broken.assets.at("test-core:assets/pixel.png").resize(24);
-        rejected([&]{verify_catalog(broken);},"PNG");
-        defs["entities"][0]["extends"] = "test.variant";
-        base.files["definitions.json"] = json_bytes(defs);
-        rejected([&]{resolve_packs({read_pack(write_pack(base))});},"inheritance cycle");
-        base.files["../escape"] = {1}; rejected([&]{write_pack(base);},"unsafe path");
-        require(sha256(Bytes{'a','b','c'}) == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", "content hash must match the SHA256 format contract");
-        WorkshopDocument workshop;
-        workshop.import_image("pixel.png",read_file(std::string(PHOENIX_FIXTURE_DIR)+"/pixel.png"));
-        auto definition = workshop.create_entity();
-        auto instance = workshop.place(definition,1000,2000);
-        workshop.duplicate(instance);
-        require(workshop.map()["entities"].size() == 2,"Workshop duplicate must create a separate stable instance");
-        workshop.map()["ship_slots"].push_back({{"id","crew"},{"x_mm",0},{"y_mm",0},{"heading_mdeg",0},{"allowed_ships",Json::array({definition})}});
-        auto saved_map = workshop.save_map();
-        workshop.erase(instance);
-        workshop.load_map(saved_map);
-        require(workshop.map()["entities"].size() == 2,"map load must restore authored transforms and instances");
-        auto authored = workshop.export_pack();
-        WorkshopDocument reopened; reopened.load_pack(authored);
-        auto reloaded = resolve_packs({read_pack(reopened.export_pack())});
-        require(reloaded.maps.at("workshop.map")["ship_slots"][0]["allowed_ships"][0] == definition,"export/import must preserve allowed ships and include required assets");
-        auto original = reopened.map();
-        rejected([&]{reopened.load_map(json_bytes({{"id","bad"},{"entities",Json::array({{{"id",1},{"definition","missing"},{"x_mm",0},{"y_mm",0},{"heading_mdeg",0}}})},{"ship_slots",Json::array()}}));},"unknown entity");
-        require(reopened.map() == original,"refused map load must retain the editable document");
-        WorkshopDocument authored_mod;
-        authored_mod.rename_pack("authored-mod");
-        authored_mod.load_dependency(authored);
-        auto derived = authored_mod.create_entity(definition);
-        authored_mod.place(derived,0,0);
-        auto mod_archive = authored_mod.export_pack();
-        auto combined = resolve_packs({read_pack(authored),read_pack(mod_archive)});
-        require(combined.entities.at(derived)["systems"].contains("engine"),"Workshop mod must inherit real dependency content without embedding a second copy");
-        require(combined.maps.contains("authored-mod.map"),"renaming a pack must update namespaced map identities");
-        std::cout << "PASS pack round trip, inheritance, ordered overrides and runnable-content verification\n";
-    } catch (const std::exception& error) { std::cerr << "FAIL " << error.what() << '\n'; return 1; }
+template <class Function> void rejected(Function function, const std::string &diagnostic)
+{
+	try
+	{
+		function();
+	}
+	catch (const std::exception &error)
+	{
+		if (std::string(error.what()).find(diagnostic) != std::string::npos)
+			return;
+		throw;
+	}
+	throw std::runtime_error("Expected refusal: " + diagnostic);
+}
+int main()
+{
+	try
+	{
+		Pack base;
+		base.manifest = {{"schema", 1}, {"id", "test-core"}};
+		base.files["definitions.json"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json");
+		base.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+		auto bytes = write_pack(base);
+		auto loaded = read_pack(bytes);
+		require(loaded.hash == sha256(bytes), "pack identity must be the SHA256 of transferred archive bytes");
+		auto catalog = resolve_packs({loaded});
+		auto changed_after_load = loaded;
+		changed_after_load.manifest["id"] = "different";
+		rejected(
+		    [&]
+		    {
+			    resolve_packs({changed_after_load});
+		    },
+		    "modified since load");
+		require(catalog.entities.at("test.variant")["systems"].contains("engine"),
+		        "inheritance must resolve through the production loader");
+		require(catalog.entities.at("test.variant")["render"]["scale"] == 2,
+		        "child patch must preserve inherited render fields");
+		auto defs = parse_json(base.files.at("definitions.json"), "fixture");
+		defs["entities"][0]["systems"]["engine"]["max_speed_mm_s"] = 31000;
+		base.files["definitions.json"] = json_bytes(defs);
+		resolve_packs({read_pack(write_pack(base))});
+		Pack mod;
+		mod.manifest = {
+		    {"schema", 1}, {"id", "test-mod"}, {"dependencies", {"test-core"}}, {"overrides", {"test.ship"}}};
+		Json replacement = defs["entities"][0];
+		replacement["render"]["scale"] = 3;
+		mod.files["definitions.json"] = json_bytes({{"schema", 1}, {"entities", Json::array({replacement})}});
+		auto mod_loaded = read_pack(write_pack(mod));
+		auto modded = resolve_packs({loaded, mod_loaded});
+		require(modded.entities.at("test.variant")["render"]["scale"] == 2,
+		        "child's explicit scale must survive parent override");
+		require(modded.entities.at("test.ship")["render"]["scale"] == 3, "explicit later override must win");
+		rejected(
+		    [&]
+		    {
+			    resolve_packs({mod_loaded, loaded});
+		    },
+		    "earlier");
+		mod.manifest.erase("overrides");
+		rejected(
+		    [&]
+		    {
+			    resolve_packs({loaded, read_pack(write_pack(mod))});
+		    },
+		    "explicit override");
+		auto broken = catalog;
+		broken.maps.at("test.map")["ship_slots"][0]["allowed_ships"] = {"missing"};
+		rejected(
+		    [&]
+		    {
+			    verify_catalog(broken);
+		    },
+		    "allowed ship");
+		broken = catalog;
+		broken.consoles.at("test.console")["widgets"][0]["binding"] = "world.hidden_truth";
+		rejected(
+		    [&]
+		    {
+			    verify_catalog(broken);
+		    },
+		    "unsupported widget/binding");
+		broken = catalog;
+		broken.assets.at("test-core:assets/pixel.png").resize(24);
+		rejected(
+		    [&]
+		    {
+			    verify_catalog(broken);
+		    },
+		    "PNG");
+		defs["entities"][0]["extends"] = "test.variant";
+		base.files["definitions.json"] = json_bytes(defs);
+		rejected(
+		    [&]
+		    {
+			    resolve_packs({read_pack(write_pack(base))});
+		    },
+		    "inheritance cycle");
+		base.files["../escape"] = {1};
+		rejected(
+		    [&]
+		    {
+			    write_pack(base);
+		    },
+		    "unsafe path");
+		require(sha256(Bytes{'a', 'b', 'c'}) == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+		        "content hash must match the SHA256 format contract");
+		WorkshopDocument workshop;
+		workshop.import_image("pixel.png", read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png"));
+		auto definition = workshop.create_entity();
+		auto instance = workshop.place(definition, 1000, 2000);
+		workshop.duplicate(instance);
+		require(workshop.map()["entities"].size() == 2, "Workshop duplicate must create a separate stable instance");
+		workshop.map()["ship_slots"].push_back({{"id", "crew"},
+		                                        {"x_mm", 0},
+		                                        {"y_mm", 0},
+		                                        {"heading_mdeg", 0},
+		                                        {"allowed_ships", Json::array({definition})}});
+		auto saved_map = workshop.save_map();
+		workshop.erase(instance);
+		workshop.load_map(saved_map);
+		require(workshop.map()["entities"].size() == 2, "map load must restore authored transforms and instances");
+		auto authored = workshop.export_pack();
+		WorkshopDocument reopened;
+		reopened.load_pack(authored);
+		auto reloaded = resolve_packs({read_pack(reopened.export_pack())});
+		require(reloaded.maps.at("workshop.map")["ship_slots"][0]["allowed_ships"][0] == definition,
+		        "export/import must preserve allowed ships and include required assets");
+		auto original = reopened.map();
+		rejected(
+		    [&]
+		    {
+			    reopened.load_map(json_bytes(
+			        {{"id", "bad"},
+			         {"entities",
+			          Json::array(
+			              {{{"id", 1}, {"definition", "missing"}, {"x_mm", 0}, {"y_mm", 0}, {"heading_mdeg", 0}}})},
+			         {"ship_slots", Json::array()}}));
+		    },
+		    "unknown entity");
+		require(reopened.map() == original, "refused map load must retain the editable document");
+		WorkshopDocument authored_mod;
+		authored_mod.rename_pack("authored-mod");
+		authored_mod.load_dependency(authored);
+		auto derived = authored_mod.create_entity(definition);
+		authored_mod.place(derived, 0, 0);
+		auto mod_archive = authored_mod.export_pack();
+		auto combined = resolve_packs({read_pack(authored), read_pack(mod_archive)});
+		require(combined.entities.at(derived)["systems"].contains("engine"),
+		        "Workshop mod must inherit real dependency content without embedding a second copy");
+		require(combined.maps.contains("authored-mod.map"), "renaming a pack must update namespaced map identities");
+		std::cout << "PASS pack round trip, inheritance, ordered overrides and runnable-content verification\n";
+	}
+	catch (const std::exception &error)
+	{
+		std::cerr << "FAIL " << error.what() << '\n';
+		return 1;
+	}
 }

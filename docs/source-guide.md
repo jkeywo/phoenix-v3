@@ -31,12 +31,12 @@ Use the final review: **immediately before the conquest**, Caelifen household se
 
 Source locations:
 
-| Location | Role |
-|---|---|
-| `C:\AnalogueGames\analogue-projects\GameProjects\_shared_worlds\settled_dark` | Shared world bible and chronology; discovered through the Void Throne dependency. |
-| `C:\AnalogueGames\TheVoidThrone` | Original setting, factions, regions and hidden lore. |
-| `C:\AnalogueGames\analogue-projects\GameProjects\void_throne` | Older structured game package referencing the shared world. |
-| `C:\AnalogueGames\void-throne\lore` | Recent scenario additions and source inventory; distinguish these from shared canon. |
+| Location                                                                      | Role                                                                                 |
+| ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `C:\AnalogueGames\analogue-projects\GameProjects\_shared_worlds\settled_dark` | Shared world bible and chronology; discovered through the Void Throne dependency.    |
+| `C:\AnalogueGames\TheVoidThrone`                                              | Original setting, factions, regions and hidden lore.                                 |
+| `C:\AnalogueGames\analogue-projects\GameProjects\void_throne`                 | Older structured game package referencing the shared world.                          |
+| `C:\AnalogueGames\void-throne\lore`                                           | Recent scenario additions and source inventory; distinguish these from shared canon. |
 
 The reference snapshot includes the shared world, original setting/faction/region/lore Markdown and the recent scenario inventory. The Void Throne describes a later historical period: its post-conquest political state and scenario inventions must not be copied into Phoenix's pre-conquest present without a deliberate adaptation.
 

@@ -6,11 +6,11 @@ Tests protect intended behavior and runnable data. They must not turn each conte
 
 ## The three categories
 
-| Category | Question answered | Data | Normal execution |
-|---|---|---|---|
-| Smoke | Can we play this journey, and what happens on this build/machine? | Named authored content or a deliberate stress setup | Explicit manual invocation; may run automation, scripts or recorded input after being triggered. |
-| Verification | Is this authored data coherent and runnable under its declared setup? | Actual ships, equipment, trees, scenarios and packs | Automatic on changed content and ordinary CI; validate the affected dependency closure. |
-| System integration | Does this system still obey its behavioral contract? | Purpose-built synthetic fixtures through the real loader/execution path | Fast repeatable automated runs, normally headless, in CI. |
+| Category           | Question answered                                                     | Data                                                                    | Normal execution                                                                                 |
+| ------------------ | --------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Smoke              | Can we play this journey, and what happens on this build/machine?     | Named authored content or a deliberate stress setup                     | Explicit manual invocation; may run automation, scripts or recorded input after being triggered. |
+| Verification       | Is this authored data coherent and runnable under its declared setup? | Actual ships, equipment, trees, scenarios and packs                     | Automatic on changed content and ordinary CI; validate the affected dependency closure.          |
+| System integration | Does this system still obey its behavioral contract?                  | Purpose-built synthetic fixtures through the real loader/execution path | Fast repeatable automated runs, normally headless, in CI.                                        |
 
 A smoke run can report a defect and support a release decision. It is not a compulsory playthrough/performance suite on every edit. Verification does not prove balance or fun. A synthetic system test does not prove a particular shipped ship is well balanced. Keep those claims separate.
 
@@ -60,18 +60,18 @@ Observe through public supported results/observations where that is the contract
 
 ### Representative contracts
 
-| System/behavior | Synthetic setup and assertion | Avoid |
-|---|---|---|
-| Engine | Known thrust/mass/energy fixture accelerates appropriately; disabled or unpaid operation produces no unsupported thrust; release stops extra thrust without erasing velocity. | A fixed top speed copied from the shipped Cruiser. |
-| Weapon | Known geometry/ammunition/reserve fixture fires when eligible, consumes its configured costs and applies supported impact; insufficient resources/refused authority causes no forbidden effect. | Current production damage-per-second or a recorded duel outcome. |
-| Shields | Hits affect the appropriate arc; regeneration spends actual energy; redistribution passes through the battery rather than teleporting protection. | Exact shipped shield capacities or a whole-ship balance snapshot. |
-| Logistics | A dispatched batch leaves source stock, reserves receiving space and arrives once; blockage/cancellation preserves real quantity and location. | A golden copy of every production hold and route. |
-| State trees/jobs | Exercise ordered outputs, inherited/reference behavior and admitted stage work; interrupted work preserves the supported commitments/effects. | One test per node occurrence in every authored mission. |
-| Away operation | A synthetic tree surfaces a Comms decision, follows an answer or timeout default, continues during link loss and resumes without repeated outcomes. | Locking the starter mission's plot, timer values or preferred ending. |
-| Knowledge/control | Sharing a permitted finding does not transfer machinery authority or reveal other Console facts. | Exposing hidden world state merely to simplify assertions. |
-| Save/resume | Resume a synthetic operation at a consequential boundary and compare its supported continuation, quantities and outcome with an uninterrupted run. | Fixed historical whole-world hashes tied to production content. |
-| Input routing | Two console identities receive simultaneous touch/gamepad actions independently; device removal clears held input without granting another operator authority. | Requiring six physical monitors for every CI run. |
-| Player UI semantics | Known permitted contact/control appears with equivalent semantic name, state and action; hidden facts stay absent. | Treating a semantic-tree check as proof that NVDA/VoiceOver actually works. |
+| System/behavior     | Synthetic setup and assertion                                                                                                                                                                   | Avoid                                                                       |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| Engine              | Known thrust/mass/energy fixture accelerates appropriately; disabled or unpaid operation produces no unsupported thrust; release stops extra thrust without erasing velocity.                   | A fixed top speed copied from the shipped Cruiser.                          |
+| Weapon              | Known geometry/ammunition/reserve fixture fires when eligible, consumes its configured costs and applies supported impact; insufficient resources/refused authority causes no forbidden effect. | Current production damage-per-second or a recorded duel outcome.            |
+| Shields             | Hits affect the appropriate arc; regeneration spends actual energy; redistribution passes through the battery rather than teleporting protection.                                               | Exact shipped shield capacities or a whole-ship balance snapshot.           |
+| Logistics           | A dispatched batch leaves source stock, reserves receiving space and arrives once; blockage/cancellation preserves real quantity and location.                                                  | A golden copy of every production hold and route.                           |
+| State trees/jobs    | Exercise ordered outputs, inherited/reference behavior and admitted stage work; interrupted work preserves the supported commitments/effects.                                                   | One test per node occurrence in every authored mission.                     |
+| Away operation      | A synthetic tree surfaces a Comms decision, follows an answer or timeout default, continues during link loss and resumes without repeated outcomes.                                             | Locking the starter mission's plot, timer values or preferred ending.       |
+| Knowledge/control   | Sharing a permitted finding does not transfer machinery authority or reveal other Console facts.                                                                                                | Exposing hidden world state merely to simplify assertions.                  |
+| Save/resume         | Resume a synthetic operation at a consequential boundary and compare its supported continuation, quantities and outcome with an uninterrupted run.                                              | Fixed historical whole-world hashes tied to production content.             |
+| Input routing       | Two console identities receive simultaneous touch/gamepad actions independently; device removal clears held input without granting another operator authority.                                  | Requiring six physical monitors for every CI run.                           |
+| Player UI semantics | Known permitted contact/control appears with equivalent semantic name, state and action; hidden facts stay absent.                                                                              | Treating a semantic-tree check as proof that NVDA/VoiceOver actually works. |
 
 Choose representative success, refusal and interruption/recovery cases according to the behavior's actual risk. Do not multiply every fixture across every ship, preset, save point and possible dependency. Include those dimensions only when they exercise distinct rules.
 

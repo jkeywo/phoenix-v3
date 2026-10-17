@@ -1,36 +1,110 @@
 {
-  "schema": 1,
-  "entities": [
-    {
-      "id": "training.survey",
-      "render": {"mode":"eight", "images":["phoenix-training:assets/ship-0.png","phoenix-training:assets/ship-1.png","phoenix-training:assets/ship-2.png","phoenix-training:assets/ship-3.png","phoenix-training:assets/ship-4.png","phoenix-training:assets/ship-5.png","phoenix-training:assets/ship-6.png","phoenix-training:assets/ship-7.png"], "scale":8},
-      "systems": {"engine":{"max_speed_mm_s":12000,"acceleration_mm_s2":2000},"steering":{"turn_mdeg_s":45000},"radar":{"range_mm":500000}},
-      "collision": {"shape":"circle","radius_mm":2000,"mass_grams":2000000},
-      "console": "training.bridge"
-    },
-    {"id":"training.tug","extends":"training.survey","render":{"mode":"camera","images":["phoenix-training:assets/ship-0.png"],"scale":12},"systems":{"engine":{"max_speed_mm_s":8000}},"collision":{"shape":"box","half_width_mm":2500,"half_length_mm":4000,"mass_grams":5000000}},
-    {"id":"training.traffic","extends":"training.survey","controller":"training.patrol"},
-    {"id":"training.beacon","render":{"mode":"camera","images":["phoenix-training:assets/beacon.png"],"scale":6},"systems":{},"collision":{"shape":"circle","radius_mm":3000,"mass_grams":0}}
-  ],
-  "maps": [
-    {"id":"training.navigation","entities":[
-      {"id":1,"definition":"training.beacon","x_mm":50000,"y_mm":20000,"heading_mdeg":0},
-      {"id":2,"definition":"training.traffic","x_mm":-80000,"y_mm":-50000,"heading_mdeg":90000}
-    ],"ship_slots":[{"id":"training.player","x_mm":0,"y_mm":0,"heading_mdeg":0,"allowed_ships":["training.survey","training.tug"]}]}
-  ],
-  "consoles": [
-    {"id":"training.bridge","widgets":[
-      {"id":"radar","kind":"radar","label":"Local space / north up","binding":"radar.contacts","x":0,"y":0,"width":600,"height":1000},
-      {"id":"engine","kind":"throttle","label":"Engine","binding":"engine.desired_speed","x":600,"y":0,"width":400,"height":500},
-      {"id":"steering","kind":"heading","label":"Steering / 0 east, 90 north","binding":"steering.desired_heading","x":600,"y":500,"width":400,"height":500}
-    ]}
-  ],
-  "trees": [
-    {"id":"training.patrol","initial":"north","states":{
-      "north":{"ticks":200,"next":"east","speed_mm_s":3000,"heading_mdeg":90000},
-      "east":{"ticks":200,"next":"south","speed_mm_s":3000,"heading_mdeg":0},
-      "south":{"ticks":200,"next":"west","speed_mm_s":3000,"heading_mdeg":270000},
-      "west":{"ticks":200,"next":"north","speed_mm_s":3000,"heading_mdeg":180000}
-    }}
-  ]
+	"schema": 1,
+	"entities": [
+		{
+			"id": "training.survey",
+			"render": {
+				"mode": "eight",
+				"images": [
+					"phoenix-training:assets/ship-0.png",
+					"phoenix-training:assets/ship-1.png",
+					"phoenix-training:assets/ship-2.png",
+					"phoenix-training:assets/ship-3.png",
+					"phoenix-training:assets/ship-4.png",
+					"phoenix-training:assets/ship-5.png",
+					"phoenix-training:assets/ship-6.png",
+					"phoenix-training:assets/ship-7.png"
+				],
+				"scale": 8
+			},
+			"systems": {
+				"engine": { "max_speed_mm_s": 12000, "acceleration_mm_s2": 2000 },
+				"steering": { "turn_mdeg_s": 45000 },
+				"radar": { "range_mm": 500000 }
+			},
+			"collision": { "shape": "circle", "radius_mm": 2000, "mass_grams": 2000000 },
+			"console": "training.bridge"
+		},
+		{
+			"id": "training.tug",
+			"extends": "training.survey",
+			"render": { "mode": "camera", "images": ["phoenix-training:assets/ship-0.png"], "scale": 12 },
+			"systems": { "engine": { "max_speed_mm_s": 8000 } },
+			"collision": { "shape": "box", "half_width_mm": 2500, "half_length_mm": 4000, "mass_grams": 5000000 }
+		},
+		{ "id": "training.traffic", "extends": "training.survey", "controller": "training.patrol" },
+		{
+			"id": "training.beacon",
+			"render": { "mode": "camera", "images": ["phoenix-training:assets/beacon.png"], "scale": 6 },
+			"systems": {},
+			"collision": { "shape": "circle", "radius_mm": 3000, "mass_grams": 0 }
+		}
+	],
+	"maps": [
+		{
+			"id": "training.navigation",
+			"entities": [
+				{ "id": 1, "definition": "training.beacon", "x_mm": 50000, "y_mm": 20000, "heading_mdeg": 0 },
+				{ "id": 2, "definition": "training.traffic", "x_mm": -80000, "y_mm": -50000, "heading_mdeg": 90000 }
+			],
+			"ship_slots": [
+				{
+					"id": "training.player",
+					"x_mm": 0,
+					"y_mm": 0,
+					"heading_mdeg": 0,
+					"allowed_ships": ["training.survey", "training.tug"]
+				}
+			]
+		}
+	],
+	"consoles": [
+		{
+			"id": "training.bridge",
+			"widgets": [
+				{
+					"id": "radar",
+					"kind": "radar",
+					"label": "Local space / north up",
+					"binding": "radar.contacts",
+					"x": 0,
+					"y": 0,
+					"width": 600,
+					"height": 1000
+				},
+				{
+					"id": "engine",
+					"kind": "throttle",
+					"label": "Engine",
+					"binding": "engine.desired_speed",
+					"x": 600,
+					"y": 0,
+					"width": 400,
+					"height": 500
+				},
+				{
+					"id": "steering",
+					"kind": "heading",
+					"label": "Steering / 0 east, 90 north",
+					"binding": "steering.desired_heading",
+					"x": 600,
+					"y": 500,
+					"width": 400,
+					"height": 500
+				}
+			]
+		}
+	],
+	"trees": [
+		{
+			"id": "training.patrol",
+			"initial": "north",
+			"states": {
+				"north": { "ticks": 200, "next": "east", "speed_mm_s": 3000, "heading_mdeg": 90000 },
+				"east": { "ticks": 200, "next": "south", "speed_mm_s": 3000, "heading_mdeg": 0 },
+				"south": { "ticks": 200, "next": "west", "speed_mm_s": 3000, "heading_mdeg": 270000 },
+				"west": { "ticks": 200, "next": "north", "speed_mm_s": 3000, "heading_mdeg": 180000 }
+			}
+		}
+	]
 }
