@@ -4,8 +4,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Phoenix V3</title>
 <style>
-body { margin:0; background:#080f19; color:#d9e9ef; font:1rem system-ui }
-header { padding:1rem } label { margin-right:1rem } canvas { display:block; width:100%; height:calc(100vh - 9rem) }
+body { margin:0; height:100vh; display:flex; flex-direction:column; overflow:hidden; background:#080f19; color:#d9e9ef; font:1rem system-ui }
+header { padding:1rem; flex:none } label { margin-right:1rem } canvas { display:block; width:100%; flex:1; min-height:0; height:0 }
 select,input,button { font:inherit } #status { padding:0 1rem }
 #semantics { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%) }
 #semantics:focus-within { position:fixed; bottom:0; left:0; width:auto; height:auto; clip-path:none; padding:1rem; background:#173142; z-index:2 }

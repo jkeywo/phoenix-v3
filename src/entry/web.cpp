@@ -3,15 +3,14 @@
 #include <emscripten.h>
 #include <algorithm>
 #ifdef PHOENIX_SERVER
-#include <phoenix/world.hpp>
-std::unique_ptr<phoenix::World> world;
+#include <phoenix/session.hpp>
 #endif
 phoenix::Application app;
 void frame() {
 #ifdef PHOENIX_SERVER
     static double accumulated = 0;
     accumulated += std::min(static_cast<double>(GetFrameTime()),0.25);
-    while (accumulated >= 1.0/phoenix::World::ticks_per_second) { world->tick(); accumulated -= 1.0/phoenix::World::ticks_per_second; }
+    while (accumulated >= 1.0/20) { app.session->tick(); accumulated -= 1.0/20; }
 #endif
     BeginDrawing();
     phoenix::draw_screen(app);
@@ -22,7 +21,7 @@ void frame() {
 }
 int main(int argc, char** argv) {
 #ifdef PHOENIX_SERVER
-    world = std::make_unique<phoenix::World>();
+    app.session = phoenix::make_local_session();
 #endif
     app.status = PHOENIX_ROLE;
 #ifdef PHOENIX_SERVER

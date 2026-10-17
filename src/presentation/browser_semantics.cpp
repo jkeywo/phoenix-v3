@@ -9,14 +9,22 @@ extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_semantic_action(const char* id) {
 }
 EM_JS(void, begin_semantics, (), {
     const root = document.getElementById('semantics');
-    root.replaceChildren();
+    for (const child of root.children) child.dataset.stale = 'true';
 });
 EM_JS(void, append_semantic_button, (const char* id, const char* label), {
-    const button = document.createElement('button');
-    button.textContent = UTF8ToString(label);
     const action = UTF8ToString(id);
-    button.addEventListener('click', () => Module.ccall('phoenix_semantic_action', null, ['string'], [action]));
-    document.getElementById('semantics').appendChild(button);
+    const root = document.getElementById('semantics');
+    let button = Array.from(root.children).find(child => child.dataset.action === action);
+    if (!button) {
+        button = document.createElement('button'); button.dataset.action = action;
+        button.addEventListener('click', () => Module.ccall('phoenix_semantic_action', null, ['string'], [action]));
+        root.appendChild(button);
+    }
+    button.textContent = UTF8ToString(label); delete button.dataset.stale;
+});
+EM_JS(void, end_semantics, (), {
+    const root = document.getElementById('semantics');
+    for (const child of Array.from(root.children)) if (child.dataset.stale) child.remove();
 });
 namespace phoenix {
 void publish_semantics(const Application& app) {
@@ -27,6 +35,7 @@ void publish_semantics(const Application& app) {
     if (!changed) return;
     begin_semantics();
     for (const auto& control : controls) append_semantic_button(control.id.c_str(), control.label.c_str());
+    end_semantics();
     previous = std::move(controls);
 }
 void drain_semantic_actions(Application& app) {

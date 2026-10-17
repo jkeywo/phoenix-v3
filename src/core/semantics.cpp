@@ -19,6 +19,7 @@ std::vector<SemanticControl> navigation_controls(const Application& app) {
         if (std::string(id) == "edit" && !app.can_edit) continue;
         controls.push_back({id, translate(id, app.pseudo_locale)});
     }
+    for (const auto& [id,label] : app.screen_controls) controls.push_back({id, app.pseudo_locale ? "[ "+label+" ~~~ ]" : label});
     return controls;
 }
 bool invoke_navigation(Application& app, const std::string& id) {
@@ -28,6 +29,7 @@ bool invoke_navigation(Application& app, const std::string& id) {
     else if (id == "view") app.screen = Screen::viewscreen;
     else if (id == "edit" && app.can_edit) app.screen = Screen::workshop;
     else if (id == "locale") app.pseudo_locale = !app.pseudo_locale;
+    else if (app.screen_action) return app.screen_action(id);
     else return false;
     return true;
 }

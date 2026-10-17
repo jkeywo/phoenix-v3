@@ -2,12 +2,15 @@
 #include <raylib.h>
 #include <RmlUi/Core.h>
 #include "rml_backend.hpp"
+#include "game.hpp"
 #include <phoenix/semantics.hpp>
 #include <stdexcept>
 #include <filesystem>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 EM_JS(bool, phoenix_canvas_has_focus, (), { return document.activeElement === Module.canvas; });
+EM_JS(int, phoenix_canvas_width, (), { return Math.max(1,Module.canvas.clientWidth); });
+EM_JS(int, phoenix_canvas_height, (), { return Math.max(1,Module.canvas.clientHeight); });
 #endif
 namespace phoenix {
 namespace {
@@ -27,7 +30,7 @@ void update_document(Application& app) {
     static bool labels_ready = false;
     static bool pseudo_shown = false;
     if (!labels_ready || pseudo_shown != app.pseudo_locale) {
-        for (const auto& control : navigation_controls(app)) document->GetElementById(control.id)->SetInnerRML(control.label);
+        for (const auto& control : navigation_controls(app)) if (auto* element = document->GetElementById(control.id)) element->SetInnerRML(control.label);
         labels_ready = true;
         pseudo_shown = app.pseudo_locale;
     }
@@ -60,18 +63,24 @@ void open_window() {
     if (!Rml::LoadFontFace(font)) throw std::runtime_error("Could not load player UI font: " + font);
     context = Rml::CreateContext("navigation", {GetScreenWidth(), GetScreenHeight()});
     document = context->LoadDocumentFromMemory(R"(<rml><head><style>
-    body { display:block; width:100%; box-sizing:border-box; font-family:LatoLatin; font-size:20px; color:#d9e9ef; padding:32px; }
+    body { display:block; width:100%; box-sizing:border-box; font-family:LatoLatin; font-size:20px; color:#d9e9ef; padding:20px; }
     h1, h2, p { display:block; }
-    h1 { font-size:30px; color:#76c9e8; margin-bottom:24px; }
-    h2 { font-size:24px; margin:24px 0; }
+    h1 { font-size:30px; color:#76c9e8; margin-bottom:12px; }
+    h2 { font-size:24px; margin:12px 0; }
     #nav { display:flex; flex-wrap:wrap; }
-    button { display:block; flex-shrink:0; width:230px; max-width:90%; padding:12px 20px; margin:0 12px 12px 0; background:#173142; border:1px #76c9e8; }
+    button { display:block; flex-shrink:0; width:170px; max-width:90%; padding:8px 12px; margin:0 8px 8px 0; background:#173142; border:1px #76c9e8; }
     button:hover, button:focus { background:#315a70; }
-    p { max-width:900px; line-height:1.5; }
+    p { max-width:1100px; line-height:1.5; }
+    #description { max-height:80px; overflow:auto; }
+    #game { position:absolute; top:300px; left:20px; right:20px; bottom:20px; display:flex; flex-wrap:wrap; align-content:flex-start; }
+    #game button { width:250px; }
+    .widget { position:absolute; box-sizing:border-box; border:1px #315a70; padding:10px; overflow:auto; }
+    .widget h3 { display:block; font-size:20px; margin-bottom:8px; }
+    .widget button { width:90%; }
     </style></head><body><h1>PHOENIX / SETTLED DARK</h1>
     <div id="nav"><button id="home">Home</button><button id="host">New game</button><button id="join">Join console</button>
     <button id="view">Viewscreen</button><button id="edit">Workshop</button><button id="locale">Toggle pseudo-localisation</button></div>
-    <h2 id="heading">Home</h2><p id="description"></p></body></rml>)");
+    <h2 id="heading">Home</h2><p id="description"></p><div id="game"></div></body></rml>)");
     if (!document) throw std::runtime_error("Could not load home screen");
     document->AddEventListener("click", &navigation);
     document->Show();
@@ -85,12 +94,18 @@ bool graphics_has_keyboard_focus() {
 #endif
 }
 void draw_screen(Application& app) {
+#ifdef __EMSCRIPTEN__
+    const int width = phoenix_canvas_width(), height = phoenix_canvas_height();
+    if (width != GetScreenWidth() || height != GetScreenHeight()) SetWindowSize(width,height);
+#endif
     ClearBackground({8, 15, 25, 255});
     current_app = &app;
     drain_semantic_actions(app);
+    update_document(app);
+    prepare_game_screen(app,*document);
     publish_semantics(app);
     if (app.screen == Screen::workshop || app.screen == Screen::gm) return;
-    update_document(app);
+    draw_game_scene(app);
     context->SetDimensions({GetScreenWidth(), GetScreenHeight()});
     int modifiers = 0;
     if (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)) modifiers |= Rml::Input::KM_SHIFT;
@@ -116,5 +131,5 @@ void draw_screen(Application& app) {
     context->Update();
     context->Render();
 }
-void close_window() { remove_native_accessibility(GetWindowHandle()); Rml::Shutdown(); current_app = nullptr; context = nullptr; document = nullptr; CloseWindow(); }
+void close_window() { close_game_scene(); remove_native_accessibility(GetWindowHandle()); Rml::Shutdown(); current_app = nullptr; context = nullptr; document = nullptr; CloseWindow(); }
 }

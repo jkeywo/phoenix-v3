@@ -6,6 +6,7 @@ const char* screen_name(Screen screen) {
     case Screen::server_lobby: return "Server lobby";
     case Screen::client_lobby: return "Client lobby";
     case Screen::viewscreen: return "Viewscreen";
+    case Screen::console: return "Player console";
     case Screen::workshop: return "Workshop";
     case Screen::gm: return "GM inspector";
     }
