@@ -1,3 +1,8 @@
+build/
+.tools/
+.cache/
+out/
+*.user
 .env
 .env.*
 !.env.example
@@ -9,4 +14,3 @@ target/
 node_modules/
 .venv/
 dist/
-build/

@@ -1,0 +1,31 @@
+# Foundation implementation plan
+
+Approved scope, 17 October 2026. The GDD remains the full game design. This plan delivers a small end-to-end test of its architecture, rather than all GDD systems. Commit each verified logical step. The execution record below distinguishes implemented code from remaining work.
+
+## Delivery sequence
+
+0. **Build compatibility:** C++20, CMake, static libraries; `native.exe`, `server.wasm`, `client.wasm`, `workshop.wasm`. Integrate Flecs, raylib, RmlUi and ImGui docking. Clients and Workshop must not link authoritative simulation. Pin dependency revisions and document reproducible commands.
+1. **Presentation and platform:** shared C++ screens, independent console contexts, custom radar rendering, semantic player controls, translations and pseudo-locale. Browser DOM/ARIA and Windows UI Automation actions use the same permitted model. Prove complex-script shaping/input and real screen-reader actions. Configure one spanning window with arbitrary display regions; route captured touch and explicitly assigned gamepads to console identities. Five gamepads need a backend beyond four-device XInput. Disconnect clears held input. Physical device and six-screen performance checks remain manual smoke evidence.
+2. **Content and rendering:** versioned JSON definitions, references/inheritance, actionable verification, PNG imports, single camera-facing or eight-direction billboards, scale, supported Systems, solid circles and oriented boxes. Eight-direction selection uses relative camera bearing. Viewscreen supports orbit/pan/zoom; Workshop uses a top-down map.
+3. **Workshop authoring:** docked map/entity list/properties, new/save/load maps, place/move/rotate/duplicate/delete entities, reusable entity definitions and named ship slots with allowed ship definitions. Author a single console containing radar, engine and steering widgets using a bounded palette, layout/bindings and preview; no hardcoded station split.
+4. **Packs:** export/import ZIP mod packs, explicit ordered overrides/dependencies, content hashes and verification, no executable code or live reload. Select packs when starting a game. Transfer missing packs in bounded chunks with progress and hash verification before readiness; cache verified content.
+5. **Simulation:** Flecs fixed ticks with deterministic fixed-point planar motion, engine desired speed, steering desired heading, finite-mass circle/box collisions and range-limited radar observations. Use a reusable serialisable state-tree runtime for delegated behavior. Synthetic fixtures exercise admission, execution, refusals and continuation through real loaders; do not freeze shipped tuning.
+6. **Connections and lobbies:** allowlisted HTML launcher chooses browser role/mode/code/slot. C++ home selects mission, slot, ship and ordered packs. Server lobby shows peers/readiness/QR, client lobby claims stations. Local clients use the same admission/projection boundary as remote clients. Implement native/browser WebRTC with WSS application relay fallback and an isolated V3 signalling service. URLs/QR codes carry connection hints, never authority. GM requires host approval.
+7. **Fleet replication:** one full-world deterministic server per ship. Peer consensus orders admitted inputs and tick frames; simulate committed frames only. Persist term/vote/log before acknowledgement, including asynchronous browser storage. Fix participating server roster before play; only returning members rejoin during play. Majority continues after committed absence with ordinary AI, minority pauses (two peers lose progress after one loss; three peers can continue with two). Clients wait for their own ship server. Returning peers verify identity/content and catch up snapshot/log before service; discard stale commands.
+8. **Continuity:** portable runtime saves contain required pack content and committed state, stable IDs, motion, tree work and ownership. Load into recovery lobby with fresh transport connections. Late clients claim empty stations; replacement of disconnected claims needs explicit confirmation and invalidates the old claim.
+9. **GM inspector:** local/native/web approved read-only authoritative inspection using docked tools; no world mutation in this slice.
+10. **Acceptance evidence:** manually invoked smoke journeys cover web server/client, added web GM, native server with local/native/web consoles and GM, mixed native/WASM peers, forced relay, QR join, pack transfer, replacement/rejoin and save/resume. Record reference-machine frame distributions for six 1080p regions at 60 Hz; compilation is not evidence of this target.
+
+## Boundaries
+
+Static modules grow only when they own behavior: core/contracts; content; state trees; simulation; host/session; transport; rendering/player UI; tools; native/browser platform adapters. Keep graphics and platform APIs out of authoritative simulation. Keep authoritative simulation out of client and Workshop binaries. Local station inputs must not bypass command admission.
+
+Handwritten HTML/JS supplies launcher, networking, browser files/storage/lifecycle, text/IME and accessibility services. Screens, widgets, gameplay and protocol definitions belong in C++. Generated Emscripten JS is expected. Native and server builds host simulation; Workshop can preview authored UI without a simulation authority.
+
+RmlUi is the player UI; ImGui docking is Workshop/GM. Player screen readers are required. Tools need basic accessibility, and localisation still applies to tools. First language probes are English, pseudo-localisation and complex-script text/input; launch languages remain undecided. HarfBuzz/FreeType integration and ImGui's shaping limitations require explicit validation.
+
+## Execution record
+
+- Build targets and basic dependency integration: implemented. Native home/Workshop and all three WASM applications build and launch. RmlUi draws through the raylib backend; ImGui draws dockable tool windows. This proves basic compatibility, not the full presentation/accessibility increment. See [foundation evidence](smoke/foundation.md).
+- Presentation, content, authoring, packs, simulation, networking, consensus and continuity: pending.
+- No physical device, screen-reader or six-screen performance claims have been established.

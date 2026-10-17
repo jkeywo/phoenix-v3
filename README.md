@@ -4,7 +4,7 @@ A fresh rewrite of Project Phoenix, using the previous project as a design and i
 
 Start with the **[consolidated Game Design Document](docs/GDD.md)**. It defines the intended gameplay, crew responsibilities, Settled Dark setting, authoring behavior and validation scenarios for Phoenix V3, with coverage of all 216 reviewed catalogue entries and 76 architecture decisions.
 
-This repository contains the V3 design and historical references; it has no V3 runtime yet. The selected stack is **C++ + Flecs + raylib**, with **RmlUi player consoles/custom radars**, **Dear ImGui docking for Workshop/GM**, and **Emscripten for WebAssembly**. See the [technical stack](docs/technical-stack.md) for the six-screen target, console-specific input, accessibility and localisation requirements. Build configuration, exact dependencies and delivery sequence remain to be selected.
+The runtime foundation uses **C++20 + Flecs + raylib**, with **RmlUi player consoles/custom radars**, **Dear ImGui docking for Workshop/GM**, and **Emscripten for WebAssembly**. See the [technical stack](docs/technical-stack.md), [implementation sequence](docs/implementation-plan.md) and [build instructions](docs/building.md). The foundation is under active implementation; the full GDD is not a list of completed features.
 
 The [testing policy](docs/testing.md) uses three categories: manually invoked smoke captures, content verification without frozen tuning values, and automated system integration tests using synthetic fixtures. Equipment tuning and player workload require prototyping and playtesting. Historical implementation claims refer to Phoenix V2 and do not describe working V3 features.
 

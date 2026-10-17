@@ -1,12 +1,12 @@
 # Phoenix V3 technical stack
 
-Status: selected direction, 17 October 2026. These choices replace the earlier Bevy/HTML/Ultralight implementation directions. The [GDD](GDD.md) defines gameplay; the [testing policy](testing.md) defines how implementation and authored data are checked. None of the integrations below is implemented or benchmarked yet.
+Status: selected direction, 17 October 2026, with the build foundation in progress. These choices replace the earlier Bevy/HTML/Ultralight implementation directions. The [GDD](GDD.md) defines gameplay; the [testing policy](testing.md) defines how implementation and authored data are checked. See the [implementation record](implementation-plan.md) for actual completion and remaining proof obligations.
 
 ## Selected components
 
 | Responsibility | Selection | Boundary |
 |---|---|---|
-| Application and simulation | C++ | Keep authoritative gameplay independent of graphics, UI and browser APIs. Select the exact language standard with the initial build configuration. |
+| Application and simulation | C++20 | Keep authoritative gameplay independent of graphics, UI and browser APIs. |
 | Entities, components and execution infrastructure | Flecs | Own simulation entities, relationships, queries and explicit processing phases. Library scheduling does not substitute for resource-allocation policy or stable gameplay ordering. |
 | Rendering, audio and ordinary platform facilities | raylib | Viewscreens and custom graphics, with explicit adapters where the platform backend does not meet input/media needs. |
 | Player console UI | RmlUi | Styled controls, responsive layout and text; compile for native and WebAssembly. RML/RCSS are UI assets, not a browser application or embedded browser engine. |
@@ -17,7 +17,7 @@ Status: selected direction, 17 October 2026. These choices replace the earlier B
 
 Clay is not part of the selected baseline. There is no separate HTML/JS application frontend, Ultralight dependency or Bevy runtime. Dear ImGui and RmlUi read the same domain projections and submit normal authorised commands; they do not own parallel gameplay models.
 
-Exact dependency versions, build/package management, networking libraries, file encodings and public APIs remain initial technical-design work. Do not infer those choices from V2. Pin dependencies when implemented; do not promise that an existing raylib/RmlUi/ImGui adapter already meets all required behavior.
+The initial build uses CMake and static libraries with commit/hash-pinned dependencies; see [building](building.md). Networking libraries, file encodings and public APIs are selected as their increments are implemented. Do not infer those choices from V2 or assume that a raylib/RmlUi/ImGui adapter already meets all required behavior.
 
 ## Runtime boundaries
 

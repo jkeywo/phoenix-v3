@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phoenix V3</title>
+<style>
+body { margin:0; background:#080f19; color:#d9e9ef; font:1rem system-ui }
+header { padding:1rem } label { margin-right:1rem } canvas { display:block; width:100%; height:calc(100vh - 9rem) }
+select,input,button { font:inherit } #status { padding:0 1rem }
+</style>
+<header>
+<h1>Phoenix V3</h1>
+<form method="get">
+<label>Role <select name="type"><option value="server">Ship server</option><option value="client">Console</option><option value="workshop">Workshop / GM</option></select></label>
+<label>Mode <select name="mode"><option value="editor">Editor</option><option value="gm">GM inspector</option></select></label>
+<label>Network code <input name="code" maxlength="64"></label>
+<label>Preferred ship slot <input name="slot" maxlength="64"></label>
+<button>Launch</button>
+</form>
+</header>
+<p id="status" role="status">Choose a role to launch.</p>
+<canvas id="canvas" tabindex="0" aria-label="Phoenix game graphics"></canvas>
+<div id="semantics" aria-label="Player console"></div>
+<script>
+'use strict';
+const params = new URLSearchParams(location.search);
+const type = params.get('type');
+const allowed = new Set(['server', 'client', 'workshop']);
+if (type !== null && !allowed.has(type)) {
+  document.getElementById('status').textContent = 'Unknown role. Select a role above.';
+} else if (allowed.has(type)) {
+  const mode = params.get('mode') === 'gm' ? 'gm' : 'editor';
+  const code = (params.get('code') || '').slice(0, 64);
+  const slot = (params.get('slot') || '').slice(0, 64);
+  document.querySelector('[name=type]').value = type;
+  document.querySelector('[name=mode]').value = mode;
+  document.querySelector('[name=code]').value = code;
+  document.querySelector('[name=slot]').value = slot;
+  // Arguments are hints. C++ admission must grant authority independently.
+  window.Module = {
+    canvas: document.getElementById('canvas'),
+    arguments: ['--mode', mode, '--code', code, '--slot', slot],
+    print: console.log,
+    printErr: console.error,
+    postRun: [() => { document.getElementById('status').textContent = 'Running ' + type; }],
+    onAbort() { document.getElementById('status').textContent = 'Startup failed. See the browser console for diagnostics.'; }
+  };
+  const script = document.createElement('script');
+  script.src = type + '.js';
+  script.onerror = () => { document.getElementById('status').textContent = 'Build files unavailable. Build and serve the web output first.'; };
+  document.body.appendChild(script);
+}
+</script>
+</html>
