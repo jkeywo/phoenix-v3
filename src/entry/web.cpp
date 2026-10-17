@@ -33,7 +33,8 @@ void frame()
 	accumulated += std::min(static_cast<double>(GetFrameTime()), 0.25);
 	while (accumulated >= 1.0 / 20)
 	{
-		app.session->tick();
+		if (app.session)
+			app.session->tick();
 		accumulated -= 1.0 / 20;
 	}
 #endif
@@ -48,7 +49,6 @@ void frame()
 int main(int argc, char **argv)
 {
 	phoenix::NetworkOptions network;
-	app.status = PHOENIX_ROLE;
 #ifdef PHOENIX_SERVER
 	app.can_host = true;
 #endif

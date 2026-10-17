@@ -34,6 +34,7 @@ UiRenderer renderer;
 Rml::Context *context = nullptr;
 Rml::ElementDocument *document = nullptr;
 Application *current_app = nullptr;
+std::unique_ptr<GameScreen> game_screen;
 Screen shown = Screen::gm;
 struct Navigation : Rml::EventListener
 {
@@ -66,6 +67,7 @@ void update_document(Application &app)
 } // namespace
 void open_window()
 {
+	game_screen = std::make_unique<GameScreen>();
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE);
 	InitWindow(1280, 720, "Phoenix V3");
 	SetTargetFPS(60);
@@ -136,11 +138,11 @@ void draw_screen(Application &app)
 	current_app = &app;
 	drain_semantic_actions(app);
 	update_document(app);
-	prepare_game_screen(app, *document);
+	game_screen->prepare(app, *document);
 	publish_semantics(app);
 	if (app.screen == Screen::workshop || app.screen == Screen::gm)
 		return;
-	draw_game_scene(app);
+	game_screen->draw(app);
 	context->SetDimensions({GetScreenWidth(), GetScreenHeight()});
 	int modifiers = 0;
 	if (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT))
@@ -178,7 +180,9 @@ void draw_screen(Application &app)
 }
 void close_window()
 {
-	close_game_scene();
+	if (current_app)
+		current_app->screen_action = {};
+	game_screen.reset();
 	remove_native_accessibility(GetWindowHandle());
 	Rml::Shutdown();
 	current_app = nullptr;

@@ -33,18 +33,14 @@ struct Editor
 	int definition = -1, console = -1;
 	std::string status = "Import a PNG, create an entity definition, then place instances on the map.";
 	std::string pack_name = "workshop", library_parent;
-	std::map<std::string, Texture2D> textures;
+	TextureCache textures;
 	float pan_x = 0, pan_y = 0, zoom = 0.004f;
 	void clear_textures()
 	{
-		for (auto [id, texture] : textures)
-			UnloadTexture(texture);
 		textures.clear();
 	}
 	Texture2D texture(const std::string &id)
 	{
-		if (textures.contains(id))
-			return textures.at(id);
 		auto prefix = document.manifest().at("id").get<std::string>() + ":";
 		const Bytes *bytes = nullptr;
 		if (id.starts_with(prefix))
@@ -61,13 +57,7 @@ struct Editor
 		}
 		if (!bytes)
 			return {};
-		auto image = LoadImageFromMemory(".png", bytes->data(), static_cast<int>(bytes->size()));
-		if (!image.data)
-			return {};
-		auto result = LoadTextureFromImage(image);
-		UnloadImage(image);
-		textures[id] = result;
-		return result;
+		return textures.load(id, *bytes);
 	}
 } editor;
 template <class Function> void attempt(Function action)
@@ -273,11 +263,7 @@ void console_editor()
 	if (editor.console < 0 || editor.console >= static_cast<int>(consoles.size()))
 		return;
 	auto &widgets = consoles[editor.console]["widgets"];
-	const std::pair<const char *, const char *> palette[] = {{"radar", "radar.contacts"},
-	                                                         {"throttle", "engine.desired_speed"},
-	                                                         {"heading", "steering.desired_heading"},
-	                                                         {"status", "ship.status"}};
-	for (auto [kind, binding] : palette)
+	for (auto [kind, binding] : widget_bindings())
 	{
 		if (ImGui::Button((std::string("Add ") + kind).c_str()))
 		{
@@ -571,7 +557,10 @@ void render_editor(Application &app)
 					    editor.selected = 0;
 				    }
 				    if (imported->purpose == "image")
+				    {
 					    editor.document.import_image(imported->filename, std::move(imported->bytes));
+					    editor.clear_textures();
+				    }
 				    editor.status = "Imported " + imported->filename;
 			    }
 		    }
@@ -641,6 +630,8 @@ void render_editor(Application &app)
 	{
 		const auto state = app.session ? app.session->inspection() : Json(nullptr);
 		ImGui::Begin("Status");
+		if (!app.status.empty())
+			ImGui::TextWrapped("%s", app.status.c_str());
 		ImGui::TextWrapped("%s", app.session ? app.session->connection_status().c_str()
 		                                     : "Connect to a ship server to request read-only inspection.");
 		ImGui::End();
@@ -791,6 +782,8 @@ void render_editor(Application &app)
 	ImGui::End();
 	map_view();
 	ImGui::Begin("Status");
+	if (!app.status.empty())
+		ImGui::TextWrapped("%s", app.status.c_str());
 	ImGui::TextWrapped("%s", editor.status.c_str());
 	ImGui::End();
 }

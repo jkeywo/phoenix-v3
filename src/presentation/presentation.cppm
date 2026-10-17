@@ -1,4 +1,8 @@
 module;
+#include <raylib.h>
+#include <cstdint>
+#include <map>
+#include <span>
 #include <functional>
 #include <memory>
 #include <string>
@@ -10,6 +14,20 @@ export import phoenix.navigation;
 
 export namespace phoenix
 {
+// Each content owner keeps a separate cache and clears it before replacing assets.
+class TextureCache
+{
+public:
+	TextureCache() = default;
+	TextureCache(const TextureCache &) = delete;
+	TextureCache &operator=(const TextureCache &) = delete;
+	~TextureCache();
+	Texture2D load(const std::string &id, std::span<const std::uint8_t> png);
+	void clear();
+
+private:
+	std::map<std::string, Texture2D> textures_;
+};
 void open_window();
 bool close_requested();
 bool graphics_has_keyboard_focus();

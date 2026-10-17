@@ -1,7 +1,16 @@
 #pragma once
 namespace phoenix
 {
-void prepare_game_screen(Application &app, Rml::ElementDocument &document);
-void draw_game_scene(const Application &app);
-void close_game_scene();
+class GameScreen
+{
+public:
+	GameScreen();
+	~GameScreen();
+	void prepare(Application &app, Rml::ElementDocument &document);
+	void draw(const Application &app);
+
+private:
+	struct State;
+	std::unique_ptr<State> state_;
+};
 } // namespace phoenix
