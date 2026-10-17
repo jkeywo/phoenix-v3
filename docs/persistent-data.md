@@ -1,0 +1,11 @@
+# Persistent packs and profiles
+
+`phoenix_blobs` provides asynchronous bounded reads/writes for original pack archives and session profile data. A record binds a schema, logical key, payload length and SHA-256 digest to its exact bytes. Keys are bounded identifiers; native filenames are hashes of keys, never remote-supplied paths. A missing record is distinct from corruption or an I/O failure.
+
+Windows writes a new temporary file on a background task, flushes it and atomically replaces the destination. Browser stores the same encoded bytes in a strict IndexedDB transaction. Completion is reported after the durable operation; one outstanding operation applies backpressure. The maximum payload is 32 MiB. The caller supplies a portable native data directory or origin-local browser namespace. Session code must not silently recreate an expected missing peer identity or treat cached credentials as a new roster admission.
+
+This generic store does not grant authority or establish content readiness. Pack cache consumers must rehash and load the original archives and resolve the ordered offer through `PackTransfer` before readiness. Session profiles will require role/epoch validation and the exclusive durable peer-journal lock before serving as a returning server. Cache retention/eviction policy and live application integration remain pending; this step supplies the actual platform storage mechanism.
+
+The automatic native system case writes a synthetic pack and profile, reopens the store, verifies the exact archive through the production transfer/catalogue path, checks backpressure and refuses corrupted storage. The browser manual `blob-probe.html?key=your-test-namespace` writes/reads a real independently authored fixture pack through IndexedDB and production loading. Its reload action adds `recover=1`, which refuses an absent cache rather than silently rebuilding the fixture.
+
+Recorded 17 October 2026: the browser probe reported a verified persisted archive, then a new document opened with recovery required reported recovery and production verification of the original cached pack. Browser warning/error log was empty. Eight native system cases, headless WASM content/simulation/session/replication/transfer cases and the three service/native-WSS checks pass. This is storage evidence, not a completed reconnect or fleet recovery journey.
