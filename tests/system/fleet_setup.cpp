@@ -10,6 +10,7 @@
 
 import phoenix.fleet_setup;
 import phoenix.wire;
+import phoenix.session.execution;
 
 using namespace phoenix;
 void require(bool value, const char *message)
@@ -45,6 +46,40 @@ int main()
 		        "Each fixed server must own its distinct ship slot");
 		require(!first.world->observation() && !other.world->observation(),
 		        "Setup must not grant a player station claim");
+		{
+			const auto members = first.plan.at("members").get<std::map<std::string, std::string>>();
+			GameExecution a(first.world, members), b(other.world, members);
+			auto seat = a.seats("ship1").front().address;
+			const auto token = random_token();
+			Json claim{{"kind", "station-claim"},
+			           {"owner", "crew"},
+			           {"ship", seat.ship},
+			           {"seat", seat.console},
+			           {"lease", token}};
+			require(!a.apply("ship2", claim), "a server cannot claim another server's ship");
+			require(a.apply("ship1", claim) && b.apply("ship1", claim),
+			        "committed executor admits the owning server's Console lease");
+			Json request{{"kind", "command"},   {"owner", "crew"},        {"lease", token}, {"sequence", 1},
+			             {"target", seat.ship}, {"action", "speed_mm_s"}, {"value", 1000}};
+			require(a.apply("ship1", request) && b.apply("ship1", request) && !a.apply("ship1", request),
+			        "committed requests obey lease ownership and sequence replay refusal");
+			Json tick{{"kind", "tick"}, {"tick", 1}};
+			require(a.apply("ship1", tick) && b.apply("ship1", tick),
+			        "the shared executor advances only committed ticks");
+			require(first.world->authoritative_world().save() == other.world->authoritative_world().save() &&
+			            a.snapshot() == b.snapshot(),
+			        "different server adapters reproduce identical world and lease state");
+			a.absent("ship1");
+			b.absent("ship1");
+			require(!a.observe("ship1", "crew") && !a.apply("ship1", request),
+			        "committed server absence clears Console authority and stale input");
+			claim["owner"] = "replacement";
+			require(!a.apply("ship1", claim), "disconnected replacement requires explicit confirmation");
+			claim["replace"] = true;
+			claim["lease"] = random_token();
+			require(a.apply("ship1", claim) && !a.apply("ship1", request),
+			        "confirmed replacement cannot revive the old lease");
+		}
 		bool private_refused = false;
 		try
 		{

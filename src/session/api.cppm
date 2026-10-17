@@ -51,6 +51,10 @@ public:
 	virtual bool running() const = 0;
 	virtual bool recovery_pending() const = 0;
 	virtual Bytes save() const = 0;
+	virtual Bytes fleet_setup(const GameSetup &) const
+	{
+		return {};
+	}
 	virtual void restore(const Bytes &archive) = 0;
 	virtual void resume_local() = 0;
 	virtual void tick() = 0;

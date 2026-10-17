@@ -50,6 +50,8 @@ void WorkshopDocument::load_pack(std::span<const std::uint8_t> archive)
 	auto order = libraries_;
 	order.push_back(loaded);
 	auto resolved = resolve_packs(order);
+	if (resolved.presentation)
+		throw std::runtime_error("Console assets are not an editable gameplay pack");
 	auto definitions = parse_json(loaded.files().at("definitions.json"), "definitions.json");
 	for (auto kind : {"entities", "maps", "consoles", "trees"})
 		if (!definitions.contains(kind))
@@ -76,6 +78,8 @@ void WorkshopDocument::load_dependency(std::span<const std::uint8_t> archive)
 	auto order = libraries_;
 	order.push_back(library);
 	auto catalog = resolve_packs(order);
+	if (catalog.presentation)
+		throw std::runtime_error("Console assets are not a gameplay dependency");
 	auto id = library.manifest().at("id").get<std::string>();
 	if (id == pack_.manifest.at("id").get<std::string>())
 		throw std::runtime_error("Rename the authored pack before loading a dependency with the same id");

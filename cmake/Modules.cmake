@@ -9,6 +9,7 @@ target_sources(phoenix_persistence PUBLIC FILE_SET CXX_MODULES FILES src/replica
 target_sources(phoenix_fleet PUBLIC FILE_SET CXX_MODULES FILES src/replication/fleet.cppm)
 target_sources(phoenix_session_api PUBLIC FILE_SET CXX_MODULES FILES src/session/api.cppm)
 target_sources(phoenix_session PUBLIC FILE_SET CXX_MODULES FILES src/session/local.cppm)
+target_sources(phoenix_session PUBLIC FILE_SET CXX_MODULES FILES src/session/execution.cppm)
 target_sources(phoenix_network_host PUBLIC FILE_SET CXX_MODULES FILES src/network/host.cppm)
 target_sources(phoenix_network_client PUBLIC FILE_SET CXX_MODULES FILES src/network/client.cppm)
 target_sources(phoenix_fleet_setup PUBLIC FILE_SET CXX_MODULES FILES src/session/fleet_setup.cppm)

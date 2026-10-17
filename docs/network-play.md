@@ -1,5 +1,9 @@
 # Network play
 
+Hosts expose authored Console seats with independent leases. Approve each first-time crew or GM connection in the host lobby; reconnecting credential holders retain approval. Ordinary crew download a verified own-ship presentation bundle, containing layouts, images and display limits, rather than authoritative packs. Only live permitted radar contacts cross the observation boundary. Approved GM connections retain the full read-only inspector.
+
+Before starting, **Export fleet setup** creates a private bundle for the authored ship slots. Load that bundle on each server, select a distinct `shipN` member in the recovery lobby and resume. Crew invitation codes use the member's `-console` endpoint. The existing durable fleet driver orders the same Console claims, commands and ticks used by singleton play. Reloading the same bundle/member/profile reconstructs its original journal; committed server absence releases only that server's Console claims. Saving an active fleet produces a portable bundle at a tick boundary with a fresh session epoch and key; it carries no peer term/vote state or client credentials.
+
 The four applications now share C++ session admission, verified content transfer and permitted projections. Run the signalling service described in [network setup](network-transport.md), then serve `build/web` over HTTP on loopback or HTTPS on a public host. Public signalling requires WSS; no public service is deployed by this repository.
 
 Native starts a ship server by default. Import ordered packs and start a mission through Home, or pass `--game-pack path.zip --mission map.id --slot slot.id --ship ship.id`. The invitation is `room/server`, shown in the status. `--service`, `--profile` and `--data` select the service URL and local storage namespace. `--local-only` preserves the offline adapter for manual smoke captures.

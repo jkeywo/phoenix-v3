@@ -359,6 +359,52 @@ test(
 );
 
 test(
+	"playable fleet routes local and remote Consoles and recovers a returning member",
+	{ skip: !process.env.PHOENIX_SESSION_PROBE, timeout: 90000 },
+	async () => {
+		const service = createSignallingServer({ port: 0 });
+		const address = await service.listen();
+		const directory = mkdtempSync(join(tmpdir(), "phoenix-playable-fleet-"));
+		let child;
+		try {
+			child = spawn(
+				process.env.PHOENIX_SESSION_PROBE,
+				[
+					"--fleet-journey",
+					"--relay",
+					"--url",
+					`ws://127.0.0.1:${address.port}/phoenix`,
+					"--room",
+					"playable-fleet",
+					"--data",
+					directory,
+				],
+				{ windowsHide: true },
+			);
+			let output = "";
+			child.stdout.on("data", (data) => {
+				output += data;
+			});
+			child.stderr.on("data", (data) => {
+				output += data;
+			});
+			const code = await new Promise((resolve, reject) => {
+				child.once("error", reject);
+				child.once("exit", resolve);
+			});
+			assert.equal(code, 0, output);
+			assert.match(output, /PASS playable fleet/);
+		} finally {
+			if (child && child.exitCode === null) {
+				child.kill();
+				await new Promise((resolve) => child.once("exit", resolve));
+			}
+			await service.close();
+			rmSync(directory, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+		}
+	},
+);
+test(
 	"live sessions verify content, commit controls, approve GM and explicitly replace disconnected operators",
 	{
 		skip: !process.env.PHOENIX_SESSION_PROBE,

@@ -92,6 +92,12 @@ Catalog resolve(const std::vector<PackView> &ordered)
 	for (const auto &pack : ordered)
 	{
 		const auto format = pack.manifest.value("format", std::string{});
+		if (format == "phoenix-console-assets")
+		{
+			if (ordered.size() != 1)
+				invalid("pack", "Console assets cannot be mixed with gameplay packs");
+			result.presentation = true;
+		}
 		if (format == "phoenix-runtime-save" || format == "phoenix-fleet-setup")
 			invalid("pack", "session/setup containers are not gameplay packs; use their dedicated loader");
 		auto id = text(pack.manifest, "id", "manifest");
@@ -176,12 +182,19 @@ std::span<const WidgetBinding> widget_bindings()
 }
 void verify_catalog(const Catalog &catalog)
 {
+	if (catalog.presentation && (!catalog.maps.empty() || !catalog.trees.empty() || catalog.entities.size() != 1))
+		invalid("presentation", "expected one own-ship definition without maps or controllers");
 	std::set<std::string> verified_images;
 	for (const auto &[id, tree] : catalog.trees)
 		verify_tree(tree, "trees." + id);
 	for (const auto &[id, entity] : catalog.entities)
 	{
 		auto path = "entities." + id;
+		if (catalog.presentation)
+			for (auto field = entity.begin(); field != entity.end(); ++field)
+				if (field.key() != "id" && field.key() != "render" && field.key() != "systems" &&
+				    field.key() != "console" && field.key() != "stations")
+					invalid(path, "unsupported presentation field");
 		if (!entity.contains("render") || !entity["render"].is_object())
 			invalid(path + ".render", "required object");
 		const auto &render = entity["render"];
@@ -227,29 +240,36 @@ void verify_catalog(const Catalog &catalog)
 			if (it.key() == "engine")
 			{
 				integer(system, "max_speed_mm_s", field, 0);
-				integer(system, "acceleration_mm_s2", field, 1);
+				if (!catalog.presentation)
+					integer(system, "acceleration_mm_s2", field, 1);
 			}
 			else if (it.key() == "steering")
-				integer(system, "turn_mdeg_s", field, 1, 360000);
+			{
+				if (!catalog.presentation)
+					integer(system, "turn_mdeg_s", field, 1, 360000);
+			}
 			else if (it.key() == "radar")
 				integer(system, "range_mm", field, 1);
 			else
 				invalid(field, "unsupported System in foundation vocabulary");
 		}
-		if (!entity.contains("collision") || !entity["collision"].is_object())
-			invalid(path + ".collision", "required object");
-		const auto &collision = entity["collision"];
-		auto shape = text(collision, "shape", path + ".collision");
-		if (shape == "circle")
-			integer(collision, "radius_mm", path + ".collision", 1);
-		else if (shape == "box")
+		if (!catalog.presentation)
 		{
-			integer(collision, "half_width_mm", path + ".collision", 1);
-			integer(collision, "half_length_mm", path + ".collision", 1);
+			if (!entity.contains("collision") || !entity["collision"].is_object())
+				invalid(path + ".collision", "required object");
+			const auto &collision = entity["collision"];
+			auto shape = text(collision, "shape", path + ".collision");
+			if (shape == "circle")
+				integer(collision, "radius_mm", path + ".collision", 1);
+			else if (shape == "box")
+			{
+				integer(collision, "half_width_mm", path + ".collision", 1);
+				integer(collision, "half_length_mm", path + ".collision", 1);
+			}
+			else
+				invalid(path + ".collision.shape", "supported values are circle and box");
+			integer(collision, "mass_grams", path + ".collision", 0);
 		}
-		else
-			invalid(path + ".collision.shape", "supported values are circle and box");
-		integer(collision, "mass_grams", path + ".collision", 0);
 		if (entity.contains("console") &&
 		    (!entity["console"].is_string() || !catalog.consoles.contains(entity["console"].get<std::string>())))
 			invalid(path + ".console", "unresolved console definition");

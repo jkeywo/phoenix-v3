@@ -1,4 +1,5 @@
 module;
+#include <algorithm>
 #include <chrono>
 #include <deque>
 #include <map>
@@ -15,6 +16,8 @@ import phoenix.persistence;
 import phoenix.replication;
 import phoenix.session.api;
 import phoenix.session.local;
+import phoenix.session.execution;
+import phoenix.fleet_setup;
 import phoenix.wire;
 #include "projection.hpp"
 
@@ -30,41 +33,32 @@ class NetworkHost final : public SessionPort
 		bool ready = false, approved = false, connected = true, renew = false;
 		std::uint64_t seen = 0;
 	};
-	struct Input
-	{
-		std::string owner, lease;
-		std::uint64_t sequence;
-		OperatingCommand command;
-	};
 	NetworkOptions options_;
+	std::string member_;
 	std::shared_ptr<HostAccess> world_ = make_host_world();
-	std::uint64_t generation_base_ = 0;
+	std::unique_ptr<GameExecution> game_;
 	std::unique_ptr<PeerTransport> transport_;
 	std::unique_ptr<DurableConsensus> journal_;
 	PeerConsensus *consensus_ = nullptr;
+	std::unique_ptr<FleetRuntime> fleet_;
 	std::unique_ptr<PackSource> source_;
+	std::unique_ptr<PackSource> console_source_;
 	std::map<std::string, Client> clients_;
-	std::deque<Input> inputs_;
 	std::deque<Json> intents_;
-	std::string epoch_ = random_token(), offer_ = random_token(), message_, owner_, lease_, proposal_;
-	std::uint64_t console_ = 0, next_console_ = 2, last_sequence_ = 0, now_ = 0, last_projection_ = 0;
+	std::map<std::uint64_t, std::uint64_t> local_sequences_;
+	std::string epoch_ = random_token(), offer_ = random_token(), message_, proposal_;
+	std::uint64_t generation_base_ = 0, now_ = 0, last_projection_ = 0, term_ = 0;
 	bool want_local_ = false, fault_ = false;
 	std::chrono::steady_clock::time_point last_poll_ = std::chrono::steady_clock::now();
 	static constexpr const char *local = "local-console";
-	EntityId ship() const
-	{
-		if (!world_->running())
-			return 0;
-		return world_->authoritative_world().ship_for_slot(world_->setup().local_slot).value_or(0);
-	}
 	bool available() const
 	{
-		return consensus_ && consensus_->has_quorum() && !fault_;
+		return !fault_ && (fleet_ ? fleet_->available() : consensus_ && consensus_->has_quorum());
 	}
 	void send(const std::string &peer, const std::string &type, const Json &body, bool unsigned_packet = false)
 	{
 		auto found = clients_.find(peer);
-		if (!unsigned_packet && found == clients_.end())
+		if (!transport_ || (!unsigned_packet && found == clients_.end()))
 			return;
 		try
 		{
@@ -79,14 +73,20 @@ class NetworkHost final : public SessionPort
 	}
 	void advertise(const std::string &peer)
 	{
-		if (source_)
-			send(peer, "pack-offer", {{"offer", offer_}, {"content", source_->offer()}});
+		auto &client = clients_.at(peer);
+		auto *source = client.role == "gm" ? source_.get() : console_source_.get();
+		if (source && client.approved)
+			send(peer, "pack-offer", {{"offer", offer_}, {"content", source->offer()}});
 	}
 	void refresh_source()
 	{
 		source_.reset();
+		console_source_.reset();
 		if (!world_->content_packs().empty())
 			source_ = std::make_unique<PackSource>(world_->content_packs());
+		if (world_->running())
+			console_source_ = std::make_unique<PackSource>(std::vector<Pack>{
+			    console_assets(world_->catalog(), world_->setup().ships.at(world_->setup().local_slot))});
 		offer_ = random_token();
 		for (auto &[id, client] : clients_)
 		{
@@ -94,69 +94,93 @@ class NetworkHost final : public SessionPort
 			advertise(id);
 		}
 	}
-	bool propose(Json value)
+	bool propose(Json value, bool tick = false)
 	{
 		if (!available() || !proposal_.empty())
 			return false;
 		value["proposal"] = random_token();
-		if (!consensus_->propose(value))
+		const bool accepted =
+		    fleet_ ? (tick ? fleet_->propose_tick(value) : fleet_->propose(value)) : consensus_->propose(value);
+		if (!accepted)
 			return false;
 		proposal_ = value.at("proposal");
 		return true;
 	}
 	bool intent(Json value)
 	{
-		if (!available() || intents_.size() >= 32)
+		if (!available() || intents_.size() >= 128)
 			return false;
 		for (const auto &pending : intents_)
-			if (pending == value || (value.at("kind") == "station-claim" && pending.at("kind") == "station-claim" &&
-			                         pending.at("owner") == value.at("owner")))
+			if (pending == value)
 				return true;
 		intents_.push_back(std::move(value));
 		return true;
 	}
-	void claim(const std::string &peer, bool replace)
+	ConsoleAddress default_seat() const
 	{
-		const bool local_claim = peer == local;
-		auto found = clients_.find(peer);
-		if (!local_claim && (found == clients_.end() || !found->second.ready || found->second.role != "client"))
-			return;
-		auto refused = [&](const std::string &reason, bool confirm = false)
+		if (!game_)
+			return {};
+		auto seats = game_->seats(member_);
+		for (const auto &seat : seats)
+			if (seat.address.console == world_->setup().local_console)
+				return seat.address;
+		return seats.size() == 1 ? seats.front().address : ConsoleAddress{};
+	}
+	bool claim(const std::string &peer, std::uint64_t route, ConsoleAddress address, bool replace)
+	{
+		if (peer != local)
 		{
-			if (local_claim)
-				message_ = reason;
-			else
-				send(peer, "claim-result", {{"ok", false}, {"reason", reason}, {"confirm", confirm}});
-		};
-		if (!world_->running() || !available())
-		{
-			refused("The ship server is waiting for a durable majority");
-			return;
+			auto found = clients_.find(peer);
+			if (found == clients_.end() || !found->second.approved || !found->second.ready ||
+			    found->second.role != "client")
+				return false;
 		}
-		if (console_)
-		{
-			if (owner_ == peer)
+		if (!address.ship && game_)
+			for (const auto &seat : game_->seats(member_))
 			{
-				if (!local_claim)
-					send(peer, "claim-result", {{"ok", true}, {"lease", lease_}});
-				return;
+				const auto *lease = game_->lease(seat.address);
+				if (lease->owner == peer && lease->route == route)
+				{
+					address = seat.address;
+					break;
+				}
 			}
-			refused("This station is already occupied");
-			return;
-		}
-		if (!owner_.empty() && owner_ != peer && !replace)
+		if (!address.ship)
+			address = default_seat();
+		if (!game_ || !available())
+			return false;
+		if (auto existing = game_->owned(member_, peer, route))
 		{
-			refused("Confirm replacing the disconnected operator", true);
-			return;
+			if (peer != local)
+				send(peer, "claim-result", {{"ok", true}, {"lease", existing->token}});
+			return existing->address == address;
 		}
-		Json value{{"kind", "station-claim"},
-		           {"owner", peer},
-		           {"console", local_claim ? 1 : next_console_},
-		           {"lease", random_token()}};
-		if (!local_claim)
-			value["key"] = found->second.key;
-		if (!intent(value))
-			refused("Station request queue is unavailable; try again");
+		if (!game_->can_claim(member_, peer, route, address, replace))
+		{
+			auto seat = game_->lease(address);
+			const bool confirm = seat && !seat->active && !seat->owner.empty() && seat->owner != peer;
+			message_ = confirm ? "Confirm replacing the disconnected operator"
+			                   : "Choose an available Console on this ship server";
+			if (peer != local)
+				send(peer, "claim-result", {{"ok", false}, {"reason", message_}, {"confirm", confirm}});
+			return false;
+		}
+		return intent({{"kind", "station-claim"},
+		               {"owner", peer},
+		               {"route", route},
+		               {"ship", address.ship},
+		               {"seat", address.console},
+		               {"lease", random_token()},
+		               {"replace", replace}});
+	}
+	bool release(const std::string &peer, std::uint64_t route, bool forget)
+	{
+		auto seat = game_ ? game_->owned(member_, peer, route) : nullptr;
+		return seat && intent({{"kind", "station-release"},
+		                       {"owner", peer},
+		                       {"route", route},
+		                       {"lease", seat->token},
+		                       {"forget", forget}});
 	}
 	void begin_log()
 	{
@@ -164,8 +188,10 @@ class NetworkHost final : public SessionPort
 		journal_.reset();
 		proposal_.clear();
 		fault_ = false;
+		game_ = std::make_unique<GameExecution>(
+		    world_, std::map<std::string, std::string>{{member_, world_->setup().local_slot}});
 		journal_ = std::make_unique<DurableConsensus>(
-		    PeerRoster{epoch_, options_.link.self, {options_.link.self}},
+		    PeerRoster{epoch_, member_, {member_}},
 		    options_.data_location + "/peers/" + options_.profile + "-" + epoch_ + ".journal", JournalRecovery::fresh);
 		message_ = "Opening durable ship-server log";
 	}
@@ -207,11 +233,8 @@ class NetworkHost final : public SessionPort
 		else if (found->second.role != role)
 			return;
 		auto &client = found->second;
-		if (client.nonce != nonce && sender == owner_ && console_)
-		{
+		if (client.nonce != nonce && game_ && game_->owned(member_, sender))
 			client.renew = true;
-			inputs_.clear();
-		}
 		client.nonce = nonce;
 		client.connected = true;
 		client.seen = now_;
@@ -235,115 +258,128 @@ class NetworkHost final : public SessionPort
 		auto &client = found->second;
 		client.connected = true;
 		client.seen = now_;
+		if (!client.approved)
+		{
+			send(sender, "refused", {{"reason", "Waiting for host approval"}});
+			return;
+		}
 		const auto &body = decoded->body;
+		auto *source = client.role == "gm" ? source_.get() : console_source_.get();
 		if (decoded->type == "offer-request")
 			advertise(sender);
-		else if (decoded->type == "pack-request" && source_ && body.at("offer") == offer_)
+		else if (decoded->type == "pack-request" && source && body.at("offer") == offer_)
 		{
-			auto chunk = source_->chunk(body);
+			auto chunk = source->chunk(body);
 			chunk["offer"] = offer_;
 			send(sender, "pack-chunk", chunk);
 		}
 		else if (decoded->type == "ready")
 		{
-			if (source_ && body.at("offer") == offer_ && body.at("packs") == Json(world_->catalog().ordered_packs))
+			if (source)
 			{
-				client.ready = true;
-				message_ = "Verified client content: " + sender;
+				std::vector<std::pair<std::string, std::string>> identities;
+				const auto offer = source->offer();
+				for (const auto &pack : offer.at("packs"))
+					identities.emplace_back(pack.at("id"), pack.at("hash"));
+				if (body.at("offer") == offer_ && body.at("packs") == Json(identities))
+					client.ready = true;
 			}
 		}
 		else if (decoded->type == "claim")
-			claim(sender, body.value("replace", false));
-		else if (decoded->type == "release" && sender == owner_ && console_)
-			intent({{"kind", "station-release"}, {"owner", owner_}, {"lease", lease_}, {"forget", true}});
+			claim(sender, 1, {body.value("ship", EntityId{0}), body.value("seat", std::string{})},
+			      body.value("replace", false));
+		else if (decoded->type == "release")
+			release(sender, 1, true);
 		else if (decoded->type == "command")
 		{
-			const auto sequence = network::counter(body.at("sequence"));
 			if (!body.at("value").is_number_integer())
 				throw std::runtime_error("Operating command value must be an integer");
 			OperatingCommand command{network::counter(body.at("target")), body.at("action"),
-			                         body.at("value").get<std::int64_t>()};
-			if (client.role != "client" || client.renew || sender != owner_ || !console_ ||
-			    body.at("lease") != lease_ || sequence <= last_sequence_ || !available() || inputs_.size() >= 128 ||
-			    !world_->authoritative_world().can_submit(console_, command))
-			{
+			                         body.at("value").get<std::int64_t>(), body.value("system", std::string{})};
+			const auto sequence = network::counter(body.at("sequence"));
+			const std::string token = body.at("lease");
+			if (client.role != "client" || client.renew || !game_ ||
+			    !game_->can_command(member_, sender, 1, token, sequence, command) ||
+			    !intent({{"kind", "command"},
+			             {"owner", sender},
+			             {"route", 1},
+			             {"lease", token},
+			             {"sequence", sequence},
+			             {"target", command.target},
+			             {"action", command.action},
+			             {"value", command.value},
+			             {"system", command.system}}))
 				send(sender, "command-result",
 				     {{"ok", false},
-				      {"reason", "Command refused: claim, lease, sequence, quorum or fitted capability mismatch"}});
-				return;
-			}
-			last_sequence_ = sequence;
-			inputs_.push_back({sender, lease_, sequence, std::move(command)});
+				      {"reason", "Command refused: Console lease, sequence, quorum or System permission mismatch"}});
 		}
-		else if (decoded->type != "heartbeat" && decoded->type != "pack-request")
-			send(sender, "refused", {{"reason", "Unsupported operation for this connection"}});
+	}
+	void apply_frame(const std::string &origin, const Json &value)
+	{
+		if (origin == member_ && value.value("proposal", std::string{}) == proposal_)
+			proposal_.clear();
+		const std::string kind = value.at("kind");
+		if (kind == "consensus-noop")
+			return;
+		if (kind == "client-grant")
+		{
+			if (origin != member_)
+				return;
+			const std::string peer = value.at("owner");
+			auto found = clients_.find(peer);
+			if (found == clients_.end())
+				found =
+				    clients_
+				        .emplace(peer, Client{value.at("key"), value.at("nonce"), value.at("role"), false, true, false})
+				        .first;
+			if (found->second.key != value.at("key").get<std::string>() ||
+			    found->second.role != value.at("role").get<std::string>())
+				return;
+			found->second.approved = true;
+			if (found->second.connected)
+				advertise(peer);
+			return;
+		}
+		const bool accepted = game_->apply(origin, value);
+		if (origin != member_)
+			return;
+		if (kind == "station-claim")
+		{
+			const std::string owner = value.at("owner");
+			if (owner != local)
+				send(owner, "claim-result",
+				     accepted ? Json{{"ok", true}, {"lease", value.at("lease")}}
+				              : Json{{"ok", false}, {"reason", "Console changed before admission; choose it again"}});
+		}
+		if (kind == "station-release")
+		{
+			auto found = clients_.find(value.at("owner").get<std::string>());
+			if (found != clients_.end())
+				found->second.renew = false;
+		}
 	}
 	void apply(const CommittedEntry &entry)
 	{
 		const auto &value = entry.value;
-		const std::string kind = value.at("kind");
-		if (kind == "consensus-noop")
+		if (!fleet_)
+		{
+			apply_frame(member_, value);
 			return;
-		if (value.value("proposal", std::string{}) == proposal_)
-			proposal_.clear();
-		auto &simulation = world_->authoritative_world();
-		if (kind == "station-claim")
-		{
-			if (console_)
-				throw std::runtime_error("Committed station claim conflicts with an active operator");
-			const auto id = network::counter(value.at("console"));
-			if (!simulation.claim(id, ship()))
-				throw std::runtime_error("Committed station admission failed");
-			owner_ = value.at("owner");
-			lease_ = value.at("lease");
-			console_ = id;
-			next_console_ = std::max(next_console_, id + 1);
-			last_sequence_ = 0;
-			inputs_.clear();
-			if (owner_ != local)
-				send(owner_, "claim-result", {{"ok", true}, {"lease", lease_}});
 		}
-		else if (kind == "station-release")
+		const std::string kind = value.at("kind");
+		if (kind == "fleet-frame")
+			apply_frame(value.at("origin"), value.at("value"));
+		else if (kind == "fleet-presence")
 		{
-			if (value.at("owner") == owner_ && value.at("lease") == lease_)
+			const std::string peer = value.at("peer");
+			game_->absent(peer);
+			if (peer == member_)
 			{
-				if (console_)
-					simulation.release(console_);
-				console_ = 0;
-				inputs_.clear();
-				auto client = clients_.find(owner_);
-				if (client != clients_.end())
-					client->second.renew = false;
-				if (value.value("forget", false))
-				{
-					owner_.clear();
-					lease_.clear();
-				}
+				proposal_.clear();
+				intents_.clear();
+				local_sequences_.clear();
 			}
 		}
-		else if (kind == "gm-grant")
-		{
-			const std::string peer = value.at("owner");
-			auto found = clients_.find(peer);
-			if (found != clients_.end() && found->second.role == "gm")
-				found->second.approved = true;
-		}
-		else if (kind == "tick")
-		{
-			if (network::counter(value.at("tick")) != simulation.ticks() + 1)
-				throw std::runtime_error("Committed simulation tick is not contiguous");
-			for (const auto &input : value.at("inputs"))
-			{
-				if (input.at("owner") != owner_ || input.at("lease") != lease_ || !console_)
-					throw std::runtime_error("Committed input refers to a stale station claim");
-				OperatingCommand command{network::counter(input.at("target")), input.at("action"), input.at("value")};
-				if (!simulation.submit(console_, command))
-					throw std::runtime_error("Committed operating command failed production admission");
-			}
-			world_->tick();
-		}
-		else
-			throw std::runtime_error("Unknown committed game frame");
 	}
 	void project()
 	{
@@ -352,30 +388,70 @@ class NetworkHost final : public SessionPort
 		last_projection_ = now_;
 		for (auto &[id, client] : clients_)
 		{
-			if (!client.connected || !client.ready)
+			if (!client.connected || !client.approved || !client.ready)
 				continue;
-			Json state{{"started", world_->running()},
+			auto held = game_ ? game_->owned(member_, id) : nullptr;
+			Json seats = Json::array();
+			bool previous_owner = false;
+			if (game_)
+				for (const auto &seat : game_->seats(member_))
+				{
+					const auto *lease = game_->lease(seat.address);
+					previous_owner |= lease->owner == id;
+					seats.push_back({{"ship", seat.address.ship},
+					                 {"seat", seat.address.console},
+					                 {"station", seat.spec.station},
+					                 {"definition", seat.spec.definition},
+					                 {"controls", seat.spec.controls},
+					                 {"feeds", seat.spec.feeds},
+					                 {"available", seat.available},
+					                 {"replace", !lease->active && !lease->owner.empty() && lease->owner != id}});
+				}
+			Json state{{"started", running()},
 			           {"tick", ticks()},
-			           {"station", client.renew     ? "reconnecting"
-			                       : console_       ? "occupied"
-			                       : owner_.empty() ? "empty"
-			                                        : "disconnected"},
-			           {"owner", id == owner_},
-			           {"approved", client.approved},
-			           {"quorum", available()}};
-			if (world_->running() && client.role == "client" && !client.renew && console_ && id == owner_)
-			{
-				auto view = world_->authoritative_world().observe(console_);
-				if (view)
+			           {"station", held             ? "occupied"
+			                       : previous_owner ? "disconnected"
+			                                        : "empty"},
+			           {"owner", previous_owner},
+			           {"approved", true},
+			           {"quorum", available()},
+			           {"seats", seats}};
+			if (running() && client.role == "client" && !client.renew && held)
+				if (auto view = game_->observe(member_, id))
 				{
 					state["observation"] = network::observation_json(*view);
-					state["lease"] = lease_;
+					state["lease"] = held->token;
 				}
-			}
-			if (world_->running() && client.role == "gm" && client.approved)
-				state["inspection"] = world_->authoritative_world().save();
+			if (running() && client.role == "gm")
+				try
+				{
+					state["inspection"] = world_->authoritative_world().save();
+				}
+				catch (const std::exception &)
+				{
+					continue;
+				}
 			send(id, "state", state);
 		}
+	}
+	void install_fleet(PreparedFleet prepared)
+	{
+		clear_packs();
+		generation_base_ += world_->generation();
+		world_ = prepared.world;
+		member_ = prepared.self;
+		epoch_ = prepared.plan.at("session");
+		options_.link.room = prepared.plan.at("room");
+		auto peer_options = options_;
+		peer_options.link.self = member_;
+		// Fleet replication and crew connections own distinct transport endpoints.
+		options_.link.self = member_ + "-console";
+		transport_.reset();
+		transport_ = open_peer_transport(options_.link);
+		game_ = std::make_unique<GameExecution>(world_,
+		                                        prepared.plan.at("members").get<std::map<std::string, std::string>>());
+		fleet_ = std::make_unique<FleetRuntime>(std::move(prepared), peer_options);
+		refresh_source();
 	}
 
 public:
@@ -391,6 +467,7 @@ public:
 		    options_.profile.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-") !=
 		        std::string::npos)
 			throw std::runtime_error("Invalid local server profile");
+		member_ = options_.link.self;
 		transport_ = open_peer_transport(options_.link);
 	}
 	void add_pack(const Bytes &archive) override
@@ -404,17 +481,18 @@ public:
 			send(id, "refused", {{"reason", "Session ended; join again"}}, true);
 		consensus_ = nullptr;
 		journal_.reset();
+		fleet_.reset();
+		game_.reset();
 		world_->clear_packs();
 		source_.reset();
+		console_source_.reset();
 		clients_.clear();
-		inputs_.clear();
 		intents_.clear();
-		owner_.clear();
-		lease_.clear();
-		console_ = 0;
+		local_sequences_.clear();
 		epoch_ = random_token();
 		proposal_.clear();
 		fault_ = false;
+		want_local_ = false;
 	}
 	const Catalog &catalog() const override
 	{
@@ -422,31 +500,38 @@ public:
 	}
 	void start(const GameSetup &setup) override
 	{
-		if (world_->running() || world_->recovery_pending())
+		if (running() || recovery_pending())
 			throw std::runtime_error("End the current session before starting another");
 		world_->start_server(setup);
-		owner_.clear();
-		console_ = 0;
-		inputs_.clear();
 		refresh_source();
 		begin_log();
 	}
 	bool running() const override
 	{
-		return world_->running();
+		return world_->running() && (!fleet_ || fleet_->begun());
 	}
 	bool recovery_pending() const override
 	{
-		return world_->recovery_pending();
+		return fleet_ ? !fleet_->begun() : world_->recovery_pending();
 	}
 	Bytes save() const override
 	{
-		return world_->save();
+		return fleet_ ? save_fleet_recovery(*world_, fleet_->prepared()->plan) : world_->save();
+	}
+	Bytes fleet_setup(const GameSetup &setup) const override
+	{
+		return export_fleet_setup(*world_, setup, options_.link.room);
 	}
 	void restore(const Bytes &archive) override
 	{
+		auto pack = read_pack(archive);
+		if (pack.manifest().value("format", std::string{}) == "phoenix-fleet-setup")
+		{
+			install_fleet(read_fleet_setup(archive));
+			return;
+		}
 		auto candidate = make_host_world();
-		candidate->restore(archive);
+		candidate->restore_container(pack.draft());
 		clear_packs();
 		generation_base_ += world_->generation();
 		world_ = std::move(candidate);
@@ -454,32 +539,22 @@ public:
 	}
 	void resume_local() override
 	{
-		world_->resume_server();
-		begin_log();
+		if (fleet_)
+			fleet_->start();
+		else
+		{
+			world_->resume_server();
+			begin_log();
+		}
 		want_local_ = true;
 	}
 	void tick() override
 	{
 		if (!running() || !available() || !proposal_.empty() || !intents_.empty())
 			return;
-		Json commands = Json::array();
-		if (consensus_->pending_write())
+		if (fleet_ ? !fleet_->leader() : consensus_->pending_write().has_value())
 			return;
-		while (!inputs_.empty() && commands.size() < 64)
-		{
-			auto input = std::move(inputs_.front());
-			inputs_.pop_front();
-			if (input.owner != owner_ || input.lease != lease_ || !console_ ||
-			    !world_->authoritative_world().can_submit(console_, input.command))
-				continue;
-			commands.push_back({{"owner", input.owner},
-			                    {"lease", input.lease},
-			                    {"sequence", input.sequence},
-			                    {"target", input.command.target},
-			                    {"action", input.command.action},
-			                    {"value", input.command.value}});
-		}
-		propose({{"kind", "tick"}, {"tick", ticks() + 1}, {"inputs", commands}});
+		propose({{"kind", "tick"}, {"tick", ticks() + 1}}, true);
 	}
 	std::uint64_t ticks() const override
 	{
@@ -489,18 +564,13 @@ public:
 	{
 		return generation_base_ + world_->generation();
 	}
-	bool command(const OperatingCommand &command) override
+	bool command(const OperatingCommand &value) override
 	{
-		if (owner_ != local || !console_ || !available() || inputs_.size() >= 128 ||
-		    !world_->authoritative_world().can_submit(console_, command))
-			return false;
-		inputs_.push_back({local, lease_, ++last_sequence_, command});
-		return true;
+		return console_command(1, value);
 	}
 	std::optional<Observation> observation() const override
 	{
-		return running() && owner_ == local && console_ ? world_->authoritative_world().observe(console_)
-		                                                : std::nullopt;
+		return console_observation(1);
 	}
 	std::vector<BodyView> viewscreen() const override
 	{
@@ -508,16 +578,61 @@ public:
 	}
 	std::optional<BodyView> focus_body() const override
 	{
-		if (!running())
+		if (!world_->running())
 			return {};
-		for (const auto &body : world_->authoritative_world().inspect())
-			if (body.id == ship())
+		auto ship = world_->authoritative_world().ship_for_slot(world_->setup().local_slot);
+		for (const auto &body : world_->viewscreen())
+			if (ship == body.id)
 				return body;
 		return {};
 	}
 	Json inspection() const override
 	{
-		return running() ? world_->authoritative_world().save() : Json(nullptr);
+		if (!running())
+			return nullptr;
+		try
+		{
+			return world_->authoritative_world().save();
+		}
+		catch (const std::exception &)
+		{
+			return nullptr;
+		}
+	}
+	std::vector<ConsoleSeat> console_seats() const override
+	{
+		return game_ ? game_->seats(member_) : std::vector<ConsoleSeat>{};
+	}
+	bool claim_console(std::uint64_t route, const ConsoleAddress &address) override
+	{
+		return claim(local, route, address, false);
+	}
+	bool release_console(std::uint64_t route) override
+	{
+		return release(local, route, true);
+	}
+	bool console_command(std::uint64_t route, const OperatingCommand &command) override
+	{
+		auto seat = game_ ? game_->owned(member_, local, route) : nullptr;
+		if (!seat)
+			return false;
+		auto &sequence = local_sequences_[route];
+		sequence = std::max(sequence, seat->sequence);
+		if (!game_->can_command(member_, local, route, seat->token, sequence + 1, command))
+			return false;
+		return intent({{"kind", "command"},
+		               {"owner", local},
+		               {"route", route},
+		               {"lease", seat->token},
+		               {"sequence", ++sequence},
+		               {"target", command.target},
+		               {"action", command.action},
+		               {"value", command.value},
+		               {"system", command.system}});
+	}
+	std::optional<Observation> console_observation(std::uint64_t route) const override
+	{
+		return running() && game_ ? game_->observe(member_, local, route) : std::nullopt;
 	}
 	bool networked() const override
 	{
@@ -533,50 +648,67 @@ public:
 		       (fault_        ? "stopped"
 		        : available() ? "durable majority ready"
 		                      : "waiting for durable consensus") +
-		       ". " + message_;
+		       ". " + (fleet_ ? fleet_->status() + ". " : "") + message_;
 	}
 	std::vector<std::pair<std::string, std::string>> lobby_controls() const override
 	{
 		std::vector<std::pair<std::string, std::string>> controls;
-		if (running())
+		if (fleet_ && !fleet_->begun())
+			for (const auto &[member, slot] : fleet_->prepared()->plan.at("members").items())
+				controls.emplace_back("network.member/" + member,
+				                      "Use server " + member + " / " + slot.get<std::string>());
+		if (running() && game_)
 		{
-			if (!console_)
-				controls.emplace_back("network.local", owner_.empty()
-				                                           ? "Claim local ship console"
-				                                           : "Replace disconnected operator with local console");
-			if (console_ && owner_ == local)
-				controls.emplace_back("network.release", "Release local ship console");
+			if (game_->owned(member_, local))
+				controls.emplace_back("network.release", "Release local Console");
+			else
+				for (const auto &seat : game_->seats(member_))
+					if (seat.available)
+						controls.emplace_back("network.local/" + seat.address.console,
+						                      "Claim local Console: " + seat.spec.station + " / " +
+						                          seat.address.console);
 			for (const auto &[id, client] : clients_)
-				if (client.connected && client.ready && client.role == "gm" && !client.approved)
-					controls.emplace_back("network.gm/" + id, "Approve read-only GM: " + id);
+				if (client.connected && !client.approved)
+					controls.emplace_back((client.role == "gm" ? "network.gm/" : "network.approve/") + id,
+					                      "Approve " + client.role + ": " + id);
 		}
 		return controls;
 	}
 	bool session_action(const std::string &action) override
 	{
-		if (action == "network.local")
+		if (action.starts_with("network.member/") && fleet_ && !fleet_->begun())
 		{
-			claim(local, !owner_.empty());
+			auto prepared = read_fleet_setup(fleet_->prepared()->bundle, action.substr(15));
+			install_fleet(std::move(prepared));
 			return true;
 		}
-		if (action == "network.release" && owner_ == local && console_)
-			return intent({{"kind", "station-release"}, {"owner", owner_}, {"lease", lease_}, {"forget", true}});
-		if (action.rfind("network.gm/", 0) == 0)
+		if (action == "network.local")
+			return claim(local, 1, {}, true);
+		if (action.starts_with("network.local/") && game_)
+			for (const auto &seat : game_->seats(member_))
+				if (seat.address.console == action.substr(14))
+					return claim(local, 1, seat.address, true);
+		if (action == "network.release")
+			return release(local, 1, true);
+		if (action.starts_with("network.gm/") || action.starts_with("network.approve/"))
 		{
-			auto id = action.substr(11);
-			auto client = clients_.find(id);
-			if (client != clients_.end() && client->second.ready && client->second.role == "gm")
-				return intent({{"kind", "gm-grant"}, {"owner", id}});
+			auto found = clients_.find(action.substr(action.find('/') + 1));
+			if (found != clients_.end() && !found->second.approved)
+				return intent({{"kind", "client-grant"},
+				               {"owner", found->first},
+				               {"key", found->second.key},
+				               {"nonce", found->second.nonce},
+				               {"role", found->second.role}});
 		}
 		return false;
 	}
 	void poll() override
 	{
-		auto current = std::chrono::steady_clock::now();
-		auto wall_elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(current - last_poll_).count();
-		auto elapsed = static_cast<unsigned>(std::min<std::int64_t>(1000, wall_elapsed));
+		const auto current = std::chrono::steady_clock::now();
+		const auto wall = std::max<std::int64_t>(
+		    0, std::chrono::duration_cast<std::chrono::milliseconds>(current - last_poll_).count());
 		last_poll_ = current;
-		now_ += wall_elapsed;
+		now_ += wall;
 		try
 		{
 			for (const auto &event : transport_->poll())
@@ -593,69 +725,46 @@ public:
 				if (event.kind == LinkEvent::error)
 					message_ = event.data;
 			}
-			if (journal_)
+			if (fleet_)
+			{
+				fleet_->poll();
+				for (const auto &entry : fleet_->take_committed())
+					apply(entry);
+				if (fleet_->failed())
+				{
+					fault_ = true;
+					message_ = fleet_->status();
+				}
+			}
+			else if (journal_)
 			{
 				journal_->poll();
 				consensus_ = journal_->peer();
-			}
-			if (consensus_)
-			{
-				consensus_->elapse(elapsed);
-				for (const auto &entry : consensus_->take_committed())
-					apply(entry);
-				journal_->flush();
-			}
-			if (available() && proposal_.empty() && !consensus_->pending_write())
-				while (!intents_.empty())
+				if (consensus_)
 				{
-					auto value = std::move(intents_.front());
-					intents_.pop_front();
-					const std::string kind = value.at("kind"), owner = value.at("owner");
-					if (kind == "station-claim")
+					consensus_->elapse(static_cast<unsigned>(std::min<std::int64_t>(1000, wall)));
+					if (term_ != consensus_->term())
 					{
-						if (console_)
-						{
-							if (owner != local)
-								send(owner, "claim-result",
-								     {{"ok", false}, {"reason", "This station is already occupied"}});
-							continue;
-						}
-						if (owner != local)
-						{
-							auto client = clients_.find(owner);
-							if (client == clients_.end() || now_ - client->second.seen > 3000 || !client->second.ready)
-								continue;
-						}
+						term_ = consensus_->term();
+						proposal_.clear();
 					}
-					if (kind == "station-release" && (owner != owner_ || value.at("lease") != lease_ || !console_))
-						continue;
-					if (propose(value))
-						break;
+					for (const auto &entry : consensus_->take_committed())
+						apply(entry);
+					journal_->flush();
 				}
+			}
+			if (available() && proposal_.empty() && !intents_.empty())
+				if (propose(intents_.front()))
+					intents_.pop_front();
 			if (want_local_ && available() && proposal_.empty())
-			{
-				claim(local, false);
-				if (!intents_.empty())
+				if (claim(local, 1, {}, false))
 					want_local_ = false;
-			}
-			if (console_ && owner_ != local)
-			{
-				auto client = clients_.find(owner_);
-				if (client != clients_.end() && client->second.renew)
-					propose({{"kind", "station-release"}, {"owner", owner_}, {"lease", lease_}, {"forget", false}});
-			}
 			for (auto &[id, client] : clients_)
+			{
 				if (now_ - client.seen > 3000)
 					client.connected = false;
-			if (console_ && owner_ != local)
-			{
-				auto client = clients_.find(owner_);
-				if (client == clients_.end() || now_ - client->second.seen > 3000)
-				{
-					if (client != clients_.end())
-						client->second.connected = false;
-					propose({{"kind", "station-release"}, {"owner", owner_}, {"lease", lease_}, {"forget", false}});
-				}
+				if ((!client.connected || client.renew) && game_ && game_->owned(member_, id))
+					release(id, 1, false);
 			}
 			project();
 		}

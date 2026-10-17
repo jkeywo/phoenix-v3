@@ -284,6 +284,14 @@ struct GameScreen::State
 				next(ship, ships(session.catalog()));
 			else if (id == "game.seat" && !session.running())
 				next(seat, seats(session.catalog()));
+			else if (id == "game.fleet" && !session.running())
+			{
+				auto bundle = session.fleet_setup({mission, {{slot, ship}}, slot, seat});
+				if (bundle.empty())
+					return false;
+				export_file("phoenix-fleet-setup.zip", bundle);
+				notice = "Private fleet setup exported. Load it on each ship server and select a different member.";
+			}
 			else if (id == "game.start" && !session.running())
 			{
 				session.start({mission, {{slot, ship}}, slot, seat});
@@ -471,6 +479,8 @@ struct GameScreen::State
 						          button("game.slot", "Ship slot: " + slot) + button("game.ship", "Ship: " + ship);
 					if (!ship.empty())
 						markup += button("game.seat", "Console: " + seat) + button("game.start", "Start session");
+					if (!ship.empty() && app.session->networked())
+						markup += button("game.fleet", "Export fleet setup");
 				}
 				else
 					markup = button("game.scene", "Open viewscreen") + button("game.console", "Open ship console") +

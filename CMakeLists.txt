@@ -148,6 +148,7 @@ add_library(
 	src/content/pack.cpp
 	src/content/catalog.cpp
 	src/content/stations.cpp
+	src/content/console_assets.cpp
 	src/content/workshop.cpp
 	src/behavior/tree.cpp
 )
@@ -183,7 +184,7 @@ else()
 endif()
 add_library(phoenix_simulation STATIC src/simulation/world.cpp src/simulation/collision.cpp)
 target_link_libraries(phoenix_simulation PUBLIC phoenix_foundation phoenix_content PRIVATE flecs_static)
-add_library(phoenix_session STATIC src/session/local.cpp)
+add_library(phoenix_session STATIC src/session/local.cpp src/session/execution.cpp)
 target_link_libraries(phoenix_session PUBLIC phoenix_simulation phoenix_session_api)
 add_library(phoenix_files STATIC src/platform/imports.cpp)
 target_link_libraries(phoenix_files PUBLIC phoenix_content)
@@ -383,7 +384,7 @@ else()
 endif()
 target_link_libraries(
 	phoenix_network_host
-	PUBLIC phoenix_session phoenix_blobs phoenix_transport phoenix_persistence phoenix_wire
+	PUBLIC phoenix_session phoenix_blobs phoenix_transport phoenix_persistence phoenix_wire phoenix_fleet_setup
 )
 if(NOT EMSCRIPTEN)
 	add_executable(phoenix_fleet_probe tests/manual/fleet.cpp)

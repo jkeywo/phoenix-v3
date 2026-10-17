@@ -48,6 +48,8 @@ class NetworkClient final : public SessionPort
 	Json offer_, inspection_;
 	Catalog empty_;
 	std::optional<Observation> observation_;
+	std::vector<ConsoleSeat> seats_;
+	ConsoleAddress selected_seat_;
 	bool blobs_ready_ = false, profile_durable_ = false, welcomed_ = false, ready_sent_ = false, started_ = false,
 	     approved_ = false, quorum_ = false, confirm_ = false, fatal_ = false, recovering_ = false;
 	std::uint64_t now_ = 0, last_hello_ = 0, last_heartbeat_ = 0, last_state_ = 0, tick_ = 0, sequence_ = 0,
@@ -277,6 +279,17 @@ class NetworkClient final : public SessionPort
 			station_ = body.at("station");
 			approved_ = body.at("approved");
 			quorum_ = body.at("quorum");
+			seats_.clear();
+			if (body.contains("seats"))
+			{
+				if (!body["seats"].is_array() || body["seats"].size() > 32)
+					throw std::runtime_error("Invalid Console roster");
+				for (const auto &seat : body["seats"])
+					seats_.push_back({{network::counter(seat.at("ship")), seat.at("seat")},
+					                  {seat.at("seat"), seat.at("station"), seat.at("definition"), seat.at("controls"),
+					                   seat.at("feeds")},
+					                  seat.at("available")});
+			}
 			if (options_.inspector)
 			{
 				if (approved_ && body.contains("inspection"))
@@ -292,6 +305,7 @@ class NetworkClient final : public SessionPort
 					return;
 				if (lease_ != lease)
 				{
+					++generation_;
 					lease_ = lease;
 					sequence_ = 0;
 				}
@@ -394,8 +408,14 @@ public:
 		if (options_.inspector || !observation_ || !quorum_ || !profile_durable_ ||
 		    command.target != observation_->own.id)
 			return false;
+		const auto *spec = operating_action(command.action);
+		if (!spec || !(observation_->controls & system_bit(spec->system)) ||
+		    !operating_value_valid(*spec, command.value) ||
+		    (!command.system.empty() && command.system != operating_system_name(spec->system)))
+			return false;
 		return send("command", {{"target", command.target},
 		                        {"action", command.action},
+		                        {"system", command.system},
 		                        {"value", command.value},
 		                        {"lease", lease_},
 		                        {"sequence", ++sequence_}});
@@ -403,6 +423,21 @@ public:
 	std::optional<Observation> observation() const override
 	{
 		return options_.inspector ? std::nullopt : observation_;
+	}
+	std::vector<ConsoleSeat> console_seats() const override
+	{
+		return seats_;
+	}
+	bool claim_console(std::uint64_t route, const ConsoleAddress &address) override
+	{
+		if (route != 1 || options_.inspector)
+			return false;
+		selected_seat_ = address;
+		return send("claim", {{"ship", address.ship}, {"seat", address.console}, {"replace", false}});
+	}
+	bool release_console(std::uint64_t route) override
+	{
+		return route == 1 && !options_.inspector && send("release", Json::object());
 	}
 	std::vector<BodyView> viewscreen() const override
 	{
@@ -439,14 +474,27 @@ public:
 			return {{"network.release", "Release station"}};
 		if (confirm_)
 			return {{"network.confirm", "Confirm replacing the disconnected operator"}};
-		return {{"network.claim", "Claim the ship console"}};
+		if (seats_.size() <= 1)
+			return {{"network.claim", "Claim the ship console"}};
+		std::vector<std::pair<std::string, std::string>> controls;
+		for (const auto &seat : seats_)
+			if (seat.available)
+				controls.emplace_back("network.claim/" + seat.address.console,
+				                      "Claim Console: " + seat.spec.station + " / " + seat.address.console);
+		return controls;
 	}
 	bool session_action(const std::string &action) override
 	{
 		if (options_.inspector)
 			return false;
 		if (action == "network.claim" || action == "network.confirm")
-			return send("claim", {{"replace", action == "network.confirm"}});
+			return send("claim", {{"replace", action == "network.confirm"},
+			                      {"ship", selected_seat_.ship},
+			                      {"seat", selected_seat_.console}});
+		if (action.starts_with("network.claim/"))
+			for (const auto &seat : seats_)
+				if (seat.address.console == action.substr(14))
+					return claim_console(1, seat.address);
 		if (action == "network.release")
 			return send("release", Json::object());
 		return false;

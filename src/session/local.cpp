@@ -68,6 +68,8 @@ public:
 		if (candidate.back().manifest().value("format", std::string{}) == "phoenix-runtime-save")
 			throw std::runtime_error("Use Load runtime save for this ZIP");
 		auto resolved = resolve_packs(candidate);
+		if (resolved.presentation)
+			throw std::runtime_error("Console presentation assets are not gameplay packs");
 		packs_ = std::move(candidate);
 		catalog_ = std::move(resolved);
 	}
@@ -104,11 +106,19 @@ public:
 		auto candidate = std::make_unique<World>();
 		candidate->load(catalog_, setup.mission, setup.ships);
 		const auto controlled = candidate->ship_for_slot(setup.local_slot);
-		if (!controlled || !candidate->can_claim(local_console, *controlled, setup.local_console))
+		auto selected_console = setup.local_console;
+		if (!claim_local && selected_console.empty() && controlled)
+		{
+			const auto seats = candidate->consoles(*controlled);
+			if (!seats.empty())
+				selected_console = seats.front().id;
+		}
+		if (!controlled || !candidate->can_claim(local_console, *controlled, selected_console))
 			throw std::runtime_error("The selected ship cannot admit a local console");
 		if (claim_local)
 			candidate->claim(local_console, *controlled, setup.local_console);
 		setup_ = setup;
+		setup_.local_console = selected_console;
 		world_ = std::move(candidate);
 		active_ = true;
 		++generation_;
@@ -197,7 +207,7 @@ public:
 		// A portable save carries historical claims, never a live operator lease.
 		candidate.world_->clear_claims();
 		const auto controlled = candidate.world_->ship_for_slot(setup.local_slot);
-		if (!controlled || !candidate.world_->can_claim(local_console, *controlled, setup.local_console))
+		if (!controlled || !candidate.world_->can_claim(local_console, *controlled, candidate.setup_.local_console))
 			throw std::runtime_error("The recovered ship cannot admit a local console");
 		candidate.active_ = false;
 		packs_ = std::move(candidate.packs_);

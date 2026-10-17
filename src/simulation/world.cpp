@@ -415,6 +415,8 @@ World::~World() = default;
 void World::load(const Catalog &content, const std::string &map, const std::map<std::string, std::string> &ships)
 {
 	verify_catalog(content);
+	if (content.presentation)
+		throw std::runtime_error("Console presentation assets cannot create an authoritative world");
 	if (!content.maps.contains(map))
 		throw std::runtime_error("Unknown map: " + map);
 	auto candidate = std::make_unique<Impl>();

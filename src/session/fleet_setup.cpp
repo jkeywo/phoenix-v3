@@ -22,7 +22,7 @@ Bytes export_fleet_setup(const HostAccess &source, const GameSetup &selection, c
 	const auto &slots = catalog.maps.at(selection.mission).at("ship_slots");
 	if (slots.empty() || slots.size() > 16)
 		throw std::runtime_error("A fixed fleet needs between one and sixteen authored ship slots");
-	GameSetup game{selection.mission, {}, selection.local_slot};
+	GameSetup game{selection.mission, {}, selection.local_slot, selection.local_console};
 	Json members = Json::object();
 	std::string creator;
 	unsigned number = 0;
@@ -37,7 +37,8 @@ Bytes export_fleet_setup(const HostAccess &source, const GameSetup &selection, c
 			{
 				const auto &entity = catalog.entities.at(allowed.get<std::string>());
 				const auto &systems = entity.at("systems");
-				if (entity.contains("console") && systems.contains("engine") && systems.contains("steering"))
+				if ((entity.contains("console") || entity.contains("stations")) && systems.contains("engine") &&
+				    systems.contains("steering"))
 				{
 					chosen = allowed;
 					break;
@@ -46,7 +47,7 @@ Bytes export_fleet_setup(const HostAccess &source, const GameSetup &selection, c
 		if (chosen.empty())
 			throw std::runtime_error(
 			    "Every fleet ship slot needs an allowed ship with an authored operating console: " + slot_id);
-		if (!catalog.entities.at(chosen).contains("console"))
+		if (!catalog.entities.at(chosen).contains("console") && !catalog.entities.at(chosen).contains("stations"))
 			throw std::runtime_error("The selected fleet ship needs an authored operating console: " + slot_id);
 		game.ships[slot_id] = chosen;
 		const auto server = "ship" + std::to_string(++number);
@@ -63,8 +64,10 @@ Bytes export_fleet_setup(const HostAccess &source, const GameSetup &selection, c
 	// Validate each selected ship through the same admission used by a real station.
 	std::uint64_t console = 1;
 	for (const auto &[id, ship] : game.ships)
-		if (!candidate->authoritative_world().can_claim(console++, *candidate->authoritative_world().ship_for_slot(id)))
-			throw std::runtime_error("A selected fleet ship cannot admit its authored console: " + id);
+		for (const auto &seat : resolve_consoles(catalog, ship))
+			if (!candidate->authoritative_world().can_claim(
+			        console++, *candidate->authoritative_world().ship_for_slot(id), seat.id))
+				throw std::runtime_error("A selected fleet ship cannot admit its authored console: " + id);
 	auto container = candidate->save_container();
 	container.manifest["format"] = "phoenix-fleet-setup";
 	container.files["fleet.json"] = json_bytes(Json{{"schema", 1},
@@ -101,11 +104,26 @@ PreparedFleet read_fleet_setup(const Bytes &archive, const std::string &member)
 	if (slots.size() != data.at("ships").size())
 		throw std::runtime_error("Fleet roster and selected ships differ");
 	data["local_slot"] = plan.at("members").at(self);
+	data["local_console"] = "";
 	container.files["session.json"] = json_bytes(data);
 	container.manifest["format"] = "phoenix-runtime-save";
 	auto world = make_host_world();
 	world->restore_container(container);
 	world->resume_server();
 	return {std::move(plan), self, std::move(world), archive};
+}
+Bytes save_fleet_recovery(const HostAccess &source, const Json &plan)
+{
+	auto container = source.save_container();
+	container.manifest["format"] = "phoenix-fleet-setup";
+	// Portable recovery starts a fresh epoch. Never copy peer hard state or credentials.
+	container.files["fleet.json"] = json_bytes(Json{{"schema", 1},
+	                                                {"room", plan.at("room")},
+	                                                {"session", random_token()},
+	                                                {"key", random_token()},
+	                                                {"members", plan.at("members")},
+	                                                {"creator", plan.at("creator")},
+	                                                {"recovery", true}});
+	return write_pack(container);
 }
 } // namespace phoenix

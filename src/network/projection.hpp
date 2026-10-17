@@ -27,7 +27,10 @@ static inline Json observation_json(const Observation &observation)
 	        {"requested_speed", observation.requested_speed},
 	        {"requested_heading", observation.requested_heading},
 	        {"engine_enabled", observation.engine_enabled},
-	        {"radar_enabled", observation.radar_enabled}};
+	        {"radar_enabled", observation.radar_enabled},
+	        {"console", observation.console},
+	        {"controls", observation.controls},
+	        {"feeds", observation.feeds}};
 }
 static inline Observation read_observation(const Json &value, const Catalog &catalog)
 {
@@ -38,7 +41,7 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 	for (const auto &contact : value.at("contacts"))
 	{
 		auto body = read_body(contact);
-		if (!catalog.entities.contains(body.definition))
+		if (!catalog.presentation && !catalog.entities.contains(body.definition))
 			throw std::runtime_error("Unknown projected contact definition");
 		result.contacts.push_back(std::move(body));
 	}
@@ -46,6 +49,13 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 	result.requested_heading = value.at("requested_heading");
 	result.engine_enabled = value.at("engine_enabled");
 	result.radar_enabled = value.at("radar_enabled");
+	result.console = value.value("console", std::string{"main"});
+	const auto controls = value.value("controls", 7), feeds = value.value("feeds", 7);
+	if (controls < 0 || controls > 7 || feeds < 0 || feeds > 7 || (controls & feeds) != controls ||
+	    result.console.size() > 128)
+		throw std::runtime_error("Invalid projected Console permissions");
+	result.controls = static_cast<SystemMask>(controls);
+	result.feeds = static_cast<SystemMask>(feeds);
 	if (result.requested_speed < 0 || result.requested_speed > 1000000000 || result.requested_heading < 0 ||
 	    result.requested_heading >= 360000)
 		throw std::runtime_error("Invalid projected operating request");
