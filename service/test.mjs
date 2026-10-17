@@ -63,6 +63,10 @@ test('live sessions verify content, commit controls, approve GM and explicitly r
     assert.equal(replacement.code,0,replacement.output); assert.match(replacement.output,/PASS remote verified content/);
     const previous=await run(['--self','first','--blocked'],'first').result;
     assert.equal(previous.code,0,previous.output); assert.match(previous.output,/PASS unclaimed\/previous operator/);
+    host.child.kill(); await host.result;
+    host=run(['--host','--self','host','--seconds','20'],'new-host-epoch');
+    const freshEpoch=await run(['--self','first'],'first').result;
+    assert.equal(freshEpoch.code,0,freshEpoch.output); assert.match(freshEpoch.output,/PASS remote verified content/);
   } finally {
     for (const child of children) child.kill();
     if (host) await host.result;

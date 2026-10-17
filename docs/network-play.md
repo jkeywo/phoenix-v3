@@ -10,6 +10,8 @@ The client persists its identity/credential before readiness, checks its persist
 
 Disconnected stations expire after three seconds without application heartbeats. Another operator must confirm replacement, which creates a fresh committed lease. The original persisted identity can reconnect to its own reservation; reconnecting discards queued inputs and renews the lease before control resumes. Clients wait for their own server rather than migrating authority. Runtime ZIP export and paused recovery remain server operations.
 
+The public hello carries a nonce-bound nested proof when the client has a stored credential. An existing server requires that proof to resume its known identity; a fresh server epoch can issue a new credential without accepting the previous game's authority. The real-process regression also restarts the host and reconnects the persisted client profile to a newly started game.
+
 This is a playable **single-server** network session. Its consensus roster currently contains that server alone. Fleet roster negotiation, transport of peer-consensus packets, durable server identity/world reconstruction, multi-server catch-up and fleet recovery remain separate unfinished work. Projections currently fit one bounded transport packet; large-world projection streaming is also pending. This does not complete the fleet or six-screen acceptance criteria.
 
 `scripts/check.ps1` includes a synthetic real-process host/client/GM journey through the signalling service, verifying content, actual movement, filtered contacts, host approval and confirmed replacement. The fixture is independent of shipped tuning. Actual browser journeys are recorded in [network play smoke evidence](smoke/network-play.md).

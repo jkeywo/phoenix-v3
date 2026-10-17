@@ -31,7 +31,10 @@ class NetworkClient final : public SessionPort {
     void connect(){if(options_.link.self.empty())throw std::runtime_error("Client profile has no identity");transport_=open_peer_transport(options_.link);last_hello_=0;message_="Connecting to the selected ship server";}
     bool send(const std::string& type,const Json& body){return transport_&&welcomed_&&transport_->send(options_.server,encode_packet({epoch_,options_.link.self,options_.server,type,body},key_));}
     void hello(){
-        if(!transport_)return;transport_->send(options_.server,encode_packet({"lobby",options_.link.self,options_.server,"hello",{{"role",role()},{"nonce",nonce_}}},key_));last_hello_=now_;
+        if(!transport_)return;
+        Json body{{"role",role()},{"nonce",nonce_}};
+        if(!key_.empty())body["resume"]=encode_packet({"lobby",options_.link.self,options_.server,"hello",body},key_);
+        transport_->send(options_.server,encode_packet({"lobby",options_.link.self,options_.server,"hello",body},""));last_hello_=now_;
     }
     void finish_cache(){
         if(cache_pending_||offer_.is_null())return;

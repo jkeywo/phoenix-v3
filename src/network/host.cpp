@@ -64,9 +64,12 @@ class NetworkHost final : public SessionPort {
     }
     void hello(const std::string& sender,const std::string& bytes){
         if(sender==local||sender==options_.link.self)return;
-        auto found=clients_.find(sender);std::optional<GamePacket> packet;
-        if(found!=clients_.end())packet=decode_packet(bytes,sender,options_.link.self,"lobby",found->second.key);
-        if(!packet){auto plain=decode_packet(bytes,sender,options_.link.self,"lobby","");if(plain&&plain->type=="hello"&&(found==clients_.end()||(!found->second.ready&&plain->body.value("nonce",std::string{})==found->second.nonce)))packet=std::move(plain);}
+        auto found=clients_.find(sender);auto packet=decode_packet(bytes,sender,options_.link.self,"lobby","");
+        if(packet&&packet->type=="hello"&&found!=clients_.end()){
+            auto proof=decode_packet(packet->body.value("resume",std::string{}),sender,options_.link.self,"lobby",found->second.key);
+            const bool unfinished=!found->second.ready&&packet->body.value("nonce",std::string{})==found->second.nonce;
+            if(!unfinished&&(!proof||proof->type!="hello"||proof->body.at("nonce")!=packet->body.at("nonce")||proof->body.at("role")!=packet->body.at("role")))packet.reset();
+        }
         if(!packet||packet->type!="hello"){send(sender,"refused",{{"reason","This identity needs its stored credential; use a new profile if starting again"}},true);return;}
         const std::string role=packet->body.at("role"),nonce=packet->body.at("nonce");if((role!="client"&&role!="gm")||!network::token(nonce))return;
         if(found==clients_.end()){
