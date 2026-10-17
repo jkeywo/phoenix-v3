@@ -1,0 +1,43 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Phoenix: build native",
+			"type": "process",
+			"command": "pwsh",
+			"args": ["-NoProfile", "-File", "${workspaceFolder}/scripts/build.ps1", "-Target", "native"],
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": "$msCompile",
+			"group": { "kind": "build", "isDefault": true }
+		},
+		{
+			"label": "Phoenix: build all WASM",
+			"type": "process",
+			"command": "pwsh",
+			"args": ["-NoProfile", "-File", "${workspaceFolder}/scripts/build.ps1", "-Target", "web"],
+			"options": { "cwd": "${workspaceFolder}" },
+			"problemMatcher": "$gcc",
+			"group": "build"
+		},
+		{
+			"label": "Phoenix: serve web",
+			"type": "process",
+			"command": "pwsh",
+			"args": ["-NoProfile", "-File", "${workspaceFolder}/scripts/serve-web.ps1"],
+			"options": { "cwd": "${workspaceFolder}" },
+			"dependsOn": "Phoenix: build all WASM",
+			"isBackground": true,
+			"problemMatcher": {
+				"owner": "phoenix-web-server",
+				"pattern": { "regexp": "^(?!)$", "file": 1, "message": 2 },
+				"background": {
+					"activeOnStart": true,
+					"beginsPattern": "^Starting Phoenix web server",
+					"endsPattern": "^Serving HTTP on "
+				}
+			},
+			"presentation": { "reveal": "always", "panel": "dedicated" },
+			"runOptions": { "instanceLimit": 1 }
+		}
+	]
+}

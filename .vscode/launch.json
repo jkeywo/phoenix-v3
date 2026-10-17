@@ -1,0 +1,23 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "Phoenix: build and run native",
+			"type": "cppvsdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/build/native/Release/native.exe",
+			"args": [],
+			"cwd": "${workspaceFolder}",
+			"console": "integratedTerminal",
+			"preLaunchTask": "Phoenix: build native"
+		},
+		{
+			"name": "Phoenix: build all WASM and launch web",
+			"type": "msedge",
+			"request": "launch",
+			"url": "http://127.0.0.1:8080/",
+			"webRoot": "${workspaceFolder}/build/web",
+			"preLaunchTask": "Phoenix: serve web"
+		}
+	]
+}
