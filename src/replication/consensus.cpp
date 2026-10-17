@@ -36,6 +36,7 @@ struct PeerConsensus::Impl {
     std::deque<std::pair<std::string,WireJson>> inbox;
     std::optional<DurableWrite> write;
     bool dirty = true;
+    std::size_t dirty_from = 0;
     explicit Impl(PeerRoster roster) : config(std::move(roster)) {
         std::set<std::string> members(config.members.begin(),config.members.end());
         if (!identity(config.session) || !identity(config.self) || members.size() != config.members.size() || members.empty() || members.size() > 16 || !members.contains(config.self)) throw std::runtime_error("Invalid fixed peer roster");
@@ -57,11 +58,11 @@ struct PeerConsensus::Impl {
     }
     WireJson snapshot() const {
         WireJson entries = WireJson::array();
-        for (const auto& entry : log) entries.push_back({{"term",entry.term},{"value",entry.value}});
-        return {{"schema",1},{"session",config.session},{"self",config.self},{"roster",config.members},{"term",term},{"voted",voted},{"commit",commit},{"log",entries}};
+        for (auto i = dirty_from; i < log.size(); ++i) entries.push_back({{"term",log[i].term},{"value",log[i].value}});
+        return {{"schema",1},{"session",config.session},{"self",config.self},{"roster",config.members},{"term",term},{"voted",voted},{"commit",commit},{"from",dirty_from},{"entries",entries}};
     }
     void finish() {
-        if (dirty) { write = DurableWrite{++generation,snapshot()}; dirty = false; }
+        if (dirty) { write = DurableWrite{++generation,snapshot()}; dirty = false; dirty_from = log.size(); }
         else { deliveries.insert(deliveries.end(),std::make_move_iterator(staged.begin()),std::make_move_iterator(staged.end())); staged.clear(); }
     }
     void emit(const std::string& peer, WireJson packet) {
@@ -98,7 +99,7 @@ struct PeerConsensus::Impl {
         for (const auto& peer : config.members) if (peer != config.self) { next[peer] = log.size()+1; matched[peer] = 0; if (votes.contains(peer)) heard[peer] = now; }
         // A current-term no-op commits an inherited prefix before gameplay resumes.
         if (log.size() >= max_entries) { role = PeerRole::failed; staged.clear(); return; }
-        log.push_back({term,{{"kind","consensus-noop"}}}); dirty = true; broadcast(); advance_commit();
+        dirty_from = std::min(dirty_from,log.size()); log.push_back({term,{{"kind","consensus-noop"}}}); dirty = true; broadcast(); advance_commit();
     }
     void elect() {
         if (term == max_counter) { role = PeerRole::failed; return; }
@@ -164,9 +165,9 @@ struct PeerConsensus::Impl {
                     ++index;
                     if (index <= log.size() && (log_term(index) != number(entry.at("term")) || log[index-1].value != entry.at("value"))) {
                         if (index <= commit) { accept = false; break; }
-                        log.resize(index-1); dirty = true;
+                        log.resize(index-1); dirty_from = std::min(dirty_from,log.size()); dirty = true;
                     }
-                    if (index > log.size()) { log.push_back({number(entry.at("term")),entry.at("value")}); dirty = true; }
+                    if (index > log.size()) { dirty_from = std::min(dirty_from,log.size()); log.push_back({number(entry.at("term")),entry.at("value")}); dirty = true; }
                 }
                 if (accept) {
                     auto agreed = std::min(number(packet.at("commit")),index);
@@ -206,6 +207,7 @@ PeerConsensus::PeerConsensus(PeerRoster roster, const WireJson& restored) : impl
         if (s.commit > s.log.size()) throw std::runtime_error("Durable commit exceeds log");
         s.durable_commit = s.commit;
         s.dirty = false;
+        s.dirty_from = s.log.size();
     }
     s.finish();
 }
@@ -227,12 +229,12 @@ bool PeerConsensus::receive(const std::string& sender, const WireJson& packet) {
 bool PeerConsensus::propose(const WireJson& value) {
     auto& s = *impl_;
     if (!s.quorum() || s.log.size() >= max_entries || value.dump().size() > max_payload) return false;
-    s.log.push_back({s.term,value}); s.dirty = true; s.broadcast(); s.advance_commit(); s.finish(); return true;
+    s.dirty_from = std::min(s.dirty_from,s.log.size()); s.log.push_back({s.term,value}); s.dirty = true; s.broadcast(); s.advance_commit(); s.finish(); return true;
 }
 std::optional<DurableWrite> PeerConsensus::pending_write() const { return impl_->write; }
 void PeerConsensus::persisted(std::uint64_t generation, bool success) {
     auto& s = *impl_; if (!s.write || s.write->generation != generation) return;
-    const auto persisted_commit = number(s.write->state.at("commit")); s.write.reset();
+    const auto persisted_commit = number(s.write->transaction.at("commit")); s.write.reset();
     if (!success) { s.role = PeerRole::failed; s.leader.clear(); s.staged.clear(); s.deliveries.clear(); s.inbox.clear(); return; }
     s.durable_commit = persisted_commit;
     s.finish();
@@ -250,4 +252,31 @@ std::string PeerConsensus::leader() const { return impl_->leader; }
 bool PeerConsensus::has_quorum() const { return impl_->quorum(); }
 std::uint64_t PeerConsensus::term() const { return impl_->term; }
 std::uint64_t PeerConsensus::commit_index() const { return impl_->durable_commit; }
+void apply_peer_write(WireJson& recovered, const WireJson& transaction) {
+    const auto& t = transaction;
+    if (!t.is_object() || t.at("schema") != 1 || !t.at("entries").is_array() || t.dump().size() > 2*1024*1024) throw std::runtime_error("Invalid durable peer transaction");
+    const auto from = number(t.at("from")), term = number(t.at("term")), commit = number(t.at("commit"));
+    PeerRoster config{t.at("session"),t.at("self"),t.at("roster").get<std::vector<std::string>>()};
+    if (!identity(config.self) || !identity(config.session) || config.members.empty() || config.members.size() > 16 || std::find(config.members.begin(),config.members.end(),config.self) == config.members.end() || !std::is_sorted(config.members.begin(),config.members.end()) || std::adjacent_find(config.members.begin(),config.members.end()) != config.members.end()) throw std::runtime_error("Invalid durable peer identity/roster");
+    for (const auto& peer : config.members) if (!identity(peer)) throw std::runtime_error("Invalid durable peer identity");
+    const auto vote = t.at("voted").get<std::string>();
+    if (!vote.empty() && !std::binary_search(config.members.begin(),config.members.end(),vote)) throw std::runtime_error("Invalid durable peer vote");
+    std::uint64_t previous_term = 0;
+    if (recovered.is_null()) { if (from != 0) throw std::runtime_error("Missing durable log prefix"); }
+    else {
+        if (t.at("session") != recovered.at("session") || t.at("self") != recovered.at("self") || t.at("roster") != recovered.at("roster") || term < number(recovered.at("term")) || from > recovered.at("log").size() || from < number(recovered.at("commit")) || commit < number(recovered.at("commit"))) throw std::runtime_error("Durable peer transaction changes identity or committed history");
+        if (term == number(recovered.at("term")) && recovered.at("voted") != "" && t.at("voted") != recovered.at("voted")) throw std::runtime_error("Conflicting durable votes in the same term");
+        if (from) previous_term = number(recovered.at("log").at(from-1).at("term"));
+    }
+    if (from+t.at("entries").size() > max_entries || commit > from+t.at("entries").size()) throw std::runtime_error("Durable commit/log bounds mismatch");
+    for (const auto& entry : t.at("entries")) {
+        auto entry_term = number(entry.at("term"));
+        if (!entry_term || entry_term < previous_term || entry_term > term || entry.at("value").dump().size() > max_payload) throw std::runtime_error("Invalid durable log suffix");
+        previous_term = entry_term;
+    }
+    if (recovered.is_null()) recovered = {{"schema",1},{"session",config.session},{"self",config.self},{"roster",config.members},{"log",WireJson::array()}};
+    auto& log = recovered.at("log").get_ref<WireJson::array_t&>(); log.resize(static_cast<std::size_t>(from));
+    for (const auto& entry : t.at("entries")) log.push_back(entry);
+    recovered["term"] = term; recovered["voted"] = vote; recovered["commit"] = commit;
+}
 }

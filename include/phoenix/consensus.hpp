@@ -9,7 +9,10 @@ namespace phoenix {
 using WireJson = nlohmann::json;
 struct PeerRoster { std::string session, self; std::vector<std::string> members; };
 enum class PeerRole { follower, candidate, leader, failed };
-struct DurableWrite { std::uint64_t generation; WireJson state; };
+struct DurableWrite { std::uint64_t generation; WireJson transaction; };
+// Apply an incremental durable transaction to a recovered hard-state image.
+// Validation precedes mutation. The transaction cannot rewrite a committed prefix.
+void apply_peer_write(WireJson& recovered, const WireJson& transaction);
 struct PeerDelivery { std::string peer; WireJson packet; };
 struct CommittedEntry { std::uint64_t index, term; WireJson value; };
 // Single-threaded actor. Drive from the application loop, including storage completions.

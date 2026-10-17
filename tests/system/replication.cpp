@@ -30,7 +30,7 @@ struct Cluster {
             bool progress = false;
             std::vector<std::pair<std::string,PeerDelivery>> deliveries;
             for (auto& [id,node] : nodes) {
-                if (!stalled.contains(id)) if (auto write = node->pending_write()) { disk[id] = write->state; node->persisted(write->generation,true); progress = true; }
+                if (!stalled.contains(id)) if (auto write = node->pending_write()) { apply_peer_write(disk[id],write->transaction); node->persisted(write->generation,true); progress = true; }
                 for (auto message : node->take_deliveries()) deliveries.emplace_back(id,std::move(message));
                 for (const auto& entry : node->take_committed()) {
                     if (entry.value.value("kind",std::string{}) == "consensus-noop") continue;
@@ -63,7 +63,7 @@ int main() {
         delayed.elapse(1000); require(delayed.take_deliveries().empty() && delayed.take_committed().empty(),"Initial storage delay must expose no election effects");
         delayed.persisted(initial->generation+1,true); require(delayed.pending_write().has_value(),"Stale storage completion must have no effect");
         delayed.persisted(initial->generation,true); for (int i = 0; i < 3; ++i) delayed.elapse(1000);
-        auto election = delayed.pending_write(); require(election && election->state.at("voted") == "a","Election must first persist its term, own vote and current-term no-op");
+        auto election = delayed.pending_write(); require(election && election->transaction.at("voted") == "a","Election must first persist its term, own vote and current-term no-op");
         require(delayed.commit_index() == 0 && delayed.take_committed().empty(),"A volatile singleton commit must not reach gameplay");
         delayed.persisted(election->generation,true); require(delayed.has_quorum() && delayed.take_committed().size() == 1,"Durable singleton can commit its election barrier");
         require(delayed.propose(frame(1,2000)),"Elected singleton can propose a bounded tick frame");
