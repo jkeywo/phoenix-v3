@@ -1,6 +1,17 @@
-#include <phoenix/session.hpp>
 #include <iostream>
 #include <stdexcept>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+import phoenix.session.api;
+import phoenix.session.local;
+
 using namespace phoenix;
 void require(bool result, const char *message)
 {

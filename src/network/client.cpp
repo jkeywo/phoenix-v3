@@ -1,8 +1,21 @@
-#include "projection.hpp"
-#include <phoenix/blob_store.hpp>
-#include <phoenix/wire.hpp>
+module;
 #include <chrono>
 #include <deque>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+module phoenix.network.client;
+import phoenix.blobs;
+import phoenix.session.api;
+import phoenix.wire;
+#include "projection.hpp"
+
 namespace phoenix
 {
 namespace

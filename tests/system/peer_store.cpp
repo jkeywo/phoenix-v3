@@ -1,10 +1,20 @@
-#include <phoenix/peer_store.hpp>
-#include <phoenix/content.hpp>
 #include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <thread>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+import phoenix.content;
+import phoenix.persistence;
+
 using namespace phoenix;
 void require(bool value, const char *message)
 {

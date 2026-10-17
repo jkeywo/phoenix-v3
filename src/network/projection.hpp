@@ -1,13 +1,12 @@
 #pragma once
-#include <phoenix/session.hpp>
 namespace phoenix::network
 {
-inline Json body_json(const BodyView &body)
+static inline Json body_json(const BodyView &body)
 {
 	return {{"id", body.id}, {"definition", body.definition}, {"x", body.x}, {"y", body.y}, {"vx", body.vx},
 	        {"vy", body.vy}, {"heading", body.heading}};
 }
-inline BodyView read_body(const Json &value)
+static inline BodyView read_body(const Json &value)
 {
 	BodyView body{value.at("id"), value.at("definition"), value.at("x"),      value.at("y"),
 	              value.at("vx"), value.at("vy"),         value.at("heading")};
@@ -18,7 +17,7 @@ inline BodyView read_body(const Json &value)
 			throw std::runtime_error("Projected coordinate exceeds supported bounds");
 	return body;
 }
-inline Json observation_json(const Observation &observation)
+static inline Json observation_json(const Observation &observation)
 {
 	Json contacts = Json::array();
 	for (const auto &contact : observation.contacts)
@@ -30,7 +29,7 @@ inline Json observation_json(const Observation &observation)
 	        {"engine_enabled", observation.engine_enabled},
 	        {"radar_enabled", observation.radar_enabled}};
 }
-inline Observation read_observation(const Json &value, const Catalog &catalog)
+static inline Observation read_observation(const Json &value, const Catalog &catalog)
 {
 	Observation result{read_body(value.at("own")), {}};
 	if (!catalog.entities.contains(result.own.definition) || !value.at("contacts").is_array() ||
@@ -52,11 +51,11 @@ inline Observation read_observation(const Json &value, const Catalog &catalog)
 		throw std::runtime_error("Invalid projected operating request");
 	return result;
 }
-inline bool token(const std::string &text)
+static inline bool token(const std::string &text)
 {
 	return text.size() == 64 && text.find_first_not_of("0123456789abcdef") == std::string::npos;
 }
-inline std::uint64_t counter(const Json &value)
+static inline std::uint64_t counter(const Json &value)
 {
 	if (!value.is_number_integer() || (!value.is_number_unsigned() && value.get<std::int64_t>() < 0))
 		throw std::runtime_error("Invalid session counter");

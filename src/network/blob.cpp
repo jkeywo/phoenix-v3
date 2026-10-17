@@ -1,5 +1,18 @@
-#include "blob_internal.hpp"
+module;
 #include <algorithm>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+module phoenix.blobs;
+import phoenix.content;
+#include "blob_internal.hpp"
+
 namespace phoenix::blobs
 {
 void verify_key(const std::string &key)

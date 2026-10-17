@@ -105,16 +105,20 @@ add_library(
 )
 target_include_directories(phoenix_imgui PUBLIC ${imgui_SOURCE_DIR})
 add_library(phoenix_foundation STATIC src/core/input.cpp)
-target_sources(phoenix_foundation PUBLIC FILE_SET CXX_MODULES FILES src/core/input.cppm src/core/contracts.cppm)
-target_include_directories(phoenix_foundation PUBLIC include)
+target_sources(
+	phoenix_foundation
+	PUBLIC FILE_SET CXX_MODULES FILES src/core/input.cppm src/core/contracts.cppm src/core/data.cppm
+)
+target_link_libraries(phoenix_foundation PUBLIC nlohmann_json::nlohmann_json)
 if(EMSCRIPTEN)
 	target_compile_options(phoenix_foundation PUBLIC -fexceptions)
 endif()
+add_library(phoenix_session_api STATIC)
+target_link_libraries(phoenix_session_api PUBLIC phoenix_content phoenix_transport)
 add_library(phoenix_core STATIC src/core/application.cpp src/core/semantics.cpp)
-target_link_libraries(phoenix_core PUBLIC phoenix_foundation)
-target_include_directories(phoenix_core PUBLIC include)
+target_link_libraries(phoenix_core PUBLIC phoenix_foundation phoenix_session_api)
 add_library(phoenix_replication STATIC src/replication/consensus.cpp)
-target_link_libraries(phoenix_replication PUBLIC phoenix_core nlohmann_json::nlohmann_json)
+target_link_libraries(phoenix_replication PUBLIC phoenix_foundation nlohmann_json::nlohmann_json)
 add_library(
 	phoenix_content
 	STATIC
@@ -123,7 +127,7 @@ add_library(
 	src/content/workshop.cpp
 	src/behavior/tree.cpp
 )
-target_link_libraries(phoenix_content PUBLIC phoenix_core nlohmann_json::nlohmann_json PRIVATE phoenix_zip)
+target_link_libraries(phoenix_content PUBLIC phoenix_foundation nlohmann_json::nlohmann_json PRIVATE phoenix_zip)
 add_library(phoenix_persistence STATIC src/replication/store.cpp)
 target_link_libraries(phoenix_persistence PUBLIC phoenix_replication PRIVATE phoenix_content)
 if(EMSCRIPTEN)
@@ -164,9 +168,9 @@ else()
 	target_sources(phoenix_blobs PRIVATE src/platform/windows_blobs.cpp)
 endif()
 add_library(phoenix_simulation STATIC src/simulation/world.cpp src/simulation/collision.cpp)
-target_link_libraries(phoenix_simulation PUBLIC phoenix_core phoenix_content flecs_static)
+target_link_libraries(phoenix_simulation PUBLIC phoenix_foundation phoenix_content PRIVATE flecs_static)
 add_library(phoenix_session STATIC src/session/local.cpp)
-target_link_libraries(phoenix_session PUBLIC phoenix_simulation)
+target_link_libraries(phoenix_session PUBLIC phoenix_simulation phoenix_session_api)
 add_library(phoenix_files STATIC)
 target_link_libraries(phoenix_files PUBLIC phoenix_content)
 add_library(phoenix_presentation STATIC src/presentation/screen.cpp src/presentation/game.cpp)
@@ -407,7 +411,7 @@ endif()
 
 include(cmake/Networking.cmake)
 add_library(phoenix_transport STATIC src/transport/options.cpp)
-target_link_libraries(phoenix_transport PUBLIC phoenix_core PRIVATE nlohmann_json::nlohmann_json)
+target_link_libraries(phoenix_transport PUBLIC phoenix_foundation PRIVATE nlohmann_json::nlohmann_json)
 if(EMSCRIPTEN)
 	target_sources(phoenix_transport PRIVATE src/platform/browser_transport.cpp)
 	target_compile_options(phoenix_transport PRIVATE -fexceptions)
@@ -436,7 +440,7 @@ target_link_libraries(phoenix_fleet PUBLIC phoenix_persistence phoenix_wire phoe
 if(EMSCRIPTEN)
 	target_compile_options(phoenix_fleet PRIVATE -fexceptions)
 endif()
-target_link_libraries(phoenix_network_client PUBLIC phoenix_blobs phoenix_transport)
+target_link_libraries(phoenix_network_client PUBLIC phoenix_session_api phoenix_blobs phoenix_transport)
 add_library(phoenix_network_host STATIC src/network/host.cpp)
 add_library(phoenix_fleet_setup STATIC src/session/fleet_setup.cpp src/session/fleet_runtime.cpp)
 target_link_libraries(phoenix_fleet_setup PUBLIC phoenix_session phoenix_wire phoenix_fleet phoenix_blobs)
@@ -504,23 +508,30 @@ if(EMSCRIPTEN)
 	endforeach()
 endif()
 
-# Scan first-party sources and consumers, never the vendored libraries.
-get_property(phoenix_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
-foreach(target IN LISTS phoenix_targets)
-	if(
-		target MATCHES "^phoenix_"
-		AND NOT target MATCHES "^phoenix_(qr|zip|imgui)$"
-		OR target MATCHES "^(native|server|client|workshop)$"
-	)
-		get_target_property(kind ${target} TYPE)
-		if(NOT kind STREQUAL "UTILITY")
-			set_property(TARGET ${target} PROPERTY CXX_SCAN_FOR_MODULES ON)
-		endif()
-	endif()
-endforeach()
 if(EMSCRIPTEN)
 	add_executable(phoenix_input_check tests/system/input_and_semantics.cpp)
 	target_link_libraries(phoenix_input_check PRIVATE phoenix_core)
 	set_property(TARGET phoenix_input_check PROPERTY CXX_SCAN_FOR_MODULES ON)
 	target_link_options(phoenix_input_check PRIVATE -fexceptions)
 endif()
+
+include(cmake/Modules.cmake)
+foreach(
+	frontend
+	phoenix_session_api
+	phoenix_core
+	phoenix_presentation
+	phoenix_tools
+	phoenix_network_client
+)
+	foreach(
+		forbidden
+		phoenix_session
+		phoenix_network_host
+		phoenix_fleet_setup
+		phoenix_simulation
+		flecs_static
+	)
+		phoenix_forbid_dependency(${frontend} ${forbidden} "")
+	endforeach()
+endforeach()

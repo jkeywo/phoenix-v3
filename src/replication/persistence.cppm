@@ -1,6 +1,15 @@
-#pragma once
-#include <phoenix/consensus.hpp>
-namespace phoenix
+module;
+#include <cstdint>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <string>
+#include <vector>
+
+export module phoenix.persistence;
+export import phoenix.replication;
+
+export namespace phoenix
 {
 struct PeerStoreResult
 {

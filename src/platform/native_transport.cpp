@@ -1,8 +1,8 @@
+module;
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
 #include <wincrypt.h>
-#include <phoenix/transport.hpp>
 #include <nlohmann/json.hpp>
 #include <rtc/rtc.hpp>
 #include <algorithm>
@@ -11,6 +11,12 @@
 #include <map>
 #include <mutex>
 #include <set>
+#include <memory>
+#include <string>
+#include <vector>
+
+module phoenix.transport;
+
 namespace phoenix
 {
 namespace

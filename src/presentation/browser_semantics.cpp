@@ -1,7 +1,16 @@
-#include <phoenix/semantics.hpp>
+module;
 #include <emscripten.h>
 #include <deque>
 #include <chrono>
+#include <functional>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
+module phoenix.presentation;
+import phoenix.navigation;
+
 namespace
 {
 std::deque<std::string> actions;

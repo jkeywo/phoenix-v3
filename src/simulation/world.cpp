@@ -1,8 +1,22 @@
-#include "body.hpp"
+module;
 #include <flecs.h>
 #include <algorithm>
 #include <set>
 #include <stdexcept>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <utility>
+#include <vector>
+
+module phoenix.simulation;
+import phoenix.content;
+#include "body.hpp"
+
 namespace phoenix::fixed
 {
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Vec, x, y)

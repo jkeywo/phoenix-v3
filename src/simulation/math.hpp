@@ -1,21 +1,19 @@
 #pragma once
-#include <cstdint>
-#include <utility>
 namespace phoenix::fixed
 {
-constexpr std::int64_t unit = 1000000000;
+inline constexpr std::int64_t unit = 1000000000;
 struct Vec
 {
 	std::int64_t x = 0, y = 0;
-	Vec operator+(Vec b) const
+	inline Vec operator+(Vec b) const
 	{
 		return {x + b.x, y + b.y};
 	}
-	Vec operator-(Vec b) const
+	inline Vec operator-(Vec b) const
 	{
 		return {x - b.x, y - b.y};
 	}
-	Vec operator-() const
+	inline Vec operator-() const
 	{
 		return {-x, -y};
 	}

@@ -1,9 +1,18 @@
-#pragma once
+module;
+#include <cstdint>
+#include <map>
 #include <memory>
+#include <nlohmann/json.hpp>
 #include <optional>
-#include <phoenix/content.hpp>
-import phoenix.contracts;
-namespace phoenix
+#include <span>
+#include <string>
+#include <vector>
+
+export module phoenix.simulation;
+export import phoenix.content;
+export import phoenix.contracts;
+
+export namespace phoenix
 {
 class World
 {

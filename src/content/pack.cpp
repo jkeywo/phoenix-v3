@@ -1,4 +1,4 @@
-#include <phoenix/content.hpp>
+module;
 #include <miniz.h>
 #include <picosha2.h>
 #include <fstream>
@@ -6,6 +6,15 @@
 #include <stdexcept>
 #include <set>
 #include <filesystem>
+#include <cstdint>
+#include <map>
+#include <nlohmann/json.hpp>
+#include <span>
+#include <string>
+#include <vector>
+
+module phoenix.content;
+
 namespace phoenix
 {
 namespace

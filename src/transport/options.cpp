@@ -1,5 +1,11 @@
-#include <phoenix/transport.hpp>
+module;
 #include <stdexcept>
+#include <memory>
+#include <string>
+#include <vector>
+
+module phoenix.transport;
+
 namespace phoenix
 {
 void verify_link_options(const LinkOptions &options)

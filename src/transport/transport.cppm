@@ -1,8 +1,11 @@
-#pragma once
+module;
 #include <memory>
 #include <string>
 #include <vector>
-namespace phoenix
+
+export module phoenix.transport;
+
+export namespace phoenix
 {
 enum class LinkEvent
 {

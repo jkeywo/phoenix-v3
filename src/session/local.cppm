@@ -1,7 +1,18 @@
-#pragma once
-#include <phoenix/session.hpp>
-#include <phoenix/world.hpp>
-namespace phoenix
+module;
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+export module phoenix.session.local;
+export import phoenix.session.api;
+export import phoenix.simulation;
+
+export namespace phoenix
 {
 // Server-only composition boundary. Frontends never receive this interface.
 class HostAccess : public SessionPort
@@ -14,3 +25,8 @@ public:
 };
 std::shared_ptr<HostAccess> make_host_world();
 } // namespace phoenix
+
+export namespace phoenix
+{
+std::shared_ptr<SessionPort> make_local_session();
+}

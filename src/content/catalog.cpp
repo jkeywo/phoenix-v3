@@ -1,5 +1,4 @@
-#include <phoenix/content.hpp>
-#include <phoenix/behavior.hpp>
+module;
 #include <algorithm>
 #include <functional>
 #include <set>
@@ -10,6 +9,15 @@
 #define STBI_ONLY_PNG
 #define STBI_NO_STDIO
 #include <stb_image.h>
+#include <cstdint>
+#include <map>
+#include <nlohmann/json.hpp>
+#include <span>
+#include <string>
+#include <vector>
+
+module phoenix.content;
+
 namespace phoenix
 {
 namespace

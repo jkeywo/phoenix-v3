@@ -1,6 +1,14 @@
-#include <phoenix/peer_store.hpp>
 #include <emscripten.h>
 #include <iostream>
+#include <cstdint>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <string>
+#include <vector>
+
+import phoenix.persistence;
+
 using namespace phoenix;
 std::unique_ptr<PeerStore> store;
 std::unique_ptr<PeerConsensus> node;

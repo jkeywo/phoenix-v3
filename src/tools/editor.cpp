@@ -1,13 +1,27 @@
-#include <phoenix/presentation.hpp>
-#include <phoenix/workshop.hpp>
-#include <phoenix/files.hpp>
-#include <phoenix/session.hpp>
+module;
 #include <imgui.h>
 #include <imgui_internal.h>
 #include <misc/cpp/imgui_stdlib.h>
 #include <raylib.h>
 #include <cmath>
 #include <algorithm>
+#include <cstdint>
+#include <functional>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <utility>
+#include <vector>
+
+module phoenix.tools;
+import phoenix.content;
+import phoenix.files;
+import phoenix.presentation;
+import phoenix.session.api;
+
 namespace phoenix
 {
 namespace

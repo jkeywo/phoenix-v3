@@ -1,7 +1,14 @@
-#include <phoenix/content.hpp>
-#include <phoenix/workshop.hpp>
 #include <iostream>
 #include <stdexcept>
+#include <cstdint>
+#include <map>
+#include <nlohmann/json.hpp>
+#include <span>
+#include <string>
+#include <vector>
+
+import phoenix.content;
+
 using namespace phoenix;
 void require(bool value, const char *contract)
 {

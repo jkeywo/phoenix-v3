@@ -1,9 +1,18 @@
-#include <phoenix/consensus.hpp>
+module;
 #include <algorithm>
 #include <deque>
 #include <map>
 #include <set>
 #include <stdexcept>
+#include <cstdint>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <string>
+#include <vector>
+
+module phoenix.replication;
+
 namespace phoenix
 {
 namespace

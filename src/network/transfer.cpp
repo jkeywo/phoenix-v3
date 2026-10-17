@@ -1,6 +1,16 @@
-#include <phoenix/wire.hpp>
+module;
 #include <algorithm>
 #include <set>
+#include <cstdint>
+#include <map>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+module phoenix.wire;
+
 namespace phoenix
 {
 namespace

@@ -1,16 +1,28 @@
-#include <phoenix/wire.hpp>
+module;
 #include <array>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
+#else
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+#include <bcrypt.h>
+#endif
+#include <cstdint>
+#include <map>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+module phoenix.wire;
+
+#ifdef __EMSCRIPTEN__
 // clang-format off: embedded JavaScript must retain its operators.
 EM_JS(bool, phoenix_secure_random, (unsigned char* destination), {
     try { const bytes=new Uint8Array(32); crypto.getRandomValues(bytes); HEAPU8.set(bytes,destination); return true; } catch { return false; }
 });
 // clang-format on
-#else
-#define WIN32_LEAN_AND_MEAN
-#include <windows.h>
-#include <bcrypt.h>
 #endif
 namespace phoenix
 {

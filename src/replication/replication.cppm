@@ -1,13 +1,16 @@
-#pragma once
-#include <nlohmann/json.hpp>
+module;
 #include <cstdint>
 #include <memory>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <string>
 #include <vector>
-namespace phoenix
+
+export module phoenix.replication;
+export import phoenix.data;
+
+export namespace phoenix
 {
-using WireJson = nlohmann::json;
 struct PeerRoster
 {
 	std::string session, self;

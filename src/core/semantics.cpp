@@ -1,6 +1,13 @@
-#include <phoenix/semantics.hpp>
+module;
 #include <array>
 #include <utility>
+#include <functional>
+#include <memory>
+#include <string>
+#include <vector>
+
+module phoenix.navigation;
+
 namespace phoenix
 {
 std::string translate(const std::string &key, bool pseudo)

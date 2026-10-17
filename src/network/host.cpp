@@ -1,11 +1,23 @@
-#include "../session/authority.hpp"
-#include "projection.hpp"
-#include <phoenix/consensus.hpp>
-#include <phoenix/peer_store.hpp>
-#include <phoenix/wire.hpp>
+module;
 #include <chrono>
 #include <deque>
 #include <map>
+#include <cstdint>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+module phoenix.network.host;
+import phoenix.persistence;
+import phoenix.replication;
+import phoenix.session.api;
+import phoenix.session.local;
+import phoenix.wire;
+#include "projection.hpp"
+
 namespace phoenix
 {
 namespace

@@ -1,8 +1,14 @@
-#include <phoenix/transport.hpp>
+module;
 #include <nlohmann/json.hpp>
 #include <emscripten.h>
 #include <deque>
 #include <map>
+#include <memory>
+#include <string>
+#include <vector>
+
+module phoenix.transport;
+
 namespace
 {
 struct Queue

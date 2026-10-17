@@ -1,12 +1,20 @@
-#pragma once
-#include <string>
-#include <vector>
-#include <memory>
+module;
+#include <cstdint>
 #include <functional>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
 #include <utility>
-namespace phoenix
+#include <vector>
+
+export module phoenix.application;
+export import phoenix.session.api;
+
+export namespace phoenix
 {
-class SessionPort;
 enum class Screen
 {
 	home,

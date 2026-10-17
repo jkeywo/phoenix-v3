@@ -1,6 +1,17 @@
-#include "fleet_setup.hpp"
-#include <phoenix/wire.hpp>
+module;
 #include <set>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+module phoenix.fleet_setup;
+import phoenix.wire;
+
 namespace phoenix
 {
 namespace

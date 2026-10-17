@@ -1,3 +1,4 @@
+module;
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
@@ -5,11 +6,18 @@
 #include <oleauto.h>
 #include <uiautomation.h>
 #include <commctrl.h>
-#include <phoenix/semantics.hpp>
 #include <atomic>
 #include <deque>
 #include <memory>
 #include <mutex>
+
+#include <functional>
+#include <string>
+#include <utility>
+#include <vector>
+
+module phoenix.presentation;
+import phoenix.navigation;
 
 namespace phoenix
 {

@@ -1,8 +1,28 @@
-#include <phoenix/presentation.hpp>
 #include <raylib.h>
 #include <emscripten.h>
 #include <algorithm>
-#include <phoenix/session.hpp>
+#include <cstdint>
+#include <functional>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <utility>
+#include <vector>
+
+import phoenix.presentation;
+import phoenix.session.api;
+#ifdef PHOENIX_SERVER
+import phoenix.network.host;
+#else
+import phoenix.network.client;
+#endif
+#ifdef PHOENIX_WORKSHOP
+import phoenix.tools;
+#endif
+
 phoenix::Application app;
 void frame()
 {

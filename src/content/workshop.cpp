@@ -1,7 +1,16 @@
-#include <phoenix/workshop.hpp>
+module;
 #include <algorithm>
 #include <stdexcept>
 #include <functional>
+#include <cstdint>
+#include <map>
+#include <nlohmann/json.hpp>
+#include <span>
+#include <string>
+#include <vector>
+
+module phoenix.content;
+
 namespace phoenix
 {
 WorkshopDocument::WorkshopDocument()

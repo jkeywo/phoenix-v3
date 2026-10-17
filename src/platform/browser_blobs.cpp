@@ -1,7 +1,18 @@
-#include "../network/blob_internal.hpp"
+module;
 #include <emscripten.h>
 #include <deque>
 #include <map>
+#include <cstdint>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+module phoenix.blobs;
+#include "../network/blob_internal.hpp"
+
 namespace
 {
 struct State

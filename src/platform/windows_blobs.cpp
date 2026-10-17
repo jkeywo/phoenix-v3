@@ -1,10 +1,22 @@
+module;
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
-#include "../network/blob_internal.hpp"
-#include <phoenix/wire.hpp>
 #include <filesystem>
 #include <future>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+module phoenix.blobs;
+import phoenix.wire;
+#include "../network/blob_internal.hpp"
+
 namespace phoenix
 {
 namespace

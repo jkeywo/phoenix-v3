@@ -1,11 +1,27 @@
-#include <phoenix/presentation.hpp>
-#include <phoenix/world.hpp>
-#include <phoenix/session.hpp>
-#include <phoenix/semantics.hpp>
 #include <raylib.h>
 #include <cstring>
 #include <iostream>
 #include <algorithm>
+#include <cstdint>
+#include <functional>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <utility>
+#include <vector>
+
+import phoenix.navigation;
+import phoenix.network.client;
+import phoenix.network.host;
+import phoenix.presentation;
+import phoenix.session.api;
+import phoenix.session.local;
+import phoenix.simulation;
+import phoenix.tools;
+
 int main(int argc, char **argv)
 {
 	if (argc > 1 && std::strcmp(argv[1], "--build-check") == 0)

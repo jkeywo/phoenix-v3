@@ -1,8 +1,14 @@
-#pragma once
-#include <phoenix/application.hpp>
+module;
+#include <functional>
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
-namespace phoenix
+
+export module phoenix.navigation;
+export import phoenix.application;
+
+export namespace phoenix
 {
 struct SemanticControl
 {
@@ -12,9 +18,4 @@ struct SemanticControl
 std::string translate(const std::string &key, bool pseudo);
 std::vector<SemanticControl> navigation_controls(const Application &app);
 bool invoke_navigation(Application &app, const std::string &action);
-void publish_semantics(const Application &app);
-void drain_semantic_actions(Application &app);
-void install_native_accessibility(void *window);
-void remove_native_accessibility(void *window);
-bool probe_native_accessibility(Application &app);
 } // namespace phoenix

@@ -1,6 +1,14 @@
-#include <phoenix/content.hpp>
 #include <filesystem>
 #include <iostream>
+#include <cstdint>
+#include <map>
+#include <nlohmann/json.hpp>
+#include <span>
+#include <string>
+#include <vector>
+
+import phoenix.content;
+
 int main(int argc, char **argv)
 {
 	try

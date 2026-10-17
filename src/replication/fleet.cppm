@@ -1,8 +1,16 @@
-#pragma once
-#include <phoenix/consensus.hpp>
-#include <phoenix/transport.hpp>
+module;
+#include <cstdint>
 #include <memory>
-namespace phoenix
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <string>
+#include <vector>
+
+export module phoenix.fleet;
+export import phoenix.replication;
+export import phoenix.transport;
+
+export namespace phoenix
 {
 struct FleetOptions
 {

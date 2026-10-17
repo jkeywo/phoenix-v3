@@ -1,8 +1,18 @@
-#include "fleet_runtime.hpp"
-#include <phoenix/blob_store.hpp>
-#include <phoenix/peer_store.hpp>
-#include <phoenix/wire.hpp>
+module;
 #include <optional>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <span>
+#include <string>
+#include <vector>
+
+module phoenix.fleet_setup;
+import phoenix.blobs;
+import phoenix.persistence;
+import phoenix.wire;
+
 namespace phoenix
 {
 struct FleetRuntime::Impl

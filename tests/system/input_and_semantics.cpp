@@ -1,8 +1,17 @@
-#include <phoenix/semantics.hpp>
 #include <iostream>
 #include <optional>
 #include <stdexcept>
+#include <cstdint>
+#include <functional>
+#include <map>
+#include <memory>
+#include <string>
+#include <utility>
+#include <vector>
+
 import phoenix.input;
+import phoenix.navigation;
+
 using namespace phoenix;
 void require(bool value, const char *contract)
 {

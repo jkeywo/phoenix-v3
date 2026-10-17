@@ -1,4 +1,3 @@
-#include <phoenix/transport.hpp>
 #include <nlohmann/json.hpp>
 #include <chrono>
 #include <iostream>
@@ -6,6 +5,12 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
+#include <memory>
+#include <string>
+#include <vector>
+
+import phoenix.transport;
+
 using namespace phoenix;
 using Json = nlohmann::json;
 std::unique_ptr<PeerTransport> link;

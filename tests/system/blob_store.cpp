@@ -1,9 +1,19 @@
-#include <phoenix/blob_store.hpp>
-#include <phoenix/wire.hpp>
 #include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <thread>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+import phoenix.blobs;
+import phoenix.wire;
+
 using namespace phoenix;
 void require(bool result, const char *message)
 {

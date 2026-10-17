@@ -1,7 +1,17 @@
-#include <phoenix/world.hpp>
 #include <iostream>
 #include <stdexcept>
 #include <limits>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+import phoenix.simulation;
+
 using namespace phoenix;
 void require(bool value, const char *contract)
 {

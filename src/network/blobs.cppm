@@ -1,8 +1,17 @@
-#pragma once
-#include <phoenix/content.hpp>
+module;
+#include <cstdint>
+#include <map>
 #include <memory>
+#include <nlohmann/json.hpp>
 #include <optional>
-namespace phoenix
+#include <span>
+#include <string>
+#include <vector>
+
+export module phoenix.blobs;
+export import phoenix.data;
+
+export namespace phoenix
 {
 struct BlobResult
 {

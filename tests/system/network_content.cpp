@@ -1,6 +1,15 @@
-#include <phoenix/wire.hpp>
 #include <iostream>
 #include <stdexcept>
+#include <cstdint>
+#include <map>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+import phoenix.wire;
+
 using namespace phoenix;
 void require(bool value, const char *message)
 {

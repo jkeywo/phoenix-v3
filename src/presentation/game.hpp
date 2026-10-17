@@ -1,6 +1,4 @@
 #pragma once
-#include <phoenix/application.hpp>
-#include <RmlUi/Core.h>
 namespace phoenix
 {
 void prepare_game_screen(Application &app, Rml::ElementDocument &document);

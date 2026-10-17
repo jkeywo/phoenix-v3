@@ -1,9 +1,6 @@
-#include <phoenix/presentation.hpp>
+module;
 #include <raylib.h>
 #include <RmlUi/Core.h>
-#include "rml_backend.hpp"
-#include "game.hpp"
-#include <phoenix/semantics.hpp>
 #include <stdexcept>
 #include <filesystem>
 #ifdef __EMSCRIPTEN__
@@ -14,6 +11,20 @@ EM_JS(int, phoenix_canvas_width, (), { return Math.max(1,Module.canvas.clientWid
 EM_JS(int, phoenix_canvas_height, (), { return Math.max(1,Module.canvas.clientHeight); });
 // clang-format on
 #endif
+#include <functional>
+#include <iostream>
+#include <memory>
+#include <rlgl.h>
+#include <string>
+#include <utility>
+#include <vector>
+
+module phoenix.presentation;
+import phoenix.application;
+import phoenix.navigation;
+#include "rml_backend.hpp"
+#include "game.hpp"
+
 namespace phoenix
 {
 namespace

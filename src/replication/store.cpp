@@ -1,6 +1,18 @@
-#include "store_internal.hpp"
-#include <phoenix/content.hpp>
+module;
 #include <stdexcept>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+module phoenix.persistence;
+import phoenix.content;
+#include "store_internal.hpp"
+
 namespace phoenix::storage
 {
 std::string encode(const WireJson &transaction)

@@ -1,11 +1,21 @@
-#include <phoenix/fleet.hpp>
-#include <phoenix/peer_store.hpp>
-#include <phoenix/wire.hpp>
+module;
 #include <chrono>
 #include <deque>
 #include <map>
 #include <set>
 #include <algorithm>
+#include <cstdint>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+module phoenix.fleet;
+import phoenix.persistence;
+import phoenix.wire;
+
 namespace phoenix
 {
 struct FleetCommit::Impl

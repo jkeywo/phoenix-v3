@@ -1,5 +1,15 @@
-#include <phoenix/files.hpp>
+module;
 #include <emscripten.h>
+#include <cstdint>
+#include <map>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+module phoenix.files;
+
 namespace
 {
 std::optional<phoenix::ImportedFile> imported;

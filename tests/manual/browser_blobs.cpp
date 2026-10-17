@@ -1,7 +1,17 @@
-#include <phoenix/blob_store.hpp>
-#include <phoenix/wire.hpp>
 #include <emscripten.h>
 #include <iostream>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+import phoenix.blobs;
+import phoenix.wire;
+
 using namespace phoenix;
 std::unique_ptr<BlobStore> store;
 bool require_existing = false;

@@ -1,12 +1,22 @@
+module;
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
-#include "../replication/store_internal.hpp"
 #include <condition_variable>
 #include <deque>
 #include <filesystem>
 #include <mutex>
 #include <thread>
+#include <cstdint>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <string>
+#include <vector>
+
+module phoenix.persistence;
+#include "../replication/store_internal.hpp"
+
 namespace phoenix
 {
 namespace

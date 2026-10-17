@@ -1,5 +1,14 @@
-#include <phoenix/behavior.hpp>
+module;
 #include <stdexcept>
+#include <cstdint>
+#include <map>
+#include <nlohmann/json.hpp>
+#include <span>
+#include <string>
+#include <vector>
+
+module phoenix.content;
+
 namespace phoenix
 {
 void verify_tree(const Json &tree, const std::string &source)

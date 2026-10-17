@@ -1,7 +1,5 @@
 #pragma once
 #include "math.hpp"
-#include <phoenix/behavior.hpp>
-#include <phoenix/world.hpp>
 namespace phoenix
 {
 struct Body

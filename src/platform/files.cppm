@@ -1,7 +1,16 @@
-#pragma once
-#include <phoenix/content.hpp>
+module;
+#include <cstdint>
+#include <map>
+#include <nlohmann/json.hpp>
 #include <optional>
-namespace phoenix
+#include <span>
+#include <string>
+#include <vector>
+
+export module phoenix.files;
+export import phoenix.data;
+
+export namespace phoenix
 {
 struct ImportedFile
 {

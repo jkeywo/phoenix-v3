@@ -1,7 +1,17 @@
-#include <phoenix/wire.hpp>
+module;
 #include <picosha2.h>
 #include <algorithm>
 #include <array>
+#include <cstdint>
+#include <map>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+module phoenix.wire;
+
 namespace phoenix
 {
 namespace

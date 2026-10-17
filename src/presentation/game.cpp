@@ -1,12 +1,28 @@
-#include "game.hpp"
-#include <phoenix/session.hpp>
-#include <phoenix/files.hpp>
+module;
 #include <raylib.h>
 #include <cmath>
 #include <algorithm>
 #include <sstream>
 #include <qrcodegen.hpp>
 #include <RmlUi/Core/Elements/ElementFormControl.h>
+#include <RmlUi/Core.h>
+#include <cstdint>
+#include <functional>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <utility>
+#include <vector>
+
+module phoenix.presentation;
+import phoenix.application;
+import phoenix.files;
+import phoenix.session.api;
+#include "game.hpp"
+
 namespace phoenix
 {
 namespace

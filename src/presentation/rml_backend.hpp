@@ -1,9 +1,4 @@
 #pragma once
-#include <RmlUi/Core.h>
-#include <raylib.h>
-#include <rlgl.h>
-#include <vector>
-#include <iostream>
 
 namespace phoenix
 {

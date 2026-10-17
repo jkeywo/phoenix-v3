@@ -1,8 +1,19 @@
-#include <phoenix/session.hpp>
-#include "authority.hpp"
-#include <phoenix/world.hpp>
+module;
 #include <algorithm>
 #include <stdexcept>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+module phoenix.session.local;
+import phoenix.session.api;
+import phoenix.simulation;
+
 namespace phoenix
 {
 namespace

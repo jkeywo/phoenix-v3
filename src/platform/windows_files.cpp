@@ -1,9 +1,20 @@
+module;
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
 #include <commdlg.h>
-#include <phoenix/files.hpp>
 #include <filesystem>
+#include <cstdint>
+#include <map>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+module phoenix.files;
+import phoenix.content;
+
 namespace phoenix
 {
 namespace

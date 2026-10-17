@@ -1,7 +1,16 @@
-#pragma once
-#include <phoenix/content.hpp>
+module;
+#include <cstdint>
+#include <map>
+#include <nlohmann/json.hpp>
 #include <optional>
-namespace phoenix
+#include <span>
+#include <string>
+#include <vector>
+
+export module phoenix.wire;
+export import phoenix.content;
+
+export namespace phoenix
 {
 struct GamePacket
 {

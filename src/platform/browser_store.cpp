@@ -1,7 +1,17 @@
-#include "../replication/store_internal.hpp"
+module;
 #include <emscripten.h>
 #include <deque>
 #include <map>
+#include <cstdint>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <string>
+#include <vector>
+
+module phoenix.persistence;
+#include "../replication/store_internal.hpp"
+
 namespace
 {
 struct BrowserState

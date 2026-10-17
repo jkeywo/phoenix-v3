@@ -1,5 +1,15 @@
-#include <phoenix/world.hpp>
 #include <iostream>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+import phoenix.simulation;
+
 int main()
 {
 	phoenix::World world;

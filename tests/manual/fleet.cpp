@@ -1,11 +1,21 @@
-#include <phoenix/fleet.hpp>
-#include <phoenix/world.hpp>
-#include <phoenix/wire.hpp>
 #include <chrono>
 #include <thread>
 #include <iostream>
 #include <sstream>
 #include <algorithm>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+import phoenix.fleet;
+import phoenix.simulation;
+import phoenix.wire;
+
 using namespace phoenix;
 namespace
 {

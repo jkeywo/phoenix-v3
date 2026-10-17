@@ -1,8 +1,20 @@
-#include <phoenix/session.hpp>
-#include <phoenix/wire.hpp>
 #include <chrono>
 #include <iostream>
 #include <thread>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+import phoenix.network.client;
+import phoenix.network.host;
+import phoenix.session.api;
+import phoenix.wire;
+
 using namespace phoenix;
 int main(int argc, char **argv)
 {

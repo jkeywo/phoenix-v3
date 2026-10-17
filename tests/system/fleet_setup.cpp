@@ -1,6 +1,16 @@
-#include "../../src/session/fleet_setup.hpp"
-#include <phoenix/wire.hpp>
 #include <iostream>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+import phoenix.fleet_setup;
+import phoenix.wire;
+
 using namespace phoenix;
 void require(bool value, const char *message)
 {

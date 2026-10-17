@@ -1,10 +1,19 @@
-#pragma once
-#include <phoenix/content.hpp>
-import phoenix.contracts;
-#include <phoenix/transport.hpp>
+module;
+#include <cstdint>
+#include <map>
 #include <memory>
+#include <nlohmann/json.hpp>
 #include <optional>
-namespace phoenix
+#include <span>
+#include <string>
+#include <vector>
+
+export module phoenix.session.api;
+export import phoenix.content;
+export import phoenix.contracts;
+export import phoenix.transport;
+
+export namespace phoenix
 {
 struct GameSetup
 {
@@ -70,7 +79,4 @@ public:
 		return value ? std::optional(value->own) : std::nullopt;
 	}
 };
-std::shared_ptr<SessionPort> make_local_session();
-std::shared_ptr<SessionPort> make_network_host(NetworkOptions options);
-std::shared_ptr<SessionPort> make_network_client(NetworkOptions options);
 } // namespace phoenix

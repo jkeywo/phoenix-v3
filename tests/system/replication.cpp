@@ -1,8 +1,18 @@
-#include <phoenix/consensus.hpp>
-#include <phoenix/world.hpp>
 #include <iostream>
 #include <set>
 #include <stdexcept>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
+#include <string>
+#include <vector>
+
+import phoenix.replication;
+import phoenix.simulation;
+
 using namespace phoenix;
 void require(bool result, const char *message)
 {
