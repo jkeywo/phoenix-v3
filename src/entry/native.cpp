@@ -4,6 +4,7 @@
 #include <raylib.h>
 #include <cstring>
 #include <iostream>
+#include <algorithm>
 int main(int argc, char** argv) {
     phoenix::World world;
     if (argc > 1 && std::strcmp(argv[1], "--build-check") == 0) {
@@ -35,8 +36,10 @@ int main(int argc, char** argv) {
         try { phoenix::open_workshop_pack(workshop_pack); }
         catch (const std::exception& error) { std::cerr << error.what() << '\n'; phoenix::end_tools(); phoenix::close_window(); return 1; }
     }
+    double accumulated = 0;
     while (!phoenix::close_requested()) {
-        world.tick();
+        accumulated += std::min(static_cast<double>(GetFrameTime()),0.25);
+        while (accumulated >= 1.0/phoenix::World::ticks_per_second) { world.tick(); accumulated -= 1.0/phoenix::World::ticks_per_second; }
         BeginDrawing();
         phoenix::draw_screen(app);
         if (app.screen == phoenix::Screen::workshop || app.screen == phoenix::Screen::gm) phoenix::draw_workshop(app);

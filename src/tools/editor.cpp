@@ -113,6 +113,15 @@ void entity_properties(Json& entity) {
         integer_field("Mass (grams; 0 = static)",collision,"mass_grams");
     }
     std::string console = entity.value("console",std::string{});
+    std::string controller = entity.value("controller",std::string{});
+    if (ImGui::BeginCombo("Delegated state tree",controller.empty() ? "None" : controller.c_str())) {
+        if (ImGui::Selectable("None",controller.empty())) entity.erase("controller");
+        for (const auto& value : editor.document.definitions()["trees"]) {
+            auto id = value.at("id").get<std::string>(); if (ImGui::Selectable(id.c_str(),id == controller)) entity["controller"] = id;
+        }
+        for (const auto& [id,value] : editor.document.libraries().trees) if (ImGui::Selectable(id.c_str(),id == controller)) entity["controller"] = id;
+        ImGui::EndCombo();
+    }
     if (ImGui::BeginCombo("Console",console.empty() ? "None" : console.c_str())) {
         if (ImGui::Selectable("None",console.empty())) entity.erase("console");
         for (const auto& value : editor.document.definitions()["consoles"]) {
@@ -217,7 +226,7 @@ void map_view() {
     std::uint64_t nearest = 0; float distance = 24;
     auto& definitions = editor.document.definitions()["entities"];
     for (const auto& instance : editor.document.map()["entities"]) {
-        ImVec2 p{centre.x+instance["x_mm"].get<float>()*editor.zoom,centre.y+instance["y_mm"].get<float>()*editor.zoom};
+        ImVec2 p{centre.x+instance["x_mm"].get<float>()*editor.zoom,centre.y-instance["y_mm"].get<float>()*editor.zoom};
         auto definition = std::find_if(definitions.begin(),definitions.end(),[&](const auto& entity){return entity["id"] == instance["definition"];});
         if (definition != definitions.end() && definition->contains("render")) {
             const auto& render = (*definition)["render"];
@@ -232,18 +241,18 @@ void map_view() {
         bool selected = instance["id"] == editor.selected;
         draw->AddCircle(p,selected ? 14.0f : 8.0f,selected ? IM_COL32(255,205,90,255) : IM_COL32(118,201,232,255));
         float angle = instance["heading_mdeg"].get<float>()*3.14159265f/180000;
-        draw->AddLine(p,{p.x+20*std::sin(angle),p.y-20*std::cos(angle)},IM_COL32(118,201,232,255));
+        draw->AddLine(p,{p.x+20*std::cos(angle),p.y-20*std::sin(angle)},IM_COL32(118,201,232,255));
         float d = std::hypot(p.x-io.MousePos.x,p.y-io.MousePos.y);
         if (d < distance) { distance = d; nearest = instance["id"]; }
     }
     draw->PopClipRect();
     if (hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && editor.definition >= 0 && editor.definition < static_cast<int>(definitions.size())) {
-        editor.selected = editor.document.place(definitions[editor.definition]["id"],static_cast<std::int64_t>((io.MousePos.x-centre.x)/editor.zoom),static_cast<std::int64_t>((io.MousePos.y-centre.y)/editor.zoom));
+        editor.selected = editor.document.place(definitions[editor.definition]["id"],static_cast<std::int64_t>((io.MousePos.x-centre.x)/editor.zoom),static_cast<std::int64_t>((centre.y-io.MousePos.y)/editor.zoom));
     } else if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left)) editor.selected = nearest;
     if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left)) {
         if (auto* instance = selected_instance()) {
             (*instance)["x_mm"] = static_cast<std::int64_t>((io.MousePos.x-centre.x)/editor.zoom);
-            (*instance)["y_mm"] = static_cast<std::int64_t>((io.MousePos.y-centre.y)/editor.zoom);
+            (*instance)["y_mm"] = static_cast<std::int64_t>((centre.y-io.MousePos.y)/editor.zoom);
         }
     }
     ImGui::End();

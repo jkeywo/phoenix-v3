@@ -1,4 +1,5 @@
 #include <phoenix/content.hpp>
+#include <phoenix/behavior.hpp>
 #include <algorithm>
 #include <functional>
 #include <set>
@@ -76,16 +77,17 @@ Catalog resolve_packs(const std::vector<Pack>& ordered) {
                 global_ids.insert(key); target[key] = value;
             }
         };
-        add("entities",result.entities); add("maps",result.maps); add("consoles",result.consoles);
+        add("entities",result.entities); add("maps",result.maps); add("consoles",result.consoles); add("trees",result.trees);
         if (overrides != used) invalid(id+".overrides","every declared override must replace an earlier definition");
         for (const auto& [path, bytes] : pack.files) if (path.starts_with("assets/")) result.assets[id+":"+path] = bytes;
         result.ordered_packs.emplace_back(id,archive_hash);
     }
-    inherit(result.entities,"entities"); inherit(result.maps,"maps"); inherit(result.consoles,"consoles");
+    inherit(result.entities,"entities"); inherit(result.maps,"maps"); inherit(result.consoles,"consoles"); inherit(result.trees,"trees");
     verify_catalog(result);
     return result;
 }
 void verify_catalog(const Catalog& catalog) {
+    for (const auto& [id,tree] : catalog.trees) verify_tree(tree,"trees."+id);
     for (const auto& [id, entity] : catalog.entities) {
         auto path = "entities."+id;
         if (!entity.contains("render") || !entity["render"].is_object()) invalid(path+".render","required object");
@@ -121,6 +123,14 @@ void verify_catalog(const Catalog& catalog) {
         else invalid(path+".collision.shape","supported values are circle and box");
         integer(collision,"mass_grams",path+".collision",0);
         if (entity.contains("console") && (!entity["console"].is_string() || !catalog.consoles.contains(entity["console"].get<std::string>()))) invalid(path+".console","unresolved console definition");
+        if (entity.contains("controller") && (!entity["controller"].is_string() || !catalog.trees.contains(entity["controller"].get<std::string>()))) invalid(path+".controller","unresolved state tree");
+        if (entity.contains("controller")) for (const auto& state : catalog.trees.at(entity["controller"].get<std::string>()).at("states")) {
+            const auto& systems = entity.at("systems");
+            if ((state.contains("speed_mm_s") || state.contains("engine_enabled")) && !systems.contains("engine")) invalid(path+".controller","engine output requires an engine");
+            if (state.contains("speed_mm_s") && state["speed_mm_s"].get<std::int64_t>() > systems.at("engine").at("max_speed_mm_s").get<std::int64_t>()) invalid(path+".controller","speed output exceeds the engine capability");
+            if (state.contains("heading_mdeg") && !systems.contains("steering")) invalid(path+".controller","heading output requires steering");
+            if (state.contains("radar_enabled") && !systems.contains("radar")) invalid(path+".controller","radar output requires radar");
+        }
     }
     for (const auto& [id, console] : catalog.consoles) {
         auto path = "consoles."+id;

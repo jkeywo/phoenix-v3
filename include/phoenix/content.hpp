@@ -19,7 +19,7 @@ private:
     friend Catalog resolve_packs(const std::vector<Pack>& ordered);
 };
 struct Catalog {
-    std::map<std::string, Json> entities, maps, consoles;
+    std::map<std::string, Json> entities, maps, consoles, trees;
     std::map<std::string, Bytes> assets;
     std::vector<std::pair<std::string, std::string>> ordered_packs;
 };

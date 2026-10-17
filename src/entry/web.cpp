@@ -1,6 +1,7 @@
 #include <phoenix/presentation.hpp>
 #include <raylib.h>
 #include <emscripten.h>
+#include <algorithm>
 #ifdef PHOENIX_SERVER
 #include <phoenix/world.hpp>
 std::unique_ptr<phoenix::World> world;
@@ -8,7 +9,9 @@ std::unique_ptr<phoenix::World> world;
 phoenix::Application app;
 void frame() {
 #ifdef PHOENIX_SERVER
-    world->tick();
+    static double accumulated = 0;
+    accumulated += std::min(static_cast<double>(GetFrameTime()),0.25);
+    while (accumulated >= 1.0/phoenix::World::ticks_per_second) { world->tick(); accumulated -= 1.0/phoenix::World::ticks_per_second; }
 #endif
     BeginDrawing();
     phoenix::draw_screen(app);
