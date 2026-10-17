@@ -1,0 +1,13 @@
+# Peer replication
+
+`phoenix_replication` owns a C++ Raft-style fixed-roster actor, independently of graphics, transport, the signalling service and the simulation. Each participating ship server will run this actor and the same full-world simulation. There is no central membership arbiter. Remote application wiring is still pending.
+
+The actor implements pre-vote, persisted terms/votes, majority election, a current-term no-op barrier, bounded append batches, matching-prefix checks, conflicting uncommitted suffix replacement, majority commit, check-quorum step-down and replay of the durable committed prefix. A disconnected stale peer cannot increase other peers' terms simply by probing for an election. The roster and session epoch are fixed and bound into durable state; returning identities can catch up, but this actor does not add new members during play.
+
+The application must bind incoming message senders to established peer identities. The actor rejects unknown/mismatched senders, session/recipient mismatches, malformed counters and oversized packets before mutation. This is crash-fault consensus, not Byzantine consensus or a substitute for transport authentication.
+
+Storage is asynchronous. `pending_write()` returns a generation and candidate durable state. Only `persisted(generation, true)` releases messages dependent on that state and makes its committed entries available for execution. Stale completions do nothing; a failed write stops authority. Gameplay consumes `take_committed()`, never a volatile log, a wall-clock tick or the leader role alone. A restarted actor replays its committed prefix; the caller must rebuild execution or align that replay with a verified simulation checkpoint.
+
+Synthetic native and WASM integration cases exercise delayed storage, failed storage, elections, bound sender identities, majority-only application through production World admission/ticks, three-peer partition/replacement/catch-up, rejection of a conflicting minority frame, durable restart and two-peer pause after one loss. They compare current controlled replicas rather than a frozen production hash. This establishes the actor's tested scenarios, not a formal proof or completed network acceptance.
+
+Remaining integration: real native/browser durable stores, incremental persistence/checkpoints, shared frame/session admission, presence and station changes, actual WebRTC/WSS transport, snapshots/content transfer, network fleet recovery and real multi-process/mixed-platform smoke evidence. The current local prototype still uses its local tick scheduler and does not claim fleet play.

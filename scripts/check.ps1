@@ -20,6 +20,8 @@ try {
         if ($LASTEXITCODE) { throw 'WASM simulation integration failed' }
         & "$repo/.tools/emsdk/node/24.19.0_64bit/node.exe" phoenix_session_check.js
         if ($LASTEXITCODE) { throw 'WASM session integration failed' }
+        & "$repo/.tools/emsdk/node/24.19.0_64bit/node.exe" phoenix_replication_check.js
+        if ($LASTEXITCODE) { throw 'WASM peer consensus integration failed' }
         $wasmTrace = & "$repo/.tools/emsdk/node/24.19.0_64bit/node.exe" phoenix_simulation_check.js --trace
         if ($LASTEXITCODE) { throw 'WASM simulation trace failed' }
         if ($nativeTrace -cne $wasmTrace) { throw 'Native/WASM continuation differs in the same controlled fixture' }
