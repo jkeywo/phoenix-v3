@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "entities": [
+    {
+      "id": "test.ship",
+      "render": {"mode": "camera", "images": ["test-core:assets/pixel.png"], "scale": 1},
+      "systems": {"engine": {"max_speed_mm_s": 17000, "acceleration_mm_s2": 2000}, "steering": {"turn_mdeg_s": 90000}, "radar": {"range_mm": 100000}},
+      "collision": {"shape": "circle", "radius_mm": 1000, "mass_grams": 10000},
+      "console": "test.console"
+    },
+    {"id": "test.variant", "extends": "test.ship", "render": {"scale": 2}}
+  ],
+  "maps": [
+    {"id": "test.map", "entities": [{"id": 1, "definition": "test.variant", "x_mm": 0, "y_mm": 0, "heading_mdeg": 0}], "ship_slots": [{"id": "test.slot", "x_mm": 10000, "y_mm": 0, "heading_mdeg": 0, "allowed_ships": ["test.ship"]}]}
+  ],
+  "consoles": [
+    {"id": "test.console", "widgets": [
+      {"id": "radar", "kind": "radar", "label": "Radar", "binding": "radar.contacts", "x": 0, "y": 0, "width": 600, "height": 1000},
+      {"id": "engine", "kind": "throttle", "label": "Desired speed", "binding": "engine.desired_speed", "x": 600, "y": 0, "width": 400, "height": 500},
+      {"id": "steering", "kind": "heading", "label": "Desired heading", "binding": "steering.desired_heading", "x": 600, "y": 500, "width": 400, "height": 500}
+    ]}
+  ]
+}
