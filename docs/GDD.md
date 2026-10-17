@@ -517,6 +517,14 @@ Accessibility is personal: readable type, scalable presentation, non-colour-only
 
 Native hosts/clients, multiple displays, custom consoles, lighting/smoke/show control and external input devices are optional adapters to the same supported state and command authority. Their absence or failure leaves the ordinary browser route usable. These are requirements for compatible behavior, not an inherited runtime or networking stack.
 
+### 14.4 Selected technical direction
+
+The selected stack is **C++ + Flecs + raylib**, with **RmlUi player consoles and custom GPU-rendered radars**, **Dear ImGui docking for Workshop/GM tools**, and **Emscripten/WebAssembly** for browser delivery. UI logic and layouts do not form a separate HTML/JavaScript application; a shared host shell and browser adapter provide platform services. RML/RCSS UI assets do not require Ultralight or another embedded browser.
+
+The native target is six 1920 × 1080 displays at 60 Hz, normally one Viewscreen and five consoles, using one spanning borderless window. One simulation serves all screens. Touch contacts and assigned gamepads route to stable Console identities with independent interaction state, rather than global shared UI focus. Player consoles require screen-reader access, including equivalent radar contact selection/actions; Workshop/GM tools require basic accessibility. Localisation applies to both, with tool text-shaping limits explicitly checked rather than waived.
+
+The [technical stack decision](technical-stack.md) defines these boundaries and the first integration proof. Dependency versions, concrete adapters and build configuration remain implementation design. Screen-reader support, simultaneous physical input and the display performance target require actual smoke evidence; none is claimed delivered.
+
 ## 15. Validation scenarios and acceptance
 
 The following walkthroughs test design coherence. They are hypothetical acceptance situations, not completed playtests or authored starter plots. Use mixed station depths, then repeat with stronger delegation and the two-player starter bundle. Additional larger-crew content needs its own authored roster and workload validation.
@@ -567,6 +575,12 @@ Use the new Courier's movement/weapons and mission/support bundles with competen
 
 Pair instrumentation with observation and player reports across complete combat, non-combat and recovery situations, with and without a GM. Record meaningful alternatives, reasoning, communication, waiting, overload, handoffs and causes. Counts and win rates alone cannot prove enjoyment. Numerical performance budgets and workload thresholds require prototypes and measurements; this GDD does not invent tested values.
 
+### 15.5 Testing policy
+
+Use the three categories defined in the [testing policy](testing.md). **Smoke runs** are manually invoked playthrough/device/performance captures. **Verification** checks that authored ships, trees, equipment and packs are coherent and runnable without asserting their current tuning values. **System integration tests** load minimal synthetic test-only data through the actual loader, admission and execution mechanisms and assert the system's behavioral contract.
+
+For example, verify that the Cruiser's declared power grid has valid providers, links, stores and baseline readiness; do not freeze its speed at 30 m/s. Test engine acceleration, resource consumption and refusal behavior using controlled synthetic parameters independent of the production Cruiser. Do not import a mandatory per-function/per-edit testing programme, production-content goldens or every historical smoke/performance threshold. The walkthroughs above define useful acceptance situations, not compulsory full journeys on every code change.
+
 ## 16. Authority, traceability and remaining specification work
 
 ### 16.1 Source precedence
@@ -584,7 +598,7 @@ The [source guide](source-guide.md) and [snapshot manifest](../references/source
 |---|---|
 | Thin Margin setting and old ships/scenarios | New Settled Dark content; functional Courier/Cruiser starter scope only. |
 | Conclave era several centuries before conquest | Immediately before the conquest; conquest itself outside the opening frame. |
-| Preserve V2 network/runtime architecture | Preserve multiplayer/control/knowledge behavior; choose V3 technology separately. |
+| Preserve V2 network/runtime architecture | Preserve multiplayer/control/knowledge behavior on the newly selected C++/Flecs/raylib stack. |
 | V2 increments and acceptance claims | Design evidence, not V3 delivery order or implementation status. |
 | Navigation treated as inherited Helm/auxiliary mapping | Science controls Guild passage and coordinates preparation. |
 | Specialist-directed away work interpreted as repeated remote orders | Authored away state trees; occasional Comms decisions; authored timeout defaults even during link loss. |
@@ -598,7 +612,7 @@ The [source guide](source-guide.md) and [snapshot manifest](../references/source
 
 Gameplay direction is established here. Exact equipment values, reactor/weapon/thermal curves, work rates, team counts, check modifiers, casualty tables, spatial thresholds and workload calibration remain authored tuning and validation work. Names, district maps, detailed hull layouts and mission plots remain light content scope. Their values must obey the rules above rather than reopen them silently.
 
-A separate technical design selects engine/languages, storage and transport, concrete APIs/schema/versioning, solver details and deterministic scheduling implementation. Preserve authoritative state, bounded knowledge, single control ownership, conservation, compatible continuation and the visible authoring behavior. The accepted shared mechanism and state-tree semantics remain contracts even when implementation changes. No V2 compatibility or code reuse is assumed.
+The [selected technical stack](technical-stack.md) fixes C++, Flecs, raylib, RmlUi, Dear ImGui docking and Emscripten. Further technical design selects dependency versions/build configuration, storage and transport, concrete APIs/schema/versioning, solver details and deterministic scheduling implementation. Preserve authoritative state, bounded knowledge, single control ownership, conservation, compatible continuation and the visible authoring behavior. The accepted shared mechanism and state-tree semantics remain contracts even when implementation changes. No V2 compatibility or code reuse is assumed. The [testing policy](testing.md) governs verification, synthetic behavioral tests and manually invoked smoke evidence.
 
 If later content or implementation exposes a genuinely new product choice, record it as a proposed revision with its affected rules. Do not silently fill it by copying an abandoned source alternative. The reference snapshots remain unchanged.
 
