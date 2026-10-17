@@ -17,3 +17,5 @@ dist/
 /raw/
 /userdata/
 /userdata.client/
+/userdata.servers/
+*.fleet.zip

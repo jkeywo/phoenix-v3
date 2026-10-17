@@ -7,7 +7,7 @@ if (!(Test-Path $openssl))
 {
 	throw 'Git for Windows OpenSSL is required for the native WSS integration fixture'
 }
-$testDirectory = Join-Path $repo 'build/tls-integration'
+$testDirectory = Join-Path $repo ("build/tls-integration-" + [Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force $testDirectory | Out-Null
 $certificate = Join-Path $testDirectory 'certificate.pem'
 $key = Join-Path $testDirectory 'key.pem'
@@ -16,7 +16,7 @@ if ($LASTEXITCODE)
 {
 	throw 'TLS integration certificate generation failed'
 }
-$names = @('PATH', 'PHOENIX_NATIVE_PROBE', 'PHOENIX_SESSION_PROBE', 'PHOENIX_TEST_CERT', 'PHOENIX_TEST_KEY')
+$names = @('PATH', 'PHOENIX_NATIVE_PROBE', 'PHOENIX_SESSION_PROBE', 'PHOENIX_FLEET_PROBE', 'PHOENIX_TEST_CERT', 'PHOENIX_TEST_KEY')
 $previous = @{}
 foreach ($name in $names)
 {
@@ -25,8 +25,16 @@ foreach ($name in $names)
 try
 {
 	$env:PATH = "$nodeDirectory;" + $env:PATH
-	$env:PHOENIX_NATIVE_PROBE = "$repo/build/native/Release/phoenix_network_probe.exe"
-	$env:PHOENIX_SESSION_PROBE = "$repo/build/native/Release/phoenix_session_probe.exe"
+	# Run a private executable snapshot so another build can relink the original Windows binaries.
+	$probeDirectory = Join-Path $repo ("build/network-check-" + [Guid]::NewGuid().ToString('N'))
+	New-Item -ItemType Directory -Path $probeDirectory | Out-Null
+	foreach ($probe in @('phoenix_network_probe', 'phoenix_session_probe', 'phoenix_fleet_probe'))
+	{
+		Copy-Item -LiteralPath "$repo/build/native/Release/$probe.exe" -Destination "$probeDirectory/$probe.exe"
+	}
+	$env:PHOENIX_NATIVE_PROBE = "$probeDirectory/phoenix_network_probe.exe"
+	$env:PHOENIX_SESSION_PROBE = "$probeDirectory/phoenix_session_probe.exe"
+	$env:PHOENIX_FLEET_PROBE = "$probeDirectory/phoenix_fleet_probe.exe"
 	$env:PHOENIX_TEST_CERT = $certificate
 	$env:PHOENIX_TEST_KEY = $key
 	& "$nodeDirectory/npm.cmd" ci --prefix "$repo/service" --ignore-scripts
@@ -45,5 +53,15 @@ finally
 	foreach ($name in $names)
 	{
 		[Environment]::SetEnvironmentVariable($name, $previous[$name])
+	}
+	if ($probeDirectory -and (Test-Path -LiteralPath $probeDirectory))
+	{
+		$resolvedProbeDirectory = [System.IO.Path]::GetFullPath($probeDirectory)
+		$buildDirectory = [System.IO.Path]::GetFullPath((Join-Path $repo 'build')) + [System.IO.Path]::DirectorySeparatorChar
+		if (!$resolvedProbeDirectory.StartsWith($buildDirectory, [System.StringComparison]::OrdinalIgnoreCase))
+		{
+			throw 'Refusing to remove a probe directory outside the build workspace'
+		}
+		Remove-Item -LiteralPath $resolvedProbeDirectory -Recurse -Force
 	}
 }

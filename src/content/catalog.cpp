@@ -75,6 +75,9 @@ Catalog resolve_packs(const std::vector<Pack> &ordered)
 	std::set<std::string> loaded, global_ids;
 	for (const auto &pack : ordered)
 	{
+		const auto format = pack.manifest.value("format", std::string{});
+		if (format == "phoenix-runtime-save" || format == "phoenix-fleet-setup")
+			invalid("pack", "session/setup containers are not gameplay packs; use their dedicated loader");
 		std::string archive_hash;
 		if (!pack.archive_.empty())
 		{

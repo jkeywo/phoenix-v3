@@ -53,6 +53,11 @@ try
 		{
 			throw 'WASM packet/content transfer integration failed'
 		}
+		& "$repo/.tools/emsdk/node/24.19.0_64bit/node.exe" phoenix_fleet_setup_check.js
+		if ($LASTEXITCODE)
+		{
+			throw 'WASM fleet setup integration failed'
+		}
 		$wasmTrace = & "$repo/.tools/emsdk/node/24.19.0_64bit/node.exe" phoenix_simulation_check.js --trace
 		if ($LASTEXITCODE)
 		{

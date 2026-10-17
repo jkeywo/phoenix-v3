@@ -423,14 +423,58 @@ if(EMSCRIPTEN)
 	configure_file(web/network-probe.html "${CMAKE_CURRENT_BINARY_DIR}/network-probe.html" COPYONLY)
 endif()
 add_library(phoenix_network_client STATIC src/network/client.cpp)
+add_library(phoenix_fleet STATIC src/replication/fleet.cpp)
+target_link_libraries(phoenix_fleet PUBLIC phoenix_persistence phoenix_wire phoenix_transport)
+if(EMSCRIPTEN)
+	target_compile_options(phoenix_fleet PRIVATE -fexceptions)
+endif()
 target_link_libraries(phoenix_network_client PUBLIC phoenix_blobs phoenix_transport)
 add_library(phoenix_network_host STATIC src/network/host.cpp)
+add_library(phoenix_fleet_setup STATIC src/session/fleet_setup.cpp src/session/fleet_runtime.cpp)
+target_link_libraries(phoenix_fleet_setup PUBLIC phoenix_session phoenix_wire phoenix_fleet phoenix_blobs)
+if(EMSCRIPTEN)
+	target_compile_options(phoenix_fleet_setup PRIVATE -fexceptions)
+	add_executable(phoenix_fleet_setup_check tests/system/fleet_setup.cpp)
+	target_link_libraries(phoenix_fleet_setup_check PRIVATE phoenix_fleet_setup)
+	target_compile_definitions(phoenix_fleet_setup_check PRIVATE PHOENIX_FIXTURE_DIR="/fixtures/content")
+	target_compile_options(phoenix_fleet_setup_check PRIVATE -fexceptions)
+	target_link_options(
+		phoenix_fleet_setup_check
+		PRIVATE
+			-fexceptions
+			"-sALLOW_MEMORY_GROWTH=1"
+			"-sSTACK_SIZE=1048576"
+			"--preload-file"
+			"${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/content@/fixtures/content"
+	)
+else()
+	add_executable(phoenix_fleet_setup_tests tests/system/fleet_setup.cpp)
+	target_link_libraries(phoenix_fleet_setup_tests PRIVATE phoenix_fleet_setup)
+	target_compile_definitions(
+		phoenix_fleet_setup_tests
+		PRIVATE PHOENIX_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/content"
+	)
+	add_test(NAME system.fleet-setup COMMAND phoenix_fleet_setup_tests)
+	add_executable(phoenix_fleet_runtime_tests tests/system/fleet_runtime.cpp)
+	target_link_libraries(phoenix_fleet_runtime_tests PRIVATE phoenix_fleet_setup)
+	target_compile_definitions(
+		phoenix_fleet_runtime_tests
+		PRIVATE PHOENIX_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/content"
+	)
+	add_test(NAME system.fleet-runtime COMMAND phoenix_fleet_runtime_tests)
+endif()
 target_link_libraries(phoenix_network_host PUBLIC phoenix_session phoenix_blobs phoenix_transport phoenix_persistence)
 if(EMSCRIPTEN)
 	target_compile_options(phoenix_network_client PRIVATE -fexceptions)
 	target_compile_options(phoenix_network_host PRIVATE -fexceptions)
 endif()
 if(NOT EMSCRIPTEN)
+	add_executable(phoenix_fleet_probe tests/manual/fleet.cpp)
+	target_link_libraries(phoenix_fleet_probe PRIVATE phoenix_fleet phoenix_simulation)
+	target_compile_definitions(
+		phoenix_fleet_probe
+		PRIVATE PHOENIX_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/content"
+	)
 	add_executable(phoenix_session_probe tests/manual/session.cpp)
 	target_link_libraries(phoenix_session_probe PRIVATE phoenix_network_host phoenix_network_client)
 	target_compile_definitions(

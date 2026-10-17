@@ -5,6 +5,7 @@ import { createSignallingServer } from "./server.mjs";
 import { readFileSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
 const open = (url) =>
 	new Promise((resolve, reject) => {
@@ -142,6 +143,220 @@ test("public plaintext bind is refused", () => {
 		/requires TLS/,
 	);
 });
+
+test(
+	"real fleet processes continue with a majority, pause a minority, renew returning authority and reconstruct durable logs",
+	{
+		skip: !process.env.PHOENIX_FLEET_PROBE,
+		timeout: 75000,
+	},
+	async () => {
+		const service = createSignallingServer({
+				port: 0,
+			}),
+			address = await service.listen();
+		const url = `ws://127.0.0.1:${address.port}/phoenix`,
+			directory = mkdtempSync(join(tmpdir(), "phoenix-fleet-")),
+			key = randomBytes(32).toString("hex");
+		const children = [];
+		const fixtures = new Map();
+		const fixture = async (members, mismatch) => {
+			const id = members.join("-") + (mismatch ? "-different" : ""),
+				file = join(directory, id + ".zip");
+			if (fixtures.has(id)) return file;
+			await new Promise((resolve, reject) => {
+				const child = spawn(
+					process.env.PHOENIX_FLEET_PROBE,
+					[
+						"--prepare",
+						"--members",
+						members.join(","),
+						"--fixture",
+						file,
+						...(mismatch ? ["--mismatch"] : []),
+					],
+					{
+						windowsHide: true,
+					},
+				);
+				children.push(child);
+				let output = "";
+				child.stderr.on("data", (bytes) => {
+					output += bytes;
+				});
+				child.once("error", reject);
+				child.once("exit", (code) => {
+					try {
+						assert.equal(code, 0, output);
+						resolve();
+					} catch (error) {
+						reject(error);
+					}
+				});
+			});
+			fixtures.set(id, true);
+			return file;
+		};
+		const group = async (name, members, seconds, extra = {}) => {
+			const packs = new Map();
+			for (const member of members)
+				packs.set(member, await fixture(members, (extra[member] || []).includes("--mismatch")));
+			const results = await Promise.all(
+				members.map(
+					(member) =>
+						new Promise((resolve, reject) => {
+							const file = join(directory, `${name}-${member}.json`),
+								child = spawn(
+									process.env.PHOENIX_FLEET_PROBE,
+									[
+										"--url",
+										url,
+										"--room",
+										name === "restart" ? "partition" : name,
+										"--session",
+										name === "restart" ? "partition" : name,
+										"--self",
+										member,
+										"--members",
+										members.join(","),
+										"--key",
+										key,
+										"--data",
+										join(directory, name === "restart" ? "partition" : name),
+										"--fixture",
+										packs.get(member),
+										"--result",
+										file,
+										"--seconds",
+										String(seconds),
+										"--relay",
+										...(extra[member] || []),
+									],
+									{
+										windowsHide: true,
+									},
+								);
+							children.push(child);
+							let output = "";
+							child.stdout.on("data", (bytes) => {
+								output += bytes;
+							});
+							child.stderr.on("data", (bytes) => {
+								output += bytes;
+							});
+							child.once("error", reject);
+							child.once("exit", (code) => {
+								try {
+									assert.equal(code, 0, output);
+									resolve(JSON.parse(readFileSync(file, "utf8")));
+								} catch (error) {
+									reject(error);
+								}
+							});
+						}),
+				),
+			);
+			return results;
+		};
+		try {
+			const partition = await group("partition", ["a", "b", "c"], 17, {
+				c: ["--drop", "5000", "--heal", "10000"],
+			});
+			assert.equal(
+				new Set(partition.map((result) => result.hash)).size,
+				1,
+				"Caught-up replicas must have identical production world state",
+			);
+			for (const result of partition) {
+				assert.equal(result.finished, true);
+				assert.ok(result.ticks > 0);
+				assert.ok(result.absences > 0);
+				assert.ok(result.rejoins > 0);
+				assert.ok(result.relay_packets > 0);
+			}
+			assert.equal(partition[2].pause_checked, true);
+			const restarted = await group("restart", ["a", "b", "c"], 6);
+			assert.equal(
+				new Set(restarted.map((result) => result.hash)).size,
+				1,
+				"Durably reconstructed worlds must agree",
+			);
+			for (const result of restarted) {
+				assert.equal(result.ticks, partition[0].ticks);
+				assert.deepEqual(
+					result.motion,
+					partition[0].motion,
+					"Durable replay preserves motion without executing additional ticks",
+				);
+				assert.ok(result.rejoins > partition[0].rejoins);
+			}
+			const two = await group("two", ["a", "b"], 12, {
+				b: ["--drop", "4000", "--heal", "9000"],
+			});
+			assert.equal(two[1].pause_checked, true);
+			assert.equal(new Set(two.map((result) => result.hash)).size, 1);
+			for (const result of two) assert.equal(result.finished, true);
+			const mismatch = await group("mismatch", ["a", "b"], 5, {
+				b: ["--mismatch"],
+			});
+			for (const result of mismatch) {
+				assert.equal(result.ticks, 0, "Different initial content cannot pass the unanimous start barrier");
+				assert.equal(result.finished, false);
+			}
+			const existing = group("missing-journal", ["a", "b", "c"], 12, { c: ["--seconds", "4"] });
+			await new Promise((resolve) => setTimeout(resolve, 6000));
+			const refused = await new Promise((resolve, reject) => {
+				const child = spawn(
+					process.env.PHOENIX_FLEET_PROBE,
+					[
+						"--url",
+						url,
+						"--room",
+						"missing-journal",
+						"--session",
+						"missing-journal",
+						"--self",
+						"c",
+						"--members",
+						"a,b,c",
+						"--key",
+						key,
+						"--data",
+						join(directory, "lost-journal"),
+						"--fixture",
+						join(directory, "a-b-c.zip"),
+						"--seconds",
+						"4",
+						"--relay",
+					],
+					{ windowsHide: true },
+				);
+				children.push(child);
+				let output = "";
+				child.stdout.on("data", (bytes) => {
+					output += bytes;
+				});
+				child.stderr.on("data", (bytes) => {
+					output += bytes;
+				});
+				child.once("error", reject);
+				child.once("exit", (code) => resolve({ code, output }));
+			});
+			assert.notEqual(refused.code, 0, refused.output);
+			assert.match(refused.output, /original durable peer journal/);
+			await existing;
+		} finally {
+			for (const child of children) child.kill();
+			await service.close();
+			rmSync(directory, {
+				recursive: true,
+				force: true,
+				maxRetries: 10,
+				retryDelay: 100,
+			});
+		}
+	},
+);
 
 test(
 	"live sessions verify content, commit controls, approve GM and explicitly replace disconnected operators",
