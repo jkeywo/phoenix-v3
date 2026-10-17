@@ -19,7 +19,6 @@ namespace phoenix
 {
 namespace
 {
-std::optional<ImportedFile> imported;
 std::optional<std::string> copied;
 std::string utf8(const std::wstring &value)
 {
@@ -31,7 +30,7 @@ std::string utf8(const std::wstring &value)
 	return result;
 }
 } // namespace
-void request_file(const std::string &purpose)
+void open_file(ImportId id, FilePurpose)
 {
 	wchar_t path[32768]{};
 	OPENFILENAMEW dialog{sizeof(dialog)};
@@ -41,22 +40,20 @@ void request_file(const std::string &purpose)
 	dialog.lpstrFilter = L"Phoenix content\0*.zip;*.json;*.png\0All files\0*.*\0";
 	dialog.Flags = OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
 	if (!GetOpenFileNameW(&dialog))
+	{
+		const auto error = CommDlgExtendedError();
+		complete_import(id, {}, {}, error ? "File picker failed: " + std::to_string(error) : "", !error);
 		return;
+	}
 	try
 	{
-		imported =
-		    ImportedFile{purpose, utf8(std::filesystem::path(path).filename().wstring()), read_file(utf8(path)), {}};
+		complete_import(id, utf8(std::filesystem::path(path).filename().wstring()),
+		                read_file(utf8(path), 32 * 1024 * 1024));
 	}
 	catch (const std::exception &error)
 	{
-		imported = ImportedFile{purpose, {}, {}, error.what()};
+		complete_import(id, {}, {}, error.what());
 	}
-}
-std::optional<ImportedFile> take_imported_file()
-{
-	auto result = std::move(imported);
-	imported.reset();
-	return result;
 }
 void copy_text(const std::string &text)
 {

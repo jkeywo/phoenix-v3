@@ -48,6 +48,11 @@ try
 		{
 			throw 'WASM session integration failed'
 		}
+		& "$repo/.tools/emsdk/node/24.19.0_64bit/node.exe" phoenix_file_check.js
+		if ($LASTEXITCODE)
+		{
+			throw 'WASM file import integration failed'
+		}
 		& "$repo/.tools/emsdk/node/24.19.0_64bit/node.exe" phoenix_replication_check.js
 		if ($LASTEXITCODE)
 		{

@@ -50,6 +50,7 @@ Texture2D TextureCache::load(const std::string &id, std::span<const std::uint8_t
 }
 struct GameScreen::State
 {
+	FileImportInbox imports;
 	std::string mission, slot, ship, notice, radar_reading;
 	std::int64_t desired_speed = 0, desired_heading = 0;
 	TextureCache textures;
@@ -76,6 +77,7 @@ struct GameScreen::State
 	}
 	void reset_session()
 	{
+		imports.reset();
 		close_resources();
 		mission.clear();
 		slot.clear();
@@ -244,7 +246,7 @@ struct GameScreen::State
 		{
 			auto &session = *app.session;
 			if (id == "game.import" && !session.running())
-				request_file("game-pack");
+				request_file(imports, FilePurpose::GamePack);
 			else if (id == "game.hide-qr")
 				show_invitation = false;
 			else if (id == "game.copy-invite" && !invitation_url.empty())
@@ -253,7 +255,7 @@ struct GameScreen::State
 				notice = "Copying invitation link...";
 			}
 			else if (id == "game.load")
-				request_file("game-save");
+				request_file(imports, FilePurpose::GameSave);
 			else if (id == "game.save" && session.running())
 			{
 				save_after = session.ticks();
@@ -433,20 +435,20 @@ struct GameScreen::State
 		{
 			// The Workshop owns its file responses while active. Game imports have an explicit purpose.
 			if (app.screen != Screen::workshop && app.screen != Screen::gm)
-				if (auto file = take_imported_file())
+				if (auto file = imports.take(); file && file->status != ImportStatus::Cancelled)
 				{
 					try
 					{
 						if (!file->error.empty())
 							throw std::runtime_error(file->error);
-						if (file->purpose == "game-pack")
+						if (file->purpose == FilePurpose::GamePack)
 						{
 							app.session->add_pack(file->bytes);
 							bind_session(app);
 							normalise(app.session->catalog());
 							notice = "Verified pack added: " + file->filename;
 						}
-						if (file->purpose == "game-save")
+						if (file->purpose == FilePurpose::GameSave)
 						{
 							app.session->restore(file->bytes);
 							bind_session(app);

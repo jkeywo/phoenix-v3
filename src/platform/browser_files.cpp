@@ -12,7 +12,6 @@ module phoenix.files;
 
 namespace
 {
-std::optional<phoenix::ImportedFile> imported;
 std::optional<std::string> copied;
 } // namespace
 extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_copy_result(const char *error)
@@ -26,27 +25,33 @@ EM_JS(void, copy_browser_text, (const char* text), {
     if (!navigator.clipboard || !window.isSecureContext) { reply('Clipboard access requires HTTPS or localhost. The invitation URL is shown above.'); return; }
     navigator.clipboard.writeText(value).then(()=>reply(""),error=>reply('Could not copy the link: '+String(error)));
 });
-extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_import_file(const char* purpose, const char* name, const unsigned char* bytes, unsigned size) {
-    if (size > 32*1024*1024) { imported = phoenix::ImportedFile{purpose,name,{},"File exceeds 32 MiB"}; return; }
-    imported = phoenix::ImportedFile{purpose,name,phoenix::Bytes(bytes,bytes+size),{}};
+extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_import_file(unsigned id, const char* name, const unsigned char* bytes, unsigned size) {
+    if (size > 32*1024*1024) { phoenix::complete_import(id,name,{},"File exceeds 32 MiB"); return; }
+    phoenix::complete_import(id,name,phoenix::Bytes(bytes,bytes+size));
 }
-extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_import_error(const char* message) { imported = phoenix::ImportedFile{{},{},{},message}; }
-EM_JS(void, choose_file, (const char* purpose), {
-    const reason = UTF8ToString(purpose);
+extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_import_error(unsigned id, const char* message, int cancelled) { phoenix::complete_import(id,{},{},message,cancelled != 0); }
+EM_JS(void, choose_file, (unsigned id, int purpose), {
     const input = document.createElement('input'); input.type = 'file';
-    input.accept = reason === 'image' ? '.png' : reason === 'map' ? '.json' : '.zip';
+    input.accept = purpose === 5 ? '.png' : purpose === 4 ? '.json' : '.zip';
+    let finished = false;
+    const failure = (error, cancelled = false) => {
+        if (finished) return;
+        finished = true;
+        Module.ccall('phoenix_import_error',null,['number','string','number'],[id,String(error),cancelled ? 1 : 0]);
+    };
+    input.addEventListener('cancel', () => failure('', true));
     input.addEventListener('change', async () => {
-        const file = input.files[0]; if (!file) return;
+        const file = input.files[0]; if (!file) { failure('',true); return; }
         try {
             if (file.size > 32*1024*1024) throw new Error('File exceeds 32 MiB');
             const bytes = new Uint8Array(await file.arrayBuffer());
             const pointer = Module._malloc(bytes.length || 1);
             if (!pointer) throw new Error('Unable to allocate file buffer');
-            try { HEAPU8.set(bytes,pointer); Module.ccall('phoenix_import_file',null,['string','string','number','number'],[reason,file.name,pointer,bytes.length]); }
+            try { HEAPU8.set(bytes,pointer); if (!finished) { Module.ccall('phoenix_import_file',null,['number','string','number','number'],[id,file.name,pointer,bytes.length]); finished = true; } }
             finally { Module._free(pointer); }
-        } catch (error) { Module.ccall('phoenix_import_error',null,['string'],[String(error)]); }
+        } catch (error) { failure(error); }
     });
-    input.click();
+    try { input.click(); } catch (error) { failure(error); }
 });
 EM_JS(void, download_file, (const char* filename, const unsigned char* bytes, unsigned size), {
     const blob = new Blob([HEAPU8.slice(bytes,bytes+size)],{type:'application/octet-stream'});
@@ -57,15 +62,9 @@ EM_JS(void, download_file, (const char* filename, const unsigned char* bytes, un
 });
 namespace phoenix
 {
-void request_file(const std::string &purpose)
+void open_file(ImportId id, FilePurpose purpose)
 {
-	choose_file(purpose.c_str());
-}
-std::optional<ImportedFile> take_imported_file()
-{
-	auto result = std::move(imported);
-	imported.reset();
-	return result;
+	choose_file(id, static_cast<int>(purpose));
 }
 void export_file(const std::string &filename, const Bytes &bytes)
 {

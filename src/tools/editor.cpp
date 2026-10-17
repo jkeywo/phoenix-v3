@@ -28,6 +28,7 @@ namespace
 {
 struct Editor
 {
+	FileImportInbox imports;
 	WorkshopDocument document;
 	std::uint64_t selected = 0;
 	int definition = -1, console = -1;
@@ -490,10 +491,12 @@ void map_view()
 } // namespace
 void close_editor()
 {
+	editor.imports.reset();
 	editor.clear_textures();
 }
 void open_workshop_pack(const std::string &path)
 {
+	editor.imports.reset();
 	editor.document.load_pack(read_file(path));
 	editor.clear_textures();
 	editor.pack_name = editor.document.manifest()["id"].get<std::string>();
@@ -531,13 +534,14 @@ void render_editor(Application &app)
 	attempt(
 	    [&]
 	    {
-		    if (auto imported = take_imported_file())
+		    if (auto imported = readonly ? std::nullopt : editor.imports.take();
+		        imported && imported->status != ImportStatus::Cancelled)
 		    {
 			    if (!imported->error.empty())
 				    throw std::runtime_error(imported->error);
 			    if (!readonly)
 			    {
-				    if (imported->purpose == "pack")
+				    if (imported->purpose == FilePurpose::WorkshopPack)
 				    {
 					    editor.document.load_pack(imported->bytes);
 					    editor.clear_textures();
@@ -546,17 +550,17 @@ void render_editor(Application &app)
 					    editor.console = -1;
 					    editor.pack_name = editor.document.manifest()["id"];
 				    }
-				    if (imported->purpose == "library")
+				    if (imported->purpose == FilePurpose::WorkshopLibrary)
 				    {
 					    editor.document.load_dependency(imported->bytes);
 					    editor.clear_textures();
 				    }
-				    if (imported->purpose == "map")
+				    if (imported->purpose == FilePurpose::WorkshopMap)
 				    {
 					    editor.document.load_map(imported->bytes);
 					    editor.selected = 0;
 				    }
-				    if (imported->purpose == "image")
+				    if (imported->purpose == FilePurpose::WorkshopImage)
 				    {
 					    editor.document.import_image(imported->filename, std::move(imported->bytes));
 					    editor.clear_textures();
@@ -577,6 +581,7 @@ void render_editor(Application &app)
 		{
 			if (ImGui::MenuItem("New pack"))
 			{
+				editor.imports.reset();
 				editor.document.reset();
 				editor.clear_textures();
 				editor.selected = 0;
@@ -585,9 +590,17 @@ void render_editor(Application &app)
 				editor.pack_name = "workshop";
 			}
 			if (ImGui::MenuItem("Open pack..."))
-				request_file("pack");
+				attempt(
+				    [&]
+				    {
+					    request_file(editor.imports, FilePurpose::WorkshopPack);
+				    });
 			if (ImGui::MenuItem("Load dependency pack..."))
-				request_file("library");
+				attempt(
+				    [&]
+				    {
+					    request_file(editor.imports, FilePurpose::WorkshopLibrary);
+				    });
 			if (ImGui::MenuItem("Export verified pack..."))
 				attempt(
 				    [&]
@@ -605,7 +618,11 @@ void render_editor(Application &app)
 					                            std::to_string(editor.document.definitions()["maps"].size() + 1));
 				    });
 			if (ImGui::MenuItem("Load map..."))
-				request_file("map");
+				attempt(
+				    [&]
+				    {
+					    request_file(editor.imports, FilePurpose::WorkshopMap);
+				    });
 			if (ImGui::MenuItem("Save map..."))
 				attempt(
 				    [&]
@@ -614,7 +631,11 @@ void render_editor(Application &app)
 					                editor.document.save_map());
 				    });
 			if (ImGui::MenuItem("Import PNG..."))
-				request_file("image");
+				attempt(
+				    [&]
+				    {
+					    request_file(editor.imports, FilePurpose::WorkshopImage);
+				    });
 			ImGui::EndMenu();
 		}
 		if (ImGui::MenuItem("Verify", nullptr, false, !readonly))
@@ -725,7 +746,11 @@ void render_editor(Application &app)
 			    editor.clear_textures();
 		    });
 	if (ImGui::Button("Import PNG"))
-		request_file("image");
+		attempt(
+		    [&]
+		    {
+			    request_file(editor.imports, FilePurpose::WorkshopImage);
+		    });
 	if (ImGui::Button("New entity definition"))
 	{
 		editor.document.create_entity();
