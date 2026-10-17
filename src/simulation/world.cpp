@@ -95,6 +95,7 @@ bool World::submit(std::uint64_t console, const OperatingCommand& command) {
     if (!admissible(impl_->content.entities.at(body.definition),command.action,command.value)) return false;
     impl_->pending.push_back(command); return true;
 }
+void World::clear_claims() { impl_->claims.clear(); impl_->pending.clear(); }
 void World::tick() {
     for (const auto& command : impl_->pending) apply(impl_->entities.at(command.target).get_mut<Operation>(),command.action,command.value);
     impl_->pending.clear();
@@ -137,6 +138,9 @@ std::vector<BodyView> World::inspect() const { std::vector<BodyView> result; for
 std::optional<Observation> World::observe(std::uint64_t console) const {
     auto found = impl_->claims.find(console); if (found == impl_->claims.end()) return {};
     auto entity = impl_->entities.at(found->second); const auto& own = entity.get<Body>(); Observation result{view(own),{}};
+    const auto& operation = entity.get<Operation>();
+    result.requested_speed = operation.speed; result.requested_heading = operation.heading;
+    result.engine_enabled = operation.engine_enabled; result.radar_enabled = operation.radar_enabled;
     const auto& systems = impl_->content.entities.at(own.definition).at("systems");
     if (!systems.contains("radar") || !entity.get<Operation>().radar_enabled) return result;
     auto range = systems["radar"]["range_mm"].get<std::int64_t>();

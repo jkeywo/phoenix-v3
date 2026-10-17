@@ -29,8 +29,24 @@ int main() {
         refused = false;
         try { session->add_pack(write_pack(pack)); } catch (const std::exception&) { refused = true; }
         require(refused,"Running content must not be hot-swapped");
+        auto portable = session->save();
+        auto recovered = make_local_session(); recovered->restore(portable);
+        require(recovered->recovery_pending() && !recovered->running() && !recovered->observation(),"Portable recovery must pause without restoring a live console claim");
+        auto paused_tick = recovered->ticks(); recovered->tick();
+        require(recovered->ticks() == paused_tick && !recovered->command({own,"speed_mm_s",1000}),"Recovery must not advance or admit commands before an explicit reclaim");
+        require(recovered->catalog().ordered_packs == identity,"Portable save must carry the exact original pack identities without installed content");
+        recovered->resume_local();
+        for (int i = 0; i < 20; ++i) { session->tick(); recovered->tick(); }
+        auto state = [](const Bytes& archive) { return parse_json(read_pack(archive).files.at("session.json"),"session.json").at("state"); };
+        require(state(session->save()) == state(recovered->save()),"Fresh console recovery must preserve tick, motion, requests, remainders and delegated work");
+        auto corrupt = read_pack(portable);
+        auto data = parse_json(corrupt.files.at("session.json"),"session.json"); data["state"]["packs"][0][1] = "wrong-hash";
+        corrupt.files["session.json"] = json_bytes(data);
+        auto before_restore = state(recovered->save()); refused = false;
+        try { recovered->restore(write_pack(corrupt)); } catch (const std::exception&) { refused = true; }
+        require(refused && state(recovered->save()) == before_restore,"A mismatched portable save must leave the running session unchanged");
         session->clear_packs();
         require(!session->running() && !session->observation() && session->catalog().ordered_packs.empty(),"Reset must release authority and content together");
-        std::cout << "PASS local setup, content rollback, admission and permitted observations\n";
+        std::cout << "PASS local setup, rollback, admission, projections and portable paused recovery\n";
     } catch (const std::exception& error) { std::cerr << "FAIL " << error.what() << '\n'; return 1; }
 }

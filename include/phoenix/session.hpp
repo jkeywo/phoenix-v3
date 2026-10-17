@@ -19,6 +19,10 @@ public:
     virtual const Catalog& catalog() const = 0;
     virtual void start(const GameSetup& setup) = 0;
     virtual bool running() const = 0;
+    virtual bool recovery_pending() const = 0;
+    virtual Bytes save() const = 0;
+    virtual void restore(const Bytes& archive) = 0;
+    virtual void resume_local() = 0;
     virtual void tick() = 0;
     virtual std::uint64_t ticks() const = 0;
     virtual bool command(const OperatingCommand& command) = 0;

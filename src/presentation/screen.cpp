@@ -37,11 +37,6 @@ void update_document(Application& app) {
     if (shown == app.screen) return;
     shown = app.screen;
     document->GetElementById("heading")->SetInnerRML(screen_name(app.screen));
-    const char* text = "Choose a mode to begin. This foundation build has no network session yet.";
-    if (shown == Screen::server_lobby) text = "Ship server lobby. Content selection, peer readiness and QR joining arrive in the session increment.";
-    if (shown == Screen::client_lobby) text = "Console lobby. Connection and authorised station claims arrive in the session increment.";
-    if (shown == Screen::viewscreen) text = "Viewscreen. No mission is running.";
-    document->GetElementById("description")->SetInnerRML(text);
     document->GetElementById("host")->SetProperty("display", app.can_host ? "inline-block" : "none");
     document->GetElementById("edit")->SetProperty("display", app.can_edit ? "inline-block" : "none");
 }

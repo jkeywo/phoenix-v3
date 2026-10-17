@@ -8,7 +8,7 @@ The runtime foundation uses **C++20 + Flecs + raylib**, with **RmlUi player cons
 
 The [testing policy](docs/testing.md) uses three categories: manually invoked smoke captures, content verification without frozen tuning values, and automated system integration tests using synthetic fixtures. Equipment tuning and player workload require prototyping and playtesting. Historical implementation claims refer to Phoenix V2 and do not describe working V3 features.
 
-The [Workshop foundation](docs/workshop.md) authors map/entity/console data and exports verified ZIP packs, including dependency-based mods. The [local playable prototype](docs/local-play.md) loads selected packs, missions and ships, renders billboards, and runs an authored radar/engine/steering console through real admission and simulation. Networking and fleet consensus remain pending; see the implementation record for precise status.
+The [Workshop foundation](docs/workshop.md) authors map/entity/console data and exports verified ZIP packs, including dependency-based mods. The [local playable prototype](docs/local-play.md) loads selected packs, missions and ships, renders billboards, runs an authored radar/engine/steering console, and exports portable saves with paused local recovery. Networking and fleet consensus remain pending; see the implementation record for precise status.
 
 The [source guide](docs/source-guide.md) explains the inputs; the [prior setting agreement](docs/settled-dark-direction.md) preserves the earlier pivot decisions. The consolidated GDD incorporates those decisions and the subsequent V3 consolidation choices. Historical snapshots remain unchanged.
 

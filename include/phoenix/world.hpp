@@ -15,6 +15,8 @@ public:
     bool claim(std::uint64_t console, EntityId ship);
     std::optional<EntityId> ship_for_slot(const std::string& slot) const;
     bool release(std::uint64_t console);
+    // Recovery discards transport ownership without changing saved operations.
+    void clear_claims();
     bool submit(std::uint64_t console, const OperatingCommand& command);
     std::optional<Observation> observe(std::uint64_t console) const;
     std::vector<BodyView> inspect() const;

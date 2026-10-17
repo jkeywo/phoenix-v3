@@ -13,6 +13,8 @@ std::map<std::string,Texture2D> textures;
 RenderTexture2D scene{};
 float azimuth = 0.7f, elevation = 0.8f, distance = 160;
 Vector3 focus{};
+std::optional<std::uint64_t> save_after;
+std::optional<std::uint64_t> requested_at;
 constexpr float pi = 3.14159265358979323846f;
 std::string escape(std::string value) {
     std::string result;
@@ -53,7 +55,13 @@ bool action(Application& app, const std::string& id) {
     try {
         auto& session = *app.session;
         if (id == "game.import" && !session.running()) request_file("game-pack");
-        else if (id == "game.clear") { session.clear_packs(); close_game_scene(); mission.clear(); slot.clear(); ship.clear(); radar_reading.clear(); notice = "Session ended; content selection cleared."; }
+        else if (id == "game.load") request_file("game-save");
+        else if (id == "game.save" && session.running()) { save_after = session.ticks(); notice = "Saving after the next local tick boundary."; }
+        else if (id == "game.resume" && session.recovery_pending()) {
+            session.resume_local(); auto observation = *session.observation(); desired_heading = observation.requested_heading;
+            desired_speed = observation.requested_speed; notice = "Local console reclaimed. Saved engine requests remain in effect until changed."; app.screen = Screen::console;
+        }
+        else if (id == "game.clear") { session.clear_packs(); close_game_scene(); mission.clear(); slot.clear(); ship.clear(); radar_reading.clear(); save_after.reset(); notice = "Session ended; content selection cleared."; }
         else if (id == "game.mission" && !session.running()) { next(mission,missions(session.catalog())); slot.clear(); ship.clear(); }
         else if (id == "game.slot" && !session.running()) { next(slot,slots(session.catalog())); ship.clear(); }
         else if (id == "game.ship" && !session.running()) next(ship,ships(session.catalog()));
@@ -80,6 +88,7 @@ bool action(Application& app, const std::string& id) {
             else return false;
             if (!session.command(command)) throw std::runtime_error("The server refused that control request");
             desired_speed = speed; desired_heading = heading;
+            requested_at = session.ticks();
             notice = "Requested speed "+std::to_string(speed/1000.0)+" m/s; heading "+std::to_string(heading/1000)+" degrees.";
         } else return false;
         normalise(session.catalog()); return true;
@@ -105,7 +114,9 @@ Texture2D texture(const Catalog& catalog, const std::string& asset) {
 void prepare_game_screen(Application& app, Rml::ElementDocument& document) {
     app.screen_controls.clear();
     app.screen_action = [&app](const std::string& id) { return action(app,id); };
-    std::string markup, description;
+    std::string markup, description = "Choose a mode to begin.";
+    if (app.screen == Screen::client_lobby) description = "Console lobby. Remote connection and authorised station claims are not implemented yet.";
+    if (app.screen == Screen::viewscreen || app.screen == Screen::console) description = "No local mission is running.";
     auto button = [&](const std::string& id,const std::string& text) {
         app.screen_controls.emplace_back(id,text);
         return "<button id=\""+escape(id)+"\">"+escape(label(app,text))+"</button>";
@@ -116,17 +127,39 @@ void prepare_game_screen(Application& app, Rml::ElementDocument& document) {
             try {
                 if (!file->error.empty()) throw std::runtime_error(file->error);
                 if (file->purpose == "game-pack") { app.session->add_pack(file->bytes); normalise(app.session->catalog()); notice = "Verified pack added: "+file->filename; }
+                if (file->purpose == "game-save") {
+                    app.session->restore(file->bytes); close_game_scene(); save_after.reset(); radar_reading.clear();
+                    app.screen = Screen::server_lobby; notice = "Verified runtime save loaded. Simulation paused; reclaim the local console to resume.";
+                }
             } catch (const std::exception& error) { notice = error.what(); }
         }
+        if (save_after && app.session->running() && app.session->ticks() > *save_after) {
+            try { export_file("phoenix-session.zip",app.session->save()); notice = "Runtime save exported with its exact selected packs."; }
+            catch (const std::exception& error) { notice = error.what(); }
+            save_after.reset();
+        }
         const auto& catalog = app.session->catalog(); normalise(catalog);
+        static bool was_running = false;
+        if (app.session->running() && !was_running) {
+            const auto own = app.session->observation()->own;
+            focus = {own.x/1000.f,0,-own.y/1000.f}; requested_at.reset();
+        }
+        was_running = app.session->running();
+        if (app.session->running() && (!requested_at || app.session->ticks() > *requested_at)) {
+            const auto observation = *app.session->observation();
+            desired_speed = observation.requested_speed; desired_heading = observation.requested_heading; requested_at.reset();
+        }
         if (app.screen == Screen::home || app.screen == Screen::server_lobby) {
             description = "Single local ship server. Import base packs before dependent mods. ";
             for (const auto& [id,hash] : catalog.ordered_packs) description += id+" ["+hash.substr(0,12)+"] ";
-            if (!app.session->running()) {
-                markup = button("game.import","Add ZIP pack")+button("game.clear","Clear packs");
+            if (app.session->recovery_pending()) {
+                description = "Recovery lobby / tick "+std::to_string(app.session->ticks())+". No live station claim. ";
+                markup = button("game.resume","Reclaim local console and resume")+button("game.load","Load runtime save")+button("game.clear","Discard recovery and clear packs");
+            } else if (!app.session->running()) {
+                markup = button("game.import","Add ZIP pack")+button("game.clear","Clear packs")+button("game.load","Load runtime save");
                 if (!catalog.maps.empty()) markup += button("game.mission","Mission: "+mission)+button("game.slot","Ship slot: "+slot)+button("game.ship","Ship: "+ship);
                 if (!ship.empty()) markup += button("game.start","Start local session");
-            } else markup = button("game.scene","Open viewscreen")+button("game.console","Open ship console")+button("game.clear","End session and clear packs");
+            } else markup = button("game.scene","Open viewscreen")+button("game.console","Open ship console")+button("game.save","Save runtime ZIP")+button("game.load","Load runtime save")+button("game.clear","End session and clear packs");
         } else if ((app.screen == Screen::viewscreen || app.screen == Screen::console) && app.session->running()) {
             const auto own = app.session->observation()->own;
             description = "Local tick "+std::to_string(app.session->ticks())+" / position "+std::to_string(own.x/1000)+", "+std::to_string(own.y/1000)+" m / speed "+std::to_string(static_cast<int>(std::hypot(static_cast<double>(own.vx),static_cast<double>(own.vy))/1000))+" m/s / heading "+std::to_string(own.heading/1000)+" degrees.";
@@ -155,10 +188,10 @@ void prepare_game_screen(Application& app, Rml::ElementDocument& document) {
     game->SetProperty("width",std::to_string(std::max(40,GetScreenWidth()-40))+"px");
     game->SetProperty("height",std::to_string(std::max(80,GetScreenHeight()-320))+"px");
     static std::string previous_markup, previous_description;
-    static Screen previous_screen = Screen::gm;
     if (markup != previous_markup) { game->SetInnerRML(markup); previous_markup = markup; }
-    if (!description.empty() && (description != previous_description || app.screen != previous_screen)) { document.GetElementById("description")->SetInnerRML(escape(label(app,description))); }
-    previous_description = description; previous_screen = app.screen;
+    const auto displayed = escape(label(app,description));
+    if (displayed != previous_description) document.GetElementById("description")->SetInnerRML(displayed);
+    previous_description = displayed;
 }
 void draw_game_scene(const Application& app) {
     if (!app.session || !app.session->running()) return;
