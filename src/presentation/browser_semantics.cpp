@@ -41,14 +41,15 @@ EM_JS(void, append_semantic_button, (const char* id, const char* label, float x,
         button.addEventListener('focus', () => Module.ccall('phoenix_semantic_focus', null, ['string'], [action]));
         root.appendChild(button);
     }
-    button.textContent = UTF8ToString(label); delete button.dataset.stale;
+    const text=UTF8ToString(label); if(button.textContent!==text)button.textContent=text; delete button.dataset.stale;
     button.disabled = !enabled;
     const rect = Module.canvas.getBoundingClientRect(), sx=rect.width/Module.canvas.width, sy=rect.height/Module.canvas.height;
     if(width>0 && height>0) {
         button.className='placed';
         Object.assign(button.style,{left:`${rect.left+x*sx}px`,top:`${rect.top+y*sy}px`,width:`${width*sx}px`,height:`${height*sy}px`});
     } else { button.className='fallback'; button.removeAttribute('style'); }
-    if(focused && root.contains(document.activeElement) && document.activeElement!==button) button.focus({preventScroll:true});
+    // DOM focus drives RmlUi through the queue. Re-focusing from the preceding
+    // frame here would undo the user's Tab key before that queue is drained.
 });
 EM_JS(void, end_semantics, (), {
     const root = document.getElementById('semantics');

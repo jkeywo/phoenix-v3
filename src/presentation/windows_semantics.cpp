@@ -242,7 +242,6 @@ public:
 			if (index_ >= 0 && state_->focuses.size() < 64)
 				state_->focuses.push_back(state_->controls[index_].id);
 		}
-		UiaRaiseAutomationEvent(this, UIA_AutomationFocusChangedEventId);
 		return S_OK;
 	}
 	HRESULT STDMETHODCALLTYPE get_FragmentRoot(IRawElementProviderFragmentRoot **result) override
@@ -317,7 +316,8 @@ void publish_semantics(const Application &app)
 {
 	if (!state)
 		return;
-	std::lock_guard lock(state->mutex);
+	std::unique_lock lock(state->mutex);
+	const auto previous_focus = state->focus;
 	auto controls = navigation_controls(app);
 	const bool replaced =
 	    state->session.lock() != app.session || (app.session && state->generation != app.session->generation());
@@ -338,6 +338,14 @@ void publish_semantics(const Application &app)
 		if (controls[i].placement.focused)
 			state->focus = static_cast<int>(i);
 	state->controls = std::move(controls);
+	Provider *focused =
+	    state->focus >= 0 && (changed || state->focus != previous_focus) ? new Provider(state, state->focus) : nullptr;
+	lock.unlock();
+	if (focused)
+	{
+		UiaRaiseAutomationEvent(focused, UIA_AutomationFocusChangedEventId);
+		focused->Release();
+	}
 }
 void drain_semantic_actions(Application &app)
 {
@@ -379,6 +387,19 @@ bool probe_native_accessibility(Application &app)
 	IRawElementProviderFragment *child = nullptr;
 	if (FAILED(root->Navigate(NavigateDirection_FirstChild, &child)) || !child)
 		return false;
+	UiaRect bounds{};
+	const bool placed = SUCCEEDED(child->get_BoundingRectangle(&bounds)) && bounds.width > 0 && bounds.height > 0;
+	bool focused = false;
+	auto original_focus = app.focus_control;
+	app.focus_control = [&](const std::string &id)
+	{
+		focused = id == "home";
+		if (original_focus)
+			original_focus(id);
+	};
+	child->SetFocus();
+	drain_semantic_actions(app);
+	app.focus_control = std::move(original_focus);
 	IRawElementProviderSimple *simple = nullptr;
 	child->QueryInterface(__uuidof(IRawElementProviderSimple), reinterpret_cast<void **>(&simple));
 	child->Release();
@@ -402,6 +423,6 @@ bool probe_native_accessibility(Application &app)
 	auto result = invoke->Invoke();
 	invoke->Release();
 	drain_semantic_actions(app);
-	return labelled && SUCCEEDED(result) && app.screen == Screen::home;
+	return labelled && placed && focused && SUCCEEDED(result) && app.screen == Screen::home;
 }
 } // namespace phoenix

@@ -12,6 +12,7 @@ module;
 #include <emscripten.h>
 // clang-format off: embedded JavaScript must retain its operators.
 EM_JS(bool, phoenix_canvas_has_focus, (), { return document.activeElement === Module.canvas; });
+EM_JS(bool, phoenix_document_has_focus, (), { return document.hasFocus(); });
 EM_JS(int, phoenix_canvas_width, (), { return Math.max(1,Module.canvas.clientWidth); });
 EM_JS(int, phoenix_canvas_height, (), { return Math.max(1,Module.canvas.clientHeight); });
 // clang-format on
@@ -49,6 +50,14 @@ std::set<std::string> gamepads;
 std::map<std::uint64_t, PointerInput> captures;
 std::optional<ConsoleId> mouse_capture;
 bool console_mode = false;
+bool window_focused()
+{
+#ifdef __EMSCRIPTEN__
+	return phoenix_document_has_focus();
+#else
+	return IsWindowFocused();
+#endif
+}
 std::vector<ConsoleRegion> displayed_regions;
 Rml::Context *routed_context(ConsoleId route)
 {
@@ -269,7 +278,7 @@ void draw_screen(Application &app)
 		}
 		else if (event.kind == DeviceEventKind::Gamepad)
 		{
-			if (console_mode && graphics_has_keyboard_focus())
+			if (console_mode && window_focused())
 			{
 				auto found = app.gamepad_assignments.find(event.device);
 				if (found != app.gamepad_assignments.end())
@@ -360,7 +369,7 @@ void draw_screen(Application &app)
 	    {KEY_RIGHT, Rml::Input::KI_RIGHT},    {KEY_UP, Rml::Input::KI_UP},         {KEY_DOWN, Rml::Input::KI_DOWN}};
 	const bool keyboard = graphics_has_keyboard_focus();
 	auto *keyboard_context = input.keyboard_console() ? routed_context(*input.keyboard_console()) : context;
-	if (!keyboard)
+	if (!window_focused())
 	{
 		cancel_captures();
 		for (const auto &pad : gamepads)

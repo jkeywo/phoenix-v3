@@ -246,9 +246,12 @@ int main(int argc, char **argv)
 	if (argc > 1 && std::strcmp(argv[1], "--platform-check") == 0)
 	{
 		app.screen = phoenix::Screen::client_lobby;
+		BeginDrawing();
+		phoenix::draw_screen(app);
+		EndDrawing();
 		bool passed = phoenix::probe_native_accessibility(app);
 		phoenix::close_window();
-		std::cout << "Native UIA label/invoke queue: " << (passed ? "PASS" : "FAIL") << '\n';
+		std::cout << "Native UIA label/bounds/focus/invoke queue: " << (passed ? "PASS" : "FAIL") << '\n';
 		return passed ? 0 : 1;
 	}
 	phoenix::begin_tools();

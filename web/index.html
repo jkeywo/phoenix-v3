@@ -109,6 +109,18 @@
 	<canvas id="canvas" tabindex="0" aria-label="Phoenix game graphics"></canvas>
 	<script>
 		"use strict";
+		// Keep GLFW's window key listeners from cancelling native form/ARIA
+		// keyboard behavior. Install before loading the generated application.
+		for (const type of ["keydown", "keypress", "keyup"]) {
+			window.addEventListener(
+				type,
+				(event) => {
+					if (["INPUT", "BUTTON", "SELECT", "TEXTAREA"].includes(event.target.tagName))
+						event.stopImmediatePropagation();
+				},
+				true,
+			);
+		}
 		const params = new URLSearchParams(location.search);
 		const type = params.get("type");
 		const allowed = new Set(["server", "client", "workshop"]);

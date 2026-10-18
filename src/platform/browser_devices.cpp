@@ -21,7 +21,7 @@ extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_device_event(int kind, double id, f
 EM_JS(void, begin_devices, (), {
     const canvas = Module.canvas, abort = new AbortController(), contacts = new Map();
     Module.phoenixDevices = {abort,contacts,pads:new Map()}; canvas.style.touchAction = 'none';
-    const send = (kind,id,x,y,device='',control='',value=0) => Module.ccall('phoenix_device_event',null,['number','number','number','number','string','string','number'],[kind,id,x,y,device,control,value]);
+    const send = (kind,id,x,y,device="",control="",value=0) => Module.ccall('phoenix_device_event',null,['number','number','number','number','string','string','number'],[kind,id,x,y,device,control,value]);
     Module.phoenixDevices.send = send;
     // GLFW's legacy touch listeners must not synthesize a second mouse action.
     for (const name of ['touchstart','touchmove','touchend','touchcancel']) canvas.addEventListener(name,event => {
@@ -30,7 +30,7 @@ EM_JS(void, begin_devices, (), {
     for (const [name,kind] of [['pointerdown',0],['pointermove',1],['pointerup',2],['pointercancel',3],['lostpointercapture',3]]) canvas.addEventListener(name,event => {
         if (event.pointerType === 'mouse') return;
         const rect=canvas.getBoundingClientRect(), x=(event.clientX-rect.left)*canvas.width/rect.width, y=(event.clientY-rect.top)*canvas.height/rect.height;
-        if (kind===0) { contacts.set(event.pointerId,[x,y]); canvas.setPointerCapture(event.pointerId); }
+        if (kind===0) { canvas.focus({preventScroll:true}); contacts.set(event.pointerId,[x,y]); canvas.setPointerCapture(event.pointerId); }
         else if (!contacts.has(event.pointerId)) return;
         send(kind,event.pointerId,x,y);
         if (kind>=2) contacts.delete(event.pointerId); else contacts.set(event.pointerId,[x,y]);
