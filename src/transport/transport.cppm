@@ -74,6 +74,7 @@ struct LinkAction
 {
 	enum class Kind
 	{
+		reset,
 		initiate,
 		signal
 	} kind;

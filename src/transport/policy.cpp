@@ -18,8 +18,13 @@ void LinkPolicy::discover(const std::string &peer, std::vector<LinkNotice> &noti
 {
 	if (peer == self_ || !valid_identifier(peer) || discovered_.size() >= link_peer_limit)
 		return;
-	if (discovered_.insert(peer).second)
-		notices.push_back({LinkEvent::discovered, peer});
+	if (!discovered_.insert(peer).second)
+		return;
+	notices.push_back({LinkEvent::discovered, peer});
+	// A returning signalling identity may belong to a new process. Retire its
+	// previous direct connection before either endpoint starts negotiation.
+	if (!force_relay_)
+		actions.push_back({LinkAction::Kind::reset, peer});
 	if (!force_relay_ && self_ < peer)
 		actions.push_back({LinkAction::Kind::initiate, peer});
 }

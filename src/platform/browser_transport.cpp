@@ -90,6 +90,16 @@ EM_JS(void, open_browser_transport, (unsigned id, const char* configuration), {
         }
         return link;
     };
+    state.reset = peer => {
+        const link=state.peers.get(peer); if (!link) return;
+        state.peers.delete(peer);
+        if (link.channel) {
+            link.channel.onopen=link.channel.onclose=link.channel.onerror=link.channel.onmessage=null;
+            link.channel.close();
+        }
+        link.pc.onicecandidate=link.pc.ondatachannel=link.pc.onconnectionstatechange=null;
+        link.pc.close();
+    };
     state.initiate = peer => {
         try { create(peer,true); } catch (error) { notice('error',peer,String(error)); }
     };
@@ -139,6 +149,9 @@ EM_JS(bool, send_browser_direct, (unsigned id, const char* peer, const char* byt
 });
 EM_JS(void, initiate_browser_peer, (unsigned id, const char* peer), {
     Module.phoenixLinks.get(id)?.initiate(UTF8ToString(peer));
+});
+EM_JS(void, reset_browser_peer, (unsigned id, const char* peer), {
+    Module.phoenixLinks.get(id)?.reset(UTF8ToString(peer));
 });
 EM_JS(void, signal_browser_peer, (unsigned id, const char* peer, const char* bytes), {
     Module.phoenixLinks.get(id)?.signal(UTF8ToString(peer),UTF8ToString(bytes));
@@ -216,7 +229,9 @@ public:
 					break;
 				case BrowserEvent::ws_packet:
 					for (const auto &action : policy_.receive(event.data, result))
-						if (action.kind == LinkAction::Kind::initiate)
+						if (action.kind == LinkAction::Kind::reset)
+							reset_browser_peer(id_, action.peer.c_str());
+						else if (action.kind == LinkAction::Kind::initiate)
 							initiate_browser_peer(id_, action.peer.c_str());
 						else
 							signal_browser_peer(id_, action.peer.c_str(), action.data.c_str());

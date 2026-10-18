@@ -107,6 +107,21 @@ class NativeTransport final : public PeerTransport
 	std::shared_ptr<rtc::WebSocket> socket_;
 	std::map<std::string, Peer> peers_;
 	std::chrono::steady_clock::time_point retry_{};
+	void reset_peer(const std::string &id)
+	{
+		auto found = peers_.find(id);
+		if (found == peers_.end())
+			return;
+		auto peer = std::move(found->second);
+		peers_.erase(found);
+		if (peer.channel)
+		{
+			peer.channel->resetCallbacks();
+			peer.channel->close();
+		}
+		peer.connection->resetCallbacks();
+		peer.connection->close();
+	}
 	void connect()
 	{
 		if (socket_)
@@ -334,7 +349,9 @@ public:
 				case Event::ws_packet:
 				{
 					for (const auto &action : policy_.receive(event.data, notices))
-						if (action.kind == LinkAction::Kind::initiate)
+						if (action.kind == LinkAction::Kind::reset)
+							reset_peer(action.peer);
+						else if (action.kind == LinkAction::Kind::initiate)
 							create(action.peer, true);
 						else
 							signal(action.peer, action.data);
