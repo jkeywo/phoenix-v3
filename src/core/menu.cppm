@@ -40,6 +40,8 @@ public:
 	void remember();
 	void install(const Bytes &archive);
 	void install_default(const Bytes &archive);
+	void install_bundled(const Bytes &base, const Bytes &addon);
+	std::vector<LibraryPack> toggle_pack(const std::vector<LibraryPack> &selection, const std::string &hash) const;
 	Bytes read_pack_archive(const std::string &hash) const;
 	LibraryPack replace_pack(const std::string &hash, const Bytes &archive);
 	std::vector<Bytes> archives(const std::vector<LibraryPack> &selection) const;

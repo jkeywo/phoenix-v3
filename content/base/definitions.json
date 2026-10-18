@@ -305,35 +305,8 @@
 				"radius_mm": 2000,
 				"mass_grams": 2000000
 			},
-			"console": "training.bridge"
-		},
-		{
-			"id": "training.tug",
-			"extends": "training.survey",
-			"render": {
-				"mode": "camera",
-				"images": ["phoenix-base:assets/ship-0.png"],
-				"scale": 12,
-				"sprite": null,
-				"engines": null,
-				"radar_sprite": "phoenix-base:assets/radar/ship.png"
-			},
-			"systems": {
-				"engine": {
-					"max_speed_mm_s": 8000
-				}
-			},
-			"collision": {
-				"shape": "box",
-				"half_width_mm": 2500,
-				"half_length_mm": 4000,
-				"mass_grams": 5000000
-			}
-		},
-		{
-			"id": "training.traffic",
-			"extends": "training.survey",
-			"controller": "training.patrol"
+			"console": "training.bridge",
+			"name": "Courier"
 		},
 		{
 			"id": "training.beacon",
@@ -411,78 +384,18 @@
 	],
 	"maps": [
 		{
-			"id": "training.navigation",
-			"entities": [
-				{
-					"id": 1,
-					"definition": "training.beacon",
-					"x_mm": 50000,
-					"y_mm": 20000,
-					"heading_mdeg": 0
-				},
-				{
-					"id": 2,
-					"definition": "training.traffic",
-					"x_mm": -80000,
-					"y_mm": -50000,
-					"heading_mdeg": 90000
-				}
-			],
+			"id": "base.free-flight",
+			"name": "Free Flight",
+			"entities": [],
 			"ship_slots": [
 				{
-					"id": "training.player",
-					"x_mm": 0,
-					"y_mm": 0,
-					"heading_mdeg": 0,
-					"allowed_ships": ["training.survey", "training.tug"]
-				}
-			],
-			"presentation": {
-				"dust": {
-					"enabled": true
-				}
-			}
-		},
-		{
-			"id": "training.lighting",
-			"lighting": {
-				"sun_direction": [-0.5, 0.6, 0.6],
-				"sun_color": [1, 0.89, 0.7],
-				"ambient": 0.14,
-				"hatch_thickness": 2,
-				"hatch_spacing": 6,
-				"shadows": true
-			},
-			"entities": [
-				{
-					"id": 10,
-					"definition": "training.asteroid",
-					"x_mm": -24000,
-					"y_mm": 0,
-					"heading_mdeg": 0
-				},
-				{
-					"id": 11,
-					"definition": "training.sun",
-					"x_mm": -40000,
-					"y_mm": -60000,
-					"heading_mdeg": 0
-				}
-			],
-			"ship_slots": [
-				{
-					"id": "training.player",
+					"id": "base.player",
 					"x_mm": 0,
 					"y_mm": 0,
 					"heading_mdeg": 0,
 					"allowed_ships": ["training.survey"]
 				}
-			],
-			"presentation": {
-				"dust": {
-					"enabled": true
-				}
-			}
+			]
 		}
 	],
 	"consoles": [
@@ -522,36 +435,5 @@
 			]
 		}
 	],
-	"trees": [
-		{
-			"id": "training.patrol",
-			"initial": "north",
-			"states": {
-				"north": {
-					"ticks": 200,
-					"next": "east",
-					"speed_mm_s": 3000,
-					"heading_mdeg": 90000
-				},
-				"east": {
-					"ticks": 200,
-					"next": "south",
-					"speed_mm_s": 3000,
-					"heading_mdeg": 0
-				},
-				"south": {
-					"ticks": 200,
-					"next": "west",
-					"speed_mm_s": 3000,
-					"heading_mdeg": 270000
-				},
-				"west": {
-					"ticks": 200,
-					"next": "north",
-					"speed_mm_s": 3000,
-					"heading_mdeg": 180000
-				}
-			}
-		}
-	]
+	"trees": []
 }

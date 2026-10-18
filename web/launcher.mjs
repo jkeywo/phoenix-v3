@@ -137,6 +137,54 @@ export function mergeRuntimeLibrary(index, previous) {
 		packs: index.packs.map((pack) => ({ ...previous.packs.find((old) => old.hash === pack.hash), ...pack })),
 	};
 }
+export function togglePack(selection, hash, metadata) {
+	const candidate = selection.map((p) => ({ ...p }));
+	const chosen = candidate.find((p) => p.hash === hash);
+	if (!chosen) throw Error("Select an installed pack.");
+	const dependencies = (p) => metadata.get(p.hash)?.dependencies || [];
+	const visiting = new Set(),
+		done = new Set();
+	function enable(pack) {
+		if (visiting.has(pack)) throw Error("Pack dependencies contain a cycle.");
+		if (done.has(pack)) return;
+		visiting.add(pack);
+		for (const id of dependencies(pack)) {
+			const dependency = candidate.find((p) => p.id === id);
+			if (!dependency) throw Error("Install the required pack: " + id);
+			enable(dependency);
+		}
+		pack.enabled = true;
+		visiting.delete(pack);
+		done.add(pack);
+	}
+	if (!chosen.enabled) enable(chosen);
+	else {
+		chosen.enabled = false;
+		let changed = true;
+		while (changed) {
+			changed = false;
+			for (const p of candidate)
+				if (p.enabled && dependencies(p).some((id) => !candidate.some((q) => q.id === id && q.enabled))) {
+					p.enabled = false;
+					changed = true;
+				}
+		}
+	}
+	const ordered = [];
+	done.clear();
+	function append(pack) {
+		if (done.has(pack)) return;
+		done.add(pack);
+		if (pack.enabled)
+			for (const id of dependencies(pack)) {
+				const dependency = candidate.find((p) => p.id === id && p.enabled);
+				if (dependency) append(dependency);
+			}
+		ordered.push(pack);
+	}
+	candidate.forEach(append);
+	return ordered;
+}
 export function menuPreview(source) {
 	const text = (value) => {
 		if (typeof value !== "string" || !value.length || value.length > 256) throw Error("Invalid menu preview text.");
@@ -150,6 +198,8 @@ export function menuPreview(source) {
 	return {
 		schema: 1,
 		id: source.id === undefined ? "" : text(source.id),
+		name: source.name === undefined ? "" : text(source.name),
+		dependencies: list(source.dependencies || [], 32).map(text),
 		scenarios: list(source.scenarios, 1024).map((scene) => ({
 			id: text(scene.id),
 			name: text(scene.name || scene.id),
@@ -334,12 +384,14 @@ async function boot() {
 	async function preview(bytes) {
 		const manifest = JSON.parse(decoder.decode(await zipEntry(bytes, "manifest.json")));
 		const declared = await zipEntry(bytes, "launcher.json", true);
-		if (declared) return menuPreview({ ...JSON.parse(decoder.decode(declared)), id: manifest.id });
+		if (declared) return menuPreview({ ...JSON.parse(decoder.decode(declared)), ...manifest });
 		// Older packs can expose direct authored slots; inherited setup is resolved in C++.
 		const definitions = JSON.parse(decoder.decode(await zipEntry(bytes, "definitions.json")));
 		return menuPreview({
 			schema: 1,
 			id: manifest.id,
+			name: manifest.name,
+			dependencies: manifest.dependencies,
 			scenarios: (definitions.maps || [])
 				.filter((map) => Array.isArray(map.ship_slots))
 				.map((map) => ({
@@ -640,10 +692,13 @@ async function boot() {
 		).className = "help";
 		button(popup, "Import ZIP Pack", () => importFile("pack"));
 		for (const pack of library.packs) {
-			element("h2", pack.id, popup);
+			element("h2", previews.get(pack.hash)?.name || pack.id, popup);
+			const dependencies = previews.get(pack.hash)?.dependencies || [];
+			if (dependencies.length) element("p", t("Requires") + ": " + dependencies.join(", "), popup);
 			button(popup, pack.enabled ? "Enabled" : "Disabled", async () => {
-				pack.enabled = !pack.enabled;
+				library.packs = togglePack(library.packs, pack.hash, previews);
 				await remember();
+				render();
 				packs();
 			});
 			const row = element("div", undefined, popup);
@@ -772,6 +827,17 @@ async function boot() {
 		render();
 		$("settings").disabled = $("packs").disabled = true;
 		try {
+			const migration = new Map();
+			if (library.split_bundled_pending && (o.action === "host" || o.action === "workshop")) {
+				await ensurePacks(true);
+				for (const bundle of ["base", "training"]) {
+					const meta = await fetch(`${bundle}.zip.menu.json`).then((r) => r.json());
+					const bytes = await fetchFile(`${bundle}.zip`);
+					if (hex(await crypto.subtle.digest("SHA-256", bytes)) !== meta.hash)
+						throw Error("Published content changed. Reload the menu.");
+					migration.set(bundle, bytes);
+				}
+			}
 			if (o.action === "host" || o.action === "legacy" || o.action === "workshop")
 				await ensurePacks(o.action === "workshop");
 			await remember();
@@ -793,11 +859,13 @@ async function boot() {
 				arguments: launchArguments(o, location.origin + location.pathname),
 				print: console.log,
 				printErr: console.error,
+				phoenixMigrateBundled: migration.size > 0,
 				preRun: [
 					() => {
 						const fs = window.Module.FS;
 						fs.mkdirTree("/launcher/menu/packs");
 						fs.mkdirTree("/launcher/menu/saves");
+						for (const [bundle, bytes] of migration) fs.writeFile(`/launcher/bundled-${bundle}.zip`, bytes);
 						for (const [key, bytes] of files)
 							if (key === "library.json" || /^(packs|saves)\/[a-f0-9]{32,64}\.zip$/.test(key))
 								fs.writeFile("/launcher/menu/" + key, bytes);
@@ -917,7 +985,7 @@ async function boot() {
 			style.setProperty(prefix === "button" ? "--slice" : "--panel-slice", properties.slices);
 			style.setProperty(`--${prefix}-edge`, properties.edges);
 		}
-		if (routes) {
+		if (routes && !["host", "legacy", "workshop"].includes(routes.action)) {
 			await start(routes, true);
 			return;
 		}
@@ -930,28 +998,66 @@ async function boot() {
 				} catch {}
 			}
 		}
-		if (!files.has("published-base-catalog.json")) {
-			try {
-				const response = await fetch("base.zip.menu.json");
-				if (!response.ok) throw Error("Base game content unavailable. Import a pack in Mod Packs.");
-				const meta = await response.json();
-				menuPreview(meta);
-				if (!/^[a-f0-9]{64}$/.test(meta.hash)) throw Error("Invalid published pack identity.");
-				if (!library.packs.some((pack) => pack.id === meta.id))
-					library.packs.push({
-						hash: meta.hash,
-						id: meta.id,
-						enabled: library.packs.length === 0,
-						url: "base.zip",
-					});
-				previews.set(meta.hash, meta);
-				await remember([
-					[`preview/${meta.hash}.json`, encoder.encode(JSON.stringify(meta))],
-					["published-base-catalog.json", encoder.encode(meta.hash)],
-				]);
-			} catch (error) {
-				status(t(error.message));
+		const published = new Map();
+		let addedTraining = false;
+		for (const bundle of ["base", "training"]) {
+			const marker = `published-${bundle}-split-catalog.json`;
+			if (files.has(marker)) {
+				const hash = decoder.decode(files.get(marker));
+				published.set(bundle, menuPreview(JSON.parse(decoder.decode(files.get(`preview/${hash}.json`)))));
+			} else {
+				try {
+					const response = await fetch(`${bundle}.zip.menu.json`);
+					if (!response.ok) throw Error("Base game content unavailable. Import a pack in Mod Packs.");
+					const meta = await response.json();
+					const parsed = menuPreview(meta);
+					published.set(bundle, parsed);
+					if (!/^[a-f0-9]{64}$/.test(meta.hash)) throw Error("Invalid published pack identity.");
+					const existing = library.packs.find((pack) => pack.id === meta.id);
+					if (!existing) {
+						if (bundle === "training") addedTraining = true;
+						library.packs.push({
+							hash: meta.hash,
+							id: meta.id,
+							enabled: library.packs.length === 0,
+							url: `${bundle}.zip`,
+						});
+					}
+					previews.set(meta.hash, parsed);
+					await remember([
+						[`preview/${meta.hash}.json`, encoder.encode(JSON.stringify(meta))],
+						[`published-${bundle}-split-catalog.json`, encoder.encode(meta.hash)],
+					]);
+				} catch (error) {
+					status(t(error.message));
+				}
 			}
+		}
+		const base = library.packs.find((p) => p.id === "phoenix-base");
+		const training = library.packs.find((p) => p.id === "phoenix-training");
+		const basePreview = base && previews.get(base.hash),
+			trainingPreview = published.get("training");
+		if (
+			basePreview &&
+			trainingPreview &&
+			basePreview.scenarios.some((s) => trainingPreview.scenarios.some((t) => t.id === s.id))
+		) {
+			const maps = new Map(
+				basePreview.scenarios
+					.filter((s) => !trainingPreview.scenarios.some((t) => t.id === s.id))
+					.map((s) => [s.id, s]),
+			);
+			for (const scene of published.get("base")?.scenarios || [])
+				if (!maps.has(scene.id)) maps.set(scene.id, scene);
+			const migratedPreview = { ...basePreview, scenarios: [...maps.values()] };
+			previews.set(base.hash, migratedPreview);
+			library.split_bundled_pending = true;
+			if (addedTraining) training.enabled = base.enabled;
+			await remember([[`preview/${base.hash}.json`, encoder.encode(JSON.stringify(migratedPreview))]]);
+		}
+		if (routes) {
+			await start(routes, true);
+			return;
 		}
 		render();
 		if (!$("status").textContent || $("status").textContent === "Loading menu…") status("");

@@ -9,6 +9,7 @@ module;
 #include <chrono>
 #include <ctime>
 #include <filesystem>
+#include <functional>
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
@@ -156,7 +157,6 @@ void MenuLibrary::install_default(const Bytes &archive)
 		                return entry.id == id;
 	                }))
 		return;
-	resolve_packs({pack});
 	const bool fresh = packs.empty();
 	install(archive);
 	if (fresh)
@@ -165,6 +165,169 @@ void MenuLibrary::install_default(const Bytes &archive)
 		selected.front().enabled = true;
 		apply(selected);
 	}
+}
+void MenuLibrary::install_bundled(const Bytes &base_archive, const Bytes &addon_archive)
+{
+	const auto base = read_pack(base_archive), addon = read_pack(addon_archive);
+	const auto base_id = base.manifest().at("id").get<std::string>(),
+	           addon_id = addon.manifest().at("id").get<std::string>();
+	install_default(base_archive);
+	// Move the old bundled examples out of an edited base without losing authored maps or changes to the examples.
+	const auto selected = packs;
+	const auto existing_addon = std::find_if(selected.begin(), selected.end(),
+	                                         [&](const auto &p)
+	                                         {
+		                                         return p.id == addon_id;
+	                                         });
+	const auto source = std::find_if(selected.begin(), selected.end(),
+	                                 [&](const auto &p)
+	                                 {
+		                                 return p.id == base_id;
+	                                 });
+	const auto installed = read_pack(read_pack_archive(source->hash));
+	const auto installed_addon = existing_addon == selected.end() || existing_addon->hash == addon.hash()
+	                                 ? addon
+	                                 : read_pack(read_pack_archive(existing_addon->hash));
+	PackDraft base_draft{installed.manifest(), installed.files()},
+	    addon_draft{installed_addon.manifest(), installed_addon.files()};
+	auto from = parse_json(base_draft.files.at("definitions.json"), "installed base definitions");
+	auto to = parse_json(addon_draft.files.at("definitions.json"), "bundled mod definitions");
+	bool moved = false;
+	for (const char *kind : {"entities", "maps", "consoles", "trees"})
+	{
+		if (!to.contains(kind))
+			continue;
+		for (auto &definition : to.at(kind))
+			if (from.contains(kind))
+				for (auto it = from[kind].begin(); it != from[kind].end(); ++it)
+					if (it->at("id") == definition.at("id"))
+					{
+						definition = *it;
+						from[kind].erase(it);
+						moved = true;
+						break;
+					}
+	}
+	if (!moved)
+	{
+		install_default(addon_archive);
+		return;
+	}
+	const auto shipped = parse_json(base.files().at("definitions.json"), "bundled base definitions");
+	for (const auto &map : shipped.value("maps", Json::array()))
+		if (std::none_of(from["maps"].begin(), from["maps"].end(),
+		                 [&](const auto &m)
+		                 {
+			                 return m.at("id") == map.at("id");
+		                 }))
+			from["maps"].push_back(map);
+	base_draft.files["definitions.json"] = json_bytes(from);
+	addon_draft.files["definitions.json"] = json_bytes(to);
+	base_draft.files.erase("launcher.json");
+	addon_draft.files.erase("launcher.json");
+	base_draft.files["launcher.json"] = json_bytes(launcher_catalog(resolve_draft({}, base_draft)));
+	const auto migrated_base = write_pack(base_draft);
+	addon_draft.files["launcher.json"] =
+	    json_bytes(launcher_catalog(resolve_draft({read_pack(migrated_base)}, addon_draft)));
+	const auto migrated_addon = write_pack(addon_draft);
+	auto candidate = selected;
+	const bool addon_enabled = existing_addon == selected.end() ? source->enabled : existing_addon->enabled;
+	std::erase_if(candidate,
+	              [&](const auto &p)
+	              {
+		              return p.id == addon_id;
+	              });
+	const auto index = static_cast<std::size_t>(std::find_if(candidate.begin(), candidate.end(),
+	                                                         [&](const auto &p)
+	                                                         {
+		                                                         return p.id == base_id;
+	                                                         }) -
+	                                            candidate.begin());
+	candidate[index].hash = sha256(migrated_base);
+	candidate.insert(candidate.begin() + index + 1, {sha256(migrated_addon), addon_id, addon_enabled});
+	atomic_write(path("packs", candidate[index].hash, ".zip"), migrated_base);
+	atomic_write(path("packs", candidate[index + 1].hash, ".zip"), migrated_addon);
+	apply(candidate);
+}
+std::vector<LibraryPack> MenuLibrary::toggle_pack(const std::vector<LibraryPack> &selection,
+                                                  const std::string &hash) const
+{
+	auto candidate = selection;
+	std::vector<std::vector<std::string>> dependencies;
+	for (const auto &p : candidate)
+		dependencies.push_back(
+		    read_pack(read_pack_archive(p.hash)).manifest().value("dependencies", std::vector<std::string>{}));
+	const auto entry = std::find_if(candidate.begin(), candidate.end(),
+	                                [&](const auto &p)
+	                                {
+		                                return p.hash == hash;
+	                                });
+	if (entry == candidate.end())
+		throw std::runtime_error("Select an installed pack");
+	const auto index = static_cast<std::size_t>(entry - candidate.begin());
+	std::vector<int> visiting(candidate.size());
+	std::function<void(std::size_t)> enable = [&](std::size_t i)
+	{
+		if (visiting[i] == 1)
+			throw std::runtime_error("Pack dependencies contain a cycle");
+		if (visiting[i] == 2)
+			return;
+		visiting[i] = 1;
+		for (const auto &id : dependencies[i])
+		{
+			const auto dependency = std::find_if(candidate.begin(), candidate.end(),
+			                                     [&](const auto &p)
+			                                     {
+				                                     return p.id == id;
+			                                     });
+			if (dependency == candidate.end())
+				throw std::runtime_error("Install the required pack: " + id);
+			enable(static_cast<std::size_t>(dependency - candidate.begin()));
+		}
+		candidate[i].enabled = true;
+		visiting[i] = 2;
+	};
+	if (!entry->enabled)
+		enable(index);
+	else
+	{
+		entry->enabled = false;
+		bool changed = true;
+		while (changed)
+		{
+			changed = false;
+			for (std::size_t i = 0; i < candidate.size(); ++i)
+				if (candidate[i].enabled)
+					for (const auto &id : dependencies[i])
+						if (std::none_of(candidate.begin(), candidate.end(),
+						                 [&](const auto &p)
+						                 {
+							                 return p.id == id && p.enabled;
+						                 }))
+						{
+							candidate[i].enabled = false;
+							changed = true;
+							break;
+						}
+		}
+	}
+	std::vector<LibraryPack> ordered;
+	std::fill(visiting.begin(), visiting.end(), 0);
+	std::function<void(std::size_t)> append = [&](std::size_t i)
+	{
+		if (visiting[i])
+			return;
+		visiting[i] = 1;
+		if (candidate[i].enabled)
+			for (const auto &id : dependencies[i])
+				for (std::size_t j = 0; j < candidate.size(); ++j)
+					if (candidate[j].id == id && candidate[j].enabled)
+						append(j);
+		ordered.push_back(candidate[i]);
+	};
+	for (std::size_t i = 0; i < candidate.size(); ++i)
+		append(i);
+	return ordered;
 }
 void MenuLibrary::install(const Bytes &archive)
 {

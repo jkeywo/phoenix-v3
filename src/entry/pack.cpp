@@ -1,4 +1,5 @@
 #include <filesystem>
+#include <algorithm>
 #include <iostream>
 #include <cstdint>
 #include <map>
@@ -38,6 +39,19 @@ int main(int argc, char **argv)
 			ordered.push_back(phoenix::read_pack(phoenix::read_file(argv[i])));
 		const auto catalog = phoenix::resolve_draft(ordered, pack);
 		auto preview = phoenix::launcher_catalog(catalog);
+		const auto authored = phoenix::parse_json(pack.files.at("definitions.json"), "definitions.json")
+		                          .value("maps", phoenix::Json::array());
+		std::erase_if(preview["scenarios"].get_ref<phoenix::Json::array_t &>(),
+		              [&](const auto &scene)
+		              {
+			              return std::none_of(authored.begin(), authored.end(),
+			                                  [&](const auto &map)
+			                                  {
+				                                  return map.at("id") == scene.at("id");
+			                                  });
+		              });
+		preview["name"] = pack.manifest.value("name", pack.manifest.at("id").get<std::string>());
+		preview["dependencies"] = pack.manifest.value("dependencies", phoenix::Json::array());
 		pack.files["launcher.json"] = phoenix::json_bytes(preview);
 		auto archive = phoenix::write_pack(pack);
 		phoenix::write_file(argv[2], archive);

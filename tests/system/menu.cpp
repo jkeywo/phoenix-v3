@@ -73,6 +73,54 @@ int main()
 		draft.files["definitions.json"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json");
 		draft.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
 		const auto archive = write_pack(draft);
+		PackDraft addon;
+		addon.manifest = {{"schema", 1}, {"id", "test-practice"}, {"dependencies", {"test-core"}}};
+		auto practice = parse_json(draft.files.at("definitions.json"), "synthetic base").at("maps").at(0);
+		practice["id"] = "test.practice";
+		addon.files["definitions.json"] = json_bytes(Json{{"schema", 1}, {"maps", {practice}}});
+		const auto addon_archive = write_pack(addon);
+		MenuLibrary layered(directory + "/layered");
+		layered.install_bundled(archive, addon_archive);
+		require(layered.packs.size() == 2 && layered.packs[0].enabled && !layered.packs[1].enabled,
+		        "Bundled examples install as a disabled mod over the enabled default pack");
+		auto active = layered.toggle_pack(layered.packs, layered.packs[1].hash);
+		layered.apply(active);
+		auto layered_session = make_local_session();
+		layered_session->replace_packs(layered.archives(layered.packs));
+		require(layered_session->catalog().maps.contains("test.practice"),
+		        "Enabled mod scenarios resolve against the default pack");
+		layered.apply(layered.toggle_pack(layered.packs, layered.packs[0].hash));
+		layered_session->replace_packs(layered.archives(layered.packs));
+		require(!layered.packs[0].enabled && !layered.packs[1].enabled && layered_session->catalog().maps.empty(),
+		        "Disabling the default pack disables its dependent mod and clears available scenarios");
+		MenuLibrary layered_reopen(directory + "/layered");
+		layered_reopen.load();
+		layered_reopen.install_bundled(archive, addon_archive);
+		require(!layered_reopen.packs[0].enabled && !layered_reopen.packs[1].enabled,
+		        "Startup preserves an entirely disabled selection");
+		auto reversed = layered_reopen.packs;
+		std::reverse(reversed.begin(), reversed.end());
+		layered_reopen.apply(layered_reopen.toggle_pack(reversed, reversed[0].hash));
+		require(layered_reopen.packs[0].id == "test-core" && layered_reopen.packs[0].enabled &&
+		            layered_reopen.packs[1].enabled,
+		        "Enabling a mod enables its dependency and restores dependency order");
+		PackDraft old_base = draft;
+		auto old_definitions = parse_json(old_base.files.at("definitions.json"), "old synthetic base");
+		practice["name"] = "Edited practice";
+		old_definitions["maps"].push_back(practice);
+		auto authored_map = practice;
+		authored_map["id"] = "test.user-map";
+		old_definitions["maps"].push_back(authored_map);
+		old_base.files["definitions.json"] = json_bytes(old_definitions);
+		MenuLibrary migrated(directory + "/migrated");
+		migrated.install_default(write_pack(old_base));
+		migrated.install_bundled(archive, addon_archive);
+		auto migrated_base = resolve_packs({read_pack(migrated.read_pack_archive(migrated.packs[0].hash))});
+		auto migrated_all = resolve_packs({read_pack(migrated.read_pack_archive(migrated.packs[0].hash)),
+		                                   read_pack(migrated.read_pack_archive(migrated.packs[1].hash))});
+		require(migrated_base.maps.contains("test.user-map") && !migrated_base.maps.contains("test.practice") &&
+		            migrated_all.maps.at("test.practice").at("name") == "Edited practice" && migrated.packs[1].enabled,
+		        "Splitting an older base retains user maps and moves edited examples intact into the mod");
 		MenuLibrary first_run(directory + "/first-run");
 		first_run.load();
 		first_run.install_default(archive);

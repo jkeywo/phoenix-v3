@@ -122,6 +122,14 @@ int main(int argc, char **argv)
 			app.native_menu = true;
 			app.library = std::make_shared<phoenix::MenuLibrary>("/launcher/menu");
 			app.library->load();
+			if (EM_ASM_INT({ return Module.phoenixMigrateBundled ? 1 : 0; }))
+				app.library->install_bundled(phoenix::read_file("/launcher/bundled-base.zip"),
+				                             phoenix::read_file("/launcher/bundled-training.zip"));
+#ifdef PHOENIX_WORKSHOP
+			if (action == "workshop")
+				app.library->install_bundled(phoenix::read_file("/assets/base.zip"),
+				                             phoenix::read_file("/assets/training.zip"));
+#endif
 			const auto &preferences = app.library->preferences;
 			app.music_volume = preferences.volume;
 			app.language = preferences.language;

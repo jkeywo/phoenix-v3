@@ -82,10 +82,15 @@ struct NativeMenuSmoke
 			action(app, "menu.packs");
 			break;
 		case 3:
-			if (!app.library->packs.empty() && pack_edits < 3)
+			if (!app.library->packs.empty() && pack_edits < 4)
 			{
-				const auto id =
-				    pack_edits < 2 ? "menu.pack-toggle/" + app.library->packs.front().hash : "menu.apply-packs";
+				std::string id = "menu.apply-packs";
+				if (pack_edits < 2)
+					id = "menu.pack-toggle/" + app.library->packs.front().hash;
+				if (pack_edits == 2)
+					for (const auto &pack : app.library->packs)
+						if (pack.id == "phoenix-training")
+							id = "menu.pack-toggle/" + pack.hash;
 				action(app, id);
 				++pack_edits;
 				changed = GetTime();
@@ -115,7 +120,16 @@ struct NativeMenuSmoke
 			capture("scenarios");
 			if (app.session->catalog().maps.empty())
 				throw std::runtime_error("Menu smoke needs --game-pack with a scenario");
-			action(app, "menu.scenario/" + app.session->catalog().maps.begin()->first);
+			{
+				auto selected = app.session->catalog().maps.begin()->first;
+				for (const auto &[id, map] : app.session->catalog().maps)
+					if (id.starts_with("training."))
+					{
+						selected = id;
+						break;
+					}
+				action(app, "menu.scenario/" + selected);
+			}
 			break;
 		case 7:
 		{

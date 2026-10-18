@@ -906,7 +906,7 @@ struct NativeMenuScreen::State
 					markup += add("menu.pack-toggle/" + draft[i].hash, draft[i].enabled ? "Enabled" : "Disabled",
 					              [&, i]
 					              {
-						              draft[i].enabled = !draft[i].enabled;
+						              draft = app.library->toggle_pack(draft, draft[i].hash);
 					              });
 					if (i)
 						markup += add("menu.pack-up/" + draft[i].hash, "Move Up",

@@ -307,36 +307,22 @@ else()
 	# Track archive contents and membership, including removed files. The list file
 	# changes only when membership changes, so reconfiguration alone does not repack.
 	file(
-		GLOB_RECURSE phoenix_training_sources
+		GLOB_RECURSE phoenix_base_sources
 		LIST_DIRECTORIES FALSE
 		CONFIGURE_DEPENDS
 		"${CMAKE_CURRENT_SOURCE_DIR}/content/base/*"
 	)
-	file(
-		CONFIGURE
-		OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/training-pack-inputs.txt"
-		CONTENT "${phoenix_training_sources}"
-		@ONLY
-	)
+	file(CONFIGURE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/base-pack-inputs.txt" CONTENT "${phoenix_base_sources}" @ONLY)
 	add_custom_command(
 		OUTPUT
 			"${CMAKE_CURRENT_BINARY_DIR}/base.zip"
 			"${CMAKE_CURRENT_BINARY_DIR}/base.zip.menu.json"
 			"${CMAKE_CURRENT_BINARY_DIR}/assets/base.zip"
-			"${CMAKE_CURRENT_BINARY_DIR}/training.zip"
-			"${CMAKE_CURRENT_BINARY_DIR}/training.zip.menu.json"
 		COMMAND phoenix_pack "${CMAKE_CURRENT_SOURCE_DIR}/content/base" "${CMAKE_CURRENT_BINARY_DIR}/base.zip"
 		COMMAND
 			${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/base.zip"
 			"${CMAKE_CURRENT_BINARY_DIR}/assets/base.zip"
-		# Preserve existing local-play/smoke commands while promoting the starter pack.
-		COMMAND
-			${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/base.zip"
-			"${CMAKE_CURRENT_BINARY_DIR}/training.zip"
-		COMMAND
-			${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/base.zip.menu.json"
-			"${CMAKE_CURRENT_BINARY_DIR}/training.zip.menu.json"
-		DEPENDS phoenix_pack ${phoenix_training_sources} "${CMAKE_CURRENT_BINARY_DIR}/training-pack-inputs.txt"
+		DEPENDS phoenix_pack ${phoenix_base_sources} "${CMAKE_CURRENT_BINARY_DIR}/base-pack-inputs.txt"
 		VERBATIM
 	)
 	add_custom_target(
@@ -348,7 +334,45 @@ else()
 			"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets/base.zip"
 		DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/base.zip" "${CMAKE_CURRENT_BINARY_DIR}/assets/base.zip"
 	)
-	add_custom_target(training_pack DEPENDS base_pack)
+	file(
+		GLOB_RECURSE phoenix_training_sources
+		LIST_DIRECTORIES FALSE
+		CONFIGURE_DEPENDS
+		"${CMAKE_CURRENT_SOURCE_DIR}/content/training/*"
+	)
+	file(
+		CONFIGURE
+		OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/training-pack-inputs.txt"
+		CONTENT "${phoenix_training_sources}"
+		@ONLY
+	)
+	add_custom_command(
+		OUTPUT
+			"${CMAKE_CURRENT_BINARY_DIR}/training.zip"
+			"${CMAKE_CURRENT_BINARY_DIR}/training.zip.menu.json"
+			"${CMAKE_CURRENT_BINARY_DIR}/assets/training.zip"
+		COMMAND
+			phoenix_pack "${CMAKE_CURRENT_SOURCE_DIR}/content/training" "${CMAKE_CURRENT_BINARY_DIR}/training.zip"
+			"${CMAKE_CURRENT_BINARY_DIR}/base.zip"
+		COMMAND
+			${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/training.zip"
+			"${CMAKE_CURRENT_BINARY_DIR}/assets/training.zip"
+		DEPENDS
+			phoenix_pack
+			${phoenix_training_sources}
+			"${CMAKE_CURRENT_BINARY_DIR}/base.zip"
+			"${CMAKE_CURRENT_BINARY_DIR}/training-pack-inputs.txt"
+		VERBATIM
+	)
+	add_custom_target(
+		training_pack
+		ALL
+		COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets"
+		COMMAND
+			${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/training.zip"
+			"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets/training.zip"
+		DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/training.zip" "${CMAKE_CURRENT_BINARY_DIR}/assets/training.zip"
+	)
 	target_sources(phoenix_presentation PRIVATE src/presentation/windows_semantics.cpp)
 	target_link_libraries(
 		phoenix_presentation
@@ -484,15 +508,25 @@ if(EMSCRIPTEN)
 	target_link_libraries(workshop PRIVATE phoenix_tools phoenix_lobby_protocol)
 	# Workshop can open the shipped base directly, including without launcher state.
 	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/build/native/base.zip" "${CMAKE_CURRENT_BINARY_DIR}/base.zip" COPYONLY)
+	configure_file(
+		"${CMAKE_CURRENT_SOURCE_DIR}/build/native/training.zip"
+		"${CMAKE_CURRENT_BINARY_DIR}/training.zip"
+		COPYONLY
+	)
 	target_link_options(workshop PRIVATE "SHELL:--preload-file \"${CMAKE_CURRENT_BINARY_DIR}/base.zip@/assets/base.zip\"")
+	target_link_options(
+		workshop
+		PRIVATE "SHELL:--preload-file \"${CMAKE_CURRENT_BINARY_DIR}/training.zip@/assets/training.zip\""
+	)
 	set_property(TARGET workshop APPEND PROPERTY LINK_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/base.zip")
+	set_property(TARGET workshop APPEND PROPERTY LINK_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/training.zip")
 	target_compile_definitions(workshop PRIVATE PHOENIX_WORKSHOP=1)
 	configure_file(web/index.html "${CMAKE_CURRENT_BINARY_DIR}/index.html" COPYONLY)
 	configure_file(web/menu.css "${CMAKE_CURRENT_BINARY_DIR}/menu.css" COPYONLY)
 	configure_file(web/launcher.mjs "${CMAKE_CURRENT_BINARY_DIR}/launcher.mjs" COPYONLY)
 else()
 	add_executable(native src/entry/native.cpp)
-	add_dependencies(native base_pack)
+	add_dependencies(native base_pack training_pack)
 	target_link_libraries(native PRIVATE phoenix_network_lobby phoenix_network_host phoenix_network_client phoenix_tools)
 	add_custom_command(
 		TARGET native

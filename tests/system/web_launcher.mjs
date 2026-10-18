@@ -9,8 +9,37 @@ import {
 	zipEntry,
 	automaticHostChoice,
 	mergeRuntimeLibrary,
+	togglePack,
 } from "../../web/launcher.mjs";
 const route = (query) => launchOptions(new URLSearchParams(query), "https://example.test/phoenix-v3/");
+test("pack toggles preserve dependency order, disable dependants and allow every pack off", () => {
+	const packs = [
+		{ id: "practice", hash: "p", enabled: false },
+		{ id: "core", hash: "c", enabled: false },
+	];
+	const metadata = new Map([
+		["p", menuPreview({ schema: 1, id: "practice", dependencies: ["core"], scenarios: [] })],
+	]);
+	const enabled = togglePack(packs, "p", metadata);
+	assert.deepEqual(
+		enabled.map((p) => [p.id, p.enabled]),
+		[
+			["core", true],
+			["practice", true],
+		],
+	);
+	const off = togglePack(enabled, "c", metadata);
+	assert.ok(off.every((p) => !p.enabled));
+	assert.deepEqual(
+		togglePack(off, "c", metadata).map((p) => p.enabled),
+		[true, false],
+	);
+	assert.throws(() => togglePack([packs[0]], "p", metadata), /required pack/);
+	assert.deepEqual(
+		packs.map((p) => p.enabled),
+		[false, false],
+	);
+});
 test("runtime profile saves preserve unfetched published packs without carrying URLs to replacements", () => {
 	const previous = {
 		service: "wss://example.test/phoenix",
