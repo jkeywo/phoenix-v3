@@ -26,6 +26,10 @@ namespace phoenix
 {
 namespace
 {
+std::string tool_label(const std::string &text)
+{
+	return localise(text) + "###" + text;
+}
 struct Editor
 {
 	FileImportInbox imports;
@@ -127,7 +131,7 @@ void entity_properties(Json &entity)
 	if (entity.contains("extends"))
 	{
 		ImGui::TextWrapped("Inherited definition. Flatten before editing its resolved fields.");
-		if (ImGui::Button("Flatten definition"))
+		if (ImGui::Button(tool_label("Flatten definition").c_str()))
 			attempt(
 			    [&]
 			    {
@@ -137,7 +141,7 @@ void entity_properties(Json &entity)
 	}
 	auto &render = entity["render"];
 	bool eight = render["mode"] == "eight";
-	if (ImGui::Checkbox("Eight-direction billboard", &eight))
+	if (ImGui::Checkbox(tool_label("Eight-direction billboard").c_str(), &eight))
 	{
 		render["mode"] = eight ? "eight" : "camera";
 		std::string image = render["images"].empty() ? "" : render["images"][0].get<std::string>();
@@ -146,7 +150,7 @@ void entity_properties(Json &entity)
 			render["images"].push_back(image);
 	}
 	double scale = render.value("scale", 1.0);
-	if (ImGui::InputDouble("Render scale", &scale))
+	if (ImGui::InputDouble(tool_label("Render scale").c_str(), &scale))
 		render["scale"] = scale;
 	for (std::size_t i = 0; i < render["images"].size(); ++i)
 	{
@@ -155,7 +159,7 @@ void entity_properties(Json &entity)
 		ImGui::PopID();
 	}
 	auto &systems = entity["systems"];
-	if (ImGui::CollapsingHeader("Systems", ImGuiTreeNodeFlags_DefaultOpen))
+	if (ImGui::CollapsingHeader(tool_label("Systems").c_str(), ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		for (const char *name : {"engine", "steering", "radar"})
 		{
@@ -186,11 +190,11 @@ void entity_properties(Json &entity)
 			ImGui::PopID();
 		}
 	}
-	if (ImGui::CollapsingHeader("Collision", ImGuiTreeNodeFlags_DefaultOpen))
+	if (ImGui::CollapsingHeader(tool_label("Collision").c_str(), ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		auto &collision = entity["collision"];
 		bool box = collision["shape"] == "box";
-		if (ImGui::Checkbox("Oriented box", &box))
+		if (ImGui::Checkbox(tool_label("Oriented box").c_str(), &box))
 		{
 			collision["shape"] = box ? "box" : "circle";
 			if (box)
@@ -217,9 +221,9 @@ void entity_properties(Json &entity)
 	}
 	std::string console = entity.value("console", std::string{});
 	std::string controller = entity.value("controller", std::string{});
-	if (ImGui::BeginCombo("Delegated state tree", controller.empty() ? "None" : controller.c_str()))
+	if (ImGui::BeginCombo(tool_label("Delegated state tree").c_str(), controller.empty() ? "None" : controller.c_str()))
 	{
-		if (ImGui::Selectable("None", controller.empty()))
+		if (ImGui::Selectable(tool_label("None").c_str(), controller.empty()))
 			entity.erase("controller");
 		for (const auto &value : editor.document.definitions()["trees"])
 		{
@@ -232,9 +236,9 @@ void entity_properties(Json &entity)
 				entity["controller"] = id;
 		ImGui::EndCombo();
 	}
-	if (ImGui::BeginCombo("Console", console.empty() ? "None" : console.c_str()))
+	if (ImGui::BeginCombo(tool_label("Console").c_str(), console.empty() ? "None" : console.c_str()))
 	{
-		if (ImGui::Selectable("None", console.empty()))
+		if (ImGui::Selectable(tool_label("None").c_str(), console.empty()))
 			entity.erase("console");
 		for (const auto &value : editor.document.definitions()["consoles"])
 		{
@@ -245,10 +249,10 @@ void entity_properties(Json &entity)
 		ImGui::EndCombo();
 	}
 }
-void console_editor()
+void console_editor(const Application &app)
 {
 	auto &consoles = editor.document.definitions()["consoles"];
-	if (ImGui::Button("New console"))
+	if (ImGui::Button(tool_label("New console").c_str()))
 	{
 		std::string id =
 		    editor.document.manifest().at("id").get<std::string>() + ".console" + std::to_string(consoles.size() + 1);
@@ -303,7 +307,7 @@ void console_editor()
 				if (ImGui::SliderInt(key, &value, (std::string(key) == "x" || std::string(key) == "y") ? 0 : 1, 1000))
 					widget[key] = value;
 			}
-			if (ImGui::Button("Delete widget"))
+			if (ImGui::Button(tool_label("Delete widget").c_str()))
 				remove = static_cast<int>(i);
 			ImGui::TreePop();
 		}
@@ -311,23 +315,31 @@ void console_editor()
 	}
 	if (remove >= 0)
 		widgets.erase(widgets.begin() + remove);
-	ImGui::SeparatorText("Layout preview (no live bindings yet)");
-	auto origin = ImGui::GetCursorScreenPos();
-	float scale = std::max(0.1f, ImGui::GetContentRegionAvail().x / 1000);
-	ImGui::Dummy({1000 * scale, 1000 * scale});
-	auto *draw = ImGui::GetWindowDrawList();
-	for (const auto &widget : widgets)
-	{
-		ImVec2 p{origin.x + widget["x"].get<float>() * scale, origin.y + widget["y"].get<float>() * scale};
-		ImVec2 end{p.x + widget["width"].get<float>() * scale, p.y + widget["height"].get<float>() * scale};
-		draw->AddRect(p, end, IM_COL32(118, 201, 232, 255));
-		draw->AddText(p, IM_COL32_WHITE, widget["label"].get_ref<const std::string &>().c_str());
-	}
+	ImGui::SeparatorText(tool_label("Live Console preview").c_str());
+	ImGui::TextWrapped("Sample data; controls affect only this preview.");
+	static int preview_resolution = 0;
+	ImGui::Combo(tool_label("Preview resolution").c_str(), &preview_resolution,
+	             "1280 x 720\0001920 x 1080\0001080 x 1920\000");
+	const int logical_width = preview_resolution == 1 ? 1920 : preview_resolution == 2 ? 1080 : 1280;
+	const int logical_height = preview_resolution == 1 ? 1080 : preview_resolution == 2 ? 1920 : 720;
+	const auto origin = ImGui::GetCursorScreenPos();
+	const int width = std::clamp(static_cast<int>(ImGui::GetContentRegionAvail().x), 100, 1600);
+	const int height = std::max(1, width * logical_height / logical_width);
+	const auto pointer = ImGui::GetIO().MousePos;
+	const bool hovered = ImGui::IsWindowHovered() && pointer.x >= origin.x && pointer.y >= origin.y &&
+	                     pointer.x < origin.x + width && pointer.y < origin.y + height;
+	const auto texture = draw_console_preview(consoles[editor.console], logical_width, logical_height,
+	                                          {hovered ? (pointer.x - origin.x) * logical_width / width : -100.f,
+	                                           hovered ? (pointer.y - origin.y) * logical_height / height : -100.f},
+	                                          hovered && ImGui::IsMouseClicked(0), ImGui::IsMouseReleased(0),
+	                                          hovered ? ImGui::GetIO().MouseWheel : 0.f, app.pseudo_locale);
+	ImGui::Image(static_cast<ImTextureID>(texture.id), {static_cast<float>(width), static_cast<float>(height)}, {0, 1},
+	             {1, 0});
 }
 void slots_editor()
 {
 	auto &slots = editor.document.map()["ship_slots"];
-	if (ImGui::Button("Add ship slot"))
+	if (ImGui::Button(tool_label("Add ship slot").c_str()))
 	{
 		std::string id;
 		unsigned count = 1;
@@ -378,7 +390,7 @@ void slots_editor()
 						allowed.erase(found);
 				}
 			}
-			if (ImGui::Button("Remove slot"))
+			if (ImGui::Button(tool_label("Remove slot").c_str()))
 				remove = static_cast<int>(i);
 			ImGui::TreePop();
 		}
@@ -389,8 +401,9 @@ void slots_editor()
 }
 void map_view()
 {
-	ImGui::Begin("Map");
-	if (ImGui::BeginCombo("Map", editor.document.map().at("id").get_ref<const std::string &>().c_str()))
+	ImGui::Begin(tool_label("Map").c_str());
+	if (ImGui::BeginCombo(tool_label("Map").c_str(),
+	                      editor.document.map().at("id").get_ref<const std::string &>().c_str()))
 	{
 		auto &maps = editor.document.definitions()["maps"];
 		for (std::size_t i = 0; i < maps.size(); ++i)
@@ -501,32 +514,33 @@ void open_workshop_pack(const std::string &path)
 	editor.clear_textures();
 	editor.pack_name = editor.document.manifest()["id"].get<std::string>();
 	editor.definition = editor.document.definitions()["entities"].empty() ? -1 : 0;
+	editor.console = editor.document.definitions()["consoles"].empty() ? -1 : 0;
 	editor.selected =
 	    editor.document.map()["entities"].empty() ? 0 : editor.document.map()["entities"][0]["id"].get<std::uint64_t>();
 	editor.status = "Loaded and verified " + path;
 }
 void render_editor(Application &app)
 {
-	static bool docked = false;
+	static ImVec2 dock_size{};
 	auto dock = ImGui::GetID("PhoenixDock");
 	auto *viewport = ImGui::GetMainViewport();
-	if (!docked)
+	if (dock_size.x != viewport->WorkSize.x || dock_size.y != viewport->WorkSize.y)
 	{
-		docked = true;
+		dock_size = viewport->WorkSize;
 		ImGui::DockBuilderRemoveNode(dock);
 		ImGui::DockBuilderAddNode(dock, ImGuiDockNodeFlags_DockSpace);
 		ImGui::DockBuilderSetNodeSize(dock, viewport->WorkSize);
 		ImGuiID centre = dock, left, right, bottom;
 		ImGui::DockBuilderSplitNode(centre, ImGuiDir_Down, 0.10f, &bottom, &centre);
-		ImGui::DockBuilderDockWindow("Status", bottom);
+		ImGui::DockBuilderDockWindow(tool_label("Status").c_str(), bottom);
 		ImGui::DockBuilderSplitNode(centre, ImGuiDir_Left, 0.20f, &left, &centre);
 		ImGui::DockBuilderSplitNode(centre, ImGuiDir_Right, 0.38f, &right, &centre);
-		ImGui::DockBuilderDockWindow("Entities", left);
-		ImGui::DockBuilderDockWindow("Definitions", left);
-		ImGui::DockBuilderDockWindow("Properties", right);
-		ImGui::DockBuilderDockWindow("Consoles", right);
-		ImGui::DockBuilderDockWindow("Ship slots", right);
-		ImGui::DockBuilderDockWindow("Map", centre);
+		ImGui::DockBuilderDockWindow(tool_label("Entities").c_str(), left);
+		ImGui::DockBuilderDockWindow(tool_label("Definitions").c_str(), left);
+		ImGui::DockBuilderDockWindow(tool_label("Properties").c_str(), right);
+		ImGui::DockBuilderDockWindow(tool_label("Consoles").c_str(), right);
+		ImGui::DockBuilderDockWindow(tool_label("Ship slots").c_str(), right);
+		ImGui::DockBuilderDockWindow(tool_label("Map").c_str(), centre);
 		ImGui::DockBuilderFinish(dock);
 	}
 	ImGui::DockSpaceOverViewport(dock, viewport);
@@ -547,7 +561,7 @@ void render_editor(Application &app)
 					    editor.clear_textures();
 					    editor.selected = 0;
 					    editor.definition = -1;
-					    editor.console = -1;
+					    editor.console = editor.document.definitions()["consoles"].empty() ? -1 : 0;
 					    editor.pack_name = editor.document.manifest()["id"];
 				    }
 				    if (imported->purpose == FilePurpose::WorkshopLibrary)
@@ -571,15 +585,15 @@ void render_editor(Application &app)
 	    });
 	if (ImGui::BeginMainMenuBar())
 	{
-		if (ImGui::BeginMenu("Phoenix"))
+		if (!app.embedded_tools && ImGui::BeginMenu(tool_label("Phoenix").c_str()))
 		{
-			if (ImGui::MenuItem("Home"))
+			if (ImGui::MenuItem(tool_label("Home").c_str()))
 				app.screen = Screen::home;
 			ImGui::EndMenu();
 		}
-		if (ImGui::BeginMenu("File", !readonly))
+		if (ImGui::BeginMenu(tool_label("File").c_str(), !readonly))
 		{
-			if (ImGui::MenuItem("New pack"))
+			if (ImGui::MenuItem(tool_label("New pack").c_str()))
 			{
 				editor.imports.reset();
 				editor.document.reset();
@@ -589,19 +603,19 @@ void render_editor(Application &app)
 				editor.console = -1;
 				editor.pack_name = "workshop";
 			}
-			if (ImGui::MenuItem("Open pack..."))
+			if (ImGui::MenuItem(tool_label("Open pack...").c_str()))
 				attempt(
 				    [&]
 				    {
 					    request_file(editor.imports, FilePurpose::WorkshopPack);
 				    });
-			if (ImGui::MenuItem("Load dependency pack..."))
+			if (ImGui::MenuItem(tool_label("Load dependency pack...").c_str()))
 				attempt(
 				    [&]
 				    {
 					    request_file(editor.imports, FilePurpose::WorkshopLibrary);
 				    });
-			if (ImGui::MenuItem("Export verified pack..."))
+			if (ImGui::MenuItem(tool_label("Export verified pack...").c_str()))
 				attempt(
 				    [&]
 				    {
@@ -610,27 +624,27 @@ void render_editor(Application &app)
 					    editor.status = "Pack verified and exported.";
 				    });
 			ImGui::Separator();
-			if (ImGui::MenuItem("New map"))
+			if (ImGui::MenuItem(tool_label("New map").c_str()))
 				attempt(
 				    [&]
 				    {
 					    editor.document.new_map("workshop.map" +
 					                            std::to_string(editor.document.definitions()["maps"].size() + 1));
 				    });
-			if (ImGui::MenuItem("Load map..."))
+			if (ImGui::MenuItem(tool_label("Load map...").c_str()))
 				attempt(
 				    [&]
 				    {
 					    request_file(editor.imports, FilePurpose::WorkshopMap);
 				    });
-			if (ImGui::MenuItem("Save map..."))
+			if (ImGui::MenuItem(tool_label("Save map...").c_str()))
 				attempt(
 				    [&]
 				    {
 					    export_file(editor.document.map()["id"].get<std::string>() + ".json",
 					                editor.document.save_map());
 				    });
-			if (ImGui::MenuItem("Import PNG..."))
+			if (ImGui::MenuItem(tool_label("Import PNG...").c_str()))
 				attempt(
 				    [&]
 				    {
@@ -638,7 +652,7 @@ void render_editor(Application &app)
 				    });
 			ImGui::EndMenu();
 		}
-		if (ImGui::MenuItem("Verify", nullptr, false, !readonly))
+		if (ImGui::MenuItem(tool_label("Verify").c_str(), nullptr, false, !readonly))
 			attempt(
 			    [&]
 			    {
@@ -650,7 +664,7 @@ void render_editor(Application &app)
 	if (readonly)
 	{
 		const auto state = app.session ? app.session->inspection() : Json(nullptr);
-		ImGui::Begin("Status");
+		ImGui::Begin(tool_label("Status").c_str());
 		if (!app.status.empty())
 			ImGui::TextWrapped("%s", app.status.c_str());
 		ImGui::TextWrapped("%s", app.session ? app.session->connection_status().c_str()
@@ -658,12 +672,12 @@ void render_editor(Application &app)
 		ImGui::End();
 		if (state.is_null())
 		{
-			ImGui::Begin("Map");
+			ImGui::Begin(tool_label("Map").c_str());
 			ImGui::TextWrapped("Waiting for host approval. Live world data is unavailable.");
 			ImGui::End();
 			return;
 		}
-		ImGui::Begin("Entities");
+		ImGui::Begin(tool_label("Entities").c_str());
 		for (const auto &value : state.at("bodies"))
 		{
 			const auto &body = value.at("body");
@@ -673,7 +687,7 @@ void render_editor(Application &app)
 				editor.selected = id;
 		}
 		ImGui::End();
-		ImGui::Begin("Properties");
+		ImGui::Begin(tool_label("Properties").c_str());
 		for (const auto &value : state.at("bodies"))
 			if (value.at("body").at("id") == editor.selected)
 			{
@@ -681,7 +695,7 @@ void render_editor(Application &app)
 				ImGui::TextUnformatted(details.c_str());
 			}
 		ImGui::End();
-		ImGui::Begin("Map");
+		ImGui::Begin(tool_label("Map").c_str());
 		ImGui::Text("Committed tick %llu / read only", static_cast<unsigned long long>(app.session->ticks()));
 		const auto origin = ImGui::GetCursorScreenPos(), size = ImGui::GetContentRegionAvail();
 		ImGui::InvisibleButton("Live map", ImVec2(std::max(1.f, size.x), std::max(1.f, size.y)),
@@ -717,7 +731,7 @@ void render_editor(Application &app)
 		ImGui::End();
 		return;
 	}
-	ImGui::Begin("Entities");
+	ImGui::Begin(tool_label("Entities").c_str());
 	for (const auto &instance : editor.document.map()["entities"])
 	{
 		auto label = std::to_string(instance.at("id").get<std::uint64_t>()) + " / " +
@@ -727,31 +741,31 @@ void render_editor(Application &app)
 	}
 	if (editor.selected)
 	{
-		if (ImGui::Button("Duplicate"))
+		if (ImGui::Button(tool_label("Duplicate").c_str()))
 			editor.document.duplicate(editor.selected);
-		if (ImGui::Button("Delete"))
+		if (ImGui::Button(tool_label("Delete").c_str()))
 		{
 			editor.document.erase(editor.selected);
 			editor.selected = 0;
 		}
 	}
 	ImGui::End();
-	ImGui::Begin("Definitions");
-	ImGui::InputText("Pack ID", &editor.pack_name);
-	if (ImGui::Button("Apply pack ID"))
+	ImGui::Begin(tool_label("Definitions").c_str());
+	ImGui::InputText(tool_label("Pack ID").c_str(), &editor.pack_name);
+	if (ImGui::Button(tool_label("Apply pack ID").c_str()))
 		attempt(
 		    [&]
 		    {
 			    editor.document.rename_pack(editor.pack_name);
 			    editor.clear_textures();
 		    });
-	if (ImGui::Button("Import PNG"))
+	if (ImGui::Button(tool_label("Import PNG").c_str()))
 		attempt(
 		    [&]
 		    {
 			    request_file(editor.imports, FilePurpose::WorkshopImage);
 		    });
-	if (ImGui::Button("New entity definition"))
+	if (ImGui::Button(tool_label("New entity definition").c_str()))
 	{
 		editor.document.create_entity();
 		editor.definition = static_cast<int>(editor.document.definitions()["entities"].size() - 1);
@@ -767,12 +781,13 @@ void render_editor(Application &app)
 			editor.selected = 0;
 		}
 	}
-	if (!editor.document.libraries().entities.empty() && ImGui::CollapsingHeader("Dependency entities"))
+	if (!editor.document.libraries().entities.empty() &&
+	    ImGui::CollapsingHeader(tool_label("Dependency entities").c_str()))
 	{
 		for (const auto &[id, entity] : editor.document.libraries().entities)
 			if (ImGui::Selectable(id.c_str(), editor.library_parent == id))
 				editor.library_parent = id;
-		if (!editor.library_parent.empty() && ImGui::Button("Create derived entity"))
+		if (!editor.library_parent.empty() && ImGui::Button(tool_label("Create derived entity").c_str()))
 			attempt(
 			    [&]
 			    {
@@ -781,10 +796,43 @@ void render_editor(Application &app)
 				    editor.selected = 0;
 			    });
 	}
+	if (ImGui::CollapsingHeader(tool_label("Override dependency definitions").c_str()))
+	{
+		ImGui::TextWrapped("Copy a dependency definition into this pack and explicitly declare its override.");
+		auto overrides = [&](const char *kind, const auto &table)
+		{
+			for (const auto &[id, value] : table)
+				if (ImGui::Button((std::string("Override ") + kind + " / " + id).c_str()))
+				{
+					auto &local = editor.document.definitions()[kind];
+					const bool exists = std::any_of(local.begin(), local.end(),
+					                                [&](const auto &entry)
+					                                {
+						                                return entry.at("id") == id;
+					                                });
+					if (exists)
+					{
+						editor.status = "This definition is already editable in the pack: " + id;
+						continue;
+					}
+					local.push_back(value);
+					auto &declared = editor.document.manifest()["overrides"];
+					if (!declared.is_array())
+						declared = Json::array();
+					if (std::find(declared.begin(), declared.end(), Json(id)) == declared.end())
+						declared.push_back(id);
+					editor.status = "Explicit override added: " + id;
+				}
+		};
+		overrides("entities", editor.document.libraries().entities);
+		overrides("maps", editor.document.libraries().maps);
+		overrides("consoles", editor.document.libraries().consoles);
+		overrides("trees", editor.document.libraries().trees);
+	}
 	ImGui::Separator();
 	ImGui::TextWrapped("%s", editor.status.c_str());
 	ImGui::End();
-	ImGui::Begin("Properties");
+	ImGui::Begin(tool_label("Properties").c_str());
 	if (auto *instance = selected_instance())
 	{
 		ImGui::Text("Instance %llu", static_cast<unsigned long long>(editor.selected));
@@ -799,14 +847,14 @@ void render_editor(Application &app)
 	else
 		ImGui::TextWrapped("Create or select a reusable entity definition.");
 	ImGui::End();
-	ImGui::Begin("Consoles");
-	console_editor();
+	ImGui::Begin(tool_label("Consoles").c_str());
+	console_editor(app);
 	ImGui::End();
-	ImGui::Begin("Ship slots");
+	ImGui::Begin(tool_label("Ship slots").c_str());
 	slots_editor();
 	ImGui::End();
 	map_view();
-	ImGui::Begin("Status");
+	ImGui::Begin(tool_label("Status").c_str());
 	if (!app.status.empty())
 		ImGui::TextWrapped("%s", app.status.c_str());
 	ImGui::TextWrapped("%s", editor.status.c_str());
