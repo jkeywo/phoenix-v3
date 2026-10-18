@@ -109,8 +109,8 @@ Catalog resolve(const std::vector<PackView> &ordered)
 				invalid(id + ".dependencies", "dependency must appear earlier in the selected pack order");
 		}
 		auto definitions = parse_json(pack.files.at("definitions.json"), id + "/definitions.json");
-		if (!definitions.is_object() || (definitions.value("schema", 0) != 1 && definitions.value("schema", 0) != 2))
-			invalid(id + "/definitions.json", "expected schema 1 or 2 object");
+		if (!definitions.is_object() || definitions.value("schema", 0) < 1 || definitions.value("schema", 0) > 3)
+			invalid(id + "/definitions.json", "expected schema 1, 2 or 3 object");
 		std::set<std::string> overrides;
 		for (const auto &override_id : pack.manifest.value("overrides", Json::array()))
 			overrides.insert(override_id.get<std::string>());
@@ -205,29 +205,60 @@ void verify_catalog(const Catalog &catalog)
 		    !std::isfinite(render["scale"].get<double>()) || render["scale"].get<double>() <= 0 ||
 		    render["scale"].get<double>() > 1000000)
 			invalid(path + ".render.scale", "expected positive finite scale <= 1000000");
-		if (!render.contains("images") || !render["images"].is_array() ||
-		    render["images"].size() != (mode == "eight" ? 8 : 1))
-			invalid(path + ".render.images", "image count does not match billboard mode");
-		for (const auto &asset : render["images"])
+		if (render.contains("sprite"))
 		{
-			if (!asset.is_string() || !catalog.assets.contains(asset.get<std::string>()))
-				invalid(path + ".render.images", "unresolved image reference");
-			if (!verified_images.insert(asset.get<std::string>()).second)
-				continue;
-			const auto &bytes = catalog.assets.at(asset.get<std::string>());
-			static const std::uint8_t signature[] = {137, 80, 78, 71, 13, 10, 26, 10};
-			if (bytes.size() < 24 || !std::equal(std::begin(signature), std::end(signature), bytes.begin()))
-				invalid(path + ".render.images", "expected PNG asset");
-			int width = 0, height = 0, channels = 0;
-			if (!stbi_info_from_memory(bytes.data(), static_cast<int>(bytes.size()), &width, &height, &channels) ||
-			    width <= 0 || height <= 0 || width > 8192 || height > 8192 ||
-			    static_cast<std::int64_t>(width) * height > 16777216)
-				invalid(path + ".render.images", "invalid or oversized PNG dimensions");
-			auto *decoded =
-			    stbi_load_from_memory(bytes.data(), static_cast<int>(bytes.size()), &width, &height, &channels, 4);
-			if (!decoded)
-				invalid(path + ".render.images", "PNG cannot decode");
-			stbi_image_free(decoded);
+			const auto material = compile_sprite(render.at("sprite"), catalog, path + ".render.sprite");
+			if (material.frames.size() != (mode == "eight" ? 8u : 1u))
+				invalid(path + ".render.sprite.frames", "frame count does not match billboard mode");
+			if (render.contains("engines"))
+			{
+				const auto &engines = render.at("engines");
+				const auto effect = compile_sprite(engines.at("sprite"), catalog, path + ".render.engines.sprite");
+				if (effect.frames.size() != material.frames.size())
+					invalid(path + ".render.engines", "thrust views must match parent views");
+				for (const auto &frame : material.frames)
+					if (std::none_of(effect.frames.begin(), effect.frames.end(),
+					                 [&](const auto &f)
+					                 {
+						                 return f.name == frame.name;
+					                 }))
+						invalid(path + ".render.engines", "missing named thrust view");
+				for (const char *key : {"scale", "power", "range"})
+				{
+					if (!engines.contains(key) || !engines.at(key).is_number())
+						invalid(path + ".render.engines." + key, "required finite positive number");
+					const auto n = engines.at(key).get<double>();
+					if (!std::isfinite(n) || n <= 0 || n > 1000000)
+						invalid(path + ".render.engines." + key, "outside supported range");
+				}
+			}
+		}
+		else
+		{
+			if (!render.contains("images") || !render["images"].is_array() ||
+			    render["images"].size() != (mode == "eight" ? 8 : 1))
+				invalid(path + ".render.images", "image count does not match billboard mode");
+			for (const auto &asset : render["images"])
+			{
+				if (!asset.is_string() || !catalog.assets.contains(asset.get<std::string>()))
+					invalid(path + ".render.images", "unresolved image reference");
+				if (!verified_images.insert(asset.get<std::string>()).second)
+					continue;
+				const auto &bytes = catalog.assets.at(asset.get<std::string>());
+				static const std::uint8_t signature[] = {137, 80, 78, 71, 13, 10, 26, 10};
+				if (bytes.size() < 24 || !std::equal(std::begin(signature), std::end(signature), bytes.begin()))
+					invalid(path + ".render.images", "expected PNG asset");
+				int width = 0, height = 0, channels = 0;
+				if (!stbi_info_from_memory(bytes.data(), static_cast<int>(bytes.size()), &width, &height, &channels) ||
+				    width <= 0 || height <= 0 || width > 8192 || height > 8192 ||
+				    static_cast<std::int64_t>(width) * height > 16777216)
+					invalid(path + ".render.images", "invalid or oversized PNG dimensions");
+				auto *decoded =
+				    stbi_load_from_memory(bytes.data(), static_cast<int>(bytes.size()), &width, &height, &channels, 4);
+				if (!decoded)
+					invalid(path + ".render.images", "PNG cannot decode");
+				stbi_image_free(decoded);
+			}
 		}
 		if (!entity.contains("systems") || !entity["systems"].is_object())
 			invalid(path + ".systems", "required object");
@@ -354,6 +385,8 @@ void verify_catalog(const Catalog &catalog)
 	}
 	for (const auto &[id, map] : catalog.maps)
 	{
+		if (map.contains("lighting"))
+			verify_lighting(map.at("lighting"), "maps." + id + ".lighting");
 		auto path = "maps." + id;
 		if (!map.contains("entities") || !map["entities"].is_array() || !map.contains("ship_slots") ||
 		    !map["ship_slots"].is_array())

@@ -1,5 +1,6 @@
 module;
 #include <cstdint>
+#include <array>
 #include <map>
 #include <memory>
 #include <nlohmann/json.hpp>
@@ -45,6 +46,32 @@ struct Catalog
 	std::vector<std::pair<std::string, std::string>> ordered_packs;
 	bool presentation = false;
 };
+struct SpriteAttachment
+{
+	float x = 0, y = 0, depth_offset = 0;
+	int layer = 0;
+};
+struct SpriteFrame
+{
+	std::string name;
+	std::array<int, 4> rect{};
+	std::array<float, 2> pivot{};
+	float azimuth = 0, depth_scale = 0, depth_offset = 0;
+	std::map<std::string, SpriteAttachment> attachments;
+};
+struct SpriteMaterial
+{
+	std::string albedo, normal, depth;
+	std::vector<SpriteFrame> frames;
+	bool emissive = false;
+};
+// Verified material contract, independent of GPU/platform types. Calibration
+// is in multiples of rendered height, with white toward the viewing camera.
+SpriteMaterial compile_sprite(const Json &sprite, const Catalog &catalog, const std::string &path);
+void verify_lighting(const Json &lighting, const std::string &path);
+// Convert an imported source sidecar to the canonical pack material. Image
+// references must already have been imported and resolved by the caller.
+Json import_sprite_sidecar(const Json &sidecar, const std::map<std::string, std::string> &images);
 // Throws an actionable exception. ZIP is read into bounded memory, never
 // extracted to caller-controlled paths on disk.
 Pack read_pack(std::span<const std::uint8_t> bytes);

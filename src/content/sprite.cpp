@@ -1,0 +1,196 @@
+module;
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <stdexcept>
+#include <string>
+#include <vector>
+#define STB_IMAGE_STATIC
+#define STB_IMAGE_IMPLEMENTATION
+#define STBI_ONLY_PNG
+#define STBI_NO_STDIO
+#include <stb_image.h>
+
+module phoenix.content;
+namespace phoenix
+{
+namespace
+{
+[[noreturn]] void bad(const std::string &path, const std::string &reason)
+{
+	throw std::runtime_error(path + ": " + reason);
+}
+float number(const Json &j, const std::string &path, float lo, float hi)
+{
+	if (!j.is_number())
+		bad(path, "expected number");
+	const auto n = j.get<float>();
+	if (!std::isfinite(n) || n < lo || n > hi)
+		bad(path, "number outside supported range");
+	return n;
+}
+void vector(const Json &j, int count, const std::string &path)
+{
+	if (!j.is_array() || j.size() != static_cast<std::size_t>(count))
+		bad(path, "wrong vector size");
+}
+std::array<int, 2> image(const Catalog &catalog, const Json &reference, const std::string &path)
+{
+	if (!reference.is_string() || !catalog.assets.contains(reference.get<std::string>()))
+		bad(path, "unresolved PNG reference");
+	const auto &bytes = catalog.assets.at(reference.get<std::string>());
+	int w = 0, h = 0, channels = 0;
+	if (!stbi_info_from_memory(bytes.data(), static_cast<int>(bytes.size()), &w, &h, &channels) || w <= 0 || h <= 0 ||
+	    w > 8192 || h > 8192 || static_cast<std::int64_t>(w) * h > 16777216)
+		bad(path, "invalid or oversized PNG dimensions");
+	auto *pixels = stbi_load_from_memory(bytes.data(), static_cast<int>(bytes.size()), &w, &h, &channels, 4);
+	if (!pixels)
+		bad(path, "PNG cannot decode");
+	stbi_image_free(pixels);
+	return {w, h};
+}
+} // namespace
+SpriteMaterial compile_sprite(const Json &sprite, const Catalog &catalog, const std::string &path)
+{
+	if (!sprite.is_object() || !sprite.contains("albedo"))
+		bad(path, "expected sprite material with albedo");
+	SpriteMaterial material;
+	const auto dimensions = image(catalog, sprite.at("albedo"), path + ".albedo");
+	material.albedo = sprite.at("albedo");
+	for (const char *field : {"normal", "depth"})
+		if (sprite.contains(field) && !sprite.at(field).is_null())
+		{
+			if (image(catalog, sprite.at(field), path + "." + field) != dimensions)
+				bad(path + "." + field, "map dimensions differ from albedo");
+			(field == std::string("normal") ? material.normal : material.depth) = sprite.at(field).get<std::string>();
+		}
+	if (sprite.contains("emissive") && !sprite.at("emissive").is_boolean())
+		bad(path + ".emissive", "expected boolean");
+	material.emissive = sprite.value("emissive", false);
+	if (!sprite.contains("frames") || !sprite.at("frames").is_array() ||
+	    (sprite.at("frames").size() != 1 && sprite.at("frames").size() != 8))
+		bad(path + ".frames", "expected one or eight frames");
+	for (const auto &f : sprite.at("frames"))
+	{
+		SpriteFrame frame;
+		frame.name = f.at("name").get<std::string>();
+		if (frame.name.empty() || frame.name.size() > 128 ||
+		    std::any_of(material.frames.begin(), material.frames.end(),
+		                [&](const auto &v)
+		                {
+			                return v.name == frame.name;
+		                }))
+			bad(path + ".frames.name", "empty, duplicate or oversized name");
+		vector(f.at("rect"), 4, path + ".frames.rect");
+		for (int i = 0; i < 4; ++i)
+		{
+			if (!f.at("rect")[i].is_number_integer())
+				bad(path + ".frames.rect", "expected integer pixels");
+			frame.rect[i] = static_cast<int>(number(f.at("rect")[i], path + ".frames.rect", 0, 8192));
+		}
+		if (!frame.rect[2] || !frame.rect[3] || frame.rect[0] + frame.rect[2] > dimensions[0] ||
+		    frame.rect[1] + frame.rect[3] > dimensions[1])
+			bad(path + ".frames.rect", "frame outside image");
+		vector(f.at("pivot"), 2, path + ".frames.pivot");
+		for (int i = 0; i < 2; ++i)
+			frame.pivot[i] = number(f.at("pivot")[i], path + ".frames.pivot", 0, static_cast<float>(frame.rect[i + 2]));
+		frame.azimuth =
+		    number(f.value("azimuth", Json(material.frames.size() * 45)), path + ".frames.azimuth", 0, 359.999f);
+		if (std::any_of(material.frames.begin(), material.frames.end(),
+		                [&](const auto &v)
+		                {
+			                return v.azimuth == frame.azimuth;
+		                }))
+			bad(path + ".frames.azimuth", "duplicate camera bearing");
+		frame.depth_scale = number(f.value("depth_scale", Json(0)), path + ".frames.depth_scale", 0, 16);
+		frame.depth_offset = number(f.value("depth_offset", Json(0)), path + ".frames.depth_offset", -16, 16);
+		if (frame.depth_scale > 0 && material.depth.empty())
+			bad(path + ".frames.depth_scale", "requires depth texture");
+		const auto attachments = f.value("attachments", Json::object());
+		if (!attachments.is_object() || attachments.size() > 32)
+			bad(path + ".frames.attachments", "expected at most 32 named attachments");
+		for (auto it = attachments.begin(); it != attachments.end(); ++it)
+		{
+			if (it.key().empty() || it.key().size() > 128)
+				bad(path + ".frames.attachments", "invalid name");
+			const auto &a = it.value();
+			SpriteAttachment attachment;
+			attachment.x = number(a.at("x"), path + ".attachment.x", 0, static_cast<float>(frame.rect[2]));
+			attachment.y = number(a.at("y"), path + ".attachment.y", 0, static_cast<float>(frame.rect[3]));
+			attachment.depth_offset =
+			    number(a.value("depth_offset", Json(0)), path + ".attachment.depth_offset", -16, 16);
+			if (!a.at("layer").is_number_integer())
+				bad(path + ".attachment.layer", "expected signed integer");
+			attachment.layer = static_cast<int>(number(a.at("layer"), path + ".attachment.layer", -32, 32));
+			frame.attachments[it.key()] = attachment;
+		}
+		material.frames.push_back(std::move(frame));
+	}
+	return material;
+}
+void verify_lighting(const Json &j, const std::string &path)
+{
+	if (!j.is_object())
+		bad(path, "expected lighting object");
+	for (const auto &[key, range] : std::map<std::string, std::array<float, 2>>{{"ambient", {0, 1}},
+	                                                                            {"sun_intensity", {0, 8}},
+	                                                                            {"hatch_spacing", {2, 32}},
+	                                                                            {"hatch_thickness", {.25f, 5}},
+	                                                                            {"ink_strength", {0, 1}},
+	                                                                            {"shadow_bias", {.00001f, .05f}},
+	                                                                            {"shadow_softness", {0, 4}}})
+		if (j.contains(key))
+			number(j.at(key), path + "." + key, range[0], range[1]);
+	for (const char *key : {"sun_direction", "sun_color"})
+		if (j.contains(key))
+		{
+			vector(j.at(key), 3, path + "." + key);
+			float length = 0;
+			for (const auto &n : j.at(key))
+			{
+				const auto v = number(n, path + "." + key, std::string(key) == "sun_color" ? 0.f : -1.f, 1);
+				length += v * v;
+			}
+			if (std::string(key) == "sun_direction" && length < .0001f)
+				bad(path + ".sun_direction", "direction cannot be zero");
+		}
+	if (j.contains("shadows") && !j.at("shadows").is_boolean())
+		bad(path + ".shadows", "expected boolean");
+}
+Json import_sprite_sidecar(const Json &source, const std::map<std::string, std::string> &images)
+{
+	if (source.value("schema_version", 0) != 1 ||
+	    source.value("coordinate_system", std::string{}) != "frame_pixels_top_left_y_down")
+		bad("sidecar", "unsupported version or coordinates");
+	Json result = {{"albedo", images.at("sprite")}, {"frames", Json::array()}};
+	for (const char *field : {"normal", "depth"})
+		if (images.contains(field))
+			result[field] = images.at(field);
+	const auto sheet = source.value("sprite_sheet", Json());
+	const auto frames = sheet.is_object()
+	                        ? sheet.at("frames")
+	                        : Json::array({{{"name", source.at("id")},
+	                                        {"rect", {0, 0, source.at("image_size")[0], source.at("image_size")[1]}},
+	                                        {"pivot", source.at("pivot")},
+	                                        {"markers", source.value("markers", Json::object())}}});
+	for (const auto &f : frames)
+	{
+		Json out = {{"name", f.at("name")},
+		            {"rect", f.at("rect")},
+		            {"pivot", f.at("pivot")},
+		            {"azimuth", f.value("camera_azimuth_degrees", 0)},
+		            {"depth_scale", images.contains("depth") ? .5 : 0},
+		            {"depth_offset", 0},
+		            {"attachments", Json::object()}};
+		for (auto it = f.at("markers").begin(); it != f.at("markers").end(); ++it)
+			out["attachments"][it.key()] = {
+			    {"x", it.value().at(0)}, {"y", it.value().at(1)}, {"layer", it.value().at(2)}, {"depth_offset", 0}};
+		result["frames"].push_back(std::move(out));
+	}
+	return result;
+}
+} // namespace phoenix

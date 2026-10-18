@@ -189,6 +189,7 @@ add_library(
 	STATIC
 	src/content/pack.cpp
 	src/content/catalog.cpp
+	src/content/sprite.cpp
 	src/content/stations.cpp
 	src/content/console_assets.cpp
 	src/content/workshop.cpp

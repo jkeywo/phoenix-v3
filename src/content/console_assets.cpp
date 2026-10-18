@@ -23,13 +23,51 @@ Pack console_assets(const Catalog &catalog, const std::string &ship)
 	entity["render"] = {{"mode", source.at("render").at("mode")},
 	                    {"scale", source.at("render").at("scale")},
 	                    {"images", Json::array()}};
-	for (const auto &image : source.at("render").at("images"))
+	auto copy_image = [&](const Json &image)
 	{
 		const auto &bytes = catalog.assets.at(image.get<std::string>());
 		const auto path = "assets/" + sha256(bytes) + ".png";
 		draft.files[path] = bytes;
-		entity["render"]["images"].push_back(pack_id + ":" + path);
+		return pack_id + ":" + path;
+	};
+	if (source.at("render").contains("sprite"))
+	{
+		auto copy_material = [&](const Json &original)
+		{
+			Json material = {{"albedo", copy_image(original.at("albedo"))}, {"frames", Json::array()}};
+			for (const char *field : {"normal", "depth"})
+				if (original.contains(field) && !original.at(field).is_null())
+					material[field] = copy_image(original.at(field));
+			material["emissive"] = original.value("emissive", false);
+			for (const auto &f : original.at("frames"))
+			{
+				Json frame;
+				for (const char *field : {"name", "rect", "pivot", "azimuth", "depth_scale", "depth_offset"})
+					if (f.contains(field))
+						frame[field] = f.at(field);
+				frame["attachments"] = Json::object();
+				const auto attachments = f.value("attachments", Json::object());
+				for (auto it = attachments.begin(); it != attachments.end(); ++it)
+					for (const char *field : {"x", "y", "layer", "depth_offset"})
+						if (it.value().contains(field))
+							frame["attachments"][it.key()][field] = it.value().at(field);
+				material["frames"].push_back(std::move(frame));
+			}
+			return material;
+		};
+		entity["render"].erase("images");
+		entity["render"]["sprite"] = copy_material(source.at("render").at("sprite"));
+		if (source.at("render").contains("engines"))
+		{
+			const auto &engines = source.at("render").at("engines");
+			entity["render"]["engines"] = {{"sprite", copy_material(engines.at("sprite"))}};
+			for (const char *field : {"scale", "range", "power"})
+				entity["render"]["engines"][field] = engines.at(field);
+		}
 	}
+	else
+		for (const auto &image : source.at("render").at("images"))
+			entity["render"]["images"].push_back(copy_image(image));
 	const auto &systems = source.at("systems");
 	if (systems.contains("engine"))
 		entity["systems"]["engine"] = {{"max_speed_mm_s", systems["engine"]["max_speed_mm_s"]}};
@@ -77,7 +115,7 @@ Pack console_assets(const Catalog &catalog, const std::string &ship)
 	}
 	entity["stations"] = stations;
 	draft.files["definitions.json"] =
-	    json_bytes(Json{{"schema", 2}, {"entities", Json::array({entity})}, {"consoles", consoles}});
+	    json_bytes(Json{{"schema", 3}, {"entities", Json::array({entity})}, {"consoles", consoles}});
 	auto pack = read_pack(write_pack(draft));
 	resolve_packs({pack});
 	return pack;

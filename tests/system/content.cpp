@@ -41,6 +41,67 @@ int main()
 		auto loaded = read_pack(bytes);
 		require(loaded.hash() == sha256(bytes), "pack identity must be the SHA256 of transferred archive bytes");
 		auto catalog = resolve_packs({loaded});
+		// A synthetic material travels through the same archive, inheritance,
+		// presentation sanitiser and Workshop paths as authored game content.
+		auto sprite_draft = loaded.draft();
+		auto sprite_defs = parse_json(sprite_draft.files.at("definitions.json"), "synthetic sprite");
+		sprite_defs["schema"] = 3;
+		Json sprite = {
+		    {"albedo", "test-core:assets/pixel.png"},
+		    {"depth", "test-core:assets/pixel.png"},
+		    {"frames",
+		     Json::array({{{"name", "front"},
+		                   {"rect", {0, 0, 1, 1}},
+		                   {"pivot", {.5, .5}},
+		                   {"azimuth", 0},
+		                   {"depth_scale", .7},
+		                   {"depth_offset", -.1},
+		                   {"attachments",
+		                    {{"engine_port", {{"x", .5}, {"y", .5}, {"layer", -1}, {"depth_offset", .05}}}}}}})}};
+		sprite_defs["entities"][0]["render"]["sprite"] = sprite;
+		sprite_defs["maps"][0]["lighting"] = {{"sun_direction", {1, .5, -.5}}, {"hatch_thickness", 2}};
+		sprite_draft.files["definitions.json"] = json_bytes(sprite_defs);
+		auto sprite_archive = write_pack(sprite_draft);
+		auto sprite_catalog = resolve_packs({read_pack(sprite_archive)});
+		const auto compiled = compile_sprite(sprite, sprite_catalog, "test material");
+		require(compiled.frames.at(0).attachments.at("engine_port").layer == -1 &&
+		            compiled.frames.at(0).depth_scale > .69f,
+		        "signed layers and calibrated relief must survive production loading");
+		auto presentation_sprite = resolve_packs({console_assets(sprite_catalog, "test.ship")});
+		require(presentation_sprite.entities.at("test.ship")["render"]["sprite"]["frames"] == sprite["frames"],
+		        "permitted sprite calibration and attachments must survive Console asset transfer");
+		require(presentation_sprite.maps.empty(), "lighting maps must not leak into the Console bundle");
+		WorkshopDocument sprite_document;
+		sprite_document.load_pack(sprite_archive);
+		require(
+		    resolve_packs({read_pack(sprite_document.export_pack())}).entities.at("test.ship")["render"]["sprite"] ==
+		        sprite,
+		    "Workshop round trip must preserve sprite material");
+		for (const auto &bad_rect : {Json({0, 0, 2, 1}), Json({0, 0, 1.5, 1})})
+		{
+			auto invalid_sprite = sprite;
+			invalid_sprite["frames"][0]["rect"] = bad_rect;
+			rejected(
+			    [&]
+			    {
+				    compile_sprite(invalid_sprite, sprite_catalog, "test material");
+			    },
+			    "rect");
+		}
+		auto invalid_sprite = sprite;
+		invalid_sprite.erase("depth");
+		rejected(
+		    [&]
+		    {
+			    compile_sprite(invalid_sprite, sprite_catalog, "test material");
+		    },
+		    "requires depth");
+		rejected(
+		    [&]
+		    {
+			    verify_lighting({{"sun_direction", {0, 0, 0}}}, "lighting");
+		    },
+		    "zero");
 		auto shared = loaded;
 		require(shared.archive_owner() == loaded.archive_owner(),
 		        "loaded pack copies must share immutable archive storage");
