@@ -361,7 +361,7 @@ test(
 test(
 	"playable fleet routes Consoles and recovers a returning member across checkpoints",
 	{ skip: !process.env.PHOENIX_SESSION_PROBE, timeout: 120000 },
-	async () => {
+	async (context) => {
 		const service = createSignallingServer({ port: 0 });
 		const address = await service.listen();
 		const directory = mkdtempSync(join(tmpdir(), "phoenix-playable-fleet-"));
@@ -378,7 +378,7 @@ test(
 					"--data",
 					directory,
 				],
-				{ windowsHide: true },
+				{ windowsHide: true, signal: context.signal },
 			);
 			let output = "";
 			child.stdout.on("data", (data) => {
@@ -394,7 +394,7 @@ test(
 			assert.equal(code, 0, output);
 			assert.match(output, /PASS playable fleet/);
 		} finally {
-			if (child && child.exitCode === null) {
+			if (child && child.exitCode === null && child.signalCode === null) {
 				child.kill();
 				await new Promise((resolve) => child.once("exit", resolve));
 			}

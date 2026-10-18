@@ -98,9 +98,17 @@ int fleet_journey(NetworkOptions options)
 	};
 	auto until = [&](const std::function<bool()> &done)
 	{
-		const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(accelerated ? 60 : 20);
+		auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(20);
+		auto progress = hosts[0]->ticks();
 		while (!done())
 		{
+			// This is recovery verification, not a disk-throughput benchmark. The Node
+			// harness bounds the whole journey; detect a stalled accelerated quorum here.
+			if (accelerated && hosts[0]->ticks() > progress)
+			{
+				progress = hosts[0]->ticks();
+				deadline = std::chrono::steady_clock::now() + std::chrono::seconds(20);
+			}
 			if (std::chrono::steady_clock::now() > deadline)
 				throw std::runtime_error(
 				    "Playable fleet timeout during " + stage + " at tick " + std::to_string(hosts[0]->ticks()) + ": " +
