@@ -4,6 +4,37 @@ struct NativeMenuSmoke
 {
 	bool enabled = false;
 	bool assign_displays = false;
+	bool virtual_displays = false, back_verified = false;
+	void configure_displays(phoenix::Application &app)
+	{
+		if (!virtual_displays)
+			return;
+		app.native_displays = {{0, "Test host region"}, {1, "Test Console region"}};
+		app.host_display = 0;
+		app.apply_displays = [&app]()
+		{
+			if (app.display_consoles.empty() && app.inspector_display < 0)
+			{
+				app.reset_displays();
+				return;
+			}
+			SetWindowSize(1600, 900);
+			app.viewscreen_region = phoenix::ConsoleRegion{2, 0, 0, 800, 900};
+			app.console_regions.clear();
+			if (app.display_consoles.contains(1))
+				app.console_regions.push_back({3, 800, 0, 800, 900});
+		};
+		app.reset_displays = [&app]()
+		{
+			app.console_regions.clear();
+			app.viewscreen_region.reset();
+			app.gm_region.reset();
+			app.display_consoles.clear();
+			app.local_player_names.clear();
+			app.inspector_display = -1;
+			SetWindowSize(1280, 720);
+		};
+	}
 	int display_step = 0;
 	int navigation_aid_step = 0;
 	bool initial_dust = true, initial_grid = true, initial_motion = false;
@@ -147,7 +178,9 @@ struct NativeMenuSmoke
 			if (assign_displays && !display_step)
 			{
 				if (app.native_displays.size() < 2 || lobby.consoles.empty())
-					throw std::runtime_error("Display smoke needs a console and two monitors");
+					throw std::runtime_error("Display smoke needs a console and two monitors; found " +
+					                         std::to_string(app.native_displays.size()) + " monitors and " +
+					                         std::to_string(lobby.consoles.size()) + " Consoles");
 				for (const auto &display : app.native_displays)
 					if (display.id != app.host_display)
 					{
@@ -160,6 +193,27 @@ struct NativeMenuSmoke
 			}
 			if (assign_displays && display_step == 1)
 			{
+				if (app.console_regions.size() != 1 || !app.viewscreen_region)
+					throw std::runtime_error("Assigned Console was not placed before launch");
+				const auto route = app.console_regions.front().console;
+				const auto ready = "console/" + std::to_string(route) + "/ready";
+				if (std::none_of(app.screen_controls.begin(), app.screen_controls.end(),
+				                 [&](const auto &c)
+				                 {
+					                 return c.first == ready;
+				                 }))
+					throw std::runtime_error("Assigned Console must immediately show its own Ready/Back card");
+				capture("assigned-console");
+				if (!back_verified)
+				{
+					action(app, "console/" + std::to_string(route) + "/back");
+					if (!app.display_consoles.empty() || app.screen != phoenix::Screen::server_lobby)
+						throw std::runtime_error("Console Back must remove its assignment and retain the host lobby");
+					back_verified = true;
+					display_step = 0;
+					changed = GetTime();
+					return false;
+				}
 				for (const auto &display : app.native_displays)
 					if (display.id != app.host_display && !app.display_consoles.contains(display.id))
 					{
@@ -188,7 +242,7 @@ struct NativeMenuSmoke
 			{
 				for (const auto &seat : lobby.consoles)
 					if (seat.local_screen)
-						action(app, "menu.local-ready/" + std::to_string(seat.local_screen));
+						action(app, "console/" + std::to_string(seat.local_screen) + "/ready");
 			}
 			else
 				action(app, "lobby.ready");
@@ -213,6 +267,15 @@ struct NativeMenuSmoke
 					throw std::runtime_error("Assigned display roles were not applied");
 				if (!app.session->console_observation(app.console_regions.front().console))
 					return false;
+				const auto route = app.console_regions.front().console;
+				if (console_frames == 3 && !phoenix::probe_console_helm(app, route))
+					throw std::runtime_error("Routed throttle drag or radar ring input failed");
+				if (console_frames < 6)
+					return false;
+				const auto observed = app.session->console_observation(route);
+				if (observed->requested_heading != 90000 || observed->requested_speed <= 0)
+					throw std::runtime_error("Second-screen Helm actions did not commit while host was on Viewscreen");
+				capture("helm-active");
 			}
 			const auto controls = phoenix::navigation_controls(app);
 			if (std::any_of(controls.begin(), controls.end(),

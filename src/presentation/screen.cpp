@@ -5,6 +5,9 @@ module;
 #include <stdexcept>
 #include <filesystem>
 #include <algorithm>
+#include <charconv>
+#include <cmath>
+#include <array>
 #include <map>
 #include <set>
 #include <optional>
@@ -171,10 +174,12 @@ Rml::Context *routed_context(ConsoleId route)
 	if (!console_mode)
 		return context;
 	auto found = console_surfaces.find(route);
-	return found == console_surfaces.end() ? nullptr : &found->second->context();
+	return found == console_surfaces.end() ? context : &found->second->context();
 }
 void cancel_captures()
 {
+	for (auto &[route, surface] : console_surfaces)
+		surface->cancel_pointer();
 	for (auto id : viewscreen_contacts)
 		context->ProcessTouchCancel({{static_cast<Rml::TouchId>(id), {0, 0}}});
 	viewscreen_contacts.clear();
@@ -370,6 +375,10 @@ bool probe_menu_keyboard(Application &app)
 	}
 	return true;
 }
+bool probe_console_helm(Application &, ConsoleId route)
+{
+	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_helm();
+}
 void open_window()
 {
 	game_screen = std::make_unique<GameScreen>();
@@ -509,14 +518,15 @@ void draw_screen(Application &app)
 		                                           app.screen == Screen::settings || app.packs_popup)
 		                           ? "menu.back"
 		                           : "settings");
-	const bool show_consoles = app.screen == Screen::console ||
+	const bool lobby_consoles = app.can_host && app.screen == Screen::server_lobby && !app.console_regions.empty();
+	const bool show_consoles = lobby_consoles || app.screen == Screen::console ||
 	                           (app.can_host && app.screen == Screen::viewscreen && !app.console_regions.empty());
 	if (show_consoles != console_mode)
 	{
 		cancel_captures();
 		console_mode = show_consoles;
 	}
-	app.console_surface_active = console_mode;
+	app.console_surface_active = console_mode && !lobby_consoles;
 	app.control_placements.clear();
 	app.screen_inputs.clear();
 	app.screen_readouts.clear();
@@ -526,6 +536,9 @@ void draw_screen(Application &app)
 	        ? app.console_regions
 	        : std::vector<ConsoleRegion>{
 	              {1, 0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())}};
+	const auto active_console_regions = console_mode ? regions : std::vector<ConsoleRegion>{};
+	if (console_mode && app.screen != Screen::console && app.viewscreen_region)
+		regions.push_back(*app.viewscreen_region);
 	for (const auto &pad : gamepads)
 	{
 		auto assigned = app.gamepad_assignments.find(pad);
@@ -549,8 +562,9 @@ void draw_screen(Application &app)
 			throw std::runtime_error("Invalid Console display regions");
 	}
 	if (!input.keyboard_console())
-		input.select_keyboard(regions.front().console);
-	if (console_mode)
+		input.select_keyboard(lobby_consoles && app.viewscreen_region ? app.viewscreen_region->console
+		                                                              : regions.front().console);
+	if (console_mode && !lobby_consoles)
 	{
 		if (app.screen == Screen::viewscreen)
 		{
@@ -558,37 +572,8 @@ void draw_screen(Application &app)
 			prepare_runtime_chrome(app);
 		}
 		app.screen_controls.clear();
-		std::erase_if(console_surfaces,
-		              [&](const auto &entry)
-		              {
-			              return std::none_of(regions.begin(), regions.end(),
-			                                  [&](const auto &region)
-			                                  {
-				                                  return region.console == entry.first;
-			                                  });
-		              });
-		for (const auto &region : regions)
-			if (!console_surfaces.contains(region.console))
-				console_surfaces[region.console] = std::make_unique<ConsoleSurface>(region.console);
-		app.screen_action = [](const std::string &id)
-		{
-			for (auto &[route, surface] : console_surfaces)
-				if (surface->action(id))
-					return true;
-			return false;
-		};
-		app.focus_control = [&app](const std::string &id)
-		{
-			for (auto &[route, surface] : console_surfaces)
-				if (id.starts_with("console/" + std::to_string(route) + "/"))
-				{
-					input.select_keyboard(route);
-					app.tools_keyboard_focus = false;
-					surface->focus(id);
-				}
-		};
-		for (const auto &region : regions)
-			console_surfaces.at(region.console)->prepare(app, region, gamepads);
+		if (app.screen == Screen::viewscreen)
+			app.screen_controls.emplace_back("settings", "Settings");
 	}
 	else
 	{
@@ -644,6 +629,72 @@ void draw_screen(Application &app)
 				element->Focus(true);
 		};
 	}
+	if (console_mode)
+	{
+		std::erase_if(console_surfaces,
+		              [&](const auto &entry)
+		              {
+			              return std::none_of(active_console_regions.begin(), active_console_regions.end(),
+			                                  [&](const auto &region)
+			                                  {
+				                                  return region.console == entry.first;
+			                                  });
+		              });
+		for (const auto &region : active_console_regions)
+			if (!console_surfaces.contains(region.console))
+				console_surfaces[region.console] = std::make_unique<ConsoleSurface>(region.console);
+		const auto primary_action = lobby_consoles ? app.screen_action : std::function<bool(const std::string &)>{};
+		app.screen_action = [primary_action](const std::string &id)
+		{
+			if (id.starts_with("console/"))
+			{
+				for (auto &[route, surface] : console_surfaces)
+					if (surface->action(id))
+						return true;
+				return false;
+			}
+			return primary_action ? primary_action(id) : false;
+		};
+		const auto primary_focus = lobby_consoles ? app.focus_control
+		                                          : std::function<void(const std::string &)>{
+		                                                [](const std::string &id)
+		                                                {
+			                                                if (auto *element = document->GetElementById(id))
+				                                                element->Focus(true);
+		                                                }};
+		app.focus_control = [&app, primary_focus](const std::string &id)
+		{
+			for (auto &[route, surface] : console_surfaces)
+				if (id.starts_with("console/" + std::to_string(route) + "/"))
+				{
+					input.select_keyboard(route);
+					app.tools_keyboard_focus = false;
+					surface->focus(id);
+					return;
+				}
+			if (primary_focus)
+			{
+				if (app.viewscreen_region)
+					input.select_keyboard(app.viewscreen_region->console);
+				app.tools_keyboard_focus = false;
+				primary_focus(id);
+			}
+		};
+		const auto primary_value = lobby_consoles ? app.set_control_value : decltype(app.set_control_value){};
+		app.set_control_value = [primary_value](const std::string &id, const std::string &value)
+		{
+			if (id.starts_with("console/"))
+			{
+				for (auto &[route, surface] : console_surfaces)
+					if (surface->set_value(id, value))
+						return true;
+				return false;
+			}
+			return primary_value ? primary_value(id, value) : false;
+		};
+		for (const auto &region : active_console_regions)
+			console_surfaces.at(region.console)->prepare(app, region, gamepads);
+	}
 	app.frame_metrics["preparation"] = GetTime() - preparation_started;
 	server_music->update(app);
 	const auto semantics_started = GetTime();
@@ -686,34 +737,6 @@ void draw_screen(Application &app)
 				cancel_captures();
 				continue;
 			}
-			if (console_mode && app.screen == Screen::viewscreen && app.viewscreen_region)
-			{
-				const auto &r = *app.viewscreen_region;
-				if (viewscreen_contacts.contains(event.contact) ||
-				    (event.kind == DeviceEventKind::Down &&
-				     CheckCollisionPointRec({event.x, event.y}, {r.x, r.y, r.width, r.height})))
-				{
-					Rml::TouchList touch{{static_cast<Rml::TouchId>(event.contact), {event.x, event.y}}};
-					if (event.kind == DeviceEventKind::Down)
-					{
-						viewscreen_contacts.insert(event.contact);
-						context->ProcessTouchStart(touch, 0);
-					}
-					if (event.kind == DeviceEventKind::Move)
-						context->ProcessTouchMove(touch, 0);
-					if (event.kind == DeviceEventKind::Up)
-					{
-						context->ProcessTouchEnd(touch, 0);
-						viewscreen_contacts.erase(event.contact);
-					}
-					if (event.kind == DeviceEventKind::Cancel)
-					{
-						context->ProcessTouchCancel(touch);
-						viewscreen_contacts.erase(event.contact);
-					}
-					continue;
-				}
-			}
 			auto point = event.kind == DeviceEventKind::Down   ? input.pointer_down(event.contact, event.x, event.y)
 			             : event.kind == DeviceEventKind::Move ? input.pointer_move(event.contact, event.x, event.y)
 			                                                   : input.pointer_up(event.contact, event.x, event.y);
@@ -721,7 +744,22 @@ void draw_screen(Application &app)
 				continue;
 			if (auto *target = routed_context(point->console))
 			{
-				Rml::TouchList touches{{static_cast<Rml::TouchId>(event.contact), {point->x, point->y}}};
+				if (console_mode && console_surfaces.contains(point->console) &&
+				    console_surfaces.at(point->console)->pointer(event.contact, point->x, point->y, event.kind))
+				{
+					if (point->released)
+						captures.erase(event.contact);
+					else
+						captures[event.contact] = *point;
+					continue;
+				}
+				float x = point->x, y = point->y;
+				if (console_mode && !console_surfaces.contains(point->console) && app.viewscreen_region)
+				{
+					x += app.viewscreen_region->x;
+					y += app.viewscreen_region->y;
+				}
+				Rml::TouchList touches{{static_cast<Rml::TouchId>(event.contact), {x, y}}};
 				if (event.kind == DeviceEventKind::Down)
 				{
 					target->ProcessTouchStart(touches, 0);
@@ -766,34 +804,40 @@ void draw_screen(Application &app)
 	if (mouse_context)
 		for (const auto &region : regions)
 			if (region.console == *mouse)
-				mouse_context->ProcessMouseMove(static_cast<int>(GetMouseX() - region.x),
-				                                static_cast<int>(GetMouseY() - region.y), modifiers);
+				mouse_context->ProcessMouseMove(
+				    static_cast<int>(GetMouseX() - (console_mode && !console_surfaces.contains(*mouse) ? 0 : region.x)),
+				    static_cast<int>(GetMouseY() - (console_mode && !console_surfaces.contains(*mouse) ? 0 : region.y)),
+				    modifiers);
+	bool heading_pointer = false;
+	if (mouse && console_mode && console_surfaces.contains(*mouse))
+		for (const auto &r : active_console_regions)
+			if (r.console == *mouse)
+			{
+				const auto kind = IsMouseButtonPressed(0)    ? DeviceEventKind::Down
+				                  : IsMouseButtonReleased(0) ? DeviceEventKind::Up
+				                                             : DeviceEventKind::Move;
+				heading_pointer = console_surfaces.at(*mouse)->pointer(0, GetMouseX() - r.x, GetMouseY() - r.y, kind);
+				if (heading_pointer && kind == DeviceEventKind::Down)
+				{
+					mouse_capture = mouse;
+					input.select_keyboard(*mouse);
+				}
+			}
 	for (int i = 0; i < 3; ++i)
 	{
-		if (mouse_context && IsMouseButtonPressed(i))
+		if (mouse_context && !(i == 0 && heading_pointer) && IsMouseButtonPressed(i))
 		{
 			mouse_capture = mouse;
 			input.select_keyboard(*mouse);
 			mouse_context->ProcessMouseButtonDown(i, modifiers);
 		}
-		if (mouse_context && IsMouseButtonReleased(i))
+		if (mouse_context && !(i == 0 && heading_pointer) && IsMouseButtonReleased(i))
 			mouse_context->ProcessMouseButtonUp(i, modifiers);
 	}
 	if (!IsMouseButtonDown(0) && !IsMouseButtonDown(1) && !IsMouseButtonDown(2))
 		mouse_capture.reset();
 	if (mouse_context)
 		mouse_context->ProcessMouseWheel(-GetMouseWheelMove(), modifiers);
-	if (console_mode && app.screen == Screen::viewscreen && app.viewscreen_region)
-	{
-		const auto &r = *app.viewscreen_region;
-		const bool over_view =
-		    !mouse_capture && CheckCollisionPointRec(GetMousePosition(), {r.x, r.y, r.width, r.height});
-		context->ProcessMouseMove(over_view ? GetMouseX() : -1, over_view ? GetMouseY() : -1, modifiers);
-		if (over_view && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
-			context->ProcessMouseButtonDown(0, modifiers);
-		if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT))
-			context->ProcessMouseButtonUp(0, modifiers);
-	}
 	const std::pair<int, Rml::Input::KeyIdentifier> keys[] = {
 	    {KEY_TAB, Rml::Input::KI_TAB},        {KEY_ENTER, Rml::Input::KI_RETURN},  {KEY_SPACE, Rml::Input::KI_SPACE},
 	    {KEY_BACKSPACE, Rml::Input::KI_BACK}, {KEY_ESCAPE, Rml::Input::KI_ESCAPE}, {KEY_LEFT, Rml::Input::KI_LEFT},
@@ -829,12 +873,29 @@ void draw_screen(Application &app)
 			game_screen->draw_viewscreen(app, {r.x, r.y, r.width, r.height});
 		}
 		app.frame_metrics["scene"] = GetTime() - scene_started;
-		if (app.screen == Screen::viewscreen)
+		if (app.screen == Screen::viewscreen || lobby_consoles)
 		{
 			context->Update();
+			native_menu->position_labels(*document);
+			if (lobby_consoles)
+				native_menu->draw_backdrop(app, *document);
 			renderer.viewport({0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())});
 			context->Render();
 			renderer.finish();
+			if (lobby_consoles)
+				native_menu->draw(app, *document);
+			for (const auto &control : navigation_controls(app))
+				if (!control.id.starts_with("console/"))
+					if (auto *element = document->GetElementById(control.id))
+					{
+						const auto at = element->GetAbsoluteOffset(Rml::BoxArea::Border);
+						app.control_placements[control.id] = {at.x,
+						                                      at.y,
+						                                      element->GetOffsetWidth(),
+						                                      element->GetOffsetHeight(),
+						                                      context->GetFocusElement() == element,
+						                                      true};
+					}
 			if (auto *settings = document->GetElementById("settings"))
 			{
 				const auto at = settings->GetAbsoluteOffset(Rml::BoxArea::Border);
@@ -847,7 +908,7 @@ void draw_screen(Application &app)
 			}
 		}
 		const auto consoles_started = GetTime();
-		for (const auto &region : regions)
+		for (const auto &region : active_console_regions)
 		{
 			auto &surface = *console_surfaces.at(region.console);
 			surface.context().Update();
@@ -928,9 +989,13 @@ Texture2D draw_console_preview(const Json &layout, int width, int height, Vector
 	preview_surface->prepare(preview_app, region, {});
 	auto &context = preview_surface->context();
 	context.ProcessMouseMove(static_cast<int>(pointer.x), static_cast<int>(pointer.y), 0);
-	if (pressed)
+	const bool heading = preview_surface->pointer(0, pointer.x, pointer.y,
+	                                              pressed    ? DeviceEventKind::Down
+	                                              : released ? DeviceEventKind::Up
+	                                                         : DeviceEventKind::Move);
+	if (pressed && !heading)
 		context.ProcessMouseButtonDown(0, 0);
-	if (released)
+	if (released && !heading)
 		context.ProcessMouseButtonUp(0, 0);
 	if (wheel)
 		context.ProcessMouseWheel(-wheel, 0);

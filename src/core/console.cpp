@@ -104,6 +104,38 @@ bool ConsoleModel::act(const std::string &id)
 	}
 	else
 		return false;
+	return submit(std::move(command));
+}
+bool ConsoleModel::set_speed_fraction(double fraction)
+{
+	if (!std::isfinite(fraction) || fraction < 0 || fraction > 1)
+		return false;
+	auto session = owner_.lock();
+	if (!session)
+		return false;
+	refresh(session, route_);
+	return observation_ &&
+	       submit(
+	           {observation_->own.id, "speed_mm_s", static_cast<std::int64_t>(std::llround(maximum_ * fraction)), {}});
+}
+bool ConsoleModel::set_heading_degrees(double degrees)
+{
+	if (!std::isfinite(degrees) || degrees < 0 || degrees >= 360)
+		return false;
+	auto session = owner_.lock();
+	if (!session)
+		return false;
+	refresh(session, route_);
+	return observation_ && submit({observation_->own.id,
+	                               "heading_mdeg",
+	                               static_cast<std::int64_t>(std::llround(degrees * 1000)) % 360000,
+	                               {}});
+}
+bool ConsoleModel::submit(OperatingCommand command)
+{
+	auto session = owner_.lock();
+	if (!session || !observation_)
+		return false;
 	const auto system = operating_action(command.action)->system;
 	if (!(observation_->controls & system_bit(system)))
 		return false;

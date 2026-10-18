@@ -767,6 +767,8 @@ struct NativeMenuScreen::State
 									              app.local_player_names.erase(command.screen);
 									              if (app.inspector_display == monitor)
 										              app.inspector_display = -1;
+									              if (app.apply_displays)
+										              app.apply_displays();
 								              });
 						if (seat.local_screen)
 							markup += add("menu.clear-console-screen/" + seat.id, "Remove from local screen",
@@ -776,6 +778,8 @@ struct NativeMenuScreen::State
 								              command.screen = seat.local_screen;
 								              if (app.session->lobby_command(command))
 									              app.display_consoles.erase(static_cast<int>(seat.local_screen) - 2);
+								              if (app.apply_displays)
+									              app.apply_displays();
 							              });
 					}
 #endif
@@ -804,6 +808,8 @@ struct NativeMenuScreen::State
 								        app.session->lobby_command(command);
 								        app.display_consoles.erase(monitor);
 								        app.inspector_display = monitor;
+								        if (app.apply_displays)
+									        app.apply_displays();
 							        });
 					if (app.inspector_display >= 0)
 						markup += add("menu.clear-inspector-screen", "Remove from local screen",

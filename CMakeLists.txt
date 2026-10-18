@@ -390,6 +390,17 @@ file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/assets/pfx")
 foreach(mote space_mote_streak_head.png space_mote_streak_soft.png space_mote_compact_core.png)
 	configure_file("content/pfx/${mote}" "${CMAKE_CURRENT_BINARY_DIR}/assets/pfx/${mote}" COPYONLY)
 endforeach()
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/assets/helm")
+file(
+	GLOB phoenix_helm_art
+	CONFIGURE_DEPENDS
+	"${CMAKE_CURRENT_SOURCE_DIR}/content/ui/helm/*.png"
+	"${CMAKE_CURRENT_SOURCE_DIR}/content/ui/helm/*.json"
+)
+foreach(asset IN LISTS phoenix_helm_art)
+	get_filename_component(name "${asset}" NAME)
+	configure_file("${asset}" "${CMAKE_CURRENT_BINARY_DIR}/assets/helm/${name}" COPYONLY)
+endforeach()
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/assets/menu")
 foreach(
 	menu_asset

@@ -1,0 +1,11 @@
+{
+	"mode": "built-in image_gen",
+	"readout": {
+		"file": "readout-panel.png",
+		"prompt": "Use case: stylized-concept. Asset type: transparent game HUD readout panel sprite. Create a single wide rectangular instrument readout housing in the same distressed comic-book industrial spaceship style as the reference helm housing: chipped ivory enamel, charcoal metal, tiny worn orange safety accents, dense hand-inked edges and subtle halftone. Orthographic face-on, no perspective. Wide 3:1 aspect housing centered with transparent margins, an unobstructed nearly black matte glass rectangle occupying the central 78% width and 65% height for live runtime text. No text, letters, numbers, symbols, screws in the text area, glow or shadows outside the object. This is a usable UI sprite, not a mockup or a whole console."
+	},
+	"heading": {
+		"file": "heading-pointer.png",
+		"prompt": "Use case: stylized-concept. Asset type: transparent spaceship HUD heading cursor sprite. One compact downward-pointing triangular instrument pointer, face-on orthographic, centered on transparent background. Match the reference industrial comic-book helm bezel: worn orange enamel front face, chipped ivory edging and charcoal ink outline, subtle halftone scratches. A strong solid readable triangle with a short rectangular grip at its top; width about 60% of image, height about 75%. Flat silhouette pointing straight DOWN, symmetrical, no text, no numerals, no radar ring, no scene, no surrounding panel, no cast shadow or glow. It will rotate around a live radar at runtime."
+	}
+}

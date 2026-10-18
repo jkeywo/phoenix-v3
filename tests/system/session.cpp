@@ -55,12 +55,19 @@ int main()
 			require(helm.requested_speed() > 0 && sensors.requested_speed() == 0 && !sensors.act("game.faster") &&
 			            !helm.act("game.contacts"),
 			        "each presentation model respects its own authority and state");
+			require(helm.set_speed_fraction(.65) && helm.set_heading_degrees(123.25) && !helm.set_speed_fraction(-.1) &&
+			            !helm.set_speed_fraction(1.1) && !helm.set_heading_degrees(360) &&
+			            !sensors.set_speed_fraction(.5) && !sensors.set_heading_degrees(90),
+			        "Absolute slider/ring controls preserve value bounds and per-Console authority");
 			require(sensors.act("game.contacts/radar") && !sensors.announcement().empty(),
 			        "radar semantics use the permitted projection");
 			require(multi->console_command(2, {ship, "radar_enabled", 0}) &&
 			            !multi->console_command(2, {ship, "speed_mm_s", 1}),
 			        "session route preserves System authority");
 			multi->tick();
+			require(multi->observation()->requested_heading == 123250 &&
+			            multi->observation()->requested_speed == helm.maximum_speed() * 65 / 100,
+			        "Absolute Helm controls commit through the same production session command path");
 			require(multi->inspection().at("bodies").size() == multi->viewscreen().size(),
 			        "trusted local GM inspection exposes the live world beside independent Console routes");
 			helm.refresh(multi);

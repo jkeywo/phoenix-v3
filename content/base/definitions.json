@@ -407,32 +407,34 @@
 					"kind": "radar",
 					"label": "Local space / north up",
 					"binding": "radar.contacts",
-					"x": 0,
+					"x": 220,
 					"y": 0,
-					"width": 600,
-					"height": 1000
+					"width": 780,
+					"height": 700
 				},
 				{
 					"id": "engine",
 					"kind": "throttle",
 					"label": "Engine",
 					"binding": "engine.desired_speed",
-					"x": 600,
+					"x": 0,
 					"y": 0,
-					"width": 400,
-					"height": 500
+					"width": 220,
+					"height": 1000
 				},
 				{
 					"id": "steering",
 					"kind": "heading",
 					"label": "Steering / 0 east, 90 north",
 					"binding": "steering.desired_heading",
-					"x": 600,
-					"y": 500,
-					"width": 400,
-					"height": 500
+					"x": 220,
+					"y": 700,
+					"width": 780,
+					"height": 300
 				}
-			]
+			],
+			"name": "Ship Operations",
+			"description": "Set the ship’s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew."
 		}
 	],
 	"trees": []

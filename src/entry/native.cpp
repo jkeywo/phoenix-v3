@@ -63,6 +63,10 @@ int main(int argc, char **argv)
 		const std::string argument = argv[i];
 		if (argument == "--menu-smoke")
 			menu_smoke.enabled = true;
+		if (argument == "--lobby-regions-smoke")
+		{
+			menu_smoke.enabled = menu_smoke.assign_displays = menu_smoke.virtual_displays = true;
+		}
 		if (argument == "--lobby-displays-smoke")
 		{
 			menu_smoke.enabled = true;
@@ -272,7 +276,11 @@ int main(int argc, char **argv)
 	app.apply_displays = [&app, &lobby_span]()
 	{
 		if (app.display_consoles.empty() && app.inspector_display < 0)
+		{
+			if (lobby_span && app.reset_displays)
+				app.reset_displays();
 			return;
+		}
 		std::vector<int> monitors{app.host_display};
 		for (const auto &[monitor, console] : app.display_consoles)
 			monitors.push_back(monitor);
@@ -546,6 +554,7 @@ int main(int argc, char **argv)
 				if (seat.available && app.session->claim_console(region.console, seat.address))
 					break;
 	}
+	menu_smoke.configure_displays(app);
 	const auto smoke_started = GetTime();
 	menu_smoke.changed = smoke_started;
 	double previous_frame = smoke_started;
@@ -594,9 +603,10 @@ int main(int argc, char **argv)
 				phoenix::close_window();
 				return 1;
 			}
-			if (GetTime() - smoke_started > 30)
+			if (GetTime() - smoke_started > (menu_smoke.assign_displays ? 90 : 30))
 			{
-				std::cerr << "Menu smoke timed out\n";
+				std::cerr << "Menu smoke timed out at stage " << menu_smoke.stage << " / tick " << app.session->ticks()
+				          << '\n';
 				phoenix::end_tools();
 				phoenix::close_window();
 				return 1;

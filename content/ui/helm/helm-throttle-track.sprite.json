@@ -1,0 +1,23 @@
+{
+	"$schema": "sprite-set.schema.json",
+	"schema_version": 1,
+	"id": "helm-throttle-track",
+	"description": "Vertical throttle housing; separate movable grip overlays the track.",
+	"files": {
+		"sprite": "helm-throttle-track.png",
+		"normal": null,
+		"depth": null
+	},
+	"image_size": [724, 2172],
+	"coordinate_system": "frame_pixels_top_left_y_down",
+	"sprite_color_space": "srgb",
+	"normal_encoding": null,
+	"depth_encoding": null,
+	"sprite_sheet": null,
+	"pivot": [362, 1086],
+	"markers": {
+		"travel_max": [362, 261, 1],
+		"travel_min": [362, 1803, 1],
+		"speed_readout": [362, 124, 1]
+	}
+}

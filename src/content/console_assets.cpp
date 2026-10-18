@@ -125,6 +125,9 @@ Pack console_assets(const Catalog &catalog, const std::string &ship)
 		if (included.insert(seat.definition).second)
 		{
 			Json layout{{"id", seat.definition}, {"widgets", Json::array()}};
+			for (const char *field : {"name", "description"})
+				if (catalog.consoles.at(seat.definition).contains(field))
+					layout[field] = catalog.consoles.at(seat.definition).at(field);
 			for (const auto &widget : catalog.consoles.at(seat.definition).at("widgets"))
 			{
 				Json copy;

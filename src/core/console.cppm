@@ -19,6 +19,12 @@ public:
 	void refresh(const std::shared_ptr<SessionPort> &session, std::uint64_t route = 1);
 	void reset();
 	bool act(const std::string &action);
+	bool set_speed_fraction(double fraction);
+	bool set_heading_degrees(double degrees);
+	std::int64_t maximum_speed() const
+	{
+		return maximum_;
+	}
 	const std::optional<Observation> &observation() const
 	{
 		return observation_;
@@ -42,6 +48,7 @@ public:
 	std::string contacts_text() const;
 
 private:
+	bool submit(OperatingCommand command);
 	std::weak_ptr<SessionPort> owner_;
 	std::uint64_t generation_ = 0, route_ = 1;
 	std::vector<std::pair<std::string, std::string>> packs_;

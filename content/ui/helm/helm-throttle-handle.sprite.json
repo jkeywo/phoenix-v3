@@ -1,0 +1,19 @@
+{
+	"$schema": "sprite-set.schema.json",
+	"schema_version": 1,
+	"id": "helm-throttle-handle",
+	"description": "Separate movable throttle grip; align centre pivot with the track's interpolated travel point.",
+	"files": {
+		"sprite": "helm-throttle-handle.png",
+		"normal": null,
+		"depth": null
+	},
+	"image_size": [2172, 724],
+	"coordinate_system": "frame_pixels_top_left_y_down",
+	"sprite_color_space": "srgb",
+	"normal_encoding": null,
+	"depth_encoding": null,
+	"sprite_sheet": null,
+	"pivot": [1086, 362],
+	"markers": {}
+}

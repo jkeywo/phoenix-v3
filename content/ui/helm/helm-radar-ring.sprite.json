@@ -1,0 +1,22 @@
+{
+	"$schema": "sprite-set.schema.json",
+	"schema_version": 1,
+	"id": "helm-radar-ring",
+	"description": "Circular helm radar bezel with transparent centre; preserve square aspect.",
+	"files": {
+		"sprite": "helm-radar-ring.png",
+		"normal": null,
+		"depth": null
+	},
+	"image_size": [1254, 1254],
+	"coordinate_system": "frame_pixels_top_left_y_down",
+	"sprite_color_space": "srgb",
+	"normal_encoding": null,
+	"depth_encoding": null,
+	"sprite_sheet": null,
+	"pivot": [627, 627],
+	"markers": {
+		"radar_origin": [627, 627, -1],
+		"heading_origin": [627, 627, 1]
+	}
+}
