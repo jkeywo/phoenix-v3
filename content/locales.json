@@ -239,7 +239,17 @@
 			"AI behaviour runs automatic orders when this entity is not under player control. None leaves it idle.": "AI behaviour runs automatic orders when this entity is not under player control. None leaves it idle.",
 			"Imported render scale": "Imported render scale",
 			"Open base game pack": "Open base game pack",
-			"Imported eight-direction billboard": "Imported eight-direction billboard"
+			"Imported eight-direction billboard": "Imported eight-direction billboard",
+			"Console ID": "Console ID",
+			"Rename console": "Rename console",
+			"Save": "Save",
+			"Save as...": "Save as...",
+			"Save map": "Save map",
+			"Save map as...": "Save map as...",
+			"Add map": "Add map",
+			"Save pack": "Save pack",
+			"Map name": "Map name",
+			"Editing pack": "Editing pack"
 		}
 	}
 }

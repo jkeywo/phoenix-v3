@@ -197,6 +197,7 @@ public:
 	void select_map(std::size_t index);
 	std::string create_entity(const std::string &parent = {});
 	void rename_entity(const std::string &from, const std::string &to);
+	void rename_console(const std::string &from, const std::string &to);
 	std::uint64_t place(const std::string &definition, std::int64_t x, std::int64_t y);
 	void erase(std::uint64_t instance);
 	void duplicate(std::uint64_t instance);

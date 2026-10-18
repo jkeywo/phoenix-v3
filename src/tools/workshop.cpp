@@ -12,6 +12,7 @@ module;
 
 module phoenix.tools;
 import phoenix.presentation;
+import phoenix.files;
 
 namespace phoenix
 {
@@ -23,6 +24,7 @@ Texture2D font_texture{};
 }
 void begin_tools()
 {
+	enable_workshop_file_shortcuts();
 	ImGui::CreateContext();
 	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 	ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
@@ -78,6 +80,7 @@ void draw_workshop(Application &app)
 	                                         {KEY_HOME, ImGuiKey_Home},
 	                                         {KEY_END, ImGuiKey_End},
 	                                         {KEY_A, ImGuiKey_A},
+	                                         {KEY_S, ImGuiKey_S},
 	                                         {KEY_C, ImGuiKey_C},
 	                                         {KEY_V, ImGuiKey_V},
 	                                         {KEY_X, ImGuiKey_X},

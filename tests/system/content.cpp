@@ -41,6 +41,40 @@ int main()
 		auto loaded = read_pack(bytes);
 		require(loaded.hash() == sha256(bytes), "pack identity must be the SHA256 of transferred archive bytes");
 		auto catalog = resolve_packs({loaded});
+		WorkshopDocument console_document;
+		console_document.load_pack(bytes);
+		console_document.definitions()["consoles"].push_back(
+		    {{"id", "test.child-console"}, {"extends", "test.console"}});
+		auto &station_ship = console_document.definitions()["entities"][1];
+		station_ship["stations"] =
+		    Json::array({{{"id", "watch"},
+		                  {"consoles", Json::array({{{"id", "controls"},
+		                                             {"definition", "test.console"},
+		                                             {"systems", {"engine", "steering", "radar"}},
+		                                             {"feeds", Json::array()}}})}}});
+		station_ship.erase("console");
+		console_document.rename_console("test.console", "test.bridge");
+		const auto &renamed_consoles = console_document.definitions();
+		require(renamed_consoles["entities"][0]["console"] == "test.bridge" &&
+		            renamed_consoles["entities"][1]["stations"][0]["consoles"][0]["definition"] == "test.bridge" &&
+		            renamed_consoles["entities"][1]["stations"][0]["consoles"][0]["id"] == "controls" &&
+		            renamed_consoles["consoles"][1]["extends"] == "test.bridge",
+		        "Console rename repairs legacy, explicit Station and inheritance references without renaming runtime "
+		        "seats");
+		const auto before_console_refusal = console_document.definitions();
+		rejected(
+		    [&]
+		    {
+			    console_document.rename_console("test.bridge", "test.ship");
+		    },
+		    "already exists");
+		require(console_document.definitions() == before_console_refusal,
+		        "conflicting Console rename preserves the document");
+		console_document.new_map("test.added-map");
+		const auto console_round_trip = resolve_packs({read_pack(console_document.export_pack())});
+		require(console_round_trip.consoles.contains("test.bridge") &&
+		            console_round_trip.maps.contains("test.added-map"),
+		        "saving a whole pack retains added maps and renamed Consoles together");
 		// Navigation aids use the real content resolver and authoring round trip.
 		auto aids = loaded.draft();
 		auto aid_defs = parse_json(aids.files.at("definitions.json"), "synthetic navigation aids");

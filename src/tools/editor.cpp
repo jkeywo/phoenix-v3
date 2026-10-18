@@ -33,12 +33,22 @@ std::string tool_label(const std::string &text)
 struct Editor
 {
 	FileImportInbox imports;
+	FileImportInbox saves;
+	struct SaveLocation
+	{
+		std::string filename, destination;
+	};
+	SaveLocation pack_location;
+	std::map<std::string, SaveLocation> map_locations;
+	std::string saving_map;
+	bool saving = false;
 	WorkshopDocument document;
 	std::uint64_t selected = 0;
 	int definition = -1, console = -1;
 	std::string status = "Import a PNG, create an entity definition, then place instances on the map.";
 	std::string pack_name = "workshop", library_parent;
 	std::string rename_from, template_id;
+	std::string console_rename_from, console_id;
 	TextureCache textures;
 	SceneRenderer scene;
 	RenderTexture2D scene_preview{};
@@ -57,6 +67,16 @@ struct Editor
 	bool preview_whole_map = false;
 	bool started = false;
 	float pan_x = 0, pan_y = 0, zoom = 0.004f;
+	void reset_save_locations()
+	{
+		saves.reset();
+		saving = false;
+		pack_location = {};
+		map_locations.clear();
+		saving_map.clear();
+		rename_from.clear();
+		console_rename_from.clear();
+	}
 	void clear_textures()
 	{
 		textures.clear();
@@ -99,6 +119,52 @@ template <class Function> void attempt(Function action)
 	{
 		editor.status = error.what();
 	}
+}
+void save_pack(bool save_as)
+{
+	if (editor.saving)
+		return;
+	const auto bytes = editor.document.export_pack();
+	const auto filename = editor.pack_location.filename.empty()
+	                          ? editor.document.manifest().at("id").get<std::string>() + ".zip"
+	                          : editor.pack_location.filename;
+	request_save(editor.saves, FilePurpose::WorkshopPackSave, filename, bytes, editor.pack_location.destination,
+	             save_as);
+	editor.saving = true;
+	editor.status = "Saving pack...";
+}
+void save_map(bool save_as)
+{
+	if (editor.saving)
+		return;
+	const auto id = editor.document.map().at("id").get<std::string>();
+	const auto &location = editor.map_locations[id];
+	const auto bytes = editor.document.save_map();
+	request_save(editor.saves, FilePurpose::WorkshopMapSave,
+	             location.filename.empty() ? id + ".json" : location.filename, bytes, location.destination, save_as);
+	editor.saving_map = id;
+	editor.saving = true;
+	editor.status = "Saving map...";
+}
+void add_map()
+{
+	const auto prefix = editor.document.manifest().at("id").get<std::string>() + ".map";
+	unsigned number = 1;
+	std::string id;
+	const auto &maps = editor.document.definitions().at("maps");
+	do
+	{
+		id = prefix + std::to_string(number++);
+	} while (std::any_of(maps.begin(), maps.end(),
+	                     [&](const Json &value)
+	                     {
+		                     return value.at("id") == id;
+	                     }) ||
+	         editor.document.libraries().maps.contains(id));
+	editor.document.new_map(id);
+	editor.document.map()["name"] = "New map";
+	editor.selected = 0;
+	editor.status = "Map added to the current pack. Save the pack to keep it with its templates and assets.";
 }
 void string_field(const char *label, Json &object, const char *key)
 {
@@ -807,19 +873,45 @@ void console_editor(const Application &app)
 	auto &consoles = editor.document.definitions()["consoles"];
 	if (ImGui::Button(tool_label("New console").c_str()))
 	{
-		std::string id =
-		    editor.document.manifest().at("id").get<std::string>() + ".console" + std::to_string(consoles.size() + 1);
+		const auto prefix = editor.document.manifest().at("id").get<std::string>() + ".console";
+		std::string id;
+		unsigned number = 1;
+		do
+		{
+			id = prefix + std::to_string(number++);
+		} while (std::any_of(consoles.begin(), consoles.end(),
+		                     [&](const Json &value)
+		                     {
+			                     return value.at("id") == id;
+		                     }) ||
+		         editor.document.libraries().consoles.contains(id));
 		consoles.push_back({{"id", id}, {"widgets", Json::array()}});
 		editor.console = static_cast<int>(consoles.size() - 1);
 	}
 	for (std::size_t i = 0; i < consoles.size(); ++i)
 	{
 		auto id = consoles[i].at("id").get<std::string>();
-		if (ImGui::Selectable(id.c_str(), editor.console == i))
+		const auto name = consoles[i].value("name", std::string{});
+		const auto label = (name.empty() ? id : name + " (" + id + ")") + "###" + id;
+		if (ImGui::Selectable(label.c_str(), editor.console == i))
 			editor.console = static_cast<int>(i);
 	}
 	if (editor.console < 0 || editor.console >= static_cast<int>(consoles.size()))
 		return;
+	auto &selected = consoles[editor.console];
+	const auto console_id = selected.at("id").get<std::string>();
+	if (editor.console_rename_from != console_id)
+		editor.console_id = editor.console_rename_from = console_id;
+	ImGui::InputText(tool_label("Console ID").c_str(), &editor.console_id);
+	if (ImGui::Button(tool_label("Rename console").c_str()))
+		attempt(
+		    [&]
+		    {
+			    editor.document.rename_console(console_id, editor.console_id);
+			    editor.console_rename_from = editor.console_id;
+			    editor.status = "Console renamed; ship and Station references updated.";
+		    });
+	string_field("Display name", selected, "name");
 	auto &widgets = consoles[editor.console]["widgets"];
 	for (auto [kind, binding] : widget_bindings())
 	{
@@ -958,6 +1050,19 @@ void slots_editor()
 void map_view()
 {
 	ImGui::Begin(tool_label("Map").c_str());
+	ImGui::TextWrapped("%s: %s", localise("Editing pack").c_str(),
+	                   editor.document.manifest().at("id").get_ref<const std::string &>().c_str());
+	ImGui::BeginDisabled(editor.saving);
+	if (ImGui::Button(tool_label("Add map").c_str()))
+		attempt(add_map);
+	ImGui::SameLine();
+	if (ImGui::Button(tool_label("Save pack").c_str()))
+		attempt(
+		    []
+		    {
+			    save_pack(false);
+		    });
+	ImGui::EndDisabled();
 	if (ImGui::BeginCombo(tool_label("Map").c_str(),
 	                      editor.document.map().at("id").get_ref<const std::string &>().c_str()))
 	{
@@ -970,6 +1075,7 @@ void map_view()
 			}
 		ImGui::EndCombo();
 	}
+	string_field("Map name", editor.document.map(), "name");
 	ImGui::TextWrapped("Double-click: place selected definition | drag: move | middle-drag: pan | wheel: zoom");
 	auto origin = ImGui::GetCursorScreenPos(), size = ImGui::GetContentRegionAvail();
 	size.x = std::max(size.x, 1.0f);
@@ -1094,12 +1200,17 @@ void map_view()
 void close_editor()
 {
 	editor.imports.reset();
+	editor.saves.reset();
+	editor.saving = false;
 	editor.clear_textures();
 }
 void open_workshop_pack(const std::string &path)
 {
 	editor.imports.reset();
 	editor.document.load_pack(read_file(path));
+	editor.reset_save_locations();
+	editor.pack_location = {
+	    path.substr(path.find_last_of("/\\") == std::string::npos ? 0 : path.find_last_of("/\\") + 1), path};
 	editor.started = true;
 	editor.clear_textures();
 	editor.pack_name = editor.document.manifest()["id"].get<std::string>();
@@ -1125,8 +1236,11 @@ void render_editor(Application &app)
 		attempt(
 		    [&]
 		    {
-			    if (editor.document.manifest().at("id") != "phoenix-base")
-				    editor.document.load_dependency(base_archive());
+			    editor.document.load_pack(base_archive());
+			    editor.reset_save_locations();
+			    editor.pack_name = "phoenix-base";
+			    editor.console = 0;
+			    editor.status = "Editing the base game. Add maps here, then Save as to choose a pack file.";
 		    });
 	}
 	static ImVec2 dock_size{};
@@ -1154,6 +1268,40 @@ void render_editor(Application &app)
 	}
 	ImGui::DockSpaceOverViewport(dock, viewport);
 	bool readonly = app.screen == Screen::gm;
+	if (!readonly)
+	{
+		if (auto saved = editor.saves.take())
+		{
+			editor.saving = false;
+			if (saved->status == ImportStatus::Success)
+			{
+				auto &location = saved->purpose == FilePurpose::WorkshopMapSave
+				                     ? editor.map_locations[editor.saving_map]
+				                     : editor.pack_location;
+				location = {saved->filename, saved->destination};
+				editor.status = saved->destination.empty()
+				                    ? "Download requested. This browser cannot overwrite the same file; use a browser "
+				                      "with file access for Save in place."
+				                    : "Saved " + saved->filename;
+			}
+			else if (saved->status == ImportStatus::Cancelled)
+				editor.status = "Save cancelled; the previous save location is unchanged.";
+			else
+				editor.status = saved->error;
+		}
+		if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S, ImGuiInputFlags_RouteGlobal))
+			attempt(
+			    []
+			    {
+				    save_pack(true);
+			    });
+		else if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_S, ImGuiInputFlags_RouteGlobal))
+			attempt(
+			    []
+			    {
+				    save_pack(false);
+			    });
+	}
 	attempt(
 	    [&]
 	    {
@@ -1167,6 +1315,8 @@ void render_editor(Application &app)
 				    if (imported->purpose == FilePurpose::WorkshopPack)
 				    {
 					    editor.document.load_pack(imported->bytes);
+					    editor.reset_save_locations();
+					    editor.pack_location = {imported->filename, imported->destination};
 					    editor.clear_textures();
 					    editor.selected = 0;
 					    editor.definition = -1;
@@ -1181,6 +1331,8 @@ void render_editor(Application &app)
 				    if (imported->purpose == FilePurpose::WorkshopMap)
 				    {
 					    editor.document.load_map(imported->bytes);
+					    editor.map_locations[editor.document.map().at("id").get<std::string>()] = {
+					        imported->filename, imported->destination};
 					    editor.selected = 0;
 				    }
 				    if (imported->purpose == FilePurpose::WorkshopImage)
@@ -1236,12 +1388,13 @@ void render_editor(Application &app)
 				invoke_navigation(app, game_active(app) ? "settings" : "home");
 			ImGui::EndMenu();
 		}
-		if (ImGui::BeginMenu(tool_label("File").c_str(), !readonly))
+		if (ImGui::BeginMenu(tool_label("File").c_str(), !readonly && !editor.saving))
 		{
 			if (ImGui::MenuItem(tool_label("New pack").c_str()))
 			{
 				editor.imports.reset();
 				editor.document.reset();
+				editor.reset_save_locations();
 				attempt(
 				    [&]
 				    {
@@ -1268,13 +1421,14 @@ void render_editor(Application &app)
 					    WorkshopDocument candidate;
 					    candidate.load_pack(base_archive());
 					    editor.document = std::move(candidate);
+					    editor.reset_save_locations();
 					    editor.clear_textures();
 					    editor.pack_name = "phoenix-base";
 					    editor.definition = 0;
 					    editor.console = 0;
 					    editor.selected = 0;
 					    editor.pending_sidecar = nullptr;
-					    editor.status = "Opened the base game for editing. Export to save a separate pack.";
+					    editor.status = "Editing the base game. Add maps here, then Save as to choose a pack file.";
 				    });
 			if (ImGui::MenuItem(tool_label("Load dependency pack...").c_str()))
 				attempt(
@@ -1282,34 +1436,38 @@ void render_editor(Application &app)
 				    {
 					    request_file(editor.imports, FilePurpose::WorkshopLibrary);
 				    });
-			if (ImGui::MenuItem(tool_label("Export verified pack...").c_str()))
+			if (ImGui::MenuItem(tool_label("Save").c_str(), "Ctrl+S", false, !editor.saving))
 				attempt(
-				    [&]
+				    []
 				    {
-					    export_file(editor.document.manifest()["id"].get<std::string>() + ".zip",
-					                editor.document.export_pack());
-					    editor.status = "Pack verified and exported.";
+					    save_pack(false);
+				    });
+			if (ImGui::MenuItem(tool_label("Save as...").c_str(), "Ctrl+Shift+S", false, !editor.saving))
+				attempt(
+				    []
+				    {
+					    save_pack(true);
 				    });
 			ImGui::Separator();
 			if (ImGui::MenuItem(tool_label("New map").c_str()))
-				attempt(
-				    [&]
-				    {
-					    editor.document.new_map("workshop.map" +
-					                            std::to_string(editor.document.definitions()["maps"].size() + 1));
-				    });
+				attempt(add_map);
 			if (ImGui::MenuItem(tool_label("Load map...").c_str()))
 				attempt(
 				    [&]
 				    {
 					    request_file(editor.imports, FilePurpose::WorkshopMap);
 				    });
-			if (ImGui::MenuItem(tool_label("Save map...").c_str()))
+			if (ImGui::MenuItem(tool_label("Save map").c_str(), nullptr, false, !editor.saving))
 				attempt(
-				    [&]
+				    []
 				    {
-					    export_file(editor.document.map()["id"].get<std::string>() + ".json",
-					                editor.document.save_map());
+					    save_map(false);
+				    });
+			if (ImGui::MenuItem(tool_label("Save map as...").c_str(), nullptr, false, !editor.saving))
+				attempt(
+				    []
+				    {
+					    save_map(true);
 				    });
 			if (ImGui::MenuItem(tool_label("Import PNG...").c_str()))
 				attempt(

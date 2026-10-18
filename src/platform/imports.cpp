@@ -53,7 +53,8 @@ std::optional<ImportedFile> FileImportInbox::take()
 	reset();
 	return result;
 }
-void complete_import(ImportId id, std::string filename, Bytes bytes, std::string error, bool cancelled)
+void complete_import(ImportId id, std::string filename, Bytes bytes, std::string error, bool cancelled,
+                     std::string destination)
 {
 	auto found = FileImportInbox::State::requests.find(id);
 	if (found == FileImportInbox::State::requests.end())
@@ -69,7 +70,8 @@ void complete_import(ImportId id, std::string filename, Bytes bytes, std::string
 	                                    : ImportStatus::Failed;
 	if (status != ImportStatus::Success)
 		bytes.clear();
-	state->result = ImportedFile{id, state->purpose, status, std::move(filename), std::move(bytes), std::move(error)};
+	state->result = ImportedFile{
+	    id, state->purpose, status, std::move(filename), std::move(bytes), std::move(error), std::move(destination)};
 }
 void open_file(ImportId id, FilePurpose purpose);
 void request_file(FileImportInbox &inbox, FilePurpose purpose)
@@ -78,6 +80,23 @@ void request_file(FileImportInbox &inbox, FilePurpose purpose)
 	try
 	{
 		open_file(id, purpose);
+	}
+	catch (const std::exception &error)
+	{
+		complete_import(id, {}, {}, error.what());
+	}
+}
+void save_file(ImportId id, const std::string &filename, const Bytes &bytes, const std::string &destination,
+               bool save_as);
+void request_save(FileImportInbox &inbox, FilePurpose purpose, const std::string &filename, const Bytes &bytes,
+                  const std::string &destination, bool save_as)
+{
+	if (purpose != FilePurpose::WorkshopPackSave && purpose != FilePurpose::WorkshopMapSave)
+		throw std::runtime_error("Unsupported save purpose");
+	const auto id = inbox.begin(purpose);
+	try
+	{
+		save_file(id, filename, bytes, destination, save_as);
 	}
 	catch (const std::exception &error)
 	{

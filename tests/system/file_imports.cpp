@@ -2,6 +2,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <filesystem>
 #include <nlohmann/json.hpp>
 import phoenix.files;
 import phoenix.content;
@@ -21,6 +22,41 @@ int main()
 		pack.files["definitions.json"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json");
 		pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
 		const auto archive = write_pack(pack);
+		FileImportInbox saves;
+		const auto first_save = saves.begin(FilePurpose::WorkshopPackSave);
+		complete_import(first_save, "original.zip", {}, {}, false, "synthetic-file/first");
+		auto saved = saves.take();
+		require(saved && saved->destination == "synthetic-file/first" && saved->status == ImportStatus::Success,
+		        "a successful save returns its destination to the owning document");
+		const auto cancelled_save = saves.begin(FilePurpose::WorkshopPackSave);
+		complete_import(cancelled_save, {}, {}, {}, true);
+		require(saves.take()->status == ImportStatus::Cancelled,
+		        "cancelled Save As supplies no replacement destination");
+#ifndef __EMSCRIPTEN__
+		const auto directory = std::filesystem::absolute("file-save-integration-" + random_token());
+		std::filesystem::create_directories(directory);
+		const auto destination_path = (directory / "authored.zip").generic_string();
+		request_save(saves, FilePurpose::WorkshopPackSave, "authored.zip", archive, destination_path);
+		saved = saves.take();
+		require(saved && saved->status == ImportStatus::Success && !saved->destination.empty(),
+		        "native Save completes against its existing destination without opening a picker");
+		WorkshopDocument saving_document;
+		saving_document.load_pack(read_file(saved->destination));
+		saving_document.new_map("test.saved-map");
+		const auto changed_archive = saving_document.export_pack();
+		request_save(saves, FilePurpose::WorkshopPackSave, saved->filename, changed_archive, saved->destination);
+		saved = saves.take();
+		require(saved && saved->status == ImportStatus::Success && read_file(destination_path) == changed_archive &&
+		            resolve_packs({read_pack(read_file(destination_path))}).maps.contains("test.saved-map"),
+		        "repeated Save replaces the original pack with added maps and keeps the same location");
+		request_save(saves, FilePurpose::WorkshopPackSave, "bad.zip", archive,
+		             (directory / "absent" / "bad.zip").generic_string());
+		saved = saves.take();
+		require(saved && saved->status == ImportStatus::Failed && read_file(destination_path) == changed_archive,
+		        "a failed save reports failure and leaves the existing saved pack intact");
+		std::filesystem::remove(std::filesystem::path(destination_path));
+		std::filesystem::remove(directory);
+#endif
 		FileImportInbox game, workshop;
 		const auto game_request = game.begin(FilePurpose::GamePack);
 		const auto editor_request = workshop.begin(FilePurpose::WorkshopPack);
@@ -36,8 +72,10 @@ int main()
 			busy = true;
 		}
 		require(busy, "A retained completion must not be overwritten by another request");
-		complete_import(editor_request, "editor.zip", archive);
+		complete_import(editor_request, "editor.zip", archive, {}, false, "synthetic/source/editor.zip");
 		auto editor_result = workshop.take();
+		require(editor_result && editor_result->destination == "synthetic/source/editor.zip",
+		        "opening a document retains its source location for subsequent saves");
 		WorkshopDocument document;
 		document.load_pack(editor_result->bytes);
 		auto result = game.take();

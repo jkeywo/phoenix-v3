@@ -268,6 +268,48 @@ void WorkshopDocument::rename_entity(const std::string &from, const std::string 
 		overrides.erase(std::remove(overrides.begin(), overrides.end(), Json(from)), overrides.end());
 	}
 }
+void WorkshopDocument::rename_console(const std::string &from, const std::string &to)
+{
+	if (from == to)
+		return;
+	if (to.empty() || to.size() > 256 ||
+	    to.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") != std::string::npos)
+		throw std::runtime_error("Console ID uses letters, numbers, dots, underscores and hyphens");
+	for (const auto *kind : {"entities", "maps", "consoles", "trees"})
+		for (const auto &value : definitions_.at(kind))
+			if (value.at("id") == to)
+				throw std::runtime_error("Definition ID already exists: " + to);
+	if (library_catalog_.entities.contains(to) || library_catalog_.maps.contains(to) ||
+	    library_catalog_.consoles.contains(to) || library_catalog_.trees.contains(to))
+		throw std::runtime_error("Definition ID already belongs to a dependency: " + to);
+	auto &consoles = definitions_["consoles"];
+	auto found = std::find_if(consoles.begin(), consoles.end(),
+	                          [&](const Json &value)
+	                          {
+		                          return value.at("id") == from;
+	                          });
+	if (found == consoles.end())
+		throw std::runtime_error("Unknown local Console: " + from);
+	(*found)["id"] = to;
+	for (auto &console : consoles)
+		if (console.value("extends", std::string{}) == from)
+			console["extends"] = to;
+	for (auto &entity : definitions_["entities"])
+	{
+		if (entity.value("console", Json()) == from)
+			entity["console"] = to;
+		if (entity.contains("stations"))
+			for (auto &station : entity["stations"])
+				for (auto &console : station["consoles"])
+					if (console.at("definition") == from)
+						console["definition"] = to;
+	}
+	if (pack_.manifest.contains("overrides"))
+	{
+		auto &overrides = pack_.manifest["overrides"];
+		overrides.erase(std::remove(overrides.begin(), overrides.end(), Json(from)), overrides.end());
+	}
+}
 std::uint64_t WorkshopDocument::place(const std::string &definition, std::int64_t x, std::int64_t y)
 {
 	bool exists = std::any_of(definitions_["entities"].begin(), definitions_["entities"].end(),

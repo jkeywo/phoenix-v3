@@ -9,6 +9,7 @@ module;
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <span>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -48,7 +49,7 @@ void open_file(ImportId id, FilePurpose)
 	try
 	{
 		complete_import(id, utf8(std::filesystem::path(path).filename().wstring()),
-		                read_file(utf8(path), 32 * 1024 * 1024));
+		                read_file(utf8(path), 32 * 1024 * 1024), {}, false, utf8(path));
 	}
 	catch (const std::exception &error)
 	{
@@ -86,17 +87,53 @@ std::optional<std::string> take_copy_result()
 	copied.reset();
 	return result;
 }
-void export_file(const std::string &filename, const Bytes &bytes)
+void save_file(ImportId id, const std::string &filename, const Bytes &bytes, const std::string &destination,
+               bool save_as)
 {
 	wchar_t path[32768]{};
-	auto name = std::filesystem::path(std::u8string(filename.begin(), filename.end())).wstring();
+	const auto suggested = destination.empty() ? filename : destination;
+	auto name = std::filesystem::u8path(suggested).wstring();
 	wcsncpy_s(path, name.c_str(), _TRUNCATE);
 	OPENFILENAMEW dialog{sizeof(dialog)};
 	dialog.hwndOwner = GetActiveWindow();
 	dialog.lpstrFile = path;
 	dialog.nMaxFile = 32768;
-	dialog.Flags = OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR;
-	if (GetSaveFileNameW(&dialog))
-		write_file(utf8(path), bytes);
+	dialog.Flags = OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR | OFN_PATHMUSTEXIST;
+	dialog.lpstrFilter =
+	    filename.ends_with(".zip") ? L"Phoenix pack\0*.zip\0All files\0*.*\0" : L"Map JSON\0*.json\0All files\0*.*\0";
+	dialog.lpstrDefExt = filename.ends_with(".zip") ? L"zip" : L"json";
+	if ((destination.empty() || save_as) && !GetSaveFileNameW(&dialog))
+	{
+		const auto error = CommDlgExtendedError();
+		if (id)
+			complete_import(id, {}, {}, error ? "Save picker failed: " + std::to_string(error) : "", !error);
+		return;
+	}
+	const auto target = std::filesystem::path(path);
+	// Keep the previous file until its replacement has been completely written.
+	const auto temporary =
+	    target.parent_path() / (target.filename().wstring() + L"." + std::to_wstring(GetCurrentProcessId()) + L"." +
+	                            std::to_wstring(GetTickCount64()) + L".tmp");
+	try
+	{
+		write_file(utf8(temporary.wstring()), bytes);
+		if (!MoveFileExW(temporary.c_str(), target.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+			throw std::runtime_error("Cannot replace saved file: " + std::to_string(GetLastError()));
+	}
+	catch (...)
+	{
+		std::error_code error;
+		std::filesystem::remove(temporary, error);
+		throw;
+	}
+	if (id)
+		complete_import(id, utf8(target.filename().wstring()), {}, {}, false, utf8(target.wstring()));
+}
+void export_file(const std::string &filename, const Bytes &bytes)
+{
+	save_file(0, filename, bytes, {}, true);
+}
+void enable_workshop_file_shortcuts()
+{
 }
 } // namespace phoenix
