@@ -262,12 +262,27 @@ else()
 	target_link_libraries(phoenix_verify PRIVATE phoenix_content)
 	add_executable(phoenix_pack src/entry/pack.cpp)
 	target_link_libraries(phoenix_pack PRIVATE phoenix_content)
-	add_custom_target(
-		training_pack
-		ALL
-		COMMAND phoenix_pack "${CMAKE_CURRENT_SOURCE_DIR}/content/training" "${CMAKE_CURRENT_BINARY_DIR}/training.zip"
-		DEPENDS phoenix_pack
+	# Track archive contents and membership, including removed files. The list file
+	# changes only when membership changes, so reconfiguration alone does not repack.
+	file(
+		GLOB_RECURSE phoenix_training_sources
+		LIST_DIRECTORIES FALSE
+		CONFIGURE_DEPENDS
+		"${CMAKE_CURRENT_SOURCE_DIR}/content/training/*"
 	)
+	file(
+		CONFIGURE
+		OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/training-pack-inputs.txt"
+		CONTENT "${phoenix_training_sources}"
+		@ONLY
+	)
+	add_custom_command(
+		OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/training.zip"
+		COMMAND phoenix_pack "${CMAKE_CURRENT_SOURCE_DIR}/content/training" "${CMAKE_CURRENT_BINARY_DIR}/training.zip"
+		DEPENDS phoenix_pack ${phoenix_training_sources} "${CMAKE_CURRENT_BINARY_DIR}/training-pack-inputs.txt"
+		VERBATIM
+	)
+	add_custom_target(training_pack ALL DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/training.zip")
 	target_sources(phoenix_presentation PRIVATE src/presentation/windows_semantics.cpp)
 	target_link_libraries(phoenix_presentation PRIVATE uiautomationcore ole32 oleaut32 comctl32)
 endif()

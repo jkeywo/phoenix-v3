@@ -1,6 +1,13 @@
-param([ValidateSet('native', 'web')][string]$Target = 'native', [switch]$ConfigureOnly)
+param(
+	[ValidateSet('native', 'web')][string]$Target = 'native',
+	[string[]]$BuildTarget,
+	[ValidateRange(1, 1024)][int]$Jobs = 8,
+	[switch]$Reconfigure,
+	[switch]$ConfigureOnly
+)
 $ErrorActionPreference = 'Stop'
 $repo = Split-Path $PSScriptRoot -Parent
+$originalPath = $env:PATH
 Push-Location $repo
 try
 {
@@ -9,22 +16,43 @@ try
 	{
 		throw 'Run scripts/bootstrap.ps1 first.'
 	}
-	if ($Target -eq 'native')
+	$buildDirectory = "build/$Target"
+	$buildFile = if ($Target -eq 'native')
 	{
-		& $cmake -S . -B build/native -G 'Visual Studio 17 2022' -A x64
+		'PhoenixV3.sln'
 	}
 	else
 	{
-		$env:PATH = "$repo/.tools/emsdk;$repo/.tools/emsdk/upstream/emscripten;$repo/.tools/python/bin;" + $env:PATH
-		& $cmake -S . -B build/web -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_TOOLCHAIN_FILE=$repo/.tools/emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake" -DPLATFORM=Web
+		'build.ninja'
 	}
-	if ($LASTEXITCODE)
+	if ($Target -eq 'web')
 	{
-		throw 'Configure failed'
+		$env:PATH = "$repo/.tools/emsdk;$repo/.tools/emsdk/upstream/emscripten;$repo/.tools/python/bin;" + $env:PATH
+	}
+	# Generated builds already rerun CMake when tracked configuration inputs change.
+	if ($Reconfigure -or $ConfigureOnly -or !(Test-Path "$buildDirectory/CMakeCache.txt") -or !(Test-Path "$buildDirectory/$buildFile"))
+	{
+		if ($Target -eq 'native')
+		{
+			& $cmake -S . -B $buildDirectory -G 'Visual Studio 17 2022' -A x64
+		}
+		else
+		{
+			& $cmake -S . -B $buildDirectory -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_TOOLCHAIN_FILE=$repo/.tools/emsdk/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake" -DPLATFORM=Web
+		}
+		if ($LASTEXITCODE)
+		{
+			throw 'Configure failed'
+		}
 	}
 	if (!$ConfigureOnly)
 	{
-		& $cmake --build "build/$Target" --config Release --parallel 8
+		$buildArguments = @('--build', $buildDirectory, '--config', 'Release', '--parallel', $Jobs)
+		if ($BuildTarget)
+		{
+			$buildArguments += @('--target') + $BuildTarget
+		}
+		& $cmake @buildArguments
 		if ($LASTEXITCODE)
 		{
 			throw 'Build failed'
@@ -33,5 +61,6 @@ try
 }
 finally
 {
+	$env:PATH = $originalPath
 	Pop-Location
 }
