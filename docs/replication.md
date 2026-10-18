@@ -1,5 +1,7 @@
 # Peer replication
 
+Returning-member admission uses the committed presence barrier for that exact incarnation. Once admitted, an ordinary follower may trail the continuously advancing leader by a few ticks; that normal replication lag does not revoke its Console admission. Requests still need recent matching-term majority status and execute only after durable quorum commitment. Loss of authority discards queued requests. A real native/native/WASM journey on 18 October exposed and verified this distinction, including browser journal recovery and commands observed in a native replica.
+
 `phoenix_replication` owns a C++ Raft-style fixed-roster actor, independently of graphics, transport, the signalling service and the simulation. Each participating ship server runs this actor and the same full-world simulation. There is no central membership arbiter. Playable hosts use the same committed-frame executor for singleton and fleet sessions.
 
 The actor implements pre-vote, persisted terms/votes, majority election, a current-term no-op barrier, bounded append batches, matching-prefix checks, conflicting uncommitted suffix replacement, majority commit, check-quorum step-down and replay of the durable committed prefix. A disconnected stale peer cannot increase other peers' terms simply by probing for an election. The roster and session epoch are fixed and bound into durable state; returning identities can catch up, but this actor does not add new members during play.

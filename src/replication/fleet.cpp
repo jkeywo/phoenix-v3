@@ -88,7 +88,12 @@ struct FleetCommit::Impl
 	}
 	bool ready() const
 	{
-		return authority() && (leads() || core->commit_index() >= status_commit);
+		// Current-incarnation presence is itself committed after verified catch-up.
+		// Once admitted, a follower normally trails a continuously ticking leader;
+		// chasing every newer advertised commit would starve Console admission.
+		// Requests still execute only after quorum commitment, and authority loss
+		// retires queued requests before a new incarnation can serve again.
+		return authority();
 	}
 	void send(const std::string &peer, const std::string &type, const WireJson &body)
 	{
