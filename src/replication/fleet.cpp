@@ -322,7 +322,7 @@ struct FleetCommit::Impl
 			return;
 		const auto current = std::chrono::steady_clock::now();
 		const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(current - previous).count();
-		previous = current;
+		previous += std::chrono::milliseconds(elapsed);
 		now += std::max<std::int64_t>(0, elapsed);
 		try
 		{

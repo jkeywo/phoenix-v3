@@ -30,4 +30,6 @@ The private server runtime persists the exact initial setup bundle and server pr
 
 Playable host/client lobbies, per-Console admission, automatic compaction and portable fleet recovery are connected. Portable recovery deliberately starts a fresh epoch and credential set, unlike same-identity journal reconstruction. Native real-transport tests cover checkpoint catch-up and restored crew grants. Mixed native/browser multi-server fleet evidence remains a separate manual acceptance check.
 
-Platform contracts: [IndexedDB transaction durability](https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/transaction), [Windows FlushFileBuffers](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-flushfilebuffers).
+Fleet, host and client polling clocks retain fractional milliseconds between calls. Heartbeats, retry intervals and authority expiry must keep advancing even when the application polls more frequently than once per millisecond. The accelerated real-transport checkpoint journey exercises that path with cooperative yielding, retaining its production compaction threshold, durability checks and bounded deadlines.
+
+Platform contracts: [IndexedDB transaction durability](https://developer.mozilla.org/en-US/docs/Web/API/IDBDatabase/transaction), [Windows FlushFileBuffers](https://learn.microsoft.com/en-us/windows/win32/api/fileapi-flushfilebuffers).

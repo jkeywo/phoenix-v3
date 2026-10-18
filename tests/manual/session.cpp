@@ -89,7 +89,12 @@ int fleet_journey(NetworkOptions options)
 					host->tick();
 			next_tick = now + std::chrono::milliseconds(accelerated ? 0 : 50);
 		}
-		std::this_thread::sleep_for(std::chrono::milliseconds(accelerated ? 1 : 3));
+		// Accelerated checkpoint coverage is driven by durable progress, not timer granularity.
+		// A 1 ms sleep can consume a full scheduler quantum on a headless Windows runner.
+		if (accelerated)
+			std::this_thread::yield();
+		else
+			std::this_thread::sleep_for(std::chrono::milliseconds(3));
 	};
 	auto until = [&](const std::function<bool()> &done)
 	{

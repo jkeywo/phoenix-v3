@@ -541,9 +541,10 @@ public:
 		if (!blobs_ || fatal_)
 			return;
 		auto current = std::chrono::steady_clock::now();
-		now_ += static_cast<std::uint64_t>(std::max<std::int64_t>(
-		    0, std::chrono::duration_cast<std::chrono::milliseconds>(current - last_poll_).count()));
-		last_poll_ = current;
+		const auto wall = std::max<std::int64_t>(
+		    0, std::chrono::duration_cast<std::chrono::milliseconds>(current - last_poll_).count());
+		now_ += static_cast<std::uint64_t>(wall);
+		last_poll_ += std::chrono::milliseconds(wall);
 		try
 		{
 			if (auto result = blobs_->poll())
