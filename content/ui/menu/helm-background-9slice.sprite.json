@@ -1,0 +1,25 @@
+{
+	"$schema": "sprite-set.schema.json",
+	"schema_version": 1,
+	"id": "helm-background",
+	"description": "Resizable blank helm backing; preserve corners with nine-slice rendering.",
+	"files": {
+		"sprite": "helm-background-9slice.png",
+		"normal": null,
+		"depth": null
+	},
+	"image_size": [1536, 1024],
+	"coordinate_system": "frame_pixels_top_left_y_down",
+	"sprite_color_space": "srgb",
+	"normal_encoding": null,
+	"depth_encoding": null,
+	"sprite_sheet": null,
+	"pivot": [768, 512],
+	"markers": {},
+	"nine_slice": {
+		"top": 230,
+		"right": 240,
+		"bottom": 230,
+		"left": 240
+	}
+}

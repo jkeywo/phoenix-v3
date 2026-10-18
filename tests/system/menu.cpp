@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <nlohmann/json.hpp>
+#include "../../src/presentation/menu_skin.hpp"
 import phoenix.menu;
 import phoenix.session.local;
 using namespace phoenix;
@@ -17,6 +18,40 @@ int main()
 {
 	try
 	{
+		// Synthetic sidecar: asymmetric borders catch uniform-scaling regressions.
+		nlohmann::json skin_source = {{"schema_version", 1},
+		                              {"coordinate_system", "frame_pixels_top_left_y_down"},
+		                              {"sprite_sheet", nullptr},
+		                              {"files", {{"sprite", "synthetic.png"}}},
+		                              {"image_size", {120, 80}},
+		                              {"nine_slice", {{"top", 10}, {"right", 10}, {"bottom", 20}, {"left", 20}}},
+		                              {"markers", {{"label_center", {65, 35, 1}}}}};
+		auto skin = MenuSkin::parse(skin_source, .5f);
+		const auto label = skin.label_position(300, 100), compressed = skin.label_position(8, 6);
+		require(std::abs(label[0] - 152.5f) < .01f && std::abs(label[1] - 47.5f) < .01f &&
+		            std::abs(compressed[0] - 16.f / 3.f) < .01f && std::abs(compressed[1] - 2) < .01f,
+		        "Nine-slice markers follow stretched centres and compressed corners");
+		skin_source["markers"]["label_center"] = {10, 70, 1};
+		const auto corner = MenuSkin::parse(skin_source, .5f).label_position(300, 100);
+		require(corner[0] == 5 && corner[1] == 95, "Corner markers retain the display scale");
+		for (const auto &patch :
+		     {nlohmann::json{{"nine_slice", {{"top", 80}, {"right", 10}, {"bottom", 20}, {"left", 20}}}},
+		      nlohmann::json{{"markers", {{"label_center", {121, 35, 1}}}}},
+		      nlohmann::json{{"files", {{"sprite", "../outside.png"}}}}})
+		{
+			auto invalid = skin_source;
+			invalid.update(patch);
+			bool rejected = false;
+			try
+			{
+				MenuSkin::parse(invalid, .5f);
+			}
+			catch (const std::exception &)
+			{
+				rejected = true;
+			}
+			require(rejected, "Invalid slice bounds, markers and resource paths are rejected");
+		}
 		const auto directory = "menu-integration-" + random_token();
 		MenuLibrary library(directory);
 		library.load();
@@ -83,8 +118,8 @@ int main()
 			refused = true;
 		}
 		require(refused, "Unindexed or path-like identifiers cannot read arbitrary files");
-		std::cout
-		    << "PASS native preferences, installed archives, transactional selection and portable managed saves\n";
+		std::cout << "PASS native sprite sidecars, preferences, installed archives, transactional selection and "
+		             "portable managed saves\n";
 	}
 	catch (const std::exception &error)
 	{

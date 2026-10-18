@@ -1,0 +1,14 @@
+{
+	"tool": "built-in image_gen",
+	"created": "2026-10-18",
+	"assets": {
+		"settings.png": {
+			"transparent_background": true,
+			"prompt": "Use case: stylized-concept\nAsset type: production game HUD settings button, isolated square transparent PNG, 1024x1024.\nPrimary request: A single chunky mechanical cog/settings button for the science fiction game Phoenix / Settled Dark. Matches a scratchy punk British science-fiction comic HUD: battered ivory painted metal, charcoal black recess, burnt orange accents, heavy brush ink outlines, dry-brush scratches, crosshatching and coarse halftones. Straight-on flat orthographic view, crisp silhouette, roughly square chamfered housing around a large instantly readable ivory six-tooth gear with circular dark centre. Restrained orange corner inserts, subtle bolts, no glowing neon, no photorealism.\nComposition: one centred button fills 90% of square canvas, equal clear transparent margins, all edges fully in frame. Gear remains clear when reduced to 48 pixels. No words, no letters, no numbers, no UI labels. True transparent background outside the housing, no checkerboard drawn in the image. Surface texture restrained so the gear silhouette dominates."
+		},
+		"background.png": {
+			"transparent_background": false,
+			"prompt": "Use case: stylized-concept\nAsset type: production native game main menu background, wide 16:9 landscape, 2560x1440.\nPrimary request: Settled Dark science-fiction spaceship bridge viewport, rendered as scratchy punk British science-fiction comic art: heavy confident black brush inks, dry-brush scars, crosshatching, halftone shadows, dirty ivory industrial panels with restrained burnt orange accents. A dark quiet starfield through a huge observation window, a faint dusty nebula and distant small fractured rocky moon near the far right edge. Mechanical window frame and cables confined to outermost edges and corners, worn ivory metal, deep charcoal. No people, no ships or visual clutter in the middle.\nComposition: panoramic 16:9, central 75 percent broad dark negative space for live menu title and multiple columns of buttons. Centre deliberately low contrast near-black charcoal; evocative detail mainly at far left/right edges and lower corners. Dark enough for ivory text. Avoid a bright horizon, avoid a single dramatic central focal object. No words, letters, numbers, logos, interface buttons, menus or baked-in HUD. Entire image opaque, no transparency. Illustrated rather than photorealistic, no neon blue palette."
+		}
+	}
+}

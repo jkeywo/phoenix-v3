@@ -1,0 +1,363 @@
+{
+	"$schema": "https://json-schema.org/draft/2020-12/schema",
+	"title": "Phoenix raw sprite-set sidecar v1",
+	"type": "object",
+	"additionalProperties": false,
+	"required": [
+		"schema_version",
+		"id",
+		"description",
+		"files",
+		"image_size",
+		"coordinate_system",
+		"sprite_color_space",
+		"normal_encoding",
+		"depth_encoding",
+		"sprite_sheet",
+		"pivot",
+		"markers"
+	],
+	"properties": {
+		"$schema": {
+			"type": "string"
+		},
+		"schema_version": {
+			"const": 1
+		},
+		"id": {
+			"type": "string",
+			"minLength": 1
+		},
+		"description": {
+			"type": "string",
+			"minLength": 1
+		},
+		"files": {
+			"$ref": "#/$defs/files"
+		},
+		"image_size": {
+			"$ref": "#/$defs/size"
+		},
+		"coordinate_system": {
+			"const": "frame_pixels_top_left_y_down"
+		},
+		"sprite_color_space": {
+			"const": "srgb"
+		},
+		"normal_encoding": {
+			"oneOf": [
+				{
+					"type": "null"
+				},
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": ["space", "axes", "color_space", "decode", "quality"],
+					"properties": {
+						"space": {
+							"const": "view"
+						},
+						"axes": {
+							"const": {
+								"x": "right",
+								"y": "up",
+								"z": "toward_viewer"
+							}
+						},
+						"color_space": {
+							"const": "linear"
+						},
+						"decode": {
+							"const": "normalize(rgb * 2 - 1)"
+						},
+						"quality": {
+							"const": "image_generated_draft"
+						}
+					}
+				}
+			]
+		},
+		"depth_encoding": {
+			"oneOf": [
+				{
+					"type": "null"
+				},
+				{
+					"type": "object",
+					"additionalProperties": false,
+					"required": [
+						"channel",
+						"color_space",
+						"near_value",
+						"far_value",
+						"normalization",
+						"metric_scale",
+						"quality"
+					],
+					"properties": {
+						"channel": {
+							"const": "r"
+						},
+						"color_space": {
+							"const": "linear"
+						},
+						"near_value": {
+							"const": 1
+						},
+						"far_value": {
+							"const": 0
+						},
+						"normalization": {
+							"enum": ["per_frame", "per_image"]
+						},
+						"metric_scale": {
+							"type": "null"
+						},
+						"quality": {
+							"const": "image_generated_draft"
+						}
+					}
+				}
+			]
+		},
+		"sprite_sheet": {
+			"oneOf": [
+				{
+					"type": "null"
+				},
+				{
+					"$ref": "#/$defs/sheet"
+				}
+			]
+		},
+		"pivot": {
+			"oneOf": [
+				{
+					"type": "null"
+				},
+				{
+					"$ref": "#/$defs/point"
+				}
+			]
+		},
+		"markers": {
+			"$ref": "#/$defs/markers"
+		},
+		"marker_notes": {
+			"type": "string"
+		},
+		"nine_slice": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["top", "right", "bottom", "left"],
+			"properties": {
+				"top": {
+					"type": "integer",
+					"minimum": 0
+				},
+				"right": {
+					"type": "integer",
+					"minimum": 0
+				},
+				"bottom": {
+					"type": "integer",
+					"minimum": 0
+				},
+				"left": {
+					"type": "integer",
+					"minimum": 0
+				}
+			}
+		}
+	},
+	"allOf": [
+		{
+			"if": {
+				"properties": {
+					"sprite_sheet": {
+						"type": "null"
+					}
+				}
+			},
+			"then": {
+				"properties": {
+					"pivot": {
+						"$ref": "#/$defs/point"
+					}
+				}
+			},
+			"else": {
+				"properties": {
+					"pivot": {
+						"type": "null"
+					},
+					"markers": {
+						"maxProperties": 0
+					}
+				}
+			}
+		}
+	],
+	"$defs": {
+		"point": {
+			"type": "array",
+			"prefixItems": [
+				{
+					"type": "number",
+					"minimum": 0
+				},
+				{
+					"type": "number",
+					"minimum": 0
+				}
+			],
+			"items": false,
+			"minItems": 2,
+			"maxItems": 2
+		},
+		"size": {
+			"type": "array",
+			"prefixItems": [
+				{
+					"type": "integer",
+					"minimum": 1
+				},
+				{
+					"type": "integer",
+					"minimum": 1
+				}
+			],
+			"items": false,
+			"minItems": 2,
+			"maxItems": 2
+		},
+		"file": {
+			"type": ["string", "null"],
+			"minLength": 1
+		},
+		"files": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["sprite", "normal", "depth"],
+			"properties": {
+				"sprite": {
+					"type": "string",
+					"minLength": 1
+				},
+				"normal": {
+					"$ref": "#/$defs/file"
+				},
+				"depth": {
+					"$ref": "#/$defs/file"
+				}
+			}
+		},
+		"marker": {
+			"type": "array",
+			"prefixItems": [
+				{
+					"type": "number",
+					"minimum": 0
+				},
+				{
+					"type": "number",
+					"minimum": 0
+				},
+				{
+					"type": "integer",
+					"description": "Signed layer relative to parent sprite: positive in front, negative behind, zero same layer."
+				}
+			],
+			"items": false,
+			"minItems": 3,
+			"maxItems": 3
+		},
+		"markers": {
+			"type": "object",
+			"propertyNames": {
+				"pattern": "^[a-z][a-z0-9_]*$"
+			},
+			"additionalProperties": {
+				"$ref": "#/$defs/marker"
+			}
+		},
+		"frame": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["name", "rect", "pivot", "markers"],
+			"properties": {
+				"name": {
+					"type": "string",
+					"minLength": 1
+				},
+				"camera_azimuth_degrees": {
+					"type": "number",
+					"minimum": 0,
+					"exclusiveMaximum": 360
+				},
+				"rect": {
+					"type": "array",
+					"prefixItems": [
+						{
+							"type": "integer",
+							"minimum": 0
+						},
+						{
+							"type": "integer",
+							"minimum": 0
+						},
+						{
+							"type": "integer",
+							"minimum": 1
+						},
+						{
+							"type": "integer",
+							"minimum": 1
+						}
+					],
+					"items": false,
+					"minItems": 4,
+					"maxItems": 4
+				},
+				"pivot": {
+					"$ref": "#/$defs/point"
+				},
+				"markers": {
+					"$ref": "#/$defs/markers"
+				},
+				"files": {
+					"$ref": "#/$defs/files"
+				}
+			}
+		},
+		"sheet": {
+			"type": "object",
+			"additionalProperties": false,
+			"required": ["kind", "description", "columns", "rows", "frames"],
+			"properties": {
+				"kind": {
+					"enum": ["directions", "animation", "collection"]
+				},
+				"description": {
+					"type": "string",
+					"minLength": 1
+				},
+				"columns": {
+					"type": "integer",
+					"minimum": 1
+				},
+				"rows": {
+					"type": "integer",
+					"minimum": 1
+				},
+				"frames": {
+					"type": "array",
+					"minItems": 1,
+					"items": {
+						"$ref": "#/$defs/frame"
+					}
+				}
+			}
+		}
+	}
+}

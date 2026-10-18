@@ -333,6 +333,21 @@ target_link_libraries(
 	PRIVATE phoenix_qr phoenix_devices phoenix_shaping
 )
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/assets")
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/assets/menu")
+foreach(
+	menu_asset
+	IN
+	ITEMS
+		button-generic-9slice.png
+		button-generic-9slice.sprite.json
+		helm-background-9slice.png
+		helm-background-9slice.sprite.json
+		sprite-set.schema.json
+		settings.png
+		background.png
+)
+	configure_file("content/ui/menu/${menu_asset}" "${CMAKE_CURRENT_BINARY_DIR}/assets/menu/${menu_asset}" COPYONLY)
+endforeach()
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/server-audio")
 foreach(audio_file IN ITEMS menu.ogg ambient.ogg CREDITS.txt)
 	configure_file("content/audio/${audio_file}" "${CMAKE_CURRENT_BINARY_DIR}/server-audio/${audio_file}" COPYONLY)

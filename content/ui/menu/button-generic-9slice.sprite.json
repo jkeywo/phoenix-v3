@@ -1,0 +1,27 @@
+{
+	"$schema": "sprite-set.schema.json",
+	"schema_version": 1,
+	"id": "button-generic",
+	"description": "Resizable generic button skin; label is a live overlay.",
+	"files": {
+		"sprite": "button-generic-9slice.png",
+		"normal": null,
+		"depth": null
+	},
+	"image_size": [2172, 724],
+	"coordinate_system": "frame_pixels_top_left_y_down",
+	"sprite_color_space": "srgb",
+	"normal_encoding": null,
+	"depth_encoding": null,
+	"sprite_sheet": null,
+	"pivot": [1086, 362],
+	"markers": {
+		"label_center": [1086, 362, 1]
+	},
+	"nine_slice": {
+		"top": 190,
+		"right": 300,
+		"bottom": 190,
+		"left": 300
+	}
+}

@@ -2,6 +2,8 @@
 
 The native application opens with Host Game, Join Game (New Ship), Join Game (As Player), Join Game (As GM), Workshop and Exit. Settings is at the top left; Mod Packs is at the bottom left. Earlier choices remain in columns to the left. Back or Escape closes an open dialog, then returns through the choices. Long lists scroll, and the current column is brought into view. The menu uses the configured Viewscreen region, the first Console region, or the ordinary window.
 
+The menu uses the [comic HUD artwork and sprite sidecars](../content/ui/menu/README.md): scalable buttons, a scalable popup backing, a generated settings cog and a generated bridge background. RmlUi reads source borders and label markers from the JSON; button corners keep their proportions as columns and localised labels resize. Text, focus, hit targets and accessibility remain live controls.
+
 ## Preparing a game
 
 Import gameplay ZIPs in Mod Packs, enable them in dependency/override order, and Apply Pack Selection. Installation and activation are separate: an imported pack starts disabled. Packs remain installed between launches. Failed verification preserves the previous selection. Leave an active game before applying another selection. Removing an entry and applying removes its installed archive; portable saves retain their own exact content.

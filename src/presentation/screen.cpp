@@ -323,7 +323,8 @@ void open_window()
 		if (!Rml::LoadFontFace((font_directory / fallback).generic_string(), true))
 			throw std::runtime_error("Could not load Unicode fallback font");
 	context = Rml::CreateContext("navigation", {GetScreenWidth(), GetScreenHeight()});
-	document = context->LoadDocumentFromMemory(R"(<rml><head><style>
+	document =
+	    context->LoadDocumentFromMemory(std::string(R"(<rml><head><style>
     body { display:block; width:100%; box-sizing:border-box; font-family:LatoLatin; font-size:20px; color:#d9e9ef; padding:20px; }
     h1, h2, p { display:block; }
     h1 { font-size:22px; color:#76c9e8; margin-bottom:6px; }
@@ -379,13 +380,15 @@ void open_window()
     #menu-volume slidertrack { height:8px; margin:18px 0; background:#315a70; }
     #menu-volume sliderbar { width:24px; height:44px; background:#76c9e8; border:2px #d9e9ef; }
     #menu-volume sliderarrowdec, #menu-volume sliderarrowinc { display:none; }
-    </style></head><body><h1 id="app-title">PHOENIX / SETTLED DARK</h1>
+    )") + native_menu->style_sheet(font_directory.generic_string()) +
+	                                        R"(</style></head><body><h1 id="app-title">PHOENIX / SETTLED DARK</h1>
     <div id="nav"><button id="home">Home</button><button id="lobby" style="display:none;">Lobby</button><button id="host">New game</button><button id="join">Join console</button>
     <button id="view">Viewscreen</button><button id="edit">Workshop</button><button id="locale">Toggle pseudo-localisation</button><button id="settings">Settings</button></div>
     <h2 id="heading">Home</h2><p id="description"></p><div id="session-controls"></div><div id="game"></div>
     <div id="settings-panel"><label id="music-label" for="music-volume">Music volume</label>
     <input id="music-volume" type="range" min="0" max="100" step="1" value="50"/>
-    <span id="music-percent">50%</span><button id="settings.close">Back</button></div></body></rml>)");
+    <span id="music-percent">50%</span><button id="settings.close">Back</button></div></body></rml>)",
+	                                    (font_directory / "navigation.rml").generic_string());
 	if (!document)
 		throw std::runtime_error("Could not load home screen");
 	document->AddEventListener("click", &navigation);
@@ -712,6 +715,7 @@ void draw_screen(Application &app)
 	else
 	{
 		context->Update();
+		native_menu->position_labels(*document);
 		renderer.viewport({0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())});
 		context->Render();
 		renderer.finish();

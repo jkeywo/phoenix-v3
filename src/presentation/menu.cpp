@@ -11,6 +11,7 @@ module;
 #include <string>
 #include <vector>
 #include <nlohmann/json.hpp>
+#include "menu_skin.hpp"
 module phoenix.presentation;
 import phoenix.files;
 #include "menu.hpp"
@@ -46,6 +47,7 @@ struct NativeMenuScreen::State
 	Application::MenuBranch shown_branch = Application::MenuBranch::root;
 	float column_offset = 0;
 	bool button_enabled = true;
+	MenuSkin button_skin;
 	std::map<std::string, std::function<void()>> actions;
 	std::string button(Application &app, const std::string &id, const std::string &label, std::function<void()> action)
 	{
@@ -62,8 +64,10 @@ struct NativeMenuScreen::State
 		    (id == "menu.join-ship" && branch == Branch::join_ship) ||
 		    (id == "menu.join-player" && branch == Branch::join_player) ||
 		    (id == "menu.join-gm" && branch == Branch::join_gm) || id == "menu.scenario/" + app.selected_scenario;
-		return "<button id=\"" + escaped(id) + "\"" + (selected ? " class=\"menu-selected\"" : "") +
-		       (button_enabled ? "" : " disabled") + ">" + escaped(localise(label)) + "</button>";
+		return "<button id=\"" + escaped(id) + "\" class=\"menu-skinned" + (selected ? " menu-selected" : "") + "\"" +
+		       (button_enabled ? "" : " disabled") + ">" +
+		       (id == "menu.settings" ? "<span class=\"menu-settings-icon\"/>" : "") +
+		       "<span class=\"menu-button-label\">" + escaped(localise(label)) + "</span></button>";
 	}
 	void back(Application &app)
 	{
@@ -717,5 +721,69 @@ void NativeMenuScreen::poll(Application &app)
 bool NativeMenuScreen::prepare(Application &app, Rml::ElementDocument &document)
 {
 	return state_->prepare(app, document);
+}
+std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
+{
+	auto load = [&](const std::string &file, float scale)
+	{
+		const auto path = asset_directory + "/menu/";
+		auto skin = MenuSkin::parse(parse_json(read_file(path + file, 64 * 1024), file), scale);
+		Image image = LoadImage((path + skin.sprite).c_str());
+		const bool valid = image.data && image.width == skin.width && image.height == skin.height;
+		UnloadImage(image);
+		if (!valid)
+			throw std::runtime_error("Menu sprite dimensions disagree with sidecar: " + file);
+		return skin;
+	};
+	state_->button_skin = load("button-generic-9slice.sprite.json", .075f);
+	if (!state_->button_skin.has_label)
+		throw std::runtime_error("Menu button sidecar needs label_center");
+	const auto panel = load("helm-background-9slice.sprite.json", .12f);
+	std::string styles = state_->button_skin.sprite_sheet("menu-button") + panel.sprite_sheet("menu-panel");
+	styles += "#native-menu button.menu-skinned { decorator: " + state_->button_skin.decorator("menu-button") + "; }\n";
+	styles += "#native-menu .menu-dialog { decorator: " + panel.decorator("menu-panel") + "; }\n";
+	const auto &skin = state_->button_skin;
+	styles += "#native-menu button.menu-skinned { padding: " +
+	          std::to_string(std::max(skin.top, skin.bottom) * skin.scale + 4) + "px " +
+	          std::to_string(std::max(skin.left, skin.right) * skin.scale + 8) + "px; }\n";
+	styles += R"(
+    #native-menu { decorator:image(menu/background.png cover); color:#fff0d4; }
+    #native-menu h1 { color:#fff0d4; font-size:38px; letter-spacing:4px; }
+    #native-menu h2 { color:#fff0d4; }
+    #native-menu button.menu-skinned { position:relative; min-height:64px; line-height:24px; background:transparent; border:2px transparent; color:#fff4df; text-align:center; image-color:#ffffff; }
+    #native-menu button:hover, #native-menu button:focus { image-color:#ffce93; border-color:#ffad54; background:#17120c; }
+    #native-menu button:active, #native-menu button.menu-selected { image-color:#ffb668; border-color:#f58330; background:#21170c; }
+    #native-menu button:disabled { opacity:0.48; image-color:#b9b3a7; border-color:transparent; background:transparent; color:#ddd4c0; }
+    .menu-button-label { display:block; position:relative; pointer-events:none; }
+    #native-menu .menu-top { width:184px; }
+    #native-menu .menu-top button.menu-skinned { decorator:none; padding:18px 8px 18px 64px; }
+    .menu-settings-icon { position:absolute; left:4px; top:4px; width:54px; height:54px; decorator:image(menu/settings.png contain); pointer-events:none; }
+    #native-menu .menu-dialog { background:transparent; border:0px; padding:36px; }
+    #native-menu .modal-shade { background:#080705dd; }
+    #native-menu scrollbarhorizontal, #native-menu scrollbarvertical { background:#1b1915; }
+    #native-menu scrollbarhorizontal sliderbar, #native-menu scrollbarvertical sliderbar { background:#c7b895; }
+    #native-menu input { background:#211f1a; color:#fff0d4; border-color:#a99875; }
+    #menu-volume slidertrack { background:#60513a; }
+    #menu-volume sliderbar { background:#e1893c; border-color:#fff0d4; }
+    )";
+	return styles;
+}
+void NativeMenuScreen::position_labels(Rml::ElementDocument &document)
+{
+	auto *root = document.GetElementById("native-menu");
+	if (!root)
+		return;
+	Rml::ElementList labels;
+	root->GetElementsByClassName(labels, "menu-button-label");
+	for (auto *label : labels)
+	{
+		auto *button = label->GetParentNode();
+		if (button->GetId() == "menu.settings")
+			continue;
+		const float width = button->GetOffsetWidth(), height = button->GetOffsetHeight();
+		const auto anchor = state_->button_skin.label_position(width, height);
+		label->SetProperty("left", std::to_string(anchor[0] - width * .5f) + "px");
+		label->SetProperty("top", std::to_string(anchor[1] - height * .5f) + "px");
+	}
 }
 } // namespace phoenix
