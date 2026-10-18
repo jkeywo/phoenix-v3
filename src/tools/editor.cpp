@@ -42,6 +42,12 @@ struct Editor
 	SceneRenderer scene;
 	RenderTexture2D scene_preview{};
 	std::string preview_identity;
+	std::string preview_content;
+	std::optional<Catalog> preview_catalog;
+	DustConfig preview_dust;
+	float preview_speed = 0, preview_heading = 0;
+	float preview_x = 0, preview_y = 0;
+	int dust_profile = 0;
 	float preview_bearing = 90, preview_elevation = 12, preview_distance = 35, preview_thrust = 1;
 	int diagnostic = 0;
 	Json pending_sidecar;
@@ -54,6 +60,8 @@ struct Editor
 		textures.clear();
 		scene.clear();
 		preview_identity.clear();
+		preview_content.clear();
+		preview_catalog.reset();
 		if (scene_preview.id)
 			UnloadRenderTexture(scene_preview);
 		scene_preview = {};
@@ -146,6 +154,132 @@ void real_field(const char *label, Json &object, const char *key, float fallback
 	float n = object.value(key, fallback);
 	if (ImGui::DragFloat(tool_label(label).c_str(), &n, .01f, minimum, maximum))
 		object[key] = std::clamp(n, minimum, maximum);
+}
+void colour_field(const char *label, Json &object, const char *key, const Json &fallback, bool alpha)
+{
+	auto value = object.value(key, fallback);
+	float colour[4] = {1, 1, 1, 1};
+	for (std::size_t i = 0; i < value.size(); ++i)
+		colour[i] = value[i];
+	const bool changed = alpha ? ImGui::ColorEdit4(tool_label(label).c_str(), colour)
+	                           : ImGui::ColorEdit3(tool_label(label).c_str(), colour);
+	if (changed)
+	{
+		object[key] = Json::array();
+		for (int i = 0; i < (alpha ? 4 : 3); ++i)
+			object[key].push_back(colour[i]);
+	}
+}
+void grid_properties(Json &render)
+{
+	if (!ImGui::CollapsingHeader(tool_label("Reference grid").c_str()))
+		return;
+	bool authored = render.contains("reference_grid");
+	if (ImGui::Checkbox(tool_label("Author reference grid").c_str(), &authored))
+	{
+		if (authored)
+			render["reference_grid"] = reference_grid_defaults();
+		else
+			render.erase("reference_grid");
+	}
+	if (!authored)
+		return;
+	auto &j = render["reference_grid"];
+	const auto defaults = reference_grid_defaults();
+	for (const auto &[key, label] :
+	     std::vector<std::pair<const char *, const char *>>{{"minor_spacing", "Minor spacing (m)"},
+	                                                        {"major_spacing", "Major spacing (m)"},
+	                                                        {"patch_radius", "Patch radius (m)"},
+	                                                        {"fade_band", "Fade band (m)"},
+	                                                        {"fade_exponent", "Fade exponent"},
+	                                                        {"plane_y", "Plane height (m)"},
+	                                                        {"minor_line_width_px", "Minor width (pixels)"},
+	                                                        {"major_line_width_px", "Major width (pixels)"},
+	                                                        {"opacity", "Grid opacity"}})
+		real_field(label, j, key, defaults.at(key), std::string(key) == "plane_y" ? -1000000.f : 0.f,
+		           std::string(key) == "opacity" ? 1.f : 1000000.f);
+	colour_field("Minor grid colour", j, "minor_colour", defaults.at("minor_colour"), true);
+	colour_field("Major grid colour", j, "major_colour", defaults.at("major_colour"), true);
+	bool first_person = j.contains("first_person_plane_y");
+	if (ImGui::Checkbox(tool_label("First-person plane height override").c_str(), &first_person))
+	{
+		if (first_person)
+			j["first_person_plane_y"] = -10;
+		else
+			j.erase("first_person_plane_y");
+	}
+	if (first_person)
+		real_field("First-person plane height (m)", j, "first_person_plane_y", -10, -1000000, 1000000);
+}
+void dust_properties(Json &map)
+{
+	if (!ImGui::CollapsingHeader(tool_label("Dust motes").c_str()))
+		return;
+	if (!map.contains("presentation"))
+		map["presentation"] = Json::object();
+	if (!map["presentation"].contains("dust"))
+		map["presentation"]["dust"] = Json::object();
+	auto &shared = map["presentation"]["dust"];
+	const char *profiles[] = {"Shared", "Native", "Browser"};
+	if (ImGui::BeginCombo(tool_label("Dust platform").c_str(), localise(profiles[editor.dust_profile]).c_str()))
+	{
+		for (int i = 0; i < 3; ++i)
+			if (ImGui::Selectable(localise(profiles[i]).c_str(), editor.dust_profile == i))
+				editor.dust_profile = i;
+		ImGui::EndCombo();
+	}
+	Json *selected = &shared;
+	auto defaults = dust_defaults();
+	if (editor.dust_profile)
+	{
+		for (auto it = shared.begin(); it != shared.end(); ++it)
+			if (it.key() != "native" && it.key() != "web")
+				defaults[it.key()] = it.value();
+		const char *key = editor.dust_profile == 1 ? "native" : "web";
+		if (!shared.contains(key))
+			shared[key] = Json::object();
+		selected = &shared[key];
+		if (ImGui::Button(tool_label("Reset platform overrides").c_str()))
+			*selected = Json::object();
+	}
+	auto &j = *selected;
+	bool enabled = j.value("enabled", defaults.at("enabled").get<bool>());
+	if (ImGui::Checkbox(tool_label("Enable motes").c_str(), &enabled))
+		j["enabled"] = enabled;
+	int count = j.value("count", defaults.at("count").get<int>());
+	if (ImGui::InputInt(tool_label("Mote count").c_str(), &count))
+		j["count"] = std::clamp(count, 0, 10000);
+	for (const auto &[key, label] :
+	     std::vector<std::pair<const char *, const char *>>{{"half_width", "Field half-width (m)"},
+	                                                        {"depth", "Field depth (m)"},
+	                                                        {"width", "Mote width (m)"},
+	                                                        {"streak_per_speed", "Streak stretch per m/s"},
+	                                                        {"opacity", "Mote opacity"},
+	                                                        {"centre_fade_inner", "Centre fade inner radius"},
+	                                                        {"centre_fade_outer", "Centre fade outer radius"},
+	                                                        {"edge_fade", "Screen edge fade"}})
+		real_field(label, j, key, defaults.at(key), 0,
+		           (std::string(key) == "opacity" || std::string(key) == "edge_fade") ? 1.f : 1000000.f);
+	colour_field("Mote tint", j, "tint", defaults.at("tint"), false);
+	auto brightness = j.value("brightness", defaults.at("brightness"));
+	float values[3] = {brightness[0], brightness[1], brightness[2]};
+	if (ImGui::DragFloat3(tool_label("Layer brightness").c_str(), values, .01f, 0, 16))
+		j["brightness"] = {values[0], values[1], values[2]};
+	for (int i = 0; i < 3; ++i)
+	{
+		ImGui::PushID(i);
+		auto textures = j.value("textures", defaults.at("textures"));
+		auto texture = textures[i];
+		asset_picker("Mote texture", texture);
+		if (ImGui::Button(tool_label("Use bundled texture").c_str()))
+			texture = "";
+		if (texture != textures[i])
+		{
+			textures[i] = texture;
+			j["textures"] = textures;
+		}
+		ImGui::PopID();
+	}
 }
 void radar_icon_picker(Json &material)
 {
@@ -302,6 +436,7 @@ void lighting_preview()
 	if (!map.contains("lighting"))
 		map["lighting"] = Json::object();
 	auto &light = map["lighting"];
+	dust_properties(map);
 	if (ImGui::CollapsingHeader(tool_label("Scene lighting").c_str()))
 	{
 		float direction[3] = {-.6f, .6f, -.5f};
@@ -335,6 +470,17 @@ void lighting_preview()
 	ImGui::SliderFloat(tool_label("Preview elevation").c_str(), &editor.preview_elevation, 5, 80);
 	ImGui::SliderFloat(tool_label("Preview distance").c_str(), &editor.preview_distance, 5, 200);
 	ImGui::SliderFloat(tool_label("Preview forward thrust").c_str(), &editor.preview_thrust, 0, 1);
+	ImGui::DragFloat(tool_label("Preview speed (m/s)").c_str(), &editor.preview_speed, .1f, -1000, 1000);
+	ImGui::SliderFloat(tool_label("Preview motion heading").c_str(), &editor.preview_heading, 0, 359);
+	ImGui::InputFloat(tool_label("Preview X (m)").c_str(), &editor.preview_x);
+	ImGui::InputFloat(tool_label("Preview Y (m)").c_str(), &editor.preview_y);
+	if (ImGui::Button(tool_label("Reset preview motion").c_str()))
+	{
+		editor.preview_x = editor.preview_y = editor.preview_speed = 0;
+	}
+	const float motion_angle = editor.preview_heading * 3.14159265f / 180;
+	editor.preview_x += std::cos(motion_angle) * editor.preview_speed * std::min(GetFrameTime(), .1f);
+	editor.preview_y += std::sin(motion_angle) * editor.preview_speed * std::min(GetFrameTime(), .1f);
 	const char *modes[] = {"Comic", "Smooth", "Unlit", "Normals", "Depth", "Sun visibility"};
 	if (ImGui::BeginCombo(tool_label("Diagnostic view").c_str(), localise(modes[editor.diagnostic]).c_str()))
 	{
@@ -346,16 +492,34 @@ void lighting_preview()
 	const auto avail = ImGui::GetContentRegionAvail();
 	const int width = std::clamp(static_cast<int>(avail.x), 64, 1600),
 	          height = std::clamp(static_cast<int>(avail.y), 64, 1000);
-	const auto identity = editor.document.definitions().dump() + std::to_string(width) + ":" + std::to_string(height) +
-	                      ":" + std::to_string(editor.definition) + ":" + std::to_string(editor.preview_whole_map) +
-	                      ":" + std::to_string(editor.preview_bearing) + ":" +
-	                      std::to_string(editor.preview_elevation) + ":" + std::to_string(editor.preview_distance) +
-	                      ":" + std::to_string(editor.preview_thrust) + ":" + std::to_string(editor.diagnostic);
+	const auto content_identity = editor.document.definitions().dump() + ":" + map.at("id").get<std::string>();
+	const auto identity = content_identity + std::to_string(width) + ":" + std::to_string(height) + ":" +
+	                      std::to_string(editor.definition) + ":" + std::to_string(editor.preview_whole_map) + ":" +
+	                      std::to_string(editor.preview_bearing) + ":" + std::to_string(editor.preview_elevation) +
+	                      ":" + std::to_string(editor.preview_distance) + ":" + std::to_string(editor.preview_thrust) +
+	                      ":" + std::to_string(editor.diagnostic) + ":" + std::to_string(editor.preview_speed) + ":" +
+	                      std::to_string(editor.preview_heading) + ":" + std::to_string(editor.preview_x) + ":" +
+	                      std::to_string(editor.preview_y);
 	if (identity != editor.preview_identity)
 		attempt(
 		    [&]
 		    {
-			    auto catalog = editor.document.verify();
+			    if (!editor.preview_catalog || editor.preview_content != content_identity)
+			    {
+				    editor.preview_catalog = editor.document.verify();
+				    editor.preview_dust =
+				        compile_dust(map.value("presentation", Json::object()).value("dust", Json::object()),
+				                     *editor.preview_catalog,
+#ifdef __EMSCRIPTEN__
+				                     true,
+#else
+				                     false,
+#endif
+				                     "presentation.dust");
+				    editor.preview_content = content_identity;
+				    editor.scene.clear();
+			    }
+			    const auto &catalog = *editor.preview_catalog;
 			    std::vector<SceneBody> bodies;
 			    if (editor.preview_whole_map)
 			    {
@@ -398,7 +562,21 @@ void lighting_preview()
 					    bodies.push_back(std::move(b));
 				    }
 			    }
-			    editor.scene.clear();
+			    SceneEnvironment environment;
+			    environment.dust = editor.preview_dust;
+			    // The selected preview hull is the sole local reference, never every map entity.
+			    if (!bodies.empty())
+			    {
+				    auto &own = bodies.back();
+				    const auto &render = catalog.entities.at(own.definition).at("render");
+				    if (render.contains("reference_grid"))
+					    environment.grid = compile_reference_grid(render.at("reference_grid"), "render.reference_grid");
+				    own.x += static_cast<std::int64_t>(editor.preview_x * 1000);
+				    own.y += static_cast<std::int64_t>(editor.preview_y * 1000);
+				    own.vx = static_cast<std::int64_t>(std::cos(motion_angle) * editor.preview_speed * 1000);
+				    own.vy = static_cast<std::int64_t>(std::sin(motion_angle) * editor.preview_speed * 1000);
+				    environment.own = own;
+			    }
 			    if (!editor.scene_preview.id || editor.scene_preview.texture.width != width ||
 			        editor.scene_preview.texture.height != height)
 			    {
@@ -414,6 +592,13 @@ void lighting_preview()
 			                    {0, 1, 0},
 			                    50,
 			                    CAMERA_PERSPECTIVE};
+			    if (environment.own)
+			    {
+				    const Vector3 centre{environment.own->x / 1000.f, 0, -environment.own->y / 1000.f};
+				    camera.position.x += centre.x;
+				    camera.position.z += centre.z;
+				    camera.target = centre;
+			    }
 			    BeginTextureMode(editor.scene_preview);
 			    ClearBackground({8, 12, 13, 255});
 			    try
@@ -421,7 +606,7 @@ void lighting_preview()
 				    editor.scene.draw(catalog, bodies, camera,
 				                      {0, 0, static_cast<float>(width), static_cast<float>(height)}, light, 0,
 				                      static_cast<SceneDiagnostic>(editor.diagnostic),
-				                      {static_cast<float>(width), static_cast<float>(height)});
+				                      {static_cast<float>(width), static_cast<float>(height)}, environment);
 			    }
 			    catch (...)
 			    {
@@ -451,6 +636,7 @@ void entity_properties(Json &entity)
 		return;
 	}
 	auto &render = entity["render"];
+	grid_properties(render);
 	sprite_import(render);
 	bool eight = render["mode"] == "eight";
 	if (!render.contains("sprite"))

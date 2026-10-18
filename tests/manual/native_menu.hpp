@@ -3,6 +3,8 @@
 struct NativeMenuSmoke
 {
 	bool enabled = false;
+	int navigation_aid_step = 0;
+	bool initial_dust = true, initial_grid = true, initial_motion = false;
 	int stage = 0, pack_edits = 0, console_frames = 0;
 	double changed = 0;
 	std::size_t saves_before = 0;
@@ -43,6 +45,32 @@ struct NativeMenuSmoke
 				changed = GetTime();
 				return false;
 			}
+			if (navigation_aid_step < 6)
+			{
+				if (!navigation_aid_step)
+				{
+					initial_dust = app.dust_motes;
+					initial_grid = app.reference_grid;
+					initial_motion = app.reduced_motion;
+				}
+				const char *controls[] = {"menu.dust", "menu.grid", "menu.motion"};
+				const int control = navigation_aid_step % 3;
+				const bool before = control == 0   ? app.dust_motes
+				                    : control == 1 ? app.reference_grid
+				                                   : app.reduced_motion;
+				action(app, controls[control]);
+				const bool after = control == 0   ? app.dust_motes
+				                   : control == 1 ? app.reference_grid
+				                                  : app.reduced_motion;
+				if (before == after)
+					throw std::runtime_error("Navigation aid Settings actions failed");
+				++navigation_aid_step;
+				changed = GetTime();
+				return false;
+			}
+			if (app.dust_motes != initial_dust || app.reference_grid != initial_grid ||
+			    app.reduced_motion != initial_motion)
+				throw std::runtime_error("Navigation aid Settings did not retain independent values");
 			if (!phoenix::probe_menu_keyboard(app) || !phoenix::probe_native_accessibility(app))
 				throw std::runtime_error("Settings keyboard/UIA range traversal failed");
 			capture("settings");

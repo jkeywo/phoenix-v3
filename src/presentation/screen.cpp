@@ -250,6 +250,15 @@ void prepare_settings(Application &app)
 		return;
 	app.tools_keyboard_focus = false;
 	app.screen_controls = {{"settings.close", "Back"}};
+	for (const auto &[id, text] : std::vector<std::pair<std::string, std::string>>{
+	         {"settings.dust", app.dust_motes ? "Dust motes: On" : "Dust motes: Off"},
+	         {"settings.grid", app.reference_grid ? "Reference grid: On" : "Reference grid: Off"},
+	         {"settings.motion", app.reduced_motion ? "Reduced motion: On" : "Reduced motion: Off"}})
+	{
+		app.screen_controls.emplace_back(id, text);
+		if (auto *element = document->GetElementById(id))
+			element->SetInnerRML(localise(text));
+	}
 	app.screen_action = {};
 	const auto value = std::to_string(app.music_volume);
 	auto *slider = dynamic_cast<Rml::ElementFormControl *>(document->GetElementById("music-volume"));
@@ -388,7 +397,7 @@ void open_window()
     <h2 id="heading">Home</h2><p id="description"></p><div id="session-controls"></div><div id="game"></div>
     <div id="settings-panel"><label id="music-label" for="music-volume">Music volume</label>
     <input id="music-volume" type="range" min="0" max="100" step="1" value="50"/>
-    <span id="music-percent">50%</span><button id="settings.close">Back</button></div></body></rml>)",
+    <span id="music-percent">50%</span><button id="settings.dust">Dust motes: On</button><button id="settings.grid">Reference grid: On</button><button id="settings.motion">Reduced motion: Off</button><button id="settings.close">Back</button></div></body></rml>)",
 	                                           (font_directory / "navigation.rml").generic_string());
 	if (!document)
 		throw std::runtime_error("Could not load home screen");

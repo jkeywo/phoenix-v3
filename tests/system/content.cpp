@@ -45,8 +45,10 @@ int main()
 		auto aids = loaded.draft();
 		auto aid_defs = parse_json(aids.files.at("definitions.json"), "synthetic navigation aids");
 		aid_defs["entities"][0]["render"]["reference_grid"] = {{"minor_spacing", 7}, {"major_spacing", 35}};
-		aid_defs["maps"][0]["presentation"]["dust"] = {{"count", 31}, {"native", {{"width", .2}}},
-		    {"web", {{"count", 13}}}, {"textures", {"test-core:assets/pixel.png", "", ""}}};
+		aid_defs["maps"][0]["presentation"]["dust"] = {{"count", 31},
+		                                               {"native", {{"width", .2}}},
+		                                               {"web", {{"count", 13}}},
+		                                               {"textures", {"test-core:assets/pixel.png", "", ""}}};
 		aids.files["definitions.json"] = json_bytes(aid_defs);
 		const auto aid_archive = write_pack(aids);
 		const auto aid_catalog = resolve_packs({read_pack(aid_archive)});
@@ -56,7 +58,8 @@ int main()
 		require(native_dust.count == 31 && web_dust.count == 13 && native_dust.width > web_dust.width &&
 		            native_dust.textures[0] == "test-core:assets/pixel.png" && web_dust.enabled,
 		        "Platform overrides preserve shared dust settings and default missing fields");
-		const auto grid = compile_reference_grid(aid_catalog.entities.at("test.variant").at("render").at("reference_grid"), "grid");
+		const auto grid =
+		    compile_reference_grid(aid_catalog.entities.at("test.variant").at("render").at("reference_grid"), "grid");
 		require(grid.minor_spacing == 7 && grid.major_spacing == 35 && grid.patch_radius > 0,
 		        "Grid inheritance and default resolution use the production content path");
 		WorkshopDocument aid_document;
@@ -65,21 +68,32 @@ int main()
 		require(reopened_aids.maps.at("test.map").at("presentation").at("dust") == dust,
 		        "Workshop export and reimport preserve shared and platform tuning");
 		for (const auto &patch : {Json{{"count", 10001}}, Json{{"count", 2.5}}, Json{{"opacity", -1}},
-		     Json{{"centre_fade_outer", .01}}, Json{{"web", {{"enabled", "yes"}}}},
-		     Json{{"textures", {"missing:assets/a.png", "", ""}}}, Json{{"depth", 0}}})
+		                          Json{{"centre_fade_outer", .01}}, Json{{"web", {{"enabled", "yes"}}}},
+		                          Json{{"textures", {"missing:assets/a.png", "", ""}}}, Json{{"depth", 0}}})
 		{
 			auto invalid = aid_defs;
 			invalid["maps"][0]["presentation"]["dust"].update(patch);
 			aids.files["definitions.json"] = json_bytes(invalid);
-			rejected([&]{resolve_packs({read_pack(write_pack(aids))});}, "presentation.dust");
+			rejected(
+			    [&]
+			    {
+				    resolve_packs({read_pack(write_pack(aids))});
+			    },
+			    "presentation.dust");
 		}
-		for (const auto &patch : {Json{{"major_spacing", 12}}, Json{{"fade_band", 500}}, Json{{"minor_line_width_px", 0}},
-		     Json{{"minor_colour", {1, 2, 0, .5}}}, Json{{"first_person_plane_y", "down"}}})
+		for (const auto &patch :
+		     {Json{{"major_spacing", 12}}, Json{{"fade_band", 500}}, Json{{"minor_line_width_px", 0}},
+		      Json{{"minor_colour", {1, 2, 0, .5}}}, Json{{"first_person_plane_y", "down"}}})
 		{
 			auto invalid = aid_defs;
 			invalid["entities"][0]["render"]["reference_grid"].update(patch);
 			aids.files["definitions.json"] = json_bytes(invalid);
-			rejected([&]{resolve_packs({read_pack(write_pack(aids))});}, "reference_grid");
+			rejected(
+			    [&]
+			    {
+				    resolve_packs({read_pack(write_pack(aids))});
+			    },
+			    "reference_grid");
 		}
 		const auto menu = launcher_catalog(catalog);
 		require(menu.at("schema") == 1 && menu.at("scenarios").size() == 1 &&

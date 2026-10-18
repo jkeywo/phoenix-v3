@@ -272,6 +272,20 @@
 					"scale": 0.4,
 					"range": 32,
 					"power": 2
+				},
+				"reference_grid": {
+					"minor_spacing": 10,
+					"major_spacing": 50,
+					"minor_colour": [0.45, 0.62, 0.78, 0.1],
+					"major_colour": [0.55, 0.74, 0.9, 0.2],
+					"opacity": 1,
+					"patch_radius": 400,
+					"fade_band": 250,
+					"fade_exponent": 2.5,
+					"plane_y": -0.5,
+					"first_person_plane_y": -10,
+					"minor_line_width_px": 1,
+					"major_line_width_px": 1.6
 				}
 			},
 			"systems": {
@@ -422,7 +436,12 @@
 					"heading_mdeg": 0,
 					"allowed_ships": ["training.survey", "training.tug"]
 				}
-			]
+			],
+			"presentation": {
+				"dust": {
+					"enabled": true
+				}
+			}
 		},
 		{
 			"id": "training.lighting",
@@ -458,7 +477,12 @@
 					"heading_mdeg": 0,
 					"allowed_ships": ["training.survey"]
 				}
-			]
+			],
+			"presentation": {
+				"dust": {
+					"enabled": true
+				}
+			}
 		}
 	],
 	"consoles": [

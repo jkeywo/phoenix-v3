@@ -785,6 +785,10 @@ public:
 	{
 		return backend_ ? backend_->scene_lighting() : Json::object();
 	}
+	Json scene_presentation() const override
+	{
+		return backend_ ? backend_->scene_presentation() : Json::object();
+	}
 	std::vector<ConsoleSeat> console_seats() const override
 	{
 		return backend_ ? backend_->console_seats() : std::vector<ConsoleSeat>{};

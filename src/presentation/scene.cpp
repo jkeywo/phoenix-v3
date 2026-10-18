@@ -17,6 +17,7 @@ module;
 
 module phoenix.presentation;
 import phoenix.content;
+#include "environment.hpp"
 
 namespace phoenix
 {
@@ -203,6 +204,7 @@ float sample_depth(const MaterialData &data, const SpriteFrame &f, float x, floa
 } // namespace
 struct SceneRenderer::State
 {
+	NavigationEffects navigation;
 	std::map<std::string, MaterialData> materials;
 	TextureCache textures;
 	Shader shader{};
@@ -224,6 +226,7 @@ struct SceneRenderer::State
 	}
 	void clear()
 	{
+		navigation.clear();
 		for (auto &[id, data] : materials)
 			for (auto im : data.cpu)
 				UnloadImage(im);
@@ -482,7 +485,8 @@ void SceneRenderer::explosion(const ExplosionEffect &effect)
 	state_->effects.push_back(effect);
 }
 void SceneRenderer::draw(const Catalog &catalog, std::span<const SceneBody> bodies, Camera3D camera, Rectangle region,
-                         const Json &lighting, double time, SceneDiagnostic diagnostic, Vector2 surface_size)
+                         const Json &lighting, double time, SceneDiagnostic diagnostic, Vector2 surface_size,
+                         const SceneEnvironment &environment)
 {
 	auto &s = *state_;
 	const auto destination = rlGetActiveFramebuffer();
@@ -657,6 +661,11 @@ void SceneRenderer::draw(const Catalog &catalog, std::span<const SceneBody> bodi
 			s.draw_item(item, false);
 			s.integer("burstGraphic", 0);
 		}
+	if (diagnostic == SceneDiagnostic::comic || diagnostic == SceneDiagnostic::smooth ||
+	    diagnostic == SceneDiagnostic::unlit)
+		s.navigation.draw(catalog, environment, camera, s.rebase,
+		                  {region.x * sx, (surface_size.y / sy - region.y - region.height) * sy, region.width * sx,
+		                   region.height * sy});
 	rlEnableBackfaceCulling();
 	EndMode3D();
 	rlViewport(0, 0, static_cast<int>(surface_size.x), static_cast<int>(surface_size.y));

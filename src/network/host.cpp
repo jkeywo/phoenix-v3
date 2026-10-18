@@ -702,6 +702,10 @@ public:
 	{
 		return world_->scene_lighting();
 	}
+	Json scene_presentation() const override
+	{
+		return world_->scene_presentation();
+	}
 	std::optional<BodyView> focus_body() const override
 	{
 		if (!world_->running())

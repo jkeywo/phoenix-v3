@@ -528,6 +528,20 @@ struct NativeMenuScreen::State
 					              app.reduced_motion = !app.reduced_motion;
 					              remember_preferences(app);
 				              });
+				markup += add("menu.dust", app.dust_motes ? "Dust motes: On" : "Dust motes: Off",
+				              [&]
+				              {
+					              app.dust_motes = !app.dust_motes;
+					              remember_preferences(app);
+				              });
+				markup += add("menu.grid", app.reference_grid ? "Reference grid: On" : "Reference grid: Off",
+				              [&]
+				              {
+					              app.reference_grid = !app.reference_grid;
+					              remember_preferences(app);
+				              });
+				if (app.reduced_motion)
+					markup += paragraph("Reduced motion hides dust motes and the reference grid.");
 			}
 			else
 			{

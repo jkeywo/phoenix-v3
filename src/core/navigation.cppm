@@ -26,6 +26,7 @@ void select_language(const std::string &language, bool pseudo = false);
 std::string localise(const std::string &key);
 std::vector<std::string> installed_languages();
 void remember_preferences(Application &app);
+void load_display_preferences(Application &app);
 std::vector<SemanticControl> navigation_controls(const Application &app);
 bool invoke_navigation(Application &app, const std::string &action);
 bool set_music_volume(Application &app, const std::string &value);

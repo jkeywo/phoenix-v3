@@ -67,6 +67,8 @@ void MenuLibrary::load()
 	prefs.language = data.at("language");
 	prefs.pseudo = data.value("pseudo", false);
 	prefs.reduced_motion = data.value("reduced_motion", false);
+	prefs.dust_motes = data.value("dust_motes", true);
+	prefs.reference_grid = data.value("reference_grid", true);
 	if (prefs.volume < 0 || prefs.volume > 100 || prefs.language.empty() || prefs.language.size() > 32)
 		throw std::runtime_error("Invalid native preferences");
 	std::vector<LibraryPack> installed;
@@ -106,6 +108,8 @@ void MenuLibrary::remember()
 	          {"language", preferences.language},
 	          {"pseudo", preferences.pseudo},
 	          {"reduced_motion", preferences.reduced_motion},
+	          {"dust_motes", preferences.dust_motes},
+	          {"reference_grid", preferences.reference_grid},
 	          {"packs", Json::array()},
 	          {"saves", Json::array()}};
 	for (const auto &p : packs)

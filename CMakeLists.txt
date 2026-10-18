@@ -243,6 +243,7 @@ add_library(
 	src/presentation/menu.cpp
 	src/presentation/music.cpp
 	src/presentation/scene.cpp
+	src/presentation/environment.cpp
 	src/presentation/icons.cpp
 )
 add_library(phoenix_devices STATIC)
@@ -333,6 +334,10 @@ target_link_libraries(
 	PRIVATE phoenix_qr phoenix_devices phoenix_shaping
 )
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/assets")
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/assets/pfx")
+foreach(mote space_mote_streak_head.png space_mote_streak_soft.png space_mote_compact_core.png)
+	configure_file("content/pfx/${mote}" "${CMAKE_CURRENT_BINARY_DIR}/assets/pfx/${mote}" COPYONLY)
+endforeach()
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/assets/menu")
 foreach(
 	menu_asset
@@ -472,6 +477,15 @@ target_link_libraries(phoenix_comic_probe PRIVATE phoenix_presentation)
 if(EMSCRIPTEN)
 	set_target_properties(phoenix_comic_probe PROPERTIES SUFFIX ".html")
 	target_link_options(phoenix_comic_probe PRIVATE "-sALLOW_MEMORY_GROWTH=1" "-sASSERTIONS=1" "-sSTACK_SIZE=1048576")
+	target_link_options(phoenix_comic_probe PRIVATE "--preload-file" "${CMAKE_CURRENT_BINARY_DIR}/assets/pfx@/assets/pfx")
+else()
+	add_custom_command(
+		TARGET phoenix_comic_probe
+		POST_BUILD
+		COMMAND
+			${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/assets/pfx"
+			"$<TARGET_FILE_DIR:phoenix_comic_probe>/assets/pfx"
+	)
 endif()
 add_library(phoenix_transport STATIC src/transport/options.cpp src/transport/policy.cpp)
 target_link_libraries(phoenix_transport PUBLIC phoenix_foundation PRIVATE nlohmann_json::nlohmann_json)

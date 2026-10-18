@@ -6,6 +6,7 @@ module;
 #include <span>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -49,6 +50,13 @@ struct ExplosionEffect
 	float intensity = 1.5f, range = 30.f, duration = 4.f;
 	double started = 0;
 };
+struct SceneEnvironment
+{
+	DustConfig dust;
+	std::optional<ReferenceGridConfig> grid;
+	std::optional<BodyView> own;
+	bool dust_enabled = true, grid_enabled = true, reduced_motion = false;
+};
 // Shared runtime/Workshop renderer. Caller supplies only an authorised scene.
 // The colour pass draws directly into the current framebuffer and region.
 class SceneRenderer
@@ -62,7 +70,7 @@ public:
 	void explosion(const ExplosionEffect &effect);
 	void draw(const Catalog &catalog, std::span<const SceneBody> bodies, Camera3D camera, Rectangle region,
 	          const Json &lighting, double time, SceneDiagnostic diagnostic = SceneDiagnostic::comic,
-	          Vector2 surface_size = {});
+	          Vector2 surface_size = {}, const SceneEnvironment &environment = {});
 
 private:
 	struct State;

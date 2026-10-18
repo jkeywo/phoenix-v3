@@ -1,4 +1,17 @@
 module;
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+// clang-format off
+EM_JS(int, phoenix_display_preferences, (), {
+    let p={}; try { p=JSON.parse(localStorage.getItem('phoenix-display-preferences-v1')||'{}')||{}; } catch {}
+    return (p.dust_motes!==false?1:0)|(p.reference_grid!==false?2:0)|
+        ((typeof p.reduced_motion==='boolean'?p.reduced_motion:matchMedia('(prefers-reduced-motion: reduce)').matches)?4:0);
+});
+EM_JS(void, phoenix_store_display_preferences, (int bits), {
+    try { localStorage.setItem('phoenix-display-preferences-v1',JSON.stringify({dust_motes:!!(bits&1),reference_grid:!!(bits&2),reduced_motion:!!(bits&4)})); } catch {}
+});
+// clang-format on
+#endif
 #include <array>
 #include <charconv>
 #include <cmath>
@@ -82,17 +95,35 @@ std::vector<std::string> installed_languages()
 }
 void remember_preferences(Application &app)
 {
+#ifdef __EMSCRIPTEN__
+	if (!app.library)
+		phoenix_store_display_preferences((app.dust_motes ? 1 : 0) | (app.reference_grid ? 2 : 0) |
+		                                  (app.reduced_motion ? 4 : 0));
+#endif
 	if (!app.library)
 		return;
 	try
 	{
-		app.library->preferences = {app.music_volume, app.language, app.pseudo_locale, app.reduced_motion};
+		app.library->preferences = {app.music_volume,   app.language,   app.pseudo_locale,
+		                            app.reduced_motion, app.dust_motes, app.reference_grid};
 		app.library->remember();
 	}
 	catch (const std::exception &error)
 	{
 		app.status = error.what();
 	}
+}
+void load_display_preferences(Application &app)
+{
+#ifdef __EMSCRIPTEN__
+	if (!app.library)
+	{
+		const int bits = phoenix_display_preferences();
+		app.dust_motes = (bits & 1) != 0;
+		app.reference_grid = (bits & 2) != 0;
+		app.reduced_motion = (bits & 4) != 0;
+	}
+#endif
 }
 std::vector<SemanticControl> navigation_controls(const Application &app)
 {
@@ -133,7 +164,18 @@ std::vector<SemanticControl> navigation_controls(const Application &app)
 }
 bool invoke_navigation(Application &app, const std::string &id)
 {
-	if (id == "settings" && (app.can_host || app.native_menu))
+	if ((id == "settings.dust" || id == "settings.grid" || id == "settings.motion") && app.screen == Screen::settings &&
+	    (app.can_host || app.native_menu))
+	{
+		if (id == "settings.dust")
+			app.dust_motes = !app.dust_motes;
+		else if (id == "settings.grid")
+			app.reference_grid = !app.reference_grid;
+		else
+			app.reduced_motion = !app.reduced_motion;
+		remember_preferences(app);
+	}
+	else if (id == "settings" && (app.can_host || app.native_menu))
 	{
 		if (app.screen == Screen::settings)
 			app.screen = app.settings_return;

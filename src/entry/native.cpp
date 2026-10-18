@@ -222,6 +222,8 @@ int main(int argc, char **argv)
 		app.language = prefs.language;
 		app.pseudo_locale = prefs.pseudo;
 		app.reduced_motion = prefs.reduced_motion;
+		app.dust_motes = prefs.dust_motes;
+		app.reference_grid = prefs.reference_grid;
 		if (!remote)
 			app.session->replace_packs(app.library->archives(app.library->packs));
 	}

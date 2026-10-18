@@ -62,6 +62,11 @@ struct GameScreen::State
 	bool show_invitation = false;
 	float azimuth = 0.7f, elevation = 0.8f, distance = 160;
 	Vector3 focus{};
+	Vector3 pan{};
+	bool follow_ship = true, environment_ready = false;
+	SceneEnvironment environment;
+	Json presentation_identity;
+	std::string grid_definition;
 	float game_top = 200;
 	std::optional<Rectangle> display_region;
 	std::map<std::string, double> scene_metrics;
@@ -95,6 +100,12 @@ struct GameScreen::State
 		elevation = 0.8f;
 		distance = 160;
 		focus = {};
+		pan = {};
+		follow_ship = true;
+		environment_ready = false;
+		environment = {};
+		presentation_identity = nullptr;
+		grid_definition.clear();
 		markup_ready = false;
 	}
 	void bind_session(const Application &app)
@@ -310,6 +321,12 @@ struct GameScreen::State
 				app.screen = Screen::console;
 			else if (id == "game.scene" && session.running())
 				app.screen = Screen::viewscreen;
+			else if (id == "game.follow" && session.running())
+			{
+				follow_ship = !follow_ship;
+				if (follow_ship)
+					pan = {};
+			}
 			else if (id == "game.local-gm" && session.running() && app.can_host)
 				app.screen = Screen::gm;
 			else if (session.running())
@@ -515,7 +532,8 @@ struct GameScreen::State
 				if (app.screen == Screen::viewscreen)
 					description += " Right drag: orbit; middle drag: pan; wheel: zoom.";
 				if (app.screen == Screen::viewscreen)
-					markup = button("game.console", "Open ship console");
+					markup = button("game.console", "Open ship console") +
+					         button("game.follow", follow_ship ? "Follow ship: On" : "Follow ship: Off");
 				else if (const auto *console = console_definition(app))
 				{
 					for (const auto &widget : console->at("widgets"))
@@ -629,6 +647,37 @@ struct GameScreen::State
 			return;
 		if (app.screen == Screen::viewscreen || display_region)
 		{
+			environment.own = app.session->focus_body();
+			environment.dust_enabled = app.dust_motes;
+			environment.grid_enabled = app.reference_grid;
+			environment.reduced_motion = app.reduced_motion;
+			const auto presentation = app.session->scene_presentation();
+			const auto definition = environment.own ? environment.own->definition : std::string{};
+			if (!environment_ready || presentation_identity != presentation || grid_definition != definition)
+			{
+#ifdef __EMSCRIPTEN__
+				constexpr bool web = true;
+#else
+				constexpr bool web = false;
+#endif
+				environment.dust = compile_dust(presentation.value("dust", Json::object()), app.session->catalog(), web,
+				                                "presentation.dust");
+				environment.grid.reset();
+				if (!definition.empty())
+				{
+					const auto &render = app.session->catalog().entities.at(definition).at("render");
+					if (render.contains("reference_grid"))
+						environment.grid = compile_reference_grid(render.at("reference_grid"), "render.reference_grid");
+				}
+				presentation_identity = presentation;
+				grid_definition = definition;
+				environment_ready = true;
+			}
+			if (follow_ship && environment.own)
+			{
+				focus.x = environment.own->x / 1000.f + pan.x;
+				focus.z = -environment.own->y / 1000.f + pan.z;
+			}
 			if (CheckCollisionPointRec(GetMousePosition(), area()))
 			{
 				auto delta = GetMouseDelta();
@@ -641,6 +690,11 @@ struct GameScreen::State
 				{
 					focus.x -= delta.x * distance / 700;
 					focus.z -= delta.y * distance / 700;
+					if (follow_ship)
+					{
+						pan.x -= delta.x * distance / 700;
+						pan.z -= delta.y * distance / 700;
+					}
 				}
 				distance = std::clamp(distance * std::pow(0.9f, GetMouseWheelMove()), 5.f, 2000000.f);
 			}
@@ -653,7 +707,8 @@ struct GameScreen::State
 			                CAMERA_PERSPECTIVE};
 			const auto stage = GetTime();
 			const auto bodies = app.session->scene();
-			scene.draw(app.session->catalog(), bodies, camera, area(), app.session->scene_lighting(), GetTime());
+			scene.draw(app.session->catalog(), bodies, camera, area(), app.session->scene_lighting(), GetTime(),
+			           SceneDiagnostic::comic, {}, environment);
 			scene_metrics["scene_render"] = GetTime() - stage;
 		}
 		else if (app.screen == Screen::console)

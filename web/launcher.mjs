@@ -7,6 +7,8 @@ const defaults = () => ({
 	language: "en",
 	pseudo: false,
 	reduced_motion: false,
+	dust_motes: true,
+	reference_grid: true,
 	packs: [],
 	saves: [],
 });
@@ -540,6 +542,16 @@ async function boot() {
 			await remember();
 			settings();
 		});
+		for (const [key, label] of [
+			["dust_motes", "Dust motes"],
+			["reference_grid", "Reference grid"],
+		])
+			button(popup, label + ": " + (library[key] !== false ? "On" : "Off"), async () => {
+				library[key] = library[key] === false;
+				await remember();
+				settings();
+			});
+		if (library.reduced_motion) element("p", "Reduced motion hides dust motes and the reference grid.", popup);
 		button(popup, "Back", () => $("popup").close());
 		volume.focus();
 	}

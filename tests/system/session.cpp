@@ -158,6 +158,8 @@ int main()
 		server->resume_server();
 		require(server->running() && !server->observation() && !server->command({own, "speed_mm_s", 1000}),
 		        "Server recovery must activate simulation without claiming its local console");
+		require(server->focus_body() && server->focus_body()->id == own,
+		        "Viewscreen own-ship focus must remain available without claiming a Console");
 		require(server->authoritative_world().can_claim(1, own),
 		        "Server activation must leave the station available for real admission");
 		server->tick();

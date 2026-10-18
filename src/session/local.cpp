@@ -264,6 +264,16 @@ public:
 	{
 		return running() ? world_->inspect() : std::vector<BodyView>{};
 	}
+	std::optional<BodyView> focus_body() const override
+	{
+		if (!running())
+			return {};
+		const auto ship = world_->ship_for_slot(setup_.local_slot);
+		for (const auto &body : world_->inspect())
+			if (ship == body.id)
+				return body;
+		return {};
+	}
 	std::vector<SceneBody> scene() const override
 	{
 		return running() ? world_->scene() : std::vector<SceneBody>{};
@@ -271,6 +281,10 @@ public:
 	Json scene_lighting() const override
 	{
 		return running() ? catalog_.maps.at(setup_.mission).value("lighting", Json::object()) : Json::object();
+	}
+	Json scene_presentation() const override
+	{
+		return running() ? catalog_.maps.at(setup_.mission).value("presentation", Json::object()) : Json::object();
 	}
 	Json inspection() const override
 	{

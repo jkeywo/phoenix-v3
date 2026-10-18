@@ -13,6 +13,7 @@ struct MenuPreferences
 	int volume = 50;
 	std::string language = "en";
 	bool pseudo = false, reduced_motion = false;
+	bool dust_motes = true, reference_grid = true;
 };
 struct LibraryPack
 {

@@ -55,7 +55,8 @@ int main()
 		const auto directory = "menu-integration-" + random_token();
 		MenuLibrary library(directory);
 		library.load();
-		require(library.preferences.volume == 50 && library.preferences.language == "en",
+		require(library.preferences.volume == 50 && library.preferences.language == "en" &&
+		            library.preferences.dust_motes && library.preferences.reference_grid,
 		        "First launch has English and half volume");
 		PackDraft draft;
 		draft.manifest = {{"schema", 1}, {"id", "test-core"}};
@@ -68,13 +69,22 @@ int main()
 		auto selected = library.packs;
 		selected.front().enabled = true;
 		library.apply(selected);
-		library.preferences = {0, "en", true, true};
+		library.preferences = {0, "en", true, true, false, false};
 		library.remember();
 		MenuLibrary reopened(directory);
 		reopened.load();
 		require(reopened.preferences.volume == 0 && reopened.preferences.pseudo &&
-		            reopened.preferences.reduced_motion && reopened.archives(reopened.packs).front() == archive,
+		            reopened.preferences.reduced_motion && !reopened.preferences.dust_motes &&
+		            !reopened.preferences.reference_grid && reopened.archives(reopened.packs).front() == archive,
 		        "Preferences and exact enabled archives survive reopening");
+		auto legacy_index = parse_json(read_file(directory + "/library.json"), "legacy menu index");
+		legacy_index.erase("dust_motes");
+		legacy_index.erase("reference_grid");
+		write_file(directory + "/library.json", json_bytes(legacy_index));
+		MenuLibrary legacy_library(directory);
+		legacy_library.load();
+		require(legacy_library.preferences.dust_motes && legacy_library.preferences.reference_grid,
+		        "Older preference indexes default both navigation aids on");
 		auto session = make_local_session();
 		session->replace_packs(reopened.archives(reopened.packs));
 		const auto before = session->catalog().ordered_packs;

@@ -208,6 +208,115 @@ int main()
 		UnloadImage(capture);
 		EndDrawing();
 
+		// Manually triggered navigation-aid evidence through verified synthetic content.
+		renderer.clear();
+		auto navigation_ship = entity("navigation", material("white.png"), 1);
+		navigation_ship["render"]["reference_grid"] = {
+		    {"minor_spacing", 6}, {"major_spacing", 30}, {"patch_radius", 90}, {"fade_band", 60}, {"plane_y", -1.4}};
+		catalog = load(Json::array({navigation_ship}), assets);
+		objects = {body(1, "navigation", 0, 0)};
+		SceneEnvironment navigation;
+		navigation.own = objects[0];
+		navigation.grid =
+		    compile_reference_grid(catalog.entities.at("navigation").at("render").at("reference_grid"), "grid");
+		navigation.dust =
+		    compile_dust({{"count", 211}, {"width", .2}, {"half_width", 20}, {"depth", 60}}, catalog, false, "dust");
+		Camera3D navigation_camera{{0, 8, 20}, {0, 0, 0}, {0, 1, 0}, 50, CAMERA_PERSPECTIVE};
+		auto navigation_capture = [&](const SceneEnvironment &env, Camera3D eye, Rectangle rect, const char *name)
+		{
+			BeginDrawing();
+			ClearBackground(BLACK);
+			renderer.draw(catalog, objects, eye, rect, {{"shadows", false}}, 0, SceneDiagnostic::unlit, {}, env);
+			rlDrawRenderBatchActive();
+			auto result = LoadImageFromScreen();
+			if (name)
+				ExportImage(result, name);
+			EndDrawing();
+			return result;
+		};
+		auto differences = [](Image a, Image b)
+		{
+			int pixels = 0;
+			for (int y = 0; y < a.height; ++y)
+				for (int x = 0; x < a.width; ++x)
+				{
+					const auto ca = GetImageColor(a, x, y), cb = GetImageColor(b, x, y);
+					if (std::abs(int(ca.r) - cb.r) + std::abs(int(ca.g) - cb.g) + std::abs(int(ca.b) - cb.b) > 6)
+						++pixels;
+				}
+			return pixels;
+		};
+		auto disabled = navigation;
+		disabled.dust_enabled = disabled.grid_enabled = false;
+		auto empty = navigation_capture(disabled, navigation_camera, region, nullptr);
+		auto grid_only = navigation;
+		grid_only.dust_enabled = false;
+		auto grid_image = navigation_capture(grid_only, navigation_camera, region, "navigation-grid-smoke.png");
+		require(differences(empty, grid_image) > 200,
+		        "The authored world grid must visibly render through the production scene path");
+		auto dust_only = navigation;
+		dust_only.grid_enabled = false;
+		auto stationary = navigation_capture(dust_only, navigation_camera, region, "navigation-stationary-smoke.png");
+		require(differences(empty, stationary) > 10, "The final V2 fixed-density field must draw motes at rest");
+		for (const auto velocity : {Vector2{15000, 0}, Vector2{-15000, 0}, Vector2{0, 15000}, Vector2{0, 75000}})
+		{
+			dust_only.own->vx = static_cast<std::int64_t>(velocity.x);
+			dust_only.own->vy = static_cast<std::int64_t>(velocity.y);
+			auto moving =
+			    navigation_capture(dust_only, navigation_camera, region,
+			                       TextFormat("navigation-motion-%d-%d-smoke.png", int(velocity.x), int(velocity.y)));
+			require(differences(stationary, moving) > 10, "True velocity must change the projected dust streaks");
+			UnloadImage(moving);
+		}
+		UnloadImage(stationary);
+		navigation.reduced_motion = true;
+		auto reduced = navigation_capture(navigation, navigation_camera, region, nullptr);
+		require(differences(empty, reduced) == 0,
+		        "Reduced motion suppresses both aids without changing the ship scene");
+		UnloadImage(reduced);
+		UnloadImage(empty);
+		navigation.reduced_motion = false;
+		auto offset =
+		    navigation_capture(navigation, navigation_camera, {120, 60, 400, 300}, "navigation-offset-smoke.png");
+		require(GetImageColor(offset, 20, 20).r == 0 && GetImageColor(offset, 600, 400).b == 0,
+		        "Navigation aids must stay inside their display region");
+		UnloadImage(offset);
+		// A large world coordinate must not change the repeating lattice phase.
+		grid_only.own->x += 600000000;
+		objects[0].x += 600000000;
+		navigation_camera.position.x += 600000;
+		navigation_camera.target.x += 600000;
+		auto distant = navigation_capture(grid_only, navigation_camera, region, "navigation-distant-smoke.png");
+		require(differences(grid_image, distant) < 20,
+		        "Rebasing by a whole number of grid cells must preserve the lattice phase");
+		UnloadImage(grid_image);
+		grid_only.own->x += 3000;
+		objects[0].x += 3000;
+		navigation_camera.position.x += 3;
+		navigation_camera.target.x += 3;
+		auto half_cell = navigation_capture(grid_only, navigation_camera, region, "navigation-half-cell-smoke.png");
+		require(differences(distant, half_cell) > 200,
+		        "Moving ship and camera together must reveal a different world-locked lattice phase");
+		UnloadImage(half_cell);
+		UnloadImage(distant);
+		auto underside_camera = navigation_camera;
+		underside_camera.position.y = -8;
+		auto underside = navigation_capture(grid_only, underside_camera, region, "navigation-underside-smoke.png");
+		UnloadImage(underside);
+		auto target = LoadRenderTexture(320, 240);
+		BeginDrawing();
+		BeginTextureMode(target);
+		ClearBackground(BLACK);
+		renderer.draw(catalog, objects, navigation_camera, {25, 20, 270, 200}, {{"shadows", false}}, 0,
+		              SceneDiagnostic::unlit, {320, 240}, grid_only);
+		EndTextureMode();
+		EndDrawing();
+		auto nested_navigation = LoadImageFromTexture(target.texture);
+		ExportImage(nested_navigation, "navigation-nested-smoke.png");
+		UnloadImage(nested_navigation);
+		UnloadRenderTexture(target);
+		std::cout << "PASS navigation grid, stationary/moving dust, reduced motion and clipped/nested regions\n";
+
 		std::cout << "PASS production-loader graphical sprite depth, flat fallback, directional engines and internal "
 		             "explosion lighting\n";
 		renderer.clear();

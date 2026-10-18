@@ -149,6 +149,10 @@ public:
 	{
 		return Json::object();
 	}
+	virtual Json scene_presentation() const
+	{
+		return Json::object();
+	}
 	virtual std::vector<ConsoleSeat> console_seats() const
 	{
 		return {};

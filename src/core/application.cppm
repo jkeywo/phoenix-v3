@@ -41,6 +41,7 @@ struct Application
 		join_gm
 	};
 	bool native_menu = false, exit_requested = false, reduced_motion = false, packs_popup = false;
+	bool dust_motes = true, reference_grid = true;
 	MenuBranch menu_branch = MenuBranch::root;
 	std::string selected_scenario, menu_focus;
 	std::shared_ptr<MenuLibrary> library;

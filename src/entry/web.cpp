@@ -123,6 +123,8 @@ int main(int argc, char **argv)
 			app.language = preferences.language;
 			app.pseudo_locale = preferences.pseudo;
 			app.reduced_motion = preferences.reduced_motion;
+			app.dust_motes = preferences.dust_motes;
+			app.reference_grid = preferences.reference_grid;
 			app.return_home = []
 			{
 				return_to_menu();
@@ -176,6 +178,7 @@ int main(int argc, char **argv)
 		EM_ASM({ Module.phoenixLaunchError ?.(UTF8ToString($0)); }, app.status.c_str());
 		return 1;
 	}
+	phoenix::load_display_preferences(app);
 	phoenix::open_window();
 	phoenix::select_language(app.language, app.pseudo_locale);
 #ifdef PHOENIX_WORKSHOP

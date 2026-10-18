@@ -75,8 +75,15 @@ int main()
 		host.screen_inputs = {{"music-volume", "Music volume", "100", true}};
 		require(navigation_controls(host).back().percentage,
 		        "music volume must publish range semantics rather than an unlabelled control");
+		require(invoke_navigation(host, "settings.dust") && !host.dust_motes &&
+		            invoke_navigation(host, "settings.grid") && !host.reference_grid &&
+		            invoke_navigation(host, "settings.motion") && host.reduced_motion &&
+		            !invoke_navigation(client, "settings.dust"),
+		        "Display settings use the same admitted semantic actions and retain independent preferences");
 		require(invoke_navigation(host, "settings.close") && host.screen == Screen::console && host.music_volume == 100,
 		        "closing settings returns to the prior screen and retains volume");
+		require(!invoke_navigation(host, "settings.grid") && !host.reference_grid,
+		        "Display preferences cannot change through an inactive Settings control");
 		require(!invoke_navigation(client, "host") && !invoke_navigation(client, "edit"),
 		        "semantic actions must preserve role restrictions");
 		require(navigation_controls(client).size() == 4, "client semantics must not expose host/editor actions");
