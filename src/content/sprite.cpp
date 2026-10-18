@@ -190,6 +190,20 @@ RadarIcon compile_radar_icon(const Json &value, const std::string &path)
 		bad(path, "expected contact, ship, asteroid or sun");
 	return *icon;
 }
+std::string radar_sprite_reference(const Json &render)
+{
+	const auto &material = render.contains("sprite") ? render.at("sprite") : render;
+	return material.value("radar_sprite", std::string{});
+}
+std::string radar_sprite_id(const Bytes &png)
+{
+	return "console-assets:assets/radar/" + sha256(png) + ".png";
+}
+std::string render_radar_sprite(const Json &render, const Catalog &catalog)
+{
+	const auto reference = radar_sprite_reference(render);
+	return reference.empty() ? std::string{} : radar_sprite_id(catalog.assets.at(reference));
+}
 RadarIcon render_radar_icon(const Json &render)
 {
 	if (render.contains("sprite") && render.at("sprite").is_object())
@@ -202,6 +216,9 @@ SpriteMaterial compile_sprite(const Json &sprite, const Catalog &catalog, const 
 		bad(path, "expected sprite material with albedo");
 	SpriteMaterial material;
 	material.radar_icon = compile_radar_icon(sprite.value("radar_icon", Json("contact")), path + ".radar_icon");
+	material.radar_sprite = sprite.value("radar_sprite", std::string{});
+	if (!material.radar_sprite.empty())
+		image(catalog, material.radar_sprite, path + ".radar_sprite");
 	const auto dimensions = image(catalog, sprite.at("albedo"), path + ".albedo");
 	material.albedo = sprite.at("albedo");
 	for (const char *field : {"normal", "depth"})
@@ -309,6 +326,13 @@ Json import_sprite_sidecar(const Json &source, const std::map<std::string, std::
 	if (source.value("schema_version", 0) != 1 ||
 	    source.value("coordinate_system", std::string{}) != "frame_pixels_top_left_y_down")
 		bad("sidecar", "unsupported version or coordinates");
+	if (!images.contains("sprite") || images.at("sprite").empty())
+		bad("sidecar.files.sprite", "import and select the sprite PNG");
+	if (source.contains("files"))
+		for (const char *key : {"sprite", "normal", "depth", "radar_icon"})
+			if (source.at("files").contains(key) && !source.at("files").at(key).is_null() &&
+			    (!images.contains(key) || images.at(key).empty()))
+				bad(std::string("sidecar.files.") + key, "import and select the declared PNG");
 	Json result = {{"albedo", images.at("sprite")}, {"frames", Json::array()}};
 	if (source.contains("emissive"))
 		result["emissive"] = source.at("emissive");
@@ -320,6 +344,10 @@ Json import_sprite_sidecar(const Json &source, const std::map<std::string, std::
 	for (const char *field : {"normal", "depth"})
 		if (images.contains(field))
 			result[field] = images.at(field);
+	if (images.contains("radar_icon"))
+		result["radar_sprite"] = images.at("radar_icon");
+	else if (source.contains("files") && source.at("files").contains("radar_icon"))
+		bad("sidecar.files.radar_icon", "import and select the radar PNG");
 	const auto sheet = source.value("sprite_sheet", Json());
 	const auto frames = sheet.is_object()
 	                        ? sheet.at("frames")
@@ -336,7 +364,8 @@ Json import_sprite_sidecar(const Json &source, const std::map<std::string, std::
 		            {"depth_scale", f.value("depth_scale", images.contains("depth") ? .5 : 0)},
 		            {"depth_offset", f.value("depth_offset", 0.0)},
 		            {"attachments", Json::object()}};
-		for (auto it = f.at("markers").begin(); it != f.at("markers").end(); ++it)
+		const auto markers = f.value("markers", Json::object());
+		for (auto it = markers.begin(); it != markers.end(); ++it)
 			out["attachments"][it.key()] = {
 			    {"x", it.value().at(0)},
 			    {"y", it.value().at(1)},
@@ -345,5 +374,35 @@ Json import_sprite_sidecar(const Json &source, const std::map<std::string, std::
 		result["frames"].push_back(std::move(out));
 	}
 	return result;
+}
+void apply_sprite_sidecar(Json &render, const Json &source, const std::map<std::string, std::string> &images,
+                          const Catalog &catalog, bool engine_effect)
+{
+	const auto converted = import_sprite_sidecar(source, images);
+	const auto material = compile_sprite(converted, catalog, "imported sprite");
+	const auto mode = source.value("billboard_mode", std::string(material.frames.size() == 8 ? "eight" : "camera"));
+	if ((mode != "camera" && mode != "eight") || material.frames.size() != (mode == "eight" ? 8u : 1u))
+		bad("sidecar.billboard_mode", "choose camera for one frame or eight for eight frames");
+	const auto scale = number(source.value("render_scale", Json(1)), "sidecar.render_scale", .001f, 1000000);
+	Json candidate = render;
+	if (engine_effect)
+	{
+		const auto effect = source.value("engine_effect", Json::object());
+		candidate["engines"] = {
+		    {"sprite", converted},
+		    {"scale", number(effect.value("scale", Json(.4)), "sidecar.engine_effect.scale", .001f, 10)},
+		    {"range", number(effect.value("range", Json(32)), "sidecar.engine_effect.range", .001f, 1000000)},
+		    {"power", number(effect.value("power", Json(2)), "sidecar.engine_effect.power", .001f, 16)}};
+	}
+	else
+	{
+		candidate["sprite"] = converted;
+		candidate["mode"] = mode;
+		candidate["scale"] = scale;
+		candidate.erase("images");
+		candidate.erase("radar_icon");
+		candidate.erase("radar_sprite");
+	}
+	render = std::move(candidate);
 }
 } // namespace phoenix

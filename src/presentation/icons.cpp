@@ -4,6 +4,11 @@ module;
 #include <cmath>
 #include <array>
 #include <initializer_list>
+#include <string>
+#include <map>
+#include <span>
+#include <vector>
+#include <nlohmann/json.hpp>
 module phoenix.presentation;
 
 namespace phoenix
@@ -65,5 +70,23 @@ void draw_radar_icon(RadarIcon icon, Vector2 centre, float radius, float heading
 	const float width = std::clamp(radius * .2f, 1.3f, 2.f);
 	for (const auto &stroke : radar_icon_strokes(icon, centre, radius, heading))
 		DrawLineEx(stroke[0], stroke[1], width, colour);
+}
+void draw_radar_body(TextureCache &textures, const Catalog &catalog, const BodyView &body, Vector2 centre, float radius,
+                     Color colour)
+{
+	const auto image = catalog.assets.find(body.radar_sprite);
+	if (!body.radar_sprite.empty() && image != catalog.assets.end())
+	{
+		const auto texture = textures.load(body.radar_sprite, image->second);
+		if (texture.id)
+		{
+			const float scale = radius * 2 / std::max(texture.width, texture.height);
+			const float w = texture.width * scale, h = texture.height * scale;
+			DrawTexturePro(texture, {0, 0, static_cast<float>(texture.width), static_cast<float>(texture.height)},
+			               {centre.x, centre.y, w, h}, {w / 2, h / 2}, -body.heading / 1000.f, colour);
+			return;
+		}
+	}
+	draw_radar_icon(body.radar_icon, centre, radius, static_cast<float>(body.heading), colour);
 }
 } // namespace phoenix

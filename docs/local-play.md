@@ -1,6 +1,6 @@
 # Play the local prototype
 
-Build with `./scripts/build.ps1 -Target native`. The build produces `build/native/training.zip` from the editable starter content in `content/training/`, independently of the synthetic integration fixtures.
+Build with `./scripts/build.ps1 -Target native`. The build produces the default `build/native/base.zip` (also emitted as the identical `training.zip` compatibility alias) from the editable starter content in `content/base/`, independently of the synthetic integration fixtures.
 
 Run `build/native/Release/native.exe --local-only` for offline play. Use Mod Packs to install, enable and order ZIP packs, then Host Game > New Game > scenario > ship. The stopped lobby offers local Console selection or AI crew and starts after readiness plus a five-second countdown. Settings and managed saves persist beneath `--data`; see the [native menu](native-menu.md). Native's default mode adds networked ship/crew/GM joining. Invalid pack selection or save import preserves the previous verified selection/session. The browser server retains its existing flat setup controls.
 

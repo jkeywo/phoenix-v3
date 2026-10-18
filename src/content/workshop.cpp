@@ -4,6 +4,7 @@ module;
 #include <functional>
 #include <cstdint>
 #include <map>
+#include <set>
 #include <nlohmann/json.hpp>
 #include <span>
 #include <string>
@@ -47,7 +48,21 @@ void WorkshopDocument::select_map(std::size_t index)
 void WorkshopDocument::load_pack(std::span<const std::uint8_t> archive)
 {
 	auto loaded = read_pack(archive);
-	auto order = libraries_;
+	// A standalone pack opens independently of the current draft's dependencies.
+	// A mod retains the explicitly loaded dependency closure it declares.
+	auto dependencies = loaded.manifest().value("dependencies", Json::array());
+	std::set<std::string> needed;
+	for (const auto &dependency : dependencies)
+		needed.insert(dependency.get<std::string>());
+	for (auto it = libraries_.rbegin(); it != libraries_.rend(); ++it)
+		if (needed.contains(it->manifest().at("id").get<std::string>()))
+			for (const auto &dependency : it->manifest().value("dependencies", Json::array()))
+				needed.insert(dependency.get<std::string>());
+	std::vector<Pack> retained;
+	for (const auto &library : libraries_)
+		if (needed.contains(library.manifest().at("id").get<std::string>()))
+			retained.push_back(library);
+	auto order = retained;
 	order.push_back(loaded);
 	auto resolved = resolve_packs(order);
 	if (resolved.presentation)
@@ -69,6 +84,8 @@ void WorkshopDocument::load_pack(std::span<const std::uint8_t> archive)
 		definitions["maps"].push_back(
 		    {{"id", "workshop.map"}, {"entities", Json::array()}, {"ship_slots", Json::array()}});
 	pack_ = loaded.draft();
+	libraries_ = std::move(retained);
+	library_catalog_ = libraries_.empty() ? Catalog{} : resolve_packs(libraries_);
 	definitions_ = std::move(definitions);
 	map_index_ = 0;
 }
@@ -192,8 +209,13 @@ std::string WorkshopDocument::create_entity(const std::string &parent)
 			image = pack_.manifest.at("id").get<std::string>() + ":" + path;
 			break;
 		}
-	if (image.empty() && !library_catalog_.assets.empty())
-		image = library_catalog_.assets.begin()->first;
+	if (image.empty())
+		for (const auto &[reference, bytes] : library_catalog_.assets)
+			if (reference.ends_with(".png") && !reference.starts_with("console-assets:assets/radar/"))
+			{
+				image = reference;
+				break;
+			}
 	definitions_["entities"].push_back(
 	    {{"id", id},
 	     {"render", {{"mode", "camera"}, {"images", Json::array({image})}, {"scale", 1}}},
@@ -203,6 +225,48 @@ std::string WorkshopDocument::create_entity(const std::string &parent)
 	       {"radar", {{"range_mm", 200000}}}}},
 	     {"collision", {{"shape", "circle"}, {"radius_mm", 2000}, {"mass_grams", 1000000}}}});
 	return id;
+}
+void WorkshopDocument::rename_entity(const std::string &from, const std::string &to)
+{
+	if (from == to)
+		return;
+	if (to.empty() || to.size() > 256 ||
+	    to.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") != std::string::npos)
+		throw std::runtime_error("Template ID uses letters, numbers, dots, underscores and hyphens");
+	for (const auto *kind : {"entities", "maps", "consoles", "trees"})
+		for (const auto &value : definitions_.at(kind))
+			if (value.at("id") == to)
+				throw std::runtime_error("Definition ID already exists: " + to);
+	if (library_catalog_.entities.contains(to) || library_catalog_.maps.contains(to) ||
+	    library_catalog_.consoles.contains(to) || library_catalog_.trees.contains(to))
+		throw std::runtime_error("Definition ID already belongs to a dependency: " + to);
+	auto &entities = definitions_["entities"];
+	auto found = std::find_if(entities.begin(), entities.end(),
+	                          [&](const Json &value)
+	                          {
+		                          return value.at("id") == from;
+	                          });
+	if (found == entities.end())
+		throw std::runtime_error("Unknown local template: " + from);
+	(*found)["id"] = to;
+	for (auto &entity : entities)
+		if (entity.value("extends", std::string{}) == from)
+			entity["extends"] = to;
+	for (auto &map : definitions_["maps"])
+	{
+		for (auto &instance : map["entities"])
+			if (instance.at("definition") == from)
+				instance["definition"] = to;
+		for (auto &slot : map["ship_slots"])
+			for (auto &ship : slot["allowed_ships"])
+				if (ship == from)
+					ship = to;
+	}
+	if (pack_.manifest.contains("overrides"))
+	{
+		auto &overrides = pack_.manifest["overrides"];
+		overrides.erase(std::remove(overrides.begin(), overrides.end(), Json(from)), overrides.end());
+	}
 }
 std::uint64_t WorkshopDocument::place(const std::string &definition, std::int64_t x, std::int64_t y)
 {

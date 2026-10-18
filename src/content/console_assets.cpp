@@ -32,6 +32,21 @@ Pack console_assets(const Catalog &catalog, const std::string &ship)
 		draft.files[path] = bytes;
 		return pack_id + ":" + path;
 	};
+	// Radar PNGs are public presentation assets. Include these without exposing
+	// other hulls, maps, systems, controllers or arbitrary authored metadata.
+	for (const auto &[id, definition] : catalog.entities)
+	{
+		const auto reference = radar_sprite_reference(definition.at("render"));
+		if (!reference.empty())
+		{
+			const auto &png = catalog.assets.at(reference);
+			const auto address = radar_sprite_id(png);
+			draft.files[address.substr(pack_id.size() + 1)] = png;
+		}
+	}
+	const auto own_icon = render_radar_sprite(source.at("render"), catalog);
+	if (!own_icon.empty() && !source.at("render").contains("sprite"))
+		entity["render"]["radar_sprite"] = own_icon;
 	if (source.at("render").contains("sprite"))
 	{
 		auto copy_material = [&](const Json &original)
@@ -41,6 +56,8 @@ Pack console_assets(const Catalog &catalog, const std::string &ship)
 				if (original.contains(field) && !original.at(field).is_null())
 					material[field] = copy_image(original.at(field));
 			material["emissive"] = original.value("emissive", false);
+			if (original.contains("radar_sprite") && !original.at("radar_sprite").get<std::string>().empty())
+				material["radar_sprite"] = radar_sprite_id(catalog.assets.at(original.at("radar_sprite")));
 			if (original.contains("radar_icon"))
 				material["radar_icon"] =
 				    std::string(radar_icon_name(compile_radar_icon(original.at("radar_icon"), "radar_icon")));

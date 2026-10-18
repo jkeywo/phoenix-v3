@@ -217,6 +217,9 @@ int main(int argc, char **argv)
 	{
 		app.library = std::make_shared<phoenix::MenuLibrary>(network.data_location + "/menu");
 		app.library->load();
+		if (!remote)
+			app.library->install_default(
+			    phoenix::read_file(std::string(GetApplicationDirectory()) + "assets/base.zip"));
 		const auto &prefs = app.library->preferences;
 		app.music_volume = prefs.volume;
 		app.language = prefs.language;

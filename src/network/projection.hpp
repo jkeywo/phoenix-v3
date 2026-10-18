@@ -10,13 +10,21 @@ static inline Json body_json(const BodyView &body)
 	        {"vx", body.vx},
 	        {"vy", body.vy},
 	        {"heading", body.heading},
-	        {"radar_icon", std::string(radar_icon_name(body.radar_icon))}};
+	        {"radar_icon", std::string(radar_icon_name(body.radar_icon))},
+	        {"radar_sprite", body.radar_sprite}};
 }
 static inline BodyView read_body(const Json &value)
 {
 	BodyView body{value.at("id"), value.at("definition"), value.at("x"),      value.at("y"),
 	              value.at("vx"), value.at("vy"),         value.at("heading")};
 	body.radar_icon = compile_radar_icon(value.value("radar_icon", Json("contact")), "projected body.radar_icon");
+	body.radar_sprite = value.value("radar_sprite", std::string{});
+	const std::string radar_prefix = "console-assets:assets/radar/";
+	if (!body.radar_sprite.empty() &&
+	    (!body.radar_sprite.starts_with("console-assets:assets/radar/") || !body.radar_sprite.ends_with(".png") ||
+	     body.radar_sprite.size() != radar_prefix.size() + 64 + 4 ||
+	     body.radar_sprite.substr(radar_prefix.size(), 64).find_first_not_of("0123456789abcdef") != std::string::npos))
+		throw std::runtime_error("Invalid projected radar sprite");
 	if (!body.id || body.heading < 0 || body.heading >= 360000 || body.definition.size() > 256)
 		throw std::runtime_error("Invalid projected body");
 	for (auto coordinate : {body.x, body.y, body.vx, body.vy})

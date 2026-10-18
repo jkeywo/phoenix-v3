@@ -30,7 +30,6 @@
 			"Consoles": "Consoles",
 			"Create derived entity": "Create derived entity",
 			"Definitions": "Definitions",
-			"Delegated state tree": "Delegated state tree",
 			"Delete": "Delete",
 			"Delete widget": "Delete widget",
 			"Dependency entities": "Dependency entities",
@@ -228,7 +227,19 @@
 			"Preview motion heading": "Preview motion heading",
 			"Preview X (m)": "Preview X (m)",
 			"Preview Y (m)": "Preview Y (m)",
-			"Reset preview motion": "Reset preview motion"
+			"Reset preview motion": "Reset preview motion",
+			"Template ID": "Template ID",
+			"Rename template": "Rename template",
+			"Display name": "Display name",
+			"Radar icon PNG": "Radar icon PNG",
+			"Clear radar icon": "Clear radar icon",
+			"Collision type": "Collision type",
+			"Circle": "Circle",
+			"AI behaviour": "AI behaviour",
+			"AI behaviour runs automatic orders when this entity is not under player control. None leaves it idle.": "AI behaviour runs automatic orders when this entity is not under player control. None leaves it idle.",
+			"Imported render scale": "Imported render scale",
+			"Open base game pack": "Open base game pack",
+			"Imported eight-direction billboard": "Imported eight-direction billboard"
 		}
 	}
 }

@@ -843,19 +843,24 @@ async function boot() {
 				} catch {}
 			}
 		}
-		if (!files.has("published-catalog.json")) {
+		if (!files.has("published-base-catalog.json")) {
 			try {
-				const response = await fetch("training.zip.menu.json");
-				if (!response.ok) throw Error("Training content unavailable. Import a pack in Mod Packs.");
+				const response = await fetch("base.zip.menu.json");
+				if (!response.ok) throw Error("Base game content unavailable. Import a pack in Mod Packs.");
 				const meta = await response.json();
 				menuPreview(meta);
 				if (!/^[a-f0-9]{64}$/.test(meta.hash)) throw Error("Invalid published pack identity.");
-				if (!library.packs.some((pack) => pack.hash === meta.hash))
-					library.packs.push({ hash: meta.hash, id: meta.id, enabled: true, url: "training.zip" });
+				if (!library.packs.some((pack) => pack.id === meta.id))
+					library.packs.push({
+						hash: meta.hash,
+						id: meta.id,
+						enabled: library.packs.length === 0,
+						url: "base.zip",
+					});
 				previews.set(meta.hash, meta);
 				await remember([
 					[`preview/${meta.hash}.json`, encoder.encode(JSON.stringify(meta))],
-					["published-catalog.json", encoder.encode(meta.hash)],
+					["published-base-catalog.json", encoder.encode(meta.hash)],
 				]);
 			} catch (error) {
 				status(t(error.message));

@@ -119,6 +119,26 @@ void MenuLibrary::remember()
 	const auto encoded = (std::filesystem::u8path(directory_) / "library.json").u8string();
 	atomic_write(std::string(encoded.begin(), encoded.end()), json_bytes(data));
 }
+void MenuLibrary::install_default(const Bytes &archive)
+{
+	const auto pack = read_pack(archive);
+	const auto id = pack.manifest().at("id").get<std::string>();
+	if (std::any_of(packs.begin(), packs.end(),
+	                [&](const auto &entry)
+	                {
+		                return entry.id == id;
+	                }))
+		return;
+	resolve_packs({pack});
+	const bool fresh = packs.empty();
+	install(archive);
+	if (fresh)
+	{
+		auto selected = packs;
+		selected.front().enabled = true;
+		apply(selected);
+	}
+}
 void MenuLibrary::install(const Bytes &archive)
 {
 	const auto pack = read_pack(archive);

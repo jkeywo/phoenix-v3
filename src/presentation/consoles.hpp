@@ -9,6 +9,7 @@ class ConsoleSurface final : public Rml::EventListener
 	Rml::Context *context_ = nullptr;
 	Rml::ElementDocument *document_ = nullptr;
 	ConsoleModel model_;
+	TextureCache radar_textures_;
 	Application *app_ = nullptr;
 	std::string signature_;
 	std::map<std::string, std::string> displayed_values_;
@@ -122,6 +123,7 @@ p {display:block;font-size:18px;}
 		{
 			owner_ = app.session;
 			generation_ = app.session ? app.session->generation() : 0;
+			radar_textures_.clear();
 			signature_.clear();
 			document_->Focus();
 		}
@@ -257,12 +259,12 @@ p {display:block;font-size:18px;}
 				const auto radius = std::min(area.width, area.height) / 2;
 				for (int ring = 1; ring <= 4; ++ring)
 					DrawCircleLinesV(centre, radius * ring / 4, Color{45, 91, 111, 255});
-				draw_radar_icon(view->own.radar_icon, centre, 9, static_cast<float>(view->own.heading), WHITE);
+				draw_radar_body(radar_textures_, app_->session->catalog(), view->own, centre, 9, WHITE);
 				for (const auto &contact : view->contacts)
 				{
 					Vector2 point{centre.x + static_cast<float>((contact.x - view->own.x) / range) * radius,
 					              centre.y - static_cast<float>((contact.y - view->own.y) / range) * radius};
-					draw_radar_icon(contact.radar_icon, point, 7, static_cast<float>(contact.heading), SKYBLUE);
+					draw_radar_body(radar_textures_, app_->session->catalog(), contact, point, 7, SKYBLUE);
 					DrawText(TextFormat("#%llu", static_cast<unsigned long long>(contact.id)),
 					         static_cast<int>(point.x + 10), static_cast<int>(point.y), 14, WHITE);
 				}

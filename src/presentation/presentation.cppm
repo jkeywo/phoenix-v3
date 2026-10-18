@@ -90,6 +90,8 @@ public:
 private:
 	std::map<std::string, Texture2D> textures_;
 };
+void draw_radar_body(TextureCache &textures, const Catalog &catalog, const BodyView &body, Vector2 centre, float radius,
+                     Color colour);
 bool probe_menu_keyboard(Application &app);
 void open_window();
 bool close_requested();

@@ -733,15 +733,14 @@ struct GameScreen::State
 						DrawCircleLinesV(centre, radius * ring / 4, Color{45, 91, 111, 255});
 					DrawLineV({centre.x - radius, centre.y}, {centre.x + radius, centre.y}, Color{45, 91, 111, 255});
 					DrawLineV({centre.x, centre.y - radius}, {centre.x, centre.y + radius}, Color{45, 91, 111, 255});
-					draw_radar_icon(observation->own.radar_icon, centre, 9,
-					                static_cast<float>(observation->own.heading), WHITE);
+					draw_radar_body(textures, app.session->catalog(), observation->own, centre, 9, WHITE);
 					const double range =
 					    systems.contains("radar") ? systems.at("radar").at("range_mm").get<double>() : 1;
 					for (const auto &contact : observation->contacts)
 					{
 						Vector2 point{centre.x + static_cast<float>((contact.x - observation->own.x) / range) * radius,
 						              centre.y - static_cast<float>((contact.y - observation->own.y) / range) * radius};
-						draw_radar_icon(contact.radar_icon, point, 7, static_cast<float>(contact.heading), SKYBLUE);
+						draw_radar_body(textures, app.session->catalog(), contact, point, 7, SKYBLUE);
 						DrawText(TextFormat("#%llu", static_cast<unsigned long long>(contact.id)),
 						         static_cast<int>(point.x + 10), static_cast<int>(point.y), 14, WHITE);
 					}

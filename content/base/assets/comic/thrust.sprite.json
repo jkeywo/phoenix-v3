@@ -98,5 +98,12 @@
 	"pivot": null,
 	"markers": {},
 	"marker_notes": "Frame pivot is the approximate bright plume root. Align this pivot to the parent engine marker. The parent marker selects a signed layer offset; no automatic scale or animation is implied.",
-	"emissive": true
+	"emissive": true,
+	"billboard_mode": "eight",
+	"render_scale": 1,
+	"engine_effect": {
+		"scale": 0.4,
+		"range": 32,
+		"power": 2
+	}
 }

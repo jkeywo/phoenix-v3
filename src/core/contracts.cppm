@@ -127,6 +127,7 @@ struct BodyView
 	std::string definition;
 	std::int64_t x, y, vx, vy, heading;
 	RadarIcon radar_icon = RadarIcon::contact;
+	std::string radar_sprite;
 };
 // Viewscreen-only visual output. Deliberately absent from radar observations.
 struct SceneBody : BodyView

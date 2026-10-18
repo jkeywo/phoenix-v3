@@ -284,6 +284,7 @@ int main(int argc, char **argv)
 			    parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "synthetic fixture");
 			definitions["entities"][0]["render"]["radar_icon"] = "ship";
 			definitions["entities"][1]["render"]["radar_icon"] = "asteroid";
+			definitions["entities"][1]["render"]["radar_sprite"] = "test-core:assets/pixel.png";
 			definitions["maps"][0]["entities"].push_back(
 			    {{"id", 2}, {"definition", "test.variant"}, {"x_mm", 200000}, {"y_mm", 0}, {"heading_mdeg", 0}});
 			// A real GM inspection must cross the transport envelope bound while
@@ -383,6 +384,11 @@ int main(int argc, char **argv)
 						if (view->own.radar_icon != RadarIcon::ship || view->contacts.empty() ||
 						    view->contacts[0].radar_icon != RadarIcon::asteroid)
 							throw std::runtime_error("Remote radar lost the authored contact symbols");
+						const auto &sprite = view->contacts[0].radar_sprite;
+						if (sprite.empty() || !session->catalog().assets.contains(sprite) ||
+						    session->catalog().entities.size() != 1 || !session->catalog().maps.empty())
+							throw std::runtime_error(
+							    "Remote radar lost its public PNG or exposed full contact definitions");
 						if (session->command({2, "speed_mm_s", 1000}))
 							throw std::runtime_error("Client admitted a command for another ship");
 						for (const auto &contact : view->contacts)

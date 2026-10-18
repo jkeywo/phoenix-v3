@@ -53,6 +53,7 @@ jobs:
           }
           Copy-Item -LiteralPath build/native/training.zip -Destination $site
           Copy-Item -LiteralPath build/native/training.zip.menu.json -Destination $site
+          Copy-Item -LiteralPath build/native/base.zip,build/native/base.zip.menu.json -Destination $site
           Set-Content -LiteralPath build/pages/revision.txt -Value $env:GITHUB_SHA
       - name: Upload GitHub Pages artifact
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'

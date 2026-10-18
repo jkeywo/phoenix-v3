@@ -38,6 +38,7 @@ struct Editor
 	int definition = -1, console = -1;
 	std::string status = "Import a PNG, create an entity definition, then place instances on the map.";
 	std::string pack_name = "workshop", library_parent;
+	std::string rename_from, template_id;
 	TextureCache textures;
 	SceneRenderer scene;
 	RenderTexture2D scene_preview{};
@@ -54,6 +55,7 @@ struct Editor
 	std::map<std::string, std::string> sidecar_images;
 	bool import_engines = false;
 	bool preview_whole_map = false;
+	bool started = false;
 	float pan_x = 0, pan_y = 0, zoom = 0.004f;
 	void clear_textures()
 	{
@@ -143,7 +145,7 @@ void asset_picker(const char *label, Json &value)
 					value = reference;
 			}
 		for (const auto &[reference, bytes] : editor.document.libraries().assets)
-			if (reference.ends_with(".png"))
+			if (reference.ends_with(".png") && !reference.starts_with("console-assets:assets/radar/"))
 				if (ImGui::Selectable(reference.c_str(), reference == current))
 					value = reference;
 		ImGui::EndCombo();
@@ -283,26 +285,41 @@ void dust_properties(Json &map)
 }
 void radar_icon_picker(Json &material)
 {
-	const auto current = material.value("radar_icon", std::string("contact"));
-	if (ImGui::BeginCombo(tool_label("Radar icon").c_str(), localise(current).c_str()))
+	Json current = material.value("radar_sprite", Json(""));
+	asset_picker("Radar icon PNG", current);
+	if (current != material.value("radar_sprite", Json("")))
 	{
-		for (const auto name : radar_icon_names)
-		{
-			const std::string key(name);
-			if (ImGui::Selectable(tool_label(key).c_str(), key == current))
-				material["radar_icon"] = key;
-		}
-		ImGui::EndCombo();
+		material["radar_sprite"] = current;
+		material.erase("radar_icon");
 	}
-	const auto centre = ImGui::GetCursorScreenPos();
-	for (const auto &stroke : radar_icon_strokes(radar_icon_named(current).value_or(RadarIcon::contact),
-	                                             {centre.x + 14, centre.y + 14}, 10, 90000))
-		ImGui::GetWindowDrawList()->AddLine({stroke[0].x, stroke[0].y}, {stroke[1].x, stroke[1].y},
-		                                    IM_COL32(180, 225, 240, 255), 1.8f);
-	ImGui::Dummy({28, 28});
+	if (ImGui::Button(tool_label("Clear radar icon").c_str()))
+	{
+		material.erase("radar_sprite");
+		material.erase("radar_icon");
+	}
+	if (current.is_string() && !current.get<std::string>().empty())
+	{
+		const auto texture = editor.texture(current.get<std::string>());
+		if (texture.id)
+			ImGui::Image(static_cast<ImTextureID>(texture.id), {32, 32});
+	}
 }
-void map_radar_icon(ImDrawList *draw, RadarIcon icon, ImVec2 point, float heading, ImU32 colour)
+void map_radar_icon(ImDrawList *draw, RadarIcon icon, ImVec2 point, float heading, ImU32 colour, Texture2D sprite = {})
 {
+	if (sprite.id)
+	{
+		const float angle = -heading * 3.14159265f / 180000;
+		const float scale = 20.f / std::max(sprite.width, sprite.height);
+		auto corner = [&](float x, float y)
+		{
+			return ImVec2{point.x + x * std::cos(angle) - y * std::sin(angle),
+			              point.y + x * std::sin(angle) + y * std::cos(angle)};
+		};
+		const float w = sprite.width * scale / 2, h = sprite.height * scale / 2;
+		draw->AddImageQuad(static_cast<ImTextureID>(sprite.id), corner(-w, -h), corner(w, -h), corner(w, h),
+		                   corner(-w, h), {0, 0}, {1, 0}, {1, 1}, {0, 1}, colour);
+		return;
+	}
 	for (const auto &stroke : radar_icon_strokes(icon, {point.x, point.y}, 10, heading))
 		draw->AddLine({stroke[0].x, stroke[0].y}, {stroke[1].x, stroke[1].y}, colour, 1.8f);
 }
@@ -388,7 +405,7 @@ void sprite_import(Json &render)
 		return;
 	ImGui::TextWrapped(
 	    "%s", localise("Import the PNG files first, then map each source image to an imported asset.").c_str());
-	for (const char *key : {"sprite", "normal", "depth"})
+	for (const char *key : {"sprite", "normal", "depth", "radar_icon"})
 		if (!editor.pending_sidecar.at("files").value(key, Json()).is_null())
 		{
 			ImGui::PushID(key);
@@ -400,25 +417,24 @@ void sprite_import(Json &render)
 			ImGui::PopID();
 		}
 	ImGui::Checkbox(tool_label("Import as engine effect").c_str(), &editor.import_engines);
+	auto &sidecar = editor.pending_sidecar;
+	const auto sheet = sidecar.value("sprite_sheet", Json());
+	const bool inferred_eight = sheet.is_object() && sheet.at("frames").size() == 8;
+	bool eight = sidecar.value("billboard_mode", std::string(inferred_eight ? "eight" : "camera")) == "eight";
+	if (ImGui::Checkbox(tool_label("Imported eight-direction billboard").c_str(), &eight))
+		sidecar["billboard_mode"] = eight ? "eight" : "camera";
+	real_field("Imported render scale", sidecar, "render_scale", 1, .001f, 1000000);
 	if (ImGui::Button(tool_label("Apply sprite material").c_str()))
 		attempt(
 		    [&]
 		    {
-			    const auto converted = import_sprite_sidecar(editor.pending_sidecar, editor.sidecar_images);
 			    auto catalog = editor.document.libraries();
 			    const auto prefix = editor.document.manifest().at("id").get<std::string>() + ":";
 			    for (const auto &[path, bytes] : editor.document.pack().files)
 				    if (path.starts_with("assets/"))
 					    catalog.assets[prefix + path] = bytes;
-			    compile_sprite(converted, catalog, "imported sprite");
-			    if (editor.import_engines)
-				    render["engines"] = {{"sprite", converted}, {"scale", .4}, {"range", 32}, {"power", 2}};
-			    else
-			    {
-				    render["sprite"] = converted;
-				    render["mode"] = converted["frames"].size() == 8 ? "eight" : "camera";
-				    render.erase("images");
-			    }
+			    apply_sprite_sidecar(render, editor.pending_sidecar, editor.sidecar_images, catalog,
+			                         editor.import_engines);
 			    editor.document.definitions()["schema"] = 3;
 			    editor.pending_sidecar = nullptr;
 			    editor.clear_textures();
@@ -624,6 +640,19 @@ void lighting_preview()
 void entity_properties(Json &entity)
 {
 	ImGui::TextWrapped("Reusable definition: %s", entity.at("id").get_ref<const std::string &>().c_str());
+	const auto id = entity.at("id").get<std::string>();
+	if (editor.rename_from != id)
+		editor.template_id = editor.rename_from = id;
+	ImGui::InputText(tool_label("Template ID").c_str(), &editor.template_id);
+	if (ImGui::Button(tool_label("Rename template").c_str()))
+		attempt(
+		    [&]
+		    {
+			    editor.document.rename_entity(id, editor.template_id);
+			    editor.rename_from = editor.template_id;
+			    editor.status = "Template renamed; map instances and allowed ships updated.";
+		    });
+	string_field("Display name", entity, "name");
 	if (entity.contains("extends"))
 	{
 		ImGui::TextWrapped("Inherited definition. Flatten before editing its resolved fields.");
@@ -709,8 +738,11 @@ void entity_properties(Json &entity)
 	{
 		auto &collision = entity["collision"];
 		bool box = collision["shape"] == "box";
-		if (ImGui::Checkbox(tool_label("Oriented box").c_str(), &box))
+		int shape = box ? 1 : 0;
+		const auto shapes = localise("Circle") + '\0' + localise("Oriented box") + '\0';
+		if (ImGui::Combo(tool_label("Collision type").c_str(), &shape, shapes.c_str()))
 		{
+			box = shape == 1;
 			collision["shape"] = box ? "box" : "circle";
 			if (box)
 			{
@@ -736,7 +768,13 @@ void entity_properties(Json &entity)
 	}
 	std::string console = entity.value("console", std::string{});
 	std::string controller = entity.value("controller", std::string{});
-	if (ImGui::BeginCombo(tool_label("Delegated state tree").c_str(), controller.empty() ? "None" : controller.c_str()))
+	ImGui::TextWrapped(
+	    "%s",
+	    localise(
+	        "AI behaviour runs automatic orders when this entity is not under player control. None leaves it idle.")
+	        .c_str());
+	if (ImGui::BeginCombo(tool_label("AI behaviour").c_str(),
+	                      controller.empty() ? localise("None").c_str() : controller.c_str()))
 	{
 		if (ImGui::Selectable(tool_label("None").c_str(), controller.empty()))
 			entity.erase("controller");
@@ -979,10 +1017,11 @@ void map_view()
 		{
 			const auto &render = (*definition)["render"];
 			const auto icon = render_radar_icon(render);
-			has_icon = icon != RadarIcon::contact;
+			const auto sprite = editor.texture(radar_sprite_reference(render));
+			has_icon = sprite.id || icon != RadarIcon::contact;
 			if (has_icon)
 				map_radar_icon(draw, icon, p, instance["heading_mdeg"].get<float>(),
-				               selected ? IM_COL32(255, 205, 90, 255) : IM_COL32(180, 225, 240, 255));
+				               selected ? IM_COL32(255, 205, 90, 255) : IM_COL32(180, 225, 240, 255), sprite);
 			if (!has_icon && render.contains("sprite"))
 			{
 				const auto &sprite = render.at("sprite");
@@ -1061,6 +1100,7 @@ void open_workshop_pack(const std::string &path)
 {
 	editor.imports.reset();
 	editor.document.load_pack(read_file(path));
+	editor.started = true;
 	editor.clear_textures();
 	editor.pack_name = editor.document.manifest()["id"].get<std::string>();
 	editor.definition = editor.document.definitions()["entities"].empty() ? -1 : 0;
@@ -1071,6 +1111,24 @@ void open_workshop_pack(const std::string &path)
 }
 void render_editor(Application &app)
 {
+	auto base_archive = []
+	{
+#ifdef __EMSCRIPTEN__
+		return read_file("/assets/base.zip");
+#else
+		return read_file(std::string(GetApplicationDirectory()) + "assets/base.zip");
+#endif
+	};
+	if (!editor.started && app.screen == Screen::workshop)
+	{
+		editor.started = true;
+		attempt(
+		    [&]
+		    {
+			    if (editor.document.manifest().at("id") != "phoenix-base")
+				    editor.document.load_dependency(base_archive());
+		    });
+	}
 	static ImVec2 dock_size{};
 	auto dock = ImGui::GetID("PhoenixDock");
 	auto *viewport = ImGui::GetMainViewport();
@@ -1136,8 +1194,9 @@ void render_editor(Application &app)
 					    if (!sidecar.is_object() || !sidecar.contains("files") || !sidecar.at("files").is_object())
 						    throw std::runtime_error("Sprite sidecar requires a files object");
 					    editor.pending_sidecar = sidecar;
+					    editor.import_engines = sidecar.contains("engine_effect");
 					    editor.sidecar_images.clear();
-					    for (const char *key : {"sprite", "normal", "depth"})
+					    for (const char *key : {"sprite", "normal", "depth", "radar_icon"})
 					    {
 						    const auto file = editor.pending_sidecar.at("files").value(key, Json());
 						    if (!file.is_string())
@@ -1150,6 +1209,19 @@ void render_editor(Application &app)
 						    if (editor.document.pack().files.contains(path))
 							    editor.sidecar_images[key] =
 							        editor.document.manifest().at("id").get<std::string>() + ":" + path;
+						    else
+						    {
+							    std::vector<std::string> matches;
+							    for (const auto &[asset, bytes] : editor.document.pack().files)
+								    if (asset.starts_with("assets/") && asset.ends_with("/" + leaf))
+									    matches.push_back(editor.document.manifest().at("id").get<std::string>() + ":" +
+									                      asset);
+							    for (const auto &[reference, bytes] : editor.document.libraries().assets)
+								    if (reference.ends_with("/" + leaf))
+									    matches.push_back(reference);
+							    if (matches.size() == 1)
+								    editor.sidecar_images[key] = matches.front();
+						    }
 					    }
 				    }
 				    editor.status = "Imported " + imported->filename;
@@ -1170,6 +1242,13 @@ void render_editor(Application &app)
 			{
 				editor.imports.reset();
 				editor.document.reset();
+				attempt(
+				    [&]
+				    {
+					    editor.document.load_dependency(base_archive());
+				    });
+				editor.pending_sidecar = nullptr;
+				editor.sidecar_images.clear();
 				editor.clear_textures();
 				editor.selected = 0;
 				editor.definition = -1;
@@ -1181,6 +1260,21 @@ void render_editor(Application &app)
 				    [&]
 				    {
 					    request_file(editor.imports, FilePurpose::WorkshopPack);
+				    });
+			if (ImGui::MenuItem(tool_label("Open base game pack").c_str()))
+				attempt(
+				    [&]
+				    {
+					    WorkshopDocument candidate;
+					    candidate.load_pack(base_archive());
+					    editor.document = std::move(candidate);
+					    editor.clear_textures();
+					    editor.pack_name = "phoenix-base";
+					    editor.definition = 0;
+					    editor.console = 0;
+					    editor.selected = 0;
+					    editor.pending_sidecar = nullptr;
+					    editor.status = "Opened the base game for editing. Export to save a separate pack.";
 				    });
 			if (ImGui::MenuItem(tool_label("Load dependency pack...").c_str()))
 				attempt(
@@ -1292,12 +1386,18 @@ void render_editor(Application &app)
 			ImVec2 point(origin.x + size.x / 2 + editor.pan_x + body.at("position").at("x").get<float>() * editor.zoom,
 			             origin.y + size.y / 2 + editor.pan_y - body.at("position").at("y").get<float>() * editor.zoom);
 			RadarIcon icon = RadarIcon::contact;
+			Texture2D sprite{};
 			const auto &entities = app.session->catalog().entities;
 			const auto definition = entities.find(body.at("definition").get<std::string>());
 			if (definition != entities.end())
+			{
 				icon = render_radar_icon(definition->second.at("render"));
+				const auto reference = radar_sprite_reference(definition->second.at("render"));
+				if (!reference.empty())
+					sprite = editor.textures.load(reference, app.session->catalog().assets.at(reference));
+			}
 			map_radar_icon(draw, icon, point, body.at("heading").get<float>(),
-			               editor.selected == id ? IM_COL32(255, 220, 100, 255) : IM_COL32(180, 225, 240, 255));
+			               editor.selected == id ? IM_COL32(255, 220, 100, 255) : IM_COL32(180, 225, 240, 255), sprite);
 			auto label = std::to_string(id);
 			draw->AddText(ImVec2(point.x + 14, point.y), IM_COL32_WHITE, label.c_str());
 			const auto mouse = ImGui::GetIO().MousePos;
@@ -1353,7 +1453,9 @@ void render_editor(Application &app)
 	for (std::size_t i = 0; i < definitions.size(); ++i)
 	{
 		auto id = definitions[i].at("id").get<std::string>();
-		if (ImGui::Selectable(id.c_str(), editor.definition == i))
+		const auto name = definitions[i].value("name", std::string{});
+		const auto label = (name.empty() ? id : name + " (" + id + ")") + "###" + id;
+		if (ImGui::Selectable(label.c_str(), editor.definition == i))
 		{
 			editor.definition = static_cast<int>(i);
 			editor.selected = 0;

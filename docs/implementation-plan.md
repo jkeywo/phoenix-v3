@@ -36,6 +36,8 @@ RmlUi is the player UI; ImGui docking is Workshop/GM. Player screen readers are 
 
 ## Execution record
 
+- Workshop authoring, 18 October 2026: entity-template ID/display-name editing, reference-safe renames across maps/ship slots/children, a collision-shape dropdown and plain-language AI behaviour controls are implemented. Complete sprite sidecars set direction mode, height and a PNG radar icon; native/browser radars and tool maps render arbitrary verified PNG icons, including restricted remote-crew asset transfer. The shipped starter content is now the default `phoenix-base` pack, available directly in Workshop and enabled for fresh menu libraries. See [Workshop usage](workshop.md) and the [content contract](content-format.md#radar-symbols).
+
 - Viewscreen navigation aids: V2's final fixed-population dust field and world-locked reference grid now share the native/browser renderer, with own-ship camera following, detailed Workshop tuning/animated preview and saved runtime visibility/reduced-motion controls. The training Courier opts into the grid. Production-loader integration, the native/WASM/network gate and explicitly invoked OpenGL/WebGL graphical probes pass; see [settings and evidence](navigation-aids.md).
 
 - Radar symbols: sidecars/materials select abstract ship, asteroid, sun or generic-contact vectors. Native/browser radars and Workshop/GM maps share bounded geometry; ship symbols follow heading. The selected public symbol travels with existing permitted observations, without shipping other ships' definitions or maps to crew clients. Workshop exposes a selector/preview and the training pack includes editable calibrated sidecars. Verification and smoke evidence are recorded in [comic rendering](comic-rendering.md).

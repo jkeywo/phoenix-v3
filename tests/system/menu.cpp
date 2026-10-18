@@ -64,6 +64,18 @@ int main()
 		draft.files["definitions.json"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json");
 		draft.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
 		const auto archive = write_pack(draft);
+		MenuLibrary first_run(directory + "/first-run");
+		first_run.load();
+		first_run.install_default(archive);
+		require(first_run.packs.size() == 1 && first_run.packs.front().enabled &&
+		            first_run.archives(first_run.packs).front() == archive,
+		        "a fresh library starts with a verified default pack enabled");
+		auto disabled_default = first_run.packs;
+		disabled_default.front().enabled = false;
+		first_run.apply(disabled_default);
+		first_run.install_default(archive);
+		require(first_run.packs.size() == 1 && !first_run.packs.front().enabled,
+		        "default installation preserves deliberate disabling and does not duplicate a pack");
 		library.install(archive);
 		require(library.packs.size() == 1 && !library.packs.front().enabled,
 		        "Imports are retained but do not silently activate");

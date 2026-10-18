@@ -174,6 +174,16 @@ Catalog resolve(const std::vector<PackView> &ordered)
 	inherit(result.consoles, "consoles");
 	inherit(result.trees, "trees");
 	verify_catalog(result);
+	// Public icon aliases use identical addresses in full and restricted catalogues.
+	for (const auto &[id, entity] : result.entities)
+	{
+		const auto reference = radar_sprite_reference(entity.at("render"));
+		if (!reference.empty())
+		{
+			const auto &png = result.assets.at(reference);
+			result.assets[radar_sprite_id(png)] = png;
+		}
+	}
 	return result;
 }
 } // namespace
@@ -222,6 +232,13 @@ void verify_catalog(const Catalog &catalog)
 		if (render.contains("reference_grid"))
 			compile_reference_grid(render.at("reference_grid"), path + ".render.reference_grid");
 		render_radar_icon(render);
+		const auto radar_sprite = radar_sprite_reference(render);
+		if (!radar_sprite.empty())
+		{
+			Json icon = {{"albedo", radar_sprite},
+			             {"frames", Json::array({{{"name", "icon"}, {"rect", {0, 0, 1, 1}}, {"pivot", {0, 0}}}})}};
+			compile_sprite(icon, catalog, path + ".render.radar_sprite");
+		}
 		auto mode = text(render, "mode", path + ".render");
 		if (mode != "camera" && mode != "eight")
 			invalid(path + ".render.mode", "supported values are camera and eight");

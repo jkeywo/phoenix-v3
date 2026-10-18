@@ -5,7 +5,8 @@
 	"files": {
 		"sprite": "asteroid-albedo.png",
 		"normal": "asteroid-normal.png",
-		"depth": "asteroid-depth.png"
+		"depth": "asteroid-depth.png",
+		"radar_icon": "../radar/asteroid.png"
 	},
 	"image_size": [1254, 1254],
 	"coordinate_system": "frame_pixels_top_left_y_down",
@@ -49,5 +50,6 @@
 	"markers": {},
 	"marker_notes": "No authored effect attachment points. Maps have approximate registration; sprite alpha is authoritative.",
 	"emissive": false,
-	"radar_icon": "asteroid"
+	"billboard_mode": "camera",
+	"render_scale": 12
 }

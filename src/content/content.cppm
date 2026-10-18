@@ -90,7 +90,12 @@ struct SpriteMaterial
 	std::vector<SpriteFrame> frames;
 	bool emissive = false;
 	RadarIcon radar_icon = RadarIcon::contact;
+	std::string radar_sprite;
 };
+// Public PNG icon; content-addressed references travel with radar observations.
+std::string radar_sprite_reference(const Json &render);
+std::string radar_sprite_id(const Bytes &png);
+std::string render_radar_sprite(const Json &render, const Catalog &catalog);
 // A small, public symbol selection; no image or hidden entity data is needed.
 RadarIcon compile_radar_icon(const Json &value, const std::string &path);
 RadarIcon render_radar_icon(const Json &render);
@@ -101,6 +106,8 @@ void verify_lighting(const Json &lighting, const std::string &path);
 // Convert an imported source sidecar to the canonical pack material. Image
 // references must already have been imported and resolved by the caller.
 Json import_sprite_sidecar(const Json &sidecar, const std::map<std::string, std::string> &images);
+void apply_sprite_sidecar(Json &render, const Json &sidecar, const std::map<std::string, std::string> &images,
+                          const Catalog &catalog, bool engine_effect = false);
 // Throws an actionable exception. ZIP is read into bounded memory, never
 // extracted to caller-controlled paths on disk.
 Pack read_pack(std::span<const std::uint8_t> bytes);
@@ -189,6 +196,7 @@ public:
 	void new_map(const std::string &id);
 	void select_map(std::size_t index);
 	std::string create_entity(const std::string &parent = {});
+	void rename_entity(const std::string &from, const std::string &to);
 	std::uint64_t place(const std::string &definition, std::int64_t x, std::int64_t y);
 	void erase(std::uint64_t instance);
 	void duplicate(std::uint64_t instance);

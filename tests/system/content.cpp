@@ -124,6 +124,65 @@ int main()
 		auto sprite_archive = write_pack(sprite_draft);
 		auto sprite_catalog = resolve_packs({read_pack(sprite_archive)});
 		const auto compiled = compile_sprite(sprite, sprite_catalog, "test material");
+		// A complete sidecar configures a hull transactionally, including its
+		// public PNG icon and render size, through the real authoring/loader path.
+		auto complete_sidecar = Json{{"schema_version", 1},
+		                             {"id", "synthetic"},
+		                             {"coordinate_system", "frame_pixels_top_left_y_down"},
+		                             {"image_size", {1, 1}},
+		                             {"pivot", {.5, .5}},
+		                             {"markers", Json::object()},
+		                             {"render_scale", 7},
+		                             {"billboard_mode", "camera"},
+		                             {"files", {{"sprite", "pixel.png"}, {"radar_icon", "icon.png"}}}};
+		Json imported_render = {{"mode", "eight"}, {"scale", 1}, {"images", Json::array()}};
+		const std::map<std::string, std::string> mapped_images = {{"sprite", "test-core:assets/pixel.png"},
+		                                                          {"radar_icon", "test-core:assets/pixel.png"}};
+		apply_sprite_sidecar(imported_render, complete_sidecar, mapped_images, sprite_catalog);
+		require(imported_render.at("mode") == "camera" && imported_render.at("scale") == 7 &&
+		            imported_render.at("sprite").at("radar_sprite") == "test-core:assets/pixel.png" &&
+		            !imported_render.contains("images"),
+		        "sidecar applies mode, scale and an imported radar sprite together");
+		auto eight_sidecar = complete_sidecar;
+		eight_sidecar["billboard_mode"] = "eight";
+		eight_sidecar["sprite_sheet"] = {{"frames", Json::array()}};
+		for (int i = 0; i < 8; ++i)
+			eight_sidecar["sprite_sheet"]["frames"].push_back({{"name", std::to_string(i)},
+			                                                   {"rect", {0, 0, 1, 1}},
+			                                                   {"pivot", {.5, .5}},
+			                                                   {"camera_azimuth_degrees", i * 45},
+			                                                   {"markers", Json::object()}});
+		apply_sprite_sidecar(imported_render, eight_sidecar, mapped_images, sprite_catalog);
+		require(imported_render.at("mode") == "eight" && imported_render.at("sprite").at("frames").size() == 8,
+		        "eight-bearing sidecar sets the render mode without separate image selection");
+		eight_sidecar["billboard_mode"] = "camera";
+		const auto before_refusal = imported_render;
+		rejected(
+		    [&]
+		    {
+			    apply_sprite_sidecar(imported_render, eight_sidecar, mapped_images, sprite_catalog);
+		    },
+		    "billboard_mode");
+		require(imported_render == before_refusal, "incompatible sidecar leaves the current sprites intact");
+		sprite_defs["entities"][0]["render"] = imported_render;
+		sprite_draft.files["definitions.json"] = json_bytes(sprite_defs);
+		const auto radar_catalog = resolve_packs({read_pack(write_pack(sprite_draft))});
+		const auto radar_bundle = resolve_packs({console_assets(radar_catalog, "test.ship")});
+		const auto icon_id = render_radar_sprite(imported_render, radar_catalog);
+		WorkshopDocument new_mod;
+		new_mod.load_dependency(write_pack(sprite_draft));
+		new_mod.create_entity();
+		new_mod.verify();
+		require(!icon_id.empty() && radar_bundle.assets.contains(icon_id) && radar_catalog.assets.contains(icon_id),
+		        "public radar sprites have the same content address locally and in the restricted crew bundle");
+		auto missing_icon = imported_render;
+		missing_icon["sprite"]["radar_sprite"] = "test-core:assets/missing.png";
+		rejected(
+		    [&]
+		    {
+			    compile_sprite(missing_icon.at("sprite"), sprite_catalog, "radar_sprite");
+		    },
+		    "radar_sprite");
 		const Json sidecar = {{"schema_version", 1},     {"radar_icon", "asteroid"},
 		                      {"id", "synthetic"},       {"coordinate_system", "frame_pixels_top_left_y_down"},
 		                      {"image_size", {1, 1}},    {"pivot", {.5, .5}},
@@ -301,6 +360,25 @@ int main()
 		auto saved_map = workshop.save_map();
 		workshop.erase(instance);
 		workshop.load_map(saved_map);
+		workshop.new_map("workshop.second");
+		workshop.place(definition, 0, 0);
+		workshop.definitions()["entities"].push_back({{"id", "workshop.child"}, {"extends", definition}});
+		workshop.rename_entity(definition, "workshop.renamed");
+		require(workshop.definitions()["maps"][0]["entities"][0]["definition"] == "workshop.renamed" &&
+		            workshop.definitions()["maps"][0]["ship_slots"][0]["allowed_ships"][0] == "workshop.renamed" &&
+		            workshop.map()["entities"][0]["definition"] == "workshop.renamed" &&
+		            workshop.definitions()["entities"][1]["extends"] == "workshop.renamed",
+		        "template rename repairs all maps, ship slots and inherited templates");
+		const auto renamed = workshop.definitions();
+		rejected(
+		    [&]
+		    {
+			    workshop.rename_entity("workshop.renamed", "workshop.child");
+		    },
+		    "already exists");
+		require(workshop.definitions() == renamed, "conflicting template rename preserves the draft");
+		definition = "workshop.renamed";
+		workshop.select_map(0);
 		require(workshop.map()["entities"].size() == 2, "map load must restore authored transforms and instances");
 		auto authored = workshop.export_pack();
 		WorkshopDocument reopened;

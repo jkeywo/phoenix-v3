@@ -10,6 +10,7 @@ struct Definition
 {
 	std::string name;
 	RadarIcon radar_icon = RadarIcon::contact;
+	std::string radar_sprite;
 };
 struct Pose
 {

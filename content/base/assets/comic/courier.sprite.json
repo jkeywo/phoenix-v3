@@ -5,7 +5,8 @@
 	"files": {
 		"sprite": "courier-albedo.png",
 		"normal": "courier-normal.png",
-		"depth": "courier-depth.png"
+		"depth": "courier-depth.png",
+		"radar_icon": "../radar/ship.png"
 	},
 	"image_size": [1983, 793],
 	"coordinate_system": "frame_pixels_top_left_y_down",
@@ -167,5 +168,6 @@
 	"markers": {},
 	"marker_notes": "Nozzle centres visually estimated; forward-view hidden nozzles inferred. Broadside nozzles coincide. Port/starboard are ship-relative. Attachment render order comes from the parent marker. Normal/depth maps have approximate feature and alpha registration; use sprite alpha for coverage.",
 	"emissive": false,
-	"radar_icon": "ship"
+	"billboard_mode": "eight",
+	"render_scale": 8
 }

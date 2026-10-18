@@ -35,6 +35,7 @@ public:
 	void load();
 	void remember();
 	void install(const Bytes &archive);
+	void install_default(const Bytes &archive);
 	std::vector<Bytes> archives(const std::vector<LibraryPack> &selection) const;
 	void apply(const std::vector<LibraryPack> &selection);
 	ManagedSave store_save(const Bytes &archive, const std::string &name, const std::string &scenario);

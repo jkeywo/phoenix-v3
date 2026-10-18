@@ -44,6 +44,7 @@ int main(int argc, char **)
 			auto symbols = fixture;
 			symbols["entities"][0]["render"]["radar_icon"] = "ship";
 			symbols["entities"][1]["render"]["radar_icon"] = "asteroid";
+			symbols["entities"][1]["render"]["radar_sprite"] = "test-core:assets/pixel.png";
 			symbols["maps"][0]["entities"][1]["definition"] = "test.variant";
 			World radar_symbols;
 			radar_symbols.load(load(symbols), "test.map");
@@ -52,6 +53,8 @@ int main(int argc, char **)
 			require(view->own.radar_icon == RadarIcon::ship && view->contacts.size() == 1 &&
 			            view->contacts[0].radar_icon == RadarIcon::asteroid,
 			        "radar projection supplies only visible contacts and their authored public symbols");
+			require(view->contacts[0].radar_sprite == radar_sprite_id(catalog.assets.at("test-core:assets/pixel.png")),
+			        "detected contacts carry the public radar PNG address through production simulation");
 			radar_symbols.submit(101, {1, "radar_enabled", 0});
 			radar_symbols.tick();
 			require(radar_symbols.observe(101)->contacts.empty(), "symbol metadata must not bypass radar disable");

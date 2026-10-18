@@ -3,7 +3,8 @@
 	"id": "sun",
 	"description": "Packaged sun material; calibrated maps and abstract radar symbol. Original source inputs remain in raw/.",
 	"files": {
-		"sprite": "sun-albedo.png"
+		"sprite": "sun-albedo.png",
+		"radar_icon": "../radar/sun.png"
 	},
 	"image_size": [1254, 1254],
 	"coordinate_system": "frame_pixels_top_left_y_down",
@@ -28,5 +29,6 @@
 	"pivot": [627, 627],
 	"markers": {},
 	"emissive": true,
-	"radar_icon": "sun"
+	"billboard_mode": "camera",
+	"render_scale": 14
 }

@@ -7,7 +7,7 @@
 				"mode": "eight",
 				"scale": 8,
 				"sprite": {
-					"albedo": "phoenix-training:assets/comic/courier-albedo.png",
+					"albedo": "phoenix-base:assets/comic/courier-albedo.png",
 					"frames": [
 						{
 							"name": "bow",
@@ -186,13 +186,13 @@
 							}
 						}
 					],
-					"radar_icon": "ship",
-					"depth": "phoenix-training:assets/comic/courier-depth.png",
-					"normal": "phoenix-training:assets/comic/courier-normal.png"
+					"depth": "phoenix-base:assets/comic/courier-depth.png",
+					"normal": "phoenix-base:assets/comic/courier-normal.png",
+					"radar_sprite": "phoenix-base:assets/radar/ship.png"
 				},
 				"engines": {
 					"sprite": {
-						"albedo": "phoenix-training:assets/comic/thrust-albedo.png",
+						"albedo": "phoenix-base:assets/comic/thrust-albedo.png",
 						"frames": [
 							{
 								"name": "bow",
@@ -312,11 +312,11 @@
 			"extends": "training.survey",
 			"render": {
 				"mode": "camera",
-				"images": ["phoenix-training:assets/ship-0.png"],
+				"images": ["phoenix-base:assets/ship-0.png"],
 				"scale": 12,
 				"sprite": null,
 				"engines": null,
-				"radar_icon": "ship"
+				"radar_sprite": "phoenix-base:assets/radar/ship.png"
 			},
 			"systems": {
 				"engine": {
@@ -339,7 +339,7 @@
 			"id": "training.beacon",
 			"render": {
 				"mode": "camera",
-				"images": ["phoenix-training:assets/beacon.png"],
+				"images": ["phoenix-base:assets/beacon.png"],
 				"scale": 6
 			},
 			"systems": {},
@@ -355,7 +355,7 @@
 				"mode": "camera",
 				"scale": 12,
 				"sprite": {
-					"albedo": "phoenix-training:assets/comic/asteroid-albedo.png",
+					"albedo": "phoenix-base:assets/comic/asteroid-albedo.png",
 					"frames": [
 						{
 							"name": "asteroid",
@@ -367,9 +367,9 @@
 							"attachments": {}
 						}
 					],
-					"radar_icon": "asteroid",
-					"depth": "phoenix-training:assets/comic/asteroid-depth.png",
-					"normal": "phoenix-training:assets/comic/asteroid-normal.png"
+					"depth": "phoenix-base:assets/comic/asteroid-depth.png",
+					"normal": "phoenix-base:assets/comic/asteroid-normal.png",
+					"radar_sprite": "phoenix-base:assets/radar/asteroid.png"
 				}
 			},
 			"systems": {},
@@ -385,7 +385,7 @@
 				"mode": "camera",
 				"scale": 14,
 				"sprite": {
-					"albedo": "phoenix-training:assets/comic/sun-albedo.png",
+					"albedo": "phoenix-base:assets/comic/sun-albedo.png",
 					"frames": [
 						{
 							"name": "sun",
@@ -397,8 +397,8 @@
 							"attachments": {}
 						}
 					],
-					"radar_icon": "sun",
-					"emissive": true
+					"emissive": true,
+					"radar_sprite": "phoenix-base:assets/radar/sun.png"
 				}
 			},
 			"systems": {},

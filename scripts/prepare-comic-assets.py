@@ -11,8 +11,8 @@ from pathlib import Path
 from PIL import Image, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[1]
-OUTPUT = ROOT / "content/training/assets/comic"
-PREFIX = "phoenix-training:assets/comic/"
+OUTPUT = ROOT / "content/base/assets/comic"
+PREFIX = "phoenix-base:assets/comic/"
 
 
 def load_json(path):
@@ -30,7 +30,7 @@ def material(sidecar_path, stem, depth_span=0):
         "pivot": source["pivot"], "markers": source.get("markers", {})}]
     result = {"albedo": PREFIX + f"{stem}-albedo.png", "frames": []}
     if stem in ("courier", "asteroid", "sun"):
-        result["radar_icon"] = "ship" if stem == "courier" else stem
+        result["radar_sprite"] = "phoenix-base:assets/radar/" + ("ship" if stem == "courier" else stem) + ".png"
     depth_atlas = Image.new("L", albedo.size, 128)
     normal_atlas = Image.new("RGB", albedo.size, (128, 128, 255))
     source_depth = (Image.open(sidecar_path.parent / source["files"]["depth"]).convert("L")
@@ -98,8 +98,12 @@ def material(sidecar_path, stem, depth_span=0):
     if source_depth:
         sidecar["files"].update(normal=f"{stem}-normal.png", depth=f"{stem}-depth.png")
     sidecar["emissive"] = result.get("emissive", False)
-    if "radar_icon" in result:
-        sidecar["radar_icon"] = result["radar_icon"]
+    if "radar_sprite" in result:
+        sidecar["files"]["radar_icon"] = "../radar/" + ("ship" if stem == "courier" else stem) + ".png"
+    sidecar["billboard_mode"] = "eight" if len(frames) == 8 else "camera"
+    sidecar["render_scale"] = {"courier": 8, "asteroid": 12, "sun": 14, "thrust": 1}[stem]
+    if stem == "thrust":
+        sidecar["engine_effect"] = {"scale": .4, "range": 32, "power": 2}
     sidecar["description"] = f"Packaged {stem} material; calibrated maps and abstract radar symbol. Original source inputs remain in raw/."
     converted_frames = []
     for frame in result["frames"]:
@@ -117,7 +121,7 @@ def material(sidecar_path, stem, depth_span=0):
 
 
 def main():
-    defs_path = ROOT / "content/training/definitions.json"
+    defs_path = ROOT / "content/base/definitions.json"
     defs = load_json(defs_path)
     defs["schema"] = 3
     courier = material(ROOT/"raw/relighting-v1/courier.sprite.json", "courier", 1)
@@ -129,7 +133,7 @@ def main():
                       "engines":{"sprite":thrust, "scale":.4, "range":32, "power":2}}
     # The legacy one-view tug deliberately retains its original presentation.
     tug = next(e for e in defs["entities"] if e["id"] == "training.tug")
-    tug["render"].update(sprite=None, engines=None, radar_icon="ship")
+    tug["render"].update(sprite=None, engines=None, radar_sprite="phoenix-base:assets/radar/ship.png")
     def entity(name, sprite, height, radius):
         return {"id":name, "render":{"mode":"camera", "scale":height,"sprite":sprite},
                 "systems":{}, "collision":{"shape":"circle","radius_mm":radius,"mass_grams":0}}
