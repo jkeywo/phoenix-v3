@@ -102,11 +102,31 @@ constexpr bool operating_permitted(OperatingAction action, std::int64_t value,
 	return capabilities.contains(spec.system) && operating_value_valid(spec, value) &&
 	       (action != OperatingAction::Speed || value <= *capabilities.engine_max_speed);
 }
+enum class RadarIcon
+{
+	contact,
+	ship,
+	asteroid,
+	sun
+};
+constexpr std::array<std::string_view, 4> radar_icon_names{"contact", "ship", "asteroid", "sun"};
+constexpr std::optional<RadarIcon> radar_icon_named(std::string_view name)
+{
+	for (std::size_t i = 0; i < radar_icon_names.size(); ++i)
+		if (radar_icon_names[i] == name)
+			return static_cast<RadarIcon>(i);
+	return {};
+}
+constexpr std::string_view radar_icon_name(RadarIcon icon)
+{
+	return radar_icon_names[static_cast<std::size_t>(icon)];
+}
 struct BodyView
 {
 	EntityId id;
 	std::string definition;
 	std::int64_t x, y, vx, vy, heading;
+	RadarIcon radar_icon = RadarIcon::contact;
 };
 // Viewscreen-only visual output. Deliberately absent from radar observations.
 struct SceneBody : BodyView

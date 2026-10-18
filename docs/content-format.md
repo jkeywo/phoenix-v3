@@ -27,3 +27,11 @@ Verification resolves the final catalogue, decodes referenced PNG images, checks
 Host transfer, client cache and local sessions retain loaded pack handles instead of decoding or copying their archives again. Cache records are still hashed and loaded before use; only downloaded or repaired records are written. Session and fleet composition share in-memory container operations, with ZIP encoding at save/bundle boundaries. Power grids, services, jobs and broader GDD Systems are not yet supported and must not be represented as validated by this schema.
 
 Definitions schema 3 adds calibrated sprite materials, signed attachments and scene lighting. See the [comic rendering contract and delivery record](comic-rendering.md). Legacy image billboards remain supported.
+
+## Radar symbols
+
+Optional `render.sprite.radar_icon` selects `ship`, `asteroid`, `sun` or `contact`. Legacy image materials use `render.radar_icon` instead. Missing data defaults to the generic contact ring; unknown names fail verification. Source sprite sidecars accept the same top-level `radar_icon` string, which imports into the canonical sprite material. Packaged editable examples sit beside the training PNGs as `assets/comic/*.sprite.json`; the original raw inputs remain unchanged.
+
+These are abstract vector symbols, not reduced copies of detailed sprite art. Both native/browser radars and Workshop/GM maps use the same bounded geometry. Ship noses follow the observed heading (zero is right/east, positive turns towards screen up); rocks and suns remain upright. Glyphs retain a minimum screen size independent of physical entity scale or map zoom. Workshop Properties provides the **Radar icon** selector and a sample.
+
+Only the small symbol selection accompanies each existing permitted body observation. Remote clients do not need the contact's sprite, definition or maps added to their own-ship presentation pack. No additional contacts, ranges, headings or classification inference are introduced; the current radar still reports authored definitions as before. Packets without the optional field display a generic contact. Save-state physics and simulation fingerprints are unchanged.

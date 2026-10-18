@@ -47,6 +47,7 @@ int main()
 		auto sprite_defs = parse_json(sprite_draft.files.at("definitions.json"), "synthetic sprite");
 		sprite_defs["schema"] = 3;
 		Json sprite = {
+		    {"radar_icon", "ship"},
 		    {"albedo", "test-core:assets/pixel.png"},
 		    {"depth", "test-core:assets/pixel.png"},
 		    {"frames",
@@ -64,16 +65,21 @@ int main()
 		auto sprite_archive = write_pack(sprite_draft);
 		auto sprite_catalog = resolve_packs({read_pack(sprite_archive)});
 		const auto compiled = compile_sprite(sprite, sprite_catalog, "test material");
-		const Json sidecar = {{"schema_version", 1},
-		                      {"id", "synthetic"},
-		                      {"coordinate_system", "frame_pixels_top_left_y_down"},
-		                      {"image_size", {1, 1}},
-		                      {"pivot", {.5, .5}},
-		                      {"sprite_sheet", nullptr},
-		                      {"markers", {{"engine_port", {.5, .5, -1}}}}};
+		const Json sidecar = {{"schema_version", 1},     {"radar_icon", "asteroid"},
+		                      {"id", "synthetic"},       {"coordinate_system", "frame_pixels_top_left_y_down"},
+		                      {"image_size", {1, 1}},    {"pivot", {.5, .5}},
+		                      {"sprite_sheet", nullptr}, {"markers", {{"engine_port", {.5, .5, -1}}}}};
 		const auto imported_sprite = import_sprite_sidecar(
 		    sidecar, {{"sprite", "test-core:assets/pixel.png"}, {"depth", "test-core:assets/pixel.png"}});
 		const auto imported_material = compile_sprite(imported_sprite, sprite_catalog, "imported material");
+		require(imported_material.radar_icon == RadarIcon::asteroid && compiled.radar_icon == RadarIcon::ship,
+		        "sidecar symbols must survive import and canonical material verification");
+		rejected(
+		    [&]
+		    {
+			    compile_radar_icon("arbitrary-unknown-symbol", "test.radar_icon");
+		    },
+		    "radar_icon");
 		require(imported_material.frames.at(0).attachments.at("engine_port").layer == -1,
 		        "source-sidecar import must convert signed markers into the canonical verified vocabulary");
 		require(compiled.frames.at(0).attachments.at("engine_port").layer == -1 &&
@@ -83,6 +89,8 @@ int main()
 		require(presentation_sprite.entities.at("test.ship")["render"]["sprite"]["frames"] == sprite["frames"],
 		        "permitted sprite calibration and attachments must survive Console asset transfer");
 		require(presentation_sprite.maps.empty(), "lighting maps must not leak into the Console bundle");
+		require(render_radar_icon(presentation_sprite.entities.at("test.ship").at("render")) == RadarIcon::ship,
+		        "own-ship symbols survive the permitted bundle without exporting other entity definitions");
 		WorkshopDocument sprite_document;
 		sprite_document.load_pack(sprite_archive);
 		require(

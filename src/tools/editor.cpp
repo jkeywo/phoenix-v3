@@ -128,15 +128,16 @@ void asset_picker(const char *label, Json &value)
 	                      current.empty() ? localise("Choose PNG").c_str() : current.c_str()))
 	{
 		for (const auto &[path, bytes] : editor.document.pack().files)
-			if (path.starts_with("assets/"))
+			if (path.starts_with("assets/") && path.ends_with(".png"))
 			{
 				auto reference = editor.document.manifest().at("id").get<std::string>() + ":" + path;
 				if (ImGui::Selectable(reference.c_str(), reference == current))
 					value = reference;
 			}
 		for (const auto &[reference, bytes] : editor.document.libraries().assets)
-			if (ImGui::Selectable(reference.c_str(), reference == current))
-				value = reference;
+			if (reference.ends_with(".png"))
+				if (ImGui::Selectable(reference.c_str(), reference == current))
+					value = reference;
 		ImGui::EndCombo();
 	}
 }
@@ -146,8 +147,35 @@ void real_field(const char *label, Json &object, const char *key, float fallback
 	if (ImGui::DragFloat(tool_label(label).c_str(), &n, .01f, minimum, maximum))
 		object[key] = std::clamp(n, minimum, maximum);
 }
-void material_properties(Json &sprite)
+void radar_icon_picker(Json &material)
 {
+	const auto current = material.value("radar_icon", std::string("contact"));
+	if (ImGui::BeginCombo(tool_label("Radar icon").c_str(), localise(current).c_str()))
+	{
+		for (const auto name : radar_icon_names)
+		{
+			const std::string key(name);
+			if (ImGui::Selectable(tool_label(key).c_str(), key == current))
+				material["radar_icon"] = key;
+		}
+		ImGui::EndCombo();
+	}
+	const auto centre = ImGui::GetCursorScreenPos();
+	for (const auto &stroke : radar_icon_strokes(radar_icon_named(current).value_or(RadarIcon::contact),
+	                                             {centre.x + 14, centre.y + 14}, 10, 90000))
+		ImGui::GetWindowDrawList()->AddLine({stroke[0].x, stroke[0].y}, {stroke[1].x, stroke[1].y},
+		                                    IM_COL32(180, 225, 240, 255), 1.8f);
+	ImGui::Dummy({28, 28});
+}
+void map_radar_icon(ImDrawList *draw, RadarIcon icon, ImVec2 point, float heading, ImU32 colour)
+{
+	for (const auto &stroke : radar_icon_strokes(icon, {point.x, point.y}, 10, heading))
+		draw->AddLine({stroke[0].x, stroke[0].y}, {stroke[1].x, stroke[1].y}, colour, 1.8f);
+}
+void material_properties(Json &sprite, bool with_radar_icon = true)
+{
+	if (with_radar_icon)
+		radar_icon_picker(sprite);
 	asset_picker("Albedo PNG", sprite["albedo"]);
 	for (const char *key : {"normal", "depth"})
 	{
@@ -427,6 +455,7 @@ void entity_properties(Json &entity)
 	bool eight = render["mode"] == "eight";
 	if (!render.contains("sprite"))
 	{
+		radar_icon_picker(render);
 		if (ImGui::Checkbox(tool_label("Eight-direction billboard").c_str(), &eight))
 		{
 			render["mode"] = eight ? "eight" : "camera";
@@ -454,7 +483,7 @@ void entity_properties(Json &entity)
 			real_field("Plume scale", render["engines"], "scale", .4, .001f, 10);
 			real_field("Engine light intensity", render["engines"], "power", 2, .001f, 16);
 			real_field("Engine light range (m)", render["engines"], "range", 32, .001f, 1000000);
-			material_properties(render["engines"]["sprite"]);
+			material_properties(render["engines"]["sprite"], false);
 			ImGui::TreePop();
 		}
 	}
@@ -748,6 +777,8 @@ void map_view()
 	auto &definitions = editor.document.definitions()["entities"];
 	for (const auto &instance : editor.document.map()["entities"])
 	{
+		const bool selected = instance["id"] == editor.selected;
+		bool has_icon = false;
 		ImVec2 p{centre.x + instance["x_mm"].get<float>() * editor.zoom,
 		         centre.y - instance["y_mm"].get<float>() * editor.zoom};
 		auto definition = std::find_if(definitions.begin(), definitions.end(),
@@ -758,7 +789,12 @@ void map_view()
 		if (definition != definitions.end() && definition->contains("render"))
 		{
 			const auto &render = (*definition)["render"];
-			if (render.contains("sprite"))
+			const auto icon = render_radar_icon(render);
+			has_icon = icon != RadarIcon::contact;
+			if (has_icon)
+				map_radar_icon(draw, icon, p, instance["heading_mdeg"].get<float>(),
+				               selected ? IM_COL32(255, 205, 90, 255) : IM_COL32(180, 225, 240, 255));
+			if (!has_icon && render.contains("sprite"))
 			{
 				const auto &sprite = render.at("sprite");
 				const auto texture = editor.texture(sprite.at("albedo"));
@@ -774,7 +810,7 @@ void map_view()
 					               {p.x + half * aspect, p.y + half}, uv0, uv1);
 				}
 			}
-			if (render.contains("images") && !render["images"].empty() && render["images"][0].is_string())
+			if (!has_icon && render.contains("images") && !render["images"].empty() && render["images"][0].is_string())
 			{
 				auto texture = editor.texture(render["images"][0]);
 				if (texture.id)
@@ -785,17 +821,26 @@ void map_view()
 				}
 			}
 		}
-		bool selected = instance["id"] == editor.selected;
-		draw->AddCircle(p, selected ? 14.0f : 8.0f,
-		                selected ? IM_COL32(255, 205, 90, 255) : IM_COL32(118, 201, 232, 255));
+		if (selected || !has_icon)
+			draw->AddCircle(p, selected ? 14.0f : 8.0f,
+			                selected ? IM_COL32(255, 205, 90, 255) : IM_COL32(118, 201, 232, 255));
 		float angle = instance["heading_mdeg"].get<float>() * 3.14159265f / 180000;
-		draw->AddLine(p, {p.x + 20 * std::cos(angle), p.y - 20 * std::sin(angle)}, IM_COL32(118, 201, 232, 255));
+		if (!has_icon)
+			draw->AddLine(p, {p.x + 20 * std::cos(angle), p.y - 20 * std::sin(angle)}, IM_COL32(118, 201, 232, 255));
 		float d = std::hypot(p.x - io.MousePos.x, p.y - io.MousePos.y);
 		if (d < distance)
 		{
 			distance = d;
 			nearest = instance["id"];
 		}
+	}
+	for (const auto &slot : editor.document.map()["ship_slots"])
+	{
+		const ImVec2 point{centre.x + slot["x_mm"].get<float>() * editor.zoom,
+		                   centre.y - slot["y_mm"].get<float>() * editor.zoom};
+		map_radar_icon(draw, RadarIcon::ship, point, slot["heading_mdeg"].get<float>(), IM_COL32(125, 165, 180, 255));
+		draw->AddText({point.x + 14, point.y}, IM_COL32(125, 165, 180, 255),
+		              slot.at("id").get_ref<const std::string &>().c_str());
 	}
 	draw->PopClipRect();
 	if (hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && editor.definition >= 0 &&
@@ -1057,10 +1102,15 @@ void render_editor(Application &app)
 			const auto id = body.at("id").get<std::uint64_t>();
 			ImVec2 point(origin.x + size.x / 2 + editor.pan_x + body.at("position").at("x").get<float>() * editor.zoom,
 			             origin.y + size.y / 2 + editor.pan_y - body.at("position").at("y").get<float>() * editor.zoom);
-			draw->AddCircleFilled(point, 6,
-			                      editor.selected == id ? IM_COL32(255, 220, 100, 255) : IM_COL32(100, 200, 240, 255));
+			RadarIcon icon = RadarIcon::contact;
+			const auto &entities = app.session->catalog().entities;
+			const auto definition = entities.find(body.at("definition").get<std::string>());
+			if (definition != entities.end())
+				icon = render_radar_icon(definition->second.at("render"));
+			map_radar_icon(draw, icon, point, body.at("heading").get<float>(),
+			               editor.selected == id ? IM_COL32(255, 220, 100, 255) : IM_COL32(180, 225, 240, 255));
 			auto label = std::to_string(id);
-			draw->AddText(ImVec2(point.x + 8, point.y), IM_COL32_WHITE, label.c_str());
+			draw->AddText(ImVec2(point.x + 14, point.y), IM_COL32_WHITE, label.c_str());
 			const auto mouse = ImGui::GetIO().MousePos;
 			if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
 			    std::hypot(mouse.x - point.x, mouse.y - point.y) < 12)

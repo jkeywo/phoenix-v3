@@ -1,0 +1,102 @@
+{
+	"schema_version": 1,
+	"id": "courier-thrust",
+	"description": "Packaged thrust material; calibrated maps and abstract radar symbol. Original source inputs remain in raw/.",
+	"files": {
+		"sprite": "thrust-albedo.png"
+	},
+	"image_size": [1774, 887],
+	"coordinate_system": "frame_pixels_top_left_y_down",
+	"sprite_color_space": "srgb",
+	"normal_encoding": null,
+	"depth_encoding": null,
+	"sprite_sheet": {
+		"kind": "directions",
+		"frames": [
+			{
+				"name": "bow",
+				"rect": [0, 0, 443, 443],
+				"pivot": [222, 230],
+				"camera_azimuth_degrees": 0,
+				"depth_scale": 0,
+				"depth_offset": 0,
+				"markers": {},
+				"attachment_depth_offsets": {}
+			},
+			{
+				"name": "bow_port",
+				"rect": [443, 0, 444, 443],
+				"pivot": [80, 222],
+				"camera_azimuth_degrees": 45,
+				"depth_scale": 0,
+				"depth_offset": 0,
+				"markers": {},
+				"attachment_depth_offsets": {}
+			},
+			{
+				"name": "port",
+				"rect": [887, 0, 443, 443],
+				"pivot": [49, 230],
+				"camera_azimuth_degrees": 90,
+				"depth_scale": 0,
+				"depth_offset": 0,
+				"markers": {},
+				"attachment_depth_offsets": {}
+			},
+			{
+				"name": "stern_port",
+				"rect": [1330, 0, 444, 443],
+				"pivot": [98, 222],
+				"camera_azimuth_degrees": 135,
+				"depth_scale": 0,
+				"depth_offset": 0,
+				"markers": {},
+				"attachment_depth_offsets": {}
+			},
+			{
+				"name": "stern",
+				"rect": [0, 443, 443, 444],
+				"pivot": [222, 218],
+				"camera_azimuth_degrees": 180,
+				"depth_scale": 0,
+				"depth_offset": 0,
+				"markers": {},
+				"attachment_depth_offsets": {}
+			},
+			{
+				"name": "stern_starboard",
+				"rect": [443, 443, 444, 444],
+				"pivot": [346, 209],
+				"camera_azimuth_degrees": 225,
+				"depth_scale": 0,
+				"depth_offset": 0,
+				"markers": {},
+				"attachment_depth_offsets": {}
+			},
+			{
+				"name": "starboard",
+				"rect": [887, 443, 443, 444],
+				"pivot": [394, 209],
+				"camera_azimuth_degrees": 270,
+				"depth_scale": 0,
+				"depth_offset": 0,
+				"markers": {},
+				"attachment_depth_offsets": {}
+			},
+			{
+				"name": "bow_starboard",
+				"rect": [1330, 443, 444, 444],
+				"pivot": [364, 209],
+				"camera_azimuth_degrees": 315,
+				"depth_scale": 0,
+				"depth_offset": 0,
+				"markers": {},
+				"attachment_depth_offsets": {}
+			}
+		]
+	},
+	"pivot": null,
+	"markers": {},
+	"marker_notes": "Frame pivot is the approximate bright plume root. Align this pivot to the parent engine marker. The parent marker selects a signed layer offset; no automatic scale or animation is implied.",
+	"emissive": true
+}

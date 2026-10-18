@@ -29,6 +29,8 @@ def material(sidecar_path, stem, depth_span=0):
         "name": source["id"], "rect": [0, 0, *source["image_size"]],
         "pivot": source["pivot"], "markers": source.get("markers", {})}]
     result = {"albedo": PREFIX + f"{stem}-albedo.png", "frames": []}
+    if stem in ("courier", "asteroid", "sun"):
+        result["radar_icon"] = "ship" if stem == "courier" else stem
     depth_atlas = Image.new("L", albedo.size, 128)
     normal_atlas = Image.new("RGB", albedo.size, (128, 128, 255))
     source_depth = (Image.open(sidecar_path.parent / source["files"]["depth"]).convert("L")
@@ -88,6 +90,29 @@ def material(sidecar_path, stem, depth_span=0):
         result.update(depth=PREFIX+f"{stem}-depth.png", normal=PREFIX+f"{stem}-normal.png")
     else:
         result["emissive"] = True
+    # Editable, portable sidecars sit beside the packaged maps. Never add
+    # metadata to the original art inputs in raw/.
+    sidecar = dict(source)
+    sidecar.pop("$schema", None)
+    sidecar["files"] = {"sprite": f"{stem}-albedo.png"}
+    if source_depth:
+        sidecar["files"].update(normal=f"{stem}-normal.png", depth=f"{stem}-depth.png")
+    sidecar["emissive"] = result.get("emissive", False)
+    if "radar_icon" in result:
+        sidecar["radar_icon"] = result["radar_icon"]
+    sidecar["description"] = f"Packaged {stem} material; calibrated maps and abstract radar symbol. Original source inputs remain in raw/."
+    converted_frames = []
+    for frame in result["frames"]:
+        converted_frames.append({"name": frame["name"], "rect": frame["rect"], "pivot": frame["pivot"],
+            "camera_azimuth_degrees": frame["azimuth"], "depth_scale": frame["depth_scale"],
+            "depth_offset": frame["depth_offset"], "markers": {
+                name: [a["x"], a["y"], a["layer"]] for name, a in frame["attachments"].items()},
+            "attachment_depth_offsets": {name: a["depth_offset"] for name, a in frame["attachments"].items()}})
+    sidecar["sprite_sheet"] = {"kind": "directions", "frames": converted_frames}
+    if source_depth:
+        sidecar["normal_encoding"]["quality"] = "derived_from_calibrated_depth"
+        sidecar["depth_encoding"]["quality"] = "calibrated_draft"
+    (OUTPUT / f"{stem}.sprite.json").write_text(json.dumps(sidecar, indent=2)+"\n", encoding="utf-8")
     return result
 
 
@@ -104,7 +129,7 @@ def main():
                       "engines":{"sprite":thrust, "scale":.4, "range":32, "power":2}}
     # The legacy one-view tug deliberately retains its original presentation.
     tug = next(e for e in defs["entities"] if e["id"] == "training.tug")
-    tug["render"].update(sprite=None, engines=None)
+    tug["render"].update(sprite=None, engines=None, radar_icon="ship")
     def entity(name, sprite, height, radius):
         return {"id":name, "render":{"mode":"camera", "scale":height,"sprite":sprite},
                 "systems":{}, "collision":{"shape":"circle","radius_mm":radius,"mass_grams":0}}

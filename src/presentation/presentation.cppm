@@ -16,6 +16,23 @@ export import phoenix.navigation;
 
 export namespace phoenix
 {
+// Normalised top-down geometry shared by raylib radars and ImGui tool maps.
+// Heading zero points right; positive headings turn towards screen up.
+struct RadarGlyph
+{
+	std::array<std::array<Vector2, 2>, 32> lines{};
+	std::size_t count = 0;
+	auto begin() const
+	{
+		return lines.begin();
+	}
+	auto end() const
+	{
+		return lines.begin() + count;
+	}
+};
+RadarGlyph radar_icon_strokes(RadarIcon icon, Vector2 centre, float radius, float heading);
+void draw_radar_icon(RadarIcon icon, Vector2 centre, float radius, float heading, Color colour);
 enum class SceneDiagnostic
 {
 	comic,

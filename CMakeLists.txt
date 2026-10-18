@@ -241,6 +241,7 @@ add_library(
 	src/presentation/screen.cpp
 	src/presentation/game.cpp
 	src/presentation/scene.cpp
+	src/presentation/icons.cpp
 )
 add_library(phoenix_devices STATIC)
 if(EMSCRIPTEN)

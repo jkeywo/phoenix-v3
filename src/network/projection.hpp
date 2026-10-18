@@ -3,13 +3,20 @@ namespace phoenix::network
 {
 static inline Json body_json(const BodyView &body)
 {
-	return {{"id", body.id}, {"definition", body.definition}, {"x", body.x}, {"y", body.y}, {"vx", body.vx},
-	        {"vy", body.vy}, {"heading", body.heading}};
+	return {{"id", body.id},
+	        {"definition", body.definition},
+	        {"x", body.x},
+	        {"y", body.y},
+	        {"vx", body.vx},
+	        {"vy", body.vy},
+	        {"heading", body.heading},
+	        {"radar_icon", std::string(radar_icon_name(body.radar_icon))}};
 }
 static inline BodyView read_body(const Json &value)
 {
 	BodyView body{value.at("id"), value.at("definition"), value.at("x"),      value.at("y"),
 	              value.at("vx"), value.at("vy"),         value.at("heading")};
+	body.radar_icon = compile_radar_icon(value.value("radar_icon", Json("contact")), "projected body.radar_icon");
 	if (!body.id || body.heading < 0 || body.heading >= 360000 || body.definition.size() > 256)
 		throw std::runtime_error("Invalid projected body");
 	for (auto coordinate : {body.x, body.y, body.vx, body.vy})

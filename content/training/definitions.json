@@ -186,6 +186,7 @@
 							}
 						}
 					],
+					"radar_icon": "ship",
 					"depth": "phoenix-training:assets/comic/courier-depth.png",
 					"normal": "phoenix-training:assets/comic/courier-normal.png"
 				},
@@ -300,7 +301,8 @@
 				"images": ["phoenix-training:assets/ship-0.png"],
 				"scale": 12,
 				"sprite": null,
-				"engines": null
+				"engines": null,
+				"radar_icon": "ship"
 			},
 			"systems": {
 				"engine": {
@@ -351,6 +353,7 @@
 							"attachments": {}
 						}
 					],
+					"radar_icon": "asteroid",
 					"depth": "phoenix-training:assets/comic/asteroid-depth.png",
 					"normal": "phoenix-training:assets/comic/asteroid-normal.png"
 				}
@@ -380,6 +383,7 @@
 							"attachments": {}
 						}
 					],
+					"radar_icon": "sun",
 					"emissive": true
 				}
 			},

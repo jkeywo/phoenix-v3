@@ -678,22 +678,17 @@ struct GameScreen::State
 						DrawCircleLinesV(centre, radius * ring / 4, Color{45, 91, 111, 255});
 					DrawLineV({centre.x - radius, centre.y}, {centre.x + radius, centre.y}, Color{45, 91, 111, 255});
 					DrawLineV({centre.x, centre.y - radius}, {centre.x, centre.y + radius}, Color{45, 91, 111, 255});
-					const float heading = static_cast<float>(observation->own.heading) * pi / 180000;
-					auto rotate = [&](float x, float y)
-					{
-						return Vector2{centre.x + x * std::cos(heading) - y * std::sin(heading),
-						               centre.y - x * std::sin(heading) - y * std::cos(heading)};
-					};
-					DrawTriangle(rotate(6, 0), rotate(-5, 4), rotate(-5, -4), WHITE);
+					draw_radar_icon(observation->own.radar_icon, centre, 9,
+					                static_cast<float>(observation->own.heading), WHITE);
 					const double range =
 					    systems.contains("radar") ? systems.at("radar").at("range_mm").get<double>() : 1;
 					for (const auto &contact : observation->contacts)
 					{
 						Vector2 point{centre.x + static_cast<float>((contact.x - observation->own.x) / range) * radius,
 						              centre.y - static_cast<float>((contact.y - observation->own.y) / range) * radius};
-						DrawCircleV(point, 4, SKYBLUE);
+						draw_radar_icon(contact.radar_icon, point, 7, static_cast<float>(contact.heading), SKYBLUE);
 						DrawText(TextFormat("#%llu", static_cast<unsigned long long>(contact.id)),
-						         static_cast<int>(point.x + 6), static_cast<int>(point.y), 14, WHITE);
+						         static_cast<int>(point.x + 10), static_cast<int>(point.y), 14, WHITE);
 					}
 					EndScissorMode();
 				}

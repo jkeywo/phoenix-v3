@@ -1,5 +1,6 @@
 // Explicit graphical smoke, not an automatic golden or performance gate.
 #include <raylib.h>
+#include <rlgl.h>
 #include <algorithm>
 #include <iostream>
 #include <stdexcept>
@@ -182,6 +183,30 @@ int main()
 		UnloadImage(capture);
 		require(burst.r > fore.r + 20,
 		        "internal explosion event must illuminate a receiver without a gameplay trigger");
+		BeginDrawing();
+		ClearBackground({8, 16, 23, 255});
+		DrawText("Shared radar symbols / native + browser", 30, 24, 22, WHITE);
+		const RadarIcon icons[] = {RadarIcon::ship, RadarIcon::asteroid, RadarIcon::sun, RadarIcon::contact};
+		for (int column = 0; column < 4; ++column)
+		{
+			const float x = 160.f + column * 125;
+			const std::string name(radar_icon_name(icons[column]));
+			DrawText(name.c_str(), static_cast<int>(x - 30), 72, 18, SKYBLUE);
+			for (int row = 0; row < 4; ++row)
+			{
+				const float diameter = 12.f + row * 4;
+				const float y = 130.f + row * 70;
+				if (column == 0)
+					DrawText(TextFormat("%d px", static_cast<int>(diameter)), 30, static_cast<int>(y - 8), 18, WHITE);
+				draw_radar_icon(icons[column], {x, y}, diameter / 2, 90000, SKYBLUE);
+			}
+		}
+		DrawText("Ship heading follows the contact; other symbols stay upright.", 30, 430, 18, WHITE);
+		rlDrawRenderBatchActive();
+		capture = LoadImageFromScreen();
+		ExportImage(capture, "radar-icons-smoke.png");
+		UnloadImage(capture);
+		EndDrawing();
 
 		std::cout << "PASS production-loader graphical sprite depth, flat fallback, directional engines and internal "
 		             "explosion lighting\n";

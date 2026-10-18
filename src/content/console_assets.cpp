@@ -23,6 +23,8 @@ Pack console_assets(const Catalog &catalog, const std::string &ship)
 	entity["render"] = {{"mode", source.at("render").at("mode")},
 	                    {"scale", source.at("render").at("scale")},
 	                    {"images", Json::array()}};
+	if (!source.at("render").contains("sprite") && source.at("render").contains("radar_icon"))
+		entity["render"]["radar_icon"] = std::string(radar_icon_name(render_radar_icon(source.at("render"))));
 	auto copy_image = [&](const Json &image)
 	{
 		const auto &bytes = catalog.assets.at(image.get<std::string>());
@@ -39,6 +41,9 @@ Pack console_assets(const Catalog &catalog, const std::string &ship)
 				if (original.contains(field) && !original.at(field).is_null())
 					material[field] = copy_image(original.at(field));
 			material["emissive"] = original.value("emissive", false);
+			if (original.contains("radar_icon"))
+				material["radar_icon"] =
+				    std::string(radar_icon_name(compile_radar_icon(original.at("radar_icon"), "radar_icon")));
 			for (const auto &f : original.at("frames"))
 			{
 				Json frame;

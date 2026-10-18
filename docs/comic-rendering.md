@@ -4,6 +4,10 @@ Implementation began after foundation commit `5a0dffe`, whose native/WASM/system
 
 ## Material contract
 
+The subsequent radar-symbol increment adds optional `radar_icon` to sprite materials and source sidecars. It selects shared vector ship, asteroid, sun or generic-contact geometry for native/browser radars and Workshop/GM maps. See the [radar symbol contract](content-format.md#radar-symbols). The manually invoked comic probe also writes `radar-icons-smoke.png`, showing the symbols at 12, 16, 20 and 24 pixels.
+
+Radar-symbol verification on 18 October passed all 11 native integration cases, the WASM checks and native/WASM continuation comparison. The OpenGL/WebGL size chart was inspected, along with the actual browser Workshop map, gameplay radar and host-approved remote GM map. The first live remote crew join passed its symbol assertions; the later confirmed replacement reconnect again timed out as recorded below. Existing dense-contact overlap/label placement is unchanged. Captures are under `build/radar-*-browser.png` and `build/native/Release/radar-icons-smoke.png`. A running native window was left untouched; the updated game linked as `build/native/Release/native-radar.exe` for verification.
+
 Definitions schema 3 adds optional `render.sprite` and `render.engines`. Schema 1/2 packs retain their existing `images` billboard path. The existing positive `render.scale` is rendered height in world metres.
 
 A sprite material contains `albedo`, optional `normal` and `depth` PNG references, optional `emissive` (default false), and `frames` (one or eight, matching `render.mode`). All maps share atlas dimensions. Each frame contains a unique `name`, integer `rect: [x,y,width,height]`, `pivot: [x,y]`, `azimuth` in degrees from bow around port, `depth_scale` (default zero), `depth_offset` (default zero), and optional `attachments`.

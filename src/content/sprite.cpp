@@ -54,11 +54,27 @@ std::array<int, 2> image(const Catalog &catalog, const Json &reference, const st
 	return {w, h};
 }
 } // namespace
+RadarIcon compile_radar_icon(const Json &value, const std::string &path)
+{
+	if (!value.is_string())
+		bad(path, "expected contact, ship, asteroid or sun");
+	const auto icon = radar_icon_named(value.get<std::string>());
+	if (!icon)
+		bad(path, "expected contact, ship, asteroid or sun");
+	return *icon;
+}
+RadarIcon render_radar_icon(const Json &render)
+{
+	if (render.contains("sprite") && render.at("sprite").is_object())
+		return compile_radar_icon(render.at("sprite").value("radar_icon", Json("contact")), "sprite.radar_icon");
+	return compile_radar_icon(render.value("radar_icon", Json("contact")), "render.radar_icon");
+}
 SpriteMaterial compile_sprite(const Json &sprite, const Catalog &catalog, const std::string &path)
 {
 	if (!sprite.is_object() || !sprite.contains("albedo"))
 		bad(path, "expected sprite material with albedo");
 	SpriteMaterial material;
+	material.radar_icon = compile_radar_icon(sprite.value("radar_icon", Json("contact")), path + ".radar_icon");
 	const auto dimensions = image(catalog, sprite.at("albedo"), path + ".albedo");
 	material.albedo = sprite.at("albedo");
 	for (const char *field : {"normal", "depth"})
@@ -167,6 +183,13 @@ Json import_sprite_sidecar(const Json &source, const std::map<std::string, std::
 	    source.value("coordinate_system", std::string{}) != "frame_pixels_top_left_y_down")
 		bad("sidecar", "unsupported version or coordinates");
 	Json result = {{"albedo", images.at("sprite")}, {"frames", Json::array()}};
+	if (source.contains("emissive"))
+		result["emissive"] = source.at("emissive");
+	if (source.contains("radar_icon"))
+	{
+		compile_radar_icon(source.at("radar_icon"), "sidecar.radar_icon");
+		result["radar_icon"] = source.at("radar_icon");
+	}
 	for (const char *field : {"normal", "depth"})
 		if (images.contains(field))
 			result[field] = images.at(field);
@@ -183,12 +206,15 @@ Json import_sprite_sidecar(const Json &source, const std::map<std::string, std::
 		            {"rect", f.at("rect")},
 		            {"pivot", f.at("pivot")},
 		            {"azimuth", f.value("camera_azimuth_degrees", 0)},
-		            {"depth_scale", images.contains("depth") ? .5 : 0},
-		            {"depth_offset", 0},
+		            {"depth_scale", f.value("depth_scale", images.contains("depth") ? .5 : 0)},
+		            {"depth_offset", f.value("depth_offset", 0.0)},
 		            {"attachments", Json::object()}};
 		for (auto it = f.at("markers").begin(); it != f.at("markers").end(); ++it)
 			out["attachments"][it.key()] = {
-			    {"x", it.value().at(0)}, {"y", it.value().at(1)}, {"layer", it.value().at(2)}, {"depth_offset", 0}};
+			    {"x", it.value().at(0)},
+			    {"y", it.value().at(1)},
+			    {"layer", it.value().at(2)},
+			    {"depth_offset", f.value("attachment_depth_offsets", Json::object()).value(it.key(), Json(0))}};
 		result["frames"].push_back(std::move(out));
 	}
 	return result;

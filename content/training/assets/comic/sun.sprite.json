@@ -1,0 +1,32 @@
+{
+	"schema_version": 1,
+	"id": "sun",
+	"description": "Packaged sun material; calibrated maps and abstract radar symbol. Original source inputs remain in raw/.",
+	"files": {
+		"sprite": "sun-albedo.png"
+	},
+	"image_size": [1254, 1254],
+	"coordinate_system": "frame_pixels_top_left_y_down",
+	"sprite_color_space": "srgb",
+	"normal_encoding": null,
+	"depth_encoding": null,
+	"sprite_sheet": {
+		"kind": "directions",
+		"frames": [
+			{
+				"name": "sun",
+				"rect": [0, 0, 1254, 1254],
+				"pivot": [627, 627],
+				"camera_azimuth_degrees": 0,
+				"depth_scale": 0,
+				"depth_offset": 0,
+				"markers": {},
+				"attachment_depth_offsets": {}
+			}
+		]
+	},
+	"pivot": [627, 627],
+	"markers": {},
+	"emissive": true,
+	"radar_icon": "sun"
+}

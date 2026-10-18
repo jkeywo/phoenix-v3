@@ -41,6 +41,22 @@ int main(int argc, char **)
 		    {instance(1, "test.ship", 0), instance(2, "test.ship", 10000), instance(3, "test.ship", 200000)});
 		auto catalog = load(fixture);
 		{
+			auto symbols = fixture;
+			symbols["entities"][0]["render"]["radar_icon"] = "ship";
+			symbols["entities"][1]["render"]["radar_icon"] = "asteroid";
+			symbols["maps"][0]["entities"][1]["definition"] = "test.variant";
+			World radar_symbols;
+			radar_symbols.load(load(symbols), "test.map");
+			require(radar_symbols.claim(101, 1), "symbol fixture claims the normal radar Console");
+			const auto view = radar_symbols.observe(101);
+			require(view->own.radar_icon == RadarIcon::ship && view->contacts.size() == 1 &&
+			            view->contacts[0].radar_icon == RadarIcon::asteroid,
+			        "radar projection supplies only visible contacts and their authored public symbols");
+			radar_symbols.submit(101, {1, "radar_enabled", 0});
+			radar_symbols.tick();
+			require(radar_symbols.observe(101)->contacts.empty(), "symbol metadata must not bypass radar disable");
+		}
+		{
 			World propulsion;
 			propulsion.load(catalog, "test.map");
 			require(propulsion.claim(101, 1), "synthetic drive Console can be claimed");

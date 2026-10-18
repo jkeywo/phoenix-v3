@@ -257,14 +257,14 @@ p {display:block;font-size:18px;}
 				const auto radius = std::min(area.width, area.height) / 2;
 				for (int ring = 1; ring <= 4; ++ring)
 					DrawCircleLinesV(centre, radius * ring / 4, Color{45, 91, 111, 255});
-				DrawCircleV(centre, 5, WHITE);
+				draw_radar_icon(view->own.radar_icon, centre, 9, static_cast<float>(view->own.heading), WHITE);
 				for (const auto &contact : view->contacts)
 				{
 					Vector2 point{centre.x + static_cast<float>((contact.x - view->own.x) / range) * radius,
 					              centre.y - static_cast<float>((contact.y - view->own.y) / range) * radius};
-					DrawCircleV(point, 4, SKYBLUE);
+					draw_radar_icon(contact.radar_icon, point, 7, static_cast<float>(contact.heading), SKYBLUE);
 					DrawText(TextFormat("#%llu", static_cast<unsigned long long>(contact.id)),
-					         static_cast<int>(point.x + 6), static_cast<int>(point.y), 14, WHITE);
+					         static_cast<int>(point.x + 10), static_cast<int>(point.y), 14, WHITE);
 				}
 				EndScissorMode();
 			}

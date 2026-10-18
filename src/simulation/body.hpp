@@ -9,6 +9,7 @@ struct StableId
 struct Definition
 {
 	std::string name;
+	RadarIcon radar_icon = RadarIcon::contact;
 };
 struct Pose
 {

@@ -64,7 +64,11 @@ struct SpriteMaterial
 	std::string albedo, normal, depth;
 	std::vector<SpriteFrame> frames;
 	bool emissive = false;
+	RadarIcon radar_icon = RadarIcon::contact;
 };
+// A small, public symbol selection; no image or hidden entity data is needed.
+RadarIcon compile_radar_icon(const Json &value, const std::string &path);
+RadarIcon render_radar_icon(const Json &render);
 // Verified material contract, independent of GPU/platform types. Calibration
 // is in multiples of rendered height, with white toward the viewing camera.
 SpriteMaterial compile_sprite(const Json &sprite, const Catalog &catalog, const std::string &path);

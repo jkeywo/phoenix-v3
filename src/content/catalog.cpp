@@ -198,6 +198,7 @@ void verify_catalog(const Catalog &catalog)
 		if (!entity.contains("render") || !entity["render"].is_object())
 			invalid(path + ".render", "required object");
 		const auto &render = entity["render"];
+		render_radar_icon(render);
 		auto mode = text(render, "mode", path + ".render");
 		if (mode != "camera" && mode != "eight")
 			invalid(path + ".render.mode", "supported values are camera and eight");

@@ -62,13 +62,14 @@ public:
 		                                      {{"engine", {{"max_speed_mm_s", 30000}, {"acceleration_mm_s2", 2000}}},
 		                                       {"steering", {{"turn_mdeg_s", 90000}}},
 		                                       {"radar", {{"range_mm", 100000}}}}}};
-		view_.own = {1, "preview.ship", 0, 0, 0, 0, 0};
+		view_.own = {1, "preview.ship", 0, 0, 0, 0, 0, RadarIcon::ship};
 		view_.console = "main";
 		view_.controls = view_.feeds = 7;
 		view_.engine_enabled = view_.radar_enabled = true;
 		for (unsigned i = 2; i < 16; ++i)
 			view_.contacts.push_back({i, "preview.ship", static_cast<std::int64_t>(i % 4) * 17000 - 25000,
-			                          static_cast<std::int64_t>(i / 4) * 19000 - 25000, 0, 0, 0});
+			                          static_cast<std::int64_t>(i / 4) * 19000 - 25000, 0, 0,
+			                          static_cast<std::int64_t>(i) * 23000, static_cast<RadarIcon>(1 + i % 3)});
 	}
 	void layout(Json value)
 	{

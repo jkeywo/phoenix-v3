@@ -39,6 +39,7 @@ struct Clock
 };
 struct CompiledDefinition
 {
+	RadarIcon radar_icon = RadarIcon::contact;
 	Collider collider;
 	std::optional<Engine> engine;
 	std::optional<Steering> steering;
@@ -74,7 +75,8 @@ Bounds collision_bounds(const CollisionBody &body)
 }
 BodyView view(EntityId id, const Definition &definition, const Pose &pose, const Motion &motion)
 {
-	return {id, definition.name, pose.position.x, pose.position.y, motion.velocity.x, motion.velocity.y, pose.heading};
+	return {id,           definition.name,      pose.position.x, pose.position.y, motion.velocity.x, motion.velocity.y,
+	        pose.heading, definition.radar_icon};
 }
 std::optional<TreeOutput> decode(const OperatingCommand &command)
 {
@@ -289,6 +291,7 @@ struct World::Impl
 		for (const auto &[name, definition] : content.entities)
 		{
 			CompiledDefinition result;
+			result.radar_icon = render_radar_icon(definition.at("render"));
 			result.consoles = resolve_consoles(content, name);
 			result.explicit_stations = definition.contains("stations");
 			if (definition.contains("controllers"))
@@ -328,7 +331,7 @@ struct World::Impl
 		Pose pose{{transform.at("x_mm"), transform.at("y_mm")}, transform.at("heading_mdeg")};
 		auto entity = ecs.entity()
 		                  .set<StableId>({id})
-		                  .set<Definition>({definition})
+		                  .set<Definition>({definition, data.radar_icon})
 		                  .set<Pose>(pose)
 		                  .set<Motion>({})
 		                  .set<Collider>(data.collider);
