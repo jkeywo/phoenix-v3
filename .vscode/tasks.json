@@ -4,7 +4,7 @@
 		{
 			"label": "Phoenix: build native",
 			"type": "process",
-			"command": "pwsh",
+			"command": "${env:SystemRoot}/System32/WindowsPowerShell/v1.0/powershell.exe",
 			"args": ["-NoProfile", "-File", "${workspaceFolder}/scripts/build.ps1", "-Target", "native"],
 			"options": { "cwd": "${workspaceFolder}" },
 			"problemMatcher": "$msCompile",
@@ -13,7 +13,7 @@
 		{
 			"label": "Phoenix: build all WASM",
 			"type": "process",
-			"command": "pwsh",
+			"command": "${env:SystemRoot}/System32/WindowsPowerShell/v1.0/powershell.exe",
 			"args": ["-NoProfile", "-File", "${workspaceFolder}/scripts/build.ps1", "-Target", "web"],
 			"options": { "cwd": "${workspaceFolder}" },
 			"problemMatcher": "$gcc",
@@ -22,7 +22,7 @@
 		{
 			"label": "Phoenix: serve web",
 			"type": "process",
-			"command": "pwsh",
+			"command": "${env:SystemRoot}/System32/WindowsPowerShell/v1.0/powershell.exe",
 			"args": ["-NoProfile", "-File", "${workspaceFolder}/scripts/serve-web.ps1"],
 			"options": { "cwd": "${workspaceFolder}" },
 			"dependsOn": "Phoenix: build all WASM",

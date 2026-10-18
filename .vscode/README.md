@@ -1,6 +1,6 @@
 # VS Code launch and build
 
-On Windows, install PowerShell 7 (`pwsh` on PATH), Visual Studio 2022 with the C++ desktop workload, and the recommended Microsoft C/C++ extension. Run `./scripts/bootstrap.ps1` once as described in [Building Phoenix V3](../docs/building.md).
+On Windows, install Visual Studio 2022 with the C++ desktop workload and the recommended Microsoft C/C++ extension. Run `./scripts/bootstrap.ps1` once as described in [Building Phoenix V3](../docs/building.md). The build and serve tasks use the built-in Windows PowerShell by its full path, so they do not require `pwsh` on VS Code's PATH. The separate formatting scripts require PowerShell 7.
 
 Choose a configuration in **Run and Debug**, then press **F5** (or **Ctrl+F5** to run without debugging):
 
