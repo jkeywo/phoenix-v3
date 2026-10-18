@@ -111,10 +111,9 @@ int main(int argc, char **argv)
 	};
 	if (!app.network_code.empty())
 	{
-		auto separator = app.network_code.find('/');
-		network.link.room = app.network_code.substr(0, separator);
-		if (separator != std::string::npos)
-			network.server = app.network_code.substr(separator + 1);
+		const auto target = phoenix::parse_join_code(app.network_code);
+		network.link.room = target.room;
+		network.server = target.server;
 	}
 	try
 	{
@@ -130,6 +129,10 @@ int main(int argc, char **argv)
 			app.reduced_motion = preferences.reduced_motion;
 			app.dust_motes = preferences.dust_motes;
 			app.reference_grid = preferences.reference_grid;
+			app.player_name = preferences.player_name;
+			app.avatar = preferences.avatar;
+			network.player_name = app.player_name;
+			network.avatar = app.avatar;
 		}
 #ifdef PHOENIX_SERVER
 		if (action.empty())

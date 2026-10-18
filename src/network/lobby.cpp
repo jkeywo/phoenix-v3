@@ -6,6 +6,7 @@ module;
 #include <memory>
 #include <optional>
 #include <span>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -30,6 +31,7 @@ class GameLobby final : public SessionPort
 		LobbyMember member;
 		std::string key, nonce;
 		std::uint64_t seen = 0, command_sequence = 0;
+		std::set<std::string> sent_avatars;
 	};
 	NetworkOptions options_;
 	bool coordinator_ = true, offline_ = false, active_ = false, launched_ = false, welcomed_ = false;
@@ -42,6 +44,8 @@ class GameLobby final : public SessionPort
 	std::shared_ptr<SessionPort> backend_;
 	std::unique_ptr<PeerTransport> transport_;
 	std::map<std::string, Peer> peers_;
+	std::map<std::string, Bytes> avatars_;
+	std::map<std::uint64_t, LobbyMember> local_consoles_;
 	GameSetup selection_;
 	std::vector<std::string> recovery_slots_;
 	Bytes bundle_;
@@ -55,12 +59,52 @@ class GameLobby final : public SessionPort
 	std::optional<std::uint64_t> countdown_;
 	std::chrono::steady_clock::time_point previous_ = std::chrono::steady_clock::now();
 	bool local_claimed_ = false;
-	void send(const std::string &peer, const std::string &type, const Json &body, bool plain = false)
+	void profile(LobbyMember &member, const std::string &name, const Bytes &avatar)
+	{
+		if (name.empty() || name.size() > 64 ||
+		    std::any_of(name.begin(), name.end(),
+		                [](unsigned char c)
+		                {
+			                return c < 32 || c == 127;
+		                }))
+			throw std::runtime_error("Enter a player name of up to 64 bytes without control characters");
+		verify_player_avatar(avatar);
+		member.name = name;
+		member.avatar = avatar;
+		if (!avatar.empty())
+			avatars_[sha256(avatar)] = avatar;
+		if (coordinator_)
+		{
+			std::erase_if(avatars_,
+			              [&](const auto &entry)
+			              {
+				              return std::none_of(local_consoles_.begin(), local_consoles_.end(),
+				                                  [&](const auto &local)
+				                                  {
+					                                  return !local.second.avatar.empty() &&
+					                                         sha256(local.second.avatar) == entry.first;
+				                                  }) &&
+				                     std::none_of(peers_.begin(), peers_.end(),
+				                                  [&](const auto &p)
+				                                  {
+					                                  return !p.second.member.avatar.empty() &&
+					                                         sha256(p.second.member.avatar) == entry.first;
+				                                  });
+			              });
+			for (auto &[id, member] : peers_)
+				std::erase_if(member.sent_avatars,
+				              [&](const auto &hash)
+				              {
+					              return !avatars_.contains(hash);
+				              });
+		}
+	}
+	bool send(const std::string &peer, const std::string &type, const Json &body, bool plain = false)
 	{
 		if (!transport_)
-			return;
+			return false;
 		const auto &key = plain ? std::string{} : coordinator_ ? peers_.at(peer).key : key_;
-		transport_->send(peer, encode_packet({plain ? "lobby" : epoch_, self_, peer, type, body}, key));
+		return transport_->send(peer, encode_packet({plain ? "lobby" : epoch_, self_, peer, type, body}, key));
 	}
 	void hello()
 	{
@@ -114,6 +158,7 @@ class GameLobby final : public SessionPort
 		    {"slots", Json::array()},
 		    {"members", Json::array()},
 		    {"consoles", Json::object()}};
+		data["console_names"] = Json::object();
 		for (const auto &slot : slots())
 		{
 			data["slots"].push_back({{"id", slot.id},
@@ -123,13 +168,18 @@ class GameLobby final : public SessionPort
 			                         {"allowed", slot.allowed_ships}});
 			if (!slot.ship.empty())
 				for (const auto &seat : resolve_consoles(source_->catalog(), slot.ship))
+				{
 					data["consoles"][slot.id].push_back(seat.id);
+					const auto &definition = source_->catalog().consoles.at(seat.definition);
+					data["console_names"][slot.id][seat.id] = definition.value("name", seat.id);
+				}
 		}
 		for (const auto &[id, peer] : peers_)
 		{
 			const auto &m = peer.member;
 			data["members"].push_back({{"id", id},
 			                           {"name", m.name},
+			                           {"avatar", m.avatar.empty() ? std::string{} : sha256(m.avatar)},
 			                           {"slot", m.slot},
 			                           {"console", m.console},
 			                           {"role", static_cast<int>(m.role)},
@@ -137,6 +187,23 @@ class GameLobby final : public SessionPort
 			                           {"connected", m.connected},
 			                           {"ready", m.ready},
 			                           {"verified", m.verified}});
+		}
+		data["local_consoles"] = Json::array();
+		for (const auto &[screen, seat] : local_consoles_)
+		{
+			data["local_consoles"].push_back(
+			    {{"screen", screen}, {"slot", seat.slot}, {"console", seat.console}, {"member", seat.id}});
+			data["members"].push_back({{"id", seat.id},
+			                           {"name", seat.name},
+			                           {"avatar", seat.avatar.empty() ? std::string{} : sha256(seat.avatar)},
+			                           {"slot", seat.slot},
+			                           {"console", seat.console},
+			                           {"role", static_cast<int>(JoinRole::player)},
+			                           {"approved", true},
+			                           {"connected", true},
+			                           {"ready", seat.ready},
+			                           {"verified", true},
+			                           {"local_screen", screen}});
 		}
 		return data;
 	}
@@ -151,6 +218,8 @@ class GameLobby final : public SessionPort
 			p.member.ready = false;
 			p.member.verified = p.member.role != JoinRole::ship_server;
 		}
+		for (auto &[screen, member] : local_consoles_)
+			member.ready = false;
 		setup_source_.reset();
 		bundle_.clear();
 		if (selection_.local_slot.empty())
@@ -201,14 +270,74 @@ class GameLobby final : public SessionPort
 					                                     v.second.member.role == JoinRole::player &&
 					                                     v.second.member.slot == m.slot;
 				                              });
-				if ((!crew || !m.console.empty()) && !m.ready)
+				if (((!crew && (id != self_ || local_consoles_.empty())) || !m.console.empty()) && !m.ready)
 					return false;
 			}
 		}
-		return true;
+		return std::all_of(local_consoles_.begin(), local_consoles_.end(),
+		                   [](const auto &entry)
+		                   {
+			                   return entry.second.ready;
+		                   });
 	}
 	bool command(const std::string &id, const LobbyCommand &cmd)
 	{
+		if ((cmd.action == LobbyAction::ready || cmd.action == LobbyAction::unready) && cmd.screen)
+		{
+			if (id != self_ || launched_ || !local_consoles_.contains(cmd.screen))
+				return false;
+			local_consoles_.at(cmd.screen).ready = cmd.action == LobbyAction::ready;
+			countdown_.reset();
+			return true;
+		}
+		if (cmd.action == LobbyAction::assign_local_console)
+		{
+			if (id != self_ || launched_ || cmd.screen < 2 || cmd.screen > 7)
+				return false;
+			if (cmd.console.empty())
+			{
+				if (local_consoles_.erase(cmd.screen))
+					invalidate();
+				return true;
+			}
+			const auto &own = peers_.at(self_).member;
+			if (cmd.slot != own.slot || !selection_.ships.contains(cmd.slot))
+				return false;
+			const auto seats = resolve_consoles(source_->catalog(), selection_.ships.at(cmd.slot));
+			if (std::none_of(seats.begin(), seats.end(),
+			                 [&](const auto &seat)
+			                 {
+				                 return seat.id == cmd.console;
+			                 }) ||
+			    std::any_of(peers_.begin(), peers_.end(),
+			                [&](const auto &p)
+			                {
+				                return p.second.member.slot == cmd.slot && p.second.member.console == cmd.console;
+			                }))
+				return false;
+			LobbyMember local;
+			for (const auto &[screen, member] : local_consoles_)
+				if (member.slot == cmd.slot && member.console == cmd.console)
+					local = member;
+			if (local.id.empty() && !local_consoles_.contains(cmd.screen) &&
+			    peers_.size() + local_consoles_.size() >= 48)
+				return false;
+			const bool new_player = local.id.empty();
+			std::erase_if(local_consoles_,
+			              [&](const auto &entry)
+			              {
+				              return entry.second.slot == cmd.slot && entry.second.console == cmd.console;
+			              });
+			local.id = "local-" + self_ + "-screen-" + std::to_string(cmd.screen);
+			local.slot = cmd.slot;
+			local.console = cmd.console;
+			local.local_screen = cmd.screen;
+			if (new_player)
+				local.name = "Local player " + std::to_string(cmd.screen - 1);
+			local_consoles_[cmd.screen] = std::move(local);
+			invalidate();
+			return true;
+		}
 		if (cmd.action == LobbyAction::leave && id == self_ && !cmd.member.empty() && cmd.member != self_)
 		{
 			if (!peers_.contains(cmd.member) || launched_)
@@ -297,6 +426,13 @@ class GameLobby final : public SessionPort
 			                                        {
 				                                        return p.first != id && p.second.member.slot == cmd.slot &&
 				                                               p.second.member.console == cmd.console;
+			                                        }))
+				return false;
+			if (!cmd.console.empty() && std::any_of(local_consoles_.begin(), local_consoles_.end(),
+			                                        [&](const auto &entry)
+			                                        {
+				                                        return entry.second.slot == cmd.slot &&
+				                                               entry.second.console == cmd.console;
 			                                        }))
 				return false;
 			member.slot = cmd.slot;
@@ -390,10 +526,17 @@ class GameLobby final : public SessionPort
 	void broadcast()
 	{
 		const auto state = snapshot();
-		for (const auto &[id, p] : peers_)
+		for (auto &[id, p] : peers_)
 			if (id != self_ && p.member.connected)
 			{
 				send(id, "lobby-state", state);
+				for (const auto &[hash, png] : avatars_)
+					if (!p.sent_avatars.contains(hash))
+					{
+						if (send(id, "profile-avatar", {{"hash", hash}, {"png", png}}))
+							p.sent_avatars.insert(hash);
+						break;
+					}
 				if (!p.member.approved)
 					continue;
 				send(id, "configuration", config_for(id));
@@ -424,7 +567,8 @@ class GameLobby final : public SessionPort
 				return;
 			if (found == peers_.end())
 			{
-				if (peers_.size() >= 48 || (launched_ && role == static_cast<int>(JoinRole::ship_server)))
+				if (peers_.size() + local_consoles_.size() >= 48 ||
+				    (launched_ && role == static_cast<int>(JoinRole::ship_server)))
 				{
 					send(sender, "refused", {{"reason", "This lobby cannot admit another ship server"}}, true);
 					return;
@@ -455,6 +599,11 @@ class GameLobby final : public SessionPort
 			countdown_.reset();
 		}
 		peer.seen = now_;
+		if (packet->type == "profile")
+		{
+			profile(peer.member, packet->body.at("name"), packet->body.at("avatar").get<Bytes>());
+			return;
+		}
 		if (packet->type == "heartbeat")
 			return;
 		if (!peer.member.approved)
@@ -511,6 +660,7 @@ class GameLobby final : public SessionPort
 				key_ = key;
 				epoch_ = epoch;
 				welcomed_ = true;
+				send(target_, "profile", {{"name", options_.player_name}, {"avatar", options_.avatar}});
 			}
 			else if (welcome->type == "refused")
 			{
@@ -536,7 +686,15 @@ class GameLobby final : public SessionPort
 		if (!packet)
 			return;
 		const auto &body = packet->body;
-		if (packet->type == "lobby-state")
+		if (packet->type == "profile-avatar")
+		{
+			const std::string hash = body.at("hash");
+			const auto png = body.at("png").get<Bytes>();
+			verify_player_avatar(png);
+			if (!png.empty() && sha256(png) == hash && avatars_.size() < 96)
+				avatars_[hash] = png;
+		}
+		else if (packet->type == "lobby-state")
 		{
 			if (!body.at("slots").is_array() || body.at("slots").size() > 16 || !body.at("members").is_array() ||
 			    body.at("members").size() > 48)
@@ -545,6 +703,15 @@ class GameLobby final : public SessionPort
 			{
 				received_ = body;
 				revision_ = body.at("revision");
+				std::erase_if(avatars_,
+				              [&](const auto &entry)
+				              {
+					              return std::none_of(received_.at("members").begin(), received_.at("members").end(),
+					                                  [&](const auto &member)
+					                                  {
+						                                  return member.value("avatar", std::string{}) == entry.first;
+					                                  });
+				              });
 			}
 		}
 		else if (packet->type == "configuration")
@@ -601,7 +768,7 @@ public:
 		        std::string::npos)
 			throw std::runtime_error("Invalid local server profile");
 		if (options_.link.room.empty())
-			options_.link.room = random_token().substr(0, 10);
+			options_.link.room = new_join_code();
 		if (options_.link.self.empty())
 			options_.link.self = coordinator_ ? "host" : random_token();
 		self_ = options_.link.self;
@@ -616,6 +783,7 @@ public:
 			own.member.verified = true;
 			own.key = random_token();
 			peers_[self_] = own;
+			profile(peers_.at(self_).member, options_.player_name, options_.avatar);
 		}
 		else
 		{
@@ -647,6 +815,7 @@ public:
 		if (source_)
 			source_->clear_packs();
 		selection_ = {};
+		local_consoles_.clear();
 		recovery_slots_.clear();
 		setup_source_.reset();
 		bundle_.clear();
@@ -799,7 +968,10 @@ public:
 	}
 	bool release_console(std::uint64_t route) override
 	{
-		return backend_ && backend_->release_console(route);
+		const bool released = backend_ && backend_->release_console(route);
+		if (released)
+			local_consoles_.erase(route);
+		return released;
 	}
 	bool console_command(std::uint64_t route, const OperatingCommand &v) override
 	{
@@ -823,7 +995,8 @@ public:
 	}
 	std::string invitation_code() const override
 	{
-		return backend_ ? backend_->invitation_code() : options_.link.room + "/" + (coordinator_ ? self_ : target_);
+		return backend_ ? backend_->invitation_code()
+		                : display_join_code(options_.link.room, coordinator_ ? self_ : target_);
 	}
 	std::string connection_status() const override
 	{
@@ -836,7 +1009,7 @@ public:
 		result.coordinator = coordinator_;
 		result.launched = launched_;
 		result.self = self_;
-		result.code = options_.link.room + "/" + (coordinator_ ? self_ : target_);
+		result.code = display_join_code(options_.link.room, coordinator_ ? self_ : target_);
 		result.status = error_;
 		const auto data = coordinator_ ? snapshot() : received_;
 		result.scenario = data.value("scenario", std::string{});
@@ -845,11 +1018,68 @@ public:
 			result.slots.push_back({s.at("id"), s.at("ship"), s.at("host"), s.at("mandatory"),
 			                        s.at("allowed").get<std::vector<std::string>>()});
 		for (const auto &m : data.value("members", Json::array()))
-			result.members.push_back({m.at("id"), m.at("slot"), m.at("console"),
-			                          static_cast<JoinRole>(m.at("role").get<int>()), m.at("approved"),
-			                          m.at("connected"), m.at("ready"), m.at("verified"),
-			                          m.value("name", std::string("Player"))});
+		{
+			const auto hash = m.value("avatar", std::string{});
+			result.members.push_back(
+			    {m.at("id"), m.at("slot"), m.at("console"), static_cast<JoinRole>(m.at("role").get<int>()),
+			     m.at("approved"), m.at("connected"), m.at("ready"), m.at("verified"),
+			     m.value("name", std::string("Player")), avatars_.contains(hash) ? avatars_.at(hash) : Bytes{},
+			     m.value("local_screen", std::uint64_t{0})});
+		}
+		const auto console_data = data.value("consoles", Json::object());
+		for (const auto &[slot, seats] : console_data.items())
+			for (const auto &id : seats)
+			{
+				LobbyConsole seat{slot, id, id};
+				if (data.contains("console_names") && data.at("console_names").contains(slot))
+				{
+					seat.name = data.at("console_names").at(slot).value(seat.id, seat.id);
+					if (seat.name.empty())
+						seat.name = seat.id;
+				}
+				for (const auto &member : result.members)
+					if (member.slot == slot && member.console == seat.id)
+					{
+						seat.member = member.id;
+						seat.ready = member.ready;
+					}
+				for (const auto &local : data.value("local_consoles", Json::array()))
+					if (local.at("slot") == slot && local.at("console") == seat.id)
+					{
+						seat.member = local.at("member");
+						seat.local_screen = local.at("screen");
+						for (const auto &member : result.members)
+							if (member.id == seat.member)
+								seat.ready = member.ready;
+					}
+				result.consoles.push_back(std::move(seat));
+			}
 		return result;
+	}
+	bool set_player_profile(const std::string &name, const Bytes &avatar) override
+	{
+		if (name.empty() || name.size() > 64 ||
+		    std::any_of(name.begin(), name.end(),
+		                [](unsigned char c)
+		                {
+			                return c < 32 || c == 127;
+		                }))
+			throw std::runtime_error("Enter a player name of up to 64 bytes without control characters");
+		verify_player_avatar(avatar);
+		options_.player_name = name;
+		options_.avatar = avatar;
+		if (coordinator_)
+			profile(peers_.at(self_).member, name, avatar);
+		else if (welcomed_)
+			send(target_, "profile", {{"name", name}, {"avatar", avatar}});
+		return true;
+	}
+	bool set_local_player_profile(std::uint64_t screen, const std::string &name, const Bytes &avatar) override
+	{
+		if (!coordinator_ || !local_consoles_.contains(screen))
+			return false;
+		profile(local_consoles_.at(screen), name, avatar);
+		return true;
 	}
 	bool lobby_command(const LobbyCommand &cmd) override
 	{
@@ -874,7 +1104,7 @@ public:
 		{
 			if (view.coordinator && !m.approved && m.connected)
 				result.emplace_back("lobby.approve/" + m.id, "Approve " + m.name);
-			if (view.coordinator && m.id != self_ && !launched_)
+			if (view.coordinator && m.id != self_ && !m.local_screen && !launched_)
 				result.emplace_back("lobby.remove/" + m.id, "Remove " + m.name);
 			if (backend_)
 				continue;
@@ -888,19 +1118,20 @@ public:
 				                {
 					                return p.approved && p.connected && p.role == JoinRole::player && p.slot == m.slot;
 				                });
-				if (m.role == JoinRole::player || !m.console.empty() || !crew)
+				if (m.role == JoinRole::player || !m.console.empty() || (!crew && local_consoles_.empty()))
 					result.emplace_back(m.ready ? "lobby.unready" : "lobby.ready", m.ready ? "Not Ready" : "Ready");
 			}
 			for (const auto &slot : view.slots)
 			{
-				if (m.role == JoinRole::ship_server && (slot.host.empty() || slot.host == self_))
-					for (const auto &ship : slot.allowed_ships)
-						result.emplace_back("lobby.ship/" + slot.id + "/" + ship, slot.id + ": " + ship);
+				if (m.role == JoinRole::ship_server && m.slot.empty() && slot.host.empty())
+					if (slot.host.empty())
+						for (const auto &ship : slot.allowed_ships)
+							result.emplace_back("lobby.ship/" + slot.id + "/" + ship, slot.id + ": " + ship);
 				if (!slot.host.empty() && (m.role != JoinRole::ship_server || m.slot == slot.id))
 				{
 					if (m.role == JoinRole::gm)
 						result.emplace_back("lobby.seat/" + slot.id + "/", "Inspect " + slot.id);
-					else
+					else if (m.role == JoinRole::player)
 					{
 						const auto data = coordinator_ ? snapshot() : received_;
 						if (data.at("consoles").contains(slot.id))
@@ -1041,6 +1272,11 @@ public:
 			}
 			if (backend_)
 			{
+				for (const auto &[route, selected] : local_consoles_)
+					if (!backend_->console_observation(route))
+						for (const auto &seat : backend_->console_seats())
+							if (seat.address.console == selected.console && seat.available)
+								backend_->claim_console(route, seat.address);
 				const auto active_config = coordinator_ ? config_for(self_) : configuration_;
 				if (role_ == JoinRole::ship_server && active_config.contains("tickets"))
 					for (const auto &[id, ticket] : active_config.at("tickets").items())

@@ -63,6 +63,11 @@ int main(int argc, char **argv)
 		const std::string argument = argv[i];
 		if (argument == "--menu-smoke")
 			menu_smoke.enabled = true;
+		if (argument == "--lobby-displays-smoke")
+		{
+			menu_smoke.enabled = true;
+			menu_smoke.assign_displays = true;
+		}
 		if (argument == "--vsync")
 			vsync = true;
 		if (argument == "--uncapped")
@@ -150,10 +155,9 @@ int main(int argc, char **argv)
 	}
 	if (!app.network_code.empty())
 	{
-		auto separator = app.network_code.find('/');
-		network.link.room = app.network_code.substr(0, separator);
-		if (separator != std::string::npos)
-			network.server = app.network_code.substr(separator + 1);
+		const auto target = phoenix::parse_join_code(app.network_code);
+		network.link.room = target.room;
+		network.server = target.server;
 	}
 	network.inspector = gm;
 	if (!remote)
@@ -179,16 +183,16 @@ int main(int argc, char **argv)
 	app.connect = [&app, network](const std::string &code, const std::string &service, const std::string &profile,
 	                              phoenix::JoinRole role) mutable
 	{
-		const auto split = code.find('/');
-		if (split == std::string::npos || !split || split + 1 == code.size())
-			throw std::runtime_error("Enter a network code in room/server form");
+		const auto target = phoenix::parse_join_code(code);
 		auto options = network;
-		options.link.room = code.substr(0, split);
-		options.server = code.substr(split + 1);
+		options.link.room = target.room;
+		options.server = target.server;
 		options.link.self.clear();
 		options.link.url = service;
 		options.profile = profile;
 		options.inspector = role == phoenix::JoinRole::gm;
+		options.player_name = app.player_name;
+		options.avatar = app.avatar;
 		phoenix::verify_link_options({service, options.link.room, options.server});
 		auto connected = phoenix::join_game_lobby(options, role);
 		app.session = std::move(connected);
@@ -206,10 +210,14 @@ int main(int argc, char **argv)
 		options.server.clear();
 		options.link.url = app.network_service;
 		options.profile = app.network_profile;
+		options.player_name = app.player_name;
+		options.avatar = app.avatar;
 		return phoenix::make_game_lobby(options, local_only);
 	};
 	app.return_home = [&app]()
 	{
+		if (app.reset_displays)
+			app.reset_displays();
 		auto candidate = app.new_host();
 		if (app.library)
 			candidate->replace_packs(app.library->archives(app.library->packs));
@@ -234,6 +242,9 @@ int main(int argc, char **argv)
 		app.reduced_motion = prefs.reduced_motion;
 		app.dust_motes = prefs.dust_motes;
 		app.reference_grid = prefs.reference_grid;
+		app.player_name = prefs.player_name;
+		app.avatar = prefs.avatar;
+		app.session->set_player_profile(app.player_name, app.avatar);
 		if (!remote)
 			app.session->replace_packs(app.library->archives(app.library->packs));
 	}
@@ -242,6 +253,85 @@ int main(int argc, char **argv)
 		app.status = error.what();
 	}
 	phoenix::open_window();
+	app.host_display = GetCurrentMonitor();
+	for (int monitor = 0; monitor < GetMonitorCount() && app.native_displays.size() < 6; ++monitor)
+	{
+		const auto position = GetMonitorPosition(monitor);
+		if (std::any_of(app.native_displays.begin(), app.native_displays.end(),
+		                [&](const auto &display)
+		                {
+			                const auto other = GetMonitorPosition(display.id);
+			                return other.x == position.x && other.y == position.y;
+		                }))
+			continue;
+		app.native_displays.push_back(
+		    {monitor, "Screen " + std::to_string(monitor + 1) + " (" + GetMonitorName(monitor) + ")"});
+	}
+	bool lobby_span = false;
+	app.apply_displays = [&app, &lobby_span]()
+	{
+		if (app.display_consoles.empty() && app.inspector_display < 0)
+			return;
+		std::vector<int> monitors{app.host_display};
+		for (const auto &[monitor, console] : app.display_consoles)
+			monitors.push_back(monitor);
+		if (app.inspector_display >= 0)
+			monitors.push_back(app.inspector_display);
+		float left = GetMonitorPosition(app.host_display).x, top = GetMonitorPosition(app.host_display).y;
+		float right = left, bottom = top;
+		for (const auto monitor : monitors)
+		{
+			const auto position = GetMonitorPosition(monitor);
+			left = std::min(left, position.x);
+			top = std::min(top, position.y);
+			right = std::max(right, position.x + GetMonitorWidth(monitor));
+			bottom = std::max(bottom, position.y + GetMonitorHeight(monitor));
+		}
+		std::vector<phoenix::ConsoleRegion> all;
+		app.console_regions.clear();
+		app.viewscreen_region.reset();
+		app.gm_region.reset();
+		for (const auto monitor : monitors)
+		{
+			const auto position = GetMonitorPosition(monitor);
+			phoenix::ConsoleRegion region{static_cast<std::uint64_t>(monitor + 2), position.x - left, position.y - top,
+			                              static_cast<float>(GetMonitorWidth(monitor)),
+			                              static_cast<float>(GetMonitorHeight(monitor))};
+			all.push_back(region);
+			if (monitor == app.host_display)
+				app.viewscreen_region = region;
+			else if (monitor == app.inspector_display)
+				app.gm_region = region;
+			else
+				app.console_regions.push_back(region);
+		}
+		phoenix::InputRouter validator;
+		if (all.size() > 6 || !validator.set_regions(all))
+			throw std::runtime_error("Assigned screens overlap or exceed the six-screen limit");
+		SetWindowState(FLAG_WINDOW_UNDECORATED);
+		ClearWindowState(FLAG_WINDOW_RESIZABLE);
+		SetWindowPosition(static_cast<int>(left), static_cast<int>(top));
+		SetWindowSize(static_cast<int>(right - left), static_cast<int>(bottom - top));
+		lobby_span = true;
+	};
+	app.reset_displays = [&app, &lobby_span]()
+	{
+		if (lobby_span)
+		{
+			ClearWindowState(FLAG_WINDOW_UNDECORATED);
+			SetWindowState(FLAG_WINDOW_RESIZABLE);
+			SetWindowSize(1280, 720);
+			const auto position = GetMonitorPosition(app.host_display);
+			SetWindowPosition(static_cast<int>(position.x + 40), static_cast<int>(position.y + 40));
+			app.console_regions.clear();
+			app.viewscreen_region.reset();
+			app.gm_region.reset();
+		}
+		app.display_consoles.clear();
+		app.local_player_names.clear();
+		app.inspector_display = -1;
+		lobby_span = false;
+	};
 	try
 	{
 		phoenix::select_language(app.language, app.pseudo_locale);
@@ -469,7 +559,7 @@ int main(int argc, char **argv)
 			accumulated -= 1.0 / phoenix::World::ticks_per_second;
 		}
 		const auto simulation_finished = GetTime();
-		if (app.screen != phoenix::Screen::console)
+		if (app.screen != phoenix::Screen::console && app.screen != phoenix::Screen::viewscreen)
 			app.tools_keyboard_focus = false;
 		if (app.gm_region && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
 		{
@@ -480,7 +570,7 @@ int main(int argc, char **argv)
 		phoenix::draw_screen(app);
 		if (app.screen == phoenix::Screen::workshop || app.screen == phoenix::Screen::gm)
 			phoenix::draw_workshop(app);
-		else if (app.screen == phoenix::Screen::console && app.gm_region)
+		else if ((app.screen == phoenix::Screen::console || app.screen == phoenix::Screen::viewscreen) && app.gm_region)
 			phoenix::draw_gm_region(app);
 		const auto drawing_finished = GetTime();
 		EndDrawing();

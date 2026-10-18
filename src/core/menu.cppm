@@ -16,6 +16,8 @@ struct MenuPreferences
 	std::string language = "en";
 	bool pseudo = false, reduced_motion = false;
 	bool dust_motes = true, reference_grid = true;
+	std::string player_name = "Player";
+	Bytes avatar;
 };
 struct LibraryPack
 {

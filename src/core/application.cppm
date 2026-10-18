@@ -45,6 +45,20 @@ struct Application
 	MenuBranch menu_branch = MenuBranch::root;
 	std::string selected_scenario, menu_focus;
 	std::shared_ptr<MenuLibrary> library;
+	std::string player_name = "Player";
+	Bytes avatar;
+	struct NativeDisplay
+	{
+		int id;
+		std::string name;
+	};
+	std::vector<NativeDisplay> native_displays;
+	int host_display = -1;
+	std::map<int, std::string> display_consoles;
+	std::map<std::uint64_t, std::string> local_player_names;
+	int inspector_display = -1;
+	std::function<void()> apply_displays;
+	std::function<void()> reset_displays;
 	std::function<void()> return_home;
 	std::function<std::shared_ptr<SessionPort>()> new_host;
 	std::vector<ConsoleRegion> console_regions;

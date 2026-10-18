@@ -34,6 +34,14 @@ struct LobbyMember
 	JoinRole role = JoinRole::player;
 	bool approved = false, connected = true, ready = false, verified = false;
 	std::string name;
+	Bytes avatar;
+	std::uint64_t local_screen = 0;
+};
+struct LobbyConsole
+{
+	std::string slot, id, name, member;
+	std::uint64_t local_screen = 0;
+	bool ready = false;
 };
 struct LobbyProjection
 {
@@ -42,6 +50,7 @@ struct LobbyProjection
 	int countdown_ms = -1;
 	std::vector<LobbySlot> slots;
 	std::vector<LobbyMember> members;
+	std::vector<LobbyConsole> consoles;
 };
 enum class LobbyAction
 {
@@ -50,12 +59,14 @@ enum class LobbyAction
 	approve,
 	ready,
 	unready,
-	leave
+	leave,
+	assign_local_console
 };
 struct LobbyCommand
 {
 	LobbyAction action;
 	std::string member, slot, ship, console;
+	std::uint64_t screen = 0;
 };
 struct GameSetup
 {
@@ -82,6 +93,8 @@ struct NetworkOptions
 	bool inspector = false;
 	std::string admission;
 	std::map<std::string, LobbyAdmission> lobby_tickets;
+	std::string player_name = "Player";
+	Bytes avatar;
 };
 // The frontend sees content and projections, never the authoritative ECS.
 class SessionPort
@@ -104,6 +117,14 @@ public:
 	virtual LobbyProjection lobby() const
 	{
 		return {};
+	}
+	virtual bool set_player_profile(const std::string &, const Bytes &)
+	{
+		return false;
+	}
+	virtual bool set_local_player_profile(std::uint64_t, const std::string &, const Bytes &)
+	{
+		return false;
 	}
 	virtual bool lobby_command(const LobbyCommand &)
 	{

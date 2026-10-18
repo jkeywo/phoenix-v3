@@ -9,6 +9,8 @@ const defaults = () => ({
 	reduced_motion: false,
 	dust_motes: true,
 	reference_grid: true,
+	player_name: "Player",
+	avatar: [],
 	packs: [],
 	saves: [],
 });
@@ -32,7 +34,8 @@ export function launchOptions(params, origin = "http://localhost") {
 	)
 		throw Error("Conflicting application role.");
 	mode = role === "gm" ? "gm" : "editor";
-	const code = text("code", 160),
+	const enteredCode = text("code", 160),
+		code = /^[a-z0-9]{6}$/i.test(enteredCode) ? enteredCode.toUpperCase() : enteredCode,
 		scenario = text("scenario"),
 		slot = text("slot"),
 		ship = text("ship"),
@@ -55,7 +58,8 @@ export function launchOptions(params, origin = "http://localhost") {
 		(action === "join" && role === "editor")
 	)
 		throw Error("Conflicting launch action.");
-	if (action === "join" && !/^[\w.-]+\/[\w.-]+$/.test(code)) throw Error("Enter a Join Code in room/server form.");
+	if (action === "join" && !/^(?:[A-Z0-9]{6}|[\w.-]+\/[\w.-]+)$/.test(code))
+		throw Error("Enter the host's six-character Join Code.");
 	if (action === "host" && (!scenario || !slot || !ship)) throw Error("Choose a scenario and ship first.");
 	if (action === "recover" && !/^[a-f0-9]{32,64}$/.test(save)) throw Error("Invalid saved game.");
 	const service = text("service", 2048) || "wss://site--phoenix-v3-coordinator--lzwyxyg44n9n.code.run/phoenix";
@@ -124,6 +128,14 @@ export function automaticHostChoice(scenes, selected = "") {
 	const scene = selected ? scenes.find((entry) => entry.id === selected) : scenes.length === 1 ? scenes[0] : null;
 	if (scene?.slots.length !== 1 || scene.slots[0].ships.length !== 1) return null;
 	return { scenario: scene.id, slot: scene.slots[0].id, ship: scene.slots[0].ships[0].id };
+}
+export function mergeRuntimeLibrary(index, previous) {
+	return {
+		...index,
+		service: previous.service,
+		profile: previous.profile,
+		packs: index.packs.map((pack) => ({ ...previous.packs.find((old) => old.hash === pack.hash), ...pack })),
+	};
 }
 export function menuPreview(source) {
 	const text = (value) => {
@@ -399,12 +411,53 @@ async function boot() {
 		input.maxLength = name === "service" ? 2048 : name === "code" ? 160 : 64;
 		return input;
 	}
+	function profileFields(parent) {
+		const name = field(parent, "player_name", "Player name", library.player_name || "Player");
+		name.required = true;
+		name.autocomplete = "nickname";
+		name.onchange = run(async () => {
+			const value = name.value.trim();
+			if (!value || encoder.encode(value).length > 64 || /[\x00-\x1f\x7f]/.test(value))
+				throw Error("Enter a player name of up to 64 bytes without control characters.");
+			library.player_name = value;
+			await remember();
+		});
+		if (library.avatar?.length) {
+			const image = element("img", undefined, parent);
+			image.src = "data:image/png;base64," + btoa(String.fromCharCode(...library.avatar));
+			image.alt = "Player avatar";
+			image.width = image.height = 48;
+		}
+		const avatar = field(parent, "avatar_upload", "Upload avatar", "", "file");
+		avatar.accept = "image/png,image/jpeg,image/webp";
+		avatar.onchange = run(async () => {
+			const file = avatar.files[0];
+			if (!file) return;
+			if (file.size > 8 * 1024 * 1024) throw Error("Choose an avatar image up to 8 MiB.");
+			const image = await createImageBitmap(file);
+			const canvas = document.createElement("canvas");
+			canvas.width = canvas.height = 48;
+			const side = Math.min(image.width, image.height);
+			canvas
+				.getContext("2d")
+				.drawImage(image, (image.width - side) / 2, (image.height - side) / 2, side, side, 0, 0, 48, 48);
+			image.close();
+			const png = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+			if (!png || png.size > 12288) throw Error("The avatar image could not be saved.");
+			library.avatar = [...new Uint8Array(await png.arrayBuffer())];
+			await remember();
+			status(t("Avatar saved."));
+		});
+		return name;
+	}
 	function connection(parent, join = true) {
 		const form = element("form", undefined, parent);
 		if (join) {
+			profileFields(form);
 			const code = field(form, "code", "Join Code", new URLSearchParams(location.search).get("code") || "");
 			code.required = true;
 			code.autocomplete = "off";
+			code.style.textTransform = "uppercase";
 		}
 		const advanced = element("details", undefined, form);
 		element("summary", "Advanced Connection Settings", advanced);
@@ -518,6 +571,9 @@ async function boot() {
 				p.set("role", branch);
 				p.set("action", "join");
 				const o = launchOptions(p, location.origin);
+				library.player_name = String(p.get("player_name") || "Player").trim();
+				if (!library.player_name || encoder.encode(library.player_name).length > 64)
+					throw Error("Enter a player name of up to 64 bytes.");
 				library.service = o.service;
 				library.profile = o.profile;
 				await start(o);
@@ -538,6 +594,7 @@ async function boot() {
 		const popup = dialog("Settings"),
 			volume = field(popup, "volume", "Music volume", library.volume, "range");
 		volume.min = "0";
+		profileFields(popup);
 		volume.max = "100";
 		const value = element("output", library.volume + "%", popup);
 		value.htmlFor = volume.id;
@@ -664,7 +721,7 @@ async function boot() {
 		try {
 			const raw = fs.readFile("/launcher/menu/library.json", { encoding: "utf8" });
 			if (raw === lastIndex) return persist;
-			const index = { ...JSON.parse(raw), service: library.service, profile: library.profile },
+			const index = mergeRuntimeLibrary(JSON.parse(raw), library),
 				changes = [["library.json", encoder.encode(JSON.stringify(index))]];
 			const retained = new Set([
 				...index.packs.map((pack) => `packs/${pack.hash}.zip`),
@@ -672,8 +729,16 @@ async function boot() {
 			]);
 			for (const key of files.keys())
 				if (/^(packs|saves)\//.test(key) && !retained.has(key)) changes.push([key, null]);
-			for (const pack of index.packs)
-				changes.push([`packs/${pack.hash}.zip`, fs.readFile(`/launcher/menu/packs/${pack.hash}.zip`)]);
+			for (const pack of index.packs) {
+				const path = `/launcher/menu/packs/${pack.hash}.zip`;
+				let exists = false;
+				try {
+					exists = !!fs.lookupPath(path).node;
+				} catch {}
+				if (exists) changes.push([`packs/${pack.hash}.zip`, fs.readFile(path)]);
+				else if (!pack.url && !files.has(`packs/${pack.hash}.zip`))
+					throw Error("Installed pack archive is missing: " + pack.id);
+			}
 			for (const save of index.saves)
 				changes.push([`saves/${save.id}.zip`, fs.readFile(`/launcher/menu/saves/${save.id}.zip`)]);
 			lastIndex = raw;

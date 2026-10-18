@@ -84,6 +84,16 @@ void MenuLibrary::load()
 	prefs.reduced_motion = data.value("reduced_motion", false);
 	prefs.dust_motes = data.value("dust_motes", true);
 	prefs.reference_grid = data.value("reference_grid", true);
+	prefs.player_name = data.value("player_name", std::string("Player"));
+	prefs.avatar = data.value("avatar", Bytes{});
+	if (prefs.player_name.empty() || prefs.player_name.size() > 64 ||
+	    std::any_of(prefs.player_name.begin(), prefs.player_name.end(),
+	                [](unsigned char c)
+	                {
+		                return c < 32 || c == 127;
+	                }))
+		throw std::runtime_error("Invalid player name");
+	verify_player_avatar(prefs.avatar);
 	if (prefs.volume < 0 || prefs.volume > 100 || prefs.language.empty() || prefs.language.size() > 32)
 		throw std::runtime_error("Invalid native preferences");
 	std::vector<LibraryPack> installed;
@@ -125,6 +135,8 @@ void MenuLibrary::remember()
 	          {"reduced_motion", preferences.reduced_motion},
 	          {"dust_motes", preferences.dust_motes},
 	          {"reference_grid", preferences.reference_grid},
+	          {"player_name", preferences.player_name},
+	          {"avatar", preferences.avatar},
 	          {"packs", Json::array()},
 	          {"saves", Json::array()}};
 	for (const auto &p : packs)

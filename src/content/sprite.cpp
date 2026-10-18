@@ -199,6 +199,20 @@ std::string radar_sprite_id(const Bytes &png)
 {
 	return "console-assets:assets/radar/" + sha256(png) + ".png";
 }
+void verify_player_avatar(const Bytes &png)
+{
+	if (png.empty())
+		return;
+	int width = 0, height = 0, channels = 0;
+	if (png.size() > 12288 ||
+	    !stbi_info_from_memory(png.data(), static_cast<int>(png.size()), &width, &height, &channels) || width < 1 ||
+	    height < 1 || width > 48 || height > 48)
+		throw std::runtime_error("Player avatars must be PNG images up to 48 by 48 pixels and 12 KiB");
+	auto *pixels = stbi_load_from_memory(png.data(), static_cast<int>(png.size()), &width, &height, &channels, 4);
+	if (!pixels)
+		throw std::runtime_error("Player avatar PNG cannot decode");
+	stbi_image_free(pixels);
+}
 std::string render_radar_sprite(const Json &render, const Catalog &catalog)
 {
 	const auto reference = radar_sprite_reference(render);

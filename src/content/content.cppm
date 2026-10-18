@@ -95,6 +95,7 @@ struct SpriteMaterial
 // Public PNG icon; content-addressed references travel with radar observations.
 std::string radar_sprite_reference(const Json &render);
 std::string radar_sprite_id(const Bytes &png);
+void verify_player_avatar(const Bytes &png);
 std::string render_radar_sprite(const Json &render, const Catalog &catalog);
 // A small, public symbol selection; no image or hidden entity data is needed.
 RadarIcon compile_radar_icon(const Json &value, const std::string &path);

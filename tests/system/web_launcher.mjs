@@ -8,8 +8,20 @@ import {
 	menuPreview,
 	zipEntry,
 	automaticHostChoice,
+	mergeRuntimeLibrary,
 } from "../../web/launcher.mjs";
 const route = (query) => launchOptions(new URLSearchParams(query), "https://example.test/phoenix-v3/");
+test("runtime profile saves preserve unfetched published packs without carrying URLs to replacements", () => {
+	const previous = {
+		service: "wss://example.test/phoenix",
+		profile: "crew",
+		packs: [{ id: "test", hash: "first", url: "base.zip" }],
+	};
+	const current = { player_name: "Navigator", packs: [{ id: "test", hash: "first", enabled: true }] };
+	assert.equal(mergeRuntimeLibrary(current, previous).packs[0].url, "base.zip");
+	assert.equal(mergeRuntimeLibrary(current, previous).player_name, "Navigator");
+	assert.equal(mergeRuntimeLibrary({ packs: [{ id: "test", hash: "edited" }] }, previous).packs[0].url, undefined);
+});
 test("host selection skips only unambiguous scenario, slot and ship choices", () => {
 	const scene = { id: "test.map", slots: [{ id: "test.slot", ships: [{ id: "test.ship" }] }] };
 	const other = { ...scene, id: "test.other" };
@@ -30,6 +42,8 @@ test("host selection skips only unambiguous scenario, slot and ship choices", ()
 	);
 });
 test("landing page waits; explicit and QR roles select one appropriate runtime", () => {
+	assert.equal(route("role=player&code=aBc123").code, "ABC123");
+	assert.equal(route("role=gm&code=ABC123").code, "ABC123");
 	assert.equal(route(""), null);
 	for (const [query, type, role] of [
 		["type=client&code=room/ship", "client", "player"],
@@ -58,7 +72,7 @@ test("untrusted launch hints cannot choose arbitrary scripts or conflicting role
 		"type=../../evil",
 		"role=admin",
 		"type=client&role=gm&code=room/ship",
-		"role=player&code=broken",
+		"role=player&code=bad-code",
 		"type=server&action=host",
 		"role=player&code=room/host&service=https://example.test",
 		"role=player&code=room/host&profile=../outside",

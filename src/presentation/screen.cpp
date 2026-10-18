@@ -154,6 +154,7 @@ RenderTexture2D preview_texture{};
 InputRouter input;
 std::set<std::string> gamepads;
 std::map<std::uint64_t, PointerInput> captures;
+std::set<std::uint64_t> viewscreen_contacts;
 std::optional<ConsoleId> mouse_capture;
 bool console_mode = false;
 bool window_focused()
@@ -174,6 +175,9 @@ Rml::Context *routed_context(ConsoleId route)
 }
 void cancel_captures()
 {
+	for (auto id : viewscreen_contacts)
+		context->ProcessTouchCancel({{static_cast<Rml::TouchId>(id), {0, 0}}});
+	viewscreen_contacts.clear();
 	for (const auto &[id, point] : captures)
 	{
 		if (auto *context = routed_context(point.console))
@@ -202,7 +206,8 @@ struct Navigation : Rml::EventListener
 				set_music_volume(*current_app, event.GetParameter<Rml::String>("value", ""));
 				return;
 			}
-			if (id == "join-code" || id == "join-service" || id == "join-profile")
+			if (id == "join-code" || id == "join-service" || id == "join-profile" || id == "player-name" ||
+			    id.starts_with("local-name/"))
 				if (auto *field = dynamic_cast<Rml::ElementFormControl *>(event.GetTargetElement()))
 				{
 					if (id == "join-code")
@@ -211,6 +216,10 @@ struct Navigation : Rml::EventListener
 						current_app->network_service = field->GetValue();
 					if (id == "join-profile")
 						current_app->network_profile = field->GetValue();
+					if (id == "player-name")
+						current_app->player_name = field->GetValue();
+					if (id.starts_with("local-name/"))
+						current_app->local_player_names[std::stoull(id.substr(11))] = field->GetValue();
 				}
 			if (id == "music-volume")
 				set_music_volume(*current_app, event.GetParameter<Rml::String>("value", ""));
@@ -321,6 +330,19 @@ void prepare_runtime_chrome(Application &app)
 	nav->SetProperty("position", "absolute");
 	nav->SetProperty("right", "16px");
 	nav->SetProperty("top", "16px");
+	if (app.viewscreen_region && view)
+	{
+		const auto &r = *app.viewscreen_region;
+		nav->SetProperty("right", "auto");
+		nav->SetProperty("width", "200px");
+		nav->SetProperty("left", std::to_string(r.x + r.width - 216) + "px");
+		nav->SetProperty("top", std::to_string(r.y + 16) + "px");
+	}
+	else
+	{
+		nav->SetProperty("left", "auto");
+		nav->SetProperty("width", "auto");
+	}
 }
 } // namespace
 bool probe_menu_keyboard(Application &app)
@@ -487,7 +509,8 @@ void draw_screen(Application &app)
 		                                           app.screen == Screen::settings || app.packs_popup)
 		                           ? "menu.back"
 		                           : "settings");
-	const bool show_consoles = app.screen == Screen::console;
+	const bool show_consoles = app.screen == Screen::console ||
+	                           (app.can_host && app.screen == Screen::viewscreen && !app.console_regions.empty());
 	if (show_consoles != console_mode)
 	{
 		cancel_captures();
@@ -529,6 +552,11 @@ void draw_screen(Application &app)
 		input.select_keyboard(regions.front().console);
 	if (console_mode)
 	{
+		if (app.screen == Screen::viewscreen)
+		{
+			document->GetElementById("native-menu")->SetProperty("display", "none");
+			prepare_runtime_chrome(app);
+		}
 		app.screen_controls.clear();
 		std::erase_if(console_surfaces,
 		              [&](const auto &entry)
@@ -602,6 +630,10 @@ void draw_screen(Application &app)
 					app.network_service = value;
 				if (id == "join-profile")
 					app.network_profile = value;
+				if (id == "player-name")
+					app.player_name = value;
+				if (id.starts_with("local-name/"))
+					app.local_player_names[std::stoull(id.substr(11))] = value;
 				return true;
 			}
 			return false;
@@ -653,6 +685,34 @@ void draw_screen(Application &app)
 			{
 				cancel_captures();
 				continue;
+			}
+			if (console_mode && app.screen == Screen::viewscreen && app.viewscreen_region)
+			{
+				const auto &r = *app.viewscreen_region;
+				if (viewscreen_contacts.contains(event.contact) ||
+				    (event.kind == DeviceEventKind::Down &&
+				     CheckCollisionPointRec({event.x, event.y}, {r.x, r.y, r.width, r.height})))
+				{
+					Rml::TouchList touch{{static_cast<Rml::TouchId>(event.contact), {event.x, event.y}}};
+					if (event.kind == DeviceEventKind::Down)
+					{
+						viewscreen_contacts.insert(event.contact);
+						context->ProcessTouchStart(touch, 0);
+					}
+					if (event.kind == DeviceEventKind::Move)
+						context->ProcessTouchMove(touch, 0);
+					if (event.kind == DeviceEventKind::Up)
+					{
+						context->ProcessTouchEnd(touch, 0);
+						viewscreen_contacts.erase(event.contact);
+					}
+					if (event.kind == DeviceEventKind::Cancel)
+					{
+						context->ProcessTouchCancel(touch);
+						viewscreen_contacts.erase(event.contact);
+					}
+					continue;
+				}
 			}
 			auto point = event.kind == DeviceEventKind::Down   ? input.pointer_down(event.contact, event.x, event.y)
 			             : event.kind == DeviceEventKind::Move ? input.pointer_move(event.contact, event.x, event.y)
@@ -723,6 +783,17 @@ void draw_screen(Application &app)
 		mouse_capture.reset();
 	if (mouse_context)
 		mouse_context->ProcessMouseWheel(-GetMouseWheelMove(), modifiers);
+	if (console_mode && app.screen == Screen::viewscreen && app.viewscreen_region)
+	{
+		const auto &r = *app.viewscreen_region;
+		const bool over_view =
+		    !mouse_capture && CheckCollisionPointRec(GetMousePosition(), {r.x, r.y, r.width, r.height});
+		context->ProcessMouseMove(over_view ? GetMouseX() : -1, over_view ? GetMouseY() : -1, modifiers);
+		if (over_view && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+			context->ProcessMouseButtonDown(0, modifiers);
+		if (IsMouseButtonReleased(MOUSE_BUTTON_LEFT))
+			context->ProcessMouseButtonUp(0, modifiers);
+	}
 	const std::pair<int, Rml::Input::KeyIdentifier> keys[] = {
 	    {KEY_TAB, Rml::Input::KI_TAB},        {KEY_ENTER, Rml::Input::KI_RETURN},  {KEY_SPACE, Rml::Input::KI_SPACE},
 	    {KEY_BACKSPACE, Rml::Input::KI_BACK}, {KEY_ESCAPE, Rml::Input::KI_ESCAPE}, {KEY_LEFT, Rml::Input::KI_LEFT},
@@ -758,6 +829,23 @@ void draw_screen(Application &app)
 			game_screen->draw_viewscreen(app, {r.x, r.y, r.width, r.height});
 		}
 		app.frame_metrics["scene"] = GetTime() - scene_started;
+		if (app.screen == Screen::viewscreen)
+		{
+			context->Update();
+			renderer.viewport({0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())});
+			context->Render();
+			renderer.finish();
+			if (auto *settings = document->GetElementById("settings"))
+			{
+				const auto at = settings->GetAbsoluteOffset(Rml::BoxArea::Border);
+				app.control_placements["settings"] = {at.x,
+				                                      at.y,
+				                                      settings->GetOffsetWidth(),
+				                                      settings->GetOffsetHeight(),
+				                                      context->GetFocusElement() == settings,
+				                                      true};
+			}
+		}
 		const auto consoles_started = GetTime();
 		for (const auto &region : regions)
 		{
@@ -781,6 +869,7 @@ void draw_screen(Application &app)
 		renderer.viewport({0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())});
 		context->Render();
 		renderer.finish();
+		native_menu->draw(app, *document);
 		for (const auto &control : navigation_controls(app))
 			if (auto *element = document->GetElementById(control.id))
 			{

@@ -3,6 +3,8 @@
 struct NativeMenuSmoke
 {
 	bool enabled = false;
+	bool assign_displays = false;
+	int display_step = 0;
 	int navigation_aid_step = 0;
 	bool initial_dust = true, initial_grid = true, initial_motion = false;
 	int stage = 0, pack_edits = 0, console_frames = 0;
@@ -128,6 +130,32 @@ struct NativeMenuSmoke
 		case 8:
 		{
 			const auto lobby = app.session->lobby();
+			if (assign_displays && !display_step)
+			{
+				if (app.native_displays.size() < 2 || lobby.consoles.empty())
+					throw std::runtime_error("Display smoke needs a console and two monitors");
+				for (const auto &display : app.native_displays)
+					if (display.id != app.host_display)
+					{
+						action(app,
+						       "menu.console-screen/" + lobby.consoles.front().id + "/" + std::to_string(display.id));
+						display_step = 1;
+						changed = GetTime();
+						return false;
+					}
+			}
+			if (assign_displays && display_step == 1)
+			{
+				for (const auto &display : app.native_displays)
+					if (display.id != app.host_display && !app.display_consoles.contains(display.id))
+					{
+						action(app, "menu.inspector-screen/" + std::to_string(display.id));
+						break;
+					}
+				display_step = 2;
+				changed = GetTime();
+				return false;
+			}
 			for (const auto &member : lobby.members)
 				if (member.id == lobby.self && member.console.empty())
 					for (const auto &[id, label] : app.session->lobby_controls())
@@ -142,7 +170,14 @@ struct NativeMenuSmoke
 			capture("lobby");
 			if (app.session->ticks() || app.session->running())
 				throw std::runtime_error("Menu selection advanced the game before readiness");
-			action(app, "lobby.ready");
+			if (assign_displays)
+			{
+				for (const auto &seat : lobby.consoles)
+					if (seat.local_screen)
+						action(app, "menu.local-ready/" + std::to_string(seat.local_screen));
+			}
+			else
+				action(app, "lobby.ready");
 			break;
 		}
 		case 9:
@@ -151,17 +186,33 @@ struct NativeMenuSmoke
 			capture("countdown");
 			break;
 		case 10:
+		{
 			if (!app.session->running() || app.screen != phoenix::Screen::viewscreen)
 				return false;
 			if (++console_frames < 3)
 				return false;
 			capture("running");
-			if (phoenix::navigation_controls(app).size() != 1 || phoenix::invoke_navigation(app, "lobby") ||
-			    phoenix::invoke_navigation(app, "home") || phoenix::invoke_navigation(app, "game.console") ||
-			    phoenix::invoke_navigation(app, "game.follow") || phoenix::invoke_navigation(app, "game.local-gm"))
+			if (assign_displays)
+			{
+				if (!app.viewscreen_region || app.console_regions.size() != 1 ||
+				    (app.native_displays.size() >= 3 && !app.gm_region))
+					throw std::runtime_error("Assigned display roles were not applied");
+				if (!app.session->console_observation(app.console_regions.front().console))
+					return false;
+			}
+			const auto controls = phoenix::navigation_controls(app);
+			if (std::any_of(controls.begin(), controls.end(),
+			                [](const auto &control)
+			                {
+				                return control.id != "settings" && !control.id.starts_with("console/");
+			                }) ||
+			    phoenix::invoke_navigation(app, "lobby") || phoenix::invoke_navigation(app, "home") ||
+			    phoenix::invoke_navigation(app, "game.console") || phoenix::invoke_navigation(app, "game.follow") ||
+			    phoenix::invoke_navigation(app, "game.local-gm"))
 				throw std::runtime_error("Viewscreen exposed navigation outside Settings");
 			action(app, "settings");
 			break;
+		}
 		case 11:
 			saves_before = app.library->saves.size();
 			action(app, "menu.save-game");

@@ -34,6 +34,13 @@ struct LinkOptions
 	std::vector<std::string> ice_servers;
 	std::string ca_certificate_file;
 };
+struct JoinTarget
+{
+	std::string room, server;
+};
+std::string new_join_code();
+JoinTarget parse_join_code(const std::string &code);
+std::string display_join_code(const std::string &room, const std::string &server);
 class PeerTransport
 {
 public:

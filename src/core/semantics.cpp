@@ -104,8 +104,8 @@ void remember_preferences(Application &app)
 		return;
 	try
 	{
-		app.library->preferences = {app.music_volume,   app.language,   app.pseudo_locale,
-		                            app.reduced_motion, app.dust_motes, app.reference_grid};
+		app.library->preferences = {app.music_volume, app.language,       app.pseudo_locale, app.reduced_motion,
+		                            app.dust_motes,   app.reference_grid, app.player_name,   app.avatar};
 		app.library->remember();
 	}
 	catch (const std::exception &error)

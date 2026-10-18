@@ -715,7 +715,13 @@ void GameScreen::prepare(Application &app, Rml::ElementDocument &document)
 }
 void GameScreen::draw(const Application &app)
 {
+	if (app.screen == Screen::viewscreen && app.viewscreen_region)
+	{
+		const auto &r = *app.viewscreen_region;
+		state_->display_region = Rectangle{r.x, r.y, r.width, r.height};
+	}
 	state_->draw(app);
+	state_->display_region.reset();
 }
 void GameScreen::draw_viewscreen(Application &app, Rectangle region)
 {

@@ -8,7 +8,7 @@ For the existing manual setup route, **Export fleet setup** creates a private bu
 
 The four applications now share C++ session admission, verified content transfer and permitted projections. Run the signalling service described in [network setup](network-transport.md), then serve `build/web` over HTTP on loopback or HTTPS on a public host. Public signalling requires WSS; no public service is deployed by this repository.
 
-Native starts a ship server by default. Import ordered packs and start a mission through Home, or pass `--game-pack path.zip --mission map.id --slot slot.id --ship ship.id`. The invitation is `room/server`, shown in the status. `--service`, `--profile` and `--data` select the service URL and local storage namespace. `--local-only` preserves the offline adapter for manual smoke captures.
+Native starts a ship server by default. Import ordered packs and start a mission through Home, or pass `--game-pack path.zip --mission map.id --slot slot.id --ship ship.id`. New pre-game lobbies show a six-character uppercase alphanumeric Join Code and its QR invitation. Existing `room/server` invitations remain supported. `--service`, `--profile` and `--data` select the service URL and local storage namespace. `--local-only` preserves the offline adapter for manual smoke captures.
 
 [Join forms and QR invitations](joining.md) are available in C++. Browser hosts prefill their launcher URL; native accepts `--page` or an entered page address. Scanning a QR opens ordinary client/GM admission.
 

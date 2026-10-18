@@ -24,6 +24,13 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		const auto short_code = new_join_code();
+		require(short_code.size() == 6 &&
+		            short_code.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789") == std::string::npos,
+		        "Host codes contain six uppercase alphanumeric characters");
+		require(parse_join_code("aBc123").room == "ABC123" && parse_join_code("aBc123").server == "host" &&
+		            display_join_code("ABC123", "host") == "ABC123" && parse_join_code("legacy/ship").server == "ship",
+		        "Short codes normalize for admission while existing direct invitations remain usable");
 		if (argc != 2)
 			throw std::runtime_error("Supply the private synthetic signalling URL");
 		NetworkOptions options;
@@ -56,6 +63,9 @@ int main(int argc, char **argv)
 			config.server = "organiser";
 			config.link.self = id;
 			config.profile = id;
+			config.player_name = id == "crew" ? "Navigator" : id;
+			if (id == "crew")
+				config.avatar = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
 			auto node = role == JoinRole::ship_server ? join_game_lobby(config, role) : join_client_lobby(config, role);
 			nodes.push_back(node);
 			return node;
@@ -85,7 +95,14 @@ int main(int argc, char **argv)
 		pump(
 		    [&]
 		    {
-			    return host->lobby().members.size() == 5;
+			    const auto lobby = host->lobby();
+			    return lobby.members.size() == 5 && std::any_of(lobby.members.begin(), lobby.members.end(),
+			                                                    [](const auto &member)
+			                                                    {
+				                                                    return member.id == "crew" &&
+				                                                           member.name == "Navigator" &&
+				                                                           !member.avatar.empty();
+			                                                    });
 		    });
 		for (const auto &id : {"ship-two", "rival", "crew", "inspector"})
 			require(host->lobby_command({LobbyAction::approve, id}), "Host approves an authenticated lobby member");
@@ -93,6 +110,40 @@ int main(int argc, char **argv)
 		    [&]
 		    {
 			    return ship->lobby().members.size() == 5;
+		    });
+		pump(
+		    [&]
+		    {
+			    const auto lobby = gm->lobby();
+			    return std::any_of(lobby.members.begin(), lobby.members.end(),
+			                       [](const auto &member)
+			                       {
+				                       return member.id == "crew" && member.name == "Navigator" &&
+				                              !member.avatar.empty();
+			                       });
+		    });
+		LobbyCommand reserve{LobbyAction::assign_local_console, "", "test.slot", "", "main"};
+		reserve.screen = 2;
+		require(host->lobby_command(reserve), "Native host reserves a console for a local display");
+		const auto reserved = host->lobby();
+		require(std::any_of(reserved.consoles.begin(), reserved.consoles.end(),
+		                    [](const auto &seat)
+		                    {
+			                    return seat.slot == "test.slot" && seat.id == "main" && seat.local_screen == 2;
+		                    }),
+		        "Lobby roster reports local display reservations");
+		reserve.screen = 3;
+		require(host->lobby_command(reserve), "A console can move between local displays");
+		require(host->set_local_player_profile(3, "Local navigator",
+		                                       read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png")),
+		        "Local console has an independent profile");
+		pump(
+		    [&]
+		    {
+			    for (const auto &m : gm->lobby().members)
+				    if (m.local_screen == 3)
+					    return m.name == "Local navigator" && !m.avatar.empty();
+			    return false;
 		    });
 		require(ship->lobby_command({LobbyAction::claim_ship, "", "second", "test.ship"}),
 		        "First ship requests a slot");
@@ -141,7 +192,9 @@ int main(int argc, char **argv)
 					    return m.verified;
 			    return false;
 		    });
-		require(host->lobby_command({LobbyAction::ready}), "Empty-crew host can ready an AI ship");
+		LobbyCommand local_ready{LobbyAction::ready};
+		local_ready.screen = 3;
+		require(host->lobby_command(local_ready), "Local player readies independently of the host");
 		require(crew->lobby_command({LobbyAction::ready}), "Crew readies without requiring its ship host to ready");
 		pump(
 		    [&]
@@ -165,6 +218,14 @@ int main(int argc, char **argv)
 			           !gm->inspection().is_null();
 		    },
 		    30000);
+		pump(
+		    [&]
+		    {
+			    return host->console_observation(3).has_value();
+		    });
+		require(!host->console_observation(2), "Moving a local console does not retain its old display claim");
+		require(host->release_console(3),
+		        "Releasing a local display also releases its lobby reservation for late crew");
 		require(
 		    host->viewscreen().size() == 4,
 		    "World contains its authored entity, two claimed ships and mandatory AI, with the optional slot absent");
