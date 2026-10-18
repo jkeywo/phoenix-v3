@@ -61,6 +61,22 @@ int main()
 		require(router.pointer_move(102, 2000, 10)->console == 22,
 		        "invalid layout must not discard an existing capture");
 		Application client;
+		require(client.music_volume == 50 && !invoke_navigation(client, "settings"),
+		        "music settings start at half volume and remain server-only");
+		Application host;
+		host.can_host = true;
+		host.screen = Screen::console;
+		require(invoke_navigation(host, "settings") && host.screen == Screen::settings,
+		        "the server can open settings during a mission");
+		require(set_music_volume(host, "0") && host.music_volume == 0 && set_music_volume(host, "100.000000") &&
+		            host.music_volume == 100 && !set_music_volume(host, "nan") && !set_music_volume(host, "101") &&
+		            !set_music_volume(host, "50junk") && !set_music_volume(client, "20"),
+		        "slider and accessible volume edits share bounded numeric admission, including mute");
+		host.screen_inputs = {{"music-volume", "Music volume", "100", true}};
+		require(navigation_controls(host).back().percentage,
+		        "music volume must publish range semantics rather than an unlabelled control");
+		require(invoke_navigation(host, "settings.close") && host.screen == Screen::console && host.music_volume == 100,
+		        "closing settings returns to the prior screen and retains volume");
 		require(!invoke_navigation(client, "host") && !invoke_navigation(client, "edit"),
 		        "semantic actions must preserve role restrictions");
 		require(navigation_controls(client).size() == 4, "client semantics must not expose host/editor actions");

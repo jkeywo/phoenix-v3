@@ -24,6 +24,7 @@ enum class Screen
 	client_lobby,
 	viewscreen,
 	console,
+	settings,
 	workshop,
 	gm
 };
@@ -35,6 +36,8 @@ struct Application
 	bool tools_keyboard_focus = false, embedded_tools = false;
 	std::map<std::string, ConsoleId> gamepad_assignments;
 	Screen screen = Screen::home;
+	Screen settings_return = Screen::home;
+	int music_volume = 50;
 	std::string network_code;
 	std::string network_service = "ws://127.0.0.1:9080/phoenix", network_profile = "default", join_page;
 	std::function<void(const std::string &, const std::string &, const std::string &, bool)> connect;
@@ -51,6 +54,7 @@ struct Application
 	struct TextControl
 	{
 		std::string id, label, value;
+		bool percentage = false;
 	};
 	std::vector<TextControl> screen_inputs;
 	std::function<bool(const std::string &, const std::string &)> set_control_value;

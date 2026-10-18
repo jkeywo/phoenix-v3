@@ -115,8 +115,11 @@
 			window.addEventListener(
 				type,
 				(event) => {
-					if (["INPUT", "BUTTON", "SELECT", "TEXTAREA"].includes(event.target.tagName))
+					if (["INPUT", "BUTTON", "SELECT", "TEXTAREA"].includes(event.target.tagName)) {
+						if (type === "keydown" && event.key === "Escape" && event.target.closest("#semantics"))
+							window.Module?.ccall("phoenix_semantic_action", null, ["string"], ["settings"]);
 						event.stopImmediatePropagation();
+					}
 				},
 				true,
 			);

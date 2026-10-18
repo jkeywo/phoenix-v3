@@ -240,6 +240,7 @@ add_library(
 	STATIC
 	src/presentation/screen.cpp
 	src/presentation/game.cpp
+	src/presentation/music.cpp
 	src/presentation/scene.cpp
 	src/presentation/icons.cpp
 )
@@ -327,6 +328,10 @@ target_link_libraries(
 	PRIVATE phoenix_qr phoenix_devices phoenix_shaping
 )
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/assets")
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/server-audio")
+foreach(audio_file IN ITEMS menu.ogg ambient.ogg CREDITS.txt)
+	configure_file("content/audio/${audio_file}" "${CMAKE_CURRENT_BINARY_DIR}/server-audio/${audio_file}" COPYONLY)
+endforeach()
 configure_file("content/locales.json" "${CMAKE_CURRENT_BINARY_DIR}/assets/locales.json" COPYONLY)
 foreach(font Cairo-Regular.ttf Poppins-Regular.ttf LICENSE.txt)
 	configure_file(
@@ -413,6 +418,7 @@ if(EMSCRIPTEN)
 		target_link_options(${role} PRIVATE "-sEXPORTED_FUNCTIONS=['_main','_malloc','_free']")
 	endforeach()
 	target_link_libraries(server PRIVATE phoenix_network_host)
+	target_link_options(server PRIVATE "SHELL:--preload-file \"${CMAKE_CURRENT_BINARY_DIR}/server-audio@/assets/audio\"")
 	target_link_libraries(client PRIVATE phoenix_network_client)
 	target_compile_definitions(server PRIVATE PHOENIX_SERVER=1)
 	target_link_libraries(workshop PRIVATE phoenix_tools phoenix_network_client)
@@ -425,6 +431,9 @@ else()
 		TARGET native
 		POST_BUILD
 		COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/assets" "$<TARGET_FILE_DIR:native>/assets"
+		COMMAND
+			${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/server-audio"
+			"$<TARGET_FILE_DIR:native>/assets/audio"
 	)
 endif()
 

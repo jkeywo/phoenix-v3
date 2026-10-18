@@ -3,6 +3,10 @@
 	"languages": {
 		"en": {
 			"home": "Home",
+			"settings": "Settings",
+			"Settings": "Settings",
+			"Music volume": "Music volume",
+			"Back": "Back",
 			"host": "New game",
 			"join": "Join console",
 			"view": "Viewscreen",

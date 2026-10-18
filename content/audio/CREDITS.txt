@@ -1,0 +1,17 @@
+Phoenix V3 music
+
+menu.ogg
+  Tragic ambient main menu — brandon75689 (submitted by HaelDB)
+  Original filename: ambientmain_0.ogg
+  Source: https://opengameart.org/content/tragic-ambient-main-menu
+  Selected licence: CC0 1.0 Universal (also offered under OGA-BY 3.0)
+
+ambient.ogg
+  Another space background track / Observing the Star — yd
+  Original filename: ObservingTheStar.ogg
+  Source: https://opengameart.org/content/another-space-background-track
+  Licence: CC0 1.0 Universal
+
+CC0: https://creativecommons.org/publicdomain/zero/1.0/
+The downloaded OGG recordings are included unchanged. Credit is voluntary.
+Combat music remains in raw/audio and is not bundled or played.

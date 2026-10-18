@@ -1,0 +1,11 @@
+# Server music
+
+The ship server plays the menu track while preparing a session and the ambient track once a mission is running, including recovery and local Console/GM views. Remote Console/GM clients and Workshop editing do not play music. The browser server bundles the recordings; browser clients and Workshop do not download them.
+
+Open **Settings** from the server navigation, or press **Escape** from a server screen (including a local Console). The labelled music slider applies immediately from 0% (mute) to 100%, starting at 50% on each launch. **Back** or Escape returns to the previous screen without resetting playback or volume. Settings do not pause the simulation. Browser audio starts after the first click/touch allowed by the browser's audio policy.
+
+The recordings loop and switch when the mission starts. Their original downloaded bytes are copied from ignored `raw/audio/` into tracked `content/audio/`; builds do not depend on the raw directory. [Credits and source licences](../content/audio/CREDITS.txt) accompany the recordings in the runtime bundle. The downloaded combat track is reserved for later combat integration and is not packaged.
+
+Playback uses raylib streaming in presentation code, with no replicated audio state. An unavailable audio device or failed recording load leaves the game usable without music.
+
+Verification, 18 October 2026: native and all three WASM applications build; all eleven native system checks and the WASM input/semantics check pass. The settings checks cover server-only access, numeric bounds, mute, full volume and return-screen/value retention. Repository formatting checks pass. Manually invoked native home/mission smoke runs initialise WASAPI and load the respective recordings successfully. In Chromium, the slider starts at 50%, accepts 0/100 and arrow-key edits, retains its value on return, and supports mouse Back and Escape. A training-session start unloads the menu stream and loads `/assets/audio/ambient.ogg`; only `server.js` declares the audio files in its preload manifest. These checks establish loading and interaction, rather than a human listening judgement or actual screen-reader usability.

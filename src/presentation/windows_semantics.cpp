@@ -11,6 +11,7 @@ module;
 #include <RmlUi/Core/TextInputHandler.h>
 #include <RmlUi/Core/TextInputContext.h>
 #include <atomic>
+#include <cmath>
 #include <deque>
 #include <memory>
 #include <mutex>
@@ -77,7 +78,8 @@ class Provider final : public IRawElementProviderSimple,
                        public IRawElementProviderFragment,
                        public IRawElementProviderFragmentRoot,
                        public IInvokeProvider,
-                       public IValueProvider
+                       public IValueProvider,
+                       public IRangeValueProvider
 {
 	std::atomic<ULONG> refs_{1};
 	std::shared_ptr<Shared> state_;
@@ -120,6 +122,8 @@ public:
 			*object = static_cast<IInvokeProvider *>(this);
 		else if (iid == __uuidof(IValueProvider) && index_ >= 0)
 			*object = static_cast<IValueProvider *>(this);
+		else if (iid == __uuidof(IRangeValueProvider) && index_ >= 0)
+			*object = static_cast<IRangeValueProvider *>(this);
 		else if (iid == __uuidof(IMarshal) && marshaler_)
 			return marshaler_->QueryInterface(iid, object);
 		if (!*object)
@@ -166,6 +170,17 @@ public:
 				AddRef();
 			}
 		}
+		if (index_ >= 0 && id == UIA_RangeValuePatternId)
+		{
+			std::lock_guard lock(state_->mutex);
+			if (!valid())
+				return UIA_E_ELEMENTNOTAVAILABLE;
+			if (state_->controls[index_].percentage)
+			{
+				*result = static_cast<IRangeValueProvider *>(this);
+				AddRef();
+			}
+		}
 		return S_OK;
 	}
 	HRESULT STDMETHODCALLTYPE GetPropertyValue(PROPERTYID id, VARIANT *result) override
@@ -179,9 +194,10 @@ public:
 		if (id == UIA_ControlTypePropertyId)
 		{
 			result->vt = VT_I4;
-			result->lVal = index_ < 0                          ? UIA_GroupControlTypeId
-			               : state_->controls[index_].editable ? UIA_EditControlTypeId
-			                                                   : UIA_ButtonControlTypeId;
+			result->lVal = index_ < 0                            ? UIA_GroupControlTypeId
+			               : state_->controls[index_].percentage ? UIA_SliderControlTypeId
+			               : state_->controls[index_].editable   ? UIA_EditControlTypeId
+			                                                     : UIA_ButtonControlTypeId;
 		}
 		else if (id == UIA_NamePropertyId || id == UIA_AutomationIdPropertyId)
 		{
@@ -209,6 +225,53 @@ public:
 			result->vt = VT_BSTR;
 			result->bstrVal = SysAllocString(wide(state_->status).c_str());
 		}
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE SetValue(double value) override
+	{
+		if (!std::isfinite(value) || value < 0 || value > 100)
+			return E_INVALIDARG;
+		const auto text = wide(std::to_string(value));
+		return SetValue(text.c_str());
+	}
+	HRESULT STDMETHODCALLTYPE get_Value(double *result) override
+	{
+		if (!result)
+			return E_POINTER;
+		std::lock_guard lock(state_->mutex);
+		if (!valid() || index_ < 0)
+			return UIA_E_ELEMENTNOTAVAILABLE;
+		if (!state_->controls[index_].percentage)
+			return UIA_E_NOTSUPPORTED;
+		*result = std::stod(state_->controls[index_].value);
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE get_Minimum(double *result) override
+	{
+		if (!result)
+			return E_POINTER;
+		*result = 0;
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE get_Maximum(double *result) override
+	{
+		if (!result)
+			return E_POINTER;
+		*result = 100;
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE get_SmallChange(double *result) override
+	{
+		if (!result)
+			return E_POINTER;
+		*result = 1;
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE get_LargeChange(double *result) override
+	{
+		if (!result)
+			return E_POINTER;
+		*result = 10;
 		return S_OK;
 	}
 	HRESULT STDMETHODCALLTYPE SetValue(LPCWSTR value) override

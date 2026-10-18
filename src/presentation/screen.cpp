@@ -34,6 +34,7 @@ import phoenix.devices;
 #include "rml_backend.hpp"
 #include "game.hpp"
 #include "consoles.hpp"
+#include "music.hpp"
 
 namespace phoenix
 {
@@ -46,6 +47,7 @@ Rml::Context *context = nullptr;
 Rml::ElementDocument *document = nullptr;
 Application *current_app = nullptr;
 std::unique_ptr<GameScreen> game_screen;
+std::unique_ptr<ServerMusic> server_music;
 std::map<ConsoleId, std::unique_ptr<ConsoleSurface>> console_surfaces;
 class PreviewSession final : public SessionPort
 {
@@ -190,6 +192,12 @@ struct Navigation : Rml::EventListener
 	{
 		if (!current_app)
 			return;
+		if (event.GetType() == "change")
+		{
+			if (event.GetTargetElement()->GetId() == "music-volume")
+				set_music_volume(*current_app, event.GetParameter<Rml::String>("value", ""));
+			return;
+		}
 		invoke_navigation(*current_app, event.GetTargetElement()->GetId());
 	}
 } navigation;
@@ -200,22 +208,49 @@ void update_document(Application &app)
 	if (!labels_ready || pseudo_shown != app.pseudo_locale)
 	{
 		for (const auto &control : navigation_controls(app))
-			if (auto *element = document->GetElementById(control.id))
-				element->SetInnerRML(control.label);
+			if (!control.editable)
+				if (auto *element = document->GetElementById(control.id))
+					element->SetInnerRML(control.label);
 		labels_ready = true;
 		pseudo_shown = app.pseudo_locale;
 	}
 	if (shown == app.screen)
 		return;
 	shown = app.screen;
-	document->GetElementById("heading")->SetInnerRML(screen_name(app.screen));
+	document->GetElementById("heading")->SetInnerRML(localise(screen_name(app.screen)));
 	document->GetElementById("host")->SetProperty("display", app.can_host ? "inline-block" : "none");
 	document->GetElementById("edit")->SetProperty("display", app.can_edit ? "inline-block" : "none");
+	document->GetElementById("settings")->SetProperty("display", app.can_host ? "inline-block" : "none");
+}
+void prepare_settings(Application &app)
+{
+	const bool visible = app.screen == Screen::settings && app.can_host;
+	document->GetElementById("settings-panel")->SetProperty("display", visible ? "block" : "none");
+	for (const char *id : {"game", "session-controls", "description"})
+		document->GetElementById(id)->SetProperty("display", visible ? "none" : "block");
+	if (!visible)
+		return;
+	app.tools_keyboard_focus = false;
+	app.screen_controls = {{"settings.close", "Back"}};
+	app.screen_action = {};
+	const auto value = std::to_string(app.music_volume);
+	auto *slider = dynamic_cast<Rml::ElementFormControl *>(document->GetElementById("music-volume"));
+	if (slider->GetAttribute<Rml::String>("value", "") != value)
+		slider->SetValue(value);
+	app.screen_inputs.push_back({"music-volume", "Music volume", value, true});
+	for (const auto &[id, text] :
+	     std::vector<std::pair<std::string, std::string>>{{"music-label", localise("Music volume")},
+	                                                      {"music-percent", value + "%"},
+	                                                      {"settings.close", localise("Back")}})
+		if (auto *element = document->GetElementById(id); element->GetInnerRML() != text)
+			element->SetInnerRML(text);
+	app.accessible_status = localise("Music volume") + ": " + value + "%";
 }
 } // namespace
 void open_window()
 {
 	game_screen = std::make_unique<GameScreen>();
+	server_music = std::make_unique<ServerMusic>();
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE);
 	InitWindow(1280, 720, "Phoenix V3");
 	SetTargetFPS(60);
@@ -265,13 +300,24 @@ void open_window()
     .connection { display:block; width:100%; margin-top:12px; }
     .connection label { display:block; font-size:16px; }
     .connection input { display:block; width:700px; height:26px; font-size:18px; background:#173142; color:#d9e9ef; border:1px #76c9e8; margin:4px 0 8px; }
+    #settings-panel { display:none; margin-top:20px; }
+    #settings-panel label, #music-percent { display:block; margin-bottom:12px; }
+    #music-volume { display:block; width:80%; max-width:600px; height:40px; margin-bottom:16px; }
+    #music-volume slidertrack { height:8px; margin:16px 0; background:#315a70; }
+    #music-volume sliderbar { width:24px; height:40px; background:#76c9e8; border:2px #d9e9ef; }
+    #music-volume:focus sliderbar { background:#d9e9ef; border-color:#76c9e8; }
+    #music-volume sliderarrowdec, #music-volume sliderarrowinc { display:none; }
     </style></head><body><h1>PHOENIX / SETTLED DARK</h1>
     <div id="nav"><button id="home">Home</button><button id="host">New game</button><button id="join">Join console</button>
-    <button id="view">Viewscreen</button><button id="edit">Workshop</button><button id="locale">Toggle pseudo-localisation</button></div>
-    <h2 id="heading">Home</h2><p id="description"></p><div id="session-controls"></div><div id="game"></div></body></rml>)");
+    <button id="view">Viewscreen</button><button id="edit">Workshop</button><button id="locale">Toggle pseudo-localisation</button><button id="settings">Settings</button></div>
+    <h2 id="heading">Home</h2><p id="description"></p><div id="session-controls"></div><div id="game"></div>
+    <div id="settings-panel"><label id="music-label" for="music-volume">Music volume</label>
+    <input id="music-volume" type="range" min="0" max="100" step="1" value="50"/>
+    <span id="music-percent">50%</span><button id="settings.close">Back</button></div></body></rml>)");
 	if (!document)
 		throw std::runtime_error("Could not load home screen");
 	document->AddEventListener("click", &navigation);
+	document->AddEventListener("change", &navigation);
 	document->Show();
 }
 bool close_requested()
@@ -299,6 +345,8 @@ void draw_screen(Application &app)
 	const auto preparation_started = GetTime();
 	current_app = &app;
 	select_language(app.language, app.pseudo_locale);
+	if (app.can_host && IsKeyPressed(KEY_ESCAPE) && graphics_has_keyboard_focus())
+		invoke_navigation(app, "settings");
 	const bool show_consoles = app.screen == Screen::console;
 	if (show_consoles != console_mode)
 	{
@@ -376,7 +424,9 @@ void draw_screen(Application &app)
 	else
 	{
 		update_document(app);
-		game_screen->prepare(app, *document);
+		prepare_settings(app);
+		if (app.screen != Screen::settings)
+			game_screen->prepare(app, *document);
 		if (app.text_probe && !document->GetElementById("probe-text"))
 			document->GetElementById("game")->SetInnerRML(R"(<h2>Unicode shaping and text input</h2>
 <p lang="ar" dir="rtl" style="font-family:Cairo;font-size:32px;text-align:right;">&#1605;&#1585;&#1581;&#1576;&#1575; &#1576;&#1603;&#1605; &#1601;&#1610; &#1601;&#1610;&#1606;&#1610;&#1603;&#1587;</p>
@@ -390,9 +440,12 @@ void draw_screen(Application &app)
 		                                                      {"join-page", "Launcher page URL for joining devices"},
 		                                                      {"probe-text", "Unicode text input"}})
 			if (auto *field = dynamic_cast<Rml::ElementFormControl *>(document->GetElementById(id)))
-				app.screen_inputs.push_back({id, label, field->GetValue()});
-		app.set_control_value = [](const std::string &id, const std::string &value)
+				if (app.screen != Screen::settings)
+					app.screen_inputs.push_back({id, label, field->GetValue()});
+		app.set_control_value = [&app](const std::string &id, const std::string &value)
 		{
+			if (id == "music-volume")
+				return set_music_volume(app, value);
 			if (value.size() > 4096)
 				return false;
 			if (auto *field = dynamic_cast<Rml::ElementFormControl *>(document->GetElementById(id)))
@@ -409,6 +462,7 @@ void draw_screen(Application &app)
 		};
 	}
 	app.frame_metrics["preparation"] = GetTime() - preparation_started;
+	server_music->update(app);
 	const auto semantics_started = GetTime();
 	publish_semantics(app);
 	drain_semantic_actions(app);
@@ -590,6 +644,7 @@ void close_window()
 	if (current_app)
 		current_app->screen_action = {};
 	game_screen.reset();
+	server_music.reset();
 	cancel_captures();
 	console_surfaces.clear();
 	close_devices(GetWindowHandle());

@@ -37,14 +37,15 @@ EM_JS(void, begin_semantics, (), {
     const root = document.getElementById('semantics');
     for (const child of root.children) if (child.dataset.action) child.dataset.stale = 'true';
 });
-EM_JS(void, append_semantic_button, (const char* id, const char* label, float x, float y, float width, float height, bool focused, bool enabled, bool editable, const char* value), {
+EM_JS(void, append_semantic_button, (const char* id, const char* label, float x, float y, float width, float height, bool focused, bool enabled, bool editable, const char* value, bool percentage), {
     const action = UTF8ToString(id);
     const root = document.getElementById('semantics');
     let button = Array.from(root.children).find(child => child.dataset.action === action);
     if (!button) {
         button = document.createElement(editable ? 'input' : 'button'); button.dataset.action = action;
         if(editable) {
-            button.type='text'; button.maxLength=4096;
+            button.type=percentage ? 'range' : 'text'; button.maxLength=4096;
+            if(percentage) { button.min='0'; button.max='100'; button.step='1'; }
             button.addEventListener('input', () => Module.ccall('phoenix_semantic_value',null,['string','string'],[action,button.value]));
         } else button.addEventListener('click', () => Module.ccall('phoenix_semantic_action', null, ['string'], [action]));
         button.addEventListener('focus', () => Module.ccall('phoenix_semantic_focus', null, ['string'], [action]));
@@ -88,7 +89,7 @@ void publish_semantics(const Application &app)
 	for (const auto &control : controls)
 		append_semantic_button(control.id.c_str(), control.label.c_str(), control.placement.x, control.placement.y,
 		                       control.placement.width, control.placement.height, control.placement.focused,
-		                       control.placement.enabled, control.editable, control.value.c_str());
+		                       control.placement.enabled, control.editable, control.value.c_str(), control.percentage);
 	end_semantics();
 }
 void drain_semantic_actions(Application &app)

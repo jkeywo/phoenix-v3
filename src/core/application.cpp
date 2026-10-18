@@ -28,6 +28,8 @@ const char *screen_name(Screen screen)
 		return "Viewscreen";
 	case Screen::console:
 		return "Player console";
+	case Screen::settings:
+		return "Settings";
 	case Screen::workshop:
 		return "Workshop";
 	case Screen::gm:
