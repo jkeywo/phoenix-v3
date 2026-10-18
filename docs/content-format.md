@@ -28,6 +28,8 @@ Host transfer, client cache and local sessions retain loaded pack handles instea
 
 Definitions schema 3 adds calibrated sprite materials, signed attachments and scene lighting. See the [comic rendering contract and delivery record](comic-rendering.md). Legacy image billboards remain supported.
 
+Optional map `presentation.dust` and entity `render.reference_grid` provide render-only navigation aids, including platform dust overrides, custom textures and Workshop tuning. See [navigation aids](navigation-aids.md) for fields, defaults, camera behaviour and verification evidence.
+
 ## Radar symbols
 
 Optional `render.sprite.radar_icon` selects `ship`, `asteroid`, `sun` or `contact`. Legacy image materials use `render.radar_icon` instead. Missing data defaults to the generic contact ring; unknown names fail verification. Source sprite sidecars accept the same top-level `radar_icon` string, which imports into the canonical sprite material. Packaged editable examples sit beside the training PNGs as `assets/comic/*.sprite.json`; the original raw inputs remain unchanged.

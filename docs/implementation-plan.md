@@ -36,6 +36,8 @@ RmlUi is the player UI; ImGui docking is Workshop/GM. Player screen readers are 
 
 ## Execution record
 
+- Viewscreen navigation aids: V2's final fixed-population dust field and world-locked reference grid now share the native/browser renderer, with own-ship camera following, detailed Workshop tuning/animated preview and saved runtime visibility/reduced-motion controls. The training Courier opts into the grid. Production-loader integration, the native/WASM/network gate and explicitly invoked OpenGL/WebGL graphical probes pass; see [settings and evidence](navigation-aids.md).
+
 - Radar symbols: sidecars/materials select abstract ship, asteroid, sun or generic-contact vectors. Native/browser radars and Workshop/GM maps share bounded geometry; ship symbols follow heading. The selected public symbol travels with existing permitted observations, without shipping other ships' definitions or maps to crew clients. Workshop exposes a selector/preview and the training pack includes editable calibrated sidecars. Verification and smoke evidence are recorded in [comic rendering](comic-rendering.md).
 
 - Server music: menu and in-game ambient OGG streams are bundled only for the native/server application, with a server Settings percentage slider defaulting to 50%, immediate mute/volume changes and return to the previous screen. Browser range semantics and native UIA range values share the same bounded setting. Combat playback remains separate. See [audio behavior](audio.md).
