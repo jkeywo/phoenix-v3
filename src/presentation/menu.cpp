@@ -49,6 +49,33 @@ struct NativeMenuScreen::State
 	bool button_enabled = true;
 	MenuSkin button_skin;
 	std::map<std::string, std::function<void()>> actions;
+	void choose_scenario(Application &app, std::string id)
+	{
+		const auto &slots = app.session->catalog().maps.at(id).at("ship_slots");
+		if (slots.size() == 1 && slots.front().at("allowed_ships").size() == 1)
+		{
+			const std::string slot = slots.front().at("id"), ship = slots.front().at("allowed_ships").front();
+			app.session->prepare_lobby({id, {{slot, ship}}, slot, ""});
+			app.screen = Screen::server_lobby;
+			focus_next = "lobby.ready";
+		}
+		else
+			focus_next = "menu.back";
+		app.selected_scenario = id;
+		app.menu_branch = Application::MenuBranch::ships;
+	}
+	void new_game(Application &app)
+	{
+		const auto &maps = app.session->catalog().maps;
+		if (maps.size() == 1)
+			choose_scenario(app, maps.begin()->first);
+		else
+		{
+			app.menu_branch = Application::MenuBranch::scenarios;
+			app.selected_scenario.clear();
+			focus_next = "menu.back";
+		}
+	}
 	std::string button(Application &app, const std::string &id, const std::string &label, std::function<void()> action)
 	{
 		if (button_enabled)
@@ -100,8 +127,9 @@ struct NativeMenuScreen::State
 		using Branch = Application::MenuBranch;
 		if (app.menu_branch == Branch::ships)
 		{
-			app.menu_branch = Branch::scenarios;
-			focus_next = "menu.scenario/" + app.selected_scenario;
+			const bool single_scenario = app.session->catalog().maps.size() == 1;
+			app.menu_branch = single_scenario ? Branch::host : Branch::scenarios;
+			focus_next = single_scenario ? "menu.new" : "menu.scenario/" + app.selected_scenario;
 		}
 		else if (app.menu_branch == Branch::scenarios)
 		{
@@ -320,9 +348,7 @@ struct NativeMenuScreen::State
 					markup += "<div class=\"menu-column\">" + add("menu.new", "New Game",
 					                                              [&]
 					                                              {
-						                                              app.menu_branch = Branch::scenarios;
-						                                              app.selected_scenario.clear();
-						                                              focus_next = "menu.back";
+						                                              new_game(app);
 					                                              });
 					markup += heading("Saved Games");
 					if (app.library->saves.empty())
@@ -343,7 +369,8 @@ struct NativeMenuScreen::State
 						              request_file(imports, FilePurpose::GameSave);
 					              }) +
 					          "</div>";
-					if (branch == Branch::scenarios || branch == Branch::ships)
+					if (branch == Branch::scenarios ||
+					    (branch == Branch::ships && app.session->catalog().maps.size() != 1))
 					{
 						markup += "<div class=\"menu-column\">" + heading("Scenarios");
 						if (app.session->catalog().maps.empty())
@@ -352,9 +379,7 @@ struct NativeMenuScreen::State
 							markup += add("menu.scenario/" + id, scenario.value("name", id),
 							              [&, id]
 							              {
-								              app.selected_scenario = id;
-								              app.menu_branch = Branch::ships;
-								              focus_next = "menu.back";
+								              choose_scenario(app, id);
 							              });
 						markup += "</div>";
 					}
@@ -685,7 +710,7 @@ struct NativeMenuScreen::State
 			if (auto *field = dynamic_cast<Rml::ElementFormControl *>(document.GetElementById(input.id)))
 				if (field->GetValue() != input.value)
 					field->SetValue(input.value);
-		const int columns = branch == Branch::ships       ? 4
+		const int columns = branch == Branch::ships       ? (app.session->catalog().maps.size() == 1 ? 3 : 4)
 		                    : branch == Branch::scenarios ? 3
 		                    : branch == Branch::root      ? 1
 		                                                  : 2;

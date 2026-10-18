@@ -120,6 +120,11 @@ export function skinProperties(sidecar, scale) {
 		edges: [s.top, s.right, s.bottom, s.left].map((v) => v * scale + "px").join(" "),
 	};
 }
+export function automaticHostChoice(scenes, selected = "") {
+	const scene = selected ? scenes.find((entry) => entry.id === selected) : scenes.length === 1 ? scenes[0] : null;
+	if (scene?.slots.length !== 1 || scene.slots[0].ships.length !== 1) return null;
+	return { scenario: scene.id, slot: scene.slots[0].id, ship: scene.slots[0].ships[0].id };
+}
 export function menuPreview(source) {
 	const text = (value) => {
 		if (typeof value !== "string" || !value.length || value.length > 256) throw Error("Invalid menu preview text.");
@@ -345,6 +350,15 @@ async function boot() {
 		return [...result.values()];
 	}
 	function choose(next, id = "") {
+		if (next === "scenarios" || next === "ships") {
+			const scenes = scenarios();
+			const automatic = automaticHostChoice(scenes, next === "ships" ? id : "");
+			if (automatic) return start(options({ type: "server", action: "host", ...automatic }));
+			if (next === "scenarios" && scenes.length === 1) {
+				next = "ships";
+				id = scenes[0].id;
+			}
+		}
 		branch = next;
 		scenario = id;
 		render();
@@ -363,7 +377,13 @@ async function boot() {
 			return;
 		}
 		choose(
-			branch === "ships" ? "scenarios" : branch === "scenarios" ? "host" : "root",
+			branch === "ships"
+				? scenarios().length === 1
+					? "host"
+					: "scenarios"
+				: branch === "scenarios"
+					? "host"
+					: "root",
 			branch === "ships" ? scenario : "",
 		);
 	}
@@ -465,11 +485,13 @@ async function boot() {
 			};
 			form.onchange = run(() => remember());
 			if (branch !== "host") {
-				const maps = column("Scenarios");
-				element("h2", "Scenarios", maps);
-				if (!scenarios().length) element("p", "Enable mod packs to choose a scenario.", maps);
-				for (const scene of scenarios())
-					button(maps, scene.name || scene.id, () => choose("ships", scene.id), scene.id === scenario);
+				if (scenarios().length !== 1) {
+					const maps = column("Scenarios");
+					element("h2", "Scenarios", maps);
+					if (!scenarios().length) element("p", "Enable mod packs to choose a scenario.", maps);
+					for (const scene of scenarios())
+						button(maps, scene.name || scene.id, () => choose("ships", scene.id), scene.id === scenario);
+				}
 				if (branch === "ships") {
 					const ships = column("Ships"),
 						scene = scenarios().find((s) => s.id === scenario);

@@ -1,8 +1,34 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { deflateRawSync } from "node:zlib";
-import { launchOptions, launchArguments, skinProperties, menuPreview, zipEntry } from "../../web/launcher.mjs";
+import {
+	launchOptions,
+	launchArguments,
+	skinProperties,
+	menuPreview,
+	zipEntry,
+	automaticHostChoice,
+} from "../../web/launcher.mjs";
 const route = (query) => launchOptions(new URLSearchParams(query), "https://example.test/phoenix-v3/");
+test("host selection skips only unambiguous scenario, slot and ship choices", () => {
+	const scene = { id: "test.map", slots: [{ id: "test.slot", ships: [{ id: "test.ship" }] }] };
+	const other = { ...scene, id: "test.other" };
+	assert.deepEqual(automaticHostChoice([scene]), { scenario: scene.id, slot: "test.slot", ship: "test.ship" });
+	assert.equal(automaticHostChoice([]), null);
+	assert.equal(automaticHostChoice([scene, other]), null);
+	assert.deepEqual(automaticHostChoice([scene, other], scene.id), automaticHostChoice([scene]));
+	assert.equal(automaticHostChoice([scene], "missing"), null);
+	assert.equal(automaticHostChoice([{ ...scene, slots: [] }]), null);
+	assert.equal(
+		automaticHostChoice([{ ...scene, slots: [...scene.slots, { ...scene.slots[0], id: "second" }] }]),
+		null,
+	);
+	assert.equal(automaticHostChoice([{ ...scene, slots: [{ id: "test.slot", ships: [] }] }]), null);
+	assert.equal(
+		automaticHostChoice([{ ...scene, slots: [{ id: "test.slot", ships: [{ id: "a" }, { id: "b" }] }] }]),
+		null,
+	);
+});
 test("landing page waits; explicit and QR roles select one appropriate runtime", () => {
 	assert.equal(route(""), null);
 	for (const [query, type, role] of [

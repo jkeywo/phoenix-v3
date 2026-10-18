@@ -1,5 +1,13 @@
 # Native menu and lobby validation
 
+## Skip sole setup choices
+
+18 October 2026: native and browser New Game automatically select a sole scenario and skip ship selection when it has one slot with one allowed ship. Multiple alternatives remain explicit; Back omits a skipped scenario level. Lobby readiness/countdown is unchanged.
+
+All six launcher checks passed, including independent zero/one/multiple scenario, slot and ship cases. Native presentation and all three WASM roles built; formatting and whitespace checks passed. A running native application held its audio assets open, so the updated native executable is `build/native/Release/native-menu-shortcuts.exe`, linked against the existing unchanged assets with the post-build copy disabled.
+
+Explicit native `--menu-smoke` journeys passed for a fresh synthetic one-scenario/one-slot/one-ship library and a fresh base-game library with multiple scenarios. The former skipped both choice levels; the latter retained scenario selection and skipped its sole ship choice. Both reached the stopped lobby, completed ordinary readiness/countdown, saved from Settings and quit. Synthetic content was packaged from the independent loader fixture under ignored build output. Logs: `build/menu-single-choice-{smoke,base-smoke}.log`. No browser graphical interaction or physical-device acceptance is claimed for this change.
+
 ## Default storage correction
 
 18 October 2026: reproduced a desktop-launched native startup failing to create the relative `userdata/menu/packs` directory. Native now locates `%LOCALAPPDATA%\PhoenixV3` through Windows' known-folder API before creating its lobby/library; explicit `--data` paths are retained. Native Release and WASM Workshop builds, `system.native-menu-library` (including different-launch-directory storage identity), formatting and whitespace checks passed. The final desktop launch was stopped by the user before capture; no successful visual check is claimed for this correction.

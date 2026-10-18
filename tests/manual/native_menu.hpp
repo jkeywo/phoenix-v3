@@ -102,6 +102,14 @@ struct NativeMenuSmoke
 			action(app, "menu.new");
 			break;
 		case 6:
+			if (app.menu_branch == phoenix::Application::MenuBranch::ships &&
+			    app.screen != phoenix::Screen::server_lobby)
+				break;
+			if (app.screen == phoenix::Screen::server_lobby)
+			{
+				stage = 7;
+				break;
+			}
 			capture("scenarios");
 			if (app.session->catalog().maps.empty())
 				throw std::runtime_error("Menu smoke needs --game-pack with a scenario");
@@ -109,6 +117,8 @@ struct NativeMenuSmoke
 			break;
 		case 7:
 		{
+			if (app.screen == phoenix::Screen::server_lobby)
+				break;
 			capture("ships");
 			const auto &slot = app.session->catalog().maps.at(app.selected_scenario).at("ship_slots").at(0);
 			action(app, "menu.ship/" + slot.at("id").get<std::string>() + "/" +
