@@ -9,6 +9,7 @@ export module phoenix.transport;
 
 export namespace phoenix
 {
+inline constexpr char default_network_service[] = "wss://site--phoenix-v3-coordinator--lzwyxyg44n9n.code.run/phoenix";
 enum class LinkEvent
 {
 	signalling_ready,

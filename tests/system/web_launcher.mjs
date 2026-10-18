@@ -15,7 +15,7 @@ test("landing page waits; explicit and QR roles select one appropriate runtime",
 		assert.equal(options.type, type);
 		assert.equal(options.role, role);
 		assert.equal(options.action, role === "editor" ? "workshop" : "join");
-		assert.equal(options.service, "wss://example.test/phoenix");
+		assert.equal(options.service, "wss://site--phoenix-v3-coordinator--lzwyxyg44n9n.code.run/phoenix");
 	}
 	const host = route("type=server&action=host&scenario=test.map&slot=bridge&ship=test.ship");
 	const args = launchArguments(host, "https://example.test/phoenix-v3/");

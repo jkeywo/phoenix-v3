@@ -56,7 +56,7 @@ struct Application
 	Screen settings_return = Screen::home;
 	int music_volume = 50;
 	std::string network_code;
-	std::string network_service = "ws://127.0.0.1:9080/phoenix", network_profile = "default", join_page;
+	std::string network_service = default_network_service, network_profile = "default", join_page;
 	std::function<void(const std::string &, const std::string &, const std::string &, JoinRole)> connect;
 	std::string status;
 	std::string accessible_status;

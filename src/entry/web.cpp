@@ -62,6 +62,7 @@ void frame()
 int main(int argc, char **argv)
 {
 	phoenix::NetworkOptions network;
+	network.link.url = phoenix::default_network_service;
 	std::string action, scenario, slot, ship, save;
 #ifdef PHOENIX_SERVER
 	app.can_host = true;

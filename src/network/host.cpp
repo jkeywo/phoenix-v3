@@ -549,7 +549,7 @@ public:
 		if (options_.link.room.empty())
 			options_.link.room = random_token();
 		if (options_.link.url.empty())
-			options_.link.url = "ws://127.0.0.1:9080/phoenix";
+			options_.link.url = default_network_service;
 		if (options_.profile.empty() ||
 		    options_.profile.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-") !=
 		        std::string::npos)

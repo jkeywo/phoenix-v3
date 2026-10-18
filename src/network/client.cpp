@@ -386,7 +386,7 @@ public:
 	explicit NetworkClient(NetworkOptions options) : options_(std::move(options))
 	{
 		if (options_.link.url.empty())
-			options_.link.url = "ws://127.0.0.1:9080/phoenix";
+			options_.link.url = default_network_service;
 		if (options_.server.empty() || options_.link.room.empty())
 		{
 			message_ = "Enter room/server in the launcher network-code field";

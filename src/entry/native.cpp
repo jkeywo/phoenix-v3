@@ -39,7 +39,7 @@ int main(int argc, char **argv)
 	app.native_menu = true;
 	app.can_edit = true;
 	phoenix::NetworkOptions network;
-	network.link.url = "ws://127.0.0.1:9080/phoenix";
+	network.link.url = phoenix::default_network_service;
 	bool remote = false, gm = false, local_only = false;
 	NativeMenuSmoke menu_smoke;
 	bool qr_smoke = false;

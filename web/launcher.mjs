@@ -58,10 +58,7 @@ export function launchOptions(params, origin = "http://localhost") {
 	if (action === "join" && !/^[\w.-]+\/[\w.-]+$/.test(code)) throw Error("Enter a Join Code in room/server form.");
 	if (action === "host" && (!scenario || !slot || !ship)) throw Error("Choose a scenario and ship first.");
 	if (action === "recover" && !/^[a-f0-9]{32,64}$/.test(save)) throw Error("Invalid saved game.");
-	const page = new URL(origin),
-		local = ["localhost", "127.0.0.1", "[::1]"].includes(page.hostname);
-	const service =
-		text("service", 2048) || (local ? "ws://127.0.0.1:9080/phoenix" : "wss://" + page.host + "/phoenix");
+	const service = text("service", 2048) || "wss://site--phoenix-v3-coordinator--lzwyxyg44n9n.code.run/phoenix";
 	const url = new URL(service);
 	if (!["ws:", "wss:"].includes(url.protocol) || url.username || url.password || url.hash)
 		throw Error("Use a ws:// or wss:// network service URL.");
