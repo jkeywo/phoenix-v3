@@ -866,6 +866,7 @@ void draw_screen(Application &app)
 	{
 		context->Update();
 		native_menu->position_labels(*document);
+		native_menu->draw_backdrop(app, *document);
 		renderer.viewport({0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())});
 		context->Render();
 		renderer.finish();

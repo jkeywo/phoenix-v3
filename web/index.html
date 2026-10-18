@@ -12,7 +12,18 @@
 	</head>
 	<body>
 		<main id="menu" aria-labelledby="title">
+			<div id="menu-space" aria-hidden="true">
+				<div class="space-track"><i></i><i></i><i></i><i></i></div>
+			</div>
+			<div id="menu-frame" aria-hidden="true"></div>
 			<h1 id="title">Against the Stars</h1>
+			<aside id="profile-crt" class="menu-crt" aria-label="Your profile">
+				<div class="crt-screen">
+					<img id="profile-avatar" class="crt-avatar" alt="Player avatar" hidden />
+					<span id="profile-initial" class="crt-avatar" aria-hidden="true">?</span>
+					<span id="profile-name" class="crt-name">Player</span>
+				</div>
+			</aside>
 			<button id="settings" class="corner top" type="button">
 				<img src="assets/menu/settings.png" alt="" loading="lazy" /><span>Settings</span>
 			</button>

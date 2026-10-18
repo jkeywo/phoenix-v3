@@ -34,7 +34,7 @@ body {
 	margin: 0;
 	min-height: 100dvh;
 	overflow: hidden;
-	background: url("assets/menu/background.png") center / cover fixed;
+	background: #080705;
 }
 .direct-launch body {
 	background: #080f19;
@@ -102,6 +102,87 @@ button.selected {
 #menu {
 	position: absolute;
 	inset: 0;
+	isolation: isolate;
+}
+#menu-space,
+#menu-frame {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	z-index: -1;
+	overflow: hidden;
+}
+#menu-frame {
+	background: var(--menu-frame) center / cover;
+}
+.space-track {
+	--tile: max(300vh, 50vw);
+	display: flex;
+	width: calc(var(--tile) * 4);
+	height: 100%;
+	transform: translateX(calc(var(--tile) * var(--pan-start)));
+	animation: space-pan var(--pan-period) linear infinite;
+	will-change: transform;
+}
+.space-track i {
+	flex: 0 0 25%;
+	background: var(--menu-space) center / 100% 100%;
+}
+.space-track i:nth-child(even) {
+	transform: scaleX(-1);
+}
+@keyframes space-pan {
+	from {
+		transform: translateX(calc(var(--tile) * var(--pan-start)));
+	}
+	to {
+		transform: translateX(calc(var(--tile) * var(--pan-end)));
+	}
+}
+.menu-crt {
+	background: var(--menu-crt) center / contain no-repeat;
+	aspect-ratio: var(--crt-aspect);
+}
+#profile-crt {
+	position: absolute;
+	top: 0;
+	right: 20px;
+	width: 264px;
+	pointer-events: none;
+}
+.crt-screen {
+	position: absolute;
+	left: var(--crt-left);
+	top: var(--crt-top);
+	width: var(--crt-width);
+	height: var(--crt-height);
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+	color: #cbe4c5;
+}
+.crt-avatar {
+	width: 48px;
+	height: 48px;
+	flex-shrink: 0;
+	object-fit: contain;
+	background: #15231a;
+	text-align: center;
+}
+.crt-name {
+	width: 100%;
+	font-size: 16px;
+	line-height: 20px;
+	margin-top: 4px;
+	max-height: 40px;
+	text-align: center;
+	overflow: hidden;
+	overflow-wrap: anywhere;
+}
+body.cascading #viewport {
+	right: 288px;
 }
 h1 {
 	position: absolute;
@@ -322,14 +403,30 @@ body.running #status {
 }
 @media (max-width: 760px) {
 	h1 {
-		top: 94px;
+		top: 188px;
 		font-size: 38px;
 	}
 	#viewport {
-		top: 150px;
+		top: 246px;
+	}
+	body.cascading #viewport {
+		right: 0;
+	}
+	#profile-crt {
+		width: 140.8px;
+	}
+	.crt-avatar {
+		width: 24px;
+		height: 24px;
+	}
+	.crt-name {
+		font-size: 11px;
+		line-height: 13px;
+		margin-top: 2px;
+		max-height: 26px;
 	}
 	.column {
-		max-height: calc(100dvh - 250px);
+		max-height: calc(100dvh - 346px);
 	}
 	#status {
 		left: 12px;
@@ -339,9 +436,15 @@ body.running #status {
 	}
 }
 @media (prefers-reduced-motion: reduce) {
+	.space-track {
+		animation-play-state: paused;
+	}
 	.column.active {
 		animation: none;
 	}
+}
+body.reduced-motion .space-track {
+	animation-play-state: paused;
 }
 body.reduced-motion .column.active {
 	animation: none;

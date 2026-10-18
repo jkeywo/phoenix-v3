@@ -402,6 +402,10 @@ foreach(
 		sprite-set.schema.json
 		settings.png
 		background.png
+		cockpit-frame.png
+		space-panorama.png
+		crt-terminal.png
+		menu-scene.json
 )
 	configure_file("content/ui/menu/${menu_asset}" "${CMAKE_CURRENT_BINARY_DIR}/assets/menu/${menu_asset}" COPYONLY)
 endforeach()

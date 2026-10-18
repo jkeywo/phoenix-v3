@@ -1,0 +1,17 @@
+{
+	"schema": 1,
+	"panorama": {
+		"file": "space-panorama.png",
+		"size": [2172, 724],
+		"repeat": "mirror-x",
+		"period_seconds": 720,
+		"initial_phase": 0.12
+	},
+	"foreground": { "file": "cockpit-frame.png", "size": [1672, 941] },
+	"terminal": {
+		"file": "crt-terminal.png",
+		"size": [1122, 1402],
+		"invitation_crop_top": 400,
+		"screen": { "x": 190, "y": 650, "width": 680, "height": 470 }
+	}
+}

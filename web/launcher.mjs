@@ -124,6 +124,50 @@ export function skinProperties(sidecar, scale) {
 		edges: [s.top, s.right, s.bottom, s.left].map((v) => v * scale + "px").join(" "),
 	};
 }
+export function sceneProperties(scene) {
+	if (scene.schema !== 1 || scene.panorama?.repeat !== "mirror-x") throw Error("Invalid menu scene.");
+	for (const asset of [scene.panorama, scene.foreground, scene.terminal]) {
+		if (
+			!/^[a-z0-9.-]+\.png$/.test(asset?.file) ||
+			!Array.isArray(asset.size) ||
+			asset.size.length !== 2 ||
+			!asset.size.every((v) => Number.isInteger(v) && v > 0 && v <= 16384)
+		)
+			throw Error("Invalid menu scene image.");
+	}
+	const { period_seconds: period, initial_phase: phase } = scene.panorama;
+	const [width, height] = scene.terminal.size,
+		screen = scene.terminal.screen;
+	if (
+		!Number.isFinite(period) ||
+		period <= 0 ||
+		!Number.isFinite(phase) ||
+		phase < 0 ||
+		phase >= 1 ||
+		!screen ||
+		![screen.x, screen.y, screen.width, screen.height].every(Number.isFinite) ||
+		screen.x < 0 ||
+		screen.y < 0 ||
+		screen.width <= 0 ||
+		screen.height <= 0 ||
+		screen.x + screen.width > width ||
+		screen.y + screen.height > height
+	)
+		throw Error("Invalid menu scene geometry.");
+	return {
+		"--menu-space": `url("assets/menu/${scene.panorama.file}")`,
+		"--menu-frame": `url("assets/menu/${scene.foreground.file}")`,
+		"--menu-crt": `url("assets/menu/${scene.terminal.file}")`,
+		"--pan-period": period + "s",
+		"--pan-start": String(-2 * phase),
+		"--pan-end": String(-2 * phase - 2),
+		"--crt-aspect": width + " / " + height,
+		"--crt-left": (100 * screen.x) / width + "%",
+		"--crt-top": (100 * screen.y) / height + "%",
+		"--crt-width": (100 * screen.width) / width + "%",
+		"--crt-height": (100 * screen.height) / height + "%",
+	};
+}
 export function automaticHostChoice(scenes, selected = "") {
 	const scene = selected ? scenes.find((entry) => entry.id === selected) : scenes.length === 1 ? scenes[0] : null;
 	if (scene?.slots.length !== 1 || scene.slots[0].ships.length !== 1) return null;
@@ -351,6 +395,8 @@ async function boot() {
 		try {
 			await write([...changes, ["library.json", encoder.encode(candidate)]]);
 			savedLibrary = candidate;
+			updateProfile();
+			document.body.classList.toggle("reduced-motion", !!library.reduced_motion);
 		} catch (error) {
 			library = JSON.parse(savedLibrary);
 			throw error;
@@ -502,6 +548,18 @@ async function boot() {
 		});
 		return name;
 	}
+	function updateProfile() {
+		const name = library.player_name || "Player",
+			avatar = $("profile-avatar");
+		$("profile-name").textContent = name;
+		$("profile-crt").setAttribute("aria-label", t("Your profile") + ": " + name);
+		avatar.alt = t("Player avatar");
+		const present = library.avatar?.length > 0 && library.avatar.length <= 12288;
+		avatar.hidden = !present;
+		$("profile-initial").hidden = present;
+		if (present) avatar.src = "data:image/png;base64," + btoa(String.fromCharCode(...library.avatar));
+		else avatar.removeAttribute("src");
+	}
 	function connection(parent, join = true) {
 		const form = element("form", undefined, parent);
 		if (join) {
@@ -534,6 +592,8 @@ async function boot() {
 		return launchOptions(p, location.origin);
 	}
 	function render() {
+		updateProfile();
+		document.body.classList.toggle("cascading", branch !== "root");
 		for (const input of $("columns").querySelectorAll("input[name]")) draftFields.set(input.name, input.value);
 		if (branch === "ships" && !scenarios().some((scene) => scene.id === scenario)) {
 			branch = "scenarios";
@@ -973,8 +1033,11 @@ async function boot() {
 			...["button-generic-9slice", "helm-background-9slice"].map((name) =>
 				fetch(`assets/menu/${name}.sprite.json`).then((r) => r.json()),
 			),
+			fetch("assets/menu/menu-scene.json").then((r) => r.json()),
 		]);
 		translations = data[0].languages.en;
+		for (const [name, value] of Object.entries(sceneProperties(data[3])))
+			document.documentElement.style.setProperty(name, value);
 		for (const [index, prefix, scale] of [
 			[1, "button", 0.075],
 			[2, "panel", 0.12],
