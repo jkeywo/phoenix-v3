@@ -69,6 +69,25 @@ FetchContent_Declare(
 	DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
 FetchContent_MakeAvailable(rmlui imgui)
+set(HB_BUILD_UTILS OFF CACHE BOOL "" FORCE)
+set(HB_BUILD_SUBSET OFF CACHE BOOL "" FORCE)
+set(HB_HAVE_FREETYPE ON CACHE BOOL "" FORCE)
+set(HB_HAVE_GLIB OFF CACHE BOOL "" FORCE)
+set(HB_HAVE_ICU OFF CACHE BOOL "" FORCE)
+FetchContent_Declare(
+	harfbuzz
+	URL https://codeload.github.com/harfbuzz/harfbuzz/tar.gz/refs/tags/11.2.1
+	URL_HASH SHA256=057D5754C3AC0C499BBF4D729D52ACF134C7BB4BA8868BA22E84AE96BC272816
+	DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+)
+FetchContent_MakeAvailable(harfbuzz)
+# Use the font engine shipped with the exact pinned RmlUi revision.
+file(GLOB phoenix_shaping_sources CONFIGURE_DEPENDS "${rmlui_SOURCE_DIR}/Samples/basic/harfbuzz/src/*.cpp")
+list(FILTER phoenix_shaping_sources EXCLUDE REGEX "/main.cpp$")
+add_library(phoenix_shaping STATIC ${phoenix_shaping_sources})
+target_include_directories(phoenix_shaping PUBLIC "${rmlui_SOURCE_DIR}/Samples/basic/harfbuzz/src")
+target_include_directories(phoenix_shaping PRIVATE "${rmlui_SOURCE_DIR}/Source/Core")
+target_link_libraries(phoenix_shaping PUBLIC RmlUi::RmlUi Freetype::Freetype harfbuzz)
 if(NOT EMSCRIPTEN)
 	set(SDL_SHARED OFF CACHE BOOL "" FORCE)
 	set(SDL_STATIC ON CACHE BOOL "" FORCE)
@@ -284,15 +303,27 @@ else()
 	)
 	add_custom_target(training_pack ALL DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/training.zip")
 	target_sources(phoenix_presentation PRIVATE src/presentation/windows_semantics.cpp)
-	target_link_libraries(phoenix_presentation PRIVATE uiautomationcore ole32 oleaut32 comctl32)
+	target_link_libraries(
+		phoenix_presentation
+		PRIVATE uiautomationcore ole32 oleaut32 comctl32 imm32
+	)
 endif()
 
 target_link_libraries(
 	phoenix_presentation
 	PUBLIC phoenix_core phoenix_content phoenix_files raylib RmlUi::RmlUi
-	PRIVATE phoenix_qr phoenix_devices
+	PRIVATE phoenix_qr phoenix_devices phoenix_shaping
 )
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/assets")
+configure_file("content/locales.json" "${CMAKE_CURRENT_BINARY_DIR}/assets/locales.json" COPYONLY)
+foreach(font Cairo-Regular.ttf Poppins-Regular.ttf LICENSE.txt)
+	configure_file(
+		"${rmlui_SOURCE_DIR}/Samples/basic/harfbuzz/data/${font}"
+		"${CMAKE_CURRENT_BINARY_DIR}/assets/shaping-${font}"
+		COPYONLY
+	)
+endforeach()
+configure_file("${harfbuzz_SOURCE_DIR}/COPYING" "${CMAKE_CURRENT_BINARY_DIR}/assets/HARFBUZZ-LICENSE.txt" COPYONLY)
 configure_file(
 	"${rmlui_SOURCE_DIR}/Samples/assets/LatoLatin-Regular.ttf"
 	"${CMAKE_CURRENT_BINARY_DIR}/assets/LatoLatin-Regular.ttf"
@@ -439,6 +470,9 @@ if(NOT EMSCRIPTEN)
 	add_executable(phoenix_session_probe tests/manual/session.cpp)
 	target_link_libraries(phoenix_session_probe PRIVATE phoenix_network_host phoenix_network_client)
 	phoenix_fixture(phoenix_session_probe)
+	add_executable(phoenix_browser_fleet_probe tests/manual/browser_fleet.cpp)
+	target_link_libraries(phoenix_browser_fleet_probe PRIVATE phoenix_network_host)
+	phoenix_fixture(phoenix_browser_fleet_probe)
 endif()
 include(cmake/Boundaries.cmake)
 phoenix_forbid_dependency(phoenix_network_client phoenix_simulation "")

@@ -1,4 +1,5 @@
 #include <iostream>
+#include <nlohmann/json.hpp>
 #include <optional>
 #include <stdexcept>
 #include <cstdint>
@@ -76,6 +77,16 @@ int main()
 		require(semantics.size() == 2 && semantics[1].placement.x == 1920 && semantics[1].placement.focused,
 		        "Console semantics must retain per-region geometry and focus without unrelated global navigation");
 		std::cout << "PASS console routing, safe release, semantic admission and translation\n";
+		configure_translations(
+		    Json{{"schema", 1}, {"languages", {{"en", {{"home", "Home"}}}, {"test", {{"home", "Translated home"}}}}}});
+		select_language("test");
+		require(translate("home", false) == "Translated home",
+		        "UI and semantics must resolve the selected language resource");
+		client.screen_inputs = {{"join-code", "Network code", "room/server"}};
+		const auto with_input = navigation_controls(client);
+		require(with_input.back().editable && with_input.back().value == "room/server",
+		        "Editable semantic controls must expose their current text separately from their names");
+		select_language("en");
 	}
 	catch (const std::exception &error)
 	{

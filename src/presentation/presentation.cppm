@@ -2,6 +2,7 @@ module;
 #include <raylib.h>
 #include <cstdint>
 #include <map>
+#include <nlohmann/json.hpp>
 #include <span>
 #include <functional>
 #include <memory>
@@ -33,6 +34,9 @@ bool close_requested();
 bool graphics_has_keyboard_focus();
 void draw_screen(Application &app);
 void close_window();
+// Authoring-only sample model. This preview never acquires gameplay authority.
+Texture2D draw_console_preview(const Json &layout, int width, int height, Vector2 pointer, bool pressed, bool released,
+                               float wheel, bool pseudo);
 } // namespace phoenix
 
 export namespace phoenix

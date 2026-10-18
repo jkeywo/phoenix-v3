@@ -5,6 +5,7 @@ module;
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <utility>
 #include <vector>
@@ -37,13 +38,25 @@ void begin_tools()
 void draw_workshop(Application &app)
 {
 	auto &io = ImGui::GetIO();
-	io.DisplaySize = {static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())};
+	Rectangle area{0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())};
+	if (app.embedded_tools && app.gm_region)
+	{
+		const auto &r = *app.gm_region;
+		area = {r.x, r.y, r.width, r.height};
+	}
+	io.DisplaySize = {area.width, area.height};
 	io.DeltaTime = GetFrameTime() > 0 ? GetFrameTime() : 1.0f / 60;
-	io.AddMousePosEvent(static_cast<float>(GetMouseX()), static_cast<float>(GetMouseY()));
+	io.AddMousePosEvent(GetMouseX() - area.x, GetMouseY() - area.y);
+	const bool hovered = CheckCollisionPointRec(GetMousePosition(), area);
+	static bool mouse_capture = false;
+	if (hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+		mouse_capture = true;
 	for (int i = 0; i < 3; ++i)
-		io.AddMouseButtonEvent(i, IsMouseButtonDown(i));
-	io.AddMouseWheelEvent(0, GetMouseWheelMove());
-	bool keyboard = graphics_has_keyboard_focus();
+		io.AddMouseButtonEvent(i, (hovered || mouse_capture) && IsMouseButtonDown(i));
+	if (!IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+		mouse_capture = false;
+	io.AddMouseWheelEvent(0, hovered ? GetMouseWheelMove() : 0);
+	bool keyboard = graphics_has_keyboard_focus() && (!app.embedded_tools || app.tools_keyboard_focus);
 	static bool previous_focus = true;
 	if (keyboard != previous_focus)
 	{
@@ -71,9 +84,10 @@ void draw_workshop(Application &app)
 	                                         {KEY_Z, ImGuiKey_Z}};
 	for (auto [key, imgui_key] : keys)
 		io.AddKeyEvent(imgui_key, keyboard && IsKeyDown(key));
-	for (int character; (character = GetCharPressed()) != 0;)
-		if (keyboard)
-			io.AddInputCharacter(character);
+	if (!app.embedded_tools || app.tools_keyboard_focus)
+		for (int character; (character = GetCharPressed()) != 0;)
+			if (keyboard)
+				io.AddInputCharacter(character);
 	ImGui::NewFrame();
 	render_editor(app);
 	ImGui::Render();
@@ -91,8 +105,8 @@ void draw_workshop(Application &app)
 				continue;
 			}
 			const auto clip = command.ClipRect;
-			BeginScissorMode(static_cast<int>(clip.x), static_cast<int>(clip.y), static_cast<int>(clip.z - clip.x),
-			                 static_cast<int>(clip.w - clip.y));
+			BeginScissorMode(static_cast<int>(clip.x + area.x), static_cast<int>(clip.y + area.y),
+			                 static_cast<int>(clip.z - clip.x), static_cast<int>(clip.w - clip.y));
 			rlDrawRenderBatchActive();
 			rlSetTexture(static_cast<unsigned>(command.GetTexID()));
 			rlBegin(RL_TRIANGLES);
@@ -102,7 +116,7 @@ void draw_workshop(Application &app)
 				const auto c = v.col;
 				rlColor4ub(c & 255, (c >> 8) & 255, (c >> 16) & 255, (c >> 24) & 255);
 				rlTexCoord2f(v.uv.x, v.uv.y);
-				rlVertex2f(v.pos.x, v.pos.y);
+				rlVertex2f(v.pos.x + area.x, v.pos.y + area.y);
 			}
 			rlEnd();
 			rlSetTexture(0);
@@ -111,6 +125,15 @@ void draw_workshop(Application &app)
 	}
 	rlDrawRenderBatchActive();
 	rlEnableBackfaceCulling();
+}
+void draw_gm_region(Application &app)
+{
+	if (!app.can_host || !app.session || !app.session->running())
+		return;
+	Application inspector = app;
+	inspector.screen = Screen::gm;
+	inspector.embedded_tools = true;
+	draw_workshop(inspector);
 }
 void end_tools()
 {

@@ -84,6 +84,20 @@ void add(SDL_JoystickID id)
 void open_devices(void *window)
 {
 	std::cout << "Pointer hardware: " << GetSystemMetrics(SM_MAXIMUMTOUCHES) << " maximum simultaneous contacts\n";
+	UINT32 pointer_count = 0;
+	if (GetPointerDevices(&pointer_count, nullptr) && pointer_count <= 64)
+	{
+		std::vector<POINTER_DEVICE_INFO> devices(pointer_count);
+		if (GetPointerDevices(&pointer_count, devices.data()))
+			for (const auto &device : devices)
+			{
+				RECT raw{}, display{};
+				if (device.pointerDeviceType == POINTER_DEVICE_TYPE_TOUCH &&
+				    GetPointerDeviceRects(device.device, &raw, &display))
+					std::cout << "Touch display desktop rectangle: " << display.left << ',' << display.top << " / "
+					          << display.right - display.left << 'x' << display.bottom - display.top << '\n';
+			}
+	}
 	SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "0");
 	SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI, "1");
 	SDL_SetHint(SDL_HINT_JOYSTICK_WGI, "1");
@@ -93,7 +107,11 @@ void open_devices(void *window)
 	auto *ids = SDL_GetGamepads(&count);
 	std::cout << "SDL controllers: " << count << '\n';
 	for (int i = 0; i < count; ++i)
+	{
 		add(ids[i]);
+		if (pads.contains(ids[i]))
+			std::cout << "Controller " << ids[i] << ": " << SDL_GetGamepadName(pads.at(ids[i])) << '\n';
+	}
 	SDL_free(ids);
 	if (!SetWindowSubclass(static_cast<HWND>(window), device_proc, 2, 0))
 		throw std::runtime_error("Cannot install pointer input routing");

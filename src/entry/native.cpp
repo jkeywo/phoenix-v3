@@ -21,6 +21,7 @@ import phoenix.session.api;
 import phoenix.session.local;
 import phoenix.simulation;
 import phoenix.tools;
+#include "performance.hpp"
 
 int main(int argc, char **argv)
 {
@@ -44,15 +45,32 @@ int main(int argc, char **argv)
 	bool workshop_smoke = false;
 	std::string workshop_pack;
 	std::string game_pack;
-	std::string mission, slot, ship;
+	std::string mission, slot, ship, seat;
 	bool console = false;
 	std::string runtime_save;
 	std::string display_layout;
 	bool span_displays = false;
+	bool vsync = false, uncapped = false;
+	unsigned frame_limit = 0;
+	phoenix::FrameCapture performance;
 	bool resume_local = false;
 	for (int i = 1; i < argc; ++i)
 	{
 		const std::string argument = argv[i];
+		if (argument == "--vsync")
+			vsync = true;
+		if (argument == "--uncapped")
+			uncapped = true;
+		if (argument == "--frame-limit" && i + 1 < argc)
+			frame_limit = std::clamp(static_cast<unsigned>(std::stoul(argv[++i])), 1u, 1000u);
+		if (argument == "--text-probe")
+			app.text_probe = true;
+		if (argument == "--language" && i + 1 < argc)
+			app.language = argv[++i];
+		if (argument == "--performance-output" && i + 1 < argc)
+			performance.output = argv[++i];
+		if (argument == "--performance-frames" && i + 1 < argc)
+			performance.target = std::clamp(static_cast<unsigned>(std::stoul(argv[++i])), 60u, 36000u);
 		if (argument == "--span-displays")
 			span_displays = true;
 		if (argument == "--display-layout" && i + 1 < argc)
@@ -110,6 +128,8 @@ int main(int argc, char **argv)
 			slot = argv[++i];
 		if (std::strcmp(argv[i], "--ship") == 0 && i + 1 < argc)
 			ship = argv[++i];
+		if (argument == "--seat" && i + 1 < argc)
+			seat = argv[++i];
 		if (std::strcmp(argv[i], "--console") == 0)
 			console = true;
 		if (std::strcmp(argv[i], "--runtime-save") == 0 && i + 1 < argc)
@@ -205,6 +225,11 @@ int main(int argc, char **argv)
 			region.x -= left;
 			region.y -= top;
 		}
+		if (app.console_regions.size() > 1)
+		{
+			app.viewscreen_region = app.console_regions.front();
+			app.console_regions.erase(app.console_regions.begin());
+		}
 		SetWindowState(FLAG_WINDOW_UNDECORATED);
 		ClearWindowState(FLAG_WINDOW_RESIZABLE);
 		SetWindowSize(static_cast<int>(right - left), static_cast<int>(bottom - top));
@@ -219,17 +244,33 @@ int main(int argc, char **argv)
 			const int width = layout.at("width"), height = layout.at("height");
 			if (width < 320 || height < 240 || width > 16384 || height > 16384)
 				throw std::runtime_error("Invalid display window dimensions");
+			std::vector<phoenix::ConsoleRegion> all_regions;
 			for (const auto &region : layout.at("regions"))
 			{
 				phoenix::ConsoleRegion value{region.at("route"), region.at("x"), region.at("y"), region.at("width"),
 				                             region.at("height")};
 				if (value.x < 0 || value.y < 0 || value.x + value.width > width || value.y + value.height > height)
 					throw std::runtime_error("Console region is outside the display window");
-				app.console_regions.push_back(value);
+				all_regions.push_back(value);
+				if (region.value("role", std::string("console")) == "viewscreen")
+				{
+					if (app.viewscreen_region)
+						throw std::runtime_error("Only one Viewscreen region is supported");
+					app.viewscreen_region = value;
+				}
+				else if (region.value("role", std::string("console")) == "gm")
+				{
+					if (app.gm_region || !app.can_host)
+						throw std::runtime_error("A local GM region requires one native host");
+					app.gm_region = value;
+				}
+				else if (region.value("role", std::string("console")) == "console")
+					app.console_regions.push_back(value);
+				else
+					throw std::runtime_error("Unknown display region role");
 			}
 			phoenix::InputRouter validator;
-			if (app.console_regions.empty() || app.console_regions.size() > 6 ||
-			    !validator.set_regions(app.console_regions))
+			if (app.console_regions.empty() || all_regions.size() > 6 || !validator.set_regions(all_regions))
 				throw std::runtime_error("Display layout requires one to six non-overlapping Console regions");
 			SetWindowState(FLAG_WINDOW_UNDECORATED);
 			ClearWindowState(FLAG_WINDOW_RESIZABLE);
@@ -243,6 +284,12 @@ int main(int argc, char **argv)
 			return 1;
 		}
 	}
+	if (vsync)
+		SetWindowState(FLAG_VSYNC_HINT);
+	if (vsync || uncapped || !app.console_regions.empty())
+		SetTargetFPS(0);
+	if (frame_limit)
+		SetTargetFPS(static_cast<int>(frame_limit));
 	if (argc > 1 && std::strcmp(argv[1], "--platform-check") == 0)
 	{
 		app.screen = phoenix::Screen::client_lobby;
@@ -262,8 +309,15 @@ int main(int argc, char **argv)
 			app.session->add_pack(phoenix::read_file(game_pack));
 			if (!mission.empty())
 			{
-				app.session->start({mission, {{slot, ship}}, slot});
-				app.screen = console ? phoenix::Screen::console : phoenix::Screen::viewscreen;
+				if (seat.empty())
+				{
+					const auto available = phoenix::resolve_consoles(app.session->catalog(), ship);
+					if (!available.empty())
+						seat = available.front().id;
+				}
+				app.session->start({mission, {{slot, ship}}, slot, seat});
+				app.screen =
+				    console || !app.console_regions.empty() ? phoenix::Screen::console : phoenix::Screen::viewscreen;
 			}
 		}
 		catch (const std::exception &error)
@@ -311,9 +365,19 @@ int main(int argc, char **argv)
 		}
 	}
 	double accumulated = 0;
+	if (!performance.output.empty())
+	{
+		app.session->release_console(1);
+		for (const auto &region : app.console_regions)
+			for (const auto &seat : app.session->console_seats())
+				if (seat.available && app.session->claim_console(region.console, seat.address))
+					break;
+	}
 	const auto smoke_started = GetTime();
+	double previous_frame = smoke_started;
 	while (!phoenix::close_requested())
 	{
+		const auto frame_started = GetTime();
 		app.session->poll();
 		accumulated += std::min(static_cast<double>(GetFrameTime()), 0.25);
 		while (accumulated >= 1.0 / phoenix::World::ticks_per_second)
@@ -321,11 +385,27 @@ int main(int argc, char **argv)
 			app.session->tick();
 			accumulated -= 1.0 / phoenix::World::ticks_per_second;
 		}
+		const auto simulation_finished = GetTime();
+		if (app.screen != phoenix::Screen::console)
+			app.tools_keyboard_focus = false;
+		if (app.gm_region && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+		{
+			const auto &r = *app.gm_region;
+			app.tools_keyboard_focus = CheckCollisionPointRec(GetMousePosition(), {r.x, r.y, r.width, r.height});
+		}
 		BeginDrawing();
 		phoenix::draw_screen(app);
 		if (app.screen == phoenix::Screen::workshop || app.screen == phoenix::Screen::gm)
 			phoenix::draw_workshop(app);
+		else if (app.screen == phoenix::Screen::console && app.gm_region)
+			phoenix::draw_gm_region(app);
+		const auto drawing_finished = GetTime();
 		EndDrawing();
+		const auto frame_finished = GetTime();
+		if (performance.record(simulation_finished - frame_started, drawing_finished - simulation_finished,
+		                       frame_finished - previous_frame, app))
+			break;
+		previous_frame = frame_finished;
 		if (join_smoke)
 		{
 			if (!join_submitted)
@@ -372,4 +452,9 @@ int main(int argc, char **argv)
 	}
 	phoenix::end_tools();
 	phoenix::close_window();
+	if (!performance.output.empty() && !performance.completed)
+	{
+		std::cerr << "Manual performance capture ended before the requested sample count\n";
+		return 1;
+	}
 }

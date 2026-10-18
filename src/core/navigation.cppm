@@ -15,8 +15,13 @@ struct SemanticControl
 	std::string id;
 	std::string label;
 	Application::ControlPlacement placement;
+	bool editable = false;
+	std::string value;
 };
 std::string translate(const std::string &key, bool pseudo);
+void configure_translations(const Json &catalog);
+void select_language(const std::string &language, bool pseudo = false);
+std::string localise(const std::string &key);
 std::vector<SemanticControl> navigation_controls(const Application &app);
 bool invoke_navigation(Application &app, const std::string &action);
 } // namespace phoenix

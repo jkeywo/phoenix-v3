@@ -44,8 +44,16 @@ public:
 	{
 		origin_ = {area.x, area.y};
 		viewport_ = area;
+		scissor_ = false;
+		BeginBlendMode(BLEND_ALPHA_PREMULTIPLY);
 		BeginScissorMode(static_cast<int>(area.x), static_cast<int>(area.y), static_cast<int>(area.width),
 		                 static_cast<int>(area.height));
+	}
+	void finish()
+	{
+		EndScissorMode();
+		EndBlendMode();
+		scissor_ = false;
 	}
 	Rml::CompiledGeometryHandle CompileGeometry(Rml::Span<const Rml::Vertex> v, Rml::Span<const int> i) override
 	{
@@ -58,8 +66,6 @@ public:
 	void RenderGeometry(Rml::CompiledGeometryHandle handle, Rml::Vector2f offset, Rml::TextureHandle texture) override
 	{
 		const auto &geometry = *reinterpret_cast<Geometry *>(handle);
-		rlDrawRenderBatchActive();
-		BeginBlendMode(BLEND_ALPHA_PREMULTIPLY);
 		rlSetTexture(texture ? reinterpret_cast<Texture2D *>(texture)->id : rlGetTextureIdDefault());
 		rlBegin(RL_TRIANGLES);
 		for (int index : geometry.indices)
@@ -71,7 +77,6 @@ public:
 		}
 		rlEnd();
 		rlSetTexture(0);
-		EndBlendMode();
 	}
 	Rml::TextureHandle LoadTexture(Rml::Vector2i &dimensions, const Rml::String &path) override
 	{

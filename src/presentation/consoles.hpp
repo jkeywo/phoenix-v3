@@ -4,11 +4,14 @@ namespace phoenix
 class ConsoleSurface final : public Rml::EventListener
 {
 	ConsoleId route_;
+	std::string context_name_;
+	bool toolbar_enabled_ = true;
 	Rml::Context *context_ = nullptr;
 	Rml::ElementDocument *document_ = nullptr;
 	ConsoleModel model_;
 	Application *app_ = nullptr;
 	std::string signature_;
+	std::map<std::string, std::string> displayed_values_;
 	std::weak_ptr<SessionPort> owner_;
 	std::uint64_t generation_ = 0;
 	std::vector<std::pair<std::string, std::string>> controls_;
@@ -42,9 +45,10 @@ class ConsoleSurface final : public Rml::EventListener
 	}
 
 public:
-	explicit ConsoleSurface(ConsoleId route) : route_(route)
+	explicit ConsoleSurface(ConsoleId route, const std::string &prefix = "console-", bool toolbar = true)
+	    : route_(route), context_name_(prefix + std::to_string(route)), toolbar_enabled_(toolbar)
 	{
-		context_ = Rml::CreateContext("console-" + std::to_string(route), {1280, 720});
+		context_ = Rml::CreateContext(context_name_, {1280, 720});
 		if (!context_)
 			throw std::runtime_error("Cannot create independent Console context");
 		document_ = context_->LoadDocumentFromMemory(R"(<rml><head><style>
@@ -63,7 +67,7 @@ p {display:block;font-size:18px;}
 	}
 	~ConsoleSurface()
 	{
-		Rml::RemoveContext("console-" + std::to_string(route_));
+		Rml::RemoveContext(context_name_);
 	}
 	Rml::Context &context()
 	{
@@ -134,12 +138,16 @@ p {display:block;font-size:18px;}
 		if (signature != signature_)
 		{
 			signature_ = std::move(signature);
+			displayed_values_.clear();
 			controls_.clear();
-			std::string toolbar = button("home", "Lobby");
-			if (model_.observation())
+			std::string toolbar =
+			    toolbar_enabled_ ? button("home", "Lobby") : "<p>Sample Console / isolated preview</p>";
+			if (toolbar_enabled_ && model_.observation())
 				toolbar += button("release", "Release Console");
-			for (const auto &pad : pads)
+			for (const auto &pad : toolbar_enabled_ ? pads : std::set<std::string>{})
 				toolbar += button("pad/" + pad, "Assign controller " + pad);
+			if (toolbar_enabled_)
+				toolbar += "<p id=\"connection-status\" style=\"font-size:14px;\"></p>";
 			document_->GetElementById("toolbar")->SetInnerRML(toolbar);
 			std::string widgets;
 			if (!layout && app.session)
@@ -170,6 +178,18 @@ p {display:block;font-size:18px;}
 				}
 			document_->GetElementById("widgets")->SetInnerRML(widgets);
 		}
+		if (toolbar_enabled_ && app.session)
+		{
+			const auto status = app.session->connection_status();
+			if (displayed_values_["connection"] != status)
+			{
+				if (auto *element = document_->GetElementById("connection-status"))
+					element->SetInnerRML(escaped(status));
+				displayed_values_["connection"] = status;
+			}
+			if (!model_.observation())
+				app.accessible_status = status;
+		}
 		if (layout)
 			for (const auto &widget : layout->at("widgets"))
 			{
@@ -182,8 +202,13 @@ p {display:block;font-size:18px;}
 				else if (kind == "status")
 					value = "Ship " + std::to_string(model_.observation()->own.id) + " / Console " +
 					        model_.observation()->console;
-				if (auto *element = document_->GetElementById("value/" + widget.at("id").get<std::string>()))
-					element->SetInnerRML(escaped(value));
+				const auto id = "value/" + widget.at("id").get<std::string>();
+				if (displayed_values_[id] != value)
+				{
+					if (auto *element = document_->GetElementById(id))
+						element->SetInnerRML(escaped(value));
+					displayed_values_[id] = value;
+				}
 			}
 		context_->Update();
 		for (auto [name, label] : controls_)

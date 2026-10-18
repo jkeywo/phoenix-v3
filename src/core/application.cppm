@@ -3,6 +3,7 @@ module;
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <span>
@@ -29,6 +30,9 @@ enum class Screen
 struct Application
 {
 	std::vector<ConsoleRegion> console_regions;
+	std::optional<ConsoleRegion> viewscreen_region;
+	std::optional<ConsoleRegion> gm_region;
+	bool tools_keyboard_focus = false, embedded_tools = false;
 	std::map<std::string, ConsoleId> gamepad_assignments;
 	Screen screen = Screen::home;
 	std::string network_code;
@@ -39,8 +43,17 @@ struct Application
 	bool can_host = false;
 	bool can_edit = false;
 	bool pseudo_locale = false;
+	bool text_probe = false;
+	std::string language = "en";
+	std::map<std::string, double> frame_metrics;
 	std::shared_ptr<SessionPort> session;
 	std::vector<std::pair<std::string, std::string>> screen_controls;
+	struct TextControl
+	{
+		std::string id, label, value;
+	};
+	std::vector<TextControl> screen_inputs;
+	std::function<bool(const std::string &, const std::string &)> set_control_value;
 	std::function<bool(const std::string &)> screen_action;
 	struct ControlPlacement
 	{

@@ -6,6 +6,10 @@ module;
 #include <oleauto.h>
 #include <uiautomation.h>
 #include <commctrl.h>
+#include <imm.h>
+#include <RmlUi/Core.h>
+#include <RmlUi/Core/TextInputHandler.h>
+#include <RmlUi/Core/TextInputContext.h>
 #include <atomic>
 #include <deque>
 #include <memory>
@@ -31,13 +35,37 @@ struct Shared
 	std::vector<SemanticControl> controls;
 	std::deque<std::string> actions;
 	std::deque<std::string> focuses;
+	std::deque<std::pair<std::string, std::string>> values;
 	int revision = 0;
 	std::weak_ptr<SessionPort> session;
 	std::uint64_t generation = 0;
 	int focus = -1;
 	bool active = true;
+	std::string status;
 };
 std::shared_ptr<Shared> state;
+class NativeTextInput final : public Rml::TextInputHandler
+{
+	void OnActivate(Rml::TextInputContext *input) override
+	{
+		Rml::Rectanglef bounds;
+		if (!state || !input->GetBoundingBox(bounds))
+			return;
+		const auto window = state->window;
+		if (const auto ime = ImmGetContext(window))
+		{
+			COMPOSITIONFORM composition{};
+			composition.dwStyle = CFS_POINT;
+			composition.ptCurrentPos = {static_cast<LONG>(bounds.Left()), static_cast<LONG>(bounds.Bottom())};
+			ImmSetCompositionWindow(ime, &composition);
+			CANDIDATEFORM candidates{};
+			candidates.dwStyle = CFS_CANDIDATEPOS;
+			candidates.ptCurrentPos = composition.ptCurrentPos;
+			ImmSetCandidateWindow(ime, &candidates);
+			ImmReleaseContext(window, ime);
+		}
+	}
+} native_text_input;
 std::wstring wide(const std::string &text)
 {
 	int count = MultiByteToWideChar(CP_UTF8, 0, text.data(), static_cast<int>(text.size()), nullptr, 0);
@@ -48,7 +76,8 @@ std::wstring wide(const std::string &text)
 class Provider final : public IRawElementProviderSimple,
                        public IRawElementProviderFragment,
                        public IRawElementProviderFragmentRoot,
-                       public IInvokeProvider
+                       public IInvokeProvider,
+                       public IValueProvider
 {
 	std::atomic<ULONG> refs_{1};
 	std::shared_ptr<Shared> state_;
@@ -89,6 +118,8 @@ public:
 			*object = static_cast<IRawElementProviderFragmentRoot *>(this);
 		else if (iid == __uuidof(IInvokeProvider) && index_ >= 0)
 			*object = static_cast<IInvokeProvider *>(this);
+		else if (iid == __uuidof(IValueProvider) && index_ >= 0)
+			*object = static_cast<IValueProvider *>(this);
 		else if (iid == __uuidof(IMarshal) && marshaler_)
 			return marshaler_->QueryInterface(iid, object);
 		if (!*object)
@@ -124,6 +155,17 @@ public:
 			*result = static_cast<IInvokeProvider *>(this);
 			AddRef();
 		}
+		if (index_ >= 0 && id == UIA_ValuePatternId)
+		{
+			std::lock_guard lock(state_->mutex);
+			if (!valid())
+				return UIA_E_ELEMENTNOTAVAILABLE;
+			if (state_->controls[index_].editable)
+			{
+				*result = static_cast<IValueProvider *>(this);
+				AddRef();
+			}
+		}
 		return S_OK;
 	}
 	HRESULT STDMETHODCALLTYPE GetPropertyValue(PROPERTYID id, VARIANT *result) override
@@ -137,7 +179,9 @@ public:
 		if (id == UIA_ControlTypePropertyId)
 		{
 			result->vt = VT_I4;
-			result->lVal = index_ < 0 ? UIA_GroupControlTypeId : UIA_ButtonControlTypeId;
+			result->lVal = index_ < 0                          ? UIA_GroupControlTypeId
+			               : state_->controls[index_].editable ? UIA_EditControlTypeId
+			                                                   : UIA_ButtonControlTypeId;
 		}
 		else if (id == UIA_NamePropertyId || id == UIA_AutomationIdPropertyId)
 		{
@@ -160,6 +204,50 @@ public:
 			result->vt = VT_BOOL;
 			result->boolVal = state_->focus == index_ ? VARIANT_TRUE : VARIANT_FALSE;
 		}
+		else if (id == UIA_HelpTextPropertyId && index_ < 0)
+		{
+			result->vt = VT_BSTR;
+			result->bstrVal = SysAllocString(wide(state_->status).c_str());
+		}
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE SetValue(LPCWSTR value) override
+	{
+		if (!value)
+			return E_INVALIDARG;
+		const int length = WideCharToMultiByte(CP_UTF8, 0, value, -1, nullptr, 0, nullptr, nullptr);
+		if (length <= 0 || length > 4097)
+			return E_INVALIDARG;
+		std::string text(length, '\0');
+		WideCharToMultiByte(CP_UTF8, 0, value, -1, text.data(), length, nullptr, nullptr);
+		text.pop_back();
+		std::lock_guard lock(state_->mutex);
+		if (!valid() || index_ < 0)
+			return UIA_E_ELEMENTNOTAVAILABLE;
+		if (!state_->controls[index_].editable)
+			return UIA_E_NOTSUPPORTED;
+		if (!state_->controls[index_].placement.enabled)
+			return UIA_E_ELEMENTNOTENABLED;
+		if (state_->values.size() >= 64)
+			return E_FAIL;
+		state_->values.emplace_back(state_->controls[index_].id, std::move(text));
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE get_Value(BSTR *result) override
+	{
+		if (!result)
+			return E_POINTER;
+		std::lock_guard lock(state_->mutex);
+		if (!valid() || index_ < 0)
+			return UIA_E_ELEMENTNOTAVAILABLE;
+		*result = SysAllocString(wide(state_->controls[index_].value).c_str());
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE get_IsReadOnly(BOOL *result) override
+	{
+		if (!result)
+			return E_POINTER;
+		*result = FALSE;
 		return S_OK;
 	}
 	HRESULT STDMETHODCALLTYPE get_HostRawElementProvider(IRawElementProviderSimple **result) override
@@ -308,6 +396,7 @@ void install_native_accessibility(void *window)
 	auto result = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 	com_initialised = SUCCEEDED(result);
 	state = std::make_shared<Shared>();
+	Rml::SetTextInputHandler(&native_text_input);
 	state->window = static_cast<HWND>(window);
 	root = new Provider(state, -1);
 	SetWindowSubclass(state->window, window_proc, 1, 0);
@@ -318,6 +407,9 @@ void publish_semantics(const Application &app)
 		return;
 	std::unique_lock lock(state->mutex);
 	const auto previous_focus = state->focus;
+	const bool announce =
+	    app.console_surface_active && app.accessible_status != state->status && !app.accessible_status.empty();
+	state->status = app.accessible_status;
 	auto controls = navigation_controls(app);
 	const bool replaced =
 	    state->session.lock() != app.session || (app.session && state->generation != app.session->generation());
@@ -328,6 +420,7 @@ void publish_semantics(const Application &app)
 		state->generation = app.session ? app.session->generation() : 0;
 		state->actions.clear();
 		state->focuses.clear();
+		state->values.clear();
 	}
 	for (std::size_t i = 0; !changed && i < controls.size(); ++i)
 		changed = controls[i].id != state->controls[i].id;
@@ -341,6 +434,15 @@ void publish_semantics(const Application &app)
 	Provider *focused =
 	    state->focus >= 0 && (changed || state->focus != previous_focus) ? new Provider(state, state->focus) : nullptr;
 	lock.unlock();
+	if (announce && root && UiaClientsAreListening())
+	{
+		auto message = SysAllocString(wide(app.accessible_status).c_str());
+		auto activity = SysAllocString(L"Phoenix Console action");
+		UiaRaiseNotificationEvent(root, NotificationKind_ActionCompleted, NotificationProcessing_ImportantMostRecent,
+		                          message, activity);
+		SysFreeString(message);
+		SysFreeString(activity);
+	}
 	if (focused)
 	{
 		UiaRaiseAutomationEvent(focused, UIA_AutomationFocusChangedEventId);
@@ -353,14 +455,19 @@ void drain_semantic_actions(Application &app)
 		return;
 	std::deque<std::string> pending;
 	std::deque<std::string> focuses;
+	std::deque<std::pair<std::string, std::string>> values;
 	{
 		std::lock_guard lock(state->mutex);
 		pending.swap(state->actions);
 		focuses.swap(state->focuses);
+		values.swap(state->values);
 	}
 	for (const auto &id : focuses)
 		if (app.focus_control)
 			app.focus_control(id);
+	for (const auto &[id, value] : values)
+		if (app.set_control_value)
+			app.set_control_value(id, value);
 	for (const auto &action : pending)
 		invoke_navigation(app, action);
 }
@@ -384,6 +491,43 @@ void remove_native_accessibility(void *window)
 bool probe_native_accessibility(Application &app)
 {
 	publish_semantics(app);
+	bool edited = false;
+	for (std::size_t i = 0; i < app.screen_inputs.size(); ++i)
+	{
+		const auto id = app.screen_inputs[i].id;
+		auto controls = navigation_controls(app);
+		for (std::size_t index = 0; index < controls.size(); ++index)
+			if (controls[index].id == id)
+			{
+				auto *field = new Provider(state, static_cast<int>(index));
+				IUnknown *pattern = nullptr;
+				field->GetPatternProvider(UIA_ValuePatternId, &pattern);
+				field->Release();
+				if (!pattern)
+					return false;
+				IValueProvider *value = nullptr;
+				pattern->QueryInterface(__uuidof(IValueProvider), reinterpret_cast<void **>(&value));
+				pattern->Release();
+				if (!value)
+					return false;
+				const auto changed = value->SetValue(L"probe-\u03b1");
+				value->Release();
+				auto original = app.set_control_value;
+				app.set_control_value = [&](const std::string &target, const std::string &text)
+				{
+					const bool accepted = original && original(target, text);
+					edited = accepted && target == id && text == "probe-\xce\xb1";
+					return accepted;
+				};
+				drain_semantic_actions(app);
+				app.set_control_value = std::move(original);
+				if (FAILED(changed))
+					return false;
+				break;
+			}
+		if (edited)
+			break;
+	}
 	IRawElementProviderFragment *child = nullptr;
 	if (FAILED(root->Navigate(NavigateDirection_FirstChild, &child)) || !child)
 		return false;
@@ -423,6 +567,6 @@ bool probe_native_accessibility(Application &app)
 	auto result = invoke->Invoke();
 	invoke->Release();
 	drain_semantic_actions(app);
-	return labelled && placed && focused && SUCCEEDED(result) && app.screen == Screen::home;
+	return labelled && placed && focused && edited && SUCCEEDED(result) && app.screen == Screen::home;
 }
 } // namespace phoenix

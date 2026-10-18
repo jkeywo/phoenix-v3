@@ -26,7 +26,7 @@ get_property(phoenix_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
 foreach(target IN LISTS phoenix_targets)
 	if(
 		target MATCHES "^phoenix_"
-		AND NOT target MATCHES "^phoenix_(qr|zip|imgui)$"
+		AND NOT target MATCHES "^phoenix_(qr|zip|imgui|shaping)$"
 		OR target MATCHES "^(native|server|client|workshop)$"
 	)
 		get_target_property(kind ${target} TYPE)

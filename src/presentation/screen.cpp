@@ -1,6 +1,7 @@
 module;
 #include <raylib.h>
 #include <RmlUi/Core.h>
+#include <FontEngineInterfaceHarfBuzz.h>
 #include <stdexcept>
 #include <filesystem>
 #include <algorithm>
@@ -40,11 +41,111 @@ namespace
 {
 UiSystem system;
 UiRenderer renderer;
+FontEngineInterfaceHarfBuzz shaping;
 Rml::Context *context = nullptr;
 Rml::ElementDocument *document = nullptr;
 Application *current_app = nullptr;
 std::unique_ptr<GameScreen> game_screen;
 std::map<ConsoleId, std::unique_ptr<ConsoleSurface>> console_surfaces;
+class PreviewSession final : public SessionPort
+{
+	Catalog catalog_;
+	Observation view_;
+	std::uint64_t generation_ = 1;
+
+public:
+	PreviewSession()
+	{
+		catalog_.entities["preview.ship"] = {{"id", "preview.ship"},
+		                                     {"console", "preview.console"},
+		                                     {"systems",
+		                                      {{"engine", {{"max_speed_mm_s", 30000}, {"acceleration_mm_s2", 2000}}},
+		                                       {"steering", {{"turn_mdeg_s", 90000}}},
+		                                       {"radar", {{"range_mm", 100000}}}}}};
+		view_.own = {1, "preview.ship", 0, 0, 0, 0, 0};
+		view_.console = "main";
+		view_.controls = view_.feeds = 7;
+		view_.engine_enabled = view_.radar_enabled = true;
+		for (unsigned i = 2; i < 16; ++i)
+			view_.contacts.push_back({i, "preview.ship", static_cast<std::int64_t>(i % 4) * 17000 - 25000,
+			                          static_cast<std::int64_t>(i / 4) * 19000 - 25000, 0, 0, 0});
+	}
+	void layout(Json value)
+	{
+		value["id"] = "preview.console";
+		if (catalog_.consoles["preview.console"] != value)
+		{
+			catalog_.consoles["preview.console"] = std::move(value);
+			++generation_;
+		}
+	}
+	void add_pack(const Bytes &) override
+	{
+	}
+	void clear_packs() override
+	{
+	}
+	const Catalog &catalog() const override
+	{
+		return catalog_;
+	}
+	void start(const GameSetup &) override
+	{
+	}
+	bool running() const override
+	{
+		return true;
+	}
+	bool recovery_pending() const override
+	{
+		return false;
+	}
+	Bytes save() const override
+	{
+		return {};
+	}
+	void restore(const Bytes &) override
+	{
+	}
+	void resume_local() override
+	{
+	}
+	void tick() override
+	{
+	}
+	std::uint64_t ticks() const override
+	{
+		return 1;
+	}
+	std::uint64_t generation() const override
+	{
+		return generation_;
+	}
+	bool command(const OperatingCommand &value) override
+	{
+		if (value.target != 1)
+			return false;
+		if (value.action == "speed_mm_s")
+			view_.requested_speed = std::clamp<std::int64_t>(value.value, 0, 30000);
+		else if (value.action == "heading_mdeg")
+			view_.requested_heading = value.value;
+		else
+			return false;
+		return true;
+	}
+	std::optional<Observation> observation() const override
+	{
+		return view_;
+	}
+	std::vector<BodyView> viewscreen() const override
+	{
+		return {};
+	}
+};
+std::shared_ptr<PreviewSession> preview_session;
+Application preview_app;
+std::unique_ptr<ConsoleSurface> preview_surface;
+RenderTexture2D preview_texture{};
 InputRouter input;
 std::set<std::string> gamepads;
 std::map<std::uint64_t, PointerInput> captures;
@@ -122,6 +223,10 @@ void open_window()
 	open_devices(GetWindowHandle());
 	Rml::SetSystemInterface(&system);
 	Rml::SetRenderInterface(&renderer);
+	shaping.RegisterLanguage("en", "Latn", TextFlowDirection::LeftToRight);
+	shaping.RegisterLanguage("ar", "Arab", TextFlowDirection::RightToLeft);
+	shaping.RegisterLanguage("hi", "Deva", TextFlowDirection::LeftToRight);
+	Rml::SetFontEngineInterface(&shaping);
 	if (!Rml::Initialise())
 		throw std::runtime_error("RmlUi initialisation failed");
 #ifdef __EMSCRIPTEN__
@@ -131,6 +236,12 @@ void open_window()
 #endif
 	if (!Rml::LoadFontFace(font))
 		throw std::runtime_error("Could not load player UI font: " + font);
+	const auto font_directory = std::filesystem::path(font).parent_path();
+	configure_translations(
+	    parse_json(read_file((font_directory / "locales.json").generic_string(), 1024 * 1024), "UI translations"));
+	for (const char *fallback : {"shaping-Cairo-Regular.ttf", "shaping-Poppins-Regular.ttf"})
+		if (!Rml::LoadFontFace((font_directory / fallback).generic_string(), true))
+			throw std::runtime_error("Could not load Unicode fallback font");
 	context = Rml::CreateContext("navigation", {GetScreenWidth(), GetScreenHeight()});
 	document = context->LoadDocumentFromMemory(R"(<rml><head><style>
     body { display:block; width:100%; box-sizing:border-box; font-family:LatoLatin; font-size:20px; color:#d9e9ef; padding:20px; }
@@ -176,13 +287,17 @@ bool graphics_has_keyboard_focus()
 }
 void draw_screen(Application &app)
 {
+	const auto frame_started = GetTime();
 #ifdef __EMSCRIPTEN__
 	const int width = phoenix_canvas_width(), height = phoenix_canvas_height();
 	if (width != GetScreenWidth() || height != GetScreenHeight())
 		SetWindowSize(width, height);
 #endif
 	ClearBackground({8, 15, 25, 255});
+	app.frame_metrics["clear"] = GetTime() - frame_started;
+	const auto preparation_started = GetTime();
 	current_app = &app;
+	select_language(app.language, app.pseudo_locale);
 	const bool show_consoles = app.screen == Screen::console;
 	if (show_consoles != console_mode)
 	{
@@ -191,6 +306,8 @@ void draw_screen(Application &app)
 	}
 	app.console_surface_active = console_mode;
 	app.control_placements.clear();
+	app.screen_inputs.clear();
+	app.set_control_value = {};
 	std::vector<ConsoleRegion> regions =
 	    console_mode && !app.console_regions.empty()
 	        ? app.console_regions
@@ -242,12 +359,13 @@ void draw_screen(Application &app)
 					return true;
 			return false;
 		};
-		app.focus_control = [](const std::string &id)
+		app.focus_control = [&app](const std::string &id)
 		{
 			for (auto &[route, surface] : console_surfaces)
 				if (id.starts_with("console/" + std::to_string(route) + "/"))
 				{
 					input.select_keyboard(route);
+					app.tools_keyboard_focus = false;
 					surface->focus(id);
 				}
 		};
@@ -258,14 +376,42 @@ void draw_screen(Application &app)
 	{
 		update_document(app);
 		game_screen->prepare(app, *document);
+		if (app.text_probe && !document->GetElementById("probe-text"))
+			document->GetElementById("game")->SetInnerRML(R"(<h2>Unicode shaping and text input</h2>
+<p lang="ar" dir="rtl" style="font-family:Cairo;font-size:32px;text-align:right;">&#1605;&#1585;&#1581;&#1576;&#1575; &#1576;&#1603;&#1605; &#1601;&#1610; &#1601;&#1610;&#1606;&#1610;&#1603;&#1587;</p>
+<p lang="hi" style="font-family:Poppins;font-size:32px;">&#2344;&#2350;&#2360;&#2381;&#2340;&#2375; &#2342;&#2369;&#2344;&#2367;&#2351;&#2366;</p>
+<p>Latin fallback: caf&#233; / fa&#231;ade / &#233;&#769;</p>
+<div class="connection"><label>Unicode text input</label><input id="probe-text" type="text" maxlength="128"/></div>)");
+		for (const auto &[id, label] :
+		     std::vector<std::pair<std::string, std::string>>{{"join-code", "Network code (room/server)"},
+		                                                      {"join-service", "Network service"},
+		                                                      {"join-profile", "Local profile"},
+		                                                      {"join-page", "Launcher page URL for joining devices"},
+		                                                      {"probe-text", "Unicode text input"}})
+			if (auto *field = dynamic_cast<Rml::ElementFormControl *>(document->GetElementById(id)))
+				app.screen_inputs.push_back({id, label, field->GetValue()});
+		app.set_control_value = [](const std::string &id, const std::string &value)
+		{
+			if (value.size() > 4096)
+				return false;
+			if (auto *field = dynamic_cast<Rml::ElementFormControl *>(document->GetElementById(id)))
+			{
+				field->SetValue(value);
+				return true;
+			}
+			return false;
+		};
 		app.focus_control = [](const std::string &id)
 		{
 			if (auto *element = document->GetElementById(id))
 				element->Focus(true);
 		};
 	}
+	app.frame_metrics["preparation"] = GetTime() - preparation_started;
+	const auto semantics_started = GetTime();
 	publish_semantics(app);
 	drain_semantic_actions(app);
+	app.frame_metrics["semantics"] = GetTime() - semantics_started;
 	for (const auto &event : poll_devices())
 	{
 		if (event.kind == DeviceEventKind::Added)
@@ -303,7 +449,6 @@ void draw_screen(Application &app)
 				Rml::TouchList touches{{static_cast<Rml::TouchId>(event.contact), {point->x, point->y}}};
 				if (event.kind == DeviceEventKind::Down)
 				{
-					input.select_keyboard(point->console);
 					target->ProcessTouchStart(touches, 0);
 				}
 				if (event.kind == DeviceEventKind::Move)
@@ -367,7 +512,7 @@ void draw_screen(Application &app)
 	    {KEY_TAB, Rml::Input::KI_TAB},        {KEY_ENTER, Rml::Input::KI_RETURN},  {KEY_SPACE, Rml::Input::KI_SPACE},
 	    {KEY_BACKSPACE, Rml::Input::KI_BACK}, {KEY_ESCAPE, Rml::Input::KI_ESCAPE}, {KEY_LEFT, Rml::Input::KI_LEFT},
 	    {KEY_RIGHT, Rml::Input::KI_RIGHT},    {KEY_UP, Rml::Input::KI_UP},         {KEY_DOWN, Rml::Input::KI_DOWN}};
-	const bool keyboard = graphics_has_keyboard_focus();
+	const bool keyboard = graphics_has_keyboard_focus() && !app.tools_keyboard_focus;
 	auto *keyboard_context = input.keyboard_console() ? routed_context(*input.keyboard_console()) : context;
 	if (!window_focused())
 	{
@@ -384,11 +529,20 @@ void draw_screen(Application &app)
 				if (auto *target = routed_context(region.console))
 					target->ProcessKeyUp(rml_key, modifiers);
 	}
-	for (int character; (character = GetCharPressed()) != 0;)
-		if (keyboard && keyboard_context)
-			keyboard_context->ProcessTextInput(static_cast<Rml::Character>(character));
+	if (!app.tools_keyboard_focus)
+		for (int character; (character = GetCharPressed()) != 0;)
+			if (keyboard && keyboard_context)
+				keyboard_context->ProcessTextInput(static_cast<Rml::Character>(character));
 	if (console_mode)
 	{
+		const auto scene_started = GetTime();
+		if (app.viewscreen_region)
+		{
+			const auto &r = *app.viewscreen_region;
+			game_screen->draw_viewscreen(app, {r.x, r.y, r.width, r.height});
+		}
+		app.frame_metrics["scene"] = GetTime() - scene_started;
+		const auto consoles_started = GetTime();
 		for (const auto &region : regions)
 		{
 			auto &surface = *console_surfaces.at(region.console);
@@ -396,8 +550,9 @@ void draw_screen(Application &app)
 			surface.draw(region);
 			renderer.viewport({region.x, region.y, region.width, region.height});
 			surface.context().Render();
-			EndScissorMode();
+			renderer.finish();
 		}
+		app.frame_metrics["consoles"] = GetTime() - consoles_started;
 		for (auto &[name, placement] : app.control_placements)
 			if (!input.keyboard_console() ||
 			    !name.starts_with("console/" + std::to_string(*input.keyboard_console()) + "/"))
@@ -408,7 +563,7 @@ void draw_screen(Application &app)
 		context->Update();
 		renderer.viewport({0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())});
 		context->Render();
-		EndScissorMode();
+		renderer.finish();
 		for (const auto &control : navigation_controls(app))
 			if (auto *element = document->GetElementById(control.id))
 			{
@@ -425,6 +580,12 @@ void draw_screen(Application &app)
 }
 void close_window()
 {
+	preview_surface.reset();
+	preview_session.reset();
+	preview_app.session.reset();
+	if (preview_texture.id)
+		UnloadRenderTexture(preview_texture);
+	preview_texture = {};
 	if (current_app)
 		current_app->screen_action = {};
 	game_screen.reset();
@@ -437,5 +598,47 @@ void close_window()
 	context = nullptr;
 	document = nullptr;
 	CloseWindow();
+}
+Texture2D draw_console_preview(const Json &layout, int width, int height, Vector2 pointer, bool pressed, bool released,
+                               float wheel, bool pseudo)
+{
+	width = std::clamp(width, 100, 1920);
+	height = std::clamp(height, 100, 1920);
+	if (!preview_session)
+	{
+		preview_session = std::make_shared<PreviewSession>();
+		preview_app.session = preview_session;
+		preview_app.screen = Screen::console;
+		preview_surface = std::make_unique<ConsoleSurface>(1, "preview-", false);
+	}
+	preview_session->layout(layout);
+	preview_app.pseudo_locale = pseudo;
+	preview_app.screen_controls.clear();
+	preview_app.control_placements.clear();
+	ConsoleRegion region{1, 0, 0, static_cast<float>(width), static_cast<float>(height)};
+	preview_surface->prepare(preview_app, region, {});
+	auto &context = preview_surface->context();
+	context.ProcessMouseMove(static_cast<int>(pointer.x), static_cast<int>(pointer.y), 0);
+	if (pressed)
+		context.ProcessMouseButtonDown(0, 0);
+	if (released)
+		context.ProcessMouseButtonUp(0, 0);
+	if (wheel)
+		context.ProcessMouseWheel(-wheel, 0);
+	context.Update();
+	if (!preview_texture.id || preview_texture.texture.width != width || preview_texture.texture.height != height)
+	{
+		if (preview_texture.id)
+			UnloadRenderTexture(preview_texture);
+		preview_texture = LoadRenderTexture(width, height);
+	}
+	BeginTextureMode(preview_texture);
+	ClearBackground({8, 15, 25, 255});
+	preview_surface->draw(region);
+	renderer.viewport({0, 0, static_cast<float>(width), static_cast<float>(height)});
+	context.Render();
+	renderer.finish();
+	EndTextureMode();
+	return preview_texture.texture;
 }
 } // namespace phoenix

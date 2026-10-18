@@ -1,5 +1,6 @@
 module;
 #include <raylib.h>
+#include <rlgl.h>
 #include <cmath>
 #include <algorithm>
 #include <sstream>
@@ -55,13 +56,14 @@ struct GameScreen::State
 	std::string mission, slot, ship, seat, notice;
 	ConsoleModel console_model;
 	TextureCache textures;
-	RenderTexture2D scene{};
 	Texture2D invitation{};
 	std::string invitation_url;
 	bool show_invitation = false;
 	float azimuth = 0.7f, elevation = 0.8f, distance = 160;
 	Vector3 focus{};
 	float game_top = 200;
+	std::optional<Rectangle> display_region;
+	std::map<std::string, double> scene_metrics;
 	std::optional<std::uint64_t> save_after;
 	std::weak_ptr<SessionPort> owner;
 	std::uint64_t generation = 0;
@@ -127,7 +129,7 @@ struct GameScreen::State
 	}
 	std::string label(const Application &app, const std::string &text)
 	{
-		return app.pseudo_locale ? "[ " + text + " ~~~ ]" : text;
+		return translate(text, app.pseudo_locale);
 	}
 	std::string query(const std::string &value)
 	{
@@ -307,6 +309,8 @@ struct GameScreen::State
 				app.screen = Screen::console;
 			else if (id == "game.scene" && session.running())
 				app.screen = Screen::viewscreen;
+			else if (id == "game.local-gm" && session.running() && app.can_host)
+				app.screen = Screen::gm;
 			else if (session.running())
 			{
 				console_model.refresh(app.session);
@@ -327,6 +331,8 @@ struct GameScreen::State
 	}
 	Rectangle area()
 	{
+		if (display_region)
+			return *display_region;
 		return {20, game_top, static_cast<float>(GetScreenWidth() - 40),
 		        std::max(80.f, static_cast<float>(GetScreenHeight()) - game_top - 20)};
 	}
@@ -538,6 +544,8 @@ struct GameScreen::State
 						network_markup += button(id, text);
 			}
 		}
+		if (app.can_host && app.session && app.session->running())
+			markup += button("game.local-gm", "Open local GM inspector");
 		if (app.screen == Screen::client_lobby && app.connect && !observation)
 		{
 			markup = "<div class=\"connection\"><label>Network code (room/server)</label><input id=\"join-code\" "
@@ -609,9 +617,9 @@ struct GameScreen::State
 		}
 		if (!app.session->running())
 			return;
-		if (app.screen == Screen::viewscreen)
+		if (app.screen == Screen::viewscreen || display_region)
 		{
-			if (GetMouseY() >= game_top)
+			if (CheckCollisionPointRec(GetMousePosition(), area()))
 			{
 				auto delta = GetMouseDelta();
 				if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
@@ -636,18 +644,29 @@ struct GameScreen::State
 			auto region = area();
 			int width = std::max(1, static_cast<int>(region.width)),
 			    height = std::max(1, static_cast<int>(region.height));
-			if (!scene.id || scene.texture.width != width || scene.texture.height != height)
-			{
-				if (scene.id)
-					UnloadRenderTexture(scene);
-				scene = LoadRenderTexture(width, height);
-			}
-			BeginTextureMode(scene);
-			ClearBackground({8, 15, 25, 255});
+			auto stage = GetTime();
+			BeginScissorMode(static_cast<int>(region.x), static_cast<int>(region.y), width, height);
+			const float sx = static_cast<float>(GetRenderWidth()) / GetScreenWidth();
+			const float sy = static_cast<float>(GetRenderHeight()) / GetScreenHeight();
+			rlViewport(static_cast<int>(region.x * sx), static_cast<int>((GetScreenHeight() - region.y - height) * sy),
+			           static_cast<int>(width * sx), static_cast<int>(height * sy));
 			BeginMode3D(camera);
+			// The camera aspect belongs to this display region, not the spanning window.
+			rlMatrixMode(RL_PROJECTION);
+			rlLoadIdentity();
+			const double near = rlGetCullDistanceNear(), far = rlGetCullDistanceFar();
+			const double top = near * std::tan(camera.fovy * pi / 360.0);
+			const double aspect = static_cast<double>(width) / height;
+			rlFrustum(-top * aspect, top * aspect, -top, top, near, far);
+			rlMatrixMode(RL_MODELVIEW);
 			DrawGrid(40, 10);
+			scene_metrics["scene_target"] = GetTime() - stage;
+			stage = GetTime();
 			const auto &catalog = app.session->catalog();
-			for (const auto &body : app.session->viewscreen())
+			const auto bodies = app.session->viewscreen();
+			scene_metrics["scene_projection"] = GetTime() - stage;
+			stage = GetTime();
+			for (const auto &body : bodies)
 			{
 				const auto &render = catalog.entities.at(body.definition).at("render");
 				auto position = Vector3{body.x / 1000.f, 0, -body.y / 1000.f};
@@ -666,10 +685,14 @@ struct GameScreen::State
 				auto scale = render.at("scale").get<float>();
 				DrawBillboard(camera, image, position, scale, WHITE);
 			}
+			scene_metrics["scene_billboards"] = GetTime() - stage;
+			stage = GetTime();
 			EndMode3D();
-			EndTextureMode();
-			DrawTextureRec(scene.texture, {0, 0, static_cast<float>(width), -static_cast<float>(height)},
-			               {region.x, region.y}, WHITE);
+			scene_metrics["scene_flush"] = GetTime() - stage;
+			stage = GetTime();
+			rlViewport(0, 0, GetRenderWidth(), GetRenderHeight());
+			EndScissorMode();
+			scene_metrics["scene_finish"] = GetTime() - stage;
 		}
 		else if (app.screen == Screen::console)
 		{
@@ -717,9 +740,6 @@ struct GameScreen::State
 	void close_resources()
 	{
 		textures.clear();
-		if (scene.id)
-			UnloadRenderTexture(scene);
-		scene = {};
 		if (invitation.id)
 			UnloadTexture(invitation);
 		invitation = {};
@@ -738,5 +758,13 @@ void GameScreen::prepare(Application &app, Rml::ElementDocument &document)
 void GameScreen::draw(const Application &app)
 {
 	state_->draw(app);
+}
+void GameScreen::draw_viewscreen(Application &app, Rectangle region)
+{
+	state_->display_region = region;
+	state_->draw(app);
+	for (const auto &[name, duration] : state_->scene_metrics)
+		app.frame_metrics[name] = duration;
+	state_->display_region.reset();
 }
 } // namespace phoenix

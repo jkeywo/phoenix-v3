@@ -253,6 +253,10 @@ public:
 	{
 		return running() ? world_->inspect() : std::vector<BodyView>{};
 	}
+	Json inspection() const override
+	{
+		return running() ? world_->save() : Json(nullptr);
+	}
 	std::vector<ConsoleSeat> console_seats() const override
 	{
 		std::vector<ConsoleSeat> result;

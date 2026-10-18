@@ -58,6 +58,12 @@ int main(int argc, char **argv)
 #endif
 	for (int i = 1; i + 1 < argc; i += 2)
 	{
+		if (std::string(argv[i]) == "--text-probe")
+			app.text_probe = std::string(argv[i + 1]) == "1";
+		if (std::string(argv[i]) == "--language")
+			app.language = argv[i + 1];
+		if (std::string(argv[i]) == "--relay")
+			network.link.force_relay = std::string(argv[i + 1]) == "1";
 		if (std::string(argv[i]) == "--code")
 			app.network_code = argv[i + 1];
 		if (std::string(argv[i]) == "--service")

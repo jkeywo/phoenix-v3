@@ -15,6 +15,7 @@ namespace
 {
 std::deque<std::string> actions;
 std::deque<std::string> focuses;
+std::deque<std::pair<std::string, std::string>> values;
 } // namespace
 extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_semantic_action(const char *id)
 {
@@ -26,22 +27,33 @@ extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_semantic_focus(const char *id)
 	if (focuses.size() < 64)
 		focuses.emplace_back(id);
 }
+extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_semantic_value(const char *id, const char *value)
+{
+	if (values.size() < 64 && std::string(value).size() <= 4096)
+		values.emplace_back(id, value);
+}
 // clang-format off: embedded JavaScript must retain its operators.
 EM_JS(void, begin_semantics, (), {
     const root = document.getElementById('semantics');
     for (const child of root.children) if (child.dataset.action) child.dataset.stale = 'true';
 });
-EM_JS(void, append_semantic_button, (const char* id, const char* label, float x, float y, float width, float height, bool focused, bool enabled), {
+EM_JS(void, append_semantic_button, (const char* id, const char* label, float x, float y, float width, float height, bool focused, bool enabled, bool editable, const char* value), {
     const action = UTF8ToString(id);
     const root = document.getElementById('semantics');
     let button = Array.from(root.children).find(child => child.dataset.action === action);
     if (!button) {
-        button = document.createElement('button'); button.dataset.action = action;
-        button.addEventListener('click', () => Module.ccall('phoenix_semantic_action', null, ['string'], [action]));
+        button = document.createElement(editable ? 'input' : 'button'); button.dataset.action = action;
+        if(editable) {
+            button.type='text'; button.maxLength=4096;
+            button.addEventListener('input', () => Module.ccall('phoenix_semantic_value',null,['string','string'],[action,button.value]));
+        } else button.addEventListener('click', () => Module.ccall('phoenix_semantic_action', null, ['string'], [action]));
         button.addEventListener('focus', () => Module.ccall('phoenix_semantic_focus', null, ['string'], [action]));
         root.appendChild(button);
     }
-    const text=UTF8ToString(label); if(button.textContent!==text)button.textContent=text; delete button.dataset.stale;
+    const text=UTF8ToString(label);
+    if(editable) { button.setAttribute('aria-label',text); if(document.activeElement!==button)button.value=UTF8ToString(value); }
+    else if(button.textContent!==text)button.textContent=text;
+    delete button.dataset.stale;
     button.disabled = !enabled;
     const rect = Module.canvas.getBoundingClientRect(), sx=rect.width/Module.canvas.width, sy=rect.height/Module.canvas.height;
     if(width>0 && height>0) {
@@ -76,11 +88,17 @@ void publish_semantics(const Application &app)
 	for (const auto &control : controls)
 		append_semantic_button(control.id.c_str(), control.label.c_str(), control.placement.x, control.placement.y,
 		                       control.placement.width, control.placement.height, control.placement.focused,
-		                       control.placement.enabled);
+		                       control.placement.enabled, control.editable, control.value.c_str());
 	end_semantics();
 }
 void drain_semantic_actions(Application &app)
 {
+	while (!values.empty())
+	{
+		if (app.set_control_value)
+			app.set_control_value(values.front().first, values.front().second);
+		values.pop_front();
+	}
 	while (!focuses.empty())
 	{
 		if (app.focus_control)

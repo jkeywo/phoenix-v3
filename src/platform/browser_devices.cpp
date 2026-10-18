@@ -30,7 +30,7 @@ EM_JS(void, begin_devices, (), {
     for (const [name,kind] of [['pointerdown',0],['pointermove',1],['pointerup',2],['pointercancel',3],['lostpointercapture',3]]) canvas.addEventListener(name,event => {
         if (event.pointerType === 'mouse') return;
         const rect=canvas.getBoundingClientRect(), x=(event.clientX-rect.left)*canvas.width/rect.width, y=(event.clientY-rect.top)*canvas.height/rect.height;
-        if (kind===0) { canvas.focus({preventScroll:true}); contacts.set(event.pointerId,[x,y]); canvas.setPointerCapture(event.pointerId); }
+        if (kind===0) { contacts.set(event.pointerId,[x,y]); canvas.setPointerCapture(event.pointerId); }
         else if (!contacts.has(event.pointerId)) return;
         send(kind,event.pointerId,x,y);
         if (kind>=2) contacts.delete(event.pointerId); else contacts.set(event.pointerId,[x,y]);

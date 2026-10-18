@@ -60,6 +60,8 @@ int main()
 			            !multi->console_command(2, {ship, "speed_mm_s", 1}),
 			        "session route preserves System authority");
 			multi->tick();
+			require(multi->inspection().at("bodies").size() == multi->viewscreen().size(),
+			        "trusted local GM inspection exposes the live world beside independent Console routes");
 			helm.refresh(multi);
 			require(helm.requested_speed() == multi->observation()->requested_speed,
 			        "model reconciles pending requests with committed observations");

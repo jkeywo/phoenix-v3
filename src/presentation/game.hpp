@@ -8,6 +8,7 @@ public:
 	~GameScreen();
 	void prepare(Application &app, Rml::ElementDocument &document);
 	void draw(const Application &app);
+	void draw_viewscreen(Application &app, Rectangle region);
 
 private:
 	struct State;
