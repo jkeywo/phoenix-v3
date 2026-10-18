@@ -32,6 +32,9 @@ class NetworkHost final : public SessionPort
 		std::string key, nonce, role;
 		bool ready = false, approved = false, connected = true, renew = false;
 		std::uint64_t seen = 0;
+		std::shared_ptr<StateSource> projection;
+		std::uint64_t projection_sequence = 0, projection_started = 0;
+		std::string projection_stream = random_token();
 	};
 	NetworkOptions options_;
 	std::string member_;
@@ -64,9 +67,12 @@ class NetworkHost final : public SessionPort
 			return;
 		try
 		{
-			transport_->send(peer,
-			                 encode_packet({unsigned_packet ? "lobby" : epoch_, options_.link.self, peer, type, body},
-			                               unsigned_packet ? "" : found->second.key));
+			auto payload = body;
+			if (!unsigned_packet && type.starts_with("state-"))
+				payload["stream"] = found->second.projection_stream;
+			transport_->send(
+			    peer, encode_packet({unsigned_packet ? "lobby" : epoch_, options_.link.self, peer, type, payload},
+			                        unsigned_packet ? "" : found->second.key));
 		}
 		catch (const std::exception &error)
 		{
@@ -244,7 +250,13 @@ class NetworkHost final : public SessionPort
 		client.nonce = nonce;
 		client.connected = true;
 		client.seen = now_;
-		send(sender, "welcome", {{"key", client.key}, {"epoch", epoch_}, {"role", role}, {"nonce", nonce}}, true);
+		send(sender, "welcome",
+		     {{"key", client.key},
+		      {"epoch", epoch_},
+		      {"role", role},
+		      {"nonce", nonce},
+		      {"stream", client.projection_stream}},
+		     true);
 		advertise(sender);
 	}
 	void packet(const std::string &sender, const std::string &bytes)
@@ -270,8 +282,20 @@ class NetworkHost final : public SessionPort
 			return;
 		}
 		const auto &body = decoded->body;
+		if (decoded->type.starts_with("state-") && body.value("stream", std::string{}) != client.projection_stream)
+			return;
 		auto *source = client.role == "gm" ? source_.get() : console_source_.get();
-		if (decoded->type == "offer-request")
+		if (decoded->type == "state-request" && client.ready && client.projection)
+		{
+			if (body.at("sequence") == client.projection->offer().at("sequence"))
+				send(sender, "state-chunk", client.projection->chunk(body));
+		}
+		else if (decoded->type == "state-ack" && client.projection)
+		{
+			if (body.at("sequence") == client.projection->offer().at("sequence"))
+				client.projection.reset();
+		}
+		else if (decoded->type == "offer-request")
 			advertise(sender);
 		else if (decoded->type == "pack-request" && source && body.at("offer") == offer_)
 		{
@@ -419,6 +443,11 @@ class NetworkHost final : public SessionPort
 		{
 			if (!client.connected || !client.approved || !client.ready)
 				continue;
+			if (client.projection && now_ - client.projection_started < 15000)
+			{
+				send(id, "state-offer", client.projection->offer());
+				continue;
+			}
 			auto held = game_ ? game_->owned(member_, id) : nullptr;
 			Json seats = Json::array();
 			bool previous_owner = false;
@@ -460,7 +489,17 @@ class NetworkHost final : public SessionPort
 				{
 					continue;
 				}
-			send(id, "state", state);
+			try
+			{
+				client.projection = std::make_shared<StateSource>(state, ++client.projection_sequence);
+				client.projection_started = now_;
+				send(id, "state-offer", client.projection->offer());
+			}
+			catch (const std::exception &error)
+			{
+				message_ = error.what();
+				send(id, "refused", {{"reason", message_}});
+			}
 		}
 	}
 	void install_fleet(PreparedFleet prepared)

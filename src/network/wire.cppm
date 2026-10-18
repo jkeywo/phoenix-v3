@@ -69,4 +69,33 @@ private:
 	bool ready_ = false;
 	void resolve();
 };
+// Bounded authenticated projections use the same chunk window/retry discipline
+// as content, but only publish a complete hash-verified state to the frontend.
+class StateSource
+{
+public:
+	StateSource(const Json &state, std::uint64_t sequence);
+	Json offer() const;
+	Json chunk(const Json &request) const;
+
+private:
+	Bytes bytes_;
+	Json offer_;
+};
+class StateTransfer
+{
+public:
+	explicit StateTransfer(const Json &offer);
+	std::vector<Json> requests(std::uint64_t now_ms);
+	bool accept(const Json &chunk);
+	bool ready() const;
+	std::uint64_t sequence() const;
+	const Json &state() const;
+
+private:
+	Json offer_, state_;
+	Bytes bytes_;
+	std::vector<bool> received_;
+	std::vector<std::uint64_t> deadlines_;
+};
 } // namespace phoenix

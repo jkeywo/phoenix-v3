@@ -271,6 +271,14 @@ int main(int argc, char **argv)
 			    parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "synthetic fixture");
 			definitions["maps"][0]["entities"].push_back(
 			    {{"id", 2}, {"definition", "test.variant"}, {"x_mm", 200000}, {"y_mm", 0}, {"heading_mdeg", 0}});
+			// A real GM inspection must cross the transport envelope bound while
+			// ordinary crew still receive only their in-range observation.
+			for (unsigned i = 10; i < 230; ++i)
+				definitions["maps"][0]["entities"].push_back({{"id", i},
+				                                              {"definition", "test.variant"},
+				                                              {"x_mm", 1000000 + i * 5000},
+				                                              {"y_mm", 1000000},
+				                                              {"heading_mdeg", 0}});
 			pack.files["definitions.json"] = json_bytes(definitions);
 			pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
 			session->add_pack(write_pack(pack));
@@ -310,7 +318,8 @@ int main(int argc, char **argv)
 				if (!session->inspection().is_null())
 				{
 					if (!saw_unapproved || session->command({3, "speed_mm_s", 1000}) ||
-					    session->inspection().at("bodies").size() != 3)
+					    session->inspection().at("bodies").size() != 223 ||
+					    json_bytes(session->inspection()).size() <= 65536)
 						throw std::runtime_error("GM approval/read-only/full-world boundary failed");
 					std::cout << "PASS host-approved read-only GM inspection" << std::endl;
 					return 0;

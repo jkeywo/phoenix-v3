@@ -40,6 +40,8 @@ class NetworkClient final : public SessionPort
 	std::unique_ptr<PeerTransport> transport_;
 	std::unique_ptr<BlobStore> blobs_;
 	std::unique_ptr<PackTransfer> transfer_;
+	std::unique_ptr<StateTransfer> state_transfer_;
+	std::string projection_stream_;
 	std::deque<Job> jobs_;
 	std::optional<Job> active_job_;
 	std::map<std::string, Bytes> cache_;
@@ -85,9 +87,12 @@ class NetworkClient final : public SessionPort
 	}
 	bool send(const std::string &type, const Json &body)
 	{
+		auto payload = body;
+		if (type.starts_with("state-"))
+			payload["stream"] = projection_stream_;
 		return transport_ && welcomed_ &&
 		       transport_->send(options_.server,
-		                        encode_packet({epoch_, options_.link.self, options_.server, type, body}, key_));
+		                        encode_packet({epoch_, options_.link.self, options_.server, type, payload}, key_));
 	}
 	void hello()
 	{
@@ -191,6 +196,14 @@ class NetworkClient final : public SessionPort
 				if (lobby->body.at("nonce") != nonce_ || lobby->body.at("role") != role())
 					return;
 				const std::string key = lobby->body.at("key"), epoch = lobby->body.at("epoch");
+				const std::string stream = lobby->body.at("stream");
+				if (!valid_hex_token(stream))
+					throw std::runtime_error("Invalid projection stream identity");
+				if (projection_stream_ != stream)
+				{
+					state_transfer_.reset();
+					projection_stream_ = stream;
+				}
 				if (!valid_hex_token(key) || !valid_hex_token(epoch))
 					throw std::runtime_error("Invalid welcome credential/epoch");
 				if (key_ != key || epoch_ != epoch)
@@ -199,6 +212,7 @@ class NetworkClient final : public SessionPort
 						++generation_;
 					key_ = key;
 					epoch_ = epoch;
+					state_transfer_.reset();
 					observation_.reset();
 					inspection_ = nullptr;
 					tick_ = 0;
@@ -234,6 +248,29 @@ class NetworkClient final : public SessionPort
 		auto packet = decode_packet(bytes, options_.server, options_.link.self, epoch_, key_);
 		if (!packet)
 			return;
+		if (packet->type.starts_with("state-") && packet->body.value("stream", std::string{}) != projection_stream_)
+			return;
+		if (packet->type == "state-offer")
+		{
+			if (!transfer_ || !transfer_->ready() || !profile_durable_)
+				return;
+			const auto sequence = network::counter(packet->body.at("sequence"));
+			if (!state_transfer_ || sequence > state_transfer_->sequence())
+				state_transfer_ = std::make_unique<StateTransfer>(packet->body);
+			if (state_transfer_->ready() && sequence == state_transfer_->sequence())
+				send("state-ack", {{"sequence", sequence}});
+			return;
+		}
+		if (packet->type == "state-chunk")
+		{
+			if (!state_transfer_ || state_transfer_->ready())
+				return;
+			if (!state_transfer_->accept(packet->body) || !state_transfer_->ready())
+				return;
+			send("state-ack", {{"sequence", state_transfer_->sequence()}});
+			packet->type = "state";
+			packet->body = state_transfer_->state();
+		}
 		const auto &body = packet->body;
 		if (packet->type == "pack-offer")
 		{
@@ -548,6 +585,9 @@ public:
 					}
 					if (transfer_)
 					{
+						if (state_transfer_ && !state_transfer_->ready())
+							for (const auto &request : state_transfer_->requests(now_))
+								send("state-request", request);
 						for (auto request : transfer_->requests(now_))
 						{
 							request["offer"] = offer_id_;

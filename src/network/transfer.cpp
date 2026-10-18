@@ -274,4 +274,105 @@ std::vector<Pack> PackTransfer::uncached_packs() const
 			result.push_back(*pack.verified);
 	return result;
 }
+StateSource::StateSource(const Json &state, std::uint64_t sequence) : bytes_(json_bytes(state))
+{
+	if (!state.is_object() || bytes_.empty() || bytes_.size() > 4 * 1024 * 1024 || !sequence)
+		throw std::runtime_error("Projection exceeds the supported 4 MiB state bound");
+	offer_ = {{"sequence", sequence}, {"size", bytes_.size()}, {"hash", sha256(bytes_)}};
+}
+Json StateSource::offer() const
+{
+	return offer_;
+}
+Json StateSource::chunk(const Json &request) const
+{
+	if (request.at("sequence") != offer_.at("sequence"))
+		throw std::runtime_error("Projection request belongs to another snapshot");
+	const auto offset = size(request.at("offset"), bytes_.size() - 1);
+	if (offset % chunk_size)
+		throw std::runtime_error("Projection chunk is not aligned");
+	const auto end = std::min(offset + chunk_size, bytes_.size());
+	return {{"sequence", offer_.at("sequence")},
+	        {"offset", offset},
+	        {"data", base64(Bytes(bytes_.begin() + offset, bytes_.begin() + end))}};
+}
+StateTransfer::StateTransfer(const Json &offer) : offer_(offer)
+{
+	const auto length = size(offer.at("size"), 4 * 1024 * 1024);
+	const auto sequence = size(offer.at("sequence"), 9007199254740991ULL);
+	if (!length || !sequence || !valid_hex_token(offer.at("hash").get<std::string>()))
+		throw std::runtime_error("Invalid bounded projection offer");
+	bytes_.resize(length);
+	received_.resize((length + chunk_size - 1) / chunk_size, false);
+	deadlines_.resize(received_.size(), 0);
+}
+std::vector<Json> StateTransfer::requests(std::uint64_t now)
+{
+	std::vector<Json> result;
+	unsigned in_flight = 0;
+	for (std::size_t i = 0; i < received_.size(); ++i)
+		if (!received_[i] && deadlines_[i] > now)
+			++in_flight;
+	for (std::size_t i = 0; i < received_.size() && in_flight < 4; ++i)
+		if (!received_[i] && deadlines_[i] <= now)
+		{
+			deadlines_[i] = now + 750;
+			++in_flight;
+			result.push_back({{"sequence", sequence()}, {"offset", i * chunk_size}});
+		}
+	return result;
+}
+bool StateTransfer::accept(const Json &chunk)
+{
+	if (chunk.at("sequence") != offer_.at("sequence"))
+		return false;
+	const auto offset = size(chunk.at("offset"), bytes_.size() - 1);
+	if (offset % chunk_size)
+		throw std::runtime_error("Invalid projection chunk offset");
+	const auto data = unbase64(chunk.at("data"));
+	if (data.size() != std::min(chunk_size, bytes_.size() - offset))
+		throw std::runtime_error("Invalid projection chunk length");
+	const auto index = offset / chunk_size;
+	if (received_[index])
+	{
+		if (!std::equal(data.begin(), data.end(), bytes_.begin() + offset))
+			throw std::runtime_error("Conflicting projection chunk");
+		return false;
+	}
+	std::copy(data.begin(), data.end(), bytes_.begin() + offset);
+	received_[index] = true;
+	if (std::all_of(received_.begin(), received_.end(),
+	                [](bool v)
+	                {
+		                return v;
+	                }))
+	{
+		if (sha256(bytes_) != offer_.at("hash").get<std::string>())
+			throw std::runtime_error("Projection integrity check failed");
+		state_ = Json::parse(bytes_.begin(), bytes_.end(),
+		                     [](int depth, Json::parse_event_t, Json &)
+		                     {
+			                     if (depth > 32)
+				                     throw std::runtime_error("Projection nesting exceeds supported bounds");
+			                     return true;
+		                     });
+		if (!state_.is_object())
+			throw std::runtime_error("Projection must be an object");
+	}
+	return true;
+}
+bool StateTransfer::ready() const
+{
+	return state_.is_object();
+}
+std::uint64_t StateTransfer::sequence() const
+{
+	return offer_.at("sequence");
+}
+const Json &StateTransfer::state() const
+{
+	if (!ready())
+		throw std::runtime_error("Projection is incomplete");
+	return state_;
+}
 } // namespace phoenix

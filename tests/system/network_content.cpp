@@ -22,6 +22,41 @@ int main()
 	try
 	{
 		const std::string key(64, 'a');
+		Json large_state{{"tick", 75}, {"inspection", std::string(180000, 'x')}};
+		StateSource state_source(large_state, 1);
+		StateTransfer state_transfer(state_source.offer());
+		auto state_requests = state_transfer.requests(0);
+		require(state_requests.size() == 4 && state_transfer.requests(1).empty(),
+		        "Projection chunks must obey the bounded outstanding window");
+		auto retry = state_transfer.requests(751);
+		require(retry == state_requests, "Missing projection chunks must be retried");
+		std::reverse(retry.begin(), retry.end());
+		for (const auto &request : retry)
+		{
+			auto chunk = state_source.chunk(request);
+			auto packet = encode_packet({"synthetic", "a", "b", "state-chunk", chunk}, key);
+			auto admitted = decode_packet(packet, "a", "b", "synthetic", key);
+			require(admitted && state_transfer.accept(admitted->body), "Projection chunks must authenticate");
+			require(!state_transfer.accept(admitted->body), "Projection chunk duplicates must be idempotent");
+		}
+		require(!state_transfer.ready(), "Partial projections must never publish world state");
+		for (unsigned round = 0; !state_transfer.ready() && round < 100; ++round)
+			for (const auto &request : state_transfer.requests(1502 + round * 751))
+				state_transfer.accept(state_source.chunk(request));
+		require(state_transfer.ready() && state_transfer.state() == large_state,
+		        "A projection larger than a packet must reconstruct the exact permitted snapshot");
+		auto invalid_state_offer = state_source.offer();
+		invalid_state_offer["size"] = 4 * 1024 * 1024 + 1;
+		bool invalid_state_refused = false;
+		try
+		{
+			StateTransfer rejected(invalid_state_offer);
+		}
+		catch (const std::exception &)
+		{
+			invalid_state_refused = true;
+		}
+		require(invalid_state_refused, "Oversized projections must fail before buffer allocation");
 		auto encoded = encode_packet({"synthetic", "a", "b", "command", {{"value", 42}}}, key);
 		// Independent Node crypto HMAC-SHA256 result for this canonical synthetic envelope.
 		require(Json::parse(encoded).at("mac") == "3408c0a866d65aa27b4a3b4032463fcaa6a83760e494e19deb5643ccd1e973ba",
