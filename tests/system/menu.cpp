@@ -52,7 +52,8 @@ int main()
 			}
 			require(rejected, "Invalid slice bounds, markers and resource paths are rejected");
 		}
-		const auto directory = "menu-integration-" + random_token();
+		// A nested library must not exceed Windows path limits just for its temporary writes.
+		const auto directory = "menu-integration-" + random_token() + "/nested-library";
 		MenuLibrary library(directory);
 		library.load();
 		require(library.preferences.volume == 50 && library.preferences.language == "en" &&

@@ -31,8 +31,8 @@ void MenuLibrary::atomic_write(const std::string &filename, const Bytes &bytes) 
 {
 	auto file = std::filesystem::u8path(filename);
 	std::filesystem::create_directories(file.parent_path());
-	auto temporary = file;
-	temporary += "." + random_token() + ".tmp";
+	// Keep the temporary name independent of the destination's content hash.
+	const auto temporary = file.parent_path() / (random_token() + ".tmp");
 	const auto encoded = temporary.u8string();
 	try
 	{
