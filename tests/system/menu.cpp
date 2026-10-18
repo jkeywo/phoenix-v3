@@ -54,6 +54,15 @@ int main()
 		}
 		// A nested library must not exceed Windows path limits just for its temporary writes.
 		const auto directory = "menu-integration-" + random_token() + "/nested-library";
+		const auto launch_directory = std::filesystem::current_path();
+		const auto native_data = std::filesystem::u8path(native_data_directory());
+		require(native_data.is_absolute(), "Native default storage is independent of the launch directory");
+		std::filesystem::create_directories(directory);
+		std::filesystem::current_path(directory);
+		const auto other_launch_data = std::filesystem::u8path(native_data_directory());
+		std::filesystem::current_path(launch_directory);
+		require(native_data == other_launch_data,
+		        "Different launch directories share the same native library and saves");
 		MenuLibrary library(directory);
 		library.load();
 		require(library.preferences.volume == 50 && library.preferences.language == "en" &&

@@ -8,6 +8,8 @@ export import phoenix.content;
 
 export namespace phoenix
 {
+// A launcher's working directory is neither stable nor necessarily writable.
+std::string native_data_directory();
 struct MenuPreferences
 {
 	int volume = 50;

@@ -3,6 +3,7 @@ module;
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#include <shlobj.h>
 #endif
 #include <algorithm>
 #include <chrono>
@@ -17,6 +18,20 @@ module;
 module phoenix.menu;
 namespace phoenix
 {
+std::string native_data_directory()
+{
+#ifdef _WIN32
+	PWSTR folder = nullptr;
+	if (FAILED(SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, nullptr, &folder)))
+		throw std::runtime_error("Cannot locate the local application data folder; specify --data explicitly");
+	const auto root = std::filesystem::path(folder);
+	CoTaskMemFree(folder);
+	const auto encoded = (root / "PhoenixV3").u8string();
+	return {encoded.begin(), encoded.end()};
+#else
+	return "userdata";
+#endif
+}
 MenuLibrary::MenuLibrary(std::string directory) : directory_(std::move(directory))
 {
 }

@@ -40,7 +40,7 @@ int main(int argc, char **argv)
 	app.can_edit = true;
 	phoenix::NetworkOptions network;
 	network.link.url = phoenix::default_network_service;
-	bool remote = false, gm = false, local_only = false;
+	bool remote = false, gm = false, local_only = false, custom_data = false;
 	NativeMenuSmoke menu_smoke;
 	bool qr_smoke = false;
 	bool join_smoke = false, join_submitted = false, claim_submitted = false;
@@ -97,7 +97,10 @@ int main(int argc, char **argv)
 		if (argument == "--profile" && i + 1 < argc)
 			network.profile = argv[++i];
 		if (argument == "--data" && i + 1 < argc)
+		{
 			network.data_location = argv[++i];
+			custom_data = true;
+		}
 		if (argument == "--code" && i + 1 < argc)
 			app.network_code = argv[++i];
 		if (argument == "--page" && i + 1 < argc)
@@ -157,6 +160,8 @@ int main(int argc, char **argv)
 		network.link.self = network.server;
 	try
 	{
+		if (!custom_data)
+			network.data_location = phoenix::native_data_directory();
 		app.session = remote ? phoenix::make_network_client(network) : phoenix::make_game_lobby(network, local_only);
 	}
 	catch (const std::exception &error)

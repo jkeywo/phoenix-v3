@@ -1,5 +1,9 @@
 # Native menu and lobby validation
 
+## Default storage correction
+
+18 October 2026: reproduced a desktop-launched native startup failing to create the relative `userdata/menu/packs` directory. Native now locates `%LOCALAPPDATA%\PhoenixV3` through Windows' known-folder API before creating its lobby/library; explicit `--data` paths are retained. Native Release and WASM Workshop builds, `system.native-menu-library` (including different-launch-directory storage identity), formatting and whitespace checks passed. The final desktop launch was stopped by the user before capture; no successful visual check is claimed for this correction.
+
 Date: 18 October 2026. Implementation revision: `653ff0c`.
 
 ## Automatic checks
