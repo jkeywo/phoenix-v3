@@ -3,6 +3,7 @@ module;
 #include <array>
 #include <map>
 #include <memory>
+#include <optional>
 #include <nlohmann/json.hpp>
 #include <span>
 #include <string>
@@ -46,6 +47,30 @@ struct Catalog
 	std::vector<std::pair<std::string, std::string>> ordered_packs;
 	bool presentation = false;
 };
+// Render-only navigation aids. Distances are metres; speed is metres/second.
+struct DustConfig
+{
+	bool enabled = true;
+	int count = 440;
+	float half_width = 30, depth = 100, width = .08f, streak_per_speed = .25f;
+	std::array<float, 3> tint{.7f, .8f, 1}, brightness{.7f, .55f, .4f};
+	float opacity = .45f;
+	// Empty entries select the corresponding bundled V2 texture.
+	std::array<std::string, 3> textures{};
+	float centre_fade_inner = .12f, centre_fade_outer = .38f, edge_fade = .15f;
+};
+struct ReferenceGridConfig
+{
+	float minor_spacing = 10, major_spacing = 50;
+	std::array<float, 4> minor_colour{.45f, .62f, .78f, .1f}, major_colour{.55f, .74f, .9f, .2f};
+	float opacity = 1, patch_radius = 400, fade_band = 250, fade_exponent = 2.5f, plane_y = -.5f;
+	std::optional<float> first_person_plane_y;
+	float minor_line_width_px = 1, major_line_width_px = 1.6f;
+};
+DustConfig compile_dust(const Json &dust, const Catalog &catalog, bool web, const std::string &path);
+ReferenceGridConfig compile_reference_grid(const Json &grid, const std::string &path);
+Json dust_defaults();
+Json reference_grid_defaults();
 struct SpriteAttachment
 {
 	float x = 0, y = 0, depth_offset = 0;

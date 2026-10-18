@@ -219,6 +219,8 @@ void verify_catalog(const Catalog &catalog)
 		if (!entity.contains("render") || !entity["render"].is_object())
 			invalid(path + ".render", "required object");
 		const auto &render = entity["render"];
+		if (render.contains("reference_grid"))
+			compile_reference_grid(render.at("reference_grid"), path + ".render.reference_grid");
 		render_radar_icon(render);
 		auto mode = text(render, "mode", path + ".render");
 		if (mode != "camera" && mode != "eight")
@@ -407,6 +409,15 @@ void verify_catalog(const Catalog &catalog)
 	}
 	for (const auto &[id, map] : catalog.maps)
 	{
+		if (map.contains("presentation"))
+		{
+			const auto &p = map.at("presentation");
+			if (!p.is_object())
+				invalid("maps." + id + ".presentation", "expected object");
+			if (p.contains("dust"))
+				for (bool web : {false, true})
+					compile_dust(p.at("dust"), catalog, web, "maps." + id + ".presentation.dust");
+		}
 		if (map.contains("lighting"))
 			verify_lighting(map.at("lighting"), "maps." + id + ".lighting");
 		auto path = "maps." + id;

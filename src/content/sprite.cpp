@@ -54,6 +54,133 @@ std::array<int, 2> image(const Catalog &catalog, const Json &reference, const st
 	return {w, h};
 }
 } // namespace
+Json dust_defaults()
+{
+	const DustConfig c;
+	return {{"enabled", c.enabled},
+	        {"count", c.count},
+	        {"half_width", c.half_width},
+	        {"depth", c.depth},
+	        {"width", c.width},
+	        {"streak_per_speed", c.streak_per_speed},
+	        {"tint", c.tint},
+	        {"brightness", c.brightness},
+	        {"opacity", c.opacity},
+	        {"textures", c.textures},
+	        {"centre_fade_inner", c.centre_fade_inner},
+	        {"centre_fade_outer", c.centre_fade_outer},
+	        {"edge_fade", c.edge_fade}};
+}
+Json reference_grid_defaults()
+{
+	const ReferenceGridConfig c;
+	return {{"minor_spacing", c.minor_spacing},
+	        {"major_spacing", c.major_spacing},
+	        {"minor_colour", c.minor_colour},
+	        {"major_colour", c.major_colour},
+	        {"opacity", c.opacity},
+	        {"patch_radius", c.patch_radius},
+	        {"fade_band", c.fade_band},
+	        {"fade_exponent", c.fade_exponent},
+	        {"plane_y", c.plane_y},
+	        {"minor_line_width_px", c.minor_line_width_px},
+	        {"major_line_width_px", c.major_line_width_px}};
+}
+DustConfig compile_dust(const Json &dust, const Catalog &catalog, bool web, const std::string &path)
+{
+	if (!dust.is_object())
+		bad(path, "expected dust object");
+	const auto defaults = dust_defaults();
+	auto validate_keys = [&](const Json &j, bool profiles)
+	{
+		if (!j.is_object())
+			bad(path, "expected dust profile object");
+		for (auto it = j.begin(); it != j.end(); ++it)
+			if (!defaults.contains(it.key()) && !(profiles && (it.key() == "native" || it.key() == "web")))
+				bad(path + "." + it.key(), "unknown dust setting");
+	};
+	validate_keys(dust, true);
+	Json j = defaults;
+	for (auto it = dust.begin(); it != dust.end(); ++it)
+		if (it.key() != "native" && it.key() != "web")
+			j[it.key()] = it.value();
+	const char *platform = web ? "web" : "native";
+	if (dust.contains(platform))
+	{
+		validate_keys(dust.at(platform), false);
+		j.update(dust.at(platform));
+	}
+	DustConfig c;
+	if (!j.at("enabled").is_boolean())
+		bad(path + ".enabled", "expected boolean");
+	c.enabled = j.at("enabled");
+	if (!j.at("count").is_number_integer())
+		bad(path + ".count", "expected integer");
+	c.count = static_cast<int>(number(j.at("count"), path + ".count", 0, 10000));
+	for (const auto &[key, target] : std::map<std::string, float *>{{"half_width", &c.half_width},
+	                                                                {"depth", &c.depth},
+	                                                                {"width", &c.width},
+	                                                                {"streak_per_speed", &c.streak_per_speed},
+	                                                                {"opacity", &c.opacity},
+	                                                                {"centre_fade_inner", &c.centre_fade_inner},
+	                                                                {"centre_fade_outer", &c.centre_fade_outer},
+	                                                                {"edge_fade", &c.edge_fade}})
+	{
+		const bool unit = key == "opacity" || key == "edge_fade";
+		const bool positive = key == "half_width" || key == "depth";
+		*target = number(j.at(key), path + "." + key, positive ? .001f : 0.f, unit ? 1.f : 1000000.f);
+	}
+	if (c.centre_fade_outer <= c.centre_fade_inner || c.centre_fade_outer > 2)
+		bad(path + ".centre_fade_outer", "must exceed inner radius and be <= 2");
+	for (int i = 0; i < 3; ++i)
+	{
+		for (const char *key : {"tint", "brightness", "textures"})
+			vector(j.at(key), 3, path + "." + key);
+		c.tint[i] = number(j.at("tint")[i], path + ".tint", 0, 1);
+		c.brightness[i] = number(j.at("brightness")[i], path + ".brightness", 0, 16);
+		if (!j.at("textures")[i].is_string())
+			bad(path + ".textures", "expected three PNG references or empty defaults");
+		c.textures[i] = j.at("textures")[i];
+		if (!c.textures[i].empty())
+			image(catalog, c.textures[i], path + ".textures");
+	}
+	return c;
+}
+ReferenceGridConfig compile_reference_grid(const Json &grid, const std::string &path)
+{
+	if (!grid.is_object())
+		bad(path, "expected reference grid object");
+	Json j = reference_grid_defaults();
+	for (auto it = grid.begin(); it != grid.end(); ++it)
+		if (!j.contains(it.key()) && it.key() != "first_person_plane_y")
+			bad(path + "." + it.key(), "unknown grid setting");
+	j.update(grid);
+	ReferenceGridConfig c;
+	for (const auto &[key, target] : std::map<std::string, float *>{{"minor_spacing", &c.minor_spacing},
+	                                                                {"major_spacing", &c.major_spacing},
+	                                                                {"patch_radius", &c.patch_radius},
+	                                                                {"fade_exponent", &c.fade_exponent},
+	                                                                {"minor_line_width_px", &c.minor_line_width_px},
+	                                                                {"major_line_width_px", &c.major_line_width_px}})
+		*target = number(j.at(key), path + "." + key, .001f, 1000000);
+	c.fade_band = number(j.at("fade_band"), path + ".fade_band", 0, c.patch_radius);
+	c.opacity = number(j.at("opacity"), path + ".opacity", 0, 1);
+	c.plane_y = number(j.at("plane_y"), path + ".plane_y", -1000000, 1000000);
+	if (j.contains("first_person_plane_y"))
+		c.first_person_plane_y =
+		    number(j.at("first_person_plane_y"), path + ".first_person_plane_y", -1000000, 1000000);
+	const double multiple = static_cast<double>(c.major_spacing) / c.minor_spacing;
+	if (multiple < 1 || std::abs(multiple - std::round(multiple)) > 1.e-4)
+		bad(path + ".major_spacing", "must be a whole multiple of minor_spacing");
+	for (const char *key : {"minor_colour", "major_colour"})
+	{
+		vector(j.at(key), 4, path + "." + key);
+		auto &colour = std::string(key) == "minor_colour" ? c.minor_colour : c.major_colour;
+		for (int i = 0; i < 4; ++i)
+			colour[i] = number(j.at(key)[i], path + "." + key, 0, 1);
+	}
+	return c;
+}
 RadarIcon compile_radar_icon(const Json &value, const std::string &path)
 {
 	if (!value.is_string())
