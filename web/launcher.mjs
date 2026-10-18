@@ -767,7 +767,7 @@ async function boot() {
 			type,
 			(event) => {
 				if (
-					event.target.closest("#menu, #popup, #return-menu") ||
+					event.target.closest("#menu, #popup") ||
 					["INPUT", "BUTTON", "SELECT", "TEXTAREA"].includes(event.target.tagName)
 				) {
 					if (type === "keydown" && event.key === "Escape" && event.target.closest("#semantics"))
@@ -786,7 +786,6 @@ async function boot() {
 	$("settings").onclick = settings;
 	$("packs").onclick = packs;
 	$("back").onclick = back;
-	$("return-menu").onclick = run(returnMenu);
 	$("popup").onclose = () => {
 		render();
 		popupFocus?.focus();

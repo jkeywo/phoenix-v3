@@ -52,7 +52,11 @@ vec3 surfaceAt(vec2 uv){
   vec3 plane=anchor+basisRight*((uv.x*frameSize.x-pivot.x)*height/frameSize.y)
                     -basisUp*((uv.y*frameSize.y-pivot.y)*height/frameSize.y);
   float z=height*reliefAt(uv);
-  if(perspective==1) return cameraPosition+(plane-cameraPosition)*(1.0-z/max(.01,dot(cameraPosition-plane,basisNear)));
+  if(perspective==1) {
+    float distance=dot(cameraPosition-plane,basisNear);
+    float denominator=(distance<0.0?-1.0:1.0)*max(.01,abs(distance));
+    return cameraPosition+(plane-cameraPosition)*(1.0-z/denominator);
+  }
   return plane+basisNear*z;
 }
 )GLSL";
@@ -353,9 +357,11 @@ struct SceneRenderer::State
 		Vector3 p = Vector3Add(item.anchor, Vector3Add(Vector3Scale(right, (x - f.pivot[0]) * item.height / f.rect[3]),
 		                                               Vector3Scale(up, -(y - f.pivot[1]) * item.height / f.rect[3])));
 		const float z = item.height * (f.depth_offset + sample_depth(*item.material, f, x, y) * f.depth_scale + offset);
-		return Vector3Add(
-		    p, Vector3Scale(Vector3Subtract(cameraPosition, p),
-		                    z / std::max(.01f, Vector3DotProduct(Vector3Subtract(cameraPosition, p), near))));
+		const float distance = Vector3DotProduct(Vector3Subtract(cameraPosition, p), near);
+		// Preserve the sign behind the eye; a positive-only denominator folds
+		// rear geometry through the camera into huge foreground triangles.
+		const float denominator = std::copysign(std::max(.01f, std::abs(distance)), distance);
+		return Vector3Add(p, Vector3Scale(Vector3Subtract(cameraPosition, p), z / denominator));
 	}
 	void prepare(const Catalog &catalog, std::span<const SceneBody> bodies, Camera3D camera)
 	{
@@ -371,7 +377,7 @@ struct SceneRenderer::State
 			const auto &render = catalog.entities.at(body.definition).at("render");
 			Vector3 world = {body.x / 1000.f, 0, -body.y / 1000.f};
 			Vector3 p = Vector3Subtract(world, rebase);
-			if (Vector3Length(p) > Vector3Length(cameraPosition) * 4 + render.at("scale").get<float>() * 20)
+			if (Vector3Distance(p, cameraPosition) > rlGetCullDistanceFar() + render.at("scale").get<float>() * 20)
 				continue;
 			if (!render.contains("sprite"))
 				continue;

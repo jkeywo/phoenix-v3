@@ -507,6 +507,10 @@ Workshop must expose inheritance/reference origins, validation findings, compati
 
 ### 14.3 Console and display design
 
+The ordinary in-game Viewscreen shows only the game world and a Settings button. The world is a flat 2D operating plane rendered in 3D, seen from the owning ship's forward position just above the plane at a shallow downward angle. The camera follows actual position and heading automatically; the ship containing that Viewscreen is omitted from its scene. Orbit, pan, zoom, follow switches and developer readouts do not belong on this display.
+
+Lobby and running play are distinct states. Once launched, returning to setup requires **Settings > Quit to Main Menu**, followed by hosting or joining another game. Closing Settings returns to the same running display; Settings does not pause simulation. Player Consoles and GM inspection use their own clients or configured native display regions. A single-screen native host chooses its display role in the lobby before launch; in-game role-switch buttons are not part of the Viewscreen.
+
 Consoles distinguish requested settings, actual output, known faults, blocked work and stale evidence. Partially functioning Systems show which capabilities remain, rather than a misleading single healthy/failed label. Known faults and repair reporting remain available without opening a human GUI.
 
 Prototype data-authored screens with reusable rectangles and parameterised circle-cutout regions, including corner gaps around a radar. Free-form outlines and arbitrary-region packing are outside that initial prototype. Use shared responsive fallback when shapes no longer fit: smaller devices can reflow to readable panels/lists without changing authority, information or essential controls. Preserve action order, readable labels and usable hit areas rather than clipping or indefinitely shrinking controls. Do not require a desktop layout or precise geometric tapping for time-critical actions.

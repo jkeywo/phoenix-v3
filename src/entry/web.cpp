@@ -105,6 +105,10 @@ int main(int argc, char **argv)
 	}
 	app.network_service = network.link.url;
 	app.network_profile = network.profile;
+	app.return_home = []
+	{
+		return_to_menu();
+	};
 	if (!app.network_code.empty())
 	{
 		auto separator = app.network_code.find('/');
@@ -126,10 +130,6 @@ int main(int argc, char **argv)
 			app.reduced_motion = preferences.reduced_motion;
 			app.dust_motes = preferences.dust_motes;
 			app.reference_grid = preferences.reference_grid;
-			app.return_home = []
-			{
-				return_to_menu();
-			};
 		}
 #ifdef PHOENIX_SERVER
 		if (action.empty())

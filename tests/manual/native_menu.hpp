@@ -141,24 +141,40 @@ struct NativeMenuSmoke
 			capture("countdown");
 			break;
 		case 10:
-			if (!app.session->running() || app.screen != phoenix::Screen::console || !app.console_surface_active)
+			if (!app.session->running() || app.screen != phoenix::Screen::viewscreen)
 				return false;
 			if (++console_frames < 3)
 				return false;
 			capture("running");
-			action(app, "lobby");
+			if (phoenix::navigation_controls(app).size() != 1 || phoenix::invoke_navigation(app, "lobby") ||
+			    phoenix::invoke_navigation(app, "home") || phoenix::invoke_navigation(app, "game.console") ||
+			    phoenix::invoke_navigation(app, "game.follow") || phoenix::invoke_navigation(app, "game.local-gm"))
+				throw std::runtime_error("Viewscreen exposed navigation outside Settings");
+			action(app, "settings");
 			break;
 		case 11:
 			saves_before = app.library->saves.size();
 			action(app, "menu.save-game");
-			// Exercise the queued-save boundary with a different presentation active.
-			app.screen = phoenix::Screen::console;
 			break;
 		case 12:
 			if (app.library->saves.size() != saves_before + 1)
-				throw std::runtime_error("Managed save did not complete while Console view was active");
+				throw std::runtime_error("Managed save did not complete from in-game Settings");
+			capture("game-settings");
+			action(app, "menu.close-dialog");
+			break;
+		case 13:
+			if (app.screen != phoenix::Screen::viewscreen)
+				throw std::runtime_error("Settings failed to restore the Viewscreen");
+			action(app, "settings");
+			break;
+		case 14:
+			action(app, "settings.quit");
+			break;
+		case 15:
+			if (app.screen != phoenix::Screen::home || app.session->running() || app.session->lobby().active)
+				throw std::runtime_error("Quit failed to end the session before returning to Main Menu");
 			std::cout << "PASS native cascading menu, popup keyboard traversal, range action and readiness countdown "
-			             "and managed save across Console navigation (manual smoke)\n";
+			             "and fixed Viewscreen, in-game Settings/save/quit (manual smoke)\n";
 			return true;
 		}
 		++stage;

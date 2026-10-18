@@ -86,6 +86,11 @@ struct NativeMenuScreen::State
 			        : "settings";
 			return;
 		}
+		if (app.screen == Screen::server_lobby || app.screen == Screen::client_lobby)
+		{
+			app.return_home();
+			return;
+		}
 		if (app.screen != Screen::home)
 		{
 			app.screen = Screen::home;
@@ -163,6 +168,7 @@ struct NativeMenuScreen::State
 		{
 			owner = app.session;
 			opened_runtime = false;
+			app.launch_screen = Screen::viewscreen;
 			save_after.reset();
 			imports.reset();
 			notice.clear();
@@ -181,7 +187,7 @@ struct NativeMenuScreen::State
 	{
 		if (!app.native_menu)
 			return false;
-		document.GetElementById("lobby")->SetProperty("display", "inline-block");
+		document.GetElementById("lobby")->SetProperty("display", "none");
 		document.GetElementById("settings")->SetProperty("display", "inline-block");
 		for (const char *id : {"home", "settings", "lobby"})
 			document.GetElementById(id)->SetInnerRML(localise(id == std::string("home")       ? "Home"
@@ -212,6 +218,7 @@ struct NativeMenuScreen::State
 		actions.clear();
 		auto branch = app.menu_branch;
 		const bool modal = app.packs_popup || app.screen == Screen::settings;
+		const bool playing = game_active(app);
 		button_enabled = !modal;
 		auto add = [&](const std::string &id, const std::string &text, std::function<void()> action)
 		{
@@ -233,269 +240,253 @@ struct NativeMenuScreen::State
 		};
 		using Branch = Application::MenuBranch;
 		std::string markup = "<h1 id=\"menu-title\">Against the Stars</h1>";
-		markup += "<div class=\"menu-top\">" +
-		          add("menu.settings", "Settings",
-		              [&]
-		              {
-			              app.settings_return = app.screen;
-			              app.screen = Screen::settings;
-			              focus_next = "menu-volume";
-		              }) +
-		          "</div>";
-		markup += "<div class=\"menu-bottom\">" +
-		          add("menu.packs", "Mod Packs",
-		              [&]
-		              {
-			              app.packs_popup = true;
-			              draft = app.library->packs;
-			              focus_next = "menu.import-pack";
-		              }) +
-		          "</div>";
-		if (app.screen == Screen::home || modal)
+		if (!playing)
 		{
-			markup += "<div id=\"menu-viewport\"><div id=\"menu-columns\"><div class=\"menu-column\">";
-			markup += add("menu.host", "Host Game",
+			markup += "<div class=\"menu-top\">" +
+			          add("menu.settings", "Settings",
 			              [&]
 			              {
-				              app.menu_branch = Branch::host;
-				              app.selected_scenario.clear();
-				              focus_next = "menu.new";
-			              });
-			markup += add("menu.join-ship", "Join Game (New Ship)",
+				              app.settings_return = app.screen;
+				              app.screen = Screen::settings;
+				              focus_next = "menu-volume";
+			              }) +
+			          "</div>";
+			markup += "<div class=\"menu-bottom\">" +
+			          add("menu.packs", "Mod Packs",
 			              [&]
 			              {
-				              app.menu_branch = Branch::join_ship;
-				              focus_next = "join-code";
-			              });
-			markup += add("menu.join-player", "Join Game (As Player)",
-			              [&]
-			              {
-				              app.menu_branch = Branch::join_player;
-				              focus_next = "join-code";
-			              });
-			markup += add("menu.join-gm", "Join Game (As GM)",
-			              [&]
-			              {
-				              app.menu_branch = Branch::join_gm;
-				              focus_next = "join-code";
-			              });
-			markup += add("menu.workshop", "Workshop",
-			              [&]
-			              {
-				              app.screen = Screen::workshop;
-			              });
-			markup += add("menu.exit", "Exit",
-			              [&]
-			              {
-				              app.exit_requested = true;
-			              });
-			if (app.session && (app.session->lobby().active || app.session->running()))
+				              app.packs_popup = true;
+				              draft = app.library->packs;
+				              focus_next = "menu.import-pack";
+			              }) +
+			          "</div>";
+			if (app.screen == Screen::home || modal)
 			{
-				markup += add("menu.resume", "Return to Game",
+				markup += "<div id=\"menu-viewport\"><div id=\"menu-columns\"><div class=\"menu-column\">";
+				markup += add("menu.host", "Host Game",
 				              [&]
 				              {
-					              app.screen = app.session->running()
-					                               ? app.can_host ? Screen::viewscreen : Screen::client_lobby
-					                           : app.can_host ? Screen::server_lobby
-					                                          : Screen::client_lobby;
+					              app.menu_branch = Branch::host;
+					              app.selected_scenario.clear();
+					              focus_next = "menu.new";
 				              });
-				markup += add("menu.leave", "Leave Game",
+				markup += add("menu.join-ship", "Join Game (New Ship)",
 				              [&]
 				              {
-					              app.return_home();
+					              app.menu_branch = Branch::join_ship;
+					              focus_next = "join-code";
 				              });
-			}
-			markup += "</div>";
-			if (branch == Branch::host || branch == Branch::scenarios || branch == Branch::ships)
-			{
-				markup += "<div class=\"menu-column\">" + add("menu.new", "New Game",
-				                                              [&]
-				                                              {
-					                                              app.menu_branch = Branch::scenarios;
-					                                              app.selected_scenario.clear();
-					                                              focus_next = "menu.back";
-				                                              });
-				markup += heading("Saved Games");
-				if (app.library->saves.empty())
-					markup += paragraph("No saved games yet.");
-				for (const auto &save : app.library->saves)
-					markup += add("menu.save/" + save.id, save.name + " / " + save.scenario + " / " + save.saved_at,
-					              [&, id = save.id]
-					              {
-						              auto candidate = app.new_host();
-						              candidate->restore(app.library->read_save(id));
-						              app.session = std::move(candidate);
-						              app.can_host = true;
-						              app.screen = Screen::server_lobby;
-					              });
-				markup += add("menu.import-save", "Import Save",
+				markup += add("menu.join-player", "Join Game (As Player)",
 				              [&]
 				              {
-					              request_file(imports, FilePurpose::GameSave);
-				              }) +
-				          "</div>";
-				if (branch == Branch::scenarios || branch == Branch::ships)
-				{
-					markup += "<div class=\"menu-column\">" + heading("Scenarios");
-					if (app.session->catalog().maps.empty())
-						markup += paragraph("Enable mod packs to choose a scenario.");
-					for (const auto &[id, scenario] : app.session->catalog().maps)
-						markup += add("menu.scenario/" + id, scenario.value("name", id),
-						              [&, id]
-						              {
-							              app.selected_scenario = id;
-							              app.menu_branch = Branch::ships;
-							              focus_next = "menu.back";
-						              });
-					markup += "</div>";
-				}
-				if (branch == Branch::ships && app.session->catalog().maps.contains(app.selected_scenario))
-				{
-					markup += "<div class=\"menu-column\">";
-					for (const auto &slot : app.session->catalog().maps.at(app.selected_scenario).at("ship_slots"))
-					{
-						const std::string slot_id = slot.at("id");
-						markup += heading(slot_id);
-						for (const auto &choice : slot.at("allowed_ships"))
-						{
-							const std::string ship = choice;
-							markup += add("menu.ship/" + slot_id + "/" + ship,
-							              app.session->catalog().entities.at(ship).value("name", ship),
-							              [&, slot_id, ship]
-							              {
-								              app.session->prepare_lobby(
-								                  {app.selected_scenario, {{slot_id, ship}}, slot_id, ""});
-								              app.screen = Screen::server_lobby;
-								              focus_next = "lobby.ready";
-							              });
-						}
-					}
-					markup += "</div>";
-				}
-			}
-			if (branch == Branch::join_ship || branch == Branch::join_player || branch == Branch::join_gm)
-			{
-				markup += "<div class=\"menu-column connection\">" + heading("Join Game");
-				if (!modal)
-					markup += field(app, "join-code", "Join Code", app.network_code);
-				markup += add("menu.advanced", "Advanced Connection Settings",
-				              [&]
-				              {
-					              advanced = !advanced;
-				              });
-				if (advanced && !modal)
-					markup += field(app, "join-service", "Network service", app.network_service) +
-					          field(app, "join-profile", "Local profile", app.network_profile);
-				markup += add("menu.connect", "Connect",
-				              [&, branch]
-				              {
-					              if (!app.connect)
-						              throw std::runtime_error("Connection is unavailable");
-					              app.connect(app.network_code, app.network_service, app.network_profile,
-					                          branch == Branch::join_ship ? JoinRole::ship_server
-					                          : branch == Branch::join_gm ? JoinRole::gm
-					                                                      : JoinRole::player);
-				              });
-				markup += "</div>";
-			}
-			markup += "</div></div>";
-		}
-		else
-		{
-			const auto lobby = app.session->lobby();
-			markup += "<div class=\"lobby-panel\">" + heading(lobby.scenario.empty() ? "Lobby" : lobby.scenario) +
-			          readout("menu.join-code", "Join Code: " + lobby.code);
-			markup += add("menu.copy-code", "Copy Join Code",
-			              [&]
-			              {
-				              copy_text(app.session->lobby().code);
-			              });
-			if (!lobby.active && !app.session->running())
-			{
-				markup += paragraph("Enter a code from Host Game to join a pre-game lobby.");
-				markup += add("menu.open-join", "Join Game (As Player)",
-				              [&]
-				              {
-					              app.screen = Screen::home;
 					              app.menu_branch = Branch::join_player;
 					              focus_next = "join-code";
 				              });
-			}
-			for (const auto &slot : lobby.slots)
-				markup += readout(
-				    "menu.slot/" + slot.id,
-				    slot.id + ": " +
-				        (slot.host.empty() ? slot.mandatory ? "AI / " + slot.ship : localise("Empty") : slot.ship));
-			for (const auto &member : lobby.members)
-			{
-				const std::string state = !member.connected  ? "Disconnected"
-				                          : !member.approved ? "Awaiting approval"
-				                          : !member.verified ? "Verifying content"
-				                          : member.ready     ? "Ready"
-				                                             : "Not Ready";
-				markup += readout("menu.member/" + member.id,
-				                  localise(member.name) + " / " + member.slot +
-				                      (member.console.empty() ? "" : " / " + member.console) + " / " + localise(state));
-			}
-			markup += "<p id=\"lobby-countdown\"></p>";
-			for (const auto &[id, text] : app.session->lobby_controls())
-				markup += add(id, text,
-				              [&, id]
+				markup += add("menu.join-gm", "Join Game (As GM)",
+				              [&]
 				              {
-					              app.session->session_action(id);
+					              app.menu_branch = Branch::join_gm;
+					              focus_next = "join-code";
 				              });
-			if (app.session->running())
-			{
-				if (app.can_host)
+				markup += add("menu.workshop", "Workshop",
+				              [&]
+				              {
+					              app.screen = Screen::workshop;
+				              });
+				markup += add("menu.exit", "Exit",
+				              [&]
+				              {
+					              app.exit_requested = true;
+				              });
+				if (app.session && (app.session->lobby().active || app.session->running()))
 				{
-					markup += add("menu.viewscreen", "Open Viewscreen",
+					markup += add("menu.resume", "Return to Game",
 					              [&]
 					              {
-						              app.screen = Screen::viewscreen;
+						              app.screen = app.session->running()
+						                               ? app.can_host ? Screen::viewscreen : Screen::client_lobby
+						                           : app.can_host ? Screen::server_lobby
+						                                          : Screen::client_lobby;
 					              });
-					markup += add("menu.save-game", "Save Game",
+					markup += add("menu.leave", "Leave Game",
 					              [&]
 					              {
-						              save_after = app.session->ticks();
-						              export_save = false;
-						              notice = "Saving at the next committed tick...";
-					              });
-					markup += add("menu.export-save", "Export Save",
-					              [&]
-					              {
-						              save_after = app.session->ticks();
-						              export_save = true;
+						              app.return_home();
 					              });
 				}
-				if (app.session->observation())
-					markup += add("menu.console", "Open Console",
+				markup += "</div>";
+				if (branch == Branch::host || branch == Branch::scenarios || branch == Branch::ships)
+				{
+					markup += "<div class=\"menu-column\">" + add("menu.new", "New Game",
+					                                              [&]
+					                                              {
+						                                              app.menu_branch = Branch::scenarios;
+						                                              app.selected_scenario.clear();
+						                                              focus_next = "menu.back";
+					                                              });
+					markup += heading("Saved Games");
+					if (app.library->saves.empty())
+						markup += paragraph("No saved games yet.");
+					for (const auto &save : app.library->saves)
+						markup += add("menu.save/" + save.id, save.name + " / " + save.scenario + " / " + save.saved_at,
+						              [&, id = save.id]
+						              {
+							              auto candidate = app.new_host();
+							              candidate->restore(app.library->read_save(id));
+							              app.session = std::move(candidate);
+							              app.can_host = true;
+							              app.screen = Screen::server_lobby;
+						              });
+					markup += add("menu.import-save", "Import Save",
 					              [&]
 					              {
-						              app.screen = Screen::console;
-					              });
-				if (!app.session->inspection().is_null())
-					markup += add("menu.gm", "Open GM Inspector",
+						              request_file(imports, FilePurpose::GameSave);
+					              }) +
+					          "</div>";
+					if (branch == Branch::scenarios || branch == Branch::ships)
+					{
+						markup += "<div class=\"menu-column\">" + heading("Scenarios");
+						if (app.session->catalog().maps.empty())
+							markup += paragraph("Enable mod packs to choose a scenario.");
+						for (const auto &[id, scenario] : app.session->catalog().maps)
+							markup += add("menu.scenario/" + id, scenario.value("name", id),
+							              [&, id]
+							              {
+								              app.selected_scenario = id;
+								              app.menu_branch = Branch::ships;
+								              focus_next = "menu.back";
+							              });
+						markup += "</div>";
+					}
+					if (branch == Branch::ships && app.session->catalog().maps.contains(app.selected_scenario))
+					{
+						markup += "<div class=\"menu-column\">";
+						for (const auto &slot : app.session->catalog().maps.at(app.selected_scenario).at("ship_slots"))
+						{
+							const std::string slot_id = slot.at("id");
+							markup += heading(slot_id);
+							for (const auto &choice : slot.at("allowed_ships"))
+							{
+								const std::string ship = choice;
+								markup += add("menu.ship/" + slot_id + "/" + ship,
+								              app.session->catalog().entities.at(ship).value("name", ship),
+								              [&, slot_id, ship]
+								              {
+									              app.session->prepare_lobby(
+									                  {app.selected_scenario, {{slot_id, ship}}, slot_id, ""});
+									              app.screen = Screen::server_lobby;
+									              focus_next = "lobby.ready";
+								              });
+							}
+						}
+						markup += "</div>";
+					}
+				}
+				if (branch == Branch::join_ship || branch == Branch::join_player || branch == Branch::join_gm)
+				{
+					markup += "<div class=\"menu-column connection\">" + heading("Join Game");
+					if (!modal)
+						markup += field(app, "join-code", "Join Code", app.network_code);
+					markup += add("menu.advanced", "Advanced Connection Settings",
 					              [&]
 					              {
-						              app.screen = Screen::gm;
+						              advanced = !advanced;
 					              });
+					if (advanced && !modal)
+						markup += field(app, "join-service", "Network service", app.network_service) +
+						          field(app, "join-profile", "Local profile", app.network_profile);
+					markup += add("menu.connect", "Connect",
+					              [&, branch]
+					              {
+						              if (!app.connect)
+							              throw std::runtime_error("Connection is unavailable");
+						              app.connect(app.network_code, app.network_service, app.network_profile,
+						                          branch == Branch::join_ship ? JoinRole::ship_server
+						                          : branch == Branch::join_gm ? JoinRole::gm
+						                                                      : JoinRole::player);
+					              });
+					markup += "</div>";
+				}
+				markup += "</div></div>";
 			}
-			markup += add("menu.leave", "Leave Game",
-			              [&]
-			              {
-				              app.session->lobby_command({LobbyAction::leave});
-				              app.return_home();
-			              }) +
-			          "</div>";
+			else
+			{
+				const auto lobby = app.session->lobby();
+				markup += "<div class=\"lobby-panel\">" + heading(lobby.scenario.empty() ? "Lobby" : lobby.scenario) +
+				          readout("menu.join-code", "Join Code: " + lobby.code);
+				markup += add("menu.copy-code", "Copy Join Code",
+				              [&]
+				              {
+					              copy_text(app.session->lobby().code);
+				              });
+				if (!lobby.active && !app.session->running())
+				{
+					markup += paragraph("Enter a code from Host Game to join a pre-game lobby.");
+					markup += add("menu.open-join", "Join Game (As Player)",
+					              [&]
+					              {
+						              app.screen = Screen::home;
+						              app.menu_branch = Branch::join_player;
+						              focus_next = "join-code";
+					              });
+				}
+				for (const auto &slot : lobby.slots)
+					markup += readout(
+					    "menu.slot/" + slot.id,
+					    slot.id + ": " +
+					        (slot.host.empty() ? slot.mandatory ? "AI / " + slot.ship : localise("Empty") : slot.ship));
+				for (const auto &member : lobby.members)
+				{
+					const std::string state = !member.connected  ? "Disconnected"
+					                          : !member.approved ? "Awaiting approval"
+					                          : !member.verified ? "Verifying content"
+					                          : member.ready     ? "Ready"
+					                                             : "Not Ready";
+					markup +=
+					    readout("menu.member/" + member.id, localise(member.name) + " / " + member.slot +
+					                                            (member.console.empty() ? "" : " / " + member.console) +
+					                                            " / " + localise(state));
+				}
+				markup += "<p id=\"lobby-countdown\"></p>";
+				for (const auto &[id, text] : app.session->lobby_controls())
+					markup += add(id, text,
+					              [&, id]
+					              {
+						              app.session->session_action(id);
+					              });
+#ifndef __EMSCRIPTEN__
+				if (app.can_host && app.console_regions.empty() && !app.viewscreen_region && !app.gm_region)
+				{
+					markup += paragraph("Choose this screen's role before launch.");
+					for (const auto role : {Screen::viewscreen, Screen::console, Screen::gm})
+						markup += add("menu.display/" + std::to_string(static_cast<int>(role)),
+						              std::string("Display: ") + screen_name(role) +
+						                  (app.launch_screen == role ? " (selected)" : ""),
+						              [&, role]
+						              {
+							              app.launch_screen = role;
+						              });
+				}
+				else if (app.can_host && (!app.console_regions.empty() || app.gm_region))
+					markup += paragraph("Display roles use the configured native layout.");
+#endif
+				markup += add("menu.leave", "Leave Game",
+				              [&]
+				              {
+					              app.session->lobby_command({LobbyAction::leave});
+					              app.return_home();
+				              }) +
+				          "</div>";
+			}
+			if (branch != Branch::root || app.screen == Screen::server_lobby || app.screen == Screen::client_lobby)
+				markup += "<div class=\"menu-back\">" +
+				          add("menu.back", "Back",
+				              [&]
+				              {
+					              back(app);
+				              }) +
+				          "</div>";
 		}
-		if (branch != Branch::root || app.screen == Screen::server_lobby || app.screen == Screen::client_lobby)
-			markup += "<div class=\"menu-back\">" +
-			          add("menu.back", "Back",
-			              [&]
-			              {
-				              back(app);
-			              }) +
-			          "</div>";
 		if (modal)
 		{
 			button_enabled = true;
@@ -540,6 +531,38 @@ struct NativeMenuScreen::State
 					              app.reference_grid = !app.reference_grid;
 					              remember_preferences(app);
 				              });
+				if (playing)
+				{
+					for (const auto &[id, text] : app.session->lobby_controls())
+						if (id.starts_with("lobby.approve/") || id.starts_with("network.approve/") ||
+						    id.starts_with("network.gm/"))
+							markup += add(id, text,
+							              [&, id]
+							              {
+								              app.session->session_action(id);
+							              });
+					if (app.can_host && app.session->running())
+					{
+						markup += add("menu.save-game", "Save Game",
+						              [&]
+						              {
+							              save_after = app.session->ticks();
+							              export_save = false;
+							              notice = "Saving at the next committed tick...";
+						              });
+						markup += add("menu.export-save", "Export Save",
+						              [&]
+						              {
+							              save_after = app.session->ticks();
+							              export_save = true;
+						              });
+					}
+					markup += add("settings.quit", "Quit to Main Menu",
+					              [&]
+					              {
+						              invoke_navigation(app, "settings.quit");
+					              });
+				}
 				if (app.reduced_motion)
 					markup += paragraph("Reduced motion hides dust motes and the reference grid.");
 			}
@@ -616,7 +639,7 @@ struct NativeMenuScreen::State
 		markup += "<p id=\"menu-status\"></p>";
 		app.screen_action = [this, &app](const std::string &id)
 		{
-			if (id == "menu.back")
+			if (id == "menu.back" && (!game_active(app) || app.screen == Screen::settings))
 			{
 				back(app);
 				return true;
@@ -729,7 +752,7 @@ struct NativeMenuScreen::State
 		    (app.screen == Screen::server_lobby || app.screen == Screen::client_lobby))
 		{
 			opened_runtime = true;
-			app.screen = app.can_host ? (app.session->observation() ? Screen::console : Screen::viewscreen)
+			app.screen = app.can_host ? (!app.console_regions.empty() ? Screen::console : app.launch_screen)
 			                          : (!app.session->inspection().is_null() ? Screen::gm : Screen::console);
 		}
 		return true;

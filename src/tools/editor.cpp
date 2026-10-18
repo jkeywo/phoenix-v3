@@ -1232,8 +1232,8 @@ void render_editor(Application &app)
 	{
 		if (!app.embedded_tools && ImGui::BeginMenu(tool_label("Phoenix").c_str()))
 		{
-			if (ImGui::MenuItem(tool_label("Home").c_str()))
-				app.screen = Screen::home;
+			if (ImGui::MenuItem(tool_label(game_active(app) ? "Settings" : "Home").c_str()))
+				invoke_navigation(app, game_active(app) ? "settings" : "home");
 			ImGui::EndMenu();
 		}
 		if (ImGui::BeginMenu(tool_label("File").c_str(), !readonly))

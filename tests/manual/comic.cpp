@@ -106,6 +106,28 @@ int main()
 		          << int(right.b) << '\n';
 		require(left.b > left.r * 2 && right.r > right.b * 2,
 		        "pixel depth must place the far-centred blue surface ahead of red only on its recessed half");
+		// A forward ship POV regularly leaves other sprite anchors behind the
+		// eye. Their relief must stay behind it instead of folding into view.
+		objects = {body(1, "red", 0, -20000), body(2, "blue", 0, 0)};
+		BeginDrawing();
+		ClearBackground(BLACK);
+		renderer.draw(catalog, objects, camera, region, {{"shadows", false}}, 0);
+		capture = LoadImageFromScreen();
+		ExportImage(capture, "comic-forward-pov-smoke.png");
+		EndDrawing();
+		int rear_pixels = 0, front_pixels = 0;
+		for (int y = 0; y < capture.height; ++y)
+			for (int x = 0; x < capture.width; ++x)
+			{
+				const auto pixel = GetImageColor(capture, x, y);
+				rear_pixels += pixel.r > 80 && pixel.r > pixel.b * 2;
+				front_pixels += pixel.b > 80 && pixel.b > pixel.r * 2;
+			}
+		UnloadImage(capture);
+		require(rear_pixels == 0 && front_pixels > 0,
+		        "Sprite relief behind the eye must not project across the forward view");
+		objects = {body(1, "red", 0, -1000), body(2, "blue", 0, 0)};
+		renderer.clear();
 		auto preview = LoadRenderTexture(320, 240);
 		BeginDrawing();
 		BeginTextureMode(preview);

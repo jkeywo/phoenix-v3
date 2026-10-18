@@ -14,6 +14,10 @@ module phoenix.application;
 
 namespace phoenix
 {
+bool game_active(const Application &app)
+{
+	return app.session && (app.session->running() || app.session->lobby().launched);
+}
 const char *screen_name(Screen screen)
 {
 	switch (screen)

@@ -132,12 +132,16 @@ std::vector<SemanticControl> navigation_controls(const Application &app)
 	{
 		if (app.console_surface_active)
 			break;
+		if (game_active(app) && app.screen == Screen::settings)
+			break;
+		if (game_active(app) && std::string(id) != "settings")
+			continue;
 		if (app.native_menu)
 		{
 			if (app.screen == Screen::home || app.screen == Screen::server_lobby ||
 			    app.screen == Screen::client_lobby || app.screen == Screen::settings || app.packs_popup)
 				break;
-			if (std::string(id) != "home" && std::string(id) != "settings" && std::string(id) != "lobby")
+			if (std::string(id) != "settings")
 				continue;
 		}
 		if (std::string(id) == "lobby" && !app.native_menu)
@@ -146,7 +150,7 @@ std::vector<SemanticControl> navigation_controls(const Application &app)
 			continue;
 		if (std::string(id) == "edit" && !app.can_edit)
 			continue;
-		if (std::string(id) == "settings" && !app.can_host && !app.native_menu)
+		if (std::string(id) == "settings" && !app.can_host && !app.native_menu && !game_active(app))
 			continue;
 		controls.push_back({id, translate(id, app.pseudo_locale)});
 	}
@@ -164,8 +168,22 @@ std::vector<SemanticControl> navigation_controls(const Application &app)
 }
 bool invoke_navigation(Application &app, const std::string &id)
 {
+	const bool active = game_active(app);
+	// Reject stale UI/accessibility actions as well as hiding navigation during play.
+	if (active &&
+	    (id == "home" || id == "host" || id == "join" || id == "view" || id == "edit" || id == "lobby" ||
+	     id == "locale" || id == "game.console" || id == "game.scene" || id == "game.follow" || id == "game.local-gm"))
+		return false;
+	const bool settings_available = app.can_host || app.native_menu || active;
+	if (id == "settings.quit")
+	{
+		if (app.screen != Screen::settings || !active || !app.return_home)
+			return false;
+		app.return_home();
+		return true;
+	}
 	if ((id == "settings.dust" || id == "settings.grid" || id == "settings.motion") && app.screen == Screen::settings &&
-	    (app.can_host || app.native_menu))
+	    settings_available)
 	{
 		if (id == "settings.dust")
 			app.dust_motes = !app.dust_motes;
@@ -175,7 +193,7 @@ bool invoke_navigation(Application &app, const std::string &id)
 			app.reduced_motion = !app.reduced_motion;
 		remember_preferences(app);
 	}
-	else if (id == "settings" && (app.can_host || app.native_menu))
+	else if (id == "settings" && settings_available)
 	{
 		if (app.screen == Screen::settings)
 			app.screen = app.settings_return;
@@ -185,7 +203,7 @@ bool invoke_navigation(Application &app, const std::string &id)
 			app.screen = Screen::settings;
 		}
 	}
-	else if (id == "settings.close" && app.screen == Screen::settings && (app.can_host || app.native_menu))
+	else if (id == "settings.close" && app.screen == Screen::settings && settings_available)
 		app.screen = app.settings_return;
 	else if (id == "lobby" && app.native_menu)
 		app.screen = app.can_host ? Screen::server_lobby : Screen::client_lobby;
@@ -209,7 +227,7 @@ bool invoke_navigation(Application &app, const std::string &id)
 }
 bool set_music_volume(Application &app, const std::string &value)
 {
-	if ((!app.can_host && !app.native_menu) || app.screen != Screen::settings)
+	if ((!app.can_host && !app.native_menu && !game_active(app)) || app.screen != Screen::settings)
 		return false;
 	float percent = 0;
 	const auto result = std::from_chars(value.data(), value.data() + value.size(), percent);

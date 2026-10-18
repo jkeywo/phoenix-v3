@@ -83,11 +83,8 @@ p {display:block;font-size:18px;}
 		if (app_->screen != Screen::console || owner_.lock() != app_->session ||
 		    (app_->session && generation_ != app_->session->generation()))
 			return false;
-		if (action == "home")
-		{
-			app_->screen = app_->can_host ? Screen::server_lobby : Screen::client_lobby;
-			return true;
-		}
+		if (action == "settings")
+			return invoke_navigation(*app_, "settings");
 		if (action == "release")
 			return app_->session && app_->session->release_console(route_);
 		if (action.starts_with("claim/"))
@@ -143,7 +140,7 @@ p {display:block;font-size:18px;}
 			displayed_values_.clear();
 			controls_.clear();
 			std::string toolbar =
-			    toolbar_enabled_ ? button("home", "Lobby") : "<p>Sample Console / isolated preview</p>";
+			    toolbar_enabled_ ? button("settings", "Settings") : "<p>Sample Console / isolated preview</p>";
 			if (toolbar_enabled_ && model_.observation())
 				toolbar += button("release", "Release Console");
 			for (const auto &pad : toolbar_enabled_ ? pads : std::set<std::string>{})

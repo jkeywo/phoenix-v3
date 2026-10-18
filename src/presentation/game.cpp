@@ -60,10 +60,7 @@ struct GameScreen::State
 	Texture2D invitation{};
 	std::string invitation_url;
 	bool show_invitation = false;
-	float azimuth = 0.7f, elevation = 0.8f, distance = 160;
-	Vector3 focus{};
-	Vector3 pan{};
-	bool follow_ship = true, environment_ready = false;
+	bool environment_ready = false;
 	SceneEnvironment environment;
 	Json presentation_identity;
 	std::string grid_definition;
@@ -78,7 +75,6 @@ struct GameScreen::State
 	bool was_running = false;
 	std::string previous_markup, previous_description, previous_network;
 	bool markup_ready = false;
-	static constexpr float pi = 3.14159265358979323846f;
 	~State()
 	{
 		close_resources();
@@ -96,12 +92,6 @@ struct GameScreen::State
 		save_after.reset();
 		observation.reset();
 		was_running = false;
-		azimuth = 0.7f;
-		elevation = 0.8f;
-		distance = 160;
-		focus = {};
-		pan = {};
-		follow_ship = true;
 		environment_ready = false;
 		environment = {};
 		presentation_identity = nullptr;
@@ -310,25 +300,9 @@ struct GameScreen::State
 			{
 				session.start({mission, {{slot, ship}}, slot, seat});
 				bind_session(app);
-				if (auto own = session.focus_body())
-				{
-					focus = {own->x / 1000.f, 0, -own->y / 1000.f};
-				}
 				notice = "Session started.";
 				app.screen = Screen::viewscreen;
 			}
-			else if (id == "game.console" && session.running())
-				app.screen = Screen::console;
-			else if (id == "game.scene" && session.running())
-				app.screen = Screen::viewscreen;
-			else if (id == "game.follow" && session.running())
-			{
-				follow_ship = !follow_ship;
-				if (follow_ship)
-					pan = {};
-			}
-			else if (id == "game.local-gm" && session.running() && app.can_host)
-				app.screen = Screen::gm;
 			else if (session.running())
 			{
 				console_model.refresh(app.session);
@@ -351,6 +325,8 @@ struct GameScreen::State
 	{
 		if (display_region)
 			return *display_region;
+		if (game_top == 0)
+			return {0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())};
 		return {20, game_top, static_cast<float>(GetScreenWidth() - 40),
 		        std::max(80.f, static_cast<float>(GetScreenHeight()) - game_top - 20)};
 	}
@@ -474,17 +450,6 @@ struct GameScreen::State
 			                : (app.can_host && app.session->networked() ? app.session->focus_body() : std::nullopt);
 			if (app.session->running() && !was_running)
 			{
-				if (auto own = focus_body)
-				{
-					focus = {own->x / 1000.f, 0, -own->y / 1000.f};
-					const auto &render = catalog.entities.at(own->definition).at("render");
-					if (render.contains("sprite"))
-					{
-						distance = std::clamp(render.at("scale").get<float>() * 4.5f, 30.f, 2000000.f);
-						elevation = .22f;
-						azimuth = -(own->heading / 1000.f + 90) * pi / 180;
-					}
-				}
 				close_resources();
 			}
 			was_running = app.session->running();
@@ -515,10 +480,6 @@ struct GameScreen::State
 					if (!ship.empty() && app.session->networked())
 						markup += button("game.fleet", "Export fleet setup");
 				}
-				else
-					markup = button("game.scene", "Open viewscreen") + button("game.console", "Open ship console") +
-					         button("game.save", "Save runtime ZIP") + button("game.load", "Load runtime save") +
-					         button("game.clear", "End session and clear packs");
 			}
 			else if ((app.screen == Screen::viewscreen || app.screen == Screen::console) && app.session->running())
 			{
@@ -529,51 +490,45 @@ struct GameScreen::State
 					               std::to_string(static_cast<int>(
 					                   std::hypot(static_cast<double>(own->vx), static_cast<double>(own->vy)) / 1000)) +
 					               " m/s / heading " + std::to_string(own->heading / 1000) + " degrees.";
-				if (app.screen == Screen::viewscreen)
-					description += " Right drag: orbit; middle drag: pan; wheel: zoom.";
-				if (app.screen == Screen::viewscreen)
-					markup = button("game.console", "Open ship console") +
-					         button("game.follow", follow_ship ? "Follow ship: On" : "Follow ship: Off");
-				else if (const auto *console = console_definition(app))
-				{
-					for (const auto &widget : console->at("widgets"))
+				if (app.screen == Screen::console)
+					if (const auto *console = console_definition(app))
 					{
-						const auto percent = [&](const char *name)
+						for (const auto &widget : console->at("widgets"))
 						{
-							return std::to_string(widget.at(name).get<double>() / 10) + "%";
-						};
-						markup += "<div class=\"widget\" style=\"left:" + percent("x") + ";top:" + percent("y") +
-						          ";width:" + percent("width") + ";height:" + percent("height") + "\"><h3>" +
-						          escape(label(app, widget.at("label"))) + "</h3>";
-						const std::string kind = widget.at("kind");
-						const auto suffix = "/" + widget.at("id").get<std::string>();
-						if (kind == "radar")
-						{
-							markup += button("game.contacts" + suffix, "Read current radar contacts");
-							app.screen_controls.back().second += ". " + console_model.contacts_text();
+							const auto percent = [&](const char *name)
+							{
+								return std::to_string(widget.at(name).get<double>() / 10) + "%";
+							};
+							markup += "<div class=\"widget\" style=\"left:" + percent("x") + ";top:" + percent("y") +
+							          ";width:" + percent("width") + ";height:" + percent("height") + "\"><h3>" +
+							          escape(label(app, widget.at("label"))) + "</h3>";
+							const std::string kind = widget.at("kind");
+							const auto suffix = "/" + widget.at("id").get<std::string>();
+							if (kind == "radar")
+							{
+								markup += button("game.contacts" + suffix, "Read current radar contacts");
+								app.screen_controls.back().second += ". " + console_model.contacts_text();
+							}
+							if (kind == "throttle")
+								markup += button("game.slower" + suffix, "Decrease desired speed") +
+								          button("game.faster" + suffix, "Increase desired speed");
+							if (kind == "heading")
+								markup += button("game.left" + suffix, "Turn heading +5 degrees") +
+								          button("game.right" + suffix, "Turn heading -5 degrees");
+							if (kind == "status")
+								markup += "<p>" + escape(notice) + "</p>";
+							markup += "</div>";
 						}
-						if (kind == "throttle")
-							markup += button("game.slower" + suffix, "Decrease desired speed") +
-							          button("game.faster" + suffix, "Increase desired speed");
-						if (kind == "heading")
-							markup += button("game.left" + suffix, "Turn heading +5 degrees") +
-							          button("game.right" + suffix, "Turn heading -5 degrees");
-						if (kind == "status")
-							markup += "<p>" + escape(notice) + "</p>";
-						markup += "</div>";
 					}
-				}
 			}
 			if (app.session->networked())
 			{
 				description += " " + app.session->connection_status();
-				if (app.screen != Screen::gm && app.screen != Screen::workshop)
+				if (app.screen != Screen::gm && app.screen != Screen::workshop && app.screen != Screen::viewscreen)
 					for (const auto &[id, text] : app.session->lobby_controls())
 						network_markup += button(id, text);
 			}
 		}
-		if (app.can_host && app.session && app.session->running())
-			markup += button("game.local-gm", "Open local GM inspector");
 		if (app.screen == Screen::client_lobby && app.connect && !observation)
 		{
 			markup = "<div class=\"connection\"><label>Network code (room/server)</label><input id=\"join-code\" "
@@ -607,7 +562,9 @@ struct GameScreen::State
 		app.accessible_status = description;
 		auto *game = document.GetElementById("game");
 		auto *session_controls = document.GetElementById("session-controls");
-		game_top = std::max(200.f, session_controls->GetAbsoluteTop() + session_controls->GetOffsetHeight() + 12);
+		game_top = app.screen == Screen::viewscreen
+		               ? 0.f
+		               : std::max(200.f, session_controls->GetAbsoluteTop() + session_controls->GetOffsetHeight() + 12);
 		document.GetElementById("description")
 		    ->SetProperty("width", std::to_string(std::max(40, GetScreenWidth() - 40)) + "px");
 		session_controls->SetProperty("width", std::to_string(std::max(40, GetScreenWidth() - 40)) + "px");
@@ -673,40 +630,29 @@ struct GameScreen::State
 				grid_definition = definition;
 				environment_ready = true;
 			}
-			if (follow_ship && environment.own)
-			{
-				focus.x = environment.own->x / 1000.f + pan.x;
-				focus.z = -environment.own->y / 1000.f + pan.z;
-			}
-			if (CheckCollisionPointRec(GetMousePosition(), area()))
-			{
-				auto delta = GetMouseDelta();
-				if (IsMouseButtonDown(MOUSE_BUTTON_RIGHT))
-				{
-					azimuth -= delta.x * 0.005f;
-					elevation = std::clamp(elevation + delta.y * 0.005f, 0.15f, 1.5f);
-				}
-				if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE))
-				{
-					focus.x -= delta.x * distance / 700;
-					focus.z -= delta.y * distance / 700;
-					if (follow_ship)
-					{
-						pan.x -= delta.x * distance / 700;
-						pan.z -= delta.y * distance / 700;
-					}
-				}
-				distance = std::clamp(distance * std::pow(0.9f, GetMouseWheelMove()), 5.f, 2000000.f);
-			}
-			Camera3D camera{{focus.x + distance * std::cos(elevation) * std::cos(azimuth),
-			                 distance * std::sin(elevation),
-			                 focus.z + distance * std::cos(elevation) * std::sin(azimuth)},
-			                focus,
-			                {0, 1, 0},
-			                50,
-			                CAMERA_PERSPECTIVE};
+			// The bridge display is fixed to its ship: planar position, forward
+			// heading and a shallow downward view from just above the plane.
+			if (!environment.own)
+				return;
+			const auto &own = *environment.own;
+			constexpr float radians = 3.14159265358979323846f / 180000.f;
+			const float heading = own.heading * radians;
+			const float height = std::max(
+			    2.f, app.session->catalog().entities.at(own.definition).at("render").at("scale").get<float>() * .2f);
+			const float ahead = height * 8.f;
+			Camera3D camera{
+			    {own.x / 1000.f, height, -own.y / 1000.f},
+			    {own.x / 1000.f + std::cos(heading) * ahead, 0, -own.y / 1000.f - std::sin(heading) * ahead},
+			    {0, 1, 0},
+			    50,
+			    CAMERA_PERSPECTIVE};
 			const auto stage = GetTime();
-			const auto bodies = app.session->scene();
+			auto bodies = app.session->scene();
+			std::erase_if(bodies,
+			              [&](const auto &body)
+			              {
+				              return body.id == own.id;
+			              });
 			scene.draw(app.session->catalog(), bodies, camera, area(), app.session->scene_lighting(), GetTime(),
 			           SceneDiagnostic::comic, {}, environment);
 			scene_metrics["scene_render"] = GetTime() - stage;

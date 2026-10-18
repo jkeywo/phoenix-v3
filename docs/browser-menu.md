@@ -19,6 +19,8 @@ Explicit invitations bypass the HTML choices. Existing QR links (`type=client` o
 
 The shared C++ lobby protocol injects host-world creation/fleet preparation from a separate server composition library. Client and Workshop builds retain enforced dependency boundaries excluding simulation/Flecs. Setup verification, admission, countdown, replication and activation remain in C++. Late approval controls remain available after runtime activation.
 
+The loaded runtime has no separate HTML navigation toolbar. After launch the Viewscreen fills the canvas and exposes only Settings over the world. Settings returns to the current display or explicitly quits to Main Menu; returning to a lobby requires a new host/join flow. Console and GM clients remain separate runtime roles.
+
 ## Content and persistence
 
 The pack CLI and Workshop exports include `launcher.json`, a display preview generated from the production-resolved catalogue. The CLI also writes adjacent `.zip.menu.json` metadata containing the final archive SHA-256. The published training preview loads without its ZIP; the ZIP must match that identity when downloaded for hosting.

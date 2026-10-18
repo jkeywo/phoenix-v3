@@ -208,6 +208,8 @@ int main(int argc, char **argv)
 		auto candidate = app.new_host();
 		if (app.library)
 			candidate->replace_packs(app.library->archives(app.library->packs));
+		if (app.session)
+			app.session->lobby_command({phoenix::LobbyAction::leave});
 		app.session = std::move(candidate);
 		app.can_host = true;
 		app.screen = phoenix::Screen::home;

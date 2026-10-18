@@ -12,6 +12,7 @@
 import phoenix.session.api;
 import phoenix.session.local;
 import phoenix.console;
+import phoenix.navigation;
 
 using namespace phoenix;
 void require(bool result, const char *message)
@@ -99,6 +100,41 @@ int main()
 		session->start({"test.map", {{"test.slot", "test.ship"}}, "test.slot"});
 		const auto started_generation = session->generation();
 		auto own = session->observation()->own.id;
+		{
+			Application app;
+			app.session = session;
+			app.can_host = true;
+			app.native_menu = true;
+			app.screen = Screen::viewscreen;
+			app.screen_action = [](const std::string &)
+			{
+				return true;
+			};
+			const auto controls = navigation_controls(app);
+			require(controls.size() == 1 && controls.front().id == "settings",
+			        "A running Viewscreen exposes only Settings through shared navigation");
+			for (const char *action : {"home", "lobby", "host", "join", "view", "edit", "locale", "game.console",
+			                           "game.scene", "game.follow", "game.local-gm"})
+				require(!invoke_navigation(app, action) && app.screen == Screen::viewscreen,
+				        "Stale navigation and role-switch actions cannot leave or change a running game");
+			require(invoke_navigation(app, "settings") && app.screen == Screen::settings &&
+			            !invoke_navigation(app, "lobby") && invoke_navigation(app, "settings.close") &&
+			            app.screen == Screen::viewscreen && app.session == session,
+			        "Settings closes back to the same game without re-entering the lobby");
+			app.can_host = false;
+			app.native_menu = false;
+			require(invoke_navigation(app, "settings") && set_music_volume(app, "35"),
+			        "Connected player clients can use their own Settings");
+			auto replacement = make_local_session();
+			app.return_home = [&]
+			{
+				app.session = replacement;
+				app.screen = Screen::home;
+			};
+			require(invoke_navigation(app, "settings.quit") && app.screen == Screen::home && !game_active(app) &&
+			            !app.session->observation() && !app.session->running(),
+			        "Explicit quit returns to a fresh main-menu session without a running-world claim");
+		}
 		require(session->viewscreen().size() == 2 && own != 1,
 		        "Selected slot must create and claim its own ship, not a map entity");
 		require(!session->command({1, "speed_mm_s", 1000}), "Local adapter must refuse another ship's commands");

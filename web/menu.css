@@ -277,23 +277,6 @@ canvas {
 	min-height: 0;
 	flex: 1;
 }
-.runtime-toolbar {
-	display: flex;
-	justify-content: flex-end;
-	height: 48px;
-	flex: none;
-	background: #15120e;
-}
-#return-menu {
-	position: relative;
-	margin: 2px 8px;
-	width: 170px;
-	min-height: 42px;
-	padding: 8px;
-	font-size: 14px;
-	z-index: 4;
-	opacity: 0.85;
-}
 body.running #status {
 	bottom: 2px;
 	left: 4px;

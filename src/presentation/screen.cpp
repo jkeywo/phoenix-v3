@@ -242,7 +242,7 @@ void update_document(Application &app)
 }
 void prepare_settings(Application &app)
 {
-	const bool visible = app.screen == Screen::settings && app.can_host;
+	const bool visible = app.screen == Screen::settings && (app.can_host || game_active(app));
 	document->GetElementById("settings-panel")->SetProperty("display", visible ? "block" : "none");
 	for (const char *id : {"game", "session-controls", "description"})
 		document->GetElementById(id)->SetProperty("display", visible ? "none" : "block");
@@ -250,6 +250,10 @@ void prepare_settings(Application &app)
 		return;
 	app.tools_keyboard_focus = false;
 	app.screen_controls = {{"settings.close", "Back"}};
+	const bool can_quit = game_active(app) && bool(app.return_home);
+	document->GetElementById("settings.quit")->SetProperty("display", can_quit ? "block" : "none");
+	if (can_quit)
+		app.screen_controls.emplace_back("settings.quit", "Quit to Main Menu");
 	for (const auto &[id, text] : std::vector<std::pair<std::string, std::string>>{
 	         {"settings.dust", app.dust_motes ? "Dust motes: On" : "Dust motes: Off"},
 	         {"settings.grid", app.reference_grid ? "Reference grid: On" : "Reference grid: Off"},
@@ -259,7 +263,28 @@ void prepare_settings(Application &app)
 		if (auto *element = document->GetElementById(id))
 			element->SetInnerRML(localise(text));
 	}
-	app.screen_action = {};
+	auto *approvals = document->GetElementById("settings-approvals");
+	approvals->SetInnerRML("");
+	if (game_active(app))
+		for (const auto &[id, text] : app.session->lobby_controls())
+			if (id.starts_with("lobby.approve/") || id.starts_with("network.approve/") || id.starts_with("network.gm/"))
+			{
+				app.screen_controls.emplace_back(id, text);
+				auto button = document->CreateElement("button");
+				button->SetId(id);
+				button->AppendChild(document->CreateTextNode(localise(text)));
+				approvals->AppendChild(std::move(button));
+			}
+	app.screen_action = [&app](const std::string &id)
+	{
+		if (app.screen != Screen::settings || !app.session)
+			return false;
+		for (const auto &[control, text] : app.screen_controls)
+			if (control == id && (id.starts_with("lobby.approve/") || id.starts_with("network.approve/") ||
+			                      id.starts_with("network.gm/")))
+				return app.session->session_action(id);
+		return false;
+	};
 	const auto value = std::to_string(app.music_volume);
 	auto *slider = dynamic_cast<Rml::ElementFormControl *>(document->GetElementById("music-volume"));
 	if (slider->GetAttribute<Rml::String>("value", "") != value)
@@ -268,10 +293,34 @@ void prepare_settings(Application &app)
 	for (const auto &[id, text] :
 	     std::vector<std::pair<std::string, std::string>>{{"music-label", localise("Music volume")},
 	                                                      {"music-percent", value + "%"},
-	                                                      {"settings.close", localise("Back")}})
+	                                                      {"settings.close", localise("Back")},
+	                                                      {"settings.quit", localise("Quit to Main Menu")}})
 		if (auto *element = document->GetElementById(id); element->GetInnerRML() != text)
 			element->SetInnerRML(text);
 	app.accessible_status = localise("Music volume") + ": " + value + "%";
+}
+void prepare_runtime_chrome(Application &app)
+{
+	const bool view = app.screen == Screen::viewscreen;
+	if (!view && !game_active(app))
+	{
+		auto *nav = document->GetElementById("nav");
+		nav->RemoveProperty("position");
+		nav->RemoveProperty("right");
+		nav->RemoveProperty("top");
+		return;
+	}
+	const bool settings = app.screen == Screen::settings;
+	for (const char *id : {"app-title", "heading", "description", "session-controls", "game"})
+		if (view || settings)
+			document->GetElementById(id)->SetProperty("display", "none");
+	for (const char *id : {"home", "lobby", "host", "join", "view", "edit", "locale", "settings"})
+		document->GetElementById(id)->SetProperty("display", view && std::string(id) == "settings" ? "block" : "none");
+	auto *nav = document->GetElementById("nav");
+	nav->SetProperty("display", view ? "block" : "none");
+	nav->SetProperty("position", "absolute");
+	nav->SetProperty("right", "16px");
+	nav->SetProperty("top", "16px");
 }
 } // namespace
 bool probe_menu_keyboard(Application &app)
@@ -397,7 +446,7 @@ void open_window()
     <h2 id="heading">Home</h2><p id="description"></p><div id="session-controls"></div><div id="game"></div>
     <div id="settings-panel"><label id="music-label" for="music-volume">Music volume</label>
     <input id="music-volume" type="range" min="0" max="100" step="1" value="50"/>
-    <span id="music-percent">50%</span><button id="settings.dust">Dust motes: On</button><button id="settings.grid">Reference grid: On</button><button id="settings.motion">Reduced motion: Off</button><button id="settings.close">Back</button></div></body></rml>)",
+    <span id="music-percent">50%</span><button id="settings.dust">Dust motes: On</button><button id="settings.grid">Reference grid: On</button><button id="settings.motion">Reduced motion: Off</button><div id="settings-approvals"></div><button id="settings.quit">Quit to Main Menu</button><button id="settings.close">Back</button></div></body></rml>)",
 	                                           (font_directory / "navigation.rml").generic_string());
 	if (!document)
 		throw std::runtime_error("Could not load home screen");
@@ -521,6 +570,7 @@ void draw_screen(Application &app)
 			if (app.screen != Screen::settings)
 				game_screen->prepare(app, *document);
 		}
+		prepare_runtime_chrome(app);
 		if (app.text_probe && !document->GetElementById("probe-text"))
 			document->GetElementById("game")->SetInnerRML(R"(<h2>Unicode shaping and text input</h2>
 <p lang="ar" dir="rtl" style="font-family:Cairo;font-size:32px;text-align:right;">&#1605;&#1585;&#1581;&#1576;&#1575; &#1576;&#1603;&#1605; &#1601;&#1610; &#1601;&#1610;&#1606;&#1610;&#1603;&#1587;</p>

@@ -54,6 +54,7 @@ struct Application
 	std::map<std::string, ConsoleId> gamepad_assignments;
 	Screen screen = Screen::home;
 	Screen settings_return = Screen::home;
+	Screen launch_screen = Screen::viewscreen;
 	int music_volume = 50;
 	std::string network_code;
 	std::string network_service = default_network_service, network_profile = "default", join_page;
@@ -87,4 +88,5 @@ struct Application
 	bool console_surface_active = false;
 };
 const char *screen_name(Screen screen);
+bool game_active(const Application &app);
 } // namespace phoenix
