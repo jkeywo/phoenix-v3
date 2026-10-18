@@ -87,6 +87,8 @@ Pack console_assets(const Catalog &catalog, const std::string &ship);
 // Authoring preview only: the final draft is deliberately absent from archive identities.
 Catalog resolve_draft(const std::vector<Pack> &libraries, const PackDraft &draft);
 void verify_catalog(const Catalog &catalog);
+// Public setup hints for the HTML launcher. Admission/setup still verify in C++.
+Json launcher_catalog(const Catalog &catalog);
 struct ConsoleSpec
 {
 	std::string id, station, definition;

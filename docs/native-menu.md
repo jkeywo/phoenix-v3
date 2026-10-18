@@ -16,7 +16,7 @@ A ship host may select a local Console and ready as a player. Without a local Co
 
 Everyone ready begins a five-second countdown. Unreadying, membership changes, disconnects, or ship/Console changes cancel it. Changed setup must be verified again before another countdown. At completion the server roster freezes, and the existing durable fleet activation barrier starts the game. Every server simulates the complete world and its authored AI deterministically. Human claims suppress delegated control through the ordinary ownership rules.
 
-Unclaimed slots marked `mandatory` use their first allowed ship as AI. Unclaimed optional slots remain empty. AI-only ships have no server identity, vote or fictitious participant. New ship servers cannot join after launch; returning fixed-roster members and ordinary late crew/GM admission retain their existing paths. Browser clients continue to use direct ship-server invitations after launch; the new cascading preparation interface is native.
+Unclaimed slots marked `mandatory` use their first allowed ship as AI. Unclaimed optional slots remain empty. AI-only ships have no server identity, vote or fictitious participant. New ship servers cannot join after launch; returning fixed-roster members and ordinary late crew/GM admission retain their existing paths. The [HTML browser menu](browser-menu.md) gathers the same setup choices before loading its role WASM; both use the shared production lobby protocol and preserve direct running-server invitations.
 
 ## Saves and settings
 

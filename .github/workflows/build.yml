@@ -40,6 +40,10 @@ jobs:
           $ErrorActionPreference = 'Stop'
           $site = New-Item -ItemType Directory -Path build/pages
           Copy-Item -LiteralPath build/web/index.html -Destination $site
+          Copy-Item -LiteralPath build/web/menu.css,build/web/launcher.mjs -Destination $site
+          New-Item -ItemType Directory -Path build/pages/assets | Out-Null
+          Copy-Item -LiteralPath build/web/assets/menu -Destination build/pages/assets -Recurse
+          Copy-Item -LiteralPath build/web/assets/LatoLatin-Regular.ttf,build/web/assets/FONT-LICENSE.txt,build/web/assets/locales.json -Destination build/pages/assets
           foreach ($role in @('server', 'client', 'workshop'))
           {
             foreach ($extension in @('js', 'wasm', 'data'))
@@ -48,6 +52,7 @@ jobs:
             }
           }
           Copy-Item -LiteralPath build/native/training.zip -Destination $site
+          Copy-Item -LiteralPath build/native/training.zip.menu.json -Destination $site
           Set-Content -LiteralPath build/pages/revision.txt -Value $env:GITHUB_SHA
       - name: Upload GitHub Pages artifact
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'

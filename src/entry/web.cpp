@@ -15,17 +15,30 @@
 import phoenix.presentation;
 import phoenix.session.api;
 #ifdef PHOENIX_SERVER
-import phoenix.network.host;
+import phoenix.network.lobby;
 #else
-import phoenix.network.client;
+import phoenix.network.lobby.protocol;
 #endif
 #ifdef PHOENIX_WORKSHOP
 import phoenix.tools;
 #endif
 
 phoenix::Application app;
+// Browser storage and page navigation belong to the shell; sessions remain in C++.
+// clang-format off: embedded JavaScript must retain its operators.
+EM_JS(void, persist_menu, (), { Module.phoenixPersistMenu?.(); });
+EM_JS(void, return_to_menu, (), { Module.phoenixReturnToMenu?.(); });
+// clang-format on
 void frame()
 {
+	static double last_persist = 0;
+	if (GetTime() - last_persist > 1)
+	{
+		persist_menu();
+		last_persist = GetTime();
+	}
+	if (app.native_menu && (app.screen == phoenix::Screen::home || app.exit_requested))
+		return_to_menu();
 	if (app.session)
 		app.session->poll();
 #ifdef PHOENIX_SERVER
@@ -49,6 +62,7 @@ void frame()
 int main(int argc, char **argv)
 {
 	phoenix::NetworkOptions network;
+	std::string action, scenario, slot, ship, save;
 #ifdef PHOENIX_SERVER
 	app.can_host = true;
 #endif
@@ -58,6 +72,17 @@ int main(int argc, char **argv)
 #endif
 	for (int i = 1; i + 1 < argc; i += 2)
 	{
+		const std::string argument = argv[i], value = argv[i + 1];
+		if (argument == "--action")
+			action = value;
+		if (argument == "--scenario")
+			scenario = value;
+		if (argument == "--slot")
+			slot = value;
+		if (argument == "--ship")
+			ship = value;
+		if (argument == "--save")
+			save = value;
 		if (std::string(argv[i]) == "--text-probe")
 			app.text_probe = std::string(argv[i + 1]) == "1";
 		if (std::string(argv[i]) == "--language")
@@ -88,25 +113,71 @@ int main(int argc, char **argv)
 	}
 	try
 	{
+		if (!action.empty())
+		{
+			app.native_menu = true;
+			app.library = std::make_shared<phoenix::MenuLibrary>("/launcher/menu");
+			app.library->load();
+			const auto &preferences = app.library->preferences;
+			app.music_volume = preferences.volume;
+			app.language = preferences.language;
+			app.pseudo_locale = preferences.pseudo;
+			app.reduced_motion = preferences.reduced_motion;
+			app.return_home = []
+			{
+				return_to_menu();
+			};
+		}
 #ifdef PHOENIX_SERVER
-		network.link.self = network.server;
-		app.session = phoenix::make_network_host(network);
+		if (action.empty())
+			network.link.self = network.server;
+		if (action == "join")
+			app.session = phoenix::join_game_lobby(network, phoenix::JoinRole::ship_server);
+		else
+		{
+			app.session = phoenix::make_game_lobby(network);
+			app.new_host = [network]
+			{
+				return phoenix::make_game_lobby(network);
+			};
+			if (app.library)
+				app.session->replace_packs(app.library->archives(app.library->packs));
+			if (action == "recover")
+				app.session->restore(app.library->read_save(save));
+			else if (action == "host")
+				app.session->prepare_lobby({scenario, {{slot, ship}}, slot, ""});
+		}
+		app.screen = action.empty() ? phoenix::Screen::home : phoenix::Screen::server_lobby;
 #elif defined(PHOENIX_WORKSHOP)
 		if (app.screen == phoenix::Screen::gm)
 		{
 			network.inspector = true;
-			app.session = phoenix::make_network_client(network);
+			app.session = phoenix::join_client_lobby(network, phoenix::JoinRole::gm);
+			app.screen = phoenix::Screen::client_lobby;
 		}
 #else
 		app.screen = phoenix::Screen::client_lobby;
-		app.session = phoenix::make_network_client(network);
+		app.session = phoenix::join_client_lobby(network, phoenix::JoinRole::player);
 #endif
 	}
 	catch (const std::exception &error)
 	{
 		app.status = error.what();
+		app.screen = phoenix::Screen::client_lobby;
+		if (!action.empty())
+		{
+			EM_ASM({ Module.phoenixLaunchError ?.(UTF8ToString($0)); }, app.status.c_str());
+			app.session.reset();
+			return 1;
+		}
+	}
+	if (app.native_menu && !app.session && app.screen != phoenix::Screen::workshop)
+	{
+		EM_ASM({ Module.phoenixLaunchError ?.(UTF8ToString($0)); }, app.status.c_str());
+		return 1;
 	}
 	phoenix::open_window();
+	phoenix::select_language(app.language, app.pseudo_locale);
 #ifdef PHOENIX_WORKSHOP
 	phoenix::begin_tools();
 #endif

@@ -57,6 +57,16 @@ try
 		{
 			throw 'Build failed'
 		}
+		if ($Target -eq 'web')
+		{
+			foreach ($file in @('training.zip', 'training.zip.menu.json'))
+			{
+				if (Test-Path "build/native/$file")
+				{
+					Copy-Item -LiteralPath "build/native/$file" -Destination "build/web/$file"
+				}
+			}
+		}
 	}
 }
 finally

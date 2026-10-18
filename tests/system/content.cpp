@@ -41,6 +41,11 @@ int main()
 		auto loaded = read_pack(bytes);
 		require(loaded.hash() == sha256(bytes), "pack identity must be the SHA256 of transferred archive bytes");
 		auto catalog = resolve_packs({loaded});
+		const auto menu = launcher_catalog(catalog);
+		require(menu.at("schema") == 1 && menu.at("scenarios").size() == 1 &&
+		            menu.at("scenarios")[0].at("id") == "test.map" &&
+		            menu.at("scenarios")[0].at("slots")[0].at("ships")[0].at("id") == "test.ship",
+		        "HTML launch hints come from the production-resolved synthetic catalogue");
 		// A synthetic material travels through the same archive, inheritance,
 		// presentation sanitiser and Workshop paths as authored game content.
 		auto sprite_draft = loaded.draft();

@@ -59,11 +59,11 @@ Native networking additionally builds pinned libdatachannel 0.24.6 and Mbed TLS 
 
 ## GitHub Pages
 
-The public launcher is **https://jkeywo.github.io/phoenix-v3/**. Select Ship server, Console or Workshop / GM. Download [training.zip](https://jkeywo.github.io/phoenix-v3/training.zip) and import it in the Ship server home screen to use the starter content.
+The public launcher is **https://jkeywo.github.io/phoenix-v3/**. Use Host Game, one of the three Join Game roles, or Workshop. The HTML menu offers verified training scenarios and defers WASM until lobby/Workshop entry; QR links bypass the menu. See [browser menu behavior](browser-menu.md).
 
 `.github/workflows/build.yml` builds and deploys on every push to `main`, including documentation changes. It also supports manual dispatch on `main`. Pull requests run the code/build gate and stage the site without publishing it. The existing `scripts/check.ps1` gate builds native and WASM targets, verifies the starter content, and runs the synthetic system and network checks before any deployment. Graphical smoke runs remain manually triggered.
 
-The workflow stages only `index.html`, each browser role's `.js`, `.wasm` and `.data`, the verified `training.zip`, and `revision.txt` in `build/pages`. The `.data` bundles contain runtime assets and their font/QR licence notices. Test fixtures, manual probes, build intermediates and local user data are not published. The launcher uses relative script URLs, so assets resolve beneath the repository's `/phoenix-v3/` path. `revision.txt` identifies the deployed commit.
+The workflow stages `index.html`, `menu.css`, `launcher.mjs`, standalone menu artwork/font/translation assets, each browser role's `.js`, `.wasm` and `.data`, verified `training.zip` with its `.menu.json` preview, and `revision.txt` in `build/pages`. The `.data` bundles contain runtime assets and their font/QR licence notices. Test fixtures, manual probes, build intermediates and local user data are not published. The launcher uses relative script URLs, so assets resolve beneath the repository's `/phoenix-v3/` path. `revision.txt` identifies the deployed commit.
 
 In repository **Settings → Pages**, the source must be **GitHub Actions**. The deployment job uses the `github-pages` environment and has `pages: write` and `id-token: write`; the build job only needs repository read access. No deployment secret or generated-output branch is required. The actions are commit-pinned. Builds for the same ref are serialised without cancelling a running deployment; if verification fails, the previous published site remains available. A successful manual run on `main` can republish it.
 

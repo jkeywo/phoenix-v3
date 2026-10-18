@@ -36,9 +36,14 @@ int main(int argc, char **argv)
 		std::vector<phoenix::Pack> ordered;
 		for (int i = 3; i < argc; ++i)
 			ordered.push_back(phoenix::read_pack(phoenix::read_file(argv[i])));
-		phoenix::resolve_draft(ordered, pack);
+		const auto catalog = phoenix::resolve_draft(ordered, pack);
+		auto preview = phoenix::launcher_catalog(catalog);
+		pack.files["launcher.json"] = phoenix::json_bytes(preview);
 		auto archive = phoenix::write_pack(pack);
 		phoenix::write_file(argv[2], archive);
+		preview["id"] = pack.manifest.at("id");
+		preview["hash"] = phoenix::sha256(archive);
+		phoenix::write_file(std::string(argv[2]) + ".menu.json", phoenix::json_bytes(preview));
 		std::cout << "Verified pack: " << argv[2] << '\n';
 	}
 	catch (const std::exception &error)

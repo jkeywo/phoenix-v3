@@ -80,7 +80,10 @@ struct NativeMenuScreen::State
 		if (app.screen == Screen::settings)
 		{
 			app.screen = app.settings_return;
-			focus_next = "menu.settings";
+			focus_next =
+			    app.screen == Screen::home || app.screen == Screen::server_lobby || app.screen == Screen::client_lobby
+			        ? "menu.settings"
+			        : "settings";
 			return;
 		}
 		if (app.screen != Screen::home)
@@ -200,7 +203,10 @@ struct NativeMenuScreen::State
 			document.GetElementById(id)->SetProperty("display", visible ? "none" : "block");
 		document.GetElementById("settings-panel")->SetProperty("display", "none");
 		if (!visible)
+		{
+			app.accessible_status.clear();
 			return false;
+		}
 		app.screen_controls.clear();
 		app.screen_inputs.clear();
 		actions.clear();
@@ -283,7 +289,7 @@ struct NativeMenuScreen::State
 			              {
 				              app.exit_requested = true;
 			              });
-			if (app.session->lobby().active || app.session->running())
+			if (app.session && (app.session->lobby().active || app.session->running()))
 			{
 				markup += add("menu.resume", "Return to Game",
 				              [&]
@@ -565,6 +571,8 @@ struct NativeMenuScreen::State
 				    "menu.apply-packs", "Apply Pack Selection",
 				    [&]
 				    {
+					    if (!app.session)
+						    throw std::runtime_error("Choose packs from the main menu before opening Workshop.");
 					    const auto archives = app.library->archives(draft);
 					    if (app.session->lobby().active || app.session->running() || app.session->recovery_pending())
 						    throw std::runtime_error("Leave the game before applying a different pack selection");
@@ -687,12 +695,15 @@ struct NativeMenuScreen::State
 		}
 		if (auto *value = document.GetElementById("menu-volume-value"))
 			value->SetInnerRML(std::to_string(app.music_volume) + "%");
-		const auto status = !app.status.empty() ? app.status : !notice.empty() ? notice : app.session->lobby().status;
+		const auto status = !app.status.empty() ? app.status
+		                    : !notice.empty()   ? notice
+		                    : app.session       ? app.session->lobby().status
+		                                        : std::string{};
 		document.GetElementById("menu-status")->SetInnerRML(escaped(localise(status)));
 		app.accessible_status = localise(status);
 		if (!app.screen_readouts.empty())
 			app.accessible_status += " " + app.screen_readouts.back().second;
-		const auto lobby = app.session->lobby();
+		const auto lobby = app.session ? app.session->lobby() : LobbyProjection{};
 		const auto own = std::find_if(lobby.members.begin(), lobby.members.end(),
 		                              [&](const auto &member)
 		                              {

@@ -11,11 +11,8 @@ module;
 #include <utility>
 #include <vector>
 #include <nlohmann/json.hpp>
-module phoenix.network.lobby;
-import phoenix.network.host;
+module phoenix.network.lobby.protocol;
 import phoenix.network.client;
-import phoenix.session.local;
-import phoenix.fleet_setup;
 import phoenix.wire;
 namespace phoenix
 {
@@ -39,7 +36,9 @@ class GameLobby final : public SessionPort
 	bool recovery_ = false, setup_ack_ = false;
 	JoinRole role_ = JoinRole::ship_server;
 	std::string self_, target_, epoch_ = random_token(), nonce_ = random_token(), key_, error_;
-	std::shared_ptr<HostAccess> source_ = make_host_world();
+	LobbyServices services_;
+	std::shared_ptr<SessionPort> source_;
+	Catalog empty_catalog_;
 	std::shared_ptr<SessionPort> backend_;
 	std::unique_ptr<PeerTransport> transport_;
 	std::map<std::string, Peer> peers_;
@@ -163,10 +162,10 @@ class GameLobby final : public SessionPort
 		if (recovery_)
 		{
 			Json plan{{"room", options_.link.room}, {"members", members}, {"creator", self_}};
-			bundle_ = save_fleet_recovery(*source_, plan);
+			bundle_ = services_.recovery(*source_, plan);
 		}
 		else
-			bundle_ = export_fleet_setup(*source_, selection_, options_.link.room, members);
+			bundle_ = services_.prepare(*source_, selection_, options_.link.room, members);
 		setup_source_ = std::make_unique<StateSource>(bundle_, revision_);
 		peers_.at(self_).member.verified = true;
 	}
@@ -357,7 +356,7 @@ class GameLobby final : public SessionPort
 		const auto config = coordinator_ ? config_for(self_) : configuration_;
 		if (role_ == JoinRole::ship_server)
 		{
-			auto prepared = read_fleet_setup(bundle_, self_);
+			auto prepared = services_.read(bundle_, self_);
 			if (offline_)
 				backend_ = prepared.world;
 			else
@@ -366,7 +365,7 @@ class GameLobby final : public SessionPort
 				options.link.self = self_;
 				for (const auto &[id, ticket] : config.at("tickets").items())
 					options.lobby_tickets[id] = {ticket.at("key"), static_cast<JoinRole>(ticket.at("role").get<int>())};
-				backend_ = make_network_host(options);
+				backend_ = services_.host(options);
 				backend_->restore(bundle_);
 				backend_->activate_prepared();
 			}
@@ -557,7 +556,7 @@ class GameLobby final : public SessionPort
 			packs_transfer_->accept(body);
 			if (packs_transfer_->ready())
 				for (const auto &pack : packs_transfer_->packs())
-					source_->add_verified_pack(pack);
+					services_.add_pack(*source_, pack);
 		}
 		else if (packet->type == "setup-offer" && role_ == JoinRole::ship_server)
 		{
@@ -587,9 +586,16 @@ class GameLobby final : public SessionPort
 	}
 
 public:
-	GameLobby(NetworkOptions options, bool coordinator, JoinRole role, bool offline = false)
-	    : options_(std::move(options)), coordinator_(coordinator), offline_(offline), role_(role)
+	GameLobby(NetworkOptions options, bool coordinator, JoinRole role, bool offline, LobbyServices services)
+	    : options_(std::move(options)), coordinator_(coordinator), offline_(offline), role_(role),
+	      services_(std::move(services))
 	{
+		if (coordinator_ || role_ == JoinRole::ship_server)
+		{
+			if (!services_.world)
+				throw std::runtime_error("Ship hosting is unavailable in this client build");
+			source_ = services_.world();
+		}
 		if (options_.profile.empty() ||
 		    options_.profile.find_first_not_of("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-") !=
 		        std::string::npos)
@@ -638,7 +644,8 @@ public:
 		backend_.reset();
 		active_ = launched_ = recovery_ = false;
 		countdown_.reset();
-		source_->clear_packs();
+		if (source_)
+			source_->clear_packs();
 		selection_ = {};
 		recovery_slots_.clear();
 		setup_source_.reset();
@@ -658,13 +665,13 @@ public:
 	}
 	const Catalog &catalog() const override
 	{
-		return backend_ ? backend_->catalog() : source_->catalog();
+		return backend_ ? backend_->catalog() : source_ ? source_->catalog() : empty_catalog_;
 	}
 	void start(const GameSetup &setup) override
 	{
 		// Existing explicit launch arguments retain their direct-start contract.
-		backend_ = offline_ ? make_local_session() : make_network_host(options_);
-		for (const auto &pack : source_->content_packs())
+		backend_ = offline_ ? services_.local() : services_.host(options_);
+		for (const auto &pack : services_.packs(*source_))
 			backend_->add_pack(pack.archive());
 		backend_->start(setup);
 		launched_ = true;
@@ -678,7 +685,7 @@ public:
 		selection_ = setup;
 		selection_.local_console.clear();
 		peers_.at(self_).member.slot = setup.local_slot;
-		packs_source_ = std::make_unique<PackSource>(source_->content_packs());
+		packs_source_ = std::make_unique<PackSource>(services_.packs(*source_));
 		invalidate();
 		active_ = true;
 	}
@@ -687,11 +694,11 @@ public:
 		if (!coordinator_)
 			throw std::runtime_error("Only a host can restore a save");
 		auto pack = read_pack(archive);
-		auto candidate = make_host_world();
+		auto candidate = services_.world();
 		std::vector<std::string> required;
 		if (pack.manifest().value("format", std::string{}) == "phoenix-fleet-setup")
 		{
-			auto prepared = read_fleet_setup(archive);
+			auto prepared = services_.read(archive, {});
 			candidate = prepared.world;
 			for (const auto &[id, slot] : prepared.plan.at("members").items())
 				required.push_back(slot);
@@ -699,10 +706,10 @@ public:
 		else
 		{
 			candidate->restore(archive);
-			candidate->resume_server();
-			required.push_back(candidate->setup().local_slot);
+			services_.resume(*candidate);
+			required.push_back(services_.setup(*candidate).local_slot);
 		}
-		auto setup = candidate->setup();
+		auto setup = services_.setup(*candidate);
 		backend_.reset();
 		source_ = std::move(candidate);
 		selection_ = std::move(setup);
@@ -717,7 +724,7 @@ public:
 		              });
 		peers_.at(self_).member.slot = selection_.local_slot;
 		peers_.at(self_).member.console.clear();
-		packs_source_ = std::make_unique<PackSource>(source_->content_packs());
+		packs_source_ = std::make_unique<PackSource>(services_.packs(*source_));
 		invalidate();
 	}
 	bool running() const override
@@ -736,7 +743,7 @@ public:
 	}
 	Bytes fleet_setup(const GameSetup &setup) const override
 	{
-		return export_fleet_setup(*source_, setup, options_.link.room);
+		return services_.prepare(*source_, setup, options_.link.room, {});
 	}
 	void resume_local() override
 	{
@@ -756,7 +763,7 @@ public:
 	}
 	std::uint64_t generation() const override
 	{
-		return generation_ + (backend_ ? backend_->generation() : source_->generation());
+		return generation_ + (backend_ ? backend_->generation() : source_ ? source_->generation() : 0);
 	}
 	bool command(const OperatingCommand &value) override
 	{
@@ -857,9 +864,7 @@ public:
 	}
 	std::vector<std::pair<std::string, std::string>> lobby_controls() const override
 	{
-		if (backend_)
-			return backend_->lobby_controls();
-		std::vector<std::pair<std::string, std::string>> result;
+		auto result = backend_ ? backend_->lobby_controls() : std::vector<std::pair<std::string, std::string>>{};
 		const auto view = lobby();
 		for (const auto &m : view.members)
 		{
@@ -867,6 +872,8 @@ public:
 				result.emplace_back("lobby.approve/" + m.id, "Approve " + m.name);
 			if (view.coordinator && m.id != self_ && !launched_)
 				result.emplace_back("lobby.remove/" + m.id, "Remove " + m.name);
+			if (backend_)
+				continue;
 			if (m.id != self_ || !m.approved)
 				continue;
 			if (!m.slot.empty() && m.role != JoinRole::gm && m.verified)
@@ -914,8 +921,6 @@ public:
 	}
 	bool session_action(const std::string &id) override
 	{
-		if (backend_)
-			return backend_->session_action(id);
 		if (id == "lobby.ready" || id == "lobby.unready")
 			return lobby_command({id == "lobby.ready" ? LobbyAction::ready : LobbyAction::unready});
 		if (id.starts_with("lobby.approve/"))
@@ -936,7 +941,7 @@ public:
 				cmd.console = id.substr(split + 1);
 			return lobby_command(cmd);
 		}
-		return false;
+		return backend_ && backend_->session_action(id);
 	}
 	void poll() override
 	{
@@ -987,7 +992,7 @@ public:
 					if (setup_transfer_ && setup_transfer_->ready() && !setup_ack_ &&
 					    configuration_.value("revision", std::uint64_t{0}) == setup_transfer_->sequence())
 					{
-						read_fleet_setup(setup_transfer_->archive(), self_);
+						services_.read(setup_transfer_->archive(), self_);
 						bundle_ = setup_transfer_->archive();
 						setup_ack_ = true;
 					}
@@ -1017,6 +1022,7 @@ public:
 						if (now_ - *countdown_ >= 5000)
 						{
 							launched_ = true;
+							countdown_.reset();
 							launch_local();
 						}
 					}
@@ -1057,12 +1063,15 @@ public:
 	}
 };
 } // namespace
-std::shared_ptr<SessionPort> make_game_lobby(NetworkOptions options, bool offline)
+std::shared_ptr<SessionPort> compose_game_lobby(NetworkOptions options, bool coordinator, JoinRole role, bool offline,
+                                                LobbyServices services)
 {
-	return std::make_shared<GameLobby>(std::move(options), true, JoinRole::ship_server, offline);
+	return std::make_shared<GameLobby>(std::move(options), coordinator, role, offline, std::move(services));
 }
-std::shared_ptr<SessionPort> join_game_lobby(NetworkOptions options, JoinRole role)
+std::shared_ptr<SessionPort> join_client_lobby(NetworkOptions options, JoinRole role)
 {
-	return std::make_shared<GameLobby>(std::move(options), false, role);
+	if (role == JoinRole::ship_server)
+		throw std::runtime_error("Ship hosting requires the server build");
+	return compose_game_lobby(std::move(options), false, role, false, {});
 }
 } // namespace phoenix

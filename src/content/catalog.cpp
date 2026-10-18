@@ -20,6 +20,27 @@ module phoenix.content;
 
 namespace phoenix
 {
+Json launcher_catalog(const Catalog &catalog)
+{
+	Json result{{"schema", 1}, {"scenarios", Json::array()}};
+	for (const auto &[id, map] : catalog.maps)
+	{
+		Json scenario{{"id", id}, {"name", map.value("name", id)}, {"slots", Json::array()}};
+		for (const auto &slot : map.at("ship_slots"))
+		{
+			Json entry{{"id", slot.at("id")}, {"mandatory", slot.value("mandatory", false)}, {"ships", Json::array()}};
+			for (const auto &ship : slot.at("allowed_ships"))
+			{
+				const auto ship_id = ship.get<std::string>();
+				entry["ships"].push_back(
+				    {{"id", ship_id}, {"name", catalog.entities.at(ship_id).value("name", ship_id)}});
+			}
+			scenario["slots"].push_back(std::move(entry));
+		}
+		result["scenarios"].push_back(std::move(scenario));
+	}
+	return result;
+}
 namespace
 {
 [[noreturn]] void invalid(const std::string &path, const std::string &why)

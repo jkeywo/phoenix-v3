@@ -9,6 +9,7 @@
 #include <vector>
 #include <nlohmann/json.hpp>
 import phoenix.network.lobby;
+import phoenix.network.lobby.protocol;
 import phoenix.network.host;
 import phoenix.network.client;
 import phoenix.session.local;
@@ -55,7 +56,7 @@ int main(int argc, char **argv)
 			config.server = "organiser";
 			config.link.self = id;
 			config.profile = id;
-			auto node = join_game_lobby(config, role);
+			auto node = role == JoinRole::ship_server ? join_game_lobby(config, role) : join_client_lobby(config, role);
 			nodes.push_back(node);
 			return node;
 		};
@@ -181,7 +182,14 @@ int main(int argc, char **argv)
 					    return !m.approved;
 			    return false;
 		    });
-		require(host->lobby_command({LobbyAction::approve, "late-crew"}),
+		const auto late_controls = host->lobby_controls();
+		require(std::any_of(late_controls.begin(), late_controls.end(),
+		                    [](const auto &control)
+		                    {
+			                    return control.first == "lobby.approve/late-crew";
+		                    }),
+		        "Running lobby UI retains approval controls after backend activation");
+		require(host->session_action("lobby.approve/late-crew"),
 		        "The running lobby admits late crew without changing the server roster");
 		pump(
 		    [&]
@@ -243,7 +251,7 @@ int main(int argc, char **argv)
 		direct_options.link.self = "menu-handshake";
 		direct_options.profile = "native-form";
 		direct_options.lobby_tickets.clear();
-		auto direct = join_game_lobby(direct_options, JoinRole::player);
+		auto direct = join_client_lobby(direct_options, JoinRole::player);
 		nodes.push_back(direct);
 		std::string approve_direct;
 		pump(

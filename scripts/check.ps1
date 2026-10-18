@@ -1,4 +1,10 @@
 $ErrorActionPreference = 'Stop'
+
+& "$PSScriptRoot/../.tools/emsdk/node/24.19.0_64bit/node.exe" --test "$PSScriptRoot/../tests/system/web_launcher.mjs"
+if ($LASTEXITCODE)
+{
+	throw 'HTML launcher integration failed'
+}
 $repo = Split-Path $PSScriptRoot -Parent
 Push-Location $repo
 try

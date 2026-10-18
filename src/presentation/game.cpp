@@ -237,7 +237,7 @@ struct GameScreen::State
 		bind_session(app);
 		if (!app.session)
 			return false;
-		if (id.rfind("network.", 0) == 0)
+		if (id.rfind("network.", 0) == 0 || id.rfind("lobby.", 0) == 0)
 			return app.session->session_action(id);
 		if (id.rfind("game.", 0) != 0)
 			return false;

@@ -12,6 +12,7 @@ target_sources(phoenix_session PUBLIC FILE_SET CXX_MODULES FILES src/session/loc
 target_sources(phoenix_session PUBLIC FILE_SET CXX_MODULES FILES src/session/execution.cppm)
 target_sources(phoenix_network_host PUBLIC FILE_SET CXX_MODULES FILES src/network/host.cppm)
 target_sources(phoenix_network_lobby PUBLIC FILE_SET CXX_MODULES FILES src/network/lobby.cppm)
+target_sources(phoenix_lobby_protocol PUBLIC FILE_SET CXX_MODULES FILES src/network/lobby_protocol.cppm)
 target_sources(phoenix_network_client PUBLIC FILE_SET CXX_MODULES FILES src/network/client.cppm)
 target_sources(phoenix_fleet_setup PUBLIC FILE_SET CXX_MODULES FILES src/session/fleet_setup.cppm)
 target_sources(phoenix_core PUBLIC FILE_SET CXX_MODULES FILES src/core/application.cppm)

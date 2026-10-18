@@ -135,7 +135,7 @@ Bytes WorkshopDocument::export_pack() const
 	draft.manifest = pack_.manifest;
 	draft.files = pack_.files;
 	draft.files["definitions.json"] = json_bytes(definitions_);
-	resolve_draft(libraries_, draft);
+	draft.files["launcher.json"] = json_bytes(launcher_catalog(resolve_draft(libraries_, draft)));
 	return write_pack(draft);
 }
 void WorkshopDocument::load_map(std::span<const std::uint8_t> bytes)
