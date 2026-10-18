@@ -23,5 +23,13 @@
 		"size": [1122, 1402],
 		"invitation_crop_top": 400,
 		"screen": { "x": 190, "y": 650, "width": 680, "height": 470 }
+	},
+	"flicker": { "interval_seconds": [15, 40], "duration_seconds": 0.28 },
+	"scutter": {
+		"file": "scutter.png",
+		"size": [1448, 1086],
+		"interval_seconds": [40, 60],
+		"fast_crossing_seconds": [4, 6],
+		"slow_crossing_seconds": [12, 18]
 	}
 }

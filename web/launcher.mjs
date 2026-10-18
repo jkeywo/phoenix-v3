@@ -126,7 +126,7 @@ export function skinProperties(sidecar, scale) {
 }
 export function sceneProperties(scene) {
 	if (scene.schema !== 1 || scene.panorama?.repeat !== "mirror-x") throw Error("Invalid menu scene.");
-	for (const asset of [scene.panorama, scene.foreground, scene.terminal, scene.flash]) {
+	for (const asset of [scene.panorama, scene.foreground, scene.terminal, scene.flash, scene.scutter]) {
 		if (
 			!/^[a-z0-9.-]+\.png$/.test(asset?.file) ||
 			!Array.isArray(asset.size) ||
@@ -136,6 +136,25 @@ export function sceneProperties(scene) {
 			throw Error("Invalid menu scene image.");
 	}
 	const { period_seconds: period, initial_phase: phase } = scene.panorama;
+	const range = (value) =>
+		Array.isArray(value) &&
+		value.length === 2 &&
+		value.every((v) => Number.isFinite(v) && v > 0) &&
+		value[1] >= value[0];
+	const tv = scene.flicker,
+		robot = scene.scutter;
+	if (
+		!range(tv?.interval_seconds) ||
+		!Number.isFinite(tv.duration_seconds) ||
+		tv.duration_seconds <= 0 ||
+		tv.duration_seconds >= tv.interval_seconds[0] ||
+		!range(robot.interval_seconds) ||
+		!range(robot.fast_crossing_seconds) ||
+		!range(robot.slow_crossing_seconds) ||
+		robot.fast_crossing_seconds[1] >= robot.slow_crossing_seconds[0] ||
+		robot.slow_crossing_seconds[1] >= robot.interval_seconds[0]
+	)
+		throw Error("Invalid ambient menu metadata.");
 	const f = scene.flash;
 	if (
 		![
@@ -176,6 +195,7 @@ export function sceneProperties(scene) {
 		"--menu-flash-mask": `url("assets/menu/${f.file}")`,
 		"--menu-frame": `url("assets/menu/${scene.foreground.file}")`,
 		"--menu-crt": `url("assets/menu/${scene.terminal.file}")`,
+		"--menu-scutter": `url("assets/menu/${robot.file}")`,
 		"--pan-period": period + "s",
 		"--pan-start": String(-2 * phase),
 		"--pan-end": String(-2 * phase - 2),
@@ -351,6 +371,7 @@ async function boot() {
 	};
 	let library = defaults(),
 		nebulaFlashes,
+		menuAmbient,
 		db,
 		busy = false,
 		started = false,
@@ -425,6 +446,7 @@ async function boot() {
 			updateProfile();
 			document.body.classList.toggle("reduced-motion", !!library.reduced_motion);
 			nebulaFlashes?.sync();
+			menuAmbient?.sync();
 		} catch (error) {
 			library = JSON.parse(savedLibrary);
 			throw error;
@@ -629,6 +651,7 @@ async function boot() {
 		}
 		document.body.classList.toggle("reduced-motion", library.reduced_motion);
 		nebulaFlashes?.sync();
+		menuAmbient?.sync();
 		$("settings").querySelector("span").textContent = t("Settings");
 		$("packs").textContent = t("Mod Packs");
 		$("back").textContent = t("Back");
@@ -729,6 +752,7 @@ async function boot() {
 		const heading = element("h2", title, popup);
 		heading.id = "popup-title";
 		if (!popup.open) popup.showModal();
+		menuAmbient?.sync();
 		return popup;
 	}
 	function settings() {
@@ -943,6 +967,7 @@ async function boot() {
 			$("runtime").hidden = false;
 			document.body.classList.add("running");
 			nebulaFlashes?.sync();
+			menuAmbient?.sync();
 			status(t("Loading application..."));
 			window.Module = {
 				canvas: $("canvas"),
@@ -1089,6 +1114,127 @@ async function boot() {
 		sync();
 		return { sync };
 	}
+	function ambientMenu(scene) {
+		const preference = matchMedia("(prefers-reduced-motion: reduce)");
+		const seeds = crypto.getRandomValues(new Uint32Array(2));
+		const allowed = () =>
+			!library.reduced_motion &&
+			!preference.matches &&
+			!document.hidden &&
+			!$("menu").hidden &&
+			!$("popup").open &&
+			!document.documentElement.classList.contains("direct-launch");
+		function effect(config, seed, begin, draw, restore) {
+			let enabled = false,
+				timer = 0,
+				frame = 0,
+				random = seed;
+			const unit = () => {
+				random = (Math.imul(random, 1664525) + 1013904223) >>> 0;
+				return random / 4294967296;
+			};
+			const sample = (range) => range[0] + (range[1] - range[0]) * unit();
+			const stop = () => {
+				clearTimeout(timer);
+				cancelAnimationFrame(frame);
+				restore();
+			};
+			const start = () => {
+				if (!allowed()) {
+					sync();
+					return;
+				}
+				timer = setTimeout(start, sample(config.interval_seconds) * 1000);
+				const selection = begin(unit, sample),
+					started = performance.now();
+				const tick = (time) => {
+					if (!allowed()) {
+						sync();
+						return;
+					}
+					const age = (time - started) / 1000;
+					if (age >= selection.duration) {
+						restore();
+						return;
+					}
+					draw(age, selection);
+					frame = requestAnimationFrame(tick);
+				};
+				frame = requestAnimationFrame(tick);
+			};
+			const sync = () => {
+				const next = allowed();
+				if (next === enabled) return;
+				enabled = next;
+				stop();
+				if (enabled) timer = setTimeout(start, sample(config.interval_seconds) * 1000);
+			};
+			return {
+				sync,
+				stop: () => {
+					enabled = false;
+					stop();
+				},
+			};
+		}
+		const opacity = (value) => document.documentElement.style.setProperty("--crt-opacity", String(value));
+		const tv = effect(
+			scene.flicker,
+			seeds[0],
+			() => ({ duration: scene.flicker.duration_seconds }),
+			(age, event) => {
+				const phase = age / event.duration;
+				opacity(phase < 0.17 ? 0.22 : phase < 0.35 ? 0.92 : phase < 0.5 ? 0.35 : phase < 0.7 ? 0.75 : 1);
+			},
+			() => opacity(1),
+		);
+		const robot = $("menu-scutter");
+		const scutter = effect(
+			scene.scutter,
+			seeds[1],
+			(unit, sample) => {
+				const rightward = unit() > 0.5,
+					fast = unit() > 0.5;
+				return {
+					rightward,
+					fast,
+					duration: sample(fast ? scene.scutter.fast_crossing_seconds : scene.scutter.slow_crossing_seconds),
+				};
+			},
+			(age, event) => {
+				const region = $("menu").getBoundingClientRect(),
+					width = Math.min(192, Math.max(96, region.height * 0.22));
+				const height = (width * scene.scutter.size[1]) / scene.scutter.size[0];
+				const progress = age / event.duration,
+					travel = progress * (region.width + width);
+				const bob = Math.sin(age * (event.fast ? 16 : 6)) * 1.2;
+				robot.hidden = false;
+				Object.assign(robot.style, {
+					width: width + "px",
+					height: height + "px",
+					left: (event.rightward ? travel - width : region.width - travel) + "px",
+					top: region.height * 0.99 - height + bob + "px",
+					transform: event.rightward ? "none" : "scaleX(-1)",
+				});
+			},
+			() => {
+				robot.hidden = true;
+			},
+		);
+		const sync = () => {
+			tv.sync();
+			scutter.sync();
+		};
+		preference.addEventListener("change", sync);
+		document.addEventListener("visibilitychange", sync);
+		window.addEventListener("pageshow", sync);
+		window.addEventListener("pagehide", () => {
+			tv.stop();
+			scutter.stop();
+		});
+		sync();
+		return { sync };
+	}
 	$("settings").onclick = settings;
 	$("packs").onclick = packs;
 	$("back").onclick = back;
@@ -1129,6 +1275,7 @@ async function boot() {
 		for (const [name, value] of Object.entries(sceneProperties(data[3])))
 			document.documentElement.style.setProperty(name, value);
 		nebulaFlashes = flashBackdrop(data[3].flash);
+		menuAmbient = ambientMenu(data[3]);
 		for (const [index, prefix, scale] of [
 			[1, "button", 0.075],
 			[2, "panel", 0.12],

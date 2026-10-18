@@ -5,6 +5,7 @@ module;
 #include <RmlUi/Core/Elements/ElementFormControl.h>
 #include <algorithm>
 #include <cmath>
+#include <chrono>
 #include <functional>
 #include <map>
 #include <memory>
@@ -14,6 +15,7 @@ module;
 #include <nlohmann/json.hpp>
 #include "menu_skin.hpp"
 #include "menu_flash.hpp"
+#include "menu_ambient.hpp"
 module phoenix.presentation;
 import phoenix.files;
 #include "menu.hpp"
@@ -55,6 +57,8 @@ struct NativeMenuScreen::State
 	Texture2D panorama{};
 	Texture2D flash_overlay{};
 	MenuFlash flash;
+	MenuAmbient ambient;
+	float scutter_aspect = 1;
 	double panorama_phase = 0, panorama_period = 720;
 	float terminal_aspect = 1;
 	std::string join_qr_url;
@@ -368,6 +372,7 @@ struct NativeMenuScreen::State
 		document.GetElementById("settings-panel")->SetProperty("display", "none");
 		if (!visible)
 		{
+			ambient.update(0, false);
 			app.accessible_status.clear();
 			return false;
 		}
@@ -376,6 +381,7 @@ struct NativeMenuScreen::State
 		actions.clear();
 		auto branch = app.menu_branch;
 		const bool modal = app.packs_popup || app.screen == Screen::settings;
+		ambient.update(GetFrameTime(), !app.reduced_motion && !modal && app.screen == Screen::home);
 		const bool playing = game_active(app);
 		button_enabled = !modal;
 		auto add = [&](const std::string &id, const std::string &text, std::function<void()> action)
@@ -416,7 +422,8 @@ struct NativeMenuScreen::State
 			           });
 		};
 		using Branch = Application::MenuBranch;
-		std::string markup = "<h1 id=\"menu-title\">Against the Stars</h1>";
+		std::string markup = "<div id=\"menu-scutter\" aria-hidden=\"true\"></div>"
+		                     "<h1 id=\"menu-title\">Against the Stars</h1>";
 		if (!playing)
 		{
 			if (app.screen == Screen::home || modal)
@@ -1032,6 +1039,32 @@ struct NativeMenuScreen::State
 				focus_next = focused;
 		}
 		const bool compact = region.width < 760;
+		if (auto *scutter = document.GetElementById("menu-scutter"))
+		{
+			const auto progress = ambient.crossing_progress();
+			scutter->SetProperty("display", progress < 0 ? "none" : "block");
+			if (progress >= 0)
+			{
+				const float width = std::clamp(region.height * .22f, 96.f, 192.f);
+				const float height = width / scutter_aspect;
+				const float travel = static_cast<float>(progress) * (region.width + width);
+				const float bob =
+				    static_cast<float>(std::sin(ambient.scutter.age * (ambient.fast_crossing ? 16 : 6))) * 1.2f;
+				scutter->SetProperty("width", std::to_string(width) + "px");
+				scutter->SetProperty("height", std::to_string(height) + "px");
+				scutter->SetProperty("left",
+				                     std::to_string(ambient.rightward ? travel - width : region.width - travel) + "px");
+				scutter->SetProperty("top", std::to_string(region.height * .99f - height + bob) + "px");
+				scutter->SetProperty("transform", ambient.rightward ? "none" : "scaleX(-1)");
+			}
+		}
+		if (auto *profile = document.GetElementById("menu-profile"))
+		{
+			Rml::ElementList screens;
+			profile->GetElementsByClassName(screens, "crt-screen");
+			for (auto *screen : screens)
+				screen->SetProperty("opacity", std::to_string(ambient.television_opacity()));
+		}
 		const float profile_width = compact ? 140.8f : 264.f;
 		if (auto *profile = document.GetElementById("menu-profile"))
 		{
@@ -1225,7 +1258,8 @@ void NativeMenuScreen::draw(const Application &app, Rml::ElementDocument &docume
 				DrawTexturePro(texture, {0, 0, static_cast<float>(texture.width), static_cast<float>(texture.height)},
 				               {at.x + (element->GetClientWidth() - width) / 2,
 				                at.y + (element->GetClientHeight() - height) / 2, width, height},
-				               {0, 0}, 0, WHITE);
+				               {0, 0}, 0,
+				               id == "menu-profile-avatar" ? Fade(WHITE, state_->ambient.television_opacity()) : WHITE);
 			}
 			EndScissorMode();
 		}
@@ -1265,7 +1299,7 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 	const auto scene = parse_json(read_file(asset_directory + "/menu/menu-scene.json", 64 * 1024), "menu scene");
 	if (scene.at("schema") != 1 || scene.at("panorama").at("repeat") != "mirror-x")
 		throw std::runtime_error("Unsupported menu scene");
-	for (const auto *part : {"panorama", "foreground", "terminal", "flash"})
+	for (const auto *part : {"panorama", "foreground", "terminal", "flash", "scutter"})
 	{
 		const auto &asset = scene.at(part);
 		const auto file = asset.at("file").get<std::string>();
@@ -1287,6 +1321,13 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 			throw std::runtime_error("Menu scene image dimensions disagree with metadata");
 	}
 	state_->flash = MenuFlash::parse(scene.at("flash"));
+	state_->ambient = MenuAmbient::parse(scene.at("flicker"), scene.at("scutter"));
+	const auto ambient_seed = static_cast<std::uint64_t>(std::chrono::steady_clock::now().time_since_epoch().count());
+	state_->ambient.flicker.random ^= static_cast<std::uint32_t>(ambient_seed);
+	state_->ambient.scutter.random ^=
+	    static_cast<std::uint32_t>(ambient_seed >> 32) ^ static_cast<std::uint32_t>(ambient_seed * 2654435761u);
+	const auto &scutter_size = scene.at("scutter").at("size");
+	state_->scutter_aspect = scutter_size.at(0).get<float>() / scutter_size.at(1).get<float>();
 	const auto &panorama = scene.at("panorama"), &flash = scene.at("flash");
 	if (panorama.at("size") != flash.at("size"))
 		throw std::runtime_error("Menu flash mask must align with panorama");
@@ -1326,6 +1367,8 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 	styles += "#native-menu { background:transparent; decorator:image(menu/" +
 	          scene.at("foreground").at("file").get<std::string>() + " cover); }\n";
 	styles += ".menu-crt { decorator:image(menu/" + terminal.at("file").get<std::string>() + " contain); }\n";
+	styles += "#menu-scutter { position:absolute; pointer-events:none; decorator:image(menu/" +
+	          scene.at("scutter").at("file").get<std::string>() + " contain); }\n";
 	styles += ".crt-screen { left:" + std::to_string(x / terminal_width * 100) +
 	          "%; top:" + std::to_string(y / terminal_height * 100) +
 	          "%; width:" + std::to_string(width / terminal_width * 100) +
@@ -1343,7 +1386,7 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 	          std::to_string(std::max(skin.top, skin.bottom) * skin.scale + 4) + "px " +
 	          std::to_string(std::max(skin.left, skin.right) * skin.scale + 8) + "px; }\n";
 	styles += R"(
-    #native-menu { color:#fff0d4; }
+    #native-menu { color:#fff0d4; clip:always; }
     #native-menu h1 { color:#fff0d4; font-family:UnifrakturCook; font-weight:bold; font-size:56px; letter-spacing:0; }
     #native-menu h2 { color:#fff0d4; }
     #native-menu button.menu-skinned { position:relative; min-height:64px; line-height:24px; background:transparent; border:2px transparent; color:#fff4df; text-align:center; image-color:#ffffff; }

@@ -417,6 +417,7 @@ foreach(
 		space-panorama.png
 		nebula-flash-mask.png
 		crt-terminal.png
+		scutter.png
 		menu-scene.json
 )
 	configure_file("content/ui/menu/${menu_asset}" "${CMAKE_CURRENT_BINARY_DIR}/assets/menu/${menu_asset}" COPYONLY)

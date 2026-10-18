@@ -115,6 +115,14 @@ button.selected {
 #menu-frame {
 	background: var(--menu-frame) center / cover;
 }
+#menu-scutter {
+	position: absolute;
+	pointer-events: none;
+	background: var(--menu-scutter) center / contain no-repeat;
+}
+#profile-crt .crt-screen {
+	opacity: var(--crt-opacity, 1);
+}
 .space-track {
 	--tile: max(300vh, 50vw);
 	display: flex;
@@ -449,6 +457,12 @@ body.running #status {
 	}
 }
 @media (prefers-reduced-motion: reduce) {
+	#menu-scutter {
+		display: none;
+	}
+	#profile-crt .crt-screen {
+		opacity: 1;
+	}
 	.space-track i::after {
 		opacity: 0;
 	}
@@ -464,6 +478,12 @@ body.reduced-motion .space-track {
 }
 body.reduced-motion .space-track i::after {
 	opacity: 0;
+}
+body.reduced-motion #menu-scutter {
+	display: none;
+}
+body.reduced-motion #profile-crt .crt-screen {
+	opacity: 1;
 }
 body.reduced-motion .column.active {
 	animation: none;
