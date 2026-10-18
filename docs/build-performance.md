@@ -29,3 +29,33 @@ These observations used the existing Windows Release trees, Visual Studio 2022 a
 The improvement removes repeated configuration/dependency checks and unnecessary packaging. It does not establish faster clean compiler execution. Selecting a target additionally avoids building unrelated apps and test executables after an edit; the saving depends on that edit's dependency closure. No compiler optimisation, module ownership, runtime behavior or acceptance requirement was changed.
 
 Validation passed the full automatic gate: 11 native system cases, the WASM checks and matching continuation trace, and six network-service cases. Build checks also verified selected targets, worker-count forwarding, failure propagation, environment restoration, explicit configuration, and archive no-op/add/edit/remove behavior. The temporary archive input was removed and the final training ZIP rebuilt without it.
+
+## Clean builds
+
+`cmake/BuildPerformance.cmake` enables two optimisations for the pinned dependencies. Flecs and RmlUi Core compile in batches of eight source files, reducing repeated parsing and compiler startup work. RmlUi's `TemplateCache.cpp` remains separate because it and `StyleSheetSpecification.cpp` define conflicting internal `instance` objects. No vendored source is edited.
+
+For Visual Studio builds, Flecs, SDL, libdatachannel and Mbed TLS crypto also use `/MP4` to compile up to four sources concurrently within each project. `-Jobs` continues to control simultaneous build projects, so it is not a global compiler-process limit. RmlUi retains its upstream parallel-compilation setting; Ninja already schedules individual compilations. First-party named modules retain their existing scanning and compilation rules. Release optimisation and the complete set of applications, probes and tests are unchanged.
+
+The default is `PHOENIX_FAST_DEPENDENCIES=ON`. To restore the previous dependency compilation settings in a configured tree:
+
+```powershell
+./.tools/python/cmake/data/bin/cmake.exe -S . -B build/native -DPHOENIX_FAST_DEPENDENCIES=OFF
+./.tools/python/cmake/data/bin/cmake.exe -S . -B build/web -DPHOENIX_FAST_DEPENDENCIES=OFF
+```
+
+Set it back to `ON` to re-enable the optimisation. Recheck both toolchains when changing the pinned Flecs/RmlUi revisions: source batching can expose internal-name or macro conflicts. See [CMake unity compilation](https://cmake.org/cmake/help/v3.31/prop_tgt/UNITY_BUILD.html) and [MSVC parallel compilation](https://learn.microsoft.com/en-us/cpp/build/reference/mp-build-with-multiple-processes?view=msvc-170).
+
+### Clean-build measurements — 18 October 2026
+
+To avoid concurrent source edits changing the comparison, these builds used an isolated snapshot of `b847f2b` with only this CMake change added. Both configurations built all applications, probes, tests and dependencies in Release using `cmake --build <tree> --config Release --parallel 8 --clean-first`. Timings include cleaning and compilation/linking, but exclude configuration, dependency downloads and SDK installation; downloaded dependency sources and the Emscripten sysroot remain available.
+
+The machine has an Intel Core Ultra 9 275HX with 24 logical processors. Toolchains were MSVC 19.38.33145 with Visual Studio 2022, and Emscripten 6.0.12/Clang 24 with Ninja.
+
+| Platform                  | Previous settings | Fast dependencies | Reduction |
+| ------------------------- | ----------------- | ----------------- | --------- |
+| Native                    | 145.43 s          | 110.50 s          | 24%       |
+| Web, reverse-order repeat | 111.29 s          | 89.27 s           | 20%       |
+
+These are local observations, not CI timing thresholds. The first web pair was 112.70 s / 130.31 s; unchanged application module compilation took up to three times longer during the second run. The reverse-order repeat built the optimised version first, then the baseline, using the same source and worker count. Web build steps fell from 634 to 346. Timing remains sensitive to concurrent machine work; no clean-build speed guarantee is implied.
+
+The isolated optimised builds passed all 11 native system cases, the WASM checks and the native/WASM continuation comparison. Five network-service cases passed on the first run; the live-session case timed out while connecting and passed its focused retry. This evidence covers the fixed snapshot and build change, not concurrent gameplay/presentation edits in the main working tree.

@@ -461,6 +461,7 @@ if(EMSCRIPTEN)
 endif()
 
 include(cmake/Modules.cmake)
+include(cmake/BuildPerformance.cmake)
 foreach(
 	frontend
 	phoenix_session_api
