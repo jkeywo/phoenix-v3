@@ -33,6 +33,10 @@ int main()
 		require(saves.take()->status == ImportStatus::Cancelled,
 		        "cancelled Save As supplies no replacement destination");
 #ifndef __EMSCRIPTEN__
+		request_library_save(saves, "installed.zip");
+		saved = saves.take();
+		require(saved && saved->status == ImportStatus::Success && saved->destination == "installed-pack",
+		        "A managed native pack Save completes without requesting a file location");
 		const auto directory = std::filesystem::absolute("file-save-integration-" + random_token());
 		std::filesystem::create_directories(directory);
 		const auto destination_path = (directory / "authored.zip").generic_string();

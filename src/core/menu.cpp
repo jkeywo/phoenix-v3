@@ -200,6 +200,46 @@ std::vector<Bytes> MenuLibrary::archives(const std::vector<LibraryPack> &selecti
 		resolve_packs(loaded);
 	return result;
 }
+Bytes MenuLibrary::read_pack_archive(const std::string &hash) const
+{
+	if (std::none_of(packs.begin(), packs.end(),
+	                 [&](const auto &entry)
+	                 {
+		                 return entry.hash == hash;
+	                 }))
+		throw std::runtime_error("The edited pack is no longer installed");
+	auto bytes = read_file(path("packs", hash, ".zip"));
+	if (read_pack(bytes).hash() != hash)
+		throw std::runtime_error("Installed pack failed its integrity check");
+	return bytes;
+}
+LibraryPack MenuLibrary::replace_pack(const std::string &hash, const Bytes &archive)
+{
+	auto selected = packs;
+	auto entry = std::find_if(selected.begin(), selected.end(),
+	                          [&](const auto &p)
+	                          {
+		                          return p.hash == hash;
+	                          });
+	if (entry == selected.end())
+		throw std::runtime_error("The edited pack is no longer installed; use Save as");
+	const auto pack = read_pack(archive);
+	if (pack.manifest().value("format", std::string("phoenix-mod-pack")) != "phoenix-mod-pack")
+		throw std::runtime_error("Only gameplay packs can replace an installed pack");
+	LibraryPack replacement{pack.hash(), pack.manifest().at("id"), entry->enabled};
+	if (std::any_of(selected.begin(), selected.end(),
+	                [&](const auto &p)
+	                {
+		                return p.hash != hash && (p.hash == replacement.hash || p.id == replacement.id);
+	                }))
+		throw std::runtime_error("Another installed pack already uses this identity; use Save as");
+	*entry = replacement;
+	atomic_write(path("packs", replacement.hash, ".zip"), archive);
+	// Resolve the selected dependency closure before committing the index. Failed
+	// verification or index replacement leaves the previous pack available.
+	apply(selected);
+	return replacement;
+}
 void MenuLibrary::apply(const std::vector<LibraryPack> &selection)
 {
 	archives(selection);

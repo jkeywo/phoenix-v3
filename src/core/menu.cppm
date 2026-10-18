@@ -38,6 +38,8 @@ public:
 	void remember();
 	void install(const Bytes &archive);
 	void install_default(const Bytes &archive);
+	Bytes read_pack_archive(const std::string &hash) const;
+	LibraryPack replace_pack(const std::string &hash, const Bytes &archive);
 	std::vector<Bytes> archives(const std::vector<LibraryPack> &selection) const;
 	void apply(const std::vector<LibraryPack> &selection);
 	ManagedSave store_save(const Bytes &archive, const std::string &name, const std::string &scenario);

@@ -625,9 +625,9 @@ async function boot() {
 		});
 		input.click();
 	}
-	async function ensurePacks() {
+	async function ensurePacks(all = false) {
 		for (const pack of library.packs)
-			if (pack.enabled && !files.has(`packs/${pack.hash}.zip`)) {
+			if ((pack.enabled || all) && !files.has(`packs/${pack.hash}.zip`)) {
 				if (!pack.url) throw Error("Installed pack archive is missing: " + pack.id);
 				status(t("Downloading content...") + " " + pack.id);
 				const bytes = await fetchFile(pack.url);
@@ -685,7 +685,8 @@ async function boot() {
 		render();
 		$("settings").disabled = $("packs").disabled = true;
 		try {
-			if (o.action === "host" || o.action === "legacy") await ensurePacks();
+			if (o.action === "host" || o.action === "legacy" || o.action === "workshop")
+				await ensurePacks(o.action === "workshop");
 			await remember();
 			// No generated JS, WASM or .data is requested before this point.
 			started = true;
@@ -729,7 +730,7 @@ async function boot() {
 					if (!failed && message) status(t("Loading application...") + " " + message);
 				},
 				phoenixPersistMenu: () => {
-					snapshotRuntime().catch(() => {});
+					return snapshotRuntime();
 				},
 				phoenixReturnToMenu: returnMenu,
 				phoenixLaunchError: launchError,

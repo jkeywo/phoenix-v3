@@ -133,6 +133,10 @@ void export_file(const std::string &filename, const Bytes &bytes)
 {
 	save_file(0, filename, bytes, {}, true);
 }
+void persist_library(ImportId id, const std::string &filename)
+{
+	complete_import(id, filename, {}, {}, false, "installed-pack");
+}
 void enable_workshop_file_shortcuts()
 {
 }

@@ -26,7 +26,7 @@ import phoenix.tools;
 phoenix::Application app;
 // Browser storage and page navigation belong to the shell; sessions remain in C++.
 // clang-format off: embedded JavaScript must retain its operators.
-EM_JS(void, persist_menu, (), { Module.phoenixPersistMenu?.(); });
+EM_JS(void, persist_menu, (), { Module.phoenixPersistMenu?.().catch(() => {}); });
 EM_JS(void, return_to_menu, (), { Module.phoenixReturnToMenu?.(); });
 // clang-format on
 void frame()

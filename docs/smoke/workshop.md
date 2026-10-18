@@ -21,3 +21,11 @@ Date: 18 October 2026. Explicitly requested keyboard-and-mouse Workshop journey.
 - Native Release and WASM Workshop builds passed. Existing `system.input-and-semantics` and `system.file-imports` checks passed. The authored ZIP is a manual receipt artifact, not an automated fixture or production-content golden.
 
 This adds evidence for native text editing, Windows pack open/save dialogs and map/slot persistence. It does not establish a played session or the console layout editor's usability.
+
+## Save the installed default pack
+
+18 October 2026: the default Workshop document now opens the installed base pack and Save replaces that library entry without requesting a file location. Save As continues to export a separate file; reopening the base pack reads its saved version. Browser completion waits for the launcher's IndexedDB transaction rather than reporting a temporary WASM filesystem write as saved.
+
+- The synthetic native menu integration authors an additional map through WorkshopDocument, replaces the installed default, reopens the library/session and finds that map. It checks that installing the bundled original does not reset edits, invalid replacement preserves the current archive, and replacement retains a disabled selection. Native file integration checks managed-save completion without a picker.
+- Native Release, WASM Workshop, both affected native integration cases, all five launcher checks, formatting and whitespace checks passed. Logs are under `build/workshop-managed-save-*`.
+- Using the desktop launcher with no arguments, inspected native Host Game → New Game and confirmed both bundled scenarios appeared. Opened Workshop and clicked Save pack; it reported `Saved phoenix-base.zip` without opening a file dialog. No authored values were changed in this UI check. This also completes the previously interrupted native default-storage visual check. Actual browser save/reload interaction was not exercised in this pass.

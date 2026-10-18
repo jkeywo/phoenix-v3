@@ -39,6 +39,8 @@ struct Editor
 		std::string filename, destination;
 	};
 	SaveLocation pack_location;
+	std::string library_pack;
+	bool saving_library = false;
 	std::map<std::string, SaveLocation> map_locations;
 	std::string saving_map;
 	bool saving = false;
@@ -72,6 +74,8 @@ struct Editor
 		saves.reset();
 		saving = false;
 		pack_location = {};
+		library_pack.clear();
+		saving_library = false;
 		map_locations.clear();
 		saving_map.clear();
 		rename_from.clear();
@@ -120,11 +124,25 @@ template <class Function> void attempt(Function action)
 		editor.status = error.what();
 	}
 }
-void save_pack(bool save_as)
+void save_pack(Application &app, bool save_as)
 {
 	if (editor.saving)
 		return;
 	const auto bytes = editor.document.export_pack();
+	if (!save_as && !editor.library_pack.empty())
+	{
+		if (!app.library || game_active(app))
+			throw std::runtime_error("Leave the active game before replacing an installed pack");
+		const auto saved = app.library->replace_pack(editor.library_pack, bytes);
+		editor.library_pack = saved.hash;
+		if (app.session)
+			app.session->replace_packs(app.library->archives(app.library->packs));
+		editor.saving_library = true;
+		request_library_save(editor.saves, saved.id + ".zip");
+		editor.saving = true;
+		editor.status = "Saving pack...";
+		return;
+	}
 	const auto filename = editor.pack_location.filename.empty()
 	                          ? editor.document.manifest().at("id").get<std::string>() + ".zip"
 	                          : editor.pack_location.filename;
@@ -132,6 +150,45 @@ void save_pack(bool save_as)
 	             save_as);
 	editor.saving = true;
 	editor.status = "Saving pack...";
+}
+std::pair<std::string, Bytes> installed_base_pack(Application &app)
+{
+	if (!app.library)
+		throw std::runtime_error("The installed pack library is unavailable");
+	auto find_base = [&]
+	{
+		return std::find_if(app.library->packs.begin(), app.library->packs.end(),
+		                    [](const auto &entry)
+		                    {
+			                    return entry.id == "phoenix-base";
+		                    });
+	};
+	if (find_base() == app.library->packs.end())
+	{
+#ifdef __EMSCRIPTEN__
+		app.library->install_default(read_file("/assets/base.zip"));
+#else
+		app.library->install_default(read_file(std::string(GetApplicationDirectory()) + "assets/base.zip"));
+#endif
+	}
+	const auto entry = *find_base();
+	return {entry.hash, app.library->read_pack_archive(entry.hash)};
+}
+void open_base_pack(Application &app)
+{
+	const auto [hash, archive] = installed_base_pack(app);
+	WorkshopDocument candidate;
+	candidate.load_pack(archive);
+	editor.document = std::move(candidate);
+	editor.reset_save_locations();
+	editor.library_pack = hash;
+	editor.clear_textures();
+	editor.pack_name = "phoenix-base";
+	editor.definition = 0;
+	editor.console = 0;
+	editor.selected = 0;
+	editor.pending_sidecar = nullptr;
+	editor.status = "Editing the base game. Save updates this pack; Save as creates a separate file.";
 }
 void save_map(bool save_as)
 {
@@ -1047,7 +1104,7 @@ void slots_editor()
 	if (remove >= 0)
 		slots.erase(slots.begin() + remove);
 }
-void map_view()
+void map_view(Application &app)
 {
 	ImGui::Begin(tool_label("Map").c_str());
 	ImGui::TextWrapped("%s: %s", localise("Editing pack").c_str(),
@@ -1058,9 +1115,9 @@ void map_view()
 	ImGui::SameLine();
 	if (ImGui::Button(tool_label("Save pack").c_str()))
 		attempt(
-		    []
+		    [&]
 		    {
-			    save_pack(false);
+			    save_pack(app, false);
 		    });
 	ImGui::EndDisabled();
 	if (ImGui::BeginCombo(tool_label("Map").c_str(),
@@ -1222,13 +1279,9 @@ void open_workshop_pack(const std::string &path)
 }
 void render_editor(Application &app)
 {
-	auto base_archive = []
+	auto base_archive = [&]
 	{
-#ifdef __EMSCRIPTEN__
-		return read_file("/assets/base.zip");
-#else
-		return read_file(std::string(GetApplicationDirectory()) + "assets/base.zip");
-#endif
+		return installed_base_pack(app).second;
 	};
 	if (!editor.started && app.screen == Screen::workshop)
 	{
@@ -1236,11 +1289,7 @@ void render_editor(Application &app)
 		attempt(
 		    [&]
 		    {
-			    editor.document.load_pack(base_archive());
-			    editor.reset_save_locations();
-			    editor.pack_name = "phoenix-base";
-			    editor.console = 0;
-			    editor.status = "Editing the base game. Add maps here, then Save as to choose a pack file.";
+			    open_base_pack(app);
 		    });
 	}
 	static ImVec2 dock_size{};
@@ -1275,31 +1324,40 @@ void render_editor(Application &app)
 			editor.saving = false;
 			if (saved->status == ImportStatus::Success)
 			{
-				auto &location = saved->purpose == FilePurpose::WorkshopMapSave
-				                     ? editor.map_locations[editor.saving_map]
-				                     : editor.pack_location;
-				location = {saved->filename, saved->destination};
-				editor.status = saved->destination.empty()
-				                    ? "Download requested. This browser cannot overwrite the same file; use a browser "
-				                      "with file access for Save in place."
-				                    : "Saved " + saved->filename;
+				if (editor.saving_library)
+					editor.status = "Saved " + saved->filename;
+				else
+				{
+					auto &location = saved->purpose == FilePurpose::WorkshopMapSave
+					                     ? editor.map_locations[editor.saving_map]
+					                     : editor.pack_location;
+					location = {saved->filename, saved->destination};
+					if (saved->purpose == FilePurpose::WorkshopPackSave)
+						editor.library_pack.clear();
+					editor.status =
+					    saved->destination.empty()
+					        ? "Download requested. This browser cannot overwrite the same file; use a browser "
+					          "with file access for Save in place."
+					        : "Saved " + saved->filename;
+				}
 			}
 			else if (saved->status == ImportStatus::Cancelled)
 				editor.status = "Save cancelled; the previous save location is unchanged.";
 			else
 				editor.status = saved->error;
+			editor.saving_library = false;
 		}
 		if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_S, ImGuiInputFlags_RouteGlobal))
 			attempt(
-			    []
+			    [&]
 			    {
-				    save_pack(true);
+				    save_pack(app, true);
 			    });
 		else if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_S, ImGuiInputFlags_RouteGlobal))
 			attempt(
-			    []
+			    [&]
 			    {
-				    save_pack(false);
+				    save_pack(app, false);
 			    });
 	}
 	attempt(
@@ -1418,17 +1476,7 @@ void render_editor(Application &app)
 				attempt(
 				    [&]
 				    {
-					    WorkshopDocument candidate;
-					    candidate.load_pack(base_archive());
-					    editor.document = std::move(candidate);
-					    editor.reset_save_locations();
-					    editor.clear_textures();
-					    editor.pack_name = "phoenix-base";
-					    editor.definition = 0;
-					    editor.console = 0;
-					    editor.selected = 0;
-					    editor.pending_sidecar = nullptr;
-					    editor.status = "Editing the base game. Add maps here, then Save as to choose a pack file.";
+					    open_base_pack(app);
 				    });
 			if (ImGui::MenuItem(tool_label("Load dependency pack...").c_str()))
 				attempt(
@@ -1438,15 +1486,15 @@ void render_editor(Application &app)
 				    });
 			if (ImGui::MenuItem(tool_label("Save").c_str(), "Ctrl+S", false, !editor.saving))
 				attempt(
-				    []
+				    [&]
 				    {
-					    save_pack(false);
+					    save_pack(app, false);
 				    });
 			if (ImGui::MenuItem(tool_label("Save as...").c_str(), "Ctrl+Shift+S", false, !editor.saving))
 				attempt(
-				    []
+				    [&]
 				    {
-					    save_pack(true);
+					    save_pack(app, true);
 				    });
 			ImGui::Separator();
 			if (ImGui::MenuItem(tool_label("New map").c_str()))
@@ -1691,7 +1739,7 @@ void render_editor(Application &app)
 	ImGui::Begin(tool_label("Ship slots").c_str());
 	slots_editor();
 	ImGui::End();
-	map_view();
+	map_view(app);
 	lighting_preview();
 	ImGui::Begin(tool_label("Status").c_str());
 	if (!app.status.empty())

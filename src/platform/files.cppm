@@ -70,6 +70,9 @@ void request_file(FileImportInbox &inbox, FilePurpose purpose);
 // for a new destination; ordinary Save reuses the supplied destination.
 void request_save(FileImportInbox &inbox, FilePurpose purpose, const std::string &filename, const Bytes &bytes,
                   const std::string &destination = {}, bool save_as = false);
+// A managed pack is already written through MenuLibrary. Browser completion
+// waits for the launcher's durable IndexedDB transaction.
+void request_library_save(FileImportInbox &inbox, const std::string &filename);
 void export_file(const std::string &filename, const Bytes &bytes);
 void enable_workshop_file_shortcuts();
 void copy_text(const std::string &text);

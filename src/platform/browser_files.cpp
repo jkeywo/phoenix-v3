@@ -135,6 +135,18 @@ EM_JS(void, install_workshop_file_shortcuts, (), {
         if (event.ctrlKey && event.code === 'KeyS') event.preventDefault();
     });
 });
+EM_JS(void, persist_browser_library, (unsigned id, const char* filename), {
+    const name = UTF8ToString(filename);
+    (async () => {
+        try {
+            if (!Module.phoenixPersistMenu) throw new Error('Pack storage is unavailable. Use Save as to export a file.');
+            await Module.phoenixPersistMenu();
+            Module.ccall('phoenix_save_result',null,['number','string','string','string','number'],[id,name,'installed-pack','',0]);
+        } catch (error) {
+            Module.ccall('phoenix_save_result',null,['number','string','string','string','number'],[id,'','',String(error),0]);
+        }
+    })();
+});
 // clang-format on
 namespace phoenix
 {
@@ -155,6 +167,10 @@ void save_file(ImportId id, const std::string &filename, const Bytes &bytes, con
 void enable_workshop_file_shortcuts()
 {
 	install_workshop_file_shortcuts();
+}
+void persist_library(ImportId id, const std::string &filename)
+{
+	persist_browser_library(id, filename.c_str());
 }
 void copy_text(const std::string &text)
 {

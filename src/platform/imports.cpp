@@ -88,6 +88,19 @@ void request_file(FileImportInbox &inbox, FilePurpose purpose)
 }
 void save_file(ImportId id, const std::string &filename, const Bytes &bytes, const std::string &destination,
                bool save_as);
+void persist_library(ImportId id, const std::string &filename);
+void request_library_save(FileImportInbox &inbox, const std::string &filename)
+{
+	const auto id = inbox.begin(FilePurpose::WorkshopPackSave);
+	try
+	{
+		persist_library(id, filename);
+	}
+	catch (const std::exception &error)
+	{
+		complete_import(id, {}, {}, error.what());
+	}
+}
 void request_save(FileImportInbox &inbox, FilePurpose purpose, const std::string &filename, const Bytes &bytes,
                   const std::string &destination, bool save_as)
 {

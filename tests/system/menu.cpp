@@ -79,10 +79,38 @@ int main()
 		require(first_run.packs.size() == 1 && first_run.packs.front().enabled &&
 		            first_run.archives(first_run.packs).front() == archive,
 		        "a fresh library starts with a verified default pack enabled");
+		WorkshopDocument base_document;
+		base_document.load_pack(first_run.read_pack_archive(first_run.packs.front().hash));
+		base_document.new_map("test.authored-map");
+		const auto authored_archive = base_document.export_pack();
+		const auto authored = first_run.replace_pack(first_run.packs.front().hash, authored_archive);
+		MenuLibrary authored_library(directory + "/first-run");
+		authored_library.load();
+		auto authored_session = make_local_session();
+		authored_session->replace_packs(authored_library.archives(authored_library.packs));
+		require(authored_library.packs.size() == 1 && authored_library.packs.front().enabled &&
+		            authored_library.read_pack_archive(authored.hash) == authored_archive &&
+		            authored_session->catalog().maps.contains("test.authored-map"),
+		        "Save replaces the installed default pack and new scenarios survive library/session reopening");
+		first_run.install_default(archive);
+		require(first_run.packs.front().hash == authored.hash,
+		        "Startup does not replace an edited default pack with its bundled original");
+		bool failed_replace = false;
+		try
+		{
+			first_run.replace_pack(authored.hash, Bytes{1, 2, 3});
+		}
+		catch (const std::exception &)
+		{
+			failed_replace = true;
+		}
+		require(failed_replace && first_run.read_pack_archive(authored.hash) == authored_archive,
+		        "A refused replacement preserves the installed pack");
 		auto disabled_default = first_run.packs;
 		disabled_default.front().enabled = false;
 		first_run.apply(disabled_default);
 		first_run.install_default(archive);
+		first_run.replace_pack(authored.hash, authored_archive);
 		require(first_run.packs.size() == 1 && !first_run.packs.front().enabled,
 		        "default installation preserves deliberate disabling and does not duplicate a pack");
 		library.install(archive);
