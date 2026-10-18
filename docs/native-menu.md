@@ -34,4 +34,4 @@ Explicitly trigger the graphical journey with:
 ./build/native/Release/native.exe --local-only --game-pack build/native/training.zip --data build/menu-smoke-data --menu-smoke
 ```
 
-This writes `build/menu-native-*.png` and exercises native RmlUi Tab traversal, range edits and the readiness countdown. It is manually triggered development evidence, separate from automatic CI and actual reader/device acceptance.
+This writes `build/menu-native-*.png` and exercises native RmlUi Tab traversal, UIA range/readout contracts, pack selection, the readiness countdown and managed saving across Console navigation. It is manually triggered development evidence, separate from automatic CI and actual reader/device acceptance. See the [validation receipt](smoke/native-menu.md).

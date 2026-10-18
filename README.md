@@ -10,6 +10,8 @@ The [testing policy](docs/testing.md) uses three categories: manually invoked sm
 
 The [Workshop](docs/workshop.md) authors maps, entities and Consoles, previews live widgets, and exports verified mod packs with dependencies and explicit overrides. [Network play](docs/network-play.md) supports native/browser fleet members, approved crew and read-only GM inspection, bounded content/projection transfers, and portable recovery. See [MVP status and evidence](docs/mvp-status.md) for completed behavior and the remaining physical-device, reader and public-network acceptance checks.
 
+The native [main menu and pre-game lobby](docs/native-menu.md) provide cascading setup, ship/player/GM join forms, installed pack management, persistent settings and managed saves. Approved crews ready individually before a five-second launch countdown.
+
 The [comic renderer](docs/comic-rendering.md) uses calibrated sprite depth for lighting and per-pixel occlusion, with depth-backed sun shadows, crosshatching and directional engine light. The training pack includes the Courier and a `training.lighting` demonstration; Workshop provides a live material/lighting preview. Browser graphics require WebGL 2.
 
 The [source guide](docs/source-guide.md) explains the inputs; the [prior setting agreement](docs/settled-dark-direction.md) preserves the earlier pivot decisions. The consolidated GDD incorporates those decisions and the subsequent V3 consolidation choices. Historical snapshots remain unchanged.
