@@ -27,4 +27,4 @@ Captures are written to the working directory as `viewscreen-smoke.png` or `cons
 
 `native.exe --runtime-save path/to/phoenix-session.zip` verifies a runtime save and opens its paused recovery lobby. Add `--resume-local --console` to explicitly reclaim the local console on launch. This also accepts saves exported by server WASM; no separately installed content is needed.
 
-The offline adapter is one local server and one local console. Default network sessions add transport, durable singleton consensus, station leases and reconnection. Neither establishes the six-screen/60 Hz or five-device targets. Portable saves cover one server's selected world, not recovery of a networked fleet.
+The offline adapter supports independent local Console routes; use [display regions](console-displays.md) to show several at once. Default network sessions add durable singleton or fixed-roster fleet consensus, per-Console leases, approved crew and reconnection. Portable fleet recovery creates a fresh epoch; same-identity recovery uses the sealed journal and checkpoints. These implementations do not establish the six-screen/60 Hz or five-physical-device targets.

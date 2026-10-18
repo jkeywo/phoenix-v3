@@ -44,10 +44,12 @@ class NetworkHost final : public SessionPort
 	std::unique_ptr<PackSource> source_;
 	std::unique_ptr<PackSource> console_source_;
 	std::map<std::string, Client> clients_;
+	Json grants_ = Json::object();
 	std::deque<Json> intents_;
 	std::map<std::uint64_t, std::uint64_t> local_sequences_;
 	std::string epoch_ = random_token(), offer_ = random_token(), message_, proposal_;
 	std::uint64_t generation_base_ = 0, now_ = 0, last_projection_ = 0, term_ = 0;
+	std::uint64_t fleet_generation_ = 0;
 	bool want_local_ = false, fault_ = false;
 	std::chrono::steady_clock::time_point last_poll_ = std::chrono::steady_clock::now();
 	static constexpr const char *local = "local-console";
@@ -197,6 +199,10 @@ class NetworkHost final : public SessionPort
 	}
 	void hello(const std::string &sender, const std::string &bytes)
 	{
+		// Recover durable grants before responding to a returning credential holder.
+		// A welcome issued during replay could overwrite that client's stored key.
+		if (fleet_ && !available())
+			return;
 		if (sender == local || sender == options_.link.self)
 			return;
 		auto found = clients_.find(sender);
@@ -323,6 +329,7 @@ class NetworkHost final : public SessionPort
 			return;
 		if (kind == "client-grant")
 		{
+			grants_[origin][value.at("owner").get<std::string>()] = value;
 			if (origin != member_)
 				return;
 			const std::string peer = value.at("owner");
@@ -361,6 +368,28 @@ class NetworkHost final : public SessionPort
 	void apply(const CommittedEntry &entry)
 	{
 		const auto &value = entry.value;
+		if (value.at("kind") == "consensus-snapshot" || value.at("kind") == "fleet-snapshot")
+		{
+			const auto &state = value.at("state");
+			world_->authoritative_world().restore(world_->catalog(), state.at("world"));
+			game_->restore(state.at("leases"));
+			grants_ = state.at("grants");
+			if (grants_.contains(member_))
+				for (const auto &[id, grant] : grants_.at(member_).items())
+				{
+					auto found = clients_.find(id);
+					if (found == clients_.end())
+						clients_.emplace(
+						    id, Client{grant.at("key"), grant.at("nonce"), grant.at("role"), false, true, false});
+					else if (found->second.key == grant.at("key").get<std::string>())
+						found->second.approved = true;
+				}
+			proposal_.clear();
+			intents_.clear();
+			local_sequences_.clear();
+			++generation_base_;
+			return;
+		}
 		if (!fleet_)
 		{
 			apply_frame(member_, value);
@@ -482,11 +511,13 @@ public:
 		consensus_ = nullptr;
 		journal_.reset();
 		fleet_.reset();
+		fleet_generation_ = 0;
 		game_.reset();
 		world_->clear_packs();
 		source_.reset();
 		console_source_.reset();
 		clients_.clear();
+		grants_ = Json::object();
 		intents_.clear();
 		local_sequences_.clear();
 		epoch_ = random_token();
@@ -735,6 +766,13 @@ public:
 					fault_ = true;
 					message_ = fleet_->status();
 				}
+				if (fleet_generation_ != fleet_->admission_generation())
+				{
+					fleet_generation_ = fleet_->admission_generation();
+					proposal_.clear();
+					intents_.clear();
+					local_sequences_.clear();
+				}
 			}
 			else if (journal_)
 			{
@@ -753,12 +791,28 @@ public:
 					journal_->flush();
 				}
 			}
+			if (game_ && game_->checkpoint_ready() &&
+			    (fleet_ ? fleet_->checkpoint_due() : consensus_ && consensus_->checkpoint_due()))
+			{
+				Json state{{"world", world_->authoritative_world().save()},
+				           {"leases", game_->snapshot()},
+				           {"grants", grants_}};
+				const bool accepted = fleet_ ? fleet_->checkpoint(state) : consensus_->checkpoint(state);
+				if (!accepted)
+					throw std::runtime_error("Applied fleet checkpoint exceeds its supported state bound");
+				if (!fleet_)
+					journal_->flush();
+			}
 			if (available() && proposal_.empty() && !intents_.empty())
 				if (propose(intents_.front()))
 					intents_.pop_front();
-			if (want_local_ && available() && proposal_.empty())
-				if (claim(local, 1, {}, false))
+			if (want_local_ && available())
+			{
+				if (game_ && game_->owned(member_, local, 1))
 					want_local_ = false;
+				else if (proposal_.empty())
+					claim(local, 1, {}, false);
+			}
 			for (auto &[id, client] : clients_)
 			{
 				if (now_ - client.seen > 3000)

@@ -36,6 +36,10 @@ public:
 	std::optional<Observation> observe(const std::string &server, const std::string &owner,
 	                                   std::uint64_t route = 1) const;
 	Json snapshot() const;
+	bool checkpoint_ready() const
+	{
+		return checkpoint_ready_;
+	}
 	void restore(const Json &state);
 
 private:
@@ -43,5 +47,6 @@ private:
 	std::map<std::string, std::string> slots_;
 	std::vector<ConsoleLease> leases_;
 	std::uint64_t next_claimant_ = 1;
+	bool checkpoint_ready_ = true;
 };
 } // namespace phoenix

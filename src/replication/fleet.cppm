@@ -29,6 +29,8 @@ public:
 	void poll();
 	bool propose(const WireJson &value);
 	bool propose_tick(const WireJson &value);
+	bool checkpoint_due() const;
+	bool checkpoint(const WireJson &state);
 	std::vector<CommittedEntry> take_committed();
 	bool available() const;
 	bool leader() const;
@@ -38,6 +40,8 @@ public:
 	bool failed() const;
 	std::string status() const;
 	std::uint64_t commit_index() const;
+	// Changes when loss of authority discards locally queued requests.
+	std::uint64_t admission_generation() const;
 
 private:
 	struct Impl;

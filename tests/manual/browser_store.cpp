@@ -14,6 +14,7 @@ std::unique_ptr<PeerStore> store;
 std::unique_ptr<PeerConsensus> node;
 bool writing = false, proposed = false;
 bool require_existing = false, recovered_existing = false;
+bool checkpointed = false;
 void report(const std::string &message)
 {
 	std::cout << message << '\n';
@@ -44,16 +45,26 @@ void frame()
 		if (!node)
 			return;
 		for (const auto &entry : node->take_committed())
-			if (entry.value.value("kind", std::string{}) == "storage-probe")
+			if (entry.value.value("kind", std::string{}) == "consensus-snapshot")
 			{
-				if (entry.value.at("value") != 42)
+				if (entry.value.at("state").at("value") != 42)
 					throw std::runtime_error("Stored protocol record changed");
-				report(recovered_existing
-				           ? "PASS recovered the previously committed peer record from IndexedDB."
-				           : "PASS strict IndexedDB durable commit. Reload to require recovery of this record.");
+				report("PASS recovered the compacted peer checkpoint from IndexedDB.");
 				emscripten_cancel_main_loop();
 				return;
 			}
+			else if (entry.value.value("kind", std::string{}) == "storage-probe")
+			{
+				if (entry.value.at("value") != 42 || !node->checkpoint({{"value", 42}}))
+					throw std::runtime_error("Cannot checkpoint applied browser state");
+				checkpointed = true;
+			}
+		if (checkpointed && !node->pending_write() && !writing)
+		{
+			report("PASS strict IndexedDB checkpoint replacement. Reload to require recovery of this checkpoint.");
+			emscripten_cancel_main_loop();
+			return;
+		}
 		node->elapse(50);
 		if (!proposed && node->has_quorum())
 			proposed = node->propose({{"kind", "storage-probe"}, {"value", 42}});

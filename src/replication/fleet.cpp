@@ -43,6 +43,7 @@ struct FleetCommit::Impl
 	std::set<std::string> completed;
 	std::vector<CommittedEntry> committed;
 	std::string boot = random_token(), error, leader_status_peer, inflight_id;
+	std::uint64_t admission_generation = 0;
 	std::uint64_t now = 0, last_hello = 0, last_retry = 0, status_time = 0, status_term = 0, status_commit = 0,
 	              barrier_term = 0, observed_term = 0;
 	bool playing = false, broken = false, inflight = false, was_available = false, bootstrap = false, active = true;
@@ -162,6 +163,31 @@ struct FleetCommit::Impl
 	{
 		const auto &value = entry.value;
 		const std::string kind = value.at("kind");
+		if (kind == "consensus-snapshot")
+		{
+			const auto &snapshot = value.at("state");
+			if (snapshot.at("fingerprint") != options.fingerprint)
+				throw std::runtime_error("Checkpoint content differs from the fixed fleet");
+			auto members = snapshot.at("presence").get<std::map<std::string, std::string>>();
+			for (const auto &[peer, incarnation] : members)
+				if (!is_member(peer) || !valid_hex_token(incarnation))
+					throw std::runtime_error("Checkpoint changes the fixed roster");
+			presence = std::move(members);
+			retired = snapshot.at("retired").get<std::map<std::string, std::set<std::string>>>();
+			completed = snapshot.at("completed").get<std::set<std::string>>();
+			playing = snapshot.at("playing");
+			barrier_term = snapshot.at("barrier_term");
+			if (retired[options.roster.self].contains(boot))
+				boot = random_token();
+			requests.clear();
+			own_requests.clear();
+			inflight = false;
+			inflight_id.clear();
+			seen.clear();
+			committed.push_back(
+			    {entry.index, entry.term, {{"kind", "fleet-snapshot"}, {"state", snapshot.at("application")}}});
+			return;
+		}
 		if (value.value("_driver", std::string{}) == inflight_id)
 		{
 			inflight = false;
@@ -219,7 +245,7 @@ struct FleetCommit::Impl
 			if (!is_member(origin) || !valid_hex_token(request))
 				throw std::runtime_error("Committed frame has an invalid origin or request");
 			own_requests.erase(request);
-			if (!completed.insert(request).second)
+			if (value.at("value").value("kind", std::string{}) != "tick" && !completed.insert(request).second)
 				return;
 			const auto member = presence.find(origin);
 			// Old queued work cannot regain authority after absence or a process restart.
@@ -342,6 +368,7 @@ struct FleetCommit::Impl
 			const bool available = authority();
 			if (was_available && !available)
 			{
+				++admission_generation;
 				own_requests.clear();
 				requests.clear();
 			}
@@ -440,6 +467,23 @@ std::vector<CommittedEntry> FleetCommit::take_committed()
 	impl_->committed.clear();
 	return result;
 }
+bool FleetCommit::checkpoint_due() const
+{
+	const auto &s = *impl_;
+	return s.core && s.committed.empty() && s.core->checkpoint_due();
+}
+bool FleetCommit::checkpoint(const WireJson &state)
+{
+	auto &s = *impl_;
+	return s.core && s.committed.empty() &&
+	       s.core->checkpoint({{"fingerprint", s.options.fingerprint},
+	                           {"presence", s.presence},
+	                           {"retired", s.retired},
+	                           {"completed", s.completed},
+	                           {"playing", s.playing},
+	                           {"barrier_term", s.barrier_term},
+	                           {"application", state}});
+}
 bool FleetCommit::available() const
 {
 	return impl_->ready();
@@ -470,6 +514,10 @@ bool FleetCommit::failed() const
 std::uint64_t FleetCommit::commit_index() const
 {
 	return impl_->core ? impl_->core->commit_index() : 0;
+}
+std::uint64_t FleetCommit::admission_generation() const
+{
+	return impl_->admission_generation;
 }
 std::string FleetCommit::status() const
 {

@@ -1,5 +1,7 @@
 # Peer storage smoke record
 
+18 October 2026 checkpoint extension: the production browser probe at `http://127.0.0.1:8087/storage-probe.html?key=checkpoint-20261018-a` committed its record, replaced the IndexedDB journal in a strict transaction and reported success. The reload action (`recover=1`) recovered the compacted checkpoint. A simultaneous second tab was refused by the exclusive Web Lock; after the first tab closed and released its lock, reloading the second recovered the same checkpoint. This checks actual Chromium IndexedDB, separately from Node/WASM tests. Native integration additionally checks that atomic replacement reduces the journal and keeps writer exclusion through replacement.
+
 17 October 2026. Built the C++ browser storage probe with the production consensus actor, incremental transaction codec and browser IndexedDB adapter. Served `build/web` over loopback and opened `storage-probe.html?key=phoenix-integration-20261017-a` in the in-app Chromium browser.
 
 - The probe elected a synthetic singleton, committed its test record through a strict durable IndexedDB transaction and reported success.

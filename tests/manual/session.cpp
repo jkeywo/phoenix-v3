@@ -17,6 +17,7 @@ import phoenix.network.host;
 import phoenix.session.api;
 import phoenix.wire;
 import phoenix.fleet_setup;
+import phoenix.persistence;
 
 using namespace phoenix;
 int fleet_journey(NetworkOptions options)
@@ -71,7 +72,8 @@ int fleet_journey(NetworkOptions options)
 	config.server = "ship1-console";
 	config.profile = "crew";
 	auto client = make_network_client(config);
-	bool advance = true;
+	bool advance = true, accelerated = false;
+	std::string stage = "initial admission";
 	auto next_tick = std::chrono::steady_clock::now();
 	auto poll = [&]
 	{
@@ -85,18 +87,21 @@ int fleet_journey(NetworkOptions options)
 			for (auto &host : hosts)
 				if (host)
 					host->tick();
-			next_tick = now + std::chrono::milliseconds(50);
+			next_tick = now + std::chrono::milliseconds(accelerated ? 0 : 50);
 		}
-		std::this_thread::sleep_for(std::chrono::milliseconds(3));
+		std::this_thread::sleep_for(std::chrono::milliseconds(accelerated ? 1 : 3));
 	};
 	auto until = [&](const std::function<bool()> &done)
 	{
-		const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(20);
+		const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(accelerated ? 60 : 20);
 		while (!done())
 		{
 			if (std::chrono::steady_clock::now() > deadline)
-				throw std::runtime_error("Playable fleet timeout: " + hosts[0]->connection_status() + "; " +
-				                         client->connection_status());
+				throw std::runtime_error(
+				    "Playable fleet timeout during " + stage + " at tick " + std::to_string(hosts[0]->ticks()) + ": " +
+				    hosts[0]->connection_status() + "; " + client->connection_status() +
+				    "; local=" + (hosts[0]->observation() ? hosts[0]->observation()->console : "none") +
+				    "; remote=" + (client->observation() ? client->observation()->console : "none"));
 			poll();
 		}
 	};
@@ -137,13 +142,19 @@ int fleet_journey(NetworkOptions options)
 		    return hosts[0]->observation()->requested_speed == 2000 && !client->observation()->radar_enabled;
 	    });
 	const auto before = hosts[0]->ticks();
+	stage = "majority checkpoint";
 	hosts[2].reset();
+	accelerated = true;
+	const auto disconnected = std::chrono::steady_clock::now();
 	until(
 	    [&]
 	    {
-		    return hosts[0]->ticks() > before + 10;
+		    return hosts[0]->ticks() > before + 4100 &&
+		           std::chrono::steady_clock::now() - disconnected > std::chrono::milliseconds(3500);
 	    });
+	accelerated = false;
 	hosts[2] = make(2);
+	stage = "returning snapshot member";
 	until(
 	    [&]
 	    {
@@ -165,8 +176,38 @@ int fleet_journey(NetworkOptions options)
 	        "Portable fleet recovery reused credentials");
 	require(recovered.world->ticks() == saved_tick && !recovered.world->observation(),
 	        "Portable fleet recovery changed tick or retained a live operator");
+	hosts[0].reset();
+	client.reset();
+	{
+		auto journal = open_peer_store(options.data_location + "/fleet/" +
+		                               initial.plan.at("session").get<std::string>() + "/ship1.journal");
+		std::optional<PeerStoreResult> stored;
+		const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+		while (!(stored = journal->poll()) && std::chrono::steady_clock::now() < deadline)
+			std::this_thread::sleep_for(std::chrono::milliseconds(1));
+		require(stored && stored->error.empty() && stored->restored.at("base").get<std::uint64_t>() >= 4096 &&
+		            stored->restored.contains("snapshot"),
+		        "Playable host did not persist its automatic checkpoint");
+	}
+	hosts[0] = make(0);
+	client = make_network_client(config);
+	advance = true;
+	stage = "restored crew owner";
+	until(
+	    [&]
+	    {
+		    return hosts[0]->observation() && client->observation() && hosts[0]->ticks() > saved_tick;
+	    });
+	require(client->observation()->console == "sensors" && client->command({ship, "radar_enabled", 1}),
+	        "Checkpoint recovery lost approved crew ownership or sequence renewal");
+	stage = "restored crew command";
+	until(
+	    [&]
+	    {
+		    return client->observation() && client->observation()->radar_enabled;
+	    });
 	std::cout << "PASS playable fleet local/remote Consoles, approval, majority continuation, durable return and "
-	             "portable recovery"
+	             "portable recovery, automatic compaction and restored crew grants"
 	          << std::endl;
 	return 0;
 }

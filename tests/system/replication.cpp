@@ -29,6 +29,7 @@ struct Cluster
 	std::set<std::pair<std::string, std::string>> blocked;
 	std::vector<std::string> roster;
 	Catalog content;
+	std::string restart_during_snapshot;
 	explicit Cluster(std::vector<std::string> peers) : roster(std::move(peers))
 	{
 		PackDraft pack;
@@ -66,6 +67,12 @@ struct Cluster
 				{
 					if (entry.value.value("kind", std::string{}) == "consensus-noop")
 						continue;
+					if (entry.value.value("kind", std::string{}) == "consensus-snapshot")
+					{
+						worlds[id]->restore(content, entry.value.at("state").at("world"));
+						applied[id] = entry.value.at("state").at("applied").get<std::vector<WireJson>>();
+						continue;
+					}
 					applied[id].push_back(entry.value);
 					require(entry.value.at("kind") == "tick",
 					        "Only synthetic committed tick frames reach the production world");
@@ -78,6 +85,13 @@ struct Cluster
 			for (auto &[sender, message] : deliveries)
 				if (!blocked.contains({sender, message.peer}))
 				{
+					if (message.peer == restart_during_snapshot && message.packet.at("type") == "snapshot" &&
+					    message.packet.at("offset").get<std::uint64_t>() > 0)
+					{
+						nodes[message.peer] = std::make_unique<PeerConsensus>(
+						    PeerRoster{"synthetic-session", message.peer, roster}, disk[message.peer]);
+						restart_during_snapshot.clear();
+					}
 					require(nodes.at(message.peer)->receive(sender, message.packet),
 					        "Production peer must accept well-formed authenticated messages");
 					progress = true;
@@ -237,6 +251,59 @@ int main()
 		require(refused, "Durable state must be bound to the fixed roster, local identity and session epoch");
 
 		Cluster pair({"x", "y"});
+		Cluster compact({"a", "b", "c"});
+		compact.advance(4000);
+		const auto donor = compact.leader();
+		const auto lagging = donor == "a" ? "b" : "a";
+		compact.isolate(lagging);
+		for (int i = 0; i < 12; ++i)
+		{
+			require(compact.nodes.at(donor)->propose(frame(i, 2000)), "Majority can advance before checkpoint");
+			compact.pump();
+		}
+		const auto index = compact.nodes.at(donor)->commit_index();
+		require(compact.nodes.at(donor)->checkpoint({{"world", compact.worlds[donor]->save()},
+		                                             {"applied", compact.applied[donor]},
+		                                             {"padding", std::string(70000, 'x')}}),
+		        "Applied durable world can replace its log prefix");
+		require(compact.disk[donor].value("base", 0ULL) == 0, "Checkpoint must wait for persistence");
+		compact.pump();
+		require(compact.disk[donor].at("base") == index && compact.disk[donor].at("log").empty(),
+		        "Durable checkpoint must compact the committed prefix");
+		require(compact.nodes.at(donor)->propose(frame(20, 3000)), "Suffix continues after compaction");
+		compact.pump();
+		compact.restart_during_snapshot = lagging;
+		compact.stalled.insert(lagging);
+		compact.blocked.clear();
+		compact.advance(300);
+		require(compact.worlds[lagging]->ticks() == 0,
+		        "Returning snapshot cannot affect the world before its durable storage acknowledgement");
+		compact.stalled.clear();
+		compact.advance(1000);
+		require(compact.restart_during_snapshot.empty(),
+		        "Snapshot fixture must exercise a receiver restart between chunks");
+		require(compact.worlds[lagging]->save() == compact.worlds[donor]->save() &&
+		            compact.applied[lagging] == compact.applied[donor],
+		        "Returning peer installs chunked snapshot and executes only its subsequent suffix");
+		require(compact.disk[lagging].at("self") == lagging && compact.disk[lagging].at("base") == index,
+		        "Snapshot cannot transplant the donor peer identity");
+		PeerConsensus compact_restart({"synthetic-session", lagging, compact.roster}, compact.disk[lagging]);
+		auto compact_replay = compact_restart.take_committed();
+		require(compact_replay.size() == 2 && compact_replay.front().value.at("kind") == "consensus-snapshot" &&
+		            compact_replay.back().value.at("id") == 20,
+		        "Restart emits checkpoint before committed suffix");
+		Cluster threshold({"solo"});
+		threshold.advance(4000);
+		for (int i = 0; i < 4095; ++i)
+		{
+			require(threshold.nodes.at("solo")->propose(frame(i, 1000)), "Bounded checkpoint workload proposes");
+			threshold.pump();
+		}
+		require(threshold.nodes.at("solo")->checkpoint_due(), "Checkpoint becomes due at 4096 committed frames");
+		require(threshold.nodes.at("solo")->checkpoint({{"world", threshold.worlds["solo"]->save()}}),
+		        "Automatic threshold can checkpoint production world");
+		threshold.pump();
+		require(!threshold.nodes.at("solo")->checkpoint_due(), "Successful checkpoint resets the frame/byte threshold");
 		pair.advance(4000);
 		auto pair_leader = pair.leader();
 		require(!pair_leader.empty(), "Two connected peers must elect normally");

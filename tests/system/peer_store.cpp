@@ -68,6 +68,14 @@ int main()
 		        "Durable elected singleton must accept a synthetic protocol record");
 		flush();
 		require(node.take_committed().size() == 1, "Only a flushed proposed record may become executable");
+		const auto previous_size = std::filesystem::file_size(path);
+		require(node.checkpoint({{"value", 42}}), "Applied singleton prefix can be checkpointed");
+		flush();
+		require(std::filesystem::file_size(path) < previous_size,
+		        "Native checkpoint atomically replaces the journal rather than appending forever");
+		conflict = open_peer_store(path.string());
+		require(!wait(*conflict).error.empty(), "Writer ownership survives atomic replacement");
+		conflict.reset();
 		store.reset();
 		{
 			std::ofstream tail(path, std::ios::binary | std::ios::app);
@@ -79,7 +87,8 @@ int main()
 		        "Reopening must retain the durable prefix and discard an incomplete unacknowledged tail");
 		PeerConsensus restarted({"storage-test", "a", {"a"}}, recovered.restored);
 		auto replay = restarted.take_committed();
-		require(replay.size() == 2 && replay.back().value.at("value") == 42,
+		require(replay.size() == 1 && replay.back().value.at("kind") == "consensus-snapshot" &&
+		            replay.back().value.at("state").at("value") == 42,
 		        "Restart must replay exactly flushed committed work");
 		store.reset();
 		auto bytes = read_file(path.string());

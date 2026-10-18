@@ -96,17 +96,17 @@ EM_JS(void, open_browser_store, (unsigned id, const char* location), {
         return new Promise(resolve => { state.release = resolve; if (state.closed) resolve(); else begin(); });
     }).catch(error => reply(0,true,false,"",String(error)));
 });
-EM_JS(void, write_browser_store, (unsigned id, double generation, const char* bytes), {
+EM_JS(void, write_browser_store, (unsigned id, double generation, const char* bytes, bool replace), {
     const state = Module.phoenixPeerStores.get(id); if (!state || state.closed) return;
     try {
         const record = UTF8ToString(bytes), size = lengthBytesUTF8(record);
-        if (state.size+size > 134217728) throw new Error('Peer journal full; checkpoint required');
+        if ((replace?0:state.size)+size > 134217728) throw new Error('Peer journal full; checkpoint required');
         const tx = state.db.transaction('journal','readwrite',{durability:'strict'});
         if (tx.durability !== 'strict') { tx.abort(); throw new Error('Strict durable transactions are unavailable'); }
         state.pending = tx;
-        tx.oncomplete = () => { state.pending = null; state.size += size; state.reply(generation,false,true,"",""); if (state.closed && state.release) state.release(); };
+        tx.oncomplete = () => { state.pending = null; state.size = (replace?0:state.size)+size; state.reply(generation,false,true,"",""); if (state.closed && state.release) state.release(); };
         tx.onabort = () => { state.pending = null; state.reply(generation,false,false,"",String(tx.error || 'Peer transaction aborted')); if (state.closed && state.release) state.release(); };
-        tx.objectStore('journal').add(record);
+        const journal=tx.objectStore('journal'); if(replace)journal.clear(); journal.add(record);
     } catch (error) { if (state.pending) state.pending.abort(); else state.reply(generation,false,false,"",String(error)); }
 });
 EM_JS(void, close_browser_store, (unsigned id), {
@@ -142,7 +142,8 @@ public:
 		const auto record = storage::encode(transaction.transaction);
 		apply_peer_write(state_.recovered, transaction.transaction);
 		state_.busy = true;
-		write_browser_store(id_, static_cast<double>(transaction.generation), record.c_str());
+		write_browser_store(id_, static_cast<double>(transaction.generation), record.c_str(),
+		                    transaction.transaction.contains("snapshot"));
 		return true;
 	}
 	std::optional<PeerStoreResult> poll() override

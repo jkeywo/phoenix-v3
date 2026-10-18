@@ -290,6 +290,18 @@ std::vector<CommittedEntry> FleetRuntime::take_committed()
 {
 	return impl_->fleet ? impl_->fleet->take_committed() : std::vector<CommittedEntry>{};
 }
+bool FleetRuntime::checkpoint_due() const
+{
+	return impl_->fleet && impl_->fleet->checkpoint_due();
+}
+std::uint64_t FleetRuntime::admission_generation() const
+{
+	return impl_->fleet ? impl_->fleet->admission_generation() : 0;
+}
+bool FleetRuntime::checkpoint(const Json &state)
+{
+	return impl_->fleet && impl_->fleet->checkpoint(state);
+}
 std::string FleetRuntime::status() const
 {
 	if (failed())

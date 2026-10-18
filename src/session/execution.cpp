@@ -77,6 +77,7 @@ bool GameExecution::apply(const std::string &server, const Json &frame)
 		if (frame.at("tick") != world.ticks() + 1)
 			return false;
 		world.tick();
+		checkpoint_ready_ = true;
 		return true;
 	}
 	const std::string owner = frame.at("owner");
@@ -130,6 +131,7 @@ bool GameExecution::apply(const std::string &server, const Json &frame)
 				if (!world.submit(seat.claimant, command))
 					return false;
 				seat.sequence = sequence;
+				checkpoint_ready_ = false;
 				return true;
 			}
 	}
@@ -171,7 +173,10 @@ void GameExecution::restore(const Json &state)
 		throw std::runtime_error("Invalid Console lease snapshot");
 	auto candidate = leases_;
 	const auto next = state.at("next_claimant").get<std::uint64_t>();
+	if (!next || next >= 9007199254740991ULL)
+		throw std::runtime_error("Invalid next Console claimant");
 	std::set<std::uint64_t> claimants;
+	std::set<std::pair<std::string, std::pair<std::string, std::uint64_t>>> owners;
 	for (std::size_t i = 0; i < candidate.size(); ++i)
 	{
 		auto &seat = candidate[i];
@@ -190,6 +195,9 @@ void GameExecution::restore(const Json &state)
 			throw std::runtime_error("Invalid saved Console lease");
 		if (seat.active)
 		{
+			if (seat.owner.empty() || seat.token.empty() || !seat.claimant ||
+			    !owners.insert({seat.server, {seat.owner, seat.route}}).second)
+				throw std::runtime_error("Invalid active Console lease ownership");
 			auto view = world_->authoritative_world().observe(seat.claimant);
 			if (!claimants.insert(seat.claimant).second || !view || view->own.id != seat.address.ship ||
 			    view->console != seat.address.console)
@@ -198,5 +206,6 @@ void GameExecution::restore(const Json &state)
 	}
 	leases_ = std::move(candidate);
 	next_claimant_ = next;
+	checkpoint_ready_ = true;
 }
 } // namespace phoenix

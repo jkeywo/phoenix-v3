@@ -48,6 +48,9 @@ public:
 	bool started() const;
 	bool propose(const Json &value);
 	bool propose_tick(const Json &value);
+	bool checkpoint_due() const;
+	bool checkpoint(const Json &state);
+	std::uint64_t admission_generation() const;
 	std::vector<CommittedEntry> take_committed();
 	std::string status() const;
 

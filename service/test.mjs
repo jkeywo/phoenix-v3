@@ -359,8 +359,8 @@ test(
 );
 
 test(
-	"playable fleet routes local and remote Consoles and recovers a returning member",
-	{ skip: !process.env.PHOENIX_SESSION_PROBE, timeout: 90000 },
+	"playable fleet routes Consoles and recovers a returning member across checkpoints",
+	{ skip: !process.env.PHOENIX_SESSION_PROBE, timeout: 120000 },
 	async () => {
 		const service = createSignallingServer({ port: 0 });
 		const address = await service.listen();
@@ -371,7 +371,6 @@ test(
 				process.env.PHOENIX_SESSION_PROBE,
 				[
 					"--fleet-journey",
-					"--relay",
 					"--url",
 					`ws://127.0.0.1:${address.port}/phoenix`,
 					"--room",

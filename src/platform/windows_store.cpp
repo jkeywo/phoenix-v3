@@ -39,11 +39,18 @@ class WindowsStore final : public PeerStore
 	void run(std::string location)
 	{
 		HANDLE file = INVALID_HANDLE_VALUE;
+		HANDLE ownership = INVALID_HANDLE_VALUE;
 		std::uint64_t generation = 0;
 		try
 		{
 			auto path = std::filesystem::absolute(std::filesystem::u8path(location));
 			std::filesystem::create_directories(path.parent_path());
+			auto lock_path = path;
+			lock_path += L".writer";
+			ownership = CreateFileW(lock_path.c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr, OPEN_ALWAYS,
+			                        FILE_ATTRIBUTE_NORMAL, nullptr);
+			if (ownership == INVALID_HANDLE_VALUE)
+				throw std::runtime_error("Peer journal already has a writer");
 			file = CreateFileW(path.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, nullptr, OPEN_ALWAYS,
 			                   FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH, nullptr);
 			if (file == INVALID_HANDLE_VALUE)
@@ -81,9 +88,39 @@ class WindowsStore final : public PeerStore
 				}
 				generation = job.generation;
 				auto record = storage::encode(job.transaction);
-				if (record.size() > storage::max_journal - size)
+				const bool replace = job.transaction.contains("snapshot");
+				if (record.size() > storage::max_journal - (replace ? 0 : size))
 					throw std::runtime_error("Peer journal full; checkpoint required before more acknowledgements");
 				apply_peer_write(state, job.transaction);
+				if (replace)
+				{
+					auto temporary = path;
+					temporary += L".checkpoint";
+					HANDLE candidate = CreateFileW(temporary.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
+					                               FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH, nullptr);
+					if (candidate == INVALID_HANDLE_VALUE)
+						throw std::runtime_error("Cannot create checkpoint journal");
+					DWORD count = 0;
+					const bool flushed =
+					    WriteFile(candidate, record.data(), static_cast<DWORD>(record.size()), &count, nullptr) &&
+					    count == record.size() && FlushFileBuffers(candidate);
+					CloseHandle(candidate);
+					if (!flushed)
+						throw std::runtime_error("Checkpoint journal flush failed");
+					CloseHandle(file);
+					file = INVALID_HANDLE_VALUE;
+					if (!MoveFileExW(temporary.c_str(), path.c_str(),
+					                 MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
+						throw std::runtime_error("Atomic checkpoint replacement failed");
+					file = CreateFileW(path.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, nullptr,
+					                   OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH, nullptr);
+					LARGE_INTEGER end{};
+					if (file == INVALID_HANDLE_VALUE || !SetFilePointerEx(file, end, nullptr, FILE_END))
+						throw std::runtime_error("Cannot reopen checkpoint journal");
+					size = record.size();
+					result({false, generation, nullptr, {}});
+					continue;
+				}
 				DWORD written = 0;
 				if (!WriteFile(file, record.data(), static_cast<DWORD>(record.size()), &written, nullptr) ||
 				    written != record.size() || !FlushFileBuffers(file))
@@ -98,6 +135,8 @@ class WindowsStore final : public PeerStore
 		}
 		if (file != INVALID_HANDLE_VALUE)
 			CloseHandle(file);
+		if (ownership != INVALID_HANDLE_VALUE)
+			CloseHandle(ownership);
 	}
 
 public:

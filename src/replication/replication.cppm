@@ -51,6 +51,11 @@ public:
 	void elapse(unsigned milliseconds);
 	bool receive(const std::string &sender, const WireJson &packet);
 	bool propose(const WireJson &value);
+	// The caller has applied all returned commits. Checkpoints replace only that
+	// durable prefix; term/vote and an uncommitted suffix remain local.
+	bool checkpoint_due() const;
+	bool checkpoint(const WireJson &state);
+	std::uint64_t checkpoint_index() const;
 	std::optional<DurableWrite> pending_write() const;
 	void persisted(std::uint64_t generation, bool success);
 	std::vector<PeerDelivery> take_deliveries();
