@@ -56,6 +56,7 @@ struct GameScreen::State
 	std::string mission, slot, ship, seat, notice;
 	ConsoleModel console_model;
 	TextureCache textures;
+	SceneRenderer scene;
 	Texture2D invitation{};
 	std::string invitation_url;
 	bool show_invitation = false;
@@ -641,58 +642,10 @@ struct GameScreen::State
 			                {0, 1, 0},
 			                50,
 			                CAMERA_PERSPECTIVE};
-			auto region = area();
-			int width = std::max(1, static_cast<int>(region.width)),
-			    height = std::max(1, static_cast<int>(region.height));
-			auto stage = GetTime();
-			BeginScissorMode(static_cast<int>(region.x), static_cast<int>(region.y), width, height);
-			const float sx = static_cast<float>(GetRenderWidth()) / GetScreenWidth();
-			const float sy = static_cast<float>(GetRenderHeight()) / GetScreenHeight();
-			rlViewport(static_cast<int>(region.x * sx), static_cast<int>((GetScreenHeight() - region.y - height) * sy),
-			           static_cast<int>(width * sx), static_cast<int>(height * sy));
-			BeginMode3D(camera);
-			// The camera aspect belongs to this display region, not the spanning window.
-			rlMatrixMode(RL_PROJECTION);
-			rlLoadIdentity();
-			const double near = rlGetCullDistanceNear(), far = rlGetCullDistanceFar();
-			const double top = near * std::tan(camera.fovy * pi / 360.0);
-			const double aspect = static_cast<double>(width) / height;
-			rlFrustum(-top * aspect, top * aspect, -top, top, near, far);
-			rlMatrixMode(RL_MODELVIEW);
-			DrawGrid(40, 10);
-			scene_metrics["scene_target"] = GetTime() - stage;
-			stage = GetTime();
-			const auto &catalog = app.session->catalog();
-			const auto bodies = app.session->viewscreen();
-			scene_metrics["scene_projection"] = GetTime() - stage;
-			stage = GetTime();
-			for (const auto &body : bodies)
-			{
-				const auto &render = catalog.entities.at(body.definition).at("render");
-				auto position = Vector3{body.x / 1000.f, 0, -body.y / 1000.f};
-				const auto &images = render.at("images");
-				std::size_t frame = 0;
-				if (render.at("mode") == "eight")
-				{
-					auto bearing =
-					    std::atan2(-(camera.position.z - position.z), camera.position.x - position.x) * 180 / pi -
-					    body.heading / 1000.0;
-					frame = static_cast<std::size_t>(
-					    static_cast<int>(std::floor((std::fmod(bearing + 720, 360.0) + 22.5) / 45)) % 8);
-				}
-				const auto asset = images.at(frame).get<std::string>();
-				auto image = textures.load(asset, catalog.assets.at(asset));
-				auto scale = render.at("scale").get<float>();
-				DrawBillboard(camera, image, position, scale, WHITE);
-			}
-			scene_metrics["scene_billboards"] = GetTime() - stage;
-			stage = GetTime();
-			EndMode3D();
-			scene_metrics["scene_flush"] = GetTime() - stage;
-			stage = GetTime();
-			rlViewport(0, 0, GetRenderWidth(), GetRenderHeight());
-			EndScissorMode();
-			scene_metrics["scene_finish"] = GetTime() - stage;
+			const auto stage = GetTime();
+			const auto bodies = app.session->scene();
+			scene.draw(app.session->catalog(), bodies, camera, area(), app.session->scene_lighting(), GetTime());
+			scene_metrics["scene_render"] = GetTime() - stage;
 		}
 		else if (app.screen == Screen::console)
 		{
@@ -740,6 +693,7 @@ struct GameScreen::State
 	void close_resources()
 	{
 		textures.clear();
+		scene.clear();
 		if (invitation.id)
 			UnloadTexture(invitation);
 		invitation = {};

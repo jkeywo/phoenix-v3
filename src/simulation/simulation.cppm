@@ -34,6 +34,7 @@ public:
 	bool can_submit(std::uint64_t console, const OperatingCommand &command) const;
 	std::optional<Observation> observe(std::uint64_t console) const;
 	std::vector<BodyView> inspect() const;
+	std::vector<SceneBody> scene() const;
 	Json save() const;
 	void restore(const Catalog &content, const Json &saved);
 

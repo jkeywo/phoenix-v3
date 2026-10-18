@@ -34,6 +34,7 @@ struct Engine
 {
 	std::int64_t max_speed = 0, acceleration = 0, speed = 0, remainder = 0;
 	bool enabled = true;
+	int forward_output = 0;
 };
 struct Steering
 {

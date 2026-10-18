@@ -253,6 +253,14 @@ public:
 	{
 		return running() ? world_->inspect() : std::vector<BodyView>{};
 	}
+	std::vector<SceneBody> scene() const override
+	{
+		return running() ? world_->scene() : std::vector<SceneBody>{};
+	}
+	Json scene_lighting() const override
+	{
+		return running() ? catalog_.maps.at(setup_.mission).value("lighting", Json::object()) : Json::object();
+	}
 	Json inspection() const override
 	{
 		return running() ? world_->save() : Json(nullptr);

@@ -172,6 +172,7 @@ struct World::Impl
 		engines = ecs.system<const Pose, Motion, Engine>("Engines").kind(0).with<Movable>().each(
 		    [](const Pose &pose, Motion &motion, Engine &engine)
 		    {
+			    engine.forward_output = 0;
 			    if (!engine.enabled)
 				    return;
 			    auto available = engine.acceleration + engine.remainder;
@@ -180,8 +181,13 @@ struct World::Impl
 			    auto desired = fixed::scale(fixed::direction(pose.heading), engine.speed);
 			    auto delta = desired - motion.velocity;
 			    auto magnitude = fixed::length(delta);
+			    const auto before = motion.velocity;
 			    motion.velocity =
 			        magnitude <= step ? desired : motion.velocity + fixed::scale(fixed::normal(delta), step);
+			    const auto applied = motion.velocity - before;
+			    const auto forward = fixed::dot(applied, fixed::direction(pose.heading)) / fixed::unit;
+			    engine.forward_output = static_cast<int>(std::clamp<std::int64_t>(
+			        forward * rate * 1000 / std::max<std::int64_t>(1, engine.acceleration), 0, 1000));
 		    });
 		integrate = ecs.system<Pose, Motion>("Integrate")
 		                .kind(0)
@@ -592,6 +598,19 @@ std::vector<BodyView> World::inspect() const
 	          {
 		          return a.id < b.id;
 	          });
+	return result;
+}
+std::vector<SceneBody> World::scene() const
+{
+	std::vector<SceneBody> result;
+	for (const auto &body : inspect())
+	{
+		SceneBody item;
+		static_cast<BodyView &>(item) = body;
+		if (auto engine = impl_->entities.at(body.id).try_get<Engine>())
+			item.forward_thrust = engine->enabled ? engine->forward_output : 0;
+		result.push_back(std::move(item));
+	}
 	return result;
 }
 std::optional<Observation> World::observe(std::uint64_t console) const

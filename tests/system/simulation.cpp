@@ -41,6 +41,25 @@ int main(int argc, char **)
 		    {instance(1, "test.ship", 0), instance(2, "test.ship", 10000), instance(3, "test.ship", 200000)});
 		auto catalog = load(fixture);
 		{
+			World propulsion;
+			propulsion.load(catalog, "test.map");
+			require(propulsion.claim(101, 1), "synthetic drive Console can be claimed");
+			require(propulsion.submit(101, {1, "speed_mm_s", 1000}), "forward thrust request admitted");
+			propulsion.tick();
+			require(propulsion.scene().at(0).forward_thrust > 0,
+			        "applied forward propulsion must produce exhaust output");
+			for (int i = 0; i < 100; ++i)
+				propulsion.tick();
+			require(propulsion.scene().at(0).forward_thrust == 0, "coasting at requested speed must not invent thrust");
+			propulsion.submit(101, {1, "speed_mm_s", 0});
+			propulsion.tick();
+			require(propulsion.scene().at(0).forward_thrust == 0, "braking must not draw rear exhaust");
+			propulsion.submit(101, {1, "engine_enabled", 0});
+			propulsion.tick();
+			require(propulsion.scene().at(0).forward_thrust == 0,
+			        "disabled engines must clear visual propulsion output");
+		}
+		{
 			auto stations = fixture;
 			stations["schema"] = 2;
 			auto &ship = stations["entities"][0];

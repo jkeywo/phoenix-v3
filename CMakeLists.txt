@@ -51,6 +51,10 @@ FetchContent_Declare(
 	URL_HASH SHA256=63FCF92CB44EFA3B169207BFF068676CD8EA188CCECC893812B1877AD36855C5
 	DOWNLOAD_EXTRACT_TIMESTAMP TRUE
 )
+if(EMSCRIPTEN)
+	# Sprite surface depth and shadow shaders require WebGL 2 / GLSL ES 3.
+	set(OPENGL_VERSION "ES 3.0" CACHE STRING "Phoenix browser graphics baseline" FORCE)
+endif()
 FetchContent_MakeAvailable(flecs raylib freetype)
 add_library(Freetype::Freetype ALIAS freetype)
 set(FREETYPE_INCLUDE_DIRS "${freetype_SOURCE_DIR}/include" CACHE STRING "" FORCE)
@@ -231,7 +235,13 @@ add_library(phoenix_session STATIC src/session/local.cpp src/session/execution.c
 target_link_libraries(phoenix_session PUBLIC phoenix_simulation phoenix_session_api)
 add_library(phoenix_files STATIC src/platform/imports.cpp)
 target_link_libraries(phoenix_files PUBLIC phoenix_content)
-add_library(phoenix_presentation STATIC src/presentation/screen.cpp src/presentation/game.cpp)
+add_library(
+	phoenix_presentation
+	STATIC
+	src/presentation/screen.cpp
+	src/presentation/game.cpp
+	src/presentation/scene.cpp
+)
 add_library(phoenix_devices STATIC)
 if(EMSCRIPTEN)
 	target_sources(phoenix_devices PRIVATE src/platform/browser_devices.cpp)
@@ -418,6 +428,12 @@ else()
 endif()
 
 include(cmake/Networking.cmake)
+add_executable(phoenix_comic_probe EXCLUDE_FROM_ALL tests/manual/comic.cpp)
+target_link_libraries(phoenix_comic_probe PRIVATE phoenix_presentation)
+if(EMSCRIPTEN)
+	set_target_properties(phoenix_comic_probe PROPERTIES SUFFIX ".html")
+	target_link_options(phoenix_comic_probe PRIVATE "-sALLOW_MEMORY_GROWTH=1" "-sASSERTIONS=1" "-sSTACK_SIZE=1048576")
+endif()
 add_library(phoenix_transport STATIC src/transport/options.cpp src/transport/policy.cpp)
 target_link_libraries(phoenix_transport PUBLIC phoenix_foundation PRIVATE nlohmann_json::nlohmann_json)
 if(EMSCRIPTEN)

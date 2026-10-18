@@ -646,6 +646,14 @@ public:
 	{
 		return world_->viewscreen();
 	}
+	std::vector<SceneBody> scene() const override
+	{
+		return world_->scene();
+	}
+	Json scene_lighting() const override
+	{
+		return world_->scene_lighting();
+	}
 	std::optional<BodyView> focus_body() const override
 	{
 		if (!world_->running())

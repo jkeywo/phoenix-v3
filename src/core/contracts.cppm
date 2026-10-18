@@ -108,6 +108,11 @@ struct BodyView
 	std::string definition;
 	std::int64_t x, y, vx, vy, heading;
 };
+// Viewscreen-only visual output. Deliberately absent from radar observations.
+struct SceneBody : BodyView
+{
+	int forward_thrust = 0; // actual applied forward acceleration, 0..1000
+};
 struct Observation
 {
 	BodyView own;

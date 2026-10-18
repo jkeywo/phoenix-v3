@@ -9,12 +9,48 @@ module;
 #include <string>
 #include <utility>
 #include <vector>
+#include <array>
 
 export module phoenix.presentation;
 export import phoenix.navigation;
 
 export namespace phoenix
 {
+enum class SceneDiagnostic
+{
+	comic,
+	smooth,
+	unlit,
+	normals,
+	depth,
+	shadows
+};
+struct ExplosionEffect
+{
+	Vector3 position{};
+	std::array<float, 3> color{1.f, .23f, .035f};
+	float intensity = 1.5f, range = 30.f, duration = 4.f;
+	double started = 0;
+};
+// Shared runtime/Workshop renderer. Caller supplies only an authorised scene.
+// The colour pass draws directly into the current framebuffer and region.
+class SceneRenderer
+{
+public:
+	SceneRenderer();
+	~SceneRenderer();
+	SceneRenderer(const SceneRenderer &) = delete;
+	SceneRenderer &operator=(const SceneRenderer &) = delete;
+	void clear();
+	void explosion(const ExplosionEffect &effect);
+	void draw(const Catalog &catalog, std::span<const SceneBody> bodies, Camera3D camera, Rectangle region,
+	          const Json &lighting, double time, SceneDiagnostic diagnostic = SceneDiagnostic::comic,
+	          Vector2 surface_size = {});
+
+private:
+	struct State;
+	std::unique_ptr<State> state_;
+};
 // Each content owner keeps a separate cache and clears it before replacing assets.
 class TextureCache
 {

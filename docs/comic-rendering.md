@@ -19,7 +19,22 @@ The permitted own-ship Console bundle copies only the verified material vocabula
 ## Delivery record
 
 - Material loading, validation, source-sidecar conversion and permitted Console bundle copying: implemented, with synthetic native and WASM content checks.
-- Depth-aware renderer, shadows, propulsion presentation, Workshop controls and training content: in progress. Completion and graphical evidence will be recorded here as each step is verified.
+- Shared renderer, sprite-depth occlusion, depth-displaced sun-shadow pass, actual-forward-thrust projection, cone lights and internal explosion rendering: implemented. The explicit synthetic GPU probe passes on native OpenGL 3.3 and browser WebGL 2, covering recessed/near pixel overlap, zero-depth fallback, cast shadows and directional/combined lighting.
+- Workshop controls and training content: in progress. Completion and graphical evidence will be recorded here as each step is verified.
+
+The colour pass draws directly into the existing clipped Viewscreen region. It reconstructs each fragment along the original camera ray and writes its projected depth, preserving the drawn silhouette. A shared 128×128 displacement grid supplies rasterisation and sun-shadow geometry; alpha cuts out uncovered pixels. The 2048×2048 shadow map uses nine-tap filtering. This bounds geometry work but approximates sub-grid relief in the shadow silhouette. The nearest sixteen local lights are selected stably around the camera target. Renderer coordinates are rebased around that target to limit world-coordinate precision loss.
+
+`SessionPort::scene()` supplies `SceneBody` values with an additional 0–1000 actual forward propulsion output. `BodyView` and radar observations retain their previous vocabulary; remote Console clients do not gain a full-world scene. Applied acceleration is measured in the production engine execution path, with zero rear output during braking, coasting or disablement. Synthetic native/WASM simulation checks cover these transitions.
+
+`SceneRenderer::explosion(ExplosionEffect)` accepts bounded presentation-only events. No gameplay, GM or player action calls it. The manual synthetic probe exercises its envelope, colour and coexistence with engine lighting.
+
+```powershell
+# Explicit graphical evidence; deliberately absent from the automatic test list.
+./scripts/build.ps1 -Target native -BuildTarget phoenix_comic_probe
+./build/native/Release/phoenix_comic_probe.exe
+./scripts/build.ps1 -Target web -BuildTarget phoenix_comic_probe
+# Serve build/web and open phoenix_comic_probe.html in a WebGL 2 browser.
+```
 
 ## Accepted behavior
 

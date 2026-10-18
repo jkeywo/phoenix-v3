@@ -62,6 +62,21 @@ public:
 	virtual bool command(const OperatingCommand &command) = 0;
 	virtual std::optional<Observation> observation() const = 0;
 	virtual std::vector<BodyView> viewscreen() const = 0;
+	virtual std::vector<SceneBody> scene() const
+	{
+		std::vector<SceneBody> result;
+		for (const auto &body : viewscreen())
+		{
+			SceneBody item;
+			static_cast<BodyView &>(item) = body;
+			result.push_back(std::move(item));
+		}
+		return result;
+	}
+	virtual Json scene_lighting() const
+	{
+		return Json::object();
+	}
 	virtual std::vector<ConsoleSeat> console_seats() const
 	{
 		return {};
