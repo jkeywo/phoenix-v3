@@ -232,7 +232,7 @@ struct NativeMenuScreen::State
 			return "<p id=\"" + escaped(id) + "\">" + escaped(localise(label)) + "</p>";
 		};
 		using Branch = Application::MenuBranch;
-		std::string markup = "<h1 id=\"menu-title\">PHOENIX / SETTLED DARK</h1>";
+		std::string markup = "<h1 id=\"menu-title\">Against the Stars</h1>";
 		markup += "<div class=\"menu-top\">" +
 		          add("menu.settings", "Settings",
 		              [&]
@@ -759,7 +759,7 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 	          std::to_string(std::max(skin.left, skin.right) * skin.scale + 8) + "px; }\n";
 	styles += R"(
     #native-menu { decorator:image(menu/background.png cover); color:#fff0d4; }
-    #native-menu h1 { color:#fff0d4; font-size:38px; letter-spacing:4px; }
+    #native-menu h1 { color:#fff0d4; font-family:UnifrakturCook; font-weight:bold; font-size:56px; letter-spacing:0; }
     #native-menu h2 { color:#fff0d4; }
     #native-menu button.menu-skinned { position:relative; min-height:64px; line-height:24px; background:transparent; border:2px transparent; color:#fff4df; text-align:center; image-color:#ffffff; }
     #native-menu button:hover, #native-menu button:focus { image-color:#ffce93; border-color:#ffad54; background:#17120c; }

@@ -317,14 +317,15 @@ void open_window()
 	if (!Rml::LoadFontFace(font))
 		throw std::runtime_error("Could not load player UI font: " + font);
 	const auto font_directory = std::filesystem::path(font).parent_path();
+	if (!Rml::LoadFontFace((font_directory / "UnifrakturCook-Bold.ttf").generic_string()))
+		throw std::runtime_error("Could not load menu title font");
 	configure_translations(
 	    parse_json(read_file((font_directory / "locales.json").generic_string(), 1024 * 1024), "UI translations"));
 	for (const char *fallback : {"shaping-Cairo-Regular.ttf", "shaping-Poppins-Regular.ttf"})
 		if (!Rml::LoadFontFace((font_directory / fallback).generic_string(), true))
 			throw std::runtime_error("Could not load Unicode fallback font");
 	context = Rml::CreateContext("navigation", {GetScreenWidth(), GetScreenHeight()});
-	document =
-	    context->LoadDocumentFromMemory(std::string(R"(<rml><head><style>
+	document = context->LoadDocumentFromMemory(std::string(R"(<rml><head><style>
     body { display:block; width:100%; box-sizing:border-box; font-family:LatoLatin; font-size:20px; color:#d9e9ef; padding:20px; }
     h1, h2, p { display:block; }
     h1 { font-size:22px; color:#76c9e8; margin-bottom:6px; }
@@ -381,14 +382,14 @@ void open_window()
     #menu-volume sliderbar { width:24px; height:44px; background:#76c9e8; border:2px #d9e9ef; }
     #menu-volume sliderarrowdec, #menu-volume sliderarrowinc { display:none; }
     )") + native_menu->style_sheet(font_directory.generic_string()) +
-	                                        R"(</style></head><body><h1 id="app-title">PHOENIX / SETTLED DARK</h1>
+	                                               R"(</style></head><body><h1 id="app-title">Against the Stars</h1>
     <div id="nav"><button id="home">Home</button><button id="lobby" style="display:none;">Lobby</button><button id="host">New game</button><button id="join">Join console</button>
     <button id="view">Viewscreen</button><button id="edit">Workshop</button><button id="locale">Toggle pseudo-localisation</button><button id="settings">Settings</button></div>
     <h2 id="heading">Home</h2><p id="description"></p><div id="session-controls"></div><div id="game"></div>
     <div id="settings-panel"><label id="music-label" for="music-volume">Music volume</label>
     <input id="music-volume" type="range" min="0" max="100" step="1" value="50"/>
     <span id="music-percent">50%</span><button id="settings.close">Back</button></div></body></rml>)",
-	                                    (font_directory / "navigation.rml").generic_string());
+	                                           (font_directory / "navigation.rml").generic_string());
 	if (!document)
 		throw std::runtime_error("Could not load home screen");
 	document->AddEventListener("click", &navigation);

@@ -3,6 +3,12 @@
 	src: url("assets/LatoLatin-Regular.ttf");
 	font-display: swap;
 }
+@font-face {
+	font-family: UnifrakturCook;
+	src: url("assets/UnifrakturCook-Bold.ttf") format("truetype");
+	font-weight: 700;
+	font-display: swap;
+}
 :root {
 	color-scheme: dark;
 	font:
@@ -104,9 +110,10 @@ h1 {
 	width: 100%;
 	margin: 0;
 	text-align: center;
-	font-size: clamp(24px, 3vw, 38px);
-	letter-spacing: 4px;
-	font-weight: normal;
+	font-family: UnifrakturCook, Lato, serif;
+	font-size: clamp(38px, 4.4vw, 56px);
+	letter-spacing: 0;
+	font-weight: 700;
 }
 h2 {
 	font-size: 22px;
@@ -333,8 +340,7 @@ body.running #status {
 @media (max-width: 760px) {
 	h1 {
 		top: 94px;
-		font-size: 24px;
-		letter-spacing: 2px;
+		font-size: 38px;
 	}
 	#viewport {
 		top: 150px;

@@ -1,5 +1,7 @@
 # Browser main menu
 
+The title is **Against the Stars**, using the same locally bundled UnifrakturCook Bold gothic font as the native menu. Buttons and other controls retain Lato. Font attribution and redistribution terms are in [the font directory](../content/fonts/README.md).
+
 `index.html` opens a plain HTML menu with the native menu's ordered buttons, title, cascading Host/scenario/ship choices, Join Code forms, Settings and Mod Packs popups. It uses the same artwork and reads the same nine-slice borders from the sprite sidecars. Labels remain HTML text. Dialogs trap/restore focus; Escape closes a popup before returning through the columns. Narrow screens scroll horizontally. Reduced motion disables transitions. Exit explains when the browser requires the user to close the tab.
 
 The landing page requests no role `.js`, `.wasm` or `.data` bundle until entry:

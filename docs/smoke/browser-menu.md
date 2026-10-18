@@ -20,3 +20,9 @@
 - The runtime return control occupies its own toolbar, leaving game/tool tabs unobscured. Public shell files, standalone art/font/translations and the generated content catalogue are included in the deployment staging list.
 
 Local captures: `build/html-menu-{home,ships,settings,packs,lobby,recovery,workshop}.png`. Large captures remain in ignored build output. No public deployment, physical camera scan, actual screen-reader session, controller device or six-display performance claim is made by this receipt.
+
+## Against the Stars title
+
+18 October 2026: inspected fresh native and HTML home screens at 1280 x 720 with **Against the Stars** in the locally bundled UnifrakturCook Bold font. Both headings render the gothic face, centred above the menu without overlapping Settings or the first button. HTML accessibility exposes the title as a heading; its computed style selects UnifrakturCook at 56px/700. Controls retain Lato. Captures: `build/title-native.png` and `build/title-web.png`.
+
+`build/title-native.log` and `build/title-web.log` record successful native and all three browser-role builds. The native menu smoke journey exited successfully (`build/title-smoke.log`). The five existing HTML shell cases passed (`build/title-shell-tests.log`), and the repository formatting check passed (`build/title-format.log`). Native and standalone web font copies match the source SHA-256 recorded with the bundled license in `content/fonts/README.md`.

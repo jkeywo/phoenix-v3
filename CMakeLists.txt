@@ -353,6 +353,9 @@ foreach(audio_file IN ITEMS menu.ogg ambient.ogg CREDITS.txt)
 	configure_file("content/audio/${audio_file}" "${CMAKE_CURRENT_BINARY_DIR}/server-audio/${audio_file}" COPYONLY)
 endforeach()
 configure_file("content/locales.json" "${CMAKE_CURRENT_BINARY_DIR}/assets/locales.json" COPYONLY)
+foreach(title_font_asset UnifrakturCook-Bold.ttf UnifrakturCook-OFL.txt)
+	configure_file("content/fonts/${title_font_asset}" "${CMAKE_CURRENT_BINARY_DIR}/assets/${title_font_asset}" COPYONLY)
+endforeach()
 foreach(font Cairo-Regular.ttf Poppins-Regular.ttf LICENSE.txt)
 	configure_file(
 		"${rmlui_SOURCE_DIR}/Samples/basic/harfbuzz/data/${font}"
