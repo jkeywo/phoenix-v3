@@ -1,6 +1,6 @@
 # Phoenix V3 testing policy
 
-Status: design policy, 17 October 2026. The suite is not implemented yet. Follow this policy when building the [selected stack](technical-stack.md) and the gameplay in the [GDD](GDD.md).
+Status: current policy. Native and WASM integration cases, production content verification and manually invoked smoke tools implement these three categories. Follow this policy when extending the [selected stack](technical-stack.md) and gameplay in the [GDD](GDD.md).
 
 Tests protect intended behavior and runnable data. They must not turn each content asset, tuning value, implementation function or historical output into a permanent constraint. Use three categories only; choose a test because it detects a meaningful failure, not to satisfy a coverage percentage or add one test per change.
 
