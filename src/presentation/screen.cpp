@@ -480,7 +480,8 @@ void draw_screen(Application &app)
 	current_app = &app;
 	native_menu->poll(app);
 	select_language(app.language, app.pseudo_locale);
-	if ((app.can_host || app.native_menu) && IsKeyPressed(KEY_ESCAPE) && graphics_has_keyboard_focus())
+	if ((app.can_host || app.native_menu) && app.screen != Screen::workshop && app.screen != Screen::gm &&
+	    IsKeyPressed(KEY_ESCAPE) && graphics_has_keyboard_focus())
 		invoke_navigation(app, app.native_menu && (app.screen == Screen::home || app.screen == Screen::server_lobby ||
 		                                           app.screen == Screen::client_lobby ||
 		                                           app.screen == Screen::settings || app.packs_popup)
@@ -726,7 +727,8 @@ void draw_screen(Application &app)
 	    {KEY_TAB, Rml::Input::KI_TAB},        {KEY_ENTER, Rml::Input::KI_RETURN},  {KEY_SPACE, Rml::Input::KI_SPACE},
 	    {KEY_BACKSPACE, Rml::Input::KI_BACK}, {KEY_ESCAPE, Rml::Input::KI_ESCAPE}, {KEY_LEFT, Rml::Input::KI_LEFT},
 	    {KEY_RIGHT, Rml::Input::KI_RIGHT},    {KEY_UP, Rml::Input::KI_UP},         {KEY_DOWN, Rml::Input::KI_DOWN}};
-	const bool keyboard = graphics_has_keyboard_focus() && !app.tools_keyboard_focus;
+	const bool tool_keyboard = app.screen == Screen::workshop || app.screen == Screen::gm || app.tools_keyboard_focus;
+	const bool keyboard = graphics_has_keyboard_focus() && !tool_keyboard;
 	auto *keyboard_context = input.keyboard_console() ? routed_context(*input.keyboard_console()) : context;
 	if (!window_focused())
 	{
@@ -743,7 +745,7 @@ void draw_screen(Application &app)
 				if (auto *target = routed_context(region.console))
 					target->ProcessKeyUp(rml_key, modifiers);
 	}
-	if (!app.tools_keyboard_focus)
+	if (!tool_keyboard)
 		for (int character; (character = GetCharPressed()) != 0;)
 			if (keyboard && keyboard_context)
 				keyboard_context->ProcessTextInput(static_cast<Rml::Character>(character));

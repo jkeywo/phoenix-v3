@@ -3,6 +3,7 @@ module;
 #include <raylib.h>
 #include <rlgl.h>
 #include <cstdint>
+#include <array>
 #include <functional>
 #include <memory>
 #include <nlohmann/json.hpp>
@@ -65,8 +66,17 @@ void draw_workshop(Application &app)
 		io.AddFocusEvent(keyboard);
 		previous_focus = keyboard;
 	}
-	io.AddKeyEvent(ImGuiMod_Ctrl, keyboard && (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL)));
-	io.AddKeyEvent(ImGuiMod_Shift, keyboard && (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT)));
+	// Key down/up can both arrive between rendered frames (paste and quick
+	// shortcuts in particular). Retain queued presses as well as held states.
+	std::array<bool, 512> pressed{};
+	if (keyboard)
+		for (int key; (key = GetKeyPressed()) != 0;)
+			if (key > 0 && key < static_cast<int>(pressed.size()))
+				pressed[key] = true;
+	io.AddKeyEvent(ImGuiMod_Ctrl, keyboard && (IsKeyDown(KEY_LEFT_CONTROL) || IsKeyDown(KEY_RIGHT_CONTROL) ||
+	                                           pressed[KEY_LEFT_CONTROL] || pressed[KEY_RIGHT_CONTROL]));
+	io.AddKeyEvent(ImGuiMod_Shift, keyboard && (IsKeyDown(KEY_LEFT_SHIFT) || IsKeyDown(KEY_RIGHT_SHIFT) ||
+	                                            pressed[KEY_LEFT_SHIFT] || pressed[KEY_RIGHT_SHIFT]));
 	const std::pair<int, ImGuiKey> keys[] = {{KEY_TAB, ImGuiKey_Tab},
 	                                         {KEY_ENTER, ImGuiKey_Enter},
 	                                         {KEY_SPACE, ImGuiKey_Space},
@@ -86,7 +96,7 @@ void draw_workshop(Application &app)
 	                                         {KEY_X, ImGuiKey_X},
 	                                         {KEY_Z, ImGuiKey_Z}};
 	for (auto [key, imgui_key] : keys)
-		io.AddKeyEvent(imgui_key, keyboard && IsKeyDown(key));
+		io.AddKeyEvent(imgui_key, keyboard && (IsKeyDown(key) || pressed[key]));
 	if (!app.embedded_tools || app.tools_keyboard_focus)
 		for (int character; (character = GetCharPressed()) != 0;)
 			if (keyboard)

@@ -9,3 +9,15 @@ Date: 17 October 2026. Explicitly invoked during implementation.
 - Automated authoring case imports a PNG, creates/places/duplicates entities, saves/reloads map data, exports/reopens a self-contained pack and preserves the draft after an invalid map load. It also authors a separately named mod derived from a real base dependency and verifies the ordered pair in both native and WASM.
 
 This establishes basic authoring/file interoperability. It does not establish live game loading, peer pack transfer, final 3D billboards, running console bindings, actual screen readers or six-screen performance. Native OS file-dialog interaction and the console layout editor still need representative manual use; their compilation is not recorded as a passed usability run.
+
+## Native Courier map authoring
+
+Date: 18 October 2026. Explicitly requested keyboard-and-mouse Workshop journey.
+
+- Found and fixed two input blockers: the player presentation layer consumed the standalone tools' text queue, and shortcuts pressed/released between frames were lost by held-key polling. Workshop/GM now retain their text input and consume buffered key presses. Escape stays with the active tool.
+- Using only the native Workshop UI, added `Courier Among Three Asteroids` (`phoenix-base.map1`) to the base pack, placed exactly three asteroid instances around the origin, and added one player slot named Courier at `(0, 0)`. Only `training.survey` is allowed in that slot. Inspected its Courier sprite and enabled engine, steering and radar systems; these are all systems currently exposed by the editor.
+- Named the Courier template through its display-name field. Ctrl+A, paste, slot naming and Ctrl+S worked after the input fixes. Saved through the real Windows Save As dialog to the local, ignored `build/courier-asteroids.zip`; subsequent Save reused that destination.
+- Removed the temporary input diagnostic, rebuilt and restarted the native application, then reopened that exact ZIP using File → Open pack. Selected the new map and confirmed the three asteroid entries, their arrangement and the sole Courier-only slot survived. Workshop Verify passed before saving and after reopening.
+- Native Release and WASM Workshop builds passed. Existing `system.input-and-semantics` and `system.file-imports` checks passed. The authored ZIP is a manual receipt artifact, not an automated fixture or production-content golden.
+
+This adds evidence for native text editing, Windows pack open/save dialogs and map/slot persistence. It does not establish a played session or the console layout editor's usability.
