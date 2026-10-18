@@ -458,7 +458,16 @@ struct GameScreen::State
 			if (app.session->running() && !was_running)
 			{
 				if (auto own = focus_body)
+				{
 					focus = {own->x / 1000.f, 0, -own->y / 1000.f};
+					const auto &render = catalog.entities.at(own->definition).at("render");
+					if (render.contains("sprite"))
+					{
+						distance = std::clamp(render.at("scale").get<float>() * 4.5f, 30.f, 2000000.f);
+						elevation = .22f;
+						azimuth = -(own->heading / 1000.f + 90) * pi / 180;
+					}
+				}
 				close_resources();
 			}
 			was_running = app.session->running();

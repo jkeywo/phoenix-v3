@@ -64,6 +64,18 @@ int main()
 		auto sprite_archive = write_pack(sprite_draft);
 		auto sprite_catalog = resolve_packs({read_pack(sprite_archive)});
 		const auto compiled = compile_sprite(sprite, sprite_catalog, "test material");
+		const Json sidecar = {{"schema_version", 1},
+		                      {"id", "synthetic"},
+		                      {"coordinate_system", "frame_pixels_top_left_y_down"},
+		                      {"image_size", {1, 1}},
+		                      {"pivot", {.5, .5}},
+		                      {"sprite_sheet", nullptr},
+		                      {"markers", {{"engine_port", {.5, .5, -1}}}}};
+		const auto imported_sprite = import_sprite_sidecar(
+		    sidecar, {{"sprite", "test-core:assets/pixel.png"}, {"depth", "test-core:assets/pixel.png"}});
+		const auto imported_material = compile_sprite(imported_sprite, sprite_catalog, "imported material");
+		require(imported_material.frames.at(0).attachments.at("engine_port").layer == -1,
+		        "source-sidecar import must convert signed markers into the canonical verified vocabulary");
 		require(compiled.frames.at(0).attachments.at("engine_port").layer == -1 &&
 		            compiled.frames.at(0).depth_scale > .69f,
 		        "signed layers and calibrated relief must survive production loading");

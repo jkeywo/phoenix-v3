@@ -105,6 +105,20 @@ int main()
 		          << int(right.b) << '\n';
 		require(left.b > left.r * 2 && right.r > right.b * 2,
 		        "pixel depth must place the far-centred blue surface ahead of red only on its recessed half");
+		auto preview = LoadRenderTexture(320, 240);
+		BeginDrawing();
+		BeginTextureMode(preview);
+		ClearBackground(BLACK);
+		renderer.draw(catalog, objects, camera, {0, 0, 320, 240}, {{"shadows", false}}, 0, SceneDiagnostic::comic,
+		              {320, 240});
+		EndTextureMode();
+		EndDrawing();
+		capture = LoadImageFromTexture(preview.texture);
+		const auto nested = GetImageColor(capture, 140, 120);
+		UnloadImage(capture);
+		UnloadRenderTexture(preview);
+		require(nested.b > nested.r * 2, "Workshop preview must clip against its own framebuffer height");
+		renderer.clear();
 		red["frames"][0]["depth_scale"] = 0;
 		catalog = load(Json::array({entity("red", red, 4), entity("blue", blue, 4)}), assets);
 		BeginDrawing();

@@ -39,10 +39,24 @@ struct Editor
 	std::string status = "Import a PNG, create an entity definition, then place instances on the map.";
 	std::string pack_name = "workshop", library_parent;
 	TextureCache textures;
+	SceneRenderer scene;
+	RenderTexture2D scene_preview{};
+	std::string preview_identity;
+	float preview_bearing = 90, preview_elevation = 12, preview_distance = 35, preview_thrust = 1;
+	int diagnostic = 0;
+	Json pending_sidecar;
+	std::map<std::string, std::string> sidecar_images;
+	bool import_engines = false;
+	bool preview_whole_map = false;
 	float pan_x = 0, pan_y = 0, zoom = 0.004f;
 	void clear_textures()
 	{
 		textures.clear();
+		scene.clear();
+		preview_identity.clear();
+		if (scene_preview.id)
+			UnloadRenderTexture(scene_preview);
+		scene_preview = {};
 	}
 	Texture2D texture(const std::string &id)
 	{
@@ -79,7 +93,7 @@ template <class Function> void attempt(Function action)
 void string_field(const char *label, Json &object, const char *key)
 {
 	std::string value = object.value(key, std::string{});
-	ImGui::TextWrapped("%s", label);
+	ImGui::TextWrapped("%s", localise(label).c_str());
 	ImGui::SetNextItemWidth(-1);
 	if (ImGui::InputText((std::string("##") + label).c_str(), &value))
 		object[key] = value;
@@ -87,7 +101,7 @@ void string_field(const char *label, Json &object, const char *key)
 void integer_field(const char *label, Json &object, const char *key)
 {
 	std::int64_t value = object.value(key, static_cast<std::int64_t>(0));
-	ImGui::TextWrapped("%s", label);
+	ImGui::TextWrapped("%s", localise(label).c_str());
 	ImGui::SetNextItemWidth(-1);
 	if (ImGui::InputScalar((std::string("##") + label).c_str(), ImGuiDataType_S64, &value))
 		object[key] = value;
@@ -108,9 +122,10 @@ Json *selected_instance()
 void asset_picker(const char *label, Json &value)
 {
 	std::string current = value.is_string() ? value.get<std::string>() : "";
-	ImGui::TextWrapped("%s", label);
+	ImGui::TextWrapped("%s", localise(label).c_str());
 	ImGui::SetNextItemWidth(-1);
-	if (ImGui::BeginCombo((std::string("##") + label).c_str(), current.empty() ? "Choose PNG" : current.c_str()))
+	if (ImGui::BeginCombo((std::string("##") + label).c_str(),
+	                      current.empty() ? localise("Choose PNG").c_str() : current.c_str()))
 	{
 		for (const auto &[path, bytes] : editor.document.pack().files)
 			if (path.starts_with("assets/"))
@@ -124,6 +139,274 @@ void asset_picker(const char *label, Json &value)
 				value = reference;
 		ImGui::EndCombo();
 	}
+}
+void real_field(const char *label, Json &object, const char *key, float fallback, float minimum, float maximum)
+{
+	float n = object.value(key, fallback);
+	if (ImGui::DragFloat(tool_label(label).c_str(), &n, .01f, minimum, maximum))
+		object[key] = std::clamp(n, minimum, maximum);
+}
+void material_properties(Json &sprite)
+{
+	asset_picker("Albedo PNG", sprite["albedo"]);
+	for (const char *key : {"normal", "depth"})
+	{
+		ImGui::PushID(key);
+		bool enabled = sprite.contains(key) && !sprite.at(key).is_null();
+		if (ImGui::Checkbox(tool_label(key).c_str(), &enabled))
+		{
+			if (enabled)
+				sprite[key] = "";
+			else
+				sprite.erase(key);
+		}
+		if (enabled)
+			asset_picker(key, sprite[key]);
+		ImGui::PopID();
+	}
+	bool emissive = sprite.value("emissive", false);
+	if (ImGui::Checkbox(tool_label("Emissive artwork").c_str(), &emissive))
+		sprite["emissive"] = emissive;
+	if (!sprite.contains("frames"))
+		return;
+	for (std::size_t i = 0; i < sprite["frames"].size(); ++i)
+	{
+		auto &frame = sprite["frames"][i];
+		ImGui::PushID(static_cast<int>(i));
+		if (ImGui::TreeNode(frame.at("name").get_ref<const std::string &>().c_str()))
+		{
+			string_field("Frame name", frame, "name");
+			int rect[4];
+			for (int k = 0; k < 4; k++)
+				rect[k] = frame["rect"][k];
+			if (ImGui::InputInt4(tool_label("Atlas rectangle").c_str(), rect))
+				frame["rect"] = {rect[0], rect[1], rect[2], rect[3]};
+			float pivot[2] = {frame["pivot"][0], frame["pivot"][1]};
+			if (ImGui::InputFloat2(tool_label("Frame pivot").c_str(), pivot))
+				frame["pivot"] = {pivot[0], pivot[1]};
+			real_field("Camera azimuth", frame, "azimuth", static_cast<float>(i) * 45, 0, 359.999f);
+			real_field("Depth span / height", frame, "depth_scale", 0, 0, 16);
+			real_field("Depth centre / height", frame, "depth_offset", 0, -16, 16);
+			if (!frame.contains("attachments"))
+				frame["attachments"] = Json::object();
+			std::string remove;
+			for (auto it = frame["attachments"].begin(); it != frame["attachments"].end(); ++it)
+			{
+				ImGui::PushID(it.key().c_str());
+				auto &a = it.value();
+				ImGui::TextUnformatted(it.key().c_str());
+				real_field("Marker X", a, "x", 0, 0, static_cast<float>(std::max(0, rect[2])));
+				real_field("Marker Y", a, "y", 0, 0, static_cast<float>(std::max(0, rect[3])));
+				integer_field("Signed layer", a, "layer");
+				real_field("Nozzle depth offset", a, "depth_offset", 0, -16, 16);
+				if (ImGui::Button(tool_label("Remove attachment").c_str()))
+					remove = it.key();
+				ImGui::PopID();
+			}
+			if (!remove.empty())
+				frame["attachments"].erase(remove);
+			if (ImGui::Button(tool_label("Add engine attachment").c_str()))
+			{
+				int n = 1;
+				while (frame["attachments"].contains("engine_" + std::to_string(n)))
+					n++;
+				frame["attachments"]["engine_" + std::to_string(n)] = {
+				    {"x", pivot[0]}, {"y", pivot[1]}, {"layer", 0}, {"depth_offset", 0}};
+			}
+			ImGui::TreePop();
+		}
+		ImGui::PopID();
+	}
+}
+void sprite_import(Json &render)
+{
+	if (ImGui::Button(tool_label("Import sprite sidecar...").c_str()))
+		request_file(editor.imports, FilePurpose::WorkshopSprite);
+	if (!editor.pending_sidecar.is_object())
+		return;
+	ImGui::TextWrapped(
+	    "%s", localise("Import the PNG files first, then map each source image to an imported asset.").c_str());
+	for (const char *key : {"sprite", "normal", "depth"})
+		if (!editor.pending_sidecar.at("files").value(key, Json()).is_null())
+		{
+			ImGui::PushID(key);
+			ImGui::TextWrapped("%s", editor.pending_sidecar.at("files").at(key).get_ref<const std::string &>().c_str());
+			Json current = editor.sidecar_images.contains(key) ? Json(editor.sidecar_images.at(key)) : Json("");
+			asset_picker(key, current);
+			if (current.is_string() && !current.get<std::string>().empty())
+				editor.sidecar_images[key] = current.get<std::string>();
+			ImGui::PopID();
+		}
+	ImGui::Checkbox(tool_label("Import as engine effect").c_str(), &editor.import_engines);
+	if (ImGui::Button(tool_label("Apply sprite material").c_str()))
+		attempt(
+		    [&]
+		    {
+			    const auto converted = import_sprite_sidecar(editor.pending_sidecar, editor.sidecar_images);
+			    auto catalog = editor.document.libraries();
+			    const auto prefix = editor.document.manifest().at("id").get<std::string>() + ":";
+			    for (const auto &[path, bytes] : editor.document.pack().files)
+				    if (path.starts_with("assets/"))
+					    catalog.assets[prefix + path] = bytes;
+			    compile_sprite(converted, catalog, "imported sprite");
+			    if (editor.import_engines)
+				    render["engines"] = {{"sprite", converted}, {"scale", .4}, {"range", 32}, {"power", 2}};
+			    else
+			    {
+				    render["sprite"] = converted;
+				    render["mode"] = converted["frames"].size() == 8 ? "eight" : "camera";
+				    render.erase("images");
+			    }
+			    editor.document.definitions()["schema"] = 3;
+			    editor.pending_sidecar = nullptr;
+			    editor.clear_textures();
+			    editor.status = "Sprite sidecar imported. Calibrate depth in the live preview.";
+		    });
+}
+void lighting_preview()
+{
+	if (!ImGui::Begin(tool_label("Lighting and sprite preview").c_str()))
+	{
+		ImGui::End();
+		return;
+	}
+	auto &map = editor.document.map();
+	if (!map.contains("lighting"))
+		map["lighting"] = Json::object();
+	auto &light = map["lighting"];
+	if (ImGui::CollapsingHeader(tool_label("Scene lighting").c_str()))
+	{
+		float direction[3] = {-.6f, .6f, -.5f};
+		if (light.contains("sun_direction"))
+			for (int i = 0; i < 3; i++)
+				direction[i] = light["sun_direction"][i];
+		if (ImGui::SliderFloat3(tool_label("Sun direction").c_str(), direction, -1, 1))
+		{
+			light["sun_direction"] = {direction[0], direction[1], direction[2]};
+			editor.document.definitions()["schema"] = 3;
+		}
+		float color[3] = {1, .89f, .7f};
+		if (light.contains("sun_color"))
+			for (int i = 0; i < 3; i++)
+				color[i] = light["sun_color"][i];
+		if (ImGui::ColorEdit3(tool_label("Sun colour").c_str(), color))
+			light["sun_color"] = {color[0], color[1], color[2]};
+		real_field("Sun intensity", light, "sun_intensity", 1, 0, 8);
+		real_field("Ambient fill", light, "ambient", .14f, 0, 1);
+		real_field("Hatch spacing", light, "hatch_spacing", 6, 2, 32);
+		real_field("Hatch thickness", light, "hatch_thickness", 2, .25f, 5);
+		real_field("Ink strength", light, "ink_strength", .9f, 0, 1);
+		bool shadows = light.value("shadows", true);
+		if (ImGui::Checkbox(tool_label("Cast sun shadows").c_str(), &shadows))
+			light["shadows"] = shadows;
+		real_field("Shadow bias", light, "shadow_bias", .001f, .00001f, .05f);
+		real_field("Shadow softness", light, "shadow_softness", 1, 0, 4);
+	}
+	ImGui::Checkbox(tool_label("Preview whole map").c_str(), &editor.preview_whole_map);
+	ImGui::SliderFloat(tool_label("Preview bearing").c_str(), &editor.preview_bearing, 0, 359);
+	ImGui::SliderFloat(tool_label("Preview elevation").c_str(), &editor.preview_elevation, 5, 80);
+	ImGui::SliderFloat(tool_label("Preview distance").c_str(), &editor.preview_distance, 5, 200);
+	ImGui::SliderFloat(tool_label("Preview forward thrust").c_str(), &editor.preview_thrust, 0, 1);
+	const char *modes[] = {"Comic", "Smooth", "Unlit", "Normals", "Depth", "Sun visibility"};
+	if (ImGui::BeginCombo(tool_label("Diagnostic view").c_str(), localise(modes[editor.diagnostic]).c_str()))
+	{
+		for (int i = 0; i < 6; i++)
+			if (ImGui::Selectable(localise(modes[i]).c_str(), editor.diagnostic == i))
+				editor.diagnostic = i;
+		ImGui::EndCombo();
+	}
+	const auto avail = ImGui::GetContentRegionAvail();
+	const int width = std::clamp(static_cast<int>(avail.x), 64, 1600),
+	          height = std::clamp(static_cast<int>(avail.y), 64, 1000);
+	const auto identity = editor.document.definitions().dump() + std::to_string(width) + ":" + std::to_string(height) +
+	                      ":" + std::to_string(editor.definition) + ":" + std::to_string(editor.preview_whole_map) +
+	                      ":" + std::to_string(editor.preview_bearing) + ":" +
+	                      std::to_string(editor.preview_elevation) + ":" + std::to_string(editor.preview_distance) +
+	                      ":" + std::to_string(editor.preview_thrust) + ":" + std::to_string(editor.diagnostic);
+	if (identity != editor.preview_identity)
+		attempt(
+		    [&]
+		    {
+			    auto catalog = editor.document.verify();
+			    std::vector<SceneBody> bodies;
+			    if (editor.preview_whole_map)
+			    {
+				    for (const auto &instance : map["entities"])
+				    {
+					    SceneBody b;
+					    b.id = instance.at("id");
+					    b.definition = instance.at("definition");
+					    b.x = instance.at("x_mm");
+					    b.y = instance.at("y_mm");
+					    b.vx = b.vy = 0;
+					    b.heading = instance.at("heading_mdeg");
+					    b.forward_thrust = static_cast<int>(editor.preview_thrust * 1000);
+					    bodies.push_back(std::move(b));
+				    }
+				    std::uint64_t id = 1000000;
+				    for (const auto &slot : map["ship_slots"])
+				    {
+					    SceneBody b;
+					    b.id = id++;
+					    b.definition = slot.at("allowed_ships").at(0);
+					    b.x = slot.at("x_mm");
+					    b.y = slot.at("y_mm");
+					    b.vx = b.vy = 0;
+					    b.heading = slot.at("heading_mdeg");
+					    b.forward_thrust = static_cast<int>(editor.preview_thrust * 1000);
+					    bodies.push_back(std::move(b));
+				    }
+			    }
+			    else
+			    {
+				    const auto &defs = editor.document.definitions()["entities"];
+				    if (editor.definition >= 0 && editor.definition < static_cast<int>(defs.size()))
+				    {
+					    SceneBody b;
+					    b.id = 1;
+					    b.definition = defs[editor.definition].at("id");
+					    b.x = b.y = b.vx = b.vy = b.heading = 0;
+					    b.forward_thrust = static_cast<int>(editor.preview_thrust * 1000);
+					    bodies.push_back(std::move(b));
+				    }
+			    }
+			    editor.scene.clear();
+			    if (!editor.scene_preview.id || editor.scene_preview.texture.width != width ||
+			        editor.scene_preview.texture.height != height)
+			    {
+				    if (editor.scene_preview.id)
+					    UnloadRenderTexture(editor.scene_preview);
+				    editor.scene_preview = LoadRenderTexture(width, height);
+			    }
+			    const float bearing = editor.preview_bearing * 3.14159265f / 180,
+			                elevation = editor.preview_elevation * 3.14159265f / 180, d = editor.preview_distance;
+			    Camera3D camera{{d * std::cos(elevation) * std::cos(bearing), d * std::sin(elevation),
+			                     -d * std::cos(elevation) * std::sin(bearing)},
+			                    {0, 0, 0},
+			                    {0, 1, 0},
+			                    50,
+			                    CAMERA_PERSPECTIVE};
+			    BeginTextureMode(editor.scene_preview);
+			    ClearBackground({8, 12, 13, 255});
+			    try
+			    {
+				    editor.scene.draw(catalog, bodies, camera,
+				                      {0, 0, static_cast<float>(width), static_cast<float>(height)}, light, 0,
+				                      static_cast<SceneDiagnostic>(editor.diagnostic),
+				                      {static_cast<float>(width), static_cast<float>(height)});
+			    }
+			    catch (...)
+			    {
+				    EndTextureMode();
+				    throw;
+			    }
+			    EndTextureMode();
+			    editor.preview_identity = identity;
+		    });
+	if (editor.scene_preview.id)
+		ImGui::Image(static_cast<ImTextureID>(editor.scene_preview.texture.id),
+		             {static_cast<float>(width), static_cast<float>(height)}, {0, 1}, {1, 0});
+	ImGui::End();
 }
 void entity_properties(Json &entity)
 {
@@ -140,23 +423,40 @@ void entity_properties(Json &entity)
 		return;
 	}
 	auto &render = entity["render"];
+	sprite_import(render);
 	bool eight = render["mode"] == "eight";
-	if (ImGui::Checkbox(tool_label("Eight-direction billboard").c_str(), &eight))
+	if (!render.contains("sprite"))
 	{
-		render["mode"] = eight ? "eight" : "camera";
-		std::string image = render["images"].empty() ? "" : render["images"][0].get<std::string>();
-		render["images"] = Json::array();
-		for (int i = 0; i < (eight ? 8 : 1); ++i)
-			render["images"].push_back(image);
+		if (ImGui::Checkbox(tool_label("Eight-direction billboard").c_str(), &eight))
+		{
+			render["mode"] = eight ? "eight" : "camera";
+			std::string image = render["images"].empty() ? "" : render["images"][0].get<std::string>();
+			render["images"] = Json::array();
+			for (int i = 0; i < (eight ? 8 : 1); ++i)
+				render["images"].push_back(image);
+		}
+		double scale = render.value("scale", 1.0);
+		if (ImGui::InputDouble(tool_label("Render scale").c_str(), &scale))
+			render["scale"] = scale;
+		for (std::size_t i = 0; i < render["images"].size(); ++i)
+		{
+			ImGui::PushID(static_cast<int>(i));
+			asset_picker(eight ? "Bearing image" : "Camera-facing image", render["images"][i]);
+			ImGui::PopID();
+		}
 	}
-	double scale = render.value("scale", 1.0);
-	if (ImGui::InputDouble(tool_label("Render scale").c_str(), &scale))
-		render["scale"] = scale;
-	for (std::size_t i = 0; i < render["images"].size(); ++i)
+	else
 	{
-		ImGui::PushID(static_cast<int>(i));
-		asset_picker(eight ? "Bearing image" : "Camera-facing image", render["images"][i]);
-		ImGui::PopID();
+		real_field("Render scale", render, "scale", 1, .001f, 1000000);
+		material_properties(render["sprite"]);
+		if (render.contains("engines") && ImGui::TreeNode(tool_label("Engine effect").c_str()))
+		{
+			real_field("Plume scale", render["engines"], "scale", .4, .001f, 10);
+			real_field("Engine light intensity", render["engines"], "power", 2, .001f, 16);
+			real_field("Engine light range (m)", render["engines"], "range", 32, .001f, 1000000);
+			material_properties(render["engines"]["sprite"]);
+			ImGui::TreePop();
+		}
 	}
 	auto &systems = entity["systems"];
 	if (ImGui::CollapsingHeader(tool_label("Systems").c_str(), ImGuiTreeNodeFlags_DefaultOpen))
@@ -458,6 +758,22 @@ void map_view()
 		if (definition != definitions.end() && definition->contains("render"))
 		{
 			const auto &render = (*definition)["render"];
+			if (render.contains("sprite"))
+			{
+				const auto &sprite = render.at("sprite");
+				const auto texture = editor.texture(sprite.at("albedo"));
+				if (texture.id)
+				{
+					const auto &frame = sprite.at("frames").at(0), &rect = frame.at("rect");
+					const float half = std::clamp(render.value("scale", 1.f) * 16, 2.f, 200.f),
+					            aspect = rect[2].get<float>() / rect[3].get<float>();
+					const ImVec2 uv0{rect[0].get<float>() / texture.width, rect[1].get<float>() / texture.height};
+					const ImVec2 uv1{(rect[0].get<float>() + rect[2].get<float>()) / texture.width,
+					                 (rect[1].get<float>() + rect[3].get<float>()) / texture.height};
+					draw->AddImage(static_cast<ImTextureID>(texture.id), {p.x - half * aspect, p.y - half},
+					               {p.x + half * aspect, p.y + half}, uv0, uv1);
+				}
+			}
 			if (render.contains("images") && !render["images"].empty() && render["images"][0].is_string())
 			{
 				auto texture = editor.texture(render["images"][0]);
@@ -541,6 +857,7 @@ void render_editor(Application &app)
 		ImGui::DockBuilderDockWindow(tool_label("Consoles").c_str(), right);
 		ImGui::DockBuilderDockWindow(tool_label("Ship slots").c_str(), right);
 		ImGui::DockBuilderDockWindow(tool_label("Map").c_str(), centre);
+		ImGui::DockBuilderDockWindow(tool_label("Lighting and sprite preview").c_str(), centre);
 		ImGui::DockBuilderFinish(dock);
 	}
 	ImGui::DockSpaceOverViewport(dock, viewport);
@@ -578,6 +895,28 @@ void render_editor(Application &app)
 				    {
 					    editor.document.import_image(imported->filename, std::move(imported->bytes));
 					    editor.clear_textures();
+				    }
+				    if (imported->purpose == FilePurpose::WorkshopSprite)
+				    {
+					    const auto sidecar = parse_json(imported->bytes, "sprite sidecar");
+					    if (!sidecar.is_object() || !sidecar.contains("files") || !sidecar.at("files").is_object())
+						    throw std::runtime_error("Sprite sidecar requires a files object");
+					    editor.pending_sidecar = sidecar;
+					    editor.sidecar_images.clear();
+					    for (const char *key : {"sprite", "normal", "depth"})
+					    {
+						    const auto file = editor.pending_sidecar.at("files").value(key, Json());
+						    if (!file.is_string())
+							    continue;
+						    const auto filename = file.get<std::string>();
+						    const auto leaf = filename.substr(filename.find_last_of("/\\") == std::string::npos
+						                                          ? 0
+						                                          : filename.find_last_of("/\\") + 1);
+						    const auto path = "assets/" + leaf;
+						    if (editor.document.pack().files.contains(path))
+							    editor.sidecar_images[key] =
+							        editor.document.manifest().at("id").get<std::string>() + ":" + path;
+					    }
 				    }
 				    editor.status = "Imported " + imported->filename;
 			    }
@@ -854,6 +1193,7 @@ void render_editor(Application &app)
 	slots_editor();
 	ImGui::End();
 	map_view();
+	lighting_preview();
 	ImGui::Begin(tool_label("Status").c_str());
 	if (!app.status.empty())
 		ImGui::TextWrapped("%s", app.status.c_str());

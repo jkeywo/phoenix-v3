@@ -32,22 +32,24 @@ extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_import_file(unsigned id, const char
 extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_import_error(unsigned id, const char* message, int cancelled) { phoenix::complete_import(id,{},{},message,cancelled != 0); }
 EM_JS(void, choose_file, (unsigned id, int purpose), {
     const input = document.createElement('input'); input.type = 'file';
-    input.accept = purpose === 5 ? '.png' : purpose === 4 ? '.json' : '.zip';
+    input.hidden = true; document.body.appendChild(input);
+    input.accept = purpose === 5 ? '.png' : (purpose === 4 || purpose === 6) ? '.json' : '.zip';
     let finished = false;
     const failure = (error, cancelled = false) => {
         if (finished) return;
         finished = true;
+        input.remove();
         Module.ccall('phoenix_import_error',null,['number','string','number'],[id,String(error),cancelled ? 1 : 0]);
     };
-    input.addEventListener('cancel', () => failure('', true));
+    input.addEventListener('cancel', () => failure("", true));
     input.addEventListener('change', async () => {
-        const file = input.files[0]; if (!file) { failure('',true); return; }
+        const file = input.files[0]; if (!file) { failure("",true); return; }
         try {
             if (file.size > 32*1024*1024) throw new Error('File exceeds 32 MiB');
             const bytes = new Uint8Array(await file.arrayBuffer());
             const pointer = Module._malloc(bytes.length || 1);
             if (!pointer) throw new Error('Unable to allocate file buffer');
-            try { HEAPU8.set(bytes,pointer); if (!finished) { Module.ccall('phoenix_import_file',null,['number','string','number','number'],[id,file.name,pointer,bytes.length]); finished = true; } }
+            try { HEAPU8.set(bytes,pointer); if (!finished) { Module.ccall('phoenix_import_file',null,['number','string','number','number'],[id,file.name,pointer,bytes.length]); finished = true; input.remove(); } }
             finally { Module._free(pointer); }
         } catch (error) { failure(error); }
     });

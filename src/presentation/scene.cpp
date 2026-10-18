@@ -81,6 +81,7 @@ uniform float ambient;
 uniform float spacing;
 uniform float thickness;
 uniform float ink;
+uniform float paperLod;
 uniform float shadowBias;
 uniform float shadowSoftness;
 uniform int lightCount;
@@ -139,7 +140,7 @@ void main(){
   }
   float dark=1.0-clamp(ambient+direct*.95+localPower,0.0,1.0);
   // Stable frame-local ink coordinates, independent of viewport resolution.
-  vec2 paper=uv*frameSize;
+  vec2 paper=uv*frameSize/paperLod;
   float hatch=max(stroke(paper,.74,spacing,.66,2.0)*smoothstep(.10,.38,dark),
       max(stroke(paper,-.78,spacing*1.12,.66,8.0)*smoothstep(.37,.68,dark),
           stroke(paper,1.52,spacing*.83,.62,4.0)*smoothstep(.66,.89,dark)));
@@ -167,6 +168,7 @@ struct Item
 	Vector3 anchor;
 	float height;
 	bool engine = false;
+	int layer = 0;
 };
 struct LocalLight
 {
@@ -211,6 +213,8 @@ struct SceneRenderer::State
 	std::vector<ExplosionEffect> effects;
 	std::map<std::string, int> locations;
 	Vector3 right{}, up{}, near{}, cameraPosition{};
+	float focal_pixels = 1;
+	bool perspective_draw = true;
 	Vector3 rebase{};
 	std::vector<Item> items;
 	std::vector<LocalLight> lights;
@@ -330,6 +334,8 @@ struct SceneRenderer::State
 		data.albedo = texture(data.sprite.albedo);
 		data.normal = data.sprite.normal.empty() ? white : texture(data.sprite.normal);
 		data.depth = data.sprite.depth.empty() ? white : texture(data.sprite.depth);
+		for (const auto texture : {data.albedo, data.normal, data.depth})
+			SetTextureFilter(texture, TEXTURE_FILTER_BILINEAR);
 		for (const auto &asset : {data.sprite.albedo, data.sprite.depth})
 			if (!asset.empty())
 			{
@@ -387,14 +393,24 @@ struct SceneRenderer::State
 					{
 						Vector3 root = surface(hull, attachment.x, attachment.y, attachment.depth_offset);
 						const float bias = attachment.layer * hull.height * .001f;
-						Item plume{&effect, &*ef, Vector3Add(root, Vector3Scale(near, bias)),
-						           hull.height * config.at("scale").get<float>() * (.3f + .7f * thrust), true};
+						Item plume{&effect,
+						           &*ef,
+						           Vector3Add(root, Vector3Scale(near, bias)),
+						           hull.height * config.at("scale").get<float>() * (.3f + .7f * thrust),
+						           true,
+						           attachment.layer};
 						(attachment.layer < 0 ? behind : front).push_back(plume);
 						lights.push_back({{root.x, root.y, root.z, config.at("range").get<float>()},
 						                  {direction.x, direction.y, direction.z, 1},
 						                  {1, .23f, .035f, config.at("power").get<float>() * thrust}});
 					}
 			}
+			const auto order = [](const Item &a, const Item &b)
+			{
+				return a.layer < b.layer;
+			};
+			std::stable_sort(behind.begin(), behind.end(), order);
+			std::stable_sort(front.begin(), front.end(), order);
 			items.insert(items.end(), behind.begin(), behind.end());
 			items.push_back(hull);
 			items.insert(items.end(), front.begin(), front.end());
@@ -410,6 +426,15 @@ struct SceneRenderer::State
 		vec("basisNear", near);
 		vec("cameraPosition", cameraPosition);
 		number("height", item.height);
+		if (!shadowPass)
+		{
+			const float distance = std::max(.1f, Vector3DotProduct(Vector3Subtract(cameraPosition, item.anchor), near));
+			const float pixels = item.height * focal_pixels / (perspective_draw ? distance : 1.f);
+			const float ratio = std::max(1.f, f.rect[3] / std::max(1.f, pixels));
+			// A power-of-two, object-wide LOD retains a stationary ink pattern
+			// under changing light while avoiding subpixel hatch aliasing.
+			number("paperLod", std::exp2(std::floor(std::log2(ratio))));
+		}
 		number("depthScale", f.depth_scale);
 		number("depthOffset", f.depth_offset);
 		integer("hasDepth", m.sprite.depth.empty() ? 0 : 1);
@@ -460,7 +485,11 @@ void SceneRenderer::draw(const Catalog &catalog, std::span<const SceneBody> bodi
                          const Json &lighting, double time, SceneDiagnostic diagnostic, Vector2 surface_size)
 {
 	auto &s = *state_;
+	const auto destination = rlGetActiveFramebuffer();
 	s.init();
+	// Resource creation binds the default framebuffer internally. Preserve the
+	// caller's preview target on the first draw as well as subsequent draws.
+	rlEnableFramebuffer(destination);
 	s.prepare(catalog, bodies, camera);
 	const auto get = [&](const char *key, float fallback)
 	{
@@ -496,6 +525,7 @@ void SceneRenderer::draw(const Catalog &catalog, std::span<const SceneBody> bodi
 	if (shadows)
 	{
 		rlDrawRenderBatchActive();
+		rlDisableScissorTest();
 		rlEnableFramebuffer(s.shadow.id);
 		rlViewport(0, 0, 2048, 2048);
 		BeginMode3D(lightCamera);
@@ -520,8 +550,10 @@ void SceneRenderer::draw(const Catalog &catalog, std::span<const SceneBody> bodi
 		surface_size = {static_cast<float>(GetRenderWidth()), static_cast<float>(GetRenderHeight())};
 	const float sx = framebuffer ? 1.f : surface_size.x / GetScreenWidth(),
 	            sy = framebuffer ? 1.f : surface_size.y / GetScreenHeight();
-	BeginScissorMode(static_cast<int>(region.x), static_cast<int>(region.y), static_cast<int>(region.width),
-	                 static_cast<int>(region.height));
+	rlDrawRenderBatchActive();
+	rlEnableScissorTest();
+	rlScissor(static_cast<int>(region.x * sx), static_cast<int>((surface_size.y / sy - region.y - region.height) * sy),
+	          static_cast<int>(region.width * sx), static_cast<int>(region.height * sy));
 	rlViewport(static_cast<int>(region.x * sx), static_cast<int>((surface_size.y / sy - region.y - region.height) * sy),
 	           static_cast<int>(region.width * sx), static_cast<int>(region.height * sy));
 	camera.position = Vector3Subtract(camera.position, s.rebase);
@@ -549,6 +581,8 @@ void SceneRenderer::draw(const Catalog &catalog, std::span<const SceneBody> bodi
 	s.number("ink", get("ink_strength", .9f));
 	s.number("shadowBias", get("shadow_bias", .001f));
 	s.number("shadowSoftness", get("shadow_softness", 1));
+	s.perspective_draw = camera.projection == CAMERA_PERSPECTIVE;
+	s.focal_pixels = region.height * sy / (s.perspective_draw ? 2 * std::tan(camera.fovy * pi / 360) : camera.fovy);
 	SetShaderValueMatrix(s.shader, s.loc("viewProjection"), vp);
 	SetShaderValueMatrix(s.shader, s.loc("lightProjection"), lightVP);
 	std::erase_if(s.effects,

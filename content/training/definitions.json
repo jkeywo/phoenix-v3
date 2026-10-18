@@ -1,51 +1,414 @@
 {
-	"schema": 1,
+	"schema": 3,
 	"entities": [
 		{
 			"id": "training.survey",
 			"render": {
 				"mode": "eight",
-				"images": [
-					"phoenix-training:assets/ship-0.png",
-					"phoenix-training:assets/ship-1.png",
-					"phoenix-training:assets/ship-2.png",
-					"phoenix-training:assets/ship-3.png",
-					"phoenix-training:assets/ship-4.png",
-					"phoenix-training:assets/ship-5.png",
-					"phoenix-training:assets/ship-6.png",
-					"phoenix-training:assets/ship-7.png"
-				],
-				"scale": 8
+				"scale": 8,
+				"sprite": {
+					"albedo": "phoenix-training:assets/comic/courier-albedo.png",
+					"frames": [
+						{
+							"name": "bow",
+							"rect": [0, 0, 365, 396],
+							"pivot": [188, 222],
+							"azimuth": 0,
+							"depth_scale": 1.8,
+							"depth_offset": 0,
+							"attachments": {
+								"engine_port": {
+									"x": 244,
+									"y": 222,
+									"layer": -1,
+									"depth_offset": -1.30235
+								},
+								"engine_starboard": {
+									"x": 132,
+									"y": 222,
+									"layer": -1,
+									"depth_offset": -1.38
+								}
+							}
+						},
+						{
+							"name": "bow_port",
+							"rect": [365, 0, 472, 396],
+							"pivot": [240, 225],
+							"azimuth": 45,
+							"depth_scale": 1.3788582233137678,
+							"depth_offset": 0,
+							"attachments": {
+								"engine_port": {
+									"x": 450,
+									"y": 222,
+									"layer": -1,
+									"depth_offset": -0.01809
+								},
+								"engine_starboard": {
+									"x": 431,
+									"y": 211,
+									"layer": -1,
+									"depth_offset": -0.01809
+								}
+							}
+						},
+						{
+							"name": "port",
+							"rect": [837, 0, 708, 396],
+							"pivot": [354, 211],
+							"azimuth": 90,
+							"depth_scale": 0.75,
+							"depth_offset": 0,
+							"attachments": {
+								"engine_port": {
+									"x": 692,
+									"y": 211,
+									"layer": -1,
+									"depth_offset": 0.09853
+								},
+								"engine_starboard": {
+									"x": 692,
+									"y": 211,
+									"layer": -1,
+									"depth_offset": 0.09853
+								}
+							}
+						},
+						{
+							"name": "stern_port",
+							"rect": [1545, 0, 438, 396],
+							"pivot": [222, 220],
+							"azimuth": 135,
+							"depth_scale": 1.3788582233137676,
+							"depth_offset": 0,
+							"attachments": {
+								"engine_port": {
+									"x": 300,
+									"y": 220,
+									"layer": 1,
+									"depth_offset": 0.5426
+								},
+								"engine_starboard": {
+									"x": 390,
+									"y": 220,
+									"layer": 1,
+									"depth_offset": 0.46149
+								}
+							}
+						},
+						{
+							"name": "stern",
+							"rect": [0, 396, 365, 397],
+							"pivot": [186, 185],
+							"azimuth": 180,
+							"depth_scale": 1.8,
+							"depth_offset": 0,
+							"attachments": {
+								"engine_port": {
+									"x": 130,
+									"y": 185,
+									"layer": 1,
+									"depth_offset": 1.12588
+								},
+								"engine_starboard": {
+									"x": 242,
+									"y": 185,
+									"layer": 1,
+									"depth_offset": 1.17529
+								}
+							}
+						},
+						{
+							"name": "stern_starboard",
+							"rect": [365, 396, 465, 397],
+							"pivot": [233, 185],
+							"azimuth": 225,
+							"depth_scale": 1.378858223313768,
+							"depth_offset": 0,
+							"attachments": {
+								"engine_port": {
+									"x": 41,
+									"y": 185,
+									"layer": 1,
+									"depth_offset": 0.31009
+								},
+								"engine_starboard": {
+									"x": 126,
+									"y": 185,
+									"layer": 1,
+									"depth_offset": 0.45068
+								}
+							}
+						},
+						{
+							"name": "starboard",
+							"rect": [830, 396, 680, 397],
+							"pivot": [340, 183],
+							"azimuth": 270,
+							"depth_scale": 0.75,
+							"depth_offset": 0,
+							"attachments": {
+								"engine_port": {
+									"x": 10,
+									"y": 183,
+									"layer": -1,
+									"depth_offset": 0.16912
+								},
+								"engine_starboard": {
+									"x": 10,
+									"y": 183,
+									"layer": -1,
+									"depth_offset": 0.16912
+								}
+							}
+						},
+						{
+							"name": "bow_starboard",
+							"rect": [1510, 396, 473, 397],
+							"pivot": [236, 190],
+							"azimuth": 315,
+							"depth_scale": 1.3788582233137674,
+							"depth_offset": 0,
+							"attachments": {
+								"engine_port": {
+									"x": 35,
+									"y": 177,
+									"layer": -1,
+									"depth_offset": 0.03057
+								},
+								"engine_starboard": {
+									"x": 15,
+									"y": 190,
+									"layer": -1,
+									"depth_offset": 0.03598
+								}
+							}
+						}
+					],
+					"depth": "phoenix-training:assets/comic/courier-depth.png",
+					"normal": "phoenix-training:assets/comic/courier-normal.png"
+				},
+				"engines": {
+					"sprite": {
+						"albedo": "phoenix-training:assets/comic/thrust-albedo.png",
+						"frames": [
+							{
+								"name": "bow",
+								"rect": [0, 0, 443, 443],
+								"pivot": [222, 230],
+								"azimuth": 0,
+								"depth_scale": 0,
+								"depth_offset": 0,
+								"attachments": {}
+							},
+							{
+								"name": "bow_port",
+								"rect": [443, 0, 444, 443],
+								"pivot": [80, 222],
+								"azimuth": 45,
+								"depth_scale": 0,
+								"depth_offset": 0,
+								"attachments": {}
+							},
+							{
+								"name": "port",
+								"rect": [887, 0, 443, 443],
+								"pivot": [49, 230],
+								"azimuth": 90,
+								"depth_scale": 0,
+								"depth_offset": 0,
+								"attachments": {}
+							},
+							{
+								"name": "stern_port",
+								"rect": [1330, 0, 444, 443],
+								"pivot": [98, 222],
+								"azimuth": 135,
+								"depth_scale": 0,
+								"depth_offset": 0,
+								"attachments": {}
+							},
+							{
+								"name": "stern",
+								"rect": [0, 443, 443, 444],
+								"pivot": [222, 218],
+								"azimuth": 180,
+								"depth_scale": 0,
+								"depth_offset": 0,
+								"attachments": {}
+							},
+							{
+								"name": "stern_starboard",
+								"rect": [443, 443, 444, 444],
+								"pivot": [346, 209],
+								"azimuth": 225,
+								"depth_scale": 0,
+								"depth_offset": 0,
+								"attachments": {}
+							},
+							{
+								"name": "starboard",
+								"rect": [887, 443, 443, 444],
+								"pivot": [394, 209],
+								"azimuth": 270,
+								"depth_scale": 0,
+								"depth_offset": 0,
+								"attachments": {}
+							},
+							{
+								"name": "bow_starboard",
+								"rect": [1330, 443, 444, 444],
+								"pivot": [364, 209],
+								"azimuth": 315,
+								"depth_scale": 0,
+								"depth_offset": 0,
+								"attachments": {}
+							}
+						],
+						"emissive": true
+					},
+					"scale": 0.4,
+					"range": 32,
+					"power": 2
+				}
 			},
 			"systems": {
-				"engine": { "max_speed_mm_s": 12000, "acceleration_mm_s2": 2000 },
-				"steering": { "turn_mdeg_s": 45000 },
-				"radar": { "range_mm": 500000 }
+				"engine": {
+					"max_speed_mm_s": 12000,
+					"acceleration_mm_s2": 2000
+				},
+				"steering": {
+					"turn_mdeg_s": 45000
+				},
+				"radar": {
+					"range_mm": 500000
+				}
 			},
-			"collision": { "shape": "circle", "radius_mm": 2000, "mass_grams": 2000000 },
+			"collision": {
+				"shape": "circle",
+				"radius_mm": 2000,
+				"mass_grams": 2000000
+			},
 			"console": "training.bridge"
 		},
 		{
 			"id": "training.tug",
 			"extends": "training.survey",
-			"render": { "mode": "camera", "images": ["phoenix-training:assets/ship-0.png"], "scale": 12 },
-			"systems": { "engine": { "max_speed_mm_s": 8000 } },
-			"collision": { "shape": "box", "half_width_mm": 2500, "half_length_mm": 4000, "mass_grams": 5000000 }
+			"render": {
+				"mode": "camera",
+				"images": ["phoenix-training:assets/ship-0.png"],
+				"scale": 12,
+				"sprite": null,
+				"engines": null
+			},
+			"systems": {
+				"engine": {
+					"max_speed_mm_s": 8000
+				}
+			},
+			"collision": {
+				"shape": "box",
+				"half_width_mm": 2500,
+				"half_length_mm": 4000,
+				"mass_grams": 5000000
+			}
 		},
-		{ "id": "training.traffic", "extends": "training.survey", "controller": "training.patrol" },
+		{
+			"id": "training.traffic",
+			"extends": "training.survey",
+			"controller": "training.patrol"
+		},
 		{
 			"id": "training.beacon",
-			"render": { "mode": "camera", "images": ["phoenix-training:assets/beacon.png"], "scale": 6 },
+			"render": {
+				"mode": "camera",
+				"images": ["phoenix-training:assets/beacon.png"],
+				"scale": 6
+			},
 			"systems": {},
-			"collision": { "shape": "circle", "radius_mm": 3000, "mass_grams": 0 }
+			"collision": {
+				"shape": "circle",
+				"radius_mm": 3000,
+				"mass_grams": 0
+			}
+		},
+		{
+			"id": "training.asteroid",
+			"render": {
+				"mode": "camera",
+				"scale": 12,
+				"sprite": {
+					"albedo": "phoenix-training:assets/comic/asteroid-albedo.png",
+					"frames": [
+						{
+							"name": "asteroid",
+							"rect": [0, 0, 1254, 1254],
+							"pivot": [627, 627],
+							"azimuth": 0,
+							"depth_scale": 0.65,
+							"depth_offset": 0,
+							"attachments": {}
+						}
+					],
+					"depth": "phoenix-training:assets/comic/asteroid-depth.png",
+					"normal": "phoenix-training:assets/comic/asteroid-normal.png"
+				}
+			},
+			"systems": {},
+			"collision": {
+				"shape": "circle",
+				"radius_mm": 5000,
+				"mass_grams": 0
+			}
+		},
+		{
+			"id": "training.sun",
+			"render": {
+				"mode": "camera",
+				"scale": 14,
+				"sprite": {
+					"albedo": "phoenix-training:assets/comic/sun-albedo.png",
+					"frames": [
+						{
+							"name": "sun",
+							"rect": [0, 0, 1254, 1254],
+							"pivot": [627, 627],
+							"azimuth": 0,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {}
+						}
+					],
+					"emissive": true
+				}
+			},
+			"systems": {},
+			"collision": {
+				"shape": "circle",
+				"radius_mm": 1000,
+				"mass_grams": 0
+			}
 		}
 	],
 	"maps": [
 		{
 			"id": "training.navigation",
 			"entities": [
-				{ "id": 1, "definition": "training.beacon", "x_mm": 50000, "y_mm": 20000, "heading_mdeg": 0 },
-				{ "id": 2, "definition": "training.traffic", "x_mm": -80000, "y_mm": -50000, "heading_mdeg": 90000 }
+				{
+					"id": 1,
+					"definition": "training.beacon",
+					"x_mm": 50000,
+					"y_mm": 20000,
+					"heading_mdeg": 0
+				},
+				{
+					"id": 2,
+					"definition": "training.traffic",
+					"x_mm": -80000,
+					"y_mm": -50000,
+					"heading_mdeg": 90000
+				}
 			],
 			"ship_slots": [
 				{
@@ -54,6 +417,42 @@
 					"y_mm": 0,
 					"heading_mdeg": 0,
 					"allowed_ships": ["training.survey", "training.tug"]
+				}
+			]
+		},
+		{
+			"id": "training.lighting",
+			"lighting": {
+				"sun_direction": [-0.5, 0.6, 0.6],
+				"sun_color": [1, 0.89, 0.7],
+				"ambient": 0.14,
+				"hatch_thickness": 2,
+				"hatch_spacing": 6,
+				"shadows": true
+			},
+			"entities": [
+				{
+					"id": 10,
+					"definition": "training.asteroid",
+					"x_mm": -24000,
+					"y_mm": 0,
+					"heading_mdeg": 0
+				},
+				{
+					"id": 11,
+					"definition": "training.sun",
+					"x_mm": -40000,
+					"y_mm": -60000,
+					"heading_mdeg": 0
+				}
+			],
+			"ship_slots": [
+				{
+					"id": "training.player",
+					"x_mm": 0,
+					"y_mm": 0,
+					"heading_mdeg": 0,
+					"allowed_ships": ["training.survey"]
 				}
 			]
 		}
@@ -100,10 +499,30 @@
 			"id": "training.patrol",
 			"initial": "north",
 			"states": {
-				"north": { "ticks": 200, "next": "east", "speed_mm_s": 3000, "heading_mdeg": 90000 },
-				"east": { "ticks": 200, "next": "south", "speed_mm_s": 3000, "heading_mdeg": 0 },
-				"south": { "ticks": 200, "next": "west", "speed_mm_s": 3000, "heading_mdeg": 270000 },
-				"west": { "ticks": 200, "next": "north", "speed_mm_s": 3000, "heading_mdeg": 180000 }
+				"north": {
+					"ticks": 200,
+					"next": "east",
+					"speed_mm_s": 3000,
+					"heading_mdeg": 90000
+				},
+				"east": {
+					"ticks": 200,
+					"next": "south",
+					"speed_mm_s": 3000,
+					"heading_mdeg": 0
+				},
+				"south": {
+					"ticks": 200,
+					"next": "west",
+					"speed_mm_s": 3000,
+					"heading_mdeg": 270000
+				},
+				"west": {
+					"ticks": 200,
+					"next": "north",
+					"speed_mm_s": 3000,
+					"heading_mdeg": 180000
+				}
 			}
 		}
 	]

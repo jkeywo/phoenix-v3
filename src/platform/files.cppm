@@ -21,7 +21,8 @@ enum class FilePurpose
 	WorkshopPack,
 	WorkshopLibrary,
 	WorkshopMap,
-	WorkshopImage
+	WorkshopImage,
+	WorkshopSprite
 };
 enum class ImportStatus
 {
