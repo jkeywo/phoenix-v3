@@ -13,6 +13,7 @@ module;
 #include <vector>
 #include <nlohmann/json.hpp>
 #include "menu_skin.hpp"
+#include "menu_flash.hpp"
 module phoenix.presentation;
 import phoenix.files;
 #include "menu.hpp"
@@ -52,6 +53,8 @@ struct NativeMenuScreen::State
 	std::map<std::string, std::function<void()>> actions;
 	Texture2D join_qr{};
 	Texture2D panorama{};
+	Texture2D flash_overlay{};
+	MenuFlash flash;
 	double panorama_phase = 0, panorama_period = 720;
 	float terminal_aspect = 1;
 	std::string join_qr_url;
@@ -83,6 +86,8 @@ struct NativeMenuScreen::State
 			UnloadTexture(join_qr);
 		if (panorama.id)
 			UnloadTexture(panorama);
+		if (flash_overlay.id)
+			UnloadTexture(flash_overlay);
 	}
 	void prepare_qr(const Application &app, const std::string &code)
 	{
@@ -1139,7 +1144,10 @@ void NativeMenuScreen::draw_backdrop(const Application &app, Rml::ElementDocumen
 {
 	auto *root = document.GetElementById("native-menu");
 	if (!app.native_menu || !root || !root->IsVisible() || !state_->panorama.id)
+	{
+		state_->flash.update(0, false);
 		return;
+	}
 	const auto at = root->GetAbsoluteOffset(Rml::BoxArea::Content);
 	const float width = root->GetClientWidth(), height = root->GetClientHeight();
 	if (height <= 0 || width <= 0)
@@ -1149,6 +1157,7 @@ void NativeMenuScreen::draw_backdrop(const Application &app, Rml::ElementDocumen
 	const auto texture = state_->panorama;
 	const float tile = std::max(height * texture.width / texture.height, width / 2);
 	const float offset = static_cast<float>(state_->panorama_phase * 2 * tile);
+	const float flash = state_->flash.update(GetFrameTime(), !app.reduced_motion);
 	BeginScissorMode(static_cast<int>(at.x), static_cast<int>(at.y), static_cast<int>(width), static_cast<int>(height));
 	// Adjacent copies share the same edge texels. Mirroring keeps the loop continuous.
 	for (int index = 0; index * tile - offset < width; ++index)
@@ -1156,6 +1165,16 @@ void NativeMenuScreen::draw_backdrop(const Application &app, Rml::ElementDocumen
 		    texture,
 		    {0, 0, static_cast<float>(index % 2 ? -texture.width : texture.width), static_cast<float>(texture.height)},
 		    {at.x + index * tile - offset, at.y, tile, height}, {0, 0}, 0, WHITE);
+	if (flash > 0 && state_->flash_overlay.id)
+	{
+		BeginBlendMode(BLEND_ADDITIVE);
+		for (int index = 0; index * tile - offset < width; ++index)
+			DrawTexturePro(state_->flash_overlay,
+			               {0, 0, static_cast<float>(index % 2 ? -texture.width : texture.width),
+			                static_cast<float>(texture.height)},
+			               {at.x + index * tile - offset, at.y, tile, height}, {0, 0}, 0, Fade(WHITE, flash));
+		EndBlendMode();
+	}
 	EndScissorMode();
 }
 void NativeMenuScreen::draw(const Application &app, Rml::ElementDocument &document)
@@ -1240,7 +1259,7 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 	const auto scene = parse_json(read_file(asset_directory + "/menu/menu-scene.json", 64 * 1024), "menu scene");
 	if (scene.at("schema") != 1 || scene.at("panorama").at("repeat") != "mirror-x")
 		throw std::runtime_error("Unsupported menu scene");
-	for (const auto *part : {"panorama", "foreground", "terminal"})
+	for (const auto *part : {"panorama", "foreground", "terminal", "flash"})
 	{
 		const auto &asset = scene.at(part);
 		const auto file = asset.at("file").get<std::string>();
@@ -1261,6 +1280,31 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 		if (!valid)
 			throw std::runtime_error("Menu scene image dimensions disagree with metadata");
 	}
+	state_->flash = MenuFlash::parse(scene.at("flash"));
+	const auto &panorama = scene.at("panorama"), &flash = scene.at("flash");
+	if (panorama.at("size") != flash.at("size"))
+		throw std::runtime_error("Menu flash mask must align with panorama");
+	auto base_image = LoadImage((asset_directory + "/menu/" + panorama.at("file").get<std::string>()).c_str());
+	auto mask_image = LoadImage((asset_directory + "/menu/" + flash.at("file").get<std::string>()).c_str());
+	if (!base_image.data || !mask_image.data)
+	{
+		UnloadImage(base_image);
+		UnloadImage(mask_image);
+		throw std::runtime_error("Could not load menu flash imagery");
+	}
+	auto *pixels = LoadImageColors(base_image);
+	auto *mask = LoadImageColors(mask_image);
+	for (int i = 0; i < base_image.width * base_image.height; ++i)
+		pixels[i].a = mask[i].a;
+	Image overlay{pixels, base_image.width, base_image.height, 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8};
+	if (state_->flash_overlay.id)
+		UnloadTexture(state_->flash_overlay);
+	state_->flash_overlay = LoadTextureFromImage(overlay);
+	SetTextureFilter(state_->flash_overlay, TEXTURE_FILTER_BILINEAR);
+	UnloadImageColors(pixels);
+	UnloadImageColors(mask);
+	UnloadImage(base_image);
+	UnloadImage(mask_image);
 	state_->panorama_period = scene.at("panorama").at("period_seconds").get<double>();
 	state_->panorama_phase = scene.at("panorama").at("initial_phase").get<double>();
 	if (!std::isfinite(state_->panorama_period) || state_->panorama_period <= 0 ||

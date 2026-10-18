@@ -404,6 +404,7 @@ foreach(
 		background.png
 		cockpit-frame.png
 		space-panorama.png
+		nebula-flash-mask.png
 		crt-terminal.png
 		menu-scene.json
 )

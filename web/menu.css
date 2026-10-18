@@ -125,8 +125,21 @@ button.selected {
 	will-change: transform;
 }
 .space-track i {
+	position: relative;
+	isolation: isolate;
 	flex: 0 0 25%;
 	background: var(--menu-space) center / 100% 100%;
+}
+.space-track i::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: var(--menu-space) center / 100% 100%;
+	mask-image: var(--menu-flash-mask);
+	mask-size: 100% 100%;
+	mask-repeat: no-repeat;
+	mix-blend-mode: plus-lighter;
+	opacity: var(--nebula-flash, 0);
 }
 .space-track i:nth-child(even) {
 	transform: scaleX(-1);
@@ -436,6 +449,9 @@ body.running #status {
 	}
 }
 @media (prefers-reduced-motion: reduce) {
+	.space-track i::after {
+		opacity: 0;
+	}
 	.space-track {
 		animation-play-state: paused;
 	}
@@ -445,6 +461,9 @@ body.running #status {
 }
 body.reduced-motion .space-track {
 	animation-play-state: paused;
+}
+body.reduced-motion .space-track i::after {
+	opacity: 0;
 }
 body.reduced-motion .column.active {
 	animation: none;

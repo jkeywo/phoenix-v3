@@ -8,6 +8,16 @@
 		"initial_phase": 0.12
 	},
 	"foreground": { "file": "cockpit-frame.png", "size": [1672, 941] },
+	"flash": {
+		"file": "nebula-flash-mask.png",
+		"size": [2172, 724],
+		"interval_seconds": [20, 30],
+		"ramp_seconds": 0.1,
+		"short_hold_seconds": 0.1,
+		"gap_seconds": 0.3,
+		"long_hold_seconds": 0.3,
+		"intensity": 0.9
+	},
 	"terminal": {
 		"file": "crt-terminal.png",
 		"size": [1122, 1402],

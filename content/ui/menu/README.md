@@ -17,3 +17,9 @@ The active menu draws `space-panorama.png` behind the alpha window of `cockpit-f
 The lobby reuses the sprite in its invitation column. Its long upper stalk is cropped there to keep the complete QR code visible at entry. QR modules use integer pixel scaling, nearest filtering and their original quiet border; no CRT noise or distortion is applied to the code.
 
 [menu-scene.json](menu-scene.json) declares image dimensions, panorama timing and CRT screen/crop coordinates in source pixels. Native validates image dimensions and bounds; HTML derives the same screen aperture and motion properties from the metadata. Keep authored geometry separate from display scale. These three assets were made with built-in imagegen; prompts, transparency choices and the later cabling edit are in [scene-generation.json](scene-generation.json).
+
+## Nebula flashes
+
+`nebula-flash-mask.png` selects the brighter dust bands while excluding empty space and the moon. It is an alpha mask, generated from the original panorama and the user's annotated guide; [flash-generation.json](flash-generation.json) retains the prompt. Neither the green annotations nor a painted lightning bolt appear in the runtime. The renderer adds a masked copy of the original panorama at up to 90% strength, preserving its texture and matching its pan, scale and mirrored repeats. Native uses additive texture blending; HTML uses a masked `plus-lighter` layer. The cockpit, buttons, title and CRT remain outside this effect.
+
+Scene metadata defines variable 20–30 second start-to-start intervals and two pulses: ramp up 0.1s, hold 0.1s, ramp down 0.1s, dark gap 0.3s, ramp up 0.1s, hold 0.3s, ramp down 0.1s. The burst lasts 1.1s. Its clock and private cosmetic PRNG never touch gameplay ticks or random state. Reduced motion disables flashes; the browser also cancels them while hidden and restarts with a fresh quiet interval when shown again.

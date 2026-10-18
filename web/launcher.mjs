@@ -126,7 +126,7 @@ export function skinProperties(sidecar, scale) {
 }
 export function sceneProperties(scene) {
 	if (scene.schema !== 1 || scene.panorama?.repeat !== "mirror-x") throw Error("Invalid menu scene.");
-	for (const asset of [scene.panorama, scene.foreground, scene.terminal]) {
+	for (const asset of [scene.panorama, scene.foreground, scene.terminal, scene.flash]) {
 		if (
 			!/^[a-z0-9.-]+\.png$/.test(asset?.file) ||
 			!Array.isArray(asset.size) ||
@@ -136,6 +136,23 @@ export function sceneProperties(scene) {
 			throw Error("Invalid menu scene image.");
 	}
 	const { period_seconds: period, initial_phase: phase } = scene.panorama;
+	const f = scene.flash;
+	if (
+		![
+			...f.interval_seconds,
+			f.ramp_seconds,
+			f.short_hold_seconds,
+			f.gap_seconds,
+			f.long_hold_seconds,
+			f.intensity,
+		].every((v) => Number.isFinite(v) && v > 0) ||
+		f.interval_seconds.length !== 2 ||
+		f.interval_seconds[1] < f.interval_seconds[0] ||
+		f.intensity > 1 ||
+		f.interval_seconds[0] <= 4 * f.ramp_seconds + f.short_hold_seconds + f.gap_seconds + f.long_hold_seconds ||
+		f.size.some((v, i) => v !== scene.panorama.size[i])
+	)
+		throw Error("Invalid menu flash metadata.");
 	const [width, height] = scene.terminal.size,
 		screen = scene.terminal.screen;
 	if (
@@ -156,6 +173,7 @@ export function sceneProperties(scene) {
 		throw Error("Invalid menu scene geometry.");
 	return {
 		"--menu-space": `url("assets/menu/${scene.panorama.file}")`,
+		"--menu-flash-mask": `url("assets/menu/${f.file}")`,
 		"--menu-frame": `url("assets/menu/${scene.foreground.file}")`,
 		"--menu-crt": `url("assets/menu/${scene.terminal.file}")`,
 		"--pan-period": period + "s",
@@ -167,6 +185,14 @@ export function sceneProperties(scene) {
 		"--crt-width": (100 * screen.width) / width + "%",
 		"--crt-height": (100 * screen.height) / height + "%",
 	};
+}
+export function nebulaEnvelope(age, flash) {
+	const r = flash.ramp_seconds;
+	const pulse = (time, hold) => (time < 0 ? 0 : Math.max(0, Math.min(1, time / r, (2 * r + hold - time) / r)));
+	return Math.max(
+		pulse(age, flash.short_hold_seconds),
+		pulse(age - 2 * r - flash.short_hold_seconds - flash.gap_seconds, flash.long_hold_seconds),
+	);
 }
 export function automaticHostChoice(scenes, selected = "") {
 	const scene = selected ? scenes.find((entry) => entry.id === selected) : scenes.length === 1 ? scenes[0] : null;
@@ -324,6 +350,7 @@ async function boot() {
 		$("status").textContent = message;
 	};
 	let library = defaults(),
+		nebulaFlashes,
 		db,
 		busy = false,
 		started = false,
@@ -397,6 +424,7 @@ async function boot() {
 			savedLibrary = candidate;
 			updateProfile();
 			document.body.classList.toggle("reduced-motion", !!library.reduced_motion);
+			nebulaFlashes?.sync();
 		} catch (error) {
 			library = JSON.parse(savedLibrary);
 			throw error;
@@ -600,6 +628,7 @@ async function boot() {
 			scenario = "";
 		}
 		document.body.classList.toggle("reduced-motion", library.reduced_motion);
+		nebulaFlashes?.sync();
 		$("settings").querySelector("span").textContent = t("Settings");
 		$("packs").textContent = t("Mod Packs");
 		$("back").textContent = t("Back");
@@ -913,6 +942,7 @@ async function boot() {
 			$("menu").hidden = true;
 			$("runtime").hidden = false;
 			document.body.classList.add("running");
+			nebulaFlashes?.sync();
 			status(t("Loading application..."));
 			window.Module = {
 				canvas: $("canvas"),
@@ -999,6 +1029,66 @@ async function boot() {
 			},
 			true,
 		);
+	function flashBackdrop(flash) {
+		const preference = matchMedia("(prefers-reduced-motion: reduce)");
+		let active = false,
+			timer = 0,
+			frame = 0,
+			random = 0x5eed;
+		const level = (value) => document.documentElement.style.setProperty("--nebula-flash", String(value));
+		const allowed = () =>
+			!library.reduced_motion &&
+			!preference.matches &&
+			!document.hidden &&
+			!$("menu").hidden &&
+			!document.documentElement.classList.contains("direct-launch");
+		const delay = () => {
+			random = (Math.imul(random, 1664525) + 1013904223) >>> 0;
+			return (
+				(flash.interval_seconds[0] +
+					((flash.interval_seconds[1] - flash.interval_seconds[0]) * random) / 4294967296) *
+				1000
+			);
+		};
+		const clear = () => {
+			clearTimeout(timer);
+			cancelAnimationFrame(frame);
+			level(0);
+		};
+		const burst = () => {
+			if (!allowed()) {
+				sync();
+				return;
+			}
+			timer = setTimeout(burst, delay());
+			const started = performance.now();
+			const duration =
+				4 * flash.ramp_seconds + flash.short_hold_seconds + flash.gap_seconds + flash.long_hold_seconds;
+			const tick = (time) => {
+				if (!allowed()) {
+					sync();
+					return;
+				}
+				const age = (time - started) / 1000;
+				level(nebulaEnvelope(age, flash) * flash.intensity);
+				if (age < duration) frame = requestAnimationFrame(tick);
+				else level(0);
+			};
+			frame = requestAnimationFrame(tick);
+		};
+		const sync = () => {
+			const next = allowed();
+			if (next === active) return;
+			active = next;
+			clear();
+			if (active) timer = setTimeout(burst, delay());
+		};
+		preference.addEventListener("change", sync);
+		document.addEventListener("visibilitychange", sync);
+		window.addEventListener("pagehide", clear);
+		sync();
+		return { sync };
+	}
 	$("settings").onclick = settings;
 	$("packs").onclick = packs;
 	$("back").onclick = back;
@@ -1038,6 +1128,7 @@ async function boot() {
 		translations = data[0].languages.en;
 		for (const [name, value] of Object.entries(sceneProperties(data[3])))
 			document.documentElement.style.setProperty(name, value);
+		nebulaFlashes = flashBackdrop(data[3].flash);
 		for (const [index, prefix, scale] of [
 			[1, "button", 0.075],
 			[2, "panel", 0.12],
