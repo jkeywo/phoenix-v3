@@ -5,9 +5,11 @@ import { pathToFileURL } from "node:url";
 import { WebSocket, WebSocketServer } from "ws";
 
 // Discovery/signalling/opaque relay only. No game admission, world, roster or votes.
-export function createSignallingServer({ host = "127.0.0.1", port = 9080, tls, origins = [] } = {}) {
-	if (!tls && !["127.0.0.1", "::1", "localhost"].includes(host))
+export function createSignallingServer({ host = "127.0.0.1", port = 9080, tls, tlsProxy = false, origins = [] } = {}) {
+	if (!tls && tlsProxy !== true && !["127.0.0.1", "::1", "localhost"].includes(host))
 		throw new Error("Non-loopback signalling requires TLS");
+	// Explicit opt-in for a private backend behind a managed HTTPS/WSS ingress.
+	// Never infer proxy trust from client-supplied forwarding headers.
 	const server = tls ? https.createServer(tls) : http.createServer();
 	const sockets = new WebSocketServer({
 		noServer: true,
@@ -192,7 +194,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 			: undefined;
 	const service = createSignallingServer({
 		host: process.env.PHOENIX_BIND || "127.0.0.1",
-		port: Number(process.env.PHOENIX_PORT || 9080),
+		port: Number(process.env.PHOENIX_PORT || process.env.PORT || 9080),
+		tlsProxy: process.env.PHOENIX_TLS_PROXY === "1",
 		tls,
 		origins: (process.env.PHOENIX_ORIGINS || "").split(",").filter(Boolean),
 	});
@@ -203,5 +206,12 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
 			console.error(error.message);
 			process.exitCode = 1;
 		});
-	process.on("SIGINT", () => service.close().then(() => process.exit(0)));
+	let stopping = false;
+	const shutdown = () => {
+		if (stopping) return;
+		stopping = true;
+		service.close().then(() => process.exit(0));
+	};
+	process.once("SIGINT", shutdown);
+	process.once("SIGTERM", shutdown);
 }

@@ -7,9 +7,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
-const open = (url) =>
+import { fileURLToPath } from "node:url";
+const open = (url, options) =>
 	new Promise((resolve, reject) => {
-		const socket = new WebSocket(url);
+		const socket = new WebSocket(url, options);
 		socket.once("open", () => resolve(socket));
 		socket.once("error", reject);
 	});
@@ -143,6 +144,73 @@ test("public plaintext bind is refused", () => {
 		/requires TLS/,
 	);
 });
+
+test(
+	"managed TLS proxy startup, health, browser origin admission and native relay",
+	{ timeout: 15000 },
+	async (context) => {
+		const origin = "https://test.invalid";
+		const child = spawn(process.execPath, [fileURLToPath(new URL("./server.mjs", import.meta.url))], {
+			windowsHide: true,
+			signal: context.signal,
+			env: {
+				...process.env,
+				PHOENIX_BIND: "0.0.0.0",
+				PHOENIX_PORT: "",
+				PORT: "0",
+				PHOENIX_TLS_PROXY: "1",
+				PHOENIX_TLS_CERT: "",
+				PHOENIX_TLS_KEY: "",
+				PHOENIX_ORIGINS: origin,
+			},
+		});
+		const exited = new Promise((resolve) => child.once("close", resolve));
+		const sockets = [];
+		let output = "";
+		child.stderr.on("data", (bytes) => {
+			output += bytes;
+		});
+		try {
+			const port = await new Promise((resolve, reject) => {
+				child.once("error", reject);
+				child.once("exit", (code) => reject(new Error(`Service exited during startup (${code}): ${output}`)));
+				child.stdout.on("data", (bytes) => {
+					output += bytes;
+					const match = output.match(/listening on 0\.0\.0\.0:(\d+)/);
+					if (match) resolve(Number(match[1]));
+				});
+			});
+			const health = await fetch(`http://127.0.0.1:${port}/health`, { signal: context.signal });
+			assert.equal(health.status, 200);
+			assert.equal(await health.text(), "Phoenix V3 signalling\n");
+			const url = `ws://127.0.0.1:${port}/phoenix`;
+			await assert.rejects(open(url, { origin: "https://other.invalid" }), /403/);
+			const browser = await open(url, { origin });
+			sockets.push(browser);
+			const browserReceive = receiver(browser);
+			browser.send(JSON.stringify({ schema: 1, op: "hello", room: "synthetic-proxy", peer: "browser" }));
+			assert.equal((await browserReceive()).op, "ready");
+			// Native peers do not send a browser Origin header.
+			const native = await open(url);
+			sockets.push(native);
+			const nativeReceive = receiver(native);
+			native.send(JSON.stringify({ schema: 1, op: "hello", room: "synthetic-proxy", peer: "native" }));
+			assert.deepEqual((await nativeReceive()).peers, ["browser"]);
+			assert.equal((await browserReceive()).op, "arrived");
+			browser.send(JSON.stringify({ schema: 1, op: "relay", to: "native", data: "synthetic-payload" }));
+			assert.deepEqual(await nativeReceive(), {
+				schema: 1,
+				op: "relay",
+				from: "browser",
+				data: "synthetic-payload",
+			});
+		} finally {
+			for (const socket of sockets) socket.terminate();
+			if (child.exitCode === null && child.signalCode === null) child.kill();
+			await exited;
+		}
+	},
+);
 
 test(
 	"real fleet processes continue with a majority, pause a minority, renew returning authority and reconstruct durable logs",

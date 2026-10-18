@@ -10,11 +10,30 @@ The service under `service/` handles discovery, SDP/ICE forwarding and opaque ap
 
 ## Run locally
 
-Build native/web normally. Install service dependencies with the pinned Emsdk Node's `npm.cmd ci --prefix service --ignore-scripts`, then run `node service/server.mjs`. The default listener is loopback port 9080, endpoint `/phoenix`. `PHOENIX_PORT`, `PHOENIX_BIND`, `PHOENIX_TLS_CERT`, `PHOENIX_TLS_KEY` and comma-separated `PHOENIX_ORIGINS` configure it. A non-loopback plaintext listener is refused. WSS uses supplied certificate/key files. No service has been deployed to a public host.
+Build native/web normally. Install service dependencies with the pinned Emsdk Node's `npm.cmd ci --prefix service --ignore-scripts`, then run `node service/server.mjs`. The default listener is loopback port 9080, endpoint `/phoenix`. `PHOENIX_PORT`, `PHOENIX_BIND`, `PHOENIX_TLS_CERT`, `PHOENIX_TLS_KEY` and comma-separated `PHOENIX_ORIGINS` configure it. A non-loopback plaintext listener is refused unless explicitly configured as a private backend behind a TLS proxy (see below). WSS uses supplied certificate/key files. No service has been deployed to a public host.
 
 The normal development route is `ws://127.0.0.1:9080/phoenix`. Public routes require WSS. URL validation rejects userinfo, fragments and plaintext non-loopback hosts. Native WSS loads Windows trusted root certificates or an explicitly configured CA file; browser WSS uses browser trust. Verification is never disabled by the V3 adapter.
 
 The pinned upstream libdatachannel Windows code unconditionally disables WebSocket certificate verification. `cmake/PatchDatachannel.cmake` removes that bypass for our Mbed TLS backend, which receives an explicit CA bundle. The checked patch fails configuration if its expected source block changes. The integration gate creates an ephemeral test CA/certificate, checks a real native WSS relay round trip, then checks that the same certificate is refused without that CA. The test changes no OS/browser trust settings. Git for Windows' OpenSSL executable supplies this synthetic certificate fixture.
+
+## Northflank deployment
+
+Use one free Sandbox **combined service**, sourced from `jkeywo/phoenix-v3`, branch `main`. Select **Buildpack (Heroku)** with build context `/service`; the existing `npm start` script runs the Node server. Keep one instance: room/discovery state is in memory and is not shared across replicas. Enable CI/CD for automatic service builds and deployments.
+
+Expose port **8080**, protocol **HTTP**, accessibility **Public**. Northflank terminates HTTPS/WSS at its managed ingress and forwards HTTP to this backend. Set these **runtime variables**:
+
+| Variable            | Value                      |
+| ------------------- | -------------------------- |
+| `PHOENIX_BIND`      | `0.0.0.0`                  |
+| `PHOENIX_PORT`      | `8080`                     |
+| `PHOENIX_TLS_PROXY` | `1`                        |
+| `PHOENIX_ORIGINS`   | `https://jkeywo.github.io` |
+
+Use an HTTP health check on port 8080, path `/health`, which returns `Phoenix V3 signalling`. Once deployed, use the generated public hostname as `wss://<hostname>/phoenix` in the game client's Network service setting. Visiting the hostname's root returns 404 by design; `/health` is the browser-readable check. No custom domain, database, certificate file or certificate secret is needed. Additional allowed browser origins can be comma-separated; native clients need no Origin header. Origin checks are not game authentication.
+
+`PHOENIX_TLS_PROXY=1` permits an unencrypted backend listener only when an operator deliberately configures a trusted ingress. Keep that backend reachable only through the provider's ingress/private network; never expose it directly as public plaintext. The service does not trust `X-Forwarded-*` headers. The 32-connection per-address cap consequently applies to each ingress address, not each original client; this is adequate for a small test group but needs revisiting before larger deployments. Browser/native clients continue requiring public WSS and checking certificates. Without this opt-in, public plaintext remains refused.
+
+`PHOENIX_PORT` takes precedence over the platform's `PORT`, then defaults to 9080. SIGTERM/SIGINT close active sockets and stop the service. Deployments/restarts discard discovery rooms and close relay connections; test reconnection before relying on a public play session. The Node integration case launches the actual service entry point in proxy mode and verifies health, browser-origin admission, native discovery and relay. It does not establish Northflank ingress or public-network acceptance; those require a live deployment check.
 
 ## Manual connection probes
 
