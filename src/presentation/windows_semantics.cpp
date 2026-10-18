@@ -156,8 +156,14 @@ public:
 		*result = nullptr;
 		if (index_ >= 0 && id == UIA_InvokePatternId)
 		{
-			*result = static_cast<IInvokeProvider *>(this);
-			AddRef();
+			std::lock_guard lock(state_->mutex);
+			if (!valid())
+				return UIA_E_ELEMENTNOTAVAILABLE;
+			if (!state_->controls[index_].read_only && !state_->controls[index_].editable)
+			{
+				*result = static_cast<IInvokeProvider *>(this);
+				AddRef();
+			}
 		}
 		if (index_ >= 0 && id == UIA_ValuePatternId)
 		{
@@ -195,6 +201,7 @@ public:
 		{
 			result->vt = VT_I4;
 			result->lVal = index_ < 0                            ? UIA_GroupControlTypeId
+			               : state_->controls[index_].read_only  ? UIA_TextControlTypeId
 			               : state_->controls[index_].percentage ? UIA_SliderControlTypeId
 			               : state_->controls[index_].editable   ? UIA_EditControlTypeId
 			                                                     : UIA_ButtonControlTypeId;
@@ -212,6 +219,8 @@ public:
 		{
 			result->vt = VT_BOOL;
 			result->boolVal = VARIANT_TRUE;
+			if (id == UIA_IsKeyboardFocusablePropertyId && index_ >= 0 && state_->controls[index_].read_only)
+				result->boolVal = VARIANT_FALSE;
 			if (id == UIA_IsEnabledPropertyId && index_ >= 0)
 				result->boolVal = state_->controls[index_].placement.enabled ? VARIANT_TRUE : VARIANT_FALSE;
 		}
@@ -471,7 +480,10 @@ void publish_semantics(const Application &app)
 	std::unique_lock lock(state->mutex);
 	const auto previous_focus = state->focus;
 	const bool announce =
-	    app.console_surface_active && app.accessible_status != state->status && !app.accessible_status.empty();
+	    (app.console_surface_active ||
+	     (app.native_menu && (app.screen == Screen::home || app.screen == Screen::server_lobby ||
+	                          app.screen == Screen::client_lobby || app.screen == Screen::settings))) &&
+	    app.accessible_status != state->status && !app.accessible_status.empty();
 	state->status = app.accessible_status;
 	auto controls = navigation_controls(app);
 	const bool replaced =
@@ -554,6 +566,55 @@ void remove_native_accessibility(void *window)
 bool probe_native_accessibility(Application &app)
 {
 	publish_semantics(app);
+	if (app.native_menu)
+	{
+		bool checked = false;
+		const auto controls = navigation_controls(app);
+		for (std::size_t i = 0; i < controls.size(); ++i)
+		{
+			const auto &control = controls[i];
+			if (!control.read_only && !control.percentage)
+				continue;
+			auto *provider = new Provider(state, static_cast<int>(i));
+			VARIANT type;
+			VariantInit(&type);
+			provider->GetPropertyValue(UIA_ControlTypePropertyId, &type);
+			UiaRect bounds{};
+			provider->get_BoundingRectangle(&bounds);
+			bool valid = type.vt == VT_I4 && bounds.width > 0 && bounds.height > 0;
+			IUnknown *pattern = nullptr;
+			if (control.read_only)
+			{
+				provider->GetPatternProvider(UIA_InvokePatternId, &pattern);
+				valid = valid && type.lVal == UIA_TextControlTypeId && !pattern;
+				if (pattern)
+					pattern->Release();
+			}
+			else
+			{
+				provider->GetPatternProvider(UIA_RangeValuePatternId, &pattern);
+				IRangeValueProvider *range = nullptr;
+				if (pattern)
+				{
+					pattern->QueryInterface(__uuidof(IRangeValueProvider), reinterpret_cast<void **>(&range));
+					pattern->Release();
+				}
+				valid = valid && type.lVal == UIA_SliderControlTypeId && range;
+				if (range)
+				{
+					valid = valid && SUCCEEDED(range->SetValue(app.music_volume));
+					range->Release();
+					drain_semantic_actions(app);
+				}
+			}
+			VariantClear(&type);
+			provider->Release();
+			if (!valid)
+				return false;
+			checked = true;
+		}
+		return checked;
+	}
 	bool edited = false;
 	for (std::size_t i = 0; i < app.screen_inputs.size(); ++i)
 	{

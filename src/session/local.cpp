@@ -73,6 +73,17 @@ public:
 		packs_ = std::move(candidate);
 		catalog_ = std::move(resolved);
 	}
+	void replace_packs(const std::vector<Bytes> &archives) override
+	{
+		if (world_)
+			throw std::runtime_error("End the session before changing packs");
+		auto candidate = std::make_shared<LocalSession>();
+		for (const auto &archive : archives)
+			candidate->add_pack(archive);
+		packs_ = std::move(candidate->packs_);
+		catalog_ = std::move(candidate->catalog_);
+		++generation_;
+	}
 	void clear_packs() override
 	{
 		world_.reset();

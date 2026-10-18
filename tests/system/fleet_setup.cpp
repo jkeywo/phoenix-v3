@@ -114,6 +114,61 @@ int main()
 			refused = true;
 		}
 		require(refused, "Two fixed servers must not acquire authority over the same ship");
+		// New lobby rosters may omit optional slots and retain mandatory AI-only ships.
+		auto ai_slot = second;
+		ai_slot["id"] = "test.ai";
+		ai_slot["mandatory"] = true;
+		ai_slot["x_mm"] = 100000;
+		definitions["maps"][0]["ship_slots"].push_back(ai_slot);
+		definitions["entities"][0]["controller"] = "test.patrol";
+		definitions["trees"] =
+		    Json::array({{{"id", "test.patrol"},
+		                  {"initial", "run"},
+		                  {"states", {{"run", {{"speed_mm_s", 1000}, {"ticks", 10}, {"next", "run"}}}}}}});
+		pack.files["definitions.json"] = json_bytes(definitions);
+		auto lobby_source = make_host_world();
+		lobby_source->add_pack(write_pack(pack));
+		const auto lobby_bundle =
+		    export_fleet_setup(*lobby_source, {"test.map", {{"test.slot", "test.ship"}}, "test.slot"}, "test-lobby",
+		                       {{"organiser", "test.slot"}});
+		auto ai_a = read_fleet_setup(lobby_bundle), ai_b = read_fleet_setup(lobby_bundle);
+		require(ai_a.plan.at("members").size() == 1 && ai_a.world->setup().ships.size() == 2 &&
+		            ai_a.world->setup().ships.contains("test.ai") && !ai_a.world->setup().ships.contains("test.second"),
+		        "Mandatory AI ships are distinct from server votes; unclaimed optional ships are omitted");
+		for (int i = 0; i < 12; ++i)
+		{
+			ai_a.world->tick();
+			ai_b.world->tick();
+		}
+		require(ai_a.world->authoritative_world().save() == ai_b.world->authoritative_world().save(),
+		        "Every host executes the same complete AI-inclusive world");
+		const auto ai_id = *ai_a.world->authoritative_world().ship_for_slot("test.ai");
+		bool ai_moving = false;
+		for (const auto &body : ai_a.world->viewscreen())
+			if (body.id == ai_id)
+				ai_moving = body.vx > 0;
+		require(ai_moving, "The unclaimed mandatory ship runs its authored AI on every host");
+		auto ai_saved = read_fleet_setup(save_fleet_recovery(*ai_a.world, ai_a.plan));
+		require(ai_saved.world->setup().ships == ai_a.world->setup().ships && ai_saved.plan.at("members").size() == 1,
+		        "Recovery preserves AI ships without adding quorum members");
+		WorkshopDocument workshop;
+		workshop.load_pack(write_pack(pack));
+		require(workshop.verify().maps.at("test.map").at("ship_slots").back().at("mandatory") == true,
+		        "Workshop round-trip retains mandatory slot metadata");
+		ai_slot["mandatory"] = "yes";
+		definitions["maps"][0]["ship_slots"].push_back(ai_slot);
+		pack.files["definitions.json"] = json_bytes(definitions);
+		refused = false;
+		try
+		{
+			auto invalid_content = make_host_world();
+			invalid_content->add_pack(write_pack(pack));
+		}
+		catch (...)
+		{
+			refused = true;
+		}
+		require(refused, "Nonboolean mandatory metadata is refused by production content verification");
 		std::cout
 		    << "PASS exact fleet content, complete initial worlds, distinct ship authority and roster verification\n";
 	}

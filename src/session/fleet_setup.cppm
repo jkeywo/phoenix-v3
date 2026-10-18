@@ -23,7 +23,8 @@ struct PreparedFleet
 };
 // A private setup bundle contains the exact packs and the fixed member credential.
 // Only its inner gameplay archives may be advertised to player/GM clients.
-Bytes export_fleet_setup(const HostAccess &source, const GameSetup &selection, const std::string &room);
+Bytes export_fleet_setup(const HostAccess &source, const GameSetup &selection, const std::string &room,
+                         const std::map<std::string, std::string> &participants = {});
 PreparedFleet read_fleet_setup(const Bytes &archive, const std::string &member = {});
 Bytes save_fleet_recovery(const HostAccess &source, const Json &plan);
 } // namespace phoenix

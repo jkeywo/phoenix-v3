@@ -406,6 +406,8 @@ void verify_catalog(const Catalog &catalog)
 		}
 		for (const auto &slot : map["ship_slots"])
 		{
+			if (slot.contains("mandatory") && !slot.at("mandatory").is_boolean())
+				invalid(path + ".ship_slots", "mandatory must be boolean");
 			auto slot_id = text(slot, "id", path + ".ship_slots");
 			if (!slots.insert(slot_id).second)
 				invalid(path, "duplicate ship slot '" + slot_id + "'");

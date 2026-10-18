@@ -213,6 +213,11 @@ class NetworkHost final : public SessionPort
 			return;
 		auto found = clients_.find(sender);
 		auto packet = decode_packet(bytes, sender, options_.link.self, "lobby", "");
+		if (packet && packet->type == "hello" && packet->body.value("protocol", std::string{}) == "pregame-1")
+		{
+			send(sender, "refused", {{"protocol", "direct"}, {"reason", "Use direct ship-server admission"}}, true);
+			return;
+		}
 		if (packet && packet->type == "hello" && found != clients_.end())
 		{
 			auto proof = decode_packet(packet->body.value("resume", std::string{}), sender, options_.link.self, "lobby",
@@ -250,6 +255,20 @@ class NetworkHost final : public SessionPort
 		client.nonce = nonce;
 		client.connected = true;
 		client.seen = now_;
+		if (!client.approved && options_.lobby_tickets.contains(sender))
+		{
+			auto admission = decode_packet(packet->body.value("admission", std::string{}), sender, options_.link.self,
+			                               "lobby", options_.lobby_tickets.at(sender).key);
+			const auto authorised_role = options_.lobby_tickets.at(sender).role == JoinRole::gm ? "gm" : "client";
+			if (options_.lobby_tickets.at(sender).role != JoinRole::ship_server && role == authorised_role &&
+			    admission && admission->type == "hello" && admission->body.value("nonce", std::string{}) == nonce &&
+			    admission->body.value("role", std::string{}) == role)
+				intent({{"kind", "client-grant"},
+				        {"owner", sender},
+				        {"key", client.key},
+				        {"nonce", nonce},
+				        {"role", role}});
+		}
 		send(sender, "welcome",
 		     {{"key", client.key},
 		      {"epoch", epoch_},
@@ -543,6 +562,17 @@ public:
 		world_->add_pack(archive);
 		refresh_source();
 	}
+	void replace_packs(const std::vector<Bytes> &archives) override
+	{
+		if (running() || recovery_pending())
+			throw std::runtime_error("End the session before changing packs");
+		auto candidate = make_host_world();
+		for (const auto &archive : archives)
+			candidate->add_pack(archive);
+		generation_base_ += world_->generation() + 1;
+		world_ = std::move(candidate);
+		refresh_source();
+	}
 	void clear_packs() override
 	{
 		for (const auto &[id, client] : clients_)
@@ -597,7 +627,9 @@ public:
 		auto pack = read_pack(archive);
 		if (pack.manifest().value("format", std::string{}) == "phoenix-fleet-setup")
 		{
-			install_fleet(read_fleet_setup(archive));
+			const auto plan = parse_json(pack.files().at("fleet.json"), "fleet.json");
+			install_fleet(read_fleet_setup(archive, plan.at("members").contains(options_.link.self) ? options_.link.self
+			                                                                                        : std::string{}));
 			return;
 		}
 		auto candidate = make_host_world();
@@ -617,6 +649,22 @@ public:
 			begin_log();
 		}
 		want_local_ = true;
+	}
+	void authorise_lobby_member(const std::string &id, const LobbyAdmission &ticket) override
+	{
+		if (valid_identifier(id) && valid_hex_token(ticket.key) &&
+		    (ticket.role == JoinRole::player || ticket.role == JoinRole::gm))
+			options_.lobby_tickets[id] = ticket;
+	}
+	void activate_prepared() override
+	{
+		if (fleet_)
+			fleet_->start();
+		else
+		{
+			world_->resume_server();
+			begin_log();
+		}
 	}
 	void tick() override
 	{

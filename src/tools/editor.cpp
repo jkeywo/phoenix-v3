@@ -690,6 +690,9 @@ void slots_editor()
 		if (ImGui::TreeNode(slot["id"].get_ref<const std::string &>().c_str()))
 		{
 			string_field("Name", slot, "id");
+			bool mandatory = slot.value("mandatory", false);
+			if (ImGui::Checkbox(tool_label("Mandatory ship slot").c_str(), &mandatory))
+				slot["mandatory"] = mandatory;
 			transform_fields(slot);
 			ImGui::TextUnformatted("Allowed ships:");
 			for (const auto &entity : editor.document.definitions()["entities"])

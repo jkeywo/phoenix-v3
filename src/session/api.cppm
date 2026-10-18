@@ -6,6 +6,7 @@ module;
 #include <optional>
 #include <span>
 #include <string>
+#include <stdexcept>
 #include <vector>
 
 export module phoenix.session.api;
@@ -15,6 +16,47 @@ export import phoenix.transport;
 
 export namespace phoenix
 {
+enum class JoinRole
+{
+	ship_server,
+	player,
+	gm
+};
+struct LobbySlot
+{
+	std::string id, ship, host;
+	bool mandatory = false;
+	std::vector<std::string> allowed_ships;
+};
+struct LobbyMember
+{
+	std::string id, slot, console;
+	JoinRole role = JoinRole::player;
+	bool approved = false, connected = true, ready = false, verified = false;
+	std::string name;
+};
+struct LobbyProjection
+{
+	bool active = false, coordinator = false, launched = false;
+	std::string self, scenario, code, status;
+	int countdown_ms = -1;
+	std::vector<LobbySlot> slots;
+	std::vector<LobbyMember> members;
+};
+enum class LobbyAction
+{
+	claim_ship,
+	select_console,
+	approve,
+	ready,
+	unready,
+	leave
+};
+struct LobbyCommand
+{
+	LobbyAction action;
+	std::string member, slot, ship, console;
+};
 struct GameSetup
 {
 	std::string mission;
@@ -28,11 +70,18 @@ struct ConsoleSeat
 	ConsoleSpec spec;
 	bool available = false;
 };
+struct LobbyAdmission
+{
+	std::string key;
+	JoinRole role = JoinRole::player;
+};
 struct NetworkOptions
 {
 	LinkOptions link;
 	std::string server, data_location = "userdata", profile = "default";
 	bool inspector = false;
+	std::string admission;
+	std::map<std::string, LobbyAdmission> lobby_tickets;
 };
 // The frontend sees content and projections, never the authoritative ECS.
 class SessionPort
@@ -48,6 +97,22 @@ public:
 	virtual void clear_packs() = 0;
 	virtual const Catalog &catalog() const = 0;
 	virtual void start(const GameSetup &setup) = 0;
+	virtual void prepare_lobby(const GameSetup &setup)
+	{
+		start(setup);
+	}
+	virtual LobbyProjection lobby() const
+	{
+		return {};
+	}
+	virtual bool lobby_command(const LobbyCommand &)
+	{
+		return false;
+	}
+	virtual void replace_packs(const std::vector<Bytes> &)
+	{
+		throw std::runtime_error("Pack selection is unavailable");
+	}
 	virtual bool running() const = 0;
 	virtual bool recovery_pending() const = 0;
 	virtual Bytes save() const = 0;
@@ -57,6 +122,13 @@ public:
 	}
 	virtual void restore(const Bytes &archive) = 0;
 	virtual void resume_local() = 0;
+	virtual void activate_prepared()
+	{
+		resume_local();
+	}
+	virtual void authorise_lobby_member(const std::string &, const LobbyAdmission &)
+	{
+	}
 	virtual void tick() = 0;
 	virtual std::uint64_t ticks() const = 0;
 	virtual bool command(const OperatingCommand &command) = 0;

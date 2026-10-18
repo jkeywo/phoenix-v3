@@ -45,10 +45,12 @@ void select_language(const std::string &locale, bool pseudo)
 }
 std::string translate(const std::string &key, bool pseudo)
 {
+	if (key.empty())
+		return {};
 	static constexpr std::pair<const char *, const char *> labels[] = {
-	    {"home", "Home"},        {"host", "New game"}, {"join", "Join console"},
-	    {"view", "Viewscreen"},  {"edit", "Workshop"}, {"locale", "Toggle pseudo-localisation"},
-	    {"settings", "Settings"}};
+	    {"home", "Home"},         {"host", "New game"}, {"join", "Join console"},
+	    {"view", "Viewscreen"},   {"edit", "Workshop"}, {"locale", "Toggle pseudo-localisation"},
+	    {"settings", "Settings"}, {"lobby", "Lobby"}};
 	std::string result = key;
 	for (const auto &[id, text] : labels)
 		if (key == id)
@@ -69,23 +71,58 @@ std::string localise(const std::string &key)
 {
 	return translate(key, pseudo_language);
 }
+std::vector<std::string> installed_languages()
+{
+	std::vector<std::string> result;
+	for (const auto &[id, labels] : translations.items())
+		result.push_back(id);
+	if (result.empty())
+		result.push_back("en");
+	return result;
+}
+void remember_preferences(Application &app)
+{
+	if (!app.library)
+		return;
+	try
+	{
+		app.library->preferences = {app.music_volume, app.language, app.pseudo_locale, app.reduced_motion};
+		app.library->remember();
+	}
+	catch (const std::exception &error)
+	{
+		app.status = error.what();
+	}
+}
 std::vector<SemanticControl> navigation_controls(const Application &app)
 {
 	std::vector<SemanticControl> controls;
-	for (const char *id : {"home", "host", "join", "view", "edit", "locale", "settings"})
+	for (const char *id : {"home", "host", "join", "view", "edit", "locale", "settings", "lobby"})
 	{
 		if (app.console_surface_active)
 			break;
+		if (app.native_menu)
+		{
+			if (app.screen == Screen::home || app.screen == Screen::server_lobby ||
+			    app.screen == Screen::client_lobby || app.screen == Screen::settings || app.packs_popup)
+				break;
+			if (std::string(id) != "home" && std::string(id) != "settings" && std::string(id) != "lobby")
+				continue;
+		}
+		if (std::string(id) == "lobby" && !app.native_menu)
+			continue;
 		if (std::string(id) == "host" && !app.can_host)
 			continue;
 		if (std::string(id) == "edit" && !app.can_edit)
 			continue;
-		if (std::string(id) == "settings" && !app.can_host)
+		if (std::string(id) == "settings" && !app.can_host && !app.native_menu)
 			continue;
 		controls.push_back({id, translate(id, app.pseudo_locale)});
 	}
 	for (const auto &[id, label] : app.screen_controls)
 		controls.push_back({id, translate(label, app.pseudo_locale)});
+	for (const auto &[id, label] : app.screen_readouts)
+		controls.push_back({id, label, {}, false, {}, false, true});
 	for (const auto &input : app.screen_inputs)
 		controls.push_back(
 		    {input.id, translate(input.label, app.pseudo_locale), {}, true, input.value, input.percentage});
@@ -96,7 +133,7 @@ std::vector<SemanticControl> navigation_controls(const Application &app)
 }
 bool invoke_navigation(Application &app, const std::string &id)
 {
-	if (id == "settings" && app.can_host)
+	if (id == "settings" && (app.can_host || app.native_menu))
 	{
 		if (app.screen == Screen::settings)
 			app.screen = app.settings_return;
@@ -106,8 +143,10 @@ bool invoke_navigation(Application &app, const std::string &id)
 			app.screen = Screen::settings;
 		}
 	}
-	else if (id == "settings.close" && app.screen == Screen::settings && app.can_host)
+	else if (id == "settings.close" && app.screen == Screen::settings && (app.can_host || app.native_menu))
 		app.screen = app.settings_return;
+	else if (id == "lobby" && app.native_menu)
+		app.screen = app.can_host ? Screen::server_lobby : Screen::client_lobby;
 	else if (id == "home")
 		app.screen = Screen::home;
 	else if (id == "host" && app.can_host)
@@ -128,14 +167,19 @@ bool invoke_navigation(Application &app, const std::string &id)
 }
 bool set_music_volume(Application &app, const std::string &value)
 {
-	if (!app.can_host || app.screen != Screen::settings)
+	if ((!app.can_host && !app.native_menu) || app.screen != Screen::settings)
 		return false;
 	float percent = 0;
 	const auto result = std::from_chars(value.data(), value.data() + value.size(), percent);
 	if (result.ec != std::errc{} || result.ptr != value.data() + value.size() || !std::isfinite(percent) ||
 	    percent < 0 || percent > 100)
 		return false;
-	app.music_volume = static_cast<int>(std::lround(percent));
+	const auto changed = static_cast<int>(std::lround(percent));
+	if (changed != app.music_volume)
+	{
+		app.music_volume = changed;
+		remember_preferences(app);
+	}
 	return true;
 }
 } // namespace phoenix

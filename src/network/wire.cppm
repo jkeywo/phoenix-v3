@@ -75,6 +75,7 @@ class StateSource
 {
 public:
 	StateSource(const Json &state, std::uint64_t sequence);
+	StateSource(Bytes archive, std::uint64_t sequence);
 	Json offer() const;
 	Json chunk(const Json &request) const;
 
@@ -85,15 +86,17 @@ private:
 class StateTransfer
 {
 public:
-	explicit StateTransfer(const Json &offer);
+	explicit StateTransfer(const Json &offer, bool archive = false);
 	std::vector<Json> requests(std::uint64_t now_ms);
 	bool accept(const Json &chunk);
 	bool ready() const;
 	std::uint64_t sequence() const;
 	const Json &state() const;
+	const Bytes &archive() const;
 
 private:
 	Json offer_, state_;
+	bool archive_ = false, complete_ = false;
 	Bytes bytes_;
 	std::vector<bool> received_;
 	std::vector<std::uint64_t> deadlines_;

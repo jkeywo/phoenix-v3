@@ -82,6 +82,7 @@ public:
 private:
 	std::map<std::string, Texture2D> textures_;
 };
+bool probe_menu_keyboard(Application &app);
 void open_window();
 bool close_requested();
 bool graphics_has_keyboard_focus();

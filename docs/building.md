@@ -39,6 +39,8 @@ Bootstrap installs CMake 3.31.6, Ninja 1.11.1.3 and Emscripten 6.0.12 into ignor
 
 Native links the authoritative simulation and tools. Browser server links simulation and presentation; browser client links presentation; browser Workshop links tools and presentation. The libraries are static. A successful build does not establish the pending accessibility, device, gameplay, networking or performance acceptance checks in the implementation plan.
 
+The native cascading menu has an explicitly triggered `--menu-smoke` journey; see [native menu validation](native-menu.md#validation).
+
 For an explicit graphical platform probe, `native.exe --platform-check` initialises the real UIA provider, checks a labelled control's rendered bounds, then focuses and invokes it through the provider's COM interface/production action queue. This is a programmatic contract check, not evidence of actual Narrator/NVDA operation. `--smoke` captures the home framebuffer and exits; add `--workshop` for the tool surface. These graphical checks remain manual.
 
 The bounded automated `system.input-and-semantics` case supplies synthetic presentation configuration directly to the production region validator/router. It verifies independent contact capture, explicit keyboard focus, five logical gamepads, neutral release and semantic placement/admission. It does not exercise a ship/content loader because it tests presentation routing. Native controllers now use SDL rather than raylib's four-device API; physical five-controller operation remains a manual check. See [display configuration and hardware evidence](console-displays.md).

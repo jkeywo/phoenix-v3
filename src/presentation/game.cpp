@@ -369,7 +369,7 @@ struct GameScreen::State
 				if ((id == "game.connect-client" || id == "game.connect-gm") && app.connect)
 				{
 					app.connect(input("join-code"), input("join-service"), input("join-profile"),
-					            id == "game.connect-gm");
+					            id == "game.connect-gm" ? JoinRole::gm : JoinRole::player);
 					bind_session(app);
 					app.status.clear();
 					return true;

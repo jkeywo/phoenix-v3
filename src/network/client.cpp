@@ -99,6 +99,9 @@ class NetworkClient final : public SessionPort
 		if (!transport_)
 			return;
 		Json body{{"role", role()}, {"nonce", nonce_}};
+		if (!options_.admission.empty())
+			body["admission"] =
+			    encode_packet({"lobby", options_.link.self, options_.server, "hello", body}, options_.admission);
 		if (!key_.empty())
 			body["resume"] = encode_packet({"lobby", options_.link.self, options_.server, "hello", body}, key_);
 		transport_->send(options_.server,

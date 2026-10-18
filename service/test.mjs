@@ -457,6 +457,9 @@ test(
 			return {
 				child,
 				result,
+				get output() {
+					return output;
+				},
 			};
 		};
 		let host;
@@ -483,7 +486,7 @@ test(
 			await host.result;
 			host = run(["--host", "--self", "host", "--seconds", "20"], "new-host-epoch");
 			const freshEpoch = await run(["--self", "first"], "first").result;
-			assert.equal(freshEpoch.code, 0, freshEpoch.output);
+			assert.equal(freshEpoch.code, 0, freshEpoch.output + "\nHOST:\n" + host.output);
 			assert.match(freshEpoch.output, /PASS remote verified content/);
 		} finally {
 			for (const child of children) child.kill();
@@ -591,6 +594,42 @@ test(
 		} finally {
 			for (const child of children) child.kill();
 			if (echo) await echo.result;
+			await service.close();
+		}
+	},
+);
+
+test(
+	"pre-game ship admission, readiness countdown and deterministic AI slots",
+	{ skip: !process.env.PHOENIX_LOBBY_PROBE, timeout: 120000 },
+	async (context) => {
+		const service = createSignallingServer({ port: 0 });
+		const address = await service.listen();
+		let child;
+		try {
+			child = spawn(process.env.PHOENIX_LOBBY_PROBE, [`ws://127.0.0.1:${address.port}/phoenix`], {
+				windowsHide: true,
+				signal: context.signal,
+				cwd: new URL("../build/native/", import.meta.url),
+			});
+			let output = "";
+			child.stdout.on("data", (data) => {
+				output += data;
+			});
+			child.stderr.on("data", (data) => {
+				output += data;
+			});
+			const code = await new Promise((resolve, reject) => {
+				child.once("error", reject);
+				child.once("exit", resolve);
+			});
+			assert.equal(code, 0, output);
+			assert.match(output, /PASS authenticated slot arbitration/);
+		} finally {
+			if (child && child.exitCode === null && child.signalCode === null) {
+				child.kill();
+				await new Promise((resolve) => child.once("exit", resolve));
+			}
 			await service.close();
 		}
 	},

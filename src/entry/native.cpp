@@ -16,12 +16,14 @@
 import phoenix.navigation;
 import phoenix.network.client;
 import phoenix.network.host;
+import phoenix.network.lobby;
 import phoenix.presentation;
 import phoenix.session.api;
 import phoenix.session.local;
 import phoenix.simulation;
 import phoenix.tools;
 #include "performance.hpp"
+#include "../../tests/manual/native_menu.hpp"
 
 int main(int argc, char **argv)
 {
@@ -34,10 +36,12 @@ int main(int argc, char **argv)
 	}
 	phoenix::Application app;
 	app.can_host = true;
+	app.native_menu = true;
 	app.can_edit = true;
 	phoenix::NetworkOptions network;
 	network.link.url = "ws://127.0.0.1:9080/phoenix";
 	bool remote = false, gm = false, local_only = false;
+	NativeMenuSmoke menu_smoke;
 	bool qr_smoke = false;
 	bool join_smoke = false, join_submitted = false, claim_submitted = false;
 	unsigned join_ready_frames = 0;
@@ -57,6 +61,8 @@ int main(int argc, char **argv)
 	for (int i = 1; i < argc; ++i)
 	{
 		const std::string argument = argv[i];
+		if (argument == "--menu-smoke")
+			menu_smoke.enabled = true;
 		if (argument == "--vsync")
 			vsync = true;
 		if (argument == "--uncapped")
@@ -99,12 +105,14 @@ int main(int argc, char **argv)
 		if (argument == "--qr-smoke")
 		{
 			qr_smoke = true;
+			app.native_menu = false;
 			smoke_frames = 6;
 			app.screen = phoenix::Screen::server_lobby;
 		}
 		if (argument == "--join-smoke")
 		{
 			join_smoke = true;
+			app.native_menu = false;
 			remote = true;
 		}
 		if (std::strcmp(argv[i], "--smoke") == 0)
@@ -149,9 +157,7 @@ int main(int argc, char **argv)
 		network.link.self = network.server;
 	try
 	{
-		app.session = local_only ? phoenix::make_local_session()
-		              : remote   ? phoenix::make_network_client(network)
-		                         : phoenix::make_network_host(network);
+		app.session = remote ? phoenix::make_network_client(network) : phoenix::make_game_lobby(network, local_only);
 	}
 	catch (const std::exception &error)
 	{
@@ -166,7 +172,7 @@ int main(int argc, char **argv)
 	app.network_service = network.link.url;
 	app.network_profile = network.profile;
 	app.connect = [&app, network](const std::string &code, const std::string &service, const std::string &profile,
-	                              bool inspector) mutable
+	                              phoenix::JoinRole role) mutable
 	{
 		const auto split = code.find('/');
 		if (split == std::string::npos || !split || split + 1 == code.size())
@@ -177,17 +183,62 @@ int main(int argc, char **argv)
 		options.link.self.clear();
 		options.link.url = service;
 		options.profile = profile;
-		options.inspector = inspector;
+		options.inspector = role == phoenix::JoinRole::gm;
 		phoenix::verify_link_options({service, options.link.room, options.server});
-		auto connected = phoenix::make_network_client(options);
+		auto connected = phoenix::join_game_lobby(options, role);
 		app.session = std::move(connected);
-		app.can_host = false;
-		app.screen = inspector ? phoenix::Screen::gm : phoenix::Screen::client_lobby;
+		app.can_host = role == phoenix::JoinRole::ship_server;
+		app.screen = app.can_host ? phoenix::Screen::server_lobby : phoenix::Screen::client_lobby;
 		app.network_code = code;
 		app.network_service = service;
 		app.network_profile = profile;
 	};
+	app.new_host = [&app, network, local_only]()
+	{
+		auto options = network;
+		options.link.room.clear();
+		options.link.self.clear();
+		options.server.clear();
+		options.link.url = app.network_service;
+		options.profile = app.network_profile;
+		return phoenix::make_game_lobby(options, local_only);
+	};
+	app.return_home = [&app]()
+	{
+		auto candidate = app.new_host();
+		if (app.library)
+			candidate->replace_packs(app.library->archives(app.library->packs));
+		app.session = std::move(candidate);
+		app.can_host = true;
+		app.screen = phoenix::Screen::home;
+		app.menu_branch = phoenix::Application::MenuBranch::root;
+	};
+	try
+	{
+		app.library = std::make_shared<phoenix::MenuLibrary>(network.data_location + "/menu");
+		app.library->load();
+		const auto &prefs = app.library->preferences;
+		app.music_volume = prefs.volume;
+		app.language = prefs.language;
+		app.pseudo_locale = prefs.pseudo;
+		app.reduced_motion = prefs.reduced_motion;
+		if (!remote)
+			app.session->replace_packs(app.library->archives(app.library->packs));
+	}
+	catch (const std::exception &error)
+	{
+		app.status = error.what();
+	}
 	phoenix::open_window();
+	try
+	{
+		phoenix::select_language(app.language, app.pseudo_locale);
+	}
+	catch (const std::exception &error)
+	{
+		app.language = "en";
+		app.status = error.what();
+	}
 	if (span_displays && display_layout.empty())
 	{
 		const int count = GetMonitorCount();
@@ -292,6 +343,7 @@ int main(int argc, char **argv)
 		SetTargetFPS(static_cast<int>(frame_limit));
 	if (argc > 1 && std::strcmp(argv[1], "--platform-check") == 0)
 	{
+		app.native_menu = false;
 		app.screen = phoenix::Screen::client_lobby;
 		BeginDrawing();
 		phoenix::draw_screen(app);
@@ -306,7 +358,23 @@ int main(int argc, char **argv)
 	{
 		try
 		{
-			app.session->add_pack(phoenix::read_file(game_pack));
+			const auto archive = phoenix::read_file(game_pack);
+			const auto imported_hash = phoenix::read_pack(archive).hash();
+			if (menu_smoke.enabled)
+			{
+				app.library->install(archive);
+				auto selected = app.library->packs;
+				for (auto &pack : selected)
+					if (pack.hash == imported_hash)
+						pack.enabled = true;
+				app.library->apply(selected);
+			}
+			if (std::none_of(app.session->catalog().ordered_packs.begin(), app.session->catalog().ordered_packs.end(),
+			                 [&](const auto &pack)
+			                 {
+				                 return pack.second == imported_hash;
+			                 }))
+				app.session->add_pack(archive);
 			if (!mission.empty())
 			{
 				if (seat.empty())
@@ -332,6 +400,8 @@ int main(int argc, char **argv)
 	{
 		try
 		{
+			if (resume_local)
+				app.session = local_only ? phoenix::make_local_session() : phoenix::make_network_host(network);
 			app.session->restore(phoenix::read_file(runtime_save));
 			app.screen = phoenix::Screen::server_lobby;
 			if (resume_local)
@@ -374,8 +444,9 @@ int main(int argc, char **argv)
 					break;
 	}
 	const auto smoke_started = GetTime();
+	menu_smoke.changed = smoke_started;
 	double previous_frame = smoke_started;
-	while (!phoenix::close_requested())
+	while (!app.exit_requested && !phoenix::close_requested())
 	{
 		const auto frame_started = GetTime();
 		app.session->poll();
@@ -406,6 +477,28 @@ int main(int argc, char **argv)
 		                       frame_finished - previous_frame, app))
 			break;
 		previous_frame = frame_finished;
+		if (menu_smoke.enabled)
+		{
+			try
+			{
+				if (menu_smoke.frame(app))
+					break;
+			}
+			catch (const std::exception &error)
+			{
+				std::cerr << error.what() << '\n';
+				phoenix::end_tools();
+				phoenix::close_window();
+				return 1;
+			}
+			if (GetTime() - smoke_started > 30)
+			{
+				std::cerr << "Menu smoke timed out\n";
+				phoenix::end_tools();
+				phoenix::close_window();
+				return 1;
+			}
+		}
 		if (join_smoke)
 		{
 			if (!join_submitted)

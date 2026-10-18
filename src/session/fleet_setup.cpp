@@ -1,5 +1,6 @@
 module;
 #include <set>
+#include <algorithm>
 #include <cstdint>
 #include <map>
 #include <memory>
@@ -14,7 +15,8 @@ import phoenix.wire;
 
 namespace phoenix
 {
-Bytes export_fleet_setup(const HostAccess &source, const GameSetup &selection, const std::string &room)
+Bytes export_fleet_setup(const HostAccess &source, const GameSetup &selection, const std::string &room,
+                         const std::map<std::string, std::string> &participants)
 {
 	const auto &catalog = source.catalog();
 	if (!valid_identifier(room) || !catalog.maps.contains(selection.mission))
@@ -29,9 +31,13 @@ Bytes export_fleet_setup(const HostAccess &source, const GameSetup &selection, c
 	for (const auto &slot : slots)
 	{
 		const std::string slot_id = slot.at("id");
+		if (!participants.empty() && !selection.ships.contains(slot_id) && !slot.value("mandatory", false))
+			continue;
 		std::string chosen;
 		if (selection.ships.contains(slot_id))
 			chosen = selection.ships.at(slot_id);
+		else if (!participants.empty() && slot.value("mandatory", false))
+			chosen = slot.at("allowed_ships").at(0);
 		else
 			for (const auto &allowed : slot.at("allowed_ships"))
 			{
@@ -47,13 +53,30 @@ Bytes export_fleet_setup(const HostAccess &source, const GameSetup &selection, c
 		if (chosen.empty())
 			throw std::runtime_error(
 			    "Every fleet ship slot needs an allowed ship with an authored operating console: " + slot_id);
-		if (!catalog.entities.at(chosen).contains("console") && !catalog.entities.at(chosen).contains("stations"))
+		const bool controlled = participants.empty() || std::any_of(participants.begin(), participants.end(),
+		                                                            [&](const auto &p)
+		                                                            {
+			                                                            return p.second == slot_id;
+		                                                            });
+		if (controlled && !catalog.entities.at(chosen).contains("console") &&
+		    !catalog.entities.at(chosen).contains("stations"))
 			throw std::runtime_error("The selected fleet ship needs an authored operating console: " + slot_id);
 		game.ships[slot_id] = chosen;
-		const auto server = "ship" + std::to_string(++number);
-		members[server] = slot_id;
-		if (slot_id == game.local_slot)
-			creator = server;
+		if (participants.empty())
+		{
+			const auto server = "ship" + std::to_string(++number);
+			members[server] = slot_id;
+			if (slot_id == game.local_slot)
+				creator = server;
+		}
+		else
+			for (const auto &[server, owned] : participants)
+				if (owned == slot_id)
+				{
+					members[server] = slot_id;
+					if (slot_id == game.local_slot)
+						creator = server;
+				}
 	}
 	if (creator.empty())
 		throw std::runtime_error("Choose the local ship slot before creating the fleet setup");
@@ -64,10 +87,15 @@ Bytes export_fleet_setup(const HostAccess &source, const GameSetup &selection, c
 	// Validate each selected ship through the same admission used by a real station.
 	std::uint64_t console = 1;
 	for (const auto &[id, ship] : game.ships)
-		for (const auto &seat : resolve_consoles(catalog, ship))
-			if (!candidate->authoritative_world().can_claim(
-			        console++, *candidate->authoritative_world().ship_for_slot(id), seat.id))
-				throw std::runtime_error("A selected fleet ship cannot admit its authored console: " + id);
+		if (participants.empty() || std::any_of(participants.begin(), participants.end(),
+		                                        [&](const auto &p)
+		                                        {
+			                                        return p.second == id;
+		                                        }))
+			for (const auto &seat : resolve_consoles(catalog, ship))
+				if (!candidate->authoritative_world().can_claim(
+				        console++, *candidate->authoritative_world().ship_for_slot(id), seat.id))
+					throw std::runtime_error("A selected fleet ship cannot admit its authored console: " + id);
 	auto container = candidate->save_container();
 	container.manifest["format"] = "phoenix-fleet-setup";
 	container.files["fleet.json"] = json_bytes(Json{{"schema", 1},
@@ -101,8 +129,7 @@ PreparedFleet read_fleet_setup(const Bytes &archive, const std::string &member)
 		    !data.at("ships").contains(slot.get<std::string>()))
 			throw std::runtime_error("Each fixed server must own a distinct selected ship slot");
 	}
-	if (slots.size() != data.at("ships").size())
-		throw std::runtime_error("Fleet roster and selected ships differ");
+	// Mandatory AI-only slots have no server or quorum vote.
 	data["local_slot"] = plan.at("members").at(self);
 	data["local_console"] = "";
 	container.files["session.json"] = json_bytes(data);

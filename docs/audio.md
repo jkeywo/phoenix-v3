@@ -2,7 +2,7 @@
 
 The ship server plays the menu track while preparing a session and the ambient track once a mission is running, including recovery and local Console/GM views. Remote Console/GM clients and Workshop editing do not play music. The browser server bundles the recordings; browser clients and Workshop do not download them.
 
-Open **Settings** from the server navigation, or press **Escape** from a server screen (including a local Console). The labelled music slider applies immediately from 0% (mute) to 100%, starting at 50% on each launch. **Back** or Escape returns to the previous screen without resetting playback or volume. Settings do not pause the simulation. Browser audio starts after the first click/touch allowed by the browser's audio policy.
+Open **Settings** from the server navigation, or press **Escape** from a server screen (including a local Console). The labelled music slider applies immediately from 0% (mute) to 100%, starting at 50% on first native launch and each browser launch. Native Settings remembers volume and localisation preferences beneath the configured data directory. **Back** or Escape returns to the previous screen without resetting playback or volume. Settings do not pause the simulation. Browser audio starts after the first click/touch allowed by the browser's audio policy.
 
 The recordings loop and switch when the mission starts. Their original downloaded bytes are copied from ignored `raw/audio/` into tracked `content/audio/`; builds do not depend on the raw directory. [Credits and source licences](../content/audio/CREDITS.txt) accompany the recordings in the runtime bundle. The downloaded combat track is reserved for later combat integration and is not packaged.
 

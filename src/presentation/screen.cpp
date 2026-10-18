@@ -33,6 +33,7 @@ import phoenix.console;
 import phoenix.devices;
 #include "rml_backend.hpp"
 #include "game.hpp"
+#include "menu.hpp"
 #include "consoles.hpp"
 #include "music.hpp"
 
@@ -47,6 +48,7 @@ Rml::Context *context = nullptr;
 Rml::ElementDocument *document = nullptr;
 Application *current_app = nullptr;
 std::unique_ptr<GameScreen> game_screen;
+std::unique_ptr<NativeMenuScreen> native_menu;
 std::unique_ptr<ServerMusic> server_music;
 std::map<ConsoleId, std::unique_ptr<ConsoleSurface>> console_surfaces;
 class PreviewSession final : public SessionPort
@@ -194,7 +196,23 @@ struct Navigation : Rml::EventListener
 			return;
 		if (event.GetType() == "change")
 		{
-			if (event.GetTargetElement()->GetId() == "music-volume")
+			const auto id = event.GetTargetElement()->GetId();
+			if (id == "menu-volume")
+			{
+				set_music_volume(*current_app, event.GetParameter<Rml::String>("value", ""));
+				return;
+			}
+			if (id == "join-code" || id == "join-service" || id == "join-profile")
+				if (auto *field = dynamic_cast<Rml::ElementFormControl *>(event.GetTargetElement()))
+				{
+					if (id == "join-code")
+						current_app->network_code = field->GetValue();
+					if (id == "join-service")
+						current_app->network_service = field->GetValue();
+					if (id == "join-profile")
+						current_app->network_profile = field->GetValue();
+				}
+			if (id == "music-volume")
 				set_music_volume(*current_app, event.GetParameter<Rml::String>("value", ""));
 			return;
 		}
@@ -247,9 +265,35 @@ void prepare_settings(Application &app)
 	app.accessible_status = localise("Music volume") + ": " + value + "%";
 }
 } // namespace
+bool probe_menu_keyboard(Application &app)
+{
+	if (!app.native_menu)
+		return false;
+	const auto controls = navigation_controls(app);
+	if (controls.empty())
+		return false;
+	if (auto *element = document->GetElementById(controls.front().id))
+		element->Focus(true);
+	else
+		return false;
+	for (std::size_t i = 0; i < controls.size() + 2; ++i)
+	{
+		context->ProcessKeyDown(Rml::Input::KI_TAB, 0);
+		context->ProcessKeyUp(Rml::Input::KI_TAB, 0);
+		const auto *focused = context->GetFocusElement();
+		if (!focused || std::none_of(controls.begin(), controls.end(),
+		                             [&](const auto &c)
+		                             {
+			                             return c.id == focused->GetId();
+		                             }))
+			return false;
+	}
+	return true;
+}
 void open_window()
 {
 	game_screen = std::make_unique<GameScreen>();
+	native_menu = std::make_unique<NativeMenuScreen>();
 	server_music = std::make_unique<ServerMusic>();
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE);
 	InitWindow(1280, 720, "Phoenix V3");
@@ -307,8 +351,36 @@ void open_window()
     #music-volume sliderbar { width:24px; height:40px; background:#76c9e8; border:2px #d9e9ef; }
     #music-volume:focus sliderbar { background:#d9e9ef; border-color:#76c9e8; }
     #music-volume sliderarrowdec, #music-volume sliderarrowinc { display:none; }
-    </style></head><body><h1>PHOENIX / SETTLED DARK</h1>
-    <div id="nav"><button id="home">Home</button><button id="host">New game</button><button id="join">Join console</button>
+    #native-menu { position:absolute; overflow:hidden; background:#080f19; padding:0; box-sizing:border-box; }
+    #native-menu h1 { position:absolute; top:30px; left:0; width:100%; text-align:center; font-size:34px; letter-spacing:3px; }
+    #native-menu h2 { font-size:22px; margin:16px 0 12px; }
+    #native-menu button { display:block; box-sizing:border-box; width:100%; min-height:48px; margin:0 0 12px; padding:12px; font-size:18px; }
+    #native-menu .menu-selected { background:#315a70; border:2px #d9e9ef; }
+    #native-menu p { word-break:break-word; }
+    #native-menu scrollbarhorizontal { height:14px; background:#102535; }
+    #native-menu scrollbarhorizontal sliderbar { min-width:24px; background:#76c9e8; }
+    #native-menu scrollbarvertical { width:14px; background:#102535; }
+    #native-menu scrollbarvertical sliderbar { min-height:24px; background:#76c9e8; }
+    #native-menu button:disabled { color:#617785; background:#10202b; border-color:#243b49; }
+    .menu-top { position:absolute; top:18px; left:20px; width:140px; }
+    .menu-bottom { position:absolute; bottom:20px; left:20px; width:160px; }
+    .menu-back { position:absolute; bottom:20px; right:20px; width:140px; }
+    #menu-viewport { position:absolute; left:0; top:120px; right:0; bottom:100px; overflow:auto; }
+    #menu-columns { position:relative; display:flex; flex-direction:row; align-items:flex-start; height:100%; }
+    .menu-column { display:block; flex-shrink:0; padding-right:20px; box-sizing:border-box; max-height:100%; overflow:auto; }
+    .menu-column input { box-sizing:border-box; width:100%; height:44px; margin:8px 0 16px; }
+    #native-menu .connection { margin-top:0; }
+    .lobby-panel { position:absolute; top:110px; left:15%; width:70%; bottom:110px; overflow:auto; }
+    .lobby-panel button { max-width:500px; }
+    .modal-shade { position:absolute; top:0; left:0; width:100%; height:100%; background:#080f19dd; }
+    .menu-dialog { position:absolute; top:12%; left:20%; width:60%; max-height:76%; padding:24px; box-sizing:border-box; background:#102535; border:2px #76c9e8; overflow:auto; }
+    #menu-status { position:absolute; left:200px; right:180px; bottom:14px; max-height:72px; overflow:auto; font-size:16px; }
+    #menu-volume { display:block; width:100%; height:44px; margin-top:14px; }
+    #menu-volume slidertrack { height:8px; margin:18px 0; background:#315a70; }
+    #menu-volume sliderbar { width:24px; height:44px; background:#76c9e8; border:2px #d9e9ef; }
+    #menu-volume sliderarrowdec, #menu-volume sliderarrowinc { display:none; }
+    </style></head><body><h1 id="app-title">PHOENIX / SETTLED DARK</h1>
+    <div id="nav"><button id="home">Home</button><button id="lobby" style="display:none;">Lobby</button><button id="host">New game</button><button id="join">Join console</button>
     <button id="view">Viewscreen</button><button id="edit">Workshop</button><button id="locale">Toggle pseudo-localisation</button><button id="settings">Settings</button></div>
     <h2 id="heading">Home</h2><p id="description"></p><div id="session-controls"></div><div id="game"></div>
     <div id="settings-panel"><label id="music-label" for="music-volume">Music volume</label>
@@ -344,9 +416,14 @@ void draw_screen(Application &app)
 	app.frame_metrics["clear"] = GetTime() - frame_started;
 	const auto preparation_started = GetTime();
 	current_app = &app;
+	native_menu->poll(app);
 	select_language(app.language, app.pseudo_locale);
-	if (app.can_host && IsKeyPressed(KEY_ESCAPE) && graphics_has_keyboard_focus())
-		invoke_navigation(app, "settings");
+	if ((app.can_host || app.native_menu) && IsKeyPressed(KEY_ESCAPE) && graphics_has_keyboard_focus())
+		invoke_navigation(app, app.native_menu && (app.screen == Screen::home || app.screen == Screen::server_lobby ||
+		                                           app.screen == Screen::client_lobby ||
+		                                           app.screen == Screen::settings || app.packs_popup)
+		                           ? "menu.back"
+		                           : "settings");
 	const bool show_consoles = app.screen == Screen::console;
 	if (show_consoles != console_mode)
 	{
@@ -356,6 +433,7 @@ void draw_screen(Application &app)
 	app.console_surface_active = console_mode;
 	app.control_placements.clear();
 	app.screen_inputs.clear();
+	app.screen_readouts.clear();
 	app.set_control_value = {};
 	std::vector<ConsoleRegion> regions =
 	    console_mode && !app.console_regions.empty()
@@ -424,9 +502,12 @@ void draw_screen(Application &app)
 	else
 	{
 		update_document(app);
-		prepare_settings(app);
-		if (app.screen != Screen::settings)
-			game_screen->prepare(app, *document);
+		if (!native_menu->prepare(app, *document))
+		{
+			prepare_settings(app);
+			if (app.screen != Screen::settings)
+				game_screen->prepare(app, *document);
+		}
 		if (app.text_probe && !document->GetElementById("probe-text"))
 			document->GetElementById("game")->SetInnerRML(R"(<h2>Unicode shaping and text input</h2>
 <p lang="ar" dir="rtl" style="font-family:Cairo;font-size:32px;text-align:right;">&#1605;&#1585;&#1581;&#1576;&#1575; &#1576;&#1603;&#1605; &#1601;&#1610; &#1601;&#1610;&#1606;&#1610;&#1603;&#1587;</p>
@@ -440,17 +521,23 @@ void draw_screen(Application &app)
 		                                                      {"join-page", "Launcher page URL for joining devices"},
 		                                                      {"probe-text", "Unicode text input"}})
 			if (auto *field = dynamic_cast<Rml::ElementFormControl *>(document->GetElementById(id)))
-				if (app.screen != Screen::settings)
+				if (app.screen != Screen::settings && !app.native_menu)
 					app.screen_inputs.push_back({id, label, field->GetValue()});
 		app.set_control_value = [&app](const std::string &id, const std::string &value)
 		{
-			if (id == "music-volume")
+			if (id == "music-volume" || id == "menu-volume")
 				return set_music_volume(app, value);
 			if (value.size() > 4096)
 				return false;
 			if (auto *field = dynamic_cast<Rml::ElementFormControl *>(document->GetElementById(id)))
 			{
 				field->SetValue(value);
+				if (id == "join-code")
+					app.network_code = value;
+				if (id == "join-service")
+					app.network_service = value;
+				if (id == "join-profile")
+					app.network_profile = value;
 				return true;
 			}
 			return false;
@@ -479,6 +566,15 @@ void draw_screen(Application &app)
 		}
 		else if (event.kind == DeviceEventKind::Gamepad)
 		{
+			if (!console_mode && app.native_menu && window_focused() && event.value > 0)
+			{
+				if (event.control == "game.contacts")
+					context->ProcessKeyDown(Rml::Input::KI_RETURN, 0);
+				else
+					context->ProcessKeyDown(
+					    Rml::Input::KI_TAB,
+					    event.control == "game.faster" || event.control == "game.left" ? Rml::Input::KM_SHIFT : 0);
+			}
 			if (console_mode && window_focused())
 			{
 				auto found = app.gamepad_assignments.find(event.device);
@@ -644,6 +740,7 @@ void close_window()
 	if (current_app)
 		current_app->screen_action = {};
 	game_screen.reset();
+	native_menu.reset();
 	server_music.reset();
 	cancel_captures();
 	console_surfaces.clear();

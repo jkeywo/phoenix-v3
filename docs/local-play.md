@@ -2,7 +2,7 @@
 
 Build with `./scripts/build.ps1 -Target native`. The build produces `build/native/training.zip` from the editable starter content in `content/training/`, independently of the synthetic integration fixtures.
 
-Run `build/native/Release/native.exe --local-only` for this offline adapter. In Home or New game, add ZIP packs in dependency order. Mission, ship slot and ship buttons cycle through the resolved choices. Start session creates the selected ship and claims its authored console through the host admission boundary. Invalid pack imports or setup leave the previous verified selection/session intact. Native's default mode now supports [network play](network-play.md), with an explicit local or remote station claim.
+Run `build/native/Release/native.exe --local-only` for offline play. Use Mod Packs to install, enable and order ZIP packs, then Host Game > New Game > scenario > ship. The stopped lobby offers local Console selection or AI crew and starts after readiness plus a five-second countdown. Settings and managed saves persist beneath `--data`; see the [native menu](native-menu.md). Native's default mode adds networked ship/crew/GM joining. Invalid pack selection or save import preserves the previous verified selection/session. The browser server retains its existing flat setup controls.
 
 The viewscreen renders the full local server world with camera-facing or eight-direction billboards. Right-drag to orbit, middle-drag to pan and use the wheel to zoom. Eight-way frame selection uses the camera bearing relative to each entity's heading. Scale is billboard height in metres.
 

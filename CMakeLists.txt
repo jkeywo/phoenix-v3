@@ -184,7 +184,7 @@ if(EMSCRIPTEN)
 endif()
 add_library(phoenix_session_api STATIC)
 target_link_libraries(phoenix_session_api PUBLIC phoenix_content phoenix_transport)
-add_library(phoenix_core STATIC src/core/application.cpp src/core/semantics.cpp src/core/console.cpp)
+add_library(phoenix_core STATIC src/core/application.cpp src/core/semantics.cpp src/core/console.cpp src/core/menu.cpp)
 target_link_libraries(phoenix_core PUBLIC phoenix_foundation phoenix_session_api)
 add_library(phoenix_replication STATIC src/replication/consensus.cpp)
 target_link_libraries(phoenix_replication PUBLIC phoenix_foundation nlohmann_json::nlohmann_json)
@@ -240,6 +240,7 @@ add_library(
 	STATIC
 	src/presentation/screen.cpp
 	src/presentation/game.cpp
+	src/presentation/menu.cpp
 	src/presentation/music.cpp
 	src/presentation/scene.cpp
 	src/presentation/icons.cpp
@@ -256,6 +257,10 @@ if(EMSCRIPTEN)
 	target_sources(phoenix_presentation PRIVATE src/presentation/browser_semantics.cpp)
 else()
 	enable_testing()
+	add_executable(phoenix_menu_tests tests/system/menu.cpp)
+	target_link_libraries(phoenix_menu_tests PRIVATE phoenix_core phoenix_session)
+	phoenix_fixture(phoenix_menu_tests)
+	add_test(NAME system.native-menu-library COMMAND phoenix_menu_tests)
 	add_executable(phoenix_system_tests tests/system/input_and_semantics.cpp)
 	target_link_libraries(phoenix_system_tests PRIVATE phoenix_core)
 	add_test(NAME system.input-and-semantics COMMAND phoenix_system_tests)
@@ -426,7 +431,7 @@ if(EMSCRIPTEN)
 	configure_file(web/index.html "${CMAKE_CURRENT_BINARY_DIR}/index.html" COPYONLY)
 else()
 	add_executable(native src/entry/native.cpp)
-	target_link_libraries(native PRIVATE phoenix_network_host phoenix_network_client phoenix_tools)
+	target_link_libraries(native PRIVATE phoenix_network_lobby phoenix_network_host phoenix_network_client phoenix_tools)
 	add_custom_command(
 		TARGET native
 		POST_BUILD
@@ -470,6 +475,13 @@ add_library(phoenix_fleet STATIC src/replication/fleet.cpp)
 target_link_libraries(phoenix_fleet PUBLIC phoenix_persistence phoenix_wire phoenix_transport)
 target_link_libraries(phoenix_network_client PUBLIC phoenix_session_api phoenix_blobs phoenix_transport phoenix_wire)
 add_library(phoenix_network_host STATIC src/network/host.cpp)
+add_library(phoenix_network_lobby STATIC src/network/lobby.cpp)
+target_link_libraries(phoenix_network_lobby PUBLIC phoenix_network_host phoenix_network_client phoenix_fleet_setup)
+if(NOT EMSCRIPTEN)
+	add_executable(phoenix_lobby_tests tests/system/lobby.cpp)
+	target_link_libraries(phoenix_lobby_tests PRIVATE phoenix_network_lobby)
+	phoenix_fixture(phoenix_lobby_tests)
+endif()
 add_library(phoenix_fleet_setup STATIC src/session/fleet_setup.cpp src/session/fleet_runtime.cpp)
 target_link_libraries(phoenix_fleet_setup PUBLIC phoenix_session phoenix_wire phoenix_fleet phoenix_blobs)
 if(EMSCRIPTEN)

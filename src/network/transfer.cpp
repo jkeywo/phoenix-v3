@@ -280,6 +280,12 @@ StateSource::StateSource(const Json &state, std::uint64_t sequence) : bytes_(jso
 		throw std::runtime_error("Projection exceeds the supported 4 MiB state bound");
 	offer_ = {{"sequence", sequence}, {"size", bytes_.size()}, {"hash", sha256(bytes_)}};
 }
+StateSource::StateSource(Bytes archive, std::uint64_t sequence) : bytes_(std::move(archive))
+{
+	if (bytes_.empty() || bytes_.size() > max_archive || !sequence)
+		throw std::runtime_error("Private setup exceeds the 32 MiB archive bound");
+	offer_ = {{"sequence", sequence}, {"size", bytes_.size()}, {"hash", sha256(bytes_)}};
+}
 Json StateSource::offer() const
 {
 	return offer_;
@@ -296,9 +302,9 @@ Json StateSource::chunk(const Json &request) const
 	        {"offset", offset},
 	        {"data", base64(Bytes(bytes_.begin() + offset, bytes_.begin() + end))}};
 }
-StateTransfer::StateTransfer(const Json &offer) : offer_(offer)
+StateTransfer::StateTransfer(const Json &offer, bool archive) : offer_(offer), archive_(archive)
 {
-	const auto length = size(offer.at("size"), 4 * 1024 * 1024);
+	const auto length = size(offer.at("size"), archive ? max_archive : 4 * 1024 * 1024);
 	const auto sequence = size(offer.at("sequence"), 9007199254740991ULL);
 	if (!length || !sequence || !valid_hex_token(offer.at("hash").get<std::string>()))
 		throw std::runtime_error("Invalid bounded projection offer");
@@ -349,6 +355,11 @@ bool StateTransfer::accept(const Json &chunk)
 	{
 		if (sha256(bytes_) != offer_.at("hash").get<std::string>())
 			throw std::runtime_error("Projection integrity check failed");
+		if (archive_)
+		{
+			complete_ = true;
+			return true;
+		}
 		state_ = Json::parse(bytes_.begin(), bytes_.end(),
 		                     [](int depth, Json::parse_event_t, Json &)
 		                     {
@@ -363,7 +374,7 @@ bool StateTransfer::accept(const Json &chunk)
 }
 bool StateTransfer::ready() const
 {
-	return state_.is_object();
+	return complete_ || state_.is_object();
 }
 std::uint64_t StateTransfer::sequence() const
 {
@@ -374,5 +385,11 @@ const Json &StateTransfer::state() const
 	if (!ready())
 		throw std::runtime_error("Projection is incomplete");
 	return state_;
+}
+const Bytes &StateTransfer::archive() const
+{
+	if (!archive_ || !ready())
+		throw std::runtime_error("Private setup transfer is incomplete");
+	return bytes_;
 }
 } // namespace phoenix
