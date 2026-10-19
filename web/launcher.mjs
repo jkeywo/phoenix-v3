@@ -235,7 +235,7 @@ export function sceneProperties(scene) {
 		"--menu-space": `url("assets/menu/${scene.panorama.file}")`,
 		"--menu-flash-mask": `url("assets/menu/${f.file}")`,
 		"--menu-frame": `url("assets/menu/${scene.foreground.file}")`,
-		"--menu-crt": `url("assets/menu/${scene.terminal.file}?v=portrait-1")`,
+		"--menu-crt": `url("assets/menu/${scene.terminal.file}?v=weathered-2")`,
 		"--menu-scutter": `url("assets/menu/${robot.file}")`,
 		"--pan-period": period + "s",
 		"--pan-start": String(-2 * phase),
