@@ -1041,21 +1041,7 @@ void slots_editor()
 				           slot["mandatory"] = mandatory;
 			           transform_fields(slot);
 			           ImGui::TextUnformatted("Allowed ships:");
-			           for (const auto &entity : editor.document.definitions()["entities"])
-			           {
-				           std::string id = entity["id"];
-				           auto &allowed = slot["allowed_ships"];
-				           auto found = std::find(allowed.begin(), allowed.end(), Json(id));
-				           bool selected = found != allowed.end();
-				           if (ImGui::Checkbox(id.c_str(), &selected))
-				           {
-					           if (selected)
-						           allowed.push_back(id);
-					           else
-						           allowed.erase(found);
-				           }
-			           }
-			           for (const auto &[id, entity] : editor.document.libraries().entities)
+			           for (const auto &id : editor.document.definition_choices(WorkshopDefinitionKind::Entity))
 			           {
 				           auto &allowed = slot["allowed_ships"];
 				           auto found = std::find(allowed.begin(), allowed.end(), Json(id));

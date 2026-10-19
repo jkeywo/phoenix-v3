@@ -18,6 +18,8 @@ module;
 
 module phoenix.content;
 
+#include "knowledge_overlay.hpp"
+
 namespace phoenix
 {
 Json launcher_catalog(const Catalog &catalog)
@@ -204,10 +206,6 @@ Catalog resolve(const std::vector<PackView> &ordered)
 				result.knowledge["roles"] = Json::array();
 			if (!result.knowledge.contains("schemas"))
 				result.knowledge["schemas"] = Json::array();
-			for (const auto &role : knowledge.value("roles", Json::array()))
-				if (std::find(result.knowledge["roles"].begin(), result.knowledge["roles"].end(), role) ==
-				    result.knowledge["roles"].end())
-					result.knowledge["roles"].push_back(role);
 			for (const auto &schema : knowledge.value("schemas", Json::array()))
 			{
 				const auto key = "knowledge." + text(schema, "id", id + ".knowledge.schemas");
@@ -222,13 +220,9 @@ Catalog resolve(const std::vector<PackView> &ordered)
 					if (!overrides.contains(key))
 						invalid(key, "schema replacement requires explicit override");
 					used.insert(key);
-					*existing = schema;
 				}
-				else
-					schemas.push_back(schema);
 			}
-			if (knowledge.contains("history_limit"))
-				result.knowledge["history_limit"] = knowledge.at("history_limit");
+			overlay_knowledge(result.knowledge, knowledge, id + ".knowledge");
 		}
 		if (overrides != used)
 			invalid(id + ".overrides", "every declared override must replace an earlier definition");

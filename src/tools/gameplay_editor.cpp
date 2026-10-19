@@ -204,30 +204,6 @@ struct GameplayEditor
 		}
 		return result;
 	}
-	std::vector<std::string> definitions(const WorkshopDocument &document, const char *kind) const
-	{
-		std::vector<std::string> result;
-		if (document.definitions().contains(kind))
-			result = ids(document.definitions().at(kind));
-		const auto &library = document.libraries();
-		const auto *values = &library.entities;
-		if (std::string(kind) == "trees")
-			values = &library.trees;
-		if (std::string(kind) == "consoles")
-			values = &library.consoles;
-		if (std::string(kind) == "equipment")
-			values = &library.equipment;
-		if (std::string(kind) == "assemblies")
-			values = &library.assemblies;
-		if (std::string(kind) == "messages")
-			values = &library.messages;
-		if (std::string(kind) == "maps")
-			values = &library.maps;
-		for (const auto &[key, value] : *values)
-			if (std::find(result.begin(), result.end(), key) == result.end())
-				result.push_back(key);
-		return result;
-	}
 	std::string fresh(const Json &array, const std::string &prefix) const
 	{
 		const auto names = ids(array);
@@ -580,7 +556,7 @@ struct GameplayEditor
 		if (!selected)
 			return;
 		auto &ship = *selected;
-		choice(ship, "extends", definitions(document, "entities"), true);
+		choice(ship, "extends", document.definition_choices(WorkshopDefinitionKind::Entity), true);
 		if (system_entity != entity)
 		{
 			selected_system.clear();
@@ -611,7 +587,7 @@ struct GameplayEditor
 				auto &spec = ship["systems"][selected_system];
 				heading("Selected System");
 				ImGui::TextUnformatted(selected_system.c_str());
-				choice(spec, "template", definitions(document, "equipment"), true);
+				choice(spec, "template", document.definition_choices(WorkshopDefinitionKind::Equipment), true);
 				choice(spec, "kind",
 				       {"engine", "steering", "radar", "generator", "distribution", "coolant", "storage", "lateral",
 				        "boost", "impulse"},
@@ -658,7 +634,7 @@ struct GameplayEditor
 			            [&](Json &console)
 			            {
 				            string(console, "id");
-				            choice(console, "definition", definitions(document, "consoles"));
+				            choice(console, "definition", document.definition_choices(WorkshopDefinitionKind::Console));
 				            names(console, "systems", systems);
 				            names(console, "feeds", systems);
 				            gameplay_panel(console);
@@ -766,36 +742,6 @@ struct GameplayEditor
 			        boolean(row, "isolated");
 		        });
 	}
-	Json knowledge_view(const WorkshopDocument &document) const
-	{
-		Json result = document.libraries().knowledge;
-		if (!result.is_object())
-			result = Json::object();
-		if (!result.contains("roles"))
-			result["roles"] = Json::array();
-		if (!result.contains("schemas"))
-			result["schemas"] = Json::array();
-		if (document.definitions().contains("knowledge"))
-		{
-			const auto &local = document.definitions().at("knowledge");
-			for (const auto &role : local.value("roles", Json::array()))
-				if (std::find(result["roles"].begin(), result["roles"].end(), role) == result["roles"].end())
-					result["roles"].push_back(role);
-			for (const auto &schema : local.value("schemas", Json::array()))
-			{
-				auto existing = std::find_if(result["schemas"].begin(), result["schemas"].end(),
-				                             [&](const Json &candidate)
-				                             {
-					                             return candidate.at("id") == schema.at("id");
-				                             });
-				if (existing == result["schemas"].end())
-					result["schemas"].push_back(schema);
-				else
-					*existing = schema;
-			}
-		}
-		return result;
-	}
 	void knowledge(WorkshopDocument &document)
 	{
 		auto &definitions = document.definitions();
@@ -808,7 +754,7 @@ struct GameplayEditor
 			return;
 		}
 		auto &contract = definitions["knowledge"];
-		const auto visible_contract = knowledge_view(document);
+		const auto visible_contract = document.preview_knowledge();
 		integer(contract, "history_limit", 256);
 		strings(contract, "roles");
 		std::vector<std::string> roles;
@@ -844,7 +790,7 @@ struct GameplayEditor
 	}
 	void knowledge_bindings(WorkshopDocument &document)
 	{
-		const auto visible_contract = knowledge_view(document);
+		const auto visible_contract = document.preview_knowledge();
 		std::vector<std::string> roles;
 		for (const auto &role : visible_contract.at("roles"))
 			roles.push_back(role.get<std::string>());
@@ -916,7 +862,7 @@ struct GameplayEditor
 	}
 	void telemetry_records(Json &spec, WorkshopDocument &document)
 	{
-		const auto knowledge = knowledge_view(document);
+		const auto knowledge = document.preview_knowledge();
 		std::vector<std::string> roles;
 		for (const auto &role : knowledge.at("roles"))
 			roles.push_back(role.get<std::string>());
@@ -1165,7 +1111,7 @@ struct GameplayEditor
 				}
 				else if (task.contains("call"))
 				{
-					choice(task, "call", definitions(document, "trees"));
+					choice(task, "call", document.definition_choices(WorkshopDefinitionKind::Tree));
 					binding_map(task, "parameters", definition, {},
 					            {"integer", "boolean", "text", "reference", "parameter"});
 				}
@@ -1320,7 +1266,7 @@ struct GameplayEditor
 		{
 			static std::string derive_base;
 			Json derivation{{"Base tree", derive_base}};
-			if (choice(derivation, "Base tree", definitions(document, "trees")))
+			if (choice(derivation, "Base tree", document.definition_choices(WorkshopDefinitionKind::Tree)))
 				derive_base = derivation.at("Base tree").get<std::string>();
 			if (button("Derive tree from base") && !derive_base.empty())
 			{
@@ -1399,7 +1345,7 @@ struct GameplayEditor
 						}
 					return;
 				}
-				choice(definition, "extends", definitions(document, "trees"), true);
+				choice(definition, "extends", document.definition_choices(WorkshopDefinitionKind::Tree), true);
 				if (definition.contains("extends"))
 				{
 					text("Inherited source");
@@ -1517,7 +1463,7 @@ struct GameplayEditor
 	}
 	void record_bindings(Json &tree, WorkshopDocument &document, const Json &resolved)
 	{
-		const auto knowledge = knowledge_view(document);
+		const auto knowledge = document.preview_knowledge();
 		records(tree, "record_bindings",
 		        {{"name", "record"}, {"scope", "console"}, {"schema", ""}, {"field", ""}, {"subject", "self"}},
 		        [&](Json &binding)
@@ -1599,7 +1545,7 @@ struct GameplayEditor
 			return;
 		}
 		auto &scenario = map["scenario"];
-		choice(scenario, "tree", definitions(document, "trees"), true);
+		choice(scenario, "tree", document.definition_choices(WorkshopDefinitionKind::Tree), true);
 		scalar_map(scenario, "parameters");
 		strings(scenario, "events");
 		strings(scenario, "publications");
@@ -1620,7 +1566,7 @@ struct GameplayEditor
 		        [&](Json &situation)
 		        {
 			        string(situation, "id");
-			        choice(situation, "tree", definitions(document, "trees"));
+			        choice(situation, "tree", document.definition_choices(WorkshopDefinitionKind::Tree));
 			        scalar_map(situation, "parameters");
 			        if (situation.contains("bindings"))
 				        scenario_selectors(situation["bindings"], scenario, map, slots);
@@ -1643,7 +1589,8 @@ struct GameplayEditor
 			        records(group, "entities", {{"definition", ""}, {"x_mm", 0}, {"y_mm", 0}, {"heading_mdeg", 0}},
 			                [&](Json &entity)
 			                {
-				                choice(entity, "definition", definitions(document, "entities"));
+				                choice(entity, "definition",
+				                       document.definition_choices(WorkshopDefinitionKind::Entity));
 				                integer(entity, "x_mm");
 				                integer(entity, "y_mm");
 				                integer(entity, "heading_mdeg");
@@ -1741,24 +1688,10 @@ struct GameplayEditor
 	{
 		if (instance.contains("kind"))
 			return instance.at("kind").get<std::string>();
-		auto name = instance.value("template", instance.value("extends", std::string{}));
-		std::set<std::string> seen;
-		while (!name.empty() && seen.size() < 64 && seen.insert(name).second)
-		{
-			const Json *source = nullptr;
-			if (document.definitions().contains("equipment"))
-				for (const auto &candidate : document.definitions().at("equipment"))
-					if (candidate.at("id") == name)
-						source = &candidate;
-			if (!source && document.libraries().equipment.contains(name))
-				source = &document.libraries().equipment.at(name);
-			if (!source)
-				break;
-			if (source->contains("kind"))
-				return source->at("kind").get<std::string>();
-			name = source->value("extends", std::string{});
-		}
-		return {};
+		const auto name = instance.value("template", instance.value("extends", std::string{}));
+		return name.empty()
+		           ? std::string{}
+		           : document.preview_definition(WorkshopDefinitionKind::Equipment, name).value("kind", std::string{});
 	}
 	void templates(WorkshopDocument &document)
 	{
@@ -1768,7 +1701,7 @@ struct GameplayEditor
 		        [&](Json &equipment)
 		        {
 			        string(equipment, "id");
-			        choice(equipment, "extends", definitions(document, "equipment"), true);
+			        choice(equipment, "extends", document.definition_choices(WorkshopDefinitionKind::Equipment), true);
 			        choice(equipment, "kind",
 			               {"engine", "steering", "radar", "generator", "distribution", "coolant", "storage", "lateral",
 			                "boost", "impulse"});
@@ -1799,7 +1732,8 @@ struct GameplayEditor
 				        {
 					        ScopedId id_scope_23(it.key().c_str());
 					        ImGui::TextUnformatted(it.key().c_str());
-					        choice(it.value(), "template", definitions(document, "equipment"), true);
+					        choice(it.value(), "template",
+					               document.definition_choices(WorkshopDefinitionKind::Equipment), true);
 					        choice(it.value(), "kind",
 					               {"engine", "steering", "radar", "generator", "distribution", "coolant", "storage",
 					                "lateral", "boost", "impulse"},
@@ -1845,7 +1779,7 @@ struct GameplayEditor
 	{
 		if (auto *ship = select_entity(document))
 		{
-			names(*ship, "message_templates", definitions(document, "messages"));
+			names(*ship, "message_templates", document.definition_choices(WorkshopDefinitionKind::Message));
 			structured_field(*ship, "parameters");
 			services(*ship);
 			records(
@@ -1854,7 +1788,7 @@ struct GameplayEditor
 			    [&](Json &placement)
 			    {
 				    string(placement, "id");
-				    choice(placement, "assembly", definitions(document, "assemblies"));
+				    choice(placement, "assembly", document.definition_choices(WorkshopDefinitionKind::Assembly));
 				    scalar_map(placement, "bindings");
 				    structured_field(placement, "overrides");
 			    });
@@ -1898,7 +1832,7 @@ struct GameplayEditor
 		        {
 			        string(controller, "id");
 			        choice(controller, "console", consoles);
-			        if (choice(controller, "tree", definitions(document, "trees"), true))
+			        if (choice(controller, "tree", document.definition_choices(WorkshopDefinitionKind::Tree), true))
 			        {
 				        if (controller.contains("tree") && !controller.at("tree").get<std::string>().empty())
 					        controller.erase("fallback");
@@ -2064,8 +1998,8 @@ struct GameplayEditor
 		if (editable("publication_templates"))
 			strings(tree, "publication_templates");
 		if (editable("message_templates"))
-			names(tree, "message_templates", definitions(document, "messages"));
-		const auto knowledge = knowledge_view(document);
+			names(tree, "message_templates", document.definition_choices(WorkshopDefinitionKind::Message));
+		const auto knowledge = document.preview_knowledge();
 		if (editable("message_bindings"))
 			records(tree, "message_bindings", {{"name", "payload"}, {"schema", ""}, {"field", ""}},
 			        [&](Json &binding)
@@ -2085,13 +2019,7 @@ struct GameplayEditor
 		    {"actions", Json::array()}, {"observations", Json::array()}, {"intents", Json::array()}};
 		try
 		{
-			auto catalog = document.libraries();
-			for (const auto &source : document.definitions().value("trees", Json::array()))
-				catalog.trees[source.at("id").get<std::string>()] = source;
-			for (const auto &source : document.definitions().value("messages", Json::array()))
-				catalog.messages[source.at("id").get<std::string>()] = source;
-			catalog.knowledge_definition = compile_knowledge(knowledge_view(document));
-			const auto registry = gameplay_registry(tree, catalog, state_tree::Context::Controller);
+			const auto registry = document.preview_controller_registry(tree);
 			const auto type_name = [](state_tree::Type type)
 			{
 				static const char *names[] = {"missing", "boolean", "integer",   "text",   "entity",
@@ -2120,21 +2048,25 @@ struct GameplayEditor
 	void messages(WorkshopDocument &document)
 	{
 		auto &defs = document.definitions();
-		const auto known = knowledge_view(document);
+		const auto known = document.preview_knowledge();
 		const auto schemas = ids(known.at("schemas"));
 		Json context{{"context", "controller"}};
-		auto trees = document.libraries().trees;
-		for (const auto &source : defs.value("trees", Json::array()))
-			trees[source.at("id").get<std::string>()] = source;
 		std::map<std::string, Json> contexts;
 		std::vector<std::string> options;
-		for (const auto &[id, source] : trees)
+		for (const auto &id : document.definition_choices(WorkshopDefinitionKind::Tree))
 		{
-			const auto resolved = document.preview_tree(source);
-			if (resolved.value("context", std::string{}) == "controller")
+			try
 			{
-				options.push_back(id);
-				contexts.emplace(id, resolved);
+				const auto resolved = document.preview_tree(id);
+				if (resolved.value("context", std::string{}) == "controller")
+				{
+					options.push_back(id);
+					contexts.emplace(id, resolved);
+				}
+			}
+			catch (const std::exception &error)
+			{
+				ImGui::TextWrapped("%s", error.what());
 			}
 		}
 		Json selection{{"Binding tree", message_tree}};
@@ -2193,18 +2125,24 @@ struct GameplayEditor
 		heading("Disposable production test");
 		text("Run an isolated simulation of the verified draft. Pause, step and restart apply to this test.");
 		Json selection{{"Mission", test_map}, {"Ship", test_ship}, {"Slot", test_slot}};
-		if (choice(selection, "Mission", definitions(document, "maps")))
+		if (choice(selection, "Mission", document.definition_choices(WorkshopDefinitionKind::Map)))
 			test_map = selection.at("Mission").get<std::string>();
-		if (choice(selection, "Ship", definitions(document, "entities")))
+		if (choice(selection, "Ship", document.definition_choices(WorkshopDefinitionKind::Entity)))
 			test_ship = selection.at("Ship").get<std::string>();
 		std::vector<std::string> slots;
-		if (document.libraries().maps.contains(test_map) &&
-		    document.libraries().maps.at(test_map).contains("ship_slots"))
-			slots = ids(document.libraries().maps.at(test_map).at("ship_slots"));
-		if (document.definitions().contains("maps"))
-			for (const auto &map : document.definitions().at("maps"))
-				if (map.at("id") == test_map && map.contains("ship_slots"))
+		if (!test_map.empty())
+		{
+			try
+			{
+				const auto map = document.preview_definition(WorkshopDefinitionKind::Map, test_map);
+				if (map.contains("ship_slots"))
 					slots = ids(map.at("ship_slots"));
+			}
+			catch (const std::exception &error)
+			{
+				ImGui::TextWrapped("%s", error.what());
+			}
+		}
 		if (choice(selection, "Slot", slots))
 			test_slot = selection.at("Slot").get<std::string>();
 		for (const auto &[title, action] :
@@ -2257,7 +2195,7 @@ struct GameplayEditor
 	{
 		pseudo = app.pseudo_locale;
 		gameplay_panel(console);
-		const auto known = knowledge_view(document);
+		const auto known = document.preview_knowledge();
 		std::vector<std::string> roles;
 		for (const auto &role : known.at("roles"))
 			roles.push_back(role.get<std::string>());

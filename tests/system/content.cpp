@@ -697,6 +697,98 @@ int main()
 		require(combined.entities.at(derived)["systems"].contains("engine"),
 		        "Workshop mod must inherit real dependency content without embedding a second copy");
 		require(combined.maps.contains("authored-mod.map"), "renaming a pack must update namespaced map identities");
+		{
+			auto source = parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"),
+			                         "draft resolution fixture");
+			source["schema"] = 4;
+			source["knowledge"] = Json::parse(R"json({"history_limit":256,"roles":["crew"],"schemas":[
+			 {"id":"sample","producers":["crew"],"readers":["crew"],"fields":[{"id":"amount","type":"integer"}]}]})json");
+			const auto parent = Json::parse(R"json({"id":"test.draft-base","context":"controller","initial":"run",
+			 "record_bindings":[{"name":"reading","schema":"sample","field":"amount"}],"states":[{"id":"run"}]})json");
+			source["trees"].push_back(parent);
+			const auto dependency = phoenix::test::archive(source);
+			WorkshopDocument draft;
+			draft.load_dependency(dependency);
+			draft.definitions()["schema"] = 4;
+			draft.definitions()["trees"] =
+			    Json::array({{{"id", "test.draft-child"}, {"extends", "test.draft-base"}}, parent});
+			draft.definitions()["knowledge"] = source.at("knowledge");
+			draft.definitions()["knowledge"]["history_limit"] = 96;
+			draft.definitions()["knowledge"]["schemas"][0]["fields"][0]["type"] = "boolean";
+			const auto choices = draft.definition_choices(WorkshopDefinitionKind::Tree);
+			require(choices.size() >= 2 && choices[0] == "test.draft-child" && choices[1] == "test.draft-base" &&
+			            std::count(choices.begin(), choices.end(), "test.draft-base") == 1,
+			        "draft choices preserve authored order and deduplicate shadowed dependency definitions");
+			auto reading_type = [&]
+			{
+				const auto registry =
+				    draft.preview_controller_registry(draft.preview_tree(std::string("test.draft-child")));
+				for (const auto &field : registry.observations)
+					if (field.name == "reading")
+						return field.type;
+				throw std::runtime_error("draft Controller reading absent");
+			};
+			const auto before = draft.definitions();
+			require(draft.preview_knowledge().at("history_limit") == 96 && reading_type() == state_tree::Type::Boolean,
+			        "draft knowledge retention and Controller vocabulary use current local overrides");
+			require(draft.definitions() == before, "draft resolution queries do not mutate authored content");
+			rejected(
+			    [&]
+			    {
+				    draft.export_pack();
+			    },
+			    "explicit override");
+			draft.manifest()["overrides"] = {"test.draft-base", "knowledge.sample"};
+			const auto verified = draft.verify();
+			require(verified.knowledge_definition.history_limit == 96,
+			        "preview retention agrees with strict verification");
+			WorkshopDocument reloaded;
+			reloaded.load_dependency(dependency);
+			reloaded.load_pack(draft.export_pack());
+			require(reloaded.preview_knowledge() == draft.preview_knowledge(),
+			        "draft knowledge survives export and reload");
+			WorkshopHistory edits;
+			edits.reset(draft);
+			draft.definitions()["knowledge"]["schemas"][0]["fields"][0]["type"] = "integer";
+			edits.checkpoint(draft);
+			require(reading_type() == state_tree::Type::Integer && edits.undo(draft) &&
+			            reading_type() == state_tree::Type::Boolean && edits.redo(draft) &&
+			            reading_type() == state_tree::Type::Integer,
+			        "draft queries immediately reflect edits, undo and redo without stale compiled data");
+			draft.definitions()["trees"].push_back({{"id", "test.broken"}, {"extends", "missing.parent"}});
+			draft.definitions()["equipment"] = Json::parse(R"json([
+			 {"id":"draft.engine","kind":"engine"},
+			 {"id":"draft.child","extends":"draft.engine"},
+			 {"id":"draft.broken","extends":"missing.equipment"}])json");
+			require(draft.preview_definition(WorkshopDefinitionKind::Equipment, "draft.child").at("kind") == "engine",
+			        "equipment preview resolves only the selected inheritance closure");
+			require(draft.preview_definition(WorkshopDefinitionKind::Map, "test.map").at("ship_slots").size() == 1,
+			        "test-map query resolves dependency definitions without a GUI-owned catalog");
+			draft.definitions()["knowledge"]["schemas"].push_back({{"id", "unrelated.broken"}, {"fields", 7}});
+			require(reading_type() == state_tree::Type::Integer &&
+			            !draft.definition_choices(WorkshopDefinitionKind::Tree).empty(),
+			        "unrelated incomplete trees and schemas do not disable valid draft queries");
+			rejected(
+			    [&]
+			    {
+				    draft.preview_tree(std::string("test.broken"));
+			    },
+			    "missing.parent");
+			draft.definitions()["knowledge"]["schemas"][0]["fields"][0]["type"] = "unsupported";
+			rejected(
+			    [&]
+			    {
+				    reading_type();
+			    },
+			    "test.draft-child");
+			draft.definitions()["trees"].push_back(parent);
+			rejected(
+			    [&]
+			    {
+				    draft.preview_tree(std::string("test.draft-child"));
+			    },
+			    "duplicate draft definition");
+		}
 		std::cout << "PASS pack round trip, inheritance, ordered overrides and runnable-content verification\n";
 	}
 	catch (const std::exception &error)

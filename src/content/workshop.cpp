@@ -13,8 +13,103 @@ module;
 
 module phoenix.content;
 
+#include "knowledge_overlay.hpp"
+
 namespace phoenix
 {
+namespace
+{
+using DefinitionTable = std::map<std::string, Json>;
+struct DraftTable
+{
+	const char *name;
+	const DefinitionTable &library;
+};
+DraftTable draft_table(const Catalog &library, WorkshopDefinitionKind kind)
+{
+	switch (kind)
+	{
+	case WorkshopDefinitionKind::Entity:
+		return {"entities", library.entities};
+	case WorkshopDefinitionKind::Map:
+		return {"maps", library.maps};
+	case WorkshopDefinitionKind::Console:
+		return {"consoles", library.consoles};
+	case WorkshopDefinitionKind::Tree:
+		return {"trees", library.trees};
+	case WorkshopDefinitionKind::Equipment:
+		return {"equipment", library.equipment};
+	case WorkshopDefinitionKind::Assembly:
+		return {"assemblies", library.assemblies};
+	case WorkshopDefinitionKind::Message:
+		return {"messages", library.messages};
+	}
+	throw std::runtime_error("Unknown Workshop definition kind");
+}
+const Json &draft_rows(const Json &definitions, const char *kind)
+{
+	static const Json empty = Json::array();
+	if (!definitions.contains(kind))
+		return empty;
+	const auto &rows = definitions.at(kind);
+	if (!rows.is_array())
+		throw std::runtime_error(std::string(kind) + ": expected array");
+	return rows;
+}
+std::string draft_identity(const Json &entry)
+{
+	if (!entry.is_object() || !entry.contains("id") || !entry.at("id").is_string())
+		return {};
+	return entry.at("id").get<std::string>();
+}
+const Json &draft_definition(const Json &definitions, DraftTable table, const std::string &id)
+{
+	const Json *found = nullptr;
+	for (const auto &entry : draft_rows(definitions, table.name))
+		if (draft_identity(entry) == id)
+		{
+			if (found)
+				throw std::runtime_error(std::string(table.name) + "." + id + ": duplicate draft definition");
+			found = &entry;
+		}
+	if (found)
+		return *found;
+	if (const auto dependency = table.library.find(id); dependency != table.library.end())
+		return dependency->second;
+	throw std::runtime_error(std::string(table.name) + "." + id + ": unknown definition");
+}
+DefinitionTable draft_definitions(const Json &definitions, DraftTable table)
+{
+	auto result = table.library;
+	std::set<std::string> seen;
+	for (const auto &entry : draft_rows(definitions, table.name))
+	{
+		const auto id = draft_identity(entry);
+		if (id.empty() || !seen.insert(id).second)
+			throw std::runtime_error(std::string(table.name) + "." + id + ": missing or duplicate draft identity");
+		result[id] = entry;
+	}
+	return result;
+}
+Catalog tree_preview_catalog(const Json &tree, const Catalog &library, const Json &definitions)
+{
+	Catalog result;
+	const auto table = draft_table(library, WorkshopDefinitionKind::Tree);
+	std::function<void(const Json &, std::size_t)> collect = [&](const Json &source, std::size_t depth)
+	{
+		if (depth > 64)
+			throw std::runtime_error("trees: inheritance exceeds 64 levels");
+		const auto id = source.value("id", std::string("<inline>"));
+		if (result.trees.contains(id))
+			return; // The production resolver diagnoses cycles.
+		result.trees[id] = source;
+		if (source.contains("extends"))
+			collect(draft_definition(definitions, table, source.at("extends").get<std::string>()), depth + 1);
+	};
+	collect(tree, 0);
+	return result;
+}
+} // namespace
 Json authored_equipment_source(Json resolved);
 WorkshopDocument::WorkshopDocument()
 {
@@ -26,18 +121,15 @@ Catalog WorkshopDocument::preview_equipment() const
 	preview.entities = library_catalog_.entities;
 	for (auto &[id, entity] : preview.entities)
 		entity = authored_equipment_source(std::move(entity));
-	preview.equipment = library_catalog_.equipment;
-	preview.assemblies = library_catalog_.assemblies;
-	preview.trees = library_catalog_.trees;
-	if (definitions_.contains("trees"))
-		for (const auto &source : definitions_.at("trees"))
-			preview.trees[source.at("id").get<std::string>()] = source;
+	preview.entities = draft_definitions(definitions_, {"entities", preview.entities});
+	preview.equipment =
+	    draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Equipment));
+	preview.assemblies =
+	    draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Assembly));
+	preview.trees = draft_definitions(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Tree));
 	for (const auto &[kind, table] : std::vector<std::pair<const char *, std::map<std::string, Json> *>>{
 	         {"entities", &preview.entities}, {"equipment", &preview.equipment}, {"assemblies", &preview.assemblies}})
 	{
-		if (definitions_.contains(kind))
-			for (const auto &source : definitions_.at(kind))
-				(*table)[source.at("id").get<std::string>()] = source;
 		inherit_definitions(*table, kind);
 	}
 	resolve_equipment(preview);
@@ -45,12 +137,109 @@ Catalog WorkshopDocument::preview_equipment() const
 }
 Json WorkshopDocument::preview_tree(const Json &tree) const
 {
-	Catalog preview;
-	preview.trees = library_catalog_.trees;
-	if (definitions_.contains("trees"))
-		for (const auto &source : definitions_.at("trees"))
-			preview.trees[source.at("id").get<std::string>()] = source;
+	const auto preview = tree_preview_catalog(tree, library_catalog_, definitions_);
 	return resolve_tree_definition(tree, preview);
+}
+Json WorkshopDocument::preview_tree(const std::string &id) const
+{
+	return preview_tree(
+	    draft_definition(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Tree), id));
+}
+Json WorkshopDocument::preview_definition(WorkshopDefinitionKind kind, const std::string &id) const
+{
+	if (kind == WorkshopDefinitionKind::Tree)
+		return preview_tree(id);
+	const auto table = draft_table(library_catalog_, kind);
+	DefinitionTable closure;
+	std::function<void(const std::string &, std::size_t)> collect = [&](const std::string &name, std::size_t depth)
+	{
+		if (depth > 64)
+			throw std::runtime_error(std::string(table.name) + ": inheritance exceeds 64 levels");
+		if (closure.contains(name))
+			return;
+		const auto &source = draft_definition(definitions_, table, name);
+		closure[name] = source;
+		if (source.contains("extends"))
+			collect(source.at("extends").get<std::string>(), depth + 1);
+	};
+	collect(id, 0);
+	inherit_definitions(closure, table.name, id);
+	return closure.at(id);
+}
+std::vector<std::string> WorkshopDocument::definition_choices(WorkshopDefinitionKind kind) const
+{
+	const auto table = draft_table(library_catalog_, kind);
+	std::vector<std::string> result;
+	std::set<std::string> seen;
+	for (const auto &entry : draft_rows(definitions_, table.name))
+	{
+		const auto id = draft_identity(entry);
+		if (!id.empty() && seen.insert(id).second)
+			result.push_back(id);
+	}
+	for (const auto &[id, entry] : table.library)
+		if (seen.insert(id).second)
+			result.push_back(id);
+	return result;
+}
+Json WorkshopDocument::preview_knowledge() const
+{
+	auto result = library_catalog_.knowledge;
+	overlay_knowledge(result, definitions_.value("knowledge", Json::object()), "knowledge");
+	return result;
+}
+state_tree::Registry WorkshopDocument::preview_controller_registry(const Json &tree) const
+{
+	try
+	{
+		auto catalog = tree_preview_catalog(tree, library_catalog_, definitions_);
+		const auto resolved = resolve_tree_definition(tree, catalog);
+		std::set<std::string> schemas;
+		for (const auto *kind : {"record_bindings", "message_bindings"})
+			for (const auto &binding : resolved.value(kind, Json::array()))
+				schemas.insert(binding.at("schema").get<std::string>());
+		// Compile only the schemas needed for this vocabulary. Invalid unrelated
+		// draft schemas must not disable a valid Controller's authoring palette.
+		auto select = [&](const Json &knowledge)
+		{
+			Json selected = knowledge;
+			if (!selected.is_object())
+				throw std::runtime_error("knowledge: expected object");
+			selected["schemas"] = Json::array();
+			for (const auto &schema : draft_rows(knowledge, "schemas"))
+				if (schemas.contains(draft_identity(schema)))
+					selected["schemas"].push_back(schema);
+			return selected;
+		};
+		auto knowledge = select(library_catalog_.knowledge);
+		overlay_knowledge(knowledge, select(definitions_.value("knowledge", Json::object())), "knowledge");
+		// Vocabulary depends on role/schema types, not retention tuning.
+		knowledge.erase("history_limit");
+		std::set<std::string> roles;
+		for (const auto &schema : knowledge.at("schemas"))
+			for (const auto *kind : {"producers", "readers"})
+				for (const auto &role : schema.at(kind))
+					roles.insert(role.get<std::string>());
+		auto &declared = knowledge["roles"];
+		declared.erase(std::remove_if(declared.begin(), declared.end(),
+		                              [&](const auto &role)
+		                              {
+			                              return !role.is_string() || !roles.contains(role.template get<std::string>());
+		                              }),
+		               declared.end());
+		catalog.knowledge_definition = compile_knowledge(knowledge);
+		for (const auto &name : resolved.value("message_templates", Json::array()))
+		{
+			const auto id = name.get<std::string>();
+			catalog.messages[id] =
+			    draft_definition(definitions_, draft_table(library_catalog_, WorkshopDefinitionKind::Message), id);
+		}
+		return compile_controller_bindings(tree, catalog).registry;
+	}
+	catch (const std::exception &error)
+	{
+		throw std::runtime_error("trees." + tree.value("id", std::string("<inline>")) + ": " + error.what());
+	}
 }
 std::vector<Bytes> WorkshopDocument::dependency_archives() const
 {

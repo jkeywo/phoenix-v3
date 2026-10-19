@@ -426,6 +426,16 @@ TreeCursor load_tree(const TreeProgram &program, const TreeState &saved);
 
 export namespace phoenix
 {
+enum class WorkshopDefinitionKind
+{
+	Entity,
+	Map,
+	Console,
+	Tree,
+	Equipment,
+	Assembly,
+	Message
+};
 class WorkshopDocument
 {
 	friend class WorkshopHistory;
@@ -452,6 +462,11 @@ public:
 	// Resolves reusable equipment and controller namespaces without requiring finished ownership/presets.
 	Catalog preview_equipment() const;
 	Json preview_tree(const Json &tree) const;
+	Json preview_tree(const std::string &id) const;
+	std::vector<std::string> definition_choices(WorkshopDefinitionKind kind) const;
+	Json preview_definition(WorkshopDefinitionKind kind, const std::string &id) const;
+	Json preview_knowledge() const;
+	state_tree::Registry preview_controller_registry(const Json &tree) const;
 	Json &definitions()
 	{
 		return definitions_;
