@@ -39,6 +39,7 @@ import phoenix.devices;
 #include "rml_backend.hpp"
 #include "game.hpp"
 #include "menu.hpp"
+#include "engineering.hpp"
 #include "consoles.hpp"
 #include "settings.hpp"
 #include "music.hpp"
@@ -354,6 +355,15 @@ void prepare_settings(Application &app)
 void prepare_runtime_chrome(Application &app)
 {
 	const bool view = app.screen == Screen::viewscreen;
+	if (view && document->GetElementById("settings")->GetInnerRML().find("<img") == std::string::npos)
+	{
+#ifdef __EMSCRIPTEN__
+		const std::string icon = "/assets/menu/settings.png";
+#else
+		const std::string icon = std::string(GetApplicationDirectory()) + "assets/menu/settings.png";
+#endif
+		document->GetElementById("settings")->SetInnerRML("<img src=\"" + icon + "\"/>");
+	}
 	if (!view && !game_active(app))
 	{
 		auto *nav = document->GetElementById("nav");
@@ -371,20 +381,20 @@ void prepare_runtime_chrome(Application &app)
 	auto *nav = document->GetElementById("nav");
 	nav->SetProperty("display", view ? "block" : "none");
 	nav->SetProperty("position", "absolute");
-	nav->SetProperty("right", "16px");
-	nav->SetProperty("top", "16px");
+	nav->SetProperty("right", "auto");
+	nav->SetProperty("left", "20px");
+	nav->SetProperty("top", "18px");
 	if (app.viewscreen_region && view)
 	{
 		const auto &r = *app.viewscreen_region;
 		nav->SetProperty("right", "auto");
-		nav->SetProperty("width", "200px");
-		nav->SetProperty("left", std::to_string(r.x + r.width - 216) + "px");
-		nav->SetProperty("top", std::to_string(r.y + 16) + "px");
+		nav->SetProperty("width", "64px");
+		nav->SetProperty("left", std::to_string(r.x + 20) + "px");
+		nav->SetProperty("top", std::to_string(r.y + 18) + "px");
 	}
 	else
 	{
-		nav->SetProperty("left", "auto");
-		nav->SetProperty("width", "auto");
+		nav->SetProperty("width", "64px");
 	}
 }
 } // namespace
@@ -446,6 +456,10 @@ bool probe_console_readouts(ConsoleId route)
 {
 	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_readout_scroll();
 }
+bool probe_console_engineering(ConsoleId route, unsigned stage)
+{
+	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_engineering(stage);
+}
 void open_window()
 {
 	game_screen = std::make_unique<GameScreen>();
@@ -490,6 +504,9 @@ void open_window()
     button { display:inline-block; width:170px; padding:8px 12px; margin:0 8px 8px 0; background:#173142; border:1px #76c9e8; }
     button:hover, button:focus { background:#315a70; }
     #nav button { width:130px; padding:4px 8px; font-size:16px; }
+    #nav #settings {width:64px;height:64px;margin:0;padding:0;background:transparent;border:2px transparent;}
+    #nav #settings:hover,#nav #settings:focus {background:#455458;border-color:#ec9c52;}
+    #settings img {position:absolute;left:4px;top:4px;width:54px;height:54px;pointer-events:none;}
     #session-controls { display:block; width:100%; }
     #session-controls button { width:250px; font-size:16px; padding:4px 8px; }
     p { max-width:1100px; line-height:1.5; }
@@ -586,14 +603,26 @@ void draw_screen(Application &app)
 	select_language(app.language, app.pseudo_locale);
 	if ((app.can_host || app.native_menu) && app.screen != Screen::workshop && app.screen != Screen::gm &&
 	    IsKeyPressed(KEY_ESCAPE) && graphics_has_keyboard_focus())
-		invoke_navigation(app, app.native_menu && (app.screen == Screen::home || app.screen == Screen::server_lobby ||
-		                                           app.screen == Screen::client_lobby ||
-		                                           app.screen == Screen::settings || app.packs_popup)
-		                           ? "menu.back"
-		                           : "settings");
+	{
+#ifndef __EMSCRIPTEN__
+		if (game_active(app) && input.keyboard_console() && console_surfaces.contains(*input.keyboard_console()))
+			console_surfaces.at(*input.keyboard_console())
+			    ->action("console/" + std::to_string(*input.keyboard_console()) + "/settings");
+		else
+#endif
+			invoke_navigation(app,
+			                  app.native_menu && (app.screen == Screen::home || app.screen == Screen::server_lobby ||
+			                                      app.screen == Screen::client_lobby ||
+			                                      app.screen == Screen::settings || app.packs_popup)
+			                      ? "menu.back"
+			                      : "settings");
+	}
 	const bool lobby_consoles = app.can_host && app.screen == Screen::server_lobby && !app.console_regions.empty();
 	const bool show_consoles = lobby_consoles || app.screen == Screen::console ||
-	                           (app.can_host && app.screen == Screen::viewscreen && !app.console_regions.empty());
+	                           (app.can_host &&
+	                            (app.screen == Screen::viewscreen ||
+	                             (app.screen == Screen::settings && app.settings_return == Screen::viewscreen)) &&
+	                            !app.console_regions.empty());
 	if (show_consoles != console_mode)
 	{
 		cancel_captures();
@@ -637,7 +666,7 @@ void draw_screen(Application &app)
 	if (!input.keyboard_console())
 		input.select_keyboard(lobby_consoles && app.viewscreen_region ? app.viewscreen_region->console
 		                                                              : regions.front().console);
-	if (console_mode && !lobby_consoles)
+	if (console_mode && !lobby_consoles && app.screen != Screen::settings)
 	{
 		if (app.screen == Screen::viewscreen)
 		{
@@ -718,7 +747,9 @@ void draw_screen(Application &app)
 		for (const auto &region : active_console_regions)
 			if (!console_surfaces.contains(region.console))
 				console_surfaces[region.console] = std::make_unique<ConsoleSurface>(region.console);
-		const auto primary_action = lobby_consoles ? app.screen_action : std::function<bool(const std::string &)>{};
+		const auto primary_action = lobby_consoles || app.screen == Screen::settings
+		                                ? app.screen_action
+		                                : std::function<bool(const std::string &)>{};
 		app.screen_action = [primary_action](const std::string &id)
 		{
 			if (id.starts_with("console/"))
@@ -730,13 +761,14 @@ void draw_screen(Application &app)
 			}
 			return primary_action ? primary_action(id) : false;
 		};
-		const auto primary_focus = lobby_consoles ? app.focus_control
-		                                          : std::function<void(const std::string &)>{
-		                                                [](const std::string &id)
-		                                                {
-			                                                if (auto *element = document->GetElementById(id))
-				                                                element->Focus(true);
-		                                                }};
+		const auto primary_focus =
+		    lobby_consoles || app.screen == Screen::settings
+		        ? app.focus_control
+		        : std::function<void(const std::string &)>{[](const std::string &id)
+		                                                   {
+			                                                   if (auto *element = document->GetElementById(id))
+				                                                   element->Focus(true);
+		                                                   }};
 		app.focus_control = [&app, primary_focus](const std::string &id)
 		{
 			for (auto &[route, surface] : console_surfaces)
@@ -755,7 +787,8 @@ void draw_screen(Application &app)
 				primary_focus(id);
 			}
 		};
-		const auto primary_value = lobby_consoles ? app.set_control_value : decltype(app.set_control_value){};
+		const auto primary_value = lobby_consoles || app.screen == Screen::settings ? app.set_control_value
+		                                                                            : decltype(app.set_control_value){};
 		app.set_control_value = [primary_value](const std::string &id, const std::string &value)
 		{
 			if (id.starts_with("console/"))
@@ -948,7 +981,7 @@ void draw_screen(Application &app)
 			game_screen->draw_viewscreen(app, {r.x, r.y, r.width, r.height});
 		}
 		app.frame_metrics["scene"] = GetTime() - scene_started;
-		if (app.screen == Screen::viewscreen || lobby_consoles)
+		if (app.screen == Screen::viewscreen || app.screen == Screen::settings || lobby_consoles)
 		{
 			context->Update();
 			native_menu->position_labels(*document);

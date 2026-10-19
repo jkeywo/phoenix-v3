@@ -239,6 +239,10 @@ bool invoke_navigation(Application &app, const std::string &id)
 	}
 	if (id == "settings.quit")
 	{
+#ifndef __EMSCRIPTEN__
+		if (app.settings_return == Screen::console)
+			return false;
+#endif
 		if (app.screen != Screen::settings || app.settings_tab != "session" || !active || !app.return_home)
 			return false;
 		app.return_home();

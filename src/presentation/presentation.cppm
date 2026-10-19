@@ -95,6 +95,7 @@ void draw_radar_body(TextureCache &textures, const Catalog &catalog, const BodyV
 bool probe_menu_keyboard(Application &app);
 bool probe_console_helm(Application &app, ConsoleId route);
 bool probe_console_readouts(ConsoleId route);
+bool probe_console_engineering(ConsoleId route, unsigned stage);
 void open_window();
 bool close_requested();
 bool graphics_has_keyboard_focus();

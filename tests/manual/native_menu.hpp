@@ -341,6 +341,15 @@ struct NativeMenuSmoke
 				if (observed->requested_heading != 90000 || observed->requested_speed <= 0)
 					throw std::runtime_error("Second-screen Helm actions did not commit while host was on Viewscreen");
 				capture("helm-active");
+				if (console_frames == 6)
+				{
+					action(app, "console/" + std::to_string(route) + "/settings");
+					if (app.screen != phoenix::Screen::viewscreen)
+						throw std::runtime_error("Console settings changed the host screen");
+					return false;
+				}
+				if (phoenix::invoke_navigation(app, "console/" + std::to_string(route) + "/release"))
+					throw std::runtime_error("Native player escaped its station");
 			}
 			const auto controls = phoenix::navigation_controls(app);
 			if (std::any_of(controls.begin(), controls.end(),
@@ -356,6 +365,20 @@ struct NativeMenuSmoke
 			break;
 		}
 		case 11:
+			if (assign_displays)
+			{
+				const auto route = app.console_regions.front().console;
+				const auto prefix = "console/" + std::to_string(route) + "/";
+				const auto controls = phoenix::navigation_controls(app);
+				if (std::none_of(controls.begin(), controls.end(),
+				                 [&](const auto &c)
+				                 {
+					                 return c.id == prefix + "local-settings.close";
+				                 }))
+					throw std::runtime_error("Host settings removed the independent player settings");
+				if (phoenix::invoke_navigation(app, prefix + "settings.quit"))
+					throw std::runtime_error("Native player could quit the host session");
+			}
 			if (app.settings_tab != "session")
 			{
 				action(app, "settings.tab/session");

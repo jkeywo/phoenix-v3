@@ -8,6 +8,7 @@
 #include <vector>
 #include <nlohmann/json.hpp>
 #include "../../src/presentation/menu_skin.hpp"
+#include "../../src/presentation/sprite_direction.hpp"
 import phoenix.menu;
 import phoenix.session.local;
 using namespace phoenix;
@@ -16,6 +17,11 @@ int main()
 {
 	try
 	{
+		require(retain_sprite_direction(26, 0, 45) && !retain_sprite_direction(28, 0, 45) &&
+		            retain_sprite_direction(19, 45, 0) && !retain_sprite_direction(17, 45, 0) &&
+		            retain_sprite_direction(334, 0, 315) && !retain_sprite_direction(332, 0, 315) &&
+		            !retain_sprite_direction(180, 0, 180),
+		        "Directional sprites resist boundary jitter by five degrees, wrap through zero and follow large turns");
 		// Synthetic sidecar: asymmetric borders catch uniform-scaling regressions.
 		nlohmann::json skin_source = {{"schema_version", 1},
 		                              {"coordinate_system", "frame_pixels_top_left_y_down"},

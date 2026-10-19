@@ -1,0 +1,7 @@
+# Thin Viewscreen frame
+
+Generated with the built-in imagegen tool on 19 October 2026, using `helm-background-9slice.png` as a style reference. `viewscreen-frame.png` preserves the generated alpha channel; the live scene remains visible through its transparent centre. The renderer uses 112-pixel corner slices.
+
+## Prompt
+
+Use case: stylized-concept. Asset type: transparent PNG game viewscreen border, landscape 1536x1024, scalable nine-slice. Reference image is STYLE REFERENCE ONLY. Create a NEW much thinner industrial spacecraft monitor frame matching its distressed ivory metal, charcoal black ink outlines, sparse burnt-orange accents, comic halftone and scratches. Straight orthographic front view. Thin continuous rails along all four outer edges, about 18 pixels thick; small chamfered corner brackets contained within 48 pixels of corners. Frame reaches canvas edges. The entire large central opening MUST be actually transparent (alpha zero), not black, no glass, no interior backdrop. No buttons, text, icons, scenery, glow, cables, or objects inside the opening. Keep rail centre sections straight and uniform for nine-slice stretching. This is an unobtrusive border overlay for a live spaceship viewscreen.

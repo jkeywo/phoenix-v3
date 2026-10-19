@@ -49,6 +49,7 @@ int main(int argc, char **argv)
 	unsigned join_ready_frames = 0;
 	int smoke_frames = 0;
 	bool helm_smoke = false, readout_smoke = false;
+	bool engineering_smoke = false;
 	std::uint64_t helm_smoke_tick = 0;
 	bool workshop_smoke = false;
 	std::string workshop_pack;
@@ -133,6 +134,11 @@ int main(int argc, char **argv)
 		if (argument == "--helm-smoke")
 		{
 			helm_smoke = true;
+			smoke_frames = 90;
+		}
+		if (argument == "--engineering-smoke")
+		{
+			engineering_smoke = true;
 			smoke_frames = 90;
 		}
 		if (argument == "--join-smoke")
@@ -695,22 +701,33 @@ int main(int argc, char **argv)
 			}
 			if (smoke_frames == 60)
 			{
-				app.settings_console = 1;
-				phoenix::invoke_navigation(app, "settings");
-				phoenix::invoke_navigation(app, "settings.tab/session");
+				phoenix::invoke_navigation(app, "console/1/settings");
 			}
-			if (smoke_frames == 50 && !phoenix::invoke_navigation(app, "settings.away"))
+			if (smoke_frames == 55)
+			{
+				if (app.screen != phoenix::Screen::console ||
+				    !phoenix::invoke_navigation(app, "console/1/local-settings.tab/session"))
+					throw std::runtime_error("Settings left the native station");
+			}
+			if (smoke_frames == 50 && !phoenix::invoke_navigation(app, "console/1/game.control/61776179"))
 				throw std::runtime_error("Settings Away action failed");
-			if (smoke_frames == 30 && !phoenix::invoke_navigation(app, "settings.resume"))
+			if (smoke_frames == 30 && !phoenix::invoke_navigation(app, "console/1/game.control/61776179"))
 				throw std::runtime_error("Settings resume action failed");
 			if (smoke_frames == 20)
-				phoenix::invoke_navigation(app, "settings.close");
+				phoenix::invoke_navigation(app, "console/1/local-settings.close");
 			if (smoke_frames == 1)
 			{
 				if (app.session->ticks() <= helm_smoke_tick)
 					throw std::runtime_error("Helm input stalled simulation");
 				std::cout << "Helm smoke passed: direct throttle, heading, Settings Away/resume and advancing ticks\n";
 			}
+		}
+		if (engineering_smoke)
+		{
+			if ((smoke_frames == 80 && !phoenix::probe_console_engineering(1, 0)) ||
+			    (smoke_frames == 50 && !phoenix::probe_console_engineering(1, 1)) ||
+			    (smoke_frames == 20 && !phoenix::probe_console_engineering(1, 2)))
+				throw std::runtime_error("Engineering telemetry/control probe failed");
 		}
 		if (smoke_frames && --smoke_frames == 0)
 		{

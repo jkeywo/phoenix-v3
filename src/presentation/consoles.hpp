@@ -19,18 +19,28 @@ class ConsoleSurface final : public Rml::EventListener
 	std::string signature_;
 	std::map<std::string, std::string> displayed_values_;
 	std::vector<std::pair<std::string, std::string>> readout_values_;
+	std::set<std::string> visible_readouts_;
+	void measure_readouts()
+	{
+		visible_readouts_.clear();
+		auto *panel = document_->GetElementById("gameplay");
+		const auto panel_at = panel->GetAbsoluteOffset(Rml::BoxArea::Border);
+		const auto bottom = panel_at.y + panel->GetOffsetHeight() + 100;
+		for (const auto &[name, text] : readout_values_)
+			if (auto *target = element(id(name)))
+			{
+				const auto at = target->GetAbsoluteOffset(Rml::BoxArea::Border);
+				if (at.y + target->GetOffsetHeight() >= panel_at.y - 100 && at.y <= bottom)
+					visible_readouts_.insert(name);
+			}
+	}
 	bool update_readout(const std::string &name, const std::string &text, bool force)
 	{
 		auto *target = element(id(name));
 		if (!target || displayed_values_[name] == text)
 			return false;
-		auto *panel = document_->GetElementById("gameplay");
-		const auto panel_at = panel->GetAbsoluteOffset(Rml::BoxArea::Border);
-		const auto at = target->GetAbsoluteOffset(Rml::BoxArea::Border);
-		const bool visible =
-		    at.y + target->GetOffsetHeight() >= panel_at.y - 100 && at.y <= panel_at.y + panel->GetOffsetHeight() + 100;
 		// Keep measured offscreen heights; accessible values are published separately.
-		if (!force && !displayed_values_[name].empty() && !visible)
+		if (!force && !displayed_values_[name].empty() && !visible_readouts_.contains(name))
 			return false;
 		target->SetInnerRML(Rml::StringUtilities::EncodeRml(text));
 		displayed_values_[name] = text;
@@ -61,6 +71,7 @@ class ConsoleSurface final : public Rml::EventListener
 	std::string gameplay_signature_;
 	std::string placement_signature_;
 	std::string gameplay_readout_signature_;
+	std::string engineering_signature_;
 	std::set<std::string> held_clicks_;
 	std::map<std::string, Texture2D> hud_;
 	std::map<std::string, Json> hud_metadata_;
@@ -69,7 +80,79 @@ class ConsoleSurface final : public Rml::EventListener
 	std::map<std::uint64_t, std::string> throttle_contacts_;
 	std::map<std::string, Rectangle> throttle_tracks_;
 	bool syncing_values_ = false;
+	bool settings_open_ = false;
+	std::string local_settings_tab_ = "display", local_settings_markup_;
+	int text_scale_ = 100;
+	std::string local_language_ = "en";
+	std::vector<std::pair<std::string, std::string>> local_settings_controls_;
+	std::string settings_button(const std::string &name, const std::string &label)
+	{
+		local_settings_controls_.emplace_back(id(name), label);
+		return "<button id=\"" + id(name) + "\">" + Rml::StringUtilities::EncodeRml(localise(label)) + "</button>";
+	}
+	void prepare_local_settings(Application &app, const ConsoleRegion &region)
+	{
+		local_settings_controls_.clear();
+		std::string markup = "<div class=\"local-settings-card\"><h1>" + localise("Console settings") + "</h1><div>";
+		for (const auto &[tab, label] : std::vector<std::pair<std::string, std::string>>{
+		         {"display", "Display"}, {"language", "Language"}, {"audio", "Audio"}, {"session", "Session"}})
+			markup += settings_button("local-settings.tab/" + tab, label);
+		markup += "</div>";
+		if (local_settings_tab_ == "display")
+		{
+			markup += "<p>" + localise("Text size") + ": " + std::to_string(text_scale_) + "%</p>";
+			markup += settings_button("local-settings.smaller", "Smaller text");
+			markup += settings_button("local-settings.larger", "Larger text");
+		}
+		else if (local_settings_tab_ == "language")
+			markup += settings_button("local-settings.language", "Language: " + local_language_);
+		else if (local_settings_tab_ == "audio")
+		{
+			markup += "<p>" + localise("Audio uses the shared native output device.") + "</p>";
+			for (const auto &[channel, label, value] :
+			     std::vector<std::tuple<std::string, std::string, int>>{{"master", "Master volume", app.master_volume},
+			                                                            {"music", "Music volume", app.music_volume},
+			                                                            {"sfx", "SFX volume", app.sfx_volume}})
+			{
+				markup += "<p>" + localise(label) + ": " + std::to_string(value) + "%</p>";
+				markup += settings_button("local-settings.audio/" + channel + "/down", label + " -");
+				markup += settings_button("local-settings.audio/" + channel + "/up", label + " +");
+			}
+		}
+		else if (model_.observation())
+			for (const auto &control : model_.observation()->gameplay.value("controls", Json::array()))
+				if (control.value("action", "") == "away")
+					markup +=
+					    settings_button(descriptor_action(control.at("id")),
+					                    control.value("value", 0) ? "Away - hand control to AI" : "Resume control");
+		markup += settings_button("local-settings.close", "Return to station") + "</div>";
+		if (markup != local_settings_markup_)
+		{
+			const auto focus = context_->GetFocusElement() ? context_->GetFocusElement()->GetId() : std::string{};
+			elements_.clear();
+			document_->GetElementById("local-settings")->SetInnerRML(markup);
+			local_settings_markup_ = markup;
+			if (auto *previous = document_->GetElementById(focus))
+				previous->Focus();
+		}
+		context_->Update();
+		if (std::none_of(local_settings_controls_.begin(), local_settings_controls_.end(),
+		                 [&](const auto &control)
+		                 {
+			                 return context_->GetFocusElement() &&
+			                        context_->GetFocusElement()->GetId() == control.first;
+		                 }))
+			if (auto *first = document_->GetElementById(local_settings_controls_.front().first))
+				first->Focus();
+		for (const auto &[name, label] : local_settings_controls_)
+		{
+			app.screen_controls.emplace_back(name, localise(label));
+			place(app, region, name);
+		}
+	}
 	std::map<std::string, double> throttle_sent_at_;
+	std::map<std::string, double> heading_sent_at_;
+	std::map<std::pair<std::string, std::string>, std::int64_t> engineering_probe_requests_;
 	std::map<std::string, std::array<float, 3>> heading_dials_;
 	std::map<std::string, std::string> dial_systems_;
 	std::string asset_path(const std::string &name) const
@@ -149,21 +232,33 @@ public:
 			throw std::runtime_error("Cannot create independent Console context");
 		document_ = context_->LoadDocumentFromMemory(R"(<rml><head><style>
 body {width:100%;height:100%;font-family:LatoLatin;font-size:20px;color:#e5e4ca;}
-h1 {font-size:26px;display:inline-block;margin:0 18px 8px 0;}
-h2 {font-size:20px;display:block;margin:4px 0;}
+h1 {font-size:1.3em;display:inline-block;margin:0 18px 8px 0;}
+h2 {font-size:1em;display:block;margin:4px 0;}
 button {display:inline-block;padding:10px;margin:4px;border:1px #9c8b68;background:#222b2b;color:#f0e3c2;}
 button:hover,button:focus {background:#455458;border-color:#ec9c52;}
 #toolbar {position:absolute;left:20px;top:18px;right:20px;height:85px;overflow:visible;z-index:2;}
 #toolbar h1 {margin-left:76px;}
-#connection-status {font-size:15px;}
+#connection-status {font-size:.75em;}
 #widgets {position:absolute;left:4%;right:4%;top:125px;bottom:4%;}
 #gameplay {position:absolute;left:60%;right:4%;top:125px;bottom:4%;overflow:auto;background:#0b1719ee;border:1px #988b71;padding:8px;display:none;}
+#gameplay-controls button {width:210px;min-height:48px;box-sizing:border-box;}
+.engineering #widgets {display:none;}
+.engineering #connection-status {display:none;}
+.engineering #gameplay {background:transparent;border:0px;}
+#engineering-cards {display:block;width:100%;}
+.engineering-card {display:inline-block;vertical-align:top;box-sizing:border-box;margin:0 12px 14px 0;padding:16px;background:#0b1719ee;border:1px #988b71;}
+.resource-meter {display:block;width:100%;height:12px;margin:5px 0;background:#263534;}
+.resource-fill {display:block;height:100%;background:#88c6a2;}
+.resource-heat {background:#ef9958;}
+.engineering-card h2 {color:#ffbd76;}
+.engineering-card p {min-height:56px;line-height:1.5;}
+.engineering-card button {width:180px;min-height:48px;box-sizing:border-box;font-size:.85em;}
 .widget {position:absolute;box-sizing:border-box;padding:8px;overflow:hidden;}
-p {display:block;font-size:17px;margin:4px 0;}
+p {display:block;font-size:.85em;margin:4px 0;}
 .dial {position:absolute;left:12px;right:12px;top:48px;bottom:72px;}
 .widget button {position:absolute;bottom:8px;left:8px;}
 .readout {position:absolute;bottom:12px;left:16px;right:16px;height:44px;text-align:center;color:#cbe9c8;}
-.heading-value {display:inline-block;vertical-align:middle;margin:0 8px;width:145px;height:36px;background:#0a1719;color:#cbe9c8;border:1px #988b71;font-size:26px;}
+.heading-value {display:inline-block;vertical-align:middle;margin:0 8px;width:145px;height:36px;background:#0a1719;color:#cbe9c8;border:1px #988b71;font-size:1.3em;}
 .throttle {position:absolute;background:transparent;border:0px;}
 .throttle slidertrack {background:transparent;}
 .throttle sliderbar {width:100%;background:transparent;}
@@ -186,7 +281,13 @@ p {display:block;font-size:17px;margin:4px 0;}
 .helm .radar-widget button:focus,.helm .heading-value:focus {opacity:1;}
 .helm #gameplay {background:transparent;border:0px;padding:0px;}
 .profile-tv span {position:absolute;left:20%;top:69%;width:55%;text-align:center;pointer-events:none;}
-</style></head><body><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="gameplay-controls"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div></body></rml>)");
+#local-settings {display:none;position:absolute;left:0;top:0;width:100%;height:100%;background:#080d0fee;z-index:20;}
+.local-settings-open #local-settings {display:block;}
+.local-settings-open #toolbar,.local-settings-open #widgets,.local-settings-open #gameplay {visibility:hidden;}
+.local-settings-card {position:absolute;left:8%;top:8%;width:84%;max-height:84%;overflow:auto;box-sizing:border-box;padding:24px;background:#0b1719;border:2px #988b71;}
+.local-settings-card h1 {display:block;}
+.local-settings-card button {width:190px;min-height:48px;box-sizing:border-box;}
+</style></head><body><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="engineering-cards"></div><div id="gameplay-controls"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div><div id="local-settings"></div></body></rml>)");
 		if (!document_)
 			throw std::runtime_error("Cannot create Console document");
 		document_->AddEventListener("click", this);
@@ -220,9 +321,58 @@ p {display:block;font-size:17px;margin:4px 0;}
 			return false;
 		const auto action = name.substr(prefix.size());
 		if ((app_->screen != Screen::console && app_->screen != Screen::viewscreen &&
-		     app_->screen != Screen::server_lobby) ||
+		     app_->screen != Screen::server_lobby && app_->screen != Screen::settings) ||
 		    owner_.lock() != app_->session || (app_->session && generation_ != app_->session->generation()))
 			return false;
+#ifndef __EMSCRIPTEN__
+		if (action == "settings" || action == "local-settings.close")
+		{
+			if (!game_active(*app_))
+				return false;
+			settings_open_ = action == "settings" && !settings_open_;
+			cancel_pointer();
+			model_.release_controls();
+			document_->SetClass("local-settings-open", settings_open_);
+			if (!settings_open_)
+				if (auto *cog = document_->GetElementById(id("settings")))
+					cog->Focus();
+			return true;
+		}
+		if (settings_open_)
+		{
+			if (std::none_of(local_settings_controls_.begin(), local_settings_controls_.end(),
+			                 [&](const auto &control)
+			                 {
+				                 return control.first == name;
+			                 }))
+				return false;
+			if (action.starts_with("local-settings.tab/"))
+				local_settings_tab_ = action.substr(19);
+			else if (action == "local-settings.smaller")
+				text_scale_ = std::max(80, text_scale_ - 10);
+			else if (action == "local-settings.larger")
+				text_scale_ = std::min(150, text_scale_ + 10);
+			else if (action == "local-settings.language")
+			{
+				const auto languages = installed_languages();
+				auto it = std::find(languages.begin(), languages.end(), local_language_);
+				local_language_ = it == languages.end() || ++it == languages.end() ? languages.front() : *it;
+				signature_.clear();
+			}
+			else if (action.starts_with("local-settings.audio/"))
+			{
+				const auto channel = action.substr(21, action.find('/', 21) - 21);
+				auto &value = channel == "master"  ? app_->master_volume
+				              : channel == "music" ? app_->music_volume
+				                                   : app_->sfx_volume;
+				value = std::clamp(value + (action.ends_with("/up") ? 5 : -5), 0, 100);
+				remember_preferences(*app_);
+			}
+			else
+				return model_.act(action);
+			return true;
+		}
+#endif
 		if (action == "profile" || action == "profile-save" || action.starts_with("avatar/"))
 		{
 			if (!app_->session->lobby().active || app_->session->lobby().launched)
@@ -268,9 +418,19 @@ p {display:block;font-size:17px;margin:4px 0;}
 			return invoke_navigation(*app_, "settings");
 		}
 		if (action == "release")
+		{
+#ifdef __EMSCRIPTEN__
 			return app_->session && app_->session->release_console(route_);
+#else
+			return false;
+#endif
+		}
 		if (action.starts_with("claim/"))
 		{
+#ifndef __EMSCRIPTEN__
+			if (game_active(*app_))
+				return false;
+#endif
 			for (const auto &seat : app_->session->console_seats())
 				if (action == "claim/" + std::to_string(seat.address.ship) + "/" + seat.address.console)
 					return app_->session->claim_console(route_, seat.address);
@@ -335,6 +495,8 @@ p {display:block;font-size:17px;margin:4px 0;}
 	}
 	bool set_value(const std::string &name, const std::string &text)
 	{
+		if (settings_open_)
+			return false;
 		if (app_ && profile_open_ && name == id("profile-name"))
 		{
 			profile_name_ = text;
@@ -365,6 +527,8 @@ p {display:block;font-size:17px;margin:4px 0;}
 	}
 	bool pointer(std::uint64_t contact, float x, float y, DeviceEventKind kind)
 	{
+		if (settings_open_)
+			return false;
 		if (!app_ || !game_active(*app_) || owner_.lock() != app_->session ||
 		    generation_ != app_->session->generation())
 			return false;
@@ -421,9 +585,17 @@ p {display:block;font-size:17px;margin:4px 0;}
 		const float dx = x - cx, dy = cy - y, length = std::hypot(dx, dy);
 		if (kind != DeviceEventKind::Cancel && length > 1)
 		{
-			model_.set_heading_degrees(std::fmod(std::atan2(dy, dx) * 180.0 / 3.141592653589793 + 360.0, 360.0),
-			                           dial_systems_.at(key));
-			app_->accessible_status = model_.announcement();
+			const double degrees = std::fmod(std::atan2(dy, dx) * 180.0 / 3.141592653589793 + 360.0, 360.0);
+			const auto &system = dial_systems_.at(key);
+			const auto requested = static_cast<std::int64_t>(std::llround(degrees * 1000)) % 360000;
+			if (requested != model_.system_request(system, "heading_mdeg") &&
+			    (kind == DeviceEventKind::Down || kind == DeviceEventKind::Up ||
+			     GetTime() - heading_sent_at_[key] >= .05))
+			{
+				if (model_.set_heading_degrees(degrees, system))
+					heading_sent_at_[key] = GetTime();
+				app_->accessible_status = model_.announcement();
+			}
 		}
 		if (kind == DeviceEventKind::Up || kind == DeviceEventKind::Cancel)
 			heading_contacts_.erase(contact);
@@ -439,6 +611,11 @@ p {display:block;font-size:17px;margin:4px 0;}
 	void update_view()
 	{
 		context_->Update();
+		if (settings_open_)
+			return;
+		// Read geometry as one batch before changing any text. Interleaving these
+		// operations forced a complete RmlUi layout for each telemetry readout.
+		measure_readouts();
 		bool changed = false;
 		for (const auto &[name, text] : readout_values_)
 			changed |= update_readout(name, text, false);
@@ -495,6 +672,66 @@ p {display:block;font-size:17px;margin:4px 0;}
 		return throttle && pointer(999, x, y - r * .85f, DeviceEventKind::Down) &&
 		       pointer(999, x, y - r * .85f, DeviceEventKind::Up) && model_.requested_heading() == 90000;
 	}
+	bool probe_engineering(unsigned stage)
+	{
+		if (!model_.observation())
+			return false;
+		const auto cards = engineering_cards(*model_.observation());
+		if (cards.empty())
+			return false;
+		const auto &view = *model_.observation();
+		if (stage == 0)
+		{
+			auto *panel = document_->GetElementById("engineering-cards");
+			std::cout << "Engineering geometry: panel " << panel->GetOffsetWidth() << ", card "
+			          << panel->GetChild(0)->GetOffsetWidth() << ", cards " << panel->GetNumChildren() << std::endl;
+			if (panel->GetOffsetWidth() <= 0 || panel->GetChild(0)->GetOffsetWidth() > panel->GetOffsetWidth())
+				return false;
+			bool heat = false, battery = false;
+			for (const auto &card : cards)
+			{
+				heat |= card.heat.has_value();
+				battery |= card.battery.has_value();
+			}
+			const auto descriptors = view.gameplay.at("controls");
+			for (const auto &d : descriptors)
+				if (d.value("action", "") == "delegate" && d.value("value", 1) == 0)
+					if (!action(id(descriptor_action(d.at("id")))))
+						return false;
+			return heat && battery;
+		}
+		if (stage == 1)
+		{
+			std::set<std::string> exercised;
+			const auto descriptors = view.gameplay.at("controls");
+			for (const auto &d : descriptors)
+			{
+				const auto operation = d.value("action", "");
+				if ((operation == "generator_output" || operation == "group_allocation" ||
+				     operation == "cooling_allocation") &&
+				    d.value("value", 0) > 0 && !exercised.contains(operation))
+				{
+					if (!action(id(descriptor_action(d.at("id")))))
+						return false;
+					exercised.insert(operation);
+					engineering_probe_requests_[{d.at("system"), operation}] = d.at("value");
+				}
+			}
+			return exercised.size() == 3;
+		}
+		for (const auto &[key, value] : engineering_probe_requests_)
+		{
+			const auto system = std::find_if(view.systems.begin(), view.systems.end(),
+			                                 [&](const auto &s)
+			                                 {
+				                                 return s.id == key.first;
+			                                 });
+			if (system == view.systems.end() || !system->telemetry.contains(key.second) ||
+			    system->telemetry.at(key.second) != value)
+				return false;
+		}
+		return !action(id("release")) && !action(id("local-settings.quit"));
+	}
 	void prepare(Application &app, const ConsoleRegion &region, const std::set<std::string> &pads)
 	{
 		app_ = &app;
@@ -508,13 +745,33 @@ p {display:block;font-size:17px;margin:4px 0;}
 		if (owner_.lock() != app.session || (app.session && generation_ != app.session->generation()))
 		{
 			owner_ = app.session;
+			local_language_ = app.language;
 			generation_ = app.session ? app.session->generation() : 0;
+			settings_open_ = false;
+			document_->SetClass("local-settings-open", false);
 			radar_textures_.clear();
 			signature_.clear();
 			cancel_pointer();
 			document_->Focus();
 		}
 		context_->SetDimensions({static_cast<int>(region.width), static_cast<int>(region.height)});
+#ifndef __EMSCRIPTEN__
+		select_language(local_language_, app.pseudo_locale);
+		struct RestoreLanguage
+		{
+			Application &app;
+			~RestoreLanguage()
+			{
+				select_language(app.language, app.pseudo_locale);
+			}
+		} restore_language{app};
+		property(document_, "font-size", std::to_string(text_scale_ * .2f) + "px");
+		if (settings_open_ && game_active(app))
+		{
+			prepare_local_settings(app, region);
+			return;
+		}
+#endif
 		const bool pregame = app.session && app.session->lobby().active && !app.session->lobby().launched;
 		const Json *layout = model_.layout();
 		const bool helm = layout && std::any_of(layout->at("widgets").begin(), layout->at("widgets").end(),
@@ -523,6 +780,10 @@ p {display:block;font-size:17px;margin:4px 0;}
 			                                        return widget.at("kind") == "throttle";
 		                                        });
 		document_->SetClass("helm", helm && !pregame);
+		const auto cards = !pregame && !helm && model_.observation() ? engineering_cards(*model_.observation())
+		                                                             : std::vector<EngineeringCard>{};
+		const bool engineering = !cards.empty();
+		document_->SetClass("engineering", engineering);
 		std::string title = "Console", description;
 		bool ready = false;
 		if (pregame)
@@ -576,6 +837,7 @@ p {display:block;font-size:17px;margin:4px 0;}
 			elements_.clear();
 			gameplay_signature_.clear();
 			gameplay_readout_signature_.clear();
+			engineering_signature_.clear();
 			displayed_values_.clear();
 			controls_.clear();
 			heading_contacts_.clear();
@@ -714,8 +976,90 @@ p {display:block;font-size:17px;margin:4px 0;}
 			              // ConsoleModel encodes descriptor IDs as hexadecimal.
 			              return control.first == "game.control/61776179";
 		              });
+		if (helm && model_.observation())
+		{
+			std::set<std::string> dial_controls;
+			for (const auto &d : model_.observation()->gameplay.value("controls", Json::array()))
+				if (d.value("action", "") == "heading_mdeg" || d.value("action", "") == "speed_mm_s")
+					dial_controls.insert(descriptor_action(d.at("id")));
+			// The dial and throttle already expose these actions, including numeric
+			// accessibility inputs. Their changing +/- values must not rebuild the panel.
+			std::erase_if(gameplay_controls,
+			              [&](const auto &control)
+			              {
+				              return dial_controls.contains(control.first);
+			              });
+		}
+		if (engineering && model_.observation())
+		{
+			std::set<std::string> messages;
+			for (const auto &d : model_.observation()->gameplay.value("controls", Json::array()))
+				if (d.value("action", "").starts_with("message."))
+					messages.insert(descriptor_action(d.at("id")));
+			std::erase_if(gameplay_controls,
+			              [&](const auto &control)
+			              {
+				              return messages.contains(control.first);
+			              });
+		}
 		readout_values_ = pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_readouts();
+		if (engineering)
+			std::erase_if(readout_values_,
+			              [](const auto &readout)
+			              {
+				              return readout.first.starts_with("game.readout/system-");
+			              });
 		const auto &gameplay_readouts = readout_values_;
+		std::set<std::string> engineering_controls;
+		property(document_->GetElementById("engineering-cards"), "width",
+		         std::to_string(region.width * .92f - 24) + "px");
+		std::string engineering_markup;
+		for (const auto &card : cards)
+		{
+			const int columns = region.width >= 900 ? 2 : 1;
+			const float card_width = (region.width * .92f - 40) / columns - 12;
+			engineering_markup += "<div class=\"engineering-card\" style=\"width:" + std::to_string(card_width) +
+			                      "px\"><h2>" + Rml::StringUtilities::EncodeRml(localise(card.title)) +
+			                      "</h2><p id=\"" + id("resource/" + card.id) + "\"></p>";
+			for (const auto &[name, value] : std::vector<std::pair<std::string, std::optional<int>>>{
+			         {"heat", card.heat}, {"battery", card.battery}})
+				if (value)
+					engineering_markup += "<div class=\"resource-meter\"><div class=\"resource-fill resource-" + name +
+					                      "\" id=\"" + id("gauge/" + card.id + "/" + name) + "\"/></div>";
+			for (const auto &[name, label] : card.controls)
+			{
+				engineering_controls.insert(name);
+				for (auto &control : gameplay_controls)
+					if (control.first == name)
+						control.second = localise(card.title) + ": " + label;
+				engineering_markup +=
+				    "<button id=\"" + id(name) + "\">" + Rml::StringUtilities::EncodeRml(label) + "</button>";
+			}
+			engineering_markup += "</div>";
+		}
+		if (engineering_markup != engineering_signature_)
+		{
+			elements_.clear();
+			document_->GetElementById("engineering-cards")->SetInnerRML(engineering_markup);
+			engineering_signature_ = engineering_markup;
+			properties_.clear();
+			for (const auto &card : cards)
+				displayed_values_.erase("resource/" + card.id);
+		}
+		for (const auto &card : cards)
+		{
+			const auto name = "resource/" + card.id;
+			if (displayed_values_[name] != card.summary)
+			{
+				element(id(name))->SetInnerRML(Rml::StringUtilities::EncodeRml(card.summary));
+				displayed_values_[name] = card.summary;
+			}
+			app.screen_readouts.emplace_back(id(name), localise(card.title) + ". " + card.summary);
+			for (const auto &[metric, value] : std::vector<std::pair<std::string, std::optional<int>>>{
+			         {"heat", card.heat}, {"battery", card.battery}})
+				if (value)
+					property(element(id("gauge/" + card.id + "/" + metric)), "width", std::to_string(*value) + "%");
+		}
 		app.frame_metrics["console/" + std::to_string(route_) + "/readouts"] = GetTime() - readouts_started;
 		auto *gameplay = document_->GetElementById("gameplay");
 		auto *widgets = document_->GetElementById("widgets");
@@ -813,10 +1157,20 @@ p {display:block;font-size:17px;margin:4px 0;}
 				gameplay->RemoveProperty("right");
 				gameplay->RemoveProperty("bottom");
 			}
+			if (engineering)
+			{
+				gameplay->SetProperty("left", "4%");
+				gameplay->SetProperty("top", "100px");
+				gameplay->SetProperty("width", std::to_string(region.width * .92f) + "px");
+				gameplay->SetProperty("height", std::to_string(std::max(80.f, region.height * .96f - 100)) + "px");
+				gameplay->RemoveProperty("right");
+				gameplay->RemoveProperty("bottom");
+			}
 		}
 		Json gameplay_identity = Json::array();
 		for (const auto &[name, label] : gameplay_controls)
-			gameplay_identity.push_back(name);
+			if (!engineering_controls.contains(name))
+				gameplay_identity.push_back(name);
 		const auto gameplay_signature = gameplay_identity.dump();
 		if (gameplay_signature_ != gameplay_signature)
 		{
@@ -825,15 +1179,16 @@ p {display:block;font-size:17px;margin:4px 0;}
 			held_clicks_.clear();
 			std::string markup;
 			for (const auto &[name, label] : gameplay_controls)
-				markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(id(name)) + "\">" +
-				          Rml::StringUtilities::EncodeRml(label) + "</button>";
+				if (!engineering_controls.contains(name))
+					markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(id(name)) + "\">" +
+					          Rml::StringUtilities::EncodeRml(label) + "</button>";
 			document_->GetElementById("gameplay-controls")->SetInnerRML(markup);
 			gameplay_signature_ = gameplay_signature;
 			for (const auto &[name, label] : gameplay_controls)
 				displayed_values_.erase("control/" + name);
 		}
 		for (const auto &[name, label] : gameplay_controls)
-			if (displayed_values_["control/" + name] != label)
+			if (!engineering_controls.contains(name) && displayed_values_["control/" + name] != label)
 			{
 				if (auto *element = this->element(id(name)))
 					element->SetInnerRML(Rml::StringUtilities::EncodeRml(label));
@@ -943,7 +1298,11 @@ p {display:block;font-size:17px;margin:4px 0;}
 					const auto requested = std::string(
 					    TextFormat("%.1f", model_.system_request(model_.widget_system(key), "heading_mdeg") / 1000.0));
 					if (context_->GetFocusElement() != field && field->GetValue() != requested)
+					{
+						syncing_values_ = true;
 						field->SetValue(requested);
+						syncing_values_ = false;
+					}
 					app.screen_inputs.push_back(
 					    {id("heading/" + key), "Desired heading (degrees)",
 					     std::string(TextFormat(
@@ -985,6 +1344,8 @@ p {display:block;font-size:17px;margin:4px 0;}
 		}
 		for (const auto &[name, text] : gameplay_readouts)
 			place(app, region, id(name));
+		for (const auto &card : cards)
+			place(app, region, id("resource/" + card.id));
 		for (const auto &field : app.screen_inputs)
 			if (field.id.starts_with(id("")))
 				place(app, region, field.id);

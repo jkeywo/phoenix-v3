@@ -18,6 +18,7 @@ module;
 module phoenix.presentation;
 import phoenix.content;
 #include "environment.hpp"
+#include "sprite_direction.hpp"
 
 namespace phoenix
 {
@@ -210,6 +211,7 @@ struct SceneRenderer::State
 {
 	NavigationEffects navigation;
 	std::map<std::string, MaterialData> materials;
+	std::map<std::pair<std::uint64_t, std::string>, float> directions;
 	TextureCache textures;
 	Shader shader{};
 	Material drawMaterial{};
@@ -231,6 +233,7 @@ struct SceneRenderer::State
 	void clear()
 	{
 		navigation.clear();
+		directions.clear();
 		for (auto &[id, data] : materials)
 			for (auto im : data.cpu)
 				UnloadImage(im);
@@ -365,6 +368,16 @@ struct SceneRenderer::State
 	}
 	void prepare(const Catalog &catalog, std::span<const SceneBody> bodies, Camera3D camera)
 	{
+		std::erase_if(directions,
+		              [&](const auto &entry)
+		              {
+			              return std::none_of(bodies.begin(), bodies.end(),
+			                                  [&](const auto &body)
+			                                  {
+				                                  return body.id == entry.first.first &&
+				                                         body.definition == entry.first.second;
+			                                  });
+		              });
 		items.clear();
 		lights.clear();
 		rebase = camera.target;
@@ -382,7 +395,16 @@ struct SceneRenderer::State
 			if (!render.contains("sprite"))
 				continue;
 			auto &data = load(body.definition, render.at("sprite"), catalog);
-			const auto &f = select_frame(data.sprite, bearing(camera, world, body.heading));
+			const float angle = bearing(camera, world, body.heading);
+			const auto *selected = &select_frame(data.sprite, angle);
+			if (data.sprite.frames.size() == 8)
+			{
+				auto [previous, added] = directions.try_emplace(std::pair{body.id, body.definition}, selected->azimuth);
+				if (!added && retain_sprite_direction(angle, previous->second, selected->azimuth))
+					selected = &select_frame(data.sprite, previous->second);
+				previous->second = selected->azimuth;
+			}
+			const auto &f = *selected;
 			Item hull{&data, &f, p, render.at("scale").get<float>()};
 			std::vector<Item> behind, front;
 			if (body.forward_thrust > 0 && render.contains("engines"))
@@ -642,6 +664,20 @@ void SceneRenderer::draw(const Catalog &catalog, std::span<const SceneBody> bodi
 		int frame = render.at("mode") == "eight"
 		                ? static_cast<int>(std::floor((bearing(camera, p, body.heading) + 22.5f) / 45.f)) % 8
 		                : 0;
+		if (render.at("mode") == "eight")
+		{
+			const float angle = bearing(camera, p, body.heading);
+			auto [previous, added] = s.directions.try_emplace(std::pair{body.id, body.definition}, frame * 45.f);
+			if (!added && retain_sprite_direction(angle, previous->second, frame * 45.f))
+				frame = static_cast<int>(previous->second / 45.f);
+			previous->second = frame * 45.f;
+			// Load every view together; changing direction must never decode a PNG mid-turn.
+			for (const auto &image : render.at("images"))
+			{
+				const auto asset = image.get<std::string>();
+				s.textures.load(asset, catalog.assets.at(asset));
+			}
+		}
 		const auto asset = render.at("images").at(frame).get<std::string>();
 		DrawBillboard(camera, s.textures.load(asset, catalog.assets.at(asset)), p, render.at("scale").get<float>(),
 		              WHITE);

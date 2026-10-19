@@ -39,6 +39,20 @@ int main()
 			auto multi = make_local_session();
 			multi->add_pack(write_pack(multi_pack));
 			multi->start({"test.map", {{"test.slot", "test.ship"}}, "test.slot", "helm"});
+#ifndef __EMSCRIPTEN__
+			Application player;
+			player.session = multi;
+			player.screen = Screen::settings;
+			player.settings_return = Screen::console;
+			player.settings_tab = "session";
+			bool quit = false;
+			player.return_home = [&]
+			{
+				quit = true;
+			};
+			require(!invoke_navigation(player, "settings.quit") && !quit && multi->observation().has_value(),
+			        "Native player settings reject stale quit actions without abandoning the station");
+#endif
 			auto ship = multi->observation()->own.id;
 			require(multi->console_seats().size() == 2 && multi->claim_console(2, {ship, "sensors"}),
 			        "session exposes and admits separate Console routes");

@@ -59,6 +59,7 @@ struct GameScreen::State
 	TextureCache textures;
 	SceneRenderer scene;
 	Texture2D invitation{};
+	Texture2D viewscreen_frame{};
 	std::string invitation_url;
 	bool show_invitation = false;
 	bool environment_ready = false;
@@ -701,6 +702,29 @@ struct GameScreen::State
 			scene.draw(app.session->catalog(), bodies, camera, area(), app.session->scene_lighting(), GetTime(),
 			           SceneDiagnostic::comic, {}, environment);
 			scene_metrics["scene_render"] = GetTime() - stage;
+			if (!viewscreen_frame.id)
+			{
+#ifdef __EMSCRIPTEN__
+				const std::string path = "/assets/helm/viewscreen-frame.png";
+#else
+				const std::string path = std::string(GetApplicationDirectory()) + "assets/helm/viewscreen-frame.png";
+#endif
+				viewscreen_frame = LoadTexture(path.c_str());
+			}
+			if (viewscreen_frame.id)
+			{
+				const auto rect = area();
+				// Nine-slice without filling the live view: keep corner size modest on large displays.
+				DrawTextureNPatch(
+				    viewscreen_frame,
+				    {{0, 0, static_cast<float>(viewscreen_frame.width), static_cast<float>(viewscreen_frame.height)},
+				     112,
+				     112,
+				     112,
+				     112,
+				     NPATCH_NINE_PATCH},
+				    rect, {0, 0}, 0, WHITE);
+			}
 		}
 		else if (app.screen == Screen::console)
 		{
@@ -742,6 +766,9 @@ struct GameScreen::State
 	void close_resources()
 	{
 		textures.clear();
+		if (viewscreen_frame.id)
+			UnloadTexture(viewscreen_frame);
+		viewscreen_frame = {};
 		scene.clear();
 		if (invitation.id)
 			UnloadTexture(invitation);
