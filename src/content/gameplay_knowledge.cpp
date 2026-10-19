@@ -636,6 +636,10 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 			                  name + ": unknown/unfitted message template '" + id + "'");
 			const auto &message = compiled.messages.at(id);
 			const auto &ship = compiled.ships.at(name);
+			knowledge_require(!entity.contains("control_layout") ||
+			                      message.destination_kind != MessageDestinationKind::System,
+			                  name + ": System message destination has no Controller inbox; migrate '" + id +
+			                      "' to an explicit Console/Controller destination");
 			if (message.destination_kind == MessageDestinationKind::Ship ||
 			    (message.destination_kind == MessageDestinationKind::Controller && message.presentation.urgency >= 2))
 			{

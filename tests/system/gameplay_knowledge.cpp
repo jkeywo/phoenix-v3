@@ -335,6 +335,14 @@ void authoring_refusals()
 	auto foreign_publication = with_exit_cleanup();
 	foreign_publication["entities"][0]["publications"][0]["source_console"] = "support";
 	refused(foreign_publication, "Controller publication must remain scoped to its Console");
+	auto physical_destination = fixture();
+	physical_destination["messages"][0]["destination"] = {{"kind", "system"}, {"id", "engine"}};
+	phoenix::test::rejected(
+	    [&]
+	    {
+		    (void)load(physical_destination);
+	    },
+	    "System message destination has no Controller inbox");
 	auto wrong_sender = with_notifier();
 	wrong_sender["knowledge"]["schemas"][1]["producers"] = {"support"};
 	refused(wrong_sender, "statically named controller message requires its actual owner's producer role");
@@ -970,6 +978,23 @@ void continuation_roster_validation(const Catalog &catalog)
 	claim_all(world);
 	world.tick();
 	const auto state = world.save();
+	std::set<KnowledgeId> expected_ai;
+	for (const auto &ship : state.at("knowledge").at("ships"))
+		for (const auto &[name, id] : ship.at("controllers").items())
+			expected_ai.insert(id.get<KnowledgeId>());
+	std::set<KnowledgeId> actual_ai;
+	for (const auto &memory : state.at("knowledge").at("runtime").value("memory", Json::array()))
+		actual_ai.insert(memory.at("id").get<KnowledgeId>());
+	require(actual_ai == expected_ai,
+	        "Only Console Controllers have gameplay AI memory and inbox cursors; physical reporters remain sources");
+	auto physical_ai = state;
+	const auto &binding = state.at("knowledge").at("ships")[0];
+	physical_ai["knowledge"]["runtime"]["memory"].push_back({{"id", binding.at("systems").at("engine")},
+	                                                         {"console", binding.at("consoles").at("helm")},
+	                                                         {"cursor", 0},
+	                                                         {"values", Json::array()}});
+	reject_saved(catalog, physical_ai,
+	             "Restore must reject fabricated physical-System AI memory even with a valid source identity");
 	auto omitted = state;
 	remove_knowledge_ship(omitted, 2);
 	reject_saved(catalog, omitted,

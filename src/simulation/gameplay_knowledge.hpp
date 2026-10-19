@@ -31,7 +31,6 @@ public:
 	void set_console_presence(const ConsoleAddress &address, bool present);
 	std::vector<CoordinationDelivery> peek_controller(const ControllerAddress &address);
 	void acknowledge_controller(const ControllerAddress &address, KnowledgeId through_message);
-	KnowledgeId ai_id(EntityId ship, const std::string &system) const;
 	ConsoleAddress address(KnowledgeId console) const;
 	const CompiledKnowledge &definition() const;
 	const GameplayKnowledgeMessageDefinition &message_definition(const std::string &name) const;
@@ -76,10 +75,6 @@ public:
 	                      ControlOrigin origin, bool controller = false);
 	std::vector<CoordinationDelivery> tick(KnowledgeTick tick);
 	std::vector<CoordinationMessage> pending_messages(std::size_t limit = 32) const;
-	std::vector<CoordinationDelivery> receive_system(EntityId ship, const std::string &system);
-	std::vector<CoordinationDelivery> peek_system(EntityId ship, const std::string &system);
-	void acknowledge_system(EntityId ship, const std::string &system, KnowledgeId through_message);
-	KnowledgePrivateMemory &private_memory(EntityId ship, const std::string &system);
 	bool status_change(EntityId ship, const std::string &system, KnowledgeKey status, bool value, KnowledgeTick tick,
 	                   KnowledgeTick debounce, KnowledgeTick recovery_hysteresis, KnowledgeTick minimum_gap = 0,
 	                   bool report_initial = true);

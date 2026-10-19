@@ -150,7 +150,6 @@ void GameplayKnowledge::install_ship(EntityId ship, GameplayKnowledgeShipBinding
 		knowledge_require(binding.systems.contains(system), "saved System binding missing");
 		const auto id = binding.systems.at(system);
 		runtime_.register_system(id, binding.consoles.at(console), false);
-		runtime_.register_ai(id, binding.consoles.at(console));
 		human_systems_[id] = false;
 	}
 	for (const auto &[controller, console] : definition.controllers)
@@ -181,10 +180,6 @@ KnowledgeId GameplayKnowledge::system_id(EntityId ship, const std::string &syste
 {
 	knowledge_require(ships_.contains(ship) && ships_.at(ship).systems.contains(system), "unknown fitted System");
 	return ships_.at(ship).systems.at(system);
-}
-KnowledgeId GameplayKnowledge::ai_id(EntityId ship, const std::string &system) const
-{
-	return system_id(ship, system);
 }
 KnowledgeId GameplayKnowledge::controller_id(const ControllerAddress &address) const
 {
@@ -675,59 +670,6 @@ std::vector<CoordinationMessage> GameplayKnowledge::pending_messages(std::size_t
 {
 	return runtime_.pending_messages(limit);
 }
-std::vector<CoordinationDelivery> GameplayKnowledge::receive_system(EntityId ship, const std::string &system)
-{
-	const auto id = system_id(ship, system);
-	knowledge_require(!human_systems_.at(id), "human-controlled System cannot consume AI continuation");
-	auto messages = runtime_.receive(id);
-	std::erase_if(messages,
-	              [&](const auto &delivery)
-	              {
-		              return delivery.message.value.destination.kind == MessageDestinationKind::System &&
-		                     delivery.message.value.destination.id != id;
-	              });
-	return messages;
-}
-std::vector<CoordinationDelivery> GameplayKnowledge::peek_system(EntityId ship, const std::string &system)
-{
-	const auto id = system_id(ship, system);
-	knowledge_require(!human_systems_.at(id), "human-controlled System cannot inspect AI continuation");
-	const auto &memory = runtime_.private_memory(id);
-	auto messages = runtime_.message_history(memory.console);
-	std::erase_if(messages,
-	              [&](const auto &delivery)
-	              {
-		              return delivery.sequence <= memory.receive_cursor || !delivery.actionable ||
-		                     delivery.offer_only ||
-		                     (delivery.message.value.destination.kind == MessageDestinationKind::System &&
-		                      delivery.message.value.destination.id != id) ||
-		                     delivery.message.value.destination.kind == MessageDestinationKind::Controller;
-	              });
-	return messages;
-}
-void GameplayKnowledge::acknowledge_system(EntityId ship, const std::string &system, KnowledgeId through_message)
-{
-	const auto id = system_id(ship, system);
-	knowledge_require(!human_systems_.at(id), "human-controlled System cannot acknowledge AI continuation");
-	auto &memory = runtime_.private_memory(id);
-	for (const auto &delivery : runtime_.message_history(memory.console))
-		if (delivery.message.id == through_message)
-		{
-			knowledge_require(!delivery.offer_only, "human observer offer is not an AI inbox delivery");
-			knowledge_require(delivery.message.value.destination.kind != MessageDestinationKind::Controller,
-			                  "message is addressed to a Controller");
-			knowledge_require(delivery.message.value.destination.kind != MessageDestinationKind::System ||
-			                      delivery.message.value.destination.id == id,
-			                  "message is addressed to another System");
-			memory.receive_cursor = std::max(memory.receive_cursor, delivery.sequence);
-			return;
-		}
-	throw std::runtime_error("gameplay knowledge: cannot acknowledge an unavailable message");
-}
-KnowledgePrivateMemory &GameplayKnowledge::private_memory(EntityId ship, const std::string &system)
-{
-	return runtime_.private_memory(ai_id(ship, system));
-}
 bool GameplayKnowledge::status_change(EntityId ship, const std::string &system, KnowledgeKey status, bool value,
                                       KnowledgeTick tick, KnowledgeTick debounce, KnowledgeTick recovery_hysteresis,
                                       KnowledgeTick minimum_gap, bool report_initial)
@@ -886,7 +828,7 @@ void GameplayKnowledge::restore(const Json &state)
 	const auto expected = knowledge_registry_signature(restored.runtime_.save());
 	restored.runtime_.restore(state.at("runtime"));
 	knowledge_require(expected == knowledge_registry_signature(restored.runtime_.save()),
-	                  "saved runtime does not match authored Console/System/AI bindings");
+	                  "saved runtime does not match authored Console/System/Controller bindings");
 	const auto runtime_state = restored.runtime_.save();
 	if (!reporter_contract_.empty())
 	{

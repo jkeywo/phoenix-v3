@@ -1399,8 +1399,10 @@ int main()
 		        "unclaimed host SessionPort forwards the public board for its focus entity");
 		World published_resume;
 		published_resume.restore(public_content, public_messages.save());
-		require(published_resume.observe(103)->gameplay == public_view,
-		        "delivered public flags and board survive restore");
+		auto persistent_public_view = public_view;
+		persistent_public_view["notifications"] = Json::array();
+		require(published_resume.observe(103)->gameplay == persistent_public_view,
+		        "delivered public history survives restore without replaying transient human notifications");
 		auto forged_public_save = public_messages.save();
 		const auto spectator_id = forged_public_save.at("knowledge").at("ships")[0].at("consoles").at("spectator");
 		for (auto &delivery : forged_public_save["knowledge"]["runtime"]["deliveries"])
