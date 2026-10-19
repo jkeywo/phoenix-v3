@@ -363,6 +363,29 @@ int main(int argc, char **argv)
 			    return false;
 		    });
 		const auto publication_observation = guarded->console_observation(9);
+		// A continuously dragged control keeps commands queued across durable
+		// writes. Both its admitted values and simulation time must still advance.
+		ConsoleModel held_model;
+		held_model.refresh(guarded, 9);
+		const auto held_binding = held_model.widget_system("engine");
+		const auto held_start = guarded->ticks();
+		unsigned held_inputs = 0;
+		auto keep_dragging = [&]
+		{
+			for (int i = 0; i < 4; ++i)
+				held_model.set_speed_fraction(.05 + (++held_inputs % 20) * .001, held_binding);
+		};
+		keep_dragging();
+		pump(
+		    [&]
+		    {
+			    keep_dragging();
+			    const auto view = guarded->console_observation(9);
+			    return guarded->ticks() >= held_start + 5 && view &&
+			           view->gameplay.at("controllers")[0].at("commands").at("speed").at("value") > 0 &&
+			           (view->own.x != publication_observation->own.x || view->own.y != publication_observation->own.y);
+		    },
+		    5000);
 		const auto &publication_controls = publication_observation->gameplay.at("controls");
 		require(std::any_of(publication_controls.begin(), publication_controls.end(),
 		                    [](const auto &control)

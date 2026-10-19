@@ -54,6 +54,7 @@ class NetworkHost final : public SessionPort
 	std::uint64_t generation_base_ = 0, now_ = 0, last_projection_ = 0, term_ = 0;
 	std::uint64_t fleet_generation_ = 0;
 	bool want_local_ = false, fault_ = false;
+	bool tick_due_ = false, last_proposal_was_tick_ = true;
 	std::chrono::steady_clock::time_point last_poll_ = std::chrono::steady_clock::now();
 	static constexpr const char *local = "local-console";
 	bool available() const
@@ -599,6 +600,8 @@ public:
 		proposal_.clear();
 		fault_ = false;
 		want_local_ = false;
+		tick_due_ = false;
+		last_proposal_was_tick_ = true;
 	}
 	const Catalog &catalog() const override
 	{
@@ -674,11 +677,9 @@ public:
 	}
 	void tick() override
 	{
-		if (!running() || !available() || !proposal_.empty() || !intents_.empty())
-			return;
-		if (fleet_ ? !fleet_->leader() : consensus_->pending_write().has_value())
-			return;
-		propose({{"kind", "tick"}, {"tick", ticks() + 1}}, true);
+		// Remember one due step while a durable write is in flight. Repeated
+		// input must not require the command queue to empty before time advances.
+		tick_due_ = running() && available();
 	}
 	std::uint64_t ticks() const override
 	{
@@ -917,9 +918,26 @@ public:
 				if (!fleet_)
 					journal_->flush();
 			}
-			if (available() && proposal_.empty() && !intents_.empty())
-				if (propose(intents_.front()))
+			if (!running() || !available())
+				tick_due_ = false;
+			if (available() && proposal_.empty())
+			{
+				const bool can_tick = tick_due_ && (fleet_ ? fleet_->leader() : !consensus_->pending_write());
+				// Alternate under load so neither commands nor simulation starve.
+				if (can_tick && (intents_.empty() || !last_proposal_was_tick_))
+				{
+					if (propose({{"kind", "tick"}, {"tick", ticks() + 1}}, true))
+					{
+						tick_due_ = false;
+						last_proposal_was_tick_ = true;
+					}
+				}
+				else if (!intents_.empty() && propose(intents_.front()))
+				{
 					intents_.pop_front();
+					last_proposal_was_tick_ = false;
+				}
+			}
 			if (want_local_ && available())
 			{
 				if (game_ && game_->owned(member_, local, 1))
