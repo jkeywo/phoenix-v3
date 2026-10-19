@@ -42,6 +42,8 @@ To author two throttles, declare two Controllers or two owned channels and bind 
 
 Players select a Console's complexity profile in the lobby or its settings. A lobby change regenerates the prepared world and resets readiness; reselecting the current profile is a no-op. A player can configure their selected Console, and a ship host can configure its unoccupied or local Consoles. Another ship's or another player's Console cannot be configured through that route. In-game settings use the ordinary authenticated Console command path. Recovery retains the saved live profile and offers changes through settings after launch.
 
+Throttle and heading widgets can name `controller` and `channel` instead of `system`. Both identifiers are required and resolve within the Console using that layout. The command must be a speed or heading setting matching the widget kind. The old semantic `binding` string is optional for this form. For example, a throttle widget can contain `"controller": "propulsion", "channel": "speed"`; its usual ID, label and layout coordinates are still required. It reads the accepted setting and compiled range from the Console board, so one widget can command both engines without choosing an engine as its target. An AI-owned section remains readable but refuses human writes.
+
 ## Controller trees and observations
 
 Use `context: controller`. Declare `command_bindings` for the channels the tree owns; each supplies `command.<channel>`, an internal intent and `write.<channel>`. Declare `type: boolean` for boolean channels and `semantics: request` for request channels. Default types and semantics are integer and setting.

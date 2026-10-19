@@ -994,7 +994,8 @@ void console_editor(Application &app, bool inspector)
 		           if (ImGui::TreeNode(widget.at("id").get_ref<const std::string &>().c_str()))
 		           {
 			           string_field("Semantic label", widget, "label");
-			           ImGui::TextWrapped("Binding: %s", widget["binding"].get_ref<const std::string &>().c_str());
+			           ImGui::TextWrapped("Binding: %s",
+			                              widget.value("binding", std::string("Controller command")).c_str());
 			           for (const char *key : {"x", "y", "width", "height"})
 			           {
 				           int value = widget[key];
@@ -1026,7 +1027,13 @@ void console_editor(Application &app, bool inspector)
 	// The isolated preview has canonical sample Systems, not this ship's fitted identities.
 	auto sample_layout = selected;
 	for (auto &widget : sample_layout["widgets"])
+	{
 		widget.erase("system");
+		widget.erase("controller");
+		widget.erase("channel");
+		if (!widget.contains("binding"))
+			widget["binding"] = widget.at("kind") == "throttle" ? "engine.desired_speed" : "steering.desired_heading";
+	}
 	try
 	{
 		const auto texture = draw_console_preview(sample_layout, logical_width, logical_height,

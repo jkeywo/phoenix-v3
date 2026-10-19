@@ -113,6 +113,12 @@ std::vector<ConsoleSpec> resolve_consoles(const Catalog &catalog, const std::str
 		if (!seat.definition.empty() && catalog.consoles.contains(seat.definition))
 			for (const auto &widget : catalog.consoles.at(seat.definition).at("widgets"))
 			{
+				if (widget.contains("controller"))
+				{
+					if (!catalog.presentation && !entity.contains("control_layout"))
+						fail("Controller widget requires an explicit control layout");
+					continue;
+				}
 				if (!instance_form && !widget.contains("system"))
 					continue;
 				const auto kind = widget.at("kind").get<std::string>();
@@ -189,6 +195,12 @@ std::vector<ConsoleSpec> resolve_consoles(const Catalog &catalog, const std::str
 			}
 			for (const auto &widget : catalog.consoles.at(spec.definition).at("widgets"))
 			{
+				if (widget.contains("controller"))
+				{
+					if (!catalog.presentation && !entity.contains("control_layout"))
+						fail("Controller widget requires an explicit control layout");
+					continue;
+				}
 				const auto kind = widget.at("kind").get<std::string>();
 				if (kind == "throttle" || kind == "heading" || kind == "radar")
 				{

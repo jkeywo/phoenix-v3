@@ -60,6 +60,9 @@ public:
 	std::vector<std::pair<std::string, std::string>> gameplay_readouts() const;
 
 private:
+	const Json *controller_section(const std::string &binding) const;
+	const Json *controller_channel(const std::string &binding) const;
+	std::string default_binding(const std::string &action) const;
 	bool submit(OperatingCommand command);
 	std::weak_ptr<SessionPort> owner_;
 	std::uint64_t generation_ = 0, route_ = 1;

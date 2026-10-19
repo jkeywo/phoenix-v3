@@ -131,10 +131,15 @@ Pack console_assets(const Catalog &catalog, const std::string &ship)
 			for (const auto &widget : catalog.consoles.at(seat.definition).at("widgets"))
 			{
 				Json copy;
-				for (const auto *field : {"id", "kind", "label", "binding", "x", "y", "width", "height"})
+				for (const auto *field : {"id", "kind", "label", "x", "y", "width", "height"})
 					copy[field] = widget.at(field);
+				if (widget.contains("binding"))
+					copy["binding"] = widget.at("binding");
 				if (widget.contains("system"))
 					copy["system"] = widget.at("system");
+				for (const auto *field : {"controller", "channel"})
+					if (widget.contains(field))
+						copy[field] = widget.at(field);
 				layout["widgets"].push_back(std::move(copy));
 			}
 			consoles.push_back(std::move(layout));

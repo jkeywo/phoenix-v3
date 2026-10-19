@@ -462,6 +462,31 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 		result.profiles.push_back(std::move(profile));
 	}
 	control_require(profiles.contains(layout.value("default_profile", std::string{})), path, "unknown default profile");
+	for (const auto &console : consoles)
+		if (!console.definition.empty())
+			for (const auto &widget : catalog.consoles.at(console.definition).at("widgets"))
+				if (widget.contains("controller"))
+				{
+					const auto owner =
+					    std::find_if(result.controllers.begin(), result.controllers.end(),
+					                 [&](const auto &controller)
+					                 {
+						                 return controller.console == console.id &&
+						                        controller.id == widget.at("controller").get<std::string>();
+					                 });
+					control_require(owner != result.controllers.end(), path,
+					                "widget names a foreign or unknown Controller");
+					const auto command = std::find_if(owner->commands.begin(), owner->commands.end(),
+					                                  [&](const auto &channel)
+					                                  {
+						                                  return channel.id == widget.value("channel", std::string{});
+					                                  });
+					control_require(command != owner->commands.end(), path, "widget names an unknown command channel");
+					control_require(command->semantics == CommandSemantics::Setting &&
+					                    command->action == (widget.at("kind") == "throttle" ? OperatingAction::Speed
+					                                                                        : OperatingAction::Heading),
+					                path, "widget action differs from command channel");
+				}
 	return result;
 }
 } // namespace phoenix

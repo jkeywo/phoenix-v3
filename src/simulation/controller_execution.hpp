@@ -429,6 +429,9 @@ Json project_controllers(const ConsoleAddress &address) const
 			const auto &spec = controller.definition.commands[i];
 			const auto &state = controller.commands[i];
 			commands[spec.id] = {{"value", state.value},
+			                     {"action", std::string(operating_action(spec.action).name)},
+			                     {"minimum", spec.minimum},
+			                     {"maximum", spec.maximum},
 			                     {"revision", state.revision},
 			                     {"semantics", spec.semantics == CommandSemantics::Setting ? "setting" : "request"},
 			                     {"accepted", state.accepted},

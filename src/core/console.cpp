@@ -423,7 +423,10 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 			{
 				const auto id = widget.at("id").get<std::string>();
 				if (widget.at("kind") == "throttle")
+				{
 					speed_ = system_request(widget_system(id), "speed_mm_s");
+					maximum_ = system_maximum(widget_system(id));
+				}
 				else if (widget.at("kind") == "heading")
 					heading_ = system_request(widget_system(id), "heading_mdeg");
 			}
@@ -471,7 +474,10 @@ bool ConsoleModel::act(const std::string &id)
 	}
 	OperatingCommand command{observation_->own.id, {}, 0, {}};
 	const auto separator = id.find('/');
-	const auto binding = separator == std::string::npos ? std::string{} : widget_system(id.substr(separator + 1));
+	const auto binding =
+	    separator == std::string::npos
+	        ? default_binding(control == "game.faster" || control == "game.slower" ? "speed_mm_s" : "heading_mdeg")
+	        : widget_system(id.substr(separator + 1));
 	if (control == "game.faster" || control == "game.slower")
 	{
 		command.action = "speed_mm_s";
@@ -501,6 +507,9 @@ std::string ConsoleModel::widget_system(const std::string &id) const
 	for (const auto &widget : layout_.at("widgets"))
 		if (widget.at("id") == id)
 		{
+			if (widget.contains("controller") && widget.contains("channel"))
+				return "controller/" + widget.at("controller").get<std::string>() + "/" +
+				       widget.at("channel").get<std::string>();
 			const auto kind = widget.at("kind");
 			const auto type = kind == "throttle"  ? OperatingSystem::Engine
 			                  : kind == "heading" ? OperatingSystem::Steering
@@ -512,6 +521,8 @@ std::string ConsoleModel::widget_system(const std::string &id) const
 }
 std::int64_t ConsoleModel::system_maximum(const std::string &id) const
 {
+	if (const auto channel = controller_channel(id))
+		return channel->value("maximum", std::int64_t{0});
 	if (observation_)
 		for (const auto &system : observation_->systems)
 			if (system.id == id)
@@ -520,6 +531,8 @@ std::int64_t ConsoleModel::system_maximum(const std::string &id) const
 }
 std::int64_t ConsoleModel::system_minimum(const std::string &id) const
 {
+	if (const auto channel = controller_channel(id))
+		return channel->value("minimum", std::int64_t{0});
 	if (!observation_)
 		return 0;
 	std::string target = id;
@@ -536,6 +549,15 @@ std::int64_t ConsoleModel::system_minimum(const std::string &id) const
 }
 std::int64_t ConsoleModel::system_request(const std::string &id, const std::string &action) const
 {
+	if (const auto channel = controller_channel(id))
+	{
+		const auto name = channel->value("action", std::string{});
+		if (!action.empty() && action != name)
+			return 0;
+		if (const auto pending = pending_requests_.find({id, name}); pending != pending_requests_.end())
+			return pending->second;
+		return channel->value("value", std::int64_t{0});
+	}
 	if (observation_)
 		for (const auto &system : observation_->systems)
 			if (system.id == id)
@@ -563,10 +585,11 @@ bool ConsoleModel::set_speed_fraction(double fraction, const std::string &system
 	if (!session)
 		return false;
 	refresh(session, route_);
-	const auto minimum = system_minimum(system), maximum = system.empty() ? maximum_ : system_maximum(system);
+	const auto binding = system.empty() ? default_binding("speed_mm_s") : system;
+	const auto minimum = system_minimum(binding), maximum = binding.empty() ? maximum_ : system_maximum(binding);
 	return observation_ &&
 	       submit({observation_->own.id, "speed_mm_s",
-	               static_cast<std::int64_t>(std::llround(minimum + (maximum - minimum) * fraction)), system});
+	               static_cast<std::int64_t>(std::llround(minimum + (maximum - minimum) * fraction)), binding});
 }
 bool ConsoleModel::set_heading_degrees(double degrees, const std::string &system)
 {
@@ -577,7 +600,8 @@ bool ConsoleModel::set_heading_degrees(double degrees, const std::string &system
 		return false;
 	refresh(session, route_);
 	return observation_ && submit({observation_->own.id, "heading_mdeg",
-	                               static_cast<std::int64_t>(std::llround(degrees * 1000)) % 360000, system});
+	                               static_cast<std::int64_t>(std::llround(degrees * 1000)) % 360000,
+	                               system.empty() ? default_binding("heading_mdeg") : system});
 }
 bool ConsoleModel::command(const std::string &action, std::int64_t value, const std::string &system)
 {
@@ -658,6 +682,48 @@ void ConsoleModel::release_controls()
 		submit(std::move(request));
 	}
 }
+std::string ConsoleModel::default_binding(const std::string &action) const
+{
+	std::string result;
+	if (layout_.is_null())
+		return result;
+	for (const auto &widget : layout_.at("widgets"))
+		if ((widget.at("kind") == "throttle" && action == "speed_mm_s") ||
+		    (widget.at("kind") == "heading" && action == "heading_mdeg"))
+		{
+			const auto binding = widget_system(widget.at("id"));
+			if (!result.empty() && binding != result)
+				return {};
+			result = binding;
+		}
+	return result;
+}
+const Json *ConsoleModel::controller_section(const std::string &binding) const
+{
+	if (!observation_ || !binding.starts_with("controller/"))
+		return nullptr;
+	const auto split = binding.find('/', 11);
+	if (split == std::string::npos || !observation_->gameplay.contains("controllers"))
+		return nullptr;
+	const Json *found = nullptr;
+	for (const auto &controller : observation_->gameplay.at("controllers"))
+		if (controller.value("id", std::string{}) == binding.substr(11, split - 11))
+		{
+			if (found)
+				return nullptr;
+			found = &controller;
+		}
+	return found;
+}
+const Json *ConsoleModel::controller_channel(const std::string &binding) const
+{
+	const auto owner = controller_section(binding);
+	if (!owner || !owner->contains("commands"))
+		return nullptr;
+	const auto channel = binding.substr(binding.find('/', 11) + 1);
+	const auto &commands = owner->at("commands");
+	return commands.contains(channel) ? &commands.at(channel) : nullptr;
+}
 bool ConsoleModel::submit(OperatingCommand command)
 {
 	auto session = owner_.lock();
@@ -666,6 +732,30 @@ bool ConsoleModel::submit(OperatingCommand command)
 	const auto *spec = operating_action(command.action);
 	std::string projected_label;
 	bool projected = false;
+	const auto input_binding = command.system;
+	if (input_binding.starts_with("controller/"))
+	{
+		const auto section = controller_section(input_binding), channel = controller_channel(input_binding);
+		if (!section || !channel || !section->value("human", false) ||
+		    channel->value("action", std::string{}) != command.action || channel->value("semantics", "") != "setting" ||
+		    command.value < channel->at("minimum").get<std::int64_t>() ||
+		    command.value > channel->at("maximum").get<std::int64_t>() || !command.controller.empty() ||
+		    !command.channel.empty() || command.generation || command.request_id)
+			return false;
+		if (!layout_.is_null())
+			for (const auto &widget : layout_.at("widgets"))
+				if (widget.contains("controller") && widget.contains("channel") &&
+				    widget_system(widget.at("id")) == input_binding &&
+				    ((widget.at("kind") == "throttle" && command.action == "speed_mm_s") ||
+				     (widget.at("kind") == "heading" && command.action == "heading_mdeg")))
+					projected = true;
+		if (!projected)
+			return false;
+		command.controller = section->at("id");
+		command.channel = input_binding.substr(input_binding.find('/', 11) + 1);
+		command.generation = section->at("generation");
+		command.system.clear();
+	}
 	if (observation_->gameplay.is_object())
 	{
 		const auto descriptors = observation_->gameplay.value("controls", Json::array());
@@ -714,14 +804,16 @@ bool ConsoleModel::submit(OperatingCommand command)
 		announcement_ = localise("The server refused that control request");
 		return false;
 	}
-	if (command.controller.empty() && command.action == "speed_mm_s")
+	if (command.action == "speed_mm_s")
 		speed_ = command.value;
-	else if (command.controller.empty() && command.action == "heading_mdeg")
+	else if (command.action == "heading_mdeg")
 		heading_ = command.value;
-	if (command.controller.empty() && (command.action == "speed_mm_s" || command.action == "heading_mdeg"))
+	if (command.action == "speed_mm_s" || command.action == "heading_mdeg")
 	{
 		pending_at_ = session->ticks();
-		pending_requests_[{command.system, command.action}] = command.value;
+		const auto binding =
+		    command.controller.empty() ? command.system : "controller/" + command.controller + "/" + command.channel;
+		pending_requests_[{binding, command.action}] = command.value;
 		announcement_ = localise("Requested speed") + " " + std::to_string(speed_ / 1000.0) + " " + localise("m/s") +
 		                "; " + localise("heading") + " " + std::to_string(heading_ / 1000) + " " + localise("degrees") +
 		                ".";

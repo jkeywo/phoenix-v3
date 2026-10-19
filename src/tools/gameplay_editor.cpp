@@ -2287,6 +2287,7 @@ struct GameplayEditor
 		names(console, "knowledge_roles", roles);
 		names(console, "knowledge_producers", roles);
 		std::set<std::string> available;
+		std::vector<Json> controller_choices;
 		auto collect = [&](const Json &ship)
 		{
 			bool uses = ship.value("console", std::string{}) == console.at("id").get<std::string>();
@@ -2297,6 +2298,9 @@ struct GameplayEditor
 			if (uses && ship.contains("systems"))
 				for (const auto &id : ids(ship.at("systems")))
 					available.insert(id);
+			if (uses && ship.contains("control_layout"))
+				for (const auto &controller : ship.at("control_layout").value("controllers", Json::array()))
+					controller_choices.push_back(controller);
 		};
 		try
 		{
@@ -2314,7 +2318,43 @@ struct GameplayEditor
 			{
 				ScopedId identity(widget.at("id").get<std::string>().c_str());
 				ImGui::TextUnformatted(widget.at("id").get_ref<const std::string &>().c_str());
-				choice(widget, "system", systems, true);
+				if (widget.at("kind") == "throttle" || widget.at("kind") == "heading")
+				{
+					bool controlled = widget.contains("controller");
+					if (ImGui::Checkbox(label("Use Controller command").c_str(), &controlled))
+					{
+						if (controlled)
+						{
+							widget.erase("system");
+							widget["controller"] = "";
+							widget["channel"] = "";
+						}
+						else
+						{
+							widget.erase("controller");
+							widget.erase("channel");
+							widget["binding"] =
+							    widget.at("kind") == "throttle" ? "engine.desired_speed" : "steering.desired_heading";
+						}
+					}
+				}
+				if (widget.contains("controller"))
+				{
+					std::set<std::string> owners, channels;
+					for (const auto &controller : controller_choices)
+						for (const auto &command : controller.value("commands", Json::array()))
+							if (command.value("action", "") ==
+							    (widget.at("kind") == "throttle" ? "speed_mm_s" : "heading_mdeg"))
+							{
+								owners.insert(controller.at("id"));
+								if (controller.at("id") == widget.at("controller"))
+									channels.insert(command.at("id"));
+							}
+					choice(widget, "controller", {owners.begin(), owners.end()});
+					choice(widget, "channel", {channels.begin(), channels.end()});
+				}
+				else
+					choice(widget, "system", systems, true);
 			}
 	}
 

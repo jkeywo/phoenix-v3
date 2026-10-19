@@ -1043,6 +1043,96 @@ int main()
 		    },
 		    "physical System cannot masquerade as a Controller recipient");
 
+		auto widget_source = controller_session_fixture();
+		widget_source["entities"][0]["stations"][0]["consoles"].erase(1);
+		widget_source["entities"][0]["control_layout"]["controllers"][0]["commands"].push_back(
+		    {{"id", "heading"}, {"action", "heading_mdeg"}, {"consumers", {"steering"}}});
+		widget_source["consoles"][0]["widgets"] = Json::parse(R"json([
+		 {"id":"shared","kind":"throttle","label":"Shared throttle","controller":"propulsion","channel":"speed",
+		  "x":0,"y":0,"width":500,"height":500},
+		 {"id":"course","kind":"heading","label":"Course","controller":"propulsion","channel":"heading",
+		  "x":500,"y":0,"width":500,"height":500}])json");
+		const auto widget_catalog = load(widget_source);
+		const auto widget_public = resolve_packs({console_assets(widget_catalog, "test.controllable")});
+		require(widget_public.consoles.at("test.console").at("widgets")[0].at("controller") == "propulsion" &&
+		            widget_public.consoles.at("test.console").at("widgets")[0].at("channel") == "speed",
+		        "client-safe console assets preserve authored Controller widget addresses");
+		for (const auto &invalid_kind : {"foreign", "mismatch", "missing", "ambiguous"})
+		{
+			auto invalid_widget = widget_source;
+			auto &widget = invalid_widget["consoles"][0]["widgets"][0];
+			if (std::string(invalid_kind) == "foreign")
+				widget["controller"] = "absent";
+			if (std::string(invalid_kind) == "mismatch")
+				widget["channel"] = "heading";
+			if (std::string(invalid_kind) == "missing")
+				widget.erase("channel");
+			if (std::string(invalid_kind) == "ambiguous")
+				widget["system"] = "port";
+			rejects(
+			    [&]
+			    {
+				    load(invalid_widget);
+			    },
+			    "Catalog rejects invalid Controller widget address/action");
+		}
+		auto widget_session = make_local_session();
+		widget_session->add_pack(archive(widget_source));
+		widget_session->start({"test.map", {{"test.slot", "test.controllable"}}, "test.slot", "drive"});
+		ConsoleModel widget_model;
+		widget_model.refresh(widget_session);
+		const auto throttle_binding = widget_model.widget_system("shared");
+		const auto heading_binding = widget_model.widget_system("course");
+		require(!widget_model.command("speed_mm_s", 17001, throttle_binding) &&
+		            !widget_model.command("heading_mdeg", 1000, throttle_binding) &&
+		            !widget_model.command("speed_mm_s", 1000, "controller/absent/speed"),
+		        "numeric widget boundary refuses range, action and foreign channel mismatches");
+		require(widget_model.system_maximum(throttle_binding) == 17000 &&
+		            widget_model.set_speed_fraction(0.5, throttle_binding) &&
+		            widget_model.set_heading_degrees(90, heading_binding),
+		        "authored widgets submit typed Controller commands through local session");
+		widget_session->tick();
+		widget_model.refresh(widget_session);
+		require(widget_model.system_request(throttle_binding) == 8500 &&
+		            widget_model.system_request(heading_binding) == 90000,
+		        "widget readouts use separate accepted command sections");
+		const auto widget_observation = widget_session->observation();
+		for (const auto &system : widget_observation->systems)
+			if (system.id == "port" || system.id == "starboard")
+				require(system.requested == 8500, "shared authored throttle reaches both physical engines");
+		for (const auto &[id, label] : widget_model.gameplay_controls())
+			if (label == "automatic")
+				require(widget_model.act(id), "widget Console switches complexity");
+		widget_session->tick();
+		widget_model.refresh(widget_session);
+		require(!widget_model.set_speed_fraction(0.25, throttle_binding), "AI-owned widget refuses human command");
+		auto split_widget_source = widget_source;
+		auto &split_widget_commands =
+		    split_widget_source["entities"][0]["control_layout"]["controllers"][0]["commands"];
+		split_widget_commands[0]["consumers"] = {"port"};
+		auto second_throttle = split_widget_commands[0];
+		second_throttle["id"] = "second_speed";
+		second_throttle["consumers"] = {"starboard"};
+		split_widget_commands.push_back(second_throttle);
+		auto second_widget = split_widget_source["consoles"][0]["widgets"][0];
+		second_widget["id"] = "second";
+		second_widget["channel"] = "second_speed";
+		second_widget["y"] = 500;
+		split_widget_source["consoles"][0]["widgets"].push_back(second_widget);
+		auto split_widget_session = make_local_session();
+		split_widget_session->add_pack(archive(split_widget_source));
+		split_widget_session->start({"test.map", {{"test.slot", "test.controllable"}}, "test.slot", "drive"});
+		ConsoleModel split_widget_model;
+		split_widget_model.refresh(split_widget_session);
+		require(split_widget_model.set_speed_fraction(0.25, split_widget_model.widget_system("shared")) &&
+		            split_widget_model.set_speed_fraction(0.75, split_widget_model.widget_system("second")),
+		        "two authored throttles address independent command channels");
+		split_widget_session->tick();
+		split_widget_model.refresh(split_widget_session);
+		require(split_widget_model.system_request(split_widget_model.widget_system("shared")) == 4250 &&
+		            split_widget_model.system_request(split_widget_model.widget_system("second")) == 12750,
+		        "independent widget submissions cannot overwrite each other's settings");
+
 		const auto session_archive = archive(controller_session_fixture());
 		const GameSetup setup{"test.map", {{"test.slot", "test.controllable"}}, "test.slot", "drive"};
 		auto local = make_local_session();

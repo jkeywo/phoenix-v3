@@ -1021,7 +1021,17 @@ p {display:block;font-size:.85em;margin:4px 0;}
 			std::set<std::string> dial_controls;
 			for (const auto &d : model_.observation()->gameplay.value("controls", Json::array()))
 				if (d.value("action", "") == "heading_mdeg" || d.value("action", "") == "speed_mm_s")
-					dial_controls.insert(descriptor_action(d.at("id")));
+					for (const auto &widget : layout->at("widgets"))
+						if ((widget.at("kind") == "throttle" && d.at("action") == "speed_mm_s") ||
+						    (widget.at("kind") == "heading" && d.at("action") == "heading_mdeg"))
+						{
+							const auto target = d.value("controller", std::string{}).empty()
+							                        ? d.value("system", std::string{})
+							                        : "controller/" + d.at("controller").get<std::string>() + "/" +
+							                              d.at("channel").get<std::string>();
+							if (model_.widget_system(widget.at("id")) == target)
+								dial_controls.insert(descriptor_action(d.at("id")));
+						}
 			// The dial and throttle already expose these actions, including numeric
 			// accessibility inputs. Their changing +/- values must not rebuild the panel.
 			std::erase_if(gameplay_controls,

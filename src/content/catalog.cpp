@@ -559,7 +559,10 @@ void verify_prepared_catalog(const Catalog &catalog)
 			if (!widget_ids.insert(widget_id).second)
 				invalid(path + "." + widget_id, "duplicate widget id");
 			auto kind = text(widget, "kind", path + "." + widget_id);
-			auto binding = text(widget, "binding", path + "." + widget_id);
+			auto binding = widget.contains("controller")
+			                   ? widget.value("binding", kind == "throttle" ? std::string("engine.desired_speed")
+			                                                                : std::string("steering.desired_heading"))
+			                   : text(widget, "binding", path + "." + widget_id);
 			const auto bindings = widget_bindings();
 			if (std::none_of(bindings.begin(), bindings.end(),
 			                 [&](const auto &entry)
@@ -568,6 +571,16 @@ void verify_prepared_catalog(const Catalog &catalog)
 			                 }))
 				invalid(path + "." + widget_id, "unsupported widget/binding combination");
 			text(widget, "label", path + "." + widget_id);
+			if (widget.contains("controller") || widget.contains("channel"))
+			{
+				if ((kind != "throttle" && kind != "heading") || widget.contains("system") ||
+				    !widget.contains("controller") || !widget.contains("channel"))
+					invalid(path + "." + widget_id,
+					        "Controller widgets require controller/channel and no System binding");
+				for (const auto *field : {"controller", "channel"})
+					if (!valid_identifier(text(widget, field, path + "." + widget_id)))
+						invalid(path + "." + widget_id, "invalid Controller binding identity");
+			}
 			auto x = integer(widget, "x", path, 0, 1000), y = integer(widget, "y", path, 0, 1000);
 			auto w = integer(widget, "width", path, 1, 1000), h = integer(widget, "height", path, 1, 1000);
 			if (x + w > 1000 || y + h > 1000)
