@@ -1,4 +1,5 @@
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <map>
@@ -7,9 +8,11 @@
 #include <stdexcept>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 import phoenix.simulation;
+import phoenix.gameplay_scenario;
 
 namespace
 {
@@ -22,6 +25,14 @@ void check(bool value, const char *message)
 Json action(std::string name, Json args)
 {
 	return {{"action", std::move(name)}, {"arguments", std::move(args)}};
+}
+Catalog load_fixture(const Json &data)
+{
+	PackDraft pack;
+	pack.manifest = {{"schema", 1}, {"id", "test-core"}};
+	pack.files["definitions.json"] = json_bytes(data);
+	pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+	return resolve_packs({read_pack(write_pack(pack))});
 }
 Catalog fixture()
 {
@@ -76,11 +87,189 @@ Catalog fixture()
 	              Json::array({action(
 	                  "spawn_entity",
 	                  Json::array({"test.variant", "", 50000, {{"parameter", "spawn_y"}}, 0, "traffic"}))})}}})}}});
-	PackDraft pack;
-	pack.manifest = {{"schema", 1}, {"id", "test-core"}};
-	pack.files["definitions.json"] = json_bytes(data);
-	pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
-	return resolve_packs({read_pack(write_pack(pack))});
+	return load_fixture(data);
+}
+Json reader_fixture()
+{
+	auto data =
+	    parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "scoped scenario record reader");
+	data["schema"] = 4;
+	data["consoles"][0]["widgets"] = Json::array();
+	auto &ship = data["entities"][0];
+	ship.erase("console");
+	ship["stations"] = Json::parse(R"json([
+		{"id":"bridge","consoles":[
+			{"id":"main","definition":"test.console","systems":["engine","steering"],"knowledge_roles":["test.reader"]},
+			{"id":"private","definition":"test.console","systems":["radar"],"knowledge_roles":["test.private"]}
+		]}
+	])json");
+	data["knowledge"] = Json::parse(R"json({"roles":["test.reader","test.private"],"schemas":[
+		{"id":"test.signal","producers":["phoenix.scenario"],"readers":["test.reader"],"ship_publishable":true,"stale_after_ticks":1,
+		 "fields":[{"id":"amount","type":"integer","publishable":true},{"id":"flag","type":"boolean","publishable":true},{"id":"detail","type":"text","publishable":true}]}
+	]})json");
+	data["maps"][0]["scenario"] = Json::parse(R"json({
+		"tree":"test.main-reader","bindings":{"actor":{"slot":"test.slot"},"knowledge_console":"main"},
+		"publications":["test.signal"],"situations":[
+			{"id":"publisher","tree":"test.publisher","bindings":{"actor":{"slot":"test.slot"}}},
+			{"id":"second","tree":"test.reader","start":true,"bindings":{"actor":{"slot":"test.slot"},"knowledge_console":"main"}},
+			{"id":"other-ship","tree":"test.reader","start":true,"bindings":{"actor":{"entity":1},"knowledge_console":"main"}},
+			{"id":"expiry","tree":"test.expiry","start":true,"bindings":{"actor":{"slot":"test.slot"},"knowledge_console":"main"}}
+		]
+	})json");
+	data["trees"] = Json::parse(R"json([
+		{"id":"test.reader","context":"scenario","initial":"wait","record_bindings":[
+			{"name":"known.amount","schema":"test.signal","field":"amount","scope":"ship"},
+			{"name":"known.flag","schema":"test.signal","field":"flag","scope":"ship"},
+			{"name":"known.detail","schema":"test.signal","field":"detail","scope":"ship"},
+			{"name":"known.console","schema":"test.signal","field":"amount","scope":"console"},
+			{"name":"known.other","schema":"test.signal","field":"amount","scope":"ship","subject":1}
+		],"states":[
+			{"id":"wait","transitions":[{"target":"done","conditions":[
+				{"left":{"observation":"known.amount"},"op":"eq","right":7},
+				{"left":{"observation":"known.flag"},"op":"eq","right":true},
+				{"left":{"observation":"known.detail"},"op":"eq","right":"ready"}
+			]}]},
+			{"id":"done","entry":[{"action":"finish_scenario","arguments":[true,"read permitted evidence"]}]}
+		]},
+		{"id":"test.main-reader","extends":"test.reader","overrides":[{"state":"wait","entry":[{"action":"start_situation","arguments":["publisher","publisher-instance"]}]}]},
+		{"id":"test.publisher","context":"scenario","initial":"publish","states":[{"id":"publish","entry":[
+			{"action":"publish_scenario_message","arguments":["test.signal",{"observation":"self.entity"},7,true,"ready"]}
+		]}]},
+		{"id":"test.expiry","extends":"test.reader","initial":"wait","overrides":[
+			{"state":"wait","transitions":[{"target":"observed","conditions":[{"left":{"observation":"known.amount"},"op":"present"}]}]}
+		],"states":[
+			{"id":"wait","transitions":[{"target":"observed","conditions":[{"left":{"observation":"known.amount"},"op":"present"}]}]},
+			{"id":"observed","transitions":[{"target":"observed","conditions":[{"left":{"observation":"known.amount"},"op":"present"}]},{"target":"done"}]},
+			{"id":"done","entry":[{"action":"finish_scenario","arguments":[true,"stale evidence removed"]}]}
+		]}
+	])json");
+	auto referenced_reader = data["trees"][0];
+	referenced_reader["id"] = "test.read-signal";
+	data["trees"].push_back(std::move(referenced_reader));
+	data["trees"][0]["states"][0].erase("transitions");
+	data["trees"][0]["states"][0]["running"] = Json::array({{{"call", "test.read-signal"}}});
+	return data;
+}
+void scenario_record_readers()
+{
+	const auto data = reader_fixture();
+	const auto catalog = load_fixture(data);
+	World world;
+	world.load(catalog, "test.map", {{"test.slot", "test.ship"}});
+	world.tick();
+	World resumed;
+	resumed.restore(catalog, world.save());
+	for (int i = 0; i < 7; ++i)
+	{
+		world.tick();
+		resumed.tick();
+	}
+	const auto state = world.save();
+	bool main = false, second = false, other = false, expired = false;
+	for (const auto &instance : state.at("scenario").at("runtime").at("instances"))
+	{
+		const bool success = instance.at("finished").get<bool>() && instance.at("succeeded").get<bool>();
+		if (instance.at("name") == "main")
+			main = success;
+		if (instance.at("name") == "second")
+			second = success;
+		if (instance.at("name") == "other-ship")
+			other = success;
+		if (instance.at("name") == "expiry")
+			expired = success;
+	}
+	check(main && second && expired && !other,
+	      "Scenario readers lost typed evidence, scope/subject isolation, independent situations, or staleness");
+	check(state == resumed.save(), "Scoped scenario readers diverged after World recovery");
+	auto refused = [&](Json invalid, const char *message)
+	{
+		bool failed = false;
+		try
+		{
+			(void)load_fixture(invalid);
+		}
+		catch (const std::exception &)
+		{
+			failed = true;
+		}
+		check(failed, message);
+	};
+	auto invalid = data;
+	invalid["maps"][0]["scenario"]["bindings"].erase("knowledge_console");
+	refused(invalid, "Scenario record reader without explicit Console was admitted");
+	invalid = data;
+	invalid["maps"][0]["scenario"]["bindings"]["knowledge_console"] = "private";
+	refused(invalid, "Scenario record reader bypassed selected Console roles");
+	invalid = data;
+	invalid["maps"][0]["scenario"]["bindings"]["knowledge_console"] = "missing";
+	refused(invalid, "Scenario record reader selected nonexistent Console");
+	invalid = data;
+	invalid["maps"][0]["scenario"]["situations"][1]["bindings"].erase("knowledge_console");
+	refused(invalid, "Reusable situation omitted its explicit record reader");
+	auto dynamic = data;
+	dynamic["entities"].push_back(
+	    {{"id", "test.unrelated-private"},
+	     {"extends", "test.ship"},
+	     {"stations",
+	      Json::parse(
+	          R"json([{"id":"bridge","consoles":[{"id":"main","definition":"test.console","systems":["engine","steering","radar"],"knowledge_roles":["test.private"]}]}])json")}});
+	dynamic["maps"][0]["scenario"]["bindings"]["actor"] = {{"handle", "traffic"}};
+	(void)load_fixture(dynamic);
+	// Typed ingress also suppresses an older live record after the latest stream
+	// record was withdrawn. This uses a compiled production reader and real keys.
+	GameplayScenarioBridge bridge;
+	bridge.load(catalog, "test.map");
+	const auto bodies = world.inspect();
+	bridge.begin_tick(10, {{"test.slot", *world.ship_for_slot("test.slot")}}, bodies);
+	const auto readers = bridge.knowledge_readers();
+	check(!readers.empty(), "Compiled scenario did not request scoped evidence");
+	KnowledgeRecord live;
+	live.value.schema = catalog.knowledge_definition.schema("test.signal");
+	live.value.subject = readers[0].ship;
+	live.value.provenance.observed_tick = 10;
+	live.value.provenance.revision = 1;
+	live.value.fields[catalog.knowledge_definition.field(live.value.schema, "amount")] = std::int64_t{7};
+	auto withdrawn = live;
+	withdrawn.value.withdrawn = true;
+	withdrawn.value.provenance.revision = 2;
+	std::vector<ScenarioKnowledgeSnapshot> snapshots{{readers[0], {}, {live}}};
+	bridge.supply_knowledge(snapshots);
+	snapshots[0].shared[0].value.fields.begin()->second = std::int64_t{99};
+	const auto frozen = bridge.observations(readers[0].instance);
+	const auto offset = static_cast<std::size_t>(GameplayTreeObservation::Count);
+	check(frozen.at(offset).number == 7 && frozen.at(offset + 3).type == state_tree::Type::Missing &&
+	          frozen.at(offset + 4).type == state_tree::Type::Missing,
+	      "Scenario snapshot was mutable or ignored record scope/subject filters");
+	bool replaced = false;
+	try
+	{
+		bridge.supply_knowledge(snapshots);
+	}
+	catch (const std::exception &)
+	{
+		replaced = true;
+	}
+	check(replaced, "Scenario evidence was replaced within one immutable tick");
+	bridge.begin_tick(11, {{"test.slot", *world.ship_for_slot("test.slot")}}, bodies);
+	snapshots[0].shared = {live, withdrawn};
+	bridge.supply_knowledge(snapshots);
+	const auto values = bridge.observations(readers[0].instance);
+	check(values.at(static_cast<std::size_t>(GameplayTreeObservation::Count)).type == state_tree::Type::Missing,
+	      "Withdrawn latest scenario evidence resurrected older history");
+	bridge.begin_tick(12, {{"test.slot", *world.ship_for_slot("test.slot")}}, bodies);
+	auto independent = live;
+	independent.value.provenance.source = 99;
+	independent.value.provenance.observed_tick = 12;
+	withdrawn.value.provenance.observed_tick = 12;
+	snapshots[0].shared = {independent, withdrawn};
+	bridge.supply_knowledge(snapshots);
+	check(bridge.observations(readers[0].instance).at(offset).number == 7,
+	      "Withdrawing one source suppressed an independent live scenario evidence stream");
+	bridge.begin_tick(13, {{"test.slot", *world.ship_for_slot("test.slot")}}, bodies);
+	snapshots[0].shared = {live};
+	bridge.supply_knowledge(snapshots);
+	check(bridge.observations(readers[0].instance).at(offset).type == state_tree::Type::Missing,
+	      "Scenario stale evidence remained available");
 }
 std::vector<Json> objective_records(const Observation &observation)
 {
@@ -167,6 +356,7 @@ int main()
 		      "Terminal objective repeatedly published completion");
 		check(original.save() == resumed.save(),
 		      "Later physical continuation diverged after restored scenario effects");
+		scenario_record_readers();
 		std::cout << "World scenario spawn/objective/recovery integration passed\n";
 		return 0;
 	}

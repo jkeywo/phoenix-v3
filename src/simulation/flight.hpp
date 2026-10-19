@@ -61,6 +61,9 @@ struct FlightDemand
 	std::int64_t power_rate = 0, heat_rate = 0;
 	int longitudinal = 0, lateral = 0, steering = 0;
 	bool charging = false;
+	// Prepared against the tick snapshot; execution may clip but never re-plan.
+	std::int64_t target_speed = 0, acceleration = 0, target_lateral_speed = 0, lateral_acceleration = 0;
+	std::int64_t heading_basis = 0, desired_heading = 0;
 };
 struct FlightExecution
 {
@@ -75,9 +78,8 @@ FlightCommandResult apply_flight(const FlightDefinition &, FlightState &, Flight
 void observe_flight(const FlightDefinition &, FlightState &, std::uint64_t tick,
                     const std::optional<FlightContactObservation> &);
 FlightDemand flight_demand(const FlightDefinition &, const FlightState &, const Pose &, const Motion &);
-FlightExecution step_flight(const FlightDefinition &, FlightState &, Pose &, Motion &, int paid_permille,
-                            std::uint64_t tick, const std::optional<FlightContactObservation> & = {},
-                            int output_permille = 1000, int heat_permille = 1000);
+FlightExecution step_flight(const FlightDefinition &, FlightState &, Pose &, Motion &, const FlightDemand &,
+                            int paid_permille, int output_permille = 1000, int heat_permille = 1000);
 // Handover/device loss clears held inputs without reverting settings or momentum.
 void release_flight_inputs(FlightState &);
 Json save_flight(const FlightDefinition &, const FlightState &);

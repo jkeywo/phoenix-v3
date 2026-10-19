@@ -115,11 +115,135 @@ void refused(Json source, const char *message)
 	}
 	require(failed, message);
 }
+void workshop_channel_authoring()
+{
+	auto source = fixture();
+	auto drive = source["entities"][0]["systems"]["engine"];
+	drive["controller"] = "test.summary-base";
+	drive["id"] = "test.drive";
+	source["equipment"] = Json::array({drive});
+	source["trees"].push_back(
+	    {{"id", "test.provider-policy"},
+	     {"context", "system"},
+	     {"initial", "idle"},
+	     {"summary_bindings", Json::array({{{"name", "intent.policy"}, {"channel", "provider_policy"}}})},
+	     {"states", Json::array({{{"id", "idle"}}})}});
+	source["assemblies"] = Json::array(
+	    {{{"id", "test.drive-assembly"},
+	      {"systems",
+	       {{"engine", {{"template", "test.drive"}, {"controller", "test.summary-child"}}},
+	        {"provider", {{"kind", "generator"}, {"generator", "supply"}, {"controller", "test.provider-policy"}}}}},
+	      {"resources",
+	       {{"stores", Json::array({{{"id", "reserve"},
+	                                 {"capacity", 100},
+	                                 {"initial", 10},
+	                                 {"charge_rate", 100},
+	                                 {"discharge_rate", 100}}})},
+	        {"generators",
+	         Json::array(
+	             {{{"id", "supply"}, {"store", "reserve"}, {"maximum_rate", 100}, {"response_rate", 100}}})}}}}});
+	source["assemblies"][0]["services"] = {
+	    {"pump_power", {{"kind", "power"}, {"direction", "input"}, {"target", "reserve"}}}};
+	source["assemblies"][0]["resources"]["coolant_sources"] =
+	    Json::array({{{"id", "pump"}, {"initial", 10}, {"removal_rate", 10}, {"power_store", "$pump_power"}},
+	                 {{"id", "passive"}, {"initial", 10}, {"removal_rate", 10}}});
+	source["assemblies"][0]["systems"]["pump_control"] = {
+	    {"kind", "coolant"}, {"power_store", "$pump_power"}, {"energy_per_second", 1}, {"cooling_link", "cooling"}};
+	source["assemblies"][0]["resources"]["cooling_links"] = Json::array(
+	    {{{"id", "cooling"}, {"source", "pump"}, {"store", "reserve"}, {"capacity_rate", 10}, {"allocation_rate", 1}}});
+	PackDraft dependency;
+	dependency.manifest = {{"schema", 1}, {"id", "test-core"}};
+	dependency.files["definitions.json"] = json_bytes(source);
+	dependency.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+	const auto archive = write_pack(dependency);
+	WorkshopDocument document;
+	document.load_dependency(archive);
+	const auto id = document.create_entity("test.ship");
+	auto &ship = document.definitions()["entities"][0];
+	ship["systems"] = {{"engine", nullptr}};
+	ship["assemblies"] = Json::array({{{"id", "drive"}, {"assembly", "test.drive-assembly"}},
+	                                  {{"id", "spare"}, {"assembly", "test.drive-assembly"}}});
+	ship["controllers"] = {{"engine", nullptr}, {"drive.engine", "workshop.policy"}};
+	document.definitions()["trees"].push_back(
+	    {{"id", "workshop.policy"},
+	     {"extends", "test.summary-child"},
+	     {"summary_bindings", Json::array({{{"name", "intent.power"}, {"channel", "custom_policy"}}})}});
+	const auto before = document.definitions();
+	const auto preview = document.preview_equipment();
+	const auto channels = gameplay_summary_channels(preview, id, "drive.engine");
+	require(channels == std::vector<std::string>({"custom_policy", "cooling"}) && document.definitions() == before,
+	        "Workshop preview must expose inherited custom channels from the placed System's actual controller without "
+	        "editing the draft");
+	require(gameplay_summary_channels(preview, id, "spare.engine") == std::vector<std::string>({"power", "cooling"}),
+	        "Repeated assemblies must expose each fitted instance's controller rather than sharing another instance's "
+	        "override");
+	const auto provider_channels = gameplay_summary_channels(preview, id, "drive.provider");
+	require(provider_channels == std::vector<std::string>({"output", "provider_policy"}),
+	        "Workshop channels must combine physical controls and dependency controller declarations");
+	ship["stations"] = source["entities"][0]["stations"];
+	ship["stations"][0]["consoles"][0]["systems"] = {"drive.engine", "drive.provider", "drive.pump_control",
+	                                                 "spare.engine", "spare.provider", "spare.pump_control",
+	                                                 "steering",     "radar"};
+	ship["presets"] = source["entities"][0]["presets"];
+	auto &preset = ship["presets"][0]["consoles"]["main"];
+	preset["direct"] = {"drive.provider",     "drive.pump_control", "spare.engine", "spare.provider",
+	                    "spare.pump_control", "steering",           "radar"};
+	preset["delegated"] = {"drive.engine"};
+	for (auto &intent : preset["summary_intents"])
+		intent["system"] = "drive.engine";
+	preset["summary_intents"][0]["channel"] = "custom_policy";
+	const auto exported = document.export_pack();
+	WorkshopDocument reopened;
+	reopened.load_dependency(archive);
+	reopened.load_pack(exported);
+	const auto verified = reopened.verify();
+	const auto &network = verified.resource_definitions.at(id);
+	require(network.coolant_sources.at(network.coolant_source_ids.at("drive.pump")).power_store ==
+	                network.store_ids.at("drive.reserve") &&
+	            network.coolant_sources.at(network.coolant_source_ids.at("drive.passive")).power_store == no_resource,
+	        "Workshop export must preserve a service-bound paid pump and an absent passive power binding from "
+	        "dependency assemblies");
+	require(
+	    gameplay_summary_channels(verified, id, "drive.engine") == channels &&
+	        reopened.definitions()["entities"][0]["presets"][0]["consoles"]["main"]["summary_intents"][0]["channel"] ==
+	            "custom_policy",
+	    "Custom channels chosen through Workshop must survive production export and reload");
+	const auto reopened_preview = reopened.preview_equipment();
+	require(gameplay_summary_channels(reopened_preview, id, "drive.engine") == channels,
+	        "Reopened composed equipment must preserve its explicit controller override in authoring preview");
+	WorkshopDocument downstream;
+	downstream.rename_pack("test-downstream");
+	downstream.load_dependency(archive);
+	downstream.load_dependency(exported);
+	const auto child = downstream.create_entity(id);
+	downstream.definitions()["entities"][0]["controllers"] = {{"drive.engine", "downstream.policy"}};
+	downstream.definitions()["trees"].push_back(
+	    {{"id", "downstream.policy"},
+	     {"extends", "test.summary-child"},
+	     {"summary_bindings", Json::array({{{"name", "intent.power"}, {"channel", "second_policy"}}})}});
+	require(
+	    gameplay_summary_channels(downstream.preview_equipment(), child, "drive.engine") ==
+	        std::vector<std::string>({"second_policy", "cooling"}),
+	    "A child of composed dependency equipment must apply its local controller override before preview expansion");
+	preset["summary_intents"][0]["channel"] = "unsupported_policy";
+	bool rejected = false;
+	try
+	{
+		(void)document.export_pack();
+	}
+	catch (const std::exception &)
+	{
+		rejected = true;
+	}
+	require(rejected && preset["summary_intents"][0]["channel"] == "unsupported_policy",
+	        "Production verification must reject an unsupported imported channel without silently changing it");
+}
 } // namespace
 int main()
 {
 	try
 	{
+		workshop_channel_authoring();
 		const auto source = fixture();
 		const auto catalog = load(source);
 		const auto bindings = gameplay_summary_bindings(catalog.trees.at("test.summary-child"), catalog);

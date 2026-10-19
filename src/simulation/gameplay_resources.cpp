@@ -177,6 +177,10 @@ ShipResources::ShipResources(ShipResourcesDefinition compiled, std::uint64_t see
     : definition(std::move(compiled)), network(definition.network, seed), requests(definition.systems.size()),
       grants(definition.systems.size())
 {
+	// Continuous paid equipment has no grant until its first funded tick.
+	for (std::size_t i = 0; i < definition.systems.size(); ++i)
+		if (definition.systems[i].energy_per_second)
+			grants[i].supply_permille = 0;
 }
 
 void request_system_resource(ShipResources &ship, std::size_t system, ResourceAmount duty, bool discrete,

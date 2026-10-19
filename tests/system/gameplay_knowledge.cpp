@@ -276,6 +276,9 @@ void authoring_refusals()
 	auto wrong_parameter = with_typed_messages();
 	wrong_parameter["messages"][1]["fields"]["amount"] = {{"parameter", "report_detail"}};
 	refused(wrong_parameter, "typed message parameter binding must match the destination field");
+	auto wrong_sender = with_notifier();
+	wrong_sender["knowledge"]["schemas"][1]["producers"] = {"support"};
+	refused(wrong_sender, "statically named controller message requires its actual owner's producer role");
 }
 Json projection(const World &world, std::uint64_t claim)
 {
@@ -702,6 +705,140 @@ void delayed_human_seeking()
 	require(latest_field(projection(recovered, 102), "records", "support-private", "enabled") == true,
 	        "human observer offers never become later AI inbox work after handover");
 }
+void authorized_message_producers()
+{
+	auto human_definitions = fixture();
+	human_definitions["knowledge"]["schemas"][1]["producers"] = {"support", "pilot"};
+	const auto human_catalog = load(human_definitions);
+	World human;
+	human.load(human_catalog, "test.map");
+	claim_all(human);
+	require(human.submit(101, {1, "message.test.request", 0, "engine"}),
+	        "human sender selects a permitted later schema producer instead of impersonating the first");
+	human.tick();
+	const auto human_pending = human.save().at("knowledge").at("runtime").value("pending", Json::array());
+	require(human_pending.size() == 1, "authorized human send enters delayed transport");
+	require(human_pending[0].at("payload").at("producer") == human_catalog.knowledge_definition.role("pilot"),
+	        "human message persists the actual authorized producer role");
+	human.tick();
+	human.tick();
+	require(projection(human, 102).at("messages").size() == 1, "authorized human message reaches its exact recipient");
+	auto ai_definitions = with_notifier();
+	ai_definitions["knowledge"]["schemas"][1]["producers"] = {"support", "pilot"};
+	const auto ai_catalog = load(ai_definitions);
+	World ai;
+	ai.load(ai_catalog, "test.map");
+	claim_all(ai);
+	ai.tick();
+	require(ai.submit(101, {1, "delegate", 1, "engine"}), "AI sender receives effective control");
+	ai.tick();
+	const auto ai_pending = ai.save().at("knowledge").at("runtime").value("pending", Json::array());
+	require(ai_pending.size() == 1, "authorized AI send enters delayed transport");
+	require(ai_pending[0].at("payload").at("producer") == ai_catalog.knowledge_definition.role("pilot"),
+	        "AI message also selects its actual authorized later producer role");
+	ai.tick();
+	ai.tick();
+	require(projection(ai, 101).at("messages").size() == 1, "authorized AI message reaches its exact recipient");
+	auto forbidden = fixture();
+	forbidden["knowledge"]["schemas"][1]["producers"] = {"support"};
+	const auto forbidden_catalog = load(forbidden);
+	World denied_human;
+	denied_human.load(forbidden_catalog, "test.map");
+	claim_all(denied_human);
+	require(!denied_human.submit(101, {1, "message.test.request", 0, "engine"}),
+	        "human with no producer intersection cannot originate that schema");
+	auto dynamic = with_notifier();
+	dynamic["knowledge"]["schemas"][1]["producers"] = {"support"};
+	dynamic["trees"][0]["memory"] =
+	    Json::array({{{"name", "selected_template"}, {"type", "text"}, {"initial", "test.notice"}}});
+	dynamic["trees"][0]["states"][1]["entry"][0]["arguments"][2] = {{"memory", "selected_template"}};
+	World denied_ai;
+	denied_ai.load(load(dynamic), "test.map");
+	claim_all(denied_ai);
+	denied_ai.tick();
+	require(denied_ai.submit(101, {1, "delegate", 1, "engine"}), "dynamic sender is delegated before admission");
+	for (int i = 0; i < 4; ++i)
+		denied_ai.tick();
+	require(denied_ai.save().at("knowledge").at("runtime").value("pending", Json::array()).empty() &&
+	            projection(denied_ai, 101).at("messages").empty(),
+	        "dynamically selected AI template with no producer intersection fails without transport effects");
+}
+void current_record_streams()
+{
+	auto definitions = fixture();
+	definitions["knowledge"]["schemas"][1]["fields"].push_back(
+	    {{"id", "detail"}, {"type", "boolean"}, {"required", false}});
+	definitions["knowledge"]["schemas"][2]["fields"].push_back(
+	    {{"id", "enabled"}, {"type", "boolean"}, {"required", false}});
+	auto &ship = definitions["entities"][0];
+	ship["systems"]["radar"]["records"][0]["fields"]["enabled"] = "enabled";
+	ship["controllers"]["radar"] = "test.detail-reader";
+	definitions["trees"].push_back(Json::parse(R"json(
+		{"id":"test.detail-reader","context":"system","initial":"read",
+		 "record_bindings":[{"name":"known.detail","scope":"console","schema":"request","field":"detail","subject":"self"}],
+		 "states":[{"id":"read","running":[
+			{"action":"set_enabled","arguments":[{"observation":"self.system"},false]},
+			{"action":"set_enabled","arguments":[{"observation":"self.system"},{"observation":"known.detail"}]}
+		 ]}]}
+	)json"));
+	auto detail = definitions["messages"][0];
+	detail["id"] = "test.detail";
+	detail.erase("request_key");
+	detail["delay_ticks"] = 1;
+	detail["expires_after_ticks"] = 100;
+	detail["fields"] = {{"amount", 1}, {"detail", true}};
+	auto replace = detail;
+	replace["id"] = "test.replace";
+	replace["fields"].erase("detail");
+	definitions["messages"].push_back(detail);
+	definitions["messages"].push_back(replace);
+	ship["message_templates"].push_back("test.detail");
+	ship["message_templates"].push_back("test.replace");
+	const auto catalog = load(definitions);
+	World world;
+	world.load(catalog, "test.map");
+	claim_all(world);
+	require(world.submit(102, {1, "delegate", 1, "radar"}), "record reader runs through its actual System controller");
+	world.tick();
+	const auto send = [&](const char *message, const char *sender)
+	{
+		require(world.submit(101, {1, std::string("message.") + message, 0, sender}),
+		        "record versions originate through the production Coordination command path");
+		world.tick();
+		world.tick();
+	};
+	send("test.detail", "engine");
+	require(latest_field(projection(world, 102), "records", "support-private", "enabled") == true,
+	        "custom System record binding reads the current optional detail");
+	send("test.replace", "engine");
+	require(latest_field(projection(world, 102), "records", "support-private", "enabled") == false,
+	        "newer same-stream omission suppresses an older retained optional field");
+	send("test.detail", "steering");
+	send("test.replace", "engine");
+	require(latest_field(projection(world, 102), "records", "support-private", "enabled") == true,
+	        "an omitted field in one source does not suppress current evidence from an independent source");
+	// A valid saved tombstone enters through the same production restore boundary
+	// as dated history. Keep an older version to detect resurrection on withdrawal.
+	send("test.detail", "steering");
+	auto withdrawn = world.save();
+	const auto request = catalog.knowledge_definition.schema("request");
+	auto &rows = withdrawn["knowledge"]["runtime"]["records"];
+	for (std::size_t i = rows.size(); i > 0; --i)
+	{
+		auto &row = rows[i - 1];
+		if (row.at("value").at("schema") == request && row.at("value").at("fields").size() == 2)
+		{
+			row["value"]["withdrawn"] = true;
+			row["value"]["fields"] = Json::array();
+			break;
+		}
+	}
+	World resumed;
+	resumed.restore(catalog, withdrawn);
+	resumed.tick();
+	require(latest_field(projection(resumed, 102), "records", "support-private", "enabled") == false,
+	        "restored withdrawal suppresses older detail from that source without discarding retained history");
+}
 void reject_saved(const Catalog &catalog, const Json &state, const char *contract)
 {
 	World target;
@@ -820,6 +957,8 @@ int main()
 		message_capture_budget();
 		station_recipient_set();
 		delayed_human_seeking();
+		authorized_message_producers();
+		current_record_streams();
 		continuation_roster_validation(catalog);
 		std::cout << "Gameplay knowledge integration passed\n";
 		return 0;

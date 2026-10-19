@@ -655,7 +655,11 @@ struct World::Impl
 					system.operation.enabled = enabled;
 				}
 				if (!enabled && running.power)
-					control_resource(*running.power, i, ResourceControl::Enabled, 0);
+					control_resource(*running.power, i,
+					                 entity.get<FittedSystems>().values[i].kind == OperatingSystem::Coolant
+					                     ? ResourceControl::CoolingIsolated
+					                     : ResourceControl::Enabled,
+					                 entity.get<FittedSystems>().values[i].kind == OperatingSystem::Coolant ? 1 : 0);
 			}
 			entity.set<GameplaySystems>(std::move(running));
 		}
@@ -1099,8 +1103,12 @@ struct World::Impl
 			                     : binding.subject ? binding.subject
 			                                       : id;
 			const auto &records = binding.shared ? board.shared : board.records;
+			// Only the newest version of each producer/publication stream may
+			// supply a field; omissions, tombstones and stale versions hide older data.
+			std::set<std::pair<KnowledgeId, KnowledgeId>> seen;
 			for (auto record = records.rbegin(); record != records.rend(); ++record)
 				if (record->value.schema == binding.schema && record->value.subject == subject &&
+				    seen.emplace(record->value.provenance.source, record->publication).second &&
 				    !record->value.withdrawn && !knowledge.stale(*record, ecs.get<Clock>().tick) &&
 				    record->value.fields.contains(binding.field))
 				{
@@ -1221,7 +1229,8 @@ struct World::Impl
 				                                                       : MessageDestinationKind::Ship,
 				                     static_cast<KnowledgeId>(a.at(1).number)};
 				value.payload.schema = message.schema;
-				value.payload.producer = schema.producers.at(0);
+				value.payload.producer =
+				    knowledge.message_producer(owner, fitted.id, message.schema, ControlOrigin::AI);
 				value.payload.subject = a.at(3).number;
 				value.payload.provenance = {self, ecs.get<Clock>().tick, ecs.get<Clock>().tick, 0,
 				                            EvidenceKind::Intent};
@@ -1487,6 +1496,7 @@ struct World::Impl
 				impulse = true;
 				steering_limit = std::min(steering_limit, static_cast<int>(system.flight->impulse_steering_permille));
 			}
+		std::vector<FlightDemand> plans(systems.values.size());
 		for (std::size_t i = 0; i < systems.values.size(); ++i)
 		{
 			auto &system = systems.values[i];
@@ -1508,15 +1518,15 @@ struct World::Impl
 						                                    fixed::length({other.vx, other.vy}), tick, 0};
 				}
 				observe_flight(*system.flight, system.operation, tick, observed);
+				auto requested = system.operation;
+				if (impulse)
+					requested.boost = false;
+				plans[i] = flight_demand(*system.flight, requested, pose, motion);
 				if (systems.power)
 				{
-					auto requested = system.operation;
-					if (impulse)
-						requested.boost = false;
-					const auto quote = flight_demand(*system.flight, requested, pose, motion);
-					request_system_resource(*systems.power, i, 0, false,
-					                        (impulse && system.flight->kind == FlightKind::Boost) ? 0
-					                                                                              : quote.power_rate);
+					request_system_resource(
+					    *systems.power, i, 0, false,
+					    (impulse && system.flight->kind == FlightKind::Boost) ? 0 : plans[i].power_rate);
 				}
 			}
 			else if (systems.power)
@@ -1538,7 +1548,7 @@ struct World::Impl
 				if (impulse)
 					system.operation.boost = false;
 				const auto execution =
-				    step_flight(*system.flight, system.operation, pose, motion, paid, tick, {},
+				    step_flight(*system.flight, system.operation, pose, motion, plans[i], paid,
 				                systems.power ? systems.power->grants[i].overdrive_permille : 1000,
 				                systems.power ? systems.power->grants[i].overdrive_heat_permille : 1000);
 				if (systems.power && execution.heat_rate)
@@ -1870,7 +1880,8 @@ struct World::Impl
 				const auto &schema = candidate.definition().schemas.at(message.schema - 1);
 				KnowledgeRecordInput payload;
 				payload.schema = message.schema;
-				payload.producer = schema.producers.at(0);
+				payload.producer =
+				    candidate.message_producer(address, command.system, message.schema, ControlOrigin::Human);
 				payload.subject = address.ship;
 				payload.provenance = {candidate.system_id(address.ship, command.system), ecs.get<Clock>().tick,
 				                      ecs.get<Clock>().tick, 0, EvidenceKind::Intent};
@@ -2168,6 +2179,13 @@ void World::tick()
 	{
 		const auto bodies = inspect();
 		impl_->scenario->begin_tick(ticks(), impl_->slot_entities, bodies);
+		std::vector<ScenarioKnowledgeSnapshot> snapshots;
+		for (const auto &reader : impl_->scenario->knowledge_readers())
+		{
+			const auto board = impl_->knowledge.project({reader.ship, reader.console});
+			snapshots.push_back({reader, board.records, board.shared});
+		}
+		impl_->scenario->supply_knowledge(snapshots);
 		impl_->scenario->step();
 		impl_->scenario_spawns();
 		impl_->scenario_publications();
@@ -2378,11 +2396,10 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 			if (state.controlled)
 				for (const auto &action : operating_actions)
 				{
-					const auto current = action.action == OperatingAction::Speed     ? state.requested
-					                     : action.action == OperatingAction::Heading ? state.requested
-					                     : state.telemetry.contains(std::string(action.name))
-					                         ? state.telemetry.at(std::string(action.name))
-					                         : 0;
+					const std::string field = action.action == OperatingAction::Speed     ? "desired_speed"
+					                          : action.action == OperatingAction::Heading ? "desired_heading"
+					                                                                      : std::string(action.name);
+					const auto current = state.telemetry.contains(field) ? state.telemetry.at(field) : 0;
 					std::int64_t maximum = action.maximum, minimum = action.minimum;
 					if (action.action == OperatingAction::Speed)
 					{

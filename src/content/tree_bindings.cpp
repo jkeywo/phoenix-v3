@@ -174,7 +174,9 @@ std::vector<GameplayTreeRecordBinding> gameplay_record_bindings(const Json &tree
 		(void)gameplay_tree_registry(*inherited.context, result);
 	return result;
 }
-std::vector<GameplayTreeSummaryBinding> gameplay_summary_bindings(const Json &tree, const Catalog &catalog)
+namespace
+{
+std::vector<GameplayTreeSummaryBinding> summary_declarations(const Json &tree, const Catalog &catalog)
 {
 	const auto inherited = resolve_record_bindings(tree, catalog);
 	const auto path = "trees." + tree.value("id", std::string("<inline>")) + ".summary_bindings";
@@ -182,16 +184,11 @@ std::vector<GameplayTreeSummaryBinding> gameplay_summary_bindings(const Json &tr
 	                "summary bindings require a System tree context");
 	if (inherited.summaries.empty())
 		return {};
-	auto registry = gameplay_tree_registry(state_tree::Context::System, gameplay_record_bindings(tree, catalog));
-	std::set<std::string> names;
-	for (const auto &observation : registry.observations)
-		names.insert(observation.name);
 	std::vector<GameplayTreeSummaryBinding> result;
 	for (const auto &value : inherited.summaries)
 	{
 		const auto name = value.at("name").get<std::string>();
 		const auto field_path = path + "." + name;
-		binding_require(names.insert(name).second, field_path, "name collides with another observation");
 		binding_require(value.contains("channel") && value.at("channel").is_string(), field_path,
 		                "channel must be an authored identifier");
 		const auto channel = value.at("channel").get<std::string>();
@@ -202,8 +199,59 @@ std::vector<GameplayTreeSummaryBinding> gameplay_summary_bindings(const Json &tr
 			                "summary intent bindings have integer type");
 		result.push_back({name, channel});
 	}
+	return result;
+}
+} // namespace
+std::vector<GameplayTreeSummaryBinding> gameplay_summary_bindings(const Json &tree, const Catalog &catalog)
+{
+	auto result = summary_declarations(tree, catalog);
+	if (result.empty())
+		return result;
+	const auto registry = gameplay_tree_registry(state_tree::Context::System, gameplay_record_bindings(tree, catalog));
+	const auto path = "trees." + tree.value("id", std::string("<inline>")) + ".summary_bindings";
+	std::set<std::string> names;
+	for (const auto &observation : registry.observations)
+		names.insert(observation.name);
+	for (const auto &binding : result)
+		binding_require(names.insert(binding.name).second, path + "." + binding.name,
+		                "name collides with another observation");
 	binding_require(registry.observations.size() + result.size() <= 4096, path,
 	                "combined observation layout exceeds 4096 fields");
+	return result;
+}
+std::vector<std::string> gameplay_summary_channels(const Catalog &catalog, const std::string &entity,
+                                                   const std::string &system)
+{
+	const auto fitted = resolve_systems(catalog, entity);
+	const auto found = std::find_if(fitted.begin(), fitted.end(),
+	                                [&](const auto &candidate)
+	                                {
+		                                return candidate.id == system;
+	                                });
+	if (found == fitted.end())
+		throw std::runtime_error("entities." + entity + ".systems." + system + ": unknown fitted System");
+	std::vector<std::string> result;
+	switch (found->kind)
+	{
+	case OperatingSystem::Generator:
+		result = {"output"};
+		break;
+	case OperatingSystem::Distribution:
+		result = {"power", "allocation"};
+		break;
+	case OperatingSystem::Coolant:
+		result = {"coolant", "cooling"};
+		break;
+	case OperatingSystem::Storage:
+		result = {"charge", "discharge"};
+		break;
+	default:
+		break;
+	}
+	if (!found->controller.empty())
+		for (const auto &binding : summary_declarations(catalog.trees.at(found->controller), catalog))
+			if (std::find(result.begin(), result.end(), binding.channel) == result.end())
+				result.push_back(binding.channel);
 	return result;
 }
 state_tree::Registry gameplay_registry(const Json &tree, const Catalog &catalog, state_tree::Context context)

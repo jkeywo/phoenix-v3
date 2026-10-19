@@ -103,7 +103,7 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map)
 	auto selectors = [&](const Json &bindings)
 	{
 		require(bindings.is_object(), "bindings must be an object");
-		for (const char *field : {"objective", "region", "event"})
+		for (const char *field : {"objective", "region", "event", "knowledge_console"})
 			if (bindings.contains(field))
 				require(bindings.at(field).is_string(), std::string(field) + " selector must be text");
 		const auto region = bindings.value("region", std::string{}), event = bindings.value("event", std::string{}),
@@ -129,6 +129,69 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map)
 				actor({ScenarioActorKind::ShipSlot, 0, a.at("slot").get<std::string>()});
 			else
 				actor({ScenarioActorKind::Handle, 0, a.at("handle").get<std::string>()});
+		}
+	};
+	std::optional<GameplayKnowledgeDefinitions> reader_definitions;
+	auto verify_reader = [&](const std::string &tree, const Json &bindings)
+	{
+		const auto reads = gameplay_record_bindings(catalog.trees.at(tree), catalog);
+		const auto console_name = bindings.value("knowledge_console", std::string{});
+		if (reads.empty() && console_name.empty())
+			return;
+		require(bindings.contains("actor") && valid_identifier(console_name),
+		        "scenario record bindings require an explicit actor and knowledge_console reader");
+		if (!reader_definitions)
+			reader_definitions = compile_gameplay_knowledge(catalog);
+		std::vector<std::string> hulls;
+		const auto &selected = bindings.at("actor");
+		if (selected.contains("entity"))
+			hulls.push_back(entities.at(selected.at("entity").get<EntityId>()));
+		else if (selected.contains("slot"))
+			hulls = slots.at(selected.at("slot").get<std::string>());
+		else
+		{
+			// Spawned handles resolve at runtime. Validate a supported reader exists;
+			// the bridge checks the actual hull's roles again before reading evidence.
+			for (const auto &[hull, ship] : reader_definitions->ships)
+				for (const auto &console : ship.consoles)
+					if (console.console.id == console_name &&
+					    std::all_of(reads.begin(), reads.end(),
+					                [&](const auto &read)
+					                {
+						                const auto &schema = catalog.knowledge_definition.schemas.at(
+						                    catalog.knowledge_definition.schema(read.schema) - 1);
+						                return std::any_of(console.readers.begin(), console.readers.end(),
+						                                   [&](auto role)
+						                                   {
+							                                   return std::find(schema.readers.begin(),
+							                                                    schema.readers.end(),
+							                                                    role) != schema.readers.end();
+						                                   });
+					                }))
+						hulls.push_back(hull);
+		}
+		require(!hulls.empty(), "knowledge_console has no supported actor ship");
+		for (const auto &hull : hulls)
+		{
+			const auto &ship = reader_definitions->ships.at(hull);
+			const auto console = std::find_if(ship.consoles.begin(), ship.consoles.end(),
+			                                  [&](const auto &c)
+			                                  {
+				                                  return c.console.id == console_name;
+			                                  });
+			require(console != ship.consoles.end(), "knowledge Console " + console_name + " missing on " + hull);
+			for (const auto &read : reads)
+			{
+				const auto &schema =
+				    catalog.knowledge_definition.schemas.at(catalog.knowledge_definition.schema(read.schema) - 1);
+				require(std::any_of(console->readers.begin(), console->readers.end(),
+				                    [&](auto role)
+				                    {
+					                    return std::find(schema.readers.begin(), schema.readers.end(), role) !=
+					                           schema.readers.end();
+				                    }),
+				        "knowledge Console reader roles exclude " + read.schema + " on " + hull);
+			}
 		}
 	};
 	std::function<void(const state_tree::Program &)> action_literals;
@@ -290,6 +353,7 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map)
 		require(source.at("tree").is_string(), "tree must be an authored identifier");
 		verify_tree(source.at("tree").get<std::string>(), Json::object());
 		selectors(source.value("bindings", Json::object()));
+		verify_reader(source.at("tree").get<std::string>(), source.value("bindings", Json::object()));
 	}
 	std::set<std::string> initial_names;
 	if (source.contains("tree"))
@@ -299,6 +363,7 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map)
 		{
 			verify_tree(s.at("tree").get<std::string>(), s.value("parameters", Json::object()));
 			selectors(s.value("bindings", Json::object()));
+			verify_reader(s.at("tree").get<std::string>(), s.value("bindings", Json::object()));
 			if (s.value("start", false))
 				require(initial_names.insert(s.value("instance_name", s.at("id").get<std::string>())).second,
 				        "duplicate initial situation instance name");

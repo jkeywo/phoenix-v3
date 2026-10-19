@@ -91,6 +91,14 @@ bool knowledge_readable(const CompiledKnowledge &compiled, const GameplayKnowled
 			return true;
 	return false;
 }
+bool knowledge_producible(const CompiledKnowledge &compiled, const GameplayKnowledgeConsoleDefinition &console,
+                          KnowledgeKey key)
+{
+	for (const auto role : knowledge_schema(compiled, key).producers)
+		if (knowledge_has(console.producers, role))
+			return true;
+	return false;
+}
 bool knowledge_telemetry_source(const std::string &name)
 {
 	// This is the production World telemetry vocabulary, not arbitrary JSON paths.
@@ -246,7 +254,8 @@ void knowledge_verify_message_context(const GameplayKnowledgeMessageDefinition &
 }
 void knowledge_verify_program_messages(const state_tree::Program &program,
                                        const std::map<std::string, GameplayKnowledgeMessageDefinition> &messages,
-                                       const std::string &path)
+                                       const CompiledKnowledge &knowledge,
+                                       const GameplayKnowledgeConsoleDefinition &sender, const std::string &path)
 {
 	for (const auto &state : program.states)
 		for (const auto *tasks : {&state.entry, &state.running, &state.exit})
@@ -258,10 +267,12 @@ void knowledge_verify_program_messages(const state_tree::Program &program,
 				{
 					const auto &name = task.arguments.at(2).literal.text;
 					knowledge_require(messages.contains(name), path + ": unknown message template " + name);
+					knowledge_require(knowledge_producible(knowledge, sender, messages.at(name).schema),
+					                  path + ": source Console cannot produce message template " + name);
 					knowledge_verify_message_context(messages.at(name), program, path + ".message." + name);
 				}
 	for (const auto &reference : program.references)
-		knowledge_verify_program_messages(reference, messages, path);
+		knowledge_verify_program_messages(reference, messages, knowledge, sender, path);
 }
 } // namespace
 GameplayKnowledgeMessageValues evaluate_gameplay_message(const GameplayKnowledgeMessageDefinition &message,
@@ -596,6 +607,13 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 			                  name + ": unknown/unfitted message template '" + id + "'");
 			const auto &message = compiled.messages.at(id);
 			const auto &ship = compiled.ships.at(name);
+			knowledge_require(std::any_of(ship.consoles.begin(), ship.consoles.end(),
+			                              [&](const auto &console)
+			                              {
+				                              return !console.console.controlled_systems.empty() &&
+				                                     knowledge_producible(compiled.knowledge, console, message.schema);
+			                              }),
+			                  name + ": no fitted System owner can produce message template '" + id + "'");
 			std::vector<const GameplayKnowledgeConsoleDefinition *> recipients;
 			for (const auto &console : ship.consoles)
 			{
@@ -630,7 +648,6 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 			if (!catalog.tree_programs.contains(system.controller))
 				continue;
 			const auto &program = catalog.tree_programs.at(system.controller);
-			knowledge_verify_program_messages(program, compiled.messages, name + ".controllers." + system.id);
 			knowledge_require(ship.owners.contains(system.id),
 			                  name + ".controllers." + system.id + ": controller has no owning Console");
 			const auto &owner_name = ship.owners.at(system.id);
@@ -641,6 +658,8 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 			                                });
 			knowledge_require(owner != ship.consoles.end(),
 			                  name + ".controllers." + system.id + ": unresolved owning Console");
+			knowledge_verify_program_messages(program, compiled.messages, compiled.knowledge, *owner,
+			                                  name + ".controllers." + system.id);
 			for (const auto &binding : bindings)
 			{
 				const auto schema = compiled.knowledge.schema(binding.schema);

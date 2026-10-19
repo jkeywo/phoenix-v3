@@ -158,6 +158,9 @@ struct FittedSystemSpec
 	std::string controller;
 };
 std::vector<FittedSystemSpec> resolve_systems(const Catalog &catalog, const std::string &entity);
+// Includes standard capability channels and the fitted controller's inherited declarations.
+std::vector<std::string> gameplay_summary_channels(const Catalog &, const std::string &entity,
+                                                   const std::string &system);
 // Resolves legacy single-console content and verifies explicit station ownership.
 std::vector<ConsoleSpec> resolve_consoles(const Catalog &catalog, const std::string &entity);
 struct WidgetBinding
@@ -235,6 +238,8 @@ public:
 	void duplicate(std::uint64_t instance);
 	std::string import_image(const std::string &filename, Bytes bytes);
 	Catalog verify() const;
+	// Resolves reusable equipment and controller namespaces without requiring finished ownership/presets.
+	Catalog preview_equipment() const;
 	Json &definitions()
 	{
 		return definitions_;

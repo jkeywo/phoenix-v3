@@ -110,8 +110,8 @@ void claim(World &world)
 void command(World &world, const std::string &action, std::int64_t value, const std::string &id,
              std::uint64_t console = 101, EntityId actor = 1)
 {
-	require(world.submit(console, {actor, action, value, id}),
-	        "ordinary typed flight command must pass production authority");
+	if (!world.submit(console, {actor, action, value, id}))
+		throw std::runtime_error("ordinary typed command refused: " + id + "." + action + "=" + std::to_string(value));
 }
 std::int64_t paid(const World &world)
 {
@@ -518,6 +518,121 @@ void match_speed()
 		        "explicit throttle input must cancel matching and retain its new speed request");
 	}
 }
+void immutable_flight_demands()
+{
+	auto source = fixture();
+	auto &ship = source["entities"][0];
+	ship["systems"]["a"] = ship["systems"]["drive"];
+	ship["systems"]["b"] = ship["systems"]["drive"];
+	ship["systems"].erase("drive");
+	ship["stations"][0]["consoles"][0]["systems"] = {"a", "b", "turn", "boost", "impulse"};
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	claim(world);
+	command(world, "speed_mm_s", 1000, "a");
+	world.tick();
+	require(body(world).vx == 100 && telemetry(world, "b", "actual_longitudinal") == 0 &&
+	            telemetry(world, "b", "used_power") == 0,
+	        "an idle actuator cannot re-plan free braking after another fitted actuator accelerates");
+	world.tick();
+	require(telemetry(world, "b", "actual_longitudinal") < 0 && telemetry(world, "b", "used_power") > 0,
+	        "opposing correction must be quoted and paid on the next common motion snapshot");
+	World paired;
+	paired.load(catalog, "test.map");
+	claim(paired);
+	command(paired, "speed_mm_s", 150, "a");
+	command(paired, "speed_mm_s", 150, "b");
+	for (int tick = 0; tick < 4; ++tick)
+	{
+		paired.tick();
+		require(body(paired).vx == 150,
+		        "same-target fitted actuators must clip against aggregate motion without overshoot");
+	}
+	ship["systems"]["a"] = ship["systems"]["turn"];
+	ship["systems"].erase("turn");
+	ship["stations"][0]["consoles"][0]["systems"] = {"a", "b", "boost", "impulse"};
+	const auto steering_catalog = load(source);
+	World steering;
+	steering.load(steering_catalog, "test.map");
+	claim(steering);
+	command(steering, "heading_mdeg", 90000, "a");
+	command(steering, "speed_mm_s", 1000, "b");
+	steering.tick();
+	require(body(steering).heading > 0 && body(steering).vx == 100 && body(steering).vy == 0,
+	        "funded thrust must retain its prepared heading basis after an earlier steering actuator turns");
+}
+void paid_sensor_startup()
+{
+	for (const bool funded : {false, true})
+	{
+		auto source = fixture();
+		auto &ship = source["entities"][0];
+		ship["systems"]["radar"]["energy_per_second"] = 1;
+		ship["systems"]["radar"]["power_store"] = "sensor-cell";
+		ship["systems"]["radar"]["powerless_start"] = true;
+		ship["resources"]["stores"].push_back({{"id", "sensor-cell"},
+		                                       {"capacity", 1},
+		                                       {"initial", funded ? 1 : 0},
+		                                       {"charge_rate", 20},
+		                                       {"discharge_rate", 20}});
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map");
+		claim(world);
+		require(world.observe(101)->contacts.empty(), "paid radar cannot reveal contacts before its first funded tick");
+		command(world, "selected_contact", 2, "drive");
+		world.tick();
+		require(world.observe(101)->contacts.empty() != funded,
+		        "only funded radar may reveal contacts, including work prepaid with the last energy unit");
+		command(world, "match_speed", 1, "drive");
+		world.tick();
+		require((telemetry(world, "drive", "match_stale") != 0) == !funded,
+		        "the first Match Speed observation must come from an actually funded sensor tick");
+		const auto saved = world.save();
+		World resumed;
+		resumed.restore(catalog, saved);
+		resumed.clear_claims();
+		claim(resumed);
+		for (int tick = 0; tick < 18; ++tick)
+		{
+			world.tick();
+			resumed.tick();
+			require(world.observe(101)->contacts.empty() != funded &&
+			            resumed.observe(101)->contacts.empty() == world.observe(101)->contacts.empty(),
+			        "paid sensor work credit must survive continuation without an energy-balance shortcut");
+		}
+		world.tick();
+		require(world.observe(101)->contacts.empty(), "exhausted sensor credit cannot reveal fresh contacts");
+	}
+}
+void disabled_cooling()
+{
+	auto source = fixture();
+	auto &ship = source["entities"][0];
+	ship["resources"]["stores"][0]["initial_heat"] = 10;
+	ship["resources"]["coolant_sources"] =
+	    Json::parse(R"([{"id":"tank","initial":100,"removal_rate":40,"coolant_per_heat_ppm":1000000}])");
+	ship["resources"]["cooling_links"] =
+	    Json::parse(R"([{"id":"feed","source":"tank","store":"cell","capacity_rate":40,"allocation_rate":40}])");
+	ship["systems"]["cooler"] = {{"kind", "coolant"}, {"cooling_link", "feed"}, {"enabled", false}};
+	ship["stations"][0]["consoles"][3]["systems"].push_back("cooler");
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	claim(world);
+	world.tick();
+	require(telemetry(world, "storage", "heat", 104) == 10 && telemetry(world, "cooler", "coolant_stock", 104) == 100,
+	        "authored disabled coolant equipment must neither remove heat nor spend finite coolant");
+	command(world, "system_enabled", 1, "cooler", 104);
+	world.tick();
+	require(telemetry(world, "storage", "heat", 104) == 8 && telemetry(world, "cooler", "coolant_stock", 104) == 98,
+	        "enabling authored disabled cooling must reconnect its real resource link");
+	command(world, "system_enabled", 0, "cooler", 104);
+	world.tick();
+	require(telemetry(world, "storage", "heat", 104) == 8 && telemetry(world, "cooler", "coolant_stock", 104) == 98,
+	        "runtime disable must use the same isolation semantics as authored initial disable");
+}
 void invalid_controller_actions()
 {
 	const Json self{{"observation", "self.system"}};
@@ -620,6 +735,8 @@ void semantic_controls()
 	require(model.system_request("drive", "speed_mm_s") == 1000 &&
 	            model.system_request("drive", "heading_mdeg") == 33000,
 	        "committed composite-channel feedback must retain each setting in its original units");
+	require(!control_id(model, "heading_mdeg", 50999).empty(),
+	        "composite Engine heading increment must use desired heading rather than its independent speed request");
 	require(model.system_minimum("drive") == -5000 && model.set_speed_fraction(0, "drive"),
 	        "reverse throttle semantics must map their lower endpoint to the authored reverse bound");
 	session->tick();
@@ -692,6 +809,9 @@ int main()
 		prepaid_low_rate_actuation();
 		unpaid_and_protected();
 		match_speed();
+		immutable_flight_demands();
+		paid_sensor_startup();
+		disabled_cooling();
 		invalid_controller_actions();
 		semantic_controls();
 		std::cout << "Paid flight integration passed: control, resources, impulse, observed matching and semantics\n";

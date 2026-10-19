@@ -15,7 +15,18 @@ export namespace phoenix
 struct ScenarioTreeSelectors
 {
 	std::optional<ScenarioActor> actor;
-	std::string objective, region, event;
+	std::string objective, region, event, knowledge_console;
+};
+struct ScenarioKnowledgeReader
+{
+	ScenarioId instance = 0;
+	EntityId ship = 0;
+	std::string console;
+};
+struct ScenarioKnowledgeSnapshot
+{
+	ScenarioKnowledgeReader reader;
+	std::vector<KnowledgeRecord> records, shared;
 };
 struct ScenarioTreeReceipt
 {
@@ -51,6 +62,10 @@ public:
 	                           std::map<std::string, ScenarioParameter> parameters = {},
 	                           ScenarioTreeSelectors selectors = {});
 	void begin_tick(ScenarioTick tick, std::map<std::string, EntityId> slots, std::span<const BodyView> bodies);
+	// Supply only the selected Console's permission-filtered public projection.
+	// Copies freeze this tick's evidence before any scenario controller executes.
+	std::vector<ScenarioKnowledgeReader> knowledge_readers() const;
+	void supply_knowledge(std::span<const ScenarioKnowledgeSnapshot> snapshots);
 	// Exactly one controller evaluation per committed tick; due event snapshots
 	// are captured for every situation before any situation effects are executed.
 	void step(std::uint64_t ticks = 1);
@@ -77,6 +92,11 @@ private:
 	std::map<ScenarioId, ScenarioTreeController> controllers_;
 	std::map<ScenarioActionToken, ScenarioTreeReceipt> receipts_;
 	std::map<EntityId, BodyView> bodies_;
+	CompiledKnowledge knowledge_;
+	std::map<std::string, std::vector<GameplayTreeRecordBinding>> record_bindings_;
+	std::map<std::string, std::map<std::string, std::vector<KnowledgeKey>>> reader_contracts_;
+	std::map<ScenarioId, ScenarioKnowledgeSnapshot> knowledge_snapshots_;
+	bool knowledge_supplied_ = false;
 	std::string map_, contract_;
 	ScenarioTick tick_ = 0;
 	std::optional<ScenarioTick> stepped_tick_;
@@ -85,6 +105,7 @@ private:
 	std::vector<state_tree::Value> snapshot(ScenarioId instance, ScenarioId *event_cursor) const;
 	std::optional<ScenarioId> selected_objective(ScenarioId instance) const;
 	void validate_selectors(const ScenarioTreeSelectors &selectors) const;
+	void validate_reader(const std::string &tree, const ScenarioTreeSelectors &selectors) const;
 	void step_transaction(std::uint64_t ticks);
 };
 } // namespace phoenix

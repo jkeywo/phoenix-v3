@@ -8,15 +8,61 @@ module;
 #include <nlohmann/json.hpp>
 #include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 module phoenix.content;
 
 namespace phoenix
 {
+Json authored_equipment_source(Json resolved);
 WorkshopDocument::WorkshopDocument()
 {
 	reset();
+}
+Catalog WorkshopDocument::preview_equipment() const
+{
+	Catalog preview;
+	preview.entities = library_catalog_.entities;
+	for (auto &[id, entity] : preview.entities)
+		entity = authored_equipment_source(std::move(entity));
+	preview.equipment = library_catalog_.equipment;
+	preview.assemblies = library_catalog_.assemblies;
+	preview.trees = library_catalog_.trees;
+	if (definitions_.contains("trees"))
+		for (const auto &source : definitions_.at("trees"))
+			preview.trees[source.at("id").get<std::string>()] = source;
+	for (const auto &[kind, table] : std::vector<std::pair<const char *, std::map<std::string, Json> *>>{
+	         {"entities", &preview.entities}, {"equipment", &preview.equipment}, {"assemblies", &preview.assemblies}})
+	{
+		if (definitions_.contains(kind))
+			for (const auto &source : definitions_.at(kind))
+				(*table)[source.at("id").get<std::string>()] = source;
+		std::set<std::string> active, done;
+		std::function<void(const std::string &)> inherit = [&](const std::string &id)
+		{
+			if (done.contains(id))
+				return;
+			if (!active.insert(id).second)
+				throw std::runtime_error("Composition inheritance cycle: " + id);
+			auto &source = table->at(id);
+			if (source.contains("extends"))
+			{
+				const auto parent = source.at("extends").get<std::string>();
+				inherit(parent);
+				auto merged = table->at(parent);
+				merged.merge_patch(source);
+				merged.erase("extends");
+				source = std::move(merged);
+			}
+			active.erase(id);
+			done.insert(id);
+		};
+		for (const auto &[id, value] : *table)
+			inherit(id);
+	}
+	resolve_equipment(preview);
+	return preview;
 }
 std::vector<Bytes> WorkshopDocument::dependency_archives() const
 {

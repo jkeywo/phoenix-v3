@@ -187,3 +187,54 @@ All nine approved software stages are delivered. Agreed deferrals above remain
 unchanged. Production balance, broad playtesting, audible screen-reader operation,
 physical touch/five-gamepad routing and six-display performance remain explicit
 manual acceptance work; they are not represented as successful automated evidence.
+
+## Final review corrections, 19 October 2026
+
+The subsequent final audit found seven defects in delivered paths. Fixing them and
+repeating the full-plan review exposed related record-version and authoring gaps.
+The corrections retain the full nine-stage scope:
+
+- Each fitted flight actuator now executes the exact demand and heading basis
+  prepared before resource funding. Later actuators can clip their paid work
+  against aggregate motion, but cannot invent unquoted braking or steering.
+- Continuously powered sensors start without a grant. Their first contacts require
+  a funded tick; prepaid work remains usable after the last stored energy debit.
+- Scenario custom record bindings now select an explicit actor and reader Console.
+  World supplies immutable permitted Console and ship projections, with typed
+  schema/field/subject checks, age and withdrawal handling, and reader validation.
+- Human and AI messages select a schema producer role actually held by the exact
+  sending Console, retaining System ownership and effective-origin checks.
+- Authored disabled Coolant Systems initially isolate their resource links, using
+  the same semantics as runtime disabling.
+- Composite Engine heading buttons use the independent desired heading instead of
+  the throttle request.
+- Workshop summary choices resolve standard and custom channels from the actual
+  fitted controller, including inherited dependency trees and local overrides.
+  Production verification uses the same channel lookup.
+- System record bindings suppress superseded versions before checking optional
+  fields, age or withdrawal. A newer omitted or withdrawn field cannot resurrect
+  old evidence; independent producer streams remain eligible.
+- Workshop exposes the optional coolant pump reserve, assembly-internal mechanism
+  bindings and controller overrides, and all supported base flight settings through
+  the shared inspector. Absent overrides continue to inherit template defaults.
+
+Independent source reviews covered the corrections. Review also caught and
+resolved scenario stream suppression across distinct producers, with a dedicated
+withdrawal regression. Focused native flight/resource, knowledge, scenario World
+and summary/Workshop suites pass. These synthetic production-path journeys cover
+funding, initial state, authority refusal, scoped records, repeated composition,
+export/reopen and save/resume without freezing shipped tuning.
+
+The repeated full-plan source audit inspected actual paths across all nine stages,
+including reusable content, remote continuation and the disposable browser host
+boundary. Its final verdict found no remaining confirmed scope gap or actionable
+defect. Separate independent reviewers also cleared the flight/resource and
+Coordination corrections. Source approval remains distinct from execution evidence.
+
+Final verification: `scripts/check.ps1` passes all 20 native system cases, all
+headless WASM checks (including the eight gameplay journeys), native/WASM
+continuation comparison, production pack verification and all eight real network
+cases with the completed corrections. Formatting and whitespace checks also pass.
+Existing manually triggered graphical and hardware evidence limits remain
+unchanged; this correction run does not claim new physical or screen-reader
+acceptance.

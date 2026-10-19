@@ -29,6 +29,8 @@ public:
 	ConsoleAddress address(KnowledgeId console) const;
 	const CompiledKnowledge &definition() const;
 	const GameplayKnowledgeMessageDefinition &message_definition(const std::string &name) const;
+	KnowledgeKey message_producer(const ConsoleAddress &source, const std::string &sender_system, KnowledgeKey schema,
+	                              ControlOrigin origin) const;
 	KnowledgeId request_key(const std::string &name) const;
 	std::string request_key_name(KnowledgeId key) const;
 	// human_systems is the effective owned subset after delegation/preset changes.

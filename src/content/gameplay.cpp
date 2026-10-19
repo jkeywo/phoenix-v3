@@ -367,14 +367,8 @@ void verify_gameplay_fitting(const Catalog &catalog, const std::string &entity_i
 				                       (kind == "distribution" && (channel == "power" || channel == "allocation")) ||
 				                       (kind == "coolant" && (channel == "coolant" || channel == "cooling")) ||
 				                       (kind == "storage" && (channel == "charge" || channel == "discharge"));
-				const auto &controller = catalog.trees.at(systems.at(system)->controller);
-				const auto bindings = gameplay_summary_bindings(controller, catalog);
-				const bool declared = std::any_of(bindings.begin(), bindings.end(),
-				                                  [&](const auto &binding)
-				                                  {
-					                                  return binding.channel == channel;
-				                                  });
-				if (!supported && !declared)
+				const auto channels = gameplay_summary_channels(catalog, entity_id, system);
+				if (std::find(channels.begin(), channels.end(), channel) == channels.end())
 					fitting_error(control,
 					              "channel needs a delegated controller summary binding or standard capability");
 				if (!intent.contains("levels") || !intent.at("levels").is_array() || intent.at("levels").empty() ||

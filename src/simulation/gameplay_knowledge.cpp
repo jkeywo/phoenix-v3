@@ -208,6 +208,21 @@ KnowledgeId GameplayKnowledge::request_key(const std::string &name) const
 	knowledge_require(request_keys_.contains(name), "unknown authored request key");
 	return request_keys_.at(name);
 }
+KnowledgeKey GameplayKnowledge::message_producer(const ConsoleAddress &source, const std::string &sender,
+                                                 KnowledgeKey key, ControlOrigin origin) const
+{
+	const auto system = system_id(source.ship, sender);
+	const auto &allowed = console_definition(source).producers;
+	// Authored schema order supplies a deterministic preference; only roles held
+	// by this exact sending Console are candidates.
+	for (const auto role : knowledge_schema(compiled_, key).producers)
+		if (knowledge_has(allowed, role))
+		{
+			admit_sender(source, system, role, origin);
+			return role;
+		}
+	throw std::runtime_error("gameplay knowledge: source Console has no authorized message producer role");
+}
 const GameplayKnowledgeConsoleDefinition &GameplayKnowledge::console_definition(const ConsoleAddress &address) const
 {
 	console_id(address);

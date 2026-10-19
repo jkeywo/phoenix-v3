@@ -101,6 +101,7 @@ struct GameplayEditor
 	std::string verify_result;
 	Json vocabulary = Json::object();
 	Json composition = Json::object();
+	Catalog composition_catalog;
 	int selected_state = -1;
 	bool pseudo = false;
 	void remember(std::vector<Snapshot> &history, const Json &definitions)
@@ -549,52 +550,12 @@ struct GameplayEditor
 	std::vector<std::string> fitted_ids(const WorkshopDocument &document, const Json &ship)
 	{
 		composition = Json::object();
+		composition_catalog = Catalog{};
 		auto fallback = ship.contains("systems") ? ids(ship.at("systems")) : std::vector<std::string>{};
 		try
 		{
-			Catalog preview;
-			preview.entities = document.libraries().entities;
-			preview.equipment = document.libraries().equipment;
-			preview.assemblies = document.libraries().assemblies;
-			// Composition validates template/assembly controller references. Preserve
-			// that namespace without compiling trees or loading unrelated assets.
-			preview.trees = document.libraries().trees;
-			if (document.definitions().contains("trees"))
-				for (const auto &source : document.definitions().at("trees"))
-					preview.trees[source.at("id").get<std::string>()] = source;
-			for (const auto &[kind, table] : std::vector<std::pair<const char *, std::map<std::string, Json> *>>{
-			         {"entities", &preview.entities},
-			         {"equipment", &preview.equipment},
-			         {"assemblies", &preview.assemblies}})
-			{
-				if (document.definitions().contains(kind))
-					for (const auto &source : document.definitions().at(kind))
-						(*table)[source.at("id").get<std::string>()] = source;
-				std::set<std::string> active, done;
-				std::function<void(const std::string &)> inherit = [&](const std::string &id)
-				{
-					if (done.contains(id))
-						return;
-					if (!active.insert(id).second)
-						throw std::runtime_error("Composition inheritance cycle: " + id);
-					auto &source = table->at(id);
-					if (source.contains("extends"))
-					{
-						const auto parent = source.at("extends").get<std::string>();
-						inherit(parent);
-						auto merged = table->at(parent);
-						merged.merge_patch(source);
-						merged.erase("extends");
-						source = std::move(merged);
-					}
-					active.erase(id);
-					done.insert(id);
-				};
-				for (const auto &[id, value] : *table)
-					inherit(id);
-			}
-			resolve_equipment(preview);
-			const auto &expanded = preview.entities.at(ship.at("id").get<std::string>());
+			composition_catalog = document.preview_equipment();
+			const auto &expanded = composition_catalog.entities.at(ship.at("id").get<std::string>());
 			composition = expanded;
 			if (expanded.contains("systems"))
 				return ids(expanded.at("systems"));
@@ -613,24 +574,31 @@ struct GameplayEditor
 		integer(spec, "discrete_energy");
 		boolean(spec, "powerless_start");
 		const auto kind = spec.value("kind", fallback_kind);
+		if (kind == "engine" || kind == "boost" || kind == "impulse")
+		{
+			integer(spec, "max_speed_mm_s");
+			integer(spec, "acceleration_mm_s2");
+		}
+		if (kind == "engine" || kind == "steering")
+			integer(spec, "turn_mdeg_s");
+		if (kind == "radar")
+			integer(spec, "range_mm");
 		if (kind == "engine")
 		{
 			integer(spec, "reverse_speed_mm_s");
 			integer(spec, "match_stale_ticks", 100);
 		}
-		if (kind == "lateral")
+		if (kind == "engine" || kind == "lateral")
 		{
 			integer(spec, "lateral_speed_mm_s");
 			integer(spec, "lateral_acceleration_mm_s2");
 			boolean(spec, "assist_lateral");
 		}
-		if (kind == "boost" || kind == "impulse")
+		if (kind == "engine" || kind == "steering" || kind == "lateral")
 		{
-			integer(spec, "max_speed_mm_s");
-			integer(spec, "acceleration_mm_s2");
-		}
-		if (kind == "engine" || kind == "steering" || kind == "lateral" || kind == "boost" || kind == "impulse")
+			integer(spec, "power_rate");
 			integer(spec, "heat_rate");
+		}
 		auto mode = [&](Json &definition, bool impulse)
 		{
 			integer(definition, "acceleration_multiplier_permille", 1000);
@@ -692,16 +660,9 @@ struct GameplayEditor
 					choice(it.value(), "kind",
 					       {"engine", "steering", "radar", "generator", "distribution", "coolant", "storage", "lateral",
 					        "boost", "impulse"});
-					const auto kind = it.value().value("kind", it.key());
-					if (kind == "engine")
-					{
-						integer(it.value(), "max_speed_mm_s");
-						integer(it.value(), "acceleration_mm_s2");
-					}
-					if (kind == "steering")
-						integer(it.value(), "turn_mdeg_s");
-					if (kind == "radar")
-						integer(it.value(), "range_mm");
+					auto kind = equipment_kind(document, it.value());
+					if (kind.empty())
+						kind = it.key();
 					system_details(it.value(), kind);
 					telemetry_records(it.value(), document);
 					if (ship.contains("controllers"))
@@ -867,6 +828,7 @@ struct GameplayEditor
 		        [&](Json &row)
 		        {
 			        string(row, "id");
+			        choice(row, "power_store", stores, true);
 			        for (const char *key : {"initial", "removal_rate", "coolant_per_heat_ppm"})
 				        integer(row, key);
 		        });
@@ -1840,6 +1802,7 @@ struct GameplayEditor
 	                        const std::vector<std::string> &slots)
 	{
 		actor(bindings, "actor", slots);
+		optional_string(bindings, "knowledge_console");
 		string(bindings, "objective");
 		choice(bindings, "region", map.contains("regions") ? ids(map.at("regions")) : std::vector<std::string>{}, true);
 		std::vector<std::string> events;
@@ -1876,6 +1839,29 @@ struct GameplayEditor
 		if (!remove.empty())
 			parent["services"].erase(remove);
 	}
+	std::string equipment_kind(const WorkshopDocument &document, const Json &instance) const
+	{
+		if (instance.contains("kind"))
+			return instance.at("kind").get<std::string>();
+		auto name = instance.value("template", instance.value("extends", std::string{}));
+		std::set<std::string> seen;
+		while (!name.empty() && seen.size() < 64 && seen.insert(name).second)
+		{
+			const Json *source = nullptr;
+			if (document.definitions().contains("equipment"))
+				for (const auto &candidate : document.definitions().at("equipment"))
+					if (candidate.at("id") == name)
+						source = &candidate;
+			if (!source && document.libraries().equipment.contains(name))
+				source = &document.libraries().equipment.at(name);
+			if (!source)
+				break;
+			if (source->contains("kind"))
+				return source->at("kind").get<std::string>();
+			name = source->value("extends", std::string{});
+		}
+		return {};
+	}
 	void templates(WorkshopDocument &document)
 	{
 		auto &defs = document.definitions();
@@ -1888,16 +1874,7 @@ struct GameplayEditor
 			        choice(equipment, "kind",
 			               {"engine", "steering", "radar", "generator", "distribution", "coolant", "storage", "lateral",
 			                "boost", "impulse"});
-			        const auto kind = equipment.value("kind", std::string{});
-			        if (kind == "engine")
-			        {
-				        integer(equipment, "max_speed_mm_s");
-				        integer(equipment, "acceleration_mm_s2");
-			        }
-			        if (kind == "steering")
-				        integer(equipment, "turn_mdeg_s");
-			        if (kind == "radar")
-				        integer(equipment, "range_mm");
+			        const auto kind = equipment_kind(document, equipment);
 			        system_details(equipment, kind);
 			        choice(equipment, "controller", definitions(document, "trees"), true);
 			        telemetry_records(equipment, document);
@@ -1925,7 +1902,15 @@ struct GameplayEditor
 				        {
 					        ScopedId id_scope_23(it.key().c_str());
 					        ImGui::TextUnformatted(it.key().c_str());
-					        choice(it.value(), "template", definitions(document, "equipment"));
+					        choice(it.value(), "template", definitions(document, "equipment"), true);
+					        choice(it.value(), "kind",
+					               {"engine", "steering", "radar", "generator", "distribution", "coolant", "storage",
+					                "lateral", "boost", "impulse"},
+					               true);
+					        system_details(it.value(), equipment_kind(document, it.value()));
+					        choice(it.value(), "controller", definitions(document, "trees"), true);
+					        text("Absent values inherit from the equipment template. Endpoint names and $service "
+					             "bindings remain local to this assembly until placement.");
 					        scalar_map(it.value(), "parameters");
 					        telemetry_records(it.value(), document);
 				        }
@@ -2053,23 +2038,17 @@ struct GameplayEditor
 						            {
 							            choice(summary, "system", delegated);
 							            std::vector<std::string> channels;
-							            if (composition.contains("systems") &&
+							            if (composition_catalog.entities.contains(entity) &&
+							                composition.contains("systems") &&
 							                composition.at("systems").contains(summary.value("system", std::string{})))
-							            {
-								            const auto &spec =
-								                composition.at("systems").at(summary.at("system").get<std::string>());
-								            const auto kind =
-								                spec.value("kind", summary.at("system").get<std::string>());
-								            if (kind == "generator")
-									            channels = {"output"};
-								            if (kind == "distribution")
-									            channels = {"power", "allocation"};
-								            if (kind == "coolant")
-									            channels = {"coolant", "cooling"};
-								            if (kind == "storage")
-									            channels = {"charge", "discharge"};
-							            }
+								            channels = gameplay_summary_channels(
+								                composition_catalog, entity, summary.at("system").get<std::string>());
 							            choice(summary, "channel", channels);
+							            if (summary.contains("channel") &&
+							                std::find(channels.begin(), channels.end(),
+							                          summary.at("channel").get<std::string>()) == channels.end())
+								            text("This channel is not available from the fitted capability or its "
+								                 "controller. Choose a declared channel before verification.");
 							            numbers(summary, "levels");
 							            integer(summary, "default");
 							            strings(summary, "level_labels");

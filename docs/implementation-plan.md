@@ -7,6 +7,13 @@ Coordination and station-delegation scope. All nine software stages are implemen
 the ledger records independently reviewed commits, native/WASM/network verification,
 graphical authoring evidence and the separate remaining physical-device acceptance.
 
+Final gameplay review corrections, 19 October 2026: prepared paid flight demands,
+funded sensor startup, initial coolant isolation, independent Helm settings,
+scoped scenario record inputs, producer-role selection, record-version handling
+and complete supported Workshop bindings are recorded in the
+[final review receipt](gameplay-implementation.md#final-review-corrections-19-october-2026).
+The repeated source audit found no remaining confirmed gap across the nine stages.
+
 Native menu update, 18 October 2026: cascading host/scenario/slot/ship navigation, separate ship/player/GM join forms, installed pack management, managed portable saves and persistent native settings are implemented. A pre-game coordinator transfers verified setup to approved ship hosts, arbitrates slots and starts the fixed fleet after per-player readiness and five seconds. Unclaimed mandatory slots remain deterministic AI ships without server votes; optional slots are omitted. See [native menu behavior and validation](native-menu.md). Actual screen-reader/physical-device and six-display performance acceptance remain separate.
 
 Current MVP status is summarised in [MVP status and acceptance limits](mvp-status.md). The 18 October completion work adds bounded projection streaming, mixed native/browser fleet evidence, shaped player text and editable semantics, mixed Viewscreen/Console layouts, manual frame capture, live authoring previews and explicit override controls. Notes further down this delivery record retain their historical wording; use the status page for current remaining work.

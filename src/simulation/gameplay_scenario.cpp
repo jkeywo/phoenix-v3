@@ -60,11 +60,15 @@ ScenarioTreeSelectors bridge_selectors(const Json &v)
 	out.objective = v.value("objective", std::string{});
 	out.region = v.value("region", std::string{});
 	out.event = v.value("event", std::string{});
+	out.knowledge_console = v.value("knowledge_console", std::string{});
 	return out;
 }
 Json bridge_selectors_json(const ScenarioTreeSelectors &s)
 {
-	Json j{{"objective", s.objective}, {"region", s.region}, {"event", s.event}};
+	Json j{{"objective", s.objective},
+	       {"region", s.region},
+	       {"event", s.event},
+	       {"knowledge_console", s.knowledge_console}};
 	if (s.actor)
 		j["actor"] = bridge_actor_json(*s.actor);
 	return j;
@@ -185,6 +189,14 @@ void GameplayScenarioBridge::load(const Catalog &catalog, const std::string &nam
 	candidate.map_ = name;
 	candidate.tree_sources_ = catalog.trees;
 	candidate.programs_ = catalog.tree_programs;
+	candidate.knowledge_ = catalog.knowledge_definition;
+	for (const auto &[id, tree] : catalog.trees)
+		if (catalog.tree_programs.contains(id))
+			candidate.record_bindings_.emplace(id, gameplay_record_bindings(tree, catalog));
+	const auto compiled_knowledge = compile_gameplay_knowledge(catalog);
+	for (const auto &[hull, ship] : compiled_knowledge.ships)
+		for (const auto &console : ship.consoles)
+			candidate.reader_contracts_[hull].emplace(console.console.id, console.readers);
 	const auto definition = catalog.scenarios.find(name);
 	if (definition != catalog.scenarios.end())
 		candidate.runtime_ = ScenarioRuntime(definition->second);
@@ -217,6 +229,7 @@ void GameplayScenarioBridge::load(const Catalog &catalog, const std::string &nam
 				                                      bridge_parameters(v.value("parameters", Json::object())),
 				                                      bridge_selectors(v.value("bindings", Json::object()))};
 				candidate.validate_selectors(config.selectors);
+				candidate.validate_reader(config.tree, config.selectors);
 				auto parameters = candidate.runtime_.definition().parameters;
 				for (const auto &[key, value] : config.parameters)
 				{
@@ -277,6 +290,7 @@ ScenarioId GameplayScenarioBridge::create_instance(std::string tree, std::string
 	auto candidate = runtime_;
 	const auto id = candidate.create_instance(std::move(name), std::move(parameters));
 	validate_selectors(selectors);
+	validate_reader(tree, selectors);
 	ScenarioTreeController c;
 	c.tree = std::move(tree);
 	c.selectors = std::move(selectors);
@@ -287,6 +301,9 @@ ScenarioId GameplayScenarioBridge::create_instance(std::string tree, std::string
 }
 void GameplayScenarioBridge::validate_selectors(const ScenarioTreeSelectors &selectors) const
 {
+	if (!selectors.knowledge_console.empty())
+		scenario_require(valid_identifier(selectors.knowledge_console) && selectors.actor.has_value(),
+		                 "knowledge Console requires a valid explicit actor selector");
 	if (!selectors.objective.empty())
 		scenario_require(valid_identifier(selectors.objective), "invalid selected objective handle");
 	if (!selectors.region.empty())
@@ -309,6 +326,13 @@ void GameplayScenarioBridge::validate_selectors(const ScenarioTreeSelectors &sel
 			                 "unknown selected actor slot");
 	}
 }
+void GameplayScenarioBridge::validate_reader(const std::string &tree, const ScenarioTreeSelectors &selectors) const
+{
+	const auto bindings = record_bindings_.find(tree);
+	if (bindings != record_bindings_.end() && !bindings->second.empty())
+		scenario_require(selectors.actor && !selectors.knowledge_console.empty(),
+		                 "custom scenario record bindings require actor and knowledge_console selectors");
+}
 void GameplayScenarioBridge::begin_tick(ScenarioTick tick, std::map<std::string, EntityId> slots,
                                         std::span<const BodyView> bodies)
 {
@@ -322,6 +346,49 @@ void GameplayScenarioBridge::begin_tick(ScenarioTick tick, std::map<std::string,
 	runtime_.begin_tick(tick, std::move(slots), std::move(positions));
 	tick_ = tick;
 	bodies_ = std::move(next_bodies);
+	knowledge_snapshots_.clear();
+	knowledge_supplied_ = false;
+}
+std::vector<ScenarioKnowledgeReader> GameplayScenarioBridge::knowledge_readers() const
+{
+	std::vector<ScenarioKnowledgeReader> out;
+	for (const auto &[id, controller] : controllers_)
+	{
+		if (runtime_.instances().at(id).finished || controller.selectors.knowledge_console.empty() ||
+		    !controller.selectors.actor || record_bindings_.at(controller.tree).empty())
+			continue;
+		const auto ship = runtime_.resolve_actor(id, *controller.selectors.actor);
+		if (!ship || !bodies_.contains(*ship))
+			continue;
+		const auto hull = reader_contracts_.find(bodies_.at(*ship).definition);
+		if (hull == reader_contracts_.end() || !hull->second.contains(controller.selectors.knowledge_console))
+			continue;
+		out.push_back({id, *ship, controller.selectors.knowledge_console});
+	}
+	return out;
+}
+void GameplayScenarioBridge::supply_knowledge(std::span<const ScenarioKnowledgeSnapshot> snapshots)
+{
+	scenario_require(!knowledge_supplied_ && !(stepped_tick_ && *stepped_tick_ == tick_),
+	                 "knowledge projection is immutable within a scenario tick");
+	const auto readers = knowledge_readers();
+	std::map<ScenarioId, ScenarioKnowledgeSnapshot> candidate;
+	for (const auto &snapshot : snapshots)
+	{
+		const auto found = std::find_if(readers.begin(), readers.end(),
+		                                [&](const auto &reader)
+		                                {
+			                                return reader.instance == snapshot.reader.instance &&
+			                                       reader.ship == snapshot.reader.ship &&
+			                                       reader.console == snapshot.reader.console;
+		                                });
+		scenario_require(found != readers.end(), "knowledge snapshot does not match an authored reader");
+		scenario_require(snapshot.records.size() <= 65536 && snapshot.shared.size() <= 65536,
+		                 "knowledge snapshot exceeds record limit");
+		scenario_require(candidate.emplace(found->instance, snapshot).second, "duplicate knowledge snapshot");
+	}
+	knowledge_snapshots_ = std::move(candidate);
+	knowledge_supplied_ = true;
 }
 std::optional<ScenarioId> GameplayScenarioBridge::selected_objective(ScenarioId id) const
 {
@@ -382,6 +449,56 @@ std::vector<Value> GameplayScenarioBridge::snapshot(ScenarioId id, ScenarioId *n
 			if (!region.empty())
 				set(GameplayTreeObservation::RegionActorInside,
 				    Value::boolean(runtime_.actor_in_region(id, *actor, region)));
+		}
+	}
+	if (const auto board = knowledge_snapshots_.find(id); board != knowledge_snapshots_.end())
+	{
+		const auto &bindings = record_bindings_.at(controller.tree);
+		const auto &roles =
+		    reader_contracts_.at(bodies_.at(board->second.reader.ship).definition).at(board->second.reader.console);
+		for (std::size_t i = 0; i < bindings.size(); ++i)
+		{
+			const auto &binding = bindings[i];
+			const auto schema_key = knowledge_.schema(binding.schema),
+			           field_key = knowledge_.field(schema_key, binding.field);
+			const auto &schema = knowledge_.schemas.at(schema_key - 1);
+			if (std::none_of(roles.begin(), roles.end(),
+			                 [&](auto role)
+			                 {
+				                 return std::find(schema.readers.begin(), schema.readers.end(), role) !=
+				                        schema.readers.end();
+			                 }))
+				continue;
+			const auto subject =
+			    binding.subject_parameter.empty() ? board->second.reader.ship : std::stoull(binding.subject_parameter);
+			const auto &records =
+			    binding.scope == GameplayTreeRecordScope::Ship ? board->second.shared : board->second.records;
+			std::set<std::pair<KnowledgeId, KnowledgeId>> streams;
+			for (auto record = records.rbegin(); record != records.rend(); ++record)
+			{
+				if (record->value.schema != schema_key || record->value.subject != subject)
+					continue;
+				if (!streams.emplace(record->value.provenance.source, record->publication).second)
+					continue;
+				const auto observed = record->value.provenance.observed_tick;
+				if (record->value.withdrawn || observed > tick_ ||
+				    (schema.stale_after && tick_ - observed > schema.stale_after))
+					continue;
+				const auto field = record->value.fields.find(field_key);
+				if (field == record->value.fields.end())
+					continue;
+				Value value;
+				if (const auto n = std::get_if<std::int64_t>(&field->second))
+					value = Value::integer(*n);
+				else if (const auto b = std::get_if<bool>(&field->second))
+					value = Value::boolean(*b);
+				else
+					value = Value::string(std::get<std::string>(field->second));
+				scenario_require(value.type == binding.type,
+				                 "knowledge projection field type differs from compiled binding");
+				out.at(static_cast<std::size_t>(GameplayTreeObservation::Count) + i) = std::move(value);
+				break;
+			}
 		}
 	}
 	set(GameplayTreeObservation::ResultAvailable, Value::boolean(false));
@@ -789,6 +906,7 @@ void GameplayScenarioBridge::restore(const Catalog &catalog, const std::string &
 		c.tree = j.at("tree").get<std::string>();
 		c.selectors = bridge_selectors(j.at("bindings"));
 		candidate.validate_selectors(c.selectors);
+		candidate.validate_reader(c.tree, c.selectors);
 		c.program = candidate.instantiate(c.tree, candidate.runtime_.instances().at(id).parameters);
 		c.continuation = state_tree::load(c.program, j.at("continuation"));
 		c.event_cursor = scenario_unsigned(j.at("cursor"));

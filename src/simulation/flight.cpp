@@ -351,12 +351,13 @@ FlightDemand flight_demand(const FlightDefinition &def, const FlightState &state
 {
 	validate_motion(pose, motion);
 	const auto target = flight_targets(def, state, pose, motion);
-	return {target.power, target.heat, target.forward, target.lateral, target.steering, target.charging};
+	return {
+	    target.power,    target.heat,          target.forward,      target.lateral,       target.steering,
+	    target.charging, target.speed,         target.acceleration, target.lateral_speed, target.lateral_acceleration,
+	    pose.heading,    state.desired_heading};
 }
 FlightExecution step_flight(const FlightDefinition &def, FlightState &state, Pose &pose, Motion &motion,
-                            int paid_permille, std::uint64_t tick,
-                            const std::optional<FlightContactObservation> &observation, int output_permille,
-                            int heat_permille)
+                            const FlightDemand &demand, int paid_permille, int output_permille, int heat_permille)
 {
 	if (paid_permille < 0 || paid_permille > 1000 || output_permille < 1000 || output_permille > 10000 ||
 	    heat_permille < 1000 || heat_permille > 10000)
@@ -365,24 +366,35 @@ FlightExecution step_flight(const FlightDefinition &def, FlightState &state, Pos
 	auto candidate = state;
 	auto new_pose = pose;
 	auto new_motion = motion;
-	observe_flight(def, candidate, tick, observation);
-	const auto target = flight_targets(def, candidate, pose, motion);
+	FlightTargets target;
+	target.power = demand.power_rate;
+	target.heat = demand.heat_rate;
+	target.forward = demand.longitudinal;
+	target.lateral = demand.lateral;
+	target.steering = demand.steering;
+	target.charging = demand.charging;
+	target.speed = demand.target_speed;
+	target.acceleration = demand.acceleration;
+	target.lateral_speed = demand.target_lateral_speed;
+	target.lateral_acceleration = demand.lateral_acceleration;
+	auto basis = pose;
+	basis.heading = demand.heading_basis;
 	FlightExecution result;
 	const auto start = motion.velocity;
 	const auto start_heading = pose.heading;
-	const auto forward = fixed::direction(pose.heading), lateral = fixed::direction((pose.heading + 90000) % 360000);
+	const auto forward = fixed::direction(basis.heading), lateral = fixed::direction((basis.heading + 90000) % 360000);
 	if (target.forward)
 	{
 		auto change = tick_delta(target.acceleration, target.forward, paid_permille, output_permille,
 		                         candidate.forward_remainder);
-		change = cap_delta(change, target.speed - forward_speed(pose, motion));
+		change = cap_delta(change, target.speed - forward_speed(basis, motion));
 		new_motion.velocity = new_motion.velocity + fixed::scale(forward, change);
 	}
 	if (target.lateral)
 	{
 		auto change = tick_delta(target.lateral_acceleration, target.lateral, paid_permille, output_permille,
 		                         candidate.lateral_remainder);
-		change = cap_delta(change, target.lateral_speed - lateral_speed(pose, motion));
+		change = cap_delta(change, target.lateral_speed - lateral_speed(basis, motion));
 		new_motion.velocity = new_motion.velocity + fixed::scale(lateral, change);
 	}
 	if (target.steering)
@@ -390,7 +402,7 @@ FlightExecution step_flight(const FlightDefinition &def, FlightState &state, Pos
 		auto change =
 		    tick_delta(def.turn_rate, target.steering, paid_permille, output_permille, candidate.turn_remainder);
 		if (candidate.assisted)
-			change = cap_delta(change, heading_difference(candidate.desired_heading, pose.heading));
+			change = cap_delta(change, heading_difference(demand.desired_heading, pose.heading));
 		new_pose.heading = (pose.heading + change + 360000) % 360000;
 	}
 	new_motion.velocity.x = std::clamp(new_motion.velocity.x, -maximum_velocity, maximum_velocity);

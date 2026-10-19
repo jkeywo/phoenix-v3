@@ -1,5 +1,9 @@
 # Scenario state, spawns and objectives
 
+Custom scenario `record_bindings` use the same typed schema, field, scope and subject metadata as System trees. A main tree or reusable situation selecting them must declare `bindings.actor` and `bindings.knowledge_console`, the Console ID on that actor's ship. Static actors and allowed slot hulls must contain that Console with reader roles permitting every selected schema. Spawned handles resolve against their actual hull at runtime; an unresolved handle or unsupported reader supplies no evidence.
+
+At each tick the authoritative adapter requests those explicit readers, and World copies only their permitted Console/ship record projections before any scenario controller runs. Each independent situation receives an immutable snapshot. Field types, subject identity, publication permission, stale evidence and withdrawn stream versions are checked before filling custom observation slots. Missing evidence stays Missing. These snapshots never expose private memory or arbitrary World data. Reader selectors and tree continuations are saved; transient snapshots are reconstructed from the authoritative knowledge state on the next tick after restore.
+
 `phoenix.scenario` compiles map authoring into typed data and holds authoritative scenario effects. The shared state-tree evaluator selects actions; this domain admits them and records their results. World construction, motion, permissions and published knowledge remain production integration responsibilities.
 
 ## Authored definitions

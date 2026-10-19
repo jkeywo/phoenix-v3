@@ -18,6 +18,8 @@ The Gameplay authoring window edits the ordinary Workshop draft. It supplies str
 
 Identifiers entered by the author are displayed verbatim. Tool labels and explanatory text use shared translation/pseudo-localisation. The tool keeps stable ImGui identities and keyboard-compatible controls. Player semantic controls are authored and verified through the existing Console model; this tool does not create a separate player model.
 
+Assembly internal Systems use the shared capability/mechanism inspector and can override controller and endpoint defaults without writing absent inherited values merely by viewing them. Coolant sources expose an optional pump power store, including `$service` bindings; leaving it absent preserves a passive source. Production verification checks that a paid pump has its dedicated positive-rate Coolant consumer.
+
 ## Trees and inheritance
 
 Tree nodes and transition edges appear together with their inspector. The node list uses parent depth for layout; selecting a node exposes its ordered tasks and conditions. Move controls change actual authored array order. The production vocabulary supplies action names, context permissions, expected argument names/types and observation/intent options. The editor does not maintain an independent executable action vocabulary.
@@ -50,6 +52,8 @@ std::optional<GameplayTestRequest> take_gameplay_test_request();
 `set_gameplay_authoring_vocabulary` accepts the production `gameplay_tree_vocabulary()` metadata directly, including context masks and typed argument signatures. It also accepts an already partitioned `{system:{actions,observations,intents},scenario:{...}}` view with stable descriptor `id` values.
 
 The authoring window initializes this metadata directly from the shared definition library if the application has not supplied it. Dependency schemas, templates and expanded assembly System identities participate in binding choices. Presets author `summary_intents` with numeric `levels`, a physical `default`, and translated `level_labels`; every resolved Console remains configurable, including read-only Consoles and the implicit main Console.
+
+Preset channel choices combine standard physical capability channels with the chosen fitted System controller's inherited `summary_bindings`. `WorkshopDocument::preview_equipment()` resolves template and assembly placement before `gameplay_summary_channels()` queries that exact controller, including local overrides and dependency trees. The production preset verifier uses the same channel lookup. A preserved imported value outside that list is shown as invalid and remains an export error; viewing it never silently replaces it. Preview does not require finished ownership/preset authoring or copy runtime worlds and asset bytes.
 
 `GameplayTestRequest` contains verified pack bytes, exact dependency archives, selected `mission`, `slot`, `ship`, and a `GameplayTestAction` of Start, Pause, Step, Restart or Stop. Start captures the current draft only after verified export succeeds. The native/server application consumes requests and owns the disposable production world. Pause/Step/Restart/Stop carry no draft replacement or live-session authority. The host reports failures through the ordinary status and feedback paths.
 
