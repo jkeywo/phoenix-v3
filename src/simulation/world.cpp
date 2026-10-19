@@ -24,6 +24,7 @@ import phoenix.gameplay_scenario;
 #include "gameplay_knowledge.hpp"
 #include "gameplay_resources.hpp"
 #include "flight.hpp"
+#include "equipment.hpp"
 
 namespace phoenix::fixed
 {
@@ -70,33 +71,18 @@ struct Clock
 {
 	std::uint64_t tick = 0;
 };
-struct AdvancedSystem
+struct CompiledGameplaySystem
 {
 	std::optional<FlightDefinition> flight;
-	FlightState operation;
 	std::optional<state_tree::Program> brain;
 	std::string tree;
-	struct ReadBinding
-	{
-		bool shared = false, selected = false;
-		KnowledgeKey schema = 0, field = 0;
-		KnowledgeId subject = 0;
-	};
-	std::vector<ReadBinding> reads;
+	std::vector<RecordReadBinding> reads;
 	std::vector<GameplayTreeSummaryBinding> summary_reads;
-	state_tree::Instance continuation;
-	state_tree::Debug debug;
-	bool was_human = false, result_available = false, result_success = false;
-	std::string reason;
-	std::uint64_t result_id = 0;
-	std::int64_t heat_remainder = 0;
-	std::set<std::string> effects;
-	std::map<std::string, std::int64_t> summary;
 };
-struct GameplaySystems
+struct CompiledGameplay
 {
-	std::vector<AdvancedSystem> values;
-	std::optional<ShipResources> power;
+	std::vector<CompiledGameplaySystem> values;
+	std::optional<ShipResourcesDefinition> power;
 };
 struct CompiledDefinition
 {
@@ -108,10 +94,10 @@ struct CompiledDefinition
 	std::optional<Radar> radar;
 	std::optional<std::size_t> controller;
 	std::vector<ConsoleSpec> consoles;
-	SystemControllers system_controllers;
+	CompiledControllers system_controllers;
 	bool explicit_stations = false;
-	std::optional<FittedSystems> fitted;
-	std::optional<GameplaySystems> gameplay;
+	std::optional<CompiledFittings> fitted;
+	std::optional<CompiledGameplay> gameplay;
 	std::vector<std::string> publications;
 	std::vector<std::string> message_templates;
 	struct Summary
@@ -223,9 +209,16 @@ struct World::Impl
 	std::vector<Bounds> collision_boxes, contact_boxes;
 	SpatialIndex collision_index, contact_index;
 	flecs::query<const StableId, const Definition, const Pose, const Motion> bodies;
-	flecs::query<const StableId, const FittedSystems, const GameplaySystems> autonomous_ships;
-	flecs::system controllers, system_controllers, steering, engines, fitted_controllers, fitted_steering,
-	    fitted_engines, advanced_systems, integrate, resolve_collisions, index_contacts;
+	flecs::query<const Equipment, Controller> basic_controller_query;
+	flecs::query<const Equipment, Steering> steering_query;
+	flecs::query<const Equipment, Engine> engine_query;
+	flecs::query<const Equipment, Controller *, BrainRuntime *> advanced_controller_query;
+	flecs::query<const Equipment, FlightRuntime> flight_query;
+	flecs::query<const Equipment> advanced_equipment_query;
+	flecs::query<const Equipment, const ResourceBinding> passive_resource_query;
+	flecs::query<const Equipment, const BrainRuntime> autonomous_equipment;
+	flecs::query<const StableId, const GameplayShip> advanced_ships;
+	flecs::system controllers, integrate, resolve_collisions, index_contacts;
 	bool instance_systems = false;
 	GameplayKnowledge knowledge;
 	std::optional<GameplayScenarioBridge> scenario;
@@ -244,72 +237,61 @@ struct World::Impl
 	{
 		ecs.set<Clock>({0});
 		bodies = ecs.query_builder<const StableId, const Definition, const Pose, const Motion>().cached().build();
-		autonomous_ships =
-		    ecs.query_builder<const StableId, const FittedSystems, const GameplaySystems>().cached().build();
-		controllers = ecs.system<Controller, Engine *, Steering *, Radar *>("Controllers")
+		basic_controller_query = ecs.query_builder<const Equipment, Controller>()
+		                             .with<BasicEquipment>()
+		                             .with(flecs::ChildOf)
+		                             .second("$ship")
+		                             .cached()
+		                             .build();
+		steering_query = ecs.query_builder<const Equipment, Steering>()
+		                     .with<BasicEquipment>()
+		                     .with(flecs::ChildOf)
+		                     .second("$ship")
+		                     .cached()
+		                     .build();
+		engine_query = ecs.query_builder<const Equipment, Engine>()
+		                   .with<BasicEquipment>()
+		                   .with(flecs::ChildOf)
+		                   .second("$ship")
+		                   .cached()
+		                   .build();
+		advanced_controller_query = ecs.query_builder<const Equipment, Controller *, BrainRuntime *>()
+		                                .with<AdvancedEquipment>()
+		                                .with(flecs::ChildOf)
+		                                .second("$ship")
+		                                .cached()
+		                                .build();
+		flight_query =
+		    ecs.query_builder<const Equipment, FlightRuntime>().with(flecs::ChildOf).second("$ship").cached().build();
+		advanced_equipment_query = ecs.query_builder<const Equipment>()
+		                               .with<AdvancedEquipment>()
+		                               .with(flecs::ChildOf)
+		                               .second("$ship")
+		                               .cached()
+		                               .build();
+		passive_resource_query = ecs.query_builder<const Equipment, const ResourceBinding>()
+		                             .without<FlightRuntime>()
+		                             .with(flecs::ChildOf)
+		                             .second("$ship")
+		                             .cached()
+		                             .build();
+		autonomous_equipment = ecs.query_builder<const Equipment, const BrainRuntime>()
+		                           .with(flecs::ChildOf)
+		                           .second("$ship")
+		                           .cached()
+		                           .build();
+		advanced_ships = ecs.query_builder<const StableId, const GameplayShip>().cached().build();
+		controllers = ecs.system<Controller>("ShipControllers")
 		                  .kind(0)
+		                  .without<Equipment>()
 		                  .without<Claimed>()
 		                  .each(
-		                      [this](Controller &controller, Engine *engine, Steering *turn, Radar *radar)
+		                      [this](flecs::entity ship, Controller &controller)
 		                      {
 			                      for (auto output : step_tree(programs[controller.program], controller.cursor))
-				                      apply(output, engine, turn, radar);
+				                      apply(output, legacy_component<Engine>(ship), legacy_component<Steering>(ship),
+				                            legacy_component<Radar>(ship));
 		                      });
-		system_controllers =
-		    ecs.system<SystemControllers, const ControlClaims, Engine *, Steering *, Radar *>("SystemControllers")
-		        .kind(0)
-		        .each(
-		            [this](SystemControllers &controllers, const ControlClaims &claims, Engine *engine, Steering *turn,
-		                   Radar *radar)
-		            {
-			            for (std::size_t i = 0; i < controllers.values.size(); ++i)
-				            if (auto &controller = controllers.values[i]; controller && !(claims.held & (1u << i)))
-					            for (auto output : step_tree(programs[controller->program], controller->cursor))
-						            apply(output, engine, turn, radar);
-		            });
-		steering = ecs.system<Pose, Steering>("Steering").kind(0).with<Movable>().each(step_basic_steering);
-		engines = ecs.system<const Pose, Motion, Engine>("Engines").kind(0).with<Movable>().each(step_basic_engine);
-		fitted_controllers = ecs.system<FittedSystems>("FittedControllers")
-		                         .kind(0)
-		                         .each(
-		                             [this](FittedSystems &systems)
-		                             {
-			                             for (auto &system : systems.values)
-				                             if (!system.advanced && !system.held && system.controller)
-					                             for (auto output : step_tree(programs[system.controller->program],
-					                                                          system.controller->cursor))
-						                             apply(output, system.engine ? &*system.engine : nullptr,
-						                                   system.steering ? &*system.steering : nullptr,
-						                                   system.radar ? &*system.radar : nullptr);
-		                             });
-		fitted_steering = ecs.system<Pose, FittedSystems>("FittedSteering")
-		                      .kind(0)
-		                      .with<Movable>()
-		                      .each(
-		                          [](Pose &pose, FittedSystems &systems)
-		                          {
-			                          for (auto &system : systems.values)
-				                          if (!system.advanced && system.steering)
-					                          step_basic_steering(pose, *system.steering);
-		                          });
-		fitted_engines = ecs.system<const Pose, Motion, FittedSystems>("FittedEngines")
-		                     .kind(0)
-		                     .with<Movable>()
-		                     .each(
-		                         [](const Pose &pose, Motion &motion, FittedSystems &systems)
-		                         {
-			                         for (auto &system : systems.values)
-				                         if (!system.advanced && system.engine)
-					                         step_basic_engine(pose, motion, *system.engine);
-		                         });
-		advanced_systems = ecs.system<const StableId, Pose, Motion, FittedSystems, GameplaySystems>("GameplaySystems")
-		                       .kind(0)
-		                       .each(
-		                           [this](const StableId &id, Pose &pose, Motion &motion, FittedSystems &fitted,
-		                                  GameplaySystems &systems)
-		                           {
-			                           run_gameplay(id.id, pose, motion, fitted, systems);
-		                           });
 		integrate = ecs.system<Pose, Motion>("Integrate")
 		                .kind(0)
 		                .with<Movable>()
@@ -517,10 +499,10 @@ struct World::Impl
 				result.fitted.emplace();
 				result.gameplay.emplace();
 				if (auto power = compile_ship_resources(content, name))
-					result.gameplay->power.emplace(*power, 1);
+					result.gameplay->power = std::move(*power);
 				for (const auto &spec : resolve_systems(content, name))
 				{
-					AdvancedSystem runtime;
+					CompiledGameplaySystem runtime;
 					if (spec.kind == OperatingSystem::Engine || spec.kind == OperatingSystem::Steering ||
 					    spec.kind == OperatingSystem::Lateral || spec.kind == OperatingSystem::Boost ||
 					    spec.kind == OperatingSystem::Impulse)
@@ -536,7 +518,7 @@ struct World::Impl
 						runtime.summary_reads = gameplay_summary_bindings(content.trees.at(spec.controller), content);
 						for (const auto &binding : gameplay_record_bindings(content.trees.at(spec.controller), content))
 						{
-							AdvancedSystem::ReadBinding read;
+							RecordReadBinding read;
 							read.shared = binding.scope == GameplayTreeRecordScope::Ship;
 							read.schema = content.knowledge_definition.schema(binding.schema);
 							read.field = content.knowledge_definition.field(read.schema, binding.field);
@@ -555,7 +537,7 @@ struct World::Impl
 					throw std::runtime_error("Instance Systems require per-System controllers");
 				for (const auto &spec : resolve_systems(content, name))
 				{
-					FittedRuntime runtime{spec.id, spec.kind};
+					CompiledEquipment runtime{spec.id, spec.kind};
 					if (spec.kind == OperatingSystem::Engine)
 						runtime.engine = Engine{spec.maximum, spec.response};
 					else if (spec.kind == OperatingSystem::Steering)
@@ -595,52 +577,101 @@ struct World::Impl
 		                  .set<Pose>(pose)
 		                  .set<Motion>({})
 		                  .set<Collider>(data.collider);
+		// Before the boundary index owns the ship, exceptions must also dispose
+		// of any equipment children already constructed through ChildOf.
+		struct Construction
+		{
+			flecs::entity entity;
+			bool indexed = false;
+			~Construction()
+			{
+				if (!indexed)
+					entity.destruct();
+			}
+		} construction{entity};
 		if (data.collider.mass)
 			entity.add<Movable>();
 		if (data.fitted)
-		{
-			auto fitted = *data.fitted;
-			for (auto &system : fitted.values)
-				if (system.steering)
-					system.steering->heading = pose.heading;
-			entity.set<FittedSystems>(std::move(fitted));
-		}
+			entity.add<NamedEquipment>();
 		if (data.gameplay)
 		{
-			auto running = *data.gameplay;
-			for (std::size_t i = 0; i < running.values.size(); ++i)
-			{
-				auto &system = running.values[i];
-				const auto enabled = entity.get<FittedSystems>().values[i].enabled;
-				if (system.flight)
-				{
-					system.operation = initial_flight(*system.flight, pose, Motion{});
-					system.operation.enabled = enabled;
-				}
-				if (!enabled && running.power)
-					control_resource(*running.power, i,
-					                 entity.get<FittedSystems>().values[i].kind == OperatingSystem::Coolant
-					                     ? ResourceControl::CoolingIsolated
-					                     : ResourceControl::Enabled,
-					                 entity.get<FittedSystems>().values[i].kind == OperatingSystem::Coolant ? 1 : 0);
-			}
-			entity.set<GameplaySystems>(std::move(running));
+			entity.add<GameplayShip>();
+			if (data.gameplay->power)
+				entity.emplace<ShipResources>(*data.gameplay->power, std::uint64_t{1});
 		}
-		if (!data.fitted && data.engine)
-			entity.set<Engine>(*data.engine);
-		if (!data.fitted && data.steering)
+		std::vector<CompiledEquipment> templates;
+		if (data.fitted)
+			templates = data.fitted->values;
+		else
 		{
-			auto turn = *data.steering;
-			turn.heading = pose.heading;
-			entity.set<Steering>(turn);
+			for (auto kind : {OperatingSystem::Engine, OperatingSystem::Steering, OperatingSystem::Radar})
+			{
+				CompiledEquipment value{std::string(operating_system_name(kind)), kind};
+				if (kind == OperatingSystem::Engine && data.engine)
+					value.engine = data.engine;
+				else if (kind == OperatingSystem::Steering && data.steering)
+					value.steering = data.steering;
+				else if (kind == OperatingSystem::Radar && data.radar)
+					value.radar = data.radar;
+				else
+					continue;
+				value.controller = data.system_controllers.values[static_cast<std::size_t>(kind)];
+				templates.push_back(std::move(value));
+			}
 		}
-		if (!data.fitted && data.radar)
-			entity.set<Radar>(*data.radar);
+		EquipmentIndex index;
+		for (std::size_t i = 0; i < templates.size(); ++i)
+		{
+			const auto &v = templates[i];
+			auto child = ecs.entity().child_of(entity).set<Equipment>(
+			    {id, v.id, v.kind, i, v.maximum, false, v.advanced, v.enabled});
+			index.values.push_back(child);
+			if (v.engine)
+				child.set<Engine>(*v.engine);
+			if (v.steering)
+			{
+				auto turn = *v.steering;
+				turn.heading = pose.heading;
+				child.set<Steering>(turn);
+			}
+			if (v.radar)
+				child.set<Radar>(*v.radar);
+			if (v.controller)
+				child.set<Controller>(*v.controller);
+			if (!data.gameplay)
+			{
+				child.add<BasicEquipment>();
+				continue;
+			}
+			child.add<AdvancedEquipment>()
+			    .set<ActionResult>({})
+			    .set<OperatingHeat>({})
+			    .set<EffectJournal>({})
+			    .set<SummaryIntents>({});
+			const auto &g = data.gameplay->values[i];
+			if (g.flight)
+			{
+				auto state = initial_flight(*g.flight, pose, Motion{});
+				state.enabled = v.enabled;
+				child.set<FlightRuntime>({*g.flight, state});
+			}
+			if (g.brain)
+				child.set<BrainRuntime>({*g.brain, g.tree, g.reads, g.summary_reads, {}, {}});
+			if (auto power = entity.try_get_mut<ShipResources>())
+			{
+				child.set<ResourceBinding>({i});
+				if (!v.enabled)
+					control_resource(*power, i,
+					                 v.kind == OperatingSystem::Coolant ? ResourceControl::CoolingIsolated
+					                                                    : ResourceControl::Enabled,
+					                 v.kind == OperatingSystem::Coolant ? 1 : 0);
+			}
+		}
+		entity.set<EquipmentIndex>(std::move(index));
 		if (data.controller)
 			entity.set<Controller>({*data.controller, {}});
-		if (data.explicit_stations && !data.fitted)
-			entity.set<SystemControllers>(data.system_controllers).set<ControlClaims>({});
 		entities.emplace(id, entity);
+		construction.indexed = true;
 		next_entity = std::max(next_entity, id + 1);
 		knowledge.register_ship(id, definition, ecs.get<Clock>().tick);
 		if (!data.default_preset.empty())
@@ -652,7 +683,7 @@ struct World::Impl
 						preset[{id, console}] = p.id;
 						delegated[id].insert(systems.begin(), systems.end());
 					}
-					if (auto gameplay = entity.try_get_mut<GameplaySystems>())
+					if (auto gameplay = gameplay_systems(entity))
 						for (const auto &[console, summaries] : p.summaries)
 							for (const auto &summary : summaries)
 								if (summary.initial)
@@ -673,13 +704,12 @@ struct World::Impl
 				return &seat;
 		return nullptr;
 	}
-	FittedRuntime *instance(flecs::entity entity, const std::string &id) const
+	std::optional<EquipmentRef> instance(flecs::entity ship, const std::string &id) const
 	{
-		if (auto systems = entity.try_get_mut<FittedSystems>())
-			for (auto &system : systems->values)
-				if (system.id == id)
-					return &system;
-		return nullptr;
+		for (auto entity : ship.get<EquipmentIndex>().values)
+			if (entity.get<Equipment>().id == id)
+				return equipment_ref(entity);
+		return {};
 	}
 	std::optional<std::string> target(EntityId ship, const ConsoleSpec &seat, OperatingSystem kind,
 	                                  const std::string &requested) const
@@ -688,7 +718,7 @@ struct World::Impl
 		const auto entity = entities.at(ship);
 		for (const auto &id : seat.controlled_systems)
 		{
-			const auto *runtime = instance(entity, id);
+			const auto runtime = instance(entity, id);
 			const auto type = runtime            ? runtime->kind
 			                  : id == "engine"   ? OperatingSystem::Engine
 			                  : id == "steering" ? OperatingSystem::Steering
@@ -769,8 +799,8 @@ struct World::Impl
 	}
 	bool operate(flecs::entity entity, const std::string &name, TreeOutput output, bool execute)
 	{
-		auto fitted = entity.try_get_mut<FittedSystems>();
-		auto systems = entity.try_get_mut<GameplaySystems>();
+		auto fitted = fittings(entity);
+		auto systems = gameplay_systems(entity);
 		if (!fitted || !systems)
 			return false;
 		std::size_t index = 0;
@@ -779,19 +809,19 @@ struct World::Impl
 				break;
 		if (index == fitted->values.size() || !operating_value_valid(operating_action(output.action), output.value))
 			return false;
-		auto &system = systems->values[index];
+		auto system = systems->values[index];
 		if (system.flight)
 			if (auto kind = flight_action(output.action))
 			{
-				auto candidate = system.operation;
-				const auto result = apply_flight(*system.flight, candidate, {*kind, output.value}, entity.get<Pose>(),
-				                                 entity.get<Motion>());
+				auto candidate = system.flight->state;
+				const auto result = apply_flight(system.flight->definition, candidate, {*kind, output.value},
+				                                 entity.get<Pose>(), entity.get<Motion>());
 				if (result.accepted && execute)
 				{
-					system.operation = std::move(candidate);
+					system.flight->state = std::move(candidate);
 					if (output.action == OperatingAction::SystemEnabled ||
 					    output.action == OperatingAction::EngineEnabled)
-						fitted->values[index].enabled = system.operation.enabled;
+						fitted->values[index].enabled = system.flight->state.enabled;
 				}
 				return result.accepted;
 			}
@@ -813,15 +843,21 @@ struct World::Impl
 			{
 				fitted->values[index].enabled = output.value != 0;
 				if (systems->power)
-					control_resource(*systems->power, index, ResourceControl::CoolingIsolated, output.value ? 0 : 1);
+					control_resource(*systems->power, fitted->values[index].entity.get<ResourceBinding>().slot,
+					                 ResourceControl::CoolingIsolated, output.value ? 0 : 1);
 			}
 			return true;
 		}
 		if (systems->power)
 			if (auto kind = resource_action(output.action))
 			{
-				const auto accepted = execute ? control_resource(*systems->power, index, *kind, output.value)
-				                              : can_control_resource(*systems->power, index, *kind, output.value);
+				const auto accepted =
+				    execute
+				        ? control_resource(*systems->power, fitted->values[index].entity.get<ResourceBinding>().slot,
+				                           *kind, output.value)
+				        : can_control_resource(*systems->power,
+				                               fitted->values[index].entity.get<ResourceBinding>().slot, *kind,
+				                               output.value);
 				if (accepted && execute && output.action == OperatingAction::SystemEnabled)
 					fitted->values[index].enabled = output.value != 0;
 				return accepted;
@@ -837,13 +873,13 @@ struct World::Impl
 	std::int64_t sensor_range(EntityId ship, const std::string &name) const
 	{
 		const auto entity = entities.at(ship);
-		const auto *sensor = instance(entity, name);
+		const auto sensor = instance(entity, name);
 		if (!sensor || !sensor->radar || !sensor->enabled || !sensor->radar->enabled)
 			return 0;
 		auto range = sensor->radar->range;
-		if (const auto *systems = entity.try_get<GameplaySystems>(); systems && systems->power)
+		if (auto systems = gameplay_systems(entity); systems && systems->power)
 		{
-			const auto index = static_cast<std::size_t>(sensor - entity.get<FittedSystems>().values.data());
+			const auto index = sensor->entity.get<ResourceBinding>().slot;
 			const auto &power = *systems->power;
 			const auto &binding = power.definition.systems[index];
 			if (binding.store != no_resource)
@@ -859,7 +895,7 @@ struct World::Impl
 	std::map<std::string, std::int64_t> telemetry(EntityId id, std::size_t index) const
 	{
 		auto entity = entities.at(id);
-		const auto &fitted = entity.get<FittedSystems>().values[index];
+		const auto fitted = (*fittings(entity)).values[index];
 		std::map<std::string, std::int64_t> values{{"enabled", fitted.enabled}, {"requested", 0}};
 		if (fitted.engine)
 		{
@@ -870,17 +906,18 @@ struct World::Impl
 			values["requested"] = fitted.steering->heading;
 		if (fitted.radar)
 			values["enabled"] = fitted.radar->enabled;
-		if (auto systems = entity.try_get<GameplaySystems>())
+		if (auto systems = gameplay_systems(entity))
 		{
-			const auto &system = systems->values[index];
+			const auto system = systems->values[index];
 			if (system.flight)
 			{
-				const auto &f = system.operation;
-				values["requested"] = system.flight->kind == FlightKind::Steering ? f.desired_heading : f.desired_speed;
+				const auto &f = system.flight->state;
+				values["requested"] =
+				    system.flight->definition.kind == FlightKind::Steering ? f.desired_heading : f.desired_speed;
 				values["desired_speed"] = f.desired_speed;
 				values["desired_heading"] = f.desired_heading;
 				values["enabled"] = f.enabled;
-				values["minimum_speed"] = -system.flight->reverse_speed;
+				values["minimum_speed"] = -system.flight->definition.reverse_speed;
 				values["assisted"] = f.assisted;
 				values["longitudinal_thrust"] = f.longitudinal;
 				values["lateral_thrust"] = f.lateral;
@@ -900,8 +937,8 @@ struct World::Impl
 			if (systems->power)
 			{
 				const auto &p = *systems->power;
-				const auto &binding = p.definition.systems[index];
-				const auto &g = p.grants[index];
+				const auto &binding = p.definition.systems[fitted.entity.get<ResourceBinding>().slot];
+				const auto &g = p.grants[fitted.entity.get<ResourceBinding>().slot];
 				values["supply_permille"] = g.supply_permille;
 				values["used_power"] = g.paid * rate;
 				values["reserved_power"] = g.requested * rate;
@@ -911,7 +948,7 @@ struct World::Impl
 					const auto &d = p.definition.network.stores[binding.store];
 					const auto &v = p.network.stores()[binding.store];
 					values["enabled"] =
-					    values.at("enabled") && v.enabled && (!system.flight || system.operation.enabled);
+					    values.at("enabled") && v.enabled && (!system.flight || system.flight->state.enabled);
 					const auto &t = p.network.telemetry()[binding.store];
 					values["stored_energy"] = v.energy;
 					values["energy_capacity"] = d.capacity;
@@ -965,20 +1002,20 @@ struct World::Impl
 		}
 		return values;
 	}
-	std::vector<state_tree::Value> brain_observations(EntityId id, std::size_t index, AdvancedSystem &system)
+	std::vector<state_tree::Value> brain_observations(EntityId id, std::size_t index, GameplayRef system)
 	{
 		using state_tree::Type;
 		using state_tree::Value;
 		using O = GameplayTreeObservation;
 		std::vector<Value> values;
-		for (const auto &field : system.brain->registry.observations)
+		for (const auto &field : system.brain->program.registry.observations)
 			values.push_back(field.initial);
 		const auto put = [&](O name, Value value)
 		{
 			values[static_cast<std::size_t>(name)] = std::move(value);
 		};
 		const auto entity = entities.at(id);
-		const auto &fitted = entity.get<FittedSystems>().values[index];
+		const auto fitted = (*fittings(entity)).values[index];
 		const auto owner = system_owner(id, fitted.id);
 		put(O::SelfEntity, Value::reference(Type::Entity, id));
 		put(O::SelfSystem, Value::reference(Type::System, knowledge.system_id(id, fitted.id)));
@@ -1021,15 +1058,16 @@ struct World::Impl
 			if (data.contains(name))
 			{
 				const auto n = data.at(name);
-				put(key, system.brain->registry.observations[static_cast<std::size_t>(key)].type == Type::Boolean
-				             ? Value::boolean(n != 0)
-				             : Value::integer(n));
+				put(key,
+				    system.brain->program.registry.observations[static_cast<std::size_t>(key)].type == Type::Boolean
+				        ? Value::boolean(n != 0)
+				        : Value::integer(n));
 			}
 		if (system.flight)
 		{
-			put(O::FlightMode, Value::integer(system.operation.assisted ? 0 : 1));
-			if (system.operation.matched_contact)
-				put(O::MatchedContact, Value::reference(Type::Entity, system.operation.matched_contact));
+			put(O::FlightMode, Value::integer(system.flight->state.assisted ? 0 : 1));
+			if (system.flight->state.matched_contact)
+				put(O::MatchedContact, Value::reference(Type::Entity, system.flight->state.matched_contact));
 		}
 		const auto inbox = inbox_snapshots.contains({id, fitted.id}) ? inbox_snapshots.at({id, fitted.id})
 		                                                             : knowledge.peek_system(id, fitted.id);
@@ -1059,10 +1097,10 @@ struct World::Impl
 			}
 		}
 		const auto board = brain_snapshots.contains(owner) ? brain_snapshots.at(owner) : knowledge.project(owner);
-		for (std::size_t i = 0; i < system.reads.size(); ++i)
+		for (std::size_t i = 0; i < system.brain->reads.size(); ++i)
 		{
-			const auto &binding = system.reads[i];
-			const auto subject = binding.selected  ? system.operation.selected_contact
+			const auto &binding = system.brain->reads[i];
+			const auto subject = binding.selected  ? (system.flight ? system.flight->state.selected_contact : 0)
 			                     : binding.subject ? binding.subject
 			                                       : id;
 			const auto &records = binding.shared ? board.shared : board.records;
@@ -1130,36 +1168,36 @@ struct World::Impl
 			}
 		if (summary_count == 1)
 			put(O::SummaryLevel, Value::integer(*single_summary));
-		for (std::size_t i = 0; i < system.summary_reads.size(); ++i)
-			if (system.summary.contains(system.summary_reads[i].channel))
-				values[static_cast<std::size_t>(O::Count) + system.reads.size() + i] =
-				    Value::integer(system.summary.at(system.summary_reads[i].channel));
-		put(O::ResultAvailable, Value::boolean(system.result_available));
-		put(O::ResultSucceeded, Value::boolean(system.result_success));
-		put(O::ResultReason, Value::string(system.reason));
-		put(O::ResultInteger, Value::integer(system.result_id));
-		if (system.result_id)
-			put(O::ResultMessage, Value::reference(Type::Message, system.result_id));
-		put(O::ResultPublication, Value::integer(system.result_id));
+		for (std::size_t i = 0; i < system.brain->summary_reads.size(); ++i)
+			if (system.summary.contains(system.brain->summary_reads[i].channel))
+				values[static_cast<std::size_t>(O::Count) + system.brain->reads.size() + i] =
+				    Value::integer(system.summary.at(system.brain->summary_reads[i].channel));
+		put(O::ResultAvailable, Value::boolean(system.result.available));
+		put(O::ResultSucceeded, Value::boolean(system.result.success));
+		put(O::ResultReason, Value::string(system.result.reason));
+		put(O::ResultInteger, Value::integer(system.result.id));
+		if (system.result.id)
+			put(O::ResultMessage, Value::reference(Type::Message, system.result.id));
+		put(O::ResultPublication, Value::integer(system.result.id));
 		return values;
 	}
-	void brain_output(EntityId id, std::size_t index, AdvancedSystem &system, const state_tree::Output &output,
+	void brain_output(EntityId id, std::size_t index, GameplayRef system, const state_tree::Output &output,
 	                  std::span<const state_tree::Value> observations)
 	{
 		using A = GameplayTreeAction;
 		const auto action = static_cast<A>(output.action);
 		const auto &a = output.arguments;
 		const auto entity = entities.at(id);
-		const auto &fitted = entity.get<FittedSystems>().values[index];
+		const auto fitted = (*fittings(entity)).values[index];
 		const auto owner = system_owner(id, fitted.id);
 		const auto self = knowledge.system_id(id, fitted.id);
-		system.result_available = true;
-		system.result_success = false;
-		system.result_id = 0;
-		system.reason.clear();
+		system.result.available = true;
+		system.result.success = false;
+		system.result.id = 0;
+		system.result.reason.clear();
 		try
 		{
-			const auto &spec = system.brain->registry.actions.at(output.action);
+			const auto &spec = system.brain->program.registry.actions.at(output.action);
 			if (spec.effect)
 			{
 				std::string receipt = std::to_string(output.activation) + "/" + std::to_string(output.task);
@@ -1168,7 +1206,7 @@ struct World::Impl
 					    "/" + std::to_string(output.call_path[i]) + ":" + std::to_string(output.call_activations.at(i));
 				if (system.effects.contains(receipt))
 				{
-					system.result_success = true;
+					system.result.success = true;
 					return;
 				}
 				if (system.effects.size() >= 65536)
@@ -1201,7 +1239,7 @@ struct World::Impl
 				context.amount = a.at(4).number;
 				context.flag = a.at(5).number != 0;
 				context.detail = a.at(6).text;
-				context.program = &*system.brain;
+				context.program = &system.brain->program;
 				context.observations = observations;
 				context.parameters = &output.captured_parameters;
 				context.memory = &output.captured_memory;
@@ -1216,8 +1254,8 @@ struct World::Impl
 				value.delay = a.at(8).number;
 				value.expires_tick = a.at(9).number ? ecs.get<Clock>().tick + a.at(9).number : 0;
 				value.presentation.urgency = static_cast<std::uint8_t>(a.at(10).number);
-				system.result_id = knowledge.admit_message(owner, std::move(value), ecs.get<Clock>().tick);
-				system.result_success = true;
+				system.result.id = knowledge.admit_message(owner, std::move(value), ecs.get<Clock>().tick);
+				system.result.success = true;
 				return;
 			}
 			if (action == A::ReceiveMessages)
@@ -1225,14 +1263,14 @@ struct World::Impl
 				if (static_cast<KnowledgeId>(a.at(0).number) != self)
 					throw std::runtime_error("unowned message receiver");
 				knowledge.acknowledge_system(id, fitted.id, a.at(1).number);
-				system.result_success = true;
+				system.result.success = true;
 				return;
 			}
 			if (action == A::WithdrawRequest)
 			{
 				if (static_cast<KnowledgeId>(a.at(0).number) != self)
 					throw std::runtime_error("unowned request sender");
-				system.result_success = knowledge.withdraw_request(
+				system.result.success = knowledge.withdraw_request(
 				    owner, fitted.id, knowledge.request_key(a.at(1).text), ControlOrigin::AI);
 				return;
 			}
@@ -1240,9 +1278,9 @@ struct World::Impl
 			{
 				if (static_cast<KnowledgeId>(a.at(0).number) != knowledge.console_id(owner))
 					throw std::runtime_error("unowned source Console");
-				system.result_id = knowledge.activate_publication(owner, a.at(1).text, ecs.get<Clock>().tick,
+				system.result.id = knowledge.activate_publication(owner, a.at(1).text, ecs.get<Clock>().tick,
 				                                                  a.at(2).number, a.at(3).number != 0, a.at(4).text);
-				system.result_success = true;
+				system.result.success = true;
 				return;
 			}
 			if (action == A::StopPublication)
@@ -1250,7 +1288,7 @@ struct World::Impl
 				if (static_cast<KnowledgeId>(a.at(0).number) != knowledge.console_id(owner))
 					throw std::runtime_error("unowned source Console");
 				knowledge.stop_publication(owner, a.at(1).number);
-				system.result_success = true;
+				system.result.success = true;
 				return;
 			}
 			if (a.empty() || static_cast<KnowledgeId>(a.at(0).number) != self)
@@ -1258,7 +1296,7 @@ struct World::Impl
 			if (action == A::SetSummaryIntent)
 			{
 				system.summary[a.at(1).text] = a.at(2).number;
-				system.result_success = true;
+				system.result.success = true;
 				return;
 			}
 			if (action == A::SetDestination)
@@ -1287,33 +1325,33 @@ struct World::Impl
 					else
 						high = middle;
 				}
-				system.operation.desired_heading = (low + offset) % 360000;
-				system.operation.assisted = true;
-				system.operation.matching = false;
-				if (system.flight->kind == FlightKind::Engine)
-					system.operation.desired_speed = system.flight->maximum_speed;
+				system.flight->state.desired_heading = (low + offset) % 360000;
+				system.flight->state.assisted = true;
+				system.flight->state.matching = false;
+				if (system.flight->definition.kind == FlightKind::Engine)
+					system.flight->state.desired_speed = system.flight->definition.maximum_speed;
 				system.summary["destination.x"] = a.at(2).number;
 				system.summary["destination.y"] = a.at(3).number;
-				system.result_success = true;
+				system.result.success = true;
 				return;
 			}
 			if (action == A::SetMatchSpeed)
 			{
-				const auto previous = system.operation;
+				const auto previous = system.flight->state;
 				if (!operate(entity, fitted.id, {OperatingAction::SelectContact, a.at(1).number}, true))
 					throw std::runtime_error("match contact refused");
-				system.result_success = operate(entity, fitted.id, {OperatingAction::MatchSpeed, a.at(2).number}, true);
-				if (!system.result_success)
-					system.operation = previous;
+				system.result.success = operate(entity, fitted.id, {OperatingAction::MatchSpeed, a.at(2).number}, true);
+				if (!system.result.success)
+					system.flight->state = previous;
 				return;
 			}
 			if (a.size() > 2 && action >= A::SetStorageChargeLimit && action <= A::SetCoolingAllocation &&
 			    !a.at(1).text.empty())
 			{
-				const auto &power = entity.get<GameplaySystems>().power;
+				const auto power = (*gameplay_systems(entity)).power;
 				if (!power)
 					throw std::runtime_error("resource target without network");
-				const auto &b = power->definition.systems[index];
+				const auto &b = power->definition.systems[fitted.entity.get<ResourceBinding>().slot];
 				std::string target;
 				if (action == A::SetStorageChargeLimit || action == A::SetStorageDischargeLimit)
 				{
@@ -1379,11 +1417,14 @@ struct World::Impl
 				if (amount < 0 || amount > 1000)
 					throw std::runtime_error("generator output outside permille range");
 				operation = OperatingAction::GeneratorOutput;
-				if (const auto &power = entity.get<GameplaySystems>().power;
-				    power && power->definition.systems[index].generator != no_resource)
+				if (const auto power = (*gameplay_systems(entity)).power;
+				    power &&
+				    power->definition.systems[fitted.entity.get<ResourceBinding>().slot].generator != no_resource)
 					amount =
 					    amount *
-					    power->definition.network.generators[power->definition.systems[index].generator].maximum_rate /
+					    power->definition.network
+					        .generators[power->definition.systems[fitted.entity.get<ResourceBinding>().slot].generator]
+					        .maximum_rate /
 					    1000;
 				break;
 			case A::SetStorageChargeLimit:
@@ -1413,128 +1454,231 @@ struct World::Impl
 				break;
 			}
 			if (operation)
-				system.result_success = operate(entity, fitted.id, {*operation, amount}, true);
-			if (!system.result_success)
-				system.reason = "operating request refused";
+				system.result.success = operate(entity, fitted.id, {*operation, amount}, true);
+			if (!system.result.success)
+				system.result.reason = "operating request refused";
 		}
 		catch (const std::exception &error)
 		{
-			system.reason = error.what();
+			system.result.reason = error.what();
 		}
 	}
-	void run_gameplay(EntityId id, Pose &pose, Motion &motion, FittedSystems &fitted, GameplaySystems &systems)
+	template <typename... Components>
+	std::vector<flecs::entity> ordered_equipment(const flecs::query<Components...> &query, EntityId ship = 0)
 	{
-		const auto tick = ecs.get<Clock>().tick;
-		for (std::size_t i = 0; i < systems.values.size(); ++i)
+		std::vector<flecs::entity> rows;
+		auto iterator = query.iter();
+		if (ship)
+			iterator.set_var("ship", entities.at(ship));
+		iterator.run(
+		    [&](flecs::iter &it)
+		    {
+			    while (it.next())
+				    for (auto row : it)
+				    {
+					    auto entity = it.entity(row);
+					    rows.push_back(entity);
+				    }
+		    });
+		std::sort(rows.begin(), rows.end(),
+		          [](flecs::entity a, flecs::entity b)
+		          {
+			          const auto &x = a.get<Equipment>();
+			          const auto &y = b.get<Equipment>();
+			          return std::pair{x.ship, x.ordinal} < std::pair{y.ship, y.ordinal};
+		          });
+		return rows;
+	}
+	void run_basic_controllers()
+	{
+		for (auto child : ordered_equipment(basic_controller_query))
 		{
-			auto &system = systems.values[i];
-			auto &fit = fitted.values[i];
-			if (!fit.held && fit.controller)
-				for (const auto &output : step_tree(programs[fit.controller->program], fit.controller->cursor))
-					operate(entities.at(id), fit.id, output, true);
-			if (system.brain)
-			{
-				if (fit.held)
-				{
-					// refresh_control commits AI exit cleanup before granting human authority.
-				}
+			const auto &fit = child.get<Equipment>();
+			if (fit.held)
+				continue;
+			auto &controller = child.get_mut<Controller>();
+			auto ship = child.parent();
+			for (auto output : step_tree(programs[controller.program], controller.cursor))
+				if (ship.has<NamedEquipment>())
+					apply(output, child.try_get_mut<Engine>(), child.try_get_mut<Steering>(),
+					      child.try_get_mut<Radar>());
 				else
-				{
-					const auto observations = brain_observations(id, i, system);
-					if (system.continuation.interrupted)
-						state_tree::resume(system.continuation);
-					const auto result = state_tree::step(*system.brain, system.continuation, observations);
-					system.debug = result.debug;
-					for (const auto &output : result.outputs)
-						brain_output(id, i, system, output, observations);
-				}
-			}
-			system.was_human = fit.held;
+					apply(output, legacy_component<Engine>(ship), legacy_component<Steering>(ship),
+					      legacy_component<Radar>(ship));
 		}
+	}
+	void run_basic_steering()
+	{
+		for (auto child : ordered_equipment(steering_query))
+			if (auto ship = child.parent(); ship.has<Movable>())
+				step_basic_steering(ship.get_mut<Pose>(), child.get_mut<Steering>());
+	}
+	void run_basic_engines()
+	{
+		for (auto child : ordered_equipment(engine_query))
+			if (auto ship = child.parent(); ship.has<Movable>())
+				step_basic_engine(ship.get<Pose>(), ship.get_mut<Motion>(), child.get_mut<Engine>());
+	}
+	void run_equipment_controllers(EntityId id)
+	{
+		for (auto child : ordered_equipment(advanced_controller_query, id))
+		{
+			auto fit = equipment_ref(child);
+			if (fit.held)
+				continue;
+			if (fit.controller)
+				for (const auto &output : step_tree(programs[fit.controller->program], fit.controller->cursor))
+					operate(child.parent(), fit.id, output, true);
+			if (auto brain = child.try_get_mut<BrainRuntime>())
+			{
+				auto system = gameplay_ref(child);
+				const auto observations = brain_observations(id, fit.ordinal, system);
+				if (brain->continuation.interrupted)
+					state_tree::resume(brain->continuation);
+				const auto result = state_tree::step(brain->program, brain->continuation, observations);
+				brain->debug = result.debug;
+				for (const auto &output : result.outputs)
+					brain_output(id, fit.ordinal, system, output, observations);
+			}
+		}
+	}
+	struct FlightRestrictions
+	{
 		bool impulse = false;
 		int steering_limit = 1000;
-		for (const auto &system : systems.values)
-			if (system.flight && system.operation.impulse != ImpulsePhase::Idle)
-			{
-				impulse = true;
-				steering_limit = std::min(steering_limit, static_cast<int>(system.flight->impulse_steering_permille));
-			}
-		std::vector<FlightDemand> plans(systems.values.size());
-		for (std::size_t i = 0; i < systems.values.size(); ++i)
+	};
+	FlightRestrictions flight_restrictions(EntityId id)
+	{
+		FlightRestrictions result;
+		for (auto child : ordered_equipment(flight_query, id))
 		{
-			auto &system = systems.values[i];
-			auto &fit = fitted.values[i];
-			if (system.flight)
+			const auto &flight = child.get<FlightRuntime>();
+			if (flight.state.impulse != ImpulsePhase::Idle)
 			{
-				system.operation.steering_limit_permille = steering_limit;
-				const auto owner = system_owner(id, fit.id);
-				std::int64_t range = 0;
-				for (const auto &name : seat(id, owner.console)->feed_systems)
-					range = std::max(range, sensor_range(id, name));
-				std::optional<FlightContactObservation> observed;
-				if (system.operation.selected_contact && sensor_snapshot.contains(system.operation.selected_contact))
-				{
-					const auto &other = sensor_snapshot.at(system.operation.selected_contact);
-					const auto delta = fixed::Vec{other.x, other.y} - pose.position;
-					if (range && fixed::length(delta) <= range)
-						observed = FlightContactObservation{system.operation.selected_contact,
-						                                    fixed::length({other.vx, other.vy}), tick, 0};
-				}
-				observe_flight(*system.flight, system.operation, tick, observed);
-				auto requested = system.operation;
-				if (impulse)
-					requested.boost = false;
-				plans[i] = flight_demand(*system.flight, requested, pose, motion);
-				if (systems.power)
-				{
-					request_system_resource(
-					    *systems.power, i, 0, false,
-					    (impulse && system.flight->kind == FlightKind::Boost) ? 0 : plans[i].power_rate);
-				}
+				result.impulse = true;
+				result.steering_limit =
+				    std::min(result.steering_limit, static_cast<int>(flight.definition.impulse_steering_permille));
 			}
-			else if (systems.power)
-				request_system_resource(*systems.power, i,
-				                        fit.enabled && (!fit.radar || fit.radar->enabled) ? 1000 : 0);
 		}
-		if (systems.power)
-			tick_ship_resources(*systems.power);
-		for (std::size_t i = 0; i < systems.values.size(); ++i)
+		return result;
+	}
+	void request_flight_resources(flecs::entity ship, FlightRestrictions restrictions)
+	{
+		const auto id = ship.get<StableId>().id;
+		const auto tick = ecs.get<Clock>().tick;
+		const auto &pose = ship.get<Pose>();
+		const auto &motion = ship.get<Motion>();
+		for (auto child : ordered_equipment(flight_query, id))
 		{
-			auto &system = systems.values[i];
-			auto &fit = fitted.values[i];
-			if (system.flight)
+			auto &flight = child.get_mut<FlightRuntime>();
+			flight.state.steering_limit_permille = restrictions.steering_limit;
+			const auto owner = system_owner(id, child.get<Equipment>().id);
+			std::int64_t range = 0;
+			for (const auto &name : seat(id, owner.console)->feed_systems)
+				range = std::max(range, sensor_range(id, name));
+			std::optional<FlightContactObservation> observed;
+			if (flight.state.selected_contact && sensor_snapshot.contains(flight.state.selected_contact))
 			{
-				int paid = systems.power ? systems.power->grants[i].supply_permille : 1000;
-				if (impulse && system.flight->kind == FlightKind::Boost)
-					paid = 0;
-				const bool requested_boost = system.operation.boost;
-				if (impulse)
-					system.operation.boost = false;
-				const auto execution =
-				    step_flight(*system.flight, system.operation, pose, motion, plans[i], paid,
-				                systems.power ? systems.power->grants[i].overdrive_permille : 1000,
-				                systems.power ? systems.power->grants[i].overdrive_heat_permille : 1000);
-				if (systems.power && execution.heat_rate)
-				{
-					const auto store = systems.power->definition.systems[i].store;
-					if (store != no_resource)
-					{
-						system.heat_remainder += execution.heat_rate;
-						systems.power->network.apply_operating_heat(store, system.heat_remainder / rate);
-						system.heat_remainder %= rate;
-					}
-				}
-				system.operation.boost = requested_boost;
-				if (fit.engine)
-				{
-					fit.engine->speed = system.operation.desired_speed;
-					fit.engine->enabled = system.operation.enabled;
-					fit.engine->forward_output = std::max(0, execution.forward_permille);
-				}
-				if (fit.steering)
-					fit.steering->heading = system.operation.desired_heading;
+				const auto &other = sensor_snapshot.at(flight.state.selected_contact);
+				const auto delta = fixed::Vec{other.x, other.y} - pose.position;
+				if (range && fixed::length(delta) <= range)
+					observed = FlightContactObservation{flight.state.selected_contact,
+					                                    fixed::length({other.vx, other.vy}), tick, 0};
 			}
-			knowledge.ingest_telemetry(id, fit.id, telemetry(id, i), tick);
+			observe_flight(flight.definition, flight.state, tick, observed);
+			auto requested = flight.state;
+			if (restrictions.impulse)
+				requested.boost = false;
+			flight.demand = flight_demand(flight.definition, requested, pose, motion);
+			if (auto power = ship.try_get_mut<ShipResources>())
+				request_system_resource(*power, child.get<ResourceBinding>().slot, 0, false,
+				                        (restrictions.impulse && flight.definition.kind == FlightKind::Boost)
+				                            ? 0
+				                            : flight.demand.power_rate);
+		}
+		for (auto child : ordered_equipment(passive_resource_query, id))
+		{
+			const auto &fit = child.get<Equipment>();
+			const auto radar = child.try_get<Radar>();
+			request_system_resource(ship.get_mut<ShipResources>(), child.get<ResourceBinding>().slot,
+			                        fit.enabled && (!radar || radar->enabled) ? 1000 : 0);
+		}
+	}
+	void actuate_flight(flecs::entity child, FlightRestrictions restrictions)
+	{
+		auto &flight = child.get_mut<FlightRuntime>();
+		auto ship = child.parent();
+		auto power = ship.try_get_mut<ShipResources>();
+		const auto slot = power ? child.get<ResourceBinding>().slot : 0;
+		int paid = power ? power->grants[slot].supply_permille : 1000;
+		if (restrictions.impulse && flight.definition.kind == FlightKind::Boost)
+			paid = 0;
+		const bool requested_boost = flight.state.boost;
+		if (restrictions.impulse)
+			flight.state.boost = false;
+		const auto execution =
+		    step_flight(flight.definition, flight.state, ship.get_mut<Pose>(), ship.get_mut<Motion>(), flight.demand,
+		                paid, power ? power->grants[slot].overdrive_permille : 1000,
+		                power ? power->grants[slot].overdrive_heat_permille : 1000);
+		if (power && execution.heat_rate)
+		{
+			const auto store = power->definition.systems[slot].store;
+			if (store != no_resource)
+			{
+				auto &remainder = child.get_mut<OperatingHeat>().remainder;
+				remainder += execution.heat_rate;
+				power->network.apply_operating_heat(store, remainder / rate);
+				remainder %= rate;
+			}
+		}
+		flight.state.boost = requested_boost;
+		if (auto engine = child.try_get_mut<Engine>())
+		{
+			engine->speed = flight.state.desired_speed;
+			engine->enabled = flight.state.enabled;
+			engine->forward_output = std::max(0, execution.forward_permille);
+		}
+		if (auto steering = child.try_get_mut<Steering>())
+			steering->heading = flight.state.desired_heading;
+	}
+	void run_equipment_actuation(EntityId id, FlightRestrictions restrictions)
+	{
+		// Merge the flight and telemetry work in authored order. Sampling immediately
+		// after each actuator preserves telemetry when several fittings heat one store.
+		const auto actuators = ordered_equipment(flight_query, id);
+		std::size_t next = 0;
+		for (auto child : ordered_equipment(advanced_equipment_query, id))
+		{
+			if (next < actuators.size() && actuators[next] == child)
+			{
+				actuate_flight(child, restrictions);
+				++next;
+			}
+			const auto &fit = child.get<Equipment>();
+			knowledge.ingest_telemetry(id, fit.id, telemetry(id, fit.ordinal), ecs.get<Clock>().tick);
+		}
+	}
+	void run_advanced_equipment()
+	{
+		std::vector<std::pair<EntityId, flecs::entity>> ships;
+		advanced_ships.each(
+		    [&](flecs::entity entity, const StableId &id, const GameplayShip &)
+		    {
+			    ships.emplace_back(id.id, entity);
+		    });
+		std::sort(ships.begin(), ships.end(),
+		          [](const auto &a, const auto &b)
+		          {
+			          return a.first < b.first;
+		          });
+		for (const auto &[id, ship] : ships)
+		{
+			run_equipment_controllers(id);
+			const auto restrictions = flight_restrictions(id);
+			request_flight_resources(ship, restrictions);
+			if (auto power = ship.try_get_mut<ShipResources>())
+				tick_ship_resources(*power);
+			run_equipment_actuation(id, restrictions);
 		}
 	}
 	void scenario_spawns()
@@ -1664,7 +1808,7 @@ struct World::Impl
 	void refresh_control(EntityId ship, bool transitions = true)
 	{
 		auto entity = entities.at(ship);
-		auto fitted = entity.try_get_mut<FittedSystems>();
+		auto fitted = fittings(entity);
 		std::vector<bool> desired(fitted ? fitted->values.size() : 0, false);
 		std::vector<std::pair<ConsoleAddress, std::vector<std::string>>> consoles;
 		SystemMask legacy = 0;
@@ -1688,27 +1832,32 @@ struct World::Impl
 			}
 		if (fitted)
 		{
-			auto running = entity.try_get_mut<GameplaySystems>();
+			auto running = gameplay_systems(entity);
 			for (std::size_t i = 0; i < desired.size(); ++i)
 			{
 				if (transitions && running && fitted->values[i].held != desired[i])
 				{
-					auto &system = running->values[i];
-					if (desired[i] && system.brain && system.continuation.initialised &&
-					    !system.continuation.interrupted)
+					auto system = running->values[i];
+					if (desired[i] && system.brain && system.brain->continuation.initialised &&
+					    !system.brain->continuation.interrupted)
 					{
 						const auto observations = brain_observations(ship, i, system);
-						const auto output = state_tree::interrupt(*system.brain, system.continuation, observations);
+						const auto output =
+						    state_tree::interrupt(system.brain->program, system.brain->continuation, observations);
 						for (const auto &effect : output.outputs)
 							brain_output(ship, i, system, effect, observations);
 					}
-					release_flight_inputs(system.operation);
+					if (system.flight)
+						release_flight_inputs(system.flight->state);
 				}
 				fitted->values[i].held = desired[i];
 			}
 		}
-		else if (auto control = entity.try_get_mut<ControlClaims>())
-			control->held = legacy;
+		else if (definition(ship).explicit_stations)
+		{
+			for (auto child : entity.get<EquipmentIndex>().values)
+				child.get_mut<Equipment>().held = (legacy & system_bit(child.get<Equipment>().kind)) != 0;
+		}
 		else if (legacy)
 			entity.add<Claimed>();
 		else
@@ -1736,16 +1885,15 @@ struct World::Impl
 		}
 		if (command.action == "delegate")
 		{
+			if (!entities.at(address.ship).has<NamedEquipment>())
+				return false;
 			const auto target = instance(entities.at(address.ship), command.system);
 			if (!target)
 				return false;
 			if (command.value == 1 && !target->controller)
 			{
-				const auto running = entities.at(address.ship).try_get<GameplaySystems>();
-				if (!running || !running
-				                     ->values[static_cast<std::size_t>(
-				                         target - entities.at(address.ship).get<FittedSystems>().values.data())]
-				                     .brain)
+				const auto running = gameplay_systems(entities.at(address.ship));
+				if (!running || !running->values[static_cast<std::size_t>(target->ordinal)].brain)
 					return false;
 			}
 			if ((command.value != 0 && command.value != 1) ||
@@ -1779,13 +1927,10 @@ struct World::Impl
 				if (p.summaries.contains(address.console))
 					for (const auto &summary : p.summaries.at(address.console))
 						if (summary.initial)
-							for (std::size_t i = 0; i < entities.at(address.ship).get<FittedSystems>().values.size();
-							     ++i)
-								if (entities.at(address.ship).get<FittedSystems>().values[i].id == summary.system)
-									entities.at(address.ship)
-									    .get_mut<GameplaySystems>()
-									    .values[i]
-									    .summary[summary.channel] = *summary.initial;
+							for (std::size_t i = 0; i < (*fittings(entities.at(address.ship))).values.size(); ++i)
+								if ((*fittings(entities.at(address.ship))).values[i].id == summary.system)
+									gameplay_systems(entities.at(address.ship))->values[i].summary[summary.channel] =
+									    *summary.initial;
 				refresh_control(address.ship);
 			}
 			return true;
@@ -1801,13 +1946,10 @@ struct World::Impl
 						        summary.levels.end())
 						{
 							if (execute)
-								for (std::size_t i = 0;
-								     i < entities.at(address.ship).get<FittedSystems>().values.size(); ++i)
-									if (entities.at(address.ship).get<FittedSystems>().values[i].id == summary.system)
-										entities.at(address.ship)
-										    .get_mut<GameplaySystems>()
-										    .values[i]
-										    .summary[channel] = command.value;
+								for (std::size_t i = 0; i < (*fittings(entities.at(address.ship))).values.size(); ++i)
+									if ((*fittings(entities.at(address.ship))).values[i].id == summary.system)
+										gameplay_systems(entities.at(address.ship))->values[i].summary[channel] =
+										    command.value;
 							return true;
 						}
 			return false;
@@ -1873,18 +2015,18 @@ struct World::Impl
 		result.heading = entity.get<Pose>().heading;
 		if (auto legacy = entity.try_get<LegacyOperation>())
 			result = legacy->value;
-		if (auto engine = entity.try_get<Engine>())
+		if (auto engine = legacy_component<Engine>(entity))
 		{
 			result.speed = engine->speed;
 			result.acceleration_remainder = engine->remainder;
 			result.engine_enabled = engine->enabled;
 		}
-		if (auto turn = entity.try_get<Steering>())
+		if (auto turn = legacy_component<Steering>(entity))
 		{
 			result.heading = turn->heading;
 			result.turn_remainder = turn->remainder;
 		}
-		if (auto radar = entity.try_get<Radar>())
+		if (auto radar = legacy_component<Radar>(entity))
 			result.radar_enabled = radar->enabled;
 		if (auto controller = entity.try_get<Controller>())
 			result.tree = save_tree(programs[controller->program], controller->cursor);
@@ -1894,26 +2036,26 @@ struct World::Impl
 	{
 		// Old schema-1 saves allowed inactive fields even without fitted systems.
 		// Retain them only at this cold compatibility boundary.
-		if ((!entity.has<Engine>() &&
+		if ((!legacy_component<Engine>(entity) &&
 		     (operation.speed || operation.acceleration_remainder || !operation.engine_enabled)) ||
-		    (!entity.has<Steering>() &&
+		    (!legacy_component<Steering>(entity) &&
 		     (operation.heading != entity.get<Pose>().heading || operation.turn_remainder)) ||
-		    (!entity.has<Radar>() && !operation.radar_enabled) ||
+		    (!legacy_component<Radar>(entity) && !operation.radar_enabled) ||
 		    (!entity.has<Controller>() &&
 		     (!operation.tree.state.empty() || operation.tree.elapsed || operation.tree.entered)))
 			entity.set<LegacyOperation>({operation});
-		if (auto engine = entity.try_get_mut<Engine>())
+		if (auto engine = legacy_component<Engine>(entity))
 		{
 			engine->speed = operation.speed;
 			engine->remainder = operation.acceleration_remainder;
 			engine->enabled = operation.engine_enabled;
 		}
-		if (auto turn = entity.try_get_mut<Steering>())
+		if (auto turn = legacy_component<Steering>(entity))
 		{
 			turn->heading = operation.heading;
 			turn->remainder = operation.turn_remainder;
 		}
-		if (auto radar = entity.try_get_mut<Radar>())
+		if (auto radar = legacy_component<Radar>(entity))
 			radar->enabled = operation.radar_enabled;
 		if (auto controller = entity.try_get_mut<Controller>())
 			controller->cursor = load_tree(programs[controller->program], operation.tree);
@@ -1978,8 +2120,9 @@ bool World::can_claim(std::uint64_t console, EntityId ship, const std::string &n
 		if (address.ship == ship && address.console == seat->id)
 			return false;
 	auto entity = impl_->entities.at(ship);
-	return impl_->definition(ship).explicit_stations || entity.has<FittedSystems>() ||
-	       (entity.has<Movable>() && entity.has<Engine>() && entity.has<Steering>());
+	return impl_->definition(ship).explicit_stations || entity.has<NamedEquipment>() ||
+	       (entity.has<Movable>() && (legacy_component<Engine>(entity) != nullptr) &&
+	        (legacy_component<Steering>(entity) != nullptr));
 }
 bool World::claim(std::uint64_t console, EntityId ship, const std::string &name)
 {
@@ -1988,11 +2131,6 @@ bool World::claim(std::uint64_t console, EntityId ship, const std::string &name)
 	const auto &seat = *impl_->seat(ship, name);
 	impl_->claims[console] = {ship, seat.id};
 	auto entity = impl_->entities.at(ship);
-	if (!entity.has<FittedSystems>())
-		if (auto claims = entity.try_get_mut<ControlClaims>())
-			claims->held |= seat.controls;
-		else
-			entity.add<Claimed>();
 	impl_->refresh_control(ship);
 	return true;
 }
@@ -2010,31 +2148,33 @@ bool World::release(std::uint64_t console)
 		return false;
 	auto entity = impl_->entities.at(found->second.ship);
 	const auto &seat = *impl_->seat(found->second.ship, found->second.console);
-	if (auto fitted = entity.try_get_mut<FittedSystems>())
+	if (auto fitted = fittings(entity))
 	{
-		for (auto &system : fitted->values)
+		for (auto system : fitted->values)
 			if (std::find(seat.controlled_systems.begin(), seat.controlled_systems.end(), system.id) !=
 			    seat.controlled_systems.end())
 			{
 				if (system.held)
-					if (auto running = entity.try_get_mut<GameplaySystems>())
-						release_flight_inputs(running->values[&system - fitted->values.data()].operation);
+					if (auto running = gameplay_systems(entity))
+						if (auto flight = system.entity.try_get_mut<FlightRuntime>())
+							release_flight_inputs(flight->state);
 				system.held = false;
 			}
 	}
-	else if (auto claims = entity.try_get_mut<ControlClaims>())
+	else if (impl_->definition(found->second.ship).explicit_stations)
 	{
-		claims->held &= static_cast<SystemMask>(~seat.controls);
-		// Only controllers for this Console restart; other Consoles keep their state.
-		auto &controllers = entity.get_mut<SystemControllers>();
-		for (std::size_t i = 0; i < controllers.values.size(); ++i)
-			if ((seat.controls & (1u << i)) && controllers.values[i])
-				controllers.values[i]->cursor = {};
+		for (auto child : entity.get<EquipmentIndex>().values)
+			if (seat.controls & system_bit(child.get<Equipment>().kind))
+			{
+				child.get_mut<Equipment>().held = false;
+				if (auto controller = child.try_get_mut<Controller>())
+					controller->cursor = {};
+			}
 	}
 	else
 	{
-		entity.get_mut<Engine>().speed = 0;
-		entity.get_mut<Steering>().heading = entity.get<Pose>().heading;
+		(*legacy_component<Engine>(entity)).speed = 0;
+		(*legacy_component<Steering>(entity)).heading = entity.get<Pose>().heading;
 	}
 	if (auto controller = entity.try_get_mut<Controller>())
 		controller->cursor = {};
@@ -2078,7 +2218,8 @@ bool World::can_submit(std::uint64_t console, const OperatingCommand &command) c
 		return admissible(*output, instance->engine ? &*instance->engine : nullptr,
 		                  instance->steering ? &*instance->steering : nullptr,
 		                  instance->radar ? &*instance->radar : nullptr);
-	return output && admissible(*output, entity.try_get<Engine>(), entity.try_get<Steering>(), entity.try_get<Radar>());
+	return output && admissible(*output, legacy_component<Engine>(entity), legacy_component<Steering>(entity),
+	                            legacy_component<Radar>(entity));
 }
 bool World::submit(std::uint64_t console, const OperatingCommand &command)
 {
@@ -2102,15 +2243,13 @@ void World::clear_claims()
 	{
 		auto entity = impl_->entities.at(address.ship);
 		entity.remove<Claimed>();
-		if (auto systems = entity.try_get_mut<GameplaySystems>())
+		if (auto systems = gameplay_systems(entity))
 			for (std::size_t i = 0; i < systems->values.size(); ++i)
-				if (entity.get<FittedSystems>().values[i].held)
-					release_flight_inputs(systems->values[i].operation);
-		if (auto claims = entity.try_get_mut<ControlClaims>())
-			claims->held = 0;
-		if (auto systems = entity.try_get_mut<FittedSystems>())
-			for (auto &system : systems->values)
-				system.held = false;
+				if ((*fittings(entity)).values[i].held)
+					if (auto flight = (*fittings(entity)).values[i].entity.try_get_mut<FlightRuntime>())
+						release_flight_inputs(flight->state);
+		for (auto child : entity.get<EquipmentIndex>().values)
+			child.get_mut<Equipment>().held = false;
 	}
 	impl_->claims.clear();
 	impl_->pending.clear();
@@ -2134,8 +2273,8 @@ void World::tick()
 			apply(command.output, instance->engine ? &*instance->engine : nullptr,
 			      instance->steering ? &*instance->steering : nullptr, instance->radar ? &*instance->radar : nullptr);
 		else
-			apply(command.output, entity.try_get_mut<Engine>(), entity.try_get_mut<Steering>(),
-			      entity.try_get_mut<Radar>());
+			apply(command.output, legacy_component<Engine>(entity), legacy_component<Steering>(entity),
+			      legacy_component<Radar>(entity));
 	}
 	impl_->pending.clear();
 	if (impl_->scenario)
@@ -2158,18 +2297,15 @@ void World::tick()
 		impl_->sensor_snapshot.emplace(body.id, body);
 	impl_->brain_snapshots.clear();
 	impl_->inbox_snapshots.clear();
-	impl_->autonomous_ships.each(
-	    [&](const StableId &id, const FittedSystems &fitted, const GameplaySystems &systems)
+	impl_->autonomous_equipment.each(
+	    [&](const Equipment &fit, const BrainRuntime &)
 	    {
-		    for (std::size_t i = 0; i < systems.values.size(); ++i)
-			    if (systems.values[i].brain && !fitted.values[i].held)
-			    {
-				    const auto &name = fitted.values[i].id;
-				    const auto owner = impl_->system_owner(id.id, name);
-				    if (!impl_->brain_snapshots.contains(owner))
-					    impl_->brain_snapshots.emplace(owner, impl_->knowledge.project(owner));
-				    impl_->inbox_snapshots.emplace(std::pair{id.id, name}, impl_->knowledge.peek_system(id.id, name));
-			    }
+		    if (fit.held)
+			    return;
+		    const auto owner = impl_->system_owner(fit.ship, fit.id);
+		    if (!impl_->brain_snapshots.contains(owner))
+			    impl_->brain_snapshots.emplace(owner, impl_->knowledge.project(owner));
+		    impl_->inbox_snapshots.emplace(std::pair{fit.ship, fit.id}, impl_->knowledge.peek_system(fit.ship, fit.id));
 	    });
 	impl_->step_starts.clear();
 	impl_->bodies.each(
@@ -2180,13 +2316,10 @@ void World::tick()
 	// Explicit fixed-tick phases. Each pre-collision row operates only on itself,
 	// so archetype/table ordering cannot affect gameplay. No wall-clock progress.
 	impl_->controllers.run();
-	impl_->system_controllers.run();
-	impl_->fitted_controllers.run();
-	impl_->steering.run();
-	impl_->fitted_steering.run();
-	impl_->engines.run();
-	impl_->fitted_engines.run();
-	impl_->advanced_systems.run();
+	impl_->run_basic_controllers();
+	impl_->run_basic_steering();
+	impl_->run_basic_engines();
+	impl_->run_advanced_equipment();
 	impl_->integrate.run();
 	impl_->resolve_collisions.run();
 	impl_->index_contacts.run();
@@ -2232,17 +2365,17 @@ std::vector<SceneBody> World::scene() const
 	{
 		SceneBody item;
 		static_cast<BodyView &>(item) = body;
-		if (auto engine = impl_->entities.at(body.id).try_get<Engine>())
+		if (auto engine = legacy_component<Engine>(impl_->entities.at(body.id)))
 			item.forward_thrust = engine->enabled ? engine->forward_output : 0;
-		if (auto systems = impl_->entities.at(body.id).try_get<FittedSystems>())
+		if (auto systems = fittings(impl_->entities.at(body.id)))
 			for (const auto &system : systems->values)
 				if (system.engine && system.engine->enabled)
 					item.forward_thrust = std::max(item.forward_thrust, system.engine->forward_output);
-		if (auto systems = impl_->entities.at(body.id).try_get<GameplaySystems>())
+		if (auto systems = gameplay_systems(impl_->entities.at(body.id)))
 			for (const auto &system : systems->values)
 				if (system.flight)
 					item.forward_thrust =
-					    std::max(item.forward_thrust, std::max(0, system.operation.actual_longitudinal));
+					    std::max(item.forward_thrust, std::max(0, system.flight->state.actual_longitudinal));
 		result.push_back(std::move(item));
 	}
 	return result;
@@ -2308,19 +2441,19 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 	result.radar_enabled = false;
 	for (const auto &id : seat.feed_systems)
 	{
-		const auto *instance = impl_->instance(entity, id);
+		const auto instance = impl_->instance(entity, id);
 		SystemView state;
 		state.id = id;
 		state.controlled = std::find(seat.controlled_systems.begin(), seat.controlled_systems.end(), id) !=
 		                   seat.controlled_systems.end();
 		const auto *engine = instance         ? (instance->engine ? &*instance->engine : nullptr)
-		                     : id == "engine" ? entity.try_get<Engine>()
+		                     : id == "engine" ? legacy_component<Engine>(entity)
 		                                      : nullptr;
 		const auto *turn = instance           ? (instance->steering ? &*instance->steering : nullptr)
-		                   : id == "steering" ? entity.try_get<Steering>()
+		                   : id == "steering" ? legacy_component<Steering>(entity)
 		                                      : nullptr;
 		const auto *radar = instance        ? (instance->radar ? &*instance->radar : nullptr)
-		                    : id == "radar" ? entity.try_get<Radar>()
+		                    : id == "radar" ? legacy_component<Radar>(entity)
 		                                    : nullptr;
 		if (engine)
 		{
@@ -2343,21 +2476,21 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 		}
 		if (instance && instance->advanced)
 		{
-			const auto &fits = entity.get<FittedSystems>().values;
-			const auto index = static_cast<std::size_t>(instance - fits.data());
+			const auto index = static_cast<std::size_t>(instance->ordinal);
 			state.kind = instance->kind;
 			state.telemetry = impl_->telemetry(found->second.ship, index);
 			state.enabled = state.telemetry.at("enabled") != 0;
 			state.requested = state.telemetry.at("requested");
 			state.controlled = instance->held;
-			if (auto runtime = entity.try_get<GameplaySystems>(); runtime && runtime->values[index].flight)
-				state.maximum = state.kind == OperatingSystem::Steering  ? 359999
-				                : state.kind == OperatingSystem::Lateral ? runtime->values[index].flight->lateral_speed
-				                                                         : runtime->values[index].flight->maximum_speed;
+			if (auto runtime = gameplay_systems(entity); runtime && runtime->values[index].flight)
+				state.maximum = state.kind == OperatingSystem::Steering ? 359999
+				                : state.kind == OperatingSystem::Lateral
+				                    ? runtime->values[index].flight->definition.lateral_speed
+				                    : runtime->values[index].flight->definition.maximum_speed;
 			else
 				state.maximum = instance->maximum;
-			const auto &runtime = entity.get<GameplaySystems>().values[index];
-			state.status = runtime.reason;
+			const auto runtime = (*gameplay_systems(entity)).values[index];
+			state.status = runtime.result.reason;
 			if (state.controlled)
 				for (const auto &action : operating_actions)
 				{
@@ -2371,9 +2504,9 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 						maximum = state.maximum;
 						minimum = state.telemetry.contains("minimum_speed") ? state.telemetry.at("minimum_speed") : 0;
 					}
-					if (const auto &power = entity.get<GameplaySystems>().power)
+					if (const auto power = (*gameplay_systems(entity)).power)
 					{
-						const auto &binding = power->definition.systems[index];
+						const auto &binding = power->definition.systems[instance->entity.get<ResourceBinding>().slot];
 						const auto &network = power->definition.network;
 						if (action.action == OperatingAction::GeneratorOutput && binding.generator != no_resource)
 							maximum = network.generators[binding.generator].maximum_rate;
@@ -2410,7 +2543,7 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 		}
 		result.systems.push_back(std::move(state));
 	}
-	if (entity.has<FittedSystems>())
+	if (entity.has<NamedEquipment>())
 	{
 		std::int64_t range = 0;
 		for (const auto &state : result.systems)
@@ -2451,16 +2584,16 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 						       system.id, contact.id);
 		return result;
 	}
-	if (auto engine = entity.try_get<Engine>(); engine && (seat.feeds & system_bit(OperatingSystem::Engine)))
+	if (auto engine = legacy_component<Engine>(entity); engine && (seat.feeds & system_bit(OperatingSystem::Engine)))
 	{
 		result.requested_speed = engine->speed;
 		result.engine_enabled = engine->enabled;
 	}
-	if (auto turn = entity.try_get<Steering>(); turn && (seat.feeds & system_bit(OperatingSystem::Steering)))
+	if (auto turn = legacy_component<Steering>(entity); turn && (seat.feeds & system_bit(OperatingSystem::Steering)))
 		result.requested_heading = turn->heading;
 	if (!(seat.feeds & system_bit(OperatingSystem::Radar)))
 		return result;
-	auto radar = entity.try_get<Radar>();
+	auto radar = legacy_component<Radar>(entity);
 	result.radar_enabled = radar ? radar->enabled : impl_->operation(entity).radar_enabled;
 	if (!radar || !radar->enabled)
 		return result;
@@ -2505,17 +2638,18 @@ Json World::debug() const
 	std::size_t controllers = 0, consoles = 0;
 	for (const auto &[id, entity] : impl_->entities)
 	{
-		if (const auto *systems = entity.try_get<GameplaySystems>())
+		if (auto systems = gameplay_systems(entity))
 			for (std::size_t i = 0; i < systems->values.size(); ++i)
 			{
-				const auto &system = systems->values[i];
+				const auto system = systems->values[i];
 				if (systems->power)
 				{
 					if (result["resource_grants"].size() < 64)
 					{
-						const auto &grant = systems->power->grants[i];
+						const auto &grant =
+						    systems->power->grants[(*fittings(entity)).values[i].entity.get<ResourceBinding>().slot];
 						result["resource_grants"].push_back({{"ship", id},
-						                                     {"system", entity.get<FittedSystems>().values[i].id},
+						                                     {"system", (*fittings(entity)).values[i].id},
 						                                     {"requested", grant.requested},
 						                                     {"paid", grant.paid},
 						                                     {"supply_permille", grant.supply_permille},
@@ -2532,17 +2666,17 @@ Json World::debug() const
 					result["truncated"] = result["truncated"].get<int>() + 1;
 					continue;
 				}
-				const auto &name = entity.get<FittedSystems>().values[i].id;
+				const auto &name = (*fittings(entity)).values[i].id;
 				result["controllers"].push_back({{"id", std::to_string(id) + "." + name},
 				                                 {"context", "system"},
-				                                 {"tree", system.tree},
-				                                 {"active_states", system.debug.active},
-				                                 {"transition_reason", system.debug.transition},
-				                                 {"diagnostics", system.debug.diagnostics}});
-				for (const auto &state : system.debug.active)
+				                                 {"tree", system.brain->tree},
+				                                 {"active_states", system.brain->debug.active},
+				                                 {"transition_reason", system.brain->debug.transition},
+				                                 {"diagnostics", system.brain->debug.diagnostics}});
+				for (const auto &state : system.brain->debug.active)
 					if (result["active_states"].size() < 128)
 						result["active_states"].push_back(state);
-				for (const auto &d : system.debug.diagnostics)
+				for (const auto &d : system.brain->debug.diagnostics)
 					if (result["diagnostics"].size() < 32)
 						result["diagnostics"].push_back(d);
 			}
@@ -2635,7 +2769,7 @@ Json World::save() const
 	{
 		SavedBody body{entity.get<Pose>(), entity.get<Motion>(), id, entity.get<Definition>().name};
 		result["bodies"].push_back({{"body", body}, {"operation", impl_->operation(entity)}});
-		if (auto systems = entity.try_get<FittedSystems>())
+		if (auto systems = fittings(entity))
 		{
 			auto &saved = result["bodies"].back()["systems"] = Json::object();
 			for (const auto &system : systems->values)
@@ -2665,40 +2799,40 @@ Json World::save() const
 				saved[system.id] = operation;
 			}
 		}
-		if (const auto *systems = entity.try_get<GameplaySystems>())
+		if (auto systems = gameplay_systems(entity))
 		{
 			auto &data = result["bodies"].back()["gameplay"] = Json::array();
 			for (std::size_t i = 0; i < systems->values.size(); ++i)
 			{
-				const auto &system = systems->values[i];
-				Json value{{"id", entity.get<FittedSystems>().values[i].id},
+				const auto system = systems->values[i];
+				Json value{{"id", (*fittings(entity)).values[i].id},
 				           {"effects", system.effects},
 				           {"summary", system.summary},
-				           {"result_available", system.result_available},
-				           {"result_success", system.result_success},
-				           {"reason", system.reason},
-				           {"result_id", system.result_id},
+				           {"result_available", system.result.available},
+				           {"result_success", system.result.success},
+				           {"reason", system.result.reason},
+				           {"result_id", system.result.id},
 				           {"heat_remainder", system.heat_remainder},
-				           {"enabled", entity.get<FittedSystems>().values[i].enabled}};
-				if (const auto &timed = entity.get<FittedSystems>().values[i].controller)
+				           {"enabled", (*fittings(entity)).values[i].enabled}};
+				if (const auto timed = (*fittings(entity)).values[i].controller)
 					value["timed"] = save_tree(impl_->programs[timed->program], timed->cursor);
-				if (const auto &radar = entity.get<FittedSystems>().values[i].radar)
+				if (const auto radar = (*fittings(entity)).values[i].radar)
 					value["radar_enabled"] = radar->enabled;
 				if (system.flight)
-					value["flight"] = save_flight(*system.flight, system.operation);
+					value["flight"] = save_flight(system.flight->definition, system.flight->state);
 				if (system.brain)
-					value["brain"] = state_tree::save(*system.brain, system.continuation);
+					value["brain"] = state_tree::save(system.brain->program, system.brain->continuation);
 				data.push_back(std::move(value));
 			}
 			if (systems->power)
 				result["bodies"].back()["resources"] = save_ship_resources(*systems->power);
 		}
-		if (auto controllers = entity.try_get<SystemControllers>())
+		if (!entity.has<NamedEquipment>() && impl_->definition(id).explicit_stations)
 		{
 			auto &saved = result["bodies"].back()["controllers"] = Json::object();
-			for (std::size_t i = 0; i < controllers->values.size(); ++i)
-				if (const auto &controller = controllers->values[i])
-					saved[std::string(operating_system_name(static_cast<OperatingSystem>(i)))] =
+			for (auto child : entity.get<EquipmentIndex>().values)
+				if (auto controller = child.try_get<Controller>())
+					saved[child.get<Equipment>().id] =
 					    save_tree(impl_->programs[controller->program], controller->cursor);
 		}
 	}
@@ -2782,22 +2916,22 @@ void World::restore(const Catalog &content, const Json &saved)
 		    operation.acceleration_remainder >= rate || operation.turn_remainder < 0 ||
 		    operation.turn_remainder >= rate)
 			throw std::runtime_error("Saved state invalid numeric remainder/heading");
-		auto engine = entity.try_get<Engine>();
+		auto engine = legacy_component<Engine>(entity);
 		if (operation.speed < 0 || operation.speed > fixed::unit || (engine && operation.speed > engine->max_speed))
 			throw std::runtime_error("Saved state invalid speed request");
 		entity.set<Pose>({restored.position, restored.heading}).set<Motion>({restored.velocity, restored.remainder});
-		if (entity.has<FittedSystems>() &&
+		if (entity.has<NamedEquipment>() &&
 		    (operation.speed || operation.acceleration_remainder || operation.turn_remainder ||
 		     operation.heading != restored.heading || !operation.engine_enabled || !operation.radar_enabled ||
 		     !operation.tree.state.empty() || operation.tree.elapsed || operation.tree.entered))
 			throw std::runtime_error("Instance ships cannot carry inactive legacy operation state");
 		candidate.impl_->restore_operation(entity, operation);
-		if (auto systems = entity.try_get_mut<FittedSystems>())
+		if (auto systems = fittings(entity))
 		{
 			const auto &states = value.at("systems");
 			if (!states.is_object() || states.size() != systems->values.size())
 				throw std::runtime_error("Fitted System roster mismatch");
-			for (auto &system : systems->values)
+			for (auto system : systems->values)
 			{
 				for (const auto *field : {"speed", "heading", "acceleration_remainder", "turn_remainder"})
 					if (!states.at(system.id).at(field).is_number_integer())
@@ -2841,32 +2975,32 @@ void World::restore(const Catalog &content, const Json &saved)
 					throw std::runtime_error("Unfitted controller continuation");
 			}
 		}
-		if (auto *systems = entity.try_get_mut<GameplaySystems>())
+		if (auto systems = gameplay_systems(entity))
 		{
 			const auto &data = value.at("gameplay");
 			if (!data.is_array() || data.size() != systems->values.size())
 				throw std::runtime_error("Advanced System roster mismatch");
 			for (std::size_t i = 0; i < data.size(); ++i)
 			{
-				auto &system = systems->values[i];
+				auto system = systems->values[i];
 				const auto &state = data[i];
-				if (state.at("id") != entity.get<FittedSystems>().values[i].id ||
-				    state.contains("flight") != system.flight.has_value() ||
-				    state.contains("brain") != system.brain.has_value())
+				if (state.at("id") != (*fittings(entity)).values[i].id ||
+				    state.contains("flight") != (system.flight != nullptr) ||
+				    state.contains("brain") != (system.brain != nullptr))
 					throw std::runtime_error("Advanced continuation binding mismatch");
-				if (auto &timed = entity.get_mut<FittedSystems>().values[i].controller)
+				if (auto timed = (*fittings(entity)).values[i].controller)
 					timed->cursor =
 					    load_tree(candidate.impl_->programs[timed->program], state.at("timed").get<TreeState>());
 				else if (state.contains("timed"))
 					throw std::runtime_error("Unfitted timed controller continuation");
 				if (system.flight)
 				{
-					system.operation = load_flight(*system.flight, state.at("flight"));
-					if (system.operation.observed_tick > saved.at("tick").get<std::uint64_t>())
+					system.flight->state = load_flight(system.flight->definition, state.at("flight"));
+					if (system.flight->state.observed_tick > saved.at("tick").get<std::uint64_t>())
 						throw std::runtime_error("Saved flight observation is in the future");
 				}
 				if (system.brain)
-					system.continuation = state_tree::load(*system.brain, state.at("brain"));
+					system.brain->continuation = state_tree::load(system.brain->program, state.at("brain"));
 				system.effects = state.at("effects").get<std::set<std::string>>();
 				system.summary = state.at("summary").get<std::map<std::string, std::int64_t>>();
 				if (system.effects.size() > 65536 || system.summary.size() > 256)
@@ -2877,33 +3011,31 @@ void World::restore(const Catalog &content, const Json &saved)
 				system.heat_remainder = state.at("heat_remainder");
 				if (system.heat_remainder < 0 || system.heat_remainder >= rate)
 					throw std::runtime_error("Invalid operating heat remainder");
-				entity.get_mut<FittedSystems>().values[i].enabled = state.at("enabled");
-				if (auto &radar = entity.get_mut<FittedSystems>().values[i].radar)
+				(*fittings(entity)).values[i].enabled = state.at("enabled");
+				if (auto radar = (*fittings(entity)).values[i].radar)
 					radar->enabled = state.at("radar_enabled").get<bool>();
-				system.result_available = state.at("result_available");
-				system.result_success = state.at("result_success");
-				system.reason = state.at("reason");
-				system.result_id = state.at("result_id");
-				if (system.reason.size() > 4096)
+				system.result.available = state.at("result_available");
+				system.result.success = state.at("result_success");
+				system.result.reason = state.at("reason");
+				system.result.id = state.at("result_id");
+				if (system.result.reason.size() > 4096)
 					throw std::runtime_error("Controller result reason too long");
 			}
 			if (systems->power)
 				restore_ship_resources(*systems->power, value.at("resources"));
 		}
-		if (auto controllers = entity.try_get_mut<SystemControllers>())
+		if (!entity.has<NamedEquipment>() && candidate.impl_->definition(restored.id).explicit_stations)
 		{
 			const auto &states = value.at("controllers");
 			if (!states.is_object())
 				throw std::runtime_error("Invalid System controller states");
 			std::size_t count = 0;
-			for (std::size_t i = 0; i < controllers->values.size(); ++i)
-				if (auto &controller = controllers->values[i])
+			for (auto child : entity.get<EquipmentIndex>().values)
+				if (auto controller = child.try_get_mut<Controller>())
 				{
 					++count;
-					controller->cursor =
-					    load_tree(candidate.impl_->programs[controller->program],
-					              states.at(std::string(operating_system_name(static_cast<OperatingSystem>(i))))
-					                  .get<TreeState>());
+					controller->cursor = load_tree(candidate.impl_->programs[controller->program],
+					                               states.at(child.get<Equipment>().id).get<TreeState>());
 				}
 			if (states.size() != count)
 				throw std::runtime_error("System controller roster mismatch");
@@ -2927,7 +3059,8 @@ void World::restore(const Catalog &content, const Json &saved)
 			if (!candidate.impl_->entities.contains(ship))
 				throw std::runtime_error("Delegation names missing ship");
 			for (const auto &name : names)
-				if (!candidate.impl_->instance(candidate.impl_->entities.at(ship), name))
+				if (!candidate.impl_->entities.at(ship).has<NamedEquipment>() ||
+				    !candidate.impl_->instance(candidate.impl_->entities.at(ship), name))
 					throw std::runtime_error("Delegation names missing System");
 		}
 		for (const auto &entry : saved.at("preset"))

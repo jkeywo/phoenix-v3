@@ -14,6 +14,16 @@ and complete supported Workshop bindings are recorded in the
 [final review receipt](gameplay-implementation.md#final-review-corrections-19-october-2026).
 The repeated source audit found no remaining confirmed gap across the nine stages.
 
+Equipment ECS refactor, 19 October 2026: legacy and named fitted Systems now use
+individual Flecs child entities and capability components. Parent-scoped queries
+select controllers, resources and actuators; autonomous snapshot preparation no
+longer scans the stable-ID map. Resource solvers stay ship-owned, and command,
+Console, network and save schemas 1–4 retain their existing contracts. Mixed
+equipment, shared-body ordering, spawned equipment and transactional recovery are
+covered through the production loader. See the [execution model and verification](simulation.md#equipment-entity-migration).
+All 20 native integration cases, WASM checks/continuation comparison, eight
+signalling/real-transport cases and formatting checks pass.
+
 Native menu update, 18 October 2026: cascading host/scenario/slot/ship navigation, separate ship/player/GM join forms, installed pack management, managed portable saves and persistent native settings are implemented. A pre-game coordinator transfers verified setup to approved ship hosts, arbitrates slots and starts the fixed fleet after per-player readiness and five seconds. Unclaimed mandatory slots remain deterministic AI ships without server votes; optional slots are omitted. See [native menu behavior and validation](native-menu.md). Actual screen-reader/physical-device and six-display performance acceptance remain separate.
 
 Current MVP status is summarised in [MVP status and acceptance limits](mvp-status.md). The 18 October completion work adds bounded projection streaming, mixed native/browser fleet evidence, shaped player text and editable semantics, mixed Viewscreen/Console layouts, manual frame capture, live authoring previews and explicit override controls. Notes further down this delivery record retain their historical wording; use the status page for current remaining work.

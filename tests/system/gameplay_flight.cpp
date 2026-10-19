@@ -704,6 +704,102 @@ std::string control_id(const ConsoleModel &model, const std::string &action, std
 		}
 	throw std::runtime_error("required authored semantic button missing");
 }
+void equipment_ordering_and_recovery()
+{
+	auto source = fixture();
+	auto &ship = source["entities"][0];
+	ship["systems"]["aux-drive"] = ship["systems"]["drive"];
+	ship["systems"]["aux-drive"]["acceleration_mm_s2"] = 700;
+	ship["stations"][0]["consoles"][0]["systems"].push_back("aux-drive");
+	auto legacy = parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "mixed equipment")
+	                  .at("entities")[0];
+	legacy["id"] = "test.legacy";
+	source["entities"].push_back(legacy);
+	auto basic = legacy;
+	basic["id"] = "test.basic";
+	basic["systems"]["port"] = basic["systems"]["engine"];
+	basic["systems"]["port"]["kind"] = "engine";
+	basic["systems"]["starboard"] = basic["systems"]["port"];
+	basic["systems"].erase("engine");
+	source["entities"].push_back(basic);
+	for (const auto &[id, definition] : std::vector<std::pair<int, std::string>>{{3, "test.legacy"}, {4, "test.basic"}})
+		source["maps"][0]["entities"].push_back(
+		    {{"id", id}, {"definition", definition}, {"x_mm", id * 200000}, {"y_mm", 0}, {"heading_mdeg", 0}});
+	const auto catalog = load(source);
+	World ordered, reversed;
+	ordered.load(catalog, "test.map");
+	std::reverse(source["maps"][0]["entities"].begin(), source["maps"][0]["entities"].end());
+	reversed.load(load(source), "test.map");
+	for (auto *world : {&ordered, &reversed})
+	{
+		claim(*world);
+		require(world->claim(201, 2, "helm") && world->claim(303, 3) && world->claim(404, 4),
+		        "legacy, named basic and paid equipment must coexist with independent ownership");
+		command(*world, "speed_mm_s", 9000, "drive");
+		command(*world, "speed_mm_s", 2000, "aux-drive");
+		command(*world, "heading_mdeg", 45000, "turn");
+		command(*world, "speed_mm_s", 4000, "drive", 201, 2);
+		command(*world, "speed_mm_s", 1500, "engine", 303, 3);
+		command(*world, "speed_mm_s", 3000, "port", 404, 4);
+		command(*world, "speed_mm_s", 1000, "starboard", 404, 4);
+	}
+	for (int i = 0; i < 8; ++i)
+	{
+		ordered.tick();
+		reversed.tick();
+		require(ordered.save().at("bodies") == reversed.save().at("bodies"),
+		        "mixed capability tables and creation order must not reorder shared-body actuation or resource state");
+	}
+	require(ordered.inspect().size() == 4 && ordered.scene().size() == 4 && ordered.observe(101)->contacts.size() == 1,
+	        "internal equipment identities must not appear as bodies, scene objects or radar contacts");
+	const auto saved = ordered.save();
+	require(saved.at("bodies").size() == 4 && !saved.at("bodies")[2].contains("systems") &&
+	            saved.at("bodies")[3].at("systems").contains("starboard"),
+	        "unified runtime equipment must retain each legacy or named save representation");
+	World resumed;
+	resumed.restore(catalog, saved);
+	require(resumed.save() == saved, "mixed equipment must retain complete tick-boundary state on restore");
+	for (auto *world : {&ordered, &resumed})
+	{
+		require(world->release(303) && world->release(404), "mixed equipment claims must release independently");
+		require(world->claim(303, 3) && world->claim(404, 4), "released mixed equipment must remain claimable");
+		require(world->observe(303)->requested_speed == 0 && system(*world->observe(404), "port").requested == 3000,
+		        "legacy release resets and named equipment's retained settings must survive normalization");
+	}
+	for (int i = 0; i < 5; ++i)
+	{
+		ordered.tick();
+		resumed.tick();
+		require(ordered.save() == resumed.save(), "mixed equipment continuation diverged after handover");
+	}
+	auto malformed = saved;
+	malformed["bodies"][0]["gameplay"][0]["id"] = "unknown-fitting";
+	const auto live = resumed.save();
+	bool refused = false;
+	try
+	{
+		resumed.restore(catalog, malformed);
+	}
+	catch (const std::exception &)
+	{
+		refused = true;
+	}
+	require(refused && resumed.save() == live && resumed.inspect().size() == 4,
+	        "failed equipment restore must leave the live parent, children and continuation unchanged");
+	malformed = saved;
+	malformed["delegated"] = std::map<EntityId, std::set<std::string>>{{3, {"engine"}}};
+	refused = false;
+	try
+	{
+		resumed.restore(catalog, malformed);
+	}
+	catch (const std::exception &)
+	{
+		refused = true;
+	}
+	require(refused && resumed.save() == live,
+	        "runtime normalization must not admit formerly unsupported legacy delegation state on restore");
+}
 void semantic_controls()
 {
 	auto source = fixture();
@@ -813,6 +909,7 @@ int main()
 		paid_sensor_startup();
 		disabled_cooling();
 		invalid_controller_actions();
+		equipment_ordering_and_recovery();
 		semantic_controls();
 		std::cout << "Paid flight integration passed: control, resources, impulse, observed matching and semantics\n";
 		return 0;

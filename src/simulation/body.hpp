@@ -52,15 +52,11 @@ struct Controller
 	std::size_t program = 0;
 	TreeCursor cursor;
 };
-struct SystemControllers
+struct CompiledControllers
 {
 	std::array<std::optional<Controller>, 3> values;
 };
-struct ControlClaims
-{
-	SystemMask held = 0;
-};
-struct FittedRuntime
+struct CompiledEquipment
 {
 	std::string id;
 	OperatingSystem kind;
@@ -68,16 +64,14 @@ struct FittedRuntime
 	std::optional<Steering> steering;
 	std::optional<Radar> radar;
 	std::optional<Controller> controller;
-	bool held = false;
 	bool advanced = false;
 	bool enabled = true;
 	std::int64_t maximum = 0;
 };
-// Numeric settings/state compile once at load. Processing uses Flecs queries;
-// strings are used only by command, observation and persistence boundaries.
-struct FittedSystems
+// Load-time templates only; runtime state lives on equipment child entities.
+struct CompiledFittings
 {
-	std::vector<FittedRuntime> values;
+	std::vector<CompiledEquipment> values;
 };
 // Transient numeric collision workspace; authoritative state remains in ECS.
 struct CollisionBody : Pose, Motion, Collider

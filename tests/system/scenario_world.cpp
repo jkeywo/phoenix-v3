@@ -34,11 +34,19 @@ Catalog load_fixture(const Json &data)
 	pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
 	return resolve_packs({read_pack(write_pack(pack))});
 }
-Catalog fixture()
+Catalog fixture(bool fitted = false)
 {
 	auto data =
 	    parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "synthetic World scenario");
 	data["entities"][0]["systems"]["engine"] = {{"max_speed_mm_s", 100000}, {"acceleration_mm_s2", 2000000}};
+	if (fitted)
+	{
+		data["entities"][0]["systems"]["engine"]["kind"] = "engine";
+		data["entities"][0]["systems"]["engine"]["power_store"] = "cell";
+		data["entities"][0]["systems"]["engine"]["power_rate"] = 20;
+		data["entities"][0]["resources"] = Json::parse(
+		    R"({"stores":[{"id":"cell","capacity":1000,"initial":1000,"charge_rate":100,"discharge_rate":100}]})");
+	}
 	auto &map = data["maps"][0];
 	map["entities"] = Json::array(
 	    {{{"id", 1}, {"definition", "test.variant"}, {"x_mm", 1000000}, {"y_mm", 20000}, {"heading_mdeg", 0}}});
@@ -149,6 +157,44 @@ Json reader_fixture()
 	data["trees"][0]["states"][0].erase("transitions");
 	data["trees"][0]["states"][0]["running"] = Json::array({{{"call", "test.read-signal"}}});
 	return data;
+}
+void spawned_equipment_continuation()
+{
+	const auto catalog = fixture(true);
+	World world;
+	world.load(catalog, "test.map", {{"test.slot", "test.ship"}});
+	world.tick();
+	world.tick();
+	check(world.inspect().size() == 4 && world.scene().size() == 4,
+	      "Scenario spawns must create bodies with equipment while keeping child identities private");
+	std::vector<EntityId> spawned;
+	const auto player = *world.ship_for_slot("test.slot");
+	for (const auto &body : world.inspect())
+		if (body.id != 1 && body.id != player)
+			spawned.push_back(body.id);
+	check(spawned.size() == 2, "Reusable situations did not create two independently fitted ships");
+	for (std::size_t i = 0; i < spawned.size(); ++i)
+	{
+		check(world.claim(200 + i, spawned[i]), "Dynamically created equipment has no usable Console binding");
+		check(world.submit(200 + i, {spawned[i], "speed_mm_s", 2000, "engine"}),
+		      "Dynamically created equipment refused an ordinary command");
+	}
+	world.tick();
+	const auto saved = world.save();
+	World resumed;
+	resumed.restore(catalog, saved);
+	check(resumed.save() == saved, "Spawned equipment or resource state did not round trip");
+	for (int tick = 0; tick < 4; ++tick)
+	{
+		world.tick();
+		resumed.tick();
+	}
+	check(world.save() == resumed.save() && world.inspect().size() == 4,
+	      "Dynamic equipment must execute once and preserve continuation after recovery");
+	for (const auto id : spawned)
+		for (const auto &body : world.inspect())
+			if (body.id == id)
+				check(body.vx > 0, "Spawned engine did not execute through the production equipment query");
 }
 void scenario_record_readers()
 {
@@ -357,6 +403,7 @@ int main()
 		check(original.save() == resumed.save(),
 		      "Later physical continuation diverged after restored scenario effects");
 		scenario_record_readers();
+		spawned_equipment_continuation();
 		std::cout << "World scenario spawn/objective/recovery integration passed\n";
 		return 0;
 	}
