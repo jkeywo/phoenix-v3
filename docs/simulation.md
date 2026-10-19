@@ -1,5 +1,9 @@
 # Simulation foundation
 
+## Agreed target architecture
+
+The [Console Controller architecture](controller-architecture.md), agreed 19 October 2026, supersedes the per-System command-AI and individual-delegation model described in earlier implementation receipts. Its [refactoring plan](controller-refactor-plan.md) is **not started**. Current execution/evidence below describes the existing implementation, not completion of that new architecture.
+
 Legacy and named fitted equipment use the same ECS entity model. Each System is
 a Flecs child of its physical ship, with separate applicable engine, steering,
 radar, flight, timed-controller and contextual-controller components. Control

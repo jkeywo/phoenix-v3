@@ -1,5 +1,9 @@
 # Foundation implementation plan
 
+## Agreed next architecture
+
+The [Console Controller architecture](controller-architecture.md), agreed 19 October 2026, supersedes the per-System command-AI and individual-delegation model described in earlier implementation receipts. Its [refactoring plan](controller-refactor-plan.md) is **not started**. Current execution/evidence below describes the existing implementation, not completion of that new architecture.
+
 The approved next gameplay phase is tracked in the
 [gameplay implementation ledger](gameplay-implementation.md). It retains the full
 equipment, power/thermal, Helm, blackboard/publication, System/scenario tree,
