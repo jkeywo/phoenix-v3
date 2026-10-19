@@ -26,6 +26,7 @@ namespace phoenix
 {
 namespace
 {
+#include "editor_controls.hpp"
 std::string tool_label(const std::string &text)
 {
 	return localise(text) + "###" + text;
@@ -225,19 +226,15 @@ void add_map()
 }
 void string_field(const char *label, Json &object, const char *key)
 {
-	std::string value = object.value(key, std::string{});
 	ImGui::TextWrapped("%s", localise(label).c_str());
 	ImGui::SetNextItemWidth(-1);
-	if (ImGui::InputText((std::string("##") + label).c_str(), &value))
-		object[key] = value;
+	edit_field((std::string("##") + label).c_str(), object, key, std::string{});
 }
 void integer_field(const char *label, Json &object, const char *key)
 {
-	std::int64_t value = object.value(key, static_cast<std::int64_t>(0));
 	ImGui::TextWrapped("%s", localise(label).c_str());
 	ImGui::SetNextItemWidth(-1);
-	if (ImGui::InputScalar((std::string("##") + label).c_str(), ImGuiDataType_S64, &value))
-		object[key] = value;
+	edit_field((std::string("##") + label).c_str(), object, key, std::int64_t{0});
 }
 void transform_fields(Json &value)
 {
@@ -994,29 +991,26 @@ void console_editor(const Application &app)
 			                   {"height", 500}});
 		}
 	}
-	int remove = -1;
-	for (std::size_t i = 0; i < widgets.size(); ++i)
-	{
-		auto &widget = widgets[i];
-		ImGui::PushID(static_cast<int>(i));
-		if (ImGui::TreeNode(widget.at("id").get_ref<const std::string &>().c_str()))
-		{
-			string_field("Semantic label", widget, "label");
-			ImGui::TextWrapped("Binding: %s", widget["binding"].get_ref<const std::string &>().c_str());
-			for (const char *key : {"x", "y", "width", "height"})
-			{
-				int value = widget[key];
-				if (ImGui::SliderInt(key, &value, (std::string(key) == "x" || std::string(key) == "y") ? 0 : 1, 1000))
-					widget[key] = value;
-			}
-			if (ImGui::Button(tool_label("Delete widget").c_str()))
-				remove = static_cast<int>(i);
-			ImGui::TreePop();
-		}
-		ImGui::PopID();
-	}
-	if (remove >= 0)
-		widgets.erase(widgets.begin() + remove);
+	array_rows(widgets,
+	           [&](Json &widget, std::size_t)
+	           {
+		           if (ImGui::TreeNode(widget.at("id").get_ref<const std::string &>().c_str()))
+		           {
+			           string_field("Semantic label", widget, "label");
+			           ImGui::TextWrapped("Binding: %s", widget["binding"].get_ref<const std::string &>().c_str());
+			           for (const char *key : {"x", "y", "width", "height"})
+			           {
+				           int value = widget[key];
+				           if (ImGui::SliderInt(key, &value,
+				                                (std::string(key) == "x" || std::string(key) == "y") ? 0 : 1, 1000))
+					           widget[key] = value;
+			           }
+			           const bool remove = ImGui::Button(tool_label("Delete widget").c_str());
+			           ImGui::TreePop();
+			           return remove;
+		           }
+		           return false;
+	           });
 	ImGui::SeparatorText(tool_label("Live Console preview").c_str());
 	ImGui::TextWrapped("Sample data; controls affect only this preview.");
 	static int preview_resolution = 0;
@@ -1055,54 +1049,50 @@ void slots_editor()
 		                     }));
 		slots.push_back({{"id", id}, {"x_mm", 0}, {"y_mm", 0}, {"heading_mdeg", 0}, {"allowed_ships", Json::array()}});
 	}
-	int remove = -1;
-	for (std::size_t i = 0; i < slots.size(); ++i)
-	{
-		auto &slot = slots[i];
-		ImGui::PushID(static_cast<int>(i));
-		if (ImGui::TreeNode(slot["id"].get_ref<const std::string &>().c_str()))
-		{
-			string_field("Name", slot, "id");
-			bool mandatory = slot.value("mandatory", false);
-			if (ImGui::Checkbox(tool_label("Mandatory ship slot").c_str(), &mandatory))
-				slot["mandatory"] = mandatory;
-			transform_fields(slot);
-			ImGui::TextUnformatted("Allowed ships:");
-			for (const auto &entity : editor.document.definitions()["entities"])
-			{
-				std::string id = entity["id"];
-				auto &allowed = slot["allowed_ships"];
-				auto found = std::find(allowed.begin(), allowed.end(), Json(id));
-				bool selected = found != allowed.end();
-				if (ImGui::Checkbox(id.c_str(), &selected))
-				{
-					if (selected)
-						allowed.push_back(id);
-					else
-						allowed.erase(found);
-				}
-			}
-			for (const auto &[id, entity] : editor.document.libraries().entities)
-			{
-				auto &allowed = slot["allowed_ships"];
-				auto found = std::find(allowed.begin(), allowed.end(), Json(id));
-				bool selected = found != allowed.end();
-				if (ImGui::Checkbox(id.c_str(), &selected))
-				{
-					if (selected)
-						allowed.push_back(id);
-					else
-						allowed.erase(found);
-				}
-			}
-			if (ImGui::Button(tool_label("Remove slot").c_str()))
-				remove = static_cast<int>(i);
-			ImGui::TreePop();
-		}
-		ImGui::PopID();
-	}
-	if (remove >= 0)
-		slots.erase(slots.begin() + remove);
+	array_rows(slots,
+	           [&](Json &slot, std::size_t)
+	           {
+		           if (ImGui::TreeNode(slot["id"].get_ref<const std::string &>().c_str()))
+		           {
+			           string_field("Name", slot, "id");
+			           bool mandatory = slot.value("mandatory", false);
+			           if (ImGui::Checkbox(tool_label("Mandatory ship slot").c_str(), &mandatory))
+				           slot["mandatory"] = mandatory;
+			           transform_fields(slot);
+			           ImGui::TextUnformatted("Allowed ships:");
+			           for (const auto &entity : editor.document.definitions()["entities"])
+			           {
+				           std::string id = entity["id"];
+				           auto &allowed = slot["allowed_ships"];
+				           auto found = std::find(allowed.begin(), allowed.end(), Json(id));
+				           bool selected = found != allowed.end();
+				           if (ImGui::Checkbox(id.c_str(), &selected))
+				           {
+					           if (selected)
+						           allowed.push_back(id);
+					           else
+						           allowed.erase(found);
+				           }
+			           }
+			           for (const auto &[id, entity] : editor.document.libraries().entities)
+			           {
+				           auto &allowed = slot["allowed_ships"];
+				           auto found = std::find(allowed.begin(), allowed.end(), Json(id));
+				           bool selected = found != allowed.end();
+				           if (ImGui::Checkbox(id.c_str(), &selected))
+				           {
+					           if (selected)
+						           allowed.push_back(id);
+					           else
+						           allowed.erase(found);
+				           }
+			           }
+			           const bool remove = ImGui::Button(tool_label("Remove slot").c_str());
+			           ImGui::TreePop();
+			           return remove;
+		           }
+		           return false;
+	           });
 }
 void map_view(Application &app)
 {

@@ -23,22 +23,7 @@ namespace phoenix
 {
 namespace
 {
-struct ScopedId
-{
-	explicit ScopedId(const char *value)
-	{
-		ImGui::PushID(value);
-	}
-	explicit ScopedId(int value)
-	{
-		ImGui::PushID(value);
-	}
-	~ScopedId()
-	{
-		ImGui::PopID();
-	}
-	ScopedId(const ScopedId &) = delete;
-};
+#include "editor_controls.hpp"
 struct ScopedTree
 {
 	bool open;
@@ -134,11 +119,7 @@ struct GameplayEditor
 	}
 	bool string(Json &value, const char *key, const char *title = nullptr)
 	{
-		auto field = value.value(key, std::string{});
-		if (!ImGui::InputText(label(title ? title : key).c_str(), &field))
-			return false;
-		value[key] = field;
-		return true;
+		return edit_field(label(title ? title : key).c_str(), value, key, std::string{});
 	}
 	void optional_string(Json &value, const char *key)
 	{
@@ -153,27 +134,15 @@ struct GameplayEditor
 	}
 	bool integer(Json &value, const char *key, std::int64_t fallback = 0)
 	{
-		auto field = value.value(key, fallback);
-		if (!ImGui::InputScalar(label(key).c_str(), ImGuiDataType_S64, &field))
-			return false;
-		value[key] = field;
-		return true;
+		return edit_field(label(key).c_str(), value, key, fallback);
 	}
 	bool boolean(Json &value, const char *key, bool fallback = false)
 	{
-		auto field = value.value(key, fallback);
-		if (!ImGui::Checkbox(label(key).c_str(), &field))
-			return false;
-		value[key] = field;
-		return true;
+		return edit_field(label(key).c_str(), value, key, fallback);
 	}
 	bool decimal(Json &value, const char *key, double fallback)
 	{
-		auto field = value.value(key, fallback);
-		if (!ImGui::InputDouble(label(key).c_str(), &field, 0.01, 0.1, "%.3f"))
-			return false;
-		value[key] = field;
-		return true;
+		return edit_field(label(key).c_str(), value, key, fallback);
 	}
 	void gameplay_panel(Json &owner)
 	{
@@ -301,55 +270,39 @@ struct GameplayEditor
 	}
 	void strings(Json &value, const char *key)
 	{
-		ScopedId id_scope_1(key);
+		ScopedId identity(key);
 		if (ScopedTree scope(label(key).c_str()); scope)
 		{
-			int remove = -1;
 			if (value.contains(key) && value.at(key).is_array())
-				for (std::size_t i = 0; i < value.at(key).size(); ++i)
-				{
-					ScopedId id_scope_2(static_cast<int>(i));
-					auto field = value.at(key)[i].get<std::string>();
-					if (ImGui::InputText(label("Value").c_str(), &field))
-						value[key][i] = field;
-					ImGui::SameLine();
-					if (button("Remove"))
-						remove = static_cast<int>(i);
-				}
-			if (remove >= 0)
-				value[key].erase(value[key].begin() + remove);
+				array_rows(value[key],
+				           [&](Json &row, std::size_t)
+				           {
+					           auto field = row.get<std::string>();
+					           if (edit_value(label("Value").c_str(), field))
+						           row = field;
+					           ImGui::SameLine();
+					           return button("Remove");
+				           });
 			if (button("Add value"))
-			{
-				if (!value.contains(key))
-					value[key] = Json::array();
-				value[key].push_back("");
-			}
+				append_row(value, key, "");
 		}
 	}
 	void numbers(Json &value, const char *key)
 	{
 		ScopedId identity(key);
 		heading(key);
-		int remove = -1;
 		if (value.contains(key))
-			for (std::size_t i = 0; i < value.at(key).size(); ++i)
-			{
-				ScopedId row(static_cast<int>(i));
-				auto number = value.at(key)[i].get<std::int64_t>();
-				if (ImGui::InputScalar(label("Level").c_str(), ImGuiDataType_S64, &number))
-					value[key][i] = number;
-				ImGui::SameLine();
-				if (button("Remove level"))
-					remove = static_cast<int>(i);
-			}
-		if (remove >= 0)
-			value[key].erase(value[key].begin() + remove);
+			array_rows(value[key],
+			           [&](Json &row, std::size_t)
+			           {
+				           auto field = row.get<std::int64_t>();
+				           if (edit_value(label("Level").c_str(), field))
+					           row = field;
+				           ImGui::SameLine();
+				           return button("Remove level");
+			           });
 		if (button("Add level"))
-		{
-			if (!value.contains(key))
-				value[key] = Json::array();
-			value[key].push_back(0);
-		}
+			append_row(value, key, 0);
 	}
 	void records(Json &parent, const char *key, Json prototype, const std::function<void(Json &)> &inspect)
 	{
@@ -363,57 +316,48 @@ struct GameplayEditor
 				prototype["id"] = fresh(parent.at(key), prototype.at("id").get<std::string>());
 			parent[key].push_back(prototype);
 		}
-		int remove = -1;
 		if (parent.contains(key) && parent.at(key).is_array())
-			for (std::size_t i = 0; i < parent.at(key).size(); ++i)
-			{
-				ScopedId id_scope_4(static_cast<int>(i));
-				auto &row = parent[key][i];
-				const auto title =
-				    row.is_object() ? row.value("id", row.value("kind", std::to_string(i + 1))) : std::to_string(i + 1);
-				if (ScopedTree scope((title + "###record").c_str()); scope)
-				{
-					inspect(row);
-					if (button("Move earlier") && i > 0)
-						std::swap(parent[key][i], parent[key][i - 1]);
-					ImGui::SameLine();
-					if (button("Move later") && i + 1 < parent.at(key).size())
-						std::swap(parent[key][i], parent[key][i + 1]);
-					if (button("Remove record"))
-						remove = static_cast<int>(i);
-				}
-			}
-		if (remove >= 0)
-			parent[key].erase(parent[key].begin() + remove);
+			array_rows(parent[key],
+			           [&](Json &row, std::size_t i)
+			           {
+				           const auto title = row.is_object()
+				                                  ? row.value("id", row.value("kind", std::to_string(i + 1)))
+				                                  : std::to_string(i + 1);
+				           if (ScopedTree scope((title + "###record").c_str()); scope)
+				           {
+					           inspect(row);
+					           if (button("Move earlier") && i > 0)
+						           std::swap(parent[key][i], parent[key][i - 1]);
+					           ImGui::SameLine();
+					           if (button("Move later") && i + 1 < parent.at(key).size())
+						           std::swap(parent[key][i], parent[key][i + 1]);
+					           return button("Remove record");
+				           }
+				           return false;
+			           });
 	}
 	void scalar_map(Json &parent, const char *key)
 	{
 		ScopedId id_scope_5(key);
 		heading(key);
 		if (parent.contains(key) && parent.at(key).is_object())
-		{
-			std::string remove;
-			for (auto it = parent[key].begin(); it != parent[key].end(); ++it)
-			{
-				ScopedId id_scope_6(it.key().c_str());
-				if (it.value().is_string())
-					string(parent[key], it.key().c_str());
-				else if (it.value().is_boolean())
-					boolean(parent[key], it.key().c_str());
-				else if (it.value().is_number_integer())
-					integer(parent[key], it.key().c_str());
-				else
-				{
-					ImGui::TextUnformatted(it.key().c_str());
-					text("Structured value is retained; edit its domain inspector.");
-				}
-				ImGui::SameLine();
-				if (button("Remove"))
-					remove = it.key();
-			}
-			if (!remove.empty())
-				parent[key].erase(remove);
-		}
+			object_rows(parent[key],
+			            [&](const std::string &name, Json &row)
+			            {
+				            if (row.is_string())
+					            string(parent[key], name.c_str());
+				            else if (row.is_boolean())
+					            boolean(parent[key], name.c_str());
+				            else if (row.is_number_integer())
+					            integer(parent[key], name.c_str());
+				            else
+				            {
+					            ImGui::TextUnformatted(name.c_str());
+					            text("Structured value is retained; edit its domain inspector.");
+				            }
+				            ImGui::SameLine();
+				            return button("Remove");
+			            });
 		static std::map<std::string, std::string> pending_names;
 		static std::map<std::string, int> pending_types;
 		const auto scope = std::to_string(ImGui::GetID(key));
@@ -1770,20 +1714,16 @@ struct GameplayEditor
 			if (!parent["services"].contains(names[identity]))
 				parent["services"][names[identity]] = {{"kind", "power"}, {"direction", "output"}, {"target", ""}};
 		}
-		std::string remove;
 		if (parent.contains("services"))
-			for (auto it = parent["services"].begin(); it != parent["services"].end(); ++it)
-			{
-				ScopedId scope(it.key().c_str());
-				ImGui::TextUnformatted(it.key().c_str());
-				choice(it.value(), "kind", {"power", "coolant", "information"});
-				choice(it.value(), "direction", {"input", "output"});
-				string(it.value(), "target");
-				if (button("Remove endpoint"))
-					remove = it.key();
-			}
-		if (!remove.empty())
-			parent["services"].erase(remove);
+			object_rows(parent["services"],
+			            [&](const std::string &name, Json &row)
+			            {
+				            ImGui::TextUnformatted(name.c_str());
+				            choice(row, "kind", {"power", "coolant", "information"});
+				            choice(row, "direction", {"input", "output"});
+				            string(row, "target");
+				            return button("Remove endpoint");
+			            });
 	}
 	std::string equipment_kind(const WorkshopDocument &document, const Json &instance) const
 	{
@@ -1866,20 +1806,16 @@ struct GameplayEditor
 				        assembly["services"][service_id] = {{"kind", "power"}, {"direction", "input"}};
 				        service_id.clear();
 			        }
-			        std::string remove_service;
 			        if (assembly.contains("services"))
-				        for (auto it = assembly["services"].begin(); it != assembly["services"].end(); ++it)
-				        {
-					        ScopedId id_scope_24(it.key().c_str());
-					        ImGui::TextUnformatted(it.key().c_str());
-					        choice(it.value(), "kind", {"power", "coolant", "information"});
-					        choice(it.value(), "direction", {"input", "output"});
-					        string(it.value(), "target");
-					        if (button("Remove service"))
-						        remove_service = it.key();
-				        }
-			        if (!remove_service.empty())
-				        assembly["services"].erase(remove_service);
+				        object_rows(assembly["services"],
+				                    [&](const std::string &name, Json &row)
+				                    {
+					                    ImGui::TextUnformatted(name.c_str());
+					                    choice(row, "kind", {"power", "coolant", "information"});
+					                    choice(row, "direction", {"input", "output"});
+					                    string(row, "target");
+					                    return button("Remove service");
+				                    });
 			        if (ScopedTree scope(label("Assembly resource network").c_str()); scope)
 			        {
 				        if (assembly.contains("resources"))
@@ -2164,58 +2100,26 @@ struct GameplayEditor
 			{
 				if (ImGui::BeginTabBar("gameplay-domains"))
 				{
-					for (const auto &[title, inspect] :
-					     std::vector<std::pair<const char *, std::function<void()>>>{{"Systems and ownership",
-					                                                                  [&]
-					                                                                  {
-						                                                                  fitted(document);
-					                                                                  }},
-					                                                                 {"Templates and assemblies",
-					                                                                  [&]
-					                                                                  {
-						                                                                  templates(document);
-					                                                                  }},
-					                                                                 {"Power and cooling",
-					                                                                  [&]
-					                                                                  {
-						                                                                  resources(document);
-					                                                                  }},
-					                                                                 {"Knowledge",
-					                                                                  [&]
-					                                                                  {
-						                                                                  knowledge(document);
-					                                                                  }},
-					                                                                 {"Coordination",
-					                                                                  [&]
-					                                                                  {
-						                                                                  messages(document);
-					                                                                  }},
-					                                                                 {"State trees",
-					                                                                  [&]
-					                                                                  {
-						                                                                  trees(document);
-					                                                                  }},
-					                                                                 {"Scenario",
-					                                                                  [&]
-					                                                                  {
-						                                                                  scenario(document);
-					                                                                  }},
-					                                                                 {"Station presets",
-					                                                                  [&]
-					                                                                  {
-						                                                                  presets(document);
-					                                                                  }},
-					                                                                 {"Test", [&]
-					                                                                  {
-						                                                                  disposable_test(document,
-						                                                                                  status);
-					                                                                  }}})
+					using Inspector = void (GameplayEditor::*)(WorkshopDocument &);
+					for (const auto &[title, inspect] : std::vector<std::pair<const char *, Inspector>>{
+					         {"Systems and ownership", &GameplayEditor::fitted},
+					         {"Templates and assemblies", &GameplayEditor::templates},
+					         {"Power and cooling", &GameplayEditor::resources},
+					         {"Knowledge", &GameplayEditor::knowledge},
+					         {"Coordination", &GameplayEditor::messages},
+					         {"State trees", &GameplayEditor::trees},
+					         {"Scenario", &GameplayEditor::scenario},
+					         {"Station presets", &GameplayEditor::presets},
+					         {"Test", nullptr}})
 					{
 						if (ImGui::BeginTabItem(label(title).c_str()))
 						{
 							try
 							{
-								inspect();
+								if (inspect)
+									(this->*inspect)(document);
+								else
+									disposable_test(document, status);
 							}
 							catch (const std::exception &error)
 							{
