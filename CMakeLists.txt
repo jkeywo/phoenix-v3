@@ -511,6 +511,8 @@ foreach(
 		background.png
 		cockpit-frame.png
 		space-panorama.png
+		menu-debris.png
+		menu-logotype.png
 		nebula-flash-mask.png
 		crt-terminal.png
 		scutter.png

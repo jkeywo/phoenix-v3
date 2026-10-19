@@ -12,6 +12,12 @@ export function canvasPoint(rect, width, height, rotated, clientX, clientY) {
 		? [((clientY - rect.top) * width) / rect.height, ((rect.right - clientX) * height) / rect.width]
 		: [((clientX - rect.left) * width) / rect.width, ((clientY - rect.top) * height) / rect.height];
 }
+export function menuMotion(width, height, period = 720) {
+	const tile = Math.max(height * 3, width / 2),
+		logoWidth = Math.min(300, Math.max(180, width - 740));
+	const backgroundSpeed = (2 * tile) / period;
+	return { logoWidth, logoDuration: (width + logoWidth) / (4 * backgroundSpeed) };
+}
 if (typeof document !== "undefined") {
 	const fit = () => {
 		const v = viewportLayout(window.innerWidth, window.innerHeight, document.body.classList.contains("running"));
@@ -34,6 +40,13 @@ if (typeof document !== "undefined") {
 		});
 		document.documentElement.style.setProperty("--stage-width", `${v.width}px`);
 		document.documentElement.style.setProperty("--stage-height", `${v.height}px`);
+		const motion = menuMotion(
+			v.width,
+			v.height,
+			Number(getComputedStyle(document.documentElement).getPropertyValue("--pan-seconds")) || 720,
+		);
+		document.documentElement.style.setProperty("--logo-width", `${motion.logoWidth}px`);
+		document.documentElement.style.setProperty("--logo-duration", `${motion.logoDuration}s`);
 	};
 	window.addEventListener("resize", fit);
 	fit();
@@ -167,7 +180,15 @@ export function skinProperties(sidecar, scale) {
 }
 export function sceneProperties(scene) {
 	if (scene.schema !== 1 || scene.panorama?.repeat !== "mirror-x") throw Error("Invalid menu scene.");
-	for (const asset of [scene.panorama, scene.foreground, scene.terminal, scene.flash, scene.scutter]) {
+	for (const asset of [
+		scene.panorama,
+		scene.foreground,
+		scene.terminal,
+		scene.flash,
+		scene.scutter,
+		scene.debris,
+		scene.logotype,
+	]) {
 		if (
 			!/^[a-z0-9.-]+\.png$/.test(asset?.file) ||
 			!Array.isArray(asset.size) ||
@@ -238,6 +259,10 @@ export function sceneProperties(scene) {
 		"--menu-crt": `url("assets/menu/${scene.terminal.file}?v=weathered-2")`,
 		"--menu-scutter": `url("assets/menu/${robot.file}")`,
 		"--pan-period": period + "s",
+		"--pan-seconds": String(period),
+		"--debris-period": period / 1.5 + "s",
+		"--menu-debris": `url("assets/menu/${scene.debris.file}?v=small-scatter-1")`,
+		"--menu-logotype": `url("assets/menu/${scene.logotype.file}?v=trail-1")`,
 		"--pan-start": String(-2 * phase),
 		"--pan-end": String(-2 * phase - 2),
 		"--crt-aspect": width + " / " + height,
@@ -1488,11 +1513,12 @@ async function boot() {
 			...["button-generic-9slice", "helm-background-9slice"].map((name) =>
 				fetch(`assets/menu/${name}.sprite.json`).then((r) => r.json()),
 			),
-			fetch("assets/menu/menu-scene.json?v=portrait-1").then((r) => r.json()),
+			fetch("assets/menu/menu-scene.json?v=parallax-1").then((r) => r.json()),
 		]);
 		translations = data[0].languages.en;
 		for (const [name, value] of Object.entries(sceneProperties(data[3])))
 			document.documentElement.style.setProperty(name, value);
+		window.dispatchEvent(new Event("resize"));
 		nebulaFlashes = flashBackdrop(data[3].flash);
 		menuAmbient = ambientMenu(data[3]);
 		for (const [index, prefix, scale] of [

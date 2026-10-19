@@ -7,7 +7,10 @@
 		"period_seconds": 720,
 		"initial_phase": 0.12
 	},
-	"foreground": { "file": "cockpit-frame.png", "size": [1672, 941] },
+	"foreground": {
+		"file": "cockpit-frame.png",
+		"size": [1672, 941]
+	},
 	"flash": {
 		"file": "nebula-flash-mask.png",
 		"size": [2172, 724],
@@ -23,14 +26,30 @@
 		"size": [1122, 1402],
 		"invitation_crop_top": 400,
 		"display_width": 306,
-		"screen": { "x": 340, "y": 550, "width": 424, "height": 562 }
+		"screen": {
+			"x": 340,
+			"y": 550,
+			"width": 424,
+			"height": 562
+		}
 	},
-	"flicker": { "interval_seconds": [15, 40], "duration_seconds": 0.28 },
+	"flicker": {
+		"interval_seconds": [15, 40],
+		"duration_seconds": 0.28
+	},
 	"scutter": {
 		"file": "scutter.png",
 		"size": [1448, 1086],
 		"interval_seconds": [40, 60],
 		"fast_crossing_seconds": [4, 6],
 		"slow_crossing_seconds": [12, 18]
+	},
+	"debris": {
+		"file": "menu-debris.png",
+		"size": [2170, 725]
+	},
+	"logotype": {
+		"file": "menu-logotype.png",
+		"size": [1536, 1024]
 	}
 }

@@ -35,12 +35,13 @@ struct NativeMenuScreen::State
 	bool export_save = false, advanced = false, opened_runtime = false;
 	std::weak_ptr<SessionPort> owner;
 	Application::MenuBranch shown_branch = Application::MenuBranch::root;
-	float column_offset = 0;
+	float column_offset = 24;
 	bool button_enabled = true;
 	MenuSkin button_skin;
 	std::map<std::string, std::function<void()>> actions;
 	Texture2D join_qr{};
-	Texture2D panorama{};
+	Texture2D panorama{}, debris{}, debris_light{};
+	double debris_phase = .12, logo_elapsed = 0;
 	Texture2D flash_overlay{};
 	MenuFlash flash;
 	MenuAmbient ambient;
@@ -80,6 +81,10 @@ struct NativeMenuScreen::State
 			UnloadTexture(join_qr);
 		if (panorama.id)
 			UnloadTexture(panorama);
+		if (debris.id)
+			UnloadTexture(debris);
+		if (debris_light.id)
+			UnloadTexture(debris_light);
 		if (flash_overlay.id)
 			UnloadTexture(flash_overlay);
 	}
@@ -1200,14 +1205,21 @@ struct NativeMenuScreen::State
 		}
 		if (auto *title = document.GetElementById("menu-title"))
 		{
-			title->SetProperty("top", compact ? "24px" : "30px");
-			title->SetProperty("font-size", compact ? "38px" : "56px");
+			const float logo_width = std::min(300.f, std::max(180.f, region.width - 740.f));
+			const double speed = 4 * std::max(region.height * 3.f, region.width / 2) / panorama_period;
+			const double left = app.reduced_motion ? (region.width - logo_width) / 2
+			                                       : std::max(double((region.width - logo_width) / 2),
+			                                                  region.width - logo_elapsed * speed);
+			title->SetProperty("top", "0px");
+			title->SetProperty("left", std::to_string(left) + "px");
+			title->SetProperty("width", std::to_string(logo_width) + "px");
+			title->SetProperty("height", std::to_string(logo_width * 2 / 3) + "px");
 		}
 		const float reserved_right = 0.f;
 		if (auto *viewport = document.GetElementById("menu-viewport"))
 		{
 			viewport->SetProperty("right", std::to_string(reserved_right) + "px");
-			viewport->SetProperty("top", branch != Branch::root ? "200px" : "120px");
+			viewport->SetProperty("top", branch != Branch::root ? "200px" : "160px");
 		}
 		for (const auto &input : app.screen_inputs)
 			if (auto *field = dynamic_cast<Rml::ElementFormControl *>(document.GetElementById(input.id)))
@@ -1218,7 +1230,7 @@ struct NativeMenuScreen::State
 		                    : branch == Branch::root      ? 1
 		                                                  : 2;
 		const float column_width = std::min(320.f, (region.width - reserved_right - 48.f) / columns);
-		const float target = columns == 1 ? (region.width - column_width + 20.f) / 2 : 24.f;
+		const float target = 24.f;
 		column_offset += (target - column_offset) * (app.reduced_motion ? 1.f : std::min(1.f, GetFrameTime() * 18.f));
 		if (auto *columns_element = document.GetElementById("menu-columns"))
 		{
@@ -1311,7 +1323,11 @@ void NativeMenuScreen::draw_backdrop(const Application &app, Rml::ElementDocumen
 	if (height <= 0 || width <= 0)
 		return;
 	if (!app.reduced_motion)
+	{
 		state_->panorama_phase = std::fmod(state_->panorama_phase + GetFrameTime() / state_->panorama_period, 1.0);
+		state_->debris_phase = std::fmod(state_->debris_phase + GetFrameTime() * 1.5 / state_->panorama_period, 1.0);
+		state_->logo_elapsed += GetFrameTime();
+	}
 	const auto texture = state_->panorama;
 	const float tile = std::max(height * texture.width / texture.height, width / 2);
 	const float offset = static_cast<float>(state_->panorama_phase * 2 * tile);
@@ -1332,6 +1348,26 @@ void NativeMenuScreen::draw_backdrop(const Application &app, Rml::ElementDocumen
 			                static_cast<float>(texture.height)},
 			               {at.x + index * tile - offset, at.y, tile, height}, {0, 0}, 0, Fade(WHITE, flash));
 		EndBlendMode();
+	}
+	if (state_->debris.id)
+	{
+		const auto debris = state_->debris;
+		const float drift = static_cast<float>(state_->debris_phase * 2 * tile);
+		for (int index = 0; index * tile - drift < width; ++index)
+		{
+			Rectangle source{0, 0, float(index % 2 ? -debris.width : debris.width), float(debris.height)};
+			Rectangle destination{at.x + index * tile - drift, at.y, tile, height};
+			if (flash > 0 && state_->debris_light.id)
+			{
+				BeginBlendMode(BLEND_ADDITIVE);
+				for (const auto delta : {Vector2{-2, 0}, Vector2{2, 0}, Vector2{0, -2}, Vector2{0, 2}})
+					DrawTexturePro(state_->debris_light, source,
+					               {destination.x + delta.x, destination.y + delta.y, tile, height}, {0, 0}, 0,
+					               Fade(WHITE, flash * .045f));
+				EndBlendMode();
+			}
+			DrawTexturePro(debris, source, destination, {0, 0}, 0, WHITE);
+		}
 	}
 	EndScissorMode();
 }
@@ -1470,7 +1506,7 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 	const auto scene = parse_json(read_file(asset_directory + "/menu/menu-scene.json", 64 * 1024), "menu scene");
 	if (scene.at("schema") != 1 || scene.at("panorama").at("repeat") != "mirror-x")
 		throw std::runtime_error("Unsupported menu scene");
-	for (const auto *part : {"panorama", "foreground", "terminal", "flash", "scutter"})
+	for (const auto *part : {"panorama", "foreground", "terminal", "flash", "scutter", "debris", "logotype"})
 	{
 		const auto &asset = scene.at(part);
 		const auto file = asset.at("file").get<std::string>();
@@ -1486,6 +1522,22 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 				UnloadTexture(state_->panorama);
 			state_->panorama = LoadTextureFromImage(image);
 			SetTextureFilter(state_->panorama, TEXTURE_FILTER_BILINEAR);
+		}
+		if (valid && std::string(part) == "debris")
+		{
+			if (state_->debris.id)
+				UnloadTexture(state_->debris);
+			if (state_->debris_light.id)
+				UnloadTexture(state_->debris_light);
+			state_->debris = LoadTextureFromImage(image);
+			auto *pixels = LoadImageColors(image);
+			for (int i = 0; i < image.width * image.height; ++i)
+				pixels[i] = Color{223, 205, 166, pixels[i].a};
+			Image rim{pixels, image.width, image.height, 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8};
+			state_->debris_light = LoadTextureFromImage(rim);
+			UnloadImageColors(pixels);
+			SetTextureFilter(state_->debris, TEXTURE_FILTER_BILINEAR);
+			SetTextureFilter(state_->debris_light, TEXTURE_FILTER_BILINEAR);
 		}
 		UnloadImage(image);
 		if (!valid)
@@ -1525,6 +1577,7 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 	UnloadImage(mask_image);
 	state_->panorama_period = scene.at("panorama").at("period_seconds").get<double>();
 	state_->panorama_phase = scene.at("panorama").at("initial_phase").get<double>();
+	state_->debris_phase = state_->panorama_phase;
 	if (!std::isfinite(state_->panorama_period) || state_->panorama_period <= 0 ||
 	    !std::isfinite(state_->panorama_phase) || state_->panorama_phase < 0 || state_->panorama_phase >= 1)
 		throw std::runtime_error("Invalid menu panorama timing");
@@ -1538,6 +1591,9 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 	std::string styles = state_->button_skin.sprite_sheet("menu-button") + panel.sprite_sheet("menu-panel");
 	styles += "#native-menu { background:transparent; decorator:image(menu/" +
 	          scene.at("foreground").at("file").get<std::string>() + " cover); }\n";
+	styles +=
+	    "#native-menu #menu-title { color:transparent; font-size:1px; pointer-events:none; decorator:image(menu/" +
+	    scene.at("logotype").at("file").get<std::string>() + " contain); }\n";
 	styles += ".menu-crt { decorator:image(menu/" + terminal.at("file").get<std::string>() + " contain); }\n";
 	styles += "#menu-scutter { position:absolute; pointer-events:none; decorator:image(menu/" +
 	          scene.at("scutter").at("file").get<std::string>() + " contain); }\n";

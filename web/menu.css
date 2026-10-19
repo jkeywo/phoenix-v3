@@ -105,6 +105,7 @@ button.selected {
 	isolation: isolate;
 }
 #menu-space,
+#menu-debris,
 #menu-frame {
 	position: absolute;
 	inset: 0;
@@ -124,7 +125,7 @@ button.selected {
 	opacity: var(--crt-opacity, 1);
 }
 .space-track {
-	--tile: max(300vh, 50vw);
+	--tile: max(calc(var(--stage-height) * 3), calc(var(--stage-width) * 0.5));
 	display: flex;
 	width: calc(var(--tile) * 4);
 	height: 100%;
@@ -278,7 +279,7 @@ p {
 	padding: 0 24px;
 }
 .columns.root {
-	justify-content: center;
+	justify-content: flex-start;
 }
 .column {
 	flex: 0 0 clamp(230px, calc((100vw - 108px) / 4), 300px);
@@ -618,7 +619,7 @@ body.compact #viewport {
 	bottom: 60px;
 }
 body.compact .columns {
-	justify-content: center;
+	justify-content: flex-start;
 }
 body.compact .columns .column:not(:last-child) {
 	display: none;
@@ -643,4 +644,71 @@ body.compact .avatar-choice img {
 }
 body.compact .avatar-choices {
 	margin: 8px 0;
+}
+
+/* Debris shares the panorama's tile geometry, with an independent faster loop. */
+.debris-track {
+	animation-duration: var(--debris-period);
+}
+.debris-track i {
+	background: none;
+}
+.debris-track i::before,
+.debris-track i::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+}
+.debris-track i::before {
+	background: #dfcda6;
+	mask: var(--menu-debris) center / 100% 100% no-repeat;
+	filter: blur(2px);
+	opacity: calc(var(--nebula-flash, 0) * 0.18);
+}
+.debris-track i::after {
+	background: var(--menu-debris) center / 100% 100%;
+	mask: none;
+	mix-blend-mode: normal;
+	opacity: 1;
+}
+#title {
+	top: 0;
+	left: 50%;
+	width: var(--logo-width);
+	height: calc(var(--logo-width) * 2 / 3);
+	color: transparent;
+	font-size: 1px;
+	pointer-events: none;
+	background: var(--menu-logotype) center / contain no-repeat;
+	transform: translateX(-50%);
+	animation: title-arrival var(--logo-duration) linear both;
+}
+@keyframes title-arrival {
+	from {
+		transform: translateX(calc(var(--stage-width) / 2));
+	}
+	to {
+		transform: translateX(-50%);
+	}
+}
+#viewport {
+	top: 160px;
+}
+body.reduced-motion #title {
+	animation: none;
+}
+body.reduced-motion .debris-track i::before {
+	opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+	#title {
+		animation: none;
+	}
+	.debris-track i::before {
+		opacity: 0;
+	}
+}
+
+body.reduced-motion .debris-track i::after {
+	opacity: 1;
 }
