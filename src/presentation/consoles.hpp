@@ -115,7 +115,8 @@ h1 {font-size:26px;display:inline-block;margin:0 18px 8px 0;}
 h2 {font-size:20px;display:block;margin:4px 0;}
 button {display:inline-block;padding:10px;margin:4px;border:1px #9c8b68;background:#222b2b;color:#f0e3c2;}
 button:hover,button:focus {background:#455458;border-color:#ec9c52;}
-#toolbar {position:absolute;left:5%;top:4%;right:5%;height:85px;overflow:auto;}
+#toolbar {position:absolute;left:20px;top:18px;right:20px;height:85px;overflow:visible;z-index:2;}
+#toolbar h1 {margin-left:76px;}
 #connection-status {font-size:15px;}
 #widgets {position:absolute;left:4%;right:4%;top:125px;bottom:4%;}
 #gameplay {position:absolute;left:60%;right:4%;top:125px;bottom:4%;overflow:auto;background:#0b1719ee;border:1px #988b71;padding:8px;display:none;}
@@ -138,9 +139,9 @@ p {display:block;font-size:17px;margin:4px 0;}
 .ready-card input {display:block;width:90%;height:40px;background:#211f1a;color:#fff0d4;margin:10px 0;}
 .profile-tv {position:absolute;right:20px;top:0;width:264px;height:330px;background:transparent;border:0px;padding:0px;}
 .profile-tv img,.avatar-choice img {pointer-events:none;}
-.settings-cog {width:56px;height:56px;padding:0px;background:transparent;border:0px;}
-.settings-cog img {pointer-events:none;}
-.helm #toolbar {left:4%;top:4%;right:auto;height:64px;overflow:visible;z-index:2;}
+.settings-cog {position:absolute;left:0;top:0;width:64px;height:64px;margin:0;padding:0px;background:transparent;border:2px transparent;}
+.settings-cog img {position:absolute;left:4px;top:4px;width:54px;height:54px;pointer-events:none;}
+.helm #toolbar {right:auto;height:64px;}
 .helm #toolbar h1,.helm #connection-status,.helm .radar-widget h2,.helm .heading-widget h2,.helm .heading-widget label,.helm .heading-widget p {display:none;}
 .helm .dial {left:0;right:0;top:0;bottom:0;}
 .helm .radar-widget button,.helm .heading-value {opacity:0;}

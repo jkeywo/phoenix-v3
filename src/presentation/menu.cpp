@@ -1566,8 +1566,9 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
     #native-menu button:active, #native-menu button.menu-selected { image-color:#ffb668; border-color:#f58330; background:#21170c; }
     #native-menu button:disabled { opacity:0.48; image-color:#b9b3a7; border-color:transparent; background:transparent; color:#ddd4c0; }
     .menu-button-label { display:block; position:relative; pointer-events:none; }
-    #native-menu .menu-top { width:184px; }
-    #native-menu .menu-top button.menu-skinned { decorator:none; padding:18px 8px 18px 64px; }
+    #native-menu .menu-top { width:64px; }
+    #native-menu .menu-top button.menu-skinned { decorator:none; padding:0; width:64px; height:64px; margin:0; }
+    #native-menu .menu-top .menu-button-label { display:none; }
     .menu-settings-icon { position:absolute; left:4px; top:4px; width:54px; height:54px; decorator:image(menu/settings.png contain); pointer-events:none; }
     #native-menu .settings-tabs { display:flex; flex-wrap:wrap; margin-bottom:16px; }
     #native-menu .settings-tabs button { flex:1 0 110px; width:auto; min-height:48px; font-size:16px; padding:8px; margin:0 4px 4px 0; }
@@ -1593,14 +1594,15 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
     #native-menu .pack-row p { flex-grow:1; width:45%; }
     #native-menu .pack-row button.menu-skinned { decorator:none; width:44px; min-height:44px; padding:4px; margin:0 4px; }
     #native-menu .lobby-panel input { width:100%; box-sizing:border-box; height:40px; margin:6px 0 12px; }
-    #native-menu .modal-shade { background:#080705dd; }
+    #native-menu .modal-shade { z-index:10; background:#080705dd; }
     #native-menu scrollbarhorizontal, #native-menu scrollbarvertical { background:#1b1915; }
     #native-menu scrollbarhorizontal sliderbar, #native-menu scrollbarvertical sliderbar { background:#c7b895; }
     #native-menu input { background:#211f1a; color:#fff0d4; border-color:#a99875; }
     #native-menu .audio-volume slidertrack { background:#60513a; }
     #native-menu .audio-volume sliderbar { background:#e1893c; border-color:#fff0d4; }
     .menu-crt { display:block; position:relative; flex-shrink:0; }
-    #menu-profile { position:absolute; top:0; right:20px; border:0px; background:transparent; padding:0px; }
+    #menu-profile { position:absolute; top:0; right:20px; z-index:3; border:0px; background:transparent; padding:0px; }
+    #menu-profile .crt-screen, #menu-profile .crt-avatar, #menu-profile .crt-name { pointer-events:none; }
     .crt-screen { position:absolute; display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:hidden; color:#cbe4c5; }
     .crt-avatar { display:block; width:100%; height:85%; flex-shrink:0; text-align:center; background:#15231a; color:#cbe4c5; }
     #native-menu .crt-name { display:block; width:100%; height:15%; text-align:center; font-size:1em; margin:0; overflow:hidden; background:#101918; }

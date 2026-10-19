@@ -496,9 +496,30 @@ body {
 }
 #profile-crt {
 	pointer-events: auto;
+	z-index: 3;
 	border: 0;
 	padding: 0;
 	background-color: transparent;
+}
+#profile-crt .crt-screen {
+	pointer-events: none;
+}
+#settings {
+	width: 64px;
+	height: 64px;
+	padding: 0;
+	top: 18px;
+	left: 20px;
+}
+#settings img {
+	position: absolute;
+	left: 4px;
+	top: 4px;
+	width: 54px;
+	height: 54px;
+}
+#settings span {
+	display: none;
 }
 #viewport {
 	overflow-x: hidden;
