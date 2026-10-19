@@ -32,7 +32,7 @@ void verify_tree(const Json &tree, const std::string &source)
 			if (key == "ticks" || key == "next")
 				continue;
 			auto spec = operating_action(key);
-			if (!spec)
+			if (!spec || spec->action > OperatingAction::RadarEnabled)
 				throw std::runtime_error(source + ": unsupported state output '" + key + "'");
 			if (spec->boolean)
 			{
@@ -42,7 +42,8 @@ void verify_tree(const Json &tree, const std::string &source)
 			else
 			{
 				if (!field.value().is_number_integer() ||
-				    !operating_value_valid(*spec, field.value().get<std::int64_t>()))
+				    (field.value().get<std::int64_t>() < 0 ||
+				     !operating_value_valid(*spec, field.value().get<std::int64_t>())))
 					throw std::runtime_error(source + ": invalid " + key);
 			}
 		}

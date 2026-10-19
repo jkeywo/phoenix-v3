@@ -1,5 +1,6 @@
 module;
 #include <chrono>
+#include <algorithm>
 #include <deque>
 #include <cstdint>
 #include <map>
@@ -448,13 +449,45 @@ public:
 		if (options_.inspector || !observation_ || !quorum_ || !profile_durable_ ||
 		    command.target != observation_->own.id)
 			return false;
+		// Semantic/meta commands are authored by the server and carry no public
+		// free-form command language. Admit only an exact current descriptor.
+		bool projected = false;
+		const auto controls = observation_->gameplay.find("controls");
+		if (controls != observation_->gameplay.end() && controls->is_array())
+			for (const auto &descriptor : *controls)
+				if (descriptor.is_object() && descriptor.contains("id") && descriptor.at("id").is_string() &&
+				    !descriptor.at("id").get_ref<const std::string &>().empty() &&
+				    descriptor.at("id").get_ref<const std::string &>().size() <= 256 && descriptor.contains("action") &&
+				    descriptor.at("action") == command.action &&
+				    descriptor.value("system", Json("")) == command.system && descriptor.contains("value") &&
+				    descriptor.at("value").is_number_integer() && descriptor.at("value") == command.value &&
+				    (!descriptor.contains("enabled") || descriptor.at("enabled") == true))
+					projected = true;
 		const auto *spec = operating_action(command.action);
-		if (!spec || !operating_value_valid(*spec, command.value) ||
-		    !select_system(observation_->systems, spec->system, command.system))
+		if ((!spec && !projected) || (spec && !operating_value_valid(*spec, command.value)))
 			return false;
+		auto system = command.system;
+		if (spec)
+		{
+			if (system.empty())
+			{
+				const auto selected = select_system(observation_->systems, spec->system);
+				if (!selected)
+					return false;
+				system = *selected;
+			}
+			else if (!projected && std::none_of(observation_->systems.begin(), observation_->systems.end(),
+			                                    [&](const SystemView &value)
+			                                    {
+				                                    return value.id == system && value.controlled;
+			                                    }))
+				return false;
+		}
+		// The authoritative World still validates capability, dynamic conditions,
+		// ownership and the lease when this ordinary request is committed.
 		return send("command", {{"target", command.target},
 		                        {"action", command.action},
-		                        {"system", command.system},
+		                        {"system", system},
 		                        {"value", command.value},
 		                        {"lease", lease_},
 		                        {"sequence", ++sequence_}});

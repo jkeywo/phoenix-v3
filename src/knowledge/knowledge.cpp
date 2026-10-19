@@ -148,6 +148,7 @@ Json encode_message(const CoordinationMessage &message)
 	        {"delay", v.delay},
 	        {"expires", v.expires_tick},
 	        {"request", v.request_key},
+	        {"human_seeking", v.human_seeking},
 	        {"sent", message.sent_tick},
 	        {"delivery", message.delivery_tick},
 	        {"recipients", message.recipients}};
@@ -169,6 +170,7 @@ CoordinationMessage decode_message(const Json &j)
 	m.value.delay = read_unsigned<KnowledgeTick>(j.at("delay"));
 	m.value.expires_tick = read_unsigned<KnowledgeTick>(j.at("expires"));
 	m.value.request_key = read_unsigned<KnowledgeId>(j.at("request"));
+	m.value.human_seeking = j.value("human_seeking", false);
 	m.sent_tick = read_unsigned<KnowledgeTick>(j.at("sent"));
 	m.delivery_tick = read_unsigned<KnowledgeTick>(j.at("delivery"));
 	m.recipients = read_unsigned_vector<KnowledgeId>(j.at("recipients"));
@@ -457,7 +459,7 @@ std::vector<KnowledgeId> KnowledgeRuntime::resolve_recipients(KnowledgeId ship, 
 		for (const auto &[id, binding] : consoles_)
 			if (binding.ship == ship && binding.station == destination.id)
 				recipients.push_back(id);
-		require(recipients.size() == 1, "unknown or ambiguous destination Station; target a Console explicitly");
+		require(!recipients.empty(), "unknown destination Station");
 		break;
 	case MessageDestinationKind::Ship:
 		require(destination.id == ship, "inter-ship Coordination is unsupported");
@@ -531,19 +533,29 @@ std::vector<CoordinationDelivery> KnowledgeRuntime::advance(KnowledgeTick tick)
 			continue;
 		if (message.value.expires_tick != 0 && tick >= message.value.expires_tick)
 			continue;
+		std::map<KnowledgeId, bool> targets;
 		for (const auto console : message.recipients)
+			targets.emplace(console, false);
+		if (message.value.human_seeking)
+			for (const auto &[id, binding] : consoles_)
+				if (binding.ship == message.sender_ship && binding.human_controlled &&
+				    readable(id, message.value.payload.schema))
+					targets.try_emplace(id, true);
+		for (const auto &[console, offer_only] : targets)
 		{
 			if (!readable(console, message.value.payload.schema))
 				continue;
-			write_console(console, message.value.payload, tick);
+			if (!offer_only)
+				write_console(console, message.value.payload, tick);
 			const auto &v = message.value;
 			const auto addressed_human = v.destination.kind == MessageDestinationKind::System
 			                                 ? system_human_.at(v.destination.id)
 			                                 : consoles_.at(console).human_controlled;
-			const auto notify = addressed_human && consoles_.at(console).human_controlled &&
+			const auto notify = (addressed_human || v.human_seeking) && consoles_.at(console).human_controlled &&
 			                    !(v.origin == ControlOrigin::Human && v.presentation.automatic);
 			require(next_delivery_ < std::numeric_limits<KnowledgeId>::max(), "delivery identity exhausted");
 			CoordinationDelivery delivery{next_delivery_++, console, message, tick, notify};
+			delivery.offer_only = offer_only;
 			deliveries_.push_back(delivery);
 			result.push_back(std::move(delivery));
 		}
@@ -586,8 +598,31 @@ std::vector<CoordinationDelivery> KnowledgeRuntime::receive(KnowledgeId ai)
 	std::erase_if(result,
 	              [](const auto &delivery)
 	              {
-		              return !delivery.actionable;
+		              return !delivery.actionable || delivery.offer_only;
 	              });
+	return result;
+}
+std::vector<CoordinationMessage> KnowledgeRuntime::pending_messages(std::size_t limit) const
+{
+	limit = std::min(limit, std::size_t{256});
+	std::vector<CoordinationMessage> result;
+	if (limit == 0)
+		return result;
+	result.reserve(std::min(limit, pending_.size()));
+	const auto before = [](const auto &a, const auto &b)
+	{
+		return std::pair{a.delivery_tick, a.id} < std::pair{b.delivery_tick, b.id};
+	};
+	for (const auto &message : pending_)
+	{
+		const auto position =
+		    static_cast<std::size_t>(std::lower_bound(result.begin(), result.end(), message, before) - result.begin());
+		if (position >= limit)
+			continue;
+		if (result.size() == limit)
+			result.pop_back();
+		result.insert(result.begin() + static_cast<std::ptrdiff_t>(position), message);
+	}
 	return result;
 }
 bool KnowledgeRuntime::status_change(KnowledgeId producer, KnowledgeKey status, bool value, KnowledgeTick tick,
@@ -693,6 +728,7 @@ Json KnowledgeRuntime::save() const
 		j["deliveries"].push_back({{"sequence", delivery.sequence},
 		                           {"console", delivery.console},
 		                           {"tick", delivery.delivered_tick},
+		                           {"offer_only", delivery.offer_only},
 		                           {"message", encode_message(delivery.message)}});
 	for (const auto &[key, latch] : status_)
 		j["status"].push_back({{"producer", key.first},
@@ -857,6 +893,7 @@ void KnowledgeRuntime::restore(const Json &j)
 		CoordinationDelivery d{read_unsigned<KnowledgeId>(v.at("sequence")),
 		                       read_unsigned<KnowledgeId>(v.at("console")), decode_message(v.at("message")),
 		                       read_unsigned<KnowledgeTick>(v.at("tick")), false};
+		d.offer_only = v.value("offer_only", false);
 		check_message(d.message);
 		require(delivered_recipients.insert({d.message.id, d.console}).second,
 		        "duplicate saved message delivery to Console");
@@ -868,10 +905,15 @@ void KnowledgeRuntime::restore(const Json &j)
 			check_id(d.message.id);
 			message_versions[d.message.id] = encode_message(d.message);
 		}
+		const bool addressed = std::find(d.message.recipients.begin(), d.message.recipients.end(), d.console) !=
+		                       d.message.recipients.end();
+		require(restored.consoles_.contains(d.console), "saved delivery Console is unknown");
+		const bool valid_offer = d.offer_only && !addressed && d.message.value.human_seeking &&
+		                         restored.consoles_.at(d.console).ship == d.message.sender_ship &&
+		                         restored.readable(d.console, d.message.value.payload.schema);
 		require(d.sequence > previous_sequence && d.sequence < restored.next_delivery_ &&
-		            std::find(d.message.recipients.begin(), d.message.recipients.end(), d.console) !=
-		                d.message.recipients.end() &&
-		            d.delivered_tick >= d.message.delivery_tick && d.delivered_tick <= restored.current_tick_ &&
+		            (d.offer_only ? valid_offer : addressed) && d.delivered_tick >= d.message.delivery_tick &&
+		            d.delivered_tick <= restored.current_tick_ &&
 		            (d.message.value.expires_tick == 0 || d.delivered_tick < d.message.value.expires_tick),
 		        "invalid saved delivery");
 		previous_sequence = d.sequence;

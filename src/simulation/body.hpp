@@ -69,6 +69,9 @@ struct FittedRuntime
 	std::optional<Radar> radar;
 	std::optional<Controller> controller;
 	bool held = false;
+	bool advanced = false;
+	bool enabled = true;
+	std::int64_t maximum = 0;
 };
 // Numeric settings/state compile once at load. Processing uses Flecs queries;
 // strings are used only by command, observation and persistence boundaries.
@@ -81,6 +84,11 @@ struct CollisionBody : Pose, Motion, Collider
 {
 };
 void collide(CollisionBody &a, CollisionBody &b);
+// Sweep the actual circle/rotated-box shapes over relative translation. On a
+// hit, stop both at first contact and apply the ordinary collision response.
+std::optional<std::int64_t> sweep_contact_time(const CollisionBody &a, const CollisionBody &b, fixed::Vec start_a,
+                                               fixed::Vec start_b);
+bool sweep_collide(CollisionBody &a, CollisionBody &b, fixed::Vec start_a, fixed::Vec start_b);
 // Schema-1 boundary records, never queried by simulation systems.
 struct SavedBody : Pose, Motion
 {

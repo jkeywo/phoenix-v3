@@ -16,6 +16,7 @@ using ResourceIndex = std::uint32_t;
 inline constexpr ResourceIndex no_resource = std::numeric_limits<ResourceIndex>::max();
 inline constexpr ResourceAmount resource_limit = 1000000000000LL;
 inline constexpr ResourceAmount resource_tick_hz = 20;
+inline constexpr ResourceAmount resource_work_unit = resource_tick_hz * 1000;
 
 struct ResourceStoreDefinition
 {
@@ -87,6 +88,10 @@ struct ResourceStoreState
 	ResourceAmount loss_remainder = 0, charge_heat_remainder = 0, operation_heat_remainder = 0;
 	ResourceAmount depletion_heat_remainder = 0, passive_remainder = 0, stress_remainder = 0;
 	ResourceAmount overdrive_heat_remainder = 0;
+	ResourceAmount overdrive_request_remainder = 0;
+	// Prepaid continuous work in 1/resource_work_unit energy units. Negative
+	// values occur only while settling a legacy saved fractional liability.
+	ResourceAmount work_credit = 0;
 	bool enabled = true, thermal_stop = false, overdrive = false, thermal_override = false;
 };
 struct ResourceGeneratorState
@@ -109,6 +114,7 @@ struct ResourceLinkState
 struct CoolantSourceState
 {
 	ResourceAmount remaining = 0, consumption_remainder = 0;
+	ResourceAmount last_heat_removed = 0, last_consumed = 0;
 };
 struct CoolingLinkState
 {
@@ -119,13 +125,20 @@ struct ResourceStoreTelemetry
 {
 	ResourceAmount requested = 0, accepted_incoming = 0, outgoing = 0, generated = 0;
 	ResourceAmount consumed = 0, lost = 0, heat_added = 0, heat_removed = 0;
+	ResourceAmount work_requested = 0, work_funded = 0;
 	bool discrete_paid = false, limited = false;
 };
 struct ResourceForecast
 {
 	// -1 means no depletion/thermal stop predicted under the stated constant-rate assumptions.
 	ResourceAmount depletion_ticks = -1, thermal_stop_ticks = -1;
+	ResourceAmount full_ticks = -1, thermal_recovery_ticks = -1;
 	ResourceAmount observed_net_energy = 0, observed_net_heat = 0;
+	bool constant_last_tick_rates = true, excludes_future_commands_and_network_changes = true;
+};
+struct CoolantForecast
+{
+	ResourceAmount depletion_ticks = -1, observed_heat_removed = 0, observed_coolant_used = 0;
 	bool constant_last_tick_rates = true, excludes_future_commands_and_network_changes = true;
 };
 
@@ -154,6 +167,7 @@ public:
 	void tick();
 	void apply_operating_heat(ResourceIndex store, ResourceAmount paid_heat);
 	ResourceForecast forecast(ResourceIndex store) const;
+	CoolantForecast coolant_forecast(ResourceIndex source) const;
 	Json save() const;
 	void restore(const Json &save);
 

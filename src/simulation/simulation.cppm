@@ -36,6 +36,7 @@ public:
 	std::vector<BodyView> inspect() const;
 	std::vector<SceneBody> scene() const;
 	Json save() const;
+	Json debug() const;
 	void restore(const Catalog &content, const Json &saved);
 
 private:

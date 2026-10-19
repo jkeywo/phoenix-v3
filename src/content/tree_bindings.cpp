@@ -25,6 +25,7 @@ struct InheritedRecordBindings
 {
 	std::optional<state_tree::Context> context;
 	std::vector<Json> bindings;
+	std::vector<Json> summaries;
 };
 InheritedRecordBindings inherited_record_bindings(const Json &tree, const Catalog &catalog,
                                                   std::set<std::string> &active, std::size_t depth)
@@ -54,30 +55,36 @@ InheritedRecordBindings inherited_record_bindings(const Json &tree, const Catalo
 		                "inherited tree context cannot change");
 		result.context = context;
 	}
-	if (!tree.contains("record_bindings"))
-		return result;
-	const auto &bindings = tree.at("record_bindings");
-	binding_require(bindings.is_array() && bindings.size() <= 4096, path + ".record_bindings",
-	                "expected at most 4096 named bindings");
-	std::set<std::string> names;
-	for (const auto &binding : bindings)
+	auto merge = [&](const char *field, std::vector<Json> &resolved)
 	{
-		binding_require(binding.is_object() && binding.contains("name") && binding.at("name").is_string(),
-		                path + ".record_bindings", "binding requires a name");
-		const auto name = binding.at("name").get<std::string>();
-		binding_require(valid_identifier(name) && names.insert(name).second, path + ".record_bindings",
-		                "invalid or duplicate local binding '" + name + "'");
-		const auto existing = std::find_if(result.bindings.begin(), result.bindings.end(),
-		                                   [&](const auto &value)
-		                                   {
-			                                   return value.at("name") == name;
-		                                   });
-		if (existing == result.bindings.end())
-			result.bindings.push_back(binding);
-		else
-			*existing = binding;
-	}
-	binding_require(result.bindings.size() <= 4096, path + ".record_bindings", "resolved binding limit exceeded");
+		if (!tree.contains(field))
+			return;
+		const auto field_path = path + "." + field;
+		const auto &bindings = tree.at(field);
+		binding_require(bindings.is_array() && bindings.size() <= 4096, field_path,
+		                "expected at most 4096 named bindings");
+		std::set<std::string> names;
+		for (const auto &binding : bindings)
+		{
+			binding_require(binding.is_object() && binding.contains("name") && binding.at("name").is_string(),
+			                field_path, "binding requires a name");
+			const auto name = binding.at("name").get<std::string>();
+			binding_require(valid_identifier(name) && names.insert(name).second, field_path,
+			                "invalid or duplicate local binding '" + name + "'");
+			const auto existing = std::find_if(resolved.begin(), resolved.end(),
+			                                   [&](const auto &value)
+			                                   {
+				                                   return value.at("name") == name;
+			                                   });
+			if (existing == resolved.end())
+				resolved.push_back(binding);
+			else
+				*existing = binding;
+		}
+		binding_require(resolved.size() <= 4096, field_path, "resolved binding limit exceeded");
+	};
+	merge("record_bindings", result.bindings);
+	merge("summary_bindings", result.summaries);
 	return result;
 }
 InheritedRecordBindings resolve_record_bindings(const Json &tree, const Catalog &catalog)
@@ -167,12 +174,48 @@ std::vector<GameplayTreeRecordBinding> gameplay_record_bindings(const Json &tree
 		(void)gameplay_tree_registry(*inherited.context, result);
 	return result;
 }
+std::vector<GameplayTreeSummaryBinding> gameplay_summary_bindings(const Json &tree, const Catalog &catalog)
+{
+	const auto inherited = resolve_record_bindings(tree, catalog);
+	const auto path = "trees." + tree.value("id", std::string("<inline>")) + ".summary_bindings";
+	binding_require(inherited.summaries.empty() || inherited.context == state_tree::Context::System, path,
+	                "summary bindings require a System tree context");
+	if (inherited.summaries.empty())
+		return {};
+	auto registry = gameplay_tree_registry(state_tree::Context::System, gameplay_record_bindings(tree, catalog));
+	std::set<std::string> names;
+	for (const auto &observation : registry.observations)
+		names.insert(observation.name);
+	std::vector<GameplayTreeSummaryBinding> result;
+	for (const auto &value : inherited.summaries)
+	{
+		const auto name = value.at("name").get<std::string>();
+		const auto field_path = path + "." + name;
+		binding_require(names.insert(name).second, field_path, "name collides with another observation");
+		binding_require(value.contains("channel") && value.at("channel").is_string(), field_path,
+		                "channel must be an authored identifier");
+		const auto channel = value.at("channel").get<std::string>();
+		binding_require(valid_identifier(channel) && channel != "destination.x" && channel != "destination.y",
+		                field_path + ".channel", "invalid or reserved summary intent channel");
+		if (value.contains("type"))
+			binding_require(value.at("type") == "integer", field_path + ".type",
+			                "summary intent bindings have integer type");
+		result.push_back({name, channel});
+	}
+	binding_require(registry.observations.size() + result.size() <= 4096, path,
+	                "combined observation layout exceeds 4096 fields");
+	return result;
+}
 state_tree::Registry gameplay_registry(const Json &tree, const Catalog &catalog, state_tree::Context context)
 {
 	const auto inherited = resolve_record_bindings(tree, catalog);
 	binding_require(!inherited.context || inherited.context == context,
 	                "trees." + tree.value("id", std::string("<inline>")) + ".context",
 	                "registry context differs from authored tree");
-	return gameplay_tree_registry(context, gameplay_record_bindings(tree, catalog));
+	auto registry = gameplay_tree_registry(context, gameplay_record_bindings(tree, catalog));
+	for (const auto &binding : gameplay_summary_bindings(tree, catalog))
+		registry.observations.push_back(
+		    {binding.name, state_tree::Type::Integer, static_cast<std::uint8_t>(state_tree::Context::System), {}});
+	return registry;
 }
 } // namespace phoenix

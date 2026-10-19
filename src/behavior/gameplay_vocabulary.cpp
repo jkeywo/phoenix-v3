@@ -558,6 +558,8 @@ state_tree::Registry gameplay_tree_registry(state_tree::Context context,
 		spec.name = action.name;
 		spec.contexts = action.contexts;
 		spec.effect = action.effect;
+		spec.capture_context =
+		    action.id >= GameplayTreeAction::SendSystemMessage && action.id <= GameplayTreeAction::SendShipMessage;
 		spec.channel = static_cast<Index>(action.id);
 		for (const auto &argument : action.arguments)
 			spec.arguments.push_back(argument.type);

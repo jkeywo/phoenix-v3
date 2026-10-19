@@ -280,7 +280,33 @@ void WorkshopDocument::rename_entity(const std::string &from, const std::string 
 			for (auto &ship : slot["allowed_ships"])
 				if (ship == from)
 					ship = to;
+		if (map.contains("scenario") && map.at("scenario").is_object() && map.at("scenario").contains("spawn_groups") &&
+		    map.at("scenario").at("spawn_groups").is_array())
+			for (auto &group : map["scenario"]["spawn_groups"])
+				if (group.is_object() && group.contains("entities") && group.at("entities").is_array())
+					for (auto &placement : group["entities"])
+						if (placement.is_object() && placement.value("definition", Json()) == from)
+							placement["definition"] = to;
 	}
+	// Only the first literal argument of spawn_entity names an entity definition.
+	// Other text, handles and runtime/parameter bindings may deliberately share it.
+	auto rename_spawn_tasks = [&](Json &state)
+	{
+		if (!state.is_object())
+			return;
+		for (const char *phase : {"entry", "running", "exit"})
+			if (state.contains(phase) && state.at(phase).is_array())
+				for (auto &task : state[phase])
+					if (task.is_object() && task.value("action", Json()) == "spawn_entity" &&
+					    task.contains("arguments") && task.at("arguments").is_array() &&
+					    !task.at("arguments").empty() && task.at("arguments")[0] == from)
+						task["arguments"][0] = to;
+	};
+	for (auto &tree : definitions_["trees"])
+		for (const char *field : {"states", "overrides"})
+			if (tree.contains(field) && tree.at(field).is_array())
+				for (auto &state : tree[field])
+					rename_spawn_tasks(state);
 	if (pack_.manifest.contains("overrides"))
 	{
 		auto &overrides = pack_.manifest["overrides"];

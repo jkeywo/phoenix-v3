@@ -379,6 +379,131 @@ void generation_and_thermal_recovery()
 	            !network.stores()[protected_store].enabled && network.telemetry()[protected_store].consumed == 0,
 	        "cooling and thermal recovery must respect a deliberate shutdown rather than restart the equipment");
 }
+void resource_forecasts_and_fractional_overdrive()
+{
+	auto source = fixture();
+	source["entities"][0]["resources"] = Json::parse(R"json({
+		"stores":[{"id":"cell","capacity":100,"initial":50,"charge_rate":100,"discharge_rate":100,
+		           "initial_heat":10,"stop_heat":100,"recover_heat":5,"operation_heat_ppm":1000000}],
+		"coolant_sources":[{"id":"tank","initial":10,"removal_rate":20,"coolant_per_heat_ppm":100000}],
+		"cooling_links":[{"id":"feed","source":"tank","store":"cell","capacity_rate":20,"allocation_rate":20}]
+	})json");
+	const auto catalog = load(source);
+	const auto &definition = catalog.resource_definitions.at("test.ship");
+	ResourceNetwork network(definition);
+	const auto cell = definition.store_ids.at("cell"), tank = definition.coolant_source_ids.at("tank");
+	network.request_operation(cell, 100);
+	network.tick();
+	const auto power = network.forecast(cell);
+	const auto coolant = network.coolant_forecast(tank);
+	require(power.depletion_ticks == 9 && power.thermal_stop_ticks == 22 && coolant.depletion_ticks == 99 &&
+	            coolant.observed_coolant_used == 0 && coolant.observed_heat_removed == 1,
+	        "forecasts must use actual net energy/heat and fractional finite coolant use rather than rounded stock "
+	        "debit alone");
+	ResourceNetwork resumed(definition);
+	resumed.restore(network.save());
+	require(resumed.coolant_forecast(tank).depletion_ticks == coolant.depletion_ticks &&
+	            resumed.save() == network.save(),
+	        "current forecast observations and fractional coolant liability must survive recovery");
+	network.apply_operating_heat(cell, 100);
+	network.set_store_enabled(cell, false);
+	network.tick();
+	require(network.forecast(cell).thermal_stop_ticks == 0 && network.forecast(cell).thermal_recovery_ticks > 0 &&
+	            !network.stores()[cell].enabled,
+	        "cooldown forecasts must describe real heat recovery without undoing deliberate equipment disable");
+	network.set_cooling(0, 20, true);
+	network.tick();
+	require(network.coolant_forecast(tank).depletion_ticks == -1,
+	        "constant-last-tick forecasts cannot invent future coolant consumption after isolation");
+	source["entities"][0]["resources"] = Json::parse(R"json({
+		"stores":[{"id":"cell","capacity":100,"initial":100,"charge_rate":100,"discharge_rate":100,
+		           "overdrive_permille":1500}]
+	})json");
+	const auto fractional_catalog = load(source);
+	const auto &fractional_definition = fractional_catalog.resource_definitions.at("test.ship");
+	ResourceNetwork fractional(fractional_definition);
+	fractional.set_overdrive(0, true);
+	fractional.request_operation(0, 1);
+	for (int tick = 0; tick < 20; ++tick)
+		fractional.tick();
+	ResourceNetwork fractional_resumed(fractional_definition);
+	fractional_resumed.restore(fractional.save());
+	for (int tick = 0; tick < 20; ++tick)
+	{
+		fractional.tick();
+		fractional_resumed.tick();
+	}
+	require(fractional.stores()[0].energy == 97 && fractional.save() == fractional_resumed.save(),
+	        "one-unit-per-second work at 150 percent overdrive must pay exactly three units over two seconds across "
+	        "recovery");
+}
+void prepaid_fractional_work()
+{
+	auto source = fixture();
+	source["entities"][0]["resources"] = Json::parse(R"json({
+		"stores":[{"id":"cell","capacity":1,"initial":1,"charge_rate":20,"discharge_rate":20}],
+		"coolant_sources":[{"id":"tank","initial":10,"removal_rate":20,"power_store":"cell"}],
+		"cooling_links":[{"id":"feed","source":"tank","store":"cell","capacity_rate":20,"allocation_rate":20}]
+	})json");
+	// The production fitted verifier requires a dedicated, positive-rate pump.
+	source["entities"][0]["systems"]["pump"] = {
+	    {"kind", "coolant"}, {"power_store", "cell"}, {"energy_per_second", 1}, {"cooling_link", "feed"}};
+	const auto catalog = load(source);
+	const auto &definition = catalog.resource_definitions.at("test.ship");
+	ResourceNetwork network(definition);
+	network.request_operation(0, 1);
+	network.apply_operating_heat(0, 10);
+	network.tick();
+	require(
+	    network.stores()[0].energy == 0 && network.telemetry()[0].consumed == 1 &&
+	        network.telemetry()[0].work_funded == 1000 && network.stores()[0].work_credit == 19000 &&
+	        network.coolant_sources()[0].last_heat_removed == 1,
+	    "sub-unit work must reserve its first real energy unit before operation or powered cooling produces output");
+	network.request_operation(0, 0);
+	for (int tick = 0; tick < 37; ++tick)
+		network.tick();
+	require(network.stores()[0].work_credit == 19000 && network.telemetry()[0].work_funded == 0 &&
+	            network.coolant_sources()[0].last_heat_removed == 0,
+	        "pausing a low-rate consumer must retain prepaid credit without spending it or running a disabled pump");
+	ResourceNetwork resumed(definition);
+	resumed.restore(network.save());
+	network.request_operation(0, 1);
+	resumed.request_operation(0, 1);
+	for (int tick = 0; tick < 19; ++tick)
+	{
+		network.tick();
+		resumed.tick();
+		require(network.telemetry()[0].work_funded == 1000 && network.telemetry()[0].consumed == 0,
+		        "previously paid fractional credit must support precisely its remaining low-rate work");
+	}
+	require(network.stores()[0].work_credit == 0 && network.save() == resumed.save(),
+	        "prepaid credit, cooling and paused continuation must agree with uninterrupted execution");
+	const auto before_rejected_restore = network.save();
+	auto invalid_credit = before_rejected_restore;
+	invalid_credit["stores"][0]["work_credit"] = resource_work_unit;
+	rejects(
+	    [&]
+	    {
+		    network.restore(invalid_credit);
+	    },
+	    "continuation cannot mint a whole free unit of prepaid work");
+	require(network.save() == before_rejected_restore,
+	        "a rejected prepaid-credit restore must leave live state unchanged");
+	network.tick();
+	require(network.telemetry()[0].work_funded == 0 && network.stores()[0].work_credit == 0,
+	        "a depleted store with no prepaid credit must refuse work and cannot mint credit on repeated denial");
+	ResourceNetwork empty(definition);
+	auto saved = empty.save();
+	saved["stores"][0]["energy"] = 0;
+	empty.restore(saved);
+	empty.request_operation(0, 1);
+	for (int tick = 0; tick < 25; ++tick)
+	{
+		empty.tick();
+		require(empty.telemetry()[0].work_funded == 0 && empty.stores()[0].work_credit == 0,
+		        "an initially empty low-rate consumer cannot borrow output ahead of its first payment");
+	}
+}
 
 void trees()
 {
@@ -610,6 +735,8 @@ int main()
 		equipment_and_resources();
 		overload_and_recovery();
 		generation_and_thermal_recovery();
+		resource_forecasts_and_fractional_overdrive();
+		prepaid_fractional_work();
 		trees();
 		knowledge();
 		std::cout

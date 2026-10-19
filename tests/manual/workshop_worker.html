@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+	<meta charset="utf-8" />
+	<title>Disposable gameplay Worker probe</title>
+	<h1>Disposable gameplay Worker probe</h1>
+	<p>
+		Manually run against a served web build. Loads the verified Base and Training archives into the production test
+		Worker.
+	</p>
+	<button id="start">Start powered scenario</button>
+	<button id="pause">Pause</button>
+	<button id="step">Step</button>
+	<button id="restart">Restart</button>
+	<button id="stop">Stop</button>
+	<pre id="result" aria-live="polite">Ready</pre>
+	<details>
+		<summary>Full feedback</summary>
+		<pre id="detail"></pre>
+	</details>
+	<script>
+		const worker = new Worker("workshop-test-worker.js");
+		worker.onmessage = ({ data }) => {
+			if (data.type !== "feedback") return;
+			const f = data.feedback;
+			document.querySelector("#detail").textContent = JSON.stringify(f, null, 2);
+			document.querySelector("#result").textContent = JSON.stringify(
+				{
+					running: f.running,
+					paused: f.paused,
+					tick: f.tick,
+					status: f.status,
+					scenario_controllers: f.controllers?.filter((c) => c.context === "scenario").length,
+					diagnostics: f.host_diagnostics,
+					worker_error: f.worker_error,
+				},
+				null,
+				2,
+			);
+		};
+		worker.onerror = (e) => (document.querySelector("#result").textContent = e.message);
+		document.querySelector("#start").onclick = async () => {
+			const base = await (await fetch("base.zip")).arrayBuffer();
+			const training = await (await fetch("training.zip")).arrayBuffer();
+			worker.postMessage(
+				{
+					type: "request",
+					action: "start",
+					mission: "training.powered-navigation",
+					slot: "training.player",
+					ship: "base.courier-engineering",
+					pack: training,
+					dependencies: [base],
+				},
+				[base, training],
+			);
+		};
+		for (const action of ["pause", "step", "restart", "stop"])
+			document.querySelector("#" + action).onclick = () => worker.postMessage({ type: "request", action });
+	</script>
+</html>

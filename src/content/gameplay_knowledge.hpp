@@ -38,6 +38,22 @@ struct GameplayKnowledgeShipDefinition
 	};
 	std::map<std::string, std::vector<TelemetryRecord>> telemetry;
 };
+enum class GameplayKnowledgeBindingSource : std::uint8_t
+{
+	Argument,
+	Observation,
+	Intent,
+	Memory,
+	Parameter,
+	Elapsed
+};
+struct GameplayKnowledgeMessageBinding
+{
+	GameplayKnowledgeBindingSource source = GameplayKnowledgeBindingSource::Argument;
+	std::string name;
+	// Missing accepts any supported scalar for a presentation parameter only.
+	state_tree::Type type = state_tree::Type::Missing;
+};
 struct GameplayKnowledgeMessageDefinition
 {
 	KnowledgeKey schema = 0;
@@ -46,10 +62,33 @@ struct GameplayKnowledgeMessageDefinition
 	MessagePresentation presentation;
 	KnowledgeTick delay = 1, expires_after = 0;
 	KnowledgeId request_key = 0;
+	bool human_seeking = false;
 	std::map<KnowledgeKey, KnowledgeValue> literal_fields;
 	std::vector<KnowledgeKey> bound_fields;
 	std::vector<std::string> bound_parameters;
+	std::map<KnowledgeKey, GameplayKnowledgeMessageBinding> field_bindings;
+	std::map<std::string, GameplayKnowledgeMessageBinding> parameter_bindings;
 };
+struct GameplayKnowledgeMessageContext
+{
+	std::int64_t amount = 0, elapsed = 0;
+	bool flag = false;
+	std::string detail;
+	const state_tree::Program *program = nullptr;
+	const state_tree::Instance *instance = nullptr;
+	const std::map<std::string, state_tree::Value> *parameters = nullptr;
+	const std::map<std::string, state_tree::Value> *memory = nullptr, *captured_intents = nullptr;
+	std::span<const state_tree::Value> observations, intents;
+};
+struct GameplayKnowledgeMessageValues
+{
+	std::map<KnowledgeKey, KnowledgeValue> fields;
+	std::map<std::string, std::string> parameters;
+};
+// Caller supplies the active task's compiled call frame and immutable permitted
+// snapshot. No world lookup or JSON expression dispatch occurs here.
+GameplayKnowledgeMessageValues evaluate_gameplay_message(const GameplayKnowledgeMessageDefinition &message,
+                                                         const GameplayKnowledgeMessageContext &context);
 struct GameplayKnowledgeDefinitions
 {
 	CompiledKnowledge knowledge;

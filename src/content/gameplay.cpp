@@ -359,30 +359,38 @@ void verify_gameplay_fitting(const Catalog &catalog, const std::string &entity_i
 				const auto system = fitting_text(intent, "system", where + ".summary_intents"),
 				           channel = fitting_text(intent, "channel", where + ".summary_intents");
 				const auto control = where + ".summary_intents." + system + "." + channel;
-				if (!delegated.contains(system) || !valid_identifier(channel) ||
-				    !summaries.emplace(system, channel).second)
+				if (!delegated.contains(system) || !valid_identifier(channel) || channel == "destination.x" ||
+				    channel == "destination.y" || !summaries.emplace(system, channel).second)
 					fitting_error(control, "summary must uniquely address an owned delegated System");
 				const auto kind = std::string(operating_system_name(systems.at(system)->kind));
 				const bool supported = (kind == "generator" && channel == "output") ||
 				                       (kind == "distribution" && (channel == "power" || channel == "allocation")) ||
 				                       (kind == "coolant" && (channel == "coolant" || channel == "cooling")) ||
 				                       (kind == "storage" && (channel == "charge" || channel == "discharge"));
-				if (!supported)
-					fitting_error(control, "channel is unsupported by the delegated capability");
+				const auto &controller = catalog.trees.at(systems.at(system)->controller);
+				const auto bindings = gameplay_summary_bindings(controller, catalog);
+				const bool declared = std::any_of(bindings.begin(), bindings.end(),
+				                                  [&](const auto &binding)
+				                                  {
+					                                  return binding.channel == channel;
+				                                  });
+				if (!supported && !declared)
+					fitting_error(control,
+					              "channel needs a delegated controller summary binding or standard capability");
 				if (!intent.contains("levels") || !intent.at("levels").is_array() || intent.at("levels").empty() ||
 				    intent.at("levels").size() > 16)
 					fitting_error(control + ".levels", "expected 1..16 bounded numeric choices");
 				std::set<ResourceAmount> levels;
 				ResourceAmount maximum_level = resource_limit;
 				const auto &spec = entity.at("systems").at(system);
-				if (kind == "generator")
+				if (supported && kind == "generator")
 					maximum_level = 1000;
-				else if (kind == "coolant")
+				else if (supported && kind == "coolant")
 					maximum_level =
 					    resources.cooling_links
 					        .at(fitting_reference(spec, "cooling_link", resources.cooling_link_ids, control))
 					        .capacity_rate;
-				else if (kind == "storage")
+				else if (supported && kind == "storage")
 				{
 					const auto &store =
 					    resources.stores.at(fitting_reference(spec, "power_store", resources.store_ids, control));

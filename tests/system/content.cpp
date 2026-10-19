@@ -397,12 +397,48 @@ int main()
 		workshop.new_map("workshop.second");
 		workshop.place(definition, 0, 0);
 		workshop.definitions()["entities"].push_back({{"id", "workshop.child"}, {"extends", definition}});
+		const auto old_definition = definition;
+		const auto spawn =
+		    Json{{"action", "spawn_entity"}, {"arguments", Json::array({definition, "", 0, 0, 0, definition})}};
+		workshop.definitions()["trees"] = Json::array(
+		    {{{"id", "workshop.spawner"},
+		      {"context", "scenario"},
+		      {"description", definition},
+		      {"initial", "spawn"},
+		      {"memory", Json::array({{{"name", "note"}, {"type", "text"}, {"initial", definition}}})},
+		      {"states", Json::array({{{"id", "spawn"},
+		                               {"entry", Json::array({spawn, {{"memory", "note"}, {"value", definition}}})},
+		                               {"running", Json::array({spawn})},
+		                               {"exit", Json::array({spawn})}}})}},
+		     {{"id", "workshop.derived-spawner"},
+		      {"extends", "workshop.spawner"},
+		      {"overrides", Json::array({{{"state", "spawn"}, {"running", Json::array({spawn})}}})}}});
+		workshop.map()["scenario"] = {
+		    {"tree", "workshop.derived-spawner"},
+		    {"spawn_groups",
+		     Json::array(
+		         {{{"id", "traffic"},
+		           {"entities",
+		            Json::array(
+		                {{{"definition", definition}, {"x_mm", 20000}, {"y_mm", 0}, {"heading_mdeg", 0}}})}}})}};
 		workshop.rename_entity(definition, "workshop.renamed");
 		require(workshop.definitions()["maps"][0]["entities"][0]["definition"] == "workshop.renamed" &&
 		            workshop.definitions()["maps"][0]["ship_slots"][0]["allowed_ships"][0] == "workshop.renamed" &&
 		            workshop.map()["entities"][0]["definition"] == "workshop.renamed" &&
 		            workshop.definitions()["entities"][1]["extends"] == "workshop.renamed",
 		        "template rename repairs all maps, ship slots and inherited templates");
+		require(workshop.map()["scenario"]["spawn_groups"][0]["entities"][0]["definition"] == "workshop.renamed",
+		        "template rename repairs scenario spawn-group definition references");
+		const auto &spawn_tree = workshop.definitions()["trees"][0];
+		for (const char *phase : {"entry", "running", "exit"})
+			require(spawn_tree["states"][0][phase][0]["arguments"][0] == "workshop.renamed",
+			        "template rename repairs literal spawn_entity references in every task phase");
+		require(
+		    workshop.definitions()["trees"][1]["overrides"][0]["running"][0]["arguments"][0] == "workshop.renamed" &&
+		        spawn_tree["description"] == old_definition && spawn_tree["memory"][0]["initial"] == old_definition &&
+		        spawn_tree["states"][0]["entry"][0]["arguments"][5] == old_definition &&
+		        spawn_tree["states"][0]["entry"][1]["value"] == old_definition,
+		    "template rename repairs inherited task patches while preserving prose, handles and ordinary text");
 		const auto renamed = workshop.definitions();
 		rejected(
 		    [&]
@@ -420,6 +456,10 @@ int main()
 		auto reloaded = resolve_packs({read_pack(reopened.export_pack())});
 		require(reloaded.maps.at("workshop.map")["ship_slots"][0]["allowed_ships"][0] == definition,
 		        "export/import must preserve allowed ships and include required assets");
+		require(reloaded.maps.at("workshop.second")["scenario"]["spawn_groups"][0]["entities"][0]["definition"] ==
+		                definition &&
+		            reloaded.trees.at("workshop.spawner")["states"][0]["entry"][0]["arguments"][0] == definition,
+		        "renamed scenario spawns survive production Workshop export and reload verification");
 		auto original = reopened.map();
 		rejected(
 		    [&]

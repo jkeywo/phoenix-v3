@@ -54,6 +54,7 @@ void frame()
 	BeginDrawing();
 	phoenix::draw_screen(app);
 #ifdef PHOENIX_WORKSHOP
+	phoenix::pump_browser_workshop_test(app);
 	if (app.screen == phoenix::Screen::workshop || app.screen == phoenix::Screen::gm)
 		phoenix::draw_workshop(app);
 #endif

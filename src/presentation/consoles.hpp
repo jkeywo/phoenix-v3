@@ -16,6 +16,9 @@ class ConsoleSurface final : public Rml::EventListener
 	std::weak_ptr<SessionPort> owner_;
 	std::uint64_t generation_ = 0;
 	std::vector<std::pair<std::string, std::string>> controls_;
+	std::string gameplay_signature_;
+	std::string gameplay_readout_signature_;
+	std::set<std::string> held_clicks_;
 	std::map<std::string, Texture2D> hud_;
 	std::map<std::string, Json> hud_metadata_;
 	std::optional<std::array<float, 3>> heading_dial_;
@@ -118,6 +121,7 @@ button:hover,button:focus {background:#455458;border-color:#ec9c52;}
 #toolbar {position:absolute;left:5%;top:4%;right:5%;height:85px;overflow:auto;}
 #connection-status {font-size:15px;}
 #widgets {position:absolute;left:4%;right:4%;top:125px;bottom:4%;}
+#gameplay {position:absolute;left:60%;right:4%;top:125px;bottom:4%;overflow:auto;background:#0b1719ee;border:1px #988b71;padding:8px;display:none;}
 .widget {position:absolute;box-sizing:border-box;padding:8px;overflow:hidden;}
 p {display:block;font-size:17px;margin:4px 0;}
 .dial {position:absolute;left:12px;right:12px;top:48px;bottom:72px;}
@@ -132,11 +136,17 @@ p {display:block;font-size:17px;margin:4px 0;}
 .ready-card {position:absolute;left:17%;top:32%;width:66%;box-sizing:border-box;padding:28px;background:#0b1719ee;border:2px #d48a48;}
 .ready-card h1 {display:block;font-size:32px;}
 .ready-card button {min-width:120px;}
-</style></head><body><div id="toolbar"></div><div id="widgets"></div><div id="lobby"></div></body></rml>)");
+</style></head><body><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="gameplay-controls"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div></body></rml>)");
 		if (!document_)
 			throw std::runtime_error("Cannot create Console document");
 		document_->AddEventListener("click", this);
 		document_->AddEventListener("change", this);
+		document_->AddEventListener("mousedown", this);
+		document_->AddEventListener("mouseup", this);
+		document_->AddEventListener("mouseout", this);
+		document_->AddEventListener("touchstart", this);
+		document_->AddEventListener("touchend", this);
+		document_->AddEventListener("touchcancel", this);
 		for (const char *name :
 		     {"helm-throttle-track", "helm-throttle-handle", "helm-radar-ring", "helm-background-9slice"})
 			hud_metadata_[name] =
@@ -206,6 +216,23 @@ p {display:block;font-size:17px;margin:4px 0;}
 	void ProcessEvent(Rml::Event &event) override
 	{
 		const auto name = event.GetTargetElement()->GetId();
+		if (event.GetType() == "mousedown" || event.GetType() == "touchstart")
+		{
+			if (name.starts_with(id("game.control/")) && model_.hold_control(name.substr(id("").size())))
+				held_clicks_.insert(name);
+			return;
+		}
+		if (event.GetType() == "mouseup" || event.GetType() == "mouseout" || event.GetType() == "touchend" ||
+		    event.GetType() == "touchcancel")
+		{
+			if (name.starts_with(id("game.control/")))
+				model_.release_control(name.substr(id("").size()));
+			if (event.GetType() == "mouseout" || event.GetType() == "touchcancel")
+				held_clicks_.erase(name);
+			return;
+		}
+		if (event.GetType() == "click" && held_clicks_.erase(name))
+			return;
 		if (event.GetType() == "change")
 		{
 			if (auto *field = dynamic_cast<Rml::ElementFormControl *>(event.GetTargetElement()))
@@ -295,6 +322,8 @@ p {display:block;font-size:17px;margin:4px 0;}
 	void cancel_pointer()
 	{
 		heading_contacts_.clear();
+		model_.release_controls();
+		held_clicks_.clear();
 	}
 	bool probe_helm()
 	{
@@ -319,7 +348,10 @@ p {display:block;font-size:17px;margin:4px 0;}
 	void prepare(Application &app, const ConsoleRegion &region, const std::set<std::string> &pads)
 	{
 		app_ = &app;
+		const auto previous_announcement = model_.announcement();
 		model_.refresh(app.session, route_);
+		if (model_.announcement() != previous_announcement && !model_.announcement().empty())
+			app.accessible_status = model_.announcement();
 		if (owner_.lock() != app.session || (app.session && generation_ != app.session->generation()))
 		{
 			owner_ = app.session;
@@ -366,6 +398,8 @@ p {display:block;font-size:17px;margin:4px 0;}
 		if (signature != signature_)
 		{
 			signature_ = std::move(signature);
+			gameplay_signature_.clear();
+			gameplay_readout_signature_.clear();
 			displayed_values_.clear();
 			controls_.clear();
 			heading_contacts_.clear();
@@ -442,6 +476,107 @@ p {display:block;font-size:17px;margin:4px 0;}
 				countdown->SetInnerRML(
 				    left < 0 ? "" : escaped(localise("Starting in")) + " " + std::to_string((left + 999) / 1000));
 			}
+		const auto gameplay_controls =
+		    pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_controls();
+		const auto gameplay_readouts =
+		    pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_readouts();
+		auto *gameplay = document_->GetElementById("gameplay");
+		auto *widgets = document_->GetElementById("widgets");
+		const bool has_gameplay = !gameplay_controls.empty() || !gameplay_readouts.empty();
+		gameplay->SetProperty("display", has_gameplay ? "block" : "none");
+		widgets->SetProperty("right", "4%");
+		widgets->SetProperty("bottom", "4%");
+		gameplay->SetProperty("left", "4%");
+		gameplay->SetProperty("right", "4%");
+		gameplay->SetProperty("top", "125px");
+		gameplay->SetProperty("bottom", "4%");
+		gameplay->RemoveProperty("width");
+		gameplay->RemoveProperty("height");
+		bool placed_gameplay = false;
+		if (has_gameplay && layout && layout->contains("gameplay_panel") && layout->at("gameplay_panel").is_object())
+		{
+			const auto &panel = layout->at("gameplay_panel");
+			if (panel.contains("x") && panel.contains("y") && panel.contains("width") && panel.contains("height") &&
+			    panel.at("x").is_number() && panel.at("y").is_number() && panel.at("width").is_number() &&
+			    panel.at("height").is_number())
+			{
+				const double x = panel.at("x"), y = panel.at("y"), width = panel.at("width"),
+				             height = panel.at("height");
+				if (std::isfinite(x) && std::isfinite(y) && std::isfinite(width) && std::isfinite(height) && x >= 0 &&
+				    y >= 0 && width > 0 && height > 0 && x + width <= 1000 && y + height <= 1000)
+				{
+					const auto available_height = std::max(80.f, region.height - 125.f);
+					gameplay->SetProperty("left", std::to_string(region.width * x / 1000) + "px");
+					gameplay->SetProperty("top", std::to_string(125 + available_height * y / 1000) + "px");
+					gameplay->SetProperty("width", std::to_string(region.width * width / 1000) + "px");
+					gameplay->SetProperty("height", std::to_string(available_height * height / 1000) + "px");
+					gameplay->RemoveProperty("right");
+					gameplay->RemoveProperty("bottom");
+					placed_gameplay = true;
+				}
+			}
+		}
+		if (has_gameplay && !placed_gameplay && layout && !layout->at("widgets").empty())
+		{
+			if (region.width >= 900)
+			{
+				widgets->SetProperty("right", "42%");
+				gameplay->SetProperty("left", "60%");
+			}
+			else
+			{
+				widgets->SetProperty("bottom", "45%");
+				gameplay->SetProperty("top", "58%");
+			}
+		}
+		Json gameplay_identity = Json::array();
+		for (const auto &[name, label] : gameplay_controls)
+			gameplay_identity.push_back(name);
+		const auto gameplay_signature = gameplay_identity.dump();
+		if (gameplay_signature_ != gameplay_signature)
+		{
+			model_.release_controls();
+			held_clicks_.clear();
+			std::string markup;
+			for (const auto &[name, label] : gameplay_controls)
+				markup += "<button id=\"" + escaped(id(name)) + "\">" + escaped(label) + "</button>";
+			document_->GetElementById("gameplay-controls")->SetInnerRML(markup);
+			gameplay_signature_ = gameplay_signature;
+			for (const auto &[name, label] : gameplay_controls)
+				displayed_values_.erase("control/" + name);
+		}
+		for (const auto &[name, label] : gameplay_controls)
+			if (displayed_values_["control/" + name] != label)
+			{
+				if (auto *element = document_->GetElementById(id(name)))
+					element->SetInnerRML(escaped(label));
+				displayed_values_["control/" + name] = label;
+			}
+		gameplay_identity = Json::array();
+		for (const auto &[name, text] : gameplay_readouts)
+			gameplay_identity.push_back(name);
+		const auto readout_signature = gameplay_identity.dump();
+		if (gameplay_readout_signature_ != readout_signature)
+		{
+			std::string markup;
+			for (const auto &[name, text] : gameplay_readouts)
+			{
+				markup += "<p id=\"" + escaped(id(name)) + "\"></p>";
+				displayed_values_.erase(name);
+			}
+			document_->GetElementById("gameplay-readouts")->SetInnerRML(markup);
+			gameplay_readout_signature_ = readout_signature;
+		}
+		for (const auto &[name, text] : gameplay_readouts)
+		{
+			if (auto *element = document_->GetElementById(id(name)))
+				if (displayed_values_[name] != text)
+				{
+					element->SetInnerRML(escaped(text));
+					displayed_values_[name] = text;
+				}
+			app.screen_readouts.emplace_back(id(name), text);
+		}
 		context_->Update();
 		heading_dial_.reset();
 		heading_dials_.clear();
@@ -496,9 +631,9 @@ p {display:block;font-size:17px;margin:4px 0;}
 					slider->SetProperty("height",
 					                    std::to_string(track.height * (bottom - top) + track.width * .4f) + "px");
 					const auto system = model_.widget_system(key);
-					const double percent = model_.system_maximum(system)
-					                           ? 100.0 * model_.system_request(system) / model_.system_maximum(system)
-					                           : 0;
+					const auto minimum = model_.system_minimum(system), maximum = model_.system_maximum(system);
+					const double percent =
+					    maximum > minimum ? 100.0 * (model_.system_request(system) - minimum) / (maximum - minimum) : 0;
 					slider->SetValue(std::to_string(-percent));
 					Rml::ElementList bars;
 					slider->GetElementsByTagName(bars, "sliderbar");
@@ -513,11 +648,12 @@ p {display:block;font-size:17px;margin:4px 0;}
 					auto *field =
 					    dynamic_cast<Rml::ElementFormControl *>(document_->GetElementById(id("heading/" + key)));
 					if (context_->GetFocusElement() != field)
-						field->SetValue(
-						    std::string(TextFormat("%.1f", model_.system_request(model_.widget_system(key)) / 1000.0)));
+						field->SetValue(std::string(TextFormat(
+						    "%.1f", model_.system_request(model_.widget_system(key), "heading_mdeg") / 1000.0)));
 					app.screen_inputs.push_back(
 					    {id("heading/" + key), "Desired heading (degrees)",
-					     std::string(TextFormat("%.1f", model_.system_request(model_.widget_system(key)) / 1000.0)),
+					     std::string(TextFormat(
+					         "%.1f", model_.system_request(model_.widget_system(key), "heading_mdeg") / 1000.0)),
 					     false});
 				}
 				std::string value =
@@ -539,6 +675,13 @@ p {display:block;font-size:17px;margin:4px 0;}
 			app.screen_controls.emplace_back(name, label);
 			place(app, region, name);
 		}
+		for (const auto &[name, label] : gameplay_controls)
+		{
+			app.screen_controls.emplace_back(id(name), label);
+			place(app, region, id(name));
+		}
+		for (const auto &[name, text] : gameplay_readouts)
+			place(app, region, id(name));
 		for (const auto &field : app.screen_inputs)
 			if (field.id.starts_with(id("")))
 				place(app, region, field.id);
@@ -612,7 +755,7 @@ p {display:block;font-size:17px;margin:4px 0;}
 					image(hud("helm-radar-ring"), {centre.x - radius, centre.y - radius, radius * 2, radius * 2});
 					if (dial_systems_.contains(key))
 					{
-						const auto heading = model_.system_request(dial_systems_.at(key));
+						const auto heading = model_.system_request(dial_systems_.at(key), "heading_mdeg");
 						const float angle = heading * 3.141592653589793f / 180000;
 						const Vector2 marker{centre.x + std::cos(angle) * radius * .87f,
 						                     centre.y - std::sin(angle) * radius * .87f};
@@ -630,10 +773,12 @@ p {display:block;font-size:17px;margin:4px 0;}
 					track.y += oy;
 					image(hud("helm-throttle-track"), track);
 					const auto system = model_.widget_system(key);
+					const auto minimum = model_.system_minimum(system), maximum = model_.system_maximum(system);
 					const float fraction =
-					    model_.system_maximum(system)
-					        ? static_cast<float>(model_.system_request(system)) / model_.system_maximum(system)
-					        : 0;
+					    maximum > minimum ? std::clamp(static_cast<float>(model_.system_request(system) - minimum) /
+					                                       (maximum - minimum),
+					                                   0.f, 1.f)
+					                      : 0;
 					const auto &marks = hud_metadata_.at("helm-throttle-track").at("markers");
 					const float top = marks.at("travel_max")[1].get<float>() /
 					                  hud_metadata_.at("helm-throttle-track").at("image_size")[1].get<float>(),

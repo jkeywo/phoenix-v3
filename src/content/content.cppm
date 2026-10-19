@@ -62,6 +62,11 @@ struct Catalog
 void resolve_equipment(Catalog &catalog);
 void verify_gameplay_fitting(const Catalog &, const std::string &);
 std::vector<GameplayTreeRecordBinding> gameplay_record_bindings(const Json &, const Catalog &);
+struct GameplayTreeSummaryBinding
+{
+	std::string name, channel;
+};
+std::vector<GameplayTreeSummaryBinding> gameplay_summary_bindings(const Json &, const Catalog &);
 state_tree::Registry gameplay_registry(const Json &, const Catalog &, state_tree::Context);
 void verify_scenario_authoring(const Catalog &catalog, const Json &map);
 // Render-only navigation aids. Distances are metres; speed is metres/second.

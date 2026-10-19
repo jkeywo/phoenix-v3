@@ -444,6 +444,8 @@ struct GameScreen::State
 			console_model.refresh(app.session);
 			if (notice == previous_announcement && console_model.announcement().empty())
 				notice.clear();
+			else if (console_model.announcement() != previous_announcement && !console_model.announcement().empty())
+				notice = console_model.announcement();
 			observation = console_model.observation();
 			const auto focus_body =
 			    observation ? std::optional(observation->own)
@@ -520,6 +522,29 @@ struct GameScreen::State
 							markup += "</div>";
 						}
 					}
+				if (app.screen == Screen::console)
+				{
+					const auto controls = console_model.gameplay_controls();
+					const auto readouts = console_model.gameplay_readouts();
+					std::erase_if(app.screen_readouts,
+					              [](const auto &readout)
+					              {
+						              return readout.first.starts_with("game.readout/");
+					              });
+					if (!controls.empty() || !readouts.empty())
+					{
+						network_markup +=
+						    "<div class=\"gameplay-panels\" style=\"max-height:220px;overflow:auto;padding:8px;\">";
+						for (const auto &[id, text] : controls)
+							network_markup += button(id, text);
+						for (const auto &[id, text] : readouts)
+						{
+							app.screen_readouts.emplace_back(id, text);
+							network_markup += "<p id=\"" + escape(id) + "\">" + escape(text) + "</p>";
+						}
+						network_markup += "</div>";
+					}
+				}
 			}
 			if (app.session->networked())
 			{

@@ -32,6 +32,63 @@ static inline BodyView read_body(const Json &value)
 			throw std::runtime_error("Projected coordinate exceeds supported bounds");
 	return body;
 }
+static inline Json bounded_gameplay(const Json &source)
+{
+	if (!source.is_object())
+		return Json::object();
+	constexpr std::size_t budget = 1024 * 1024;
+	// Controls and fresh notifications take precedence over historical reports.
+	// Entries remain whole, and retained history keeps its original order.
+	const char *categories[] = {"controls", "notifications", "objectives", "shared", "records", "messages"};
+	Json result = source;
+	Json omitted = Json::object();
+	for (const auto *category : categories)
+	{
+		const auto entries = source.find(category);
+		omitted[category] = entries != source.end() && entries->is_array() ? entries->size() : 0;
+		if (entries != source.end())
+			result[category] = Json::array();
+	}
+	result["omitted"] = omitted;
+	// Reserving metadata at the original (largest) counts also covers every
+	// count's digits as entries are retained. One separator byte is conservative.
+	std::size_t bytes = result.dump().size();
+	const auto keep = [&](const char *category, const Json &entry)
+	{
+		const auto size = entry.dump().size() + 1;
+		if (bytes <= budget && size <= budget - bytes)
+		{
+			result[category].push_back(entry);
+			bytes += size;
+			omitted[category] = omitted[category].get<std::size_t>() - 1;
+		}
+	};
+	// World emits Away/resume, delegation and presets before optional actuator
+	// descriptors. Preserve that priority so truncation cannot strand control.
+	if (const auto controls = source.find("controls"); controls != source.end() && controls->is_array())
+		for (const auto &control : *controls)
+			keep("controls", control);
+	if (const auto notifications = source.find("notifications");
+	    notifications != source.end() && notifications->is_array())
+		for (auto entry = notifications->rbegin(); entry != notifications->rend(); ++entry)
+			keep("notifications", *entry);
+	std::size_t history = 0;
+	for (const auto *category : {"objectives", "shared", "records", "messages"})
+		if (const auto entries = source.find(category); entries != source.end() && entries->is_array())
+			history = std::max(history, entries->size());
+	// Round-robin recent entries so an old record stream cannot starve the
+	// newest message/report in another permitted stream.
+	for (std::size_t depth = 0; depth < history; ++depth)
+		for (const auto *category : {"objectives", "shared", "records", "messages"})
+			if (const auto entries = source.find(category);
+			    entries != source.end() && entries->is_array() && depth < entries->size())
+				keep(category, (*entries)[entries->size() - 1 - depth]);
+	for (const auto *category : categories)
+		if (category != categories[0] && result.contains(category) && result.at(category).is_array())
+			std::reverse(result[category].begin(), result[category].end());
+	result["omitted"] = std::move(omitted);
+	return result;
+}
 static inline Json observation_json(const Observation &observation)
 {
 	Json contacts = Json::array();
@@ -44,7 +101,9 @@ static inline Json observation_json(const Observation &observation)
 		                   {"requested", system.requested},
 		                   {"maximum", system.maximum},
 		                   {"enabled", system.enabled},
-		                   {"controlled", system.controlled}});
+		                   {"controlled", system.controlled},
+		                   {"telemetry", system.telemetry},
+		                   {"status", system.status}});
 	return {{"own", body_json(observation.own)},
 	        {"contacts", contacts},
 	        {"requested_speed", observation.requested_speed},
@@ -54,7 +113,8 @@ static inline Json observation_json(const Observation &observation)
 	        {"console", observation.console},
 	        {"controls", observation.controls},
 	        {"feeds", observation.feeds},
-	        {"systems", systems}};
+	        {"systems", systems},
+	        {"gameplay", bounded_gameplay(observation.gameplay)}};
 }
 static inline Observation read_observation(const Json &value, const Catalog &catalog)
 {
@@ -75,7 +135,7 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 	result.radar_enabled = value.at("radar_enabled");
 	result.console = value.value("console", std::string{"main"});
 	const auto controls = value.value("controls", 7), feeds = value.value("feeds", 7);
-	if (controls < 0 || controls > 7 || feeds < 0 || feeds > 7 || (controls & feeds) != controls ||
+	if (controls < 0 || controls > 1023 || feeds < 0 || feeds > 1023 || (controls & feeds) != controls ||
 	    result.console.size() > 128)
 		throw std::runtime_error("Invalid projected Console permissions");
 	result.controls = static_cast<SystemMask>(controls);
@@ -112,15 +172,26 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 		SystemView state{
 		    id, spec->kind, entry.at("requested"), entry.at("maximum"), entry.at("enabled"), entry.at("controlled")};
 		const auto maximum = spec->kind == OperatingSystem::Steering ? 359999 : spec->maximum;
-		if (state.controlled != controlled || state.maximum != maximum || state.requested < 0 ||
-		    (spec->kind != OperatingSystem::Radar && state.requested > maximum) ||
+		if ((state.controlled && !controlled) || state.maximum != maximum || state.requested < -maximum ||
+		    (spec->kind != OperatingSystem::Radar &&
+		     (state.requested > 1000000000000LL || state.requested < -1000000000)) ||
 		    (spec->kind == OperatingSystem::Radar && state.requested != 0))
 			throw std::runtime_error("Invalid projected System state");
+		state.telemetry = entry.value("telemetry", std::map<std::string, std::int64_t>{});
+		state.status = entry.value("status", std::string{});
+		if (state.telemetry.size() > 128 || state.status.size() > 256)
+			throw std::runtime_error("Invalid projected telemetry bounds");
 		result.systems.push_back(std::move(state));
 	}
-	if (result.requested_speed < 0 || result.requested_speed > 1000000000 || result.requested_heading < 0 ||
+	if (result.requested_speed < -1000000000 || result.requested_speed > 1000000000 || result.requested_heading < 0 ||
 	    result.requested_heading >= 360000)
 		throw std::runtime_error("Invalid projected operating request");
+	result.gameplay = value.value("gameplay", Json::object());
+	// StateSource/StateTransfer already authenticate and bound the complete
+	// snapshot to 4 MiB. Permitted records and history may exceed one packet;
+	// applying a smaller sub-envelope limit would reject valid chunked snapshots.
+	if (!result.gameplay.is_object() || result.gameplay.dump().size() > 4 * 1024 * 1024)
+		throw std::runtime_error("Invalid knowledge projection bounds");
 	return result;
 }
 static inline std::uint64_t counter(const Json &value)

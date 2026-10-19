@@ -20,11 +20,16 @@ public:
 	void refresh(const std::shared_ptr<SessionPort> &session, std::uint64_t route = 1);
 	void reset();
 	bool act(const std::string &action);
+	bool command(const std::string &action, std::int64_t value, const std::string &system = {});
+	bool hold_control(const std::string &action);
+	bool release_control(const std::string &action);
+	void release_controls();
 	bool set_speed_fraction(double fraction, const std::string &system = {});
 	bool set_heading_degrees(double degrees, const std::string &system = {});
 	std::string widget_system(const std::string &widget) const;
 	std::int64_t system_maximum(const std::string &system) const;
-	std::int64_t system_request(const std::string &system) const;
+	std::int64_t system_minimum(const std::string &system) const;
+	std::int64_t system_request(const std::string &system, const std::string &action = {}) const;
 	std::int64_t maximum_speed() const
 	{
 		return maximum_;
@@ -50,6 +55,8 @@ public:
 		return announcement_;
 	}
 	std::string contacts_text() const;
+	std::vector<std::pair<std::string, std::string>> gameplay_controls() const;
+	std::vector<std::pair<std::string, std::string>> gameplay_readouts() const;
 
 private:
 	bool submit(OperatingCommand command);
@@ -61,6 +68,9 @@ private:
 	std::int64_t speed_ = 0, heading_ = 0, maximum_ = 0;
 	Json layout_;
 	std::string announcement_;
-	std::map<std::string, std::int64_t> pending_requests_;
+	std::map<std::pair<std::string, std::string>, std::int64_t> pending_requests_;
+	std::map<std::string, OperatingCommand> held_controls_;
+	std::uint64_t notification_sequence_ = 0;
+	bool notifications_initialised_ = false;
 };
 } // namespace phoenix

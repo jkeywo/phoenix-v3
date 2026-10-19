@@ -74,6 +74,23 @@ try
 		{
 			throw 'WASM fleet setup integration failed'
 		}
+		foreach ($gameplayCase in @(
+				'phoenix_gameplay_tests.js',
+				'phoenix_scenario_tests.js',
+				'phoenix_gameplay_knowledge_tests.js',
+				'phoenix_gameplay_flight_tests.js',
+				'phoenix_scenario_world_tests.js',
+				'phoenix_summary_bindings_tests.js',
+				'phoenix_swept_collision_tests.js',
+				'phoenix_workshop_test_tests.js'
+			))
+		{
+			& "$repo/.tools/emsdk/node/24.19.0_64bit/node.exe" $gameplayCase
+			if ($LASTEXITCODE)
+			{
+				throw "WASM system integration failed: $gameplayCase"
+			}
+		}
 		$wasmTrace = & "$repo/.tools/emsdk/node/24.19.0_64bit/node.exe" phoenix_simulation_check.js --trace
 		if ($LASTEXITCODE)
 		{

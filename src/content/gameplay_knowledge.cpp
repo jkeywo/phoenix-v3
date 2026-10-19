@@ -142,23 +142,36 @@ bool knowledge_telemetry_source(const std::string &name)
 	                                             "coolant_stock"};
 	return supported.contains(name);
 }
-void knowledge_dynamic_binding(const Json &value, const std::string &path, std::optional<KnowledgeType> type = {})
+GameplayKnowledgeMessageBinding knowledge_dynamic_binding(const Json &value, const std::string &path,
+                                                          std::optional<KnowledgeType> type = {})
 {
 	knowledge_require(value.is_object() && value.size() == 1,
 	                  path + ": a dynamic binding requires one supported source");
 	const auto source = value.begin().key();
 	const auto &binding = value.begin().value();
+	GameplayKnowledgeMessageBinding result;
+	if (type)
+		result.type = *type == KnowledgeType::Integer   ? state_tree::Type::Integer
+		              : *type == KnowledgeType::Boolean ? state_tree::Type::Boolean
+		                                                : state_tree::Type::Text;
 	if (source == "elapsed")
 	{
 		knowledge_require(binding.is_boolean() && binding.get<bool>() && (!type || *type == KnowledgeType::Integer),
 		                  path + ": invalid elapsed binding");
-		return;
+		result.source = GameplayKnowledgeBindingSource::Elapsed;
+		return result;
 	}
 	knowledge_require(source == "argument" || source == "parameter" || source == "observation" || source == "intent" ||
 	                      source == "memory",
 	                  path + ": unsupported dynamic binding source");
 	knowledge_require(binding.is_string() && !binding.get<std::string>().empty(),
 	                  path + ": binding name must be nonempty text");
+	result.name = binding.get<std::string>();
+	result.source = source == "argument"      ? GameplayKnowledgeBindingSource::Argument
+	                : source == "observation" ? GameplayKnowledgeBindingSource::Observation
+	                : source == "intent"      ? GameplayKnowledgeBindingSource::Intent
+	                : source == "memory"      ? GameplayKnowledgeBindingSource::Memory
+	                                          : GameplayKnowledgeBindingSource::Parameter;
 	if (source == "argument")
 	{
 		const auto name = binding.get<std::string>();
@@ -179,15 +192,161 @@ void knowledge_dynamic_binding(const Json &value, const std::string &path, std::
 		                                {
 			                                return field.name == binding.get<std::string>();
 		                                });
-		knowledge_require(found != fields.end(), path + ": unknown supported " + source + " binding");
-		if (type)
+		// Contextual record slots are validated against each fitted tree below.
+		knowledge_require(found != fields.end() || source == "observation",
+		                  path + ": unknown supported " + source + " binding");
+		if (type && found != fields.end())
 			knowledge_require((*type == KnowledgeType::Integer && found->type == state_tree::Type::Integer) ||
 			                      (*type == KnowledgeType::Boolean && found->type == state_tree::Type::Boolean) ||
 			                      (*type == KnowledgeType::Text && found->type == state_tree::Type::Text),
 			                  path + ": binding source type differs from field");
 	}
+	return result;
+}
+void knowledge_verify_message_context(const GameplayKnowledgeMessageDefinition &message,
+                                      const state_tree::Program &program, const std::string &path)
+{
+	using S = GameplayKnowledgeBindingSource;
+	using T = state_tree::Type;
+	const auto verify = [&](const GameplayKnowledgeMessageBinding &binding)
+	{
+		T actual = T::Missing;
+		if (binding.source == S::Argument)
+			actual = binding.name == "amount" ? T::Integer : binding.name == "flag" ? T::Boolean : T::Text;
+		else if (binding.source == S::Elapsed)
+			actual = T::Integer;
+		else if (binding.source == S::Parameter)
+		{
+			knowledge_require(program.parameters.contains(binding.name),
+			                  path + ": undeclared parameter " + binding.name);
+			actual = program.parameters.at(binding.name).type;
+		}
+		else
+		{
+			const auto &fields = binding.source == S::Observation ? program.registry.observations
+			                     : binding.source == S::Intent    ? program.registry.intents
+			                                                      : program.memory;
+			const auto found = std::find_if(fields.begin(), fields.end(),
+			                                [&](const auto &field)
+			                                {
+				                                return field.name == binding.name;
+			                                });
+			knowledge_require(found != fields.end(), path + ": undeclared binding " + binding.name);
+			actual = found->type;
+		}
+		knowledge_require(actual == T::Integer || actual == T::Boolean || actual == T::Text,
+		                  path + ": message binding must be a scalar " + binding.name);
+		knowledge_require(binding.type == T::Missing || binding.type == actual,
+		                  path + ": binding source type differs from message field " + binding.name);
+	};
+	for (const auto &[field, binding] : message.field_bindings)
+		verify(binding);
+	for (const auto &[field, binding] : message.parameter_bindings)
+		verify(binding);
+}
+void knowledge_verify_program_messages(const state_tree::Program &program,
+                                       const std::map<std::string, GameplayKnowledgeMessageDefinition> &messages,
+                                       const std::string &path)
+{
+	for (const auto &state : program.states)
+		for (const auto *tasks : {&state.entry, &state.running, &state.exit})
+			for (const auto &task : *tasks)
+				if (task.kind == state_tree::TaskKind::Action &&
+				    task.target >= static_cast<state_tree::Index>(GameplayTreeAction::SendSystemMessage) &&
+				    task.target <= static_cast<state_tree::Index>(GameplayTreeAction::SendShipMessage) &&
+				    task.arguments.at(2).source == state_tree::Source::Literal)
+				{
+					const auto &name = task.arguments.at(2).literal.text;
+					knowledge_require(messages.contains(name), path + ": unknown message template " + name);
+					knowledge_verify_message_context(messages.at(name), program, path + ".message." + name);
+				}
+	for (const auto &reference : program.references)
+		knowledge_verify_program_messages(reference, messages, path);
 }
 } // namespace
+GameplayKnowledgeMessageValues evaluate_gameplay_message(const GameplayKnowledgeMessageDefinition &message,
+                                                         const GameplayKnowledgeMessageContext &context)
+{
+	using S = GameplayKnowledgeBindingSource;
+	using T = state_tree::Type;
+	const auto evaluate = [&](const GameplayKnowledgeMessageBinding &binding)
+	{
+		state_tree::Value value;
+		if (binding.source == S::Argument)
+			value = binding.name == "amount" ? state_tree::Value::integer(context.amount)
+			        : binding.name == "flag" ? state_tree::Value::boolean(context.flag)
+			                                 : state_tree::Value::string(context.detail);
+		else if (binding.source == S::Elapsed)
+			value = state_tree::Value::integer(context.elapsed);
+		else if (binding.source == S::Parameter)
+		{
+			knowledge_require(context.parameters && context.parameters->contains(binding.name),
+			                  "message parameter is unavailable: " + binding.name);
+			value = context.parameters->at(binding.name);
+		}
+		else if (binding.source == S::Memory && context.memory)
+		{
+			knowledge_require(context.memory->contains(binding.name), "message memory is undeclared: " + binding.name);
+			value = context.memory->at(binding.name);
+		}
+		else if (binding.source == S::Intent && context.captured_intents)
+		{
+			knowledge_require(context.captured_intents->contains(binding.name),
+			                  "message intent is undeclared: " + binding.name);
+			value = context.captured_intents->at(binding.name);
+		}
+		else
+		{
+			knowledge_require(context.program, "message binding requires a compiled task context");
+			const auto &fields = binding.source == S::Observation ? context.program->registry.observations
+			                     : binding.source == S::Intent    ? context.program->registry.intents
+			                                                      : context.program->memory;
+			const auto found = std::find_if(fields.begin(), fields.end(),
+			                                [&](const auto &field)
+			                                {
+				                                return field.name == binding.name;
+			                                });
+			knowledge_require(found != fields.end(), "message binding source is undeclared: " + binding.name);
+			const auto index = static_cast<std::size_t>(found - fields.begin());
+			if (binding.source == S::Memory)
+			{
+				knowledge_require(context.instance && index < context.instance->memory.size(),
+				                  "message memory is unavailable: " + binding.name);
+				value = context.instance->memory[index];
+			}
+			else
+			{
+				const auto values = binding.source == S::Observation ? context.observations : context.intents;
+				knowledge_require(index < values.size(), "message snapshot is unavailable: " + binding.name);
+				value = values[index];
+			}
+		}
+		knowledge_require(value.type == T::Integer || value.type == T::Boolean || value.type == T::Text,
+		                  "message binding is absent or is not a scalar: " + binding.name);
+		knowledge_require(binding.type == T::Missing || value.type == binding.type,
+		                  "message binding type differs from its field: " + binding.name);
+		return value;
+	};
+	GameplayKnowledgeMessageValues result{message.literal_fields, message.presentation.parameters};
+	for (const auto &[key, binding] : message.field_bindings)
+	{
+		const auto value = evaluate(binding);
+		if (value.type == T::Integer)
+			result.fields[key] = value.number;
+		else if (value.type == T::Boolean)
+			result.fields[key] = value.number != 0;
+		else
+			result.fields[key] = value.text;
+	}
+	for (const auto &[name, binding] : message.parameter_bindings)
+	{
+		const auto value = evaluate(binding);
+		result.parameters[name] = value.type == T::Text      ? value.text
+		                          : value.type == T::Boolean ? (value.number ? "true" : "false")
+		                                                     : std::to_string(value.number);
+	}
+	return result;
+}
 GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 {
 	GameplayKnowledgeDefinitions compiled;
@@ -376,6 +535,7 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 		knowledge_require(urgency <= 3, name + ": urgency must be 0..3");
 		message.presentation.urgency = static_cast<std::uint8_t>(urgency);
 		message.presentation.automatic = row.value("automatic", true);
+		message.human_seeking = row.value("human_seeking", false);
 		message.delay =
 		    row.contains("delay_ticks") ? std::max(KnowledgeTick{1}, knowledge_unsigned(row.at("delay_ticks"))) : 1;
 		message.expires_after =
@@ -397,7 +557,8 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 			const auto key = compiled.knowledge.field(message.schema, it.key());
 			if (it.value().is_object())
 			{
-				knowledge_dynamic_binding(it.value(), name + ".fields." + it.key(), schema.fields.at(key - 1).type);
+				message.field_bindings.emplace(key, knowledge_dynamic_binding(it.value(), name + ".fields." + it.key(),
+				                                                              schema.fields.at(key - 1).type));
 				message.bound_fields.push_back(key);
 			}
 			else
@@ -412,7 +573,8 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 		{
 			if (it.value().is_object())
 			{
-				knowledge_dynamic_binding(it.value(), name + ".parameters." + it.key());
+				message.parameter_bindings.emplace(
+				    it.key(), knowledge_dynamic_binding(it.value(), name + ".parameters." + it.key()));
 				message.bound_parameters.push_back(it.key());
 			}
 			else if (it.value().is_string())
@@ -448,12 +610,44 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 				if (target)
 					recipients.push_back(&console);
 			}
-			knowledge_require(!recipients.empty() &&
-			                      (message.destination_kind == MessageDestinationKind::Ship || recipients.size() == 1),
+			knowledge_require(!recipients.empty() && (message.destination_kind == MessageDestinationKind::Ship ||
+			                                          message.destination_kind == MessageDestinationKind::Station ||
+			                                          recipients.size() == 1),
 			                  name + ": unknown/ambiguous message destination for '" + id + "'");
 			for (const auto *console : recipients)
 				knowledge_require(knowledge_readable(compiled.knowledge, *console, message.schema),
 				                  name + ": message schema is forbidden to its destination");
+		}
+	for (const auto &[name, ship] : compiled.ships)
+		for (const auto &system : resolve_systems(catalog, name))
+		{
+			if (system.controller.empty())
+				continue;
+			knowledge_require(catalog.trees.contains(system.controller),
+			                  name + ".controllers." + system.id + ": unknown controller");
+			const auto bindings = gameplay_record_bindings(catalog.trees.at(system.controller), catalog);
+			// Legacy timed controllers have no contextual bindings or message tasks.
+			if (!catalog.tree_programs.contains(system.controller))
+				continue;
+			const auto &program = catalog.tree_programs.at(system.controller);
+			knowledge_verify_program_messages(program, compiled.messages, name + ".controllers." + system.id);
+			knowledge_require(ship.owners.contains(system.id),
+			                  name + ".controllers." + system.id + ": controller has no owning Console");
+			const auto &owner_name = ship.owners.at(system.id);
+			const auto owner = std::find_if(ship.consoles.begin(), ship.consoles.end(),
+			                                [&](const auto &console)
+			                                {
+				                                return console.console.id == owner_name;
+			                                });
+			knowledge_require(owner != ship.consoles.end(),
+			                  name + ".controllers." + system.id + ": unresolved owning Console");
+			for (const auto &binding : bindings)
+			{
+				const auto schema = compiled.knowledge.schema(binding.schema);
+				knowledge_require(knowledge_readable(compiled.knowledge, *owner, schema),
+				                  name + ".controllers." + system.id + ".record_bindings." + binding.name +
+				                      ": schema reader roles exclude owning Console '" + owner_name + "'");
+			}
 		}
 	return compiled;
 }

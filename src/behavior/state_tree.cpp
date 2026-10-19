@@ -66,11 +66,17 @@ struct Evaluation
 	Result result;
 	std::vector<Index> call_path;
 	std::vector<std::uint64_t> call_activations;
-	void spend()
+	void spend(std::size_t work = 1)
 	{
-		if (result.debug.work >= budget)
+		if (work > budget - result.debug.work)
 			fail("evaluation budget exhausted; no continuation or effects committed");
-		++result.debug.work;
+		result.debug.work += static_cast<std::uint32_t>(work);
+	}
+	void spend_capture(const std::string &name, const Value &value)
+	{
+		// Charge fixed map/value work and copied name/text bytes before allocating
+		// captured maps. This bounds the total retained emission context per step.
+		spend(1 + (name.size() + 63) / 64 + (value.text.size() + 63) / 64);
 	}
 	Value read(const Binding &binding, const Instance &instance, const Frame &frame)
 	{
@@ -193,8 +199,23 @@ struct Evaluation
 					const auto &spec = program.registry.actions[task.target];
 					if (spec.intent_field != none)
 						result.intents[spec.intent_field] = args[spec.value_argument];
-					emit(program,
-					     Output{task.target, std::move(args), frame.activation, task.id, call_path, call_activations});
+					Output output{task.target, std::move(args), frame.activation, task.id, call_path, call_activations};
+					if (spec.capture_context)
+					{
+						for (const auto &[name, value] : program.parameters)
+							spend_capture(name, value);
+						for (std::size_t i = 0; i < program.memory.size(); ++i)
+							spend_capture(program.memory[i].name, instance.memory.at(i));
+						for (std::size_t i = 0; i < program.registry.intents.size(); ++i)
+							spend_capture(program.registry.intents[i].name, result.intents.at(i));
+						output.captured_parameters = program.parameters;
+						output.captured_elapsed = frame.elapsed;
+						for (std::size_t i = 0; i < program.memory.size(); ++i)
+							output.captured_memory.emplace(program.memory[i].name, instance.memory.at(i));
+						for (std::size_t i = 0; i < program.registry.intents.size(); ++i)
+							output.captured_intents.emplace(program.registry.intents[i].name, result.intents.at(i));
+					}
+					emit(program, std::move(output));
 				}
 			}
 			if (task.once)

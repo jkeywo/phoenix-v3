@@ -280,12 +280,23 @@ endif()
 add_library(phoenix_scenario_bridge STATIC src/simulation/gameplay_scenario.cpp)
 target_sources(phoenix_scenario_bridge PUBLIC FILE_SET CXX_MODULES FILES src/simulation/gameplay_scenario.cppm)
 target_link_libraries(phoenix_scenario_bridge PUBLIC phoenix_content PRIVATE phoenix_gameplay_runtime)
-add_library(phoenix_simulation STATIC src/simulation/world.cpp src/simulation/collision.cpp)
+add_library(
+	phoenix_simulation
+	STATIC
+	src/simulation/world.cpp
+	src/simulation/collision.cpp
+	src/simulation/gameplay_knowledge.cpp
+	src/simulation/gameplay_resources.cpp
+	src/simulation/flight.cpp
+)
 target_link_libraries(
 	phoenix_simulation
 	PUBLIC phoenix_foundation phoenix_content
 	PRIVATE flecs_static phoenix_gameplay_runtime phoenix_scenario_bridge
 )
+add_library(phoenix_workshop_test_host STATIC src/simulation/workshop_test.cpp)
+target_sources(phoenix_workshop_test_host PUBLIC FILE_SET CXX_MODULES FILES src/simulation/workshop_test.cppm)
+target_link_libraries(phoenix_workshop_test_host PUBLIC phoenix_simulation)
 add_library(phoenix_session STATIC src/session/local.cpp src/session/execution.cpp)
 target_link_libraries(phoenix_session PUBLIC phoenix_simulation phoenix_session_api)
 add_library(phoenix_files STATIC src/platform/imports.cpp)
@@ -309,6 +320,21 @@ else()
 	target_sources(phoenix_devices PRIVATE src/platform/windows_devices.cpp)
 	target_link_libraries(phoenix_devices PRIVATE SDL3::SDL3-static comctl32)
 endif()
+foreach(
+	case
+	IN
+	ITEMS gameplay_knowledge gameplay_flight scenario_world summary_bindings swept_collision workshop_test
+)
+	add_executable(phoenix_${case}_tests tests/system/${case}.cpp)
+	target_link_libraries(
+		phoenix_${case}_tests
+		PRIVATE phoenix_simulation phoenix_core phoenix_workshop_test_host phoenix_session
+	)
+	phoenix_fixture(phoenix_${case}_tests)
+	if(NOT EMSCRIPTEN)
+		add_test(NAME system.${case} COMMAND phoenix_${case}_tests)
+	endif()
+endforeach()
 add_executable(phoenix_scenario_tests tests/manual/scenario.cpp)
 target_link_libraries(phoenix_scenario_tests PRIVATE phoenix_scenario_bridge phoenix_gameplay_runtime)
 phoenix_fixture(phoenix_scenario_tests)
@@ -521,8 +547,27 @@ add_library(
 	STATIC
 	src/tools/workshop.cpp
 	src/tools/editor.cpp
+	src/tools/gameplay_editor.cpp
 	${imgui_SOURCE_DIR}/misc/cpp/imgui_stdlib.cpp
 )
+if(EMSCRIPTEN)
+	target_sources(phoenix_tools PRIVATE src/platform/browser_workshop_test.cpp)
+	add_executable(phoenix_workshop_test src/entry/workshop_test.cpp)
+	target_link_libraries(phoenix_workshop_test PRIVATE phoenix_workshop_test_host)
+	target_link_options(
+		phoenix_workshop_test
+		PRIVATE
+			"-sMODULARIZE=1"
+			"-sEXPORT_NAME=createPhoenixWorkshopTestModule"
+			"-sSTACK_SIZE=1048576"
+			"-sENVIRONMENT=worker"
+			"-sALLOW_MEMORY_GROWTH=1"
+			"-sEXIT_RUNTIME=0"
+			"-sEXPORTED_RUNTIME_METHODS=['ccall','HEAPU8']"
+			"-sEXPORTED_FUNCTIONS=['_main','_malloc','_free']"
+	)
+	configure_file(web/workshop-test-worker.js "${CMAKE_CURRENT_BINARY_DIR}/workshop-test-worker.js" COPYONLY)
+endif()
 target_link_libraries(phoenix_tools PUBLIC phoenix_presentation phoenix_imgui phoenix_content)
 if(EMSCRIPTEN)
 	target_sources(phoenix_files PRIVATE src/platform/browser_files.cpp)
@@ -611,7 +656,10 @@ if(EMSCRIPTEN)
 else()
 	add_executable(native src/entry/native.cpp)
 	add_dependencies(native base_pack training_pack)
-	target_link_libraries(native PRIVATE phoenix_network_lobby phoenix_network_host phoenix_network_client phoenix_tools)
+	target_link_libraries(
+		native
+		PRIVATE phoenix_network_lobby phoenix_network_host phoenix_network_client phoenix_tools phoenix_workshop_test_host
+	)
 	add_custom_command(
 		TARGET native
 		POST_BUILD

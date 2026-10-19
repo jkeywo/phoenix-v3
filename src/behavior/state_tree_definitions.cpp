@@ -186,6 +186,7 @@ struct Compiler
 		for (auto it = arguments.begin(); it != arguments.end(); ++it)
 			if (!parameters.contains(it.key()))
 				fail("undeclared parameter: " + it.key());
+		program.parameters = parameters;
 		if (source.contains("memory"))
 		{
 			if (!source.at("memory").is_array() || source.at("memory").size() > 1024)
@@ -440,7 +441,7 @@ struct Compiler
 				types.push_back(static_cast<unsigned>(t));
 			fingerprint["registry"].push_back(
 			    Json::array({"action", a.name, a.contexts, types, a.effect, a.channel, a.target_argument,
-			                 a.intent_field, a.value_argument, a.key_arguments}));
+			                 a.intent_field, a.value_argument, a.key_arguments, a.capture_context}));
 		}
 		for (const auto &ref : program.references)
 			fingerprint["references"].push_back(ref.signature);

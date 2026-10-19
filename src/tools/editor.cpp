@@ -1739,6 +1739,7 @@ void render_editor(Application &app)
 	ImGui::Begin(tool_label("Ship slots").c_str());
 	slots_editor();
 	ImGui::End();
+	draw_gameplay_authoring(editor.document, app, editor.status);
 	map_view(app);
 	lighting_preview();
 	ImGui::Begin(tool_label("Status").c_str());

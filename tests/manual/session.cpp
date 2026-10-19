@@ -1,5 +1,8 @@
 #include <chrono>
+#include <cstddef>
+#include <algorithm>
 #include <iostream>
+#include <stdexcept>
 #include <thread>
 #include <array>
 #include <functional>
@@ -20,6 +23,45 @@ import phoenix.fleet_setup;
 import phoenix.persistence;
 
 using namespace phoenix;
+// Kept in the existing live-session probe: this is permitted authored data
+// crossing the real chunked projection, not a separate mock transport fixture.
+void large_network_knowledge(Json &definitions)
+{
+	definitions["schema"] = 4;
+	definitions["knowledge"] = Json::parse(R"json({
+		"history_limit":8,"roles":["crew"],"schemas":[
+		 {"id":"network-speed","producers":["crew"],"readers":["crew"],"ship_publishable":true,
+		  "fields":[{"id":"requested","type":"integer","publishable":true}]},
+		 {"id":"network-report","producers":["crew"],"readers":["crew"],"fields":[]}
+		]
+	})json");
+	Json payload = Json::object();
+	for (int i = 0; i < 12; ++i)
+	{
+		const auto field = "part" + std::to_string(i);
+		definitions["knowledge"]["schemas"][1]["fields"].push_back({{"id", field}, {"type", "text"}});
+		payload[field] = std::string(4096, static_cast<char>('a' + i));
+	}
+	definitions["consoles"][0]["knowledge_roles"] = {"crew"};
+	definitions["consoles"][0]["knowledge_producers"] = {"crew"};
+	auto &ship = definitions["entities"][0];
+	ship["systems"]["engine"]["records"] =
+	    Json::array({{{"schema", "network-speed"}, {"producer", "crew"}, {"fields", {{"requested", "requested"}}}}});
+	ship["publications"] = Json::array({{{"id", "network-speed"},
+	                                     {"source_console", "main"},
+	                                     {"schema", "network-speed"},
+	                                     {"subject", 0},
+	                                     {"fields", {"requested"}},
+	                                     {"live", true}}});
+	ship["message_templates"] = {"test.network-report"};
+	definitions["messages"] = Json::array({{{"id", "test.network-report"},
+	                                        {"schema", "network-report"},
+	                                        {"title_key", "test.network.report"},
+	                                        {"body_key", "test.network.body"},
+	                                        {"destination", {{"kind", "console"}, {"id", "main"}}},
+	                                        {"delay_ticks", 1},
+	                                        {"fields", payload}}});
+}
 int fleet_journey(NetworkOptions options)
 {
 	auto require = [](bool value, const char *message)
@@ -27,15 +69,37 @@ int fleet_journey(NetworkOptions options)
 		if (!value)
 			throw std::runtime_error(message);
 	};
+	auto require_value = [](const std::string &name, std::int64_t actual, std::int64_t expected)
+	{
+		if (actual != expected)
+			throw std::runtime_error(name + ": expected " + std::to_string(expected) + ", observed " +
+			                         std::to_string(actual));
+	};
 	PackDraft pack;
 	pack.manifest = {{"schema", 1}, {"id", "test-core"}};
 	auto definitions =
 	    parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "synthetic multi-Console fleet");
-	definitions["schema"] = 2;
+	definitions["schema"] = 4;
 	auto &systems = definitions["entities"][0]["systems"];
 	systems["drive"] = systems["engine"];
 	systems["reserve"] = systems["engine"];
 	systems["drive"]["kind"] = systems["reserve"]["kind"] = "engine";
+	for (const char *id : {"drive", "reserve"})
+	{
+		systems[id]["reverse_speed_mm_s"] = 5000;
+		systems[id]["power_rate"] = 200;
+		systems[id]["power_store"] = "cell";
+	}
+	systems["steering"]["power_rate"] = 20;
+	systems["steering"]["power_store"] = "cell";
+	systems["side"] = {{"kind", "lateral"},          {"max_speed_mm_s", 6000},
+	                   {"lateral_speed_mm_s", 6000}, {"lateral_acceleration_mm_s2", 1000},
+	                   {"power_rate", 100},          {"power_store", "cell"}};
+	systems["storage"] = {{"kind", "storage"}, {"power_store", "cell"}};
+	definitions["entities"][0]["resources"] = Json::parse(R"json({"stores":[
+		{"id":"cell","capacity":2000000,"initial":1000000,"charge_rate":10000,
+		 "discharge_rate":10000,"stop_heat":100000,"recover_heat":50000}
+	]})json");
 	systems.erase("engine");
 	systems["search"] = systems["radar"];
 	systems["search"]["kind"] = "radar";
@@ -44,9 +108,36 @@ int fleet_journey(NetworkOptions options)
 	definitions["consoles"].push_back({{"id", "test.empty"}, {"widgets", Json::array()}});
 	definitions["entities"][0]["stations"] = Json::array(
 	    {{{"id", "bridge"},
-	      {"consoles",
-	       Json::array({{{"id", "helm"}, {"definition", "test.empty"}, {"systems", {"drive", "steering"}}},
-	                    {{"id", "sensors"}, {"definition", "test.empty"}, {"systems", {"reserve", "search"}}}})}}});
+	      {"consoles", Json::array({{{"id", "helm"}, {"definition", "test.empty"}, {"systems", {"drive", "steering"}}},
+	                                {{"id", "sensors"},
+	                                 {"definition", "test.empty"},
+	                                 {"systems", {"reserve", "search", "side", "storage"}}}})}}});
+	// One objective belongs to ship1's crew. Other fixed fleet members must not
+	// receive it through the portable projection or while recovering a checkpoint.
+	auto &map = definitions["maps"][0];
+	map["regions"] = Json::array(
+	    {{{"id", "destination"}, {"shape", "circle"}, {"x_mm", 100000000}, {"y_mm", 0}, {"radius_mm", 1000}}});
+	map["scenario"] = Json::parse(R"json({
+		"tree":"test.network-objective","bindings":{"actor":{"slot":"test.slot"}},
+		"objectives":[{"id":"reach","type":"reach_region","region":"destination",
+		 "actor":{"slot":"test.slot"},"recipients":{"ship":{"slot":"test.slot"}},
+		 "title_key":"test.network.destination"}]
+	})json");
+	definitions["trees"] = Json::parse(R"json([
+		{"id":"test.network-objective","context":"scenario","initial":"travelling","states":[
+		 {"id":"travelling","entry":[{"action":"add_objective",
+		  "arguments":["reach",{"observation":"self.entity"},"network-arrival"]}]}]},
+		{"id":"test.storage-summary","context":"system","initial":"ready","states":[
+		 {"id":"ready","running":[{"action":"set_storage_charge_limit",
+		  "arguments":[{"observation":"self.system"},"cell",{"observation":"summary.level"}]}]}]}
+	])json");
+	definitions["entities"][0]["controllers"] = {{"storage", "test.storage-summary"}};
+	definitions["entities"][0]["default_preset"] = "direct";
+	definitions["entities"][0]["presets"] = Json::parse(R"json([
+		{"id":"direct","consoles":{"sensors":{"direct":["reserve","search","side","storage"],"delegated":[]}}},
+		{"id":"assisted","consoles":{"sensors":{"direct":["reserve","search","side"],"delegated":["storage"],
+		 "summary_intents":[{"system":"storage","channel":"charge","levels":[200,400,800],"default":200}]}}}
+	])json");
 	auto original_slot = definitions["maps"][0]["ship_slots"][0];
 	for (int i = 2; i <= 3; ++i)
 	{
@@ -155,6 +246,137 @@ int fleet_journey(NetworkOptions options)
 	auto ship = hosts[0]->observation()->own.id;
 	require(client->observation()->console == "sensors" && hosts[0]->observation()->console == "helm",
 	        "Mixed local/remote Consoles collided");
+	auto fitted = [](const Observation &view, const std::string &id)
+	{
+		const auto found = std::find_if(view.systems.begin(), view.systems.end(),
+		                                [&](const auto &value)
+		                                {
+			                                return value.id == id;
+		                                });
+		if (found == view.systems.end())
+			throw std::runtime_error("Network projection omitted fitted System " + id);
+		return *found;
+	};
+	auto remote_value = [&](const std::string &id, const std::string &field)
+	{
+		return fitted(*client->observation(), id).telemetry.at(field);
+	};
+	auto objectives = [](const Observation &view)
+	{
+		Json records = Json::array();
+		for (const char *scope : {"records", "shared"})
+			for (const auto &record : view.gameplay.value(scope, Json::array()))
+				if (record.value("schema", std::string{}) == "phoenix.objective")
+					records.push_back(record);
+		return records;
+	};
+	require(client->catalog().presentation && client->catalog().maps.empty() && client->catalog().trees.empty() &&
+	            client->catalog().entities.size() == 1 && remote_value("reserve", "minimum_speed") == -5000 &&
+	            remote_value("storage", "stored_energy") > 0,
+	        "Schema-4 remote assets or signed flight/resource projection lost their permitted bounds");
+	require(!objectives(*client->observation()).empty() && !objectives(*hosts[0]->observation()).empty() &&
+	            objectives(*hosts[1]->observation()).empty() && objectives(*hosts[2]->observation()).empty(),
+	        "Scenario objective projection lost its ship scope across real network sessions");
+	const auto objective = objectives(*client->observation()).front();
+	require(objective.contains("observed_tick") && objective.contains("uncertainty"),
+	        "Remote objective knowledge lost its provenance");
+	const auto controls = client->observation()->gameplay.value("controls", Json::array());
+	require(std::any_of(controls.begin(), controls.end(),
+	                    [](const auto &value)
+	                    {
+		                    return value.at("action") == "lateral_thrust" && value.at("system") == "side";
+	                    }),
+	        "Remote gameplay projection omitted admitted semantic controls");
+	stage = "remote semantic controls";
+	require(!client->command({ship, "summary.unprojected", 800, "storage"}) &&
+	            !client->command({ship, "preset", 99, {}}) && client->command({ship, "preset", 1, {}}),
+	        "Remote meta commands must match an exact current permitted descriptor");
+	until(
+	    [&]
+	    {
+		    return !fitted(*client->observation(), "storage").controlled &&
+		           remote_value("storage", "charge_limit") == 200;
+	    });
+	require(client->command({ship, "summary.charge", 800, "storage"}) &&
+	            !client->command({ship, "summary.charge", 900, "storage"}),
+	        "Delegated summary controls must retain the authored level choices");
+	until(
+	    [&]
+	    {
+		    return remote_value("storage", "charge_limit") == 800;
+	    });
+	// Retire the temporary high summary intent before direct takeover. During
+	// recovery a legitimately unoccupied tick may run this same AI backfill;
+	// its retained intent must agree with the human setting being recovered.
+	require(client->command({ship, "summary.charge", 400, "storage"}),
+	        "Remote storage summary could not retire its temporary high intent");
+	until(
+	    [&]
+	    {
+		    return remote_value("storage", "charge_limit") == 400;
+	    });
+	require(client->command({ship, "delegate", 0, "storage"}),
+	        "Remote take-control descriptor was refused for its own delegated System");
+	until(
+	    [&]
+	    {
+		    return fitted(*client->observation(), "storage").controlled;
+	    });
+	require(client->command({ship, "preset", 0, {}}) && client->command({ship, "away", 1, {}}),
+	        "Remote direct preset and Away descriptors were refused");
+	until(
+	    [&]
+	    {
+		    return !fitted(*client->observation(), "reserve").controlled;
+	    });
+	require(!client->command({ship, "longitudinal_thrust", 1000, "reserve"}) &&
+	            !client->command({ship, "away", 1, {}}) && client->command({ship, "away", 0, {}}),
+	        "Away must remove ordinary controls and require the current resume descriptor");
+	until(
+	    [&]
+	    {
+		    return fitted(*client->observation(), "reserve").controlled;
+	    });
+	stage = "remote paid manual controls";
+	require(client->command({ship, "assisted", 0, "reserve"}) &&
+	            !hosts[0]->command({ship, "lateral_thrust", 1000, "side"}),
+	        "Advanced mode admission bypassed fitted Console ownership");
+	until(
+	    [&]
+	    {
+		    return remote_value("reserve", "assisted") == 0;
+	    });
+	const auto manual_energy = remote_value("storage", "stored_energy");
+	require(client->command({ship, "longitudinal_thrust", -1000, "reserve"}) &&
+	            client->command({ship, "lateral_thrust", 1000, "side"}) &&
+	            client->command({ship, "charge_limit", 400, "storage"}),
+	        "Remote advanced manual/power controls were refused");
+	until(
+	    [&]
+	    {
+		    return remote_value("reserve", "longitudinal_thrust") == -1000 &&
+		           remote_value("reserve", "actual_longitudinal") < 0 && remote_value("side", "actual_lateral") > 0 &&
+		           remote_value("storage", "charge_limit") == 400 &&
+		           remote_value("storage", "stored_energy") < manual_energy;
+	    });
+	require(client->command({ship, "longitudinal_thrust", 0, "reserve"}) &&
+	            client->command({ship, "lateral_thrust", 0, "side"}) &&
+	            client->command({ship, "assisted", 1, "reserve"}),
+	        "Remote manual release did not admit exact neutral axes");
+	until(
+	    [&]
+	    {
+		    return remote_value("reserve", "longitudinal_thrust") == 0 && remote_value("side", "lateral_thrust") == 0 &&
+		           remote_value("reserve", "assisted") == 1;
+	    });
+	require(client->command({ship, "speed_mm_s", -2000, "reserve"}),
+	        "Remote signed assisted speed request was refused");
+	until(
+	    [&]
+	    {
+		    return fitted(*client->observation(), "reserve").requested == -2000 &&
+		           client->observation()->requested_speed == -2000;
+	    });
 	require(hosts[0]->command({ship, "speed_mm_s", 2000}) && client->command({ship, "radar_enabled", 0}),
 	        "Independent fleet Console commands were refused");
 	require(!hosts[0]->command({ship, "radar_enabled", 0}), "Local helm bypassed its System control boundary");
@@ -197,6 +419,17 @@ int fleet_journey(NetworkOptions options)
 	auto portable = hosts[0]->save();
 	auto recovered = read_fleet_setup(portable, "ship2");
 	auto initial = read_fleet_setup(bundle);
+	const auto checkpoint = parse_json(read_pack(portable).files().at("session.json"), "fleet checkpoint").at("state");
+	const auto recovered_state = recovered.world->authoritative_world().save();
+	require(checkpoint.at("schema") == 4 && recovered_state.at("schema") == 4 &&
+	            checkpoint.at("scenario") == recovered_state.at("scenario") &&
+	            checkpoint.at("scenario").at("runtime").at("objectives").size() == 1,
+	        "Portable fleet envelope lost schema-4 scenario continuation or replayed its one-shot objective");
+	require(checkpoint.at("bodies").size() == recovered_state.at("bodies").size(),
+	        "Portable fitted fleet recovery changed the actor roster");
+	for (std::size_t i = 0; i < checkpoint.at("bodies").size(); ++i)
+		require(checkpoint.at("bodies")[i].at("resources") == recovered_state.at("bodies")[i].at("resources"),
+		        "Portable fleet envelope changed stored energy, power settings or solver continuation");
 	require(recovered.plan.at("session") != initial.plan.at("session") &&
 	            recovered.plan.at("key") != initial.plan.at("key"),
 	        "Portable fleet recovery reused credentials");
@@ -232,8 +465,21 @@ int fleet_journey(NetworkOptions options)
 	    {
 		    return client->observation() && client->observation()->radar_enabled;
 	    });
+	require_value("Durable storage charge_limit", remote_value("storage", "charge_limit"), 400);
+	require_value("Durable reserve minimum_speed", remote_value("reserve", "minimum_speed"), -5000);
+	require_value("Durable reserve longitudinal_thrust", remote_value("reserve", "longitudinal_thrust"), 0);
+	require_value("Durable side lateral_thrust", remote_value("side", "lateral_thrust"), 0);
+	const auto remaining_energy = remote_value("storage", "stored_energy");
+	if (remaining_energy <= 0 || remaining_energy >= manual_energy)
+		throw std::runtime_error("Durable storage reserve must remain finite and depleted: before manual " +
+		                         std::to_string(manual_energy) + ", observed " + std::to_string(remaining_energy));
+	require_value("Durable own-ship objective count",
+	              static_cast<std::int64_t>(objectives(*client->observation()).size()), 1);
+	require_value("Durable other-ship objective count",
+	              static_cast<std::int64_t>(objectives(*hosts[1]->observation()).size()), 0);
 	std::cout << "PASS playable fleet local/remote Consoles, approval, majority continuation, durable return and "
-	             "portable recovery, automatic compaction and restored crew grants"
+	             "portable recovery, automatic compaction, restored crew grants, fitted power/manual controls and "
+	             "scoped scenario knowledge"
 	          << std::endl;
 	return 0;
 }
@@ -295,6 +541,7 @@ int main(int argc, char **argv)
 			pack.manifest = {{"schema", 1}, {"id", "test-core"}};
 			auto definitions =
 			    parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "synthetic fixture");
+			large_network_knowledge(definitions);
 			definitions["entities"][0]["render"]["radar_icon"] = "ship";
 			definitions["entities"][1]["render"]["radar_icon"] = "asteroid";
 			definitions["entities"][1]["render"]["radar_sprite"] = "test-core:assets/pixel.png";
@@ -404,6 +651,11 @@ int main(int argc, char **argv)
 							    "Remote radar lost its public PNG or exposed full contact definitions");
 						if (session->command({2, "speed_mm_s", 1000}))
 							throw std::runtime_error("Client admitted a command for another ship");
+						if (!session->command({view->own.id, "publish.network-speed", 0, {}}) ||
+						    !session->command({view->own.id, "message.test.network-report", 0, "engine"}) ||
+						    session->command({view->own.id, "message.unprojected", 0, "engine"}))
+							throw std::runtime_error(
+							    "Remote publication/message admission lost its descriptor boundary");
 						for (const auto &contact : view->contacts)
 							if (contact.id == 2)
 								throw std::runtime_error("Remote radar leaked an out-of-range entity");
@@ -415,7 +667,26 @@ int main(int argc, char **argv)
 					}
 					else if (view->own.x != x && view->own.y != y)
 					{
+						bool report = false, publication = false;
+						for (const auto &message : view->gameplay.value("messages", Json::array()))
+							if (message.at("payload").at("schema") == "network-report")
+							{
+								const auto &fields = message.at("payload").at("fields");
+								report = fields.size() == 12 && fields.at("part0") == std::string(4096, 'a') &&
+								         fields.at("part11") == std::string(4096, 'l');
+								if (!message.contains("sequence") || !message.at("payload").contains("observed_tick"))
+									throw std::runtime_error(
+									    "Remote large message lost delivery identity or provenance");
+							}
+						for (const auto &record : view->gameplay.value("shared", Json::array()))
+							publication = publication || record.at("schema") == "network-speed";
+						if (!report || !publication)
+							continue;
+						if (view->gameplay.dump().size() <= 40000)
+							throw std::runtime_error(
+							    "Network knowledge fixture did not cross the old sub-envelope bound");
 						std::cout << "PASS remote verified content, committed claim, scoped radar, engine and steering"
+						             ", authored message/publication and chunked large knowledge projection"
 						          << std::endl;
 						return 0;
 					}

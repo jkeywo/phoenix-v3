@@ -31,7 +31,7 @@ jobs:
       - name: Bootstrap pinned local tools
         shell: pwsh
         run: ./scripts/bootstrap.ps1
-      - name: Build, verify and run synthetic system integration
+      - name: Build, verify and run native/WASM synthetic system integration
         shell: pwsh
         run: ./scripts/check.ps1
       - name: Stage public browser files
@@ -52,6 +52,7 @@ jobs:
               Copy-Item -LiteralPath "build/web/$role.$extension" -Destination $site
             }
           }
+          Copy-Item -LiteralPath build/web/phoenix_workshop_test.js,build/web/phoenix_workshop_test.wasm,build/web/workshop-test-worker.js -Destination $site
           Copy-Item -LiteralPath build/native/training.zip -Destination $site
           Copy-Item -LiteralPath build/native/training.zip.menu.json -Destination $site
           Copy-Item -LiteralPath build/native/base.zip,build/native/base.zip.menu.json -Destination $site

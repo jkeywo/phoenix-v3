@@ -137,6 +137,7 @@ struct CoordinationInput
 	MessagePresentation presentation;
 	KnowledgeTick delay = 1, expires_tick = 0;
 	KnowledgeId request_key = 0;
+	bool human_seeking = false;
 };
 struct CoordinationMessage
 {
@@ -151,7 +152,8 @@ struct CoordinationDelivery
 	CoordinationMessage message;
 	KnowledgeTick delivered_tick = 0;
 	bool notify_human = false;
-	bool actionable = true; // False in retained history after expiry/replacement/withdrawal.
+	bool actionable = true;  // False in retained history after expiry/replacement/withdrawal.
+	bool offer_only = false; // Human observer history; never an extra AI inbox delivery.
 };
 struct KnowledgePrivateMemory
 {
@@ -191,6 +193,8 @@ public:
 	std::vector<CoordinationDelivery> advance(KnowledgeTick tick);
 	std::vector<CoordinationDelivery> message_history(KnowledgeId console) const;
 	std::vector<CoordinationDelivery> receive(KnowledgeId ai);
+	// Authoritative diagnostic snapshot only. At most 256 entries, ordered by due tick/id.
+	std::vector<CoordinationMessage> pending_messages(std::size_t limit = 32) const;
 	// Reports transitions only after a stable candidate and a minimum report gap.
 	bool status_change(KnowledgeId producer, KnowledgeKey status, bool value, KnowledgeTick tick,
 	                   KnowledgeTick debounce, KnowledgeTick recovery_hysteresis, KnowledgeTick minimum_gap = 0);

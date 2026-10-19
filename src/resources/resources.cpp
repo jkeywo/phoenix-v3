@@ -20,6 +20,22 @@ namespace phoenix
 namespace
 {
 constexpr ResourceAmount million = 1000000;
+ResourceAmount funded_permille(ResourceAmount funded, ResourceAmount requested)
+{
+	if (!requested)
+		return 0;
+	ResourceAmount result = 0, remainder = 0;
+	for (int bit = 9; bit >= 0; --bit)
+	{
+		result *= 2;
+		remainder *= 2;
+		if ((1000 >> bit) & 1)
+			remainder += funded;
+		result += remainder / requested;
+		remainder %= requested;
+	}
+	return result;
+}
 struct ResourceFlowGraph
 {
 	struct Edge
@@ -383,11 +399,12 @@ void ResourceNetwork::tick()
 		    std::min(s.energy, divided(s.energy * loss_ppm, million * resource_tick_hz, s.loss_remainder));
 		s.energy -= loss;
 		telemetry_[i].lost = loss;
-		auto rate = operational(i) ? s.requested_rate : 0;
-		if (s.overdrive)
-			rate = std::min(resource_limit, rate * d.overdrive_permille / 1000);
-		demand_[i] =
-		    std::min(resource_limit, per_tick(rate, s.request_remainder) + (operational(i) ? s.discrete_request : 0));
+		const auto rate = operational(i) ? s.requested_rate : 0;
+		const auto work = rate * (s.overdrive ? d.overdrive_permille : 1000);
+		telemetry_[i].work_requested = work;
+		const auto unfunded = work ? std::max<ResourceAmount>(0, work - s.work_credit) : 0;
+		const auto continuous = (unfunded + resource_work_unit - 1) / resource_work_unit;
+		demand_[i] = std::min(resource_limit, continuous + (operational(i) ? s.discrete_request : 0));
 		telemetry_[i].requested = demand_[i];
 	}
 	// Pay affordable continuous work first. This opens only genuinely paid headroom,
@@ -442,7 +459,7 @@ void ResourceNetwork::tick()
 			return ResourceAmount{0};
 		auto own = s.requested_rate;
 		if (s.overdrive)
-			own = std::min(resource_limit, own * d.overdrive_permille / 1000);
+			own = (own * d.overdrive_permille + 999) / 1000;
 		own = std::min(resource_limit, own + s.discrete_request * resource_tick_hz);
 		ResourceAmount generation = 0;
 		for (ResourceIndex g = 0; g < generators_.size(); ++g)
@@ -654,6 +671,11 @@ void ResourceNetwork::tick()
 			telemetry_[i].discrete_paid = true;
 		}
 		telemetry_[i].limited = telemetry_[i].consumed < telemetry_[i].requested;
+		const auto paid_continuous = telemetry_[i].consumed - (telemetry_[i].discrete_paid ? discrete : 0);
+		const auto available_work = s.work_credit + paid_continuous * resource_work_unit;
+		telemetry_[i].work_funded = std::clamp(available_work, ResourceAmount{0}, telemetry_[i].work_requested);
+		s.work_credit = available_work - telemetry_[i].work_funded;
+		telemetry_[i].limited |= telemetry_[i].work_funded < telemetry_[i].work_requested;
 		demand_[i] = 0;
 	}
 	for (ResourceIndex i = 0; i < stores_.size(); ++i)
@@ -668,7 +690,8 @@ void ResourceNetwork::tick()
 		add_heat(i, operating_heat);
 		add_heat(i, scaled(telemetry_[i].consumed + telemetry_[i].outgoing + telemetry_[i].lost, d.depletion_heat_ppm,
 		                   s.depletion_heat_remainder));
-		if (operational(i) && (telemetry_[i].consumed > 0 || telemetry_[i].generated > 0))
+		if (operational(i) &&
+		    (telemetry_[i].work_funded > 0 || telemetry_[i].generated > 0 || telemetry_[i].discrete_paid))
 		{
 			const auto stress_rate =
 			    (s.overdrive ? d.stress_rate : 0) + (s.thermal_override && s.thermal_stop ? d.override_stress_rate : 0);
@@ -678,6 +701,8 @@ void ResourceNetwork::tick()
 		s.heat -= passive;
 		telemetry_[i].heat_removed += passive;
 	}
+	for (auto &source : coolant_sources_)
+		source.last_heat_removed = source.last_consumed = 0;
 	for (ResourceIndex i = 0; i < cooling_links_.size(); ++i)
 	{
 		auto &s = cooling_links_[i];
@@ -690,10 +715,7 @@ void ResourceNetwork::tick()
 		if (pump != no_resource)
 		{
 			const auto &paid = telemetry_[pump];
-			const auto discrete = stores_[pump].discrete_request;
-			const auto requested = std::max<ResourceAmount>(0, paid.requested - discrete);
-			const auto consumed = std::max<ResourceAmount>(0, paid.consumed - (paid.discrete_paid ? discrete : 0));
-			output_permille = requested ? std::min<ResourceAmount>(1000, consumed * 1000 / requested) : 0;
+			output_permille = funded_permille(paid.work_funded, paid.work_requested);
 		}
 		const auto capacity =
 		    s.isolated ? 0 : divided(s.allocation_rate * output_permille, resource_tick_hz * 1000, s.tick_remainder);
@@ -702,6 +724,8 @@ void ResourceNetwork::tick()
 		const auto removed = std::min({capacity, store.heat, affordable});
 		const auto used = scaled(removed, ratio, source.consumption_remainder);
 		source.remaining -= used;
+		source.last_heat_removed += removed;
+		source.last_consumed += used;
 		store.heat -= removed;
 		telemetry_[d.store].heat_removed += removed;
 	}
@@ -722,11 +746,39 @@ ResourceForecast ResourceNetwork::forecast(ResourceIndex i) const
 	ResourceForecast f;
 	f.observed_net_energy = t.accepted_incoming + t.generated - t.consumed - t.outgoing - t.lost;
 	f.observed_net_heat = t.heat_added - t.heat_removed;
-	if (f.observed_net_energy < 0)
+	if (!s.energy)
+		f.depletion_ticks = 0;
+	else if (f.observed_net_energy < 0)
 		f.depletion_ticks = (s.energy - f.observed_net_energy - 1) / (-f.observed_net_energy);
-	if (d.stop_heat && f.observed_net_heat > 0)
+	if (s.energy == d.capacity)
+		f.full_ticks = 0;
+	else if (f.observed_net_energy > 0)
+		f.full_ticks = (d.capacity - s.energy + f.observed_net_energy - 1) / f.observed_net_energy;
+	if (d.stop_heat && (s.heat >= d.stop_heat || f.observed_net_heat > 0))
 		f.thermal_stop_ticks =
 		    s.heat >= d.stop_heat ? 0 : (d.stop_heat - s.heat + f.observed_net_heat - 1) / f.observed_net_heat;
+	if (s.thermal_stop)
+	{
+		if (s.heat <= d.recover_heat)
+			f.thermal_recovery_ticks = 0;
+		else if (f.observed_net_heat < 0)
+			f.thermal_recovery_ticks = (s.heat - d.recover_heat - f.observed_net_heat - 1) / -f.observed_net_heat;
+	}
+	return f;
+}
+CoolantForecast ResourceNetwork::coolant_forecast(ResourceIndex source) const
+{
+	const auto &s = coolant_sources_.at(source);
+	const auto &d = definition_.coolant_sources.at(source);
+	CoolantForecast f;
+	f.observed_heat_removed = s.last_heat_removed;
+	f.observed_coolant_used = s.last_consumed;
+	const auto available = std::max<ResourceAmount>(0, s.remaining * million - s.consumption_remainder);
+	const auto consumption = s.last_heat_removed * d.coolant_per_heat_ppm;
+	if (!available)
+		f.depletion_ticks = 0;
+	else if (consumption)
+		f.depletion_ticks = (available + consumption - 1) / consumption;
 	return f;
 }
 
@@ -760,6 +812,8 @@ Json ResourceNetwork::save() const
 		                       {"passive_remainder", s.passive_remainder},
 		                       {"stress_remainder", s.stress_remainder},
 		                       {"overdrive_heat_remainder", s.overdrive_heat_remainder},
+		                       {"overdrive_request_remainder", s.overdrive_request_remainder},
+		                       {"work_credit", s.work_credit},
 		                       {"enabled", s.enabled},
 		                       {"thermal_stop", s.thermal_stop},
 		                       {"overdrive", s.overdrive},
@@ -779,8 +833,10 @@ Json ResourceNetwork::save() const
 	for (const auto &s : links_)
 		j["links"].push_back({{"tick_remainder", s.tick_remainder}, {"isolated", s.isolated}});
 	for (const auto &s : coolant_sources_)
-		j["coolant_sources"].push_back(
-		    {{"remaining", s.remaining}, {"consumption_remainder", s.consumption_remainder}});
+		j["coolant_sources"].push_back({{"remaining", s.remaining},
+		                                {"consumption_remainder", s.consumption_remainder},
+		                                {"last_heat_removed", s.last_heat_removed},
+		                                {"last_consumed", s.last_consumed}});
 	for (const auto &s : cooling_links_)
 		j["cooling_links"].push_back(
 		    {{"allocation_rate", s.allocation_rate}, {"tick_remainder", s.tick_remainder}, {"isolated", s.isolated}});
@@ -792,6 +848,8 @@ Json ResourceNetwork::save() const
 		                          {"outgoing", t.outgoing},
 		                          {"generated", t.generated},
 		                          {"consumed", t.consumed},
+		                          {"work_requested", t.work_requested},
+		                          {"work_funded", t.work_funded},
 		                          {"lost", t.lost},
 		                          {"heat_added", t.heat_added},
 		                          {"heat_removed", t.heat_removed},
@@ -852,6 +910,22 @@ void ResourceNetwork::restore(const Json &j)
 		s.passive_remainder = read(v, "passive_remainder", 19);
 		s.stress_remainder = read(v, "stress_remainder", 19);
 		s.overdrive_heat_remainder = read(v, "overdrive_heat_remainder", 999);
+		s.overdrive_request_remainder = v.contains("overdrive_request_remainder")
+		                                    ? read(v, "overdrive_request_remainder", resource_tick_hz * 1000 - 1)
+		                                    : 0;
+		if (v.contains("work_credit"))
+		{
+			const auto &credit = v.at("work_credit");
+			if (!credit.is_number_integer() || credit.is_boolean() || credit < -2 * resource_work_unit ||
+			    credit >= resource_work_unit)
+				throw std::runtime_error("resources.save: invalid prepaid work credit");
+			s.work_credit = credit.get<ResourceAmount>();
+		}
+		else
+			s.work_credit = -s.request_remainder * 1000 - s.overdrive_request_remainder;
+		// Old positive remainders represented work already performed but not yet
+		// debited. Settle that liability before funding new work after migration.
+		s.request_remainder = s.overdrive_request_remainder = 0;
 		s.loss_remainder = read(v, "loss_remainder", million * resource_tick_hz - 1);
 		s.charge_heat_remainder = read(v, "charge_heat_remainder", million - 1);
 		s.operation_heat_remainder = read(v, "operation_heat_remainder", million - 1);
@@ -902,6 +976,8 @@ void ResourceNetwork::restore(const Json &j)
 		const auto &v = j.at("coolant_sources").at(i);
 		s.remaining = read(v, "remaining", definition_.coolant_sources[i].initial);
 		s.consumption_remainder = read(v, "consumption_remainder", million - 1);
+		s.last_heat_removed = v.contains("last_heat_removed") ? read(v, "last_heat_removed") : 0;
+		s.last_consumed = v.contains("last_consumed") ? read(v, "last_consumed") : 0;
 	}
 	for (auto &s : next.cooling_links_)
 		s.allocation_rate = 0;
@@ -921,6 +997,8 @@ void ResourceNetwork::restore(const Json &j)
 		t.outgoing = read(v, "outgoing");
 		t.generated = read(v, "generated");
 		t.consumed = read(v, "consumed");
+		t.work_requested = v.contains("work_requested") ? read(v, "work_requested", resource_limit * 10000) : 0;
+		t.work_funded = v.contains("work_funded") ? read(v, "work_funded", t.work_requested) : 0;
 		t.lost = read(v, "lost");
 		t.heat_added = read(v, "heat_added");
 		t.heat_removed = read(v, "heat_removed");

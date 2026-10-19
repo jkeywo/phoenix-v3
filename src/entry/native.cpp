@@ -22,6 +22,8 @@ import phoenix.session.api;
 import phoenix.session.local;
 import phoenix.simulation;
 import phoenix.tools;
+import phoenix.workshop_test;
+#include "workshop_bridge.hpp"
 #include "performance.hpp"
 #include "../../tests/manual/native_menu.hpp"
 
@@ -570,6 +572,7 @@ int main(int argc, char **argv)
 			app.session->tick();
 			accumulated -= 1.0 / phoenix::World::ticks_per_second;
 		}
+		phoenix::pump_native_workshop_test(app, GetFrameTime());
 		const auto simulation_finished = GetTime();
 		if (app.screen != phoenix::Screen::console && app.screen != phoenix::Screen::viewscreen)
 			app.tools_keyboard_focus = false;

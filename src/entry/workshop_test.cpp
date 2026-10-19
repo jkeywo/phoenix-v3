@@ -1,0 +1,152 @@
+#include <emscripten.h>
+#include <algorithm>
+#include <cstdint>
+#include <iostream>
+#include <map>
+#include <memory>
+#include <nlohmann/json.hpp>
+#include <optional>
+#include <stdexcept>
+#include <string>
+#include <utility>
+#include <vector>
+
+import phoenix.workshop_test;
+
+namespace
+{
+phoenix::GameplayTestHost host;
+std::vector<phoenix::Bytes> blobs;
+std::size_t blob_bytes = 0;
+std::string response;
+const char *failure(const std::string &message)
+{
+	response = phoenix::Json{
+	    {"status", message},
+	    {"host_diagnostics", phoenix::Json::array({message})},
+	    {"request_succeeded",
+	     false}}.dump();
+	return response.c_str();
+}
+} // namespace
+extern "C" EMSCRIPTEN_KEEPALIVE int phoenix_workshop_test_blob(const std::uint8_t *data, unsigned size)
+{
+	if (!data || !size || size > 32 * 1024 * 1024 || blobs.size() >= 65 || blob_bytes + size > 128 * 1024 * 1024)
+		return 0;
+	try
+	{
+		blobs.emplace_back(data, data + size);
+		blob_bytes += size;
+		return static_cast<int>(blobs.size());
+	}
+	catch (...)
+	{
+		return 0;
+	}
+}
+extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_workshop_test_reset_blobs()
+{
+	blobs.clear();
+	blob_bytes = 0;
+}
+extern "C" EMSCRIPTEN_KEEPALIVE int phoenix_workshop_test_begin_blob(unsigned size)
+{
+	if (!size || size > 32 * 1024 * 1024 || blobs.size() >= 65 || blob_bytes + size > 128 * 1024 * 1024)
+		return 0;
+	try
+	{
+		blobs.emplace_back(size);
+		blob_bytes += size;
+		return static_cast<int>(blobs.size());
+	}
+	catch (...)
+	{
+		return 0;
+	}
+}
+extern "C" EMSCRIPTEN_KEEPALIVE int phoenix_workshop_test_write_blob(unsigned identity, unsigned offset,
+                                                                     const std::uint8_t *data, unsigned size)
+{
+	if (!identity || identity > blobs.size() || !data || size > 65536)
+		return 0;
+	auto &blob = blobs[identity - 1];
+	if (offset > blob.size() || size > blob.size() - offset)
+		return 0;
+	std::copy_n(data, size, blob.begin() + offset);
+	return 1;
+}
+extern "C" EMSCRIPTEN_KEEPALIVE const char *phoenix_workshop_test_request(const char *text)
+{
+	try
+	{
+		if (!text)
+			throw std::runtime_error("Missing disposable test request.");
+		const auto request = phoenix::Json::parse(text);
+		phoenix::WorkshopTestRequest command;
+		const auto action = request.at("action").get<std::string>();
+		if (action == "start")
+			command.action = phoenix::WorkshopTestAction::Start;
+		else if (action == "pause")
+			command.action = phoenix::WorkshopTestAction::Pause;
+		else if (action == "step")
+			command.action = phoenix::WorkshopTestAction::Step;
+		else if (action == "restart")
+			command.action = phoenix::WorkshopTestAction::Restart;
+		else if (action == "stop")
+			command.action = phoenix::WorkshopTestAction::Stop;
+		else
+			throw std::runtime_error("Unknown disposable test action.");
+		if (command.action == phoenix::WorkshopTestAction::Start)
+		{
+			const auto index = request.at("pack").get<std::size_t>();
+			if (!index || index > blobs.size())
+				throw std::runtime_error("Missing disposable test archive.");
+			command.pack = std::move(blobs[index - 1]);
+			if (!request.at("dependencies").is_array() || request.at("dependencies").size() > 64)
+				throw std::runtime_error("Invalid dependency archive list.");
+			for (const auto &entry : request.at("dependencies"))
+			{
+				const auto dependency = entry.get<std::size_t>();
+				if (!dependency || dependency > blobs.size() || blobs[dependency - 1].empty())
+					throw std::runtime_error("Invalid dependency archive reference.");
+				command.dependencies.push_back(std::move(blobs[dependency - 1]));
+			}
+			command.mission = request.at("mission").get<std::string>();
+			command.slot = request.at("slot").get<std::string>();
+			command.ship = request.at("ship").get<std::string>();
+		}
+		blobs.clear();
+		blob_bytes = 0;
+		const auto succeeded = host.submit(std::move(command));
+		auto feedback = host.feedback();
+		feedback["request_succeeded"] = succeeded;
+		response = feedback.dump();
+		return response.c_str();
+	}
+	catch (const std::exception &error)
+	{
+		blobs.clear();
+		blob_bytes = 0;
+		return failure(error.what());
+	}
+}
+extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_workshop_test_advance(unsigned elapsed_ms)
+{
+	host.advance(elapsed_ms);
+}
+extern "C" EMSCRIPTEN_KEEPALIVE const char *phoenix_workshop_test_feedback()
+{
+	try
+	{
+		response = host.feedback().dump();
+		return response.c_str();
+	}
+	catch (const std::exception &error)
+	{
+		return failure(error.what());
+	}
+}
+int main()
+{
+	return 0;
+}

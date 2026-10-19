@@ -83,6 +83,38 @@ Contact contact(const CollisionBody &a, const CollisionBody &b)
 	}
 	return result;
 }
+std::int64_t sweep_separation(const CollisionBody &a, const CollisionBody &b)
+{
+	if (!a.box && !b.box)
+	{
+		const auto delta = b.position - a.position;
+		const auto reach = a.radius + b.radius;
+		return fixed::dot(delta, delta) - reach * reach;
+	}
+	if (!a.box || !b.box)
+	{
+		const auto &circle = a.box ? b : a;
+		const auto &box = a.box ? a : b;
+		const auto x = fixed::direction(box.heading), y = perpendicular(x), delta = circle.position - box.position;
+		const Vec local{fixed::dot(delta, x) / fixed::unit, fixed::dot(delta, y) / fixed::unit};
+		const Vec closest{std::clamp(local.x, -box.half_width, box.half_width),
+		                  std::clamp(local.y, -box.half_length, box.half_length)};
+		const auto difference = local - closest;
+		return fixed::dot(difference, difference) - circle.radius * circle.radius;
+	}
+	const auto ax = fixed::direction(a.heading), bx = fixed::direction(b.heading);
+	auto result = std::numeric_limits<std::int64_t>::min();
+	for (const auto axis : {ax, perpendicular(ax), bx, perpendicular(bx)})
+	{
+		const auto projected = fixed::dot(b.position - a.position, axis) / fixed::unit;
+		result = std::max(result, std::abs(projected) - radius(a, axis) - radius(b, axis));
+	}
+	return result;
+}
+Vec sweep_position(Vec start, Vec end, std::int64_t fraction)
+{
+	return {start.x + (end.x - start.x) * fraction / fixed::unit, start.y + (end.y - start.y) * fraction / fixed::unit};
+}
 } // namespace
 void collide(CollisionBody &a, CollisionBody &b)
 {
@@ -127,5 +159,74 @@ void collide(CollisionBody &a, CollisionBody &b)
 		body->velocity.x = std::clamp(body->velocity.x, -fixed::unit, fixed::unit);
 		body->velocity.y = std::clamp(body->velocity.y, -fixed::unit, fixed::unit);
 	}
+}
+std::optional<std::int64_t> sweep_contact_time(const CollisionBody &a, const CollisionBody &b, Vec start_a, Vec start_b)
+{
+	if (!a.mass && !b.mass)
+		return std::nullopt;
+	const auto end_a = a.position, end_b = b.position;
+	auto sample_a = a, sample_b = b;
+	const auto separation = [&](std::int64_t fraction)
+	{
+		sample_a.position = sweep_position(start_a, end_a, fraction);
+		sample_b.position = sweep_position(start_b, end_b, fraction);
+		return sweep_separation(sample_a, sample_b);
+	};
+	// For fixed orientation, squared circle/convex-box distance and the maximum
+	// box SAT gap are convex along relative translation. Search their minimum,
+	// then the first penetration. Work depends on fraction precision rather than
+	// travel distance or obstacle thickness; there is no capped motion substep.
+	std::int64_t first = 0, last = fixed::unit;
+	while (last - first > 12)
+	{
+		const auto left = first + (last - first) / 3, right = last - (last - first) / 3;
+		const auto left_gap = separation(left), right_gap = separation(right);
+		if (left_gap < right_gap)
+			last = right;
+		else if (left_gap > right_gap)
+			first = left;
+		else
+		{
+			first = left;
+			last = right;
+		}
+	}
+	auto minimum_time = first, minimum_gap = separation(first);
+	for (auto fraction = first + 1; fraction <= last; ++fraction)
+	{
+		const auto gap = separation(fraction);
+		if (gap < minimum_gap)
+		{
+			minimum_gap = gap;
+			minimum_time = fraction;
+		}
+	}
+	// Exact tangency has no inward penetration and needs no positional impulse.
+	if (minimum_gap >= 0)
+		return std::nullopt;
+	first = 0;
+	last = minimum_time;
+	if (separation(0) < 0)
+		last = 0;
+	else
+		while (last - first > 1)
+		{
+			const auto middle = first + (last - first) / 2;
+			if (separation(middle) < 0)
+				last = middle;
+			else
+				first = middle;
+		}
+	return last;
+}
+bool sweep_collide(CollisionBody &a, CollisionBody &b, Vec start_a, Vec start_b)
+{
+	const auto impact = sweep_contact_time(a, b, start_a, start_b);
+	if (!impact)
+		return false;
+	a.position = sweep_position(start_a, a.position, *impact);
+	b.position = sweep_position(start_b, b.position, *impact);
+	collide(a, b);
+	return true;
 }
 } // namespace phoenix

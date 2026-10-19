@@ -1,4 +1,5 @@
 module;
+#include <nlohmann/json.hpp>
 #include <raylib.h>
 #include <raymath.h>
 #include <rlgl.h>

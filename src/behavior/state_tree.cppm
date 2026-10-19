@@ -66,6 +66,7 @@ struct ActionSpec
 	Index value_argument{none};
 	// Composite conflict key. Empty retains target_argument compatibility.
 	std::vector<Index> key_arguments;
+	bool capture_context = false;
 };
 struct Registry
 {
@@ -139,6 +140,7 @@ struct Program
 	Index initial{none};
 	std::uint32_t budget{4096};
 	std::vector<FieldSpec> memory;
+	std::map<std::string, Value> parameters;
 	std::vector<State> states;
 	std::vector<Program> references;
 	std::string signature;
@@ -165,6 +167,9 @@ struct Output
 	Index task{none};
 	std::vector<Index> call_path;
 	std::vector<std::uint64_t> call_activations;
+	// Optional emission-time context for typed structured message bindings.
+	std::map<std::string, Value> captured_memory, captured_intents, captured_parameters;
+	std::uint64_t captured_elapsed = 0;
 };
 struct Debug
 {

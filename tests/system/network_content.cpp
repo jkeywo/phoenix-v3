@@ -1,4 +1,6 @@
 #include <iostream>
+#include <algorithm>
+#include <cstddef>
 #include <stdexcept>
 #include <cstdint>
 #include <map>
@@ -8,14 +10,78 @@
 #include <span>
 #include <string>
 #include <vector>
+#include <utility>
 
 import phoenix.wire;
+#include "../../src/network/projection.hpp"
 
 using namespace phoenix;
 void require(bool value, const char *message)
 {
 	if (!value)
 		throw std::runtime_error(message);
+}
+void bounded_gameplay_projection(const Catalog &catalog, const std::string &key)
+{
+	Observation view{{1, "test.ship", 0, 0, 0, 0, 0}, {}};
+	const auto seat = resolve_consoles(catalog, "test.ship").front();
+	view.console = seat.id;
+	view.controls = seat.controls;
+	view.feeds = seat.feeds;
+	for (const auto &spec : resolve_systems(catalog, "test.ship"))
+		view.systems.push_back(
+		    {spec.id, spec.kind, 0, spec.kind == OperatingSystem::Steering ? 359999 : spec.maximum, true, true});
+	view.gameplay = {{"console", view.console},   {"ship", 1},
+	                 {"controls", Json::array()}, {"notifications", Json::array()},
+	                 {"records", Json::array()},  {"shared", Json::array()},
+	                 {"messages", Json::array()}};
+	view.gameplay["controls"].push_back({{"id", "away"}, {"action", "away"}, {"system", ""}, {"value", 1}});
+	view.gameplay["notifications"].push_back({{"sequence", 120}, {"title_key", "test.latest"}});
+	// An oversized individual record is omitted whole; fields are never trimmed
+	// into a record that could be mistaken for a complete permitted report.
+	view.gameplay["records"].push_back({{"id", 1}, {"fields", {{"large", std::string(2 * 1024 * 1024, 'x')}}}});
+	view.gameplay["records"].push_back({{"id", 2}, {"fields", {{"latest", 7}}}});
+	for (unsigned sequence = 1; sequence <= 120; ++sequence)
+		view.gameplay["messages"].push_back({{"sequence", sequence}, {"payload", std::string(49152, 'm')}});
+	require(view.gameplay.dump().size() > 4 * 1024 * 1024,
+	        "Synthetic permitted history must exceed the complete transport envelope");
+	const auto before = view.gameplay;
+	const auto projected = phoenix::network::observation_json(view);
+	const auto &gameplay = projected.at("gameplay");
+	require(gameplay.dump().size() <= 1024 * 1024 && view.gameplay == before &&
+	            gameplay.at("controls") == before.at("controls") &&
+	            gameplay.at("notifications") == before.at("notifications"),
+	        "Bounded network projection must preserve controls/notifications without changing authoritative history");
+	require(gameplay.at("records").size() == 1 && gameplay.at("records")[0] == before.at("records")[1] &&
+	            gameplay.at("omitted").at("records") == 1 && !gameplay.at("messages").empty() &&
+	            gameplay.at("messages").back() == before.at("messages").back() &&
+	            gameplay.at("messages").size() + gameplay.at("omitted").at("messages").get<std::size_t>() == 120,
+	        "Projection must retain newest whole reports and explicitly count omitted records/history");
+	StateSource source(Json{{"tick", 5}, {"observation", projected}}, 2);
+	StateTransfer transfer(source.offer());
+	for (unsigned round = 0; !transfer.ready() && round < 100; ++round)
+		for (const auto &request : transfer.requests(round * 751))
+		{
+			const auto packet = encode_packet({"synthetic", "a", "b", "state-chunk", source.chunk(request)}, key);
+			const auto admitted = decode_packet(packet, "a", "b", "synthetic", key);
+			require(admitted && transfer.accept(admitted->body), "Bounded gameplay snapshot chunks must authenticate");
+		}
+	require(transfer.ready() &&
+	            phoenix::network::read_observation(transfer.state().at("observation"), catalog).gameplay == gameplay,
+	        "Oversized permitted histories must reconstruct a valid bounded observation with explicit omissions");
+	Json crowded{{"controls", before.at("controls")}};
+	crowded["controls"].push_back({{"id", "delegate"}, {"action", "delegate"}, {"system", "storage"}, {"value", 0}});
+	for (unsigned i = 0; i < 4096; ++i)
+		crowded["controls"].push_back({{"id", "actuator" + std::to_string(i)},
+		                               {"action", "longitudinal_thrust"},
+		                               {"system", std::string(128, 's')},
+		                               {"value", 1000},
+		                               {"label", std::string(256, 'l')}});
+	const auto visible = phoenix::network::bounded_gameplay(crowded);
+	require(visible.dump().size() <= 1024 * 1024 && visible.at("omitted").at("controls") > 0 &&
+	            visible.at("controls")[0] == crowded.at("controls")[0] &&
+	            visible.at("controls")[1] == crowded.at("controls")[1],
+	        "A crowded control roster must retain authored Away/resume/delegation priority before optional actuators");
 }
 int main()
 {
@@ -134,6 +200,7 @@ int main()
 		        "Transfer must preserve exact original archives and resolve before readiness");
 		require(receiver.catalog().entities.contains("test.additional"),
 		        "Transferred dependent definitions must resolve through production loaders");
+		bounded_gameplay_projection(receiver.catalog(), key);
 		std::map<std::string, Bytes> cache;
 		for (const auto &bytes : originals)
 			cache[sha256(bytes)] = bytes;
