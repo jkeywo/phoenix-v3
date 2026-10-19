@@ -317,6 +317,31 @@ std::vector<ControllerCommandReadBinding> controller_command_reads(const Json &t
 	}
 	return result;
 }
+std::vector<std::string> controller_message_templates(const Json &tree, const Catalog &catalog)
+{
+	const auto names = resolve_tree_definition(tree, catalog).value("message_templates", Json::array());
+	binding_require(names.is_array() && names.size() <= 128, "Controller tree", "expected bounded message_templates");
+	std::vector<std::string> result;
+	for (const auto &value : names)
+	{
+		const auto name = value.get<std::string>();
+		binding_require(valid_identifier(name) && catalog.messages.contains(name) &&
+		                    std::find(result.begin(), result.end(), name) == result.end(),
+		                "Controller tree", "unknown or duplicate message template");
+		result.push_back(name);
+	}
+	return result;
+}
+std::vector<GameplayTreeRecordBinding> controller_message_reads(const Json &tree, const Catalog &catalog)
+{
+	const auto resolved = resolve_tree_definition(tree, catalog);
+	Json source{{"context", "controller"}, {"record_bindings", resolved.value("message_bindings", Json::array())}};
+	for (const auto &binding : source.at("record_bindings"))
+		binding_require(!binding.contains("scope") && !binding.contains("subject") &&
+		                    !binding.contains("subject_parameter"),
+		                "Controller tree", "message bindings select fields of the addressed inbox message");
+	return gameplay_record_bindings(source, catalog);
+}
 state_tree::Registry gameplay_registry(const Json &tree, const Catalog &catalog, state_tree::Context context)
 {
 	const auto inherited = resolve_record_bindings(tree, catalog);
@@ -359,6 +384,23 @@ state_tree::Registry gameplay_registry(const Json &tree, const Catalog &catalog,
 			registry.observations.push_back({binding.name, binding.type, 4, {}});
 		for (const auto &binding : controller_command_reads(tree, catalog))
 			registry.observations.push_back({binding.name, binding.type, 4, {}});
+		const std::vector<FieldSpec> inbox{
+		    {"message.available", Type::Boolean, 4, {}},     {"message.id", Type::Message, 4, {}},
+		    {"message.source", Type::Integer, 4, {}},        {"message.source_console", Type::Console, 4, {}},
+		    {"message.schema", Type::Text, 4, {}},           {"message.subject", Type::Entity, 4, {}},
+		    {"message.observed_tick", Type::Integer, 4, {}}, {"message.delivered_tick", Type::Integer, 4, {}},
+		    {"message.uncertainty", Type::Integer, 4, {}},   {"message.kind", Type::Integer, 4, {}},
+		    {"message.urgency", Type::Integer, 4, {}},       {"message.request_key", Type::Text, 4, {}}};
+		registry.observations.insert(registry.observations.end(), inbox.begin(), inbox.end());
+		for (const auto &binding : controller_message_reads(tree, catalog))
+			registry.observations.push_back({binding.name, binding.type, 4, {}});
+		registry.actions.push_back({"acknowledge_message", 4, {Type::Message}, true});
+		for (const auto &name : controller_message_templates(tree, catalog))
+		{
+			ActionSpec action{"send." + name, 4, {Type::Integer, Type::Boolean, Type::Text}, true};
+			action.capture_context = true;
+			registry.actions.push_back(std::move(action));
+		}
 		return registry;
 	}
 	auto registry = gameplay_tree_registry(context, gameplay_record_bindings(tree, catalog));

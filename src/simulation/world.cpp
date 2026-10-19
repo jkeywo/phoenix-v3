@@ -237,6 +237,7 @@ struct World::Impl
 	std::map<ConsoleAddress, GameplayKnowledgeProjection> brain_snapshots;
 	std::map<ConsoleAddress, Observation> observation_snapshots;
 	std::map<EntityId, std::vector<std::vector<std::int64_t>>> command_snapshots;
+	std::map<ControllerAddress, std::vector<CoordinationDelivery>> controller_inboxes;
 	std::map<std::pair<EntityId, std::string>, std::vector<CoordinationDelivery>> inbox_snapshots;
 	bool gameplay = false;
 	std::vector<std::pair<std::uint64_t, OperatingCommand>> meta_pending;
@@ -484,13 +485,21 @@ struct World::Impl
 								                                      channel - target->commands.begin());
 							}
 							for (const auto &action : controller.brain->program.registry.actions)
-								controller.tree_channels.push_back(static_cast<std::size_t>(
-								    std::find_if(spec.commands.begin(), spec.commands.end(),
-								                 [&](const auto &command)
-								                 {
-									                 return "write." + command.id == action.name;
-								                 }) -
-								    spec.commands.begin()));
+								if (action.name.starts_with("write."))
+									controller.tree_channels.push_back(static_cast<std::size_t>(
+									    std::find_if(spec.commands.begin(), spec.commands.end(),
+									                 [&](const auto &command)
+									                 {
+										                 return "write." + command.id == action.name;
+									                 }) -
+									    spec.commands.begin()));
+							for (const auto &binding : controller_message_reads(content.trees.at(spec.tree), content))
+							{
+								RecordReadBinding read;
+								read.schema = content.knowledge_definition.schema(binding.schema);
+								read.field = content.knowledge_definition.field(read.schema, binding.field);
+								controller.message_reads.push_back(read);
+							}
 							for (const auto &binding : gameplay_record_bindings(content.trees.at(spec.tree), content))
 							{
 								RecordReadBinding read;
@@ -2494,6 +2503,7 @@ void World::tick()
 	impl_->inbox_snapshots.clear();
 	impl_->observation_snapshots.clear();
 	impl_->command_snapshots.clear();
+	impl_->controller_inboxes.clear();
 	for (const auto &[id, entity] : impl_->entities)
 		if (entity.has<EntityControls>())
 		{
@@ -2516,6 +2526,11 @@ void World::tick()
 			for (const auto &controller : entity.get<EntityControls>().controllers)
 			{
 				const ConsoleAddress address{id, controller.definition.console};
+				if (!controller.human)
+				{
+					const ControllerAddress target{id, controller.definition.console, controller.definition.id};
+					impl_->controller_inboxes.emplace(target, impl_->knowledge.peek_controller(target));
+				}
 				if (!impl_->brain_snapshots.contains(address))
 					impl_->brain_snapshots.emplace(address, impl_->knowledge.project(address));
 			}
@@ -2562,6 +2577,7 @@ void World::tick()
 	impl_->knowledge.tick(ticks());
 	impl_->observation_snapshots.clear();
 	impl_->command_snapshots.clear();
+	impl_->controller_inboxes.clear();
 	impl_->brain_snapshots.clear();
 	impl_->inbox_snapshots.clear();
 }

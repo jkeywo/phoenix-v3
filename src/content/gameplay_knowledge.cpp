@@ -706,6 +706,22 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 					                                return console.console.id == controller.console;
 				                                });
 				knowledge_require(owner != ship.consoles.end(), name + ": unresolved Controller Console");
+				if (catalog.tree_programs.contains(controller.tree))
+				{
+					const auto &program = catalog.tree_programs.at(controller.tree);
+					for (const auto &message : controller_message_templates(catalog.trees.at(controller.tree), catalog))
+					{
+						knowledge_require(
+						    knowledge_producible(compiled.knowledge, *owner, compiled.messages.at(message).schema),
+						    name + ": Controller Console cannot produce message template " + message);
+						knowledge_verify_message_context(compiled.messages.at(message), program,
+						                                 name + ".message." + message);
+					}
+					for (const auto &binding : controller_message_reads(catalog.trees.at(controller.tree), catalog))
+						knowledge_require(
+						    knowledge_readable(compiled.knowledge, *owner, compiled.knowledge.schema(binding.schema)),
+						    name + ": Controller inbox field forbidden to owning Console");
+				}
 				for (const auto &binding : gameplay_record_bindings(catalog.trees.at(controller.tree), catalog))
 					knowledge_require(
 					    knowledge_readable(compiled.knowledge, *owner, compiled.knowledge.schema(binding.schema)),

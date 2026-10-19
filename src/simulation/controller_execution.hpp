@@ -73,14 +73,51 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 		    source.definition.commands.at(channel).type == KnowledgeType::Boolean ? Value::boolean(number != 0)
 		                                                                          : Value::integer(number);
 	}
+	const ControllerAddress recipient{id, controller.definition.console, controller.definition.id};
+	const auto inbox = controller_inboxes.contains(recipient) ? controller_inboxes.at(recipient)
+	                                                          : knowledge.peek_controller(recipient);
+	const auto base = controller_observation_prefix + controller.tree_channels.size() + brain.reads.size() +
+	                  controller.telemetry_reads.size() + controller.command_reads.size();
+	values[base] = Value::boolean(!inbox.empty());
+	if (!inbox.empty())
+	{
+		const auto &delivery = inbox.front();
+		const auto &message = delivery.message;
+		const auto &payload = message.value.payload;
+		values[base + 1] = Value::reference(Type::Message, message.id);
+		values[base + 2] = Value::integer(message.value.sender_system);
+		values[base + 3] = Value::reference(Type::Console, message.sender_console);
+		values[base + 4] = Value::string(knowledge.definition().schemas.at(payload.schema - 1).name);
+		values[base + 5] = Value::reference(Type::Entity, payload.subject);
+		values[base + 6] = Value::integer(payload.provenance.observed_tick);
+		values[base + 7] = Value::integer(delivery.delivered_tick);
+		values[base + 8] = Value::integer(payload.provenance.uncertainty);
+		values[base + 9] = Value::integer(static_cast<unsigned>(payload.provenance.kind));
+		values[base + 10] = Value::integer(message.value.presentation.urgency);
+		values[base + 11] = Value::string(knowledge.request_key_name(message.value.request_key));
+		for (std::size_t i = 0; i < controller.message_reads.size(); ++i)
+		{
+			const auto &binding = controller.message_reads[i];
+			if (binding.schema != payload.schema || !payload.fields.contains(binding.field))
+				continue;
+			const auto &field = payload.fields.at(binding.field);
+			auto &target = values[base + controller_inbox_metadata_count + i];
+			if (const auto number = std::get_if<std::int64_t>(&field))
+				target = Value::integer(*number);
+			else if (const auto flag = std::get_if<bool>(&field))
+				target = Value::boolean(*flag);
+			else
+				target = Value::string(std::get<std::string>(field));
+		}
+	}
 	return values;
 }
-void controller_output(EntityId id, std::size_t index, const state_tree::Output &output)
+void controller_output(EntityId id, std::size_t index, const state_tree::Output &output,
+                       std::span<const state_tree::Value> observations)
 {
 	auto &controller = entities.at(id).get_mut<EntityControls>().controllers.at(index);
-	const auto field = controller.tree_channels.at(output.action);
-	const auto request = controller.definition.commands[field].semantics == CommandSemantics::Request;
-	if (request)
+	const auto &action = controller.brain->program.registry.actions.at(output.action);
+	if (action.effect)
 	{
 		std::string receipt = std::to_string(output.activation) + "/" + std::to_string(output.task);
 		for (std::size_t i = 0; i < output.call_path.size(); ++i)
@@ -91,6 +128,56 @@ void controller_output(EntityId id, std::size_t index, const state_tree::Output 
 			throw std::runtime_error("Controller effect journal exhausted");
 		controller.effects.insert(receipt);
 	}
+	if (!action.name.starts_with("write."))
+	{
+		controller.result.available = true;
+		controller.result.success = false;
+		controller.result.reason.clear();
+		try
+		{
+			const ControllerAddress address{id, controller.definition.console, controller.definition.id};
+			if (action.name == "acknowledge_message")
+				knowledge.acknowledge_controller(address, output.arguments.at(0).number);
+			else if (action.name.starts_with("send."))
+			{
+				const auto name = action.name.substr(5);
+				const auto &message = knowledge.message_definition(name);
+				const ConsoleAddress source{id, controller.definition.console};
+				KnowledgeRecordInput payload;
+				payload.schema = message.schema;
+				payload.producer = knowledge.message_producer(source, controller.definition.id, message.schema,
+				                                              ControlOrigin::AI, true);
+				payload.subject = id;
+				payload.provenance = {knowledge.controller_id(address), ecs.get<Clock>().tick, ecs.get<Clock>().tick, 0,
+				                      EvidenceKind::Intent};
+				GameplayKnowledgeMessageContext context;
+				context.amount = output.arguments.at(0).number;
+				context.flag = output.arguments.at(1).number != 0;
+				context.detail = output.arguments.at(2).text;
+				context.program = &controller.brain->program;
+				context.observations = observations;
+				context.parameters = &output.captured_parameters;
+				context.memory = &output.captured_memory;
+				context.captured_intents = &output.captured_intents;
+				context.elapsed = output.captured_elapsed;
+				const auto bound = evaluate_gameplay_message(message, context);
+				payload.fields = bound.fields;
+				controller.result.id =
+				    knowledge.admit_template(source, controller.definition.id, name, payload, ControlOrigin::AI,
+				                             ecs.get<Clock>().tick, bound.parameters, true, true);
+			}
+			else
+				throw std::runtime_error("unknown Controller message action");
+			controller.result.success = true;
+		}
+		catch (const std::exception &error)
+		{
+			controller.result.reason = error.what();
+		}
+		return;
+	}
+	const auto field = controller.tree_channels.at(output.action);
+	const auto request = controller.definition.commands[field].semantics == CommandSemantics::Request;
 	const auto request_id = request ? controller.commands[field].request_id + 1 : 0;
 	controller.result.available = true;
 	controller.result.success = commit_controller({{id, controller.definition.console, controller.definition.id},
@@ -202,23 +289,26 @@ void refresh_controllers(EntityId id, bool validate = false)
 			                                                                 return claim.second == address;
 		                                                                 });
 		const bool human = present && controls.layout.profiles.at(controls.profiles.at(address.console)).human.at(i);
-		knowledge.set_controller_control({id, address.console, controller.definition.id}, present, human);
 		if (validate && human != controller.human)
 			throw std::runtime_error("Saved Controller operator differs from profile/claims");
 		if (human == controller.human)
+		{
+			knowledge.set_controller_control({id, address.console, controller.definition.id}, present, human);
 			continue;
+		}
 		if (!controller.human && controller.brain)
 		{
 			const auto observations = controller_observations(id, controller);
 			const auto result =
 			    state_tree::interrupt(controller.brain->program, controller.brain->continuation, observations);
 			for (const auto &output : result.outputs)
-				controller_output(id, i, output);
+				controller_output(id, i, output, observations);
 		}
 		if (controller.generation == std::numeric_limits<std::uint64_t>::max())
 			throw std::runtime_error("Controller operator generation exhausted");
 		++controller.generation;
 		controller.human = human;
+		knowledge.set_controller_control({id, address.console, controller.definition.id}, present, human);
 		for (std::size_t j = 0; j < controller.commands.size(); ++j)
 		{
 			const auto action = controller.definition.commands[j].action;
@@ -280,7 +370,7 @@ void run_console_controllers(flecs::entity entity)
 			const auto result = state_tree::step(brain.program, brain.continuation, observations);
 			brain.debug = result.debug;
 			for (const auto &output : result.outputs)
-				controller_output(id, i, output);
+				controller_output(id, i, output, observations);
 		}
 		if (controller.timed)
 			for (const auto &output : step_tree(programs[controller.timed->program], controller.timed->cursor))

@@ -166,3 +166,9 @@ Coordination now registers Controller actors separately from physical Systems, u
 Knowledge runtime saves containing Controllers use version 3 and preserve actor kind; the adapter verifies complete named bindings against the loaded layout. Earlier explicit-layout saves without these bindings are refused transactionally. Legacy knowledge saves without Controller actors remain readable. System inbox adapters cannot consume Controller-addressed messages.
 
 The independent verification agent built and passed Controller runtime and gameplay knowledge integration suites, including duplicate Controller names across Consoles, physical-recipient impersonation refusal, delayed notification after AI-to-human handover, exact pending-message save/resume equality and obsolete queued sender rejection. AI tree send/receive/acknowledgement, factual reporters and public message presentation remain outstanding.
+
+## Controller tree messaging receipt
+
+Controller trees declare permitted message templates and use `send.<template>` through the same admitted template route as human actions. Addressed inbox metadata and typed `message_bindings` are frozen with other decision inputs. `acknowledge_message` advances only that Controller's cursor for an available addressed message. Message effects use the Controller's saved effect journal; outgoing interruption runs before operator authority transfers.
+
+Independent native Controller and gameplay-knowledge suites pass. Integration checks cover one-shot AI sending, a human recipient yielding with unhandled history, payload-driven command execution, the actual acknowledgement cursor, exact continuation before and after acknowledgement, same-name recipient isolation and template/reader authority refusal. Factual reporters and mandatory public publication remain outstanding; this receipt does not establish the complete messaging step.

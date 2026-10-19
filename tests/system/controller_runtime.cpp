@@ -461,6 +461,75 @@ int main()
 			stale_sender.tick();
 		require(stale_sender.observe(101)->gameplay.at("messages").empty(),
 		        "execution rechecks message sender generation after profile transition");
+		auto ai_messages_source = messages_source;
+		ai_messages_source["messages"][0]["fields"]["amount"] = {{"argument", "amount"}};
+		ai_messages_source["trees"] = Json::parse(R"json([
+		 {"id":"test.sender","context":"controller","initial":"send","message_templates":["test.request"],
+		  "states":[{"id":"send","entry":[{"action":"send.test.request","arguments":[6000,false,"intent"]}]}]},
+		 {"id":"test.receiver","context":"controller","initial":"wait","command_bindings":[{"channel":"speed"}],
+		  "message_bindings":[{"name":"amount","schema":"request","field":"amount"}],
+		  "states":[{"id":"wait","transitions":[{"target":"received","conditions":[
+		    {"left":{"observation":"message.available"},"op":"eq","right":true}]}]},
+		   {"id":"received","entry":[{"action":"write.speed","arguments":[{"observation":"amount"}]},
+		    {"action":"acknowledge_message","arguments":[{"observation":"message.id"}]}]}]}
+		])json");
+		ai_messages_source["entities"][0]["control_layout"]["controllers"][0]["tree"] = "test.receiver";
+		ai_messages_source["entities"][0]["control_layout"]["controllers"][1]["tree"] = "test.sender";
+		const auto ai_message_content = load(ai_messages_source);
+		World ai_messages;
+		ai_messages.load(ai_message_content, "test.map");
+		require(ai_messages.claim(101, 1, "drive") && ai_messages.claim(102, 1, "observer"), "AI message claims");
+		require(ai_messages.submit(102, {1, "preset", 1, {}}), "sender delegates to AI");
+		for (int tick = 0; tick < 6; ++tick)
+			ai_messages.tick();
+		require(ai_messages.observe(101)->gameplay.at("messages").size() == 1 && requested(ai_messages, "port") == 0,
+		        "AI sends once while human recipient retains command control");
+		require(ai_messages.observe(102)->gameplay.at("messages").empty(), "same-named sender has no recipient inbox");
+		World ai_message_resume;
+		ai_message_resume.restore(ai_message_content, ai_messages.save());
+		for (auto *run : {&ai_messages, &ai_message_resume})
+		{
+			require(run->submit(101, {1, "preset", 1, {}}), "human yields with delivered message history intact");
+			for (int tick = 0; tick < 4; ++tick)
+				run->tick();
+			require(requested(*run, "port") == 6000 && run->observe(101)->gameplay.at("messages").size() == 1,
+			        "recipient AI reads typed payload and acknowledges without duplicating message effects");
+		}
+		require(ai_messages.save() == ai_message_resume.save(),
+		        "AI send/receive continuation survives handover restore");
+		const auto consumed = ai_messages.save();
+		const auto receiver_id = consumed.at("knowledge").at("ships")[0].at("controllers").at("drive/port");
+		bool acknowledged = false;
+		for (const auto &memory : consumed.at("knowledge").at("runtime").at("memory"))
+			if (memory.at("id") == receiver_id)
+				acknowledged =
+				    memory.at("cursor") == ai_messages.observe(101)->gameplay.at("messages")[0].at("sequence");
+		require(acknowledged, "acknowledge action advances recipient Controller continuation");
+		World consumed_resume;
+		consumed_resume.restore(ai_message_content, consumed);
+		for (int tick = 0; tick < 4; ++tick)
+		{
+			ai_messages.tick();
+			consumed_resume.tick();
+		}
+		require(ai_messages.save() == consumed_resume.save(),
+		        "acknowledged inbox and effect journal survive restoration");
+		auto forbidden_message = ai_messages_source;
+		forbidden_message["entities"][0]["message_templates"] = Json::array();
+		rejects(
+		    [&]
+		    {
+			    load(forbidden_message);
+		    },
+		    "Controller cannot send template absent from entity authority");
+		forbidden_message = ai_messages_source;
+		forbidden_message["entities"][0]["stations"][0]["consoles"][0]["knowledge_roles"] = Json::array();
+		rejects(
+		    [&]
+		    {
+			    load(forbidden_message);
+		    },
+		    "Controller cannot bind inbox payload forbidden to owning Console");
 		messages_source["messages"][0]["destination"]["id"] = "starboard";
 		rejects(
 		    [&]

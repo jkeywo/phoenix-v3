@@ -87,6 +87,9 @@ struct ControllerCommandReadBinding
 	state_tree::Type type = state_tree::Type::Integer;
 };
 std::vector<ControllerCommandReadBinding> controller_command_reads(const Json &, const Catalog &);
+std::vector<std::string> controller_message_templates(const Json &, const Catalog &);
+std::vector<GameplayTreeRecordBinding> controller_message_reads(const Json &, const Catalog &);
+inline constexpr std::size_t controller_inbox_metadata_count = 12;
 void verify_scenario_authoring(const Catalog &catalog, const Json &map);
 // Render-only navigation aids. Distances are metres; speed is metres/second.
 struct DustConfig

@@ -283,6 +283,16 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 				                where, "System observation is outside Console feeds");
 			for (const auto &action : catalog.tree_programs.at(controller.tree).registry.actions)
 			{
+				if (action.name == "acknowledge_message")
+					continue;
+				if (action.name.starts_with("send."))
+				{
+					const auto templates = entity.value("message_templates", Json::array());
+					control_require(std::find(templates.begin(), templates.end(), action.name.substr(5)) !=
+					                    templates.end(),
+					                where, "tree message template is not permitted by entity");
+					continue;
+				}
 				const auto channel = action.name.substr(6);
 				const auto found = std::find_if(controller.commands.begin(), controller.commands.end(),
 				                                [&](const auto &command)
