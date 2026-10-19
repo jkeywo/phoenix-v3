@@ -242,6 +242,8 @@ int main(int argc, char **argv)
 			    phoenix::read_file(std::string(GetApplicationDirectory()) + "assets/training.zip"));
 		const auto &prefs = app.library->preferences;
 		app.music_volume = prefs.volume;
+		app.sfx_volume = prefs.sfx_volume;
+		app.master_volume = prefs.master_volume;
 		app.language = prefs.language;
 		app.pseudo_locale = prefs.pseudo;
 		app.reduced_motion = prefs.reduced_motion;

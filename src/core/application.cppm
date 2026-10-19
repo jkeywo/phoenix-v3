@@ -69,7 +69,8 @@ struct Application
 	Screen screen = Screen::home;
 	Screen settings_return = Screen::home;
 	Screen launch_screen = Screen::viewscreen;
-	int music_volume = 50;
+	int music_volume = 50, sfx_volume = 50, master_volume = 50;
+	std::function<void()> button_click;
 	std::string network_code;
 	std::string network_service = default_network_service, network_profile = "default", join_page;
 	std::function<void(const std::string &, const std::string &, const std::string &, JoinRole)> connect;

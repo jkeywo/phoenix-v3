@@ -602,7 +602,7 @@ bool probe_native_accessibility(Application &app)
 				valid = valid && type.lVal == UIA_SliderControlTypeId && range;
 				if (range)
 				{
-					valid = valid && SUCCEEDED(range->SetValue(app.music_volume));
+					valid = valid && SUCCEEDED(range->SetValue(std::stod(control.value)));
 					range->Release();
 					drain_semantic_actions(app);
 				}

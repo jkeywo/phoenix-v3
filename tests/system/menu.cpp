@@ -65,7 +65,8 @@ int main()
 		        "Different launch directories share the same native library and saves");
 		MenuLibrary library(directory);
 		library.load();
-		require(library.preferences.volume == 50 && library.preferences.language == "en" &&
+		require(library.preferences.volume == 50 && library.preferences.sfx_volume == 50 &&
+		            library.preferences.master_volume == 50 && library.preferences.language == "en" &&
 		            library.preferences.dust_motes && library.preferences.reference_grid,
 		        "First launch has English and half volume");
 		PackDraft draft;
@@ -168,12 +169,15 @@ int main()
 		selected.front().enabled = true;
 		library.apply(selected);
 		library.preferences = {0, "en", true, true, false, false};
+		library.preferences.master_volume = 65;
+		library.preferences.sfx_volume = 30;
 		library.preferences.player_name = "Navigator";
 		library.preferences.avatar = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
 		library.remember();
 		MenuLibrary reopened(directory);
 		reopened.load();
-		require(reopened.preferences.volume == 0 && reopened.preferences.pseudo &&
+		require(reopened.preferences.volume == 0 && reopened.preferences.master_volume == 65 &&
+		            reopened.preferences.sfx_volume == 30 && reopened.preferences.pseudo &&
 		            reopened.preferences.reduced_motion && !reopened.preferences.dust_motes &&
 		            !reopened.preferences.reference_grid && reopened.archives(reopened.packs).front() == archive,
 		        "Preferences and exact enabled archives survive reopening");
@@ -183,11 +187,15 @@ int main()
 		auto legacy_index = parse_json(read_file(directory + "/library.json"), "legacy menu index");
 		legacy_index.erase("dust_motes");
 		legacy_index.erase("reference_grid");
+		legacy_index.erase("master_volume");
+		legacy_index.erase("sfx_volume");
 		write_file(directory + "/library.json", json_bytes(legacy_index));
 		MenuLibrary legacy_library(directory);
 		legacy_library.load();
-		require(legacy_library.preferences.dust_motes && legacy_library.preferences.reference_grid,
-		        "Older preference indexes default both navigation aids on");
+		require(legacy_library.preferences.dust_motes && legacy_library.preferences.reference_grid &&
+		            legacy_library.preferences.master_volume == 50 && legacy_library.preferences.sfx_volume == 50 &&
+		            legacy_library.preferences.volume == 0,
+		        "Older indexes default new mixer channels to half without resetting the music preference");
 		auto session = make_local_session();
 		session->replace_packs(reopened.archives(reopened.packs));
 		const auto before = session->catalog().ordered_packs;

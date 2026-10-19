@@ -314,6 +314,7 @@ select {
 }
 input[type="range"] {
 	padding: 0;
+	margin-inline: 0;
 	accent-color: #e1893c;
 }
 details {

@@ -1,4 +1,9 @@
-Phoenix V3 music
+Phoenix V3 audio
+
+ui_click.ogg
+  Reused unchanged from project-phoenix-v2/assets/sounds/ui_click.ogg.
+  V2 uses this recording for routine interface controls (assets/audio/NOTICE.md).
+  Runtime pitch variation is applied locally by the V3 interface mixer.
 
 menu.ogg
   Tragic ambient main menu — brandon75689 (submitted by HaelDB)

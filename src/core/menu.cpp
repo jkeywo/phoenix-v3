@@ -80,6 +80,8 @@ void MenuLibrary::load()
 		throw std::runtime_error("Unsupported native library index");
 	MenuPreferences prefs;
 	prefs.volume = data.at("volume");
+	prefs.sfx_volume = data.value("sfx_volume", 50);
+	prefs.master_volume = data.value("master_volume", 50);
 	prefs.language = data.at("language");
 	prefs.pseudo = data.value("pseudo", false);
 	prefs.reduced_motion = data.value("reduced_motion", false);
@@ -95,7 +97,8 @@ void MenuLibrary::load()
 	                }))
 		throw std::runtime_error("Invalid player name");
 	verify_player_avatar(prefs.avatar);
-	if (prefs.volume < 0 || prefs.volume > 100 || prefs.language.empty() || prefs.language.size() > 32)
+	if (prefs.volume < 0 || prefs.volume > 100 || prefs.sfx_volume < 0 || prefs.sfx_volume > 100 ||
+	    prefs.master_volume < 0 || prefs.master_volume > 100 || prefs.language.empty() || prefs.language.size() > 32)
 		throw std::runtime_error("Invalid native preferences");
 	std::vector<LibraryPack> installed;
 	std::vector<ManagedSave> saved;
@@ -131,6 +134,8 @@ void MenuLibrary::remember()
 		    "Native library index could not be loaded; preserve and repair library.json before saving changes");
 	Json data{{"schema", 1},
 	          {"volume", preferences.volume},
+	          {"sfx_volume", preferences.sfx_volume},
+	          {"master_volume", preferences.master_volume},
 	          {"language", preferences.language},
 	          {"pseudo", preferences.pseudo},
 	          {"reduced_motion", preferences.reduced_motion},

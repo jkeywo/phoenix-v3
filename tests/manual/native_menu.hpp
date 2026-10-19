@@ -78,6 +78,13 @@ struct NativeMenuSmoke
 				changed = GetTime();
 				return false;
 			}
+			if (app.master_volume != 60 || app.sfx_volume != 35)
+			{
+				if (!app.set_control_value("menu-master", "60") || !app.set_control_value("menu-sfx", "35"))
+					throw std::runtime_error("Master/SFX range actions failed");
+				changed = GetTime();
+				return false;
+			}
 			if (navigation_aid_step < 6)
 			{
 				if (!navigation_aid_step)

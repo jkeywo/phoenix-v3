@@ -4,6 +4,8 @@ const encoder = new TextEncoder(),
 const defaults = () => ({
 	schema: 1,
 	volume: 50,
+	sfx_volume: 50,
+	master_volume: 50,
 	language: "en",
 	pseudo: false,
 	reduced_motion: false,
@@ -402,6 +404,66 @@ async function boot() {
 			report(error);
 		}
 	};
+	const menuAudio = (() => {
+		let context, gain, decoded;
+		const active = new Set();
+		const recording = fetch("assets/audio/ui_click.ogg")
+			.then((response) => {
+				if (!response.ok) throw Error("Click audio unavailable");
+				return response.arrayBuffer();
+			})
+			.catch(() => null);
+		const volume = () => {
+			if (gain) gain.gain.value = (library.master_volume * library.sfx_volume) / 10000;
+		};
+		const click = async () => {
+			try {
+				const Audio = window.AudioContext || window.webkitAudioContext;
+				if (!Audio) return;
+				if (!context) {
+					context = new Audio();
+					gain = context.createGain();
+					gain.connect(context.destination);
+				}
+				// Resume synchronously in the button gesture, before decoding/loading awaits.
+				await context.resume();
+				volume();
+				decoded ||= recording.then((bytes) => (bytes ? context.decodeAudioData(bytes) : null));
+				const buffer = await decoded;
+				if (!buffer || !library.master_volume || !library.sfx_volume) return;
+				if (active.size >= 8) {
+					const oldest = active.values().next().value;
+					active.delete(oldest);
+					oldest.stop();
+				}
+				const voice = context.createBufferSource();
+				voice.buffer = buffer;
+				voice.playbackRate.value = 0.94 + Math.random() * 0.12;
+				voice.connect(gain);
+				active.add(voice);
+				voice.onended = () => {
+					active.delete(voice);
+					voice.disconnect();
+				};
+				voice.start();
+			} catch {
+				/* Audio failure must never prevent a menu action. */
+			}
+		};
+		for (const root of [$("menu"), $("popup")])
+			root.addEventListener(
+				"click",
+				(event) => {
+					const button = event.target.closest("button");
+					if (button && !button.disabled) void click();
+				},
+				{ capture: true },
+			);
+		window.addEventListener("pagehide", () => {
+			void context?.suspend();
+		});
+		return { volume };
+	})();
 	function element(tag, text, parent) {
 		const el = document.createElement(tag);
 		if (text !== undefined) el.textContent = t(text);
@@ -447,8 +509,10 @@ async function boot() {
 			document.body.classList.toggle("reduced-motion", !!library.reduced_motion);
 			nebulaFlashes?.sync();
 			menuAmbient?.sync();
+			menuAudio.volume();
 		} catch (error) {
 			library = JSON.parse(savedLibrary);
+			menuAudio.volume();
 			throw error;
 		}
 	}
@@ -756,18 +820,28 @@ async function boot() {
 		return popup;
 	}
 	function settings() {
-		const popup = dialog("Settings"),
-			volume = field(popup, "volume", "Music volume", library.volume, "range");
-		volume.min = "0";
+		const popup = dialog("Settings");
+		let firstVolume;
+		for (const [key, label] of [
+			["master_volume", "Master volume"],
+			["volume", "Music volume"],
+			["sfx_volume", "SFX volume"],
+		]) {
+			const slider = field(popup, key, label, library[key], "range");
+			slider.min = "0";
+			slider.max = "100";
+			slider.step = "1";
+			firstVolume ||= slider;
+			const value = element("output", library[key] + "%", popup);
+			value.htmlFor = slider.id;
+			slider.oninput = run(async () => {
+				library[key] = +slider.value;
+				value.textContent = library[key] + "%";
+				menuAudio.volume();
+				await remember();
+			});
+		}
 		profileFields(popup);
-		volume.max = "100";
-		const value = element("output", library.volume + "%", popup);
-		value.htmlFor = volume.id;
-		volume.oninput = run(async () => {
-			library.volume = +volume.value;
-			value.textContent = library.volume + "%";
-			await remember();
-		});
 		const language = element("label", "Language", popup),
 			select = element("select", undefined, language);
 		select.setAttribute("aria-label", t("Language"));
@@ -794,7 +868,7 @@ async function boot() {
 			});
 		if (library.reduced_motion) element("p", "Reduced motion hides dust motes and the reference grid.", popup);
 		button(popup, "Back", () => $("popup").close());
-		volume.focus();
+		firstVolume.focus();
 	}
 	function packs() {
 		const popup = dialog("Mod Packs");
@@ -1251,10 +1325,13 @@ async function boot() {
 		const [keys, values] = await Promise.all([request(store.getAllKeys()), request(store.getAll())]);
 		keys.forEach((key, i) => files.set(key, values[i]));
 		if (files.has("library.json")) {
-			library = JSON.parse(decoder.decode(files.get("library.json")));
+			library = { ...defaults(), ...JSON.parse(decoder.decode(files.get("library.json"))) };
 			if (library.schema !== 1 || !Array.isArray(library.packs) || !Array.isArray(library.saves))
 				throw Error("Invalid menu library. Existing browser data was preserved.");
 		}
+		for (const key of ["volume", "sfx_volume", "master_volume"])
+			if (!Number.isInteger(library[key]) || library[key] < 0 || library[key] > 100)
+				throw Error("Invalid audio preferences. Existing browser data was preserved.");
 		savedLibrary = JSON.stringify(library);
 		let routes;
 		try {

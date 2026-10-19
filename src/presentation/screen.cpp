@@ -8,6 +8,7 @@ module;
 #include <charconv>
 #include <cmath>
 #include <array>
+#include <tuple>
 #include <map>
 #include <set>
 #include <optional>
@@ -206,9 +207,13 @@ struct Navigation : Rml::EventListener
 		if (event.GetType() == "change")
 		{
 			const auto id = event.GetTargetElement()->GetId();
-			if (id == "menu-volume")
+			const auto channel = id == "menu-volume" || id == "music-volume"    ? "music"
+			                     : id == "menu-master" || id == "master-volume" ? "master"
+			                     : id == "menu-sfx" || id == "sfx-volume"       ? "sfx"
+			                                                                    : "";
+			if (*channel)
 			{
-				set_music_volume(*current_app, event.GetParameter<Rml::String>("value", ""));
+				set_audio_volume(*current_app, channel, event.GetParameter<Rml::String>("value", ""));
 				return;
 			}
 			if (id == "join-code" || id == "join-service" || id == "join-profile" || id == "player-name" ||
@@ -226,8 +231,6 @@ struct Navigation : Rml::EventListener
 					if (id.starts_with("local-name/"))
 						current_app->local_player_names[std::stoull(id.substr(11))] = field->GetValue();
 				}
-			if (id == "music-volume")
-				set_music_volume(*current_app, event.GetParameter<Rml::String>("value", ""));
 			return;
 		}
 		invoke_navigation(*current_app, event.GetTargetElement()->GetId());
@@ -299,19 +302,22 @@ void prepare_settings(Application &app)
 				return app.session->session_action(id);
 		return false;
 	};
-	const auto value = std::to_string(app.music_volume);
-	auto *slider = dynamic_cast<Rml::ElementFormControl *>(document->GetElementById("music-volume"));
-	if (slider->GetAttribute<Rml::String>("value", "") != value)
-		slider->SetValue(value);
-	app.screen_inputs.push_back({"music-volume", "Music volume", value, true});
-	for (const auto &[id, text] :
-	     std::vector<std::pair<std::string, std::string>>{{"music-label", localise("Music volume")},
-	                                                      {"music-percent", value + "%"},
-	                                                      {"settings.close", localise("Back")},
-	                                                      {"settings.quit", localise("Quit to Main Menu")}})
-		if (auto *element = document->GetElementById(id); element->GetInnerRML() != text)
-			element->SetInnerRML(text);
-	app.accessible_status = localise("Music volume") + ": " + value + "%";
+	for (const auto &[channel, label, volume] :
+	     std::vector<std::tuple<std::string, std::string, int>>{{"master", "Master volume", app.master_volume},
+	                                                            {"music", "Music volume", app.music_volume},
+	                                                            {"sfx", "SFX volume", app.sfx_volume}})
+	{
+		const auto value = std::to_string(volume);
+		auto *slider = dynamic_cast<Rml::ElementFormControl *>(document->GetElementById(channel + "-volume"));
+		if (slider->GetAttribute<Rml::String>("value", "") != value)
+			slider->SetValue(value);
+		app.screen_inputs.push_back({channel + "-volume", label, value, true});
+		document->GetElementById(channel + "-label")->SetInnerRML(localise(label));
+		document->GetElementById(channel + "-percent")->SetInnerRML(value + "%");
+	}
+	document->GetElementById("settings.close")->SetInnerRML(localise("Back"));
+	document->GetElementById("settings.quit")->SetInnerRML(localise("Quit to Main Menu"));
+	app.accessible_status = localise("Master volume") + ": " + std::to_string(app.master_volume) + "%";
 }
 void prepare_runtime_chrome(Application &app)
 {
@@ -436,12 +442,12 @@ void open_window()
     .connection label { display:block; font-size:16px; }
     .connection input { display:block; width:700px; height:26px; font-size:18px; background:#173142; color:#d9e9ef; border:1px #76c9e8; margin:4px 0 8px; }
     #settings-panel { display:none; margin-top:20px; }
-    #settings-panel label, #music-percent { display:block; margin-bottom:12px; }
-    #music-volume { display:block; width:80%; max-width:600px; height:40px; margin-bottom:16px; }
-    #music-volume slidertrack { height:8px; margin:16px 0; background:#315a70; }
-    #music-volume sliderbar { width:24px; height:40px; background:#76c9e8; border:2px #d9e9ef; }
-    #music-volume:focus sliderbar { background:#d9e9ef; border-color:#76c9e8; }
-    #music-volume sliderarrowdec, #music-volume sliderarrowinc { display:none; }
+    #settings-panel label, #settings-panel .audio-percent { display:block; margin-bottom:12px; }
+    #settings-panel .audio-volume { display:block; width:80%; max-width:600px; height:40px; margin-bottom:16px; }
+    #settings-panel .audio-volume slidertrack { height:8px; margin:16px 0; background:#315a70; }
+    #settings-panel .audio-volume sliderbar { width:24px; height:40px; background:#76c9e8; border:2px #d9e9ef; }
+    #settings-panel .audio-volume:focus sliderbar { background:#d9e9ef; border-color:#76c9e8; }
+    #settings-panel .audio-volume sliderarrowdec, #settings-panel .audio-volume sliderarrowinc { display:none; }
     #native-menu { position:absolute; overflow:hidden; background:#080f19; padding:0; box-sizing:border-box; }
     #native-menu h1 { position:absolute; top:30px; left:0; width:100%; text-align:center; font-size:34px; letter-spacing:3px; }
     #native-menu h2 { font-size:22px; margin:16px 0 12px; }
@@ -466,18 +472,22 @@ void open_window()
     .modal-shade { position:absolute; top:0; left:0; width:100%; height:100%; background:#080f19dd; }
     .menu-dialog { position:absolute; top:12%; left:20%; width:60%; max-height:76%; padding:24px; box-sizing:border-box; background:#102535; border:2px #76c9e8; overflow:auto; }
     #menu-status { position:absolute; left:200px; right:180px; bottom:14px; max-height:72px; overflow:auto; font-size:16px; }
-    #menu-volume { display:block; width:100%; height:44px; margin-top:14px; }
-    #menu-volume slidertrack { height:8px; margin:18px 0; background:#315a70; }
-    #menu-volume sliderbar { width:24px; height:44px; background:#76c9e8; border:2px #d9e9ef; }
-    #menu-volume sliderarrowdec, #menu-volume sliderarrowinc { display:none; }
+    #native-menu .audio-volume { display:block; width:100%; height:44px; margin-top:14px; }
+    #native-menu .audio-volume slidertrack { height:8px; margin:18px 0; background:#315a70; }
+    #native-menu .audio-volume sliderbar { width:24px; height:44px; background:#76c9e8; border:2px #d9e9ef; }
+    #native-menu .audio-volume sliderarrowdec, #native-menu .audio-volume sliderarrowinc { display:none; }
     )") + native_menu->style_sheet(font_directory.generic_string()) +
 	                                               R"(</style></head><body><h1 id="app-title">Against the Stars</h1>
     <div id="nav"><button id="home">Home</button><button id="lobby" style="display:none;">Lobby</button><button id="host">New game</button><button id="join">Join console</button>
     <button id="view">Viewscreen</button><button id="edit">Workshop</button><button id="locale">Toggle pseudo-localisation</button><button id="settings">Settings</button></div>
     <h2 id="heading">Home</h2><p id="description"></p><div id="session-controls"></div><div id="game"></div>
-    <div id="settings-panel"><label id="music-label" for="music-volume">Music volume</label>
-    <input id="music-volume" type="range" min="0" max="100" step="1" value="50"/>
-    <span id="music-percent">50%</span><button id="settings.dust">Dust motes: On</button><button id="settings.grid">Reference grid: On</button><button id="settings.motion">Reduced motion: Off</button><div id="settings-approvals"></div><button id="settings.quit">Quit to Main Menu</button><button id="settings.close">Back</button></div></body></rml>)",
+    <div id="settings-panel"><label id="master-label" for="master-volume">Master volume</label>
+    <input class="audio-volume" id="master-volume" type="range" min="0" max="100" step="1" value="50"/><span class="audio-percent" id="master-percent">50%</span>
+    <label id="music-label" for="music-volume">Music volume</label>
+    <input class="audio-volume" id="music-volume" type="range" min="0" max="100" step="1" value="50"/>
+    <span class="audio-percent" id="music-percent">50%</span>
+    <label id="sfx-label" for="sfx-volume">SFX volume</label>
+    <input class="audio-volume" id="sfx-volume" type="range" min="0" max="100" step="1" value="50"/><span class="audio-percent" id="sfx-percent">50%</span><button id="settings.dust">Dust motes: On</button><button id="settings.grid">Reference grid: On</button><button id="settings.motion">Reduced motion: Off</button><div id="settings-approvals"></div><button id="settings.quit">Quit to Main Menu</button><button id="settings.close">Back</button></div></body></rml>)",
 	                                           (font_directory / "navigation.rml").generic_string());
 	if (!document)
 		throw std::runtime_error("Could not load home screen");
@@ -509,6 +519,10 @@ void draw_screen(Application &app)
 	app.frame_metrics["clear"] = GetTime() - frame_started;
 	const auto preparation_started = GetTime();
 	current_app = &app;
+	app.button_click = [&app]
+	{
+		server_music->click(app);
+	};
 	native_menu->poll(app);
 	select_language(app.language, app.pseudo_locale);
 	if ((app.can_host || app.native_menu) && app.screen != Screen::workshop && app.screen != Screen::gm &&
@@ -603,7 +617,11 @@ void draw_screen(Application &app)
 		app.set_control_value = [&app](const std::string &id, const std::string &value)
 		{
 			if (id == "music-volume" || id == "menu-volume")
-				return set_music_volume(app, value);
+				return set_audio_volume(app, "music", value);
+			if (id == "master-volume" || id == "menu-master")
+				return set_audio_volume(app, "master", value);
+			if (id == "sfx-volume" || id == "menu-sfx")
+				return set_audio_volume(app, "sfx", value);
 			if (value.size() > 4096)
 				return false;
 			if (auto *field = dynamic_cast<Rml::ElementFormControl *>(document->GetElementById(id)))
@@ -955,7 +973,10 @@ void close_window()
 		UnloadRenderTexture(preview_texture);
 	preview_texture = {};
 	if (current_app)
+	{
 		current_app->screen_action = {};
+		current_app->button_click = {};
+	}
 	game_screen.reset();
 	native_menu.reset();
 	server_music.reset();

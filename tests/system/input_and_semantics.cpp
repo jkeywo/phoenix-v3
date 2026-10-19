@@ -64,10 +64,22 @@ int main()
 		require(client.music_volume == 50 && !invoke_navigation(client, "settings"),
 		        "music settings start at half volume and remain server-only");
 		Application host;
+		int clicks = 0;
+		host.button_click = [&]
+		{
+			++clicks;
+		};
 		host.can_host = true;
 		host.screen = Screen::console;
 		require(invoke_navigation(host, "settings") && host.screen == Screen::settings,
 		        "the server can open settings during a mission");
+		require(clicks == 1 && !invoke_navigation(host, "unknown-button") && clicks == 1,
+		        "Shared button activation emits one local click and ignores unknown actions");
+		require(host.master_volume == 50 && host.sfx_volume == 50 && set_audio_volume(host, "master", "0") &&
+		            set_audio_volume(host, "sfx", "73") && host.master_volume == 0 && host.sfx_volume == 73 &&
+		            !set_audio_volume(host, "master", "101") && !set_audio_volume(host, "sfx", "nan") &&
+		            !set_audio_volume(host, "unknown", "10") && clicks == 1,
+		        "Master and SFX sliders accept bounded independent levels without producing button clicks");
 		require(set_music_volume(host, "0") && host.music_volume == 0 && set_music_volume(host, "100.000000") &&
 		            host.music_volume == 100 && !set_music_volume(host, "nan") && !set_music_volume(host, "101") &&
 		            !set_music_volume(host, "50junk") && !set_music_volume(client, "20"),
@@ -84,6 +96,8 @@ int main()
 		        "closing settings returns to the prior screen and retains volume");
 		require(!invoke_navigation(host, "settings.grid") && !host.reference_grid,
 		        "Display preferences cannot change through an inactive Settings control");
+		require(!set_audio_volume(host, "sfx", "50") && host.sfx_volume == 73,
+		        "Mixer edits cannot change preferences through a closed Settings popup");
 		require(!invoke_navigation(client, "host") && !invoke_navigation(client, "edit"),
 		        "semantic actions must preserve role restrictions");
 		require(navigation_controls(client).size() == 4, "client semantics must not expose host/editor actions");

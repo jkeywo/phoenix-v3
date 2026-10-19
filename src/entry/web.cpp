@@ -132,6 +132,8 @@ int main(int argc, char **argv)
 #endif
 			const auto &preferences = app.library->preferences;
 			app.music_volume = preferences.volume;
+			app.sfx_volume = preferences.sfx_volume;
+			app.master_volume = preferences.master_volume;
 			app.language = preferences.language;
 			app.pseudo_locale = preferences.pseudo;
 			app.reduced_motion = preferences.reduced_motion;

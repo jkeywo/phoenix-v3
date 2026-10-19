@@ -7,11 +7,17 @@ class ServerMusic
 public:
 	~ServerMusic();
 	void update(const Application &app);
+	void click(const Application &app);
 
 private:
 	Music stream_{};
 	int track_ = 0;
 	bool attempted_device_ = false, owns_device_ = false;
+	Sound click_{};
+	Sound voices_[8]{};
+	unsigned voice_ = 0, random_ = 1;
+	bool attempted_click_ = false;
+	bool device();
 	void stop();
 };
 } // namespace phoenix

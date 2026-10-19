@@ -18,6 +18,7 @@ struct MenuPreferences
 	bool dust_motes = true, reference_grid = true;
 	std::string player_name = "Player";
 	Bytes avatar;
+	int sfx_volume = 50, master_volume = 50;
 };
 struct LibraryPack
 {

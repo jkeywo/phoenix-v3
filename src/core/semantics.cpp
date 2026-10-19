@@ -10,6 +10,7 @@ EM_JS(int, phoenix_display_preferences, (), {
 EM_JS(void, phoenix_store_display_preferences, (int bits), {
     try { localStorage.setItem('phoenix-display-preferences-v1',JSON.stringify({dust_motes:!!(bits&1),reference_grid:!!(bits&2),reduced_motion:!!(bits&4)})); } catch {}
 });
+EM_JS(void, phoenix_persist_preferences, (), { Module.phoenixPersistMenu?.().catch(() => {}); });
 // clang-format on
 #endif
 #include <array>
@@ -106,7 +107,12 @@ void remember_preferences(Application &app)
 	{
 		app.library->preferences = {app.music_volume, app.language,       app.pseudo_locale, app.reduced_motion,
 		                            app.dust_motes,   app.reference_grid, app.player_name,   app.avatar};
+		app.library->preferences.sfx_volume = app.sfx_volume;
+		app.library->preferences.master_volume = app.master_volume;
 		app.library->remember();
+#ifdef __EMSCRIPTEN__
+		phoenix_persist_preferences();
+#endif
 	}
 	catch (const std::exception &error)
 	{
@@ -168,6 +174,13 @@ std::vector<SemanticControl> navigation_controls(const Application &app)
 }
 bool invoke_navigation(Application &app, const std::string &id)
 {
+	if (app.button_click)
+		for (const auto &control : navigation_controls(app))
+			if (control.id == id && !control.editable && !control.read_only && control.placement.enabled)
+			{
+				app.button_click();
+				break;
+			}
 	const bool active = game_active(app);
 	// Reject stale UI/accessibility actions as well as hiding navigation during play.
 	if (active &&
@@ -227,7 +240,17 @@ bool invoke_navigation(Application &app, const std::string &id)
 }
 bool set_music_volume(Application &app, const std::string &value)
 {
+	return set_audio_volume(app, "music", value);
+}
+bool set_audio_volume(Application &app, const std::string &channel, const std::string &value)
+{
 	if ((!app.can_host && !app.native_menu && !game_active(app)) || app.screen != Screen::settings)
+		return false;
+	int *volume = channel == "music"    ? &app.music_volume
+	              : channel == "sfx"    ? &app.sfx_volume
+	              : channel == "master" ? &app.master_volume
+	                                    : nullptr;
+	if (!volume)
 		return false;
 	float percent = 0;
 	const auto result = std::from_chars(value.data(), value.data() + value.size(), percent);
@@ -235,9 +258,9 @@ bool set_music_volume(Application &app, const std::string &value)
 	    percent < 0 || percent > 100)
 		return false;
 	const auto changed = static_cast<int>(std::lround(percent));
-	if (changed != app.music_volume)
+	if (changed != *volume)
 	{
-		app.music_volume = changed;
+		*volume = changed;
 		remember_preferences(app);
 	}
 	return true;

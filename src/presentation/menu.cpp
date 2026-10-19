@@ -7,6 +7,7 @@ module;
 #include <cmath>
 #include <chrono>
 #include <functional>
+#include <tuple>
 #include <map>
 #include <memory>
 #include <optional>
@@ -441,7 +442,7 @@ struct NativeMenuScreen::State
 			              {
 				              app.settings_return = app.screen;
 				              app.screen = Screen::settings;
-				              focus_next = "menu-volume";
+				              focus_next = "menu-master";
 			              }) +
 			          "</div>";
 			markup += "<div class=\"menu-bottom\">" +
@@ -849,11 +850,19 @@ struct NativeMenuScreen::State
 			markup += "<div class=\"modal-shade\"><div class=\"menu-dialog\">";
 			if (app.screen == Screen::settings)
 			{
+				markup += heading("Settings");
+				for (const auto &[id, label, volume] : std::vector<std::tuple<std::string, std::string, int>>{
+				         {"menu-master", "Master volume", app.master_volume},
+				         {"menu-volume", "Music volume", app.music_volume},
+				         {"menu-sfx", "SFX volume", app.sfx_volume}})
+				{
+					markup += "<label for=\"" + id + "\">" + escaped(localise(label)) +
+					          "</label><input class=\"audio-volume\" id=\"" + id +
+					          "\" type=\"range\" min=\"0\" max=\"100\" step=\"1\" value=\"50\"/><p id=\"" + id +
+					          "-value\"></p>";
+					app.screen_inputs.push_back({id, label, std::to_string(volume), true});
+				}
 				markup += profile_controls();
-				markup += heading("Settings") + "<label for=\"menu-volume\">" + escaped(localise("Music volume")) +
-				          "</label><input id=\"menu-volume\" type=\"range\" min=\"0\" max=\"100\" step=\"1\" value=\"" +
-				          "50" + "\"/><p id=\"menu-volume-value\"></p>";
-				app.screen_inputs.push_back({"menu-volume", "Music volume", std::to_string(app.music_volume), true});
 				markup +=
 				    add("menu.language", "Language: " + (app.language == "en" ? std::string("English") : app.language),
 				        [&]
@@ -1137,8 +1146,10 @@ struct NativeMenuScreen::State
 			countdown->SetInnerRML(escaped(countdown_text));
 			app.screen_readouts.emplace_back("lobby-countdown", countdown_text);
 		}
-		if (auto *value = document.GetElementById("menu-volume-value"))
-			value->SetInnerRML(std::to_string(app.music_volume) + "%");
+		for (const auto &[id, volume] : std::vector<std::pair<std::string, int>>{
+		         {"menu-master", app.master_volume}, {"menu-volume", app.music_volume}, {"menu-sfx", app.sfx_volume}})
+			if (auto *value = document.GetElementById(id + "-value"))
+				value->SetInnerRML(std::to_string(volume) + "%");
 		const auto status = !app.status.empty() ? app.status
 		                    : !notice.empty()   ? notice
 		                    : app.session       ? app.session->lobby().status
@@ -1406,8 +1417,8 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
     #native-menu scrollbarhorizontal, #native-menu scrollbarvertical { background:#1b1915; }
     #native-menu scrollbarhorizontal sliderbar, #native-menu scrollbarvertical sliderbar { background:#c7b895; }
     #native-menu input { background:#211f1a; color:#fff0d4; border-color:#a99875; }
-    #menu-volume slidertrack { background:#60513a; }
-    #menu-volume sliderbar { background:#e1893c; border-color:#fff0d4; }
+    #native-menu .audio-volume slidertrack { background:#60513a; }
+    #native-menu .audio-volume sliderbar { background:#e1893c; border-color:#fff0d4; }
     .menu-crt { display:block; position:relative; flex-shrink:0; }
     #menu-profile { position:absolute; top:0; right:20px; pointer-events:none; }
     .crt-screen { position:absolute; display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:hidden; color:#cbe4c5; }

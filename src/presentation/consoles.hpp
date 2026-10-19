@@ -220,7 +220,10 @@ p {display:block;font-size:17px;margin:4px 0;}
 			}
 			return;
 		}
-		action(name);
+		if (app_ && app_->screen == Screen::server_lobby && (name == id("ready") || name == id("back")))
+			invoke_navigation(*app_, name);
+		else
+			action(name);
 	}
 	void focus(const std::string &name)
 	{

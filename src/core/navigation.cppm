@@ -30,4 +30,5 @@ void load_display_preferences(Application &app);
 std::vector<SemanticControl> navigation_controls(const Application &app);
 bool invoke_navigation(Application &app, const std::string &action);
 bool set_music_volume(Application &app, const std::string &value);
+bool set_audio_volume(Application &app, const std::string &channel, const std::string &value);
 } // namespace phoenix
