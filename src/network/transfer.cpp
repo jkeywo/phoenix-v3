@@ -8,6 +8,7 @@ module;
 #include <span>
 #include <string>
 #include <vector>
+#include <utility>
 
 module phoenix.wire;
 
@@ -69,6 +70,88 @@ Bytes unbase64(const std::string &text)
 	return bytes;
 }
 } // namespace
+namespace wire_detail
+{
+namespace
+{
+void check_chunk(std::size_t length, std::size_t offset, std::span<const std::uint8_t> data)
+{
+	if (offset >= length || offset % chunk_size)
+		throw std::runtime_error("Invalid transfer chunk offset");
+	if (data.size() != std::min(chunk_size, length - offset))
+		throw std::runtime_error("Transfer chunk length mismatch");
+}
+} // namespace
+ChunkBuffer::ChunkBuffer(std::size_t length, std::string hash)
+    : bytes_(length), hash_(std::move(hash)), received_((length + chunk_size - 1) / chunk_size, false),
+      deadlines_(received_.size(), 0)
+{
+}
+unsigned ChunkBuffer::active(std::uint64_t now) const
+{
+	unsigned count = 0;
+	for (std::size_t i = 0; i < received_.size(); ++i)
+		if (!received_[i] && deadlines_[i] > now)
+			++count;
+	return count;
+}
+std::vector<std::size_t> ChunkBuffer::requests(std::uint64_t now, unsigned &budget, std::uint64_t retry_ms)
+{
+	std::vector<std::size_t> offsets;
+	for (std::size_t i = 0; i < received_.size() && budget; ++i)
+		if (!received_[i] && deadlines_[i] <= now)
+		{
+			deadlines_[i] = now + retry_ms;
+			--budget;
+			offsets.push_back(i * chunk_size);
+		}
+	return offsets;
+}
+void ChunkBuffer::duplicate(std::span<const std::uint8_t> original, std::size_t offset,
+                            std::span<const std::uint8_t> data)
+{
+	check_chunk(original.size(), offset, data);
+	if (!std::equal(data.begin(), data.end(), original.begin() + offset))
+		throw std::runtime_error("Conflicting repeated transfer chunk");
+}
+bool ChunkBuffer::accept(std::size_t offset, std::span<const std::uint8_t> data)
+{
+	check_chunk(bytes_.size(), offset, data);
+	const auto index = offset / chunk_size;
+	if (received_[index])
+	{
+		duplicate(bytes_, offset, data);
+		return false;
+	}
+	std::copy(data.begin(), data.end(), bytes_.begin() + offset);
+	received_[index] = true;
+	if (std::all_of(received_.begin(), received_.end(),
+	                [](bool value)
+	                {
+		                return value;
+	                }))
+	{
+		if (sha256(bytes_) != hash_)
+			throw std::runtime_error("Transfer integrity check failed");
+		complete_ = true;
+	}
+	return true;
+}
+bool ChunkBuffer::complete() const
+{
+	return complete_;
+}
+const Bytes &ChunkBuffer::bytes() const
+{
+	return bytes_;
+}
+Bytes ChunkBuffer::release()
+{
+	if (!complete_)
+		throw std::runtime_error("Transfer is incomplete");
+	return std::move(bytes_);
+}
+} // namespace wire_detail
 PackSource::PackSource(std::vector<Bytes> archives)
 {
 	if (archives.empty() || archives.size() > 32)
@@ -156,9 +239,7 @@ PackTransfer::PackTransfer(const Json &offer, std::map<std::string, Bytes> cache
 		}
 		else
 		{
-			pack.bytes.resize(pack.length);
-			pack.received.resize((pack.length + chunk_size - 1) / chunk_size, false);
-			pack.deadlines.resize(pack.received.size(), 0);
+			pack.buffer = wire_detail::ChunkBuffer(pack.length, pack.hash);
 		}
 		packs_.push_back(std::move(pack));
 	}
@@ -170,55 +251,32 @@ std::vector<Json> PackTransfer::requests(std::uint64_t now, unsigned window)
 	std::vector<Json> result;
 	unsigned active = 0;
 	for (const auto &pack : packs_)
-		for (std::size_t chunk = 0; chunk < pack.received.size(); ++chunk)
-			if (!pack.received[chunk] && pack.deadlines[chunk] > now)
-				++active;
-	for (std::size_t index = 0; index < packs_.size() && active < window; ++index)
-	{
-		auto &pack = packs_[index];
-		for (std::size_t chunk = 0; chunk < pack.received.size() && active < window; ++chunk)
-			if (!pack.received[chunk] && pack.deadlines[chunk] <= now)
-			{
-				pack.deadlines[chunk] = now + 2000;
-				result.push_back({{"pack", index}, {"offset", chunk * chunk_size}});
-				++active;
-			}
-	}
+		active += pack.buffer.active(now);
+	unsigned budget = active < window ? window - active : 0;
+	for (std::size_t index = 0; index < packs_.size() && budget; ++index)
+		for (const auto offset : packs_[index].buffer.requests(now, budget, 2000))
+			result.push_back({{"pack", index}, {"offset", offset}});
 	return result;
 }
 bool PackTransfer::accept(const Json &chunk)
 {
-	auto index = size(chunk.at("pack"), packs_.size() - 1);
+	const auto index = size(chunk.at("pack"), packs_.size() - 1);
 	auto &pack = packs_.at(index);
 	if (chunk.at("hash") != pack.hash)
 		throw std::runtime_error("Chunk belongs to different offered content");
-	auto offset = size(chunk.at("offset"), pack.length);
-	if (offset >= pack.length || offset % chunk_size)
-		throw std::runtime_error("Invalid pack chunk offset");
-	auto bytes = unbase64(chunk.at("data"));
-	auto expected = std::min(chunk_size, pack.length - offset);
-	if (bytes.size() != expected)
-		throw std::runtime_error("Pack chunk length mismatch");
-	auto block = offset / chunk_size;
-	if (pack.verified || pack.received[block])
+	const auto offset = size(chunk.at("offset"), pack.length);
+	const auto bytes = unbase64(chunk.at("data"));
+	if (pack.verified)
 	{
-		const auto &original = pack.verified ? pack.verified->archive() : pack.bytes;
-		if (!std::equal(bytes.begin(), bytes.end(), original.begin() + offset))
-			throw std::runtime_error("Conflicting repeated pack chunk");
+		wire_detail::ChunkBuffer::duplicate(pack.verified->archive(), offset, bytes);
 		return false;
 	}
-	std::copy(bytes.begin(), bytes.end(), pack.bytes.begin() + offset);
-	pack.received[block] = true;
+	if (!pack.buffer.accept(offset, bytes))
+		return false;
 	received_ += bytes.size();
-	if (std::all_of(pack.received.begin(), pack.received.end(),
-	                [](bool value)
-	                {
-		                return value;
-	                }))
+	if (pack.buffer.complete())
 	{
-		if (sha256(pack.bytes) != pack.hash)
-			throw std::runtime_error("Transferred archive failed hash/identity verification");
-		auto verified = read_pack(std::move(pack.bytes));
+		auto verified = read_pack(pack.buffer.release());
 		if (verified.manifest().at("id") != pack.id)
 			throw std::runtime_error("Transferred archive failed hash/identity verification");
 		pack.verified = std::move(verified);
@@ -308,59 +366,34 @@ StateTransfer::StateTransfer(const Json &offer, bool archive) : offer_(offer), a
 	const auto sequence = size(offer.at("sequence"), 9007199254740991ULL);
 	if (!length || !sequence || !valid_hex_token(offer.at("hash").get<std::string>()))
 		throw std::runtime_error("Invalid bounded projection offer");
-	bytes_.resize(length);
-	received_.resize((length + chunk_size - 1) / chunk_size, false);
-	deadlines_.resize(received_.size(), 0);
+	buffer_ = wire_detail::ChunkBuffer(length, offer.at("hash").get<std::string>());
 }
 std::vector<Json> StateTransfer::requests(std::uint64_t now)
 {
 	std::vector<Json> result;
-	unsigned in_flight = 0;
-	for (std::size_t i = 0; i < received_.size(); ++i)
-		if (!received_[i] && deadlines_[i] > now)
-			++in_flight;
-	for (std::size_t i = 0; i < received_.size() && in_flight < 4; ++i)
-		if (!received_[i] && deadlines_[i] <= now)
-		{
-			deadlines_[i] = now + 750;
-			++in_flight;
-			result.push_back({{"sequence", sequence()}, {"offset", i * chunk_size}});
-		}
+	const auto active = buffer_.active(now);
+	unsigned budget = active < 4 ? 4 - active : 0;
+	for (const auto offset : buffer_.requests(now, budget, 750))
+		result.push_back({{"sequence", sequence()}, {"offset", offset}});
 	return result;
 }
 bool StateTransfer::accept(const Json &chunk)
 {
 	if (chunk.at("sequence") != offer_.at("sequence"))
 		return false;
-	const auto offset = size(chunk.at("offset"), bytes_.size() - 1);
-	if (offset % chunk_size)
-		throw std::runtime_error("Invalid projection chunk offset");
+	const auto offset = size(chunk.at("offset"), buffer_.bytes().size() - 1);
 	const auto data = unbase64(chunk.at("data"));
-	if (data.size() != std::min(chunk_size, bytes_.size() - offset))
-		throw std::runtime_error("Invalid projection chunk length");
-	const auto index = offset / chunk_size;
-	if (received_[index])
-	{
-		if (!std::equal(data.begin(), data.end(), bytes_.begin() + offset))
-			throw std::runtime_error("Conflicting projection chunk");
+	if (!buffer_.accept(offset, data))
 		return false;
-	}
-	std::copy(data.begin(), data.end(), bytes_.begin() + offset);
-	received_[index] = true;
-	if (std::all_of(received_.begin(), received_.end(),
-	                [](bool v)
-	                {
-		                return v;
-	                }))
+	if (buffer_.complete())
 	{
-		if (sha256(bytes_) != offer_.at("hash").get<std::string>())
-			throw std::runtime_error("Projection integrity check failed");
 		if (archive_)
 		{
 			complete_ = true;
 			return true;
 		}
-		state_ = Json::parse(bytes_.begin(), bytes_.end(),
+		const auto &bytes = buffer_.bytes();
+		state_ = Json::parse(bytes.begin(), bytes.end(),
 		                     [](int depth, Json::parse_event_t, Json &)
 		                     {
 			                     if (depth > 32)
@@ -390,6 +423,6 @@ const Bytes &StateTransfer::archive() const
 {
 	if (!archive_ || !ready())
 		throw std::runtime_error("Private setup transfer is incomplete");
-	return bytes_;
+	return buffer_.bytes();
 }
 } // namespace phoenix

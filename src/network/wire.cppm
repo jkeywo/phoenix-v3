@@ -1,5 +1,6 @@
 module;
 #include <cstdint>
+#include <cstddef>
 #include <map>
 #include <memory>
 #include <nlohmann/json.hpp>
@@ -10,6 +11,32 @@ module;
 
 export module phoenix.wire;
 export import phoenix.content;
+
+// Module-internal assembly mechanics; envelope and domain validation stay in the wrappers.
+namespace phoenix::wire_detail
+{
+class ChunkBuffer
+{
+public:
+	ChunkBuffer() = default;
+	ChunkBuffer(std::size_t length, std::string hash);
+	unsigned active(std::uint64_t now) const;
+	std::vector<std::size_t> requests(std::uint64_t now, unsigned &budget, std::uint64_t retry_ms);
+	bool accept(std::size_t offset, std::span<const std::uint8_t> data);
+	static void duplicate(std::span<const std::uint8_t> original, std::size_t offset,
+	                      std::span<const std::uint8_t> data);
+	bool complete() const;
+	const Bytes &bytes() const;
+	Bytes release();
+
+private:
+	Bytes bytes_;
+	std::string hash_;
+	std::vector<bool> received_;
+	std::vector<std::uint64_t> deadlines_;
+	bool complete_ = false;
+};
+} // namespace phoenix::wire_detail
 
 export namespace phoenix
 {
@@ -55,11 +82,9 @@ private:
 	struct Pending
 	{
 		std::string id, hash;
-		Bytes bytes;
+		wire_detail::ChunkBuffer buffer;
 		std::optional<Pack> verified;
 		std::size_t length = 0;
-		std::vector<bool> received;
-		std::vector<std::uint64_t> deadlines;
 		bool cached = false;
 	};
 	std::vector<Pending> packs_;
@@ -97,8 +122,6 @@ public:
 private:
 	Json offer_, state_;
 	bool archive_ = false, complete_ = false;
-	Bytes bytes_;
-	std::vector<bool> received_;
-	std::vector<std::uint64_t> deadlines_;
+	wire_detail::ChunkBuffer buffer_;
 };
 } // namespace phoenix

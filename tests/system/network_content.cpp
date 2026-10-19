@@ -94,6 +94,11 @@ int main()
 		auto state_requests = state_transfer.requests(0);
 		require(state_requests.size() == 4 && state_transfer.requests(1).empty(),
 		        "Projection chunks must obey the bounded outstanding window");
+		auto stale = state_source.chunk(state_requests.front());
+		stale["sequence"] = 2;
+		require(!state_transfer.accept(stale) && !state_transfer.ready(),
+		        "A stale projection sequence must not enter the current byte assembly");
+		require(state_transfer.requests(749).empty(), "Projection requests must wait for their own retry deadline");
 		auto retry = state_transfer.requests(751);
 		require(retry == state_requests, "Missing projection chunks must be retried");
 		std::reverse(retry.begin(), retry.end());
@@ -111,6 +116,20 @@ int main()
 				state_transfer.accept(state_source.chunk(request));
 		require(state_transfer.ready() && state_transfer.state() == large_state,
 		        "A projection larger than a packet must reconstruct the exact permitted snapshot");
+		StateSource small_state(Json{{"tick", 1}}, 3);
+		auto corrupt_offer = small_state.offer();
+		corrupt_offer["hash"] = std::string(64, '0');
+		StateTransfer corrupt(corrupt_offer);
+		bool bad_hash = false;
+		try
+		{
+			corrupt.accept(small_state.chunk(corrupt.requests(0).front()));
+		}
+		catch (const std::exception &)
+		{
+			bad_hash = true;
+		}
+		require(bad_hash && !corrupt.ready(), "A complete projection with the wrong hash must never publish state");
 		auto invalid_state_offer = state_source.offer();
 		invalid_state_offer["size"] = 4 * 1024 * 1024 + 1;
 		bool invalid_state_refused = false;
@@ -173,12 +192,18 @@ int main()
 		          Json::array({{{"id", "test.additional"}, {"extends", "test.ship"}, {"render", {{"scale", 3}}}}})}});
 		const std::vector<Bytes> originals{write_pack(base), write_pack(mod)};
 		PackSource source(originals);
+		PackTransfer across_packs(source.offer());
+		const auto across_requests = across_packs.requests(0, 8);
+		require(!across_requests.empty() && across_requests.size() <= 8 && across_requests.back().at("pack") == 1 &&
+		            across_packs.requests(1, 8).empty(),
+		        "One outstanding request budget must cover all offered archives together");
 		PackTransfer receiver(source.offer());
 		require(!receiver.ready() && receiver.received_bytes() == 0,
 		        "Content must not be ready before transfer and full ordered resolution");
 		auto first = receiver.requests(0, 4);
 		require(first.size() == 4 && receiver.requests(1, 4).empty(),
 		        "Sliding transfer window must bound outstanding chunk requests");
+		require(receiver.requests(1999, 4).empty(), "Pack requests retain their longer retry deadline");
 		require(receiver.requests(2001, 4).size() == 4,
 		        "Timed-out requests must retry without abandoning content identity");
 		std::reverse(first.begin(), first.end());
@@ -207,6 +232,18 @@ int main()
 		PackTransfer cached(source.offer(), cache);
 		require(cached.ready() && cached.requests(0).empty(), "Verified cached archives must avoid redundant transfer");
 		require(cached.uncached_packs().empty(), "Verified persistent cache hits must not be rewritten");
+		const auto completed_chunk = source.chunk({{"pack", 0}, {"offset", 0}});
+		require(
+		    !receiver.accept(completed_chunk) && !cached.accept(completed_chunk),
+		    "Completed and cached packs compare duplicates against their verified archive after assembly is released");
+		StateSource setup_source(originals.front(), 4);
+		StateTransfer setup_transfer(setup_source.offer(), true);
+		for (unsigned round = 0; !setup_transfer.ready() && round < 100; ++round)
+			for (const auto &request : setup_transfer.requests(round * 751))
+				setup_transfer.accept(setup_source.chunk(request));
+		require(setup_transfer.ready() && setup_transfer.archive() == originals.front(),
+		        "Private setup bytes use shared assembly without projection JSON parsing");
+
 		require(receiver.uncached_packs().size() == originals.size(),
 		        "Downloaded archives must be available for persistent caching");
 		auto owner = receiver.uncached_packs()[0].archive_owner();
