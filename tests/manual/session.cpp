@@ -793,11 +793,31 @@ int main(int argc, char **argv)
 							    "Remote radar lost its public PNG or exposed full contact definitions");
 						if (session->command({2, "speed_mm_s", 1000}))
 							throw std::runtime_error("Client admitted a command for another ship");
-						if (!session->command({view->own.id, "publish.network-speed", 0, {}}) ||
-						    !session->command({view->own.id, "message.test.network-report", 0, "engine"}) ||
-						    session->command({view->own.id, "message.unprojected", 0, "engine"}))
-							throw std::runtime_error(
-							    "Remote publication/message admission lost its descriptor boundary");
+						std::optional<OperatingCommand> publication, message;
+						for (const auto &descriptor : view->gameplay.value("controls", Json::array()))
+						{
+							if (descriptor.value("action", std::string{}) == "publish.network-speed")
+								publication = decode_operating_command(descriptor);
+							if (descriptor.value("action", std::string{}) == "message.test.network-report")
+								message = decode_operating_command(descriptor);
+						}
+						if (!publication || !message)
+							throw std::runtime_error("Remote publication/Controller message descriptor missing");
+						publication->target = view->own.id;
+						message->target = view->own.id;
+						auto forged = *message;
+						forged.action = "message.unprojected";
+						auto stale = *message;
+						++stale.generation;
+						if (!session->command(*publication))
+							throw std::runtime_error("Remote current publication descriptor refused: " +
+							                         encode_operating_command(*publication).dump());
+						if (!session->command(*message))
+							throw std::runtime_error("Remote current message descriptor refused: " +
+							                         encode_operating_command(*message).dump());
+						if (session->command(forged) || session->command(stale) ||
+						    session->command({view->own.id, "message.test.network-report", 0, "engine"}))
+							throw std::runtime_error("Remote forged message descriptor admitted");
 						for (const auto &contact : view->contacts)
 							if (contact.id == 2)
 								throw std::runtime_error("Remote radar leaked an out-of-range entity");
