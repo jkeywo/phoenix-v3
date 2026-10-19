@@ -191,3 +191,11 @@ The independent verification agent passed native Controller and gameplay-knowled
 Resource fitting compilation now belongs to content and is shared by validation and simulation. Per-System observation schemas derive from the compiled resource bindings and flight capabilities. Catalog loading rejects Controller/reporter fields absent from the fitted producer, before World construction. The vocabulary includes following, store forecasts and coolant forecasts/use with their actual types.
 
 Independent verification passed native Controller, gameplay-knowledge, content and simulation integration suites. Synthetic fixtures compare complete compiled field sets with production telemetry for resource-bound engines, engines without stores and cooling equipment; unavailable fields and type mismatches are rejected. This closes the Catalog-only availability gap recorded above.
+
+## Public Viewscreen and remote projection receipt
+
+The Viewscreen now renders bounded shared-board/message readouts using the Console's localised evidence formatter and equivalent accessible text. Public projections deduplicate message identities, preserve evidence and omission counts, and cannot carry commands or actionable spectator copies. Local and network hosts expose the entity board without a Console claim. Approved remote clients receive the bounded public board through authenticated state transfers independently of station ownership; the direct-join fallback no longer attempts a nonexistent lobby-assigned claim.
+
+Independent verification passed Controller runtime and transfer suites, compiled native presentation/host/client, and ran the real private-signalling lobby journey: an approved unclaimed remote client received a live publication with no private Console observation, then claimed a Console normally. Additional synthetic acceptance proves one shared throttle drives independently constrained resource consumers with conserved local reserves, and equivalent all-AI entities follow the same trajectory in and outside a player slot. Graphical/screen-reader smoke remains pending. A subsequent audit identified old reader-role restrictions on shared/public data; that cross-role visibility gap remains open until the next receipt.
+
+The [Controller authoring guide](controller-content.md) documents the current explicit-layout contract and migration limits.

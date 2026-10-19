@@ -8,6 +8,7 @@ module;
 #include <string>
 #include <stdexcept>
 #include <vector>
+#include <utility>
 
 export module phoenix.session.api;
 export import phoenix.content;
@@ -175,6 +176,24 @@ public:
 	virtual Json scene_presentation() const
 	{
 		return Json::object();
+	}
+	// Read-only public board; never a Controller inbox or command projection.
+	virtual Json public_board() const
+	{
+		Json result{{"shared", Json::array()}, {"messages", Json::array()}};
+		if (const auto view = observation(); view && view->gameplay.is_object())
+		{
+			result["shared"] = view->gameplay.value("shared", Json::array());
+			for (auto message : view->gameplay.value("messages", Json::array()))
+				if (message.is_object() && message.value("public", false))
+				{
+					message["actionable"] = false;
+					message["offer_only"] = true;
+					result["messages"].push_back(std::move(message));
+				}
+			result["omitted"] = view->gameplay.value("omitted", Json::object());
+		}
+		return result;
 	}
 	virtual std::vector<ConsoleSeat> console_seats() const
 	{

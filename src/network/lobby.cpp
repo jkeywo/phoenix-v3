@@ -672,6 +672,7 @@ class GameLobby final : public SessionPort
 					options.inspector = role_ == JoinRole::gm;
 					backend_ = make_network_client(options);
 					launched_ = true;
+					local_claimed_ = true;
 				}
 				else
 					error_ = welcome->body.value("protocol", std::string{}) == "direct"
@@ -953,6 +954,10 @@ public:
 	Json scene_lighting() const override
 	{
 		return backend_ ? backend_->scene_lighting() : Json::object();
+	}
+	Json public_board() const override
+	{
+		return backend_ ? backend_->public_board() : Json::object();
 	}
 	Json scene_presentation() const override
 	{

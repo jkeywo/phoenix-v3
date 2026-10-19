@@ -90,6 +90,44 @@ static inline Json bounded_gameplay(const Json &source)
 	result["omitted"] = std::move(omitted);
 	return result;
 }
+static inline Json public_board_json(const Json &source)
+{
+	Json selected{{"shared", Json::array()}, {"messages", Json::array()}};
+	if (!source.is_object())
+		return selected;
+	for (const auto *key : {"shared", "messages"})
+	{
+		const auto rows = source.value(key, Json::array());
+		if (!rows.is_array())
+			throw std::runtime_error("Invalid public board rows");
+		for (auto row : rows)
+		{
+			if (!row.is_object())
+				throw std::runtime_error("Invalid public board entry");
+			if (std::string(key) == "messages")
+			{
+				if (!row.value("public", false))
+					continue;
+				row["actionable"] = false;
+				row["offer_only"] = true;
+			}
+			selected[key].push_back(std::move(row));
+		}
+	}
+	auto result = bounded_gameplay(selected);
+	const auto omissions = source.value("omitted", Json::object());
+	if (!omissions.is_object())
+		throw std::runtime_error("Invalid public board omission counts");
+	for (const auto *key : {"shared", "messages"})
+		if (omissions.contains(key))
+		{
+			const auto &count = omissions.at(key);
+			if (!count.is_number_integer() || count < 0 || count > 1000000000)
+				throw std::runtime_error("Invalid public board omission count");
+			result["omitted"][key] = result["omitted"][key].get<std::uint64_t>() + count.get<std::uint64_t>();
+		}
+	return result;
+}
 static inline Json observation_json(const Observation &observation)
 {
 	Json contacts = Json::array();

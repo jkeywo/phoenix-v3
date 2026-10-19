@@ -177,6 +177,148 @@ std::string console_objective_status(const Json &value)
 }
 } // namespace
 
+namespace
+{
+std::vector<std::pair<std::string, std::string>> board_readouts(const Json &board, std::uint64_t now)
+{
+	std::vector<std::pair<std::string, std::string>> result;
+	if (!board.is_object())
+		return result;
+	const auto omitted = board.value("omitted", Json::object());
+	if (omitted.is_object())
+		for (auto entry = omitted.begin(); entry != omitted.end(); ++entry)
+			if (const auto count = console_unsigned(entry.value()); count && *count > 0)
+				result.emplace_back("game.readout/omitted-" + console_encoded(entry.key()),
+				                    localise("Entries omitted from network view") + ": " + console_label(entry.key()) +
+				                        " " + std::to_string(*count));
+	for (const auto *scope : {"records", "shared"})
+	{
+		const auto records = board.value(scope, Json::array());
+		if (!records.is_array())
+			continue;
+		std::map<std::string, Json> latest;
+		for (const auto &record : records)
+		{
+			if (!record.is_object())
+				continue;
+			std::string identity = console_string(record, "schema");
+			for (const auto *key : {"subject", "source", "publication"})
+				identity += "/" + (record.contains(key) ? console_scalar(record.at(key)) : std::string{});
+			const auto version = [&](const Json &value)
+			{
+				return std::pair{
+				    value.contains("observed_tick") ? console_unsigned(value.at("observed_tick")).value_or(0)
+				                                    : std::uint64_t{0},
+				    value.contains("revision") ? console_unsigned(value.at("revision")).value_or(0) : std::uint64_t{0}};
+			};
+			const auto existing = latest.find(identity);
+			if (existing == latest.end() || version(record) >= version(existing->second))
+				latest[identity] = record;
+		}
+		for (const auto &[identity, record] : latest)
+		{
+			std::string text = localise(std::string(scope) == "shared" ? "Shipwide" : "Console") + " / " +
+			                   console_label(console_string(record, "schema"));
+			const auto fields = record.value("fields", Json::object());
+			if (fields.is_object())
+				for (auto field = fields.begin(); field != fields.end(); ++field)
+				{
+					std::string value = console_scalar(field.value());
+					if ((field.key().ends_with("_key") || field.key() == "title" || field.key() == "description") &&
+					    field.value().is_string())
+						value = localise(field.value().get<std::string>());
+					if (console_string(record, "schema") == "phoenix.objective" && field.key() == "status")
+						value = console_objective_status(field.value());
+					text += "; " + console_label(field.key()) + " " + value;
+				}
+			text += "; " + console_evidence(record, now);
+			result.emplace_back("game.readout/" + std::string(scope) + "-" + console_encoded(identity),
+			                    std::move(text));
+		}
+	}
+	const auto objectives = board.value("objectives", Json::array());
+	if (objectives.is_array())
+		for (const auto &objective : objectives)
+		{
+			if (!objective.is_object())
+				continue;
+			const auto id =
+			    objective.contains("id") ? console_scalar(objective.at("id")) : console_string(objective, "handle");
+			std::string text = console_message(objective);
+			if (text.empty())
+				text = localise("Objective") + " " + id;
+			for (const auto *key : {"status", "region", "credited"})
+				if (objective.contains(key))
+					text += "; " + console_label(key) + " " +
+					        (std::string(key) == "status" ? console_objective_status(objective.at(key))
+					                                      : console_scalar(objective.at(key)));
+			text += "; " + console_evidence(objective, now);
+			result.emplace_back("game.readout/objective-" + console_encoded(id), std::move(text));
+		}
+	const auto messages = board.value("messages", Json::array());
+	if (messages.is_array())
+		for (const auto &message : messages)
+		{
+			if (!message.is_object())
+				continue;
+			const auto id = message.contains("sequence") ? console_scalar(message.at("sequence"))
+			                                             : console_scalar(message.value("id", Json{}));
+			std::string text = console_message(message);
+			if (message.value("offer_only", false) && !message.value("public", false))
+				text = localise("Work offer") + ": " + text;
+			for (const auto *key : {"sender_system", "sender_console", "destination", "delivered_tick", "urgency"})
+				if (message.contains(key))
+					text += "; " + console_label(key) + " " + console_scalar(message.at(key));
+			text += "; " + localise(message.value("actionable", false) ? "Actionable" : "Historical");
+			if (message.contains("payload") && message.at("payload").is_object())
+			{
+				const auto &payload = message.at("payload");
+				const auto fields = payload.value("fields", Json::object());
+				if (fields.is_object())
+					for (auto field = fields.begin(); field != fields.end(); ++field)
+						text += "; " + console_label(field.key()) + " " + console_scalar(field.value());
+				text += "; " + console_evidence(payload, now);
+			}
+			result.emplace_back("game.readout/message-" + console_encoded(id), std::move(text));
+		}
+	return result;
+}
+} // namespace
+std::vector<std::pair<std::string, std::string>> public_board_readouts(const Json &board, std::uint64_t now)
+{
+	Json selected{{"shared", Json::array()}, {"messages", Json::array()}, {"omitted", Json::object()}};
+	if (!board.is_object())
+		return {};
+	for (const auto *key : {"shared", "messages"})
+	{
+		auto rows = board.value(key, Json::array());
+		if (!rows.is_array())
+			continue;
+		if (std::string(key) == "messages")
+		{
+			auto &items = rows.get_ref<Json::array_t &>();
+			std::erase_if(items,
+			              [](const auto &row)
+			              {
+				              return !row.is_object() || !row.value("public", false);
+			              });
+		}
+		if (std::string(key) == "messages")
+			for (auto &row : rows)
+				if (row.is_object())
+					row["actionable"] = false;
+		const auto skip = rows.size() > 8 ? rows.size() - 8 : 0;
+		for (std::size_t i = skip; i < rows.size(); ++i)
+			if (std::string(key) != "messages" || (rows[i].is_object() && rows[i].value("public", false)))
+				selected[key].push_back(rows[i]);
+		const auto omissions = board.value("omitted", Json::object());
+		selected["omitted"][key] = skip + (omissions.is_object() ? omissions.value(key, std::size_t{0}) : 0);
+	}
+	auto rows = board_readouts(selected, now);
+	for (auto &[id, text] : rows)
+		id.replace(0, std::string("game.readout/").size(), "viewscreen.readout/");
+	return rows;
+}
 void ConsoleModel::reset()
 {
 	owner_.reset();
@@ -637,107 +779,11 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 			    localise("Estimates assume current demand and supply remain constant; future commands are excluded.");
 		result.emplace_back("game.readout/system-" + console_encoded(system.id), std::move(text));
 	}
-	if (!observation_->gameplay.is_object())
-		return result;
-	const auto omitted = observation_->gameplay.value("omitted", Json::object());
-	if (omitted.is_object())
-		for (auto entry = omitted.begin(); entry != omitted.end(); ++entry)
-			if (const auto count = console_unsigned(entry.value()); count && *count > 0)
-				result.emplace_back("game.readout/omitted-" + console_encoded(entry.key()),
-				                    localise("Entries omitted from network view") + ": " + console_label(entry.key()) +
-				                        " " + std::to_string(*count));
-	for (const auto *board : {"records", "shared"})
-	{
-		const auto records = observation_->gameplay.value(board, Json::array());
-		if (!records.is_array())
-			continue;
-		std::map<std::string, Json> latest;
-		for (const auto &record : records)
-		{
-			if (!record.is_object())
-				continue;
-			std::string identity = console_string(record, "schema");
-			for (const auto *key : {"subject", "source", "publication"})
-				identity += "/" + (record.contains(key) ? console_scalar(record.at(key)) : std::string{});
-			const auto version = [&](const Json &value)
-			{
-				return std::pair{
-				    value.contains("observed_tick") ? console_unsigned(value.at("observed_tick")).value_or(0)
-				                                    : std::uint64_t{0},
-				    value.contains("revision") ? console_unsigned(value.at("revision")).value_or(0) : std::uint64_t{0}};
-			};
-			const auto existing = latest.find(identity);
-			if (existing == latest.end() || version(record) >= version(existing->second))
-				latest[identity] = record;
-		}
-		for (const auto &[identity, record] : latest)
-		{
-			std::string text = localise(std::string(board) == "shared" ? "Shipwide" : "Console") + " / " +
-			                   console_label(console_string(record, "schema"));
-			const auto fields = record.value("fields", Json::object());
-			if (fields.is_object())
-				for (auto field = fields.begin(); field != fields.end(); ++field)
-				{
-					std::string value = console_scalar(field.value());
-					if ((field.key().ends_with("_key") || field.key() == "title" || field.key() == "description") &&
-					    field.value().is_string())
-						value = localise(field.value().get<std::string>());
-					if (console_string(record, "schema") == "phoenix.objective" && field.key() == "status")
-						value = console_objective_status(field.value());
-					text += "; " + console_label(field.key()) + " " + value;
-				}
-			text += "; " + console_evidence(record, now);
-			result.emplace_back("game.readout/" + std::string(board) + "-" + console_encoded(identity),
-			                    std::move(text));
-		}
-	}
-	const auto objectives = observation_->gameplay.value("objectives", Json::array());
-	if (objectives.is_array())
-		for (const auto &objective : objectives)
-		{
-			if (!objective.is_object())
-				continue;
-			const auto id =
-			    objective.contains("id") ? console_scalar(objective.at("id")) : console_string(objective, "handle");
-			std::string text = console_message(objective);
-			if (text.empty())
-				text = localise("Objective") + " " + id;
-			for (const auto *key : {"status", "region", "credited"})
-				if (objective.contains(key))
-					text += "; " + console_label(key) + " " +
-					        (std::string(key) == "status" ? console_objective_status(objective.at(key))
-					                                      : console_scalar(objective.at(key)));
-			text += "; " + console_evidence(objective, now);
-			result.emplace_back("game.readout/objective-" + console_encoded(id), std::move(text));
-		}
-	const auto messages = observation_->gameplay.value("messages", Json::array());
-	if (messages.is_array())
-		for (const auto &message : messages)
-		{
-			if (!message.is_object())
-				continue;
-			const auto id = message.contains("sequence") ? console_scalar(message.at("sequence"))
-			                                             : console_scalar(message.value("id", Json{}));
-			std::string text = console_message(message);
-			if (message.value("offer_only", false))
-				text = localise("Work offer") + ": " + text;
-			for (const auto *key : {"sender_system", "sender_console", "destination", "delivered_tick", "urgency"})
-				if (message.contains(key))
-					text += "; " + console_label(key) + " " + console_scalar(message.at(key));
-			text += "; " + localise(message.value("actionable", false) ? "Actionable" : "Historical");
-			if (message.contains("payload") && message.at("payload").is_object())
-			{
-				const auto &payload = message.at("payload");
-				const auto fields = payload.value("fields", Json::object());
-				if (fields.is_object())
-					for (auto field = fields.begin(); field != fields.end(); ++field)
-						text += "; " + console_label(field.key()) + " " + console_scalar(field.value());
-				text += "; " + console_evidence(payload, now);
-			}
-			result.emplace_back("game.readout/message-" + console_encoded(id), std::move(text));
-		}
+	for (auto row : board_readouts(observation_->gameplay, now))
+		result.push_back(std::move(row));
 	return result;
 }
+
 std::string ConsoleModel::contacts_text() const
 {
 	if (!observation_ || !(observation_->feeds & system_bit(OperatingSystem::Radar)))

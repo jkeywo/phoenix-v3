@@ -496,6 +496,8 @@ class NetworkHost final : public SessionPort
 			           {"approved", true},
 			           {"quorum", available()},
 			           {"seats", seats}};
+			if (running() && client.role == "client" && !client.renew)
+				state["public_board"] = network::public_board_json(world_->public_board());
 			if (running() && client.role == "client" && !client.renew && held)
 				if (auto view = game_->observe(member_, id))
 				{
@@ -704,6 +706,10 @@ public:
 	Json scene_lighting() const override
 	{
 		return world_->scene_lighting();
+	}
+	Json public_board() const override
+	{
+		return world_->public_board();
 	}
 	Json scene_presentation() const override
 	{

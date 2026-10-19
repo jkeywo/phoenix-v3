@@ -40,6 +40,18 @@ int main(int argc, char **argv)
 		PackDraft pack;
 		pack.manifest = {{"schema", 1}, {"id", "test-core"}};
 		auto defs = parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "synthetic lobby");
+		defs["schema"] = 4;
+		defs["knowledge"] = Json::parse(R"json({"roles":["crew"],"schemas":[
+		 {"id":"test.public","producers":["crew"],"readers":["crew"],"ship_publishable":true,
+		  "fields":[{"id":"enabled","type":"boolean","publishable":true}]}]})json");
+		auto &public_ship = defs["entities"][0];
+		public_ship.erase("console");
+		public_ship["stations"] = Json::parse(R"json([{ "id":"bridge","consoles":[
+		 {"id":"main","definition":"test.console","systems":["engine","steering","radar"],"knowledge_roles":["crew"]}]}])json");
+		public_ship["systems"]["engine"]["records"] = Json::parse(R"json([
+		 {"schema":"test.public","producer":"crew","fields":{"enabled":"enabled"}}])json");
+		public_ship["publications"] = Json::parse(R"json([
+		 {"id":"engine-enabled","source_console":"main","schema":"test.public","subject":0,"fields":["enabled"],"live":true}])json");
 		const auto original = defs["maps"][0]["ship_slots"][0];
 		for (const auto &id : {"second", "mandatory", "optional"})
 		{
@@ -280,6 +292,24 @@ int main(int argc, char **argv)
 		guarded->add_pack(write_pack(pack));
 		guarded->start({"test.map", {{"test.slot", "test.ship"}}, "test.slot"});
 		nodes.push_back(guarded);
+		pump(
+		    [&]
+		    {
+			    if (guarded->console_observation(9))
+				    return true;
+			    for (const auto &seat : guarded->console_seats())
+				    if (seat.available)
+					    guarded->claim_console(9, seat.address);
+			    return false;
+		    });
+		require(guarded->console_command(9, {guarded->console_observation(9)->own.id, "publish.engine-enabled", 0, {}}),
+		        "synthetic host explicitly publishes its permitted live record");
+		pump(
+		    [&]
+		    {
+			    return !guarded->public_board().value("shared", Json::array()).empty();
+		    });
+		require(guarded->release_console(9), "public-board fixture relinquishes publishing Console");
 		auto attacking_options = guarded_options;
 		attacking_options.server = "guarded";
 		attacking_options.link.self = "wrong-role";
@@ -334,6 +364,15 @@ int main(int argc, char **argv)
 					    return true;
 			    return false;
 		    });
+		pump(
+		    [&]
+		    {
+			    return !direct->public_board().value("shared", Json::array()).empty();
+		    });
+		require(!direct->observation(), "approved remote Viewscreen receives public board without Console authority");
+		require(direct->public_board().at("shared")[0].at("schema") == "test.public" &&
+		            !direct->public_board().contains("records") && !direct->public_board().contains("controls"),
+		        "unclaimed remote public projection carries only published evidence");
 		require(direct->session_action("network.claim"),
 		        "The native join form retains direct ship-server Console admission");
 		pump(

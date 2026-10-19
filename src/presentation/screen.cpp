@@ -352,6 +352,50 @@ void prepare_settings(Application &app)
 	                                 : app.settings_tab == "display" ? "Display"
 	                                                                 : "Session");
 }
+void prepare_public_board(Application &app, bool visible)
+{
+	static std::string previous_markup;
+	auto *panel = document->GetElementById("viewscreen-board");
+	if (!panel)
+	{
+		previous_markup.clear();
+		auto created = document->CreateElement("div");
+		created->SetId("viewscreen-board");
+		created->SetProperty("position", "absolute");
+		created->SetProperty("background-color", "#081420dd");
+		created->SetProperty("color", "#e8f4ff");
+		created->SetProperty("padding", "12px");
+		created->SetProperty("overflow-y", "auto");
+		created->SetProperty("font-size", "18px");
+		panel = document->AppendChild(std::move(created));
+	}
+	const auto rows = visible ? public_board_readouts(app.session->public_board(), app.session->ticks())
+	                          : std::vector<std::pair<std::string, std::string>>{};
+	panel->SetProperty("display", rows.empty() ? "none" : "block");
+	if (rows.empty())
+		return;
+	const auto area = app.viewscreen_region ? *app.viewscreen_region
+	                                        : ConsoleRegion{1, 0, 0, static_cast<float>(GetScreenWidth()),
+	                                                        static_cast<float>(GetScreenHeight())};
+	const auto width = std::max(120.f, std::min(520.f, area.width - 48.f));
+	panel->SetProperty("left", std::to_string(area.x + area.width - width - 36.f) + "px");
+	panel->SetProperty("top", std::to_string(area.y + 24.f) + "px");
+	panel->SetProperty("width", std::to_string(width) + "px");
+	panel->SetProperty("max-height", std::to_string(std::max(80.f, area.height - 72.f)) + "px");
+	std::string markup;
+	for (const auto &[id, text] : rows)
+	{
+		markup +=
+		    "<p id=\"" + Rml::StringUtilities::EncodeRml(id) + "\">" + Rml::StringUtilities::EncodeRml(text) + "</p>";
+		app.screen_readouts.emplace_back(id, text);
+	}
+	// Avoid resetting scroll position on unchanged ticks.
+	if (previous_markup != markup)
+	{
+		panel->SetInnerRML(markup);
+		previous_markup = markup;
+	}
+}
 void prepare_runtime_chrome(Application &app)
 {
 	const bool view = app.screen == Screen::viewscreen;
@@ -808,6 +852,10 @@ void draw_screen(Application &app)
 	const auto semantics_started = GetTime();
 	publish_semantics(app);
 	drain_semantic_actions(app);
+	const bool public_visible =
+	    app.session && app.session->running() &&
+	    (app.screen == Screen::viewscreen || (console_mode && app.viewscreen_region && app.screen == Screen::console));
+	prepare_public_board(app, public_visible);
 	app.frame_metrics["semantics"] = GetTime() - semantics_started;
 	for (const auto &event : poll_devices())
 	{
@@ -981,7 +1029,7 @@ void draw_screen(Application &app)
 			game_screen->draw_viewscreen(app, {r.x, r.y, r.width, r.height});
 		}
 		app.frame_metrics["scene"] = GetTime() - scene_started;
-		if (app.screen == Screen::viewscreen || app.screen == Screen::settings || lobby_consoles)
+		if (app.screen == Screen::viewscreen || app.screen == Screen::settings || lobby_consoles || public_visible)
 		{
 			context->Update();
 			native_menu->position_labels(*document);

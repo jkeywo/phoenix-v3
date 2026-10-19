@@ -13,6 +13,7 @@ export import phoenix.session.api;
 
 export namespace phoenix
 {
+std::vector<std::pair<std::string, std::string>> public_board_readouts(const Json &, std::uint64_t now);
 // One instance per routed Console. No renderer, device or authoritative world.
 class ConsoleModel
 {

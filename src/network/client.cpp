@@ -48,7 +48,7 @@ class NetworkClient final : public SessionPort
 	std::map<std::string, Bytes> cache_;
 	std::string profile_key_, key_, epoch_, nonce_ = random_token(), offer_id_, message_ = "Opening client profile",
 	                                        lease_, station_;
-	Json offer_, inspection_;
+	Json offer_, inspection_, public_board_ = Json::object();
 	Catalog empty_;
 	std::optional<Observation> observation_;
 	std::vector<ConsoleSeat> seats_;
@@ -206,6 +206,7 @@ class NetworkClient final : public SessionPort
 				if (projection_stream_ != stream)
 				{
 					state_transfer_.reset();
+					public_board_ = Json::object();
 					projection_stream_ = stream;
 				}
 				if (!valid_hex_token(key) || !valid_hex_token(epoch))
@@ -331,6 +332,9 @@ class NetworkClient final : public SessionPort
 					                   seat.at("feeds")},
 					                  seat.at("available")});
 			}
+			public_board_ = approved_ && started_ && !options_.inspector && body.contains("public_board")
+			                    ? network::public_board_json(body.at("public_board"))
+			                    : Json::object();
 			if (options_.inspector)
 			{
 				if (approved_ && body.contains("inspection"))
@@ -524,6 +528,10 @@ public:
 	{
 		return {};
 	}
+	Json public_board() const override
+	{
+		return !fatal_ && approved_ && started_ && !options_.inspector ? public_board_ : Json::object();
+	}
 	Json inspection() const override
 	{
 		return options_.inspector ? inspection_ : Json(nullptr);
@@ -647,6 +655,7 @@ public:
 				{
 					observation_.reset();
 					inspection_ = nullptr;
+					public_board_ = Json::object();
 					message_ = "Waiting for own ship server; no client host migration";
 				}
 			}
@@ -654,6 +663,7 @@ public:
 		catch (const std::exception &error)
 		{
 			fatal_ = true;
+			public_board_ = Json::object();
 			message_ = error.what();
 			observation_.reset();
 			inspection_ = nullptr;

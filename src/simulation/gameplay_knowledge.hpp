@@ -88,6 +88,7 @@ public:
 	bool stale(const KnowledgeRecord &record, KnowledgeTick now) const;
 	GameplayKnowledgeProjection project(const ConsoleAddress &address) const;
 	Json project_json(const ConsoleAddress &address) const;
+	Json public_board(EntityId entity) const;
 	Json save() const;
 	// Call configure first. Rebuilds named identities, verifies authored ownership,
 	// restores continuations, and clears live human authority before any delivery.

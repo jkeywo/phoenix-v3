@@ -85,6 +85,20 @@ int main()
 {
 	try
 	{
+		Json public_input{{"shared", Json::array({{{"schema", "public"}}})},
+		                  {"messages", Json::array({{{"id", 1}, {"public", false}, {"secret", "hidden"}},
+		                                            {{"id", 2}, {"public", true}, {"actionable", true}}})},
+		                  {"records", Json::array({{{"secret", "hidden"}}})},
+		                  {"controls", Json::array({{{"action", "danger"}}})},
+		                  {"omitted", {{"shared", 3}, {"messages", 4}}}};
+		const auto public_projection = network::public_board_json(public_input);
+		require(!public_projection.contains("records") && !public_projection.contains("controls") &&
+		            public_projection.at("messages").size() == 1 &&
+		            public_projection.at("messages")[0].at("actionable") == false &&
+		            public_projection.at("messages")[0].at("offer_only") == true &&
+		            public_projection.at("omitted").at("shared") == 3 &&
+		            public_projection.at("omitted").at("messages") == 4,
+		        "wire public board excludes private data, strips authority and preserves prior omissions");
 		const std::string key(64, 'a');
 		Json large_state{{"tick", 75}, {"inspection", std::string(180000, 'x')}};
 		StateSource state_source(large_state, 1);

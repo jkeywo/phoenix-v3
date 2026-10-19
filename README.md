@@ -8,7 +8,7 @@ The runtime foundation uses **C++20 + Flecs + raylib**, with **RmlUi player cons
 
 The [testing policy](docs/testing.md) uses three categories: manually invoked smoke captures, content verification without frozen tuning values, and automated system integration tests using synthetic fixtures. Equipment tuning and player workload require prototyping and playtesting. Historical implementation claims refer to Phoenix V2 and do not describe working V3 features.
 
-The agreed [Console Controller architecture](docs/controller-architecture.md) separates human/AI decision-making from physical Systems through shared blackboards and Controller-owned command sections. The [refactoring plan](docs/controller-refactor-plan.md) is pending; earlier implementation receipts describe the existing per-System runtime.
+The agreed [Console Controller architecture](docs/controller-architecture.md) separates human/AI decision-making from physical Systems through shared blackboards and Controller-owned command sections. The [refactoring plan](docs/controller-refactor-plan.md) records verified foundations and the remaining migration. See [Controller authoring](docs/controller-content.md) for the explicit-layout contract; earlier implementation receipts describe the per-System runtime.
 
 The [gameplay phase](docs/gameplay-implementation.md) implements fitted equipment and assemblies, power/heat/coolant, expanded Helm controls, scoped blackboards, System and scenario state trees, objectives/spawns, Coordination, station presets and ordinary AI backfill. [Gameplay Workshop](docs/gameplay-workshop.md) edits those definitions and runs isolated native/browser tests. Verification and remaining physical-device acceptance are recorded separately.
 

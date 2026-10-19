@@ -813,6 +813,38 @@ Json GameplayKnowledge::project_json(const ConsoleAddress &address) const
 	}
 	return result;
 }
+Json GameplayKnowledge::public_board(EntityId entity) const
+{
+	Json result{{"shared", Json::array()}, {"messages", Json::array()}, {"omitted", Json::object()}};
+	if (!ships_.contains(entity))
+		return result;
+	std::map<KnowledgeId, Json> records, messages;
+	for (const auto &[name, id] : ships_.at(entity).consoles)
+	{
+		const auto projection = project_json({entity, name});
+		for (const auto &record : projection.at("shared"))
+			records.emplace(record.at("id").get<KnowledgeId>(), record);
+		for (auto message : projection.at("messages"))
+			if (message.value("public", false))
+			{
+				message["actionable"] = false;
+				message["offer_only"] = true;
+				messages.emplace(message.at("id").get<KnowledgeId>(), std::move(message));
+			}
+	}
+	auto append = [&](const char *name, const auto &values, std::size_t limit)
+	{
+		const auto omitted = values.size() > limit ? values.size() - limit : 0;
+		result["omitted"][name] = omitted;
+		std::size_t index = 0;
+		for (const auto &[id, value] : values)
+			if (index++ >= omitted)
+				result[name].push_back(value);
+	};
+	append("shared", records, 128);
+	append("messages", messages, 64);
+	return result;
+}
 Json GameplayKnowledge::save() const
 {
 	Json result{{"version", 1},

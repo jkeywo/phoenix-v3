@@ -287,6 +287,11 @@ public:
 	{
 		return running() ? catalog_.maps.at(setup_.mission).value("presentation", Json::object()) : Json::object();
 	}
+	Json public_board() const override
+	{
+		const auto focus = focus_body();
+		return focus ? world_->public_board(focus->id) : Json::object();
+	}
 	Json inspection() const override
 	{
 		return running() ? world_->save() : Json(nullptr);

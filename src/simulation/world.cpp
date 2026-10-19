@@ -2643,6 +2643,10 @@ std::vector<SceneBody> World::scene() const
 	}
 	return result;
 }
+Json World::public_board(EntityId entity) const
+{
+	return impl_->knowledge.public_board(entity);
+}
 std::optional<Observation> World::observe(std::uint64_t console) const
 {
 	auto found = impl_->claims.find(console);

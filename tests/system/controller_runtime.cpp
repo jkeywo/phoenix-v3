@@ -125,6 +125,66 @@ int main()
 		require(requested(split, "port") == 3000 && requested(split, "starboard") == 8000,
 		        "independent Controllers cannot overwrite each other's throttle");
 
+		auto constrained_source = controller_fixture();
+		constrained_source["entities"][0]["resources"] = Json::parse(R"json({"stores":[
+		 {"id":"empty","capacity":1000,"initial":0,"charge_rate":1000,"discharge_rate":1000},
+		 {"id":"charged","capacity":1000,"initial":1000,"charge_rate":1000,"discharge_rate":1000}]})json");
+		for (const auto *engine : {"port", "starboard"})
+		{
+			constrained_source["entities"][0]["systems"][engine]["power_store"] =
+			    std::string(engine) == "port" ? "empty" : "charged";
+			constrained_source["entities"][0]["systems"][engine]["power_rate"] = 100;
+		}
+		World constrained;
+		constrained_source["entities"][0]["systems"]["port"]["powerless_start"] = true;
+		constrained.load(load(constrained_source), "test.map");
+		require(constrained.claim(101, 1, "drive"), "constrained physical consumer claims");
+		require(constrained.submit(101, speed(constrained, 101, "propulsion", 5000)),
+		        "one setting drives both constrained engines");
+		std::int64_t paid = 0;
+		for (int tick = 0; tick < 5; ++tick)
+		{
+			constrained.tick();
+			const auto projection = constrained.observe(101);
+			for (const auto &system : projection->systems)
+			{
+				require(system.requested == 5000,
+				        "each consumer retains the same accepted setting despite local supply");
+				if (system.id == "port")
+					require(system.telemetry.at("supply_permille") == 0 &&
+					            system.telemetry.at("actual_longitudinal") == 0 &&
+					            system.telemetry.at("used_power") == 0,
+					        "exhausted consumer cannot borrow another engine's grant");
+				else
+				{
+					require(system.telemetry.at("actual_longitudinal") > 0,
+					        "independently supplied engine still produces thrust");
+					paid += system.telemetry.at("used_power") / World::ticks_per_second;
+					require(1000 - system.telemetry.at("stored_energy") == paid,
+					        "physical consumption conserves its own reserve");
+				}
+			}
+		}
+		auto ai_slot_source = controller_session_fixture();
+		ai_slot_source["entities"][0]["control_layout"]["default_profile"] = "automatic";
+		ai_slot_source["entities"][0]["control_layout"]["controllers"][0]["tree"] = "test.cruise";
+		ai_slot_source["trees"] = Json::parse(R"json([{ "id":"test.cruise","context":"controller","initial":"run",
+		 "command_bindings":[{"channel":"speed"}],"states":[{"id":"run","running":[
+		 {"action":"write.speed","arguments":[5000]}]}]}])json");
+		auto ai_free_source = ai_slot_source;
+		ai_free_source["maps"] = controller_fixture()["maps"];
+		World ai_slot, ai_free;
+		ai_slot.load(load(ai_slot_source), "test.map", {{"test.slot", "test.controllable"}});
+		ai_free.load(load(ai_free_source), "test.map");
+		for (int tick = 0; tick < 20; ++tick)
+		{
+			ai_slot.tick();
+			ai_free.tick();
+			const auto slot_body = ai_slot.inspect().front(), free_body = ai_free.inspect().front();
+			require(slot_body.x == free_body.x && slot_body.y == free_body.y && slot_body.vx == free_body.vx &&
+			            slot_body.vy == free_body.vy && slot_body.heading == free_body.heading,
+			        "unclaimed all-AI entity has identical control trajectory inside and outside player slot");
+		}
 		auto request_source = controller_fixture();
 		request_source["entities"][0]["systems"]["port"]["impulse"] = {{"charge_ticks", 20}};
 		request_source["entities"][0]["control_layout"]["controllers"][0]["commands"].push_back(
@@ -618,6 +678,60 @@ int main()
 		            target_view.at("messages")[0].at("actionable") == true,
 		        "public copy preserves identity without broadening Controller actionability");
 		require(public_messages.save() == public_resume.save(), "pending public delivery restores exactly");
+		const auto board = public_messages.public_board(1);
+		require(board.at("messages").size() == 1 && board.at("shared").size() == 1 && !board.contains("controllers") &&
+		            !board.contains("records") && !board.contains("controls"),
+		        "public board deduplicates Console copies without exposing private or command sections");
+		require(board.at("messages")[0].at("actionable") == false && board.at("messages")[0].at("offer_only") == true,
+		        "public board always presents read-only message history");
+		public_resume.clear_claims();
+		require(!public_resume.observe(103) && public_resume.public_board(1) == board,
+		        "public board is available without a Console claim");
+		const auto board_rows = public_board_readouts(board, public_messages.ticks());
+		require(!board_rows.empty() && std::all_of(board_rows.begin(), board_rows.end(),
+		                                           [](const auto &row)
+		                                           {
+			                                           return row.first.starts_with("viewscreen.readout/");
+		                                           }),
+		        "Viewscreen exposes dedicated read-only semantic identities");
+		require(std::any_of(board_rows.begin(), board_rows.end(),
+		                    [](const auto &row)
+		                    {
+			                    return row.second.find("Intent") != std::string::npos &&
+			                           row.second.find("6000") != std::string::npos;
+		                    }),
+		        "Viewscreen readouts retain message evidence kind and payload");
+		auto crowded_board = board;
+		crowded_board["shared"] = Json::array();
+		crowded_board["records"] =
+		    Json::array({{{"schema", "private-secret"}, {"fields", {{"secret", "DO-NOT-DISPLAY"}}}}});
+		crowded_board["messages"] = Json::array();
+		for (int i = 0; i < 10; ++i)
+		{
+			auto row = board.at("messages")[0];
+			row["id"] = i + 1;
+			row["sequence"] = i + 1;
+			crowded_board["messages"].push_back(row);
+		}
+		const auto crowded_rows = public_board_readouts(crowded_board, 100);
+		require(crowded_rows.size() == 9 && std::none_of(crowded_rows.begin(), crowded_rows.end(),
+		                                                 [](const auto &row)
+		                                                 {
+			                                                 return row.second.find("DO-NOT-DISPLAY") !=
+			                                                        std::string::npos;
+		                                                 }),
+		        "bounded public readouts include omission notice and exclude Console-private records");
+		auto public_session_source = public_source;
+		public_session_source["entities"][0]["control_layout"]["default_profile"] = "automatic";
+		public_session_source["entities"][0]["systems"]["steering"] = {{"kind", "steering"}, {"turn_mdeg_s", 90000}};
+		public_session_source["maps"] = controller_session_fixture()["maps"];
+		auto public_host = make_host_world();
+		public_host->add_pack(archive(public_session_source));
+		public_host->start_server({"test.map", {{"test.slot", "test.controllable"}}, "test.slot", "drive"});
+		for (int tick = 0; tick < 7; ++tick)
+			public_host->tick();
+		require(!public_host->observation() && public_host->public_board().at("messages").size() == 1,
+		        "unclaimed host SessionPort forwards the public board for its focus entity");
 		World published_resume;
 		published_resume.restore(public_content, public_messages.save());
 		require(published_resume.observe(103)->gameplay == public_view,
@@ -658,6 +772,8 @@ int main()
 			ordinary_messages.tick();
 		require(ordinary_messages.observe(103)->gameplay.at("messages").empty(),
 		        "ordinary AI coordination stays targeted");
+		require(ordinary_messages.public_board(1).at("messages").empty(),
+		        "targeted private coordination never leaks through the public API");
 		auto broadcast_source = public_source;
 		broadcast_source["messages"][0]["destination"] = {{"kind", "ship"}};
 		broadcast_source["messages"][0]["urgency"] = 0;
