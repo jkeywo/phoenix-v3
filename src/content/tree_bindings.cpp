@@ -297,6 +297,26 @@ std::vector<ControllerTelemetryBinding> controller_telemetry_bindings(const Json
 	}
 	return result;
 }
+std::vector<ControllerCommandReadBinding> controller_command_reads(const Json &tree, const Catalog &catalog)
+{
+	const auto bindings = resolve_tree_definition(tree, catalog).value("command_reads", Json::array());
+	binding_require(bindings.is_array() && bindings.size() <= 256, "Controller tree", "expected bounded command_reads");
+	std::vector<ControllerCommandReadBinding> result;
+	for (const auto &binding : bindings)
+	{
+		ControllerCommandReadBinding value{binding.at("name").get<std::string>(),
+		                                   binding.at("controller").get<std::string>(),
+		                                   binding.at("channel").get<std::string>()};
+		binding_require(valid_identifier(value.name) && valid_identifier(value.controller) &&
+		                    valid_identifier(value.channel),
+		                "Controller tree", "invalid accepted command read");
+		const auto type = binding.value("type", std::string("integer"));
+		binding_require(type == "integer" || type == "boolean", "Controller tree", "invalid accepted command type");
+		value.type = type == "boolean" ? state_tree::Type::Boolean : state_tree::Type::Integer;
+		result.push_back(std::move(value));
+	}
+	return result;
+}
 state_tree::Registry gameplay_registry(const Json &tree, const Catalog &catalog, state_tree::Context context)
 {
 	const auto inherited = resolve_record_bindings(tree, catalog);
@@ -336,6 +356,8 @@ state_tree::Registry gameplay_registry(const Json &tree, const Catalog &catalog,
 		for (const auto &binding : gameplay_record_bindings(tree, catalog))
 			registry.observations.push_back({binding.name, binding.type, 4, {}});
 		for (const auto &binding : controller_telemetry_bindings(tree, catalog))
+			registry.observations.push_back({binding.name, binding.type, 4, {}});
+		for (const auto &binding : controller_command_reads(tree, catalog))
 			registry.observations.push_back({binding.name, binding.type, 4, {}});
 		return registry;
 	}

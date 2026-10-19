@@ -81,6 +81,12 @@ struct ControllerTelemetryBinding
 bool supported_system_observation(const std::string &);
 state_tree::Type system_observation_type(const std::string &);
 std::vector<ControllerTelemetryBinding> controller_telemetry_bindings(const Json &, const Catalog &);
+struct ControllerCommandReadBinding
+{
+	std::string name, controller, channel;
+	state_tree::Type type = state_tree::Type::Integer;
+};
+std::vector<ControllerCommandReadBinding> controller_command_reads(const Json &, const Catalog &);
 void verify_scenario_authoring(const Catalog &catalog, const Json &map);
 // Render-only navigation aids. Distances are metres; speed is metres/second.
 struct DustConfig

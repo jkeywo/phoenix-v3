@@ -19,7 +19,10 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 	for (std::size_t i = 0; i < controller.tree_channels.size(); ++i)
 	{
 		const auto field = controller.tree_channels[i];
-		const auto amount = controller.commands[field].value;
+		const auto &controllers = entities.at(id).get<EntityControls>().controllers;
+		const auto owner = static_cast<std::size_t>(&controller - controllers.data());
+		const auto amount = command_snapshots.contains(id) ? command_snapshots.at(id).at(owner).at(field)
+		                                                   : controller.commands[field].value;
 		values[controller_observation_prefix + i] = controller.definition.commands[field].type == KnowledgeType::Boolean
 		                                                ? Value::boolean(amount != 0)
 		                                                : Value::integer(amount);
@@ -58,6 +61,17 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 				    binding.type == Type::Boolean ? Value::boolean(number != 0) : Value::integer(number);
 				break;
 			}
+	}
+	for (std::size_t i = 0; i < controller.command_reads.size(); ++i)
+	{
+		const auto [target, channel] = controller.command_reads[i];
+		const auto &source = entities.at(id).get<EntityControls>().controllers.at(target);
+		const auto number = command_snapshots.contains(id) ? command_snapshots.at(id).at(target).at(channel)
+		                                                   : source.commands.at(channel).value;
+		values[controller_observation_prefix + controller.tree_channels.size() + brain.reads.size() +
+		       controller.telemetry_reads.size() + i] =
+		    source.definition.commands.at(channel).type == KnowledgeType::Boolean ? Value::boolean(number != 0)
+		                                                                          : Value::integer(number);
 	}
 	return values;
 }

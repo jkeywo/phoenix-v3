@@ -236,6 +236,7 @@ struct World::Impl
 	std::map<EntityId, BodyView> sensor_snapshot;
 	std::map<ConsoleAddress, GameplayKnowledgeProjection> brain_snapshots;
 	std::map<ConsoleAddress, Observation> observation_snapshots;
+	std::map<EntityId, std::vector<std::vector<std::int64_t>>> command_snapshots;
 	std::map<std::pair<EntityId, std::string>, std::vector<CoordinationDelivery>> inbox_snapshots;
 	bool gameplay = false;
 	std::vector<std::pair<std::uint64_t, OperatingCommand>> meta_pending;
@@ -466,6 +467,22 @@ struct World::Impl
 							controller.brain = BrainRuntime{content.tree_programs.at(spec.tree), spec.tree};
 							controller.telemetry_reads =
 							    controller_telemetry_bindings(content.trees.at(spec.tree), content);
+							for (const auto &binding : controller_command_reads(content.trees.at(spec.tree), content))
+							{
+								const auto target = std::find_if(
+								    result.layout->controllers.begin(), result.layout->controllers.end(),
+								    [&](const auto &candidate)
+								    {
+									    return candidate.id == binding.controller && candidate.console == spec.console;
+								    });
+								const auto channel = std::find_if(target->commands.begin(), target->commands.end(),
+								                                  [&](const auto &candidate)
+								                                  {
+									                                  return candidate.id == binding.channel;
+								                                  });
+								controller.command_reads.emplace_back(target - result.layout->controllers.begin(),
+								                                      channel - target->commands.begin());
+							}
 							for (const auto &action : controller.brain->program.registry.actions)
 								controller.tree_channels.push_back(static_cast<std::size_t>(
 								    std::find_if(spec.commands.begin(), spec.commands.end(),
@@ -2458,6 +2475,18 @@ void World::tick()
 	impl_->brain_snapshots.clear();
 	impl_->inbox_snapshots.clear();
 	impl_->observation_snapshots.clear();
+	impl_->command_snapshots.clear();
+	for (const auto &[id, entity] : impl_->entities)
+		if (entity.has<EntityControls>())
+		{
+			auto &snapshot = impl_->command_snapshots[id];
+			for (const auto &controller : entity.get<EntityControls>().controllers)
+			{
+				auto &section = snapshot.emplace_back();
+				for (const auto &command : controller.commands)
+					section.push_back(command.value);
+			}
+		}
 	for (const auto &[id, entity] : impl_->entities)
 		for (const auto &console : impl_->definition(id).consoles)
 		{
@@ -2514,6 +2543,7 @@ void World::tick()
 	++impl_->ecs.get_mut<Clock>().tick;
 	impl_->knowledge.tick(ticks());
 	impl_->observation_snapshots.clear();
+	impl_->command_snapshots.clear();
 	impl_->brain_snapshots.clear();
 	impl_->inbox_snapshots.clear();
 }

@@ -301,6 +301,51 @@ int main()
 			    load(wrong_type);
 		    },
 		    "System observation type cannot reinterpret requested speed as a boolean");
+		auto command_read_source = observations_source;
+		command_read_source["trees"][1].erase("system_bindings");
+		command_read_source["trees"][1]["command_reads"] = Json::array(
+		    {{{"name", "port_requested"}, {"controller", "port_drive"}, {"channel", "speed"}, {"type", "integer"}}});
+		World command_reads;
+		command_reads.load(load(command_read_source), "test.map");
+		require(command_reads.claim(101, 1, "drive"), "Console can observe shared Controller intent");
+		command_reads.tick();
+		require(controller(command_reads, 101, "port_drive").at("commands").at("speed").at("value") == 5000 &&
+		            controller(command_reads, 101, "starboard_drive").at("commands").at("speed").at("value") == 0,
+		        "one Controller cannot read another Controller's same-tick command write");
+		command_reads.tick();
+		require(controller(command_reads, 101, "starboard_drive").at("commands").at("speed").at("value") == 5000,
+		        "same-Console command read receives prior committed intent");
+		auto bad_command_read = command_read_source;
+		bad_command_read["trees"][1]["command_reads"][0]["channel"] = "unknown";
+		rejects(
+		    [&]
+		    {
+			    load(bad_command_read);
+		    },
+		    "Controller read must reference an existing command channel");
+		bad_command_read = command_read_source;
+		bad_command_read["trees"][1]["command_reads"][0]["type"] = "boolean";
+		bad_command_read["trees"][1]["states"][0]["running"][0]["arguments"] = {5000};
+		rejects(
+		    [&]
+		    {
+			    load(bad_command_read);
+		    },
+		    "Controller read cannot reinterpret the channel type");
+		bad_command_read = command_read_source;
+		bad_command_read["entities"][0]["control_layout"]["controllers"][1]["console"] = "observer";
+		for (auto &profile : bad_command_read["entities"][0]["control_layout"]["profiles"])
+		{
+			const auto key = profile["id"] == "direct" ? "human" : "ai";
+			profile["consoles"]["drive"][key] = {"port_drive"};
+			profile["consoles"]["observer"][key] = {"starboard_drive"};
+		}
+		rejects(
+		    [&]
+		    {
+			    load(bad_command_read);
+		    },
+		    "co-hosted Consoles cannot read each other's private command sections");
 		auto forbidden = contextual_source;
 		forbidden["trees"][0]["command_bindings"].push_back({{"channel", "foreign"}, {"type", "integer"}});
 		rejected(

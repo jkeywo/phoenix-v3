@@ -301,6 +301,27 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 		}
 		result.controllers.push_back(std::move(controller));
 	}
+	for (const auto &controller : result.controllers)
+		if (!controller.tree.empty() && catalog.tree_programs.contains(controller.tree))
+			for (const auto &binding : controller_command_reads(catalog.trees.at(controller.tree), catalog))
+			{
+				const auto target = std::find_if(result.controllers.begin(), result.controllers.end(),
+				                                 [&](const auto &candidate)
+				                                 {
+					                                 return candidate.id == binding.controller &&
+					                                        candidate.console == controller.console;
+				                                 });
+				control_require(target != result.controllers.end(), path, "command read is outside owning Console");
+				const auto channel = std::find_if(target->commands.begin(), target->commands.end(),
+				                                  [&](const auto &candidate)
+				                                  {
+					                                  return candidate.id == binding.channel;
+				                                  });
+				control_require(channel != target->commands.end(), path, "command read names unknown channel");
+				control_require(binding.type == (channel->type == KnowledgeType::Boolean ? state_tree::Type::Boolean
+				                                                                         : state_tree::Type::Integer),
+				                path, "command read type differs from channel");
+			}
 	control_require(layout.contains("profiles") && layout.at("profiles").is_array() && !layout.at("profiles").empty() &&
 	                    layout.at("profiles").size() <= 32,
 	                path, "expected 1..32 complexity profiles");
