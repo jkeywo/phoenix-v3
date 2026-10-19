@@ -623,6 +623,27 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 			                  name + ": unknown/unfitted message template '" + id + "'");
 			const auto &message = compiled.messages.at(id);
 			const auto &ship = compiled.ships.at(name);
+			if (entity.contains("control_layout") &&
+			    (message.destination_kind == MessageDestinationKind::Ship ||
+			     (message.destination_kind == MessageDestinationKind::Controller && message.presentation.urgency >= 2)))
+			{
+				const auto &schema = knowledge_schema(compiled.knowledge, message.schema);
+				knowledge_require(schema.ship_publishable, name + ": public message requires publishable schema");
+				for (const auto &[field, value] : message.literal_fields)
+					knowledge_require(schema.fields.at(field - 1).publishable,
+					                  name + ": public message contains private literal field");
+				for (const auto &[field, binding] : message.field_bindings)
+					knowledge_require(schema.fields.at(field - 1).publishable,
+					                  name + ": public message contains private bound field");
+				for (const auto &[parameter, binding] : message.parameter_bindings)
+					knowledge_require(std::any_of(message.field_bindings.begin(), message.field_bindings.end(),
+					                              [&](const auto &field)
+					                              {
+						                              return field.second.source == binding.source &&
+						                                     field.second.name == binding.name;
+					                              }),
+					                  name + ": public presentation parameter must also appear in public payload");
+			}
 			knowledge_require(std::any_of(ship.consoles.begin(), ship.consoles.end(),
 			                              [&](const auto &console)
 			                              {

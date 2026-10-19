@@ -530,6 +530,120 @@ int main()
 			    load(forbidden_message);
 		    },
 		    "Controller cannot bind inbox payload forbidden to owning Console");
+		auto public_source = ai_messages_source;
+		public_source["knowledge"]["schemas"][0]["ship_publishable"] = true;
+		public_source["knowledge"]["schemas"][0]["fields"][0]["publishable"] = true;
+		public_source["entities"][0]["stations"][0]["consoles"].push_back({{"id", "spectator"},
+		                                                                   {"definition", "test.console"},
+		                                                                   {"systems", Json::array()},
+		                                                                   {"knowledge_roles", {"crew"}}});
+		public_source["messages"][0]["urgency"] = 2;
+		public_source["messages"][0]["automatic"] = true;
+		const auto public_content = load(public_source);
+		auto claim_public = [&](World &run)
+		{
+			require(run.claim(101, 1, "drive") && run.claim(102, 1, "observer") && run.claim(103, 1, "spectator"),
+			        "public messaging claims");
+		};
+		World public_messages;
+		public_messages.load(public_content, "test.map");
+		claim_public(public_messages);
+		require(public_messages.submit(101, {1, "preset", 1, {}}) && public_messages.submit(102, {1, "preset", 1, {}}),
+		        "important message sender and recipient use AI");
+		public_messages.tick();
+		World public_resume;
+		public_resume.restore(public_content, public_messages.save());
+		for (auto *run : {&public_messages, &public_resume})
+			for (int tick = 0; tick < 6; ++tick)
+				run->tick();
+		const auto public_view = public_messages.observe(103)->gameplay;
+		const auto target_view = public_messages.observe(101)->gameplay;
+		require(public_view.at("messages").size() == 1 && public_view.at("shared").size() == 1,
+		        "important AI-to-AI message reaches spectator history and shared entity board");
+		require(public_view.at("messages")[0].at("id") == target_view.at("messages")[0].at("id") &&
+		            public_view.at("messages")[0].at("public") == true &&
+		            public_view.at("messages")[0].at("offer_only") == true &&
+		            public_view.at("messages")[0].at("actionable") == false &&
+		            target_view.at("messages")[0].at("actionable") == true,
+		        "public copy preserves identity without broadening Controller actionability");
+		require(public_messages.save() == public_resume.save(), "pending public delivery restores exactly");
+		World published_resume;
+		published_resume.restore(public_content, public_messages.save());
+		require(published_resume.observe(103)->gameplay == public_view,
+		        "delivered public flags and board survive restore");
+		auto forged_public_save = public_messages.save();
+		const auto spectator_id = forged_public_save.at("knowledge").at("ships")[0].at("consoles").at("spectator");
+		for (auto &delivery : forged_public_save["knowledge"]["runtime"]["deliveries"])
+			if (delivery.at("console") == spectator_id)
+				delivery["offer_only"] = false;
+		rejects(
+		    [&]
+		    {
+			    published_resume.restore(public_content, forged_public_save);
+		    },
+		    "restore cannot upgrade public spectator copy to addressed actionability");
+		World human_target;
+		human_target.load(public_content, "test.map");
+		claim_public(human_target);
+		require(human_target.submit(101, {1, "preset", 1, {}}) && human_target.submit(102, {1, "preset", 1, {}}),
+		        "important message initially targets AI");
+		human_target.tick();
+		require(human_target.submit(101, {1, "preset", 0, {}}), "recipient becomes human before delayed delivery");
+		for (int tick = 0; tick < 6; ++tick)
+			human_target.tick();
+		require(human_target.observe(101)->gameplay.at("messages").size() == 1 &&
+		            human_target.observe(103)->gameplay.at("messages").empty() &&
+		            human_target.observe(103)->gameplay.at("shared").empty(),
+		        "current human recipient suppresses automatic AI-to-AI public copy");
+		auto ordinary_source = public_source;
+		ordinary_source["messages"][0]["urgency"] = 1;
+		World ordinary_messages;
+		ordinary_messages.load(load(ordinary_source), "test.map");
+		claim_public(ordinary_messages);
+		require(ordinary_messages.submit(101, {1, "preset", 1, {}}) &&
+		            ordinary_messages.submit(102, {1, "preset", 1, {}}),
+		        "ordinary AI message operators");
+		for (int tick = 0; tick < 6; ++tick)
+			ordinary_messages.tick();
+		require(ordinary_messages.observe(103)->gameplay.at("messages").empty(),
+		        "ordinary AI coordination stays targeted");
+		auto broadcast_source = public_source;
+		broadcast_source["messages"][0]["destination"] = {{"kind", "ship"}};
+		broadcast_source["messages"][0]["urgency"] = 0;
+		World broadcast;
+		broadcast.load(load(broadcast_source), "test.map");
+		claim_public(broadcast);
+		send.generation = controller(broadcast, 102, "port").at("generation").get<std::uint64_t>();
+		require(broadcast.submit(102, send), "human Controller sends entity-wide message");
+		for (int tick = 0; tick < 6; ++tick)
+			broadcast.tick();
+		require(broadcast.observe(103)->gameplay.at("messages").size() == 1 &&
+		            broadcast.observe(103)->gameplay.at("shared").size() == 1,
+		        "human entity-wide message publishes regardless urgency");
+		auto private_publication = public_source;
+		private_publication["knowledge"]["schemas"][0]["ship_publishable"] = false;
+		rejects(
+		    [&]
+		    {
+			    load(private_publication);
+		    },
+		    "important message cannot publish private schema");
+		private_publication = public_source;
+		private_publication["knowledge"]["schemas"][0]["fields"][0]["publishable"] = false;
+		rejects(
+		    [&]
+		    {
+			    load(private_publication);
+		    },
+		    "important message cannot publish private field");
+		private_publication = public_source;
+		private_publication["messages"][0]["parameters"]["secret"] = {{"argument", "detail"}};
+		rejects(
+		    [&]
+		    {
+			    load(private_publication);
+		    },
+		    "public presentation cannot expose argument absent from public payload");
 		auto reporter_source = ai_messages_source;
 		auto &reporter_entity = reporter_source["entities"][0];
 		reporter_entity["control_layout"]["controllers"][0].erase("tree");

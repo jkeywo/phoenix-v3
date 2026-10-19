@@ -773,10 +773,18 @@ Json GameplayKnowledge::project_json(const ConsoleAddress &address) const
 	{
 		const auto &message = delivery.message;
 		const auto &p = message.value.presentation;
+		const auto &actors = ships_.at(address.ship).controllers;
+		const bool controller_source = std::any_of(actors.begin(), actors.end(),
+		                                           [&](const auto &actor)
+		                                           {
+			                                           return actor.second == message.value.sender_system;
+		                                           });
 		result["messages"].push_back(
 		    {{"id", message.id},
 		     {"sequence", delivery.sequence},
 		     {"sender_system", message.value.sender_system},
+		     {"sender_actor", message.value.sender_system},
+		     {"sender_kind", controller_source ? "controller" : "system"},
 		     {"sender_console", message.sender_console},
 		     {"origin", static_cast<unsigned>(message.value.origin)},
 		     {"destination_kind", static_cast<unsigned>(message.value.destination.kind)},
@@ -785,6 +793,7 @@ Json GameplayKnowledge::project_json(const ConsoleAddress &address) const
 		     {"delivered_tick", delivery.delivered_tick},
 		     {"actionable", delivery.actionable},
 		     {"offer_only", delivery.offer_only},
+		     {"public", delivery.public_copy},
 		     {"human_seeking", message.value.human_seeking},
 		     {"title_key", p.title_key},
 		     {"body_key", p.body_key},

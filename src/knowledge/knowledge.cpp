@@ -506,6 +506,18 @@ std::vector<KnowledgeId> KnowledgeRuntime::resolve_recipients(KnowledgeId ship, 
 	require(!recipients.empty(), "destination has no eligible recipient");
 	return recipients;
 }
+bool KnowledgeRuntime::public_message_candidate(const CoordinationInput &input) const
+{
+	const auto ship = consoles_.at(systems_.at(input.sender_system)).ship;
+	if (input.destination.kind == MessageDestinationKind::Ship)
+		return std::any_of(controllers_.begin(), controllers_.end(),
+		                   [&](const auto actor)
+		                   {
+			                   return consoles_.at(systems_.at(actor)).ship == ship;
+		                   });
+	return controllers_.contains(input.sender_system) && input.origin == ControlOrigin::AI &&
+	       input.destination.kind == MessageDestinationKind::Controller && input.presentation.urgency >= 2;
+}
 KnowledgeId KnowledgeRuntime::send(CoordinationInput input, KnowledgeTick tick, bool execute)
 {
 	validate(input.payload);
@@ -522,6 +534,11 @@ KnowledgeId KnowledgeRuntime::send(CoordinationInput input, KnowledgeTick tick, 
 	const auto sender_console = systems_.at(input.sender_system);
 	const auto ship = consoles_.at(sender_console).ship;
 	auto recipients = resolve_recipients(ship, input.destination, input.payload.schema);
+	if (public_message_candidate(input))
+	{
+		require(schema(input.payload.schema).ship_publishable, "public message schema is not publishable");
+		validate(input.payload, true);
+	}
 	const auto delay = std::max(KnowledgeTick{1}, input.delay);
 	require(tick <= std::numeric_limits<KnowledgeTick>::max() - delay, "message delivery tick overflow");
 	require(input.expires_tick == 0 || input.expires_tick > tick + delay, "message expires before delivery");
@@ -531,6 +548,9 @@ KnowledgeId KnowledgeRuntime::send(CoordinationInput input, KnowledgeTick tick, 
 	if (input.request_key != 0)
 		withdraw_request(input.sender_system, input.request_key);
 	const auto id = next_id_++;
+	if ((controllers_.contains(input.sender_system) && input.payload.provenance.kind != EvidenceKind::Fact) ||
+	    input.origin == ControlOrigin::Reporter)
+		input.payload.provenance.revision = id;
 	pending_.push_back({id, sender_console, ship, std::move(input), tick, tick + delay, std::move(recipients)});
 	current_tick_ = tick;
 	return id;
@@ -568,8 +588,17 @@ std::vector<CoordinationDelivery> KnowledgeRuntime::advance(KnowledgeTick tick)
 		if (message.value.expires_tick != 0 && tick >= message.value.expires_tick)
 			continue;
 		std::map<KnowledgeId, bool> targets;
+		const bool publish = public_message_candidate(message.value) &&
+		                     (message.value.destination.kind == MessageDestinationKind::Ship ||
+		                      !system_human_.at(message.value.destination.id));
+		if (publish)
+			write_ship(message.sender_ship, message.value.payload, tick);
 		for (const auto console : message.recipients)
 			targets.emplace(console, false);
+		if (publish)
+			for (const auto &[id, binding] : consoles_)
+				if (binding.ship == message.sender_ship && readable(id, message.value.payload.schema))
+					targets.try_emplace(id, true);
 		if (message.value.human_seeking)
 			for (const auto &[id, binding] : consoles_)
 				if (binding.ship == message.sender_ship && binding.human_controlled &&
@@ -586,11 +615,13 @@ std::vector<CoordinationDelivery> KnowledgeRuntime::advance(KnowledgeTick tick)
 			                              v.destination.kind == MessageDestinationKind::Controller)
 			                                 ? system_human_.at(v.destination.id)
 			                                 : consoles_.at(console).human_controlled;
-			const auto notify = (addressed_human || v.human_seeking) && consoles_.at(console).human_controlled &&
+			const auto notify = (addressed_human || v.human_seeking || publish) &&
+			                    consoles_.at(console).human_controlled &&
 			                    !(v.origin == ControlOrigin::Human && v.presentation.automatic);
 			require(next_delivery_ < std::numeric_limits<KnowledgeId>::max(), "delivery identity exhausted");
 			CoordinationDelivery delivery{next_delivery_++, console, message, tick, notify};
 			delivery.offer_only = offer_only;
+			delivery.public_copy = publish;
 			deliveries_.push_back(delivery);
 			result.push_back(std::move(delivery));
 		}
@@ -613,7 +644,7 @@ std::vector<CoordinationDelivery> KnowledgeRuntime::message_history(KnowledgeId 
 		{
 			auto copy = delivery;
 			copy.notify_human = false;
-			copy.actionable = !inactive_requests_.contains(copy.message.id) &&
+			copy.actionable = !(copy.public_copy && copy.offer_only) && !inactive_requests_.contains(copy.message.id) &&
 			                  (copy.message.value.expires_tick == 0 || current_tick_ < copy.message.value.expires_tick);
 			result.push_back(std::move(copy));
 		}
@@ -777,6 +808,7 @@ Json KnowledgeRuntime::save() const
 		                           {"console", delivery.console},
 		                           {"tick", delivery.delivered_tick},
 		                           {"offer_only", delivery.offer_only},
+		                           {"public_copy", delivery.public_copy},
 		                           {"message", encode_message(delivery.message)}});
 	for (const auto &[key, latch] : status_)
 		j["status"].push_back({{"producer", key.first},
@@ -919,6 +951,11 @@ void KnowledgeRuntime::restore(const Json &j)
 		            restored.systems_.at(m.value.sender_system) == m.sender_console &&
 		            restored.consoles_.at(m.sender_console).ship == m.sender_ship,
 		        "saved message sender mismatch");
+		if (restored.public_message_candidate(m.value))
+		{
+			require(restored.schema(m.value.payload.schema).ship_publishable, "saved public message schema is private");
+			restored.validate(m.value.payload, true);
+		}
 		const auto delay = std::max(KnowledgeTick{1}, m.value.delay);
 		require(m.sent_tick <= restored.current_tick_ &&
 		            m.sent_tick <= std::numeric_limits<KnowledgeTick>::max() - delay &&
@@ -954,7 +991,10 @@ void KnowledgeRuntime::restore(const Json &j)
 		                       read_unsigned<KnowledgeId>(v.at("console")), decode_message(v.at("message")),
 		                       read_unsigned<KnowledgeTick>(v.at("tick")), false};
 		d.offer_only = v.value("offer_only", false);
+		d.public_copy = v.value("public_copy", false);
 		check_message(d.message);
+		require(!d.public_copy || restored.public_message_candidate(d.message.value),
+		        "invalid saved public message copy");
 		require(delivered_recipients.insert({d.message.id, d.console}).second,
 		        "duplicate saved message delivery to Console");
 		require(!pending_ids.contains(d.message.id), "message is both pending and delivered");
@@ -968,7 +1008,7 @@ void KnowledgeRuntime::restore(const Json &j)
 		const bool addressed = std::find(d.message.recipients.begin(), d.message.recipients.end(), d.console) !=
 		                       d.message.recipients.end();
 		require(restored.consoles_.contains(d.console), "saved delivery Console is unknown");
-		const bool valid_offer = d.offer_only && !addressed && d.message.value.human_seeking &&
+		const bool valid_offer = d.offer_only && !addressed && (d.message.value.human_seeking || d.public_copy) &&
 		                         restored.consoles_.at(d.console).ship == d.message.sender_ship &&
 		                         restored.readable(d.console, d.message.value.payload.schema);
 		require(d.sequence > previous_sequence && d.sequence < restored.next_delivery_ &&

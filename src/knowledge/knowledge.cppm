@@ -156,6 +156,7 @@ struct CoordinationDelivery
 	bool notify_human = false;
 	bool actionable = true;  // False in retained history after expiry/replacement/withdrawal.
 	bool offer_only = false; // Human observer history; never an extra AI inbox delivery.
+	bool public_copy = false;
 };
 struct KnowledgePrivateMemory
 {
@@ -231,6 +232,7 @@ private:
 	std::vector<KnowledgeId> resolve_recipients(KnowledgeId ship, const MessageDestination &destination,
 	                                            KnowledgeKey schema) const;
 	void trim();
+	bool public_message_candidate(const CoordinationInput &input) const;
 };
 namespace knowledge_detail
 {
