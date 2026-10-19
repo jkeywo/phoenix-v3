@@ -1657,7 +1657,7 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
     #native-menu .audio-volume slidertrack { background:#60513a; }
     #native-menu .audio-volume sliderbar { background:#e1893c; border-color:#fff0d4; }
     .menu-crt { display:block; position:relative; flex-shrink:0; }
-    #menu-profile { position:absolute; top:0; right:20px; z-index:3; border:0px; background:transparent; padding:0px; }
+    #native-menu #menu-profile { position:absolute; top:0; right:20px; z-index:3; border:0px; background:transparent; padding:0px; }
     #menu-profile .crt-screen, #menu-profile .crt-avatar, #menu-profile .crt-name { pointer-events:none; }
     .crt-screen { position:absolute; display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:hidden; color:#cbe4c5; }
     .crt-avatar { display:block; width:100%; height:85%; flex-shrink:0; text-align:center; background:#15231a; color:#cbe4c5; }
