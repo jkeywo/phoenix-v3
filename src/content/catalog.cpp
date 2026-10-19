@@ -70,7 +70,8 @@ void transform(const Json &value, const std::string &path)
 	integer(value, "y_mm", path, -1000000000);
 	integer(value, "heading_mdeg", path, 0, 359999);
 }
-void inherit(std::map<std::string, Json> &definitions, const std::string &kind)
+} // namespace
+void inherit_definitions(std::map<std::string, Json> &definitions, const std::string &kind, const std::string &root)
 {
 	std::set<std::string> done, active;
 	std::function<void(const std::string &)> visit = [&](const std::string &id)
@@ -94,9 +95,14 @@ void inherit(std::map<std::string, Json> &definitions, const std::string &kind)
 		active.erase(id);
 		done.insert(id);
 	};
-	for (const auto &[id, value] : definitions)
-		visit(id);
+	if (!root.empty())
+		visit(root);
+	else
+		for (const auto &[id, value] : definitions)
+			visit(id);
 }
+namespace
+{
 std::optional<state_tree::Context> contextual_tree(const std::map<std::string, Json> &trees, const std::string &id)
 {
 	std::set<std::string> seen;
@@ -229,18 +235,18 @@ Catalog resolve(const std::vector<PackView> &ordered)
 		if (!pack.hash.empty())
 			result.ordered_packs.emplace_back(id, pack.hash);
 	}
-	inherit(result.entities, "entities");
-	inherit(result.maps, "maps");
-	inherit(result.consoles, "consoles");
+	inherit_definitions(result.entities, "entities");
+	inherit_definitions(result.maps, "maps");
+	inherit_definitions(result.consoles, "consoles");
 	std::map<std::string, Json> legacy_trees;
 	for (const auto &[name, tree] : result.trees)
 		if (!contextual_tree(result.trees, name))
 			legacy_trees.emplace(name, tree);
-	inherit(legacy_trees, "trees");
+	inherit_definitions(legacy_trees, "trees");
 	for (auto &[name, tree] : legacy_trees)
 		result.trees[name] = std::move(tree);
-	inherit(result.equipment, "equipment");
-	inherit(result.assemblies, "assemblies");
+	inherit_definitions(result.equipment, "equipment");
+	inherit_definitions(result.assemblies, "assemblies");
 	resolve_equipment(result);
 	if (!result.presentation)
 	{

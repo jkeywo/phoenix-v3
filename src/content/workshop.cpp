@@ -38,31 +38,19 @@ Catalog WorkshopDocument::preview_equipment() const
 		if (definitions_.contains(kind))
 			for (const auto &source : definitions_.at(kind))
 				(*table)[source.at("id").get<std::string>()] = source;
-		std::set<std::string> active, done;
-		std::function<void(const std::string &)> inherit = [&](const std::string &id)
-		{
-			if (done.contains(id))
-				return;
-			if (!active.insert(id).second)
-				throw std::runtime_error("Composition inheritance cycle: " + id);
-			auto &source = table->at(id);
-			if (source.contains("extends"))
-			{
-				const auto parent = source.at("extends").get<std::string>();
-				inherit(parent);
-				auto merged = table->at(parent);
-				merged.merge_patch(source);
-				merged.erase("extends");
-				source = std::move(merged);
-			}
-			active.erase(id);
-			done.insert(id);
-		};
-		for (const auto &[id, value] : *table)
-			inherit(id);
+		inherit_definitions(*table, kind);
 	}
 	resolve_equipment(preview);
 	return preview;
+}
+Json WorkshopDocument::preview_tree(const Json &tree) const
+{
+	Catalog preview;
+	preview.trees = library_catalog_.trees;
+	if (definitions_.contains("trees"))
+		for (const auto &source : definitions_.at("trees"))
+			preview.trees[source.at("id").get<std::string>()] = source;
+	return resolve_tree_definition(tree, preview);
 }
 std::vector<Bytes> WorkshopDocument::dependency_archives() const
 {

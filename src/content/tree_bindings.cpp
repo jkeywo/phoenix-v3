@@ -125,6 +125,24 @@ std::string binding_subject(const Json &binding, const std::string &path)
 }
 } // namespace
 
+Json resolve_tree_definition(const Json &tree, const Catalog &catalog)
+{
+	const auto inherited = resolve_record_bindings(tree, catalog);
+	if (!inherited.context)
+	{
+		auto trees = catalog.trees;
+		const auto id = tree.value("id", std::string("<inline>"));
+		trees[id] = tree;
+		inherit_definitions(trees, "trees", id);
+		return trees.at(id);
+	}
+	auto resolved = state_tree::resolve_definition(tree, catalog.trees);
+	if (!inherited.bindings.empty() || resolved.contains("record_bindings"))
+		resolved["record_bindings"] = inherited.bindings;
+	if (!inherited.summaries.empty() || resolved.contains("summary_bindings"))
+		resolved["summary_bindings"] = inherited.summaries;
+	return resolved;
+}
 std::vector<GameplayTreeRecordBinding> gameplay_record_bindings(const Json &tree, const Catalog &catalog)
 {
 	const auto inherited = resolve_record_bindings(tree, catalog);

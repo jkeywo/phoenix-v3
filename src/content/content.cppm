@@ -59,6 +59,9 @@ struct Catalog
 	std::vector<std::pair<std::string, std::string>> ordered_packs;
 	bool presentation = false;
 };
+// Resolution only; a root restricts traversal to its dependency closure.
+void inherit_definitions(std::map<std::string, Json> &, const std::string &kind, const std::string &root = {});
+Json resolve_tree_definition(const Json &, const Catalog &);
 void resolve_equipment(Catalog &catalog);
 void verify_gameplay_fitting(const Catalog &, const std::string &);
 std::vector<GameplayTreeRecordBinding> gameplay_record_bindings(const Json &, const Catalog &);
@@ -240,6 +243,7 @@ public:
 	Catalog verify() const;
 	// Resolves reusable equipment and controller namespaces without requiring finished ownership/presets.
 	Catalog preview_equipment() const;
+	Json preview_tree(const Json &tree) const;
 	Json &definitions()
 	{
 		return definitions_;

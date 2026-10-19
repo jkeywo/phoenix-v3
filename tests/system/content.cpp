@@ -413,6 +413,24 @@ int main()
 		     {{"id", "workshop.derived-spawner"},
 		      {"extends", "workshop.spawner"},
 		      {"overrides", Json::array({{{"state", "spawn"}, {"running", Json::array({spawn})}}})}}});
+		const auto preview_tree = workshop.preview_tree(workshop.definitions()["trees"][1]);
+		require(!preview_tree.contains("extends") && preview_tree.at("states")[0].at("running")[0] == spawn,
+		        "Workshop resolves inherited structural overrides through the production resolver");
+		auto bad_override = workshop.definitions()["trees"][1];
+		bad_override["overrides"][0]["state"] = "missing";
+		rejected(
+		    [&]
+		    {
+			    workshop.preview_tree(bad_override);
+		    },
+		    "unresolved structural override 'missing'");
+		rejected(
+		    [&]
+		    {
+			    state_tree::compile(bad_override, gameplay_tree_registry(state_tree::Context::Scenario),
+			                        workshop.preview_equipment().trees);
+		    },
+		    "unresolved structural override 'missing'");
 		workshop.map()["scenario"] = {
 		    {"tree", "workshop.derived-spawner"},
 		    {"spawn_groups",

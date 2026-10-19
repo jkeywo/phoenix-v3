@@ -184,6 +184,8 @@ struct Result
 	std::vector<Value> intents;
 	Debug debug;
 };
+// Resolve inheritance/overrides without requiring a finished registry or tasks.
+Json resolve_definition(const Json &definition, const Catalog &catalog = {});
 Program compile(const Json &definition, const Registry &registry, const Catalog &catalog = {});
 Result step(const Program &program, Instance &instance, std::span<const Value> observations, std::uint64_t ticks = 1);
 // Interruption runs exit tasks once, cancels child decision continuations, then

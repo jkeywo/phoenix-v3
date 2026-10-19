@@ -159,8 +159,7 @@ struct Compiler
 	std::size_t total_tasks{};
 	Program build(const Json &input, const Json &supplied)
 	{
-		std::vector<std::string> stack;
-		const Json source = resolve(input, catalog, stack);
+		const Json source = resolve_definition(input, catalog);
 		Program program;
 		const auto context = source.at("context").get<std::string>();
 		if (context != "system" && context != "scenario")
@@ -490,6 +489,11 @@ void validate_registry(const Registry &registry)
 }
 } // namespace
 
+Json resolve_definition(const Json &definition, const Catalog &catalog)
+{
+	std::vector<std::string> stack;
+	return resolve(definition, catalog, stack);
+}
 Program compile(const Json &definition, const Registry &registry, const Catalog &catalog)
 {
 	validate_registry(registry);

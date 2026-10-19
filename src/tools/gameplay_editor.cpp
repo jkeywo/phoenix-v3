@@ -1042,60 +1042,6 @@ struct GameplayEditor
 					return action;
 		return Json::object();
 	}
-	Json resolve_tree_view(const Json &source, const WorkshopDocument &document, unsigned depth = 0) const
-	{
-		if (depth >= 32)
-			throw std::runtime_error("Tree inheritance exceeds the authoring depth limit.");
-		Json result = Json::object();
-		if (source.contains("extends"))
-		{
-			const auto parent = source.at("extends").get<std::string>();
-			const Json *base = nullptr;
-			if (document.definitions().contains("trees"))
-				for (const auto &candidate : document.definitions().at("trees"))
-					if (candidate.at("id") == parent)
-						base = &candidate;
-			if (!base && document.libraries().trees.contains(parent))
-				base = &document.libraries().trees.at(parent);
-			if (!base)
-				throw std::runtime_error("Unresolved tree base: " + parent);
-			result = resolve_tree_view(*base, document, depth + 1);
-		}
-		for (auto it = source.begin(); it != source.end(); ++it)
-		{
-			if (it.key() == "overrides")
-				continue;
-			if ((it.key() == "record_bindings" || it.key() == "summary_bindings") && result.contains(it.key()))
-			{
-				for (const auto &binding : it.value())
-				{
-					auto found = std::find_if(result[it.key()].begin(), result[it.key()].end(),
-					                          [&](const Json &existing)
-					                          {
-						                          return existing.at("name") == binding.at("name");
-					                          });
-					if (found == result[it.key()].end())
-						result[it.key()].push_back(binding);
-					else
-						*found = binding;
-				}
-				continue;
-			}
-			if ((it.key() == "parameters" || it.key() == "arguments") && result.contains(it.key()))
-				for (auto item = it.value().begin(); item != it.value().end(); ++item)
-					result[it.key()][item.key()] = item.value();
-			else
-				result[it.key()] = it.value();
-		}
-		if (source.contains("overrides") && result.contains("states") && result.at("states").is_array())
-			for (const auto &patch : source.at("overrides"))
-				for (auto &state : result["states"])
-					if (state.at("id") == patch.at("state"))
-						for (auto field = patch.begin(); field != patch.end(); ++field)
-							if (field.key() != "state")
-								state[field.key()] = field.value();
-		return result;
-	}
 	void binding(Json &parent, const char *key, const Json &definition,
 	             const std::vector<std::string> &allowed = {"integer", "boolean", "text", "reference", "parameter",
 	                                                        "observation", "intent", "memory", "elapsed"})
@@ -1480,7 +1426,7 @@ struct GameplayEditor
 			{
 				string(definition, "id");
 				tree = definition.at("id").get<std::string>();
-				Json resolved = resolve_tree_view(definition, document);
+				Json resolved = document.preview_tree(definition);
 				if (!resolved.contains("context"))
 				{
 					text("Legacy timed controller. State identities are object keys and remain stable.");
