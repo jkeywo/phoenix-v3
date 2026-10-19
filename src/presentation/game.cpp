@@ -7,6 +7,7 @@ module;
 #include <qrcodegen.hpp>
 #include <RmlUi/Core/Elements/ElementFormControl.h>
 #include <RmlUi/Core.h>
+#include <RmlUi/Core/StringUtilities.h>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -110,24 +111,6 @@ struct GameScreen::State
 			generation = current_generation;
 			content_identity = packs;
 		}
-	}
-	std::string escape(std::string value)
-	{
-		std::string result;
-		for (char c : value)
-		{
-			if (c == '&')
-				result += "&amp;";
-			else if (c == '<')
-				result += "&lt;";
-			else if (c == '>')
-				result += "&gt;";
-			else if (c == '"')
-				result += "&quot;";
-			else
-				result += c;
-		}
-		return result;
 	}
 	std::string label(const Application &app, const std::string &text)
 	{
@@ -392,7 +375,8 @@ struct GameScreen::State
 		auto button = [&](const std::string &id, const std::string &text)
 		{
 			app.screen_controls.emplace_back(id, text);
-			return "<button id=\"" + escape(id) + "\">" + escape(label(app, text)) + "</button>";
+			return "<button id=\"" + Rml::StringUtilities::EncodeRml(id) + "\">" +
+			       Rml::StringUtilities::EncodeRml(label(app, text)) + "</button>";
 		};
 		if (app.session)
 		{
@@ -503,7 +487,7 @@ struct GameScreen::State
 							};
 							markup += "<div class=\"widget\" style=\"left:" + percent("x") + ";top:" + percent("y") +
 							          ";width:" + percent("width") + ";height:" + percent("height") + "\"><h3>" +
-							          escape(label(app, widget.at("label"))) + "</h3>";
+							          Rml::StringUtilities::EncodeRml(label(app, widget.at("label"))) + "</h3>";
 							const std::string kind = widget.at("kind");
 							const auto suffix = "/" + widget.at("id").get<std::string>();
 							if (kind == "radar")
@@ -518,7 +502,7 @@ struct GameScreen::State
 								markup += button("game.left" + suffix, "Turn heading +5 degrees") +
 								          button("game.right" + suffix, "Turn heading -5 degrees");
 							if (kind == "status")
-								markup += "<p>" + escape(notice) + "</p>";
+								markup += "<p>" + Rml::StringUtilities::EncodeRml(notice) + "</p>";
 							markup += "</div>";
 						}
 					}
@@ -540,7 +524,8 @@ struct GameScreen::State
 						for (const auto &[id, text] : readouts)
 						{
 							app.screen_readouts.emplace_back(id, text);
-							network_markup += "<p id=\"" + escape(id) + "\">" + escape(text) + "</p>";
+							network_markup += "<p id=\"" + Rml::StringUtilities::EncodeRml(id) + "\">" +
+							                  Rml::StringUtilities::EncodeRml(text) + "</p>";
 						}
 						network_markup += "</div>";
 					}
@@ -558,11 +543,12 @@ struct GameScreen::State
 		{
 			markup = "<div class=\"connection\"><label>Network code (room/server)</label><input id=\"join-code\" "
 			         "type=\"text\" value=\"" +
-			         escape(app.network_code) +
+			         Rml::StringUtilities::EncodeRml(app.network_code) +
 			         "\"/><label>Network service</label><input id=\"join-service\" type=\"text\" value=\"" +
-			         escape(app.network_service) +
+			         Rml::StringUtilities::EncodeRml(app.network_service) +
 			         "\"/><label>Local profile</label><input id=\"join-profile\" type=\"text\" value=\"" +
-			         escape(app.network_profile) + "\"/>" + button("game.connect-client", "Connect console") +
+			         Rml::StringUtilities::EncodeRml(app.network_profile) + "\"/>" +
+			         button("game.connect-client", "Connect console") +
 			         button("game.connect-gm", "Request GM inspection") + "</div>";
 		}
 		if ((app.screen == Screen::home || app.screen == Screen::server_lobby) && app.can_host && app.session &&
@@ -577,8 +563,8 @@ struct GameScreen::State
 			else
 				markup += "<div class=\"connection\"><label>Launcher page URL for joining devices</label><input "
 				          "id=\"join-page\" type=\"text\" value=\"" +
-				          escape(app.join_page) + "\"/>" + button("game.qr-client", "Show console QR") +
-				          button("game.qr-gm", "Show GM QR") + "</div>";
+				          Rml::StringUtilities::EncodeRml(app.join_page) + "\"/>" +
+				          button("game.qr-client", "Show console QR") + button("game.qr-gm", "Show GM QR") + "</div>";
 		}
 		if (!notice.empty())
 			description += " " + notice;
@@ -607,7 +593,7 @@ struct GameScreen::State
 			document.GetElementById("session-controls")->SetInnerRML(network_markup);
 			previous_network = network_markup;
 		}
-		const auto displayed = escape(label(app, description));
+		const auto displayed = Rml::StringUtilities::EncodeRml(label(app, description));
 		if (!markup_ready || displayed != previous_description)
 			document.GetElementById("description")->SetInnerRML(displayed);
 		previous_description = displayed;

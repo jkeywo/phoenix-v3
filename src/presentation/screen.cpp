@@ -1,6 +1,7 @@
 module;
 #include <raylib.h>
 #include <RmlUi/Core.h>
+#include <RmlUi/Core/StringUtilities.h>
 #include <FontEngineInterfaceHarfBuzz.h>
 #include <stdexcept>
 #include <filesystem>

@@ -2,6 +2,7 @@ module;
 #include <raylib.h>
 #include <qrcodegen.hpp>
 #include <RmlUi/Core.h>
+#include <RmlUi/Core/StringUtilities.h>
 #include <RmlUi/Core/Elements/ElementFormControl.h>
 #include <algorithm>
 #include <cmath>
@@ -22,25 +23,6 @@ import phoenix.files;
 #include "menu.hpp"
 namespace phoenix
 {
-namespace
-{
-std::string escaped(const std::string &value)
-{
-	std::string result;
-	for (const char c : value)
-		if (c == '&')
-			result += "&amp;";
-		else if (c == '<')
-			result += "&lt;";
-		else if (c == '>')
-			result += "&gt;";
-		else if (c == '"')
-			result += "&quot;";
-		else
-			result += c;
-	return result;
-}
-} // namespace
 struct NativeMenuScreen::State
 {
 	FileImportInbox imports;
@@ -175,10 +157,11 @@ struct NativeMenuScreen::State
 		    (id == "menu.join-player" && branch == Branch::join_player) ||
 		    (id == "menu.join-gm" && branch == Branch::join_gm) || id == "menu.scenario/" + app.selected_scenario ||
 		    (id.starts_with("settings.tab/") && id.substr(13) == app.settings_tab);
-		return "<button id=\"" + escaped(id) + "\" class=\"menu-skinned" + (selected ? " menu-selected" : "") + "\"" +
-		       (button_enabled ? "" : " disabled") + ">" +
+		return "<button id=\"" + Rml::StringUtilities::EncodeRml(id) + "\" class=\"menu-skinned" +
+		       (selected ? " menu-selected" : "") + "\"" + (button_enabled ? "" : " disabled") + ">" +
 		       (id == "menu.settings" ? "<span class=\"menu-settings-icon\"/>" : "") +
-		       "<span class=\"menu-button-label\">" + escaped(localise(label)) + "</span></button>";
+		       "<span class=\"menu-button-label\">" + Rml::StringUtilities::EncodeRml(localise(label)) +
+		       "</span></button>";
 	}
 	void back(Application &app)
 	{
@@ -229,8 +212,8 @@ struct NativeMenuScreen::State
 	std::string field(Application &app, const std::string &id, const std::string &label, const std::string &value)
 	{
 		app.screen_inputs.push_back({id, label, value});
-		return "<label for=\"" + id + "\">" + escaped(localise(label)) + "</label><input id=\"" + id +
-		       "\" type=\"text\" maxlength=\"1024\"/>";
+		return "<label for=\"" + id + "\">" + Rml::StringUtilities::EncodeRml(localise(label)) +
+		       "</label><input id=\"" + id + "\" type=\"text\" maxlength=\"1024\"/>";
 	}
 	void handle_import(Application &app)
 	{
@@ -392,17 +375,18 @@ struct NativeMenuScreen::State
 		};
 		auto heading = [](const std::string &label)
 		{
-			return "<h2>" + escaped(localise(label)) + "</h2>";
+			return "<h2>" + Rml::StringUtilities::EncodeRml(localise(label)) + "</h2>";
 		};
 		auto paragraph = [](const std::string &label)
 		{
-			return "<p>" + escaped(localise(label)) + "</p>";
+			return "<p>" + Rml::StringUtilities::EncodeRml(localise(label)) + "</p>";
 		};
 		auto readout = [&](const std::string &id, const std::string &label)
 		{
 			if (!modal)
 				app.screen_readouts.emplace_back(id, localise(label));
-			return "<p id=\"" + escaped(id) + "\">" + escaped(localise(label)) + "</p>";
+			return "<p id=\"" + Rml::StringUtilities::EncodeRml(id) + "\">" +
+			       Rml::StringUtilities::EncodeRml(localise(label)) + "</p>";
 		};
 		auto profile_controls = [&]
 		{
@@ -433,7 +417,7 @@ struct NativeMenuScreen::State
 				markup += "<div id=\"menu-profile\" class=\"menu-crt\"><div class=\"crt-screen\">"
 				          "<div id=\"menu-profile-avatar\" class=\"crt-avatar\">" +
 				          (app.avatar.empty() ? std::string("?") : std::string{}) + "</div><p class=\"crt-name\">" +
-				          escaped(app.player_name) + "</p></div></div>";
+				          Rml::StringUtilities::EncodeRml(app.player_name) + "</p></div></div>";
 				if (!modal)
 					app.screen_readouts.emplace_back("menu-profile", localise("Your profile") + ": " + app.player_name);
 			}
@@ -671,7 +655,7 @@ struct NativeMenuScreen::State
 					                                                        : "Not Ready";
 					markup +=
 					    (member.avatar.empty() ? ""
-					                           : "<div id=\"avatar-" + escaped(member.id) +
+					                           : "<div id=\"avatar-" + Rml::StringUtilities::EncodeRml(member.id) +
 					                                 "\" style=\"display:block;width:48px;height:48px;\"></div>") +
 					    readout("menu.member/" + member.id,
 					            member.name + " (" +
@@ -876,7 +860,7 @@ struct NativeMenuScreen::State
 					         {"menu-volume", "Music volume", app.music_volume},
 					         {"menu-sfx", "SFX volume", app.sfx_volume}})
 					{
-						markup += "<label for=\"" + id + "\">" + escaped(localise(label)) +
+						markup += "<label for=\"" + id + "\">" + Rml::StringUtilities::EncodeRml(localise(label)) +
 						          "</label><input class=\"audio-volume\" id=\"" + id +
 						          "\" type=\"range\" min=\"0\" max=\"100\" step=\"1\" value=\"50\"/><p id=\"" + id +
 						          "-value\"></p>";
@@ -1179,7 +1163,7 @@ struct NativeMenuScreen::State
 			    lobby.countdown_ms < 0
 			        ? localise(lobby.launched ? "Starting game..." : "Waiting for everyone to ready up.")
 			        : localise("Starting in") + " " + std::to_string((lobby.countdown_ms + 999) / 1000);
-			countdown->SetInnerRML(escaped(countdown_text));
+			countdown->SetInnerRML(Rml::StringUtilities::EncodeRml(countdown_text));
 			app.screen_readouts.emplace_back("lobby-countdown", countdown_text);
 		}
 		for (const auto &[id, volume] : std::vector<std::pair<std::string, int>>{
@@ -1190,7 +1174,7 @@ struct NativeMenuScreen::State
 		                    : !notice.empty()   ? notice
 		                    : app.session       ? app.session->lobby().status
 		                                        : std::string{};
-		document.GetElementById("menu-status")->SetInnerRML(escaped(localise(status)));
+		document.GetElementById("menu-status")->SetInnerRML(Rml::StringUtilities::EncodeRml(localise(status)));
 		app.accessible_status = localise(status);
 		if (!app.screen_readouts.empty())
 			app.accessible_status += " " + app.screen_readouts.back().second;

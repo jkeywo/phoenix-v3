@@ -76,24 +76,6 @@ class ConsoleSurface final : public Rml::EventListener
 			                                true};
 		}
 	}
-	static std::string escaped(const std::string &value)
-	{
-		std::string text;
-		for (char c : value)
-		{
-			if (c == '&')
-				text += "&amp;";
-			else if (c == '<')
-				text += "&lt;";
-			else if (c == '>')
-				text += "&gt;";
-			else if (c == '"')
-				text += "&quot;";
-			else
-				text += c;
-		}
-		return text;
-	}
 	std::string id(const std::string &action) const
 	{
 		return "console/" + std::to_string(route_) + "/" + action;
@@ -101,8 +83,8 @@ class ConsoleSurface final : public Rml::EventListener
 	std::string button(const std::string &action, const std::string &label)
 	{
 		controls_.emplace_back(id(action), label);
-		return "<button id=\"" + escaped(id(action)) + "\">" + escaped(translate(label, app_->pseudo_locale)) +
-		       "</button>";
+		return "<button id=\"" + Rml::StringUtilities::EncodeRml(id(action)) + "\">" +
+		       Rml::StringUtilities::EncodeRml(translate(label, app_->pseudo_locale)) + "</button>";
 	}
 
 public:
@@ -403,7 +385,7 @@ p {display:block;font-size:17px;margin:4px 0;}
 			displayed_values_.clear();
 			controls_.clear();
 			heading_contacts_.clear();
-			std::string toolbar = "<h1>" + escaped(localise(title)) + "</h1>";
+			std::string toolbar = "<h1>" + Rml::StringUtilities::EncodeRml(localise(title)) + "</h1>";
 			if (toolbar_enabled_ && !pregame)
 				toolbar += button("settings", "Settings");
 			for (const auto &pad : toolbar_enabled_ ? pads : std::set<std::string>{})
@@ -429,9 +411,10 @@ p {display:block;font-size:17px;margin:4px 0;}
 					{
 						return std::to_string(widget.at(field).get<double>() / 10) + "%";
 					};
-					widgets += "<div class=\"widget\" id=\"widget/" + escaped(key) + "\" style=\"left:" + percent("x") +
-					           ";top:" + percent("y") + ";width:" + percent("width") + ";height:" + percent("height") +
-					           "\"><h2>" + escaped(localise(widget.at("label"))) + "</h2>";
+					widgets += "<div class=\"widget\" id=\"widget/" + Rml::StringUtilities::EncodeRml(key) +
+					           "\" style=\"left:" + percent("x") + ";top:" + percent("y") +
+					           ";width:" + percent("width") + ";height:" + percent("height") + "\"><h2>" +
+					           Rml::StringUtilities::EncodeRml(localise(widget.at("label"))) + "</h2>";
 					if (kind == "throttle")
 						widgets += "<input class=\"throttle\" id=\"" + id("speed/" + key) +
 						           "\" type=\"range\" orientation=\"vertical\" min=\"-100\" max=\"0\" step=\"0.1\" "
@@ -440,41 +423,46 @@ p {display:block;font-size:17px;margin:4px 0;}
 					if (kind == "heading")
 					{
 						widgets += "<label for=\"" + id("heading/" + key) + "\">" +
-						           escaped(localise("Desired heading (degrees)")) +
+						           Rml::StringUtilities::EncodeRml(localise("Desired heading (degrees)")) +
 						           "</label><input class=\"heading-value\" id=\"" + id("heading/" + key) +
 						           "\" type=\"text\" maxlength=\"7\" value=\"0\"" + (pregame ? " disabled" : "") +
-						           "/><p>" + escaped(localise("Click or drag the radar ring. East 0; North 90.")) +
+						           "/><p>" +
+						           Rml::StringUtilities::EncodeRml(
+						               localise("Click or drag the radar ring. East 0; North 90.")) +
 						           "</p>";
 						if (!has_radar || heading_count > 1)
-							widgets += "<div class=\"dial\" id=\"dial/" + escaped(key) + "\"/>";
+							widgets += "<div class=\"dial\" id=\"dial/" + Rml::StringUtilities::EncodeRml(key) + "\"/>";
 					}
 					if (kind == "radar")
-						widgets += "<div class=\"dial\" id=\"dial/" + escaped(key) + "\"/>" +
+						widgets += "<div class=\"dial\" id=\"dial/" + Rml::StringUtilities::EncodeRml(key) + "\"/>" +
 						           button("game.contacts/" + key, "Read radar contacts");
 					widgets += "<p class=\"" + std::string(kind == "throttle" ? "readout" : "heading-actual") +
-					           "\" id=\"value/" + escaped(key) + "\"/></div>";
+					           "\" id=\"value/" + Rml::StringUtilities::EncodeRml(key) + "\"/></div>";
 				}
 			document_->GetElementById("widgets")->SetInnerRML(widgets);
 			std::string lobby;
 			if (pregame)
-				lobby =
-				    "<div class=\"ready-card\"><h1 id=\"" + id("lobby-title") + "\">" + escaped(localise(title)) +
-				    "</h1><p>" + escaped(localise(description)) + "</p><p>" +
-				    escaped(localise(ready ? "Ready. Waiting for the crew." : "Check your Console, then ready up.")) +
-				    "</p>" + button("ready", ready ? "Not Ready" : "Ready") + button("back", "Back") +
-				    "<p id=\"countdown\"/></div>";
+				lobby = "<div class=\"ready-card\"><h1 id=\"" + id("lobby-title") + "\">" +
+				        Rml::StringUtilities::EncodeRml(localise(title)) + "</h1><p>" +
+				        Rml::StringUtilities::EncodeRml(localise(description)) + "</p><p>" +
+				        Rml::StringUtilities::EncodeRml(
+				            localise(ready ? "Ready. Waiting for the crew." : "Check your Console, then ready up.")) +
+				        "</p>" + button("ready", ready ? "Not Ready" : "Ready") + button("back", "Back") +
+				        "<p id=\"countdown\"/></div>";
 			document_->GetElementById("lobby")->SetInnerRML(lobby);
 		}
 		if (pregame)
 			app.screen_readouts.emplace_back(id("lobby-title"), localise(title) + ". " + localise(description));
 		if (auto *status = document_->GetElementById("connection-status"))
-			status->SetInnerRML(escaped(localise(pregame ? description : model_.announcement())));
+			status->SetInnerRML(
+			    Rml::StringUtilities::EncodeRml(localise(pregame ? description : model_.announcement())));
 		if (pregame)
 			if (auto *countdown = document_->GetElementById("countdown"))
 			{
 				const auto left = app.session->lobby().countdown_ms;
-				countdown->SetInnerRML(
-				    left < 0 ? "" : escaped(localise("Starting in")) + " " + std::to_string((left + 999) / 1000));
+				countdown->SetInnerRML(left < 0 ? ""
+				                                : Rml::StringUtilities::EncodeRml(localise("Starting in")) + " " +
+				                                      std::to_string((left + 999) / 1000));
 			}
 		const auto gameplay_controls =
 		    pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_controls();
@@ -539,7 +527,8 @@ p {display:block;font-size:17px;margin:4px 0;}
 			held_clicks_.clear();
 			std::string markup;
 			for (const auto &[name, label] : gameplay_controls)
-				markup += "<button id=\"" + escaped(id(name)) + "\">" + escaped(label) + "</button>";
+				markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(id(name)) + "\">" +
+				          Rml::StringUtilities::EncodeRml(label) + "</button>";
 			document_->GetElementById("gameplay-controls")->SetInnerRML(markup);
 			gameplay_signature_ = gameplay_signature;
 			for (const auto &[name, label] : gameplay_controls)
@@ -549,7 +538,7 @@ p {display:block;font-size:17px;margin:4px 0;}
 			if (displayed_values_["control/" + name] != label)
 			{
 				if (auto *element = document_->GetElementById(id(name)))
-					element->SetInnerRML(escaped(label));
+					element->SetInnerRML(Rml::StringUtilities::EncodeRml(label));
 				displayed_values_["control/" + name] = label;
 			}
 		gameplay_identity = Json::array();
@@ -561,7 +550,7 @@ p {display:block;font-size:17px;margin:4px 0;}
 			std::string markup;
 			for (const auto &[name, text] : gameplay_readouts)
 			{
-				markup += "<p id=\"" + escaped(id(name)) + "\"></p>";
+				markup += "<p id=\"" + Rml::StringUtilities::EncodeRml(id(name)) + "\"></p>";
 				displayed_values_.erase(name);
 			}
 			document_->GetElementById("gameplay-readouts")->SetInnerRML(markup);
@@ -572,7 +561,7 @@ p {display:block;font-size:17px;margin:4px 0;}
 			if (auto *element = document_->GetElementById(id(name)))
 				if (displayed_values_[name] != text)
 				{
-					element->SetInnerRML(escaped(text));
+					element->SetInnerRML(Rml::StringUtilities::EncodeRml(text));
 					displayed_values_[name] = text;
 				}
 			app.screen_readouts.emplace_back(id(name), text);
@@ -667,7 +656,7 @@ p {display:block;font-size:17px;margin:4px 0;}
 				              " degrees"
 				        : "";
 				if (auto *readout = document_->GetElementById("value/" + key))
-					readout->SetInnerRML(escaped(localise(value)));
+					readout->SetInnerRML(Rml::StringUtilities::EncodeRml(localise(value)));
 			}
 		context_->Update();
 		for (const auto &[name, label] : controls_)
