@@ -20,3 +20,4 @@ dist/
 /userdata.servers/
 *.fleet.zip
 /prototypes/
+/tmp/
