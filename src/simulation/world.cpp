@@ -603,6 +603,8 @@ struct World::Impl
 			else
 				result.collider.radius = collision.at("radius_mm");
 			const auto &systems = definition.at("systems");
+			if (result.layout)
+				result.fitted.emplace();
 			for (const auto &spec : resolve_systems(content, name))
 				if (spec.id != operating_system_name(spec.kind) || systems.at(spec.id).contains("kind"))
 					result.fitted.emplace();
@@ -800,6 +802,17 @@ struct World::Impl
 			for (const auto &console : data.consoles)
 				controls.profiles.emplace(console.id, data.layout->default_profile);
 			controls.controllers = data.controller_templates;
+			for (auto &controller : controls.controllers)
+				for (std::size_t i = 0; i < controller.commands.size(); ++i)
+				{
+					const auto &command = controller.definition.commands[i];
+					if (command.initial_heading)
+					{
+						if (pose.heading < command.minimum || pose.heading > command.maximum)
+							throw std::runtime_error("Spawn heading is outside Controller command bounds");
+						controller.commands[i].value = pose.heading;
+					}
+				}
 			entity.set<EntityControls>(std::move(controls));
 		}
 		if (data.layout)
@@ -951,8 +964,34 @@ struct World::Impl
 	{
 		auto fitted = fittings(entity);
 		auto systems = gameplay_systems(entity);
-		if (!fitted || !systems)
+		if (!fitted)
 			return false;
+		if (!systems)
+		{
+			const auto target = instance(entity, name);
+			if (!target || !output.arguments.empty())
+				return false;
+			if (output.action == OperatingAction::SystemEnabled)
+			{
+				if (target->kind == OperatingSystem::Engine)
+					output.action = OperatingAction::EngineEnabled;
+				else if (target->kind == OperatingSystem::Radar)
+					output.action = OperatingAction::RadarEnabled;
+				else
+					return false;
+			}
+			if (!admissible(output, target->engine, target->steering, target->radar))
+				return false;
+			if (execute)
+			{
+				apply(output, target->engine, target->steering, target->radar);
+				if (target->engine)
+					target->enabled = target->engine->enabled;
+				if (target->radar)
+					target->enabled = target->radar->enabled;
+			}
+			return true;
+		}
 		std::size_t index = 0;
 		for (; index < fitted->values.size(); ++index)
 			if (fitted->values[index].id == name)
@@ -1832,9 +1871,7 @@ struct World::Impl
 		          });
 		for (const auto &[id, ship] : ships)
 		{
-			if (ship.has<EntityControls>())
-				run_console_controllers(ship);
-			else
+			if (!ship.has<EntityControls>())
 				run_equipment_controllers(id);
 			const auto restrictions = flight_restrictions(id);
 			request_flight_resources(ship, restrictions);
@@ -2587,10 +2624,20 @@ void World::tick()
 	    });
 	// Explicit fixed-tick phases. Each pre-collision row operates only on itself,
 	// so archetype/table ordering cannot affect gameplay. No wall-clock progress.
+	for (const auto &[id, entity] : impl_->entities)
+		if (entity.has<EntityControls>())
+			impl_->run_console_controllers(entity);
 	impl_->controllers.run();
 	impl_->run_basic_controllers();
 	impl_->run_basic_steering();
 	impl_->run_basic_engines();
+	for (const auto &[id, entity] : impl_->entities)
+		if (entity.has<EntityControls>() && !entity.has<GameplayShip>())
+			for (auto child : entity.get<EquipmentIndex>().values)
+			{
+				const auto &fit = child.get<Equipment>();
+				impl_->knowledge.ingest_telemetry(id, fit.id, impl_->telemetry(id, fit.ordinal), ticks());
+			}
 	impl_->run_advanced_equipment();
 	impl_->integrate.run();
 	impl_->resolve_collisions.run();

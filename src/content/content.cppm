@@ -212,6 +212,7 @@ struct ControllerCommandSpec
 	std::int64_t initial = 0, minimum = 0, maximum = 0;
 	std::vector<std::size_t> consumers;
 	std::vector<std::int64_t> initial_arguments;
+	bool initial_heading = false;
 };
 struct ConsoleControllerSpec
 {

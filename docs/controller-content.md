@@ -46,6 +46,12 @@ Players select a Console's complexity profile in the lobby or its settings. A lo
 
 Throttle and heading widgets can name `controller` and `channel` instead of `system`. Both identifiers are required and resolve within the Console using that layout. The command must be a speed or heading setting matching the widget kind. The old semantic `binding` string is optional for this form. For example, a throttle widget can contain `"controller": "propulsion", "channel": "speed"`; its usual ID, label and layout coordinates are still required. It reads the accepted setting and compiled range from the Console board, so one widget can command both engines without choosing an engine as its target. An AI-owned section remains readable but refuses human writes.
 
+## Physical motion and initial heading
+
+`motion_model: vector` preserves the simple engine's existing vector-seeking acceleration and separate steering. It supports engine, steering and radar mechanisms with speed, heading and enabled commands. Resource networks, manual axes, navigation guidance and other advanced physical inputs require inertial machinery. `motion_model: inertial` explicitly selects that machinery. Both models use the same Controller admission, profiles, command sections, observations and continuation; this is a physical capability choice, independent of human or AI operation.
+
+An omitted `initial` on a heading channel uses the entity's spawn heading. An explicit integer instead requests that heading. A spawn heading outside the channel's authored range is refused; it is not silently clamped. Other channel defaults retain their documented typed values.
+
 ## Preferences shared with AI
 
 An `intent_integer` or `intent_boolean` setting has `consumers: []`. It represents an accepted Console preference, not a physical actuator input. Author bounds and an initial value as for other settings. For example, a human-operated planning Controller can own `{"id":"power","action":"intent_integer","minimum":0,"maximum":1000,"initial":650,"consumers":[]}`. An AI-operated generator Controller reads it through a same-Console `command_reads` binding and writes its own physical generator-output channel. Both operators use the ordinary command admission, generation, receipt and continuation contracts.

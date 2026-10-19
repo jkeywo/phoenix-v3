@@ -46,11 +46,12 @@ Observation capture_console_observation(const ConsoleAddress &address) const
 			state.maximum = radar->range;
 			state.enabled = radar->enabled;
 		}
+		if (instance && entity.has<NamedEquipment>())
+			state.telemetry = telemetry(address.ship, instance->ordinal);
 		if (instance && instance->advanced)
 		{
 			const auto index = static_cast<std::size_t>(instance->ordinal);
 			state.kind = instance->kind;
-			state.telemetry = telemetry(address.ship, index);
 			state.enabled = state.telemetry.at("enabled") != 0;
 			state.requested = state.telemetry.at("requested");
 			state.controlled = instance->held;

@@ -84,7 +84,7 @@ bool accepts(const FittedSystemSpec &fit, const Json &spec, OperatingAction acti
 }
 using CommandBounds = std::map<OperatingAction, std::pair<std::int64_t, std::int64_t>>;
 CommandBounds fitted_commands(const FittedSystemSpec &fit, Json spec, const ShipResourcesDefinition *resources,
-                              std::size_t index)
+                              std::size_t index, bool advanced)
 {
 	CommandBounds result;
 	const auto add = [&](OperatingAction action)
@@ -93,6 +93,23 @@ CommandBounds fitted_commands(const FittedSystemSpec &fit, Json spec, const Ship
 		result[action] = {contract.minimum, contract.maximum};
 	};
 	const auto kind = fit.kind;
+	if (!advanced)
+	{
+		if (kind == OperatingSystem::Engine)
+		{
+			result[OperatingAction::Speed] = {0, fit.maximum};
+			add(OperatingAction::EngineEnabled);
+			add(OperatingAction::SystemEnabled);
+		}
+		if (kind == OperatingSystem::Steering)
+			add(OperatingAction::Heading);
+		if (kind == OperatingSystem::Radar)
+		{
+			add(OperatingAction::RadarEnabled);
+			add(OperatingAction::SystemEnabled);
+		}
+		return result;
+	}
 	if (kind == OperatingSystem::Engine || kind == OperatingSystem::Steering || kind == OperatingSystem::Lateral ||
 	    kind == OperatingSystem::Boost || kind == OperatingSystem::Impulse)
 	{
@@ -178,6 +195,7 @@ ControllerCommandSpec command_spec(const FittedSystemSpec &fit, const OperatingA
 	result.id = action.name;
 	result.action = action.action;
 	result.physical_input = input_key(action.action);
+	result.initial_heading = action.action == OperatingAction::Heading;
 	result.type = action.boolean ? KnowledgeType::Boolean : KnowledgeType::Integer;
 	result.minimum = action.minimum;
 	result.maximum = action.maximum;
@@ -271,8 +289,9 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 	const auto resources = compile_ship_resources(catalog, entity_id);
 	std::vector<CommandBounds> capabilities;
 	for (std::size_t i = 0; i < systems.size(); ++i)
-		capabilities.push_back(
-		    fitted_commands(systems[i], entity.at("systems").at(systems[i].id), resources ? &*resources : nullptr, i));
+		capabilities.push_back(fitted_commands(systems[i], entity.at("systems").at(systems[i].id),
+		                                       resources ? &*resources : nullptr, i,
+		                                       uses_advanced_machinery(catalog, entity_id)));
 	const auto &layout = entity.at("control_layout");
 	control_require(layout.is_object() && layout.value("schema", 0) == 1, path,
 	                "unsupported layout schema (expected 1)");
@@ -332,7 +351,8 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			};
 			command.minimum = number("minimum", action->minimum);
 			command.maximum = number("maximum", action->maximum);
-			command.initial = number("initial", 0);
+			command.initial_heading = command.action == OperatingAction::Heading && !field.contains("initial");
+			command.initial = number("initial", command.initial_heading ? command.minimum : 0);
 			const auto arguments = field.value("arguments", Json::array());
 			control_require(arguments.is_array() && arguments.size() <= 3, where, "invalid command arguments");
 			for (const auto &argument : arguments)

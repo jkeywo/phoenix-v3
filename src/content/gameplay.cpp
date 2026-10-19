@@ -76,6 +76,32 @@ bool uses_advanced_machinery(const Catalog &catalog, const std::string &entity_i
 {
 	const auto &entity = catalog.entities.at(entity_id);
 	const auto fitted = resolve_systems(catalog, entity_id);
+	if (entity.contains("motion_model"))
+	{
+		const auto model = entity.at("motion_model").get<std::string>();
+		if (model != "vector" && model != "inertial")
+			fitting_error("entities." + entity_id + ".motion_model", "expected vector or inertial");
+		if (model == "inertial")
+			return true;
+		if (entity.contains("resources"))
+			fitting_error("entities." + entity_id + ".motion_model",
+			              "vector mechanisms cannot bind a resource network");
+		for (const auto &system : fitted)
+		{
+			const auto &spec = entity.at("systems").at(system.id);
+			if (system.kind != OperatingSystem::Engine && system.kind != OperatingSystem::Steering &&
+			    system.kind != OperatingSystem::Radar)
+				fitting_error("entities." + entity_id + ".motion_model",
+				              "vector model supports engine, steering and radar only");
+			for (const auto *field : {"reverse_speed_mm_s", "boost", "impulse", "power_rate", "heat_rate",
+			                          "energy_per_second", "discrete_energy", "lateral_acceleration_mm_s2",
+			                          "power_store", "generator", "power_group", "cooling_link", "conduit"})
+				if (spec.contains(field))
+					fitting_error("entities." + entity_id + ".systems." + system.id + "." + field,
+					              "requires inertial/resource machinery");
+		}
+		return false;
+	}
 	bool advanced = entity.contains("resources") || entity.contains("presets") || entity.contains("control_layout");
 	for (const auto &system : fitted)
 	{

@@ -47,6 +47,150 @@ int main()
 {
 	try
 	{
+
+		for (const bool split_vector : {false, true})
+		{
+			auto vector_source = controller_fixture(split_vector);
+			auto &vector_entity = vector_source["entities"][0];
+			vector_entity["motion_model"] = "vector";
+			vector_entity["systems"]["turn"] = {{"kind", "steering"}, {"turn_mdeg_s", 90001}};
+			vector_entity["systems"]["port"]["acceleration_mm_s2"] = 2001;
+			vector_entity["systems"]["starboard"]["acceleration_mm_s2"] = 1003;
+			vector_entity["stations"][0]["consoles"][0]["feeds"].push_back("turn");
+			auto &vector_controls = vector_entity["control_layout"]["controllers"];
+			vector_controls[0]["commands"].push_back(
+			    {{"id", "heading"}, {"action", "heading_mdeg"}, {"consumers", {"turn"}}});
+			vector_controls[0]["commands"].push_back({{"id", "enabled"},
+			                                          {"action", "system_enabled"},
+			                                          {"initial", 1},
+			                                          {"consumers", {"port", "starboard"}}});
+			vector_source["maps"][0]["entities"][0]["heading_mdeg"] = 33000;
+			auto legacy_source = vector_source;
+			auto &legacy_entity = legacy_source["entities"][0];
+			legacy_entity.erase("motion_model");
+			legacy_entity.erase("control_layout");
+			legacy_entity["stations"][0]["consoles"][0]["systems"] = {"port", "starboard", "turn"};
+			const auto vector_catalog = load(vector_source), legacy_catalog = load(legacy_source);
+			World vector_world, legacy_world;
+			vector_world.load(vector_catalog, "test.map");
+			legacy_world.load(legacy_catalog, "test.map");
+			require(vector_world.claim(101, 1, "drive") && legacy_world.claim(101, 1, "drive"),
+			        "vector and legacy comparison claims");
+			const std::string first = split_vector ? "port_drive" : "propulsion";
+			require(controller(vector_world, 101, first).at("commands").at("heading").at("value") == 33000,
+			        "omitted heading initial preserves spawn pose");
+			for (int tick = 0; tick < 45; ++tick)
+			{
+				auto submit_vector = [&](const std::string &owner, const std::string &channel, std::int64_t value)
+				{
+					OperatingCommand command{1, {}, value, {}};
+					command.controller = owner;
+					command.channel = channel;
+					command.generation = controller(vector_world, 101, owner).at("generation");
+					require(vector_world.submit(101, command), "vector Controller command admitted");
+				};
+				if (tick == 0 || tick == 22)
+				{
+					submit_vector(first, "speed", 7000);
+					if (split_vector)
+						submit_vector("starboard_drive", "speed", 3000);
+					submit_vector(first, "heading", tick == 0 ? 90000 : 250000);
+					submit_vector(first, "enabled", 1);
+					require(legacy_world.submit(101, {1, "speed_mm_s", 7000, "port"}) &&
+					            legacy_world.submit(101, {1, "speed_mm_s", split_vector ? 3000 : 7000, "starboard"}) &&
+					            legacy_world.submit(101, {1, "heading_mdeg", tick == 0 ? 90000 : 250000, "turn"}) &&
+					            legacy_world.submit(101, {1, "engine_enabled", 1, "port"}) &&
+					            legacy_world.submit(101, {1, "engine_enabled", 1, "starboard"}),
+					        "legacy sequence admitted");
+				}
+				if (tick == 13)
+				{
+					submit_vector(first, "enabled", 0);
+					require(legacy_world.submit(101, {1, "engine_enabled", 0, "port"}) &&
+					            legacy_world.submit(101, {1, "engine_enabled", 0, "starboard"}),
+					        "legacy coast");
+				}
+				vector_world.tick();
+				legacy_world.tick();
+				require(vector_world.save().at("bodies")[0].at("body") ==
+				            legacy_world.save().at("bodies")[0].at("body"),
+				        "vector Controller preserves legacy trajectory and integration remainders");
+			}
+			World vector_resumed;
+			vector_resumed.restore(vector_catalog, vector_world.save());
+			vector_world.tick();
+			vector_resumed.tick();
+			require(vector_world.save() == vector_resumed.save(), "vector controls restore exactly");
+
+			auto timed_vector = vector_source;
+			auto &timed_owner = timed_vector["entities"][0]["control_layout"]["controllers"][0];
+			timed_owner.erase("fallback");
+			timed_owner["tree"] = "test.vector.timed";
+			timed_vector["trees"] =
+			    Json::array({{{"id", "test.vector.timed"},
+			                  {"initial", "run"},
+			                  {"states", {{"run", {{"speed_mm_s", 5000}, {"ticks", 10}, {"next", "run"}}}}}}});
+			const auto timed_catalog = load(timed_vector);
+			World timed_ai, timed_human;
+			timed_ai.load(timed_catalog, "test.map");
+			timed_human.load(timed_catalog, "test.map");
+			require(timed_human.claim(101, 1, "drive"), "vector timed human claim");
+			require(timed_human.submit(101, speed(timed_human, 101, first, 5000)), "equivalent human vector command");
+			for (int tick = 0; tick < 12; ++tick)
+			{
+				timed_ai.tick();
+				timed_human.tick();
+				require(timed_ai.save().at("bodies")[0].at("body") == timed_human.save().at("bodies")[0].at("body"),
+				        "vector timed AI and human share physical consumer");
+			}
+			auto explicit_heading = vector_source;
+			explicit_heading["entities"][0]["control_layout"]["controllers"][0]["commands"][1]["initial"] = 12000;
+			World heading_override;
+			heading_override.load(load(explicit_heading), "test.map");
+			require(heading_override.claim(101, 1, "drive"), "explicit heading claim");
+			require(controller(heading_override, 101, first).at("commands").at("heading").at("value") == 12000,
+			        "explicit heading initial overrides pose");
+			auto bounded_heading = vector_source;
+			bounded_heading["entities"][0]["control_layout"]["controllers"][0]["commands"][1]["maximum"] = 20000;
+			const auto before_bad_pose = vector_world.save();
+			rejects(
+			    [&]
+			    {
+				    vector_world.load(load(bounded_heading), "test.map");
+			    },
+			    "out-of-bounds spawn heading refused");
+			require(vector_world.save() == before_bad_pose, "invalid spawn heading load is transactional");
+			for (const auto *bad_action : {"destination", "longitudinal_thrust"})
+			{
+				auto bad = vector_source;
+				auto &command = bad["entities"][0]["control_layout"]["controllers"][0]["commands"][0];
+				command["action"] = bad_action;
+				if (std::string(bad_action) == "destination")
+					command["arguments"] = {1000, 2000};
+				rejects(
+				    [&]
+				    {
+					    load(bad);
+				    },
+				    "vector rejects inertial actions");
+			}
+			auto paid_vector = vector_source;
+			paid_vector["entities"][0]["systems"]["port"]["power_rate"] = 10;
+			rejects(
+			    [&]
+			    {
+				    load(paid_vector);
+			    },
+			    "vector rejects resource cost bindings");
+			auto invalid_model = vector_source;
+			invalid_model["entities"][0]["motion_model"] = "unknown";
+			rejects(
+			    [&]
+			    {
+				    load(invalid_model);
+			    },
+			    "unknown motion model rejected");
+		}
 		const auto content = load(controller_fixture());
 		auto preference_source = controller_fixture();
 		auto &preference_layout = preference_source["entities"][0]["control_layout"];
