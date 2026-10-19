@@ -32,6 +32,15 @@ struct Movable
 struct Claimed
 {
 };
+// Quadratic launch response, evaluated in fixed point for native/WASM parity.
+// Twice the nominal rate at rest; a small floor reaches the requested cap.
+// Braking keeps the authored constant rate.
+inline std::int64_t launch_acceleration(std::int64_t nominal, std::int64_t speed, std::int64_t maximum)
+{
+	const auto fraction = std::clamp<std::int64_t>(speed * 1000 / std::max<std::int64_t>(1, maximum), 0, 1000);
+	return std::max<std::int64_t>(1,
+	                              nominal * std::max<std::int64_t>(50, 2000 - 2 * fraction * fraction / 1000) / 1000);
+}
 struct Engine
 {
 	std::int64_t max_speed = 0, acceleration = 0, speed = 0, remainder = 0;

@@ -336,8 +336,8 @@ void prepare_settings(Application &app)
 		if (app.screen != Screen::settings || !app.session)
 			return false;
 		for (const auto &[control, text] : app.screen_controls)
-			if (control == id && settings_ui::approval(id))
-				return app.session->session_action(id);
+			if (control == id && (settings_ui::approval(id) || id == "settings.away" || id == "settings.resume"))
+				return settings_ui::session_action(app, id);
 		return false;
 	};
 	auto *audio = document->GetElementById("settings-audio");

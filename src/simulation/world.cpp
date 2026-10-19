@@ -53,7 +53,11 @@ void step_basic_engine(const Pose &pose, Motion &motion, Engine &engine)
 	engine.forward_output = 0;
 	if (!engine.enabled)
 		return;
-	auto available = engine.acceleration + engine.remainder;
+	const auto forward_speed = fixed::dot(motion.velocity, fixed::direction(pose.heading)) / fixed::unit;
+	const auto acceleration = engine.speed > forward_speed && forward_speed >= 0
+	                              ? launch_acceleration(engine.acceleration, forward_speed, engine.max_speed)
+	                              : engine.acceleration;
+	auto available = acceleration + engine.remainder;
 	auto step = available / rate;
 	engine.remainder = available % rate;
 	auto desired = fixed::scale(fixed::direction(pose.heading), engine.speed);

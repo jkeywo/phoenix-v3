@@ -48,6 +48,8 @@ int main(int argc, char **argv)
 	bool join_smoke = false, join_submitted = false, claim_submitted = false;
 	unsigned join_ready_frames = 0;
 	int smoke_frames = 0;
+	bool helm_smoke = false;
+	std::uint64_t helm_smoke_tick = 0;
 	bool workshop_smoke = false;
 	std::string workshop_pack;
 	std::string game_pack;
@@ -122,6 +124,11 @@ int main(int argc, char **argv)
 			app.native_menu = false;
 			smoke_frames = 6;
 			app.screen = phoenix::Screen::server_lobby;
+		}
+		if (argument == "--helm-smoke")
+		{
+			helm_smoke = true;
+			smoke_frames = 90;
 		}
 		if (argument == "--join-smoke")
 		{
@@ -651,6 +658,33 @@ int main(int argc, char **argv)
 		}
 		if (qr_smoke && smoke_frames == 6)
 			phoenix::invoke_navigation(app, "game.qr-client");
+		if (helm_smoke)
+		{
+			if (smoke_frames == 80)
+			{
+				helm_smoke_tick = app.session->ticks();
+				if (!phoenix::probe_console_helm(app, 1))
+					throw std::runtime_error("Helm pointer probe failed");
+			}
+			if (smoke_frames == 60)
+			{
+				app.settings_console = 1;
+				phoenix::invoke_navigation(app, "settings");
+				phoenix::invoke_navigation(app, "settings.tab/session");
+			}
+			if (smoke_frames == 50 && !phoenix::invoke_navigation(app, "settings.away"))
+				throw std::runtime_error("Settings Away action failed");
+			if (smoke_frames == 30 && !phoenix::invoke_navigation(app, "settings.resume"))
+				throw std::runtime_error("Settings resume action failed");
+			if (smoke_frames == 20)
+				phoenix::invoke_navigation(app, "settings.close");
+			if (smoke_frames == 1)
+			{
+				if (app.session->ticks() <= helm_smoke_tick)
+					throw std::runtime_error("Helm input stalled simulation");
+				std::cout << "Helm smoke passed: direct throttle, heading, Settings Away/resume and advancing ticks\n";
+			}
+		}
 		if (smoke_frames && --smoke_frames == 0)
 		{
 			TakeScreenshot(qr_smoke                                    ? "invitation-smoke.png"

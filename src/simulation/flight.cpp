@@ -91,6 +91,9 @@ FlightTargets flight_targets(const FlightDefinition &def, const FlightState &sta
 			cap = cap * def.boost_speed_multiplier / 1000;
 			result.acceleration = result.acceleration * def.boost_acceleration_multiplier / 1000;
 		}
+		if (current >= 0 && (impulse || boost ||
+		                     (primary && (state.assisted ? state.desired_speed > current : state.longitudinal > 0))))
+			result.acceleration = launch_acceleration(result.acceleration, current, cap);
 		if (impulse || boost)
 		{
 			result.speed = cap;

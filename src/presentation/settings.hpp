@@ -89,6 +89,18 @@ inline bool approval(const std::string &id)
 {
 	return id.starts_with("lobby.approve/") || id.starts_with("network.approve/") || id.starts_with("network.gm/");
 }
+inline bool session_action(Application &app, const std::string &id)
+{
+	if (!app.session)
+		return false;
+	if (id == "settings.away" || id == "settings.resume")
+	{
+		const auto view = app.session->console_observation(app.settings_console);
+		return view && app.session->console_command(app.settings_console,
+		                                            {view->own.id, "away", id == "settings.away" ? 1 : 0, {}});
+	}
+	return app.session->session_action(id);
+}
 inline auto approvals(const Application &app)
 {
 	std::vector<std::pair<std::string, std::string>> result;
@@ -96,6 +108,13 @@ inline auto approvals(const Application &app)
 		for (const auto &[id, text] : app.session->lobby_controls())
 			if (approval(id))
 				result.emplace_back(id, text);
+	if (game_active(app) && app.settings_tab == "session")
+		if (const auto view = app.session->console_observation(app.settings_console);
+		    view && view->gameplay.is_object())
+			for (const auto &control : view->gameplay.value("controls", Json::array()))
+				if (control.value("action", "") == "away")
+					result.emplace_back(control.value("value", 0) ? "settings.away" : "settings.resume",
+					                    control.value("value", 0) ? "Away - hand control to AI" : "Resume control");
 	return result;
 }
 } // namespace phoenix::settings_ui

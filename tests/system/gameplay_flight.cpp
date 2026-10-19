@@ -112,6 +112,39 @@ std::int64_t paid(const World &world)
 					total += item.telemetry.at("used_power") / World::ticks_per_second;
 	return total;
 }
+void launch_curve_and_linear_braking()
+{
+	const auto catalog = load(fixture());
+	World world;
+	world.load(catalog, "test.map");
+	claim(world);
+	command(world, "speed_mm_s", 10000, "drive");
+	world.tick();
+	const auto launch = body(world).vx;
+	for (int i = 0; i < 30; ++i)
+		world.tick();
+	const auto before = body(world).vx;
+	world.tick();
+	require(launch > body(world).vx - before && body(world).vx > before,
+	        "forward acceleration must taper as speed rises while continuing toward the target");
+	command(world, "speed_mm_s", 0, "drive");
+	const auto braking_start = body(world).vx;
+	world.tick();
+	const auto first = braking_start - body(world).vx;
+	const auto middle = body(world).vx;
+	world.tick();
+	require(first > 0 && std::abs(first - (middle - body(world).vx)) <= 1 && launch > first,
+	        "launch must be stronger than nominal linear braking, with equal braking decrements");
+	World resumed;
+	resumed.load(catalog, "test.map");
+	resumed.restore(catalog, world.save());
+	for (int i = 0; i < 10; ++i)
+	{
+		world.tick();
+		resumed.tick();
+	}
+	require(body(world).vx == body(resumed).vx, "curved flight retains deterministic save continuation");
+}
 void manual_and_conservation()
 {
 	const auto catalog = load(fixture());
@@ -520,7 +553,7 @@ void immutable_flight_demands()
 	claim(world);
 	command(world, "speed_mm_s", 1000, "a");
 	world.tick();
-	require(body(world).vx == 100 && telemetry(world, "b", "actual_longitudinal") == 0 &&
+	require(body(world).vx > 0 && telemetry(world, "b", "actual_longitudinal") == 0 &&
 	            telemetry(world, "b", "used_power") == 0,
 	        "an idle actuator cannot re-plan free braking after another fitted actuator accelerates");
 	world.tick();
@@ -547,7 +580,7 @@ void immutable_flight_demands()
 	command(steering, "heading_mdeg", 90000, "a");
 	command(steering, "speed_mm_s", 1000, "b");
 	steering.tick();
-	require(body(steering).heading > 0 && body(steering).vx == 100 && body(steering).vy == 0,
+	require(body(steering).heading > 0 && body(steering).vx > 0 && body(steering).vy == 0,
 	        "funded thrust must retain its prepared heading basis after an earlier steering actuator turns");
 }
 void paid_sensor_startup()
@@ -887,6 +920,7 @@ int main()
 {
 	try
 	{
+		launch_curve_and_linear_braking();
 		manual_and_conservation();
 		boost_and_impulse();
 		paid_overdrive();

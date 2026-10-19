@@ -26,3 +26,13 @@ Captures are written to the working directory as `viewscreen-smoke.png` or `cons
 `native.exe --runtime-save path/to/phoenix-session.zip` verifies a runtime save and opens its paused recovery lobby. Add `--resume-local --console` to explicitly reclaim the local console on launch. This also accepts saves exported by server WASM; no separately installed content is needed.
 
 The offline adapter supports independent local Console routes; use [display regions](console-displays.md) to show several at once. Default network sessions add durable singleton or fixed-roster fleet consensus, per-Console leases, approved crew and reconnection. Portable fleet recovery creates a fresh epoch; same-identity recovery uses the sealed journal and checkpoints. These implementations do not establish the six-screen/60 Hz or five-physical-device targets.
+
+## Helm interaction update — 19 October 2026
+
+Helm uses a centred, maximum-fit radar with a right-hand throttle and the shared settings cog. The marked diagnostic labels are hidden during ordinary play; keyboard focus still exposes the heading field and radar-contact action, and semantic controls retain their names. Away hands control to AI; Away and Resume control now live in Settings → Session for the Console that opened Settings.
+
+Throttle clicks set the indicated position immediately. Captured dragging follows the track, clamps outside its travel, limits intermediate requests to 20 Hz and sends the final release position. Projection-driven slider updates suppress change events so they cannot feed commands back into the session.
+
+Forward acceleration uses `2 × nominal × (1 − (current speed / maximum speed)²)`, with a 5% nominal floor to reach the cap. Braking retains the nominal constant rate. This applies through both basic and resource-paid flight paths. Viewscreen shake responds to changes in observed acceleration, decays quickly, is bounded, and is disabled by Reduced Motion.
+
+Manual probe: add `--console --helm-smoke` to a local game launch. It exercises direct throttle positioning, radar heading, Settings Away/resume and continued simulation ticks, then writes `console-smoke.png`. On 19 October, the native 1280×720 Free Flight / training survey probe passed using a separate preview executable because the ordinary native executable was running. Native flight, motion/radar, session and input/semantics cases passed; browser client/server builds and the WASM flight case passed. The capture checks layout, not physical touch hardware, screen-reader usability or subjective shake tuning.

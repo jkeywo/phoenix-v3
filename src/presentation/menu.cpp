@@ -898,7 +898,7 @@ struct NativeMenuScreen::State
 							markup += add(id, text,
 							              [&, id]
 							              {
-								              app.session->session_action(id);
+								              settings_ui::session_action(app, id);
 							              });
 						if (app.can_host && app.session->running())
 						{

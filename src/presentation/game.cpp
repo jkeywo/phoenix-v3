@@ -62,6 +62,10 @@ struct GameScreen::State
 	std::string invitation_url;
 	bool show_invitation = false;
 	bool environment_ready = false;
+	std::optional<BodyView> shake_previous;
+	std::uint64_t shake_tick = 0;
+	Vector2 shake_acceleration{};
+	float shake_energy = 0;
 	SceneEnvironment environment;
 	Json presentation_identity;
 	std::string grid_definition;
@@ -94,6 +98,9 @@ struct GameScreen::State
 		observation.reset();
 		was_running = false;
 		environment_ready = false;
+		shake_previous.reset();
+		shake_acceleration = {};
+		shake_energy = 0;
 		environment = {};
 		presentation_identity = nullptr;
 		grid_definition.clear();
@@ -657,6 +664,33 @@ struct GameScreen::State
 			    {0, 1, 0},
 			    50,
 			    CAMERA_PERSPECTIVE};
+			const auto tick = app.session->ticks();
+			if (!shake_previous || shake_previous->id != own.id || tick < shake_tick)
+			{
+				shake_previous = own;
+				shake_tick = tick;
+				shake_acceleration = {};
+				shake_energy = 0;
+			}
+			else if (tick > shake_tick)
+			{
+				const float seconds = static_cast<float>(tick - shake_tick) / 20.f;
+				const Vector2 acceleration{(own.vx - shake_previous->vx) / (1000.f * seconds),
+				                           (own.vy - shake_previous->vy) / (1000.f * seconds)};
+				const float change =
+				    std::hypot(acceleration.x - shake_acceleration.x, acceleration.y - shake_acceleration.y);
+				shake_energy = std::min(1.f, shake_energy + change * .025f);
+				shake_previous = own;
+				shake_tick = tick;
+				shake_acceleration = acceleration;
+			}
+			shake_energy *= std::exp(-8.f * GetFrameTime());
+			if (app.reduced_motion)
+				shake_energy = 0;
+			const float shake = shake_energy * ahead * .006f;
+			camera.target.x += std::sin(heading) * shake * std::sin(GetTime() * 71);
+			camera.target.z += std::cos(heading) * shake * std::sin(GetTime() * 71);
+			camera.target.y += shake * std::sin(GetTime() * 53);
 			const auto stage = GetTime();
 			auto bodies = app.session->scene();
 			std::erase_if(bodies,

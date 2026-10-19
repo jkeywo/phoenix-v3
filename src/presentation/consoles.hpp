@@ -23,6 +23,10 @@ class ConsoleSurface final : public Rml::EventListener
 	std::map<std::string, Json> hud_metadata_;
 	std::optional<std::array<float, 3>> heading_dial_;
 	std::map<std::uint64_t, std::string> heading_contacts_;
+	std::map<std::uint64_t, std::string> throttle_contacts_;
+	std::map<std::string, Rectangle> throttle_tracks_;
+	bool syncing_values_ = false;
+	std::map<std::string, double> throttle_sent_at_;
 	std::map<std::string, std::array<float, 3>> heading_dials_;
 	std::map<std::string, std::string> dial_systems_;
 	std::string asset_path(const std::string &name) const
@@ -118,6 +122,14 @@ p {display:block;font-size:17px;margin:4px 0;}
 .ready-card {position:absolute;left:17%;top:32%;width:66%;box-sizing:border-box;padding:28px;background:#0b1719ee;border:2px #d48a48;}
 .ready-card h1 {display:block;font-size:32px;}
 .ready-card button {min-width:120px;}
+.settings-cog {width:56px;height:56px;padding:0px;background:transparent;border:0px;}
+.settings-cog img {pointer-events:none;}
+.helm #toolbar {left:4%;top:4%;right:auto;height:64px;overflow:visible;z-index:2;}
+.helm #toolbar h1,.helm #connection-status,.helm .radar-widget h2,.helm .heading-widget h2,.helm .heading-widget label,.helm .heading-widget p {display:none;}
+.helm .dial {left:0;right:0;top:0;bottom:0;}
+.helm .radar-widget button,.helm .heading-value {opacity:0;}
+.helm .radar-widget button:focus,.helm .heading-value:focus {opacity:1;}
+.helm #gameplay {background:transparent;border:0px;padding:0px;}
 </style></head><body><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="gameplay-controls"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div></body></rml>)");
 		if (!document_)
 			throw std::runtime_error("Cannot create Console document");
@@ -176,7 +188,10 @@ p {display:block;font-size:17px;margin:4px 0;}
 			return accepted;
 		}
 		if (action == "settings")
+		{
+			app_->settings_console = route_;
 			return invoke_navigation(*app_, "settings");
+		}
 		if (action == "release")
 			return app_->session && app_->session->release_console(route_);
 		if (action.starts_with("claim/"))
@@ -197,6 +212,8 @@ p {display:block;font-size:17px;margin:4px 0;}
 	}
 	void ProcessEvent(Rml::Event &event) override
 	{
+		if (syncing_values_)
+			return;
 		const auto name = event.GetTargetElement()->GetId();
 		if (event.GetType() == "mousedown" || event.GetType() == "touchstart")
 		{
@@ -268,9 +285,40 @@ p {display:block;font-size:17px;margin:4px 0;}
 	}
 	bool pointer(std::uint64_t contact, float x, float y, DeviceEventKind kind)
 	{
-		if (!app_ || !game_active(*app_) || !heading_dial_ || owner_.lock() != app_->session ||
+		if (!app_ || !game_active(*app_) || owner_.lock() != app_->session ||
 		    generation_ != app_->session->generation())
 			return false;
+		if (kind == DeviceEventKind::Down)
+			for (const auto &[key, track] : throttle_tracks_)
+				if (CheckCollisionPointRec({x, y}, {track.x - track.width * .2f, track.y - track.width * .2f,
+				                                    track.width * 1.4f, track.height + track.width * .4f}))
+				{
+					throttle_contacts_[contact] = key;
+					break;
+				}
+		if (const auto found = throttle_contacts_.find(contact); found != throttle_contacts_.end())
+		{
+			const auto key = found->second;
+			if (kind != DeviceEventKind::Cancel && throttle_tracks_.contains(key))
+			{
+				const auto track = throttle_tracks_.at(key);
+				const double fraction = std::clamp((track.y + track.height - y) / track.height, 0.f, 1.f);
+				const auto system = model_.widget_system(key);
+				const auto requested =
+				    std::llround(model_.system_minimum(system) +
+				                 (model_.system_maximum(system) - model_.system_minimum(system)) * fraction);
+				if (requested != model_.system_request(system) &&
+				    (kind == DeviceEventKind::Down || kind == DeviceEventKind::Up ||
+				     GetTime() - throttle_sent_at_[key] >= .05))
+				{
+					if (model_.set_speed_fraction(fraction, system))
+						throttle_sent_at_[key] = GetTime();
+				}
+			}
+			if (kind == DeviceEventKind::Up || kind == DeviceEventKind::Cancel)
+				throttle_contacts_.erase(contact);
+			return true;
+		}
 		if (kind == DeviceEventKind::Down)
 		{
 			for (const auto &[key, dial] : heading_dials_)
@@ -304,6 +352,7 @@ p {display:block;font-size:17px;margin:4px 0;}
 	void cancel_pointer()
 	{
 		heading_contacts_.clear();
+		throttle_contacts_.clear();
 		model_.release_controls();
 		held_clicks_.clear();
 	}
@@ -317,10 +366,9 @@ p {display:block;font-size:17px;margin:4px 0;}
 			{
 				auto *element = document_->GetElementById(id("speed/" + widget.at("id").get<std::string>()));
 				const auto at = element->GetAbsoluteOffset(Rml::BoxArea::Border);
-				context_->ProcessMouseMove(static_cast<int>(at.x + element->GetOffsetWidth() / 2),
-				                           static_cast<int>(at.y + element->GetOffsetHeight() * .25f), 0);
-				context_->ProcessMouseButtonDown(0, 0);
-				context_->ProcessMouseButtonUp(0, 0);
+				const auto track = throttle_tracks_.at(widget.at("id").get<std::string>());
+				pointer(998, track.x + track.width / 2, track.y + track.height * .25f, DeviceEventKind::Down);
+				pointer(998, track.x + track.width / 2, track.y + track.height * .25f, DeviceEventKind::Up);
 				throttle = model_.requested_speed() > 0;
 			}
 		const auto [x, y, r] = *heading_dial_;
@@ -346,6 +394,12 @@ p {display:block;font-size:17px;margin:4px 0;}
 		context_->SetDimensions({static_cast<int>(region.width), static_cast<int>(region.height)});
 		const bool pregame = app.session && app.session->lobby().active && !app.session->lobby().launched;
 		const Json *layout = model_.layout();
+		const bool helm = layout && std::any_of(layout->at("widgets").begin(), layout->at("widgets").end(),
+		                                        [](const auto &widget)
+		                                        {
+			                                        return widget.at("kind") == "throttle";
+		                                        });
+		document_->SetClass("helm", helm && !pregame);
 		std::string title = "Console", description;
 		bool ready = false;
 		if (pregame)
@@ -387,7 +441,11 @@ p {display:block;font-size:17px;margin:4px 0;}
 			heading_contacts_.clear();
 			std::string toolbar = "<h1>" + Rml::StringUtilities::EncodeRml(localise(title)) + "</h1>";
 			if (toolbar_enabled_ && !pregame)
-				toolbar += button("settings", "Settings");
+			{
+				button("settings", "Settings");
+				toolbar += "<button class=\"settings-cog\" id=\"" + id("settings") + "\"><img src=\"" +
+				           asset_path("../menu/settings.png") + "\" width=\"56\" height=\"56\"/></button>";
+			}
 			for (const auto &pad : toolbar_enabled_ ? pads : std::set<std::string>{})
 				toolbar += button("pad/" + pad, "Assign controller " + pad);
 			toolbar += "<p id=\"connection-status\"></p>";
@@ -411,10 +469,10 @@ p {display:block;font-size:17px;margin:4px 0;}
 					{
 						return std::to_string(widget.at(field).get<double>() / 10) + "%";
 					};
-					widgets += "<div class=\"widget\" id=\"widget/" + Rml::StringUtilities::EncodeRml(key) +
-					           "\" style=\"left:" + percent("x") + ";top:" + percent("y") +
-					           ";width:" + percent("width") + ";height:" + percent("height") + "\"><h2>" +
-					           Rml::StringUtilities::EncodeRml(localise(widget.at("label"))) + "</h2>";
+					widgets += "<div class=\"widget " + kind + "-widget\" id=\"widget/" +
+					           Rml::StringUtilities::EncodeRml(key) + "\" style=\"left:" + percent("x") +
+					           ";top:" + percent("y") + ";width:" + percent("width") + ";height:" + percent("height") +
+					           "\"><h2>" + Rml::StringUtilities::EncodeRml(localise(widget.at("label"))) + "</h2>";
 					if (kind == "throttle")
 						widgets += "<input class=\"throttle\" id=\"" + id("speed/" + key) +
 						           "\" type=\"range\" orientation=\"vertical\" min=\"-100\" max=\"0\" step=\"0.1\" "
@@ -464,8 +522,14 @@ p {display:block;font-size:17px;margin:4px 0;}
 				                                : Rml::StringUtilities::EncodeRml(localise("Starting in")) + " " +
 				                                      std::to_string((left + 999) / 1000));
 			}
-		const auto gameplay_controls =
+		auto gameplay_controls =
 		    pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_controls();
+		std::erase_if(gameplay_controls,
+		              [](const auto &control)
+		              {
+			              // ConsoleModel encodes descriptor IDs as hexadecimal.
+			              return control.first == "game.control/61776179";
+		              });
 		const auto gameplay_readouts =
 		    pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_readouts();
 		auto *gameplay = document_->GetElementById("gameplay");
@@ -516,6 +580,46 @@ p {display:block;font-size:17px;margin:4px 0;}
 				widgets->SetProperty("bottom", "45%");
 				gameplay->SetProperty("top", "58%");
 			}
+		}
+		if (helm && !pregame)
+		{
+			widgets->SetProperty("top", "4%");
+			widgets->SetProperty("right", "4%");
+			widgets->SetProperty("bottom", "4%");
+			const float width = region.width * .92f, height = region.height * .92f;
+			const float side = std::min(height, width * .70f);
+			for (const auto &widget : layout->at("widgets"))
+			{
+				auto *element = document_->GetElementById("widget/" + widget.at("id").get<std::string>());
+				const std::string kind = widget.at("kind");
+				if (kind == "radar")
+				{
+					element->SetProperty("left", std::to_string((width - side) / 2) + "px");
+					element->SetProperty("top", std::to_string((height - side) / 2) + "px");
+					element->SetProperty("width", std::to_string(side) + "px");
+					element->SetProperty("height", std::to_string(side) + "px");
+				}
+				else if (kind == "throttle")
+				{
+					element->SetProperty("left", "85%");
+					element->SetProperty("top", "10%");
+					element->SetProperty("width", "15%");
+					element->SetProperty("height", "80%");
+				}
+				else if (kind == "heading")
+				{
+					element->SetProperty("left", "0%");
+					element->SetProperty("top", "85%");
+					element->SetProperty("width", "15%");
+					element->SetProperty("height", "15%");
+				}
+			}
+			gameplay->SetProperty("left", "4%");
+			gameplay->SetProperty("top", "18%");
+			gameplay->SetProperty("width", "12%");
+			gameplay->SetProperty("height", "60%");
+			gameplay->RemoveProperty("right");
+			gameplay->RemoveProperty("bottom");
 		}
 		Json gameplay_identity = Json::array();
 		for (const auto &[name, label] : gameplay_controls)
@@ -570,16 +674,17 @@ p {display:block;font-size:17px;margin:4px 0;}
 		heading_dial_.reset();
 		heading_dials_.clear();
 		dial_systems_.clear();
+		throttle_tracks_.clear();
 		std::string shared_heading;
 		int heading_count = 0;
-		if (layout)
+		if (layout && !pregame)
 			for (const auto &widget : layout->at("widgets"))
 				if (widget.at("kind") == "heading")
 				{
 					shared_heading = model_.widget_system(widget.at("id").get<std::string>());
 					++heading_count;
 				}
-		if (layout)
+		if (layout && !pregame)
 			for (const auto &widget : layout->at("widgets"))
 			{
 				const auto key = widget.at("id").get<std::string>(), kind = widget.at("kind").get<std::string>();
@@ -623,7 +728,13 @@ p {display:block;font-size:17px;margin:4px 0;}
 					const auto minimum = model_.system_minimum(system), maximum = model_.system_maximum(system);
 					const double percent =
 					    maximum > minimum ? 100.0 * (model_.system_request(system) - minimum) / (maximum - minimum) : 0;
-					slider->SetValue(std::to_string(-percent));
+					throttle_tracks_[key] = {track.x, track.y + track.height * top, track.width,
+					                         track.height * (bottom - top)};
+					// Programmatic projection updates must never enqueue a fresh player command.
+					syncing_values_ = true;
+					if (slider->GetValue() != std::to_string(-percent))
+						slider->SetValue(std::to_string(-percent));
+					syncing_values_ = false;
 					Rml::ElementList bars;
 					slider->GetElementsByTagName(bars, "sliderbar");
 					for (auto *bar : bars)
