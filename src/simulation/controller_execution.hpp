@@ -202,6 +202,7 @@ void refresh_controllers(EntityId id, bool validate = false)
 			                                                                 return claim.second == address;
 		                                                                 });
 		const bool human = present && controls.layout.profiles.at(controls.profiles.at(address.console)).human.at(i);
+		knowledge.set_controller_control({id, address.console, controller.definition.id}, present, human);
 		if (validate && human != controller.human)
 			throw std::runtime_error("Saved Controller operator differs from profile/claims");
 		if (human == controller.human)

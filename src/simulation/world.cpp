@@ -2018,7 +2018,7 @@ struct World::Impl
 		const auto address = claims.at(claimant);
 		const auto &console = *seat(address.ship, address.console);
 		const auto &spec = definition(address.ship);
-		if (entities.at(address.ship).has<EntityControls>())
+		if (entities.at(address.ship).has<EntityControls>() && !command.action.starts_with("message."))
 			return controller_meta(address, command, execute);
 		if (command.action == "away")
 		{
@@ -2127,6 +2127,22 @@ struct World::Impl
 		}
 		if (command.action.starts_with("message."))
 		{
+			const bool controller_sender = !command.controller.empty();
+			const auto &sender = controller_sender ? command.controller : command.system;
+			if (controller_sender)
+			{
+				if (!entities.at(address.ship).has<EntityControls>() || !command.system.empty())
+					return false;
+				const auto &controllers = entities.at(address.ship).get<EntityControls>().controllers;
+				if (std::none_of(controllers.begin(), controllers.end(),
+				                 [&](const auto &controller)
+				                 {
+					                 return controller.definition.console == address.console &&
+					                        controller.definition.id == sender && controller.human &&
+					                        controller.generation == command.generation;
+				                 }))
+					return false;
+			}
 			const auto name = command.action.substr(8);
 			if (std::find(spec.message_templates.begin(), spec.message_templates.end(), name) ==
 			    spec.message_templates.end())
@@ -2136,11 +2152,13 @@ struct World::Impl
 				const auto &message = knowledge.message_definition(name);
 				KnowledgeRecordInput payload;
 				payload.schema = message.schema;
-				payload.producer =
-				    knowledge.message_producer(address, command.system, message.schema, ControlOrigin::Human);
+				payload.producer = knowledge.message_producer(address, sender, message.schema, ControlOrigin::Human,
+				                                              controller_sender);
 				payload.subject = address.ship;
-				payload.provenance = {knowledge.system_id(address.ship, command.system), ecs.get<Clock>().tick,
-				                      ecs.get<Clock>().tick, 0, EvidenceKind::Intent};
+				payload.provenance = {controller_sender
+				                          ? knowledge.controller_id({address.ship, address.console, sender})
+				                          : knowledge.system_id(address.ship, sender),
+				                      ecs.get<Clock>().tick, ecs.get<Clock>().tick, 0, EvidenceKind::Intent};
 				GameplayKnowledgeMessageContext context;
 				context.amount = command.value;
 				context.flag = command.value != 0;
@@ -2149,14 +2167,14 @@ struct World::Impl
 				payload.fields = bound.fields;
 				if (!execute)
 				{
-					knowledge.admit_template(address, command.system, name, payload, ControlOrigin::Human,
-					                         ecs.get<Clock>().tick, bound.parameters, false);
+					knowledge.admit_template(address, sender, name, payload, ControlOrigin::Human,
+					                         ecs.get<Clock>().tick, bound.parameters, false, controller_sender);
 					return true;
 				}
 				// Only actual commands need a transactional copy.
 				auto candidate = knowledge;
-				candidate.admit_template(address, command.system, name, payload, ControlOrigin::Human,
-				                         ecs.get<Clock>().tick, bound.parameters);
+				candidate.admit_template(address, sender, name, payload, ControlOrigin::Human, ecs.get<Clock>().tick,
+				                         bound.parameters, true, controller_sender);
 				if (execute)
 					knowledge = std::move(candidate);
 				return true;
@@ -2656,6 +2674,21 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 					}
 				}
 	}
+	if (entity.has<EntityControls>())
+		for (const auto &controller : entity.get<EntityControls>().controllers)
+			if (controller.definition.console == seat.id && controller.human)
+				for (const auto &name : impl_->definition(found->second.ship).message_templates)
+				{
+					OperatingCommand command{
+					    found->second.ship,   "message." + name, 0, {}, controller.definition.id, {},
+					    controller.generation};
+					if (!impl_->meta(console, command, false))
+						continue;
+					auto descriptor = encode_operating_command(command);
+					descriptor["id"] = "message." + controller.definition.id + "." + name;
+					descriptor["label"] = "Send " + name;
+					buttons.push_back(std::move(descriptor));
+				}
 	for (const auto &name : seat.controlled_systems)
 		if (impl_->meta(
 		        console,

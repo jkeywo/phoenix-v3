@@ -393,6 +393,82 @@ int main()
 		    },
 		    "entity-wide read cannot bypass private-field publication policy");
 
+		auto messages_source = controller_fixture(true);
+		messages_source["schema"] = 4;
+		messages_source["knowledge"] = Json::parse(R"json({"roles":["crew"],"schemas":[
+		 {"id":"request","producers":["crew"],"readers":["crew"],"fields":[{"id":"amount","type":"integer"}]}]})json");
+		auto &message_entity = messages_source["entities"][0];
+		for (auto &console : message_entity["stations"][0]["consoles"])
+			console["knowledge_roles"] = {"crew"};
+		auto &message_layout = message_entity["control_layout"];
+		message_layout["controllers"][0]["id"] = "port";
+		message_layout["controllers"][1]["id"] = "port";
+		message_layout["controllers"][1]["console"] = "observer";
+		message_layout["profiles"] = Json::parse(R"json([
+		 {"id":"direct","consoles":{"drive":{"human":["port"]},"observer":{"human":["port"]}}},
+		 {"id":"automatic","consoles":{"drive":{"ai":["port"]},"observer":{"ai":["port"]}}}])json");
+		message_entity["message_templates"] = {"test.request"};
+		messages_source["messages"] = Json::parse(R"json([
+		 {"id":"test.request","schema":"request","title_key":"test.request.title","body_key":"test.request.body",
+		 "destination":{"kind":"controller","console":"drive","id":"port"},"delay_ticks":3,"expires_after_ticks":30,
+		 "fields":{"amount":7},"parameters":{},"automatic":false}])json");
+		const auto message_content = load(messages_source);
+		World messaging;
+		messaging.load(message_content, "test.map");
+		require(messaging.claim(101, 1, "drive") && messaging.claim(102, 1, "observer"), "message Consoles claimed");
+		require(messaging.submit(101, {1, "preset", 1, {}}), "recipient delegates before send");
+		messaging.tick();
+		OperatingCommand send{1, "message.test.request", 7, {}};
+		send.controller = "port";
+		send.generation = controller(messaging, 102, "port").at("generation").get<std::uint64_t>();
+		require(messaging.submit(102, send), "human Controller sends permitted intent");
+		messaging.tick();
+		require(messaging.observe(101)->gameplay.at("messages").empty(), "Controller delivery respects authored delay");
+		World message_resume;
+		message_resume.restore(message_content, messaging.save());
+		for (auto *run : {&messaging, &message_resume})
+		{
+			require(run->submit(101, {1, "preset", 0, {}}), "recipient becomes human before delivery");
+			bool notified = false;
+			for (int tick = 0; tick < 4; ++tick)
+			{
+				run->tick();
+				const auto view = run->observe(101)->gameplay;
+				for (const auto &notice : view.at("notifications"))
+					if (!view.at("messages").empty() && notice.at("sequence") == view.at("messages")[0].at("sequence"))
+						notified = true;
+			}
+			require(notified, "delivery notifies the current human Controller operator");
+		}
+		const auto delivered = messaging.observe(101)->gameplay.at("messages");
+		require(delivered.size() == 1 && delivered[0].at("payload").at("fields").at("amount") == 7,
+		        "Controller-addressed message reaches its current human Console");
+		require(messaging.observe(102)->gameplay.at("messages").empty(),
+		        "same Controller name in another Console cannot intercept the message");
+		require(message_resume.observe(101)->gameplay.at("messages") == delivered &&
+		            message_resume.save() == messaging.save(),
+		        "pending Controller message identity and routing survive restoration and handover");
+		const auto bindings = messaging.save().at("knowledge").at("ships")[0].at("controllers");
+		require(bindings.at("drive/port") != bindings.at("observer/port"),
+		        "Controller actor identity includes Console");
+		World stale_sender;
+		stale_sender.load(message_content, "test.map");
+		require(stale_sender.claim(101, 1, "drive") && stale_sender.claim(102, 1, "observer"), "stale sender claims");
+		send.generation = controller(stale_sender, 102, "port").at("generation").get<std::uint64_t>();
+		require(stale_sender.submit(102, {1, "preset", 1, {}}) && stale_sender.submit(102, send),
+		        "message admitted behind an uncommitted profile transition");
+		for (int tick = 0; tick < 5; ++tick)
+			stale_sender.tick();
+		require(stale_sender.observe(101)->gameplay.at("messages").empty(),
+		        "execution rechecks message sender generation after profile transition");
+		messages_source["messages"][0]["destination"]["id"] = "starboard";
+		rejects(
+		    [&]
+		    {
+			    load(messages_source);
+		    },
+		    "physical System cannot masquerade as a Controller recipient");
+
 		const auto session_archive = archive(controller_session_fixture());
 		const GameSetup setup{"test.map", {{"test.slot", "test.controllable"}}, "test.slot", "drive"};
 		auto local = make_local_session();

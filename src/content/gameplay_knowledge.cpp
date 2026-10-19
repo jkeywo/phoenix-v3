@@ -52,6 +52,8 @@ MessageDestinationKind knowledge_destination(const std::string &name)
 {
 	if (name == "system")
 		return MessageDestinationKind::System;
+	if (name == "controller")
+		return MessageDestinationKind::Controller;
 	if (name == "console")
 		return MessageDestinationKind::Console;
 	if (name == "station")
@@ -447,6 +449,9 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 			definition.consoles.push_back(std::move(target));
 		}
 		if (entity.contains("control_layout"))
+		{
+			for (const auto &controller : compile_controllable_layout(catalog, name).controllers)
+				definition.controllers.emplace(controller.console + "/" + controller.id, controller.console);
 			for (const auto &system : resolve_systems(catalog, name))
 			{
 				const auto &physical = entity.at("systems").at(system.id);
@@ -459,6 +464,7 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 				                  name + ": unknown observation Console");
 				definition.owners[system.id] = observer;
 			}
+		}
 		for (auto system = entity.at("systems").begin(); system != entity.at("systems").end(); ++system)
 			for (const auto &row : system.value().value("records", Json::array()))
 			{
@@ -536,6 +542,12 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 		const auto &destination = row.at("destination");
 		message.destination_kind = knowledge_destination(destination.at("kind").get<std::string>());
 		message.destination_name = destination.value("id", std::string{});
+		if (message.destination_kind == MessageDestinationKind::Controller)
+		{
+			message.destination_console = destination.at("console").get<std::string>();
+			knowledge_require(valid_identifier(message.destination_console),
+			                  name + ": Controller destination requires Console");
+		}
 		knowledge_require(message.destination_kind == MessageDestinationKind::Ship || !message.destination_name.empty(),
 		                  name + ": explicit destination required");
 		if (message.destination_kind != MessageDestinationKind::Ship)
@@ -613,21 +625,32 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 			knowledge_require(std::any_of(ship.consoles.begin(), ship.consoles.end(),
 			                              [&](const auto &console)
 			                              {
-				                              return !console.console.controlled_systems.empty() &&
+				                              const bool controller_owner =
+				                                  std::any_of(ship.controllers.begin(), ship.controllers.end(),
+				                                              [&](const auto &owner)
+				                                              {
+					                                              return owner.second == console.console.id;
+				                                              });
+				                              return (!console.console.controlled_systems.empty() ||
+				                                      controller_owner) &&
 				                                     knowledge_producible(compiled.knowledge, console, message.schema);
 			                              }),
-			                  name + ": no fitted System owner can produce message template '" + id + "'");
+			                  name + ": no Console operator can produce message template '" + id + "'");
 			std::vector<const GameplayKnowledgeConsoleDefinition *> recipients;
 			for (const auto &console : ship.consoles)
 			{
-				const bool target = message.destination_kind == MessageDestinationKind::Ship ||
-				                    (message.destination_kind == MessageDestinationKind::Console &&
-				                     console.console.id == message.destination_name) ||
-				                    (message.destination_kind == MessageDestinationKind::Station &&
-				                     console.console.station == message.destination_name) ||
-				                    (message.destination_kind == MessageDestinationKind::System &&
-				                     ship.owners.contains(message.destination_name) &&
-				                     ship.owners.at(message.destination_name) == console.console.id);
+				const bool target =
+				    message.destination_kind == MessageDestinationKind::Ship ||
+				    (message.destination_kind == MessageDestinationKind::Console &&
+				     console.console.id == message.destination_name) ||
+				    (message.destination_kind == MessageDestinationKind::Station &&
+				     console.console.station == message.destination_name) ||
+				    (message.destination_kind == MessageDestinationKind::System &&
+				     ship.owners.contains(message.destination_name) &&
+				     ship.owners.at(message.destination_name) == console.console.id) ||
+				    (message.destination_kind == MessageDestinationKind::Controller &&
+				     ship.controllers.contains(message.destination_console + "/" + message.destination_name) &&
+				     message.destination_console == console.console.id);
 				if (target)
 					recipients.push_back(&console);
 			}

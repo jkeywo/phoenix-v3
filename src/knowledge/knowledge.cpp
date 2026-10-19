@@ -239,6 +239,13 @@ void KnowledgeRuntime::register_ai(KnowledgeId ai, KnowledgeId console)
 	else
 		memory_.emplace(ai, KnowledgePrivateMemory{console, 0, {}});
 }
+void KnowledgeRuntime::register_controller(KnowledgeId controller, KnowledgeId console, bool human)
+{
+	require(!systems_.contains(controller) || controllers_.contains(controller),
+	        "Controller identity conflicts with physical System");
+	register_system(controller, console, human);
+	controllers_.insert(controller);
+}
 void KnowledgeRuntime::set_human_control(KnowledgeId console, bool human)
 {
 	require(consoles_.contains(console), "unknown Console");
@@ -464,7 +471,12 @@ std::vector<KnowledgeId> KnowledgeRuntime::resolve_recipients(KnowledgeId ship, 
 	switch (destination.kind)
 	{
 	case MessageDestinationKind::System:
-		require(systems_.contains(destination.id), "unknown destination System");
+		require(systems_.contains(destination.id) && !controllers_.contains(destination.id),
+		        "unknown destination System");
+		recipients.push_back(systems_.at(destination.id));
+		break;
+	case MessageDestinationKind::Controller:
+		require(controllers_.contains(destination.id), "unknown destination Controller");
 		recipients.push_back(systems_.at(destination.id));
 		break;
 	case MessageDestinationKind::Console:
@@ -566,7 +578,8 @@ std::vector<CoordinationDelivery> KnowledgeRuntime::advance(KnowledgeTick tick)
 			if (!offer_only)
 				write_console(console, message.value.payload, tick);
 			const auto &v = message.value;
-			const auto addressed_human = v.destination.kind == MessageDestinationKind::System
+			const auto addressed_human = (v.destination.kind == MessageDestinationKind::System ||
+			                              v.destination.kind == MessageDestinationKind::Controller)
 			                                 ? system_human_.at(v.destination.id)
 			                                 : consoles_.at(console).human_controlled;
 			const auto notify = (addressed_human || v.human_seeking) && consoles_.at(console).human_controlled &&
@@ -614,9 +627,12 @@ std::vector<CoordinationDelivery> KnowledgeRuntime::receive(KnowledgeId ai)
 	if (!result.empty())
 		memory.receive_cursor = result.back().sequence;
 	std::erase_if(result,
-	              [](const auto &delivery)
+	              [ai](const auto &delivery)
 	              {
-		              return !delivery.actionable || delivery.offer_only;
+		              return !delivery.actionable || delivery.offer_only ||
+		                     ((delivery.message.value.destination.kind == MessageDestinationKind::Controller ||
+		                       delivery.message.value.destination.kind == MessageDestinationKind::System) &&
+		                      delivery.message.value.destination.id != ai);
 	              });
 	return result;
 }
@@ -715,7 +731,14 @@ Json KnowledgeRuntime::save() const
 		                         {"roles", console.reader_roles},
 		                         {"human", console.human_controlled}});
 	for (const auto &[id, console] : systems_)
-		j["systems"].push_back({{"id", id}, {"console", console}, {"human", system_human_.at(id)}});
+	{
+		Json actor{{"id", id}, {"console", console}, {"human", system_human_.at(id)}};
+		if (controllers_.contains(id))
+			actor["controller"] = true;
+		j["systems"].push_back(std::move(actor));
+	}
+	if (!controllers_.empty())
+		j["version"] = 3;
 	for (const auto &[id, memory] : memory_)
 	{
 		Json values = Json::array();
@@ -760,7 +783,7 @@ Json KnowledgeRuntime::save() const
 }
 void KnowledgeRuntime::restore(const Json &j)
 {
-	require(j.at("version") == 2, "unsupported save version");
+	require(j.at("version") == 2 || j.at("version") == 3, "unsupported save version");
 	require(j.at("contract") == contract_signature(schema_), "saved schema contract differs from loaded content");
 	KnowledgeRuntime restored(schema_);
 	restored.next_id_ = read_unsigned<KnowledgeId>(j.at("next_id"));
@@ -781,7 +804,13 @@ void KnowledgeRuntime::restore(const Json &j)
 	{
 		const auto id = read_unsigned<KnowledgeId>(v.at("id"));
 		require(!restored.systems_.contains(id), "duplicate saved System");
-		restored.register_system(id, read_unsigned<KnowledgeId>(v.at("console")), v.at("human").get<bool>());
+		if (v.value("controller", false))
+		{
+			require(j.at("version") == 3, "Controller identity requires save version 3");
+			restored.register_controller(id, read_unsigned<KnowledgeId>(v.at("console")), v.at("human").get<bool>());
+		}
+		else
+			restored.register_system(id, read_unsigned<KnowledgeId>(v.at("console")), v.at("human").get<bool>());
 	}
 	for (const auto &v : j.value("memory", Json::array()))
 	{

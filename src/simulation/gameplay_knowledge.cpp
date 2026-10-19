@@ -65,7 +65,12 @@ Json knowledge_registry_signature(Json value)
 		result["consoles"].push_back(
 		    {{"id", v.at("id")}, {"ship", v.at("ship")}, {"station", v.at("station")}, {"roles", v.at("roles")}});
 	for (const auto &v : value.value("systems", Json::array()))
-		result["systems"].push_back({{"id", v.at("id")}, {"console", v.at("console")}});
+	{
+		Json actor{{"id", v.at("id")}, {"console", v.at("console")}};
+		if (v.value("controller", false))
+			actor["controller"] = true;
+		result["systems"].push_back(std::move(actor));
+	}
 	for (const auto &v : value.value("memory", Json::array()))
 		result["ais"].push_back({{"id", v.at("id")}, {"console", v.at("console")}});
 	return result;
@@ -107,6 +112,8 @@ void GameplayKnowledge::register_ship(EntityId ship, const std::string &definiti
 	}
 	for (const auto &[system, console] : definitions_.at(definition).owners)
 		binding.systems.emplace(system, binding_id());
+	for (const auto &[controller, console] : definitions_.at(definition).controllers)
+		binding.controllers.emplace(controller, binding_id());
 	install_ship(ship, std::move(binding), tick, true);
 }
 void GameplayKnowledge::install_ship(EntityId ship, GameplayKnowledgeShipBinding binding, KnowledgeTick tick,
@@ -116,7 +123,8 @@ void GameplayKnowledge::install_ship(EntityId ship, GameplayKnowledgeShipBinding
 	                  "unknown saved ship definition");
 	const auto &definition = definitions_.at(binding.definition);
 	knowledge_require(binding.consoles.size() == definition.consoles.size() &&
-	                      binding.systems.size() == definition.owners.size(),
+	                      binding.systems.size() == definition.owners.size() &&
+	                      binding.controllers.size() == definition.controllers.size(),
 	                  "saved ship binding count differs from authored ownership");
 	std::set<std::string> expected_stations;
 	for (const auto &console : definition.consoles)
@@ -137,6 +145,14 @@ void GameplayKnowledge::install_ship(EntityId ship, GameplayKnowledgeShipBinding
 		knowledge_require(binding.systems.contains(system), "saved System binding missing");
 		const auto id = binding.systems.at(system);
 		runtime_.register_system(id, binding.consoles.at(console), false);
+		runtime_.register_ai(id, binding.consoles.at(console));
+		human_systems_[id] = false;
+	}
+	for (const auto &[controller, console] : definition.controllers)
+	{
+		knowledge_require(binding.controllers.contains(controller), "saved Controller binding missing");
+		const auto id = binding.controllers.at(controller);
+		runtime_.register_controller(id, binding.consoles.at(console), false);
 		runtime_.register_ai(id, binding.consoles.at(console));
 		human_systems_[id] = false;
 	}
@@ -165,6 +181,54 @@ KnowledgeId GameplayKnowledge::ai_id(EntityId ship, const std::string &system) c
 {
 	return system_id(ship, system);
 }
+KnowledgeId GameplayKnowledge::controller_id(const ControllerAddress &address) const
+{
+	const auto key = address.console + "/" + address.controller;
+	knowledge_require(ships_.contains(address.entity) && ships_.at(address.entity).controllers.contains(key),
+	                  "unknown Controller");
+	return ships_.at(address.entity).controllers.at(key);
+}
+void GameplayKnowledge::set_controller_control(const ControllerAddress &address, bool present, bool human)
+{
+	const auto &definition = definitions_.at(ships_.at(address.entity).definition);
+	knowledge_require(definition.controllers.at(address.console + "/" + address.controller) == address.console &&
+	                      (!human || present),
+	                  "invalid Controller operator binding");
+	const auto id = controller_id(address);
+	runtime_.set_human_control(console_id({address.entity, address.console}), present);
+	human_consoles_[console_id({address.entity, address.console})] = present;
+	runtime_.set_system_human_control(id, human);
+	human_systems_[id] = human;
+}
+std::vector<CoordinationDelivery> GameplayKnowledge::peek_controller(const ControllerAddress &address)
+{
+	const auto id = controller_id(address);
+	knowledge_require(!human_systems_.at(id), "human-controlled Controller cannot inspect AI continuation");
+	const auto &memory = runtime_.private_memory(id);
+	knowledge_require(memory.console == console_id({address.entity, address.console}), "Controller Console mismatch");
+	auto result = runtime_.message_history(memory.console);
+	std::erase_if(result,
+	              [&](const auto &delivery)
+	              {
+		              return delivery.sequence <= memory.receive_cursor || !delivery.actionable ||
+		                     delivery.offer_only ||
+		                     (delivery.message.value.destination.kind == MessageDestinationKind::Controller &&
+		                      delivery.message.value.destination.id != id) ||
+		                     delivery.message.value.destination.kind == MessageDestinationKind::System;
+	              });
+	return result;
+}
+void GameplayKnowledge::acknowledge_controller(const ControllerAddress &address, KnowledgeId through_message)
+{
+	const auto messages = peek_controller(address);
+	const auto found = std::find_if(messages.begin(), messages.end(),
+	                                [&](const auto &delivery)
+	                                {
+		                                return delivery.message.id == through_message;
+	                                });
+	knowledge_require(found != messages.end(), "Controller acknowledgement names unavailable message");
+	runtime_.private_memory(controller_id(address)).receive_cursor = found->sequence;
+}
 ConsoleAddress GameplayKnowledge::address(KnowledgeId console) const
 {
 	knowledge_require(addresses_.contains(console), "unknown Console identity");
@@ -187,9 +251,10 @@ KnowledgeId GameplayKnowledge::request_key(const std::string &name) const
 	return request_keys_.at(name);
 }
 KnowledgeKey GameplayKnowledge::message_producer(const ConsoleAddress &source, const std::string &sender,
-                                                 KnowledgeKey key, ControlOrigin origin) const
+                                                 KnowledgeKey key, ControlOrigin origin, bool controller) const
 {
-	const auto system = system_id(source.ship, sender);
+	const auto system =
+	    controller ? controller_id({source.ship, source.console, sender}) : system_id(source.ship, sender);
 	const auto &allowed = console_definition(source).producers;
 	// Authored schema order supplies a deterministic preference; only roles held
 	// by this exact sending Console are candidates.
@@ -408,8 +473,15 @@ void GameplayKnowledge::admit_sender(const ConsoleAddress &source, KnowledgeId s
 	                                 {
 		                                 return entry.second == sender;
 	                                 });
-	knowledge_require(system != ship.systems.end() && definition.owners.at(system->first) == source.console,
-	                  "sender is not owned by source Console");
+	const auto controller = std::find_if(ship.controllers.begin(), ship.controllers.end(),
+	                                     [&](const auto &entry)
+	                                     {
+		                                     return entry.second == sender;
+	                                     });
+	knowledge_require(
+	    (system != ship.systems.end() && definition.owners.at(system->first) == source.console) ||
+	        (controller != ship.controllers.end() && definition.controllers.at(controller->first) == source.console),
+	    "sender is not owned by source Console");
 	knowledge_require(known_record || knowledge_has(console_definition(source).producers, producer),
 	                  "sender producer role forbidden");
 	const bool human = human_consoles_.at(console_id(source)) && human_systems_.at(sender);
@@ -462,7 +534,8 @@ KnowledgeId GameplayKnowledge::admit_message(const ConsoleAddress &source, Coord
 KnowledgeId GameplayKnowledge::admit_template(const ConsoleAddress &source, const std::string &sender,
                                               const std::string &name, KnowledgeRecordInput payload,
                                               ControlOrigin origin, KnowledgeTick tick,
-                                              std::map<std::string, std::string> parameters, bool execute)
+                                              std::map<std::string, std::string> parameters, bool execute,
+                                              bool controller)
 {
 	const auto &definition = message_definition(name);
 	knowledge_require(payload.schema == definition.schema, "payload does not match message template");
@@ -474,12 +547,17 @@ KnowledgeId GameplayKnowledge::admit_template(const ConsoleAddress &source, cons
 		knowledge_require(parameters.contains(name), "message presentation binding was not evaluated");
 	const auto &ship = ships_.at(source.ship);
 	CoordinationInput value;
-	value.sender_system = system_id(source.ship, sender);
+	value.sender_system =
+	    controller ? controller_id({source.ship, source.console, sender}) : system_id(source.ship, sender);
 	value.origin = origin;
 	value.payload = std::move(payload);
 	value.destination.kind = definition.destination_kind;
 	switch (definition.destination_kind)
 	{
+	case MessageDestinationKind::Controller:
+		value.destination.id =
+		    controller_id({source.ship, definition.destination_console, definition.destination_name});
+		break;
 	case MessageDestinationKind::System:
 		value.destination.id = system_id(source.ship, definition.destination_name);
 		break;
@@ -576,7 +654,8 @@ std::vector<CoordinationDelivery> GameplayKnowledge::peek_system(EntityId ship, 
 		              return delivery.sequence <= memory.receive_cursor || !delivery.actionable ||
 		                     delivery.offer_only ||
 		                     (delivery.message.value.destination.kind == MessageDestinationKind::System &&
-		                      delivery.message.value.destination.id != id);
+		                      delivery.message.value.destination.id != id) ||
+		                     delivery.message.value.destination.kind == MessageDestinationKind::Controller;
 	              });
 	return messages;
 }
@@ -589,6 +668,8 @@ void GameplayKnowledge::acknowledge_system(EntityId ship, const std::string &sys
 		if (delivery.message.id == through_message)
 		{
 			knowledge_require(!delivery.offer_only, "human observer offer is not an AI inbox delivery");
+			knowledge_require(delivery.message.value.destination.kind != MessageDestinationKind::Controller,
+			                  "message is addressed to a Controller");
 			knowledge_require(delivery.message.value.destination.kind != MessageDestinationKind::System ||
 			                      delivery.message.value.destination.id == id,
 			                  "message is addressed to another System");
@@ -674,7 +755,8 @@ Json GameplayKnowledge::save() const
 		                           {"definition", binding.definition},
 		                           {"consoles", binding.consoles},
 		                           {"stations", binding.stations},
-		                           {"systems", binding.systems}});
+		                           {"systems", binding.systems},
+		                           {"controllers", binding.controllers}});
 	for (const auto &[id, console] : publication_owners_)
 		result["publications"].push_back({{"id", id}, {"console", console}});
 	return result;
@@ -698,8 +780,9 @@ void GameplayKnowledge::restore(const Json &state)
 	{
 		GameplayKnowledgeShipBinding binding{
 		    row.at("definition").get<std::string>(), knowledge_saved_bindings(row.at("consoles")),
-		    knowledge_saved_bindings(row.at("stations")), knowledge_saved_bindings(row.at("systems"))};
-		for (const auto *bindings : {&binding.consoles, &binding.stations, &binding.systems})
+		    knowledge_saved_bindings(row.at("stations")), knowledge_saved_bindings(row.at("systems")),
+		    knowledge_saved_bindings(row.value("controllers", Json::object()))};
+		for (const auto *bindings : {&binding.consoles, &binding.stations, &binding.systems, &binding.controllers})
 			for (const auto &[name, id] : *bindings)
 				knowledge_require(id > 0 && id < restored.next_binding_ && ids.insert(id).second,
 				                  "invalid/duplicate saved named binding");

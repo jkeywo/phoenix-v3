@@ -100,11 +100,12 @@ Manually trigger and record GUI journeys for lobby/settings selection, shared an
 
 ## Delivery status
 
-| Step                                                             | Status     |
-| ---------------------------------------------------------------- | ---------- |
-| Agreed architecture, GDD reconciliation and refactoring plan     | Documented |
-| 1–2: compiler and explicit-layout runtime foundations            | Partial    |
-| 3–7: shared observations, messaging, presentation and final gate | Pending    |
+| Step                                                         | Status     |
+| ------------------------------------------------------------ | ---------- |
+| Agreed architecture, GDD reconciliation and refactoring plan | Documented |
+| 1–2: compiler and explicit-layout runtime foundations        | Partial    |
+| 3: shared observations and Controller trees                  | Partial    |
+| 4–7: messaging, presentation and final gate                  | Pending    |
 
 The existing gameplay ledger remains evidence for the previous runtime. It does not establish completion of this refactor.
 
@@ -157,3 +158,11 @@ Independent Controller integration verification covers two Controllers reading t
 Controller trees declare read-only `command_reads` with a binding name, Controller identity, channel and type. Compilation resolves only channels in the same Console and rejects unknown channels or mismatched types. Read access does not add write actions. Own `command.*` observations and peer command reads use the same accepted-command snapshot, captured before decision evaluation and discarded after the tick. Internal tree intents remain available for ordered writes within an evaluation.
 
 Independent integration verification covers a writer and reader in one Console: the reader sees the pre-tick accepted value, then the new accepted value on the following tick. Loader checks reject foreign-Console, unknown-channel and type-invalid bindings. This closes the shared-command read gap in the preceding receipt; messaging and the other migration requirements remain pending.
+
+## Controller recipient and human messaging receipt
+
+Coordination now registers Controller actors separately from physical Systems, using the full entity/Console/Controller address. Templates with `destination.kind: controller` specify both `console` and `id`. Human message actions carry Controller identity and operator generation through the existing command envelope; admission and execution both enforce current authority. Generated Console controls expose authorised templates. Delayed messages select the effective human operator at delivery, while addressed histories and pending identities survive handover and restoration.
+
+Knowledge runtime saves containing Controllers use version 3 and preserve actor kind; the adapter verifies complete named bindings against the loaded layout. Earlier explicit-layout saves without these bindings are refused transactionally. Legacy knowledge saves without Controller actors remain readable. System inbox adapters cannot consume Controller-addressed messages.
+
+The independent verification agent built and passed Controller runtime and gameplay knowledge integration suites, including duplicate Controller names across Consoles, physical-recipient impersonation refusal, delayed notification after AI-to-human handover, exact pending-message save/resume equality and obsolete queued sender rejection. AI tree send/receive/acknowledgement, factual reporters and public message presentation remain outstanding.

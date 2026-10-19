@@ -48,7 +48,8 @@ enum class MessageDestinationKind
 	System,
 	Console,
 	Station,
-	Ship
+	Ship,
+	Controller
 };
 struct KnowledgeField
 {
@@ -172,6 +173,7 @@ public:
 	const CompiledKnowledge &definition() const;
 	void register_console(ConsoleKnowledgeBinding binding);
 	void register_system(KnowledgeId system, KnowledgeId console, bool human_controlled = false);
+	void register_controller(KnowledgeId controller, KnowledgeId console, bool human_controlled = false);
 	void register_ai(KnowledgeId ai, KnowledgeId console);
 	void set_human_control(KnowledgeId console, bool human);
 	void set_system_human_control(KnowledgeId system, bool human);
@@ -209,6 +211,7 @@ private:
 	KnowledgeTick current_tick_ = 0;
 	std::map<KnowledgeId, ConsoleKnowledgeBinding> consoles_;
 	std::map<KnowledgeId, KnowledgeId> systems_;
+	std::set<KnowledgeId> controllers_;
 	std::map<KnowledgeId, bool> system_human_;
 	std::map<KnowledgeId, KnowledgePrivateMemory> memory_;
 	std::vector<KnowledgeRecord> records_;

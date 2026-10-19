@@ -20,6 +20,7 @@ struct GameplayKnowledgeShipDefinition
 {
 	std::vector<GameplayKnowledgeConsoleDefinition> consoles;
 	std::map<std::string, std::string> owners;
+	std::map<std::string, std::string> controllers;
 	std::vector<GameplayKnowledgeSharingDefinition> feeds;
 	std::map<std::string, GameplayKnowledgeSharingDefinition> publications;
 	struct TelemetryField
@@ -59,6 +60,7 @@ struct GameplayKnowledgeMessageDefinition
 	KnowledgeKey schema = 0;
 	MessageDestinationKind destination_kind = MessageDestinationKind::Ship;
 	std::string destination_name;
+	std::string destination_console;
 	MessagePresentation presentation;
 	KnowledgeTick delay = 1, expires_after = 0;
 	KnowledgeId request_key = 0;

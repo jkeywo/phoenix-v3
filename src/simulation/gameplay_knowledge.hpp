@@ -14,6 +14,7 @@ struct GameplayKnowledgeShipBinding
 {
 	std::string definition;
 	std::map<std::string, KnowledgeId> consoles, stations, systems;
+	std::map<std::string, KnowledgeId> controllers;
 };
 class GameplayKnowledge
 {
@@ -25,12 +26,16 @@ public:
 	bool contains_ship(EntityId ship) const;
 	KnowledgeId console_id(const ConsoleAddress &address) const;
 	KnowledgeId system_id(EntityId ship, const std::string &system) const;
+	KnowledgeId controller_id(const ControllerAddress &address) const;
+	void set_controller_control(const ControllerAddress &address, bool present, bool human);
+	std::vector<CoordinationDelivery> peek_controller(const ControllerAddress &address);
+	void acknowledge_controller(const ControllerAddress &address, KnowledgeId through_message);
 	KnowledgeId ai_id(EntityId ship, const std::string &system) const;
 	ConsoleAddress address(KnowledgeId console) const;
 	const CompiledKnowledge &definition() const;
 	const GameplayKnowledgeMessageDefinition &message_definition(const std::string &name) const;
 	KnowledgeKey message_producer(const ConsoleAddress &source, const std::string &sender_system, KnowledgeKey schema,
-	                              ControlOrigin origin) const;
+	                              ControlOrigin origin, bool controller = false) const;
 	KnowledgeId request_key(const std::string &name) const;
 	std::string request_key_name(KnowledgeId key) const;
 	// human_systems is the effective owned subset after delegation/preset changes.
@@ -65,7 +70,7 @@ public:
 	KnowledgeId admit_template(const ConsoleAddress &source, const std::string &sender_system,
 	                           const std::string &message, KnowledgeRecordInput payload, ControlOrigin origin,
 	                           KnowledgeTick tick, std::map<std::string, std::string> parameters = {},
-	                           bool execute = true);
+	                           bool execute = true, bool controller = false);
 	KnowledgeId publish_scenario_message(const ConsoleAddress &source, CoordinationInput value, KnowledgeTick tick);
 	bool withdraw_request(const ConsoleAddress &source, const std::string &sender_system, KnowledgeId request_key,
 	                      ControlOrigin origin);
