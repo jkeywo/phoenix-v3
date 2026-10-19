@@ -40,6 +40,7 @@ import phoenix.devices;
 #include "game.hpp"
 #include "menu.hpp"
 #include "consoles.hpp"
+#include "settings.hpp"
 #include "music.hpp"
 
 namespace phoenix
@@ -239,10 +240,7 @@ struct Navigation : Rml::EventListener
 		if (event.GetType() == "change")
 		{
 			const auto id = event.GetTargetElement()->GetId();
-			const auto channel = id == "menu-volume" || id == "music-volume"    ? "music"
-			                     : id == "menu-master" || id == "master-volume" ? "master"
-			                     : id == "menu-sfx" || id == "sfx-volume"       ? "sfx"
-			                                                                    : "";
+			const auto channel = settings_ui::audio_channel(id);
 			if (*channel)
 			{
 				set_audio_volume(*current_app, channel, event.GetParameter<Rml::String>("value", ""));
@@ -298,13 +296,7 @@ void prepare_settings(Application &app)
 	if (!visible)
 		return;
 	app.tools_keyboard_focus = false;
-	const auto tabs = settings_tabs(app);
-	if (std::none_of(tabs.begin(), tabs.end(),
-	                 [&](const auto &tab)
-	                 {
-		                 return tab.first == "settings.tab/" + app.settings_tab;
-	                 }))
-		app.settings_tab = "audio";
+	const auto tabs = settings_ui::tabs(app);
 	app.screen_controls = tabs;
 	std::string tab_markup;
 	for (const auto &[id, label] : tabs)
@@ -321,10 +313,7 @@ void prepare_settings(Application &app)
 	document->GetElementById("settings.quit")->SetProperty("display", can_quit ? "block" : "none");
 	if (can_quit)
 		app.screen_controls.emplace_back("settings.quit", "Quit to Main Menu");
-	for (const auto &[id, text] : std::vector<std::pair<std::string, std::string>>{
-	         {"settings.dust", app.dust_motes ? "Dust motes: On" : "Dust motes: Off"},
-	         {"settings.grid", app.reference_grid ? "Reference grid: On" : "Reference grid: Off"},
-	         {"settings.motion", app.reduced_motion ? "Reduced motion: On" : "Reduced motion: Off"}})
+	for (const auto &[id, text] : settings_ui::display_controls(app))
 	{
 		if (app.settings_tab == "display")
 			app.screen_controls.emplace_back(id, text);
@@ -333,40 +322,29 @@ void prepare_settings(Application &app)
 	}
 	auto *approvals = document->GetElementById("settings-approvals");
 	approvals->SetInnerRML("");
-	if (game_active(app) && app.settings_tab == "session")
-		for (const auto &[id, text] : app.session->lobby_controls())
-			if (id.starts_with("lobby.approve/") || id.starts_with("network.approve/") || id.starts_with("network.gm/"))
-			{
-				app.screen_controls.emplace_back(id, text);
-				auto button = document->CreateElement("button");
-				button->SetId(id);
-				button->AppendChild(document->CreateTextNode(localise(text)));
-				approvals->AppendChild(std::move(button));
-			}
+	for (const auto &[id, text] : settings_ui::approvals(app))
+	{
+		app.screen_controls.emplace_back(id, text);
+		auto button = document->CreateElement("button");
+		button->SetId(id);
+		button->AppendChild(document->CreateTextNode(localise(text)));
+		approvals->AppendChild(std::move(button));
+	}
+
 	app.screen_action = [&app](const std::string &id)
 	{
 		if (app.screen != Screen::settings || !app.session)
 			return false;
 		for (const auto &[control, text] : app.screen_controls)
-			if (control == id && (id.starts_with("lobby.approve/") || id.starts_with("network.approve/") ||
-			                      id.starts_with("network.gm/")))
+			if (control == id && settings_ui::approval(id))
 				return app.session->session_action(id);
 		return false;
 	};
-	for (const auto &[channel, label, volume] :
-	     std::vector<std::tuple<std::string, std::string, int>>{{"master", "Master volume", app.master_volume},
-	                                                            {"music", "Music volume", app.music_volume},
-	                                                            {"sfx", "SFX volume", app.sfx_volume}})
-	{
-		const auto value = std::to_string(volume);
-		auto *slider = dynamic_cast<Rml::ElementFormControl *>(document->GetElementById(channel + "-volume"));
-		if (slider->GetAttribute<Rml::String>("value", "") != value)
-			slider->SetValue(value);
-		if (app.settings_tab == "audio")
-			app.screen_inputs.push_back({channel + "-volume", label, value, true});
-		document->GetElementById(channel + "-label")->SetInnerRML(localise(label));
-		document->GetElementById(channel + "-percent")->SetInnerRML(value + "%");
-	}
+	auto *audio = document->GetElementById("settings-audio");
+	if (!audio->GetNumChildren())
+		audio->SetInnerRML(settings_ui::audio_markup(false));
+	settings_ui::register_audio(app, false);
+	settings_ui::refresh_audio(app, *document, false);
 	document->GetElementById("settings.close")->SetInnerRML(localise("Back"));
 	document->GetElementById("settings.quit")->SetInnerRML(localise("Quit to Main Menu"));
 	app.accessible_status = localise(app.settings_tab == "audio"     ? "Audio"
@@ -563,13 +541,7 @@ void open_window()
     <div id="nav"><button id="home">Home</button><button id="lobby" style="display:none;">Lobby</button><button id="host">New game</button><button id="join">Join console</button>
     <button id="view">Viewscreen</button><button id="edit">Workshop</button><button id="locale">Toggle pseudo-localisation</button><button id="settings">Settings</button></div>
     <h2 id="heading">Home</h2><p id="description"></p><div id="session-controls"></div><div id="game"></div>
-    <div id="settings-panel"><div id="settings-tabs"></div><div id="settings-audio"><label id="master-label" for="master-volume">Master volume</label>
-    <input class="audio-volume" id="master-volume" type="range" min="0" max="100" step="1" value="50"/><span class="audio-percent" id="master-percent">50%</span>
-    <label id="music-label" for="music-volume">Music volume</label>
-    <input class="audio-volume" id="music-volume" type="range" min="0" max="100" step="1" value="50"/>
-    <span class="audio-percent" id="music-percent">50%</span>
-    <label id="sfx-label" for="sfx-volume">SFX volume</label>
-    <input class="audio-volume" id="sfx-volume" type="range" min="0" max="100" step="1" value="50"/><span class="audio-percent" id="sfx-percent">50%</span></div><div id="settings-display"><button id="settings.dust">Dust motes: On</button><button id="settings.grid">Reference grid: On</button><button id="settings.motion">Reduced motion: Off</button></div><div id="settings-session"><div id="settings-approvals"></div><button id="settings.quit">Quit to Main Menu</button></div><button id="settings.close">Back</button></div></body></rml>)",
+    <div id="settings-panel"><div id="settings-tabs"></div><div id="settings-audio"></div><div id="settings-display"><button id="settings.dust">Dust motes: On</button><button id="settings.grid">Reference grid: On</button><button id="settings.motion">Reduced motion: Off</button></div><div id="settings-session"><div id="settings-approvals"></div><button id="settings.quit">Quit to Main Menu</button></div><button id="settings.close">Back</button></div></body></rml>)",
 	                                           (font_directory / "navigation.rml").generic_string());
 	if (!document)
 		throw std::runtime_error("Could not load home screen");
@@ -701,12 +673,8 @@ void draw_screen(Application &app)
 		{
 			if (app.screen == Screen::settings && id == "player-name" && app.settings_tab != "profile")
 				return false;
-			if (id == "music-volume" || id == "menu-volume")
-				return set_audio_volume(app, "music", value);
-			if (id == "master-volume" || id == "menu-master")
-				return set_audio_volume(app, "master", value);
-			if (id == "sfx-volume" || id == "menu-sfx")
-				return set_audio_volume(app, "sfx", value);
+			if (const auto channel = settings_ui::audio_channel(id); *channel)
+				return set_audio_volume(app, channel, value);
 			if (value.size() > 4096)
 				return false;
 			if (auto *field = dynamic_cast<Rml::ElementFormControl *>(document->GetElementById(id)))

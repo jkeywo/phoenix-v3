@@ -21,6 +21,7 @@ module;
 module phoenix.presentation;
 import phoenix.files;
 #include "menu.hpp"
+#include "settings.hpp"
 namespace phoenix
 {
 struct NativeMenuScreen::State
@@ -835,16 +836,7 @@ struct NativeMenuScreen::State
 			markup += "<div class=\"modal-shade\"><div class=\"menu-dialog\">";
 			if (app.screen == Screen::settings)
 			{
-				const auto tabs = settings_tabs(app);
-				if (std::none_of(tabs.begin(), tabs.end(),
-				                 [&](const auto &tab)
-				                 {
-					                 return tab.first == "settings.tab/" + app.settings_tab;
-				                 }))
-				{
-					app.settings_tab = "audio";
-					focus_next = "settings.tab/audio";
-				}
+				const auto tabs = settings_ui::tabs(app, &focus_next);
 				markup += heading("Settings") + "<div class=\"settings-tabs\" role=\"tablist\">";
 				for (const auto &[id, label] : tabs)
 					markup += add(id, label,
@@ -855,17 +847,8 @@ struct NativeMenuScreen::State
 				          app.settings_tab + "\">";
 				if (app.settings_tab == "audio")
 				{
-					for (const auto &[id, label, volume] : std::vector<std::tuple<std::string, std::string, int>>{
-					         {"menu-master", "Master volume", app.master_volume},
-					         {"menu-volume", "Music volume", app.music_volume},
-					         {"menu-sfx", "SFX volume", app.sfx_volume}})
-					{
-						markup += "<label for=\"" + id + "\">" + Rml::StringUtilities::EncodeRml(localise(label)) +
-						          "</label><input class=\"audio-volume\" id=\"" + id +
-						          "\" type=\"range\" min=\"0\" max=\"100\" step=\"1\" value=\"50\"/><p id=\"" + id +
-						          "-value\"></p>";
-						app.screen_inputs.push_back({id, label, std::to_string(volume), true});
-					}
+					markup += settings_ui::audio_markup(true);
+					settings_ui::register_audio(app, true);
 				}
 				else if (app.settings_tab == "profile")
 				{
@@ -894,24 +877,16 @@ struct NativeMenuScreen::State
 				}
 				else if (app.settings_tab == "display")
 				{
-					markup += add("menu.motion", app.reduced_motion ? "Reduced motion: On" : "Reduced motion: Off",
-					              [&]
-					              {
-						              app.reduced_motion = !app.reduced_motion;
-						              remember_preferences(app);
-					              });
-					markup += add("menu.dust", app.dust_motes ? "Dust motes: On" : "Dust motes: Off",
-					              [&]
-					              {
-						              app.dust_motes = !app.dust_motes;
-						              remember_preferences(app);
-					              });
-					markup += add("menu.grid", app.reference_grid ? "Reference grid: On" : "Reference grid: Off",
-					              [&]
-					              {
-						              app.reference_grid = !app.reference_grid;
-						              remember_preferences(app);
-					              });
+					const auto controls = settings_ui::display_controls(app);
+					for (const auto index : {2, 0, 1})
+					{
+						const auto &[action, text] = controls[index];
+						markup += add("menu." + action.substr(9), text,
+						              [&, action]
+						              {
+							              invoke_navigation(app, action);
+						              });
+					}
 					if (app.reduced_motion)
 						markup += paragraph("Reduced motion hides dust motes and the reference grid.");
 				}
@@ -919,14 +894,12 @@ struct NativeMenuScreen::State
 				{
 					if (playing)
 					{
-						for (const auto &[id, text] : app.session->lobby_controls())
-							if (id.starts_with("lobby.approve/") || id.starts_with("network.approve/") ||
-							    id.starts_with("network.gm/"))
-								markup += add(id, text,
-								              [&, id]
-								              {
-									              app.session->session_action(id);
-								              });
+						for (const auto &[id, text] : settings_ui::approvals(app))
+							markup += add(id, text,
+							              [&, id]
+							              {
+								              app.session->session_action(id);
+							              });
 						if (app.can_host && app.session->running())
 						{
 							markup += add("menu.save-game", "Save Game",
@@ -1166,10 +1139,7 @@ struct NativeMenuScreen::State
 			countdown->SetInnerRML(Rml::StringUtilities::EncodeRml(countdown_text));
 			app.screen_readouts.emplace_back("lobby-countdown", countdown_text);
 		}
-		for (const auto &[id, volume] : std::vector<std::pair<std::string, int>>{
-		         {"menu-master", app.master_volume}, {"menu-volume", app.music_volume}, {"menu-sfx", app.sfx_volume}})
-			if (auto *value = document.GetElementById(id + "-value"))
-				value->SetInnerRML(std::to_string(volume) + "%");
+		settings_ui::refresh_audio(app, document, true);
 		const auto status = !app.status.empty() ? app.status
 		                    : !notice.empty()   ? notice
 		                    : app.session       ? app.session->lobby().status
