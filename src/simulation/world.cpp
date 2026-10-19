@@ -656,7 +656,7 @@ struct World::Impl
 			entity.set<EntityControls>(std::move(controls));
 		}
 		if (data.layout)
-			for (const auto &system : (*fittings(entity)).values)
+			for (const auto fitted = fittings(entity); const auto &system : fitted->values)
 			{
 				const auto values = telemetry(id, system.ordinal);
 				knowledge.verify_reporter_fields(definition, system.id, values);
