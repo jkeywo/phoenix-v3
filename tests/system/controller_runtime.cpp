@@ -644,6 +644,9 @@ int main()
 		world.tick();
 		require(requested(world, "port") == 5000 && requested(world, "starboard") == 5000,
 		        "one committed setting reaches both physical engines");
+		require(controller(world, 101, "propulsion").at("commands").at("speed").at("consumers") ==
+		            Json::array({"port", "starboard"}),
+		        "shared Controller projection exposes exact physical subscriptions for cards");
 		require(controller(world, 101, "propulsion").at("commands").at("speed").at("value") == 5000,
 		        "accepted intent is exposed separately from physical observations");
 

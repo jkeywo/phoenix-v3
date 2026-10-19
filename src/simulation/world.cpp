@@ -2745,7 +2745,10 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 				{
 					const auto &channel = controller.definition.commands[i];
 					const auto &state = controller.commands[i];
-					const auto step = std::max<std::int64_t>(1, (channel.maximum - channel.minimum) / 20);
+					const auto scale = channel.action == OperatingAction::GroupAllocation
+					                       ? std::max(state.value, channel.initial)
+					                       : channel.maximum - channel.minimum;
+					const auto step = std::max<std::int64_t>(1, scale / 20);
 					std::set<std::int64_t> values;
 					if (channel.type == KnowledgeType::Boolean)
 						values = {0, 1};

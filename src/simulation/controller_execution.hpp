@@ -562,6 +562,9 @@ Json project_controllers(const ConsoleAddress &address) const
 			                     {"semantics", spec.semantics == CommandSemantics::Setting ? "setting" : "request"},
 			                     {"accepted", state.accepted},
 			                     {"request_id", state.request_id}};
+			auto &consumers = commands[spec.id]["consumers"] = Json::array();
+			for (const auto index : spec.consumers)
+				consumers.push_back((*fittings(entities.at(address.ship))).values[index].id);
 		}
 		result.push_back({{"id", controller.definition.id},
 		                  {"console", address.console},

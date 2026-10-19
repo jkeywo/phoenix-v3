@@ -301,3 +301,9 @@ Independent content build and integration suite pass, including single timed own
 The real three-host signaling journey now uses explicit Controllers and preference channels. It operates a shared reserve throttle, changes complexity and Away state, receives a targeted factual report, and recovers through checkpoint/rejoin while preserving a consumed impulse request identity and refusing its obsolete operator envelope.
 
 Independent native/session builds and the 25.5-second playable-fleet journey pass. The journey also verifies majority continuation, returning-member snapshot transfer, durable journal owner recovery, scoped scenario evidence and resource continuation. This closes the combined remote continuation acceptance gap; legacy dispatch removal and the final native/WASM/graphical audit remain pending.
+
+## Engineering Controller interface receipt
+
+Engineering cards now derive their controls from Controller channel subscriptions, show shared commands once, and use the Detailed complexity profile for manual operation. Allocation steps scale to the authored operating setting rather than the generic safety bound.
+
+Independent native and Controller runtime builds/tests pass. The graphical engineering smoke admitted the Detailed profile and exercised generator, allocation and cooling controls across 18 cards; its fresh screenshot was inspected for readable layout and overflow. This is graphical smoke evidence, not screen-reader or six-display hardware acceptance.

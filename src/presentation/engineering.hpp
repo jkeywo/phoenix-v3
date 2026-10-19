@@ -26,9 +26,22 @@ inline std::string descriptor_action(const std::string &id)
 	}
 	return result;
 }
+inline std::vector<std::string> command_consumers(const Observation &view, const Json &descriptor)
+{
+	for (const auto &controller : view.gameplay.value("controllers", Json::array()))
+		if (controller.value("id", "") == descriptor.value("controller", ""))
+		{
+			const auto &commands = controller.at("commands");
+			const auto field = commands.find(descriptor.value("channel", ""));
+			if (field != commands.end())
+				return field->value("consumers", std::vector<std::string>{});
+		}
+	return {};
+}
 inline std::vector<EngineeringCard> engineering_cards(const Observation &view)
 {
 	std::vector<EngineeringCard> result;
+	std::set<std::string> placed_controls;
 	for (const auto &system : view.systems)
 	{
 		if (system.kind != OperatingSystem::Generator && system.kind != OperatingSystem::Storage &&
@@ -69,7 +82,8 @@ inline std::vector<EngineeringCard> engineering_cards(const Observation &view)
 			card.summary = localise("Awaiting telemetry");
 		for (const auto &d : view.gameplay.value("controls", Json::array()))
 		{
-			if (d.value("system", "") != system.id)
+			const auto consumers = command_consumers(view, d);
+			if (std::find(consumers.begin(), consumers.end(), system.id) == consumers.end())
 				continue;
 			const auto action = d.value("action", "");
 			if (action.starts_with("message.") || action.starts_with("publish."))
@@ -78,27 +92,24 @@ inline std::vector<EngineeringCard> engineering_cards(const Observation &view)
 				continue;
 			const auto value = d.value("value", std::int64_t{});
 			std::string label;
-			if (action == "delegate")
-				label = localise(value ? "Use automatic control" : "Use manual controls");
-			else if (action == "generator_output")
+			if (action == "generator_output")
 				label = localise("Reactor output");
-			else if (action == "group_allocation" || action == "summary.power")
+			else if (action == "group_allocation")
 				label = localise("Power");
-			else if (action == "cooling_allocation" || action == "summary.coolant")
+			else if (action == "cooling_allocation")
 				label = localise("Coolant");
-			else if (action == "summary.output")
-				label = localise("Output intent");
 			else if (action == "charge_limit")
 				label = localise("Charge limit");
 			else if (action == "discharge_limit")
 				label = localise("Discharge limit");
 			else
 				label = localise(engineering_name(action));
-			if (action != "delegate")
-			{
-				const auto *spec = operating_action(action);
-				label += " " + (spec && spec->boolean ? localise(value ? "On" : "Off") : std::to_string(value));
-			}
+			const auto *spec = operating_action(action);
+			label += " " + (spec && spec->boolean ? localise(value ? "On" : "Off") : std::to_string(value));
+			if (!placed_controls.insert(d.at("id").get<std::string>()).second)
+				continue;
+			if (consumers.size() > 1)
+				label = localise("Shared control") + ": " + label;
 			card.controls.emplace_back(descriptor_action(d.at("id")), std::move(label));
 		}
 		result.push_back(std::move(card));

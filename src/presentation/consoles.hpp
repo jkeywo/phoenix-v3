@@ -700,12 +700,14 @@ p {display:block;font-size:.85em;margin:4px 0;}
 	}
 	bool probe_engineering(unsigned stage)
 	{
+		std::cout << "Engineering probe stage " << stage << std::endl;
 		if (!model_.observation())
 			return false;
 		const auto cards = engineering_cards(*model_.observation());
 		if (cards.empty())
 			return false;
-		const auto &view = *model_.observation();
+		// Actions refresh the model; retain a value snapshot while exercising descriptors.
+		const auto view = *model_.observation();
 		if (stage == 0)
 		{
 			auto *panel = document_->GetElementById("engineering-cards");
@@ -720,14 +722,21 @@ p {display:block;font-size:.85em;margin:4px 0;}
 				battery |= card.battery.has_value();
 			}
 			const auto descriptors = view.gameplay.at("controls");
+			bool profile_selected = false;
 			for (const auto &d : descriptors)
-				if (d.value("action", "") == "delegate" && d.value("value", 1) == 0)
-					if (!action(id(descriptor_action(d.at("id")))))
-						return false;
-			return heat && battery;
+				if (d.value("id", "") == "profile.detailed")
+				{
+					profile_selected = action(id(descriptor_action(d.at("id"))));
+					std::cout << "Engineering detailed profile admission: " << profile_selected << "; "
+					          << model_.announcement() << std::endl;
+				}
+			std::cout << "Engineering telemetry: heat=" << heat << " battery=" << battery
+			          << "; profile=" << view.gameplay.value("profile", "missing") << std::endl;
+			return heat && battery && profile_selected;
 		}
 		if (stage == 1)
 		{
+			std::cout << "Engineering profile: " << view.gameplay.value("profile", "missing") << std::endl;
 			std::set<std::string> exercised;
 			const auto descriptors = view.gameplay.at("controls");
 			for (const auto &d : descriptors)
@@ -735,14 +744,20 @@ p {display:block;font-size:.85em;margin:4px 0;}
 				const auto operation = d.value("action", "");
 				if ((operation == "generator_output" || operation == "group_allocation" ||
 				     operation == "cooling_allocation") &&
-				    d.value("value", 0) > 0 && !exercised.contains(operation))
+				    d.value("value", std::int64_t{0}) > 0 && !exercised.contains(operation))
 				{
+					std::cout << "Engineering command: " << d.at("id") << std::endl;
 					if (!action(id(descriptor_action(d.at("id")))))
 						return false;
 					exercised.insert(operation);
-					engineering_probe_requests_[{d.at("system"), operation}] = d.at("value");
+					const auto consumers = command_consumers(view, d);
+					if (consumers.empty())
+						return false;
+					for (const auto &consumer : consumers)
+						engineering_probe_requests_[{consumer, operation}] = d.at("value");
 				}
 			}
+			std::cout << "Engineering operation families exercised: " << exercised.size() << std::endl;
 			return exercised.size() == 3;
 		}
 		for (const auto &[key, value] : engineering_probe_requests_)
