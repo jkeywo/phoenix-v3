@@ -60,7 +60,7 @@ Preference settings persist across handover. A hold fallback retains the last pr
 
 ## Navigation commands
 
-`destination` and `follow_contact` are boolean settings with an atomic `arguments` tuple. A destination channel supplies `[x, y]` in millimetres; a follow channel supplies `[contact, separation, speed_limit]` in entity ID, millimetres and millimetres per second. Coordinates are bounded to �1,000,000,000; separation and speed must be positive and at most 1,000,000,000. A disabled follow setting may use contact zero; enabling requires a positive contact and cannot target the owning entity.
+`destination` and `follow_contact` are boolean settings with an atomic `arguments` tuple. A destination channel supplies `[x, y]` in millimetres; a follow channel supplies `[contact, separation, speed_limit]` in entity ID, millimetres and millimetres per second. Coordinates are bounded to +/-1,000,000,000; separation and speed must be positive and at most 1,000,000,000. A disabled follow setting may use contact zero; enabling requires a positive contact and cannot target the owning entity.
 
 For example, `{"id":"navigation","action":"destination","initial":0,"arguments":[100000,50000],"consumers":["port","starboard","rudder"]}` declares one owned destination setting. Consumers must be compatible engines or steering mechanisms. Both the enabled value and the complete tuple are admitted, committed and saved together. Scalar commands refuse extra arguments. Generated accessible controls edit these same tuples; follow target choices come from permitted Console contacts.
 
@@ -123,7 +123,7 @@ Physical Systems can declare `reporters`, independently of AI trees:
 
 The enclosing fitting must actually produce `heat`. Both message templates must be permitted by the entity and physical observation owner. Reporter messages are Facts. Their dynamic bindings may use measured `amount`, threshold `flag` and System-name `detail` arguments, not AI memory or decisions. Healthy startup is silent; initial warnings obey debounce. Warning/recovery latches and reporting intervals survive handover and restoration.
 
-A Controller destination is `{"kind":"controller","console":"helm","id":"propulsion"}`. It names the receiving Controller, not an engine. At delivery the current operator determines human notification or AI handling. Trees declare permitted `message_templates`, send through `send.<template>` with amount/flag/detail arguments, read typed `message_bindings` plus `message.*` metadata, and acknowledge an available message through `acknowledge_message`. Human message controls use the same authorised template route.
+A Controller destination is `{"kind":"controller","console":"helm","id":"propulsion"}`. It names the receiving Controller, not an engine. Explicit layouts reject physical System destinations with a migration diagnostic; Systems register as reporter sources, without AI memory or inbox cursors. At delivery the current operator determines human notification or AI handling. Trees declare permitted `message_templates`, send through `send.<template>` with amount/flag/detail arguments, read typed `message_bindings` plus `message.*` metadata, and acknowledge an available message through `acknowledge_message`. Human message controls use the same authorised template route.
 
 Entity-wide messages use destination kind `ship` in the current serialized vocabulary. Important AI-to-AI messages (urgency at least 2) also publish if their recipient remains AI at delivery. Publication requires a publishable schema and fields; dynamic public presentation parameters must bind a public payload value. Public copies retain identity and evidence but give spectators no action or acknowledgement authority. Ordinary targeted messages stay private.
 
@@ -135,7 +135,7 @@ Controller trees expose command, System observation, peer-command and message bi
 
 Isolated Test feedback identifies each Controller by entity, Console and Controller ID, with its effective operator, generation, active states, transition reason, diagnostics and bounded command receipts. This debugging view is separate from player observations and does not export private tree memory.
 
-World and portable session saves use schema 6 with Console Controller continuation and knowledge binding metadata. Schemas 1�5 and obsolete entity/System authority fields are refused transactionally; there is no implicit continuation migration. Command transport uses wire envelope schema 5 and carries Controller, channel, operator generation and request identity, plus bounded command arguments. Old peers are refused before play. Flight mechanism continuation retains its own schema 4. All live command decisions use the common Controller runtime, including converted definitions.
+World and portable session saves use schema 6 with Console Controller continuation and knowledge binding metadata. Schemas 1-5 and obsolete entity/System authority fields are refused transactionally; there is no implicit continuation migration. Command transport uses wire envelope schema 5 and carries Controller, channel, operator generation and request identity, plus bounded command arguments. Old peers are refused before play. Flight mechanism continuation retains its own schema 4. All live command decisions use the common Controller runtime, including converted definitions.
 
 Preference channels (`intent_integer` and `intent_boolean`) may declare `choices: [{"value":1000,"label_key":"Cruise policy"},{"value":3000,"label_key":"Fast policy"}]`. Choices are unique, in range, limited to 64 entries and include the initial value. Both human and AI admission enforce the list. Labels use ordinary localisation; Workshop can edit them. Omit choices for a continuous bounded setting. An optional channel `label_key` labels its generated controls.
 
@@ -149,4 +149,14 @@ For an explicitly triggered graphical shared/split throttle journey, run `python
 ./build/native/Release/native.exe --local-only --game-pack build/controller-ui-shared.zip --mission test.map --slot test.slot --ship test.controllable --seat drive --console --helm-smoke --data build/controller-ui-shared-data
 ```
 
-Repeat with `controller-ui-split.zip` and a separate data directory. The probe uses rendered throttle/heading pointer paths and Console Settings Away/resume, captures `console-smoke.png`, and exits. Inspect each fresh screenshot. This supplements the independent-channel integration checks; it does not establish physical touch/gamepad or screen-reader acceptance.
+Repeat with `controller-ui-split.zip` and a separate data directory. The probe uses rendered throttle/heading pointer paths, checks distinct accepted/consumed channel values and every physical engine consumer, then exercises Console Settings Away/resume. It captures `console-smoke.png` and exits. Multiple throttles retain authored positions. An explicit `gameplay_panel` is respected rather than replaced by the compact single-throttle preset; report history stays within its scrolling viewport.
+
+Replace `--helm-smoke` with `--controller-report-smoke` to select automatic/direct complexity through the actual Console Settings controls and verify the resulting profile/operators across Away/return. It also verifies the factual report in Console semantics, scrolls it into view and captures `controller-report-console.png`. The probe then switches to the Viewscreen and checks that the public report appears while the ordinary addressed report remains private, capturing `viewscreen-smoke.png`.
+
+Run the Workshop journey with:
+
+```powershell
+./build/native/Release/native.exe --local-only --workshop-pack build/controller-ui-shared.zip --controller-workshop-smoke --data build/controller-workshop-data
+```
+
+This explicit test-only probe edits the initial command, verifies/exports/reopens the draft, and activates the rendered Test controls' production Start/Pause/Step/Restart handlers. It checks consumed output and exact single-step advancement, then captures `workshop-smoke.png`. It is an app-driven workflow probe, not simulated mouse editing. Inspect fresh screenshots for all graphical runs. These supplement integration checks; they do not establish physical touch/gamepad, screen-reader or six-display performance acceptance.

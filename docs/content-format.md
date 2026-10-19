@@ -1,10 +1,12 @@
 # Foundation content format
 
+This page describes the foundation fields and legacy definition boundary. Current fitted equipment uses [gameplay content](gameplay-content.md); decision ownership, command channels, complexity profiles and save compatibility use [Console Controllers](controller-content.md). All live gameplay uses the Controller runtime, including unambiguous converted foundation definitions.
+
 This is schema 1 for the foundation vocabulary, not the complete GDD equipment schema. Packs contain `manifest.json`, `definitions.json` and PNG files under `assets/`. Packs use ZIP; their identity is SHA-256 of the exact archive bytes. Limits are 32 MiB archived, 16 MiB per entry, 64 MiB expanded and 1024 entries. File paths must be relative, shorter than 512 bytes, and have no trailing slash, traversal, backslashes or drive prefixes. Archives are decoded into bounded memory, never extracted to paths supplied by the archive.
 
-Definitions schema 2 also supports explicit Stations. Each entity's `stations` array contains `{id, consoles:[...]}`; each Console contains `{id, definition, systems:[...], feeds:[...]}`. `definition` resolves a Console layout. `systems` assigns exclusive control of fitted `engine`, `steering` and/or `radar`; `feeds` adds read access. Control also grants its own feed. Every fitted System has exactly one controlling Console; read-only Consoles may have empty `systems`. Station and Console identities are stable strings, unique within their ship, with at most 32 of each. These bindings describe support for the existing Systems, not additional gameplay equipment.
+Definitions schema 2 also supports explicit Stations. Each entity's `stations` array contains `{id, consoles:[...]}`; each Console contains `{id, definition, systems:[...], feeds:[...]}`. `definition` resolves a Console layout. In legacy definitions without `control_layout`, `systems` assigns exclusive ownership of fitted `engine`, `steering` and/or `radar`; `feeds` adds read access. Ownership also grants its own feed and supplies the conversion boundary's command owner. Read-only Consoles may have empty `systems`. Station and Console identities are stable strings, unique within their entity, with at most 32 of each. Explicit layouts instead declare Controller command subscriptions separately from observation ownership.
 
-An explicit Station entity cannot also use legacy `console` or `controller`. Optional `controllers` maps fitted System names to existing tree definitions; each tree may output only to that System. Unclaimed Systems run independently. Existing entities normalize to one `main` Console with their original layout, all fitted System controls/feeds and original whole-ship controller behavior. No existing pack needs conversion. New ship rosters and playable layouts are not included in this change.
+An explicit Station entity cannot also use legacy `console` or `controller`. Legacy `controllers` maps fitted System names to timed tree definitions; each tree may output only to that System. At load, unambiguous ownership and timed policies convert to Console-owned Controllers and explicit physical subscriptions. A legacy single Console normalizes to `main`. System-context decision trees, summary-intent presets and ambiguous ownership require explicit migration and are refused with diagnostics. There is no separate legacy or NPC runtime.
 
 Manifest example:
 
@@ -24,7 +26,7 @@ Verification resolves the final catalogue, decodes referenced PNG images, checks
 
 `phoenix_verify.exe base.zip [mod.zip ...]` verifies an ordered selection and reports pack hashes and definition counts. Loaded `Pack` objects are immutable shared handles to their manifest, files and exact original archive. `PackDraft` is the separate editable form; it has no archive identity. Workshop validates drafts directly and encodes only on export. Selecting exported bytes creates a new loaded identity. Catalogue verification decodes each referenced PNG once per asset path in that verification pass.
 
-Host transfer, client cache and local sessions retain loaded pack handles instead of decoding or copying their archives again. Cache records are still hashed and loaded before use; only downloaded or repaired records are written. Session and fleet composition share in-memory container operations, with ZIP encoding at save/bundle boundaries. Power grids, services, jobs and broader GDD Systems are not yet supported and must not be represented as validated by this schema.
+Host transfer, client cache and local sessions retain loaded pack handles instead of decoding or copying their archives again. Cache records are still hashed and loaded before use; only downloaded or repaired records are written. Session and fleet composition share in-memory container operations, with ZIP encoding at save/bundle boundaries. Power grids and other fitted mechanisms use the separate gameplay vocabulary; this foundation description does not establish support for all GDD Systems or jobs.
 
 Definitions schema 3 adds calibrated sprite materials, signed attachments and scene lighting. See the [comic rendering contract and delivery record](comic-rendering.md). Legacy image billboards remain supported.
 
@@ -35,21 +37,22 @@ Optional map `presentation.dust` and entity `render.reference_grid` provide rend
 System object keys are ship-local instance identities. Optional `kind` names the
 supported capability (`engine`, `steering`, `radar`); omitted `kind` retains the
 legacy key-as-capability behavior. For example, `port` and `starboard` can both
-declare `kind: "engine"` with independent settings and controllers. At most 256
-instances are accepted per ship. Console `systems`, `feeds` and controller-map
-keys bind exact identities. Each instance has one controlling Console.
+declare `kind: "engine"` with independent mechanism settings. At most 256
+instances are accepted per entity. Console `systems` and `feeds` bind exact
+identities. Explicit Controller command channels bind physical consumers separately
+from their observation-owning Console; two engines may consume one shared throttle.
 
-Widgets may select an exact `system`; otherwise their capability must resolve
-uniquely in their owning Console. Legacy unqualified commands are accepted only
-when exactly one owned matching instance exists. Feed access grants no command
+Widgets may select an exact `controller` and `channel`; older `system` widgets
+must resolve a unique compatible owned channel. Legacy unqualified commands are accepted only
+for converted definitions with exactly one owned matching channel. Feed access grants no command
 authority. The capability masks retained on older interfaces are presentation
 hints, not the instance command boundary.
 
 Restricted crew packs retain only public instance kind/bounds and verified
-Console/widget bindings, without controller or other machinery definitions.
-Instance worlds save schema 3, with independent operations and controller
-continuations. Legacy worlds still write schema 1/2. Packet schema 2 refuses
-older peers before interpreting the expanded projection.
+Console/widget bindings and public Controller channel/profile metadata, without private
+tree programs or other machinery definitions. World/session saves use schema 6 with
+Controller continuation; old authority formats are refused. Packet schema 5 refuses
+older peers before interpreting commands or projections.
 
 ## Radar symbols
 

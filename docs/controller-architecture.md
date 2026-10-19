@@ -1,6 +1,6 @@
 # Console Controller architecture
 
-Agreed architecture · 19 October 2026. This is the target architecture, not a claim that the current runtime implements it. It supersedes the earlier per-System command-AI boundary. The [GDD](GDD.md#4-authority-knowledge-and-assistance) defines the gameplay contract; the [refactoring plan](controller-refactor-plan.md) tracks migration from the existing code.
+Agreed architecture · 19 October 2026. This contract supersedes the earlier per-System command-AI boundary. The [GDD](GDD.md#4-authority-knowledge-and-assistance) defines the gameplay design; the [refactoring delivery record](controller-refactor-plan.md) separately records implementation, verification and acceptance limits.
 
 ## Purpose and scope
 

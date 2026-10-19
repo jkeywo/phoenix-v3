@@ -333,7 +333,14 @@ endif()
 foreach(
 	case
 	IN
-	ITEMS gameplay_knowledge gameplay_flight scenario_world summary_bindings swept_collision workshop_test controller_runtime
+	ITEMS
+		gameplay_knowledge
+		gameplay_flight
+		scenario_world
+		summary_bindings
+		swept_collision
+		workshop_test
+		controller_runtime
 )
 	add_executable(phoenix_${case}_tests tests/system/${case}.cpp)
 	target_link_libraries(

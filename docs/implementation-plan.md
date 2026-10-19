@@ -1,15 +1,14 @@
 # Foundation implementation plan
 
-## Agreed next architecture
+## Console Controller architecture
 
-The [Console Controller architecture](controller-architecture.md), agreed 19 October 2026, supersedes the per-System command-AI and individual-delegation model described in earlier implementation receipts. Its [refactoring plan](controller-refactor-plan.md) is **in progress**: explicit-layout Controller execution, scoped observations, messaging/reporters, profiles, authoring and command transport have verified incremental receipts. Legacy runtime removal, complete content migration and the final integration gate remain outstanding. Earlier execution/evidence below describes the previous implementation, not completion of the new architecture.
+The [Console Controller architecture](controller-architecture.md), agreed 19 October 2026, supersedes the per-System command-AI and individual-delegation model described in earlier receipts. Its [completed delivery record](controller-refactor-plan.md) records the common Controller runtime, scoped observations, factual reporting, addressed/public messages, profiles, authoring, remote continuation, maintained-content migration and removal of old dispatch. Independent source and graphical audits and the full native/WASM/network gate pass. Earlier execution notes below retain their historical scope and do not override this control model.
 
-The approved next gameplay phase is tracked in the
-[gameplay implementation ledger](gameplay-implementation.md). It retains the full
-equipment, power/thermal, Helm, blackboard/publication, System/scenario tree,
-Coordination and station-delegation scope. All nine software stages are implemented;
-the ledger records independently reviewed commits, native/WASM/network verification,
-graphical authoring evidence and the separate remaining physical-device acceptance.
+The earlier [gameplay implementation ledger](gameplay-implementation.md) records
+nine software stages covering equipment, power/thermal, Helm, knowledge,
+scenario execution and the original System decision model. Its verified mechanism
+work is retained; Controller trees and Console profiles replace the old authority
+and delegation portions. Physical-device acceptance remains separate.
 
 Final gameplay review corrections, 19 October 2026: prepared paid flight demands,
 funded sensor startup, initial coolant isolation, independent Helm settings,

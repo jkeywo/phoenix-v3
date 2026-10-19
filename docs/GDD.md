@@ -27,7 +27,7 @@ This document defines the intended V3 game. It does not claim that any V3 capabi
 - [Appendix A. Catalogue coverage](#appendix-a-catalogue-coverage)
 - [Appendix B. Architecture decision reconciliation](#appendix-b-architecture-decision-reconciliation)
 
-The agreed [Console Controller architecture](controller-architecture.md) refines the runtime authority and information contracts below. Its [refactoring plan](controller-refactor-plan.md) is planned work, not an implementation receipt.
+The agreed [Console Controller architecture](controller-architecture.md) refines the runtime authority and information contracts below. Its [refactoring plan and delivery record](controller-refactor-plan.md) separately track implementation and verification; this GDD remains the design contract.
 
 ## 1. Experience and boundaries
 

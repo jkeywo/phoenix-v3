@@ -1,6 +1,6 @@
 # State-tree runtime contract
 
-`phoenix.state_tree` is the shared compiled evaluator for System AI and scenario
+`phoenix.state_tree` is the shared compiled evaluator for Console Controller AI and scenario
 progression. It depends on `phoenix.data`, with no ECS, renderer or UI dependency.
 The production content loader supplies verified tree definitions, their reference
 catalogue and a capability-filtered vocabulary registry. The simulation binds its
@@ -12,7 +12,9 @@ Content verification and Workshop may link that library. `state_tree.cpp` contai
 evaluation, interruption and continuation persistence and belongs only to the
 authoritative simulation library. Exported declarations do not require clients or
 Workshop to link the evaluator. A disposable Workshop test uses the normal
-authoritative server/native launch path.
+authoritative Test host, isolated from the editor. The generic evaluator retains legacy
+System-context vocabulary support for definition diagnostics; live gameplay decision
+trees use Controller context and its scoped command/observation bindings.
 
 ## Public API and authority
 
