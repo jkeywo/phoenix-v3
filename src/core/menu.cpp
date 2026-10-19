@@ -67,7 +67,7 @@ void MenuLibrary::load()
 	prefs.reduced_motion = data.value("reduced_motion", false);
 	prefs.dust_motes = data.value("dust_motes", true);
 	prefs.reference_grid = data.value("reference_grid", true);
-	prefs.player_name = data.value("player_name", std::string("Player"));
+	prefs.player_name = data.value("player_name", std::string("<username>"));
 	prefs.avatar = data.value("avatar", Bytes{});
 	if (prefs.player_name.empty() || prefs.player_name.size() > 64 ||
 	    std::any_of(prefs.player_name.begin(), prefs.player_name.end(),

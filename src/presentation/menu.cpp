@@ -29,6 +29,8 @@ struct NativeMenuScreen::State
 	FileImportInbox imports;
 	std::vector<LibraryPack> draft;
 	std::string previous, notice, focus_next;
+	std::string lobby_tab = "crew";
+	std::size_t console_page = 0;
 	std::optional<std::uint64_t> save_after;
 	bool export_save = false, advanced = false, opened_runtime = false;
 	std::weak_ptr<SessionPort> owner;
@@ -48,6 +50,8 @@ struct NativeMenuScreen::State
 	std::string join_qr_url;
 	TextureCache avatar_textures;
 	std::uint64_t avatar_screen = 0;
+	std::string avatar_directory;
+	std::vector<Bytes> avatars;
 	void apply_profile(Application &app)
 	{
 		if (app.player_name.empty() || app.player_name.size() > 64 ||
@@ -212,9 +216,10 @@ struct NativeMenuScreen::State
 	}
 	std::string field(Application &app, const std::string &id, const std::string &label, const std::string &value)
 	{
-		app.screen_inputs.push_back({id, label, value});
+		app.screen_inputs.push_back({id, label, id == "player-name" && value == "<username>" ? "" : value});
 		return "<label for=\"" + id + "\">" + Rml::StringUtilities::EncodeRml(localise(label)) +
-		       "</label><input id=\"" + id + "\" type=\"text\" maxlength=\"1024\"/>";
+		       "</label><input id=\"" + id + "\" type=\"text\" " +
+		       (id == "player-name" ? "placeholder=\"&lt;username&gt;\" " : "") + "maxlength=\"1024\"/>";
 	}
 	void handle_import(Application &app)
 	{
@@ -350,6 +355,15 @@ struct NativeMenuScreen::State
 		auto *root = document.GetElementById("native-menu");
 		for (const char *id : {"host", "join", "view", "edit", "locale"})
 			document.GetElementById(id)->SetProperty("display", "none");
+		if (app.avatar.empty() && !avatars.empty())
+		{
+			app.avatar = avatars.at(GetRandomValue(0, 11));
+			if (app.library)
+			{
+				app.library->preferences.avatar = app.avatar;
+				app.library->remember();
+			}
+		}
 		const bool visible = app.screen == Screen::home || app.screen == Screen::server_lobby ||
 		                     app.screen == Screen::client_lobby || app.screen == Screen::settings;
 		root->SetProperty("display", visible ? "block" : "none");
@@ -369,6 +383,16 @@ struct NativeMenuScreen::State
 		const bool modal = app.packs_popup || app.screen == Screen::settings;
 		ambient.update(GetFrameTime(), !app.reduced_motion && !modal && app.screen == Screen::home);
 		const bool playing = game_active(app);
+		const bool console_waiting = [&]
+		{
+			if (app.can_host || app.screen != Screen::client_lobby)
+				return false;
+			const auto lobby = app.session->lobby();
+			for (const auto &member : lobby.members)
+				if (member.id == lobby.self)
+					return member.role == JoinRole::player && !member.console.empty();
+			return false;
+		}();
 		button_enabled = !modal;
 		auto add = [&](const std::string &id, const std::string &text, std::function<void()> action)
 		{
@@ -391,11 +415,22 @@ struct NativeMenuScreen::State
 		};
 		auto profile_controls = [&]
 		{
-			return heading("Your profile") +
-			       (app.avatar.empty()
-			            ? ""
-			            : "<div id=\"profile-avatar\" style=\"display:block;width:48px;height:48px;\"></div>") +
-			       field(app, "player-name", "Player name", app.player_name) +
+			std::string choices = "<div class=\"avatar-choices\">";
+			for (int i = 0; i < 12; ++i)
+			{
+				button(app, "menu.avatar-choice/" + std::to_string(i), "Avatar " + std::to_string(i + 1),
+				       [&, i]
+				       {
+					       app.avatar = avatars.at(i);
+					       apply_profile(app);
+				       });
+				choices += "<button class=\"avatar-choice\" id=\"menu.avatar-choice/" + std::to_string(i) +
+				           "\"><img src=\"" + avatar_directory + "/avatar-" + std::to_string(i + 1) +
+				           ".png\" width=\"48\" height=\"48\"/></button>";
+			}
+			choices += "</div>";
+			return field(app, "player-name", "Player name", app.player_name) + choices +
+			       "<div class=\"profile-actions\">" +
 			       add("menu.avatar", "Upload avatar...",
 			           [&]
 			           {
@@ -406,40 +441,50 @@ struct NativeMenuScreen::State
 			           [&]
 			           {
 				           apply_profile(app);
-			           });
+				           back(app);
+			           }) +
+			       "</div>";
 		};
 		using Branch = Application::MenuBranch;
-		std::string markup = "<div id=\"menu-scutter\" aria-hidden=\"true\"></div>"
-		                     "<h1 id=\"menu-title\">Against the Stars</h1>";
+		std::string markup = "<h1 id=\"menu-title\">Against the Stars</h1>";
 		if (!playing)
 		{
-			if (app.screen == Screen::home || modal)
+			if (app.screen == Screen::home || modal || !app.can_host)
 			{
-				markup += "<div id=\"menu-profile\" class=\"menu-crt\"><div class=\"crt-screen\">"
+				button(app, "menu-profile", "Edit profile: " + app.player_name,
+				       [&]
+				       {
+					       app.settings_return = app.screen;
+					       app.screen = Screen::settings;
+					       app.settings_tab = "profile";
+					       focus_next = "player-name";
+				       });
+				markup += "<button id=\"menu-profile\" class=\"menu-crt\"><div class=\"crt-screen\">"
 				          "<div id=\"menu-profile-avatar\" class=\"crt-avatar\">" +
 				          (app.avatar.empty() ? std::string("?") : std::string{}) + "</div><p class=\"crt-name\">" +
-				          Rml::StringUtilities::EncodeRml(app.player_name) + "</p></div></div>";
-				if (!modal)
-					app.screen_readouts.emplace_back("menu-profile", localise("Your profile") + ": " + app.player_name);
+				          Rml::StringUtilities::EncodeRml(app.player_name) + "</p></div></button>";
 			}
-			markup += "<div class=\"menu-top\">" +
-			          add("menu.settings", "Settings",
-			              [&]
-			              {
-				              app.settings_return = app.screen;
-				              app.screen = Screen::settings;
-				              focus_next = "settings.tab/" + app.settings_tab;
-			              }) +
-			          "</div>";
-			markup += "<div class=\"menu-bottom\">" +
-			          add("menu.packs", "Mod Packs",
-			              [&]
-			              {
-				              app.packs_popup = true;
-				              draft = app.library->packs;
-				              focus_next = "menu.import-pack";
-			              }) +
-			          "</div>";
+			if (!console_waiting)
+			{
+				markup += "<div class=\"menu-top\">" +
+				          add("menu.settings", "Settings",
+				              [&]
+				              {
+					              app.settings_return = app.screen;
+					              app.screen = Screen::settings;
+					              focus_next = "settings.tab/" + app.settings_tab;
+				              }) +
+				          "</div>";
+				markup += "<div class=\"menu-bottom\">" +
+				          add("menu.packs", "Mod Packs",
+				              [&]
+				              {
+					              app.packs_popup = true;
+					              draft = app.library->packs;
+					              focus_next = "menu.import-pack";
+				              }) +
+				          "</div>";
+			}
 			if (app.screen == Screen::home || modal)
 			{
 				markup += "<div id=\"menu-viewport\"><div id=\"menu-columns\"><div class=\"menu-column\">";
@@ -564,7 +609,6 @@ struct NativeMenuScreen::State
 					markup += "<div class=\"menu-column connection\">" + heading("Join Game");
 					if (!modal)
 					{
-						markup += profile_controls();
 						markup += field(app, "join-code", "Join Code", app.network_code);
 					}
 					markup += add("menu.advanced", "Advanced Connection Settings",
@@ -593,235 +637,308 @@ struct NativeMenuScreen::State
 			else
 			{
 				const auto lobby = app.session->lobby();
-				markup += "<div class=\"lobby-panel\"><div class=\"lobby-invitation\">" +
-				          heading(lobby.scenario.empty() ? "Lobby" : lobby.scenario) +
-				          readout("menu.join-code", "Join Code: " + lobby.code);
-				if (app.can_host && !lobby.code.empty())
+				const auto player = std::find_if(lobby.members.begin(), lobby.members.end(),
+				                                 [&](const auto &member)
+				                                 {
+					                                 return member.id == lobby.self;
+				                                 });
+				if (!app.can_host && player != lobby.members.end() && player->role == JoinRole::player &&
+				    !player->console.empty())
 				{
-					try
-					{
-						prepare_qr(app, lobby.code);
-						markup += "<div class=\"qr-crt\"><div class=\"menu-crt qr-terminal\"><div class=\"crt-screen\">"
-						          "<div id=\"menu-join-qr\"></div></div></div></div>";
-					}
-					catch (const std::exception &error)
-					{
-						notice = error.what();
-					}
-				}
-				markup += add("menu.copy-code", "Copy Join Code",
-				              [&]
-				              {
-					              copy_text(app.session->lobby().code);
-				              });
-				if (!modal)
-					markup += profile_controls();
-				if (!lobby.active && !app.session->running())
-				{
-					markup += paragraph("Enter a code from Host Game to join a pre-game lobby.");
-					markup += add("menu.open-join", "Join Game (As Player)",
+					std::string title = player->console, description;
+					for (const auto &slot : lobby.slots)
+						if (slot.id == player->slot && app.session->catalog().entities.contains(slot.ship))
+							for (const auto &spec : resolve_consoles(app.session->catalog(), slot.ship))
+								if (spec.id == player->console)
+								{
+									const auto &layout = app.session->catalog().consoles.at(spec.definition);
+									title = layout.value("name", title);
+									description = layout.value("description", std::string{});
+								}
+					markup += "<div class=\"console-waiting\">" + heading(title) + paragraph(description) +
+					          "<p id=\"lobby-countdown\"></p>";
+					markup += add("lobby.ready", player->ready ? "Not Ready" : "Ready",
 					              [&]
 					              {
-						              app.screen = Screen::home;
-						              app.menu_branch = Branch::join_player;
-						              focus_next = "join-code";
+						              const auto current = app.session->lobby();
+						              for (const auto &member : current.members)
+							              if (member.id == current.self)
+								              app.session->lobby_command(
+								                  {member.ready ? LobbyAction::unready : LobbyAction::ready});
 					              });
+					markup += add("menu.leave", "Leave Game",
+					              [&]
+					              {
+						              app.session->lobby_command({LobbyAction::leave});
+						              app.return_home();
+					              }) +
+					          "</div>";
 				}
-				markup += "</div><div class=\"lobby-roster\">";
-				for (const auto &slot : lobby.slots)
-					markup += readout(
-					    "menu.slot/" + slot.id,
-					    slot.id + ": " +
-					        (slot.host.empty() ? slot.mandatory ? "AI / " + slot.ship : localise("Empty") : slot.ship));
-				for (const auto &member : lobby.members)
+				else
 				{
-					const bool crew_readying = member.role == JoinRole::ship_server && member.console.empty() &&
-					                           std::any_of(lobby.members.begin(), lobby.members.end(),
-					                                       [&](const auto &m)
-					                                       {
-						                                       return m.role == JoinRole::player && m.approved &&
-						                                              m.connected && m.slot == member.slot;
-					                                       }) &&
-					                           std::none_of(lobby.consoles.begin(), lobby.consoles.end(),
-					                                        [&](const auto &seat)
-					                                        {
-						                                        return seat.member == member.id && seat.local_screen;
-					                                        });
-					const std::string state = !member.connected             ? "Disconnected"
-					                          : !member.approved            ? "Awaiting approval"
-					                          : !member.verified            ? "Verifying content"
-					                          : member.role == JoinRole::gm ? "Observer"
-					                          : crew_readying               ? "Viewscreen"
-					                          : member.ready                ? "Ready"
-					                                                        : "Not Ready";
-					markup +=
-					    (member.avatar.empty() ? ""
-					                           : "<div id=\"avatar-" + Rml::StringUtilities::EncodeRml(member.id) +
-					                                 "\" style=\"display:block;width:48px;height:48px;\"></div>") +
-					    readout("menu.member/" + member.id,
-					            member.name + " (" +
-					                localise(member.role == JoinRole::ship_server ? "Ship host"
-					                         : member.role == JoinRole::gm        ? "GM"
-					                                                              : "Player") +
-					                ") / " + member.slot + (member.console.empty() ? "" : " / " + member.console) +
-					                " / " + localise(state));
-				}
-				markup += "<p id=\"lobby-countdown\"></p>";
-				for (const auto &[id, text] : app.session->lobby_controls())
-					if (!id.starts_with("lobby.seat/"))
-						markup += add(id, text,
-						              [&, id]
-						              {
-							              app.session->session_action(id);
-						              });
-#ifndef __EMSCRIPTEN__
-				if (app.can_host)
-					markup += paragraph("This screen is the selected ship's Viewscreen.");
-#endif
-				markup += heading("Consoles");
-				const auto own = std::find_if(lobby.members.begin(), lobby.members.end(),
-				                              [&](const auto &member)
-				                              {
-					                              return member.id == lobby.self;
-				                              });
-				for (const auto &seat : lobby.consoles)
-				{
-					const auto member = std::find_if(lobby.members.begin(), lobby.members.end(),
-					                                 [&](const auto &m)
-					                                 {
-						                                 return m.id == seat.member;
-					                                 });
-					const auto claimant = member == lobby.members.end() ? localise("Unclaimed") : member->name;
-					markup += heading(seat.name) +
-					          readout("menu.console/" + seat.slot + "/" + seat.id, seat.slot + " / " + claimant +
-					                                                                   (seat.member.empty() ? ""
-					                                                                    : seat.ready ? " / Ready"
-					                                                                                 : " / Not Ready"));
-					if (own != lobby.members.end() && own->approved && own->role == JoinRole::player &&
-					    (seat.member.empty() || seat.member == lobby.self))
-						markup += add("lobby.seat/" + seat.slot + "/" + seat.id,
-						              seat.member == lobby.self ? "Selected console" : "Choose this console",
-						              [&, seat]
-						              {
-							              app.session->lobby_command(
-							                  {LobbyAction::select_console, "", seat.slot, "", seat.id});
-						              });
-#ifndef __EMSCRIPTEN__
-					if (app.can_host && lobby.coordinator && own != lobby.members.end() && seat.slot == own->slot &&
-					    (seat.member.empty() || seat.local_screen))
+
+					if (app.can_host && !lobby.code.empty())
 					{
-						if (seat.local_screen && member != lobby.members.end())
+						try
 						{
-							const auto route = seat.local_screen;
-							app.local_player_names.try_emplace(route, member->name);
-							markup +=
-							    field(app, "local-name/" + std::to_string(route), "Local player name",
-							          app.local_player_names.at(route)) +
-							    add("menu.local-profile/" + std::to_string(route), "Use this name",
-							        [&, route, avatar = member->avatar]
-							        {
-								        if (!app.session->set_local_player_profile(
-								                route, app.local_player_names.at(route), avatar))
-									        throw std::runtime_error("Local player is no longer assigned");
-							        }) +
-							    add("menu.local-avatar/" + std::to_string(route), "Upload avatar...",
-							        [&, route]
-							        {
-								        avatar_screen = route;
-								        request_file(imports, FilePurpose::PlayerAvatar);
-							        }) +
-							    add("menu.local-ready/" + std::to_string(route), seat.ready ? "Not Ready" : "Ready",
-							        [&, route, ready = seat.ready]
-							        {
-								        LobbyCommand command{ready ? LobbyAction::unready : LobbyAction::ready};
-								        command.screen = route;
-								        app.session->lobby_command(command);
-							        });
+							prepare_qr(app, lobby.code);
+							markup += "<div id=\"menu-profile\" class=\"menu-crt host-crt\"><div class=\"crt-screen\">"
+							          "<div id=\"menu-join-qr\"></div></div></div>";
 						}
+						catch (const std::exception &error)
+						{
+							notice = error.what();
+						}
+					}
+					markup += "<div class=\"lobby-panel\"><div class=\"lobby-invitation\">" +
+					          heading(lobby.scenario.empty() ? "Lobby" : lobby.scenario) +
+					          readout("menu.join-code", "Join Code: " + lobby.code);
+					markup += add("menu.copy-code", "Copy Join Code",
+					              [&]
+					              {
+						              copy_text(app.session->lobby().code);
+					              });
+					if (!lobby.active && !app.session->running())
+					{
+						markup += paragraph("Enter a code from Host Game to join a pre-game lobby.");
+						markup += add("menu.open-join", "Join Game (As Player)",
+						              [&]
+						              {
+							              app.screen = Screen::home;
+							              app.menu_branch = Branch::join_player;
+							              focus_next = "join-code";
+						              });
+					}
+					markup += "</div><div class=\"lobby-roster\">";
+					if (app.can_host)
+					{
+						markup += "<div class=\"lobby-tabs\">";
+						for (const auto &tab : {"crew", "consoles", "gm"})
+							markup += add("menu.lobby-tab/" + std::string(tab),
+							              std::string(tab) == "crew"       ? "Crew"
+							              : std::string(tab) == "consoles" ? "Consoles"
+							                                               : "GM inspector",
+							              [&, tab]
+							              {
+								              lobby_tab = tab;
+							              });
+						markup += "</div>";
+					}
+					if (!app.can_host || lobby_tab == "crew")
+					{
+
+						for (const auto &slot : lobby.slots)
+							markup += readout("menu.slot/" + slot.id,
+							                  slot.id + ": " +
+							                      (slot.host.empty()
+							                           ? slot.mandatory ? "AI / " + slot.ship : localise("Empty")
+							                           : slot.ship));
+						for (const auto &member : lobby.members)
+						{
+							const bool crew_readying =
+							    member.role == JoinRole::ship_server && member.console.empty() &&
+							    std::any_of(lobby.members.begin(), lobby.members.end(),
+							                [&](const auto &m)
+							                {
+								                return m.role == JoinRole::player && m.approved && m.connected &&
+								                       m.slot == member.slot;
+							                }) &&
+							    std::none_of(lobby.consoles.begin(), lobby.consoles.end(),
+							                 [&](const auto &seat)
+							                 {
+								                 return seat.member == member.id && seat.local_screen;
+							                 });
+							const std::string state = !member.connected             ? "Disconnected"
+							                          : !member.approved            ? "Awaiting approval"
+							                          : !member.verified            ? "Verifying content"
+							                          : member.role == JoinRole::gm ? "Observer"
+							                          : crew_readying               ? "Viewscreen"
+							                          : member.ready                ? "Ready"
+							                                                        : "Not Ready";
+							markup += (member.avatar.empty() || member.role == JoinRole::ship_server
+							               ? ""
+							               : "<div id=\"avatar-" + Rml::StringUtilities::EncodeRml(member.id) +
+							                     "\" style=\"display:block;width:48px;height:48px;\"></div>") +
+							          readout("menu.member/" + member.id,
+							                  member.name + " (" +
+							                      localise(member.role == JoinRole::ship_server ? "Ship host"
+							                               : member.role == JoinRole::gm        ? "GM"
+							                                                                    : "Player") +
+							                      ") / " + member.slot +
+							                      (member.console.empty() ? "" : " / " + member.console) + " / " +
+							                      localise(state));
+						}
+						markup += "<p id=\"lobby-countdown\"></p>";
+						for (const auto &[id, text] : app.session->lobby_controls())
+							if (!id.starts_with("lobby.seat/"))
+								markup += add(id, text,
+								              [&, id]
+								              {
+									              app.session->session_action(id);
+								              });
+#ifndef __EMSCRIPTEN__
+						if (app.can_host)
+							markup += paragraph("This screen is the selected ship's Viewscreen.");
+#endif
+					}
+
+					const auto own = std::find_if(lobby.members.begin(), lobby.members.end(),
+					                              [&](const auto &member)
+					                              {
+						                              return member.id == lobby.self;
+					                              });
+					if (!app.can_host || lobby_tab == "consoles")
+					{
+						markup += heading("Consoles");
+						if (app.can_host && !lobby.consoles.empty())
+						{
+							console_page = std::min(console_page, lobby.consoles.size() - 1);
+							markup += "<div class=\"lobby-tabs\">";
+							if (console_page)
+								markup += add("menu.console-prev", "Previous",
+								              [&]
+								              {
+									              --console_page;
+								              });
+							if (console_page + 1 < lobby.consoles.size())
+								markup += add("menu.console-next", "Next",
+								              [&]
+								              {
+									              ++console_page;
+								              });
+							markup += "</div>";
+						}
+						for (const auto &seat : lobby.consoles)
+						{
+							if (app.can_host && &seat != &lobby.consoles[console_page])
+								continue;
+							const auto member = std::find_if(lobby.members.begin(), lobby.members.end(),
+							                                 [&](const auto &m)
+							                                 {
+								                                 return m.id == seat.member;
+							                                 });
+							const auto claimant = member == lobby.members.end() ? localise("Unclaimed") : member->name;
+							markup += heading(seat.name) + readout("menu.console/" + seat.slot + "/" + seat.id,
+							                                       seat.slot + " / " + claimant +
+							                                           (seat.member.empty() ? ""
+							                                            : seat.ready        ? " / Ready"
+							                                                                : " / Not Ready"));
+							if (own != lobby.members.end() && own->approved && own->role == JoinRole::player &&
+							    (seat.member.empty() || seat.member == lobby.self))
+								markup += add("lobby.seat/" + seat.slot + "/" + seat.id,
+								              seat.member == lobby.self ? "Selected console" : "Choose this console",
+								              [&, seat]
+								              {
+									              app.session->lobby_command(
+									                  {LobbyAction::select_console, "", seat.slot, "", seat.id});
+								              });
+#ifndef __EMSCRIPTEN__
+							if (app.can_host && lobby.coordinator && own != lobby.members.end() &&
+							    seat.slot == own->slot && (seat.member.empty() || seat.local_screen))
+							{
+								if (seat.local_screen && member != lobby.members.end())
+								{
+									const auto route = seat.local_screen;
+									app.local_player_names.try_emplace(route, member->name);
+									markup += add(
+									    "menu.local-ready/" + std::to_string(route), seat.ready ? "Not Ready" : "Ready",
+									    [&, route, ready = seat.ready]
+									    {
+										    LobbyCommand command{ready ? LobbyAction::unready : LobbyAction::ready};
+										    command.screen = route;
+										    app.session->lobby_command(command);
+									    });
+								}
+								for (const auto &display : app.native_displays)
+									if (display.id != app.host_display)
+										markup +=
+										    add("menu.console-screen/" + seat.id + "/" + std::to_string(display.id),
+										        std::string(seat.local_screen == static_cast<unsigned>(display.id + 2)
+										                        ? "On "
+										                        : "Put on ") +
+										            display.name,
+										        [&, seat, monitor = display.id]
+										        {
+											        LobbyCommand command{LobbyAction::assign_local_console, "",
+											                             seat.slot, "", seat.id};
+											        command.screen = monitor + 2;
+											        if (!app.session->lobby_command(command))
+												        throw std::runtime_error("This console is already claimed");
+											        std::erase_if(app.display_consoles,
+											                      [&](const auto &entry)
+											                      {
+												                      return entry.second == seat.id;
+											                      });
+											        app.display_consoles[monitor] = seat.id;
+											        app.local_player_names.erase(command.screen);
+											        if (app.inspector_display == monitor)
+												        app.inspector_display = -1;
+											        if (app.apply_displays)
+												        app.apply_displays();
+										        });
+								if (seat.local_screen)
+									markup +=
+									    add("menu.clear-console-screen/" + seat.id, "Remove from local screen",
+									        [&, seat]
+									        {
+										        LobbyCommand command{LobbyAction::assign_local_console};
+										        command.screen = seat.local_screen;
+										        if (app.session->lobby_command(command))
+											        app.display_consoles.erase(static_cast<int>(seat.local_screen) - 2);
+										        if (app.apply_displays)
+											        app.apply_displays();
+									        });
+							}
+#endif
+						}
+					}
+					if (own != lobby.members.end() && own->role == JoinRole::gm)
+						for (const auto &slot : lobby.slots)
+							if (!slot.host.empty())
+								markup +=
+								    add("lobby.seat/" + slot.id + "/", "Inspect " + slot.id,
+								        [&, slot]
+								        {
+									        app.session->lobby_command({LobbyAction::select_console, "", slot.id});
+								        });
+#ifndef __EMSCRIPTEN__
+					if (app.can_host && lobby.coordinator && lobby_tab == "gm")
+					{
+						markup += heading("GM inspector");
 						for (const auto &display : app.native_displays)
 							if (display.id != app.host_display)
-								markup += add("menu.console-screen/" + seat.id + "/" + std::to_string(display.id),
-								              std::string(seat.local_screen == static_cast<unsigned>(display.id + 2)
-								                              ? "On "
-								                              : "Put on ") +
+								markup += add("menu.inspector-screen/" + std::to_string(display.id),
+								              std::string(app.inspector_display == display.id ? "On " : "Put on ") +
 								                  display.name,
-								              [&, seat, monitor = display.id]
+								              [&, monitor = display.id]
 								              {
-									              LobbyCommand command{LobbyAction::assign_local_console, "", seat.slot,
-									                                   "", seat.id};
+									              LobbyCommand command{LobbyAction::assign_local_console};
 									              command.screen = monitor + 2;
-									              if (!app.session->lobby_command(command))
-										              throw std::runtime_error("This console is already claimed");
-									              std::erase_if(app.display_consoles,
-									                            [&](const auto &entry)
-									                            {
-										                            return entry.second == seat.id;
-									                            });
-									              app.display_consoles[monitor] = seat.id;
-									              app.local_player_names.erase(command.screen);
-									              if (app.inspector_display == monitor)
-										              app.inspector_display = -1;
+									              app.session->lobby_command(command);
+									              app.display_consoles.erase(monitor);
+									              app.inspector_display = monitor;
 									              if (app.apply_displays)
 										              app.apply_displays();
 								              });
-						if (seat.local_screen)
-							markup += add("menu.clear-console-screen/" + seat.id, "Remove from local screen",
-							              [&, seat]
+						if (app.inspector_display >= 0)
+							markup += add("menu.clear-inspector-screen", "Remove from local screen",
+							              [&]
 							              {
-								              LobbyCommand command{LobbyAction::assign_local_console};
-								              command.screen = seat.local_screen;
-								              if (app.session->lobby_command(command))
-									              app.display_consoles.erase(static_cast<int>(seat.local_screen) - 2);
-								              if (app.apply_displays)
-									              app.apply_displays();
+								              app.inspector_display = -1;
 							              });
 					}
 #endif
+					markup += add("menu.leave", "Leave Game",
+					              [&]
+					              {
+						              app.session->lobby_command({LobbyAction::leave});
+						              app.return_home();
+					              }) +
+					          "</div></div>";
 				}
-				if (own != lobby.members.end() && own->role == JoinRole::gm)
-					for (const auto &slot : lobby.slots)
-						if (!slot.host.empty())
-							markup += add("lobby.seat/" + slot.id + "/", "Inspect " + slot.id,
-							              [&, slot]
-							              {
-								              app.session->lobby_command({LobbyAction::select_console, "", slot.id});
-							              });
-#ifndef __EMSCRIPTEN__
-				if (app.can_host && lobby.coordinator)
-				{
-					markup += heading("GM inspector");
-					for (const auto &display : app.native_displays)
-						if (display.id != app.host_display)
-							markup +=
-							    add("menu.inspector-screen/" + std::to_string(display.id),
-							        std::string(app.inspector_display == display.id ? "On " : "Put on ") + display.name,
-							        [&, monitor = display.id]
-							        {
-								        LobbyCommand command{LobbyAction::assign_local_console};
-								        command.screen = monitor + 2;
-								        app.session->lobby_command(command);
-								        app.display_consoles.erase(monitor);
-								        app.inspector_display = monitor;
-								        if (app.apply_displays)
-									        app.apply_displays();
-							        });
-					if (app.inspector_display >= 0)
-						markup += add("menu.clear-inspector-screen", "Remove from local screen",
-						              [&]
-						              {
-							              app.inspector_display = -1;
-						              });
-				}
-#endif
-				markup += add("menu.leave", "Leave Game",
-				              [&]
-				              {
-					              app.session->lobby_command({LobbyAction::leave});
-					              app.return_home();
-				              }) +
-				          "</div></div>";
 			}
-			if (branch != Branch::root || app.screen == Screen::server_lobby || app.screen == Screen::client_lobby)
+			if (!console_waiting &&
+			    (branch != Branch::root || app.screen == Screen::server_lobby || app.screen == Screen::client_lobby))
 				markup += "<div class=\"menu-back\">" +
 				          add("menu.back", "Back",
 				              [&]
@@ -937,12 +1054,15 @@ struct NativeMenuScreen::State
 				for (std::size_t i = 0; i < draft.size(); ++i)
 				{
 					const auto first_control = app.screen_controls.size();
-					markup += paragraph(draft[i].id);
-					markup += add("menu.pack-toggle/" + draft[i].hash, draft[i].enabled ? "Enabled" : "Disabled",
-					              [&, i]
-					              {
-						              draft = app.library->toggle_pack(draft, draft[i].hash);
-					              });
+					markup += "<div class=\"pack-row\">" + paragraph(draft[i].id);
+					add("menu.pack-toggle/" + draft[i].hash, draft[i].enabled ? "Disable pack" : "Enable pack",
+					    [&, i]
+					    {
+						    draft = app.library->toggle_pack(draft, draft[i].hash);
+					    });
+					markup += "<input type=\"checkbox\" id=\"menu.pack-toggle/" + draft[i].hash + "\"" +
+					          (draft[i].enabled ? " checked" : "") + "/>";
+
 					if (i)
 						markup += add("menu.pack-up/" + draft[i].hash, "Move Up",
 						              [&, i]
@@ -962,6 +1082,7 @@ struct NativeMenuScreen::State
 					              });
 					for (std::size_t control = first_control; control < app.screen_controls.size(); ++control)
 						app.screen_controls[control].second += " / " + draft[i].id;
+					markup += "</div>";
 				}
 				markup += add(
 				    "menu.apply-packs", "Apply Pack Selection",
@@ -1040,7 +1161,7 @@ struct NativeMenuScreen::State
 			if (focus_next.empty())
 				focus_next = focused;
 		}
-		const bool compact = region.width < 760;
+		const bool compact = region.width < 900;
 		if (auto *scutter = document.GetElementById("menu-scutter"))
 		{
 			const auto progress = ambient.crossing_progress();
@@ -1081,14 +1202,14 @@ struct NativeMenuScreen::State
 		}
 		if (auto *title = document.GetElementById("menu-title"))
 		{
-			title->SetProperty("top", compact ? "188px" : "30px");
+			title->SetProperty("top", compact ? "24px" : "30px");
 			title->SetProperty("font-size", compact ? "38px" : "56px");
 		}
-		const float reserved_right = branch != Branch::root && !compact ? profile_width + 24.f : 0.f;
+		const float reserved_right = 0.f;
 		if (auto *viewport = document.GetElementById("menu-viewport"))
 		{
 			viewport->SetProperty("right", std::to_string(reserved_right) + "px");
-			viewport->SetProperty("top", compact ? "246px" : "120px");
+			viewport->SetProperty("top", branch != Branch::root ? "200px" : "120px");
 		}
 		for (const auto &input : app.screen_inputs)
 			if (auto *field = dynamic_cast<Rml::ElementFormControl *>(document.GetElementById(input.id)))
@@ -1098,8 +1219,7 @@ struct NativeMenuScreen::State
 		                    : branch == Branch::scenarios ? 3
 		                    : branch == Branch::root      ? 1
 		                                                  : 2;
-		const float column_width = std::min(320.f, std::max(std::min(250.f, region.width - reserved_right - 48.f),
-		                                                    (region.width - reserved_right - 48.f) / columns));
+		const float column_width = std::min(320.f, (region.width - reserved_right - 48.f) / columns);
 		const float target = columns == 1 ? (region.width - column_width + 20.f) / 2 : 24.f;
 		column_offset += (target - column_offset) * (app.reduced_motion ? 1.f : std::min(1.f, GetFrameTime() * 18.f));
 		if (auto *columns_element = document.GetElementById("menu-columns"))
@@ -1265,6 +1385,41 @@ void NativeMenuScreen::draw(const Application &app, Rml::ElementDocument &docume
 			EndScissorMode();
 		}
 	};
+	if (app.packs_popup)
+		for (const auto &pack : state_->draft)
+		{
+			for (const auto &action : {"toggle", "up", "down", "remove"})
+			{
+				auto *element = document.GetElementById("menu.pack-" + std::string(action) + "/" + pack.hash);
+				if (!element || !element->IsVisible())
+					continue;
+				const auto at = element->GetAbsoluteOffset(Rml::BoxArea::Border);
+				const float x = at.x + element->GetOffsetWidth() / 2, y = at.y + element->GetOffsetHeight() / 2;
+				const Color colour{255, 240, 212, 255};
+				if (std::string(action) == "toggle")
+				{
+					DrawRectangleLinesEx({x - 10, y - 10, 20, 20}, 2, colour);
+					if (pack.enabled)
+					{
+						DrawLineEx({x - 6, y}, {x - 1, y + 5}, 2, colour);
+						DrawLineEx({x - 1, y + 5}, {x + 7, y - 6}, 2, colour);
+					}
+				}
+				else if (std::string(action) == "remove")
+				{
+					DrawRectangleLinesEx({x - 7, y - 5, 14, 15}, 2, colour);
+					DrawLineEx({x - 10, y - 8}, {x + 10, y - 8}, 2, colour);
+					DrawLineEx({x - 4, y - 11}, {x + 4, y - 11}, 2, colour);
+				}
+				else
+				{
+					const float d = std::string(action) == "up" ? -1.f : 1.f;
+					DrawLineEx({x, y - 9 * d}, {x, y + 9 * d}, 2, colour);
+					DrawLineEx({x - 7, y + 2 * d}, {x, y + 9 * d}, 2, colour);
+					DrawLineEx({x + 7, y + 2 * d}, {x, y + 9 * d}, 2, colour);
+				}
+			}
+		}
 	if (!app.avatar.empty())
 	{
 		draw("profile-avatar", state_->avatar_textures.load(sha256(app.avatar), app.avatar));
@@ -1293,6 +1448,9 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 			throw std::runtime_error("Menu sprite dimensions disagree with sidecar: " + file);
 		return skin;
 	};
+	state_->avatar_directory = asset_directory + "/menu";
+	for (int i = 1; i <= 12; ++i)
+		state_->avatars.push_back(read_file(state_->avatar_directory + "/avatar-" + std::to_string(i) + ".png", 12288));
 	state_->button_skin = load("button-generic-9slice.sprite.json", .075f);
 	if (!state_->button_skin.has_label)
 		throw std::runtime_error("Menu button sidecar needs label_center");
@@ -1390,7 +1548,7 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
     #native-menu { color:#fff0d4; clip:always; }
     #native-menu h1 { color:#fff0d4; font-family:UnifrakturCook; font-weight:bold; font-size:56px; letter-spacing:0; }
     #native-menu h2 { color:#fff0d4; }
-    #native-menu button.menu-skinned { position:relative; min-height:64px; line-height:24px; background:transparent; border:2px transparent; color:#fff4df; text-align:center; image-color:#ffffff; }
+    #native-menu button.menu-skinned { position:relative; min-height:54px; line-height:22px; background:transparent; border:2px transparent; color:#fff4df; text-align:center; image-color:#ffffff; }
     #native-menu button:hover, #native-menu button:focus { image-color:#ffce93; border-color:#ffad54; background:#17120c; }
     #native-menu button:active, #native-menu button.menu-selected { image-color:#ffb668; border-color:#f58330; background:#21170c; }
     #native-menu button:disabled { opacity:0.48; image-color:#b9b3a7; border-color:transparent; background:transparent; color:#ddd4c0; }
@@ -1401,10 +1559,26 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
     #native-menu .settings-tabs { display:flex; flex-wrap:wrap; margin-bottom:16px; }
     #native-menu .settings-tabs button { flex:1 0 110px; width:auto; min-height:48px; font-size:16px; padding:8px; margin:0 4px 4px 0; }
     #native-menu .settings-tabs .menu-selected { image-color:#ffd093; }
-    #native-menu .menu-dialog { background:transparent; border:0px; padding:36px; }
-    #native-menu .lobby-panel { left:5%; width:90%; display:flex; flex-direction:row; flex-wrap:wrap; align-items:flex-start; }
-    #native-menu .lobby-invitation { width:440px; max-width:100%; flex-shrink:0; margin-right:24px; max-height:100%; overflow:auto; }
+    #native-menu .menu-dialog { background:transparent; border:0px; padding:30px; top:5%; max-height:90%; }
+    #native-menu .lobby-panel { left:5%; width:72%; top:200px; display:flex; flex-direction:row; flex-wrap:wrap; align-items:flex-start; }
+    #native-menu .lobby-invitation { width:28%; max-width:100%; flex-shrink:0; margin-right:24px; max-height:100%; overflow:auto; }
     #native-menu .lobby-roster { min-width:300px; flex-basis:300px; flex-grow:1; max-height:100%; overflow:auto; }
+    #native-menu .lobby-tabs { display:flex; margin-bottom:8px; }
+    #native-menu .lobby-tabs button.menu-skinned { flex-grow:1; width:auto; min-height:42px; padding:6px; font-size:16px; }
+    #native-menu .lobby-roster h2 { font-size:20px; margin:8px 0; }
+    #native-menu .console-waiting { position:absolute; left:25%; top:28%; width:50%; }
+    #native-menu .avatar-choices { display:flex; flex-wrap:wrap; width:420px; margin:8px auto; }
+    #native-menu .profile-actions { display:flex; }
+    #native-menu .profile-actions button { width:50%; }
+    #native-menu .settings-content label { display:block; }
+    #native-menu .settings-content input[type=text] { display:block; box-sizing:border-box; width:100%; height:40px; margin:6px 0; }
+    #native-menu .avatar-choice { width:64px; height:64px; padding:6px; margin:3px; }
+    #native-menu .avatar-choice img { pointer-events:none; }
+    #native-menu .pack-row { display:flex; align-items:center; margin:6px 0; }
+    #native-menu .pack-row .menu-button-label { display:none; }
+    #native-menu .pack-row input { width:24px; height:24px; margin:4px; }
+    #native-menu .pack-row p { flex-grow:1; width:45%; }
+    #native-menu .pack-row button.menu-skinned { decorator:none; width:44px; min-height:44px; padding:4px; margin:0 4px; }
     #native-menu .lobby-panel input { width:100%; box-sizing:border-box; height:40px; margin:6px 0 12px; }
     #native-menu .modal-shade { background:#080705dd; }
     #native-menu scrollbarhorizontal, #native-menu scrollbarvertical { background:#1b1915; }
@@ -1413,7 +1587,7 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
     #native-menu .audio-volume slidertrack { background:#60513a; }
     #native-menu .audio-volume sliderbar { background:#e1893c; border-color:#fff0d4; }
     .menu-crt { display:block; position:relative; flex-shrink:0; }
-    #menu-profile { position:absolute; top:0; right:20px; pointer-events:none; }
+    #menu-profile { position:absolute; top:0; right:20px; border:0px; background:transparent; padding:0px; }
     .crt-screen { position:absolute; display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:hidden; color:#cbe4c5; }
     .crt-avatar { display:block; flex-shrink:0; text-align:center; background:#15231a; color:#cbe4c5; }
     #native-menu .crt-name { display:block; width:100%; text-align:center; font-size:1em; margin:4px 0 0; max-height:40px; overflow:hidden; }
@@ -1433,7 +1607,7 @@ void NativeMenuScreen::position_labels(Rml::ElementDocument &document)
 	for (auto *label : labels)
 	{
 		auto *button = label->GetParentNode();
-		if (button->GetId() == "menu.settings")
+		if (button->GetId() == "menu.settings" || button->GetId().starts_with("menu.pack-"))
 			continue;
 		const float width = button->GetOffsetWidth(), height = button->GetOffsetHeight();
 		const auto anchor = state_->button_skin.label_position(width, height);

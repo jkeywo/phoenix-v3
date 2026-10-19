@@ -1,4 +1,43 @@
 // The HTML shell gathers launch hints. C++ verifies content, setup and admission.
+// Keep one landscape coordinate space for rendering, touch and semantic controls.
+export function viewportLayout(width, height, runtime = false) {
+	const rotated = height > width;
+	const w = rotated ? height : width,
+		h = rotated ? width : height;
+	const scale = Math.min(1, w / (runtime ? 1100 : 960), h / (runtime ? 720 : 560));
+	return { rotated, width: w / scale, height: h / scale, scale };
+}
+export function canvasPoint(rect, width, height, rotated, clientX, clientY) {
+	return rotated
+		? [((clientY - rect.top) * width) / rect.height, ((rect.right - clientX) * height) / rect.width]
+		: [((clientX - rect.left) * width) / rect.width, ((clientY - rect.top) * height) / rect.height];
+}
+if (typeof document !== "undefined") {
+	const fit = () => {
+		const v = viewportLayout(window.innerWidth, window.innerHeight, document.body.classList.contains("running"));
+		document.documentElement.dataset.rotated = String(v.rotated);
+		document.body.classList.toggle("compact", v.scale < 1);
+		Object.assign(document.body.style, {
+			width: `${v.width}px`,
+			height: `${v.height}px`,
+			transform: v.rotated
+				? `translateX(${window.innerWidth}px) rotate(90deg) scale(${v.scale})`
+				: `scale(${v.scale})`,
+		});
+		const popup = document.getElementById("popup"),
+			popupWidth = Math.min(768, v.width - 32);
+		Object.assign(popup.style, {
+			width: `${popupWidth}px`,
+			maxWidth: "none",
+			maxHeight: `${v.height * 0.92}px`,
+			transform: `${document.body.style.transform} translate(${(v.width - popupWidth) / 2}px, ${v.height * 0.04}px)`,
+		});
+		document.documentElement.style.setProperty("--stage-width", `${v.width}px`);
+		document.documentElement.style.setProperty("--stage-height", `${v.height}px`);
+	};
+	window.addEventListener("resize", fit);
+	fit();
+}
 const encoder = new TextEncoder(),
 	decoder = new TextDecoder("utf-8", { fatal: true });
 const defaults = () => ({
@@ -11,7 +50,7 @@ const defaults = () => ({
 	reduced_motion: false,
 	dust_motes: true,
 	reference_grid: true,
-	player_name: "Player",
+	player_name: "<username>",
 	avatar: [],
 	packs: [],
 	saves: [],
@@ -624,7 +663,9 @@ async function boot() {
 		return input;
 	}
 	function profileFields(parent) {
-		const name = field(parent, "player_name", "Player name", library.player_name || "Player");
+		const name = field(parent, "player_name", "Player name", library.player_name || "<username>");
+		name.placeholder = "<username>";
+		if (["Player", "<username>"].includes(name.value)) name.value = "";
 		name.required = true;
 		name.autocomplete = "nickname";
 		name.onchange = run(async () => {
@@ -634,11 +675,19 @@ async function boot() {
 			library.player_name = value;
 			await remember();
 		});
-		if (library.avatar?.length) {
-			const image = element("img", undefined, parent);
-			image.src = "data:image/png;base64," + btoa(String.fromCharCode(...library.avatar));
-			image.alt = "Player avatar";
-			image.width = image.height = 48;
+		const choices = element("div", undefined, parent);
+		choices.className = "avatar-choices";
+		for (let i = 1; i <= 12; ++i) {
+			const choice = button(choices, "Avatar " + i, async () => {
+				library.avatar = [...(await fetchFile(`assets/menu/avatar-${i}.png`))];
+				await remember();
+			});
+			choice.className = "avatar-choice";
+			choice.setAttribute("aria-label", t("Avatar") + " " + i);
+			choice.textContent = "";
+			const image = element("img", undefined, choice);
+			image.src = `assets/menu/avatar-${i}.png`;
+			image.alt = "";
 		}
 		const avatar = field(parent, "avatar_upload", "Upload avatar", "", "file");
 		avatar.accept = "image/png,image/jpeg,image/webp";
@@ -663,7 +712,7 @@ async function boot() {
 		return name;
 	}
 	function updateProfile() {
-		const name = library.player_name || "Player",
+		const name = library.player_name || "<username>",
 			avatar = $("profile-avatar");
 		$("profile-name").textContent = name;
 		$("profile-crt").setAttribute("aria-label", t("Your profile") + ": " + name);
@@ -677,7 +726,6 @@ async function boot() {
 	function connection(parent, join = true) {
 		const form = element("form", undefined, parent);
 		if (join) {
-			profileFields(form);
 			const code = field(form, "code", "Join Code", new URLSearchParams(location.search).get("code") || "");
 			code.required = true;
 			code.autocomplete = "off";
@@ -799,7 +847,7 @@ async function boot() {
 				p.set("role", branch);
 				p.set("action", "join");
 				const o = launchOptions(p, location.origin);
-				library.player_name = String(p.get("player_name") || "Player").trim();
+				library.player_name = String(library.player_name || "<username>").trim();
 				if (!library.player_name || encoder.encode(library.player_name).length > 64)
 					throw Error("Enter a player name of up to 64 bytes.");
 				library.service = o.service;
@@ -925,41 +973,48 @@ async function boot() {
 			popup,
 		).className = "help";
 		button(popup, "Import ZIP Pack", () => importFile("pack"));
-		for (const pack of library.packs) {
-			element("h2", previews.get(pack.hash)?.name || pack.id, popup);
-			const dependencies = previews.get(pack.hash)?.dependencies || [];
-			if (dependencies.length) element("p", t("Requires") + ": " + dependencies.join(", "), popup);
-			button(popup, pack.enabled ? "Enabled" : "Disabled", async () => {
+		for (const [index, pack] of library.packs.entries()) {
+			const row = element("div", undefined, popup);
+			row.className = "pack-row";
+			const name = previews.get(pack.hash)?.name || pack.id;
+			const label = element("label", undefined, row);
+			const toggle = element("input", undefined, label);
+			toggle.type = "checkbox";
+			toggle.checked = pack.enabled;
+			element("span", name, label);
+			toggle.onchange = run(async () => {
 				library.packs = togglePack(library.packs, pack.hash, previews);
 				await remember();
 				render();
 				packs();
 			});
-			const row = element("div", undefined, popup);
-			row.className = "row";
-			const index = library.packs.indexOf(pack);
-			for (const [name, shift] of [
-				["Move Up", -1],
-				["Move Down", 1],
-			])
-				if (index + shift >= 0 && index + shift < library.packs.length)
-					button(row, name, async () => {
-						[library.packs[index], library.packs[index + shift]] = [
-							library.packs[index + shift],
-							library.packs[index],
-						];
-						await remember();
-						packs();
-					});
-			button(row, "Remove from Library", async () => {
+			for (const [symbol, title, shift] of [
+				["↑", "Move Up", -1],
+				["↓", "Move Down", 1],
+			]) {
+				const move = button(row, symbol, async () => {
+					[library.packs[index], library.packs[index + shift]] = [
+						library.packs[index + shift],
+						library.packs[index],
+					];
+					await remember();
+					packs();
+				});
+				move.setAttribute("aria-label", t(title) + ": " + name);
+				move.disabled = index + shift < 0 || index + shift >= library.packs.length;
+			}
+			const remove = button(row, "🗑", async () => {
 				library.packs.splice(index, 1);
 				await remember([
 					[`packs/${pack.hash}.zip`, null],
 					[`preview/${pack.hash}.json`, null],
 				]);
+				render();
 				packs();
 			});
+			remove.setAttribute("aria-label", t("Remove from Library") + ": " + name);
 		}
+
 		button(popup, "Back", () => popup.close());
 	}
 	async function importFile(kind) {
@@ -1087,11 +1142,21 @@ async function boot() {
 			$("menu").hidden = true;
 			$("runtime").hidden = false;
 			document.body.classList.add("running");
+			window.dispatchEvent(new Event("resize"));
 			nebulaFlashes?.sync();
 			menuAmbient?.sync();
 			status(t("Loading application..."));
 			window.Module = {
 				canvas: $("canvas"),
+				phoenixCanvasPoint: (x, y) =>
+					canvasPoint(
+						$("canvas").getBoundingClientRect(),
+						$("canvas").width,
+						$("canvas").height,
+						document.documentElement.dataset.rotated === "true",
+						x,
+						y,
+					),
 				arguments: launchArguments(o, location.origin + location.pathname),
 				print: console.log,
 				printErr: console.error,
@@ -1137,6 +1202,7 @@ async function boot() {
 			$("menu").hidden = false;
 			$("runtime").hidden = true;
 			document.body.classList.remove("running");
+			window.dispatchEvent(new Event("resize"));
 			$("settings").disabled = $("packs").disabled = false;
 			render();
 			throw error;
@@ -1148,6 +1214,7 @@ async function boot() {
 		$("runtime").hidden = true;
 		$("menu").hidden = false;
 		document.body.classList.remove("running");
+		window.dispatchEvent(new Event("resize"));
 		status(message);
 		$("columns").replaceChildren();
 		button($("columns"), "Return to Menu", () => location.assign(location.origin + location.pathname)).disabled =
@@ -1332,7 +1399,7 @@ async function boot() {
 				const progress = age / event.duration,
 					travel = progress * (region.width + width);
 				const bob = Math.sin(age * (event.fast ? 16 : 6)) * 1.2;
-				robot.hidden = false;
+				robot.hidden = true;
 				Object.assign(robot.style, {
 					width: width + "px",
 					height: height + "px",
@@ -1360,6 +1427,11 @@ async function boot() {
 		return { sync };
 	}
 	$("settings").onclick = () => settings();
+	$("profile-crt").onclick = () => {
+		const popup = dialog("Profile");
+		profileFields(popup);
+		button(popup, "Back", () => popup.close());
+	};
 	$("packs").onclick = packs;
 	$("back").onclick = back;
 	$("popup").onclose = () => {
@@ -1416,6 +1488,14 @@ async function boot() {
 		if (routes && !["host", "legacy", "workshop"].includes(routes.action)) {
 			await start(routes, true);
 			return;
+		}
+		if (!library.avatar?.length) {
+			library.avatar = [
+				...(await fetchFile(
+					`assets/menu/avatar-${1 + (crypto.getRandomValues(new Uint32Array(1))[0] % 12)}.png`,
+				)),
+			];
+			await remember();
 		}
 		for (const pack of library.packs) {
 			const cached = files.get(`preview/${pack.hash}.json`);

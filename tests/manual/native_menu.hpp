@@ -4,7 +4,7 @@ struct NativeMenuSmoke
 {
 	bool enabled = false;
 	bool assign_displays = false;
-	bool virtual_displays = false, back_verified = false;
+	bool virtual_displays = false;
 	void configure_displays(phoenix::Application &app)
 	{
 		if (!virtual_displays)
@@ -36,6 +36,7 @@ struct NativeMenuSmoke
 		};
 	}
 	int display_step = 0;
+	int profile_step = 0;
 	int navigation_aid_step = 0, settings_step = 0;
 	bool initial_dust = true, initial_grid = true, initial_motion = false;
 	int stage = 0, pack_edits = 0, console_frames = 0;
@@ -218,6 +219,18 @@ struct NativeMenuSmoke
 				for (const auto &display : app.native_displays)
 					if (display.id != app.host_display)
 					{
+						const auto id =
+						    "menu.console-screen/" + lobby.consoles.front().id + "/" + std::to_string(display.id);
+						if (std::none_of(app.screen_controls.begin(), app.screen_controls.end(),
+						                 [&](const auto &control)
+						                 {
+							                 return control.first == id;
+						                 }))
+						{
+							action(app, "menu.lobby-tab/consoles");
+							changed = GetTime();
+							return false;
+						}
 						action(app,
 						       "menu.console-screen/" + lobby.consoles.front().id + "/" + std::to_string(display.id));
 						display_step = 1;
@@ -230,24 +243,42 @@ struct NativeMenuSmoke
 				if (app.console_regions.size() != 1 || !app.viewscreen_region)
 					throw std::runtime_error("Assigned Console was not placed before launch");
 				const auto route = app.console_regions.front().console;
+				const auto prefix = "console/" + std::to_string(route) + "/";
+				if (profile_step == 0)
+				{
+					action(app, prefix + "profile");
+					profile_step = 1;
+					changed = GetTime();
+					return false;
+				}
+				if (profile_step == 1)
+				{
+					capture("console-profile");
+					if (!app.set_control_value(prefix + "profile-name", "Test navigator"))
+						throw std::runtime_error("Local console profile field unavailable");
+					action(app, prefix + "avatar/2");
+					action(app, prefix + "profile-save");
+					profile_step = 2;
+					changed = GetTime();
+					return false;
+				}
+				if (std::none_of(lobby.members.begin(), lobby.members.end(),
+				                 [](const auto &member)
+				                 {
+					                 return member.name == "Test navigator" && !member.avatar.empty();
+				                 }))
+					throw std::runtime_error("Local console profile was not saved");
 				const auto ready = "console/" + std::to_string(route) + "/ready";
 				if (std::none_of(app.screen_controls.begin(), app.screen_controls.end(),
 				                 [&](const auto &c)
 				                 {
 					                 return c.first == ready;
 				                 }))
-					throw std::runtime_error("Assigned Console must immediately show its own Ready/Back card");
+					throw std::runtime_error("Assigned Console must immediately show its own Ready card");
 				capture("assigned-console");
-				if (!back_verified)
-				{
-					action(app, "console/" + std::to_string(route) + "/back");
-					if (!app.display_consoles.empty() || app.screen != phoenix::Screen::server_lobby)
-						throw std::runtime_error("Console Back must remove its assignment and retain the host lobby");
-					back_verified = true;
-					display_step = 0;
-					changed = GetTime();
-					return false;
-				}
+				if (phoenix::invoke_navigation(app, "console/" + std::to_string(route) + "/back"))
+					throw std::runtime_error("A local Console must not expose Leave/Back");
+
 				for (const auto &display : app.native_displays)
 					if (display.id != app.host_display && !app.display_consoles.contains(display.id))
 					{

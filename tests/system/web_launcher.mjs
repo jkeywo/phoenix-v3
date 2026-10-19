@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { deflateRawSync } from "node:zlib";
 import {
+	viewportLayout,
+	canvasPoint,
 	launchOptions,
 	launchArguments,
 	skinProperties,
@@ -162,4 +164,30 @@ test("pack previews handle stored/deflated ZIPs and bound decompression", async 
 	await assert.rejects(zipEntry(archive("x".repeat(5000), 8, 3), "launcher.json"));
 	await assert.rejects(zipEntry(archive(json, 0, 1024 * 1024 + 1), "launcher.json"));
 	await assert.rejects(zipEntry(new Uint8Array([1, 2, 3]), "launcher.json"));
+});
+
+// Physical input must address the same logical control after rotation and scaling.
+test("portrait and landscape viewport fitting preserves canvas pointer coordinates", () => {
+	for (const [width, height] of [
+		[390, 844],
+		[844, 390],
+		[1920, 1080],
+		[320, 568],
+	]) {
+		const v = viewportLayout(width, height);
+		assert.ok(v.width >= v.height);
+		assert.ok(Math.abs(v.width * v.scale - (v.rotated ? height : width)) < 0.001);
+		assert.ok(Math.abs(v.height * v.scale - (v.rotated ? width : height)) < 0.001);
+		const rect = { left: 0, top: 0, right: width, width, height };
+		for (const [x, y] of [
+			[0, 0],
+			[v.width, v.height],
+			[v.width / 2, v.height / 2],
+		]) {
+			const screenX = v.rotated ? width - y * v.scale : x * v.scale;
+			const screenY = v.rotated ? x * v.scale : y * v.scale;
+			const point = canvasPoint(rect, v.width, v.height, v.rotated, screenX, screenY);
+			assert.ok(Math.abs(point[0] - x) < 0.001 && Math.abs(point[1] - y) < 0.001);
+		}
+	}
 });

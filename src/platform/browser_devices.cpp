@@ -27,9 +27,13 @@ EM_JS(void, begin_devices, (), {
     for (const name of ['touchstart','touchmove','touchend','touchcancel']) canvas.addEventListener(name,event => {
         event.preventDefault(); event.stopImmediatePropagation();
     },{capture:true,passive:false,signal:abort.signal});
+    // Rotated mouse clicks use the same route; suppress GLFW's unrotated legacy mouse path.
+    for (const name of ['mousedown','mousemove','mouseup']) canvas.addEventListener(name,event => {
+        if (document.documentElement.dataset.rotated === 'true') { event.preventDefault(); event.stopImmediatePropagation(); }
+    },{capture:true,passive:false,signal:abort.signal});
     for (const [name,kind] of [['pointerdown',0],['pointermove',1],['pointerup',2],['pointercancel',3],['lostpointercapture',3]]) canvas.addEventListener(name,event => {
-        if (event.pointerType === 'mouse') return;
-        const rect=canvas.getBoundingClientRect(), x=(event.clientX-rect.left)*canvas.width/rect.width, y=(event.clientY-rect.top)*canvas.height/rect.height;
+        if (event.pointerType === 'mouse' && document.documentElement.dataset.rotated !== 'true') return;
+        const [x,y]=Module.phoenixCanvasPoint(event.clientX,event.clientY);
         if (kind===0) { contacts.set(event.pointerId,[x,y]); canvas.setPointerCapture(event.pointerId); }
         else if (!contacts.has(event.pointerId)) return;
         send(kind,event.pointerId,x,y);

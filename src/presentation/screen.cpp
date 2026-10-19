@@ -987,6 +987,7 @@ void draw_screen(Application &app)
 			renderer.viewport({region.x, region.y, region.width, region.height});
 			surface.context().Render();
 			renderer.finish();
+			surface.draw_profile(region);
 		}
 		app.frame_metrics["consoles"] = GetTime() - consoles_started;
 		for (auto &[name, placement] : app.control_placements)

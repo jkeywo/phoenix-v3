@@ -518,6 +518,13 @@ foreach(
 )
 	configure_file("content/ui/menu/${menu_asset}" "${CMAKE_CURRENT_BINARY_DIR}/assets/menu/${menu_asset}" COPYONLY)
 endforeach()
+foreach(avatar RANGE 1 12)
+	configure_file(
+		"content/ui/menu/avatar-${avatar}.png"
+		"${CMAKE_CURRENT_BINARY_DIR}/assets/menu/avatar-${avatar}.png"
+		COPYONLY
+	)
+endforeach()
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/server-audio")
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/assets/audio")
 foreach(audio_file IN ITEMS ui_click.ogg CREDITS.txt)

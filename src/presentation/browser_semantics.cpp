@@ -67,10 +67,10 @@ EM_JS(void, append_semantic_button, (const char* id, const char* label, float x,
     if(tab) { button.setAttribute('role','tab'); button.setAttribute('aria-selected',String(!!selected)); button.tabIndex=selected?0:-1; }
     delete button.dataset.stale;
     button.disabled = !enabled;
-    const rect = Module.canvas.getBoundingClientRect(), sx=rect.width/Module.canvas.width, sy=rect.height/Module.canvas.height;
+    const canvas = Module.canvas, sx=canvas.clientWidth/canvas.width, sy=canvas.clientHeight/canvas.height;
     if(width>0 && height>0) {
         button.className='placed';
-        Object.assign(button.style,{left:`${rect.left+x*sx}px`,top:`${rect.top+y*sy}px`,width:`${width*sx}px`,height:`${height*sy}px`});
+        Object.assign(button.style,{left:`${canvas.offsetLeft+x*sx}px`,top:`${canvas.offsetTop+y*sy}px`,width:`${width*sx}px`,height:`${height*sy}px`});
     } else { button.className='fallback'; button.removeAttribute('style'); }
     // DOM focus drives RmlUi through the queue. Re-focusing from the preceding
     // frame here would undo the user's Tab key before that queue is drained.

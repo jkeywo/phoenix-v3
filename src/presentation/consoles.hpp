@@ -6,6 +6,9 @@ class ConsoleSurface final : public Rml::EventListener
 	ConsoleId route_;
 	std::string context_name_;
 	bool toolbar_enabled_ = true;
+	bool profile_open_ = false;
+	std::string profile_name_;
+	Bytes profile_avatar_;
 	Rml::Context *context_ = nullptr;
 	Rml::ElementDocument *document_ = nullptr;
 	ConsoleModel model_;
@@ -119,9 +122,14 @@ p {display:block;font-size:17px;margin:4px 0;}
 .throttle sliderbar {width:100%;background:transparent;}
 .heading-value:focus {border-color:#ffb665;background:#122629;}
 .throttle sliderarrowdec,.throttle sliderarrowinc {display:none;}
-.ready-card {position:absolute;left:17%;top:32%;width:66%;box-sizing:border-box;padding:28px;background:#0b1719ee;border:2px #d48a48;}
+.ready-card {position:absolute;left:10%;top:350px;width:80%;box-sizing:border-box;padding:28px;background:#0b1719ee;border:2px #d48a48;}
+.profile-card {top:18%;}
 .ready-card h1 {display:block;font-size:32px;}
 .ready-card button {min-width:120px;}
+.ready-card .avatar-choice {min-width:0;width:64px;height:64px;padding:6px;}
+.ready-card input {display:block;width:90%;height:40px;background:#211f1a;color:#fff0d4;margin:10px 0;}
+.profile-tv {position:absolute;right:20px;top:0;width:264px;height:330px;background:transparent;border:0px;padding:0px;}
+.profile-tv img,.avatar-choice img {pointer-events:none;}
 .settings-cog {width:56px;height:56px;padding:0px;background:transparent;border:0px;}
 .settings-cog img {pointer-events:none;}
 .helm #toolbar {left:4%;top:4%;right:auto;height:64px;overflow:visible;z-index:2;}
@@ -130,6 +138,7 @@ p {display:block;font-size:17px;margin:4px 0;}
 .helm .radar-widget button,.helm .heading-value {opacity:0;}
 .helm .radar-widget button:focus,.helm .heading-value:focus {opacity:1;}
 .helm #gameplay {background:transparent;border:0px;padding:0px;}
+.profile-tv span {position:absolute;left:20%;top:69%;width:55%;text-align:center;pointer-events:none;}
 </style></head><body><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="gameplay-controls"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div></body></rml>)");
 		if (!document_)
 			throw std::runtime_error("Cannot create Console document");
@@ -167,26 +176,45 @@ p {display:block;font-size:17px;margin:4px 0;}
 		     app_->screen != Screen::server_lobby) ||
 		    owner_.lock() != app_->session || (app_->session && generation_ != app_->session->generation()))
 			return false;
-		if (action == "ready" || action == "back")
+		if (action == "profile" || action == "profile-save" || action.starts_with("avatar/"))
+		{
+			if (!app_->session->lobby().active || app_->session->lobby().launched)
+				return false;
+			if (action == "profile")
+				profile_open_ = !profile_open_;
+			else if (action == "profile-save")
+			{
+				if (!app_->session->set_local_player_profile(route_, profile_name_, profile_avatar_))
+					return false;
+				profile_open_ = false;
+			}
+			else
+			{
+				int choice = 0;
+				const auto value = action.substr(7);
+				if (std::from_chars(value.data(), value.data() + value.size(), choice).ec != std::errc{} ||
+				    choice < 1 || choice > 12)
+					return false;
+				profile_avatar_ = read_file(asset_path("../menu/avatar-" + std::to_string(choice) + ".png"), 12288);
+			}
+			signature_.clear();
+			return true;
+		}
+		if (action == "ready")
 		{
 			const auto lobby = app_->session->lobby();
 			if (!lobby.active || lobby.launched)
 				return false;
-			LobbyCommand command{LobbyAction::assign_local_console};
-			command.screen = route_;
-			if (action == "ready")
-				for (const auto &seat : lobby.consoles)
-					if (seat.local_screen == route_)
-						command.action = seat.ready ? LobbyAction::unready : LobbyAction::ready;
-			const bool accepted = app_->session->lobby_command(command);
-			if (accepted && action == "back")
-			{
-				app_->display_consoles.erase(static_cast<int>(route_) - 2);
-				if (app_->apply_displays)
-					app_->apply_displays();
-			}
-			return accepted;
+			for (const auto &seat : lobby.consoles)
+				if (seat.local_screen == route_)
+				{
+					LobbyCommand command{seat.ready ? LobbyAction::unready : LobbyAction::ready};
+					command.screen = route_;
+					return app_->session->lobby_command(command);
+				}
+			return false;
 		}
+
 		if (action == "settings")
 		{
 			app_->settings_console = route_;
@@ -248,7 +276,7 @@ p {display:block;font-size:17px;margin:4px 0;}
 			}
 			return;
 		}
-		if (app_ && app_->screen == Screen::server_lobby && (name == id("ready") || name == id("back")))
+		if (app_ && app_->screen == Screen::server_lobby && name == id("ready"))
 			invoke_navigation(*app_, name);
 		else
 			action(name);
@@ -260,6 +288,11 @@ p {display:block;font-size:17px;margin:4px 0;}
 	}
 	bool set_value(const std::string &name, const std::string &text)
 	{
+		if (app_ && profile_open_ && name == id("profile-name"))
+		{
+			profile_name_ = text;
+			return true;
+		}
 		if (!app_ || !name.starts_with(id("")) || !game_active(*app_) || owner_.lock() != app_->session ||
 		    generation_ != app_->session->generation())
 			return false;
@@ -410,6 +443,19 @@ p {display:block;font-size:17px;margin:4px 0;}
 				{
 					title = seat.name;
 					ready = seat.ready;
+					for (const auto &member : lobby.members)
+						if (member.id == seat.member && !profile_open_)
+						{
+							profile_name_ = member.name;
+							profile_avatar_ = member.avatar;
+							if (profile_avatar_.empty())
+							{
+								profile_avatar_ = read_file(
+								    asset_path("../menu/avatar-" + std::to_string(GetRandomValue(1, 12)) + ".png"),
+								    12288);
+								app.session->set_local_player_profile(route_, profile_name_, profile_avatar_);
+							}
+						}
 					for (const auto &slot : lobby.slots)
 						if (slot.id == seat.slot)
 							for (const auto &spec : resolve_consoles(app.session->catalog(), slot.ship))
@@ -426,7 +472,8 @@ p {display:block;font-size:17px;margin:4px 0;}
 		}
 		// Authored widgets still determine controls, placement and authority.
 		std::string signature = (layout ? layout->dump() : "vacant") + (app.pseudo_locale ? "pseudo" : "normal") +
-		                        (pregame ? ready ? "ready" : "waiting" : "running");
+		                        (pregame ? ready ? "ready" : "waiting" : "running") + (profile_open_ ? "profile" : "") +
+		                        (profile_open_ ? "" : profile_name_);
 		if (model_.observation())
 			signature += "/" + std::to_string(model_.observation()->own.id) + "/" + model_.observation()->console;
 		for (const auto &pad : pads)
@@ -446,14 +493,14 @@ p {display:block;font-size:17px;margin:4px 0;}
 				toolbar += "<button class=\"settings-cog\" id=\"" + id("settings") + "\"><img src=\"" +
 				           asset_path("../menu/settings.png") + "\" width=\"56\" height=\"56\"/></button>";
 			}
-			for (const auto &pad : toolbar_enabled_ ? pads : std::set<std::string>{})
+			for (const auto &pad : toolbar_enabled_ && !pregame ? pads : std::set<std::string>{})
 				toolbar += button("pad/" + pad, "Assign controller " + pad);
 			toolbar += "<p id=\"connection-status\"></p>";
 			document_->GetElementById("toolbar")->SetInnerRML(toolbar);
 			std::string widgets;
 			bool has_radar = false;
 			int heading_count = 0;
-			if (layout)
+			if (layout && !pregame)
 				for (const auto &widget : layout->at("widgets"))
 				{
 					if (widget.at("kind") == "radar")
@@ -461,7 +508,7 @@ p {display:block;font-size:17px;margin:4px 0;}
 					if (widget.at("kind") == "heading")
 						++heading_count;
 				}
-			if (layout)
+			if (layout && !pregame)
 				for (const auto &widget : layout->at("widgets"))
 				{
 					const auto key = widget.at("id").get<std::string>(), kind = widget.at("kind").get<std::string>();
@@ -497,7 +544,8 @@ p {display:block;font-size:17px;margin:4px 0;}
 					widgets += "<p class=\"" + std::string(kind == "throttle" ? "readout" : "heading-actual") +
 					           "\" id=\"value/" + Rml::StringUtilities::EncodeRml(key) + "\"/></div>";
 				}
-			document_->GetElementById("widgets")->SetInnerRML(widgets);
+			document_->GetElementById("widgets")->SetInnerRML(pregame ? "" : widgets);
+			document_->GetElementById("toolbar")->SetProperty("display", pregame ? "none" : "block");
 			std::string lobby;
 			if (pregame)
 				lobby = "<div class=\"ready-card\"><h1 id=\"" + id("lobby-title") + "\">" +
@@ -505,10 +553,35 @@ p {display:block;font-size:17px;margin:4px 0;}
 				        Rml::StringUtilities::EncodeRml(localise(description)) + "</p><p>" +
 				        Rml::StringUtilities::EncodeRml(
 				            localise(ready ? "Ready. Waiting for the crew." : "Check your Console, then ready up.")) +
-				        "</p>" + button("ready", ready ? "Not Ready" : "Ready") + button("back", "Back") +
-				        "<p id=\"countdown\"/></div>";
+				        "</p>" + button("ready", ready ? "Not Ready" : "Ready") + "<p id=\"countdown\"/></div>";
+			if (pregame)
+			{
+				button("profile", "Edit profile");
+				lobby += "<button id=\"" + id("profile") + "\" class=\"profile-tv\"><img src=\"" +
+				         asset_path("../menu/crt-terminal.png") + "\" width=\"264\"/><span>" +
+				         Rml::StringUtilities::EncodeRml(profile_name_) + "</span></button>";
+				if (profile_open_)
+				{
+					controls_.clear();
+					lobby = "<div class=\"ready-card profile-card\"><h1>" +
+					        Rml::StringUtilities::EncodeRml(localise("Profile")) + "</h1><label>" +
+					        Rml::StringUtilities::EncodeRml(localise("Player name")) + "</label><input id=\"" +
+					        id("profile-name") + "\" type=\"text\" maxlength=\"64\" value=\"" +
+					        Rml::StringUtilities::EncodeRml(profile_name_) + "\"/><div>";
+					for (int i = 1; i <= 12; ++i)
+					{
+						button("avatar/" + std::to_string(i), "Avatar " + std::to_string(i));
+						lobby += "<button class=\"avatar-choice\" id=\"" + id("avatar/" + std::to_string(i)) +
+						         "\"><img src=\"" + asset_path("../menu/avatar-" + std::to_string(i) + ".png") +
+						         "\" width=\"48\" height=\"48\"/></button>";
+					}
+					lobby += "</div>" + button("profile-save", "Use this profile") + "</div>";
+				}
+			}
 			document_->GetElementById("lobby")->SetInnerRML(lobby);
 		}
+		if (pregame && profile_open_)
+			app.screen_inputs.push_back({id("profile-name"), localise("Player name"), profile_name_});
 		if (pregame)
 			app.screen_readouts.emplace_back(id("lobby-title"), localise(title) + ". " + localise(description));
 		if (auto *status = document_->GetElementById("connection-status"))
@@ -788,6 +861,16 @@ p {display:block;font-size:17px;margin:4px 0;}
 		if (pregame)
 			place(app, region, id("lobby-title"));
 	}
+	void draw_profile(const ConsoleRegion &region)
+	{
+		if (app_->session->lobby().active && !app_->session->lobby().launched && !profile_open_ &&
+		    !profile_avatar_.empty())
+		{
+			const auto texture = radar_textures_.load(sha256(profile_avatar_), profile_avatar_);
+			image(texture, {region.x + region.width - 184, region.y + 172, 48, 48});
+		}
+	}
+
 	void draw(const ConsoleRegion &region)
 	{
 		const Rectangle entire{region.x, region.y, region.width, region.height};
@@ -804,6 +887,7 @@ p {display:block;font-size:17px;margin:4px 0;}
 		                   slices.at("bottom").get<int>(),
 		                   NPATCH_NINE_PATCH},
 		                  entire, {0, 0}, 0, WHITE);
+
 		const auto &view = model_.observation();
 		const float ox = region.x, oy = region.y;
 		if (auto *widgets = document_->GetElementById("widgets"))

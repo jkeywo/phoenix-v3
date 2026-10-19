@@ -45,7 +45,7 @@ struct Application
 	MenuBranch menu_branch = MenuBranch::root;
 	std::string selected_scenario, menu_focus;
 	std::shared_ptr<MenuLibrary> library;
-	std::string player_name = "Player";
+	std::string player_name = "<username>";
 	Bytes avatar;
 	struct NativeDisplay
 	{
