@@ -32,12 +32,21 @@ int fleet_journey(NetworkOptions options)
 	auto definitions =
 	    parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "synthetic multi-Console fleet");
 	definitions["schema"] = 2;
+	auto &systems = definitions["entities"][0]["systems"];
+	systems["drive"] = systems["engine"];
+	systems["reserve"] = systems["engine"];
+	systems["drive"]["kind"] = systems["reserve"]["kind"] = "engine";
+	systems.erase("engine");
+	systems["search"] = systems["radar"];
+	systems["search"]["kind"] = "radar";
+	systems.erase("radar");
 	definitions["entities"][0].erase("console");
 	definitions["consoles"].push_back({{"id", "test.empty"}, {"widgets", Json::array()}});
 	definitions["entities"][0]["stations"] = Json::array(
 	    {{{"id", "bridge"},
-	      {"consoles", Json::array({{{"id", "helm"}, {"definition", "test.empty"}, {"systems", {"engine", "steering"}}},
-	                                {{"id", "sensors"}, {"definition", "test.empty"}, {"systems", {"radar"}}}})}}});
+	      {"consoles",
+	       Json::array({{{"id", "helm"}, {"definition", "test.empty"}, {"systems", {"drive", "steering"}}},
+	                    {{"id", "sensors"}, {"definition", "test.empty"}, {"systems", {"reserve", "search"}}}})}}});
 	auto original_slot = definitions["maps"][0]["ship_slots"][0];
 	for (int i = 2; i <= 3; ++i)
 	{
@@ -149,10 +158,14 @@ int fleet_journey(NetworkOptions options)
 	require(hosts[0]->command({ship, "speed_mm_s", 2000}) && client->command({ship, "radar_enabled", 0}),
 	        "Independent fleet Console commands were refused");
 	require(!hosts[0]->command({ship, "radar_enabled", 0}), "Local helm bypassed its System control boundary");
+	require(!client->command({ship, "speed_mm_s", 1000, "drive"}) &&
+	            client->command({ship, "speed_mm_s", 1500, "reserve"}),
+	        "remote commands must retain exact fitted instance ownership");
 	until(
 	    [&]
 	    {
-		    return hosts[0]->observation()->requested_speed == 2000 && !client->observation()->radar_enabled;
+		    return hosts[0]->observation()->requested_speed == 2000 && !client->observation()->radar_enabled &&
+		           client->observation()->requested_speed == 1500;
 	    });
 	const auto before = hosts[0]->ticks();
 	stage = "majority checkpoint";

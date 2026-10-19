@@ -1,5 +1,11 @@
 # Foundation implementation plan
 
+The approved next gameplay phase is tracked in the
+[gameplay implementation ledger](gameplay-implementation.md). It retains the full
+equipment, power/thermal, Helm, blackboard/publication, System/scenario tree,
+Coordination and station-delegation scope. Implementation and review evidence is
+recorded per verified logical step; the phase is not yet complete.
+
 Native menu update, 18 October 2026: cascading host/scenario/slot/ship navigation, separate ship/player/GM join forms, installed pack management, managed portable saves and persistent native settings are implemented. A pre-game coordinator transfers verified setup to approved ship hosts, arbitrates slots and starts the fixed fleet after per-player readiness and five seconds. Unclaimed mandatory slots remain deterministic AI ships without server votes; optional slots are omitted. See [native menu behavior and validation](native-menu.md). Actual screen-reader/physical-device and six-display performance acceptance remain separate.
 
 Current MVP status is summarised in [MVP status and acceptance limits](mvp-status.md). The 18 October completion work adds bounded projection streaming, mixed native/browser fleet evidence, shaped player text and editable semantics, mixed Viewscreen/Console layouts, manual frame capture, live authoring previews and explicit override controls. Notes further down this delivery record retain their historical wording; use the status page for current remaining work.

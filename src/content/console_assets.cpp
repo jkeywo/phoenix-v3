@@ -91,24 +91,21 @@ Pack console_assets(const Catalog &catalog, const std::string &ship)
 		for (const auto &image : source.at("render").at("images"))
 			entity["render"]["images"].push_back(copy_image(image));
 	const auto &systems = source.at("systems");
-	if (systems.contains("engine"))
-		entity["systems"]["engine"] = {{"max_speed_mm_s", systems["engine"]["max_speed_mm_s"]}};
-	if (systems.contains("steering"))
-		entity["systems"]["steering"] = Json::object();
-	if (systems.contains("radar"))
-		entity["systems"]["radar"] = {{"range_mm", systems["radar"]["range_mm"]}};
+	for (const auto &system : resolve_systems(catalog, ship))
+	{
+		auto &copy = entity["systems"][system.id] = Json::object();
+		if (systems.at(system.id).contains("kind"))
+			copy["kind"] = std::string(operating_system_name(system.kind));
+		if (system.kind == OperatingSystem::Engine)
+			copy["max_speed_mm_s"] = system.maximum;
+		else if (system.kind == OperatingSystem::Radar)
+			copy["range_mm"] = system.maximum;
+	}
 	Json consoles = Json::array(), stations = Json::array();
 	std::set<std::string> included;
 	for (const auto &seat : resolve_consoles(catalog, ship))
 	{
-		Json controls = Json::array(), feeds = Json::array();
-		for (auto system : {OperatingSystem::Engine, OperatingSystem::Steering, OperatingSystem::Radar})
-		{
-			if (seat.controls & system_bit(system))
-				controls.push_back(std::string(operating_system_name(system)));
-			if (seat.feeds & system_bit(system))
-				feeds.push_back(std::string(operating_system_name(system)));
-		}
+		Json controls = seat.controlled_systems, feeds = seat.feed_systems;
 		// Copy the public fields, never arbitrary authored metadata.
 		auto station = std::find_if(stations.begin(), stations.end(),
 		                            [&](const Json &value)
@@ -133,6 +130,8 @@ Pack console_assets(const Catalog &catalog, const std::string &ship)
 				Json copy;
 				for (const auto *field : {"id", "kind", "label", "binding", "x", "y", "width", "height"})
 					copy[field] = widget.at(field);
+				if (widget.contains("system"))
+					copy["system"] = widget.at("system");
 				layout["widgets"].push_back(std::move(copy));
 			}
 			consoles.push_back(std::move(layout));

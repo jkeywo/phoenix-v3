@@ -1,5 +1,16 @@
 # Simulation foundation
 
+The gameplay phase now adds instance-bound machinery alongside the unchanged
+legacy adapter. Named/typed fittings compile once to independently stored typed
+settings, requests, remainders and controller cursors in a Flecs component.
+Explicit fitted-controller, fitted-steering and fitted-engine phases run before
+integration. Stable definition ordering fixes shared-body actuator order.
+Commands retain their resolved instance through admission and execution; Console
+observations contain only exact permitted feeds. Schema-3 saves preserve fitted
+continuations and reject malformed rosters/state transactionally. Full resource,
+knowledge, richer-tree and gameplay delivery remains tracked in
+[the gameplay implementation ledger](gameplay-implementation.md).
+
 The simulation library owns Flecs components and advances explicit **20 Hz ticks**. It has no renderer, UI or browser dependencies. Explicit phases and authored stable IDs at order-sensitive boundaries define gameplay ordering; Flecs allocation and query order do not. Authoritative motion uses integer millimetres, millimetres/second and millidegree headings, integer square root and integer CORDIC directions. Sub-millimetre displacement and rate remainders survive snapshots. The world plane uses +X/right, +Y/up, heading zero along +X and increasing counterclockwise; Workshop uses the same convention.
 
 ## Data-oriented execution

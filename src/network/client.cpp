@@ -449,9 +449,8 @@ public:
 		    command.target != observation_->own.id)
 			return false;
 		const auto *spec = operating_action(command.action);
-		if (!spec || !(observation_->controls & system_bit(spec->system)) ||
-		    !operating_value_valid(*spec, command.value) ||
-		    (!command.system.empty() && command.system != operating_system_name(spec->system)))
+		if (!spec || !operating_value_valid(*spec, command.value) ||
+		    !select_system(observation_->systems, spec->system, command.system))
 			return false;
 		return send("command", {{"target", command.target},
 		                        {"action", command.action},

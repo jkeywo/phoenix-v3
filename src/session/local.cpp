@@ -175,7 +175,7 @@ public:
 		                 {"local_slot", setup_.local_slot},
 		                 {"packs", paths},
 		                 {"state", state}};
-		if (state.at("schema") == 2)
+		if (state.at("schema").get<int>() >= 2)
 			data["local_console"] = setup_.local_console;
 		container.files["session.json"] = json_bytes(data);
 		return container;
@@ -189,8 +189,8 @@ public:
 		if (container.manifest.value("format", std::string{}) != "phoenix-runtime-save")
 			throw std::runtime_error("Select a Phoenix runtime save ZIP");
 		const auto data = parse_json(container.files.at("session.json"), "session.json");
-		if ((data.at("schema") != 1 && data.at("schema") != 2) || !data.at("packs").is_array() ||
-		    data.at("packs").empty() || data.at("packs").size() > 32)
+		if ((data.at("schema") != 1 && data.at("schema") != 2 && data.at("schema") != 3) ||
+		    !data.at("packs").is_array() || data.at("packs").empty() || data.at("packs").size() > 32)
 			throw std::runtime_error("Unsupported runtime save content roster");
 		LocalSession candidate;
 		for (const auto &chunks : data.at("packs"))

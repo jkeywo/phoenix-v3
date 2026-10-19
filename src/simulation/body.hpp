@@ -60,6 +60,22 @@ struct ControlClaims
 {
 	SystemMask held = 0;
 };
+struct FittedRuntime
+{
+	std::string id;
+	OperatingSystem kind;
+	std::optional<Engine> engine;
+	std::optional<Steering> steering;
+	std::optional<Radar> radar;
+	std::optional<Controller> controller;
+	bool held = false;
+};
+// Numeric settings/state compile once at load. Processing uses Flecs queries;
+// strings are used only by command, observation and persistence boundaries.
+struct FittedSystems
+{
+	std::vector<FittedRuntime> values;
+};
 // Transient numeric collision workspace; authoritative state remains in ECS.
 struct CollisionBody : Pose, Motion, Collider
 {

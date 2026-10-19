@@ -30,6 +30,27 @@ Definitions schema 3 adds calibrated sprite materials, signed attachments and sc
 
 Optional map `presentation.dust` and entity `render.reference_grid` provide render-only navigation aids, including platform dust overrides, custom textures and Workshop tuning. See [navigation aids](navigation-aids.md) for fields, defaults, camera behaviour and verification evidence.
 
+## Fitted System identities
+
+System object keys are ship-local instance identities. Optional `kind` names the
+supported capability (`engine`, `steering`, `radar`); omitted `kind` retains the
+legacy key-as-capability behavior. For example, `port` and `starboard` can both
+declare `kind: "engine"` with independent settings and controllers. At most 256
+instances are accepted per ship. Console `systems`, `feeds` and controller-map
+keys bind exact identities. Each instance has one controlling Console.
+
+Widgets may select an exact `system`; otherwise their capability must resolve
+uniquely in their owning Console. Legacy unqualified commands are accepted only
+when exactly one owned matching instance exists. Feed access grants no command
+authority. The capability masks retained on older interfaces are presentation
+hints, not the instance command boundary.
+
+Restricted crew packs retain only public instance kind/bounds and verified
+Console/widget bindings, without controller or other machinery definitions.
+Instance worlds save schema 3, with independent operations and controller
+continuations. Legacy worlds still write schema 1/2. Packet schema 2 refuses
+older peers before interpreting the expanded projection.
+
 ## Radar symbols
 
 Optional `render.sprite.radar_sprite` is a PNG asset reference; legacy image billboards use `render.radar_sprite`. Workshop offers an asset picker, so mods can supply arbitrary icons. PNG verification uses the normal decoding/size bounds. Icons rotate with observed heading (zero right/east, positive towards screen up), preserve aspect ratio and keep a fixed readable screen size. Missing icons use a generic contact ring. The earlier `radar_icon` vector names remain readable for existing packs.

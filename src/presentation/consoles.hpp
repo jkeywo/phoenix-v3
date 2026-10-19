@@ -19,7 +19,9 @@ class ConsoleSurface final : public Rml::EventListener
 	std::map<std::string, Texture2D> hud_;
 	std::map<std::string, Json> hud_metadata_;
 	std::optional<std::array<float, 3>> heading_dial_;
-	std::set<std::uint64_t> heading_contacts_;
+	std::map<std::uint64_t, std::string> heading_contacts_;
+	std::map<std::string, std::array<float, 3>> heading_dials_;
+	std::map<std::string, std::string> dial_systems_;
 	std::string asset_path(const std::string &name) const
 	{
 #ifdef __EMSCRIPTEN__
@@ -242,9 +244,9 @@ p {display:block;font-size:17px;margin:4px 0;}
 		const auto action = name.substr(id("").size());
 		bool accepted = false;
 		if (action.starts_with("speed/"))
-			accepted = model_.set_speed_fraction(value / 100.0);
+			accepted = model_.set_speed_fraction(value / 100.0, model_.widget_system(action.substr(6)));
 		else if (action.starts_with("heading/"))
-			accepted = model_.set_heading_degrees(value);
+			accepted = model_.set_heading_degrees(value, model_.widget_system(action.substr(8)));
 		if (accepted)
 		{
 			app_->accessible_status = model_.announcement();
@@ -260,19 +262,30 @@ p {display:block;font-size:17px;margin:4px 0;}
 		if (!app_ || !game_active(*app_) || !heading_dial_ || owner_.lock() != app_->session ||
 		    generation_ != app_->session->generation())
 			return false;
-		const auto [cx, cy, radius] = *heading_dial_;
-		const float dx = x - cx, dy = cy - y, length = std::hypot(dx, dy);
 		if (kind == DeviceEventKind::Down)
 		{
-			if (length < radius * .69f || length > radius || heading_contacts_.size())
+			for (const auto &[key, dial] : heading_dials_)
+			{
+				const auto [cx, cy, radius] = dial;
+				const auto length = std::hypot(x - cx, cy - y);
+				if (length >= radius * .69f && length <= radius)
+				{
+					heading_contacts_[contact] = key;
+					break;
+				}
+			}
+			if (!heading_contacts_.contains(contact))
 				return false;
-			heading_contacts_.insert(contact);
 		}
 		if (!heading_contacts_.contains(contact))
 			return false;
+		const auto key = heading_contacts_.at(contact);
+		const auto [cx, cy, radius] = heading_dials_.at(key);
+		const float dx = x - cx, dy = cy - y, length = std::hypot(dx, dy);
 		if (kind != DeviceEventKind::Cancel && length > 1)
 		{
-			model_.set_heading_degrees(std::fmod(std::atan2(dy, dx) * 180.0 / 3.141592653589793 + 360.0, 360.0));
+			model_.set_heading_degrees(std::fmod(std::atan2(dy, dx) * 180.0 / 3.141592653589793 + 360.0, 360.0),
+			                           dial_systems_.at(key));
 			app_->accessible_status = model_.announcement();
 		}
 		if (kind == DeviceEventKind::Up || kind == DeviceEventKind::Cancel)
@@ -365,10 +378,15 @@ p {display:block;font-size:17px;margin:4px 0;}
 			document_->GetElementById("toolbar")->SetInnerRML(toolbar);
 			std::string widgets;
 			bool has_radar = false;
+			int heading_count = 0;
 			if (layout)
 				for (const auto &widget : layout->at("widgets"))
+				{
 					if (widget.at("kind") == "radar")
 						has_radar = true;
+					if (widget.at("kind") == "heading")
+						++heading_count;
+				}
 			if (layout)
 				for (const auto &widget : layout->at("widgets"))
 				{
@@ -393,7 +411,7 @@ p {display:block;font-size:17px;margin:4px 0;}
 						           "\" type=\"text\" maxlength=\"7\" value=\"0\"" + (pregame ? " disabled" : "") +
 						           "/><p>" + escaped(localise("Click or drag the radar ring. East 0; North 90.")) +
 						           "</p>";
-						if (!has_radar)
+						if (!has_radar || heading_count > 1)
 							widgets += "<div class=\"dial\" id=\"dial/" + escaped(key) + "\"/>";
 					}
 					if (kind == "radar")
@@ -426,24 +444,38 @@ p {display:block;font-size:17px;margin:4px 0;}
 			}
 		context_->Update();
 		heading_dial_.reset();
-		bool can_turn = false;
+		heading_dials_.clear();
+		dial_systems_.clear();
+		std::string shared_heading;
+		int heading_count = 0;
 		if (layout)
 			for (const auto &widget : layout->at("widgets"))
 				if (widget.at("kind") == "heading")
-					can_turn = true;
+				{
+					shared_heading = model_.widget_system(widget.at("id").get<std::string>());
+					++heading_count;
+				}
 		if (layout)
 			for (const auto &widget : layout->at("widgets"))
 			{
 				const auto key = widget.at("id").get<std::string>(), kind = widget.at("kind").get<std::string>();
-				if (kind == "radar" || (kind == "heading" && !heading_dial_))
+				if (kind == "radar" || kind == "heading")
 					if (auto *dial = document_->GetElementById("dial/" + key))
 					{
 						const auto at = dial->GetAbsoluteOffset(Rml::BoxArea::Border);
 						const float radius =
 						    std::max(1.f, std::min(dial->GetOffsetWidth(), dial->GetOffsetHeight()) * .5f);
-						if (can_turn)
-							heading_dial_ = {at.x + dial->GetOffsetWidth() / 2, at.y + dial->GetOffsetHeight() / 2,
-							                 radius};
+						const auto system = kind == "heading"    ? model_.widget_system(key)
+						                    : heading_count == 1 ? shared_heading
+						                                         : std::string{};
+						if (!system.empty())
+						{
+							heading_dials_[key] = {at.x + dial->GetOffsetWidth() / 2,
+							                       at.y + dial->GetOffsetHeight() / 2, radius};
+							dial_systems_[key] = system;
+							if (!heading_dial_)
+								heading_dial_ = heading_dials_.at(key);
+						}
 					}
 				if (kind == "throttle")
 				{
@@ -463,8 +495,10 @@ p {display:block;font-size:17px;margin:4px 0;}
 					slider->SetProperty("width", std::to_string(track.width * 1.2f) + "px");
 					slider->SetProperty("height",
 					                    std::to_string(track.height * (bottom - top) + track.width * .4f) + "px");
-					const double percent =
-					    model_.maximum_speed() ? 100.0 * model_.requested_speed() / model_.maximum_speed() : 0;
+					const auto system = model_.widget_system(key);
+					const double percent = model_.system_maximum(system)
+					                           ? 100.0 * model_.system_request(system) / model_.system_maximum(system)
+					                           : 0;
 					slider->SetValue(std::to_string(-percent));
 					Rml::ElementList bars;
 					slider->GetElementsByTagName(bars, "sliderbar");
@@ -479,14 +513,18 @@ p {display:block;font-size:17px;margin:4px 0;}
 					auto *field =
 					    dynamic_cast<Rml::ElementFormControl *>(document_->GetElementById(id("heading/" + key)));
 					if (context_->GetFocusElement() != field)
-						field->SetValue(std::string(TextFormat("%.1f", model_.requested_heading() / 1000.0)));
-					app.screen_inputs.push_back({id("heading/" + key), "Desired heading (degrees)",
-					                             std::string(TextFormat("%.1f", model_.requested_heading() / 1000.0)),
-					                             false});
+						field->SetValue(
+						    std::string(TextFormat("%.1f", model_.system_request(model_.widget_system(key)) / 1000.0)));
+					app.screen_inputs.push_back(
+					    {id("heading/" + key), "Desired heading (degrees)",
+					     std::string(TextFormat("%.1f", model_.system_request(model_.widget_system(key)) / 1000.0)),
+					     false});
 				}
 				std::string value =
-				    kind == "throttle"
-				        ? "Requested " + std::string(TextFormat("%.1f", model_.requested_speed() / 1000.0)) + " m/s"
+				    kind == "throttle" ? "Requested " +
+				                             std::string(TextFormat(
+				                                 "%.1f", model_.system_request(model_.widget_system(key)) / 1000.0)) +
+				                             " m/s"
 				    : kind == "heading"
 				        ? "Actual " +
 				              std::to_string(model_.observation() ? model_.observation()->own.heading / 1000 : 0) +
@@ -545,12 +583,24 @@ p {display:block;font-size:17px;margin:4px 0;}
 					          {37, 77, 78, 255});
 					if (view && view->feeds & system_bit(OperatingSystem::Radar))
 					{
-						const auto &systems = app_->session->catalog().entities.at(view->own.definition).at("systems");
-						const double range =
-						    systems.contains("radar") ? systems.at("radar").at("range_mm").get<double>() : 1;
+						auto radar = model_.widget_system(key);
+						const auto selected = std::find_if(view->systems.begin(), view->systems.end(),
+						                                   [&](const auto &s)
+						                                   {
+							                                   return s.id == radar && s.kind == OperatingSystem::Radar;
+						                                   });
+						if (selected == view->systems.end())
+							radar = select_system(view->systems, OperatingSystem::Radar, {}, false).value_or("");
+						const double range = std::max<std::int64_t>(1, model_.system_maximum(radar));
 						draw_radar_body(radar_textures_, app_->session->catalog(), view->own, centre, 9, WHITE);
 						for (const auto &contact : view->contacts)
 						{
+							if (!std::any_of(view->systems.begin(), view->systems.end(),
+							                 [&](const auto &s)
+							                 {
+								                 return s.id == radar && s.enabled;
+							                 }))
+								continue;
 							const double dx = contact.x - view->own.x, dy = contact.y - view->own.y;
 							if (std::hypot(dx, dy) > range)
 								continue;
@@ -560,17 +610,17 @@ p {display:block;font-size:17px;margin:4px 0;}
 						}
 					}
 					image(hud("helm-radar-ring"), {centre.x - radius, centre.y - radius, radius * 2, radius * 2});
-					if (heading_dial_)
+					if (dial_systems_.contains(key))
 					{
-						const float angle = model_.requested_heading() * 3.141592653589793f / 180000;
+						const auto heading = model_.system_request(dial_systems_.at(key));
+						const float angle = heading * 3.141592653589793f / 180000;
 						const Vector2 marker{centre.x + std::cos(angle) * radius * .87f,
 						                     centre.y - std::sin(angle) * radius * .87f};
 						const auto pointer = hud("heading-pointer");
 						const float size = std::max(28.f, radius * .2f);
-						DrawTexturePro(pointer,
-						               {0, 0, static_cast<float>(pointer.width), static_cast<float>(pointer.height)},
-						               {marker.x, marker.y, size, size}, {size / 2, size / 2},
-						               90 - model_.requested_heading() / 1000.f, WHITE);
+						DrawTexturePro(
+						    pointer, {0, 0, static_cast<float>(pointer.width), static_cast<float>(pointer.height)},
+						    {marker.x, marker.y, size, size}, {size / 2, size / 2}, 90 - heading / 1000.f, WHITE);
 					}
 				}
 				if (document_->GetElementById(id("speed/" + key)))
@@ -579,9 +629,11 @@ p {display:block;font-size:17px;margin:4px 0;}
 					track.x += ox;
 					track.y += oy;
 					image(hud("helm-throttle-track"), track);
-					const float fraction = model_.maximum_speed()
-					                           ? static_cast<float>(model_.requested_speed()) / model_.maximum_speed()
-					                           : 0;
+					const auto system = model_.widget_system(key);
+					const float fraction =
+					    model_.system_maximum(system)
+					        ? static_cast<float>(model_.system_request(system)) / model_.system_maximum(system)
+					        : 0;
 					const auto &marks = hud_metadata_.at("helm-throttle-track").at("markers");
 					const float top = marks.at("travel_max")[1].get<float>() /
 					                  hud_metadata_.at("helm-throttle-track").at("image_size")[1].get<float>(),

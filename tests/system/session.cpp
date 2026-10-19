@@ -88,6 +88,53 @@ int main()
 			require(!sensors.observation() && !sensors.layout() && !sensors.act("game.contacts"),
 			        "lost claim removes Console content and actions");
 		}
+		{
+			auto instances = pack;
+			auto data = parse_json(pack.files.at("definitions.json"), "instance Console fixture");
+			auto &ship = data["entities"][0];
+			ship["systems"] = {
+			    {"port", {{"kind", "engine"}, {"max_speed_mm_s", 10000}, {"acceleration_mm_s2", 1000}}},
+			    {"starboard", {{"kind", "engine"}, {"max_speed_mm_s", 20000}, {"acceleration_mm_s2", 2000}}},
+			    {"engine", {{"kind", "steering"}, {"turn_mdeg_s", 90000}}},
+			    {"search", {{"kind", "radar"}, {"range_mm", 100000}}}};
+			auto &widgets = data["consoles"][0]["widgets"];
+			widgets[0]["system"] = "search";
+			widgets[1]["system"] = "port";
+			widgets[2]["system"] = "engine";
+			auto extra = widgets[1];
+			extra["id"] = "starboard-slider";
+			extra["system"] = "starboard";
+			widgets.push_back(extra);
+			instances.files["definitions.json"] = json_bytes(data);
+			auto session = make_local_session();
+			session->add_pack(write_pack(instances));
+			session->start({"test.map", {{"test.slot", "test.ship"}}, "test.slot"});
+			ConsoleModel model;
+			model.refresh(session);
+			require(model.widget_system("engine") == "port" && model.widget_system("starboard-slider") == "starboard" &&
+			            model.widget_system("radar") == "search" && model.system_maximum("starboard") == 20000,
+			        "widget identity resolves exact fitted capability and public bounds");
+			require(model.set_speed_fraction(.2, "port") && model.set_speed_fraction(.7, "starboard") &&
+			            model.set_heading_degrees(33, "engine") && !model.set_speed_fraction(.5),
+			        "explicit widget commands admit independently while ambiguous implicit control refuses");
+			require(model.system_request("port") == 2000 && model.system_request("starboard") == 14000,
+			        "same-tick pending feedback is independent per fitted instance");
+			session->tick();
+			model.refresh(session);
+			require(model.act("game.faster/engine"), "semantic action resolves its widget's System");
+			session->tick();
+			model.refresh(session);
+			require(model.system_request("port") == 2500 && model.system_request("starboard") == 14000 &&
+			            model.system_request("engine") == 33000,
+			        "widget actions use their own request and maximum rather than a sibling's state");
+			auto resumed = make_local_session();
+			resumed->restore(session->save());
+			resumed->resume_local();
+			ConsoleModel recovered;
+			recovered.refresh(resumed);
+			require(recovered.system_request("port") == 2500 && recovered.system_request("starboard") == 14000,
+			        "portable instance recovery preserves operations and restores fresh Console selection");
+		}
 		auto session = make_local_session();
 		require(!session->command({1, "speed_mm_s", 1}) && !session->observation(),
 		        "Idle session must expose no claimed projection or commands");

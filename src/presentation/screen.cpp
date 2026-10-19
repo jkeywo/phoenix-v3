@@ -73,6 +73,9 @@ public:
 		view_.own = {1, "preview.ship", 0, 0, 0, 0, 0, RadarIcon::ship};
 		view_.console = "main";
 		view_.controls = view_.feeds = 7;
+		view_.systems = {{"engine", OperatingSystem::Engine, 0, 30000, true, true},
+		                 {"steering", OperatingSystem::Steering, 0, 359999, true, true},
+		                 {"radar", OperatingSystem::Radar, 0, 100000, true, true}};
 		view_.engine_enabled = view_.radar_enabled = true;
 		for (unsigned i = 2; i < 16; ++i)
 			view_.contacts.push_back({i, "preview.ship", static_cast<std::int64_t>(i % 4) * 17000 - 25000,

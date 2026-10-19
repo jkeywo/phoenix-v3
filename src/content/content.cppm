@@ -126,7 +126,16 @@ struct ConsoleSpec
 {
 	std::string id, station, definition;
 	SystemMask controls = 0, feeds = 0;
+	std::vector<std::string> controlled_systems, feed_systems;
 };
+struct FittedSystemSpec
+{
+	std::string id;
+	OperatingSystem kind;
+	std::int64_t maximum = 0, response = 0;
+	std::string controller;
+};
+std::vector<FittedSystemSpec> resolve_systems(const Catalog &catalog, const std::string &entity);
 // Resolves legacy single-console content and verifies explicit station ownership.
 std::vector<ConsoleSpec> resolve_consoles(const Catalog &catalog, const std::string &entity);
 struct WidgetBinding

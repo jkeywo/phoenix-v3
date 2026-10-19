@@ -309,18 +309,19 @@ void verify_catalog(const Catalog &catalog)
 			auto field = path + ".systems." + it.key();
 			if (!system.is_object())
 				invalid(field, "expected object");
-			if (it.key() == "engine")
+			const auto kind = system.value("kind", it.key());
+			if (kind == "engine")
 			{
 				integer(system, "max_speed_mm_s", field, 0);
 				if (!catalog.presentation)
 					integer(system, "acceleration_mm_s2", field, 1);
 			}
-			else if (it.key() == "steering")
+			else if (kind == "steering")
 			{
 				if (!catalog.presentation)
 					integer(system, "turn_mdeg_s", field, 1, 360000);
 			}
-			else if (it.key() == "radar")
+			else if (kind == "radar")
 				integer(system, "range_mm", field, 1);
 			else
 				invalid(field, "unsupported System in foundation vocabulary");
@@ -362,11 +363,12 @@ void verify_catalog(const Catalog &catalog)
 					for (const auto &spec : operating_actions)
 						if (state.contains(std::string(spec.name)))
 						{
-							if (operating_system_name(spec.system) != it.key())
+							if (operating_system_name(spec.system) !=
+							    entity["systems"][it.key()].value("kind", it.key()))
 								invalid(path + ".controllers." + it.key(), "tree writes another System");
 							if (spec.action == OperatingAction::Speed &&
 							    state.at(std::string(spec.name)).get<std::int64_t>() >
-							        entity["systems"]["engine"]["max_speed_mm_s"].get<std::int64_t>())
+							        entity["systems"][it.key()]["max_speed_mm_s"].get<std::int64_t>())
 								invalid(path + ".controllers." + it.key(), "speed output exceeds engine capability");
 						}
 			}
@@ -470,7 +472,16 @@ void verify_catalog(const Catalog &catalog)
 				    !allowed.insert(ship.get<std::string>()).second)
 					invalid(path + ".slot." + slot_id, "unknown or repeated allowed ship");
 				const auto &definition = catalog.entities.at(ship.get<std::string>());
-				if (!definition["systems"].contains("engine") || !definition["systems"].contains("steering") ||
+				const auto fitted = resolve_systems(catalog, ship.get<std::string>());
+				const auto has = [&](OperatingSystem kind)
+				{
+					return std::any_of(fitted.begin(), fitted.end(),
+					                   [&](const auto &s)
+					                   {
+						                   return s.kind == kind;
+					                   });
+				};
+				if (!has(OperatingSystem::Engine) || !has(OperatingSystem::Steering) ||
 				    definition["collision"]["mass_grams"].get<std::int64_t>() <= 0)
 					invalid(path + ".slot." + slot_id, "allowed ship needs engine, steering and positive mass");
 			}

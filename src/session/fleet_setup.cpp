@@ -42,9 +42,17 @@ Bytes export_fleet_setup(const HostAccess &source, const GameSetup &selection, c
 			for (const auto &allowed : slot.at("allowed_ships"))
 			{
 				const auto &entity = catalog.entities.at(allowed.get<std::string>());
-				const auto &systems = entity.at("systems");
-				if ((entity.contains("console") || entity.contains("stations")) && systems.contains("engine") &&
-				    systems.contains("steering"))
+				const auto systems = resolve_systems(catalog, allowed.get<std::string>());
+				const auto has = [&](OperatingSystem kind)
+				{
+					return std::any_of(systems.begin(), systems.end(),
+					                   [&](const auto &s)
+					                   {
+						                   return s.kind == kind;
+					                   });
+				};
+				if ((entity.contains("console") || entity.contains("stations")) && has(OperatingSystem::Engine) &&
+				    has(OperatingSystem::Steering))
 				{
 					chosen = allowed;
 					break;

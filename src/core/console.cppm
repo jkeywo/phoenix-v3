@@ -1,5 +1,6 @@
 module;
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -19,8 +20,11 @@ public:
 	void refresh(const std::shared_ptr<SessionPort> &session, std::uint64_t route = 1);
 	void reset();
 	bool act(const std::string &action);
-	bool set_speed_fraction(double fraction);
-	bool set_heading_degrees(double degrees);
+	bool set_speed_fraction(double fraction, const std::string &system = {});
+	bool set_heading_degrees(double degrees, const std::string &system = {});
+	std::string widget_system(const std::string &widget) const;
+	std::int64_t system_maximum(const std::string &system) const;
+	std::int64_t system_request(const std::string &system) const;
 	std::int64_t maximum_speed() const
 	{
 		return maximum_;
@@ -57,5 +61,6 @@ private:
 	std::int64_t speed_ = 0, heading_ = 0, maximum_ = 0;
 	Json layout_;
 	std::string announcement_;
+	std::map<std::string, std::int64_t> pending_requests_;
 };
 } // namespace phoenix

@@ -153,6 +153,103 @@ int main(int argc, char **)
 			}
 			require(rejected, "authored System ownership cannot overlap");
 		}
+		{
+			auto instances = fixture;
+			auto &ship = instances["entities"][0];
+			ship.erase("console");
+			ship["systems"]["port"] = ship["systems"]["engine"];
+			ship["systems"]["starboard"] = ship["systems"]["engine"];
+			ship["systems"]["port"]["kind"] = "engine";
+			ship["systems"]["starboard"]["kind"] = "engine";
+			ship["systems"].erase("engine");
+			instances["consoles"].push_back({{"id", "test.empty"}, {"widgets", Json::array()}});
+			ship["stations"] = Json::array(
+			    {{{"id", "bridge"},
+			      {"consoles",
+			       Json::array(
+			           {{{"id", "port-seat"}, {"definition", "test.empty"}, {"systems", {"port", "steering"}}},
+			            {{"id", "starboard-seat"}, {"definition", "test.empty"}, {"systems", {"starboard", "radar"}}},
+			            {{"id", "observer"},
+			             {"definition", "test.empty"},
+			             {"systems", Json::array()},
+			             {"feeds", {"port"}}}})}}});
+			instances["trees"] =
+			    Json::array({{{"id", "test.drive"},
+			                  {"initial", "run"},
+			                  {"states", {{"run", {{"speed_mm_s", 3000}, {"ticks", 10}, {"next", "run"}}}}}}});
+			ship["controllers"] = {{"starboard", "test.drive"}};
+			const auto data = load(instances);
+			const auto public_data = resolve_packs({console_assets(data, "test.ship")});
+			require(resolve_systems(public_data, "test.ship").size() == 4 && public_data.trees.empty() &&
+			            public_data.maps.empty(),
+			        "restricted assets retain exact instance bindings and exclude controllers/maps");
+			World world;
+			world.load(data, "test.map");
+			require(world.claim(1, 1, "port-seat") && world.claim(2, 1, "starboard-seat") &&
+			            world.claim(3, 1, "observer"),
+			        "same-kind instances can have different owning Consoles");
+			require(world.submit(1, {1, "speed_mm_s", 1000, "port"}) &&
+			            !world.submit(1, {1, "speed_mm_s", 2000, "starboard"}) &&
+			            !world.submit(3, {1, "speed_mm_s", 1000, "port"}),
+			        "instance ownership controls both qualified commands and read-only feeds");
+			world.tick();
+			require(world.observe(1)->systems.size() == 2 && world.observe(3)->systems.size() == 1 &&
+			            world.observe(3)->systems[0].requested == 1000,
+			        "a Console receives only its bound instance state");
+			world.release(2);
+			world.tick();
+			require(world.observe(3)->systems[0].requested == 1000,
+			        "the sibling's ordinary controller cannot write the human's instance");
+			auto saved = world.save();
+			require(saved["schema"] == 3 && saved["bodies"][0]["systems"]["starboard"]["speed"] == 3000,
+			        "instance save records preserve independently controlled machinery");
+			World resumed;
+			resumed.restore(data, saved);
+			require(resumed.save() == saved, "fitted instance and controller state round trips");
+			for (int corruption = 0; corruption < 5; ++corruption)
+			{
+				auto bad = saved;
+				auto &states = bad["bodies"][0]["systems"];
+				if (corruption == 0)
+					states.erase("port");
+				if (corruption == 1)
+					states["port"]["speed"] = 1000000000;
+				if (corruption == 2)
+					states["radar"]["speed"] = 10;
+				if (corruption == 3)
+					states["port"]["acceleration_remainder"] = 20;
+				if (corruption == 4)
+					states["starboard"]["tree"]["state"] = "missing";
+				bool rejected = false;
+				try
+				{
+					resumed.restore(data, bad);
+				}
+				catch (const std::exception &)
+				{
+					rejected = true;
+				}
+				require(rejected && resumed.save() == saved, "bad instance continuation refuses transactionally");
+			}
+			for (int i = 0; i < 15; ++i)
+			{
+				world.tick();
+				resumed.tick();
+			}
+			require(world.save() == resumed.save(), "instance continuation matches uninterrupted execution");
+			resumed.clear_claims();
+			require(resumed.claim(1, 1, "port-seat") && resumed.observe(1)->systems[0].requested == 1000,
+			        "recovery clears live claims without changing instance intent");
+			auto combined = instances;
+			auto &seats = combined["entities"][0]["stations"][0]["consoles"];
+			seats[0]["systems"].push_back("starboard");
+			seats[1]["systems"] = {"radar"};
+			World both;
+			both.load(load(combined), "test.map");
+			both.claim(1, 1, "port-seat");
+			require(!both.submit(1, {1, "speed_mm_s", 1000}) && both.submit(1, {1, "speed_mm_s", 1000, "port"}),
+			        "ambiguous unqualified commands fail rather than choose a same-kind sibling");
+		}
 		Json trace = Json::array();
 		World engine;
 		engine.load(catalog, "test.map");

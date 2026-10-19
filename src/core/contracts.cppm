@@ -2,6 +2,7 @@ module;
 #include <cstdint>
 #include <cstddef>
 #include <array>
+#include <algorithm>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -134,6 +135,15 @@ struct SceneBody : BodyView
 {
 	int forward_thrust = 0; // actual applied forward acceleration, 0..1000
 };
+struct SystemView
+{
+	std::string id;
+	OperatingSystem kind = OperatingSystem::Engine;
+	std::int64_t requested = 0, maximum = 0;
+	bool enabled = true;
+	bool controlled = false;
+	bool operator==(const SystemView &) const = default;
+};
 struct Observation
 {
 	BodyView own;
@@ -142,6 +152,7 @@ struct Observation
 	bool engine_enabled = true, radar_enabled = true;
 	std::string console;
 	SystemMask controls = 7, feeds = 7;
+	std::vector<SystemView> systems;
 };
 struct OperatingCommand
 {
@@ -151,4 +162,19 @@ struct OperatingCommand
 	// Empty in schema-1 commands; otherwise the fitted System identity on this ship.
 	std::string system;
 };
+// Capability masks above are legacy presentation hints. Instance identities are
+// the command authority boundary, including when several instances share a kind.
+inline std::optional<std::string> select_system(const std::vector<SystemView> &systems, OperatingSystem kind,
+                                                std::string_view requested = {}, bool control = true)
+{
+	std::optional<std::string> result;
+	for (const auto &system : systems)
+		if (system.kind == kind && (!control || system.controlled) && (requested.empty() || system.id == requested))
+		{
+			if (result)
+				return {};
+			result = system.id;
+		}
+	return result;
+}
 } // namespace phoenix

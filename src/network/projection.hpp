@@ -37,6 +37,14 @@ static inline Json observation_json(const Observation &observation)
 	Json contacts = Json::array();
 	for (const auto &contact : observation.contacts)
 		contacts.push_back(body_json(contact));
+	Json systems = Json::array();
+	for (const auto &system : observation.systems)
+		systems.push_back({{"id", system.id},
+		                   {"kind", std::string(operating_system_name(system.kind))},
+		                   {"requested", system.requested},
+		                   {"maximum", system.maximum},
+		                   {"enabled", system.enabled},
+		                   {"controlled", system.controlled}});
 	return {{"own", body_json(observation.own)},
 	        {"contacts", contacts},
 	        {"requested_speed", observation.requested_speed},
@@ -45,7 +53,8 @@ static inline Json observation_json(const Observation &observation)
 	        {"radar_enabled", observation.radar_enabled},
 	        {"console", observation.console},
 	        {"controls", observation.controls},
-	        {"feeds", observation.feeds}};
+	        {"feeds", observation.feeds},
+	        {"systems", systems}};
 }
 static inline Observation read_observation(const Json &value, const Catalog &catalog)
 {
@@ -71,6 +80,44 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 		throw std::runtime_error("Invalid projected Console permissions");
 	result.controls = static_cast<SystemMask>(controls);
 	result.feeds = static_cast<SystemMask>(feeds);
+	const auto specs = resolve_systems(catalog, result.own.definition);
+	const auto seats = resolve_consoles(catalog, result.own.definition);
+	const auto seat = std::find_if(seats.begin(), seats.end(),
+	                               [&](const auto &entry)
+	                               {
+		                               return entry.id == result.console;
+	                               });
+	if (seat == seats.end() || seat->controls != result.controls || seat->feeds != result.feeds)
+		throw std::runtime_error("Projected Console permissions disagree with verified content");
+	const auto &projected = value.at("systems");
+	if (!projected.is_array() || projected.size() != seat->feed_systems.size())
+		throw std::runtime_error("Projected System roster mismatch");
+	std::vector<std::string> seen;
+	for (const auto &entry : projected)
+	{
+		const auto id = entry.at("id").get<std::string>();
+		const auto spec = std::find_if(specs.begin(), specs.end(),
+		                               [&](const auto &item)
+		                               {
+			                               return item.id == id;
+		                               });
+		if (spec == specs.end() ||
+		    std::find(seat->feed_systems.begin(), seat->feed_systems.end(), id) == seat->feed_systems.end() ||
+		    std::find(seen.begin(), seen.end(), id) != seen.end() ||
+		    entry.at("kind") != std::string(operating_system_name(spec->kind)))
+			throw std::runtime_error("Unpermitted projected System");
+		seen.push_back(id);
+		const bool controlled = std::find(seat->controlled_systems.begin(), seat->controlled_systems.end(), id) !=
+		                        seat->controlled_systems.end();
+		SystemView state{
+		    id, spec->kind, entry.at("requested"), entry.at("maximum"), entry.at("enabled"), entry.at("controlled")};
+		const auto maximum = spec->kind == OperatingSystem::Steering ? 359999 : spec->maximum;
+		if (state.controlled != controlled || state.maximum != maximum || state.requested < 0 ||
+		    (spec->kind != OperatingSystem::Radar && state.requested > maximum) ||
+		    (spec->kind == OperatingSystem::Radar && state.requested != 0))
+			throw std::runtime_error("Invalid projected System state");
+		result.systems.push_back(std::move(state));
+	}
 	if (result.requested_speed < 0 || result.requested_speed > 1000000000 || result.requested_heading < 0 ||
 	    result.requested_heading >= 360000)
 		throw std::runtime_error("Invalid projected operating request");
