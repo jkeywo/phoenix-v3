@@ -164,7 +164,7 @@ BodyView view(EntityId id, const Definition &definition, const Pose &pose, const
 std::optional<TreeOutput> decode(const OperatingCommand &command)
 {
 	if (auto spec = operating_action(command.action))
-		return TreeOutput{spec->action, command.value};
+		return TreeOutput{spec->action, command.value, command.arguments};
 	return {};
 }
 bool admissible(TreeOutput output, const Engine *engine, const Steering *steering, const Radar *radar)
@@ -235,7 +235,7 @@ struct World::Impl
 	std::map<EntityId, fixed::Vec> step_starts;
 	std::map<ConsoleAddress, GameplayKnowledgeProjection> brain_snapshots;
 	std::map<ConsoleAddress, Observation> observation_snapshots;
-	std::map<EntityId, std::vector<std::vector<std::int64_t>>> command_snapshots;
+	std::map<EntityId, std::vector<std::vector<ControllerChannelState>>> command_snapshots;
 	std::map<ControllerAddress, std::vector<CoordinationDelivery>> controller_inboxes;
 	std::map<std::pair<EntityId, std::string>, std::vector<CoordinationDelivery>> inbox_snapshots;
 	bool gameplay = false;
@@ -459,7 +459,7 @@ struct World::Impl
 					ConsoleControllerRuntime controller;
 					controller.definition = spec;
 					for (const auto &command : spec.commands)
-						controller.commands.push_back({command.initial, 1});
+						controller.commands.push_back({command.initial, 1, 0, 0, true, command.initial_arguments});
 					if (!spec.tree.empty())
 					{
 						if (content.tree_programs.contains(spec.tree))
@@ -519,7 +519,9 @@ struct World::Impl
 								                  {
 									                  return command.action == output.action &&
 									                         output.value >= command.minimum &&
-									                         output.value <= command.maximum;
+									                         output.value <= command.maximum &&
+									                         operating_arguments_valid(command.action, output.value,
+									                                                   output.arguments);
 								                  }) != 1)
 									throw std::runtime_error(
 									    "Controller timed output requires exactly one compatible owned channel");
@@ -891,6 +893,10 @@ struct World::Impl
 			return FlightCommandKind::MatchSpeed;
 		case OperatingAction::SelectContact:
 			return FlightCommandKind::SelectContact;
+		case OperatingAction::Destination:
+			return FlightCommandKind::Destination;
+		case OperatingAction::FollowContact:
+			return FlightCommandKind::FollowContact;
 		default:
 			return {};
 		}
@@ -931,15 +937,20 @@ struct World::Impl
 		for (; index < fitted->values.size(); ++index)
 			if (fitted->values[index].id == name)
 				break;
-		if (index == fitted->values.size() || !operating_value_valid(operating_action(output.action), output.value))
+		if (index == fitted->values.size() || !operating_value_valid(operating_action(output.action), output.value) ||
+		    !operating_arguments_valid(output.action, output.value, output.arguments))
+			return false;
+		if (output.action == OperatingAction::FollowContact && output.value &&
+		    static_cast<EntityId>(output.arguments[0]) == entity.get<StableId>().id)
 			return false;
 		auto system = systems->values[index];
 		if (system.flight)
 			if (auto kind = flight_action(output.action))
 			{
 				auto candidate = system.flight->state;
-				const auto result = apply_flight(system.flight->definition, candidate, {*kind, output.value},
-				                                 entity.get<Pose>(), entity.get<Motion>());
+				const auto result =
+				    apply_flight(system.flight->definition, candidate, {*kind, output.value, output.arguments},
+				                 entity.get<Pose>(), entity.get<Motion>());
 				if (result.accepted && execute)
 				{
 					system.flight->state = std::move(candidate);
@@ -1055,6 +1066,9 @@ struct World::Impl
 				values["selected_contact"] = f.selected_contact;
 				values["matched_contact"] = f.matched_contact;
 				values["match_stale"] = f.match_stale;
+				values["navigating"] = f.navigating;
+				values["destination_x"] = f.destination.x;
+				values["destination_y"] = f.destination.y;
 				values["following"] = f.following;
 				values["follow_stale"] = f.follow_stale;
 				values["follow_distance"] = f.follow_distance;
@@ -1438,60 +1452,21 @@ struct World::Impl
 			}
 			if (action == A::SetFollowContact)
 			{
-				if (!system.flight || (system.flight->definition.kind != FlightKind::Engine &&
-				                       system.flight->definition.kind != FlightKind::Steering))
-					throw std::runtime_error("following requires engine or steering actuator");
-				const auto target = static_cast<EntityId>(a.at(1).number);
-				if (target == entity.get<StableId>().id || !entities.contains(target) || a.at(2).number <= 0 ||
-				    a.at(2).number > 1000000000 || a.at(3).number <= 0 || a.at(3).number > 1000000000)
-					throw std::runtime_error("invalid following target, separation or speed");
-				auto &flight = system.flight->state;
-				flight.selected_contact = target;
-				flight.following = a.at(4).number != 0;
-				flight.follow_stale = false;
-				flight.follow_distance = a.at(2).number;
-				flight.follow_speed_limit = a.at(3).number;
-				flight.assisted = true;
-				flight.matching = flight.match_stale = false;
-				flight.longitudinal = flight.steering = 0;
-				system.result.success = true;
+				system.result.success = operate(
+				    entity, fitted.id,
+				    {OperatingAction::FollowContact, a.at(4).number, {a.at(1).number, a.at(2).number, a.at(3).number}},
+				    true);
 				return;
 			}
 			if (action == A::SetDestination)
 			{
-				if (!system.flight)
-					throw std::runtime_error("destination requires flight actuator");
-				if (a.at(2).number < -1000000000 || a.at(2).number > 1000000000 || a.at(3).number < -1000000000 ||
-				    a.at(3).number > 1000000000)
-					throw std::runtime_error("destination outside supported coordinates");
-				const auto delta = fixed::Vec{a.at(2).number, a.at(3).number} - entity.get<Pose>().position;
-				auto direction = delta;
-				std::int64_t offset = 0;
-				if (direction.y < 0)
+				system.result.success = operate(
+				    entity, fitted.id, {OperatingAction::Destination, 1, {a.at(2).number, a.at(3).number}}, true);
+				if (system.result.success)
 				{
-					direction = -direction;
-					offset = 180000;
+					system.summary["destination.x"] = a.at(2).number;
+					system.summary["destination.y"] = a.at(3).number;
 				}
-				std::int64_t low = 0, high = 180000;
-				while (high - low > 1)
-				{
-					const auto middle = (low + high) / 2;
-					const auto forward = fixed::direction(middle);
-					const auto cross = forward.x * direction.y - forward.y * direction.x;
-					if (cross > 0)
-						low = middle;
-					else
-						high = middle;
-				}
-				system.flight->state.desired_heading = (low + offset) % 360000;
-				system.flight->state.assisted = true;
-				system.flight->state.matching = false;
-				system.flight->state.following = system.flight->state.follow_stale = false;
-				if (system.flight->definition.kind == FlightKind::Engine)
-					system.flight->state.desired_speed = system.flight->definition.maximum_speed;
-				system.summary["destination.x"] = a.at(2).number;
-				system.summary["destination.y"] = a.at(3).number;
-				system.result.success = true;
 				return;
 			}
 			if (action == A::SetMatchSpeed)
@@ -2430,11 +2405,13 @@ bool World::can_submit(std::uint64_t console, const OperatingCommand &command) c
 	auto claim = impl_->claims.find(console);
 	if (claim == impl_->claims.end() || claim->second.ship != command.target || impl_->pending.size() >= 4096)
 		return false;
-	if (impl_->meta(console, command, false))
+	if (command.arguments.empty() && impl_->meta(console, command, false))
 		return impl_->meta_pending.size() < 4096;
 	if (impl_->entities.at(command.target).has<EntityControls>())
 		return impl_->controller_proposal(claim->second, command, true).has_value() &&
 		       impl_->controller_pending.size() < 4096;
+	if (!command.arguments.empty())
+		return false;
 	auto output = decode(command);
 	if (!output)
 		return false;
@@ -2549,7 +2526,7 @@ void World::tick()
 			{
 				auto &section = snapshot.emplace_back();
 				for (const auto &command : controller.commands)
-					section.push_back(command.value);
+					section.push_back(command);
 			}
 		}
 	for (const auto &[id, entity] : impl_->entities)
@@ -2723,11 +2700,47 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 						                         controller.generation,
 						                         channel.semantics == CommandSemantics::Request ? state.request_id + 1
 						                                                                        : 0};
+						command.arguments = state.arguments;
+						if (!operating_arguments_valid(channel.action, value, command.arguments))
+							continue;
 						auto descriptor = encode_operating_command(command);
 						descriptor["id"] =
 						    "controller." + controller.definition.id + "." + channel.id + "." + std::to_string(value);
 						descriptor["label"] = controller.definition.id + " " + channel.id + " " + std::to_string(value);
 						buttons.push_back(std::move(descriptor));
+					}
+					const auto fields = operating_arguments(channel.action);
+					for (std::size_t argument = 0; argument < fields.size(); ++argument)
+					{
+						std::set<std::int64_t> choices;
+						if (fields[argument].name == "contact")
+						{
+							for (const auto &contact : result.contacts)
+								if (contact.id <= static_cast<EntityId>(fields[argument].maximum))
+									choices.insert(contact.id);
+						}
+						else
+							for (const auto delta : {-1000, 1000})
+								choices.insert(std::clamp(state.arguments[argument] + delta, fields[argument].minimum,
+								                          fields[argument].maximum));
+						for (const auto value : choices)
+						{
+							OperatingCommand command{found->second.ship,
+							                         std::string(operating_action(channel.action).name),
+							                         state.value,
+							                         {},
+							                         controller.definition.id,
+							                         channel.id,
+							                         controller.generation};
+							command.arguments = state.arguments;
+							command.arguments[argument] = value;
+							auto descriptor = encode_operating_command(command);
+							descriptor["id"] = "controller." + controller.definition.id + "." + channel.id + "." +
+							                   std::string(fields[argument].name) + "." + std::to_string(value);
+							descriptor["label"] = controller.definition.id + " " + channel.id + " " +
+							                      std::string(fields[argument].name) + " " + std::to_string(value);
+							buttons.push_back(std::move(descriptor));
+						}
 					}
 				}
 	}

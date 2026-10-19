@@ -468,6 +468,7 @@ public:
 				    descriptor.value("channel", std::string{}) == command.channel &&
 				    descriptor.value("generation", std::uint64_t{0}) == command.generation &&
 				    descriptor.value("request_id", std::uint64_t{0}) == command.request_id &&
+				    descriptor.value("arguments", Json::array()) == Json(command.arguments) &&
 				    descriptor.at("value").is_number_integer() && descriptor.at("value") == command.value &&
 				    (!descriptor.contains("enabled") || descriptor.at("enabled") == true))
 					projected = true;
@@ -502,6 +503,7 @@ public:
 		                        {"channel", command.channel},
 		                        {"generation", command.generation},
 		                        {"request_id", command.request_id},
+		                        {"arguments", command.arguments},
 		                        {"lease", lease_},
 		                        {"sequence", ++sequence_}});
 	}

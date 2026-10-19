@@ -44,6 +44,16 @@ Players select a Console's complexity profile in the lobby or its settings. A lo
 
 Throttle and heading widgets can name `controller` and `channel` instead of `system`. Both identifiers are required and resolve within the Console using that layout. The command must be a speed or heading setting matching the widget kind. The old semantic `binding` string is optional for this form. For example, a throttle widget can contain `"controller": "propulsion", "channel": "speed"`; its usual ID, label and layout coordinates are still required. It reads the accepted setting and compiled range from the Console board, so one widget can command both engines without choosing an engine as its target. An AI-owned section remains readable but refuses human writes.
 
+## Navigation commands
+
+`destination` and `follow_contact` are boolean settings with an atomic `arguments` tuple. A destination channel supplies `[x, y]` in millimetres; a follow channel supplies `[contact, separation, speed_limit]` in entity ID, millimetres and millimetres per second. Coordinates are bounded to �1,000,000,000; separation and speed must be positive and at most 1,000,000,000. A disabled follow setting may use contact zero; enabling requires a positive contact and cannot target the owning entity.
+
+For example, `{"id":"navigation","action":"destination","initial":0,"arguments":[100000,50000],"consumers":["port","starboard","rudder"]}` declares one owned destination setting. Consumers must be compatible engines or steering mechanisms. Both the enabled value and the complete tuple are admitted, committed and saved together. Scalar commands refuse extra arguments. Generated accessible controls edit these same tuples; follow target choices come from permitted Console contacts.
+
+A Controller tree binds the channel with `{"channel":"navigation","type":"boolean","action":"destination"}` and writes `write.navigation` with `[true,100000,50000]`. For follow, declare `action: follow_contact` and write `[true,contact,separation,speed_limit]`. The accepted enable value remains `command.navigation`; tuple fields are `command.navigation.x` and `.y`, or `.contact`, `.distance` and `.speed`. These reads use the same frozen command snapshot as scalar channels. Timed scalar policies cannot implicitly provide a navigation tuple.
+
+Guidance runs in the physical execution path using the accepted setting and permitted contacts, independently of who wrote it. Heading and manual navigation controls cancel active navigation; unrelated enabled/boost controls do not. Speed changes cancel follow but preserve destination guidance, allowing a separate cruise-speed setting. Destination guidance preserves the existing steer-toward-point behavior; it does not add route planning or obstacle avoidance. Follow retains the existing powered pursuit and stale-contact behavior.
+
 ## Controller trees and observations
 
 Use `context: controller`. Declare `command_bindings` for the channels the tree owns; each supplies `command.<channel>`, an internal intent and `write.<channel>`. Declare `type: boolean` for boolean channels and `semantics: request` for request channels. Default types and semantics are integer and setting.
@@ -101,6 +111,6 @@ Controller trees expose command, System observation, peer-command and message bi
 
 Isolated Test feedback identifies each Controller by entity, Console and Controller ID, with its effective operator, generation, active states, transition reason, diagnostics and bounded command receipts. This debugging view is separate from player observations and does not export private tree memory.
 
-Explicit layouts use World save schema 5 and Controller knowledge binding metadata. Saves without a defined continuation/ownership mapping are refused transactionally. The command transport uses wire envelope schema 3 and carries Controller, channel, operator generation and request identity. These version checks do not imply that the remaining legacy runtime has been removed.
+Explicit layouts use World save schema 5 and Controller knowledge binding metadata. Saves without a defined continuation/ownership mapping are refused transactionally. The command transport uses wire envelope schema 4 and carries Controller, channel, operator generation and request identity, plus bounded command arguments. Flight continuation schema 4 includes destination guidance; the loader still understands schemas 2�3 with navigation inactive. These version checks do not imply that the remaining legacy runtime has been removed.
 
 Use the production Catalog loader to validate bindings, then synthetic integration fixtures to verify behavior. `tests/support/controller_fixture.hpp` and `tests/system/controller_runtime.cpp` exercise the actual load, authority, command, physical, messaging and restore paths. Shipped ship tuning is not a test golden. The refactor plan remains the source for unimplemented migration and acceptance work.

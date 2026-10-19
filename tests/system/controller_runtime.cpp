@@ -48,6 +48,132 @@ int main()
 	try
 	{
 		const auto content = load(controller_fixture());
+		for (const std::string navigation : {"destination", "follow_contact"})
+		{
+			auto navigation_source = controller_fixture();
+			auto &navigation_entity = navigation_source["entities"][0];
+			navigation_entity["systems"]["turn"] = {{"kind", "steering"}, {"turn_mdeg_s", 90000}};
+			navigation_entity["systems"]["radar"] = {{"kind", "radar"}, {"range_mm", 100000}};
+			navigation_entity["stations"][0]["consoles"][0]["feeds"].push_back("radar");
+			const Json tuple =
+			    navigation == "destination" ? Json::array({50000, 10000}) : Json::array({2, 10000, 4000});
+			auto &navigation_controller = navigation_entity["control_layout"]["controllers"][0];
+			navigation_controller["commands"] = Json::array({{{"id", "navigate"},
+			                                                  {"action", navigation},
+			                                                  {"type", "boolean"},
+			                                                  {"initial", 0},
+			                                                  {"arguments", tuple},
+			                                                  {"consumers", {"port", "starboard", "turn"}}}});
+			navigation_controller.erase("fallback");
+			navigation_controller["tree"] = "test.navigation";
+			Json tree_args = Json::array({true});
+			for (const auto &argument : tuple)
+				tree_args.push_back(argument);
+			navigation_source["trees"] =
+			    Json::parse(R"json([{"id":"test.navigation","context":"controller","initial":"run",
+			 "command_bindings":[{"channel":"navigate","type":"boolean"}],
+			 "states":[{"id":"run","running":[{"action":"write.navigate","arguments":[]}]}]}])json");
+			navigation_source["trees"][0]["command_bindings"][0]["action"] = navigation;
+			navigation_source["trees"][0]["states"][0]["running"][0]["arguments"] = tree_args;
+			navigation_source["maps"][0]["entities"].push_back({{"id", 2},
+			                                                    {"definition", "test.controllable"},
+			                                                    {"x_mm", 50000},
+			                                                    {"y_mm", 10000},
+			                                                    {"heading_mdeg", 0}});
+			const auto navigation_catalog = load(navigation_source);
+			auto mismatched_navigation = navigation_source;
+			mismatched_navigation["trees"][0]["command_bindings"][0]["action"] =
+			    navigation == "destination" ? "follow_contact" : "destination";
+			rejects(
+			    [&]
+			    {
+				    load(mismatched_navigation);
+			    },
+			    "tree navigation tuple contract must match owned channel");
+			World navigation_human, navigation_ai;
+			navigation_human.load(navigation_catalog, "test.map");
+			navigation_ai.load(navigation_catalog, "test.map");
+			require(navigation_human.claim(101, 1, "drive"), "compound human Console claim");
+			OperatingCommand navigation_command{1, {}, 1, {}};
+			navigation_command.controller = "propulsion";
+			navigation_command.channel = "navigate";
+			navigation_command.generation = controller(navigation_human, 101, "propulsion").at("generation");
+			navigation_command.arguments = tuple.get<std::vector<std::int64_t>>();
+			auto incomplete = navigation_command;
+			incomplete.arguments.pop_back();
+			require(!navigation_human.submit(101, incomplete), "partial compound command refuses atomically");
+			incomplete = navigation_command;
+			incomplete.controller = "foreign";
+			require(!navigation_human.submit(101, incomplete), "foreign compound Controller refuses");
+			const auto encoded_navigation = encode_operating_command(navigation_command);
+			require(decode_operating_command(encoded_navigation).arguments == navigation_command.arguments,
+			        "command codec preserves complete navigation tuple");
+			require(navigation_human.submit(101, navigation_command), "compound human intent admitted");
+			for (int tick = 0; tick < 15; ++tick)
+			{
+				navigation_human.tick();
+				navigation_ai.tick();
+				const auto human_body = navigation_human.inspect().front(), ai_body = navigation_ai.inspect().front();
+				require(human_body.x == ai_body.x && human_body.y == ai_body.y && human_body.heading == ai_body.heading,
+				        "human and AI compound navigation yield identical physical trajectory");
+			}
+			require(navigation_human.inspect().front().x != 0 || navigation_human.inspect().front().y != 0,
+			        "compound parity journey must execute physical motion");
+			const auto navigation_save = navigation_human.save();
+			World navigation_resumed;
+			navigation_resumed.restore(navigation_catalog, navigation_save);
+			navigation_human.tick();
+			navigation_resumed.tick();
+			require(navigation_human.save() == navigation_resumed.save(), "compound continuation restores exactly");
+			auto bad_navigation_save = navigation_save;
+			bad_navigation_save["bodies"][0]["console_controllers"]["controllers"][0]["commands"][0]["arguments"] =
+			    Json::array();
+			const auto before_bad_navigation = navigation_resumed.save();
+			rejects(
+			    [&]
+			    {
+				    navigation_resumed.restore(navigation_catalog, bad_navigation_save);
+			    },
+			    "malformed saved compound tuple refuses");
+			require(navigation_resumed.save() == before_bad_navigation, "compound restore refusal is transactional");
+			require(navigation_human.submit(101, {1, "preset", 1, {}}), "compound Console yields to AI");
+			navigation_human.tick();
+			require(!navigation_human.submit(101, navigation_command),
+			        "handover invalidates complete old navigation tuple");
+			require(navigation_human.submit(101, {1, "preset", 0, {}}), "compound Console returns to human");
+			navigation_human.tick();
+			require(!navigation_human.submit(101, navigation_command), "return does not revive old tuple generation");
+			navigation_command.generation = controller(navigation_human, 101, "propulsion").at("generation");
+			require(navigation_human.submit(101, navigation_command), "fresh generation admits complete tuple");
+			if (navigation == "destination")
+			{
+				auto snapshot_source = navigation_source;
+				auto &commands = snapshot_source["entities"][0]["control_layout"]["controllers"][0]["commands"];
+				commands[0]["arguments"] = {1000, 10000};
+				commands.push_back({{"id", "cruise"}, {"action", "speed_mm_s"}, {"consumers", {"port", "starboard"}}});
+				auto &tree = snapshot_source["trees"][0];
+				tree["command_bindings"].push_back({{"channel", "cruise"}});
+				tree["states"][0]["running"] = Json::parse(R"json([
+				 {"action":"write.navigate","arguments":[true,2000,10000]},
+				 {"action":"write.cruise","arguments":[{"observation":"command.navigate.x"}]}])json");
+				World snapshot_world;
+				snapshot_world.load(load(snapshot_source), "test.map");
+				require(snapshot_world.prepare_console_profile({1, "drive"}, "automatic") &&
+				            snapshot_world.claim(101, 1, "drive"),
+				        "tuple snapshot Console remains inspectable under AI");
+				snapshot_world.tick();
+				require(controller(snapshot_world, 101, "propulsion").at("commands").at("cruise").at("value") == 1000,
+				        "tree tuple reads freeze before same-tick writes");
+				snapshot_world.tick();
+				require(controller(snapshot_world, 101, "propulsion").at("commands").at("cruise").at("value") == 2000,
+				        "accepted tuple becomes visible next decision tick");
+				const auto snapshot_view = snapshot_world.observe(101);
+				for (const auto &system : snapshot_view->systems)
+					if (system.id == "port" || system.id == "starboard")
+						require(system.requested == 2000 && system.telemetry.at("navigating") == 1,
+						        "cruise speed updates preserve active destination guidance");
+			}
+		}
 		World prepared;
 		prepared.load(content, "test.map");
 		require(!prepared.prepare_console_profile({1, "drive"}, "missing") &&
@@ -72,6 +198,9 @@ int main()
 		world.load(content, "test.map");
 		require(world.claim(101, 1, "drive") && world.claim(102, 1, "observer"), "Consoles claim independently");
 		auto command = speed(world, 101, "propulsion", 5000);
+		auto scalar_with_tuple = command;
+		scalar_with_tuple.arguments = {1};
+		require(!world.submit(101, scalar_with_tuple), "scalar command rejects unexpected compound arguments");
 		require(!world.submit(102, command), "another Console cannot write a Controller section");
 		auto foreign = command;
 		foreign.target = 999;

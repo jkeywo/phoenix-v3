@@ -21,7 +21,7 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 		const auto field = controller.tree_channels[i];
 		const auto &controllers = entities.at(id).get<EntityControls>().controllers;
 		const auto owner = static_cast<std::size_t>(&controller - controllers.data());
-		const auto amount = command_snapshots.contains(id) ? command_snapshots.at(id).at(owner).at(field)
+		const auto amount = command_snapshots.contains(id) ? command_snapshots.at(id).at(owner).at(field).value
 		                                                   : controller.commands[field].value;
 		values[controller_observation_prefix + i] = controller.definition.commands[field].type == KnowledgeType::Boolean
 		                                                ? Value::boolean(amount != 0)
@@ -66,7 +66,7 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 	{
 		const auto [target, channel] = controller.command_reads[i];
 		const auto &source = entities.at(id).get<EntityControls>().controllers.at(target);
-		const auto number = command_snapshots.contains(id) ? command_snapshots.at(id).at(target).at(channel)
+		const auto number = command_snapshots.contains(id) ? command_snapshots.at(id).at(target).at(channel).value
 		                                                   : source.commands.at(channel).value;
 		values[controller_observation_prefix + controller.tree_channels.size() + brain.reads.size() +
 		       controller.telemetry_reads.size() + i] =
@@ -109,6 +109,16 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 			else
 				target = Value::string(std::get<std::string>(field));
 		}
+	}
+	std::size_t payload_index = base + controller_inbox_metadata_count + controller.message_reads.size();
+	const auto &controllers = entities.at(id).get<EntityControls>().controllers;
+	const auto owner = static_cast<std::size_t>(&controller - controllers.data());
+	for (const auto field : controller.tree_channels)
+	{
+		const auto &state =
+		    command_snapshots.contains(id) ? command_snapshots.at(id).at(owner).at(field) : controller.commands[field];
+		for (const auto argument : state.arguments)
+			values.at(payload_index++) = Value::integer(argument);
 	}
 	return values;
 }
@@ -180,13 +190,17 @@ void controller_output(EntityId id, std::size_t index, const state_tree::Output 
 	const auto request = controller.definition.commands[field].semantics == CommandSemantics::Request;
 	const auto request_id = request ? controller.commands[field].request_id + 1 : 0;
 	controller.result.available = true;
+	std::vector<std::int64_t> arguments;
+	for (std::size_t i = 1; i < output.arguments.size(); ++i)
+		arguments.push_back(output.arguments[i].number);
 	controller.result.success = commit_controller({{id, controller.definition.console, controller.definition.id},
 	                                               index,
 	                                               field,
 	                                               output.arguments.at(0).number,
 	                                               controller.generation,
 	                                               request_id,
-	                                               false});
+	                                               false,
+	                                               arguments});
 	controller.result.reason = controller.result.success ? "" : "Controller command refused";
 }
 std::optional<ControllerProposal> controller_proposal(const ConsoleAddress &address, const OperatingCommand &command,
@@ -210,7 +224,8 @@ std::optional<ControllerProposal> controller_proposal(const ConsoleAddress &addr
 				continue;
 			if (!command.action.empty() && command.action != operating_action(spec.action).name)
 				return {};
-			if (command.value < spec.minimum || command.value > spec.maximum)
+			if (command.value < spec.minimum || command.value > spec.maximum ||
+			    !operating_arguments_valid(spec.action, command.value, command.arguments))
 				return {};
 			const auto &state = controller.commands[field];
 			if (spec.semantics == CommandSemantics::Request)
@@ -222,10 +237,12 @@ std::optional<ControllerProposal> controller_proposal(const ConsoleAddress &addr
 				                {
 					                return pending.address.entity == address.ship && pending.controller == i &&
 					                       pending.channel == field &&
-					                       (pending.request_id != command.request_id || pending.value != command.value);
+					                       (pending.request_id != command.request_id ||
+					                        pending.value != command.value || pending.arguments != command.arguments);
 				                }) ||
 				    !command.request_id || command.request_id < state.request_id ||
-				    (command.request_id == state.request_id && command.value != state.value))
+				    (command.request_id == state.request_id &&
+				     (command.value != state.value || command.arguments != state.arguments)))
 					return {};
 			}
 			else if (command.request_id)
@@ -236,7 +253,8 @@ std::optional<ControllerProposal> controller_proposal(const ConsoleAddress &addr
 			                          command.value,
 			                          command.generation,
 			                          command.request_id,
-			                          human};
+			                          human,
+			                          command.arguments};
 		}
 	}
 	return {};
@@ -255,7 +273,8 @@ bool commit_controller(const ControllerProposal &proposal)
 		return false;
 	const auto &spec = controller.definition.commands[proposal.channel];
 	auto &state = controller.commands[proposal.channel];
-	if (proposal.value < spec.minimum || proposal.value > spec.maximum)
+	if (proposal.value < spec.minimum || proposal.value > spec.maximum ||
+	    !operating_arguments_valid(spec.action, proposal.value, proposal.arguments))
 		return false;
 	if (spec.semantics == CommandSemantics::Request)
 	{
@@ -263,13 +282,14 @@ bool commit_controller(const ControllerProposal &proposal)
 		    (state.request_id && state.consumed < state.revision && proposal.request_id != state.request_id))
 			return false;
 		if (proposal.request_id == state.request_id)
-			return proposal.value == state.value;
+			return proposal.value == state.value && proposal.arguments == state.arguments;
 	}
-	else if (state.value == proposal.value && state.accepted)
+	else if (state.value == proposal.value && state.arguments == proposal.arguments && state.accepted)
 		return true;
 	if (state.revision == std::numeric_limits<std::uint64_t>::max())
 		throw std::runtime_error("Controller command revision exhausted");
 	state.value = proposal.value;
+	state.arguments = proposal.arguments;
 	state.request_id = proposal.request_id;
 	++state.revision;
 	return true;
@@ -403,13 +423,14 @@ void run_console_controllers(flecs::entity entity)
 			for (const auto consumer : command.consumers)
 			{
 				const auto child = entity.get<EquipmentIndex>().values.at(consumer);
-				admitted &= operate(entity, child.get<Equipment>().id, {command.action, value.value}, false);
+				admitted &=
+				    operate(entity, child.get<Equipment>().id, {command.action, value.value, value.arguments}, false);
 			}
 			if (admitted)
 				for (const auto consumer : command.consumers)
 				{
 					const auto child = entity.get<EquipmentIndex>().values.at(consumer);
-					operate(entity, child.get<Equipment>().id, {command.action, value.value}, true);
+					operate(entity, child.get<Equipment>().id, {command.action, value.value, value.arguments}, true);
 				}
 			value.accepted = admitted;
 			value.consumed = value.revision;
@@ -429,6 +450,7 @@ Json project_controllers(const ConsoleAddress &address) const
 			const auto &spec = controller.definition.commands[i];
 			const auto &state = controller.commands[i];
 			commands[spec.id] = {{"value", state.value},
+			                     {"arguments", state.arguments},
 			                     {"action", std::string(operating_action(spec.action).name)},
 			                     {"minimum", spec.minimum},
 			                     {"maximum", spec.maximum},
@@ -458,6 +480,7 @@ Json save_controllers(flecs::entity entity) const
 		         {"commands", Json::array()}};
 		for (const auto &command : controller.commands)
 			row["commands"].push_back({{"value", command.value},
+			                           {"arguments", command.arguments},
 			                           {"revision", command.revision},
 			                           {"consumed", command.consumed},
 			                           {"request_id", command.request_id},
@@ -502,6 +525,15 @@ void restore_controllers(flecs::entity entity, const Json &saved)
 			fail(value.at("value").is_number_integer() && value.at("value") >= spec.minimum &&
 			     value.at("value") <= spec.maximum);
 			state.value = value.at("value").get<std::int64_t>();
+			const auto arguments = value.value("arguments", Json::array());
+			fail(arguments.is_array() && arguments.size() <= 3);
+			state.arguments.clear();
+			for (const auto &argument : arguments)
+			{
+				fail(argument.is_number_integer() && argument >= -1000000000 && argument <= 1000000000);
+				state.arguments.push_back(argument.get<std::int64_t>());
+			}
+			fail(operating_arguments_valid(spec.action, state.value, state.arguments));
 			for (const auto *key : {"revision", "consumed", "request_id"})
 				fail(value.at(key).is_number_unsigned());
 			state.revision = value.at("revision").get<std::uint64_t>();

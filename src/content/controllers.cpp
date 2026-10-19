@@ -43,6 +43,9 @@ bool accepts(const FittedSystemSpec &fit, const Json &spec, OperatingAction acti
 		return flight;
 	case OperatingAction::RadarEnabled:
 		return kind == OperatingSystem::Radar;
+	case OperatingAction::Destination:
+	case OperatingAction::FollowContact:
+		return kind == OperatingSystem::Engine || kind == OperatingSystem::Steering;
 	case OperatingAction::Speed:
 	case OperatingAction::Longitudinal:
 	case OperatingAction::MatchSpeed:
@@ -95,6 +98,11 @@ CommandBounds fitted_commands(const FittedSystemSpec &fit, Json spec, const Ship
 		for (auto action : {OperatingAction::SystemEnabled, OperatingAction::EngineEnabled, OperatingAction::Assisted,
 		                    OperatingAction::SelectContact})
 			add(action);
+		if (kind == OperatingSystem::Engine || kind == OperatingSystem::Steering)
+		{
+			add(OperatingAction::Destination);
+			add(OperatingAction::FollowContact);
+		}
 		if (kind == OperatingSystem::Engine)
 		{
 			add(OperatingAction::Longitudinal);
@@ -174,6 +182,8 @@ ControllerCommandSpec command_spec(const FittedSystemSpec &fit, const OperatingA
 	    action.action == OperatingAction::Impulse ? CommandSemantics::Request : CommandSemantics::Setting;
 	if (action.action == OperatingAction::Speed)
 		result.maximum = fit.maximum;
+	for (const auto &argument : operating_arguments(action.action))
+		result.initial_arguments.push_back(std::max<std::int64_t>(0, argument.minimum));
 	result.consumers.push_back(index);
 	return result;
 }
@@ -320,6 +330,16 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			command.minimum = number("minimum", action->minimum);
 			command.maximum = number("maximum", action->maximum);
 			command.initial = number("initial", 0);
+			const auto arguments = field.value("arguments", Json::array());
+			control_require(arguments.is_array() && arguments.size() <= 3, where, "invalid command arguments");
+			for (const auto &argument : arguments)
+			{
+				control_require(argument.is_number_integer() && argument >= -1000000000 && argument <= 1000000000,
+				                where, "invalid command argument");
+				command.initial_arguments.push_back(argument.get<std::int64_t>());
+			}
+			control_require(operating_arguments_valid(command.action, command.initial, command.initial_arguments),
+			                where, "command arguments differ from action contract");
 			control_require(command.minimum <= command.initial && command.initial <= command.maximum, where + "." + id,
 			                "initial outside command range");
 			control_require(field.contains("consumers") && field.at("consumers").is_array() &&
@@ -394,7 +414,12 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 				                                });
 				control_require(action.name.starts_with("write.") && found != controller.commands.end(), where,
 				                "tree writes an unowned command channel");
-				control_require(action.arguments.size() == 1 &&
+				control_require(action.arguments.size() == 1 + operating_arguments(found->action).size() &&
+				                    std::all_of(action.arguments.begin() + 1, action.arguments.end(),
+				                                [](auto type)
+				                                {
+					                                return type == state_tree::Type::Integer;
+				                                }) &&
 				                    action.arguments.front() == (found->type == KnowledgeType::Boolean
 				                                                     ? state_tree::Type::Boolean
 				                                                     : state_tree::Type::Integer) &&

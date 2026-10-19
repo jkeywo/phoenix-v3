@@ -377,6 +377,13 @@ state_tree::Registry gameplay_registry(const Json &tree, const Catalog &catalog,
 			registry.observations.push_back({"command." + name, kind, 4, {}});
 			registry.intents.push_back({name, kind, 4, {}});
 			registry.actions.push_back({"write." + name, 4, {kind}, semantics == "request", index, none, index, 0});
+			if (command.contains("action"))
+			{
+				const auto *contract = operating_action(command.at("action").get<std::string>());
+				binding_require(contract != nullptr, "Controller tree", "unknown command action");
+				for (const auto &field : operating_arguments(contract->action))
+					registry.actions.back().arguments.push_back(Type::Integer);
+			}
 		}
 		for (const auto &binding : gameplay_record_bindings(tree, catalog))
 			registry.observations.push_back({binding.name, binding.type, 4, {}});
@@ -401,6 +408,15 @@ state_tree::Registry gameplay_registry(const Json &tree, const Catalog &catalog,
 			action.capture_context = true;
 			registry.actions.push_back(std::move(action));
 		}
+		for (const auto &command : commands)
+			if (command.contains("action"))
+				for (const auto &field :
+				     operating_arguments(operating_action(command.at("action").get<std::string>())->action))
+					registry.observations.push_back(
+					    {"command." + command.at("channel").get<std::string>() + "." + std::string(field.name),
+					     Type::Integer,
+					     4,
+					     {}});
 		return registry;
 	}
 	auto registry = gameplay_tree_registry(context, gameplay_record_bindings(tree, catalog));

@@ -740,7 +740,7 @@ bool ConsoleModel::submit(OperatingCommand command)
 		    channel->value("action", std::string{}) != command.action || channel->value("semantics", "") != "setting" ||
 		    command.value < channel->at("minimum").get<std::int64_t>() ||
 		    command.value > channel->at("maximum").get<std::int64_t>() || !command.controller.empty() ||
-		    !command.channel.empty() || command.generation || command.request_id)
+		    !command.channel.empty() || command.generation || command.request_id || !command.arguments.empty())
 			return false;
 		if (!layout_.is_null())
 			for (const auto &widget : layout_.at("widgets"))
@@ -767,6 +767,7 @@ bool ConsoleModel::submit(OperatingCommand command)
 				    console_string(descriptor, "channel") == command.channel &&
 				    descriptor.value("generation", std::uint64_t{0}) == command.generation &&
 				    descriptor.value("request_id", std::uint64_t{0}) == command.request_id &&
+				    descriptor.value("arguments", Json::array()) == Json(command.arguments) &&
 				    *console_integer(descriptor.at("value")) == command.value)
 				{
 					projected = true;

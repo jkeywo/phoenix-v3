@@ -206,6 +206,7 @@ struct ControllerCommandSpec
 	CommandSemantics semantics = CommandSemantics::Setting;
 	std::int64_t initial = 0, minimum = 0, maximum = 0;
 	std::vector<std::size_t> consumers;
+	std::vector<std::int64_t> initial_arguments;
 };
 struct ConsoleControllerSpec
 {
@@ -259,6 +260,7 @@ struct TreeOutput
 {
 	TreeAction action;
 	std::int64_t value;
+	std::vector<std::int64_t> arguments;
 };
 struct TreeNode
 {

@@ -6,6 +6,7 @@ struct ControllerChannelState
 	std::int64_t value = 0;
 	std::uint64_t revision = 0, consumed = 0, request_id = 0;
 	bool accepted = true;
+	std::vector<std::int64_t> arguments;
 };
 struct ConsoleControllerRuntime
 {
@@ -36,5 +37,6 @@ struct ControllerProposal
 	std::int64_t value = 0;
 	std::uint64_t generation = 0, request_id = 0;
 	bool human = false;
+	std::vector<std::int64_t> arguments;
 };
 } // namespace phoenix

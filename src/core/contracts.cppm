@@ -3,6 +3,7 @@ module;
 #include <cstdint>
 #include <cstddef>
 #include <array>
+#include <span>
 #include <algorithm>
 #include <optional>
 #include <string>
@@ -40,7 +41,9 @@ enum class OperatingAction
 	CoolingAllocation,
 	ThermalOverride,
 	Overdrive,
-	SystemEnabled
+	SystemEnabled,
+	Destination,
+	FollowContact
 };
 enum class OperatingSystem
 {
@@ -124,7 +127,9 @@ inline constexpr std::array operating_actions{
                         1000000000000},
     OperatingActionSpec{OperatingAction::ThermalOverride, "thermal_override", OperatingSystem::Storage, true, 1},
     OperatingActionSpec{OperatingAction::Overdrive, "overdrive", OperatingSystem::Storage, true, 1},
-    OperatingActionSpec{OperatingAction::SystemEnabled, "system_enabled", OperatingSystem::Storage, true, 1}};
+    OperatingActionSpec{OperatingAction::SystemEnabled, "system_enabled", OperatingSystem::Storage, true, 1},
+    OperatingActionSpec{OperatingAction::Destination, "destination", OperatingSystem::Engine, true, 1},
+    OperatingActionSpec{OperatingAction::FollowContact, "follow_contact", OperatingSystem::Engine, true, 1}};
 constexpr const OperatingActionSpec *operating_action(std::string_view name)
 {
 	for (const auto &spec : operating_actions)
@@ -135,6 +140,35 @@ constexpr const OperatingActionSpec *operating_action(std::string_view name)
 constexpr const OperatingActionSpec &operating_action(OperatingAction action)
 {
 	return operating_actions[static_cast<std::size_t>(action)];
+}
+struct OperatingArgumentSpec
+{
+	std::string_view name;
+	std::int64_t minimum, maximum;
+};
+inline constexpr std::array destination_arguments{OperatingArgumentSpec{"x", -1000000000, 1000000000},
+                                                  OperatingArgumentSpec{"y", -1000000000, 1000000000}};
+inline constexpr std::array follow_arguments{OperatingArgumentSpec{"contact", 0, 1000000000},
+                                             OperatingArgumentSpec{"distance", 1, 1000000000},
+                                             OperatingArgumentSpec{"speed", 1, 1000000000}};
+constexpr std::span<const OperatingArgumentSpec> operating_arguments(OperatingAction action)
+{
+	if (action == OperatingAction::Destination)
+		return destination_arguments;
+	if (action == OperatingAction::FollowContact)
+		return follow_arguments;
+	return {};
+}
+inline bool operating_arguments_valid(OperatingAction action, std::int64_t value,
+                                      std::span<const std::int64_t> arguments)
+{
+	const auto fields = operating_arguments(action);
+	if (arguments.size() != fields.size())
+		return false;
+	for (std::size_t i = 0; i < fields.size(); ++i)
+		if (arguments[i] < fields[i].minimum || arguments[i] > fields[i].maximum)
+			return false;
+	return action != OperatingAction::FollowContact || !value || arguments[0] > 0;
 }
 constexpr std::string_view operating_system_name(OperatingSystem system)
 {
@@ -257,6 +291,7 @@ struct OperatingCommand
 	std::string system;
 	std::string controller, channel;
 	std::uint64_t generation = 0, request_id = 0;
+	std::vector<std::int64_t> arguments;
 };
 Json encode_operating_command(const OperatingCommand &command);
 OperatingCommand decode_operating_command(const Json &value);

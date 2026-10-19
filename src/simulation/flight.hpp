@@ -15,7 +15,9 @@ enum class FlightCommandKind : std::uint8_t
 	Boost,
 	Impulse,
 	MatchSpeed,
-	SelectContact
+	SelectContact,
+	Destination,
+	FollowContact
 };
 enum class ImpulsePhase : std::uint8_t
 {
@@ -45,6 +47,8 @@ struct FlightState
 	std::uint64_t observed_tick = 0, uncertainty = 0;
 	bool matched_observed = false, match_stale = false;
 	bool following = false, follow_stale = false;
+	bool navigating = false;
+	fixed::Vec destination;
 	std::int64_t follow_distance = 0, follow_speed_limit = 0;
 	std::int64_t forward_remainder = 0, lateral_remainder = 0, turn_remainder = 0;
 	int actual_longitudinal = 0, actual_lateral = 0, actual_steering = 0;
@@ -54,6 +58,7 @@ struct FlightCommand
 {
 	FlightCommandKind kind;
 	std::int64_t value;
+	std::vector<std::int64_t> arguments;
 };
 struct FlightCommandResult
 {

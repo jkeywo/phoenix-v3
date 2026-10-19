@@ -1928,6 +1928,31 @@ struct GameplayEditor
 					                actions.emplace_back(action.name);
 				                choice(command, "action", actions);
 				                integer(command, "initial");
+				                if (const auto *contract = operating_action(command.value("action", std::string{})))
+				                {
+					                const auto arguments = operating_arguments(contract->action);
+					                if (!arguments.empty())
+					                {
+						                if (!command.contains("arguments") ||
+						                    command["arguments"].size() != arguments.size())
+						                {
+							                command["arguments"] = Json::array();
+							                for (const auto &field : arguments)
+								                command["arguments"].push_back(
+								                    std::max<std::int64_t>(0, field.minimum));
+						                }
+						                for (std::size_t i = 0; i < arguments.size(); ++i)
+						                {
+							                Json edit{{"value", command["arguments"][i]}};
+							                ScopedId scope(std::string(arguments[i].name).c_str());
+							                text(std::string(arguments[i].name).c_str());
+							                integer(edit, "value");
+							                command["arguments"][i] = edit["value"];
+						                }
+					                }
+					                else
+						                command.erase("arguments");
+				                }
 				                for (const auto *key : {"minimum", "maximum"})
 				                {
 					                ScopedId scope(key);
@@ -1995,6 +2020,9 @@ struct GameplayEditor
 				        string(binding, "channel");
 				        choice(binding, "type", {"integer", "boolean"});
 				        choice(binding, "semantics", {"setting", "request"});
+				        choice(binding, "action", {"", "destination", "follow_contact"});
+				        if (binding.value("action", std::string{}).empty())
+					        binding.erase("action");
 			        });
 		if (editable("system_bindings"))
 			records(tree, "system_bindings", {{"name", "observed"}, {"system", ""}, {"field", "enabled"}},

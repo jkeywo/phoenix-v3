@@ -193,10 +193,46 @@ FlightCommandResult apply_flight(const FlightDefinition &def, FlightState &state
 {
 	validate_motion(pose, motion);
 	auto candidate = state;
-	candidate.following = candidate.follow_stale = false;
+	if (command.kind == FlightCommandKind::Speed || command.kind == FlightCommandKind::Heading ||
+	    command.kind == FlightCommandKind::Assisted || command.kind == FlightCommandKind::Longitudinal ||
+	    command.kind == FlightCommandKind::Steering || command.kind == FlightCommandKind::MatchSpeed ||
+	    command.kind == FlightCommandKind::SelectContact)
+	{
+		candidate.following = candidate.follow_stale = false;
+		if (command.kind != FlightCommandKind::Speed)
+			candidate.navigating = false;
+	}
+	const auto compound = command.kind == FlightCommandKind::Destination     ? OperatingAction::Destination
+	                      : command.kind == FlightCommandKind::FollowContact ? OperatingAction::FollowContact
+	                                                                         : OperatingAction::Speed;
+	if (!operating_arguments_valid(compound, command.value, command.arguments))
+		return {false, "flight.invalid-arguments"};
 	const auto flag = command.value == 0 || command.value == 1;
 	switch (command.kind)
 	{
+	case FlightCommandKind::Destination:
+	case FlightCommandKind::FollowContact:
+		if (!flag || (def.kind != FlightKind::Engine && def.kind != FlightKind::Steering))
+			return {false, "flight.navigation-unavailable"};
+		candidate.navigating = command.kind == FlightCommandKind::Destination && command.value;
+		candidate.following = command.kind == FlightCommandKind::FollowContact && command.value;
+		candidate.follow_stale = false;
+		candidate.matching = candidate.match_stale = false;
+		candidate.assisted = true;
+		candidate.longitudinal = candidate.steering = 0;
+		if (command.kind == FlightCommandKind::Destination)
+		{
+			candidate.destination = {command.arguments[0], command.arguments[1]};
+			if (command.value && def.kind == FlightKind::Engine)
+				candidate.desired_speed = def.maximum_speed;
+		}
+		else
+		{
+			candidate.selected_contact = command.arguments[0];
+			candidate.follow_distance = command.arguments[1];
+			candidate.follow_speed_limit = command.arguments[2];
+		}
+		break;
 	case FlightCommandKind::Speed:
 		if (def.kind != FlightKind::Engine || command.value < -def.reverse_speed || command.value > def.maximum_speed)
 			return {false, "flight.invalid-speed"};
@@ -428,6 +464,30 @@ FlightExecution step_flight(const FlightDefinition &def, FlightState &state, Pos
 void guide_follow(const FlightDefinition &def, FlightState &state, const Pose &pose, const Motion &motion,
                   const std::optional<FlightContactObservation> &observed)
 {
+	if (state.navigating)
+	{
+		auto direction = state.destination - pose.position;
+		std::int64_t offset = 0;
+		if (direction.y < 0)
+		{
+			direction = -direction;
+			offset = 180000;
+		}
+		std::int64_t low = 0, high = 180000;
+		while (high - low > 1)
+		{
+			const auto middle = (low + high) / 2;
+			const auto forward = fixed::direction(middle);
+			if (forward.x * direction.y - forward.y * direction.x > 0)
+				low = middle;
+			else
+				high = middle;
+		}
+		state.desired_heading = direction.x || direction.y ? (low + offset) % 360000 : pose.heading;
+		if (def.kind == FlightKind::Engine && !direction.x && !direction.y)
+			state.desired_speed = 0;
+		return;
+	}
 	if (!state.following)
 		return;
 	state.follow_stale = !observed || observed->contact != state.selected_contact;
@@ -489,13 +549,16 @@ void guide_follow(const FlightDefinition &def, FlightState &state, const Pose &p
 }
 Json save_flight(const FlightDefinition &def, const FlightState &state)
 {
-	return {{"schema", 3},
+	return {{"schema", 4},
 	        {"definition", def.signature},
 	        {"enabled", state.enabled},
 	        {"assisted", state.assisted},
 	        {"boost", state.boost},
 	        {"matching", state.matching},
 	        {"following", state.following},
+	        {"navigating", state.navigating},
+	        {"destination_x", state.destination.x},
+	        {"destination_y", state.destination.y},
 	        {"follow_stale", state.follow_stale},
 	        {"follow_distance", state.follow_distance},
 	        {"follow_speed_limit", state.follow_speed_limit},
@@ -524,7 +587,8 @@ Json save_flight(const FlightDefinition &def, const FlightState &state)
 }
 FlightState load_flight(const FlightDefinition &def, const Json &saved)
 {
-	if (!saved.is_object() || (saved.value("schema", 0) != 2 && saved.value("schema", 0) != 3) ||
+	if (!saved.is_object() ||
+	    (saved.value("schema", 0) != 2 && saved.value("schema", 0) != 3 && saved.value("schema", 0) != 4) ||
 	    saved.value("definition", std::string{}) != def.signature)
 		throw std::runtime_error("flight save: incompatible definition or schema");
 	FlightState result;
@@ -544,6 +608,9 @@ FlightState load_flight(const FlightDefinition &def, const Json &saved)
 	result.assisted = flag("assisted");
 	result.boost = flag("boost");
 	result.matching = flag("matching");
+	result.navigating = json_boolean(saved, "navigating", false, "flight save");
+	result.destination.x = json_integer(saved, "destination_x", 0, -1000000000, 1000000000, "flight save");
+	result.destination.y = json_integer(saved, "destination_y", 0, -1000000000, 1000000000, "flight save");
 	result.following = json_boolean(saved, "following", false, "flight save");
 	result.follow_stale = json_boolean(saved, "follow_stale", false, "flight save");
 	result.follow_distance = json_integer(saved, "follow_distance", 0, 0, 1000000000, "flight save");
@@ -589,6 +656,9 @@ FlightState load_flight(const FlightDefinition &def, const Json &saved)
 	                         result.matched_contact != result.selected_contact ||
 	                         (result.matched_observed && result.desired_speed != result.matched_speed))))
 		throw std::runtime_error("flight save: inconsistent mode continuation");
+	if (result.navigating && (result.following || result.matching || !result.assisted ||
+	                          (def.kind != FlightKind::Engine && def.kind != FlightKind::Steering)))
+		throw std::runtime_error("flight save: inconsistent destination mode");
 	if ((result.following &&
 	     (result.matching || !result.assisted || !result.selected_contact || result.follow_distance <= 0 ||
 	      result.follow_speed_limit <= 0 || (def.kind != FlightKind::Engine && def.kind != FlightKind::Steering))) ||
