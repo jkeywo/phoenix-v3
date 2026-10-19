@@ -1999,6 +1999,11 @@ struct World::Impl
 				return false;
 			try
 			{
+				if (!execute)
+				{
+					knowledge.activate_publication(address, name, ecs.get<Clock>().tick, false);
+					return true;
+				}
 				auto candidate = knowledge;
 				candidate.activate_publication(address, name, ecs.get<Clock>().tick);
 				if (execute)
@@ -2018,15 +2023,13 @@ struct World::Impl
 				return false;
 			try
 			{
-				auto candidate = knowledge;
-				const auto &message = candidate.message_definition(name);
-				const auto &schema = candidate.definition().schemas.at(message.schema - 1);
+				const auto &message = knowledge.message_definition(name);
 				KnowledgeRecordInput payload;
 				payload.schema = message.schema;
 				payload.producer =
-				    candidate.message_producer(address, command.system, message.schema, ControlOrigin::Human);
+				    knowledge.message_producer(address, command.system, message.schema, ControlOrigin::Human);
 				payload.subject = address.ship;
-				payload.provenance = {candidate.system_id(address.ship, command.system), ecs.get<Clock>().tick,
+				payload.provenance = {knowledge.system_id(address.ship, command.system), ecs.get<Clock>().tick,
 				                      ecs.get<Clock>().tick, 0, EvidenceKind::Intent};
 				GameplayKnowledgeMessageContext context;
 				context.amount = command.value;
@@ -2034,6 +2037,14 @@ struct World::Impl
 				context.detail = std::to_string(command.value);
 				const auto bound = evaluate_gameplay_message(message, context);
 				payload.fields = bound.fields;
+				if (!execute)
+				{
+					knowledge.admit_template(address, command.system, name, payload, ControlOrigin::Human,
+					                         ecs.get<Clock>().tick, bound.parameters, false);
+					return true;
+				}
+				// Only actual commands need a transactional copy.
+				auto candidate = knowledge;
 				candidate.admit_template(address, command.system, name, payload, ControlOrigin::Human,
 				                         ecs.get<Clock>().tick, bound.parameters);
 				if (execute)

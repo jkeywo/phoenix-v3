@@ -350,14 +350,14 @@ std::string GameplayKnowledge::request_key_name(KnowledgeId key) const
 	throw std::runtime_error("gameplay knowledge: unknown request key identity");
 }
 KnowledgeId GameplayKnowledge::activate_publication(const ConsoleAddress &address, const std::string &name,
-                                                    KnowledgeTick tick)
+                                                    KnowledgeTick tick, bool execute)
 {
 	const auto &definitions = definitions_.at(ships_.at(address.ship).definition).publications;
 	knowledge_require(definitions.contains(name), "unknown publication template");
 	const auto &definition = definitions.at(name);
 	knowledge_require(definition.source == address.console, "publication template belongs to another Console");
 	return publish(address, definition.schema, definition.subject == 0 ? address.ship : definition.subject,
-	               definition.fields, definition.live, tick);
+	               definition.fields, definition.live, tick, execute);
 }
 KnowledgeId GameplayKnowledge::activate_publication(const ConsoleAddress &address, const std::string &name,
                                                     KnowledgeTick tick, KnowledgeId subject, bool live,
@@ -373,11 +373,12 @@ KnowledgeId GameplayKnowledge::activate_publication(const ConsoleAddress &addres
 	return activate_publication(address, name, tick);
 }
 KnowledgeId GameplayKnowledge::publish(const ConsoleAddress &address, KnowledgeKey schema, KnowledgeId subject,
-                                       std::vector<KnowledgeKey> fields, bool live, KnowledgeTick tick)
+                                       std::vector<KnowledgeKey> fields, bool live, KnowledgeTick tick, bool execute)
 {
 	const auto console = console_id(address);
-	const auto id = runtime_.publish(console, schema, subject, std::move(fields), live, tick);
-	publication_owners_.emplace(id, console);
+	const auto id = runtime_.publish(console, schema, subject, std::move(fields), live, tick, execute);
+	if (execute)
+		publication_owners_.emplace(id, console);
 	return id;
 }
 KnowledgeId GameplayKnowledge::activate_feed(const ConsoleAddress &source, const ConsoleAddress &target,
@@ -441,21 +442,27 @@ bool GameplayKnowledge::known_evidence(const ConsoleAddress &source, const Knowl
 			return true;
 	return false;
 }
-KnowledgeId GameplayKnowledge::admit_message(const ConsoleAddress &source, CoordinationInput value, KnowledgeTick tick)
+KnowledgeId GameplayKnowledge::admit_message(const ConsoleAddress &source, CoordinationInput value, KnowledgeTick tick,
+                                             bool execute)
 {
 	console_id(source);
-	const auto known = known_evidence(source, value.payload);
+	// An authorised new claim/intent already carries its sender's evidence.
+	// Only forwarding other evidence needs to search the permitted record history.
+	const bool own_intent = value.payload.provenance.source == value.sender_system &&
+	                        value.payload.provenance.kind != EvidenceKind::Fact &&
+	                        knowledge_has(console_definition(source).producers, value.payload.producer);
+	const auto known = !own_intent && known_evidence(source, value.payload);
 	admit_sender(source, value.sender_system, value.payload.producer, value.origin, known);
 	knowledge_require(
 	    known || (value.payload.provenance.source == value.sender_system &&
 	              value.payload.provenance.kind != EvidenceKind::Fact),
 	    "new factual messages require permitted observed evidence; new claims/intents name their own source");
-	return runtime_.send(std::move(value), tick);
+	return runtime_.send(std::move(value), tick, execute);
 }
 KnowledgeId GameplayKnowledge::admit_template(const ConsoleAddress &source, const std::string &sender,
                                               const std::string &name, KnowledgeRecordInput payload,
                                               ControlOrigin origin, KnowledgeTick tick,
-                                              std::map<std::string, std::string> parameters)
+                                              std::map<std::string, std::string> parameters, bool execute)
 {
 	const auto &definition = message_definition(name);
 	knowledge_require(payload.schema == definition.schema, "payload does not match message template");
@@ -499,7 +506,7 @@ KnowledgeId GameplayKnowledge::admit_template(const ConsoleAddress &source, cons
 		                  "message expiry overflow");
 		value.expires_tick = tick + definition.expires_after;
 	}
-	return admit_message(source, std::move(value), tick);
+	return admit_message(source, std::move(value), tick, execute);
 }
 KnowledgeId GameplayKnowledge::publish_scenario_message(const ConsoleAddress &source, CoordinationInput value,
                                                         KnowledgeTick tick)

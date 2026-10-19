@@ -179,8 +179,9 @@ public:
 	bool write_console(KnowledgeId console, KnowledgeRecordInput input, KnowledgeTick tick);
 	// Explicit scenario/objective publisher; the caller supplies the permitted record.
 	bool write_ship(KnowledgeId ship, KnowledgeRecordInput input, KnowledgeTick tick);
+	// execute=false validates availability without mutation and returns zero.
 	KnowledgeId publish(KnowledgeId console, KnowledgeKey schema, KnowledgeId subject, std::vector<KnowledgeKey> fields,
-	                    bool live, KnowledgeTick tick);
+	                    bool live, KnowledgeTick tick, bool execute = true);
 	KnowledgeId feed(KnowledgeId source_console, KnowledgeId target_console, KnowledgeKey schema, KnowledgeId subject,
 	                 std::vector<KnowledgeKey> fields, KnowledgeTick tick);
 	void stop_publication(KnowledgeId publication);
@@ -188,7 +189,8 @@ public:
 	std::vector<KnowledgeRecord> read_ship(KnowledgeId console) const;
 	bool stale(const KnowledgeRecord &record, KnowledgeTick now) const;
 	KnowledgePrivateMemory &private_memory(KnowledgeId ai);
-	KnowledgeId send(CoordinationInput input, KnowledgeTick tick);
+	// execute=false validates availability without mutation and returns zero.
+	KnowledgeId send(CoordinationInput input, KnowledgeTick tick, bool execute = true);
 	bool withdraw_request(KnowledgeId sender_system, KnowledgeId request_key);
 	std::vector<CoordinationDelivery> advance(KnowledgeTick tick);
 	std::vector<CoordinationDelivery> message_history(KnowledgeId console) const;

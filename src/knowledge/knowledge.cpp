@@ -328,7 +328,7 @@ bool KnowledgeRuntime::write_ship(KnowledgeId ship, KnowledgeRecordInput input, 
 	return write(KnowledgeScope::Ship, ship, std::move(input), tick);
 }
 KnowledgeId KnowledgeRuntime::publish(KnowledgeId console, KnowledgeKey key, KnowledgeId subject,
-                                      std::vector<KnowledgeKey> fields, bool live, KnowledgeTick tick)
+                                      std::vector<KnowledgeKey> fields, bool live, KnowledgeTick tick, bool execute)
 {
 	require(readable(console, key), "publisher cannot read source schema");
 	require(!fields.empty(), "publication requires an explicit field subset");
@@ -339,8 +339,7 @@ KnowledgeId KnowledgeRuntime::publish(KnowledgeId console, KnowledgeKey key, Kno
 	for (const auto field : fields)
 		require(field > 0 && field <= s.fields.size() && s.fields[field - 1].publishable, "invalid publication field");
 	require(tick >= current_tick_, "cannot publish in the past");
-	const auto source = records_;
-	const bool found = std::any_of(source.begin(), source.end(),
+	const bool found = std::any_of(records_.begin(), records_.end(),
 	                               [&](const auto &record)
 	                               {
 		                               return record.scope == KnowledgeScope::Console && record.owner == console &&
@@ -348,6 +347,23 @@ KnowledgeId KnowledgeRuntime::publish(KnowledgeId console, KnowledgeKey key, Kno
 	                               });
 	require(found || live, "no permitted source record to publish");
 	require(next_id_ < std::numeric_limits<KnowledgeId>::max(), "publication identity exhausted");
+	if (!execute)
+	{
+		for (const auto &record : records_)
+			if (record.scope == KnowledgeScope::Console && record.owner == console && record.value.schema == key &&
+			    record.value.subject == subject)
+			{
+				auto copy = record.value;
+				std::erase_if(copy.fields,
+				              [&](const auto &field)
+				              {
+					              return !contains(fields, field.first);
+				              });
+				validate(copy, true);
+			}
+		return 0;
+	}
+	const auto source = records_;
 	const auto id = next_id_++;
 	publications_.push_back({id, console, subject, key, fields, live, true});
 	for (const auto &record : source)
@@ -478,7 +494,7 @@ std::vector<KnowledgeId> KnowledgeRuntime::resolve_recipients(KnowledgeId ship, 
 	require(!recipients.empty(), "destination has no eligible recipient");
 	return recipients;
 }
-KnowledgeId KnowledgeRuntime::send(CoordinationInput input, KnowledgeTick tick)
+KnowledgeId KnowledgeRuntime::send(CoordinationInput input, KnowledgeTick tick, bool execute)
 {
 	validate(input.payload);
 	require(tick >= current_tick_, "cannot send a message in the past");
@@ -494,6 +510,8 @@ KnowledgeId KnowledgeRuntime::send(CoordinationInput input, KnowledgeTick tick)
 	require(tick <= std::numeric_limits<KnowledgeTick>::max() - delay, "message delivery tick overflow");
 	require(input.expires_tick == 0 || input.expires_tick > tick + delay, "message expires before delivery");
 	require(next_id_ < std::numeric_limits<KnowledgeId>::max(), "message identity exhausted");
+	if (!execute)
+		return 0;
 	if (input.request_key != 0)
 		withdraw_request(input.sender_system, input.request_key);
 	const auto id = next_id_++;

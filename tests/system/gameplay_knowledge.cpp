@@ -367,6 +367,12 @@ void human_message_origin_and_routing(const Catalog &catalog)
 	world.load(catalog, "test.map");
 	claim_all(world);
 	world.tick();
+	const auto before_projection = world.save();
+	for (const auto route : {101u, 102u, 201u})
+		for (int repeat = 0; repeat < 3; ++repeat)
+			require(world.observe(route).has_value(), "claimed Console can project available controls");
+	require(world.save() == before_projection,
+	        "control availability probes must not publish, send, or consume identities");
 	require(!world.submit(102, {1, "message.test.request", 0, "engine"}),
 	        "another Console cannot impersonate the message sender");
 	require(world.submit(101, {1, "message.test.request", 0, "engine"}), "human request uses normal sender admission");

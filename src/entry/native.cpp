@@ -284,7 +284,13 @@ int main(int argc, char **argv)
 		    {monitor, "Screen " + std::to_string(monitor + 1) + " (" + GetMonitorName(monitor) + ")"});
 	}
 	bool lobby_span = false;
-	app.apply_displays = [&app, &lobby_span]()
+	const auto apply_frame_pacing = [&]()
+	{
+		SetTargetFPS(frame_limit ? static_cast<int>(frame_limit)
+		             : (vsync || uncapped || !app.console_regions.empty() || app.gm_region) ? 0
+		                                                                                    : 60);
+	};
+	app.apply_displays = [&app, &lobby_span, &apply_frame_pacing]()
 	{
 		if (app.display_consoles.empty() && app.inspector_display < 0)
 		{
@@ -333,8 +339,9 @@ int main(int argc, char **argv)
 		SetWindowPosition(static_cast<int>(left), static_cast<int>(top));
 		SetWindowSize(static_cast<int>(right - left), static_cast<int>(bottom - top));
 		lobby_span = true;
+		apply_frame_pacing();
 	};
-	app.reset_displays = [&app, &lobby_span]()
+	app.reset_displays = [&app, &lobby_span, &apply_frame_pacing]()
 	{
 		if (lobby_span)
 		{
@@ -351,6 +358,7 @@ int main(int argc, char **argv)
 		app.local_player_names.clear();
 		app.inspector_display = -1;
 		lobby_span = false;
+		apply_frame_pacing();
 	};
 	try
 	{
@@ -459,10 +467,7 @@ int main(int argc, char **argv)
 	}
 	if (vsync)
 		SetWindowState(FLAG_VSYNC_HINT);
-	if (vsync || uncapped || !app.console_regions.empty())
-		SetTargetFPS(0);
-	if (frame_limit)
-		SetTargetFPS(static_cast<int>(frame_limit));
+	apply_frame_pacing();
 	if (argc > 1 && std::strcmp(argv[1], "--platform-check") == 0)
 	{
 		app.native_menu = false;

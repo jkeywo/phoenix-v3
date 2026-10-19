@@ -49,20 +49,23 @@ public:
 	// Trusted scenario/objective publication. Human admission must never call it.
 	bool publish_ship(EntityId ship, KnowledgeRecordInput value, KnowledgeTick tick);
 	bool publish_scenario_console(const ConsoleAddress &address, KnowledgeRecordInput value, KnowledgeTick tick);
-	KnowledgeId activate_publication(const ConsoleAddress &address, const std::string &name, KnowledgeTick tick);
+	KnowledgeId activate_publication(const ConsoleAddress &address, const std::string &name, KnowledgeTick tick,
+	                                 bool execute = true);
 	KnowledgeId activate_publication(const ConsoleAddress &address, const std::string &name, KnowledgeTick tick,
 	                                 KnowledgeId subject, bool live, const std::string &request_key);
 	KnowledgeId publish(const ConsoleAddress &address, KnowledgeKey schema, KnowledgeId subject,
-	                    std::vector<KnowledgeKey> fields, bool live, KnowledgeTick tick);
+	                    std::vector<KnowledgeKey> fields, bool live, KnowledgeTick tick, bool execute = true);
 	KnowledgeId activate_feed(const ConsoleAddress &source, const ConsoleAddress &target, KnowledgeKey schema,
 	                          KnowledgeId subject, std::vector<KnowledgeKey> fields, KnowledgeTick tick);
 	void stop_publication(const ConsoleAddress &address, KnowledgeId publication);
 	// Human and AI callers pass their actual origin, then use the same authority
 	// gate. The source address comes from World claims/tree ownership, never wire input.
-	KnowledgeId admit_message(const ConsoleAddress &source, CoordinationInput value, KnowledgeTick tick);
+	KnowledgeId admit_message(const ConsoleAddress &source, CoordinationInput value, KnowledgeTick tick,
+	                          bool execute = true);
 	KnowledgeId admit_template(const ConsoleAddress &source, const std::string &sender_system,
 	                           const std::string &message, KnowledgeRecordInput payload, ControlOrigin origin,
-	                           KnowledgeTick tick, std::map<std::string, std::string> parameters = {});
+	                           KnowledgeTick tick, std::map<std::string, std::string> parameters = {},
+	                           bool execute = true);
 	KnowledgeId publish_scenario_message(const ConsoleAddress &source, CoordinationInput value, KnowledgeTick tick);
 	bool withdraw_request(const ConsoleAddress &source, const std::string &sender_system, KnowledgeId request_key,
 	                      ControlOrigin origin);

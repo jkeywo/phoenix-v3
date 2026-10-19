@@ -18,10 +18,19 @@ class ConsoleSurface final : public Rml::EventListener
 	Application *app_ = nullptr;
 	std::string signature_;
 	std::map<std::string, std::string> displayed_values_;
+	std::map<std::string, Rml::Element *> elements_;
+	Rml::Element *element(const std::string &name)
+	{
+		const auto found = elements_.find(name);
+		if (found != elements_.end())
+			return found->second;
+		return elements_.emplace(name, document_->GetElementById(name)).first->second;
+	}
 	std::weak_ptr<SessionPort> owner_;
 	std::uint64_t generation_ = 0;
 	std::vector<std::pair<std::string, std::string>> controls_;
 	std::string gameplay_signature_;
+	std::string placement_signature_;
 	std::string gameplay_readout_signature_;
 	std::set<std::string> held_clicks_;
 	std::map<std::string, Texture2D> hud_;
@@ -74,7 +83,7 @@ class ConsoleSurface final : public Rml::EventListener
 	}
 	void place(Application &app, const ConsoleRegion &region, const std::string &name)
 	{
-		if (auto *element = document_->GetElementById(name))
+		if (auto *element = this->element(name))
 		{
 			const auto at = element->GetAbsoluteOffset(Rml::BoxArea::Border);
 			app.control_placements[name] = {region.x + at.x,
@@ -292,7 +301,7 @@ p {display:block;font-size:17px;margin:4px 0;}
 	}
 	void focus(const std::string &name)
 	{
-		if (auto *element = document_->GetElementById(name))
+		if (auto *element = this->element(name))
 			element->Focus(true);
 	}
 	bool set_value(const std::string &name, const std::string &text)
@@ -420,8 +429,11 @@ p {display:block;font-size:17px;margin:4px 0;}
 	void prepare(Application &app, const ConsoleRegion &region, const std::set<std::string> &pads)
 	{
 		app_ = &app;
+		const auto preparation_started = GetTime();
 		const auto previous_announcement = model_.announcement();
 		model_.refresh(app.session, route_);
+		app.frame_metrics["console/" + std::to_string(route_) + "/projection"] = GetTime() - preparation_started;
+		const auto layout_started = GetTime();
 		if (model_.announcement() != previous_announcement && !model_.announcement().empty())
 			app.accessible_status = model_.announcement();
 		if (owner_.lock() != app.session || (app.session && generation_ != app.session->generation()))
@@ -490,6 +502,8 @@ p {display:block;font-size:17px;margin:4px 0;}
 		if (signature != signature_)
 		{
 			signature_ = std::move(signature);
+			placement_signature_.clear();
+			elements_.clear();
 			gameplay_signature_.clear();
 			gameplay_readout_signature_.clear();
 			displayed_values_.clear();
@@ -605,8 +619,14 @@ p {display:block;font-size:17px;margin:4px 0;}
 		if (pregame)
 			app.screen_readouts.emplace_back(id("lobby-title"), localise(title) + ". " + localise(description));
 		if (auto *status = document_->GetElementById("connection-status"))
-			status->SetInnerRML(
-			    Rml::StringUtilities::EncodeRml(localise(pregame ? description : model_.announcement())));
+		{
+			const auto text = localise(pregame ? description : model_.announcement());
+			if (displayed_values_["connection-status"] != text)
+			{
+				status->SetInnerRML(Rml::StringUtilities::EncodeRml(text));
+				displayed_values_["connection-status"] = text;
+			}
+		}
 		if (pregame)
 			if (auto *countdown = document_->GetElementById("countdown"))
 			{
@@ -615,6 +635,7 @@ p {display:block;font-size:17px;margin:4px 0;}
 				                                : Rml::StringUtilities::EncodeRml(localise("Starting in")) + " " +
 				                                      std::to_string((left + 999) / 1000));
 			}
+		const auto readouts_started = GetTime();
 		auto gameplay_controls =
 		    pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_controls();
 		std::erase_if(gameplay_controls,
@@ -625,94 +646,102 @@ p {display:block;font-size:17px;margin:4px 0;}
 		              });
 		const auto gameplay_readouts =
 		    pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_readouts();
+		app.frame_metrics["console/" + std::to_string(route_) + "/readouts"] = GetTime() - readouts_started;
 		auto *gameplay = document_->GetElementById("gameplay");
 		auto *widgets = document_->GetElementById("widgets");
 		const bool has_gameplay = !gameplay_controls.empty() || !gameplay_readouts.empty();
-		gameplay->SetProperty("display", has_gameplay ? "block" : "none");
-		widgets->SetProperty("right", "4%");
-		widgets->SetProperty("bottom", "4%");
-		gameplay->SetProperty("left", "4%");
-		gameplay->SetProperty("right", "4%");
-		gameplay->SetProperty("top", "125px");
-		gameplay->SetProperty("bottom", "4%");
-		gameplay->RemoveProperty("width");
-		gameplay->RemoveProperty("height");
-		bool placed_gameplay = false;
-		if (has_gameplay && layout && layout->contains("gameplay_panel") && layout->at("gameplay_panel").is_object())
+		const auto placement = signature_ + "/" + std::to_string(region.width) + "/" + std::to_string(region.height) +
+		                       (has_gameplay ? "/gameplay" : "/empty");
+		if (placement_signature_ != placement)
 		{
-			const auto &panel = layout->at("gameplay_panel");
-			if (panel.contains("x") && panel.contains("y") && panel.contains("width") && panel.contains("height") &&
-			    panel.at("x").is_number() && panel.at("y").is_number() && panel.at("width").is_number() &&
-			    panel.at("height").is_number())
-			{
-				const double x = panel.at("x"), y = panel.at("y"), width = panel.at("width"),
-				             height = panel.at("height");
-				if (std::isfinite(x) && std::isfinite(y) && std::isfinite(width) && std::isfinite(height) && x >= 0 &&
-				    y >= 0 && width > 0 && height > 0 && x + width <= 1000 && y + height <= 1000)
-				{
-					const auto available_height = std::max(80.f, region.height - 125.f);
-					gameplay->SetProperty("left", std::to_string(region.width * x / 1000) + "px");
-					gameplay->SetProperty("top", std::to_string(125 + available_height * y / 1000) + "px");
-					gameplay->SetProperty("width", std::to_string(region.width * width / 1000) + "px");
-					gameplay->SetProperty("height", std::to_string(available_height * height / 1000) + "px");
-					gameplay->RemoveProperty("right");
-					gameplay->RemoveProperty("bottom");
-					placed_gameplay = true;
-				}
-			}
-		}
-		if (has_gameplay && !placed_gameplay && layout && !layout->at("widgets").empty())
-		{
-			if (region.width >= 900)
-			{
-				widgets->SetProperty("right", "42%");
-				gameplay->SetProperty("left", "60%");
-			}
-			else
-			{
-				widgets->SetProperty("bottom", "45%");
-				gameplay->SetProperty("top", "58%");
-			}
-		}
-		if (helm && !pregame)
-		{
-			widgets->SetProperty("top", "4%");
+			placement_signature_ = placement;
+			gameplay->SetProperty("display", has_gameplay ? "block" : "none");
 			widgets->SetProperty("right", "4%");
 			widgets->SetProperty("bottom", "4%");
-			const float width = region.width * .92f, height = region.height * .92f;
-			const float side = std::min(height, width * .70f);
-			for (const auto &widget : layout->at("widgets"))
+			gameplay->SetProperty("left", "4%");
+			gameplay->SetProperty("right", "4%");
+			gameplay->SetProperty("top", "125px");
+			gameplay->SetProperty("bottom", "4%");
+			gameplay->RemoveProperty("width");
+			gameplay->RemoveProperty("height");
+			bool placed_gameplay = false;
+			if (has_gameplay && layout && layout->contains("gameplay_panel") &&
+			    layout->at("gameplay_panel").is_object())
 			{
-				auto *element = document_->GetElementById("widget/" + widget.at("id").get<std::string>());
-				const std::string kind = widget.at("kind");
-				if (kind == "radar")
+				const auto &panel = layout->at("gameplay_panel");
+				if (panel.contains("x") && panel.contains("y") && panel.contains("width") && panel.contains("height") &&
+				    panel.at("x").is_number() && panel.at("y").is_number() && panel.at("width").is_number() &&
+				    panel.at("height").is_number())
 				{
-					element->SetProperty("left", std::to_string((width - side) / 2) + "px");
-					element->SetProperty("top", std::to_string((height - side) / 2) + "px");
-					element->SetProperty("width", std::to_string(side) + "px");
-					element->SetProperty("height", std::to_string(side) + "px");
-				}
-				else if (kind == "throttle")
-				{
-					element->SetProperty("left", "85%");
-					element->SetProperty("top", "10%");
-					element->SetProperty("width", "15%");
-					element->SetProperty("height", "80%");
-				}
-				else if (kind == "heading")
-				{
-					element->SetProperty("left", "0%");
-					element->SetProperty("top", "85%");
-					element->SetProperty("width", "15%");
-					element->SetProperty("height", "15%");
+					const double x = panel.at("x"), y = panel.at("y"), width = panel.at("width"),
+					             height = panel.at("height");
+					if (std::isfinite(x) && std::isfinite(y) && std::isfinite(width) && std::isfinite(height) &&
+					    x >= 0 && y >= 0 && width > 0 && height > 0 && x + width <= 1000 && y + height <= 1000)
+					{
+						const auto available_height = std::max(80.f, region.height - 125.f);
+						gameplay->SetProperty("left", std::to_string(region.width * x / 1000) + "px");
+						gameplay->SetProperty("top", std::to_string(125 + available_height * y / 1000) + "px");
+						gameplay->SetProperty("width", std::to_string(region.width * width / 1000) + "px");
+						gameplay->SetProperty("height", std::to_string(available_height * height / 1000) + "px");
+						gameplay->RemoveProperty("right");
+						gameplay->RemoveProperty("bottom");
+						placed_gameplay = true;
+					}
 				}
 			}
-			gameplay->SetProperty("left", "4%");
-			gameplay->SetProperty("top", "18%");
-			gameplay->SetProperty("width", "12%");
-			gameplay->SetProperty("height", "60%");
-			gameplay->RemoveProperty("right");
-			gameplay->RemoveProperty("bottom");
+			if (has_gameplay && !placed_gameplay && layout && !layout->at("widgets").empty())
+			{
+				if (region.width >= 900)
+				{
+					widgets->SetProperty("right", "42%");
+					gameplay->SetProperty("left", "60%");
+				}
+				else
+				{
+					widgets->SetProperty("bottom", "45%");
+					gameplay->SetProperty("top", "58%");
+				}
+			}
+			if (helm && !pregame)
+			{
+				widgets->SetProperty("top", "4%");
+				widgets->SetProperty("right", "4%");
+				widgets->SetProperty("bottom", "4%");
+				const float width = region.width * .92f, height = region.height * .92f;
+				const float side = std::min(height, width * .70f);
+				for (const auto &widget : layout->at("widgets"))
+				{
+					auto *element = document_->GetElementById("widget/" + widget.at("id").get<std::string>());
+					const std::string kind = widget.at("kind");
+					if (kind == "radar")
+					{
+						element->SetProperty("left", std::to_string((width - side) / 2) + "px");
+						element->SetProperty("top", std::to_string((height - side) / 2) + "px");
+						element->SetProperty("width", std::to_string(side) + "px");
+						element->SetProperty("height", std::to_string(side) + "px");
+					}
+					else if (kind == "throttle")
+					{
+						element->SetProperty("left", "85%");
+						element->SetProperty("top", "10%");
+						element->SetProperty("width", "15%");
+						element->SetProperty("height", "80%");
+					}
+					else if (kind == "heading")
+					{
+						element->SetProperty("left", "0%");
+						element->SetProperty("top", "85%");
+						element->SetProperty("width", "15%");
+						element->SetProperty("height", "15%");
+					}
+				}
+				gameplay->SetProperty("left", "4%");
+				gameplay->SetProperty("top", "18%");
+				gameplay->SetProperty("width", "12%");
+				gameplay->SetProperty("height", "60%");
+				gameplay->RemoveProperty("right");
+				gameplay->RemoveProperty("bottom");
+			}
 		}
 		Json gameplay_identity = Json::array();
 		for (const auto &[name, label] : gameplay_controls)
@@ -720,6 +749,7 @@ p {display:block;font-size:17px;margin:4px 0;}
 		const auto gameplay_signature = gameplay_identity.dump();
 		if (gameplay_signature_ != gameplay_signature)
 		{
+			elements_.clear();
 			model_.release_controls();
 			held_clicks_.clear();
 			std::string markup;
@@ -734,7 +764,7 @@ p {display:block;font-size:17px;margin:4px 0;}
 		for (const auto &[name, label] : gameplay_controls)
 			if (displayed_values_["control/" + name] != label)
 			{
-				if (auto *element = document_->GetElementById(id(name)))
+				if (auto *element = this->element(id(name)))
 					element->SetInnerRML(Rml::StringUtilities::EncodeRml(label));
 				displayed_values_["control/" + name] = label;
 			}
@@ -744,6 +774,7 @@ p {display:block;font-size:17px;margin:4px 0;}
 		const auto readout_signature = gameplay_identity.dump();
 		if (gameplay_readout_signature_ != readout_signature)
 		{
+			elements_.clear();
 			std::string markup;
 			for (const auto &[name, text] : gameplay_readouts)
 			{
@@ -755,7 +786,7 @@ p {display:block;font-size:17px;margin:4px 0;}
 		}
 		for (const auto &[name, text] : gameplay_readouts)
 		{
-			if (auto *element = document_->GetElementById(id(name)))
+			if (auto *element = this->element(id(name)))
 				if (displayed_values_[name] != text)
 				{
 					element->SetInnerRML(Rml::StringUtilities::EncodeRml(text));
@@ -859,8 +890,13 @@ p {display:block;font-size:17px;margin:4px 0;}
 				              std::to_string(model_.observation() ? model_.observation()->own.heading / 1000 : 0) +
 				              " degrees"
 				        : "";
-				if (auto *readout = document_->GetElementById("value/" + key))
-					readout->SetInnerRML(Rml::StringUtilities::EncodeRml(localise(value)));
+				value = localise(value);
+				if (auto *readout = document_->GetElementById("value/" + key);
+				    readout && displayed_values_["value/" + key] != value)
+				{
+					readout->SetInnerRML(Rml::StringUtilities::EncodeRml(value));
+					displayed_values_["value/" + key] = value;
+				}
 			}
 		context_->Update();
 		for (const auto &[name, label] : controls_)
@@ -880,6 +916,7 @@ p {display:block;font-size:17px;margin:4px 0;}
 				place(app, region, field.id);
 		if (pregame)
 			place(app, region, id("lobby-title"));
+		app.frame_metrics["console/" + std::to_string(route_) + "/layout"] = GetTime() - layout_started;
 	}
 	void draw_profile(const ConsoleRegion &region)
 	{
