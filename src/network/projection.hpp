@@ -64,7 +64,7 @@ static inline Json bounded_gameplay(const Json &source)
 			omitted[category] = omitted[category].get<std::size_t>() - 1;
 		}
 	};
-	// World emits Away/resume, delegation and presets before optional actuator
+	// World emits Away/resume and complexity profiles before optional actuator
 	// descriptors. Preserve that priority so truncation cannot strand control.
 	if (const auto controls = source.find("controls"); controls != source.end() && controls->is_array())
 		for (const auto &control : *controls)

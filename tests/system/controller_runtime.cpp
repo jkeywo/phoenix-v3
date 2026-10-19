@@ -47,6 +47,31 @@ int main()
 {
 	try
 	{
+		{
+			auto source = controller_fixture();
+			source["entities"][0]["control_layout"]["controllers"][0]["tree"] = "test.mutable";
+			source["entities"][0]["control_layout"]["controllers"][0].erase("fallback");
+			source["trees"] = Json::parse(R"json([{"id":"test.mutable","context":"controller","initial":"run",
+ "command_bindings":[{"channel":"speed"}],"states":[{"id":"run","entry":[{"action":"write.speed","arguments":[1000]}]}]}])json");
+			auto catalog = load(source);
+			catalog.trees.at("test.mutable")["states"][0]["entry"][0]["arguments"][0] = 5000;
+			World changed;
+			changed.load(catalog, "test.map");
+			changed.tick();
+			require(changed.claim(101, 1, "drive") && requested(changed, "port") == 5000 &&
+			            requested(changed, "starboard") == 5000,
+			        "World must execute the freshly validated authored Controller tree rather than stale Catalog "
+			        "program cache");
+			const auto saved = changed.save();
+			catalog.trees.at("test.mutable")["states"][0]["entry"][0]["action"] = "write.unknown";
+			rejects(
+			    [&]
+			    {
+				    changed.load(catalog, "test.map");
+			    },
+			    "Invalid mutated authored tree must be refused despite valid old cache");
+			require(changed.save() == saved, "Failed mutable-Catalog load must preserve live World transactionally");
+		}
 
 		for (const bool split_vector : {false, true})
 		{

@@ -2,7 +2,7 @@
 
 ## Subsequent architecture agreement
 
-The [Console Controller architecture](controller-architecture.md), agreed 19 October 2026, supersedes the per-System command-AI and individual-delegation model described in earlier implementation receipts. Its [refactoring plan](controller-refactor-plan.md) is **not started**. Current execution/evidence below describes the existing implementation, not completion of that new architecture.
+The [Console Controller architecture](controller-architecture.md), agreed 19 October 2026, supersedes the per-System command-AI and individual-delegation model described in earlier implementation receipts. Its [refactoring plan](controller-refactor-plan.md) is **in progress**, and the live runtime now uses Console Controllers. The receipts below are historical evidence for the earlier implementation; use the refactor plan for current migration status and acceptance.
 
 Approved scope: the full gameplay and authoring plan agreed on 19 October 2026.
 This record tracks implementation, independent review and verification separately.

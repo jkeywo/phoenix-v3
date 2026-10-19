@@ -28,6 +28,7 @@ public:
 	KnowledgeId system_id(EntityId ship, const std::string &system) const;
 	KnowledgeId controller_id(const ControllerAddress &address) const;
 	void set_controller_control(const ControllerAddress &address, bool present, bool human);
+	void set_console_presence(const ConsoleAddress &address, bool present);
 	std::vector<CoordinationDelivery> peek_controller(const ControllerAddress &address);
 	void acknowledge_controller(const ControllerAddress &address, KnowledgeId through_message);
 	KnowledgeId ai_id(EntityId ship, const std::string &system) const;
@@ -38,9 +39,6 @@ public:
 	                              ControlOrigin origin, bool controller = false) const;
 	KnowledgeId request_key(const std::string &name) const;
 	std::string request_key_name(KnowledgeId key) const;
-	// human_systems is the effective owned subset after delegation/preset changes.
-	void set_console_control(const ConsoleAddress &address, bool human_present,
-	                         const std::vector<std::string> &human_systems = {});
 	void clear_control();
 	// Trusted observation ingestion. System observations fan out only to their
 	// owning Console and its explicit authored feed recipients; roles still apply.
@@ -75,7 +73,7 @@ public:
 	                           bool execute = true, bool controller = false);
 	KnowledgeId publish_scenario_message(const ConsoleAddress &source, CoordinationInput value, KnowledgeTick tick);
 	bool withdraw_request(const ConsoleAddress &source, const std::string &sender_system, KnowledgeId request_key,
-	                      ControlOrigin origin);
+	                      ControlOrigin origin, bool controller = false);
 	std::vector<CoordinationDelivery> tick(KnowledgeTick tick);
 	std::vector<CoordinationMessage> pending_messages(std::size_t limit = 32) const;
 	std::vector<CoordinationDelivery> receive_system(EntityId ship, const std::string &system);

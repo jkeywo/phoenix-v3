@@ -288,27 +288,11 @@ bool GameplayKnowledge::readable(const GameplayKnowledgeConsoleDefinition &conso
 			return true;
 	return false;
 }
-void GameplayKnowledge::set_console_control(const ConsoleAddress &address, bool present,
-                                            const std::vector<std::string> &systems)
+void GameplayKnowledge::set_console_presence(const ConsoleAddress &address, bool present)
 {
 	const auto id = console_id(address);
-	const auto &console = console_definition(address).console;
-	std::set<std::string> unique;
-	for (const auto &system : systems)
-		knowledge_require(present &&
-		                      std::find(console.controlled_systems.begin(), console.controlled_systems.end(), system) !=
-		                          console.controlled_systems.end() &&
-		                      unique.insert(system).second,
-		                  "human control subset contains unowned/duplicate System");
 	runtime_.set_human_control(id, present);
 	human_consoles_[id] = present;
-	for (const auto &system : console.controlled_systems)
-	{
-		const auto key = system_id(address.ship, system);
-		const bool human = present && unique.contains(system);
-		runtime_.set_system_human_control(key, human);
-		human_systems_[key] = human;
-	}
 }
 void GameplayKnowledge::clear_control()
 {
@@ -663,9 +647,10 @@ KnowledgeId GameplayKnowledge::publish_scenario_message(const ConsoleAddress &so
 	return runtime_.send(std::move(value), tick);
 }
 bool GameplayKnowledge::withdraw_request(const ConsoleAddress &source, const std::string &system, KnowledgeId key,
-                                         ControlOrigin origin)
+                                         ControlOrigin origin, bool controller)
 {
-	const auto sender = system_id(source.ship, system);
+	const auto sender =
+	    controller ? controller_id({source.ship, source.console, system}) : system_id(source.ship, system);
 	const auto &console = console_definition(source);
 	knowledge_require(!console.producers.empty(), "request sender has no producer role");
 	admit_sender(source, sender, console.producers.front(), origin);

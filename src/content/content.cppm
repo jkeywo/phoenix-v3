@@ -168,6 +168,7 @@ Catalog resolve_packs(const std::vector<Pack> &ordered);
 Pack console_assets(const Catalog &catalog, const std::string &ship);
 // Authoring preview only: the final draft is deliberately absent from archive identities.
 Catalog resolve_draft(const std::vector<Pack> &libraries, const PackDraft &draft);
+Catalog prepared_catalog(const Catalog &catalog);
 void verify_catalog(const Catalog &catalog);
 // Public setup hints for the HTML launcher. Admission/setup still verify in C++.
 Json launcher_catalog(const Catalog &catalog);
@@ -213,6 +214,8 @@ struct ControllerCommandSpec
 	std::vector<std::size_t> consumers;
 	std::vector<std::int64_t> initial_arguments;
 	bool initial_heading = false;
+	std::string label_key;
+	std::map<std::int64_t, std::string> choices;
 };
 struct ConsoleControllerSpec
 {

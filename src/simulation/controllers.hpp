@@ -19,7 +19,7 @@ struct ActionResult
 {
 	bool available = false, success = false;
 	std::string reason;
-	std::uint64_t id = 0;
+	std::uint64_t id = 0, publication = 0, message = 0;
 };
 struct ControllerChannelState
 {

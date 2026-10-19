@@ -76,7 +76,7 @@ struct GameplayEditor
 	Json feedback = Json::object();
 	std::optional<GameplayTestRequest> test_request;
 	std::string entity, tree, test_ship, test_slot, test_map;
-	std::string inspected_controller, selected_system, system_entity;
+	std::string inspected_controller, selected_system, system_entity, message_tree;
 	Json vocabulary = Json::object();
 	Json composition = Json::object();
 	Catalog composition_catalog;
@@ -636,19 +636,6 @@ struct GameplayEditor
 			text("Stations are inherited. Copy them only when authoring an explicit local ownership override.");
 			if (button("Override inherited Stations"))
 				ship["stations"] = composition.at("stations");
-		}
-		if (!ship.contains("control_layout") && !composition.contains("control_layout"))
-		{
-			heading("Resolved controller bindings");
-			for (const auto &system : systems)
-			{
-				ScopedId identity(system.c_str());
-				ImGui::TextUnformatted(system.c_str());
-				if (ship.contains("controllers"))
-					choice(ship["controllers"], system.c_str(), definitions(document, "trees"), true);
-				else if (button("Create controller bindings"))
-					ship["controllers"] = Json::object();
-			}
 		}
 		records(ship, "stations", {{"id", "station"}, {"consoles", Json::array()}},
 		        [&](Json &station)
@@ -1408,7 +1395,7 @@ struct GameplayEditor
 					ImGui::TextUnformatted(definition.at("extends").get<std::string>().c_str());
 				}
 				Json context{{"context", resolved.at("context")}};
-				if (choice(context, "context", {"controller", "system", "scenario"}))
+				if (choice(context, "context", {"controller", "scenario"}))
 					definition["context"] = context.at("context");
 				integer(definition, "budget", resolved.value("budget", 4096));
 				Json initial{{"initial", resolved.value("initial", std::string{})}};
@@ -1462,8 +1449,8 @@ struct GameplayEditor
 					resolved = document.preview_tree(definition);
 					controller_palette(resolved, document);
 				}
-				if (resolved.value("context", std::string("system")) == "system")
-					summary_bindings(definition);
+				if (resolved.value("context", std::string{}) == "system")
+					text("Legacy System tree: migrate bindings and actions to a Console Controller before use.");
 				records(definition, "memory", {{"name", "memory"}, {"type", "integer"}, {"initial", 0}},
 				        [&](Json &memory)
 				        {
@@ -1516,16 +1503,6 @@ struct GameplayEditor
 				        });
 				return;
 			}
-	}
-	void summary_bindings(Json &tree)
-	{
-		records(tree, "summary_bindings", {{"name", "intent.power"}, {"channel", "power"}},
-		        [&](Json &binding)
-		        {
-			        string(binding, "name");
-			        string(binding, "channel");
-			        text("Integer observation from the named delegated control channel.");
-		        });
 	}
 	void record_bindings(Json &tree, WorkshopDocument &document, const Json &resolved)
 	{
@@ -1786,7 +1763,6 @@ struct GameplayEditor
 			                "boost", "impulse"});
 			        const auto kind = equipment_kind(document, equipment);
 			        system_details(equipment, kind);
-			        choice(equipment, "controller", definitions(document, "trees"), true);
 			        telemetry_records(equipment, document);
 			        scalar_map(equipment, "parameters");
 		        });
@@ -1818,7 +1794,6 @@ struct GameplayEditor
 					                "lateral", "boost", "impulse"},
 					               true);
 					        system_details(it.value(), equipment_kind(document, it.value()));
-					        choice(it.value(), "controller", definitions(document, "trees"), true);
 					        text("Absent values inherit from the equipment template. Endpoint names and $service "
 					             "bindings remain local to this assembly until placement.");
 					        scalar_map(it.value(), "parameters");
@@ -1885,6 +1860,8 @@ struct GameplayEditor
 		for (const auto &station : resolved.value("stations", Json::array()))
 			for (const auto &console : station.at("consoles"))
 				consoles.push_back(console.at("id").get<std::string>());
+		if (consoles.empty() && resolved.contains("console"))
+			consoles.push_back("main");
 		if (!ship->contains("control_layout"))
 		{
 			if (resolved.contains("control_layout"))
@@ -1966,6 +1943,27 @@ struct GameplayEditor
 					                }
 					                else if (button(key))
 						                command[key] = 0;
+				                }
+				                string(command, "label_key");
+				                const auto action = command.value("action", std::string{});
+				                if (action == "intent_integer" || action == "intent_boolean")
+				                {
+					                if (!command.contains("choices"))
+					                {
+						                if (button("Add labelled choices"))
+							                command["choices"] = Json::array();
+					                }
+					                else
+					                {
+						                records(command, "choices", {{"value", 0}, {"label_key", "Choice"}},
+						                        [&](Json &choice)
+						                        {
+							                        integer(choice, "value");
+							                        string(choice, "label_key");
+						                        });
+						                if (button("Use continuous values"))
+							                command.erase("choices");
+					                }
 				                }
 				                names(command, "consumers", systems);
 			                });
@@ -2052,6 +2050,8 @@ struct GameplayEditor
 				        string(binding, "controller");
 				        string(binding, "channel");
 			        });
+		if (editable("publication_templates"))
+			strings(tree, "publication_templates");
 		if (editable("message_templates"))
 			names(tree, "message_templates", definitions(document, "messages"));
 		const auto knowledge = knowledge_view(document);
@@ -2106,105 +2106,33 @@ struct GameplayEditor
 			ImGui::TextWrapped("%s", error.what());
 		}
 	}
-	void presets(WorkshopDocument &document)
-	{
-		auto *ship = select_entity(document);
-		if (!ship)
-			return;
-		(void)fitted_ids(document, *ship);
-		if (ship->contains("control_layout") || composition.contains("control_layout"))
-		{
-			text("This entity uses Console Controller complexity profiles.");
-			return;
-		}
-		if (!ship->contains("presets") && composition.contains("presets"))
-		{
-			text("Station presets are inherited.");
-			if (button("Override inherited presets"))
-				(*ship)["presets"] = composition.at("presets");
-		}
-		std::map<std::string, std::vector<std::string>> console_systems;
-		const auto &station_source = composition.empty() ? *ship : composition;
-		if (station_source.contains("stations"))
-			for (const auto &station : station_source.at("stations"))
-				for (const auto &console : station.at("consoles"))
-				{
-					auto &owned = console_systems[console.at("id").get<std::string>()];
-					if (console.contains("systems"))
-						for (const auto &system : console.at("systems"))
-							owned.push_back(system.get<std::string>());
-				}
-		else
-			console_systems["main"] =
-			    station_source.contains("systems") ? ids(station_source.at("systems")) : std::vector<std::string>{};
-		choice(*ship, "default_preset",
-		       ship->contains("presets") ? ids(ship->at("presets")) : std::vector<std::string>{}, true);
-		records(*ship, "presets", {{"id", "preset"}, {"name", ""}, {"description", ""}, {"consoles", Json::object()}},
-		        [&](Json &preset)
-		        {
-			        string(preset, "id");
-			        string(preset, "name");
-			        string(preset, "description");
-			        for (const auto &[console, systems] : console_systems)
-			        {
-				        ScopedId identity(console.c_str());
-				        if (ScopedTree inspector(console.c_str()); inspector)
-				        {
-					        if (!preset.contains("consoles") || !preset.at("consoles").contains(console))
-					        {
-						        if (button("Configure Console preset"))
-							        preset["consoles"][console] = {{"direct", systems},
-							                                       {"delegated", Json::array()},
-							                                       {"summary_intents", Json::array()}};
-					        }
-					        else
-					        {
-						        auto &binding = preset["consoles"][console];
-						        names(binding, "direct", systems);
-						        names(binding, "delegated", systems);
-						        std::vector<std::string> delegated;
-						        if (binding.contains("delegated"))
-							        for (const auto &system : binding.at("delegated"))
-								        delegated.push_back(system.get<std::string>());
-						        records(
-						            binding, "summary_intents",
-						            {{"system", ""},
-						             {"channel", ""},
-						             {"levels", Json::array({0})},
-						             {"default", 0},
-						             {"level_labels", Json::array({"No"})}},
-						            [&](Json &summary)
-						            {
-							            choice(summary, "system", delegated);
-							            std::vector<std::string> channels;
-							            if (composition_catalog.entities.contains(entity) &&
-							                composition.contains("systems") &&
-							                composition.at("systems").contains(summary.value("system", std::string{})))
-								            channels = gameplay_summary_channels(
-								                composition_catalog, entity, summary.at("system").get<std::string>());
-							            choice(summary, "channel", channels);
-							            if (summary.contains("channel") &&
-							                std::find(channels.begin(), channels.end(),
-							                          summary.at("channel").get<std::string>()) == channels.end())
-								            text("This channel is not available from the fitted capability or its "
-								                 "controller. Choose a declared channel before verification.");
-							            numbers(summary, "levels");
-							            integer(summary, "default");
-							            strings(summary, "level_labels");
-						            });
-						        text("Direct and delegated lists cover each owned System once. Summary levels are "
-						             "physical channel values and require matching translated level labels.");
-					        }
-				        }
-			        }
-		        });
-	}
 	void messages(WorkshopDocument &document)
 	{
 		auto &defs = document.definitions();
 		const auto known = knowledge_view(document);
 		const auto schemas = ids(known.at("schemas"));
-		const Json context{{"context", "system"}};
+		Json context{{"context", "controller"}};
+		auto trees = document.libraries().trees;
+		for (const auto &source : defs.value("trees", Json::array()))
+			trees[source.at("id").get<std::string>()] = source;
+		std::map<std::string, Json> contexts;
+		std::vector<std::string> options;
+		for (const auto &[id, source] : trees)
+		{
+			const auto resolved = document.preview_tree(source);
+			if (resolved.value("context", std::string{}) == "controller")
+			{
+				options.push_back(id);
+				contexts.emplace(id, resolved);
+			}
+		}
+		Json selection{{"Binding tree", message_tree}};
+		if (choice(selection, "Binding tree", options, true))
+			message_tree = selection.value("Binding tree", std::string{});
+		if (contexts.contains(message_tree))
+			context = contexts.at(message_tree);
+		controller_palette(context, document);
+		text("Binding tree supplies authoring choices only. Every actual sender must satisfy the template's bindings.");
 		records(defs, "messages",
 		        {{"id", "message"},
 		         {"schema", ""},
@@ -2226,7 +2154,7 @@ struct GameplayEditor
 			        integer(message, "urgency");
 			        boolean(message, "automatic", true);
 			        boolean(message, "human_seeking", false);
-			        choice(message["destination"], "kind", {"controller", "console", "station", "ship", "system"});
+			        choice(message["destination"], "kind", {"controller", "console", "station", "ship"});
 			        if (message["destination"].value("kind", std::string{}) == "controller")
 				        string(message["destination"], "console");
 			        string(message["destination"], "id");
@@ -2411,8 +2339,7 @@ struct GameplayEditor
 				         {"Power and cooling", &GameplayEditor::resources},
 				         {"Fitting and assemblies", &GameplayEditor::placements},
 				         {"Knowledge feeds and publications", &GameplayEditor::knowledge_bindings},
-				         {"Console Controllers and complexity", &GameplayEditor::control_layout},
-				         {"Station presets", &GameplayEditor::presets}})
+				         {"Console Controllers and complexity", &GameplayEditor::control_layout}})
 					if (ImGui::CollapsingHeader(label(title).c_str()))
 					{
 						ScopedId scope(title);
@@ -2509,13 +2436,14 @@ void draw_console_gameplay_properties(WorkshopDocument &document, Application &a
 }
 void set_gameplay_authoring_vocabulary(const Json &vocabulary)
 {
-	if (vocabulary.contains("system") || vocabulary.contains("scenario"))
+	if (vocabulary.contains("controller") || vocabulary.contains("system") || vocabulary.contains("scenario"))
 	{
 		gameplay_editor.vocabulary = vocabulary;
 		return;
 	}
 	Json contexts = Json::object();
-	for (const auto &[context, mask] : std::vector<std::pair<std::string, unsigned>>{{"system", 1}, {"scenario", 2}})
+	for (const auto &[context, mask] :
+	     std::vector<std::pair<std::string, unsigned>>{{"system", 1}, {"scenario", 2}, {"controller", 4}})
 	{
 		contexts[context] = {{"actions", Json::array()}, {"observations", Json::array()}, {"intents", Json::array()}};
 		for (const char *kind : {"actions", "observations", "intents"})

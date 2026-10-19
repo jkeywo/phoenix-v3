@@ -700,11 +700,14 @@ void prepare_catalog(Catalog &catalog)
 	verify_prepared_catalog(catalog);
 }
 } // namespace
-void verify_catalog(const Catalog &catalog)
+Catalog prepared_catalog(const Catalog &catalog)
 {
-	// Catalog is publicly mutable. Never use its retained programs as proof that
-	// the current authored definitions still compile or satisfy domain contracts.
 	auto candidate = catalog;
 	prepare_catalog(candidate);
+	return candidate;
+}
+void verify_catalog(const Catalog &catalog)
+{
+	(void)prepared_catalog(catalog);
 }
 } // namespace phoenix

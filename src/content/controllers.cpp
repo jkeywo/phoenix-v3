@@ -400,6 +400,26 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			                "held input range must include neutral zero for handover");
 			control_require(command.semantics != CommandSemantics::Request || command.initial == 0, where,
 			                "request channels must start idle");
+
+			command.label_key = field.value("label_key", std::string{});
+			control_require(command.label_key.size() <= 256, where, "command label too long");
+			if (field.contains("choices"))
+			{
+				const auto &choices = field.at("choices");
+				control_require(intent && choices.is_array() && !choices.empty() && choices.size() <= 64, where,
+				                "choices require a bounded intent channel list");
+				for (const auto &choice : choices)
+				{
+					const auto &value = choice.at("value");
+					const auto label = choice.at("label_key").get<std::string>();
+					control_require(value.is_number_integer() && value >= command.minimum && value <= command.maximum &&
+					                    !label.empty() && label.size() <= 256,
+					                where, "invalid preference choice");
+					control_require(command.choices.emplace(value.get<std::int64_t>(), label).second, where,
+					                "duplicate preference choice");
+				}
+				control_require(command.choices.contains(command.initial), where, "initial must be an authored choice");
+			}
 			controller.commands.push_back(std::move(command));
 		}
 		if (!controller.tree.empty() && catalog.tree_programs.contains(controller.tree))
@@ -423,8 +443,23 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			}
 			for (const auto &action : catalog.tree_programs.at(controller.tree).registry.actions)
 			{
-				if (action.name == "acknowledge_message")
+				if (action.name == "acknowledge_message" || action.name == "stop_publication" ||
+				    action.name == "withdraw_request")
 					continue;
+
+				if (action.name.starts_with("publish."))
+				{
+					const auto publications = entity.value("publications", Json::array());
+					control_require(std::any_of(publications.begin(), publications.end(),
+					                            [&](const auto &p)
+					                            {
+						                            return p.value("id", std::string{}) == action.name.substr(8) &&
+						                                   p.value("source_console", std::string{}) ==
+						                                       controller.console;
+					                            }),
+					                where, "tree publication template is not owned by Console");
+					continue;
+				}
 				if (action.name.starts_with("send."))
 				{
 					const auto templates = entity.value("message_templates", Json::array());

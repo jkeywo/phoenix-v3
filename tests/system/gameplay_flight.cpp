@@ -69,6 +69,13 @@ Json fixture()
 }
 using phoenix::test::archive;
 using phoenix::test::load;
+Json explicit_fixture(Json source)
+{
+	const auto compiled = convert_controller_content(load(source));
+	for (auto &entity : source["entities"])
+		entity = compiled.entities.at(entity.at("id").get<std::string>());
+	return source;
+}
 BodyView body(const World &world, EntityId id = 1)
 {
 	for (const auto &item : world.inspect())
@@ -98,7 +105,25 @@ void claim(World &world)
 void command(World &world, const std::string &action, std::int64_t value, const std::string &id,
              std::uint64_t console = 101, EntityId actor = 1)
 {
-	if (!world.submit(console, {actor, action, value, id}))
+	OperatingCommand request{actor, action, value, {}};
+	const auto view = world.observe(console);
+	bool found = false;
+	if (view)
+		for (const auto &owner : view->gameplay.at("controllers"))
+			for (const auto &[channel, section] : owner.at("commands").items())
+				if (section.at("action") == action &&
+				    std::find(section.at("consumers").begin(), section.at("consumers").end(), id) !=
+				        section.at("consumers").end())
+				{
+					require(!found, "Physical test command must have a unique Controller subscription");
+					found = true;
+					request.controller = owner.at("id");
+					request.channel = channel;
+					request.generation = owner.at("generation");
+					if (section.at("semantics") == "request")
+						request.request_id = section.at("request_id").get<std::uint64_t>() + 1;
+				}
+	if (!found || !world.submit(console, request))
 		throw std::runtime_error("ordinary typed command refused: " + id + "." + action + "=" + std::to_string(value));
 }
 std::int64_t paid(const World &world)
@@ -463,14 +488,36 @@ void follow_contact()
 	for (int experiment = 0; experiment < 4; ++experiment)
 	{
 		const bool feed = experiment != 0;
-		auto source = fixture();
+		auto source = explicit_fixture(fixture());
 		auto leader = source["entities"][0];
 		leader["id"] = "test.leader";
 		source["entities"].push_back(leader);
 		source["maps"][0]["entities"][1]["definition"] = "test.leader";
 		auto &ship = source["entities"][0];
-		ship["controllers"] = {{"drive", "test.follow"}, {"turn", "test.follow"}};
-		ship["systems"]["turn"]["controller"] = "test.follow";
+
+		auto &layout = ship["control_layout"];
+		for (auto &owner : layout["controllers"])
+		{
+			auto &commands = owner["commands"];
+			commands.erase(std::remove_if(commands.begin(), commands.end(),
+			                              [](const auto &c)
+			                              {
+				                              return c.at("action") == "follow_contact";
+			                              }),
+			               commands.end());
+		}
+		for (auto &owner : layout["controllers"])
+			if (owner.at("id") == "drive")
+			{
+				owner["tree"] = "test.follow";
+				owner.erase("fallback");
+				owner["commands"].push_back({{"id", "follow"},
+				                             {"action", "follow_contact"},
+				                             {"initial", 0},
+				                             {"arguments", {0, 15000, 8000}},
+				                             {"consumers", {"drive", "turn"}}});
+			}
+
 		if (!feed)
 			ship["stations"][0]["consoles"][0]["feeds"] = Json::array();
 		if (experiment == 2)
@@ -481,28 +528,25 @@ void follow_contact()
 		}
 		if (experiment == 3)
 			source["maps"][0]["entities"][1]["x_mm"] = 4000;
-		source["trees"] = Json::parse(R"([{"id":"test.follow","context":"system","initial":"follow","states":[
-			{"id":"follow","running":[{"action":"set_follow_contact","arguments":[{"observation":"self.system"},{"type":"entity","id":2},15000,8000,true]}]}]}])");
+		source["trees"] = Json::parse(R"json([{"id":"test.follow","context":"controller","initial":"follow",
+ "command_bindings":[{"channel":"follow","type":"boolean","action":"follow_contact"}],
+ "states":[{"id":"follow","running":[{"action":"write.follow","arguments":[true,2,15000,8000]}]}]}])json");
 		if (experiment == 1)
 			for (int invalid = 0; invalid < 3; ++invalid)
 			{
 				auto bad = source;
 				auto &arguments = bad["trees"][0]["states"][0]["running"][0]["arguments"];
 				if (invalid < 2)
-					arguments[1]["id"] = invalid == 0 ? 1 : 999;
+					arguments[1] = invalid == 0 ? 1 : 999;
 				else
 					arguments[2] = 0;
-				bool refused = false;
-				try
-				{
-					(void)load(bad);
-				}
-				catch (const std::exception &)
-				{
-					refused = true;
-				}
-				require(refused, "following must reject self/missing targets and invalid separation");
+				World invalid_world;
+				invalid_world.load(load(bad), "test.map");
+				invalid_world.tick();
+				require(body(invalid_world).vx == 0 && body(invalid_world).vy == 0,
+				        "Self, missing or invalid separation follow target cannot create guidance");
 			}
+
 		const auto catalog = load(source);
 		World world;
 		world.load(catalog, "test.map");
@@ -639,6 +683,9 @@ void match_speed()
 		        "stale Match Speed must retain last observed speed while unseen target motion continues");
 		command(world, "radar_enabled", 1, "radar", 103);
 		world.tick();
+		require(telemetry(world, "drive", "match_stale") == 1,
+		        "Sensor enable applies after tick-start evidence snapshot");
+		world.tick();
 		require(telemetry(world, "drive", "match_stale") == 0 &&
 		            telemetry(world, "drive", "matched_speed") > last_known,
 		        "fresh observations of the same contact must resume Match Speed updates");
@@ -765,28 +812,12 @@ void disabled_cooling()
 }
 void invalid_controller_actions()
 {
-	const Json self{{"observation", "self.system"}};
-	const auto action = [&](const char *name, Json arguments)
-	{
-		arguments.insert(arguments.begin(), self);
-		return Json{{"action", name}, {"arguments", std::move(arguments)}};
-	};
-	const auto maximum = std::numeric_limits<std::int64_t>::max();
-	const auto minimum = std::numeric_limits<std::int64_t>::min();
-	const std::vector<Json> cases{
-	    Json::array({action("set_flight_mode", Json::array({2}))}),
-	    Json::array({action("set_destination", Json::array({{{"type", "region"}, {"id", 1}}, maximum, maximum}))}),
-	    Json::array({action("set_destination", Json::array({{{"type", "region"}, {"id", 1}}, minimum, minimum}))}),
-	    Json::array({action("set_flight_mode", Json::array({1})),
-	                 action("set_match_speed", Json::array({{{"type", "entity"}, {"id", 2}}, true}))}),
-	    Json::array({action("set_generator_output", Json::array({maximum}))})};
-	for (std::size_t i = 0; i < cases.size(); ++i)
+	for (int i = 0; i < 5; ++i)
 	{
 		auto source = fixture();
-		auto &ship = source["entities"][0];
-		const std::string target = i == 4 ? "generator" : "drive";
 		if (i == 4)
 		{
+			auto &ship = source["entities"][0];
 			ship["systems"]["generator"] = {{"kind", "generator"}, {"generator", "reactor"}, {"power_store", "cell"}};
 			ship["resources"]["generators"] = Json::array({{{"id", "reactor"},
 			                                                {"store", "cell"},
@@ -795,27 +826,77 @@ void invalid_controller_actions()
 			                                                {"initial_output", 100}}});
 			ship["stations"][0]["consoles"][3]["systems"].push_back("generator");
 		}
-		ship["controllers"] = {{target, "test.invalid-action"}};
-		source["trees"].push_back({{"id", "test.invalid-action"},
-		                           {"context", "system"},
-		                           {"initial", "attempt"},
-		                           {"states", Json::array({{{"id", "attempt"}, {"entry", cases[i]}}})}});
-		const auto catalog = load(source);
+		source = explicit_fixture(source);
+		auto &ship = source["entities"][0];
+		const std::string target = i == 4 ? "generator" : "drive";
+		for (auto &owner : ship["control_layout"]["controllers"])
+			if (owner.at("id") == target)
+			{
+				owner["tree"] = "test.invalid-action";
+				owner.erase("fallback");
+			}
+		Json tree{{"id", "test.invalid-action"}, {"context", "controller"}, {"initial", "attempt"}};
+		Json actions = Json::array();
+		if (i == 0)
+		{
+			tree["command_bindings"] = Json::array({{{"channel", "assisted"}, {"type", "boolean"}}});
+			actions.push_back({{"action", "write.assisted"}, {"arguments", {2}}});
+		}
+		if (i == 1 || i == 2)
+		{
+			tree["command_bindings"] =
+			    Json::array({{{"channel", "destination"}, {"type", "boolean"}, {"action", "destination"}}});
+			auto value = i == 1 ? std::numeric_limits<std::int64_t>::max() : std::numeric_limits<std::int64_t>::min();
+			actions.push_back({{"action", "write.destination"}, {"arguments", {true, value, value}}});
+		}
+		if (i == 3)
+		{
+			tree["command_bindings"] = Json::array(
+			    {{{"channel", "assisted"}, {"type", "boolean"}}, {{"channel", "match_speed"}, {"type", "boolean"}}});
+			actions.push_back({{"action", "write.assisted"}, {"arguments", {false}}});
+			actions.push_back({{"action", "write.match_speed"}, {"arguments", {true}}});
+		}
+		if (i == 4)
+		{
+			tree["command_bindings"] = Json::array({{{"channel", "generator_output"}}});
+			actions.push_back(
+			    {{"action", "write.generator_output"}, {"arguments", {std::numeric_limits<std::int64_t>::max()}}});
+		}
+		tree["states"] = Json::array({{{"id", "attempt"}, {"entry", actions}}});
+		source["trees"] = Json::array({tree});
+		if (i == 0)
+		{
+			phoenix::test::rejects(
+			    [&]
+			    {
+				    (void)load(source);
+			    },
+			    "Invalid typed or bounded Controller writes must fail compilation");
+			continue;
+		}
 		World world;
-		world.load(catalog, "test.map");
+		world.load(load(source), "test.map");
 		world.tick();
 		claim(world);
 		if (i == 4)
-			require(
-			    telemetry(world, "generator", "generator_output", 104) == 100,
-			    "out-of-range AI generator permille must refuse before overflowing multiplication or changing output");
-		else
-			require(telemetry(world, "drive", "assisted") == (i == 3 ? 0 : 1) &&
-			            telemetry(world, "drive", "selected_contact") == 0 &&
-			            telemetry(world, "drive", "match_speed") == 0 &&
-			            system(*world.observe(101), "drive").requested == 0,
-			        "invalid AI mode/destination and refused manual Match Speed must preserve all previous flight "
-			        "settings atomically");
+		{
+			require(telemetry(world, "generator", "generator_output", 104) == 100,
+			        "Out-of-range output cannot change physical generator state");
+			continue;
+		}
+		require(telemetry(world, "drive", "assisted") == (i == 3 ? 0 : 1) &&
+		            telemetry(world, "drive", "selected_contact") == 0 &&
+		            telemetry(world, "drive", "match_speed") == 0 &&
+		            system(*world.observe(101), "drive").requested == 0,
+		        "Physically refused manual Match Speed must leave target and speed unchanged");
+		auto unowned = source;
+		unowned["trees"][0]["command_bindings"][0]["channel"] = "foreign";
+		phoenix::test::rejects(
+		    [&]
+		    {
+			    (void)load(unowned);
+		    },
+		    "Controller cannot acquire an undeclared command channel");
 	}
 }
 std::string control_id(const ConsoleModel &model, const std::string &action, std::int64_t value)
@@ -883,9 +964,10 @@ void equipment_ordering_and_recovery()
 	require(ordered.inspect().size() == 4 && ordered.scene().size() == 4 && ordered.observe(101)->contacts.size() == 1,
 	        "internal equipment identities must not appear as bodies, scene objects or radar contacts");
 	const auto saved = ordered.save();
-	require(saved.at("bodies").size() == 4 && !saved.at("bodies")[2].contains("systems") &&
+	require(saved.at("bodies").size() == 4 && saved.at("bodies")[2].at("systems").contains("engine") &&
+	            saved.at("bodies")[2].contains("console_controllers") &&
 	            saved.at("bodies")[3].at("systems").contains("starboard"),
-	        "unified runtime equipment must retain each legacy or named save representation");
+	        "unified runtime equipment must save converted and explicit mechanisms through Controller continuation");
 	World resumed;
 	resumed.restore(catalog, saved);
 	require(resumed.save() == saved, "mixed equipment must retain complete tick-boundary state on restore");
@@ -893,8 +975,9 @@ void equipment_ordering_and_recovery()
 	{
 		require(world->release(303) && world->release(404), "mixed equipment claims must release independently");
 		require(world->claim(303, 3) && world->claim(404, 4), "released mixed equipment must remain claimable");
-		require(world->observe(303)->requested_speed == 0 && system(*world->observe(404), "port").requested == 3000,
-		        "legacy release resets and named equipment's retained settings must survive normalization");
+		require(system(*world->observe(303), "engine").requested == 1500 &&
+		            system(*world->observe(404), "port").requested == 3000,
+		        "converted and explicit mechanisms retain accepted settings across the same Controller handover");
 	}
 	for (int i = 0; i < 5; ++i)
 	{
@@ -991,7 +1074,7 @@ void semantic_controls()
 	require(system(*model.observation(), "drive").telemetry.at("actual_longitudinal") == 0 &&
 	            !model.act("game.control/xyz") && !model.command("arbitrary-private-action", 1, "drive"),
 	        "neutral release must stop actuation and malformed/unprojected semantic actions must be refused");
-	require(model.command("message.test.notice", 0, "drive"),
+	require(model.act(control_id(model, "message.test.notice", 0)),
 	        "explicit authored human report must use its current admitted descriptor");
 	session->tick();
 	model.refresh(session);
@@ -1006,7 +1089,8 @@ void semantic_controls()
 	model.refresh(session);
 	require(model.announcement() == contact_notice,
 	        "repeated notification snapshots must not replace new feedback with an old alert");
-	require(model.command("message.test.notice", 0, "drive"), "a later explicit report remains independently sendable");
+	require(model.act(control_id(model, "message.test.notice", 0)),
+	        "a later explicit report remains independently sendable");
 	session->tick();
 	model.refresh(session);
 	require(model.announcement() == "Notice: Supply 7",

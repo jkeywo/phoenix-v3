@@ -422,6 +422,20 @@ state_tree::Registry gameplay_registry(const Json &tree, const Catalog &catalog,
 		registry.observations.insert(registry.observations.end(), inbox.begin(), inbox.end());
 		for (const auto &binding : controller_message_reads(tree, catalog))
 			registry.observations.push_back({binding.name, binding.type, 4, {}});
+
+		const auto publications = resolved.value("publication_templates", Json::array());
+		binding_require(publications.is_array() && publications.size() <= 128, "Controller tree",
+		                "expected bounded publication_templates");
+		std::set<std::string> publication_names;
+		for (const auto &entry : publications)
+		{
+			const auto name = entry.get<std::string>();
+			binding_require(valid_identifier(name) && publication_names.insert(name).second, "Controller tree",
+			                "invalid or duplicate publication template");
+			registry.actions.push_back({"publish." + name, 4, {}, true});
+		}
+		registry.actions.push_back({"stop_publication", 4, {Type::Integer}, true});
+		registry.actions.push_back({"withdraw_request", 4, {Type::Text}, true});
 		registry.actions.push_back({"acknowledge_message", 4, {Type::Message}, true});
 		for (const auto &name : controller_message_templates(tree, catalog))
 		{
@@ -464,6 +478,14 @@ state_tree::Registry gameplay_registry(const Json &tree, const Catalog &catalog,
 				                                 std::string_view(field) == "available" ? Type::Boolean : Type::Integer,
 				                                 4,
 				                                 {}});
+
+		for (const auto &field : std::vector<FieldSpec>{{"result.available", Type::Boolean, 4, {}},
+		                                                {"result.success", Type::Boolean, 4, {}},
+		                                                {"result.id", Type::Integer, 4, {}},
+		                                                {"result.publication", Type::Integer, 4, {}},
+		                                                {"result.message", Type::Message, 4, {}},
+		                                                {"result.reason", Type::Text, 4, {}}})
+			registry.observations.push_back(field);
 		return registry;
 	}
 	auto registry = gameplay_tree_registry(context, gameplay_record_bindings(tree, catalog));

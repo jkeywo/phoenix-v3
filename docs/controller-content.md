@@ -1,6 +1,6 @@
 # Authoring Console Controllers
 
-This describes the implemented explicit-layout contract. See [the architecture](controller-architecture.md) for the target and [the refactor plan](controller-refactor-plan.md) for migration status. Existing production definitions still using per-System policies have not yet been migrated by this document.
+This describes the implemented explicit-layout contract. See [the architecture](controller-architecture.md) for the target and [the refactor plan](controller-refactor-plan.md) for migration status. Maintained controllable craft use explicit layouts. Legacy definitions are converted at the compiler boundary only when their ownership and timed outputs have an unambiguous mapping; System-context policies and summary-intent presets require explicit migration.
 
 ## Layout and commands
 
@@ -100,6 +100,8 @@ Decision inputs freeze before Controller evaluation. An earlier Controller's wri
 
 ## Reports and Coordination
 
+A physical System's `observation_console` names the Console that owns its authored records and reporter producer roles. It defaults to the first Console when omitted. Set it explicitly for multi-Console fits: command subscribers and telemetry feeds do not implicitly transfer record ownership. Authored feeds/publications determine additional permitted readers.
+
 Physical Systems can declare `reporters`, independently of AI trees:
 
 ```json
@@ -133,6 +135,18 @@ Controller trees expose command, System observation, peer-command and message bi
 
 Isolated Test feedback identifies each Controller by entity, Console and Controller ID, with its effective operator, generation, active states, transition reason, diagnostics and bounded command receipts. This debugging view is separate from player observations and does not export private tree memory.
 
-Explicit layouts use World save schema 5 and Controller knowledge binding metadata. Saves without a defined continuation/ownership mapping are refused transactionally. The command transport uses wire envelope schema 4 and carries Controller, channel, operator generation and request identity, plus bounded command arguments. Flight continuation schema 4 includes destination guidance; the loader still understands schemas 2�3 with navigation inactive. These version checks do not imply that the remaining legacy runtime has been removed.
+World and portable session saves use schema 6 with Console Controller continuation and knowledge binding metadata. Schemas 1�5 and obsolete entity/System authority fields are refused transactionally; there is no implicit continuation migration. Command transport uses wire envelope schema 5 and carries Controller, channel, operator generation and request identity, plus bounded command arguments. Old peers are refused before play. Flight mechanism continuation retains its own schema 4. All live command decisions use the common Controller runtime, including converted definitions.
+
+Preference channels (`intent_integer` and `intent_boolean`) may declare `choices: [{"value":1000,"label_key":"Cruise policy"},{"value":3000,"label_key":"Fast policy"}]`. Choices are unique, in range, limited to 64 entries and include the initial value. Both human and AI admission enforce the list. Labels use ordinary localisation; Workshop can edit them. Omit choices for a continuous bounded setting. An optional channel `label_key` labels its generated controls.
+
+Controller trees may declare `publication_templates: ["drive-request"]` to expose `publish.drive-request()`. The named publication must belong to the owning Console and only republishes its permitted producer evidence. It cannot create facts. `stop_publication(integer_handle)` ends an owned Console publication; `withdraw_request(text_key)` withdraws that Controller's request. `result.available`, `result.success`, `result.id`, `result.publication`, `result.message` and `result.reason` expose the last action result to private tree logic. Publication handles are integers; message handles have the Message type. Capture handles in private memory when later actions would replace the result. Results, memory and effect receipts survive saves; interruption uses the same scoped cleanup actions.
 
 Use the production Catalog loader to validate bindings, then synthetic integration fixtures to verify behavior. `tests/support/controller_fixture.hpp` and `tests/system/controller_runtime.cpp` exercise the actual load, authority, command, physical, messaging and restore paths. Shipped ship tuning is not a test golden. The refactor plan remains the source for unimplemented migration and acceptance work.
+
+For an explicitly triggered graphical shared/split throttle journey, run `python tests/manual/controller_ui.py` from the repository root after building native. It creates independent test-only packs in `build/`. Run each with:
+
+```powershell
+./build/native/Release/native.exe --local-only --game-pack build/controller-ui-shared.zip --mission test.map --slot test.slot --ship test.controllable --seat drive --console --helm-smoke --data build/controller-ui-shared-data
+```
+
+Repeat with `controller-ui-split.zip` and a separate data directory. The probe uses rendered throttle/heading pointer paths and Console Settings Away/resume, captures `console-smoke.png`, and exits. Inspect each fresh screenshot. This supplements the independent-channel integration checks; it does not establish physical touch/gamepad or screen-reader acceptance.

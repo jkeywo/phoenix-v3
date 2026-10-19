@@ -313,3 +313,11 @@ Independent native and Controller runtime builds/tests pass. The graphical engin
 The live World now converts unambiguous legacy definitions once at compilation and runs all command decisions through Console Controllers. Physical child entities no longer hold operator trees, human input state, summary intents or AI effect journals. Old per-System delegation and command dispatch are removed. Workshop inspection includes queued addressed Controller outputs.
 
 World/session save schema 6 refuses old authority continuations and obsolete authority fields; wire envelope schema 5 refuses old peers before play. Independent native builds and Controller runtime, simulation, fleet setup, durable fleet recovery and authenticated wire/transfer suites pass, including an independent HMAC vector. Legacy flight/knowledge/preference fixtures are still being migrated, and the full native/WASM/GUI gate remains open.
+
+## Preference, lifecycle and observation-only Console receipt
+
+Controller preference channels now support bounded localised choices enforced for human/AI admission and restored state. Scoped publication activation/stop and request withdrawal preserve cleanup on task interruption without granting Controllers a fact-writing API. Private last-action results persist with continuation. Console human presence is updated independently of Controller count, so observation-only seats receive human-seeking offers across claim/Away/recovery.
+
+World load executes a freshly prepared catalogue rather than stale cached programs. Workshop authoring uses Controller profiles and scoped Controller binding palettes; the old per-System policy/preset affordances are removed.
+
+Independent native builds and Controller runtime, paid flight, knowledge/Coordination, preferences/Workshop dependency roundtrip and wire suites pass. Coverage retains typed nested message capture, delayed delivery, interruption cleanup, private evidence/staleness, non-choice refusal, mutable-catalogue execution, request identities and exact continuation. The final cross-platform and graphical gate remains pending.

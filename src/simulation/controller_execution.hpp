@@ -193,6 +193,24 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 		values.at(offset + 8) = Value::integer(observation.observed_tick);
 		values.at(offset + 9) = Value::integer(0);
 	}
+
+	const auto &result = controller.result;
+	for (std::size_t i = 0; i < brain.program.registry.observations.size(); ++i)
+	{
+		const auto &name = brain.program.registry.observations[i].name;
+		if (name == "result.available")
+			values[i] = Value::boolean(result.available);
+		else if (name == "result.success")
+			values[i] = Value::boolean(result.success);
+		else if (name == "result.id")
+			values[i] = Value::integer(result.id);
+		else if (name == "result.publication")
+			values[i] = Value::integer(result.publication);
+		else if (name == "result.message")
+			values[i] = result.message ? Value::reference(Type::Message, result.message) : Value{};
+		else if (name == "result.reason")
+			values[i] = Value::string(result.reason);
+	}
 	return values;
 }
 void controller_output(EntityId id, std::size_t index, const state_tree::Output &output,
@@ -213,13 +231,27 @@ void controller_output(EntityId id, std::size_t index, const state_tree::Output 
 	}
 	if (!action.name.starts_with("write."))
 	{
+		controller.result = {};
 		controller.result.available = true;
 		controller.result.success = false;
 		controller.result.reason.clear();
 		try
 		{
 			const ControllerAddress address{id, controller.definition.console, controller.definition.id};
-			if (action.name == "acknowledge_message")
+
+			const ConsoleAddress source{id, controller.definition.console};
+			if (action.name.starts_with("publish."))
+			{
+				controller.result.id =
+				    knowledge.activate_publication(source, action.name.substr(8), ecs.get<Clock>().tick);
+				controller.result.publication = controller.result.id;
+			}
+			else if (action.name == "stop_publication")
+				knowledge.stop_publication(source, output.arguments.at(0).number);
+			else if (action.name == "withdraw_request")
+				knowledge.withdraw_request(source, controller.definition.id,
+				                           knowledge.request_key(output.arguments.at(0).text), ControlOrigin::AI, true);
+			else if (action.name == "acknowledge_message")
 				knowledge.acknowledge_controller(address, output.arguments.at(0).number);
 			else if (action.name.starts_with("send."))
 			{
@@ -248,6 +280,7 @@ void controller_output(EntityId id, std::size_t index, const state_tree::Output 
 				controller.result.id =
 				    knowledge.admit_template(source, controller.definition.id, name, payload, ControlOrigin::AI,
 				                             ecs.get<Clock>().tick, bound.parameters, true, true);
+				controller.result.message = controller.result.id;
 			}
 			else
 				throw std::runtime_error("unknown Controller message action");
@@ -262,6 +295,7 @@ void controller_output(EntityId id, std::size_t index, const state_tree::Output 
 	const auto field = controller.tree_channels.at(output.action);
 	const auto request = controller.definition.commands[field].semantics == CommandSemantics::Request;
 	const auto request_id = request ? controller.commands[field].request_id + 1 : 0;
+	controller.result = {};
 	controller.result.available = true;
 	std::vector<std::int64_t> arguments;
 	for (std::size_t i = 1; i < output.arguments.size(); ++i)
@@ -327,6 +361,7 @@ std::optional<ControllerProposal> controller_proposal(const ConsoleAddress &addr
 			if (!command.action.empty() && command.action != operating_action(spec.action).name)
 				return {};
 			if (command.value < spec.minimum || command.value > spec.maximum ||
+			    (!spec.choices.empty() && !spec.choices.contains(command.value)) ||
 			    !operating_arguments_valid(spec.action, command.value, command.arguments))
 				return {};
 			const auto &state = controller.commands[field];
@@ -376,6 +411,7 @@ bool commit_controller(const ControllerProposal &proposal)
 	const auto &spec = controller.definition.commands[proposal.channel];
 	auto &state = controller.commands[proposal.channel];
 	if (proposal.value < spec.minimum || proposal.value > spec.maximum ||
+	    (!spec.choices.empty() && !spec.choices.contains(proposal.value)) ||
 	    !operating_arguments_valid(spec.action, proposal.value, proposal.arguments))
 		return false;
 	if (spec.semantics == CommandSemantics::Request)
@@ -442,6 +478,19 @@ void refresh_controllers(EntityId id, bool validate = false)
 				++command.revision;
 			}
 		}
+	}
+	// Presence also matters for readers and human-seeking offers on Consoles
+	// that own no command Controller. Update after outgoing AI cleanup.
+	for (const auto &console : definition(id).consoles)
+	{
+		const ConsoleAddress address{id, console.id};
+		const bool present =
+		    !(away.contains(address) && away.at(address)) && std::any_of(claims.begin(), claims.end(),
+		                                                                 [&](const auto &claim)
+		                                                                 {
+			                                                                 return claim.second == address;
+		                                                                 });
+		knowledge.set_console_presence(address, present);
 	}
 }
 bool controller_meta(const ConsoleAddress &address, const OperatingCommand &command, bool execute)
@@ -625,6 +674,13 @@ Json save_controllers(flecs::entity entity) const
 			row["timed"] = save_tree(programs[controller.timed->program], controller.timed->cursor);
 		if (controller.brain)
 			row["brain"] = state_tree::save(controller.brain->program, controller.brain->continuation);
+
+		row["result"] = {{"available", controller.result.available},
+		                 {"success", controller.result.success},
+		                 {"id", controller.result.id},
+		                 {"publication", controller.result.publication},
+		                 {"message", controller.result.message},
+		                 {"reason", controller.result.reason}};
 		row["effects"] = controller.effects;
 		result["controllers"].push_back(std::move(row));
 	}
@@ -661,6 +717,7 @@ void restore_controllers(flecs::entity entity, const Json &saved)
 			fail(value.at("value").is_number_integer() && value.at("value") >= spec.minimum &&
 			     value.at("value") <= spec.maximum);
 			state.value = value.at("value").get<std::int64_t>();
+			fail(spec.choices.empty() || spec.choices.contains(state.value));
 			const auto arguments = value.value("arguments", Json::array());
 			fail(arguments.is_array() && arguments.size() <= 3);
 			state.arguments.clear();
@@ -686,6 +743,22 @@ void restore_controllers(flecs::entity entity, const Json &saved)
 			controller.timed->cursor = load_tree(programs[controller.timed->program], row.at("timed").get<TreeState>());
 		if (controller.brain)
 			controller.brain->continuation = state_tree::load(controller.brain->program, row.at("brain"));
+
+		const auto &result = row.at("result");
+		fail(result.at("available").is_boolean() && result.at("success").is_boolean() &&
+		     result.at("id").is_number_unsigned() && result.at("publication").is_number_unsigned() &&
+		     result.at("message").is_number_unsigned() && result.at("reason").is_string() &&
+		     result.at("reason").get_ref<const std::string &>().size() <= 4096);
+		controller.result = {result.at("available").get<bool>(),
+		                     result.at("success").get<bool>(),
+		                     result.at("reason").get<std::string>(),
+		                     result.at("id").get<std::uint64_t>(),
+		                     result.at("publication").get<std::uint64_t>(),
+		                     result.at("message").get<std::uint64_t>()};
+		fail((!controller.result.publication || controller.result.publication == controller.result.id) &&
+		     (!controller.result.message || controller.result.message == controller.result.id) &&
+		     !(controller.result.publication && controller.result.message) &&
+		     controller.result.id <= static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max()));
 		const auto &effects = row.at("effects");
 		fail(effects.is_array() && effects.size() <= 65536);
 		for (const auto &effect : effects)

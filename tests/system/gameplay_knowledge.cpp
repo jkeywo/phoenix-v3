@@ -52,13 +52,15 @@ Json fixture()
 		]
 	})json");
 	definitions["trees"].push_back({{"id", "test.idle"},
-	                                {"context", "system"},
+	                                {"context", "controller"},
 	                                {"initial", "ready"},
 	                                {"states", Json::array({{{"id", "ready"}}})}});
 	auto &ship = definitions["entities"][0];
 	ship.erase("console");
-	ship["controllers"] = {{"engine", "test.idle"}};
+
 	ship["systems"]["engine"]["kind"] = "engine";
+	ship["systems"]["engine"]["observation_console"] = "helm";
+	ship["systems"]["radar"]["observation_console"] = "support";
 	ship["systems"]["engine"]["records"] = Json::parse(R"json([
 		{"schema":"drive-status","producer":"pilot",
 		 "fields":{"requested":"requested","enabled":"enabled","private":"requested"}}
@@ -84,11 +86,23 @@ Json fixture()
 		 "fields":["enabled"],"live":false}
 	])json");
 	ship["message_templates"] = {"test.request", "test.notice"};
-	ship["default_preset"] = "direct";
-	ship["presets"] = Json::parse(R"json([
-		{"id":"assisted","consoles":{"helm":{"direct":["steering"],"delegated":["engine"]}}},
-		{"id":"direct","consoles":{"helm":{"direct":["engine","steering"],"delegated":[]}}}
-	])json");
+	ship["motion_model"] = "inertial";
+	for (auto &console : ship["stations"][0]["consoles"])
+	{
+		console["feeds"] = console["systems"];
+		console["systems"] = Json::array();
+	}
+	ship["control_layout"] = Json::parse(R"json({"schema":1,"default_profile":"direct","controllers":[
+ {"id":"engine","console":"helm","tree":"test.idle","commands":[
+ {"id":"speed_mm_s","action":"speed_mm_s","consumers":["engine"]},
+ {"id":"engine_enabled","action":"engine_enabled","initial":1,"consumers":["engine"]},
+ {"id":"assisted","action":"assisted","initial":1,"consumers":["engine"]},
+ {"id":"longitudinal_thrust","action":"longitudinal_thrust","consumers":["engine"]}]},
+ {"id":"steering","console":"helm","fallback":"hold","commands":[{"id":"heading_mdeg","action":"heading_mdeg","consumers":["steering"]}]},
+ {"id":"radar","console":"support","fallback":"hold","commands":[{"id":"radar_enabled","action":"radar_enabled","initial":1,"consumers":["radar"]}]}],
+ "profiles":[{"id":"assisted","consoles":{"helm":{"ai":["engine"],"human":["steering"]},"support":{"ai":["radar"]}}},
+ {"id":"direct","consoles":{"helm":{"human":["engine","steering"]},"support":{"human":["radar"]}}}]
+ })json");
 	definitions["messages"] = Json::parse(R"json([
 		{"id":"test.request","schema":"request","title_key":"test.request.title","body_key":"test.request.body",
 		 "destination":{"kind":"console","id":"support"},"delay_ticks":3,"expires_after_ticks":30,
@@ -102,22 +116,76 @@ Json fixture()
 	                 {{"id", 2}, {"definition", "test.ship"}, {"x_mm", 1000000}, {"y_mm", 0}, {"heading_mdeg", 0}}});
 	return definitions;
 }
+void use_tree(Json &definitions, const char *controller, const char *tree)
+{
+	for (auto &owner : definitions["entities"][0]["control_layout"]["controllers"])
+		if (owner.at("id") == controller)
+		{
+			owner["tree"] = tree;
+			owner.erase("fallback");
+		}
+	for (auto &program : definitions["trees"])
+		if (program.value("context", std::string{}) == "controller" &&
+		    (program.at("id") == tree || (std::string(tree) == "test.parent" && program.at("id") == "test.child")))
+		{
+			program["message_templates"] =
+			    program.at("id") == "test.parent" ? Json::array({"test.notice"}) : Json::array();
+			for (const auto &state : program.at("states"))
+				for (const auto *phase : {"entry", "running", "exit"})
+					for (const auto &action : state.value(phase, Json::array()))
+					{
+						const auto name = action.value("action", std::string{});
+						if (name.starts_with("send."))
+							program["message_templates"].push_back(name.substr(5));
+					}
+			if (!program.contains("command_bindings"))
+				program["command_bindings"] =
+				    std::string(controller) == "radar"
+				        ? Json::parse(R"json([{"channel":"radar_enabled","type":"boolean"}])json")
+				        : Json::parse(
+				              R"json([{"channel":"speed_mm_s"},{"channel":"engine_enabled","type":"boolean"},{"channel":"assisted","type":"boolean"},{"channel":"longitudinal_thrust"}])json");
+			if (!program.contains("system_bindings") && std::string(controller) == "engine")
+				program["system_bindings"] =
+				    Json::array({{{"name", "system.requested"}, {"system", "engine"}, {"field", "requested"}}});
+		}
+}
+OperatingCommand addressed(const World &world, std::uint64_t claimant, OperatingCommand command)
+{
+	if (command.system.empty())
+		return command;
+	const auto view = world.observe(claimant);
+	command.controller = command.system;
+	command.system.clear();
+	if (!command.action.starts_with("message."))
+		command.channel = command.action;
+	if (view)
+		for (const auto &controller : view->gameplay.at("controllers"))
+			if (controller.at("id") == command.controller)
+				command.generation = controller.at("generation").get<std::uint64_t>();
+	return command;
+}
+bool submit(World &world, std::uint64_t claimant, OperatingCommand command)
+{
+	return world.submit(claimant, addressed(world, claimant, std::move(command)));
+}
+bool can_submit(const World &world, std::uint64_t claimant, OperatingCommand command)
+{
+	return world.can_submit(claimant, addressed(world, claimant, std::move(command)));
+}
 Json with_notifier()
 {
 	auto definitions = fixture();
 	definitions["trees"] = Json::parse(R"json([
-		{"id":"test.notify","context":"system","initial":"wait",
+		{"id":"test.notify","context":"controller","initial":"wait",
 		 "record_bindings":[{"name":"known.requested","scope":"console","schema":"drive-status",
 		                     "field":"requested","subject":"self"}],
 		 "states":[{"id":"wait","transitions":[{"target":"report","conditions":[
 			{"left":{"observation":"known.requested"},"op":"ge","right":0}]}]},
 		 {"id":"report","entry":[
-			{"action":"send_console_message","arguments":[
-				{"observation":"self.system"},{"observation":"self.console"},"test.notice",
-				{"observation":"self.entity"},11,false,"report","",3,30,1]}
+			{"action":"send.test.notice","arguments":[11,false,"report"]}
 		 ]}]}
 	])json");
-	definitions["entities"][0]["controllers"] = {{"engine", "test.notify"}};
+	use_tree(definitions, "engine", "test.notify");
 	return definitions;
 }
 Json with_exit_cleanup()
@@ -138,30 +206,28 @@ Json with_exit_cleanup()
 	definitions["entities"][0]["message_templates"].push_back("test.cleanup-fast");
 	definitions["entities"][0]["message_templates"].push_back("test.cleanup-slow");
 	definitions["trees"] = Json::parse(R"json([
-		{"id":"test.cleanup","context":"system","initial":"active",
+		{"id":"test.cleanup","context":"controller","initial":"active",
+ "publication_templates":["drive-request"],
 		 "memory":[{"name":"publication","type":"integer","initial":0}],
 		 "states":[
 			{"id":"active","initial":"opening","entry":[
-				{"action":"publish_record","arguments":[{"observation":"self.console"},"drive-request",
-				 {"observation":"self.entity"},true,""]}],
+				{"action":"publish.drive-request","arguments":[]}],
 			 "exit":[
-				{"action":"stop_publication","arguments":[{"observation":"self.console"},{"memory":"publication"}]},
-				{"action":"withdraw_request","arguments":[{"observation":"self.system"},"test.cleanup.fast"]},
-				{"action":"withdraw_request","arguments":[{"observation":"self.system"},"test.cleanup.slow"]}]},
+				{"action":"stop_publication","arguments":[{"memory":"publication"}]},
+				{"action":"withdraw_request","arguments":["test.cleanup.fast"]},
+				{"action":"withdraw_request","arguments":["test.cleanup.slow"]}]},
 			{"id":"opening","parent":"active","running":[
 				{"memory":"publication","value":{"observation":"result.publication"}}],
 			 "transitions":[{"target":"serving","conditions":[
-				{"left":{"observation":"result.publication"},"op":"gt","right":0}]}]},
+				{"left":{"observation":"result.success"},"op":"eq","right":true}]}]},
 			{"id":"serving","parent":"active","entry":[
-				{"action":"send_console_message","arguments":[{"observation":"self.system"},
-				 {"observation":"self.console"},"test.cleanup-fast",{"observation":"self.entity"},7,false,
-				 "request","test.cleanup.fast",1,100,1]},
-				{"action":"send_console_message","arguments":[{"observation":"self.system"},
-				 {"observation":"self.console"},"test.cleanup-slow",{"observation":"self.entity"},7,false,
-				 "request","test.cleanup.slow",20,100,1]}]}
+				{"action":"send.test.cleanup-fast","arguments":[7,false,
+				 "request"]},
+				{"action":"send.test.cleanup-slow","arguments":[7,false,
+				 "request"]}]}
 		 ]}
 	])json");
-	definitions["entities"][0]["controllers"] = {{"engine", "test.cleanup"}};
+	use_tree(definitions, "engine", "test.cleanup");
 	return definitions;
 }
 Json with_typed_messages()
@@ -173,6 +239,7 @@ Json with_typed_messages()
 		{"id":"intended","type":"integer","required":false},{"id":"elapsed","type":"integer","required":false}
 	])json");
 	auto &message = definitions["messages"][1];
+	message["delay_ticks"] = 1;
 	message["fields"] = Json::parse(R"json({"amount":{"memory":"report_amount"},"flag":{"argument":"flag"},
 		"detail":{"parameter":"report_detail"},"observed":{"observation":"system.requested"},
 		"intended":{"intent":"speed_mm_s"},"elapsed":{"elapsed":true}})json");
@@ -181,36 +248,35 @@ Json with_typed_messages()
 		"named_intent":{"intent":"speed_mm_s"},"named_observation":{"observation":"system.requested"},
 		"named_elapsed":{"elapsed":true}})json");
 	definitions["trees"] = Json::parse(R"json([
-		{"id":"test.child","context":"system","initial":"report",
+		{"id":"test.child","context":"controller","initial":"report",
 		 "parameters":{"report_detail":{"type":"text","default":"child-default"}},
 		 "memory":[{"name":"report_amount","type":"integer","initial":23}],
 		 "states":[{"id":"report","entry":[
-			{"action":"set_speed","arguments":[{"observation":"self.system"},1234]},
-			{"action":"send_console_message","arguments":[{"observation":"self.system"},
-			 {"observation":"self.console"},"test.notice",{"observation":"self.entity"},999,true,
-			 "argument-detail","",1,30,1]},
+			{"action":"write.speed_mm_s","arguments":[1234]},
+			{"action":"send.test.notice","arguments":[999,true,
+			 "argument-detail"]},
 			{"memory":"report_amount","value":99},
-			{"action":"set_speed","arguments":[{"observation":"self.system"},4321]}]}]},
-		{"id":"test.parent","context":"system","initial":"run",
+			{"action":"write.speed_mm_s","arguments":[4321]}]}]},
+		{"id":"test.parent","context":"controller","initial":"run",
 		 "parameters":{"report_detail":{"type":"text","default":"parent-value"}},
 		 "memory":[{"name":"report_amount","type":"integer","initial":88}],
 		 "states":[{"id":"run","entry":[{"call":"test.child","parameters":{"report_detail":"child-value"}}]}]}
 	])json");
-	definitions["entities"][0]["controllers"] = {{"engine", "test.parent"}};
+	use_tree(definitions, "engine", "test.parent");
 	return definitions;
 }
 Json with_latched_manual()
 {
 	auto definitions = fixture();
 	definitions["trees"] = Json::parse(R"json([
-		{"id":"test.manual","context":"system","initial":"run","states":[{"id":"run","entry":[
-			{"action":"set_flight_mode","arguments":[{"observation":"self.system"},1]},
-			{"action":"set_longitudinal_thrust","arguments":[{"observation":"self.system"},1000]},
-			{"action":"send_console_message","arguments":[{"observation":"self.system"},
-			 {"observation":"self.console"},"test.notice",{"observation":"self.entity"},11,false,"manual","",1,30,1]}
+		{"id":"test.manual","context":"controller","initial":"run","states":[{"id":"run","entry":[
+			{"action":"write.assisted","arguments":[false]},
+			{"action":"write.longitudinal_thrust","arguments":[1000]},
+			{"action":"send.test.notice","arguments":[11,false,"manual"]}
 		 ]}]}
 	])json");
-	definitions["entities"][0]["controllers"] = {{"engine", "test.manual"}};
+	use_tree(definitions, "engine", "test.manual");
+	definitions["messages"][1]["delay_ticks"] = 1;
 	return definitions;
 }
 void authoring_refusals()
@@ -263,6 +329,12 @@ void authoring_refusals()
 	auto wrong_parameter = with_typed_messages();
 	wrong_parameter["messages"][1]["fields"]["amount"] = {{"parameter", "report_detail"}};
 	refused(wrong_parameter, "typed message parameter binding must match the destination field");
+	auto wrong_publication = with_exit_cleanup();
+	wrong_publication["trees"][0]["publication_templates"] = {"not-authored"};
+	refused(wrong_publication, "Controller publication vocabulary cannot name unowned templates");
+	auto foreign_publication = with_exit_cleanup();
+	foreign_publication["entities"][0]["publications"][0]["source_console"] = "support";
+	refused(foreign_publication, "Controller publication must remain scoped to its Console");
 	auto wrong_sender = with_notifier();
 	wrong_sender["knowledge"]["schemas"][1]["producers"] = {"support"};
 	refused(wrong_sender, "statically named controller message requires its actual owner's producer role");
@@ -326,11 +398,11 @@ void telemetry_publication_and_feeds(const Catalog &catalog)
 	require(!records(support, "records", "support-private").empty() &&
 	            records(own, "records", "support-private").empty(),
 	        "different producer/reader roles retain Console privacy");
-	require(!world.submit(102, {1, "publish.drive-request", 0, {}}) &&
-	            !world.submit(101, {2, "publish.drive-request", 0, {}}),
+	require(!submit(world, 102, {1, "publish.drive-request", 0, {}}) &&
+	            !submit(world, 101, {2, "publish.drive-request", 0, {}}),
 	        "publication admission enforces source Console and ship ownership");
-	require(world.submit(101, {1, "publish.drive-request", 0, {}}) &&
-	            world.submit(101, {1, "publish.drive-enabled", 0, {}}),
+	require(submit(world, 101, {1, "publish.drive-request", 0, {}}) &&
+	            submit(world, 101, {1, "publish.drive-enabled", 0, {}}),
 	        "explicit source publications are admitted");
 	world.tick();
 	const auto shared = projection(world, 102);
@@ -341,8 +413,8 @@ void telemetry_publication_and_feeds(const Catalog &catalog)
 		require(!record.at("fields").contains("private"), "deliberate publication never leaks private schema fields");
 	require(records(projection(world, 201), "shared", "drive-status").empty(),
 	        "shipwide publication stays on its source ship");
-	require(world.submit(101, {1, "speed_mm_s", 500, "engine"}) &&
-	            world.submit(101, {1, "engine_enabled", 0, "engine"}),
+	require(submit(world, 101, {1, "speed_mm_s", 500, "engine"}) &&
+	            submit(world, 101, {1, "engine_enabled", 0, "engine"}),
 	        "ordinary actuator settings change through their admitted owner");
 	world.tick();
 	require(latest_field(projection(world, 102), "shared", "drive-status", "requested") == 500,
@@ -373,10 +445,10 @@ void human_message_origin_and_routing(const Catalog &catalog)
 			require(world.observe(route).has_value(), "claimed Console can project available controls");
 	require(world.save() == before_projection,
 	        "control availability probes must not publish, send, or consume identities");
-	require(!world.submit(102, {1, "message.test.request", 0, "engine"}),
+	require(!submit(world, 102, {1, "message.test.request", 0, "engine"}),
 	        "another Console cannot impersonate the message sender");
-	require(world.submit(101, {1, "message.test.request", 0, "engine"}), "human request uses normal sender admission");
-	require(world.submit(101, {1, "away", 1, {}}), "explicit Away can follow an admitted request");
+	require(submit(world, 101, {1, "message.test.request", 0, "engine"}), "human request uses normal sender admission");
+	require(submit(world, 101, {1, "away", 1, {}}), "explicit Away can follow an admitted request");
 	world.tick();
 	require(projection(world, 102).at("messages").empty(), "Coordination does not deliver in its sending tick");
 	world.tick();
@@ -396,9 +468,9 @@ void ai_delivery_handover_and_continuation(const Catalog &catalog)
 	world.load(catalog, "test.map");
 	claim_all(world);
 	world.tick();
-	require(world.submit(101, {1, "delegate", 1, "engine"}), "owned System delegates to its ordinary controller");
+	require(submit(world, 101, {1, "preset", 0, {}}), "Console complexity selects AI for the engine Controller");
 	world.tick();
-	require(!world.can_submit(101, {1, "speed_mm_s", 200, "engine"}),
+	require(!can_submit(world, 101, {1, "speed_mm_s", 200, "engine"}),
 	        "delegation leaves a single effective actuator writer");
 	require(projection(world, 101).at("messages").empty(), "delegated AI's authored report respects delivery delay");
 	const auto saved = world.save();
@@ -426,24 +498,24 @@ void ai_delivery_handover_and_continuation(const Catalog &catalog)
 	}
 	require(projection(resumed, 101).at("messages").size() == 1,
 	        "resuming an entered tree does not send its entry report twice");
-	require(world.submit(101, {1, "preset", 1, {}}), "authored direct station preset is selectable");
+	require(submit(world, 101, {1, "preset", 1, {}}), "authored direct station preset is selectable");
 	world.tick();
-	require(world.can_submit(101, {1, "speed_mm_s", 200, "engine"}),
+	require(can_submit(world, 101, {1, "speed_mm_s", 200, "engine"}),
 	        "direct preset returns effective control to the human");
-	require(world.submit(101, {1, "away", 1, {}}), "explicit Away is admitted");
+	require(submit(world, 101, {1, "away", 1, {}}), "explicit Away is admitted");
 	world.tick();
-	require(!world.can_submit(101, {1, "speed_mm_s", 200, "engine"}), "Away yields actuator authority to backfill");
-	require(world.submit(101, {1, "away", 0, {}}), "player can return from explicit Away");
+	require(!can_submit(world, 101, {1, "speed_mm_s", 200, "engine"}), "Away yields actuator authority to backfill");
+	require(submit(world, 101, {1, "away", 0, {}}), "player can return from explicit Away");
 	world.tick();
-	require(world.can_submit(101, {1, "speed_mm_s", 200, "engine"}),
+	require(can_submit(world, 101, {1, "speed_mm_s", 200, "engine"}),
 	        "return restores current direct authority without rewriting machinery settings");
 	World quiet;
 	quiet.load(catalog, "test.map");
 	claim_all(quiet);
 	quiet.tick();
-	require(quiet.submit(101, {1, "delegate", 1, "engine"}), "second report sender delegates");
+	require(submit(quiet, 101, {1, "preset", 0, {}}), "second report sender delegates");
 	quiet.tick();
-	require(quiet.submit(101, {1, "away", 1, {}}), "recipient goes Away while AI report is in flight");
+	require(submit(quiet, 101, {1, "away", 1, {}}), "recipient goes Away while AI report is in flight");
 	quiet.tick();
 	quiet.tick();
 	require(projection(quiet, 101).at("messages").size() == 1 && projection(quiet, 101).at("notifications").empty(),
@@ -463,7 +535,7 @@ void controller_exit_cleanup(const Catalog &catalog)
 	world.load(catalog, "test.map");
 	claim_all(world);
 	world.tick();
-	require(world.submit(101, {1, "delegate", 1, "engine"}), "cleanup controller receives delegated authority");
+	require(submit(world, 101, {1, "preset", 0, {}}), "cleanup Controller receives AI ownership");
 	world.tick();
 	world.tick();
 	const auto active = projection(world, 101);
@@ -471,16 +543,15 @@ void controller_exit_cleanup(const Catalog &catalog)
 	        "controller enters live operation and delivers its fast standing request");
 	require(!records(projection(world, 102), "shared", "drive-status").empty(),
 	        "controller entry activates its declared live publication");
-	require(world.submit(101, {1, "delegate", 0, "engine"}),
-	        "human can take control from the running cleanup controller");
+	require(submit(world, 101, {1, "preset", 1, {}}), "human can take control from the running cleanup controller");
 	world.tick();
-	require(world.can_submit(101, {1, "speed_mm_s", 600, "engine"}),
+	require(can_submit(world, 101, {1, "speed_mm_s", 600, "engine"}),
 	        "exit cleanup completes before human actuator authority is granted");
 	const auto stopped = projection(world, 101);
 	require(stopped.at("messages").size() == 1 && stopped.at("messages")[0].at("actionable") == false,
 	        "exit withdrawal invalidates an unconsumed delivered request");
 	const auto frozen = projection(world, 102).at("shared");
-	require(world.submit(101, {1, "speed_mm_s", 600, "engine"}), "human changes intent after controller interruption");
+	require(submit(world, 101, {1, "speed_mm_s", 600, "engine"}), "human changes intent after controller interruption");
 	world.tick();
 	require(latest_field(projection(world, 101), "records", "drive-status", "requested") == 600 &&
 	            projection(world, 102).at("shared") == frozen,
@@ -516,7 +587,7 @@ void ordinary_claim_exit_cleanup(const Catalog &catalog)
 	require(held.at("messages").size() == 1 && held.at("messages")[0].at("actionable") == false,
 	        "ordinary claim executes exit withdrawal before marking the System human-held");
 	const auto frozen = projection(world, 102).at("shared");
-	require(world.submit(101, {1, "speed_mm_s", 700, "engine"}), "ordinary takeover grants actuator authority");
+	require(submit(world, 101, {1, "speed_mm_s", 700, "engine"}), "ordinary takeover grants actuator authority");
 	for (int i = 0; i < 24; ++i)
 		world.tick();
 	require(projection(world, 102).at("shared") == frozen && projection(world, 101).at("messages").size() == 1,
@@ -530,7 +601,7 @@ void delegated_manual_survives_route_release(const Catalog &catalog)
 		world.load(catalog, "test.map");
 		claim_all(world);
 		world.tick();
-		require(world.submit(101, {1, "delegate", 1, "engine"}), "entry-only manual AI is delegated");
+		require(submit(world, 101, {1, "preset", 0, {}}), "entry-only manual AI is delegated");
 		world.tick();
 		world.tick();
 		const auto speed = world.inspect()[0].vx;
@@ -551,10 +622,10 @@ void typed_message_emission(const Catalog &catalog)
 	World world;
 	world.load(catalog, "test.map");
 	claim_all(world);
-	require(!world.submit(101, {1, "message.test.notice", 999, "engine"}),
+	require(!submit(world, 101, {1, "message.test.notice", 999, "engine"}),
 	        "human template command cannot invent unavailable AI memory or parameter bindings");
 	world.tick();
-	require(world.submit(101, {1, "delegate", 1, "engine"}), "typed sender receives delegated authority");
+	require(submit(world, 101, {1, "preset", 0, {}}), "typed sender receives delegated authority");
 	world.tick();
 	const auto delivered = projection(world, 101);
 	require(delivered.at("messages").size() == 1, "referenced controller emits one structured message");
@@ -572,17 +643,21 @@ void typed_message_emission(const Catalog &catalog)
 void message_capture_budget()
 {
 	auto small = with_typed_messages();
-	small["trees"][1]["budget"] = 96;
+	small["trees"][1]["budget"] = 80;
 	small["trees"][0]["memory"].push_back({{"name", "retained_note"}, {"type", "text"}, {"initial", "short"}});
 	const auto small_catalog = load(small);
 	const auto &program = small_catalog.tree_programs.at("test.parent");
 	std::vector<state_tree::Value> observations(program.registry.observations.size());
-	observations[static_cast<std::size_t>(GameplayTreeObservation::SelfEntity)] =
-	    state_tree::Value::reference(state_tree::Type::Entity, 1);
-	observations[static_cast<std::size_t>(GameplayTreeObservation::SelfSystem)] =
-	    state_tree::Value::reference(state_tree::Type::System, 2);
-	observations[static_cast<std::size_t>(GameplayTreeObservation::SelfConsole)] =
-	    state_tree::Value::reference(state_tree::Type::Console, 3);
+	for (std::size_t i = 0; i < program.registry.observations.size(); ++i)
+	{
+		const auto &name = program.registry.observations[i].name;
+		if (name == "self_entity")
+			observations[i] = state_tree::Value::reference(state_tree::Type::Entity, 1);
+		if (name == "self_console")
+			observations[i] = state_tree::Value::reference(state_tree::Type::Console, 3);
+		if (name == "system.requested")
+			observations[i] = state_tree::Value::integer(0);
+	}
 	state_tree::Instance accepted;
 	require(!state_tree::step(program, accepted, observations).outputs.empty(),
 	        "ordinary typed message capture fits the authored evaluation budget");
@@ -612,7 +687,7 @@ void station_recipient_set()
 	World world;
 	world.load(catalog, "test.map");
 	require(world.claim(101, 1, "helm") && world.claim(201, 2, "helm"), "claim sending and other-ship Consoles");
-	require(world.submit(101, {1, "message.test.request", 0, "engine"}),
+	require(submit(world, 101, {1, "message.test.request", 0, "engine"}),
 	        "multi-Console Station is a valid exact target");
 	world.tick();
 	const auto saved = world.save();
@@ -645,31 +720,32 @@ void delayed_human_seeking()
 		consoles.push_back(
 		    {{"id", id}, {"definition", "test.console"}, {"systems", Json::array()}, {"knowledge_roles", {"support"}}});
 	definitions["messages"][1]["human_seeking"] = true;
+	definitions["messages"][1]["destination"] = {{"kind", "controller"}, {"console", "helm"}, {"id", "engine"}};
 	definitions["trees"] = Json::parse(R"json([
-		{"id":"test.seek","context":"system","initial":"send","states":[{"id":"send","entry":[
-			{"action":"send_system_message","arguments":[{"observation":"self.system"},
-			 {"observation":"self.system"},"test.notice",{"observation":"self.entity"},11,false,"offer","",3,30,1]}
+		{"id":"test.seek","context":"controller","initial":"send","states":[{"id":"send","entry":[
+			{"action":"send.test.notice","arguments":[11,false,"offer"]}
 		 ]}]},
-		{"id":"test.receiver","context":"system","initial":"wait","states":[
+		{"id":"test.receiver","context":"controller","initial":"wait","states":[
 			{"id":"wait","transitions":[{"target":"received","conditions":[
 			 {"left":{"observation":"message.available"},"op":"eq","right":true}]}]},
-			{"id":"received","entry":[{"action":"set_enabled","arguments":[{"observation":"self.system"},false]}]}
+			{"id":"received","entry":[{"action":"write.radar_enabled","arguments":[false]}]}
 		 ]}
 	])json");
-	ship["controllers"] = {{"engine", "test.seek"}, {"radar", "test.receiver"}};
+	use_tree(definitions, "engine", "test.seek");
+	use_tree(definitions, "radar", "test.receiver");
 	const auto catalog = load(definitions);
 	World world;
 	world.load(catalog, "test.map");
 	claim_all(world);
 	require(world.claim(105, 1, "away-reader"), "eligible reader can explicitly go Away");
 	world.tick();
-	require(world.submit(101, {1, "delegate", 1, "engine"}), "human-seeking sender remains delegated AI");
+	require(submit(world, 101, {1, "preset", 0, {}}), "human-seeking sender remains delegated AI");
 	world.tick();
 	require(projection(world, 102).at("messages").empty(), "human-seeking routing respects authored delay");
 	World resumed;
 	resumed.restore(catalog, world.save());
 	require(resumed.claim(104, 1, "assistant"), "human arriving during delivery delay may receive an offer");
-	require(resumed.submit(105, {1, "away", 1, {}}), "Away removes a human from offer eligibility before delivery");
+	require(submit(resumed, 105, {1, "away", 1, {}}), "Away removes a human from offer eligibility before delivery");
 	resumed.tick();
 	require(projection(resumed, 104).at("messages").empty(), "late human does not bypass message delay");
 	resumed.tick();
@@ -677,6 +753,7 @@ void delayed_human_seeking()
 	require(normal.at("messages").size() == 1 && normal.at("messages")[0].at("offer_only") == false &&
 	            normal.at("notifications").size() == 1,
 	        "AI System delivery keeps its addressed route while notifying its present human once");
+
 	require(offer.at("messages").size() == 1 && offer.at("messages")[0].at("offer_only") == true &&
 	            offer.at("notifications").size() == 1 && late.at("messages").size() == 1 &&
 	            late.at("notifications").size() == 1,
@@ -684,15 +761,15 @@ void delayed_human_seeking()
 	require(records(offer, "records", "request").empty() && projection(resumed, 103).at("messages").empty() &&
 	            projection(resumed, 105).at("messages").empty() && projection(resumed, 201).at("messages").empty(),
 	        "extra offers do not ingest AI board data or reach forbidden, Away or other-ship readers");
-	require(!resumed.can_submit(102, {1, "speed_mm_s", 700, "engine"}) &&
-	            !resumed.can_submit(101, {1, "speed_mm_s", 700, "engine"}),
+	require(!can_submit(resumed, 102, {1, "speed_mm_s", 700, "engine"}) &&
+	            !can_submit(resumed, 101, {1, "speed_mm_s", 700, "engine"}),
 	        "offering work transfers no Console claim or delegated actuator authority");
 	World recovered;
 	recovered.restore(catalog, resumed.save());
 	require(projection(recovered, 102).at("messages").size() == 1 &&
 	            projection(recovered, 102).at("notifications").empty(),
 	        "offer-only history persists without replaying a historical popup");
-	require(recovered.submit(102, {1, "away", 1, {}}), "offered Console can return to AI after delivery");
+	require(submit(recovered, 102, {1, "away", 1, {}}), "offered Console can return to AI after delivery");
 	recovered.tick();
 	recovered.tick();
 	require(latest_field(projection(recovered, 102), "records", "support-private", "enabled") == true,
@@ -706,7 +783,7 @@ void authorized_message_producers()
 	World human;
 	human.load(human_catalog, "test.map");
 	claim_all(human);
-	require(human.submit(101, {1, "message.test.request", 0, "engine"}),
+	require(submit(human, 101, {1, "message.test.request", 0, "engine"}),
 	        "human sender selects a permitted later schema producer instead of impersonating the first");
 	human.tick();
 	const auto human_pending = human.save().at("knowledge").at("runtime").value("pending", Json::array());
@@ -723,7 +800,7 @@ void authorized_message_producers()
 	ai.load(ai_catalog, "test.map");
 	claim_all(ai);
 	ai.tick();
-	require(ai.submit(101, {1, "delegate", 1, "engine"}), "AI sender receives effective control");
+	require(submit(ai, 101, {1, "preset", 0, {}}), "AI sender receives effective control");
 	ai.tick();
 	const auto ai_pending = ai.save().at("knowledge").at("runtime").value("pending", Json::array());
 	require(ai_pending.size() == 1, "authorized AI send enters delayed transport");
@@ -738,23 +815,11 @@ void authorized_message_producers()
 	World denied_human;
 	denied_human.load(forbidden_catalog, "test.map");
 	claim_all(denied_human);
-	require(!denied_human.submit(101, {1, "message.test.request", 0, "engine"}),
+	require(!submit(denied_human, 101, {1, "message.test.request", 0, "engine"}),
 	        "human with no producer intersection cannot originate that schema");
-	auto dynamic = with_notifier();
-	dynamic["knowledge"]["schemas"][1]["producers"] = {"support"};
-	dynamic["trees"][0]["memory"] =
-	    Json::array({{{"name", "selected_template"}, {"type", "text"}, {"initial", "test.notice"}}});
-	dynamic["trees"][0]["states"][1]["entry"][0]["arguments"][2] = {{"memory", "selected_template"}};
-	World denied_ai;
-	denied_ai.load(load(dynamic), "test.map");
-	claim_all(denied_ai);
-	denied_ai.tick();
-	require(denied_ai.submit(101, {1, "delegate", 1, "engine"}), "dynamic sender is delegated before admission");
-	for (int i = 0; i < 4; ++i)
-		denied_ai.tick();
-	require(denied_ai.save().at("knowledge").at("runtime").value("pending", Json::array()).empty() &&
-	            projection(denied_ai, 101).at("messages").empty(),
-	        "dynamically selected AI template with no producer intersection fails without transport effects");
+	auto unauthorized_ai = with_notifier();
+	unauthorized_ai["knowledge"]["schemas"][1]["producers"] = {"support"};
+	refused(unauthorized_ai, "Controller send vocabulary must reject unauthorized templates at authoring boundary");
 }
 void current_record_streams()
 {
@@ -765,15 +830,16 @@ void current_record_streams()
 	    {{"id", "enabled"}, {"type", "boolean"}, {"required", false}});
 	auto &ship = definitions["entities"][0];
 	ship["systems"]["radar"]["records"][0]["fields"]["enabled"] = "enabled";
-	ship["controllers"]["radar"] = "test.detail-reader";
+
 	definitions["trees"].push_back(Json::parse(R"json(
-		{"id":"test.detail-reader","context":"system","initial":"read",
+		{"id":"test.detail-reader","context":"controller","initial":"read",
 		 "record_bindings":[{"name":"known.detail","scope":"console","schema":"request","field":"detail","subject":"self"}],
 		 "states":[{"id":"read","running":[
-			{"action":"set_enabled","arguments":[{"observation":"self.system"},false]},
-			{"action":"set_enabled","arguments":[{"observation":"self.system"},{"observation":"known.detail"}]}
+			{"action":"write.radar_enabled","arguments":[false]},
+			{"action":"write.radar_enabled","arguments":[{"observation":"known.detail"}]}
 		 ]}]}
 	)json"));
+	use_tree(definitions, "radar", "test.detail-reader");
 	auto detail = definitions["messages"][0];
 	detail["id"] = "test.detail";
 	detail.erase("request_key");
@@ -791,11 +857,11 @@ void current_record_streams()
 	World world;
 	world.load(catalog, "test.map");
 	claim_all(world);
-	require(world.submit(102, {1, "delegate", 1, "radar"}), "record reader runs through its actual System controller");
+	require(submit(world, 102, {1, "preset", 0, {}}), "record reader runs through its Console Controller");
 	world.tick();
 	const auto send = [&](const char *message, const char *sender)
 	{
-		require(world.submit(101, {1, std::string("message.") + message, 0, sender}),
+		require(submit(world, 101, {1, std::string("message.") + message, 0, sender}),
 		        "record versions originate through the production Coordination command path");
 		world.tick();
 		world.tick();
@@ -912,15 +978,15 @@ void continuation_roster_validation(const Catalog &catalog)
 	definition_mismatch["knowledge"]["ships"][0]["definition"] = "test.variant";
 	reject_saved(catalog, definition_mismatch,
 	             "knowledge definition must match the restored physical entity definition");
-	auto missing_ship = state;
-	missing_ship["delegated"] = Json(std::map<EntityId, std::set<std::string>>{{99, {"engine"}}});
-	reject_saved(catalog, missing_ship, "delegation cannot refer to an absent ship");
-	auto missing_system = state;
-	missing_system["delegated"] = Json(std::map<EntityId, std::set<std::string>>{{1, {"not-fitted"}}});
-	reject_saved(catalog, missing_system, "delegation cannot refer to an unfitted System");
-	auto bad_preset = state;
-	bad_preset["preset"] = Json::array({{{"address", {{"ship", 1}, {"console", "helm"}}}, {"value", "not-authored"}}});
-	reject_saved(catalog, bad_preset, "preset continuation must name an authored choice on that Console");
+	auto missing_controller = state;
+	missing_controller["bodies"][0]["console_controllers"]["controllers"][0]["id"] = "not-authored";
+	reject_saved(catalog, missing_controller, "Controller continuation cannot invent an owner");
+	auto missing_command = state;
+	missing_command["bodies"][0]["console_controllers"]["controllers"][0]["commands"].erase(0);
+	reject_saved(catalog, missing_command, "Controller continuation cannot omit owned command sections");
+	auto bad_profile = state;
+	bad_profile["bodies"][0]["console_controllers"]["profiles"]["helm"] = 99;
+	reject_saved(catalog, bad_profile, "Continuation profile must name an authored choice");
 	auto bad_away = state;
 	bad_away["away"] = Json::array({{{"address", {{"ship", 1}, {"console", "not-fitted"}}}, {"value", true}}});
 	reject_saved(catalog, bad_away, "Away continuation cannot create an unknown Console");

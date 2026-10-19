@@ -36,7 +36,7 @@ and malformed descriptors fail safely.
 including signed manual axes. Known operating commands check the declared value
 range and an owned System selection or explicit projected descriptor before
 entering `SessionPort::console_command`.
-Other supported actions, such as Away, delegation, presets, publication, messages
+Other supported actions, such as Away, complexity profiles, publication, messages
 and summary intent, require an exact current projected descriptor. The server
 remains the final authority for ownership, capability and operating limits.
 

@@ -79,7 +79,7 @@ void bounded_gameplay_projection(const Catalog &catalog, const std::string &key)
 	            phoenix::network::read_observation(transfer.state().at("observation"), catalog).gameplay == gameplay,
 	        "Oversized permitted histories must reconstruct a valid bounded observation with explicit omissions");
 	Json crowded{{"controls", before.at("controls")}};
-	crowded["controls"].push_back({{"id", "delegate"}, {"action", "delegate"}, {"system", "storage"}, {"value", 0}});
+	crowded["controls"].push_back({{"id", "profile.automatic"}, {"action", "preset"}, {"system", ""}, {"value", 0}});
 	for (unsigned i = 0; i < 4096; ++i)
 		crowded["controls"].push_back({{"id", "actuator" + std::to_string(i)},
 		                               {"action", "longitudinal_thrust"},
@@ -90,7 +90,7 @@ void bounded_gameplay_projection(const Catalog &catalog, const std::string &key)
 	require(visible.dump().size() <= 1024 * 1024 && visible.at("omitted").at("controls") > 0 &&
 	            visible.at("controls")[0] == crowded.at("controls")[0] &&
 	            visible.at("controls")[1] == crowded.at("controls")[1],
-	        "A crowded control roster must retain authored Away/resume/delegation priority before optional actuators");
+	        "A crowded control roster must retain authored Away/resume/profile priority before optional actuators");
 }
 int main()
 {

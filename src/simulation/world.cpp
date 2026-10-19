@@ -1415,9 +1415,9 @@ World::World() : impl_(std::make_unique<Impl>())
 {
 }
 World::~World() = default;
-void World::load(const Catalog &content, const std::string &map, const std::map<std::string, std::string> &ships)
+void World::load(const Catalog &source, const std::string &map, const std::map<std::string, std::string> &ships)
 {
-	verify_catalog(content);
+	const auto content = prepared_catalog(source);
 	if (content.presentation)
 		throw std::runtime_error("Console presentation assets cannot create an authoritative world");
 	if (!content.maps.contains(map))
@@ -1754,12 +1754,15 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 					                       : channel.maximum - channel.minimum;
 					const auto step = std::max<std::int64_t>(1, scale / 20);
 					std::set<std::int64_t> values;
-					if (channel.type == KnowledgeType::Boolean)
+					if (!channel.choices.empty())
+						for (const auto &[value, label] : channel.choices)
+							values.insert(value);
+					else if (channel.type == KnowledgeType::Boolean)
 						values = {0, 1};
 					else
 						values = {std::clamp(state.value - step, channel.minimum, channel.maximum),
 						          std::clamp(state.value + step, channel.minimum, channel.maximum)};
-					if (channel.minimum <= 0 && channel.maximum >= 0)
+					if (channel.choices.empty() && channel.minimum <= 0 && channel.maximum >= 0)
 						values.insert(0);
 					for (const auto value : values)
 					{
@@ -1781,6 +1784,13 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 						descriptor["id"] =
 						    "controller." + controller.definition.id + "." + channel.id + "." + std::to_string(value);
 						descriptor["label"] = controller.definition.id + " " + channel.id + " " + std::to_string(value);
+						if (channel.choices.contains(value))
+							descriptor["label_key"] = channel.choices.at(value);
+						else if (!channel.label_key.empty())
+						{
+							descriptor["label_key"] = channel.label_key;
+							descriptor["label_value"] = true;
+						}
 						buttons.push_back(std::move(descriptor));
 					}
 					const auto fields = operating_arguments(channel.action);
