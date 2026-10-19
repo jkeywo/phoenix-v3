@@ -168,7 +168,7 @@ button.selected {
 	position: absolute;
 	top: 0;
 	right: 20px;
-	width: 264px;
+	width: var(--crt-display-width, 264px);
 	pointer-events: none;
 }
 .crt-screen {
@@ -185,10 +185,11 @@ button.selected {
 	color: #cbe4c5;
 }
 .crt-avatar {
-	width: 48px;
-	height: 48px;
-	flex-shrink: 0;
-	object-fit: contain;
+	width: 100%;
+	height: calc(100% - 24px);
+	flex: 1;
+	min-height: 0;
+	object-fit: cover;
 	background: #15231a;
 	text-align: center;
 }
@@ -196,8 +197,10 @@ button.selected {
 	width: 100%;
 	font-size: 16px;
 	line-height: 20px;
-	margin-top: 4px;
-	max-height: 40px;
+	margin: 0;
+	height: 24px;
+	flex-shrink: 0;
+	background: #101918;
 	text-align: center;
 	overflow: hidden;
 	overflow-wrap: anywhere;

@@ -520,6 +520,11 @@ foreach(
 endforeach()
 foreach(avatar RANGE 1 12)
 	configure_file(
+		"content/ui/menu/portrait-${avatar}.png"
+		"${CMAKE_CURRENT_BINARY_DIR}/assets/menu/portrait-${avatar}.png"
+		COPYONLY
+	)
+	configure_file(
 		"content/ui/menu/avatar-${avatar}.png"
 		"${CMAKE_CURRENT_BINARY_DIR}/assets/menu/avatar-${avatar}.png"
 		COPYONLY

@@ -235,12 +235,13 @@ export function sceneProperties(scene) {
 		"--menu-space": `url("assets/menu/${scene.panorama.file}")`,
 		"--menu-flash-mask": `url("assets/menu/${f.file}")`,
 		"--menu-frame": `url("assets/menu/${scene.foreground.file}")`,
-		"--menu-crt": `url("assets/menu/${scene.terminal.file}")`,
+		"--menu-crt": `url("assets/menu/${scene.terminal.file}?v=portrait-1")`,
 		"--menu-scutter": `url("assets/menu/${robot.file}")`,
 		"--pan-period": period + "s",
 		"--pan-start": String(-2 * phase),
 		"--pan-end": String(-2 * phase - 2),
 		"--crt-aspect": width + " / " + height,
+		"--crt-display-width": (scene.terminal.display_width || 264) + "px",
 		"--crt-left": (100 * screen.x) / width + "%",
 		"--crt-top": (100 * screen.y) / height + "%",
 		"--crt-width": (100 * screen.width) / width + "%",
@@ -711,6 +712,7 @@ async function boot() {
 		});
 		return name;
 	}
+	let portraitChoices;
 	function updateProfile() {
 		const name = library.player_name || "<username>",
 			avatar = $("profile-avatar");
@@ -720,8 +722,26 @@ async function boot() {
 		const present = library.avatar?.length > 0 && library.avatar.length <= 12288;
 		avatar.hidden = !present;
 		$("profile-initial").hidden = present;
-		if (present) avatar.src = "data:image/png;base64," + btoa(String.fromCharCode(...library.avatar));
-		else avatar.removeAttribute("src");
+		if (present) {
+			const saved = library.avatar;
+			avatar.src = "data:image/png;base64," + btoa(String.fromCharCode(...saved));
+			portraitChoices ||= Promise.all(
+				Array.from(
+					{ length: 12 },
+					async (_, i) =>
+						new Uint8Array(await (await fetch(`assets/menu/avatar-${i + 1}.png`)).arrayBuffer()),
+				),
+			);
+			portraitChoices
+				.then((choices) => {
+					if (library.avatar !== saved) return;
+					const index = choices.findIndex(
+						(bytes) => bytes.length === saved.length && bytes.every((b, i) => b === saved[i]),
+					);
+					if (index >= 0) avatar.src = `assets/menu/portrait-${index + 1}.png`;
+				})
+				.catch(() => {});
+		} else avatar.removeAttribute("src");
 	}
 	function connection(parent, join = true) {
 		const form = element("form", undefined, parent);
@@ -1468,7 +1488,7 @@ async function boot() {
 			...["button-generic-9slice", "helm-background-9slice"].map((name) =>
 				fetch(`assets/menu/${name}.sprite.json`).then((r) => r.json()),
 			),
-			fetch("assets/menu/menu-scene.json").then((r) => r.json()),
+			fetch("assets/menu/menu-scene.json?v=portrait-1").then((r) => r.json()),
 		]);
 		translations = data[0].languages.en;
 		for (const [name, value] of Object.entries(sceneProperties(data[3])))

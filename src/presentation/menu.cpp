@@ -47,6 +47,8 @@ struct NativeMenuScreen::State
 	float scutter_aspect = 1;
 	double panorama_phase = 0, panorama_period = 720;
 	float terminal_aspect = 1;
+	float terminal_width = 264;
+	std::map<std::string, Bytes> crew_portraits;
 	std::string join_qr_url;
 	TextureCache avatar_textures;
 	std::uint64_t avatar_screen = 0;
@@ -683,7 +685,8 @@ struct NativeMenuScreen::State
 						{
 							prepare_qr(app, lobby.code);
 							markup += "<div id=\"menu-profile\" class=\"menu-crt host-crt\"><div class=\"crt-screen\">"
-							          "<div id=\"menu-join-qr\"></div></div></div>";
+							          "<div id=\"menu-join-qr\"></div><p class=\"crt-name\">" +
+							          Rml::StringUtilities::EncodeRml(lobby.code) + "</p></div></div>";
 						}
 						catch (const std::exception &error)
 						{
@@ -1188,17 +1191,12 @@ struct NativeMenuScreen::State
 			for (auto *screen : screens)
 				screen->SetProperty("opacity", std::to_string(ambient.television_opacity()));
 		}
-		const float profile_width = compact ? 140.8f : 264.f;
+		const float profile_width = terminal_width * (compact ? .533333f : 1.f);
 		if (auto *profile = document.GetElementById("menu-profile"))
 		{
 			profile->SetProperty("width", std::to_string(profile_width) + "px");
 			profile->SetProperty("height", std::to_string(profile_width * terminal_aspect) + "px");
 			profile->SetProperty("font-size", compact ? "11px" : "16px");
-		}
-		if (auto *avatar = document.GetElementById("menu-profile-avatar"))
-		{
-			avatar->SetProperty("width", compact ? "24px" : "48px");
-			avatar->SetProperty("height", compact ? "24px" : "48px");
 		}
 		if (auto *title = document.GetElementById("menu-title"))
 		{
@@ -1342,7 +1340,7 @@ void NativeMenuScreen::draw(const Application &app, Rml::ElementDocument &docume
 	if (!app.native_menu || (app.screen != Screen::home && app.screen != Screen::server_lobby &&
 	                         app.screen != Screen::client_lobby && app.screen != Screen::settings))
 		return;
-	auto draw = [&](const std::string &id, Texture2D texture, bool integer_scale = false)
+	auto draw = [&](const std::string &id, Texture2D texture)
 	{
 		if (!texture.id)
 			return;
@@ -1371,9 +1369,16 @@ void NativeMenuScreen::draw(const Application &app, Rml::ElementDocument &docume
 			                 static_cast<int>(clip.height));
 			float scale =
 			    std::min(element->GetClientWidth() / texture.width, element->GetClientHeight() / texture.height);
-			if (integer_scale)
-				scale = std::floor(scale);
-			if (scale > 0)
+			const bool cover = id == "menu-profile-avatar";
+			if (cover)
+			{
+				const float w = element->GetClientWidth(), h = element->GetClientHeight();
+				const float fill = std::max(w / texture.width, h / texture.height);
+				DrawTexturePro(texture,
+				               {(texture.width - w / fill) / 2, (texture.height - h / fill) / 2, w / fill, h / fill},
+				               {at.x, at.y, w, h}, {0, 0}, 0, Fade(WHITE, state_->ambient.television_opacity()));
+			}
+			if (!cover && scale > 0)
 			{
 				const float width = texture.width * scale, height = texture.height * scale;
 				DrawTexturePro(texture, {0, 0, static_cast<float>(texture.width), static_cast<float>(texture.height)},
@@ -1422,9 +1427,11 @@ void NativeMenuScreen::draw(const Application &app, Rml::ElementDocument &docume
 		}
 	if (!app.avatar.empty())
 	{
+		const auto key = sha256(app.avatar);
+		const auto &portrait = state_->crew_portraits.contains(key) ? state_->crew_portraits.at(key) : app.avatar;
 		draw("profile-avatar", state_->avatar_textures.load(sha256(app.avatar), app.avatar));
 		if (app.screen != Screen::settings && !app.packs_popup)
-			draw("menu-profile-avatar", state_->avatar_textures.load(sha256(app.avatar), app.avatar));
+			draw("menu-profile-avatar", state_->avatar_textures.load(key + "/portrait", portrait));
 	}
 	if (app.session)
 		for (const auto &member : app.session->lobby().members)
@@ -1432,7 +1439,7 @@ void NativeMenuScreen::draw(const Application &app, Rml::ElementDocument &docume
 				draw("avatar-" + member.id, state_->avatar_textures.load(sha256(member.avatar), member.avatar));
 	if (app.can_host && app.screen == Screen::server_lobby && !app.packs_popup)
 	{
-		draw("menu-join-qr", state_->join_qr, true);
+		draw("menu-join-qr", state_->join_qr);
 	}
 }
 std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
@@ -1450,7 +1457,12 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 	};
 	state_->avatar_directory = asset_directory + "/menu";
 	for (int i = 1; i <= 12; ++i)
+	{
 		state_->avatars.push_back(read_file(state_->avatar_directory + "/avatar-" + std::to_string(i) + ".png", 12288));
+		state_->crew_portraits.emplace(
+		    sha256(state_->avatars.back()),
+		    read_file(state_->avatar_directory + "/portrait-" + std::to_string(i) + ".png", 512 * 1024));
+	}
 	state_->button_skin = load("button-generic-9slice.sprite.json", .075f);
 	if (!state_->button_skin.has_label)
 		throw std::runtime_error("Menu button sidecar needs label_center");
@@ -1522,6 +1534,7 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 	if (x < 0 || y < 0 || width <= 0 || height <= 0 || x + width > terminal_width || y + height > terminal_height)
 		throw std::runtime_error("Invalid CRT screen aperture");
 	state_->terminal_aspect = terminal_height / terminal_width;
+	state_->terminal_width = terminal.value("display_width", 264.f);
 	std::string styles = state_->button_skin.sprite_sheet("menu-button") + panel.sprite_sheet("menu-panel");
 	styles += "#native-menu { background:transparent; decorator:image(menu/" +
 	          scene.at("foreground").at("file").get<std::string>() + " cover); }\n";
@@ -1589,11 +1602,11 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
     .menu-crt { display:block; position:relative; flex-shrink:0; }
     #menu-profile { position:absolute; top:0; right:20px; border:0px; background:transparent; padding:0px; }
     .crt-screen { position:absolute; display:flex; flex-direction:column; align-items:center; justify-content:center; overflow:hidden; color:#cbe4c5; }
-    .crt-avatar { display:block; flex-shrink:0; text-align:center; background:#15231a; color:#cbe4c5; }
-    #native-menu .crt-name { display:block; width:100%; text-align:center; font-size:1em; margin:4px 0 0; max-height:40px; overflow:hidden; }
+    .crt-avatar { display:block; width:100%; height:85%; flex-shrink:0; text-align:center; background:#15231a; color:#cbe4c5; }
+    #native-menu .crt-name { display:block; width:100%; height:15%; text-align:center; font-size:1em; margin:0; overflow:hidden; background:#101918; }
     .qr-crt { display:block; position:relative; width:440px; overflow:hidden; clip:always; }
     .qr-terminal { position:absolute; left:0; width:440px; }
-    #menu-join-qr { display:block; width:100%; height:100%; }
+    #menu-join-qr { display:block; width:100%; height:85%; }
     )";
 	return styles;
 }

@@ -9,6 +9,8 @@ class ConsoleSurface final : public Rml::EventListener
 	bool profile_open_ = false;
 	std::string profile_name_;
 	Bytes profile_avatar_;
+	Json terminal_;
+	std::map<std::string, Bytes> crew_portraits_;
 	Rml::Context *context_ = nullptr;
 	Rml::ElementDocument *document_ = nullptr;
 	ConsoleModel model_;
@@ -98,6 +100,12 @@ public:
 	explicit ConsoleSurface(ConsoleId route, const std::string &prefix = "console-", bool toolbar = true)
 	    : route_(route), context_name_(prefix + std::to_string(route)), toolbar_enabled_(toolbar)
 	{
+		terminal_ =
+		    parse_json(read_file(asset_path("../menu/menu-scene.json"), 64 * 1024), "menu scene").at("terminal");
+		for (int i = 1; i <= 12; ++i)
+			crew_portraits_.emplace(
+			    sha256(read_file(asset_path("../menu/avatar-" + std::to_string(i) + ".png"), 12288)),
+			    read_file(asset_path("../menu/portrait-" + std::to_string(i) + ".png"), 512 * 1024));
 		context_ = Rml::CreateContext(context_name_, {1280, 720});
 		if (!context_)
 			throw std::runtime_error("Cannot create independent Console context");
@@ -122,7 +130,7 @@ p {display:block;font-size:17px;margin:4px 0;}
 .throttle sliderbar {width:100%;background:transparent;}
 .heading-value:focus {border-color:#ffb665;background:#122629;}
 .throttle sliderarrowdec,.throttle sliderarrowinc {display:none;}
-.ready-card {position:absolute;left:10%;top:350px;width:80%;box-sizing:border-box;padding:28px;background:#0b1719ee;border:2px #d48a48;}
+.ready-card {position:absolute;left:10%;top:390px;width:80%;box-sizing:border-box;padding:28px;background:#0b1719ee;border:2px #d48a48;}
 .profile-card {top:18%;}
 .ready-card h1 {display:block;font-size:32px;}
 .ready-card button {min-width:120px;}
@@ -557,8 +565,19 @@ p {display:block;font-size:17px;margin:4px 0;}
 			if (pregame)
 			{
 				button("profile", "Edit profile");
-				lobby += "<button id=\"" + id("profile") + "\" class=\"profile-tv\"><img src=\"" +
-				         asset_path("../menu/crt-terminal.png") + "\" width=\"264\"/><span>" +
+				const float tw = terminal_.value("display_width", 264.f), sw = terminal_.at("size").at(0),
+				            sh = terminal_.at("size").at(1);
+				const auto &aperture = terminal_.at("screen");
+				const float ax = aperture.at("x"), ay = aperture.at("y"), aw = aperture.at("width"),
+				            ah = aperture.at("height");
+				lobby += "<button id=\"" + id("profile") +
+				         "\" class=\"profile-tv\" style=\"width:" + std::to_string(tw) +
+				         "px;height:" + std::to_string(tw * sh / sw) + "px\"><img src=\"" +
+				         asset_path("../menu/crt-terminal.png") + "\" width=\"" + std::to_string(tw) +
+				         "\"/><span style=\"left:" + std::to_string(ax / sw * 100) +
+				         "%;top:" + std::to_string((ay + ah * .85f) / sh * 100) +
+				         "%;width:" + std::to_string(aw / sw * 100) +
+				         "%;height:" + std::to_string(ah * .15f / sh * 100) + "%;background:#101918;font-size:16px\">" +
 				         Rml::StringUtilities::EncodeRml(profile_name_) + "</span></button>";
 				if (profile_open_)
 				{
@@ -866,8 +885,19 @@ p {display:block;font-size:17px;margin:4px 0;}
 		if (app_->session->lobby().active && !app_->session->lobby().launched && !profile_open_ &&
 		    !profile_avatar_.empty())
 		{
-			const auto texture = radar_textures_.load(sha256(profile_avatar_), profile_avatar_);
-			image(texture, {region.x + region.width - 184, region.y + 172, 48, 48});
+			const auto key = sha256(profile_avatar_);
+			const auto &portrait = crew_portraits_.contains(key) ? crew_portraits_.at(key) : profile_avatar_;
+			const auto texture = radar_textures_.load(key + "/portrait", portrait);
+			const float tw = terminal_.value("display_width", 264.f), sw = terminal_.at("size").at(0), scale = tw / sw;
+			const auto &screen = terminal_.at("screen");
+			const float x = screen.at("x"), y = screen.at("y"), w = screen.at("width"), h = screen.at("height");
+			const Rectangle area{region.x + region.width - 20 - tw + x * scale, region.y + y * scale, w * scale,
+			                     h * .85f * scale};
+			const float fill = std::max(area.width / texture.width, area.height / texture.height);
+			DrawTexturePro(texture,
+			               {(texture.width - area.width / fill) / 2, (texture.height - area.height / fill) / 2,
+			                area.width / fill, area.height / fill},
+			               area, {0, 0}, 0, WHITE);
 		}
 	}
 
