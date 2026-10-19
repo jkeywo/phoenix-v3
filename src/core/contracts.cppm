@@ -68,6 +68,24 @@ struct ConsoleAddress
 		return ship < v.ship || (ship == v.ship && console < v.console);
 	}
 };
+// Stable logical identity. Never serialize a Flecs handle as Controller authority.
+struct ControllerAddress
+{
+	EntityId entity = 0;
+	std::string console, controller;
+	bool operator==(const ControllerAddress &) const = default;
+	bool operator<(const ControllerAddress &v) const
+	{
+		if (entity != v.entity)
+			return entity < v.entity;
+		return console < v.console || (console == v.console && controller < v.controller);
+	}
+};
+enum class CommandSemantics : std::uint8_t
+{
+	Setting,
+	Request
+};
 struct OperatingActionSpec
 {
 	OperatingAction action;

@@ -430,6 +430,9 @@ struct World::Impl
 	void compile(const Catalog &content)
 	{
 		packs = content.ordered_packs;
+		for (const auto &[name, definition] : content.entities)
+			if (definition.contains("control_layout"))
+				throw std::runtime_error("Controller layout runtime migration pending: " + name);
 		knowledge.configure(content);
 		gameplay = content.knowledge_definition.schemas.size() > 1 || !content.resource_definitions.empty() ||
 		           !content.tree_programs.empty() || !content.scenarios.empty();

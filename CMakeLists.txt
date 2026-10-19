@@ -241,6 +241,7 @@ add_library(
 	src/content/catalog.cpp
 	src/content/sprite.cpp
 	src/content/stations.cpp
+	src/content/controllers.cpp
 	src/content/console_assets.cpp
 	src/content/workshop.cpp
 	src/content/equipment.cpp

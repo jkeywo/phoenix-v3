@@ -161,6 +161,36 @@ struct FittedSystemSpec
 	std::int64_t maximum = 0, response = 0;
 	std::string controller;
 };
+struct ControllerCommandSpec
+{
+	std::string id;
+	OperatingAction action = OperatingAction::Speed;
+	OperatingAction physical_input = OperatingAction::Speed;
+	KnowledgeType type = KnowledgeType::Integer;
+	CommandSemantics semantics = CommandSemantics::Setting;
+	std::int64_t initial = 0, minimum = 0, maximum = 0;
+	std::vector<std::size_t> consumers;
+};
+struct ConsoleControllerSpec
+{
+	std::string id, console, tree;
+	std::vector<ControllerCommandSpec> commands;
+};
+struct ConsoleComplexitySpec
+{
+	std::string id;
+	// Profile allocation when a human is available; absence makes every entry AI.
+	std::vector<bool> human;
+};
+struct ControllableLayout
+{
+	std::vector<ConsoleControllerSpec> controllers;
+	std::vector<ConsoleComplexitySpec> profiles;
+	std::size_t default_profile = 0;
+	bool converted = false;
+};
+// Compiles explicit layout version 1 or converts unambiguous old ownership at the boundary.
+ControllableLayout compile_controllable_layout(const Catalog &, const std::string &entity);
 std::vector<FittedSystemSpec> resolve_systems(const Catalog &catalog, const std::string &entity);
 // Includes standard capability channels and the fitted controller's inherited declarations.
 std::vector<std::string> gameplay_summary_channels(const Catalog &, const std::string &entity,

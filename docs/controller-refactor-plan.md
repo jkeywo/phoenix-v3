@@ -1,6 +1,6 @@
 # Console Controller refactoring plan
 
-Approved target · 19 October 2026. **Status: planned; no runtime migration completed by this document.** Implement the [agreed architecture](controller-architecture.md) and revised [GDD](GDD.md), preserving existing physical capabilities and deterministic execution. Historical gameplay completion receipts describe the earlier architecture.
+Approved target · 19 October 2026. **Status: implementation in progress; compiler foundation verified, runtime migration pending.** Implement the [agreed architecture](controller-architecture.md) and revised [GDD](GDD.md), preserving existing physical capabilities and deterministic execution. Historical gameplay completion receipts describe the earlier architecture.
 
 ## Current code and required changes
 
@@ -106,3 +106,11 @@ Manually trigger and record GUI journeys for lobby/settings selection, shared an
 | 1–7: implementation and acceptance above                     | Not started |
 
 The existing gameplay ledger remains evidence for the previous runtime. It does not establish completion of this refactor.
+
+## Compiler foundation receipt
+
+The first incremental change adds Controller addresses, typed setting/request channel metadata, physical consumer indices and Console profile allocations through `compile_controllable_layout`. Production loading verifies explicit layout schema 1, shared inputs, canonical enabled-channel aliases, input conflicts, fitted capability checks, speed bounds and request single-executor rules. Legacy whole-entity timed policies convert to one Controller rather than duplicate evaluation per actuator.
+
+Native `phoenix_content_tests` passes, including inherited shared-throttle fixtures, cross-Console profile refusal and malformed input bindings. An independent verification agent also executed that suite successfully and reviewed the foundation diff. Changed C++ formatting and whitespace checks pass.
+
+This is step 1a only. Runtime activation, full tree/observation/message scope validation, separate-throttle execution, remaining range/default compatibility and wire/save activation remain subsequent work. Layout schema 1 is a new embedded content contract; no save or wire schema has changed yet. Explicit layouts are not yet executable in World. No step 2�7 acceptance or hardware evidence is claimed.

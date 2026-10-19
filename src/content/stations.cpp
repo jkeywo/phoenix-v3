@@ -178,11 +178,11 @@ std::vector<ConsoleSpec> resolve_consoles(const Catalog &catalog, const std::str
 				fail("Console identities must be unique within 32 seats per ship");
 			if (!catalog.consoles.contains(spec.definition))
 				fail("unresolved Console definition");
-			spec.controls = mask(console.at("systems"), spec.controlled_systems);
+			spec.controls = mask(console.value("systems", Json::array()), spec.controlled_systems);
 			spec.feeds = spec.controls | mask(console.value("feeds", Json::array()), spec.feed_systems);
 			for (const auto &system : spec.controlled_systems)
 			{
-				if (!owned.insert(system).second)
+				if (!owned.insert(system).second && !entity.contains("control_layout"))
 					fail("a System has more than one controlling Console");
 				if (std::find(spec.feed_systems.begin(), spec.feed_systems.end(), system) == spec.feed_systems.end())
 					spec.feed_systems.push_back(system);
@@ -214,7 +214,7 @@ std::vector<ConsoleSpec> resolve_consoles(const Catalog &catalog, const std::str
 			result.push_back(std::move(spec));
 		}
 	}
-	if (owned.size() != instances.size())
+	if (owned.size() != instances.size() && !entity.contains("control_layout"))
 		fail("each fitted System requires one controlling Console");
 	return result;
 }

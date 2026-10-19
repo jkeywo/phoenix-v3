@@ -487,6 +487,7 @@ void verify_prepared_catalog(const Catalog &catalog)
 			invalid(path + ".controller", "unresolved state tree");
 		resolve_consoles(catalog, id);
 		verify_gameplay_fitting(catalog, id);
+		(void)compile_controllable_layout(catalog, id);
 		if (entity.contains("controllers"))
 		{
 			if (!entity.contains("stations") || !entity["controllers"].is_object())

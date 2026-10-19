@@ -25,6 +25,97 @@ int main()
 		require(loaded.hash() == sha256(bytes), "pack identity must be the SHA256 of transferred archive bytes");
 		auto catalog = resolve_packs({loaded});
 
+		// Controller compilation is exercised through production pack loading, including unused variants.
+		auto control_source = parse_json(base.files.at("definitions.json"), "controller fixture");
+		control_source["consoles"][0]["widgets"] = Json::array();
+		auto &controlled = control_source["entities"][0];
+		controlled["systems"]["reserve"] = {
+		    {"kind", "engine"}, {"max_speed_mm_s", 17000}, {"acceleration_mm_s2", 2000}};
+		controlled.erase("console");
+		controlled["stations"] = Json::array(
+		    {{{"id", "watch"},
+		      {"consoles",
+		       Json::array({{{"id", "helm"}, {"definition", "test.console"}, {"systems", Json::array()}},
+		                    {{"id", "support"}, {"definition", "test.console"}, {"systems", Json::array()}}})}}});
+		controlled["control_layout"] = {
+		    {"schema", 1},
+		    {"controllers",
+		     Json::array(
+		         {{{"id", "propulsion"},
+		           {"console", "helm"},
+		           {"fallback", "hold"},
+		           {"commands", Json::array({{{"id", "speed"},
+		                                      {"action", "speed_mm_s"},
+		                                      {"maximum", 17000},
+		                                      {"consumers", {"engine", "reserve"}}}})}},
+		          {{"id", "power"},
+		           {"console", "support"},
+		           {"fallback", "hold"},
+		           {"commands",
+		            Json::array({{{"id", "enabled"}, {"action", "system_enabled"}, {"consumers", {"engine"}}}})}}})},
+		    {"profiles",
+		     Json::array({{{"id", "normal"},
+		                   {"consoles", {{"helm", {{"human", {"propulsion"}}}}, {"support", {{"ai", {"power"}}}}}}}})},
+		    {"default_profile", "normal"}};
+		auto load_controls = [&](const Json &source)
+		{
+			auto draft = base;
+			draft.files["definitions.json"] = json_bytes(source);
+			return resolve_packs({read_pack(write_pack(draft))});
+		};
+		auto control_catalog = load_controls(control_source);
+		auto layout = compile_controllable_layout(control_catalog, "test.variant");
+		require(!layout.converted && layout.controllers.size() == 2 &&
+		            layout.controllers[0].commands[0].consumers.size() == 2,
+		        "inherited layout shares one Controller command across two engine entities");
+		require(layout.profiles[0].human[0] && !layout.profiles[0].human[1], "profiles allocate Console Controllers");
+		auto bad_controls = control_source;
+		bad_controls["entities"][0]["control_layout"]["controllers"][1]["commands"][0]["action"] = "speed_mm_s";
+		rejected(
+		    [&]
+		    {
+			    load_controls(bad_controls);
+		    },
+		    "multiple command sources");
+		bad_controls = control_source;
+		bad_controls["entities"][0]["control_layout"]["controllers"][0]["commands"].push_back(
+		    {{"id", "enable"}, {"action", "engine_enabled"}, {"consumers", {"engine"}}});
+		rejected(
+		    [&]
+		    {
+			    load_controls(bad_controls);
+		    },
+		    "multiple command sources");
+		bad_controls = control_source;
+		bad_controls["entities"][0]["control_layout"]["profiles"][0]["consoles"]["helm"]["ai"] = {"power"};
+		rejected(
+		    [&]
+		    {
+			    load_controls(bad_controls);
+		    },
+		    "foreign or unknown profile Controller");
+		bad_controls = control_source;
+		bad_controls["entities"][0]["systems"]["engine"]["impulse"] = Json::object();
+		bad_controls["entities"][0]["systems"]["reserve"]["impulse"] = Json::object();
+		bad_controls["entities"][0]["control_layout"]["controllers"][0]["commands"][0]["action"] = "impulse";
+		bad_controls["entities"][0]["control_layout"]["controllers"][0]["commands"][0].erase("maximum");
+		rejected(
+		    [&]
+		    {
+			    load_controls(bad_controls);
+		    },
+		    "single executor");
+		bad_controls = control_source;
+		bad_controls["entities"][0]["control_layout"]["controllers"][0]["commands"][0]["consumers"] = {"radar"};
+		rejected(
+		    [&]
+		    {
+			    load_controls(bad_controls);
+		    },
+		    "incompatible physical input");
+		require(compile_controllable_layout(catalog, "test.ship").converted,
+		        "old ownership converts at the compiler boundary");
+
 		WorkshopDocument history_document;
 		history_document.load_pack(bytes);
 		WorkshopHistory history;
