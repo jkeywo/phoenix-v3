@@ -27,7 +27,68 @@
 		{
 			"id": "training.traffic",
 			"extends": "training.survey",
-			"controller": "training.patrol"
+			"controller": null,
+			"control_layout": {
+				"schema": 1,
+				"controllers": [
+					{
+						"id": "navigation",
+						"console": "main",
+						"commands": [
+							{
+								"id": "speed_mm_s",
+								"action": "speed_mm_s",
+								"initial": 0,
+								"consumers": ["engine"]
+							},
+							{
+								"id": "heading_mdeg",
+								"action": "heading_mdeg",
+								"consumers": ["steering"]
+							},
+							{
+								"id": "engine_enabled",
+								"action": "engine_enabled",
+								"initial": 1,
+								"consumers": ["engine"]
+							}
+						],
+						"tree": "training.patrol"
+					},
+					{
+						"id": "sensors",
+						"console": "main",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "radar_enabled",
+								"action": "radar_enabled",
+								"initial": 1,
+								"consumers": ["radar"]
+							}
+						]
+					}
+				],
+				"profiles": [
+					{
+						"id": "direct",
+						"consoles": {
+							"main": {
+								"human": ["navigation", "sensors"]
+							}
+						}
+					},
+					{
+						"id": "automatic",
+						"consoles": {
+							"main": {
+								"ai": ["navigation", "sensors"]
+							}
+						}
+					}
+				],
+				"default_profile": "direct"
+			}
 		}
 	],
 	"trees": [

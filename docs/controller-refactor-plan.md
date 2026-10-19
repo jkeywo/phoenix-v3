@@ -283,3 +283,9 @@ Both production packs verify. Independently triggered World smoke runs loaded th
 Explicit Console Controllers can now operate the existing vector engine and steering mechanisms without selecting inertial physics. Motion capability is independent of operator ownership; unsupported inertial commands and resource costs are rejected. Omitted heading defaults preserve spawn orientation, while explicit headings remain deliberate commands. Basic telemetry uses the common Console observation producer.
 
 Independent native build and Controller runtime, content, simulation and flight suites pass. Synthetic journeys cover shared and split trajectory parity, fractional motion remainders, coasting and re-enable, timed AI/human parity, exact continuation, heading defaults and transactional bounds refusal. Legacy authority dispatch still remains to be removed.
+
+## Maintained simple craft migration receipt
+
+The survey, inherited tug and AI traffic now use explicit Console Controllers with vector motion, direct/automatic complexity profiles and addressed helm widgets. Traffic retains its timed patrol program on the navigation Controller. Engineering hulls explicitly retain inertial machinery. Heading channels preserve spawn orientation unless an initial heading is authored.
+
+Both production packs verify. Independent manually triggered production World smoke checks operated survey/tug and unclaimed traffic for 450 ticks, confirmed vector/inertial model inheritance and spawn headings, and compared 20 restored ticks exactly. These are behavioral evidence, not production-content golden tests. All maintained controllable craft now author the new model; legacy runtime removal and the final recovery/integration gate remain pending.
