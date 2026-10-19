@@ -816,6 +816,8 @@ struct World::Impl
 		construction.indexed = true;
 		next_entity = std::max(next_entity, id + 1);
 		knowledge.register_ship(id, definition, ecs.get<Clock>().tick);
+		if (data.layout)
+			consume_controller_commands(entity);
 		if (!data.default_preset.empty())
 			for (const auto &p : data.presets)
 				if (p.id == data.default_preset)

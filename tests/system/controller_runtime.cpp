@@ -63,7 +63,8 @@ int main()
 		 {"id":"enabled","action":"intent_boolean","type":"boolean","initial":1,"consumers":[]}]})json"));
 		preference_layout["profiles"][0]["consoles"]["drive"] = {{"human", {"preference"}}, {"ai", {"propulsion"}}};
 		preference_layout["profiles"][1]["consoles"]["drive"] = {{"ai", {"preference", "propulsion"}}};
-		preference_source["trees"] = Json::parse(R"json([{"id":"test.preference","context":"controller","initial":"run",
+		preference_source["trees"] =
+		    Json::parse(R"json([{"id":"test.preference","context":"controller","initial":"run",
 		 "command_bindings":[{"channel":"speed"},{"channel":"enabled","type":"boolean"}],
 		 "command_reads":[{"name":"cruise","controller":"preference","channel":"cruise"},
 		  {"name":"enabled","controller":"preference","channel":"enabled","type":"boolean"}],
@@ -219,6 +220,21 @@ int main()
 			                                                  {"initial", 0},
 			                                                  {"arguments", tuple},
 			                                                  {"consumers", {"port", "starboard", "turn"}}}});
+
+			// Startup defaults must be consumed before the first human or AI navigation decision.
+			navigation_controller["commands"].push_back(
+			    {{"id", "idle_mode"},
+			     {"action", navigation == "destination" ? "follow_contact" : "destination"},
+			     {"initial", 0},
+			     {"arguments", navigation == "destination" ? Json::array({2, 10000, 4000}) : Json::array({0, 0})},
+			     {"consumers", {"port", "starboard", "turn"}}});
+			navigation_controller["commands"].push_back(
+			    {{"id", "idle_heading"}, {"action", "heading_mdeg"}, {"initial", 0}, {"consumers", {"turn"}}});
+
+			navigation_controller["commands"].push_back(
+			    {{"id", "release_thrust"}, {"action", "longitudinal_thrust"}, {"consumers", {"port", "starboard"}}});
+			navigation_controller["commands"].push_back(
+			    {{"id", "release_turn"}, {"action", "manual_steering"}, {"consumers", {"turn"}}});
 			navigation_controller.erase("fallback");
 			navigation_controller["tree"] = "test.navigation";
 			Json tree_args = Json::array({true});
@@ -249,6 +265,14 @@ int main()
 			navigation_human.load(navigation_catalog, "test.map");
 			navigation_ai.load(navigation_catalog, "test.map");
 			require(navigation_human.claim(101, 1, "drive"), "compound human Console claim");
+
+			for (const auto *channel : {"release_thrust", "release_turn"})
+				require(controller(navigation_human, 101, "propulsion")
+				            .at("commands")
+				            .at(channel)
+				            .at("accepted")
+				            .get<bool>(),
+				        "neutral held startup releases are accepted in assisted mode");
 			OperatingCommand navigation_command{1, {}, 1, {}};
 			navigation_command.controller = "propulsion";
 			navigation_command.channel = "navigate";
@@ -268,12 +292,31 @@ int main()
 			{
 				navigation_human.tick();
 				navigation_ai.tick();
+
+				if (tick == 0)
+				{
+					const auto first_state = navigation_ai.save();
+					for (const auto &system : first_state.at("bodies")[0].at("gameplay"))
+						if (system.at("id") == "port" || system.at("id") == "turn")
+							require(system.at("flight")
+							            .at(navigation == "destination" ? "navigating" : "following")
+							            .get<bool>(),
+							        "inactive sibling defaults cannot cancel the first AI navigation decision");
+				}
 				const auto human_body = navigation_human.inspect().front(), ai_body = navigation_ai.inspect().front();
 				require(human_body.x == ai_body.x && human_body.y == ai_body.y && human_body.heading == ai_body.heading,
 				        "human and AI compound navigation yield identical physical trajectory");
 			}
 			require(navigation_human.inspect().front().x != 0 || navigation_human.inspect().front().y != 0,
 			        "compound parity journey must execute physical motion");
+
+			require(navigation_ai.claim(202, 1, "drive"), "active AI navigation hands over to a human");
+			const auto handed_navigation = navigation_ai.save();
+			for (const auto &system : handed_navigation.at("bodies")[0].at("gameplay"))
+				if (system.at("id") == "port" || system.at("id") == "turn")
+					require(
+					    system.at("flight").at(navigation == "destination" ? "navigating" : "following").get<bool>(),
+					    "handover neutral releases preserve ongoing navigation guidance");
 			const auto navigation_save = navigation_human.save();
 			World navigation_resumed;
 			navigation_resumed.restore(navigation_catalog, navigation_save);
@@ -346,11 +389,14 @@ int main()
 		require(receipt_world.prepare_console_profile({1, "drive"}, "automatic") &&
 		            receipt_world.claim(101, 1, "drive"),
 		        "receipt fixture grants AI Controller with human observation");
+		const auto initial_consumed =
+		    controller(receipt_world, 101, "propulsion").at("commands").at("held").at("consumed");
 		receipt_world.tick();
 		const auto refused_receipt = controller(receipt_world, 101, "propulsion").at("commands").at("held");
 		require(!refused_receipt.at("accepted").get<bool>() && !refused_receipt.at("pending").get<bool>() &&
 		            refused_receipt.at("consumed") == refused_receipt.at("revision") &&
-		            controller(receipt_world, 101, "propulsion").at("commands").at("speed").at("value") == 0,
+		            controller(receipt_world, 101, "propulsion").at("commands").at("speed").at("value") ==
+		                initial_consumed,
 		        "physical refusal records consumed receipt while same-tick tree reads retain previous receipt");
 		receipt_world.tick();
 		require(controller(receipt_world, 101, "propulsion").at("commands").at("speed").at("value") ==

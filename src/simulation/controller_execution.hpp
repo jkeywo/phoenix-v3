@@ -479,6 +479,11 @@ void run_console_controllers(flecs::entity entity)
 						                       : 0,
 						                   false});
 	}
+	consume_controller_commands(entity);
+}
+void consume_controller_commands(flecs::entity entity)
+{
+	auto &controls = entity.get_mut<EntityControls>();
 	// Consume changes, not repeated method calls: speed writes must not cancel Match Speed every tick.
 	for (auto &controller : controls.controllers)
 		for (std::size_t i = 0; i < controller.commands.size(); ++i)

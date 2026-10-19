@@ -207,6 +207,21 @@ FlightCommandResult apply_flight(const FlightDefinition &def, FlightState &state
 	                                                                         : OperatingAction::Speed;
 	if (!operating_arguments_valid(compound, command.value, command.arguments))
 		return {false, "flight.invalid-arguments"};
+	// Releasing an inactive manual axis is always safe in assisted mode. It must
+	// not cancel persistent guidance merely because authority changed.
+	if (state.assisted && command.value == 0)
+	{
+		if (command.kind == FlightCommandKind::Longitudinal && def.kind == FlightKind::Engine)
+		{
+			state.longitudinal = 0;
+			return {true, {}};
+		}
+		if (command.kind == FlightCommandKind::Steering && def.turn_rate)
+		{
+			state.steering = 0;
+			return {true, {}};
+		}
+	}
 	const auto flag = command.value == 0 || command.value == 1;
 	switch (command.kind)
 	{

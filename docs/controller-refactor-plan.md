@@ -259,3 +259,9 @@ Independent native build and Controller runtime, content, gameplay-knowledge and
 Typed integer and boolean intent settings now use the same Controller admission, frozen reads, receipts and continuation as physical commands, with an explicitly empty consumer list. An AI Controller reads a human Controller's accepted preference through its permitted Console board and writes its own actuator channels. Physical commands still require compatible consumers and intent commands cannot name equipment.
 
 Independent native, Controller runtime and content builds/tests pass. Synthetic journeys cover bounded integer/boolean preferences, generated controls, no pre-tick physical mutation, shared AI fan-out after commit, binding refusal, handover and exact continuation. This supplies the replacement primitive for legacy summary intents; removal of that old path and maintained-content migration remain pending.
+
+## Initial command consumption receipt
+
+Controller defaults now pass through the common physical consumer at spawn, before decision snapshots or AI evaluation. This prevents inactive sibling mode defaults from cancelling the first accepted destination/follow decision. Ordinary ticks still consume changed settings once. Neutral manual-axis releases are accepted in assisted mode without cancelling ongoing guidance; unsupported or nonzero manual input remains refused.
+
+Independent native, Controller runtime, gameplay-flight and content builds/tests pass. Synthetic journeys cover first-tick human/AI navigation parity with inactive sibling defaults, accepted neutral receipts, guidance preservation across handover, malformed tuples and exact continuation. The maintained patrol smoke exposed the startup ordering fault; this receipt covers its source fix separately from content migration.
