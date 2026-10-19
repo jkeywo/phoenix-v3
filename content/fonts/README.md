@@ -7,3 +7,7 @@ The unmodified `UnifrakturCook-Bold.ttf` and its accompanying `UnifrakturCook-OF
 Font SHA-256: `ea002fa9c65f1a612af100e00d87ab65f16381f450020ec3d021f3dbf79a6dcd`.
 
 The font is bundled locally, including in the WASM filesystem. The HTML menu uses the same file without contacting an external font service.
+
+# Mission terminal
+
+Space Mono Regular is sourced from the Google Fonts repository (`ofl/spacemono/SpaceMono-Regular.ttf`) and distributed under the SIL Open Font License in `SpaceMono-OFL.txt`. It supplies the mission report's terminal typography.

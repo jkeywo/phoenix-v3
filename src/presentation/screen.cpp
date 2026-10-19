@@ -536,6 +536,8 @@ void open_window()
 	if (!Rml::LoadFontFace(font))
 		throw std::runtime_error("Could not load player UI font: " + font);
 	const auto font_directory = std::filesystem::path(font).parent_path();
+	if (!Rml::LoadFontFace((font_directory / "SpaceMono-Regular.ttf").generic_string()))
+		throw std::runtime_error("Could not load mission terminal font");
 	if (!Rml::LoadFontFace((font_directory / "UnifrakturCook-Bold.ttf").generic_string()))
 		throw std::runtime_error("Could not load menu title font");
 	configure_translations(
