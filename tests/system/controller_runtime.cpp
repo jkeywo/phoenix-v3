@@ -354,6 +354,64 @@ int main()
 				tree["states"][0]["running"] = Json::parse(R"json([
 				 {"action":"write.navigate","arguments":[true,2000,10000]},
 				 {"action":"write.cruise","arguments":[{"observation":"command.navigate.x"}]}])json");
+
+				for (const bool reverse_order : {false, true})
+				{
+					auto route_source = snapshot_source;
+					auto &route_tree = route_source["trees"][0];
+					route_tree["initial"] = "first";
+					route_tree["states"] = Json::parse(R"json([
+                      {"id":"first","running":[{"action":"write.navigate","arguments":[true,20000,10000]},
+                        {"action":"write.cruise","arguments":[2000]}],
+                       "transitions":[{"target":"second","conditions":[{"left":{"elapsed":true},"op":"ge","right":2}]}]},
+                      {"id":"second","running":[{"action":"write.navigate","arguments":[true,30000,20000]},
+                        {"action":"write.cruise","arguments":[2000]}]}])json");
+					if (reverse_order)
+					{
+						auto &ordered = route_source["entities"][0]["control_layout"]["controllers"][0]["commands"];
+						std::reverse(ordered.begin(), ordered.end());
+					}
+					const auto route_catalog = load(route_source);
+					World route;
+					route.load(route_catalog, "test.map");
+					require(route.prepare_console_profile({1, "drive"}, "automatic") && route.claim(101, 1, "drive"),
+					        "route AI visible");
+					for (int tick = 0; tick < 6; ++tick)
+						route.tick();
+					auto assert_cruise = [&]
+					{
+						const auto observation = route.observe(101);
+						for (const auto &system : observation->systems)
+							if (system.id == "port" || system.id == "starboard")
+								require(
+								    system.requested == 2000 && system.telemetry.at("navigating") == 1,
+								    "new destination composes unchanged shared cruise independently of channel order");
+					};
+					assert_cruise();
+					const auto cruise_revision =
+					    controller(route, 101, "propulsion").at("commands").at("cruise").at("revision");
+					require(controller(route, 101, "propulsion").at("commands").at("navigate").at("arguments") ==
+					            Json::array({30000, 20000}),
+					        "second route destination executed");
+					require(route.submit(101, {1, "preset", 0, {}}), "route handed to human");
+					route.tick();
+					OperatingCommand destination{1, {}, 1, {}};
+					destination.controller = "propulsion";
+					destination.channel = "navigate";
+					destination.generation = controller(route, 101, "propulsion").at("generation");
+					destination.arguments = {40000, 30000};
+					require(route.submit(101, destination), "human changes destination without changing cruise");
+					route.tick();
+					assert_cruise();
+					require(controller(route, 101, "propulsion").at("commands").at("cruise").at("revision") ==
+					            cruise_revision,
+					        "composition does not forge a cruise revision");
+					World resumed;
+					resumed.restore(route_catalog, route.save());
+					route.tick();
+					resumed.tick();
+					require(route.save() == resumed.save(), "composed route resumes exactly");
+				}
 				World snapshot_world;
 				snapshot_world.load(load(snapshot_source), "test.map");
 				require(snapshot_world.prepare_console_profile({1, "drive"}, "automatic") &&

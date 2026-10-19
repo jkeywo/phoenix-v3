@@ -484,6 +484,7 @@ void run_console_controllers(flecs::entity entity)
 void consume_controller_commands(flecs::entity entity)
 {
 	auto &controls = entity.get_mut<EntityControls>();
+	std::set<std::size_t> destinations;
 	// Consume changes, not repeated method calls: speed writes must not cancel Match Speed every tick.
 	for (auto &controller : controls.controllers)
 		for (std::size_t i = 0; i < controller.commands.size(); ++i)
@@ -510,9 +511,32 @@ void consume_controller_commands(flecs::entity entity)
 					const auto child = entity.get<EquipmentIndex>().values.at(consumer);
 					operate(entity, child.get<Equipment>().id, {command.action, value.value, value.arguments}, true);
 				}
+			if (admitted && command.action == OperatingAction::Destination && value.value)
+				destinations.insert(command.consumers.begin(), command.consumers.end());
 			value.accepted = admitted;
 			value.consumed = value.revision;
 		}
+	// A destination chooses guidance, while a bound cruise channel remains the
+	// persistent speed setting. Compose them after all changed modes are consumed,
+	// independent of Controller/channel order. Destination-only fittings retain
+	// the physical mechanism's default cruise speed.
+	if (!destinations.empty())
+		for (const auto &controller : controls.controllers)
+			for (std::size_t i = 0; i < controller.commands.size(); ++i)
+			{
+				const auto &command = controller.definition.commands[i];
+				const auto &value = controller.commands[i];
+				if (command.action != OperatingAction::Speed || !value.accepted)
+					continue;
+				for (const auto consumer : command.consumers)
+					if (destinations.contains(consumer))
+					{
+						const auto child = entity.get<EquipmentIndex>().values.at(consumer);
+						const auto *flight = child.try_get<FlightRuntime>();
+						if (flight && flight->state.navigating)
+							operate(entity, child.get<Equipment>().id, {command.action, value.value}, true);
+					}
+			}
 }
 Json project_controllers(const ConsoleAddress &address) const
 {
