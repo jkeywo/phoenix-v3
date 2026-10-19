@@ -265,3 +265,15 @@ Independent native, Controller runtime and content builds/tests pass. Synthetic 
 Controller defaults now pass through the common physical consumer at spawn, before decision snapshots or AI evaluation. This prevents inactive sibling mode defaults from cancelling the first accepted destination/follow decision. Ordinary ticks still consume changed settings once. Neutral manual-axis releases are accepted in assisted mode without cancelling ongoing guidance; unsupported or nonzero manual input remains refused.
 
 Independent native, Controller runtime, gameplay-flight and content builds/tests pass. Synthetic journeys cover first-tick human/AI navigation parity with inactive sibling defaults, accepted neutral receipts, guidance preservation across handover, malformed tuples and exact continuation. The maintained patrol smoke exposed the startup ordering fault; this receipt covers its source fix separately from content migration.
+
+## Persistent cruise composition receipt
+
+Physical command consumption now composes a changed destination with any accepted cruise-speed channel bound to the same mechanism. Composition runs after changed modes, respects later navigation cancellation and is independent of Controller/channel order. Destination-only mechanisms retain their default cruise behavior; follow retains its own speed limit. Reapplying the setting does not change command revisions or repeat discrete requests.
+
+Independent native, Controller runtime and gameplay-flight builds/tests pass. Synthetic checks cover two-state AI destination changes with unchanged cruise, both channel orders, shared engines, human destination changes and exact continuation. The maintained patrol smoke now retains its authored cruise setting as objectives change.
+
+## Maintained engineering and patrol migration receipt
+
+The base courier engineering fit, cruiser, patrol leader and patrol follower now author explicit Console Controllers, profiles, owned command sections and permitted decision inputs. Repeated hulls share identical tree definitions. Assembly and resource composition remain authored; generator percentage-like decisions are converted to equivalent absolute output rates. Coarse orders use preference Controllers, thermal warnings use always-active physical reporters, and engineering requests address specific Controllers with important AI-to-AI public copies. Helm widgets address command channels. The simple survey/tug/traffic content still awaits migration with its existing vector motion mechanism preserved.
+
+Both production packs verify. Independently triggered World smoke runs loaded the maintained advanced fits, executed 1200 ticks and compared 20 resumed ticks exactly. The patrol leader changed objectives while retaining cruise, the follower pursued its contact, and complete command receipts contained no refusals. These are manually triggered behavioral checks, not shipped tuning goldens. The smoke exposed the startup and cruise bugs fixed in the preceding receipts. Full legacy runtime removal, remote recovery and the final integration/GUI gate remain open.
