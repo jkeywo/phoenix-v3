@@ -128,6 +128,7 @@ std::optional<state_tree::Context> contextual_tree(const std::map<std::string, J
 } // namespace
 namespace
 {
+void prepare_catalog(Catalog &catalog);
 struct PackView
 {
 	const Json &manifest;
@@ -277,12 +278,6 @@ Catalog resolve(const std::vector<PackView> &ordered)
 	}
 	if (!result.knowledge.empty())
 		result.knowledge_definition = compile_knowledge(result.knowledge);
-	for (const auto &[name, tree] : result.trees)
-		if (const auto context = contextual_tree(result.trees, name))
-		{
-			result.tree_programs.emplace(
-			    name, state_tree::compile(tree, gameplay_registry(tree, result, *context), result.trees));
-		}
 	for (const auto &[name, entity] : result.entities)
 		if (entity.contains("resources"))
 			result.resource_definitions.emplace(name, compile_resource_network(entity.at("resources")));
@@ -297,9 +292,7 @@ Catalog resolve(const std::vector<PackView> &ordered)
 				slots.push_back(slot.at("id"));
 			result.scenarios.emplace(name, compile_scenario(map, entity_ids, slots));
 		}
-	for (const auto &[name, map] : result.maps)
-		verify_scenario_authoring(result, map);
-	verify_catalog(result);
+	prepare_catalog(result);
 	// Public icon aliases use identical addresses in full and restricted catalogues.
 	for (const auto &[id, entity] : result.entities)
 	{
@@ -337,7 +330,9 @@ std::span<const WidgetBinding> widget_bindings()
 	                                             {"status", "ship.status"}};
 	return bindings;
 }
-void verify_catalog(const Catalog &catalog)
+namespace
+{
+void verify_prepared_catalog(const Catalog &catalog)
 {
 	if (catalog.presentation &&
 	    (!catalog.maps.empty() || !catalog.trees.empty() || !catalog.equipment.empty() || !catalog.assemblies.empty() ||
@@ -346,11 +341,6 @@ void verify_catalog(const Catalog &catalog)
 	if (!catalog.presentation)
 		(void)compile_gameplay_knowledge(catalog);
 	std::set<std::string> verified_images;
-	for (const auto &[id, tree] : catalog.trees)
-		if (const auto context = contextual_tree(catalog.trees, id))
-			state_tree::compile(tree, gameplay_registry(tree, catalog, *context), catalog.trees);
-		else
-			verify_tree(tree, "trees." + id);
 	for (const auto &[id, entity] : catalog.entities)
 	{
 		auto path = "entities." + id;
@@ -642,5 +632,26 @@ void verify_catalog(const Catalog &catalog)
 			}
 		}
 	}
+}
+void prepare_catalog(Catalog &catalog)
+{
+	catalog.tree_programs.clear();
+	for (const auto &[id, tree] : catalog.trees)
+		if (const auto context = contextual_tree(catalog.trees, id))
+			catalog.tree_programs.emplace(
+			    id, state_tree::compile(tree, gameplay_registry(tree, catalog, *context), catalog.trees));
+		else
+			verify_tree(tree, "trees." + id);
+	for (const auto &[id, map] : catalog.maps)
+		verify_scenario_authoring(catalog, map);
+	verify_prepared_catalog(catalog);
+}
+} // namespace
+void verify_catalog(const Catalog &catalog)
+{
+	// Catalog is publicly mutable. Never use its retained programs as proof that
+	// the current authored definitions still compile or satisfy domain contracts.
+	auto candidate = catalog;
+	prepare_catalog(candidate);
 }
 } // namespace phoenix

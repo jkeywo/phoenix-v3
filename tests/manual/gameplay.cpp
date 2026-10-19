@@ -509,6 +509,23 @@ void trees()
 {
 	const auto source = tree_fixture();
 	const auto catalog = load(source);
+	{
+		auto edited = catalog;
+		edited.trees.at("test.parent")["initial"] = "missing";
+		rejects(
+		    [&]
+		    {
+			    verify_catalog(edited);
+		    },
+		    "Standalone verification must reject edited trees even when a previous compiled program exists");
+		require(edited.tree_programs.at("test.parent").signature == catalog.tree_programs.at("test.parent").signature,
+		        "Standalone verification must not mutate the caller's compiled programs on failure");
+		edited = catalog;
+		edited.tree_programs.clear();
+		verify_catalog(edited);
+		require(edited.tree_programs.empty(),
+		        "Standalone verification rebuilds programs privately without requiring a cache");
+	}
 	const auto &program = catalog.tree_programs.at("test.parent");
 	std::vector<st::Value> observations(program.registry.observations.size());
 	st::Instance instance;
