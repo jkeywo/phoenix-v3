@@ -12,9 +12,30 @@ import {
 	zipEntry,
 	automaticHostChoice,
 	mergeRuntimeLibrary,
+	refreshPublishedPack,
 	togglePack,
 } from "../../web/launcher.mjs";
 const route = (query) => launchOptions(new URLSearchParams(query), "https://example.test/phoenix-v3/");
+test("new deployments refresh shipped packs while retaining edits and disabled selections", () => {
+	const published = { id: "test-base", hash: "new" };
+	const library = { packs: [{ id: "test-base", hash: "old", enabled: false, url: "base.zip" }] };
+	assert.equal(refreshPublishedPack(library, published, "old", "base"), false);
+	assert.deepEqual(library.packs, [{ ...published, enabled: false, url: "base.zip" }]);
+	const edited = { packs: [{ id: "test-base", hash: "authored", enabled: true }] };
+	refreshPublishedPack(edited, published, "old", "base");
+	assert.equal(edited.packs[0].hash, "authored");
+	assert.equal(edited.split_bundled_pending, true);
+	// A reload before C++ has merged the definitions must retain the pending work.
+	refreshPublishedPack(edited, published, "new", "base");
+	assert.equal(edited.split_bundled_pending, true);
+	const recovered = mergeRuntimeLibrary({ packs: [{ id: "test-base", hash: "merged", enabled: true }] }, edited);
+	refreshPublishedPack(recovered, published, "new", "base");
+	assert.equal(recovered.packs[0].hash, "merged");
+	assert.equal(recovered.split_bundled_pending, undefined);
+	const first = { packs: [] };
+	assert.equal(refreshPublishedPack(first, published, undefined, "base"), true);
+	assert.equal(first.packs[0].enabled, true);
+});
 test("pack toggles preserve dependency order, disable dependants and allow every pack off", () => {
 	const packs = [
 		{ id: "practice", hash: "p", enabled: false },

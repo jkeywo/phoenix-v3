@@ -294,6 +294,23 @@ export function mergeRuntimeLibrary(index, previous) {
 		packs: index.packs.map((pack) => ({ ...previous.packs.find((old) => old.hash === pack.hash), ...pack })),
 	};
 }
+// Refresh known shipped archives without replacing a Workshop-authored pack.
+export function refreshPublishedPack(library, meta, previousHash, bundle) {
+	const existing = library.packs.find((pack) => pack.id === meta.id);
+	if (!existing) {
+		library.packs.push({ hash: meta.hash, id: meta.id, enabled: library.packs.length === 0, url: `${bundle}.zip` });
+		return true;
+	}
+	if (existing.hash !== meta.hash) {
+		if (existing.hash === previousHash || existing.url === `${bundle}.zip`) {
+			existing.hash = meta.hash;
+			existing.url = `${bundle}.zip`;
+		} else if (bundle === "base" && previousHash !== meta.hash) {
+			library.split_bundled_pending = true;
+		}
+	}
+	return false;
+}
 export function togglePack(selection, hash, metadata) {
 	const candidate = selection.map((p) => ({ ...p }));
 	const chosen = candidate.find((p) => p.hash === hash);
@@ -581,8 +598,8 @@ async function boot() {
 			throw error;
 		}
 	}
-	async function fetchFile(url, limit = 32 * 1024 * 1024) {
-		const response = await fetch(url);
+	async function fetchFile(url, limit = 32 * 1024 * 1024, cache = "default") {
+		const response = await fetch(url, { cache });
 		if (!response.ok) throw Error("Could not load " + url);
 		if (+response.headers.get("content-length") > limit) throw Error("Download exceeds size limit.");
 		const reader = response.body.getReader(),
@@ -1098,7 +1115,7 @@ async function boot() {
 			if ((pack.enabled || all) && !files.has(`packs/${pack.hash}.zip`)) {
 				if (!pack.url) throw Error("Installed pack archive is missing: " + pack.id);
 				status(t("Downloading content...") + " " + pack.id);
-				const bytes = await fetchFile(pack.url);
+				const bytes = await fetchFile(pack.url, undefined, "no-cache");
 				if (hex(await crypto.subtle.digest("SHA-256", bytes)) !== pack.hash)
 					throw Error("Published content changed. Reload the menu.");
 				await write([[`packs/${pack.hash}.zip`, bytes]]);
@@ -1165,8 +1182,8 @@ async function boot() {
 			if (library.split_bundled_pending && (o.action === "host" || o.action === "workshop")) {
 				await ensurePacks(true);
 				for (const bundle of ["base", "training"]) {
-					const meta = await fetch(`${bundle}.zip.menu.json`).then((r) => r.json());
-					const bytes = await fetchFile(`${bundle}.zip`);
+					const meta = await fetch(`${bundle}.zip.menu.json`, { cache: "no-cache" }).then((r) => r.json());
+					const bytes = await fetchFile(`${bundle}.zip`, undefined, "no-cache");
 					if (hex(await crypto.subtle.digest("SHA-256", bytes)) !== meta.hash)
 						throw Error("Published content changed. Reload the menu.");
 					migration.set(bundle, bytes);
@@ -1556,35 +1573,26 @@ async function boot() {
 		let addedTraining = false;
 		for (const bundle of ["base", "training"]) {
 			const marker = `published-${bundle}-split-catalog.json`;
-			if (files.has(marker)) {
-				const hash = decoder.decode(files.get(marker));
-				published.set(bundle, menuPreview(JSON.parse(decoder.decode(files.get(`preview/${hash}.json`)))));
-			} else {
-				try {
-					const response = await fetch(`${bundle}.zip.menu.json`);
-					if (!response.ok) throw Error("Base game content unavailable. Import a pack in Mod Packs.");
-					const meta = await response.json();
-					const parsed = menuPreview(meta);
-					published.set(bundle, parsed);
-					if (!/^[a-f0-9]{64}$/.test(meta.hash)) throw Error("Invalid published pack identity.");
-					const existing = library.packs.find((pack) => pack.id === meta.id);
-					if (!existing) {
-						if (bundle === "training") addedTraining = true;
-						library.packs.push({
-							hash: meta.hash,
-							id: meta.id,
-							enabled: library.packs.length === 0,
-							url: `${bundle}.zip`,
-						});
-					}
-					previews.set(meta.hash, parsed);
-					await remember([
-						[`preview/${meta.hash}.json`, encoder.encode(JSON.stringify(meta))],
-						[`published-${bundle}-split-catalog.json`, encoder.encode(meta.hash)],
-					]);
-				} catch (error) {
-					status(t(error.message));
-				}
+			const previousHash = files.has(marker) ? decoder.decode(files.get(marker)) : undefined;
+			try {
+				// IndexedDB markers are fallback data, not proof that the deployment is unchanged.
+				const response = await fetch(`${bundle}.zip.menu.json`, { cache: "no-cache" });
+				if (!response.ok) throw Error("Base game content unavailable. Import a pack in Mod Packs.");
+				const meta = await response.json();
+				const parsed = menuPreview(meta);
+				if (!/^[a-f0-9]{64}$/.test(meta.hash)) throw Error("Invalid published pack identity.");
+				published.set(bundle, parsed);
+				const added = refreshPublishedPack(library, meta, previousHash, bundle);
+				if (bundle === "training") addedTraining = added;
+				previews.set(meta.hash, parsed);
+				await remember([
+					[`preview/${meta.hash}.json`, encoder.encode(JSON.stringify(meta))],
+					[marker, encoder.encode(meta.hash)],
+				]);
+			} catch (error) {
+				const cached = previousHash && files.get(`preview/${previousHash}.json`);
+				if (cached) published.set(bundle, menuPreview(JSON.parse(decoder.decode(cached))));
+				status(t(error.message));
 			}
 		}
 		const base = library.packs.find((p) => p.id === "phoenix-base");
@@ -1594,7 +1602,8 @@ async function boot() {
 		if (
 			basePreview &&
 			trainingPreview &&
-			basePreview.scenarios.some((s) => trainingPreview.scenarios.some((t) => t.id === s.id))
+			(basePreview.scenarios.some((s) => trainingPreview.scenarios.some((t) => t.id === s.id)) ||
+				published.get("base")?.scenarios.some((s) => !basePreview.scenarios.some((old) => old.id === s.id)))
 		) {
 			const maps = new Map(
 				basePreview.scenarios

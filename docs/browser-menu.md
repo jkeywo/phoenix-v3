@@ -8,6 +8,8 @@ The cockpit frame stays fixed over a slow twelve-minute mirrored panorama loop. 
 
 The landing page requests no role `.js`, `.wasm` or `.data` bundle until entry:
 
+On each menu load, published base/training catalogues are revalidated over HTTP, with IndexedDB metadata retained as an offline fallback. Unedited bundled packs follow the published hash without changing enabled state. Workshop-edited bases retain their archive and show newly published missions as launch hints; entering Host or Workshop sends the latest bundled archives through the production C++ merge path before validating the selection. Saves keep their exact archived content. Clearing browser cache is not required for pack updates.
+
 | Choice                                 | Runtime                 | Entry                                                |
 | -------------------------------------- | ----------------------- | ---------------------------------------------------- |
 | Host Game / selected scenario and ship | `server`                | Verified, stopped pre-game lobby                     |
