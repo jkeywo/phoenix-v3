@@ -1,6 +1,6 @@
 # Console Controller refactoring plan
 
-Approved target · 19 October 2026. **Status: implementation in progress; compiler foundation verified, runtime migration pending.** Implement the [agreed architecture](controller-architecture.md) and revised [GDD](GDD.md), preserving existing physical capabilities and deterministic execution. Historical gameplay completion receipts describe the earlier architecture.
+Approved target · 19 October 2026. **Status: implementation in progress; compiler and explicit-layout runtime foundations verified; full migration remains in progress.** Implement the [agreed architecture](controller-architecture.md) and revised [GDD](GDD.md), preserving existing physical capabilities and deterministic execution. Historical gameplay completion receipts describe the earlier architecture.
 
 ## Current code and required changes
 
@@ -100,10 +100,11 @@ Manually trigger and record GUI journeys for lobby/settings selection, shared an
 
 ## Delivery status
 
-| Step                                                         | Status      |
-| ------------------------------------------------------------ | ----------- |
-| Agreed architecture, GDD reconciliation and refactoring plan | Documented  |
-| 1–7: implementation and acceptance above                     | Not started |
+| Step                                                             | Status     |
+| ---------------------------------------------------------------- | ---------- |
+| Agreed architecture, GDD reconciliation and refactoring plan     | Documented |
+| 1–2: compiler and explicit-layout runtime foundations            | Partial    |
+| 3–7: shared observations, messaging, presentation and final gate | Pending    |
 
 The existing gameplay ledger remains evidence for the previous runtime. It does not establish completion of this refactor.
 
@@ -113,4 +114,14 @@ The first incremental change adds Controller addresses, typed setting/request ch
 
 Native `phoenix_content_tests` passes, including inherited shared-throttle fixtures, cross-Console profile refusal and malformed input bindings. An independent verification agent also executed that suite successfully and reviewed the foundation diff. Changed C++ formatting and whitespace checks pass.
 
-This is step 1a only. Runtime activation, full tree/observation/message scope validation, separate-throttle execution, remaining range/default compatibility and wire/save activation remain subsequent work. Layout schema 1 is a new embedded content contract; no save or wire schema has changed yet. Explicit layouts are not yet executable in World. No step 2�7 acceptance or hardware evidence is claimed.
+This receipt records step 1a at its commit. The runtime receipt below supersedes its temporary refusal of explicit layouts. Full tree/observation/message scope validation and compatibility migration remain outstanding.
+
+## Explicit-layout runtime foundation receipt
+
+Step 2a executes explicit layouts through Console-owned Controller sections. Human proposals carry Controller/channel identities, operator generation and request identity; timed AI programs use the same commit function. Physical consumers apply changed settings after commit. Profiles are selected per Console; Away, release and claim clearing change effective operators, invalidate obsolete proposals and release supported held inputs. A shared output drives multiple engines, while separate sections preserve independent throttles.
+
+Schema 5 World saves preserve Controller command revisions, consumed revisions, request receipts, selected profiles and timed-program continuation. Restore validates operator state against claims/profile/Away transactionally. Schema 1–4 states cannot supply an explicit layout's missing Controller continuation. This is World-level support: portable session/network migration is still pending. Contextual Controller trees are explicitly refused by World until their vocabulary migration; they are not silently ignored.
+
+Native content, simulation and new Controller runtime integration suites pass. The independent verification agent authored and ran shared/split throttle, real timed-AI/human equivalence, Away/return, clear-claims cancellation, obsolete-generation refusal, forged operator restore refusal, impulse request deduplication and deterministic restore journeys. Changed C++ formatting and whitespace checks pass.
+
+This does not complete step 2: contextual Controller trees, compound destination/follow commands and migration/removal of the old execution paths remain. Observation/reporting, GUI, Workshop, remote continuation, production-content conversion, full native/WASM gate and manual GUI evidence are not yet established.

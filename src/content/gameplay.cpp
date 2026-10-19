@@ -76,7 +76,7 @@ bool uses_advanced_machinery(const Catalog &catalog, const std::string &entity_i
 {
 	const auto &entity = catalog.entities.at(entity_id);
 	const auto fitted = resolve_systems(catalog, entity_id);
-	bool advanced = entity.contains("resources") || entity.contains("presets");
+	bool advanced = entity.contains("resources") || entity.contains("presets") || entity.contains("control_layout");
 	for (const auto &system : fitted)
 	{
 		const auto &spec = entity.at("systems").at(system.id);

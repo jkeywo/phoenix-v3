@@ -25,6 +25,7 @@ import phoenix.gameplay_scenario;
 #include "gameplay_resources.hpp"
 #include "flight.hpp"
 #include "equipment.hpp"
+#include "controllers.hpp"
 
 namespace phoenix::fixed
 {
@@ -90,6 +91,9 @@ struct CompiledGameplay
 };
 struct CompiledDefinition
 {
+	std::optional<ControllableLayout> layout;
+	std::vector<ConsoleControllerRuntime> controller_templates;
+	std::map<std::string, std::string> observation_owners;
 	RadarIcon radar_icon = RadarIcon::contact;
 	std::string radar_sprite;
 	Collider collider;
@@ -208,6 +212,7 @@ struct World::Impl
 	std::map<std::uint64_t, ConsoleAddress> claims;
 	bool explicit_stations = false;
 	std::vector<PendingCommand> pending;
+	std::vector<ControllerProposal> controller_pending;
 	std::vector<CollisionEntry> collisions;
 	std::vector<ContactEntry> contact_rows;
 	std::vector<Bounds> collision_boxes, contact_boxes;
@@ -430,9 +435,6 @@ struct World::Impl
 	void compile(const Catalog &content)
 	{
 		packs = content.ordered_packs;
-		for (const auto &[name, definition] : content.entities)
-			if (definition.contains("control_layout"))
-				throw std::runtime_error("Controller layout runtime migration pending: " + name);
 		knowledge.configure(content);
 		gameplay = content.knowledge_definition.schemas.size() > 1 || !content.resource_definitions.empty() ||
 		           !content.tree_programs.empty() || !content.scenarios.empty();
@@ -447,6 +449,36 @@ struct World::Impl
 		for (const auto &[name, definition] : content.entities)
 		{
 			CompiledDefinition result;
+			if (definition.contains("control_layout"))
+			{
+				result.layout = compile_controllable_layout(content, name);
+				for (const auto &spec : result.layout->controllers)
+				{
+					ConsoleControllerRuntime controller;
+					controller.definition = spec;
+					for (const auto &command : spec.commands)
+						controller.commands.push_back({command.initial, 1});
+					if (!spec.tree.empty())
+					{
+						if (content.tree_programs.contains(spec.tree))
+							throw std::runtime_error(
+							    "Contextual Controller trees require the Controller vocabulary migration");
+						controller.timed = Controller{tree_ids.at(spec.tree), {}};
+						for (const auto &output : programs.at(controller.timed->program).outputs)
+							if (std::count_if(spec.commands.begin(), spec.commands.end(),
+							                  [&](const auto &command)
+							                  {
+								                  return command.action == output.action &&
+								                         output.value >= command.minimum &&
+								                         output.value <= command.maximum;
+							                  }) != 1)
+								throw std::runtime_error(
+								    "Controller timed output requires exactly one compatible owned channel");
+					}
+					result.controller_templates.push_back(std::move(controller));
+				}
+				gameplay = true;
+			}
 			for (const auto &publication : definition.value("publications", Json::array()))
 				result.publications.push_back(publication.at("id"));
 			for (const auto &message : definition.value("message_templates", Json::array()))
@@ -476,6 +508,11 @@ struct World::Impl
 			result.radar_icon = render_radar_icon(definition.at("render"));
 			result.radar_sprite = render_radar_sprite(definition.at("render"), content);
 			result.consoles = resolve_consoles(content, name);
+			if (result.layout)
+				for (const auto &fit : resolve_systems(content, name))
+					result.observation_owners[fit.id] =
+					    definition.at("systems").at(fit.id).value("observation_console", result.consoles.front().id);
+
 			result.explicit_stations = definition.contains("stations");
 			if (definition.contains("controllers"))
 				for (auto system : {OperatingSystem::Engine, OperatingSystem::Steering, OperatingSystem::Radar})
@@ -680,6 +717,15 @@ struct World::Impl
 		entities.emplace(id, entity);
 		construction.indexed = true;
 		next_entity = std::max(next_entity, id + 1);
+		if (data.layout)
+		{
+			EntityControls controls;
+			controls.layout = *data.layout;
+			for (const auto &console : data.consoles)
+				controls.profiles.emplace(console.id, data.layout->default_profile);
+			controls.controllers = data.controller_templates;
+			entity.set<EntityControls>(std::move(controls));
+		}
 		knowledge.register_ship(id, definition, ecs.get<Clock>().tick);
 		if (!data.default_preset.empty())
 			for (const auto &p : data.presets)
@@ -741,6 +787,8 @@ struct World::Impl
 	}
 	ConsoleAddress system_owner(EntityId ship, const std::string &system) const
 	{
+		if (definition(ship).layout)
+			return {ship, definition(ship).observation_owners.at(system)};
 		for (const auto &c : definition(ship).consoles)
 			if (std::find(c.controlled_systems.begin(), c.controlled_systems.end(), system) !=
 			    c.controlled_systems.end())
@@ -877,6 +925,7 @@ struct World::Impl
 		}
 		return false;
 	}
+#include "controller_execution.hpp"
 	std::int64_t sensor_range(EntityId ship, const std::string &name) const
 	{
 		const auto entity = entities.at(ship);
@@ -1714,7 +1763,10 @@ struct World::Impl
 		          });
 		for (const auto &[id, ship] : ships)
 		{
-			run_equipment_controllers(id);
+			if (ship.has<EntityControls>())
+				run_console_controllers(ship);
+			else
+				run_equipment_controllers(id);
 			const auto restrictions = flight_restrictions(id);
 			request_flight_resources(ship, restrictions);
 			if (auto power = ship.try_get_mut<ShipResources>())
@@ -1850,6 +1902,11 @@ struct World::Impl
 	{
 		auto entity = entities.at(ship);
 		auto fitted = fittings(entity);
+		if (entity.has<EntityControls>())
+		{
+			refresh_controllers(ship, !transitions);
+			return;
+		}
 		std::vector<bool> desired(fitted ? fitted->values.size() : 0, false);
 		std::vector<std::pair<ConsoleAddress, std::vector<std::string>>> consoles;
 		SystemMask legacy = 0;
@@ -1913,6 +1970,8 @@ struct World::Impl
 		const auto address = claims.at(claimant);
 		const auto &console = *seat(address.ship, address.console);
 		const auto &spec = definition(address.ship);
+		if (entities.at(address.ship).has<EntityControls>())
+			return controller_meta(address, command, execute);
 		if (command.action == "away")
 		{
 			if (command.value != 0 && command.value != 1)
@@ -2245,7 +2304,10 @@ bool World::release(std::uint64_t console)
 		              return entry.first == console;
 	              });
 	impl_->knowledge.set_console_control(found->second, false);
+	const auto released_ship = found->second.ship;
 	impl_->claims.erase(found);
+	if (entity.has<EntityControls>())
+		impl_->refresh_controllers(released_ship);
 	return true;
 }
 bool World::can_submit(std::uint64_t console, const OperatingCommand &command) const
@@ -2255,6 +2317,9 @@ bool World::can_submit(std::uint64_t console, const OperatingCommand &command) c
 		return false;
 	if (impl_->meta(console, command, false))
 		return impl_->meta_pending.size() < 4096;
+	if (impl_->entities.at(command.target).has<EntityControls>())
+		return impl_->controller_proposal(claim->second, command, true).has_value() &&
+		       impl_->controller_pending.size() < 4096;
 	auto output = decode(command);
 	if (!output)
 		return false;
@@ -2282,6 +2347,11 @@ bool World::submit(std::uint64_t console, const OperatingCommand &command)
 		impl_->meta_pending.emplace_back(console, command);
 		return true;
 	}
+	if (impl_->entities.at(command.target).has<EntityControls>())
+	{
+		impl_->controller_pending.push_back(*impl_->controller_proposal(impl_->claims.at(console), command, true));
+		return true;
+	}
 	const auto output = *decode(command);
 	const auto &seat = *impl_->seat(command.target, impl_->claims.at(console).console);
 	impl_->pending.push_back(
@@ -2306,6 +2376,10 @@ void World::clear_claims()
 	impl_->claims.clear();
 	impl_->pending.clear();
 	impl_->meta_pending.clear();
+	impl_->controller_pending.clear();
+	for (const auto &[id, entity] : impl_->entities)
+		if (entity.has<EntityControls>())
+			impl_->refresh_controllers(id);
 	impl_->knowledge.clear_control();
 }
 void World::tick()
@@ -2313,6 +2387,9 @@ void World::tick()
 	for (const auto &[claim, command] : impl_->meta_pending)
 		impl_->meta(claim, command, true);
 	impl_->meta_pending.clear();
+	for (const auto &proposal : impl_->controller_pending)
+		impl_->commit_controller(proposal);
+	impl_->controller_pending.clear();
 	for (const auto &command : impl_->pending)
 	{
 		auto entity = impl_->entities.at(command.target);
@@ -2442,6 +2519,9 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 	const auto &seat = *impl_->seat(found->second.ship, found->second.console);
 	Observation result{view(found->second.ship, entity.get<Definition>(), own, entity.get<Motion>()), {}};
 	result.gameplay = impl_->knowledge.project_json(found->second);
+	if (entity.has<EntityControls>())
+		result.gameplay["controllers"] = impl_->project_controllers(found->second);
+
 	auto &buttons = result.gameplay["controls"] = Json::array();
 	const auto button = [&](const std::string &id, const std::string &label, const std::string &action,
 	                        const std::string &system, std::int64_t value)
@@ -2801,7 +2881,7 @@ Json World::debug() const
 }
 Json World::save() const
 {
-	if (!impl_->pending.empty() || !impl_->meta_pending.empty())
+	if (!impl_->pending.empty() || !impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
 	Json result{{"schema", 1},           {"tick", ticks()},       {"map", impl_->map},
 	            {"ships", impl_->ships}, {"packs", impl_->packs}, {"bodies", Json::array()}};
@@ -2879,6 +2959,8 @@ Json World::save() const
 			if (systems->power)
 				result["bodies"].back()["resources"] = save_ship_resources(*systems->power);
 		}
+		if (entity.has<EntityControls>())
+			result["bodies"].back()["console_controllers"] = impl_->save_controllers(entity);
 		if (!entity.has<NamedEquipment>() && impl_->definition(id).explicit_stations)
 		{
 			auto &saved = result["bodies"].back()["controllers"] = Json::object();
@@ -2904,6 +2986,9 @@ Json World::save() const
 		if (impl_->scenario)
 			result["scenario"] = impl_->scenario->save();
 	}
+	for (const auto &[id, entity] : impl_->entities)
+		if (entity.has<EntityControls>())
+			result["schema"] = 5;
 	return result;
 }
 void World::restore(const Catalog &content, const Json &saved)
@@ -2911,16 +2996,18 @@ void World::restore(const Catalog &content, const Json &saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if ((saved.at("schema") != 1 && saved.at("schema") != 2 && saved.at("schema") != 3 && saved.at("schema") != 4) ||
+	if ((saved.at("schema") != 1 && saved.at("schema") != 2 && saved.at("schema") != 3 && saved.at("schema") != 4 &&
+	     saved.at("schema") != 5) ||
 	    saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error("Saved state schema/content identity mismatch");
 	World candidate;
 	candidate.load(content, saved.at("map"), saved.at("ships").get<std::map<std::string, std::string>>());
-	if (((candidate.impl_->instance_systems && saved.at("schema") != 3 && saved.at("schema") != 4) ||
-	     (candidate.impl_->gameplay && saved.at("schema") != 4)) ||
+	if (((candidate.impl_->instance_systems && saved.at("schema") != 3 && saved.at("schema") != 4 &&
+	      saved.at("schema") != 5) ||
+	     (candidate.impl_->gameplay && saved.at("schema") != 4 && saved.at("schema") != 5)) ||
 	    (candidate.impl_->explicit_stations && saved.at("schema") == 1))
 		throw std::runtime_error("Explicit Stations require a schema-2 save");
-	if (saved.at("schema") == 4 && candidate.impl_->scenario)
+	if (saved.at("schema") >= 4 && candidate.impl_->scenario)
 	{
 		candidate.impl_->scenario->restore(content, saved.at("map"), saved.at("scenario"));
 		for (const auto &[id, definition] : candidate.impl_->scenario->runtime().spawned_entities())
@@ -2934,7 +3021,7 @@ void World::restore(const Catalog &content, const Json &saved)
 		     candidate.impl_->next_entity > 1000000001ULL))
 			throw std::runtime_error("Saved next entity identity overlaps roster");
 	}
-	if (saved.at("schema") == 4)
+	if (saved.at("schema") >= 4)
 	{
 		const auto &value = saved.at("next_entity");
 		if (!value.is_number_integer() || (!value.is_number_unsigned() && value.get<std::int64_t>() < 1))
@@ -2955,6 +3042,15 @@ void World::restore(const Catalog &content, const Json &saved)
 		if (!seen.insert(restored.id).second || !candidate.impl_->entities.contains(restored.id))
 			throw std::runtime_error("Saved state duplicate/unknown entity");
 		auto entity = candidate.impl_->entities.at(restored.id);
+		if (entity.has<EntityControls>())
+		{
+			if (saved.at("schema") != 5)
+				throw std::runtime_error("Controller state requires schema 5");
+			candidate.impl_->restore_controllers(entity, value.at("console_controllers"));
+		}
+		else if (value.contains("console_controllers"))
+			throw std::runtime_error("Unexpected saved Controller layout");
+
 		if (restored.definition != entity.get<Definition>().name)
 			throw std::runtime_error("Saved state definition mismatch");
 		if (!entity.has<Movable>() && (restored.velocity.x || restored.velocity.y))
@@ -3093,7 +3189,7 @@ void World::restore(const Catalog &content, const Json &saved)
 				throw std::runtime_error("System controller roster mismatch");
 		}
 	}
-	if (saved.at("schema") == 4)
+	if (saved.at("schema") >= 4)
 	{
 		candidate.impl_->knowledge.restore(saved.at("knowledge"));
 		if (saved.at("knowledge").at("ships").size() != candidate.impl_->entities.size())
@@ -3148,7 +3244,7 @@ void World::restore(const Catalog &content, const Json &saved)
 	else
 	{
 		for (const auto &[console, address] : saved.at("claims").get<std::map<std::uint64_t, ConsoleAddress>>())
-			if (saved.at("schema") == 4)
+			if (saved.at("schema") >= 4)
 			{
 				if (!candidate.can_claim(console, address.ship, address.console))
 					throw std::runtime_error("Saved state invalid claim");
@@ -3157,7 +3253,7 @@ void World::restore(const Catalog &content, const Json &saved)
 			else if (!candidate.claim(console, address.ship, address.console))
 				throw std::runtime_error("Saved state invalid claim");
 	}
-	if (saved.at("schema") == 4)
+	if (saved.at("schema") >= 4)
 		for (const auto &[id, entity] : candidate.impl_->entities)
 			candidate.impl_->refresh_control(id, false);
 	auto tick = saved.at("tick").get<std::int64_t>();

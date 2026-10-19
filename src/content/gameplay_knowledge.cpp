@@ -434,6 +434,19 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 				                  name + ": duplicate controlling Console");
 			definition.consoles.push_back(std::move(target));
 		}
+		if (entity.contains("control_layout"))
+			for (const auto &system : resolve_systems(catalog, name))
+			{
+				const auto &physical = entity.at("systems").at(system.id);
+				const auto observer = physical.value("observation_console", definition.consoles.front().console.id);
+				knowledge_require(std::any_of(definition.consoles.begin(), definition.consoles.end(),
+				                              [&](const auto &c)
+				                              {
+					                              return c.console.id == observer;
+				                              }),
+				                  name + ": unknown observation Console");
+				definition.owners[system.id] = observer;
+			}
 		for (auto system = entity.at("systems").begin(); system != entity.at("systems").end(); ++system)
 			for (const auto &row : system.value().value("records", Json::array()))
 			{

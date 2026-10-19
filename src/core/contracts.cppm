@@ -253,6 +253,8 @@ struct OperatingCommand
 	std::int64_t value;
 	// Empty in schema-1 commands; otherwise the fitted System identity on this ship.
 	std::string system;
+	std::string controller, channel;
+	std::uint64_t generation = 0, request_id = 0;
 };
 // Capability masks above are legacy presentation hints. Instance identities are
 // the command authority boundary, including when several instances share a kind.
