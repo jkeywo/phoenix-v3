@@ -94,24 +94,14 @@ class WindowsStore final : public PeerStore
 				apply_peer_write(state, job.transaction);
 				if (replace)
 				{
-					auto temporary = path;
-					temporary += L".checkpoint";
-					HANDLE candidate = CreateFileW(temporary.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
-					                               FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH, nullptr);
-					if (candidate == INVALID_HANDLE_VALUE)
-						throw std::runtime_error("Cannot create checkpoint journal");
-					DWORD count = 0;
-					const bool flushed =
-					    WriteFile(candidate, record.data(), static_cast<DWORD>(record.size()), &count, nullptr) &&
-					    count == record.size() && FlushFileBuffers(candidate);
-					CloseHandle(candidate);
-					if (!flushed)
-						throw std::runtime_error("Checkpoint journal flush failed");
+					const auto encoded_path = path.u8string();
+					StagedFileReplacement replacement(
+					    std::string(encoded_path.begin(), encoded_path.end()),
+					    {reinterpret_cast<const std::uint8_t *>(record.data()), record.size()}, FileWriteMode::Flushed,
+					    "Checkpoint journal");
 					CloseHandle(file);
 					file = INVALID_HANDLE_VALUE;
-					if (!MoveFileExW(temporary.c_str(), path.c_str(),
-					                 MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
-						throw std::runtime_error("Atomic checkpoint replacement failed");
+					replacement.commit();
 					file = CreateFileW(path.c_str(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, nullptr,
 					                   OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH, nullptr);
 					LARGE_INTEGER end{};

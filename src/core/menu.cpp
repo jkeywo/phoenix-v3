@@ -45,28 +45,8 @@ std::string MenuLibrary::path(const std::string &folder, const std::string &id, 
 }
 void MenuLibrary::atomic_write(const std::string &filename, const Bytes &bytes) const
 {
-	auto file = std::filesystem::u8path(filename);
-	std::filesystem::create_directories(file.parent_path());
-	// Keep the temporary name independent of the destination's content hash.
-	const auto temporary = file.parent_path() / (random_token() + ".tmp");
-	const auto encoded = temporary.u8string();
-	try
-	{
-		write_file(std::string(encoded.begin(), encoded.end()), bytes);
-#ifdef _WIN32
-		// The platform replacement below is supplied without removing the original first.
-		if (!MoveFileExW(temporary.c_str(), file.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
-			throw std::runtime_error("Cannot replace native library file");
-#else
-		std::filesystem::rename(temporary, file);
-#endif
-	}
-	catch (...)
-	{
-		std::error_code error;
-		std::filesystem::remove(temporary, error);
-		throw;
-	}
+	std::filesystem::create_directories(std::filesystem::u8path(filename).parent_path());
+	StagedFileReplacement(filename, bytes, FileWriteMode::Buffered, "Native library file").commit();
 }
 void MenuLibrary::load()
 {

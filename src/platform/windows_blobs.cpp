@@ -1,7 +1,4 @@
 module;
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
 #include <filesystem>
 #include <future>
 #include <cstdint>
@@ -98,42 +95,26 @@ public:
 		blobs::verify_key(key);
 		if (bytes->size() > blobs::max_bytes)
 			throw std::runtime_error("Persistent blob exceeds bounds");
-		auto file = path(key), temporary = root_ / (random_token() + ".tmp");
-		pending_ = std::async(
-		    std::launch::async,
-		    [request, key, bytes, file, temporary]
-		    {
-			    BlobResult result;
-			    result.request = request;
-			    result.key = key;
-			    HANDLE handle = INVALID_HANDLE_VALUE;
-			    try
-			    {
-				    auto encoded = blobs::encode(key, *bytes);
-				    handle = CreateFileW(temporary.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_NEW,
-				                         FILE_ATTRIBUTE_NORMAL | FILE_FLAG_WRITE_THROUGH, nullptr);
-				    if (handle == INVALID_HANDLE_VALUE)
-					    throw std::runtime_error("Cannot create persistent blob temporary file");
-				    DWORD written = 0;
-				    if (!WriteFile(handle, encoded.data(), static_cast<DWORD>(encoded.size()), &written, nullptr) ||
-				        written != encoded.size() || !FlushFileBuffers(handle))
-					    throw std::runtime_error("Persistent blob write/flush failed");
-				    CloseHandle(handle);
-				    handle = INVALID_HANDLE_VALUE;
-				    if (!MoveFileExW(temporary.c_str(), file.c_str(),
-				                     MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
-					    throw std::runtime_error("Cannot atomically replace persistent blob");
-			    }
-			    catch (const std::exception &error)
-			    {
-				    result.error = error.what();
-				    if (handle != INVALID_HANDLE_VALUE)
-					    CloseHandle(handle);
-				    std::error_code ignored;
-				    std::filesystem::remove(temporary, ignored);
-			    }
-			    return result;
-		    });
+		const auto encoded_path = path(key).u8string();
+		const std::string file(encoded_path.begin(), encoded_path.end());
+		pending_ =
+		    std::async(std::launch::async,
+		               [request, key, bytes, file]
+		               {
+			               BlobResult result;
+			               result.request = request;
+			               result.key = key;
+			               try
+			               {
+				               auto encoded = blobs::encode(key, *bytes);
+				               StagedFileReplacement(file, encoded, FileWriteMode::Flushed, "Persistent blob").commit();
+			               }
+			               catch (const std::exception &error)
+			               {
+				               result.error = error.what();
+			               }
+			               return result;
+		               });
 		return true;
 	}
 	std::optional<BlobResult> poll() override

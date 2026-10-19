@@ -2,6 +2,7 @@ module;
 #include <cstdint>
 #include <cstddef>
 #include <map>
+#include <memory>
 #include <nlohmann/json.hpp>
 #include <span>
 #include <string>
@@ -18,6 +19,27 @@ using Bytes = std::vector<std::uint8_t>;
 std::string sha256(std::span<const std::uint8_t> bytes);
 Bytes read_file(const std::string &path, std::size_t max_bytes = 32 * 1024 * 1024);
 void write_file(const std::string &path, std::span<const std::uint8_t> bytes);
+enum class FileWriteMode
+{
+	Buffered,
+	Flushed
+};
+class StagedFileReplacement
+{
+public:
+	StagedFileReplacement(const std::string &destination, std::span<const std::uint8_t> bytes, FileWriteMode mode,
+	                      const std::string &context);
+	~StagedFileReplacement();
+	StagedFileReplacement(StagedFileReplacement &&) noexcept;
+	StagedFileReplacement &operator=(StagedFileReplacement &&) noexcept;
+	StagedFileReplacement(const StagedFileReplacement &) = delete;
+	StagedFileReplacement &operator=(const StagedFileReplacement &) = delete;
+	void commit();
+
+private:
+	struct State;
+	std::unique_ptr<State> state_;
+};
 std::string random_token();
 // Protocol/storage identities and SHA-256/secure tokens have deliberately
 // separate rules from authored pack identifiers.

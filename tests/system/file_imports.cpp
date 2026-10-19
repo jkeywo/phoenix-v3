@@ -1,3 +1,9 @@
+#ifdef _WIN32
+#define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#include <memory>
+#endif
 #include "../support/assertions.hpp"
 #include "../support/fixtures.hpp"
 #include <iostream>
@@ -54,6 +60,25 @@ int main()
 		saved = saves.take();
 		require(saved && saved->status == ImportStatus::Failed && read_file(destination_path) == changed_archive,
 		        "a failed save reports failure and leaves the existing saved pack intact");
+#ifdef _WIN32
+		{
+			const auto file = CreateFileW(std::filesystem::path(destination_path).c_str(), GENERIC_READ,
+			                              FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+			require(file != INVALID_HANDLE_VALUE, "the existing destination can be locked against replacement");
+			const std::unique_ptr<void, decltype(&CloseHandle)> locked(file, &CloseHandle);
+			request_save(saves, FilePurpose::WorkshopPackSave, "authored.zip", archive, destination_path);
+			saved = saves.take();
+			require(saved && saved->status == ImportStatus::Failed && !saved->error.empty() &&
+			            read_file(destination_path) == changed_archive,
+			        "a replacement refused after staging preserves the original and reports failure");
+			for (const auto &entry : std::filesystem::directory_iterator(directory))
+				require(entry.path().extension() != ".tmp", "a refused replacement removes its staged file");
+		}
+		request_save(saves, FilePurpose::WorkshopPackSave, "authored.zip", archive, destination_path);
+		saved = saves.take();
+		require(saved && saved->status == ImportStatus::Success && read_file(destination_path) == archive,
+		        "Save can replace the original once the destination lock is released");
+#endif
 		std::filesystem::remove(std::filesystem::path(destination_path));
 		std::filesystem::remove(directory);
 #endif

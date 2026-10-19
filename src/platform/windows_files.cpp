@@ -112,22 +112,7 @@ void save_file(ImportId id, const std::string &filename, const Bytes &bytes, con
 		return;
 	}
 	const auto target = std::filesystem::path(path);
-	// Keep the previous file until its replacement has been completely written.
-	const auto temporary =
-	    target.parent_path() / (target.filename().wstring() + L"." + std::to_wstring(GetCurrentProcessId()) + L"." +
-	                            std::to_wstring(GetTickCount64()) + L".tmp");
-	try
-	{
-		write_file(utf8(temporary.wstring()), bytes);
-		if (!MoveFileExW(temporary.c_str(), target.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
-			throw std::runtime_error("Cannot replace saved file: " + std::to_string(GetLastError()));
-	}
-	catch (...)
-	{
-		std::error_code error;
-		std::filesystem::remove(temporary, error);
-		throw;
-	}
+	StagedFileReplacement(utf8(target.wstring()), bytes, FileWriteMode::Buffered, "Saved file").commit();
 	if (id)
 		complete_import(id, utf8(target.filename().wstring()), {}, {}, false, utf8(target.wstring()));
 }

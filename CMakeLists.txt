@@ -169,7 +169,14 @@ add_library(
 	${imgui_SOURCE_DIR}/imgui_widgets.cpp
 )
 target_include_directories(phoenix_imgui PUBLIC ${imgui_SOURCE_DIR})
-add_library(phoenix_foundation STATIC src/core/input.cpp src/core/data.cpp src/platform/random.cpp)
+add_library(
+	phoenix_foundation
+	STATIC
+	src/core/input.cpp
+	src/core/data.cpp
+	src/platform/random.cpp
+	src/platform/atomic_file.cpp
+)
 target_include_directories(phoenix_foundation PRIVATE ${picosha2_SOURCE_DIR})
 if(NOT EMSCRIPTEN)
 	target_link_libraries(phoenix_foundation PRIVATE bcrypt)
