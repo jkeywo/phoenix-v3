@@ -250,7 +250,7 @@ button:hover,button:focus {background:#455458;border-color:#ec9c52;}
 #toolbar h1 {margin-left:76px;}
 #connection-status {font-size:.75em;}
 #widgets {position:absolute;left:4%;right:4%;top:125px;bottom:4%;}
-#gameplay {position:absolute;left:60%;right:4%;top:125px;bottom:4%;overflow:auto;background:#0b1719ee;border:1px #988b71;padding:8px;display:none;}
+#gameplay {position:absolute;left:60%;right:4%;top:125px;bottom:4%;overflow-x:hidden;overflow-y:auto;clip:always;box-sizing:border-box;background:#0b1719ee;border:1px #988b71;padding:8px;display:none;}
 #gameplay-controls button {width:210px;min-height:48px;box-sizing:border-box;}
 .engineering #widgets {display:none;}
 .engineering #connection-status {display:none;}
@@ -679,21 +679,70 @@ p {display:block;font-size:.85em;margin:4px 0;}
 			}
 		return false;
 	}
-	bool probe_helm()
+	bool probe_report()
+	{
+		for (const auto &[name, text] : readout_values_)
+			if (text.find("Engine Console report") != std::string::npos)
+			{
+				auto *target = element(id(name));
+				if (!target)
+					return false;
+				target->ScrollIntoView();
+				context_->Update();
+				return true;
+			}
+		return false;
+	}
+	bool probe_helm(bool verify = false)
 	{
 		if (!heading_dial_ || !model_.layout())
 			return false;
-		bool throttle = false;
+		unsigned throttle = 0;
 		for (const auto &widget : model_.layout()->at("widgets"))
 			if (widget.at("kind") == "throttle")
 			{
-				auto *element = document_->GetElementById(id("speed/" + widget.at("id").get<std::string>()));
-				const auto at = element->GetAbsoluteOffset(Rml::BoxArea::Border);
+				const auto binding = model_.widget_system(widget.at("id"));
 				const auto track = throttle_tracks_.at(widget.at("id").get<std::string>());
-				pointer(998, track.x + track.width / 2, track.y + track.height * .25f, DeviceEventKind::Down);
-				pointer(998, track.x + track.width / 2, track.y + track.height * .25f, DeviceEventKind::Up);
-				throttle = model_.requested_speed() > 0;
+				const float fraction = (++throttle % 2) ? .75f : .25f;
+				const auto expected =
+				    std::llround(model_.system_minimum(binding) +
+				                 (model_.system_maximum(binding) - model_.system_minimum(binding)) * fraction);
+				if (!verify)
+				{
+					pointer(998, track.x + track.width / 2, track.y + track.height * (1 - fraction),
+					        DeviceEventKind::Down);
+					pointer(998, track.x + track.width / 2, track.y + track.height * (1 - fraction),
+					        DeviceEventKind::Up);
+				}
+				if (std::abs(model_.system_request(binding) - expected) > 1)
+					return false;
+				if (verify && widget.contains("controller"))
+				{
+					bool found = false;
+					for (const auto &controller : model_.observation()->gameplay.at("controllers"))
+						if (controller.at("id") == widget.at("controller"))
+						{
+							const auto &command = controller.at("commands").at(widget.at("channel").get<std::string>());
+							if (std::abs(command.at("value").get<std::int64_t>() - expected) > 1 ||
+							    command.at("revision") != command.at("consumed"))
+								return false;
+							for (const auto &consumer : command.at("consumers"))
+							{
+								bool physical = false;
+								for (const auto &system : model_.observation()->systems)
+									if (system.id == consumer.get<std::string>())
+										physical = std::abs(system.requested - expected) <= 1;
+								if (!physical)
+									return false;
+							}
+							found = true;
+						}
+					if (!found)
+						return false;
+				}
 			}
+		if (verify)
+			return throttle > 0;
 		const auto [x, y, r] = *heading_dial_;
 		return throttle && pointer(999, x, y - r * .85f, DeviceEventKind::Down) &&
 		       pointer(999, x, y - r * .85f, DeviceEventKind::Up) && model_.requested_heading() == 90000;
@@ -1143,7 +1192,7 @@ p {display:block;font-size:.85em;margin:4px 0;}
 			gameplay->SetProperty("top", "125px");
 			gameplay->SetProperty("bottom", "4%");
 			gameplay->RemoveProperty("width");
-			gameplay->RemoveProperty("height");
+			gameplay->SetProperty("height", std::to_string(std::max(80.f, region.height * .96f - 125)) + "px");
 			bool placed_gameplay = false;
 			if (has_gameplay && layout && layout->contains("gameplay_panel") &&
 			    layout->at("gameplay_panel").is_object())
@@ -1156,13 +1205,13 @@ p {display:block;font-size:.85em;margin:4px 0;}
 					const double x = panel.at("x"), y = panel.at("y"), width = panel.at("width"),
 					             height = panel.at("height");
 					if (std::isfinite(x) && std::isfinite(y) && std::isfinite(width) && std::isfinite(height) &&
-					    x >= 0 && y >= 0 && width > 0 && height > 0 && x + width <= 1000 && y + height <= 1000)
+					    x >= 0 && y >= 0 && width > 0 && height > 0 && x + width <= 1 && y + height <= 1)
 					{
 						const auto available_height = std::max(80.f, region.height - 125.f);
-						gameplay->SetProperty("left", std::to_string(region.width * x / 1000) + "px");
-						gameplay->SetProperty("top", std::to_string(125 + available_height * y / 1000) + "px");
-						gameplay->SetProperty("width", std::to_string(region.width * width / 1000) + "px");
-						gameplay->SetProperty("height", std::to_string(available_height * height / 1000) + "px");
+						gameplay->SetProperty("left", std::to_string(region.width * x) + "px");
+						gameplay->SetProperty("top", std::to_string(125 + available_height * y) + "px");
+						gameplay->SetProperty("width", std::to_string(region.width * width) + "px");
+						gameplay->SetProperty("height", std::to_string(available_height * height) + "px");
 						gameplay->RemoveProperty("right");
 						gameplay->RemoveProperty("bottom");
 						placed_gameplay = true;
@@ -1182,7 +1231,14 @@ p {display:block;font-size:.85em;margin:4px 0;}
 					gameplay->SetProperty("top", "58%");
 				}
 			}
-			if (helm && !pregame)
+			// The compact helm preset has one throttle. Multiple independent controls
+			// must retain their authored geometry instead of occupying the same slot.
+			if (helm && !pregame && !placed_gameplay &&
+			    std::count_if(layout->at("widgets").begin(), layout->at("widgets").end(),
+			                  [](const auto &widget)
+			                  {
+				                  return widget.at("kind") == "throttle";
+			                  }) == 1)
 			{
 				widgets->SetProperty("top", "4%");
 				widgets->SetProperty("right", "4%");

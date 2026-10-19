@@ -774,7 +774,7 @@ bool ConsoleModel::submit(OperatingCommand command)
 					projected_label = console_label(console_string(descriptor, "label_key"));
 					if (projected_label.empty())
 						projected_label = console_label(console_string(descriptor, "label"));
-					if (descriptor.value("label_value", false))
+					if (descriptor.value("label_value", Json(false)) == true)
 						projected_label += " " + std::to_string(command.value);
 				}
 	}
@@ -847,7 +847,7 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 		auto label = console_label(console_string(descriptor, "label_key"));
 		if (label.empty())
 			label = console_label(console_string(descriptor, "label"));
-		if (descriptor.value("label_value", false))
+		if (descriptor.value("label_value", Json(false)) == true)
 			label += " " + std::to_string(*console_integer(descriptor.at("value")));
 		if (label.empty())
 			continue;

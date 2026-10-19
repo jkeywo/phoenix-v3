@@ -493,9 +493,13 @@ bool probe_menu_keyboard(Application &app)
 	}
 	return true;
 }
-bool probe_console_helm(Application &, ConsoleId route)
+bool probe_console_helm(Application &, ConsoleId route, bool verify)
 {
-	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_helm();
+	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_helm(verify);
+}
+bool probe_console_report(ConsoleId route)
+{
+	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_report();
 }
 bool probe_console_readouts(ConsoleId route)
 {

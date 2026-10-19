@@ -26,6 +26,7 @@ import phoenix.workshop_test;
 #include "workshop_bridge.hpp"
 #include "performance.hpp"
 #include "../../tests/manual/native_menu.hpp"
+#include "../../tests/manual/controller_ui.hpp"
 
 int main(int argc, char **argv)
 {
@@ -48,10 +49,10 @@ int main(int argc, char **argv)
 	bool join_smoke = false, join_submitted = false, claim_submitted = false;
 	unsigned join_ready_frames = 0;
 	int smoke_frames = 0;
-	bool helm_smoke = false, readout_smoke = false;
+	bool helm_smoke = false, readout_smoke = false, controller_report_smoke = false;
 	bool engineering_smoke = false;
 	std::uint64_t helm_smoke_tick = 0;
-	bool workshop_smoke = false;
+	bool workshop_smoke = false, controller_workshop_smoke = false;
 	std::string workshop_pack;
 	std::string game_pack;
 	std::string mission, slot, ship, seat;
@@ -136,6 +137,11 @@ int main(int argc, char **argv)
 			helm_smoke = true;
 			smoke_frames = 90;
 		}
+		if (argument == "--controller-report-smoke")
+		{
+			controller_report_smoke = helm_smoke = true;
+			smoke_frames = 90;
+		}
 		if (argument == "--engineering-smoke")
 		{
 			engineering_smoke = true;
@@ -149,6 +155,12 @@ int main(int argc, char **argv)
 		}
 		if (std::strcmp(argv[i], "--smoke") == 0)
 			smoke_frames = 6;
+		if (argument == "--controller-workshop-smoke")
+		{
+			controller_workshop_smoke = workshop_smoke = true;
+			app.screen = phoenix::Screen::workshop;
+			smoke_frames = 180;
+		}
 		if (std::strcmp(argv[i], "--workshop") == 0)
 		{
 			app.screen = phoenix::Screen::workshop;
@@ -643,7 +655,7 @@ int main(int argc, char **argv)
 				phoenix::close_window();
 				return 1;
 			}
-			if (GetTime() - smoke_started > (menu_smoke.assign_displays ? 90 : 30))
+			if (GetTime() - smoke_started > (menu_smoke.assign_displays ? 90 : 60))
 			{
 				std::cerr << "Menu smoke timed out at stage " << menu_smoke.stage << " / tick " << app.session->ticks()
 				          << '\n';
@@ -701,6 +713,8 @@ int main(int argc, char **argv)
 			}
 			if (smoke_frames == 60)
 			{
+				if (!phoenix::probe_console_helm(app, 1, true))
+					throw std::runtime_error("Helm per-channel consumption probe failed");
 				phoenix::invoke_navigation(app, "console/1/settings");
 			}
 			if (smoke_frames == 55)
@@ -721,6 +735,17 @@ int main(int argc, char **argv)
 					throw std::runtime_error("Helm input stalled simulation");
 				std::cout << "Helm smoke passed: direct throttle, heading, Settings Away/resume and advancing ticks\n";
 			}
+		}
+		if (controller_report_smoke)
+			probe_controller_reports(app, smoke_frames);
+		if (controller_workshop_smoke)
+		{
+			for (const auto [frame, stage] :
+			     std::vector<std::pair<int, unsigned>>{{175, 0}, {155, 1}, {100, 2}, {80, 3}, {60, 4}, {20, 5}})
+				if (smoke_frames == frame && !phoenix::probe_workshop_controllers(stage))
+					throw std::runtime_error("Workshop Controller smoke failed at stage " + std::to_string(stage));
+			if (smoke_frames == 1)
+				std::cout << "Workshop Controller edit/export/reopen/Test/Pause/Step/Restart smoke passed\n";
 		}
 		if (engineering_smoke)
 		{

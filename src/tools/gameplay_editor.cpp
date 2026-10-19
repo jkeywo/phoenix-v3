@@ -73,6 +73,9 @@ struct ScopedChild
 struct GameplayEditor
 {
 
+	bool controller_probe = false;
+	mutable std::string probe_action;
+	std::uint64_t probe_tick = 0;
 	Json feedback = Json::object();
 	std::optional<GameplayTestRequest> test_request;
 	std::string entity, tree, test_ship, test_slot, test_map;
@@ -92,7 +95,13 @@ struct GameplayEditor
 	}
 	bool button(const char *message) const
 	{
-		return ImGui::Button(label(message).c_str());
+		const bool pressed = ImGui::Button(label(message).c_str());
+		if (controller_probe && probe_action == message)
+		{
+			probe_action.clear();
+			return true;
+		}
+		return pressed;
 	}
 	void heading(const char *message) const
 	{
@@ -304,6 +313,8 @@ struct GameplayEditor
 				           const auto title = row.is_object()
 				                                  ? row.value("id", row.value("kind", std::to_string(i + 1)))
 				                                  : std::to_string(i + 1);
+				           if (controller_probe)
+					           ImGui::SetNextItemOpen(true, ImGuiCond_Always);
 				           if (ScopedTree scope((title + "###record").c_str()); scope)
 				           {
 					           inspect(row);
@@ -2340,11 +2351,15 @@ struct GameplayEditor
 				         {"Fitting and assemblies", &GameplayEditor::placements},
 				         {"Knowledge feeds and publications", &GameplayEditor::knowledge_bindings},
 				         {"Console Controllers and complexity", &GameplayEditor::control_layout}})
+				{
+					if (controller_probe && std::string(title) == "Console Controllers and complexity")
+						ImGui::SetNextItemOpen(true, ImGuiCond_Always);
 					if (ImGui::CollapsingHeader(label(title).c_str()))
 					{
 						ScopedId scope(title);
 						(this->*inspect)(document);
 					}
+				}
 			}
 			else if (selection == "Templates and assemblies")
 				templates(document);
@@ -2401,6 +2416,8 @@ struct GameplayEditor
 				selection = "Ship slots";
 		}
 		ImGui::End();
+		if (controller_probe)
+			ImGui::SetNextWindowFocus();
 		if (ImGui::Begin(label("Test").c_str()))
 		{
 			try
@@ -2456,6 +2473,62 @@ void set_gameplay_authoring_vocabulary(const Json &vocabulary)
 					}
 	}
 	gameplay_editor.vocabulary = std::move(contexts);
+}
+bool probe_gameplay_controller_test(WorkshopDocument &document, unsigned stage)
+{
+	auto &editor = gameplay_editor;
+	if (stage == 0)
+	{
+		editor.controller_probe = true;
+		editor.test_map = "test.map";
+		editor.test_slot = "test.slot";
+		editor.test_ship = "test.controllable";
+		return document.definitions()
+		           .at("entities")
+		           .at(0)
+		           .at("control_layout")
+		           .at("controllers")
+		           .at(0)
+		           .at("commands")
+		           .at(0)
+		           .at("initial") == 3000;
+	}
+	if (!editor.probe_action.empty())
+		return false;
+	if (stage == 1)
+	{
+		editor.probe_action = "Start test";
+		return true;
+	}
+	const auto &feedback = editor.feedback;
+	if (!feedback.value("running", false) || feedback.value("tick", 0) < 1)
+		return false;
+	if (stage == 2)
+	{
+		bool command = false;
+		for (const auto &owner : feedback.value("controllers", Json::array()))
+			for (const auto &field : owner.value("commands", Json::array()))
+				if (field.value("channel", "") == "speed" && field.value("value", 0) == 3000 &&
+				    field.at("revision") == field.at("consumed"))
+					command = true;
+		if (!command)
+			return false;
+		editor.probe_action = "Pause test";
+	}
+	if (stage == 3)
+	{
+		if (!feedback.value("paused", false))
+			return false;
+		editor.probe_tick = feedback.at("tick").get<std::uint64_t>();
+		editor.probe_action = "Step test";
+	}
+	if (stage == 4)
+	{
+		if (!feedback.value("paused", false) || feedback.at("tick") != editor.probe_tick + 1)
+			return false;
+		editor.probe_action = "Restart test";
+	}
+	return true;
 }
 void set_gameplay_test_feedback(const Json &feedback)
 {

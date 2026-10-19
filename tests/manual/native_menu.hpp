@@ -37,6 +37,8 @@ struct NativeMenuSmoke
 	}
 	int display_step = 0;
 	int profile_step = 0;
+	int complexity_step = 0;
+	std::string complexity_slot, complexity_console, complexity_initial, complexity_selected;
 	int navigation_aid_step = 0, settings_step = 0;
 	bool initial_dust = true, initial_grid = true, initial_motion = false;
 	int stage = 0, pack_edits = 0, console_frames = 0;
@@ -298,6 +300,56 @@ struct NativeMenuSmoke
 							changed = GetTime();
 							return false;
 						}
+			if (complexity_step == 0)
+			{
+				const auto controls = app.session->lobby_controls();
+				for (const auto &seat : lobby.consoles)
+					for (const auto &choice : seat.profiles)
+					{
+						const auto id = "lobby.profile/" + seat.slot + "/" + seat.id + "/" + choice;
+						if (choice != seat.profile && std::any_of(controls.begin(), controls.end(),
+						                                          [&](const auto &control)
+						                                          {
+							                                          return control.first == id;
+						                                          }))
+						{
+							complexity_slot = seat.slot;
+							complexity_console = seat.id;
+							complexity_initial = seat.profile;
+							complexity_selected = choice;
+							action(app, id);
+							complexity_step = 1;
+							changed = GetTime();
+							return false;
+						}
+					}
+				throw std::runtime_error("Lobby complexity smoke requires a permitted alternate Console profile");
+			}
+			if (complexity_step == 1 || complexity_step == 2)
+			{
+				const auto seat =
+				    std::find_if(lobby.consoles.begin(), lobby.consoles.end(),
+				                 [&](const auto &value)
+				                 {
+					                 return value.slot == complexity_slot && value.id == complexity_console;
+				                 });
+				const auto expected = complexity_step == 1 ? complexity_selected : complexity_initial;
+				if (seat == lobby.consoles.end() || seat->profile != expected)
+					throw std::runtime_error("Lobby complexity selection did not reach authoritative snapshot");
+				if (complexity_step == 1)
+				{
+					capture("complexity");
+					TraceLog(LOG_INFO, "Menu complexity smoke selected %s for %s", complexity_selected.c_str(),
+					         complexity_console.c_str());
+					action(app,
+					       "lobby.profile/" + complexity_slot + "/" + complexity_console + "/" + complexity_initial);
+					complexity_step = 2;
+					changed = GetTime();
+					return false;
+				}
+				TraceLog(LOG_INFO, "Menu complexity smoke restored %s before Ready", complexity_initial.c_str());
+				complexity_step = 3;
+			}
 			if (!phoenix::probe_native_accessibility(app))
 				throw std::runtime_error("Lobby UIA readouts failed");
 			capture("lobby");

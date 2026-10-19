@@ -859,45 +859,9 @@ void entity_properties(Json &entity)
 		integer_field("Mass (grams; 0 = static)", collision, "mass_grams");
 	}
 	std::string console = entity.value("console", std::string{});
-	bool console_controllers = entity.contains("control_layout");
-	try
-	{
-		const auto expanded = editor.document.preview_equipment();
-		console_controllers = expanded.entities.at(entity.at("id").get<std::string>()).contains("control_layout");
-	}
-	catch (const std::exception &)
-	{
-	}
-	if (!console_controllers)
-	{
-		std::string controller = entity.value("controller", std::string{});
-		ImGui::TextWrapped(
-		    "%s",
-		    localise(
-		        "AI behaviour runs automatic orders when this entity is not under player control. None leaves it idle.")
-		        .c_str());
-		if (ImGui::BeginCombo(tool_label("AI behaviour").c_str(),
-		                      controller.empty() ? localise("None").c_str() : controller.c_str()))
-		{
-			if (ImGui::Selectable(tool_label("None").c_str(), controller.empty()))
-				entity.erase("controller");
-			for (const auto &value : editor.document.definitions()["trees"])
-			{
-				auto id = value.at("id").get<std::string>();
-				if (ImGui::Selectable(id.c_str(), id == controller))
-					entity["controller"] = id;
-			}
-			for (const auto &[id, value] : editor.document.libraries().trees)
-				if (ImGui::Selectable(id.c_str(), id == controller))
-					entity["controller"] = id;
-			ImGui::EndCombo();
-		}
-	}
-	else
-		ImGui::TextWrapped(
-		    "%s",
-		    localise("AI behaviour belongs to Console Controllers. Edit their trees and complexity profiles below.")
-		        .c_str());
+	ImGui::TextWrapped(
+	    "%s", localise("AI behaviour belongs to Console Controllers. Edit their trees and complexity profiles below.")
+	              .c_str());
 	if (ImGui::BeginCombo(tool_label("Console").c_str(), console.empty() ? "None" : console.c_str()))
 	{
 		if (ImGui::Selectable(tool_label("None").c_str(), console.empty()))
@@ -1288,6 +1252,31 @@ void open_workshop_pack(const std::string &path)
 	editor.selected =
 	    editor.document.map()["entities"].empty() ? 0 : editor.document.map()["entities"][0]["id"].get<std::uint64_t>();
 	editor.status = "Loaded and verified " + path;
+}
+bool probe_workshop_controllers(unsigned stage)
+{
+	if (stage == 0)
+	{
+		if (editor.document.manifest().at("id") != "test-core")
+			return false;
+		auto &channel = editor.document.definitions()
+		                    .at("entities")
+		                    .at(0)
+		                    .at("control_layout")
+		                    .at("controllers")
+		                    .at(0)
+		                    .at("commands")
+		                    .at(0);
+		channel["initial"] = 3000;
+		editor.history.checkpoint(editor.document);
+		editor.document.verify();
+		const auto bytes = editor.document.export_pack();
+		editor.document.load_pack(bytes);
+		editor.definition = 0;
+		editor.selection = "Entity";
+		editor.status = "Controller smoke: edited initial command, verified, exported and reopened.";
+	}
+	return probe_gameplay_controller_test(editor.document, stage);
 }
 void render_editor(Application &app)
 {

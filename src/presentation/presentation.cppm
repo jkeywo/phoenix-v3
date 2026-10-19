@@ -93,7 +93,8 @@ private:
 void draw_radar_body(TextureCache &textures, const Catalog &catalog, const BodyView &body, Vector2 centre, float radius,
                      Color colour);
 bool probe_menu_keyboard(Application &app);
-bool probe_console_helm(Application &app, ConsoleId route);
+bool probe_console_helm(Application &app, ConsoleId route, bool verify = false);
+bool probe_console_report(ConsoleId route);
 bool probe_console_readouts(ConsoleId route);
 bool probe_console_engineering(ConsoleId route, unsigned stage);
 void open_window();
