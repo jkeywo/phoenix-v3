@@ -18,7 +18,36 @@ class ConsoleSurface final : public Rml::EventListener
 	Application *app_ = nullptr;
 	std::string signature_;
 	std::map<std::string, std::string> displayed_values_;
+	std::vector<std::pair<std::string, std::string>> readout_values_;
+	bool update_readout(const std::string &name, const std::string &text, bool force)
+	{
+		auto *target = element(id(name));
+		if (!target || displayed_values_[name] == text)
+			return false;
+		auto *panel = document_->GetElementById("gameplay");
+		const auto panel_at = panel->GetAbsoluteOffset(Rml::BoxArea::Border);
+		const auto at = target->GetAbsoluteOffset(Rml::BoxArea::Border);
+		const bool visible =
+		    at.y + target->GetOffsetHeight() >= panel_at.y - 100 && at.y <= panel_at.y + panel->GetOffsetHeight() + 100;
+		// Keep measured offscreen heights; accessible values are published separately.
+		if (!force && !displayed_values_[name].empty() && !visible)
+			return false;
+		target->SetInnerRML(Rml::StringUtilities::EncodeRml(text));
+		displayed_values_[name] = text;
+		return true;
+	}
+
 	std::map<std::string, Rml::Element *> elements_;
+	std::map<std::pair<Rml::Element *, std::string>, std::string> properties_;
+	void property(Rml::Element *target, const std::string &name, const std::string &value)
+	{
+		auto &previous = properties_[{target, name}];
+		if (previous != value)
+		{
+			target->SetProperty(name, value);
+			previous = value;
+		}
+	}
 	Rml::Element *element(const std::string &name)
 	{
 		const auto found = elements_.find(name);
@@ -407,6 +436,46 @@ p {display:block;font-size:17px;margin:4px 0;}
 		model_.release_controls();
 		held_clicks_.clear();
 	}
+	void update_view()
+	{
+		context_->Update();
+		bool changed = false;
+		for (const auto &[name, text] : readout_values_)
+			changed |= update_readout(name, text, false);
+		if (changed)
+			context_->Update();
+	}
+	bool probe_readout_scroll()
+	{
+		// Explicit graphical smoke: deferred text becomes current on scrolling,
+		// while its semantic value was already current before it became visible.
+		for (const auto &[name, text] : readout_values_)
+			if (displayed_values_[name] != text)
+			{
+				const auto semantic =
+				    std::find(app_->screen_readouts.begin(), app_->screen_readouts.end(), std::pair{id(name), text});
+				if (semantic == app_->screen_readouts.end())
+				{
+					std::cerr << "Deferred readout semantic missing: " << name << std::endl;
+					return false;
+				}
+				auto *panel = document_->GetElementById("gameplay");
+				const float previous_scroll = panel->GetScrollTop();
+				element(id(name))->ScrollIntoView({Rml::ScrollAlignment::Start, Rml::ScrollAlignment::Nearest,
+				                                   Rml::ScrollBehavior::Instant, Rml::ScrollParentage::Closest});
+				update_view();
+				if (displayed_values_[name] != text)
+				{
+					std::cerr << "Deferred readout did not refresh: " << name << std::endl;
+					return false;
+				}
+				panel->SetScrollTop(previous_scroll);
+				update_view();
+				std::cout << "Deferred readout scroll and current semantics passed" << std::endl;
+				return true;
+			}
+		return false;
+	}
 	bool probe_helm()
 	{
 		if (!heading_dial_ || !model_.layout())
@@ -503,6 +572,7 @@ p {display:block;font-size:17px;margin:4px 0;}
 		{
 			signature_ = std::move(signature);
 			placement_signature_.clear();
+			properties_.clear();
 			elements_.clear();
 			gameplay_signature_.clear();
 			gameplay_readout_signature_.clear();
@@ -644,15 +714,16 @@ p {display:block;font-size:17px;margin:4px 0;}
 			              // ConsoleModel encodes descriptor IDs as hexadecimal.
 			              return control.first == "game.control/61776179";
 		              });
-		const auto gameplay_readouts =
-		    pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_readouts();
+		readout_values_ = pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_readouts();
+		const auto &gameplay_readouts = readout_values_;
 		app.frame_metrics["console/" + std::to_string(route_) + "/readouts"] = GetTime() - readouts_started;
 		auto *gameplay = document_->GetElementById("gameplay");
 		auto *widgets = document_->GetElementById("widgets");
 		const bool has_gameplay = !gameplay_controls.empty() || !gameplay_readouts.empty();
 		const auto placement = signature_ + "/" + std::to_string(region.width) + "/" + std::to_string(region.height) +
 		                       (has_gameplay ? "/gameplay" : "/empty");
-		if (placement_signature_ != placement)
+		const bool placement_changed = placement_signature_ != placement;
+		if (placement_changed)
 		{
 			placement_signature_ = placement;
 			gameplay->SetProperty("display", has_gameplay ? "block" : "none");
@@ -786,15 +857,14 @@ p {display:block;font-size:17px;margin:4px 0;}
 		}
 		for (const auto &[name, text] : gameplay_readouts)
 		{
-			if (auto *element = this->element(id(name)))
-				if (displayed_values_[name] != text)
-				{
-					element->SetInnerRML(Rml::StringUtilities::EncodeRml(text));
-					displayed_values_[name] = text;
-				}
+			update_readout(name, text, placement_changed);
 			app.screen_readouts.emplace_back(id(name), text);
 		}
-		context_->Update();
+		{
+			const auto update_started = GetTime();
+			context_->Update();
+			app.frame_metrics["console/" + std::to_string(route_) + "/before-widgets"] = GetTime() - update_started;
+		}
 		heading_dial_.reset();
 		heading_dials_.clear();
 		dial_systems_.clear();
@@ -840,14 +910,13 @@ p {display:block;font-size:17px;margin:4px 0;}
 					                     hud_metadata_.at("helm-throttle-track").at("image_size")[1].get<float>();
 					auto *slider =
 					    dynamic_cast<Rml::ElementFormControl *>(document_->GetElementById(id("speed/" + key)));
-					slider->SetProperty("left",
-					                    std::to_string(track.x - widget_offset(key).x - track.width * .1f) + "px");
-					slider->SetProperty(
-					    "top",
-					    std::to_string(track.y - widget_offset(key).y + track.height * top - track.width * .2f) + "px");
-					slider->SetProperty("width", std::to_string(track.width * 1.2f) + "px");
-					slider->SetProperty("height",
-					                    std::to_string(track.height * (bottom - top) + track.width * .4f) + "px");
+					property(slider, "left", std::to_string(track.x - widget_offset(key).x - track.width * .1f) + "px");
+					property(slider, "top",
+					         std::to_string(track.y - widget_offset(key).y + track.height * top - track.width * .2f) +
+					             "px");
+					property(slider, "width", std::to_string(track.width * 1.2f) + "px");
+					property(slider, "height",
+					         std::to_string(track.height * (bottom - top) + track.width * .4f) + "px");
 					const auto system = model_.widget_system(key);
 					const auto minimum = model_.system_minimum(system), maximum = model_.system_maximum(system);
 					const double percent =
@@ -862,7 +931,7 @@ p {display:block;font-size:17px;margin:4px 0;}
 					Rml::ElementList bars;
 					slider->GetElementsByTagName(bars, "sliderbar");
 					for (auto *bar : bars)
-						bar->SetProperty("height", std::to_string(track.width * .4f) + "px");
+						property(bar, "height", std::to_string(track.width * .4f) + "px");
 					if (!pregame)
 						app.screen_inputs.push_back(
 						    {id("speed/" + key), "Desired speed (%)", std::to_string(percent), true});
@@ -871,9 +940,10 @@ p {display:block;font-size:17px;margin:4px 0;}
 				{
 					auto *field =
 					    dynamic_cast<Rml::ElementFormControl *>(document_->GetElementById(id("heading/" + key)));
-					if (context_->GetFocusElement() != field)
-						field->SetValue(std::string(TextFormat(
-						    "%.1f", model_.system_request(model_.widget_system(key), "heading_mdeg") / 1000.0)));
+					const auto requested = std::string(
+					    TextFormat("%.1f", model_.system_request(model_.widget_system(key), "heading_mdeg") / 1000.0));
+					if (context_->GetFocusElement() != field && field->GetValue() != requested)
+						field->SetValue(requested);
 					app.screen_inputs.push_back(
 					    {id("heading/" + key), "Desired heading (degrees)",
 					     std::string(TextFormat(
@@ -898,7 +968,11 @@ p {display:block;font-size:17px;margin:4px 0;}
 					displayed_values_["value/" + key] = value;
 				}
 			}
-		context_->Update();
+		{
+			const auto update_started = GetTime();
+			context_->Update();
+			app.frame_metrics["console/" + std::to_string(route_) + "/after-widgets"] = GetTime() - update_started;
+		}
 		for (const auto &[name, label] : controls_)
 		{
 			app.screen_controls.emplace_back(name, label);

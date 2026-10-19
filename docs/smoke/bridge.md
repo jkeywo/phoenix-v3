@@ -45,3 +45,26 @@ build/native/Release/native.exe --local-only --span-displays `
 ```
 
 The synthetic knowledge integration case additionally checks that repeated Console availability projections leave saved state unchanged. Native system checks and the UI smoke are separate from these authored-content performance measurements. Web performance and the ordinary networked Courier Patrol launch were not captured in this investigation.
+
+## Courier Patrol follow-up — 19 October 2026
+
+The second pass starts from `bde1476` and addresses the remaining repeated RmlUi layout work. Setting an unchanged inline property still dirties layout in the pinned RmlUi backend. Slider dimensions and heading text now update only when changed. Readouts below the scroll viewport retain their measured height and defer visual text replacement; their full semantic values remain current every frame. The post-input update refreshes newly visible readouts before rendering, including in Workshop previews. Resize, document rebuild and locale changes still initialise the complete layout. Deferred rows can change height when refreshed, so scroll extent is based on the last measured offscreen text rather than continuously remeasuring hidden content.
+
+On the same 5760×1200 three-display setup and Courier Patrol Engineering fit, with two active Consoles and an uncapped Viewscreen:
+
+| Capture                                                       | Samples after 120 warm-up frames | Frame p50 | Frame p95 | Frame p99 |  Maximum |
+| ------------------------------------------------------------- | -------------------------------: | --------: | --------: | --------: | -------: |
+| Local-only                                                    |                            1,800 |   8.08 ms |  13.45 ms |  14.62 ms | 29.18 ms |
+| Native network host, local signalling service, no remote crew |                              600 |   8.07 ms |  13.73 ms |  14.47 ms | 15.64 ms |
+
+Every measured frame was focused, with both Consoles active. The median is approximately 124 fps; p95 and p99 are within the 16.7 ms budget in both runs. The isolated local maximum remains above budget. These are observed CPU wall-clock frame distributions on this machine, not a guarantee for every display configuration, scenario stage or remote crew workload. The local-only artifacts are `build/bridge-smoke/patrol-second-final.*`; the valid network capture is `build/bridge-smoke/patrol-network-ready.*`. Earlier `patrol-network-final.*` measured zero active Consoles and is invalid performance evidence: the manual capture originally claimed seats before asynchronous host readiness. It now waits for committed Console claims before warm-up/sampling.
+
+The dedicated `--readout-smoke` checks a changed offscreen readout's current semantic value, scrolls it into view through RmlUi, then verifies the deferred visual text refresh and restores scroll position. It passed on Courier Patrol:
+
+```powershell
+build/native/Release/native.exe --local-only --game-pack build/native/base.zip `
+  --mission base.courier-patrol --slot base.player --ship base.courier-engineering `
+  --console --readout-smoke --frame-limit 60
+```
+
+The normal `--lobby-regions-smoke` passed Ready/Back, assigned-console input, Settings/save/quit; all 20 native system cases passed. Logs are `build/perf2-readout-smoke.log`, `build/perf2-lobby-smoke.log` and `build/perf2-tests.log`. An attempt to combine the direct Courier Patrol launch with the existing `--helm-smoke` terminated after the readout check; that attempt is not recorded as passing input evidence. The separate ordinary lobby input journey passed. Web performance, physical touch/controller/reader acceptance and extended remote-crew sessions were not measured in this pass.

@@ -48,7 +48,7 @@ int main(int argc, char **argv)
 	bool join_smoke = false, join_submitted = false, claim_submitted = false;
 	unsigned join_ready_frames = 0;
 	int smoke_frames = 0;
-	bool helm_smoke = false;
+	bool helm_smoke = false, readout_smoke = false;
 	std::uint64_t helm_smoke_tick = 0;
 	bool workshop_smoke = false;
 	std::string workshop_pack;
@@ -124,6 +124,11 @@ int main(int argc, char **argv)
 			app.native_menu = false;
 			smoke_frames = 6;
 			app.screen = phoenix::Screen::server_lobby;
+		}
+		if (argument == "--readout-smoke")
+		{
+			readout_smoke = true;
+			smoke_frames = 90;
 		}
 		if (argument == "--helm-smoke")
 		{
@@ -562,14 +567,7 @@ int main(int argc, char **argv)
 		}
 	}
 	double accumulated = 0;
-	if (!performance.output.empty())
-	{
-		app.session->release_console(1);
-		for (const auto &region : app.console_regions)
-			for (const auto &seat : app.session->console_seats())
-				if (seat.available && app.session->claim_console(region.console, seat.address))
-					break;
-	}
+	bool performance_released = false, performance_ready = false;
 	menu_smoke.configure_displays(app);
 	const auto smoke_started = GetTime();
 	menu_smoke.changed = smoke_started;
@@ -578,6 +576,24 @@ int main(int argc, char **argv)
 	{
 		const auto frame_started = GetTime();
 		app.session->poll();
+		if (!performance.output.empty() && !performance_ready && app.session->running())
+		{
+			if (!performance_released)
+			{
+				app.session->release_console(1);
+				performance_released = true;
+			}
+			for (const auto &region : app.console_regions)
+				if (!app.session->console_observation(region.console))
+					for (const auto &seat : app.session->console_seats())
+						if (seat.available && app.session->claim_console(region.console, seat.address))
+							break;
+			performance_ready = std::all_of(app.console_regions.begin(), app.console_regions.end(),
+			                                [&](const auto &region)
+			                                {
+				                                return app.session->console_observation(region.console).has_value();
+			                                });
+		}
 		accumulated += std::min(static_cast<double>(GetFrameTime()), 0.25);
 		while (accumulated >= 1.0 / phoenix::World::ticks_per_second)
 		{
@@ -602,7 +618,8 @@ int main(int argc, char **argv)
 		const auto drawing_finished = GetTime();
 		EndDrawing();
 		const auto frame_finished = GetTime();
-		if (performance.record(simulation_finished - frame_started, drawing_finished - simulation_finished,
+		if (performance_ready &&
+		    performance.record(simulation_finished - frame_started, drawing_finished - simulation_finished,
 		                       frame_finished - previous_frame, app))
 			break;
 		previous_frame = frame_finished;
@@ -663,6 +680,11 @@ int main(int argc, char **argv)
 		}
 		if (qr_smoke && smoke_frames == 6)
 			phoenix::invoke_navigation(app, "game.qr-client");
+		if (readout_smoke && smoke_frames == 1 && !phoenix::probe_console_readouts(1))
+		{
+			std::cerr << "Deferred readout smoke failed or found no changed offscreen readout\n";
+			return 1;
+		}
 		if (helm_smoke)
 		{
 			if (smoke_frames == 80)

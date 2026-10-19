@@ -442,6 +442,10 @@ bool probe_console_helm(Application &, ConsoleId route)
 {
 	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_helm();
 }
+bool probe_console_readouts(ConsoleId route)
+{
+	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_readout_scroll();
+}
 void open_window()
 {
 	game_screen = std::make_unique<GameScreen>();
@@ -982,7 +986,7 @@ void draw_screen(Application &app)
 		for (const auto &region : active_console_regions)
 		{
 			auto &surface = *console_surfaces.at(region.console);
-			surface.context().Update();
+			surface.update_view();
 			surface.draw(region);
 			renderer.viewport({region.x, region.y, region.width, region.height});
 			surface.context().Render();
@@ -1074,7 +1078,7 @@ Texture2D draw_console_preview(const Json &layout, int width, int height, Vector
 		context.ProcessMouseButtonUp(0, 0);
 	if (wheel)
 		context.ProcessMouseWheel(-wheel, 0);
-	context.Update();
+	preview_surface->update_view();
 	if (!preview_texture.id || preview_texture.texture.width != width || preview_texture.texture.height != height)
 	{
 		if (preview_texture.id)

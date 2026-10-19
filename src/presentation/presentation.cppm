@@ -94,6 +94,7 @@ void draw_radar_body(TextureCache &textures, const Catalog &catalog, const BodyV
                      Color colour);
 bool probe_menu_keyboard(Application &app);
 bool probe_console_helm(Application &app, ConsoleId route);
+bool probe_console_readouts(ConsoleId route);
 void open_window();
 bool close_requested();
 bool graphics_has_keyboard_focus();
