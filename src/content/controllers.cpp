@@ -37,6 +37,9 @@ bool accepts(const FittedSystemSpec &fit, const Json &spec, OperatingAction acti
 	                    kind == OperatingSystem::Impulse;
 	switch (action)
 	{
+	case OperatingAction::IntentInteger:
+	case OperatingAction::IntentBoolean:
+		return false;
 	case OperatingAction::SystemEnabled:
 		return true;
 	case OperatingAction::EngineEnabled:
@@ -342,9 +345,13 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			                where, "command arguments differ from action contract");
 			control_require(command.minimum <= command.initial && command.initial <= command.maximum, where + "." + id,
 			                "initial outside command range");
-			control_require(field.contains("consumers") && field.at("consumers").is_array() &&
-			                    !field.at("consumers").empty() && field.at("consumers").size() <= 256,
-			                where, "expected physical consumers");
+			const bool intent =
+			    command.action == OperatingAction::IntentInteger || command.action == OperatingAction::IntentBoolean;
+			control_require(
+			    field.contains("consumers") && field.at("consumers").is_array() &&
+			        field.at("consumers").size() <= 256 &&
+			        (intent ? field.at("consumers").empty() : !field.at("consumers").empty()),
+			    where, "intent channels require no physical consumers; actuator channels require physical consumers");
 			for (const auto &consumer : field.at("consumers"))
 			{
 				control_require(consumer.is_string() && system_ids.contains(consumer.get<std::string>()), where,

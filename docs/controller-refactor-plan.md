@@ -253,3 +253,9 @@ Independent Controller runtime, gameplay-knowledge and content suites pass. Inte
 Controller trees can select the latest permitted record subject without reading world state, including explicit withdrawal metadata rather than falling back to an older objective. Contact bindings resolve a same-Console selector channel against the frozen permitted sensor feed and expose availability, motion, uncertainty and the producer observation tick. Workshop authors both bindings; transport preserves the observation timestamp.
 
 Independent native build and Controller runtime, content, gameplay-knowledge and transfer suites pass. Checks cover tick-start selector isolation, missing and disabled feeds, foreign-Console refusal, latest-subject withdrawal, private record refusal, timestamp validation and exact continuation. Legacy control runtime and maintained-content migration remain outstanding.
+
+## Shared preference channel receipt
+
+Typed integer and boolean intent settings now use the same Controller admission, frozen reads, receipts and continuation as physical commands, with an explicitly empty consumer list. An AI Controller reads a human Controller's accepted preference through its permitted Console board and writes its own actuator channels. Physical commands still require compatible consumers and intent commands cannot name equipment.
+
+Independent native, Controller runtime and content builds/tests pass. Synthetic journeys cover bounded integer/boolean preferences, generated controls, no pre-tick physical mutation, shared AI fan-out after commit, binding refusal, handover and exact continuation. This supplies the replacement primitive for legacy summary intents; removal of that old path and maintained-content migration remain pending.

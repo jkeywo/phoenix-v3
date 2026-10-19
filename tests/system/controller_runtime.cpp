@@ -48,6 +48,85 @@ int main()
 	try
 	{
 		const auto content = load(controller_fixture());
+		auto preference_source = controller_fixture();
+		auto &preference_layout = preference_source["entities"][0]["control_layout"];
+		preference_layout["controllers"][0].erase("fallback");
+		preference_layout["controllers"][0]["tree"] = "test.preference";
+		preference_layout["controllers"][0]["commands"].push_back({{"id", "enabled"},
+		                                                           {"action", "engine_enabled"},
+		                                                           {"type", "boolean"},
+		                                                           {"initial", 1},
+		                                                           {"consumers", {"port", "starboard"}}});
+		preference_layout["controllers"].push_back(
+		    Json::parse(R"json({"id":"preference","console":"drive","fallback":"hold",
+		 "commands":[{"id":"cruise","action":"intent_integer","minimum":0,"maximum":6000,"consumers":[]},
+		 {"id":"enabled","action":"intent_boolean","type":"boolean","initial":1,"consumers":[]}]})json"));
+		preference_layout["profiles"][0]["consoles"]["drive"] = {{"human", {"preference"}}, {"ai", {"propulsion"}}};
+		preference_layout["profiles"][1]["consoles"]["drive"] = {{"ai", {"preference", "propulsion"}}};
+		preference_source["trees"] = Json::parse(R"json([{"id":"test.preference","context":"controller","initial":"run",
+		 "command_bindings":[{"channel":"speed"},{"channel":"enabled","type":"boolean"}],
+		 "command_reads":[{"name":"cruise","controller":"preference","channel":"cruise"},
+		  {"name":"enabled","controller":"preference","channel":"enabled","type":"boolean"}],
+		 "states":[{"id":"run","running":[{"action":"write.speed","arguments":[{"observation":"cruise"}]},
+		 {"action":"write.enabled","arguments":[{"observation":"enabled"}]}]}]}])json");
+		const auto preference_catalog = load(preference_source);
+		World preferences;
+		preferences.load(preference_catalog, "test.map");
+		require(preferences.claim(101, 1, "drive"),
+		        "human owns coarse preference while actuator Controller remains AI");
+		OperatingCommand preference_command{1, {}, 5000, {}};
+		preference_command.controller = "preference";
+		preference_command.channel = "cruise";
+		preference_command.generation = controller(preferences, 101, "preference").at("generation");
+		auto bad_preference = preference_command;
+		bad_preference.value = 6001;
+		require(!preferences.submit(101, bad_preference),
+		        "intent numeric range is authoritative without physical consumers");
+		bad_preference.channel = "enabled";
+		bad_preference.value = 2;
+		require(!preferences.submit(101, bad_preference), "boolean preference rejects nonboolean value");
+		const auto preference_view = preferences.observe(101);
+		require(std::any_of(preference_view->gameplay.at("controls").begin(),
+		                    preference_view->gameplay.at("controls").end(),
+		                    [](const auto &control)
+		                    {
+			                    return control.value("action", "") == "intent_integer";
+		                    }),
+		        "generated human controls expose coarse preference settings");
+		require(preferences.submit(101, preference_command), "human coarse preference admitted");
+		require(requested(preferences, "port") == 0 && requested(preferences, "starboard") == 0,
+		        "queued intent does not immediately mutate mechanisms");
+		preferences.tick();
+		require(requested(preferences, "port") == 5000 && requested(preferences, "starboard") == 5000,
+		        "peer AI translates the tick-boundary committed preference snapshot into shared physical command");
+		auto boolean_preference = preference_command;
+		boolean_preference.channel = "enabled";
+		boolean_preference.value = 0;
+		require(preferences.submit(101, boolean_preference), "human boolean preference admitted");
+		preferences.tick();
+		preferences.tick();
+		const auto disabled_preference = preferences.observe(101);
+		for (const auto &system : disabled_preference->systems)
+			if (system.id == "port" || system.id == "starboard")
+				require(!system.enabled, "boolean preference reaches AI actuator decision");
+		require(preferences.submit(101, {1, "preset", 1, {}}), "preference owner yields through complexity");
+		preferences.tick();
+		require(!preferences.submit(101, preference_command) &&
+		            controller(preferences, 101, "preference").at("commands").at("cruise").at("value") == 5000,
+		        "handover invalidates human intent generation while preserving preference");
+		World preference_resumed;
+		preference_resumed.restore(preference_catalog, preferences.save());
+		preferences.tick();
+		preference_resumed.tick();
+		require(preferences.save() == preference_resumed.save(), "coarse intent and AI continuation restore exactly");
+		auto physical_preference = preference_source;
+		physical_preference["entities"][0]["control_layout"]["controllers"][1]["commands"][0]["consumers"] = {"port"};
+		rejects(
+		    [&]
+		    {
+			    load(physical_preference);
+		    },
+		    "coarse intent cannot bind a physical mechanism");
 		for (const bool sensor_feed : {false, true})
 		{
 			auto contact_source = controller_fixture();

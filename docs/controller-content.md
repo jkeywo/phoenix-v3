@@ -44,6 +44,12 @@ Players select a Console's complexity profile in the lobby or its settings. A lo
 
 Throttle and heading widgets can name `controller` and `channel` instead of `system`. Both identifiers are required and resolve within the Console using that layout. The command must be a speed or heading setting matching the widget kind. The old semantic `binding` string is optional for this form. For example, a throttle widget can contain `"controller": "propulsion", "channel": "speed"`; its usual ID, label and layout coordinates are still required. It reads the accepted setting and compiled range from the Console board, so one widget can command both engines without choosing an engine as its target. An AI-owned section remains readable but refuses human writes.
 
+## Preferences shared with AI
+
+An `intent_integer` or `intent_boolean` setting has `consumers: []`. It represents an accepted Console preference, not a physical actuator input. Author bounds and an initial value as for other settings. For example, a human-operated planning Controller can own `{"id":"power","action":"intent_integer","minimum":0,"maximum":1000,"initial":650,"consumers":[]}`. An AI-operated generator Controller reads it through a same-Console `command_reads` binding and writes its own physical generator-output channel. Both operators use the ordinary command admission, generation, receipt and continuation contracts.
+
+Preference settings persist across handover. A hold fallback retains the last preference when nobody operates its Controller. Reading a preference never grants another Controller permission to overwrite it. Physical actions still require compatible consumers; preference actions cannot bind equipment. Generated controls expose these settings and Workshop uses the same action vocabulary.
+
 ## Navigation commands
 
 `destination` and `follow_contact` are boolean settings with an atomic `arguments` tuple. A destination channel supplies `[x, y]` in millimetres; a follow channel supplies `[contact, separation, speed_limit]` in entity ID, millimetres and millimetres per second. Coordinates are bounded to �1,000,000,000; separation and speed must be positive and at most 1,000,000,000. A disabled follow setting may use contact zero; enabling requires a positive contact and cannot target the owning entity.

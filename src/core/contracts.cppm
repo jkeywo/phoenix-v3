@@ -43,7 +43,9 @@ enum class OperatingAction
 	Overdrive,
 	SystemEnabled,
 	Destination,
-	FollowContact
+	FollowContact,
+	IntentInteger,
+	IntentBoolean
 };
 enum class OperatingSystem
 {
@@ -129,7 +131,10 @@ inline constexpr std::array operating_actions{
     OperatingActionSpec{OperatingAction::Overdrive, "overdrive", OperatingSystem::Storage, true, 1},
     OperatingActionSpec{OperatingAction::SystemEnabled, "system_enabled", OperatingSystem::Storage, true, 1},
     OperatingActionSpec{OperatingAction::Destination, "destination", OperatingSystem::Engine, true, 1},
-    OperatingActionSpec{OperatingAction::FollowContact, "follow_contact", OperatingSystem::Engine, true, 1}};
+    OperatingActionSpec{OperatingAction::FollowContact, "follow_contact", OperatingSystem::Engine, true, 1},
+    OperatingActionSpec{OperatingAction::IntentInteger, "intent_integer", OperatingSystem::Engine, false, 1000000000000,
+                        -1000000000000},
+    OperatingActionSpec{OperatingAction::IntentBoolean, "intent_boolean", OperatingSystem::Engine, true, 1}};
 constexpr const OperatingActionSpec *operating_action(std::string_view name)
 {
 	for (const auto &spec : operating_actions)
