@@ -29,7 +29,10 @@ std::vector<FittedSystemSpec> resolve_systems(const Catalog &catalog, const std:
 			throw std::runtime_error(path + ": invalid System identity/definition");
 		const auto kind = it.value().value("kind", it.key());
 		std::optional<OperatingSystem> type;
-		for (auto candidate : {OperatingSystem::Engine, OperatingSystem::Steering, OperatingSystem::Radar})
+		for (auto candidate :
+		     {OperatingSystem::Engine, OperatingSystem::Steering, OperatingSystem::Radar, OperatingSystem::Generator,
+		      OperatingSystem::Storage, OperatingSystem::Distribution, OperatingSystem::Coolant,
+		      OperatingSystem::Lateral, OperatingSystem::Boost, OperatingSystem::Impulse})
 			if (kind == operating_system_name(candidate))
 				type = candidate;
 		if (!type)
@@ -42,8 +45,38 @@ std::vector<FittedSystemSpec> resolve_systems(const Catalog &catalog, const std:
 		}
 		else if (*type == OperatingSystem::Steering)
 			spec.response = it.value().value("turn_mdeg_s", std::int64_t{0});
-		else
+		else if (*type == OperatingSystem::Radar)
 			spec.maximum = it.value().at("range_mm");
+		else
+		{
+			spec.maximum = it.value().value("maximum", std::int64_t{1000});
+			if (*type == OperatingSystem::Lateral || *type == OperatingSystem::Boost ||
+			    *type == OperatingSystem::Impulse)
+				spec.maximum =
+				    *type == OperatingSystem::Lateral
+				        ? it.value().value("lateral_speed_mm_s", it.value().value("max_speed_mm_s", std::int64_t{0}))
+				        : it.value().value("max_speed_mm_s", std::int64_t{0});
+			if (catalog.resource_definitions.contains(id))
+			{
+				const auto &network = catalog.resource_definitions.at(id);
+				const auto reference = [&](const char *key)
+				{
+					return it.value().value(key, std::string{});
+				};
+				if (*type == OperatingSystem::Generator && network.generator_ids.contains(reference("generator")))
+					spec.maximum = network.generators.at(network.generator_ids.at(reference("generator"))).maximum_rate;
+				if (*type == OperatingSystem::Storage && network.store_ids.contains(reference("power_store")))
+				{
+					const auto &store = network.stores.at(network.store_ids.at(reference("power_store")));
+					spec.maximum = std::max({store.capacity, store.charge_rate, store.discharge_rate});
+				}
+				if (*type == OperatingSystem::Distribution && network.group_ids.contains(reference("power_group")))
+					spec.maximum = network.groups.at(network.group_ids.at(reference("power_group"))).budget_rate;
+				if (*type == OperatingSystem::Coolant && network.cooling_link_ids.contains(reference("cooling_link")))
+					spec.maximum =
+					    network.cooling_links.at(network.cooling_link_ids.at(reference("cooling_link"))).capacity_rate;
+			}
+		}
 		if (entity.contains("controllers") && entity.at("controllers").contains(it.key()))
 			spec.controller = entity.at("controllers").at(it.key()).get<std::string>();
 		result.push_back(std::move(spec));

@@ -18,6 +18,13 @@ WorkshopDocument::WorkshopDocument()
 {
 	reset();
 }
+std::vector<Bytes> WorkshopDocument::dependency_archives() const
+{
+	std::vector<Bytes> result;
+	for (const auto &pack : libraries_)
+		result.push_back(pack.archive());
+	return result;
+}
 void WorkshopDocument::reset()
 {
 	pack_ = PackDraft{};
@@ -77,6 +84,18 @@ void WorkshopDocument::load_pack(std::span<const std::uint8_t> archive)
 			value = table.at(value.at("id").template get<std::string>());
 	};
 	flatten("entities", resolved.entities);
+	for (auto &entity : definitions["entities"])
+		if (entity.contains("_equipment_source"))
+		{
+			const auto source = entity.at("_equipment_source");
+			for (const auto *field : {"systems", "resources", "assemblies", "services", "controllers"})
+			{
+				entity.erase(field);
+				if (source.contains(field))
+					entity[field] = source.at(field);
+			}
+			entity.erase("_equipment_source");
+		}
 	flatten("maps", resolved.maps);
 	flatten("consoles", resolved.consoles);
 	flatten("trees", resolved.trees);

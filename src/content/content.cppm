@@ -12,6 +12,12 @@ module;
 export module phoenix.content;
 export import phoenix.data;
 export import phoenix.contracts;
+export import phoenix.resources;
+export import phoenix.knowledge;
+export import phoenix.scenario;
+export import phoenix.state_tree;
+export import phoenix.gameplay_vocabulary;
+export import phoenix.flight;
 
 export namespace phoenix
 {
@@ -43,10 +49,21 @@ private:
 struct Catalog
 {
 	std::map<std::string, Json> entities, maps, consoles, trees;
+	std::map<std::string, Json> equipment, assemblies, messages;
+	Json knowledge = Json::object();
+	CompiledKnowledge knowledge_definition;
+	std::map<std::string, ResourceNetworkDefinition> resource_definitions;
+	std::map<std::string, ScenarioDefinition> scenarios;
+	std::map<std::string, state_tree::Program> tree_programs;
 	std::map<std::string, Bytes> assets;
 	std::vector<std::pair<std::string, std::string>> ordered_packs;
 	bool presentation = false;
 };
+void resolve_equipment(Catalog &catalog);
+void verify_gameplay_fitting(const Catalog &, const std::string &);
+std::vector<GameplayTreeRecordBinding> gameplay_record_bindings(const Json &, const Catalog &);
+state_tree::Registry gameplay_registry(const Json &, const Catalog &, state_tree::Context);
+void verify_scenario_authoring(const Catalog &catalog, const Json &map);
 // Render-only navigation aids. Distances are metres; speed is metres/second.
 struct DustConfig
 {
@@ -241,6 +258,7 @@ public:
 	{
 		return library_catalog_;
 	}
+	std::vector<Bytes> dependency_archives() const;
 
 private:
 	PackDraft pack_;
@@ -250,3 +268,5 @@ private:
 	Catalog library_catalog_;
 };
 } // namespace phoenix
+
+#include "gameplay_knowledge.hpp"

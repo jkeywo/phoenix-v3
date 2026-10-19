@@ -97,6 +97,28 @@ void inherit(std::map<std::string, Json> &definitions, const std::string &kind)
 	for (const auto &[id, value] : definitions)
 		visit(id);
 }
+std::optional<state_tree::Context> contextual_tree(const std::map<std::string, Json> &trees, const std::string &id)
+{
+	std::set<std::string> seen;
+	auto name = id;
+	while (true)
+	{
+		if (!seen.insert(name).second || !trees.contains(name))
+			invalid("trees." + id, "unresolved parent or inheritance cycle");
+		const auto &tree = trees.at(name);
+		if (tree.contains("context"))
+		{
+			const auto context = tree.at("context").get<std::string>();
+			if (context != "system" && context != "scenario")
+				invalid("trees." + id, "unsupported tree context");
+			return context == "scenario" ? state_tree::Context::Scenario : state_tree::Context::System;
+		}
+		if (!tree.contains("extends"))
+			return {};
+		name = tree.at("extends").get<std::string>();
+	}
+}
+
 } // namespace
 namespace
 {
@@ -130,8 +152,8 @@ Catalog resolve(const std::vector<PackView> &ordered)
 				invalid(id + ".dependencies", "dependency must appear earlier in the selected pack order");
 		}
 		auto definitions = parse_json(pack.files.at("definitions.json"), id + "/definitions.json");
-		if (!definitions.is_object() || definitions.value("schema", 0) < 1 || definitions.value("schema", 0) > 3)
-			invalid(id + "/definitions.json", "expected schema 1, 2 or 3 object");
+		if (!definitions.is_object() || definitions.value("schema", 0) < 1 || definitions.value("schema", 0) > 4)
+			invalid(id + "/definitions.json", "expected schema 1..4 object");
 		std::set<std::string> overrides;
 		for (const auto &override_id : pack.manifest.value("overrides", Json::array()))
 			overrides.insert(override_id.get<std::string>());
@@ -161,6 +183,44 @@ Catalog resolve(const std::vector<PackView> &ordered)
 		add("maps", result.maps);
 		add("consoles", result.consoles);
 		add("trees", result.trees);
+		add("equipment", result.equipment);
+		add("assemblies", result.assemblies);
+		add("messages", result.messages);
+		if (definitions.contains("knowledge"))
+		{
+			const auto &knowledge = definitions.at("knowledge");
+			if (!knowledge.is_object())
+				invalid(id + ".knowledge", "expected object");
+			if (!result.knowledge.contains("roles"))
+				result.knowledge["roles"] = Json::array();
+			if (!result.knowledge.contains("schemas"))
+				result.knowledge["schemas"] = Json::array();
+			for (const auto &role : knowledge.value("roles", Json::array()))
+				if (std::find(result.knowledge["roles"].begin(), result.knowledge["roles"].end(), role) ==
+				    result.knowledge["roles"].end())
+					result.knowledge["roles"].push_back(role);
+			for (const auto &schema : knowledge.value("schemas", Json::array()))
+			{
+				const auto key = "knowledge." + text(schema, "id", id + ".knowledge.schemas");
+				auto &schemas = result.knowledge["schemas"];
+				auto existing = std::find_if(schemas.begin(), schemas.end(),
+				                             [&](const Json &value)
+				                             {
+					                             return value.at("id") == schema.at("id");
+				                             });
+				if (existing != schemas.end())
+				{
+					if (!overrides.contains(key))
+						invalid(key, "schema replacement requires explicit override");
+					used.insert(key);
+					*existing = schema;
+				}
+				else
+					schemas.push_back(schema);
+			}
+			if (knowledge.contains("history_limit"))
+				result.knowledge["history_limit"] = knowledge.at("history_limit");
+		}
 		if (overrides != used)
 			invalid(id + ".overrides", "every declared override must replace an earlier definition");
 		for (const auto &[path, bytes] : pack.files)
@@ -172,7 +232,67 @@ Catalog resolve(const std::vector<PackView> &ordered)
 	inherit(result.entities, "entities");
 	inherit(result.maps, "maps");
 	inherit(result.consoles, "consoles");
-	inherit(result.trees, "trees");
+	std::map<std::string, Json> legacy_trees;
+	for (const auto &[name, tree] : result.trees)
+		if (!contextual_tree(result.trees, name))
+			legacy_trees.emplace(name, tree);
+	inherit(legacy_trees, "trees");
+	for (auto &[name, tree] : legacy_trees)
+		result.trees[name] = std::move(tree);
+	inherit(result.equipment, "equipment");
+	inherit(result.assemblies, "assemblies");
+	resolve_equipment(result);
+	if (!result.presentation)
+	{
+		auto &roles = result.knowledge["roles"];
+		if (roles.is_null())
+			roles = Json::array();
+		for (const auto *role : {"phoenix.crew", "phoenix.scenario"})
+			if (std::find(roles.begin(), roles.end(), Json(role)) == roles.end())
+				roles.push_back(role);
+		auto &schemas = result.knowledge["schemas"];
+		if (schemas.is_null())
+			schemas = Json::array();
+		for (const auto &schema : schemas)
+			if (schema.at("id") == "phoenix.objective")
+				invalid("knowledge.phoenix.objective", "reserved schema");
+		schemas.push_back(
+		    {{"id", "phoenix.objective"},
+		     {"producers", {"phoenix.scenario"}},
+		     {"readers", {"phoenix.crew"}},
+		     {"ship_publishable", true},
+		     {"fields", Json::array({{{"id", "id"}, {"type", "integer"}, {"publishable", true}},
+		                             {{"id", "status"}, {"type", "text"}, {"publishable", true}},
+		                             {{"id", "title"}, {"type", "text"}, {"publishable", true}},
+		                             {{"id", "region"}, {"type", "text"}, {"publishable", true}},
+		                             {{"id", "credited"}, {"type", "boolean"}, {"publishable", true}},
+		                             {{"id", "destination_x"}, {"type", "integer"}, {"publishable", true}},
+		                             {{"id", "destination_y"}, {"type", "integer"}, {"publishable", true}}})}});
+	}
+	if (!result.knowledge.empty())
+		result.knowledge_definition = compile_knowledge(result.knowledge);
+	for (const auto &[name, tree] : result.trees)
+		if (const auto context = contextual_tree(result.trees, name))
+		{
+			result.tree_programs.emplace(
+			    name, state_tree::compile(tree, gameplay_registry(tree, result, *context), result.trees));
+		}
+	for (const auto &[name, entity] : result.entities)
+		if (entity.contains("resources"))
+			result.resource_definitions.emplace(name, compile_resource_network(entity.at("resources")));
+	std::vector<std::string> entity_ids;
+	for (const auto &[name, entity] : result.entities)
+		entity_ids.push_back(name);
+	for (const auto &[name, map] : result.maps)
+		if (map.contains("scenario") || map.contains("regions"))
+		{
+			std::vector<std::string> slots;
+			for (const auto &slot : map.at("ship_slots"))
+				slots.push_back(slot.at("id"));
+			result.scenarios.emplace(name, compile_scenario(map, entity_ids, slots));
+		}
+	for (const auto &[name, map] : result.maps)
+		verify_scenario_authoring(result, map);
 	verify_catalog(result);
 	// Public icon aliases use identical addresses in full and restricted catalogues.
 	for (const auto &[id, entity] : result.entities)
@@ -213,11 +333,18 @@ std::span<const WidgetBinding> widget_bindings()
 }
 void verify_catalog(const Catalog &catalog)
 {
-	if (catalog.presentation && (!catalog.maps.empty() || !catalog.trees.empty() || catalog.entities.size() != 1))
+	if (catalog.presentation &&
+	    (!catalog.maps.empty() || !catalog.trees.empty() || !catalog.equipment.empty() || !catalog.assemblies.empty() ||
+	     !catalog.messages.empty() || !catalog.knowledge.empty() || catalog.entities.size() != 1))
 		invalid("presentation", "expected one own-ship definition without maps or controllers");
+	if (!catalog.presentation)
+		(void)compile_gameplay_knowledge(catalog);
 	std::set<std::string> verified_images;
 	for (const auto &[id, tree] : catalog.trees)
-		verify_tree(tree, "trees." + id);
+		if (const auto context = contextual_tree(catalog.trees, id))
+			state_tree::compile(tree, gameplay_registry(tree, catalog, *context), catalog.trees);
+		else
+			verify_tree(tree, "trees." + id);
 	for (const auto &[id, entity] : catalog.entities)
 	{
 		auto path = "entities." + id;
@@ -323,8 +450,21 @@ void verify_catalog(const Catalog &catalog)
 			}
 			else if (kind == "radar")
 				integer(system, "range_mm", field, 1);
-			else
-				invalid(field, "unsupported System in foundation vocabulary");
+			else if (kind == "lateral")
+			{
+				if (catalog.presentation)
+					integer(system, "max_speed_mm_s", field, 1);
+			}
+			else if (kind == "boost" || kind == "impulse")
+			{
+				if (!catalog.presentation)
+				{
+					integer(system, "max_speed_mm_s", field, 1);
+					integer(system, "acceleration_mm_s2", field, 1);
+				}
+			}
+			else if (kind != "generator" && kind != "storage" && kind != "distribution" && kind != "coolant")
+				invalid(field, "unsupported System capability");
 		}
 		if (!catalog.presentation)
 		{
@@ -350,6 +490,7 @@ void verify_catalog(const Catalog &catalog)
 		    (!entity["controller"].is_string() || !catalog.trees.contains(entity["controller"].get<std::string>())))
 			invalid(path + ".controller", "unresolved state tree");
 		resolve_consoles(catalog, id);
+		verify_gameplay_fitting(catalog, id);
 		if (entity.contains("controllers"))
 		{
 			if (!entity.contains("stations") || !entity["controllers"].is_object())
@@ -359,6 +500,13 @@ void verify_catalog(const Catalog &catalog)
 				if (!entity["systems"].contains(it.key()) || !it.value().is_string() ||
 				    !catalog.trees.contains(it.value().get<std::string>()))
 					invalid(path + ".controllers." + it.key(), "unresolved System or tree");
+				const auto &tree = catalog.trees.at(it.value().get<std::string>());
+				if (auto context = contextual_tree(catalog.trees, it.value().get<std::string>()))
+				{
+					if (*context != state_tree::Context::System)
+						invalid(path + ".controllers." + it.key(), "expected System tree context");
+					continue;
+				}
 				for (const auto &state : catalog.trees.at(it.value().get<std::string>()).at("states"))
 					for (const auto &spec : operating_actions)
 						if (state.contains(std::string(spec.name)))
@@ -373,7 +521,8 @@ void verify_catalog(const Catalog &catalog)
 						}
 			}
 		}
-		if (entity.contains("controller"))
+		if (entity.contains("controller") &&
+		    !catalog.trees.at(entity.at("controller").get<std::string>()).contains("context"))
 		{
 			const auto &systems = entity.at("systems");
 			OperatingCapabilities capabilities;

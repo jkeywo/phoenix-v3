@@ -96,10 +96,13 @@ Pack console_assets(const Catalog &catalog, const std::string &ship)
 		auto &copy = entity["systems"][system.id] = Json::object();
 		if (systems.at(system.id).contains("kind"))
 			copy["kind"] = std::string(operating_system_name(system.kind));
-		if (system.kind == OperatingSystem::Engine)
+		if (system.kind == OperatingSystem::Engine || system.kind == OperatingSystem::Lateral ||
+		    system.kind == OperatingSystem::Boost || system.kind == OperatingSystem::Impulse)
 			copy["max_speed_mm_s"] = system.maximum;
 		else if (system.kind == OperatingSystem::Radar)
 			copy["range_mm"] = system.maximum;
+		else
+			copy["maximum"] = system.maximum;
 	}
 	Json consoles = Json::array(), stations = Json::array();
 	std::set<std::string> included;

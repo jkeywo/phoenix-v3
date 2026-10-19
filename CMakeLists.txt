@@ -184,6 +184,41 @@ if(EMSCRIPTEN)
 	target_link_options(phoenix_foundation INTERFACE -fexceptions)
 endif()
 add_library(phoenix_session_api STATIC)
+
+# Definition compilers are shared with content verification and Workshop. Domain
+# execution implementations are linked only by authoritative simulation.
+add_library(
+	phoenix_gameplay_definitions
+	STATIC
+	src/resources/resource_definitions.cpp
+	src/knowledge/knowledge_definitions.cpp
+	src/scenario/scenario_definitions.cpp
+	src/behavior/state_tree_definitions.cpp
+	src/behavior/gameplay_vocabulary.cpp
+	src/flight/flight_definitions.cpp
+)
+target_sources(
+	phoenix_gameplay_definitions
+	PUBLIC
+		FILE_SET CXX_MODULES
+			FILES
+				src/resources/resources.cppm
+				src/knowledge/knowledge.cppm
+				src/scenario/scenario.cppm
+				src/behavior/state_tree.cppm
+				src/behavior/gameplay_vocabulary.cppm
+				src/flight/flight.cppm
+)
+target_link_libraries(phoenix_gameplay_definitions PUBLIC phoenix_foundation)
+add_library(
+	phoenix_gameplay_runtime
+	STATIC
+	src/resources/resources.cpp
+	src/knowledge/knowledge.cpp
+	src/scenario/scenario.cpp
+	src/behavior/state_tree.cpp
+)
+target_link_libraries(phoenix_gameplay_runtime PUBLIC phoenix_gameplay_definitions)
 target_link_libraries(phoenix_session_api PUBLIC phoenix_content phoenix_transport)
 add_library(phoenix_core STATIC src/core/application.cpp src/core/semantics.cpp src/core/console.cpp src/core/menu.cpp)
 target_link_libraries(phoenix_core PUBLIC phoenix_foundation phoenix_session_api)
@@ -201,9 +236,18 @@ add_library(
 	src/content/stations.cpp
 	src/content/console_assets.cpp
 	src/content/workshop.cpp
+	src/content/equipment.cpp
+	src/content/scenario.cpp
+	src/content/gameplay_knowledge.cpp
+	src/content/tree_bindings.cpp
+	src/content/gameplay.cpp
 	src/behavior/tree.cpp
 )
-target_link_libraries(phoenix_content PUBLIC phoenix_foundation nlohmann_json::nlohmann_json PRIVATE phoenix_zip)
+target_link_libraries(
+	phoenix_content
+	PUBLIC phoenix_foundation phoenix_gameplay_definitions nlohmann_json::nlohmann_json
+	PRIVATE phoenix_zip
+)
 add_library(phoenix_persistence STATIC src/replication/store.cpp src/replication/durable.cpp)
 target_link_libraries(phoenix_persistence PUBLIC phoenix_replication)
 if(EMSCRIPTEN)
@@ -233,8 +277,15 @@ if(EMSCRIPTEN)
 else()
 	target_sources(phoenix_blobs PRIVATE src/platform/windows_blobs.cpp)
 endif()
+add_library(phoenix_scenario_bridge STATIC src/simulation/gameplay_scenario.cpp)
+target_sources(phoenix_scenario_bridge PUBLIC FILE_SET CXX_MODULES FILES src/simulation/gameplay_scenario.cppm)
+target_link_libraries(phoenix_scenario_bridge PUBLIC phoenix_content PRIVATE phoenix_gameplay_runtime)
 add_library(phoenix_simulation STATIC src/simulation/world.cpp src/simulation/collision.cpp)
-target_link_libraries(phoenix_simulation PUBLIC phoenix_foundation phoenix_content PRIVATE flecs_static)
+target_link_libraries(
+	phoenix_simulation
+	PUBLIC phoenix_foundation phoenix_content
+	PRIVATE flecs_static phoenix_gameplay_runtime phoenix_scenario_bridge
+)
 add_library(phoenix_session STATIC src/session/local.cpp src/session/execution.cpp)
 target_link_libraries(phoenix_session PUBLIC phoenix_simulation phoenix_session_api)
 add_library(phoenix_files STATIC src/platform/imports.cpp)
@@ -257,6 +308,18 @@ if(EMSCRIPTEN)
 else()
 	target_sources(phoenix_devices PRIVATE src/platform/windows_devices.cpp)
 	target_link_libraries(phoenix_devices PRIVATE SDL3::SDL3-static comctl32)
+endif()
+add_executable(phoenix_scenario_tests tests/manual/scenario.cpp)
+target_link_libraries(phoenix_scenario_tests PRIVATE phoenix_scenario_bridge phoenix_gameplay_runtime)
+phoenix_fixture(phoenix_scenario_tests)
+if(NOT EMSCRIPTEN)
+	add_test(NAME system.scenario-situations COMMAND phoenix_scenario_tests)
+endif()
+add_executable(phoenix_gameplay_tests tests/manual/gameplay.cpp)
+target_link_libraries(phoenix_gameplay_tests PRIVATE phoenix_content phoenix_gameplay_runtime)
+phoenix_fixture(phoenix_gameplay_tests)
+if(NOT EMSCRIPTEN)
+	add_test(NAME system.gameplay-foundations COMMAND phoenix_gameplay_tests)
 endif()
 if(EMSCRIPTEN)
 	target_sources(phoenix_presentation PRIVATE src/presentation/browser_semantics.cpp)
@@ -650,7 +713,7 @@ foreach(forbidden raylib phoenix_presentation phoenix_tools)
 endforeach()
 if(EMSCRIPTEN)
 	foreach(frontend client workshop)
-		foreach(forbidden phoenix_simulation flecs_static)
+		foreach(forbidden phoenix_simulation phoenix_gameplay_runtime phoenix_scenario_bridge flecs_static)
 			phoenix_forbid_dependency("${frontend}" "${forbidden}" "")
 		endforeach()
 	endforeach()
