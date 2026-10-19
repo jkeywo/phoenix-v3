@@ -110,6 +110,12 @@ Manually trigger and record GUI journeys for lobby/settings selection, shared an
 
 The existing gameplay ledger remains evidence for the previous runtime. It does not establish completion of this refactor.
 
+## Workshop Controller authoring receipt
+
+Entity Properties edits explicit Controller layouts, owned command sections, physical consumers and Console complexity allocations. Controller trees expose command/telemetry/peer-command/message bindings and a task palette generated from their resolved production registry. Inherited groups require explicit override; removing a local group restores inheritance. Physical reporter and Controller destination editors are available. Explicit layouts hide legacy policy and preset controls.
+
+Isolated Test now reports bounded explicit Controller identities, operator generations, active states, transitions, diagnostics and command receipts. Independent verification built native and the Workshop test target, verified both production packs and passed a synthetic edit/export/reopen/Test journey with inherited bindings, actual command consumption and transactional refusal of an invalid replacement. Actual ImGui authoring interaction remains a manual acceptance gap. This is a step 6 foundation; maintained-content migration and the remaining integration requirements are still outstanding.
+
 ## Compiler foundation receipt
 
 The first incremental change adds Controller addresses, typed setting/request channel metadata, physical consumer indices and Console profile allocations through `compile_controllable_layout`. Production loading verifies explicit layout schema 1, shared inputs, canonical enabled-channel aliases, input conflicts, fitted capability checks, speed bounds and request single-executor rules. Legacy whole-entity timed policies convert to one Controller rather than duplicate evaluation per actuator.

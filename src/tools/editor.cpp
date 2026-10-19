@@ -859,28 +859,45 @@ void entity_properties(Json &entity)
 		integer_field("Mass (grams; 0 = static)", collision, "mass_grams");
 	}
 	std::string console = entity.value("console", std::string{});
-	std::string controller = entity.value("controller", std::string{});
-	ImGui::TextWrapped(
-	    "%s",
-	    localise(
-	        "AI behaviour runs automatic orders when this entity is not under player control. None leaves it idle.")
-	        .c_str());
-	if (ImGui::BeginCombo(tool_label("AI behaviour").c_str(),
-	                      controller.empty() ? localise("None").c_str() : controller.c_str()))
+	bool console_controllers = entity.contains("control_layout");
+	try
 	{
-		if (ImGui::Selectable(tool_label("None").c_str(), controller.empty()))
-			entity.erase("controller");
-		for (const auto &value : editor.document.definitions()["trees"])
-		{
-			auto id = value.at("id").get<std::string>();
-			if (ImGui::Selectable(id.c_str(), id == controller))
-				entity["controller"] = id;
-		}
-		for (const auto &[id, value] : editor.document.libraries().trees)
-			if (ImGui::Selectable(id.c_str(), id == controller))
-				entity["controller"] = id;
-		ImGui::EndCombo();
+		const auto expanded = editor.document.preview_equipment();
+		console_controllers = expanded.entities.at(entity.at("id").get<std::string>()).contains("control_layout");
 	}
+	catch (const std::exception &)
+	{
+	}
+	if (!console_controllers)
+	{
+		std::string controller = entity.value("controller", std::string{});
+		ImGui::TextWrapped(
+		    "%s",
+		    localise(
+		        "AI behaviour runs automatic orders when this entity is not under player control. None leaves it idle.")
+		        .c_str());
+		if (ImGui::BeginCombo(tool_label("AI behaviour").c_str(),
+		                      controller.empty() ? localise("None").c_str() : controller.c_str()))
+		{
+			if (ImGui::Selectable(tool_label("None").c_str(), controller.empty()))
+				entity.erase("controller");
+			for (const auto &value : editor.document.definitions()["trees"])
+			{
+				auto id = value.at("id").get<std::string>();
+				if (ImGui::Selectable(id.c_str(), id == controller))
+					entity["controller"] = id;
+			}
+			for (const auto &[id, value] : editor.document.libraries().trees)
+				if (ImGui::Selectable(id.c_str(), id == controller))
+					entity["controller"] = id;
+			ImGui::EndCombo();
+		}
+	}
+	else
+		ImGui::TextWrapped(
+		    "%s",
+		    localise("AI behaviour belongs to Console Controllers. Edit their trees and complexity profiles below.")
+		        .c_str());
 	if (ImGui::BeginCombo(tool_label("Console").c_str(), console.empty() ? "None" : console.c_str()))
 	{
 		if (ImGui::Selectable(tool_label("None").c_str(), console.empty()))

@@ -91,6 +91,12 @@ Entity-wide messages use destination kind `ship` in the current serialized vocab
 
 ## Compatibility and verification
 
+Workshop's entity Properties inspector includes **Console Controllers and complexity**. Create an explicit layout or override the complete inherited layout, then edit Controllers, their commands and physical consumers, and each profile's Console allocations. Explicit layouts hide the old per-System policy and station-preset editors. Imported legacy policies must be removed before an explicit layout verifies.
+
+Controller trees expose command, System observation, peer-command and message bindings. Their task palette comes from the production registry for the resolved tree, including inherited bindings. Inherited binding groups remain read-only until explicitly overridden; removing a local group restores inheritance. System Properties expose factual reporters, and Coordination destinations include Console/Controller addresses.
+
+Isolated Test feedback identifies each Controller by entity, Console and Controller ID, with its effective operator, generation, active states, transition reason, diagnostics and bounded command receipts. This debugging view is separate from player observations and does not export private tree memory.
+
 Explicit layouts use World save schema 5 and Controller knowledge binding metadata. Saves without a defined continuation/ownership mapping are refused transactionally. The command transport uses wire envelope schema 3 and carries Controller, channel, operator generation and request identity. These version checks do not imply that the remaining legacy runtime has been removed.
 
 Use the production Catalog loader to validate bindings, then synthetic integration fixtures to verify behavior. `tests/support/controller_fixture.hpp` and `tests/system/controller_runtime.cpp` exercise the actual load, authority, command, physical, messaging and restore paths. Shipped ship tuning is not a test golden. The refactor plan remains the source for unimplemented migration and acceptance work.

@@ -1,4 +1,6 @@
 #include "../support/assertions.hpp"
+#include "../support/controller_fixture.hpp"
+#include <algorithm>
 #include <iostream>
 #include <cstdint>
 #include <map>
@@ -86,6 +88,79 @@ int main()
 		require(first.submit(operation(WorkshopTestAction::Stop)) && !first.feedback().at("running").get<bool>(),
 		        "stop must dispose of the isolated World");
 		require(!first.submit(operation(WorkshopTestAction::Step)), "step without a running test must fail clearly");
+		WorkshopDocument document;
+		document.load_pack(phoenix::test::archive(phoenix::test::controller_session_fixture()));
+		auto &authored = document.definitions();
+		authored["trees"] = Json::parse(R"json([
+		 {"id":"test.base","context":"controller","initial":"run","command_bindings":[{"channel":"speed"}],
+		  "parameters":{"target":{"type":"integer","default":4000}},
+		  "states":[{"id":"run","running":[{"action":"write.speed","arguments":[{"parameter":"target"}]}]}]},
+		 {"id":"test.child","extends":"test.base","arguments":{"target":6000}}])json");
+		auto &layout = authored["entities"][0]["control_layout"];
+		layout["default_profile"] = "automatic";
+		layout["controllers"][0].erase("fallback");
+		layout["controllers"][0]["tree"] = "test.child";
+		const auto resolved_child = document.preview_tree(authored["trees"][1]);
+		require(resolved_child.at("context") == "controller" &&
+		            resolved_child.at("command_bindings")[0].at("channel") == "speed",
+		        "Workshop preview resolves inherited Controller command vocabulary");
+		const auto verified = document.verify();
+		const auto child_program = gameplay_registry(resolved_child, verified, state_tree::Context::Controller);
+		require(std::any_of(child_program.actions.begin(), child_program.actions.end(),
+		                    [](const auto &action)
+		                    {
+			                    return action.name == "write.speed";
+		                    }),
+		        "Workshop palette uses production inherited Controller registry");
+		WorkshopDocument reopened;
+		reopened.load_pack(document.export_pack());
+		require(reopened.definitions().at("entities")[0].at("control_layout") == layout &&
+		            reopened.preview_tree(reopened.definitions().at("trees")[1]) == resolved_child,
+		        "authored Controller profile and inherited tree survive export/reopen");
+		WorkshopTestRequest controller_test;
+		controller_test.pack = reopened.export_pack();
+		controller_test.mission = "test.map";
+		controller_test.slot = "test.slot";
+		controller_test.ship = "test.controllable";
+		require(first.submit(controller_test), "Workshop Test accepts reopened explicit Controller document");
+		first.advance(100);
+		require(first.feedback().at("tick") == 2 && first.feedback().at("host_diagnostics").empty(),
+		        "reopened Controller tree executes through production disposable World");
+		const auto feedback = first.feedback();
+		const auto &controller_rows = feedback.at("controllers");
+		const auto inspected = std::find_if(controller_rows.begin(), controller_rows.end(),
+		                                    [](const auto &row)
+		                                    {
+			                                    return row.value("context", "") == "controller" &&
+			                                           row.value("controller", "") == "propulsion";
+		                                    });
+		require(inspected != controller_rows.end(), "Workshop Test exposes explicit Controller inspection");
+		require(inspected->at("console") == "drive" && inspected->at("operator") == "ai" &&
+		            inspected->at("tree") == "test.child" && inspected->at("active_states") == Json::array({"run"}) &&
+		            inspected->at("diagnostics").empty(),
+		        "Workshop inspection identifies active inherited Controller and its effective operator");
+		const auto &inspected_command = inspected->at("commands")[0];
+		require(inspected_command.at("channel") == "speed" && inspected_command.at("value") == 6000 &&
+		            inspected_command.at("revision").get<std::uint64_t>() > 0 &&
+		            inspected_command.at("consumed") == inspected_command.at("revision"),
+		        "Workshop inspection shows accepted Controller command consumed by production systems");
+		auto &bad_tree = reopened.definitions()["trees"][0];
+		bad_tree["command_bindings"][0]["channel"] = "foreign";
+		phoenix::test::rejects(
+		    [&]
+		    {
+			    reopened.verify();
+		    },
+		    "Workshop verification refuses foreign Controller channel");
+		phoenix::test::rejects(
+		    [&]
+		    {
+			    reopened.export_pack();
+		    },
+		    "Workshop export refuses invalid Controller document");
+		controller_test.pack = phoenix::test::archive(reopened.definitions());
+		require(!first.submit(controller_test) && first.feedback().at("tick") == 2,
+		        "invalid Controller Test replacement retains previous disposable World");
 		std::cout << "disposable Workshop integration passed\n";
 		return 0;
 	}

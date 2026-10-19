@@ -2,6 +2,8 @@
 
 Workshop has one active selection and one **Properties** inspector. Select an entity in Definitions or on the Map to edit appearance/physics, fitted Systems and ownership, power/cooling, assembly placements, knowledge feeds and station presets. Select a System within the fitted Systems section to edit its capabilities and template. Console selection opens its layout, bindings, knowledge roles and preview in the same inspector. Reusable templates/assemblies, knowledge schemas and Coordination templates are selected from Definitions. All edits use the ordinary Workshop draft and production verification/export paths. Opening inspectors does not activate equipment, publish information, spawn actors or modify a running game.
 
+For the new explicit Controller model, see [Controller authoring](controller-content.md). Entity Properties now edits Console Controllers, owned commands, physical subscriptions and complexity profiles; tree Properties edits Controller bindings using the resolved production vocabulary. Explicit layouts hide legacy entity/System policy and preset controls. The legacy authoring descriptions below apply to content that has not yet migrated.
+
 ## Authoring areas
 
 | Area                     | Authored data                                                                                                                                                                                     |

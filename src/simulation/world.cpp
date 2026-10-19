@@ -2851,6 +2851,56 @@ Json World::debug() const
 	std::size_t controllers = 0, consoles = 0;
 	for (const auto &[id, entity] : impl_->entities)
 	{
+		if (entity.has<EntityControls>())
+			for (const auto &controller : entity.get<EntityControls>().controllers)
+			{
+				if (++controllers > 32)
+				{
+					result["truncated"] = result["truncated"].get<int>() + 1;
+					continue;
+				}
+				Json row{
+				    {"id", std::to_string(id) + "." + controller.definition.console + "." + controller.definition.id},
+				    {"context", "controller"},
+				    {"entity", id},
+				    {"console", controller.definition.console},
+				    {"controller", controller.definition.id},
+				    {"operator", controller.human ? "human" : "ai"},
+				    {"generation", controller.generation},
+				    {"tree", controller.definition.tree},
+				    {"active_states", Json::array()},
+				    {"transition_reason", ""},
+				    {"diagnostics", Json::array()},
+				    {"commands", Json::array()}};
+				if (controller.brain)
+				{
+					row["active_states"] = controller.brain->debug.active;
+					row["transition_reason"] = controller.brain->debug.transition;
+					row["diagnostics"] = controller.brain->debug.diagnostics;
+					for (const auto &state : controller.brain->debug.active)
+						if (result["active_states"].size() < 128)
+							result["active_states"].push_back(state);
+					for (const auto &diagnostic : controller.brain->debug.diagnostics)
+						if (result["diagnostics"].size() < 32)
+							result["diagnostics"].push_back(diagnostic);
+				}
+				for (std::size_t channel = 0; channel < controller.commands.size(); ++channel)
+				{
+					if (channel >= 64)
+					{
+						result["truncated"] = result["truncated"].get<int>() + 1;
+						continue;
+					}
+					const auto &command = controller.commands[channel];
+					row["commands"].push_back({{"channel", controller.definition.commands[channel].id},
+					                           {"value", command.value},
+					                           {"revision", command.revision},
+					                           {"consumed", command.consumed},
+					                           {"request_id", command.request_id},
+					                           {"accepted", command.accepted}});
+				}
+				result["controllers"].push_back(std::move(row));
+			}
 		if (auto systems = gameplay_systems(entity))
 			for (std::size_t i = 0; i < systems->values.size(); ++i)
 			{

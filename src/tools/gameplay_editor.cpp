@@ -492,6 +492,19 @@ struct GameplayEditor
 		integer(spec, "energy_per_second");
 		integer(spec, "discrete_energy");
 		boolean(spec, "powerless_start");
+		records(spec, "reporters", {{"id", "reporter"}, {"field", "heat"}, {"above", 0}, {"message", ""}},
+		        [&](Json &report)
+		        {
+			        string(report, "id");
+			        string(report, "field");
+			        integer(report, "above");
+			        string(report, "message");
+			        optional_string(report, "recovery_message");
+			        integer(report, "debounce_ticks");
+			        integer(report, "recovery_ticks");
+			        integer(report, "minimum_gap_ticks");
+			        text("Physical reporters emit measured facts under both human and AI operation.");
+		        });
 		const auto kind = spec.value("kind", fallback_kind);
 		if (kind == "engine" || kind == "boost" || kind == "impulse")
 		{
@@ -624,15 +637,18 @@ struct GameplayEditor
 			if (button("Override inherited Stations"))
 				ship["stations"] = composition.at("stations");
 		}
-		heading("Resolved controller bindings");
-		for (const auto &system : systems)
+		if (!ship.contains("control_layout") && !composition.contains("control_layout"))
 		{
-			ScopedId identity(system.c_str());
-			ImGui::TextUnformatted(system.c_str());
-			if (ship.contains("controllers"))
-				choice(ship["controllers"], system.c_str(), definitions(document, "trees"), true);
-			else if (button("Create controller bindings"))
-				ship["controllers"] = Json::object();
+			heading("Resolved controller bindings");
+			for (const auto &system : systems)
+			{
+				ScopedId identity(system.c_str());
+				ImGui::TextUnformatted(system.c_str());
+				if (ship.contains("controllers"))
+					choice(ship["controllers"], system.c_str(), definitions(document, "trees"), true);
+				else if (button("Create controller bindings"))
+					ship["controllers"] = Json::object();
+			}
 		}
 		records(ship, "stations", {{"id", "station"}, {"consoles", Json::array()}},
 		        [&](Json &station)
@@ -1325,7 +1341,7 @@ struct GameplayEditor
 					defs["trees"] = Json::array();
 				tree = fresh(defs.at("trees"), "tree");
 				defs["trees"].push_back({{"id", tree},
-				                         {"context", "system"},
+				                         {"context", "controller"},
 				                         {"initial", "operating"},
 				                         {"states", Json::array({{{"id", "operating"},
 				                                                  {"entry", Json::array()},
@@ -1392,7 +1408,7 @@ struct GameplayEditor
 					ImGui::TextUnformatted(definition.at("extends").get<std::string>().c_str());
 				}
 				Json context{{"context", resolved.at("context")}};
-				if (choice(context, "context", {"system", "scenario"}))
+				if (choice(context, "context", {"controller", "system", "scenario"}))
 					definition["context"] = context.at("context");
 				integer(definition, "budget", resolved.value("budget", 4096));
 				Json initial{{"initial", resolved.value("initial", std::string{})}};
@@ -1440,6 +1456,12 @@ struct GameplayEditor
 				                                            : std::vector<std::string>{},
 				            {"integer", "boolean", "text", "reference"});
 				record_bindings(definition, document, resolved);
+				if (definition.value("context", resolved.value("context", std::string{})) == "controller")
+				{
+					controller_bindings(definition, document, resolved);
+					resolved = document.preview_tree(definition);
+					controller_palette(resolved, document);
+				}
 				if (resolved.value("context", std::string("system")) == "system")
 					summary_bindings(definition);
 				records(definition, "memory", {{"name", "memory"}, {"type", "integer"}, {"initial", 0}},
@@ -1850,12 +1872,213 @@ struct GameplayEditor
 			    });
 		}
 	}
+	void control_layout(WorkshopDocument &document)
+	{
+		auto *ship = select_entity(document);
+		if (!ship)
+			return;
+		const auto systems = fitted_ids(document, *ship);
+		const auto &resolved = composition.empty() ? *ship : composition;
+		std::vector<std::string> consoles;
+		for (const auto &station : resolved.value("stations", Json::array()))
+			for (const auto &console : station.at("consoles"))
+				consoles.push_back(console.at("id").get<std::string>());
+		if (!ship->contains("control_layout"))
+		{
+			if (resolved.contains("control_layout"))
+			{
+				text("Controller layout is inherited.");
+				if (button("Override Controller layout"))
+					(*ship)["control_layout"] = resolved.at("control_layout");
+			}
+			else if (button("Create Controller layout"))
+				(*ship)["control_layout"] = {{"schema", 1},
+				                             {"controllers", Json::array()},
+				                             {"profiles", Json::array()},
+				                             {"default_profile", ""}};
+			if (!ship->contains("control_layout"))
+				return;
+		}
+		auto &layout = (*ship)["control_layout"];
+		text("Controllers own command sections. Profiles choose human or AI operation; absent humans use AI. Remove "
+		     "legacy policy/preset bindings before verifying an explicit layout.");
+		records(layout, "controllers",
+		        {{"id", "controller"}, {"console", ""}, {"fallback", "hold"}, {"commands", Json::array()}},
+		        [&](Json &controller)
+		        {
+			        string(controller, "id");
+			        choice(controller, "console", consoles);
+			        if (choice(controller, "tree", definitions(document, "trees"), true))
+			        {
+				        if (controller.contains("tree") && !controller.at("tree").get<std::string>().empty())
+					        controller.erase("fallback");
+				        else
+				        {
+					        controller.erase("tree");
+					        controller["fallback"] = "hold";
+				        }
+			        }
+			        records(controller, "commands",
+			                {{"id", "command"}, {"action", "speed_mm_s"}, {"initial", 0}, {"consumers", Json::array()}},
+			                [&](Json &command)
+			                {
+				                string(command, "id");
+				                std::vector<std::string> actions;
+				                for (const auto &action : operating_actions)
+					                actions.emplace_back(action.name);
+				                choice(command, "action", actions);
+				                integer(command, "initial");
+				                for (const auto *key : {"minimum", "maximum"})
+				                {
+					                ScopedId scope(key);
+					                if (command.contains(key))
+					                {
+						                integer(command, key);
+						                if (button("Use fitted limit"))
+							                command.erase(key);
+					                }
+					                else if (button(key))
+						                command[key] = 0;
+				                }
+				                names(command, "consumers", systems);
+			                });
+		        });
+		records(layout, "profiles", {{"id", "profile"}, {"consoles", Json::object()}},
+		        [&](Json &profile)
+		        {
+			        string(profile, "id");
+			        for (const auto &console : consoles)
+			        {
+				        ScopedId scope(console.c_str());
+				        heading(console.c_str());
+				        std::vector<std::string> controllers;
+				        for (const auto &controller : layout.at("controllers"))
+					        if (controller.value("console", std::string{}) == console)
+						        controllers.push_back(controller.at("id").get<std::string>());
+				        auto &allocation = profile["consoles"][console];
+				        if (!allocation.is_object())
+					        allocation = Json::object();
+				        names(allocation, "human", controllers);
+				        names(allocation, "ai", controllers);
+			        }
+		        });
+		choice(layout, "default_profile", ids(layout.at("profiles")));
+	}
+	void controller_bindings(Json &tree, WorkshopDocument &document, const Json &resolved)
+	{
+		const auto editable = [&](const char *key)
+		{
+			ScopedId scope(key);
+			if (!tree.contains(key) && resolved.contains(key))
+			{
+				heading(key);
+				text("Inherited bindings. Override the complete group before editing it.");
+				auto inherited = resolved.at(key);
+				structure(inherited, false);
+				if (button("Override inherited binding group"))
+					tree[key] = std::move(inherited);
+				else
+					return false;
+			}
+			if (tree.contains(key) && button("Remove local binding group"))
+			{
+				tree.erase(key);
+				return false;
+			}
+			return true;
+		};
+
+		if (editable("command_bindings"))
+			records(tree, "command_bindings", {{"channel", "command"}, {"type", "integer"}, {"semantics", "setting"}},
+			        [&](Json &binding)
+			        {
+				        string(binding, "channel");
+				        choice(binding, "type", {"integer", "boolean"});
+				        choice(binding, "semantics", {"setting", "request"});
+			        });
+		if (editable("system_bindings"))
+			records(tree, "system_bindings", {{"name", "observed"}, {"system", ""}, {"field", "enabled"}},
+			        [&](Json &binding)
+			        {
+				        string(binding, "name");
+				        string(binding, "system");
+				        string(binding, "field");
+			        });
+		if (editable("command_reads"))
+			records(tree, "command_reads",
+			        {{"name", "accepted"}, {"controller", ""}, {"channel", ""}, {"type", "integer"}},
+			        [&](Json &binding)
+			        {
+				        string(binding, "name");
+				        string(binding, "controller");
+				        string(binding, "channel");
+				        choice(binding, "type", {"integer", "boolean"});
+			        });
+		if (editable("message_templates"))
+			names(tree, "message_templates", definitions(document, "messages"));
+		const auto knowledge = knowledge_view(document);
+		if (editable("message_bindings"))
+			records(tree, "message_bindings", {{"name", "payload"}, {"schema", ""}, {"field", ""}},
+			        [&](Json &binding)
+			        {
+				        string(binding, "name");
+				        choice(binding, "schema", ids(knowledge.at("schemas")));
+				        std::vector<std::string> fields;
+				        for (const auto &schema : knowledge.at("schemas"))
+					        if (schema.at("id") == binding.value("schema", std::string{}))
+						        fields = ids(schema.at("fields"));
+				        choice(binding, "field", fields);
+			        });
+	}
+	void controller_palette(const Json &tree, WorkshopDocument &document)
+	{
+		vocabulary["controller"] = {
+		    {"actions", Json::array()}, {"observations", Json::array()}, {"intents", Json::array()}};
+		try
+		{
+			auto catalog = document.libraries();
+			for (const auto &source : document.definitions().value("trees", Json::array()))
+				catalog.trees[source.at("id").get<std::string>()] = source;
+			for (const auto &source : document.definitions().value("messages", Json::array()))
+				catalog.messages[source.at("id").get<std::string>()] = source;
+			catalog.knowledge_definition = compile_knowledge(knowledge_view(document));
+			const auto registry = gameplay_registry(tree, catalog, state_tree::Context::Controller);
+			const auto type_name = [](state_tree::Type type)
+			{
+				static const char *names[] = {"missing", "boolean", "integer",   "text",   "entity",
+				                              "system",  "console", "objective", "region", "message"};
+				return names[static_cast<unsigned>(type)];
+			};
+			for (const auto &field : registry.observations)
+				vocabulary["controller"]["observations"].push_back(
+				    {{"id", field.name}, {"type", type_name(field.type)}});
+			for (const auto &field : registry.intents)
+				vocabulary["controller"]["intents"].push_back({{"id", field.name}, {"type", type_name(field.type)}});
+			for (const auto &action : registry.actions)
+			{
+				Json arguments = Json::array();
+				for (std::size_t i = 0; i < action.arguments.size(); ++i)
+					arguments.push_back({{"name", std::to_string(i + 1)}, {"type", type_name(action.arguments[i])}});
+				vocabulary["controller"]["actions"].push_back(
+				    {{"id", action.name}, {"name", action.name}, {"arguments", arguments}});
+			}
+		}
+		catch (const std::exception &error)
+		{
+			ImGui::TextWrapped("%s", error.what());
+		}
+	}
 	void presets(WorkshopDocument &document)
 	{
 		auto *ship = select_entity(document);
 		if (!ship)
 			return;
 		(void)fitted_ids(document, *ship);
+		if (ship->contains("control_layout") || composition.contains("control_layout"))
+		{
+			text("This entity uses Console Controller complexity profiles.");
+			return;
+		}
 		if (!ship->contains("presets") && composition.contains("presets"))
 		{
 			text("Station presets are inherited.");
@@ -1965,7 +2188,9 @@ struct GameplayEditor
 			        integer(message, "urgency");
 			        boolean(message, "automatic", true);
 			        boolean(message, "human_seeking", false);
-			        choice(message["destination"], "kind", {"system", "console", "station", "ship"});
+			        choice(message["destination"], "kind", {"controller", "console", "station", "ship", "system"});
+			        if (message["destination"].value("kind", std::string{}) == "controller")
+				        string(message["destination"], "console");
 			        string(message["destination"], "id");
 			        integer(message, "delay_ticks", 1);
 			        integer(message, "expires_after_ticks");
@@ -2108,6 +2333,7 @@ struct GameplayEditor
 				         {"Power and cooling", &GameplayEditor::resources},
 				         {"Fitting and assemblies", &GameplayEditor::placements},
 				         {"Knowledge feeds and publications", &GameplayEditor::knowledge_bindings},
+				         {"Console Controllers and complexity", &GameplayEditor::control_layout},
 				         {"Station presets", &GameplayEditor::presets}})
 					if (ImGui::CollapsingHeader(label(title).c_str()))
 					{
