@@ -457,6 +457,108 @@ void unpaid_and_protected()
 	            telemetry(world, "side", "actual_lateral", 102) == 0,
 	        "depleted continuous equipment must suppress further output while retaining existing velocity");
 }
+
+void follow_contact()
+{
+	for (int experiment = 0; experiment < 4; ++experiment)
+	{
+		const bool feed = experiment != 0;
+		auto source = fixture();
+		auto leader = source["entities"][0];
+		leader["id"] = "test.leader";
+		source["entities"].push_back(leader);
+		source["maps"][0]["entities"][1]["definition"] = "test.leader";
+		auto &ship = source["entities"][0];
+		ship["controllers"] = {{"drive", "test.follow"}, {"turn", "test.follow"}};
+		ship["systems"]["turn"]["controller"] = "test.follow";
+		if (!feed)
+			ship["stations"][0]["consoles"][0]["feeds"] = Json::array();
+		if (experiment == 2)
+		{
+			ship["resources"]["stores"][0]["initial"] = 0;
+			for (auto &system : ship["systems"])
+				system["powerless_start"] = true;
+		}
+		if (experiment == 3)
+			source["maps"][0]["entities"][1]["x_mm"] = 4000;
+		source["trees"] = Json::parse(R"([{"id":"test.follow","context":"system","initial":"follow","states":[
+			{"id":"follow","running":[{"action":"set_follow_contact","arguments":[{"observation":"self.system"},{"type":"entity","id":2},15000,8000,true]}]}]}])");
+		if (experiment == 1)
+			for (int invalid = 0; invalid < 3; ++invalid)
+			{
+				auto bad = source;
+				auto &arguments = bad["trees"][0]["states"][0]["running"][0]["arguments"];
+				if (invalid < 2)
+					arguments[1]["id"] = invalid == 0 ? 1 : 999;
+				else
+					arguments[2] = 0;
+				bool refused = false;
+				try
+				{
+					(void)load(bad);
+				}
+				catch (const std::exception &)
+				{
+					refused = true;
+				}
+				require(refused, "following must reject self/missing targets and invalid separation");
+			}
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map");
+		require(world.claim(103, 1, "sensors") && world.claim(201, 2, "helm"), "follow fixture claims");
+		command(world, "speed_mm_s", experiment == 3 ? 0 : 3000, "drive", 201, 2);
+		for (int i = 0; i < 40; ++i)
+			world.tick();
+		if (!feed)
+		{
+			require(body(world).vx == 0, "following must not use hidden contact position or velocity");
+			continue;
+		}
+		if (experiment == 2 || experiment == 3)
+		{
+			require(body(world).vx == 0 && body(world).vy == 0,
+			        "following must neither bypass unpaid propulsion nor drive into a nearby stopped leader");
+			continue;
+		}
+
+		require(body(world).vx > 0, "following must move through ordinary powered propulsion");
+		command(world, "heading_mdeg", 90000, "turn", 201, 2);
+		for (int i = 0; i < 80; ++i)
+			world.tick();
+		require(body(world).heading != 0, "following must steer after observed leader turns");
+		command(world, "speed_mm_s", 1000, "drive", 201, 2);
+		for (int i = 0; i < 80; ++i)
+			world.tick();
+		require(body(world).vx != 0 || body(world).vy != 0, "following must continue after a leader speed change");
+		command(world, "radar_enabled", 0, "radar", 103);
+		world.tick();
+		world.tick();
+		const auto saved = world.save();
+		World resumed;
+		resumed.restore(catalog, saved);
+		for (int i = 0; i < 20; ++i)
+		{
+			world.tick();
+			resumed.tick();
+		}
+		require(world.save() == resumed.save(), "following with lost contact must continue identically after restore");
+		command(world, "radar_enabled", 1, "radar", 103);
+		world.tick();
+		world.tick();
+		const auto recovered = world.save();
+		bool seen = false;
+		for (const auto &b : recovered.at("bodies"))
+			if (b.at("body").at("id") == 1)
+				for (const auto &s : b.at("gameplay"))
+					if (s.contains("flight") && s.at("flight").value("following", false))
+					{
+						seen = true;
+						require(!s.at("flight").at("follow_stale").get<bool>(), "contact must be reacquired");
+					}
+		require(seen, "following continuation must be persisted");
+	}
+}
 void match_speed()
 {
 	for (const bool feed : {false, true})
@@ -926,6 +1028,7 @@ int main()
 		paid_overdrive();
 		prepaid_low_rate_actuation();
 		unpaid_and_protected();
+		follow_contact();
 		match_speed();
 		immutable_flight_demands();
 		paid_sensor_startup();

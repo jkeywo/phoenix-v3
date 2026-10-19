@@ -933,6 +933,10 @@ struct World::Impl
 				values["match_speed"] = f.matching;
 				values["selected_contact"] = f.selected_contact;
 				values["match_stale"] = f.match_stale;
+				values["following"] = f.following;
+				values["follow_stale"] = f.follow_stale;
+				values["follow_distance"] = f.follow_distance;
+				values["follow_speed_limit"] = f.follow_speed_limit;
 				values["matched_speed"] = f.matched_speed;
 				values["actual_longitudinal"] = f.actual_longitudinal;
 				values["actual_lateral"] = f.actual_lateral;
@@ -1057,7 +1061,9 @@ struct World::Impl
 		                                             {O::ImpulseProgress, "impulse_progress"},
 		                                             {O::MatchSpeedActive, "match_speed"},
 		                                             {O::MatchObservationStale, "match_stale"},
-		                                             {O::MatchedSpeed, "matched_speed"}};
+		                                             {O::MatchedSpeed, "matched_speed"},
+		                                             {O::Following, "following"},
+		                                             {O::FollowStale, "follow_stale"}};
 		for (const auto &[key, name] : fields)
 			if (data.contains(name))
 			{
@@ -1303,6 +1309,27 @@ struct World::Impl
 				system.result.success = true;
 				return;
 			}
+			if (action == A::SetFollowContact)
+			{
+				if (!system.flight || (system.flight->definition.kind != FlightKind::Engine &&
+				                       system.flight->definition.kind != FlightKind::Steering))
+					throw std::runtime_error("following requires engine or steering actuator");
+				const auto target = static_cast<EntityId>(a.at(1).number);
+				if (target == entity.get<StableId>().id || !entities.contains(target) || a.at(2).number <= 0 ||
+				    a.at(2).number > 1000000000 || a.at(3).number <= 0 || a.at(3).number > 1000000000)
+					throw std::runtime_error("invalid following target, separation or speed");
+				auto &flight = system.flight->state;
+				flight.selected_contact = target;
+				flight.following = a.at(4).number != 0;
+				flight.follow_stale = false;
+				flight.follow_distance = a.at(2).number;
+				flight.follow_speed_limit = a.at(3).number;
+				flight.assisted = true;
+				flight.matching = flight.match_stale = false;
+				flight.longitudinal = flight.steering = 0;
+				system.result.success = true;
+				return;
+			}
 			if (action == A::SetDestination)
 			{
 				if (!system.flight)
@@ -1332,6 +1359,7 @@ struct World::Impl
 				system.flight->state.desired_heading = (low + offset) % 360000;
 				system.flight->state.assisted = true;
 				system.flight->state.matching = false;
+				system.flight->state.following = system.flight->state.follow_stale = false;
 				if (system.flight->definition.kind == FlightKind::Engine)
 					system.flight->state.desired_speed = system.flight->definition.maximum_speed;
 				system.summary["destination.x"] = a.at(2).number;
@@ -1587,9 +1615,15 @@ struct World::Impl
 				const auto delta = fixed::Vec{other.x, other.y} - pose.position;
 				if (range && fixed::length(delta) <= range)
 					observed = FlightContactObservation{flight.state.selected_contact,
-					                                    fixed::length({other.vx, other.vy}), tick, 0};
+					                                    fixed::length({other.vx, other.vy}),
+					                                    tick,
+					                                    0,
+					                                    {other.x, other.y},
+					                                    {other.vx, other.vy},
+					                                    other.heading};
 			}
 			observe_flight(flight.definition, flight.state, tick, observed);
+			guide_follow(flight.definition, flight.state, pose, motion, observed);
 			auto requested = flight.state;
 			if (restrictions.impulse)
 				requested.boost = false;

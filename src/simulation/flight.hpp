@@ -29,6 +29,8 @@ struct FlightContactObservation
 	std::int64_t speed_mm_s = 0;
 	std::uint64_t observed_tick = 0;
 	std::uint64_t uncertainty = 0;
+	fixed::Vec position, velocity;
+	std::int64_t heading = 0;
 };
 struct FlightState
 {
@@ -42,6 +44,8 @@ struct FlightState
 	std::int64_t matched_speed = 0;
 	std::uint64_t observed_tick = 0, uncertainty = 0;
 	bool matched_observed = false, match_stale = false;
+	bool following = false, follow_stale = false;
+	std::int64_t follow_distance = 0, follow_speed_limit = 0;
 	std::int64_t forward_remainder = 0, lateral_remainder = 0, turn_remainder = 0;
 	int actual_longitudinal = 0, actual_lateral = 0, actual_steering = 0;
 	int steering_limit_permille = 1000;
@@ -77,6 +81,8 @@ FlightCommandResult apply_flight(const FlightDefinition &, FlightState &, Flight
 // Call before quoting resources when a fresh permitted observation has arrived.
 void observe_flight(const FlightDefinition &, FlightState &, std::uint64_t tick,
                     const std::optional<FlightContactObservation> &);
+void guide_follow(const FlightDefinition &, FlightState &, const Pose &, const Motion &,
+                  const std::optional<FlightContactObservation> &);
 FlightDemand flight_demand(const FlightDefinition &, const FlightState &, const Pose &, const Motion &);
 FlightExecution step_flight(const FlightDefinition &, FlightState &, Pose &, Motion &, const FlightDemand &,
                             int paid_permille, int output_permille = 1000, int heat_permille = 1000);

@@ -22,6 +22,10 @@ Assembly internal Systems use the shared capability/mechanism inspector and can 
 
 ## Trees and inheritance
 
+For patrols, author reach-region objectives under Scenario, then add an `objective_sequences` entry with their ordered IDs and enable `repeat`. Start it once with `start_objective_sequence`. Its saved current leg and cycle advance in the production scenario runtime, without repeatedly adding objectives or situations.
+
+System trees can use `set_follow_contact(system, contact, distance_mm, speed_limit_mm_s, active)` on an engine or steering System. Assign the same target and separation to both Systems. The contact is an explicit entity reference (or a typed tree parameter); the usual argument editor provides reference and parameter controls. Following uses only the owning Console's available radar feed. Runtime telemetry exposes `following`, `follow_stale`, `follow_distance` and `follow_speed_limit`; tree conditions can observe `flight.following` and `flight.follow_stale`. Missing contact evidence requests braking and holds the current heading until reacquisition. Power and heat continue to constrain actual motion. This is trailing-point guidance, not obstacle avoidance.
+
 Tree nodes and transition edges appear together with their inspector. The node list uses parent depth for layout; selecting a node exposes its ordered tasks and conditions. Move controls change actual authored array order. The production vocabulary supplies action names, context permissions, expected argument names/types and observation/intent options. The editor does not maintain an independent executable action vocabulary.
 
 Inherited trees are displayed through a read-only resolved view. Base context, states and parameters remain inherited until an explicit local edit or named-state override is requested. Reference calls retain their named parameter bindings. Literal parameter defaults, literal argument overrides, parent-parameter call bindings and ordinary runtime bindings use separate permitted source choices. Legacy timed trees retain their state names as object keys and their normal numeric/boolean output fields.
@@ -35,6 +39,8 @@ The graph highlights active state names supplied by the disposable runtime. The 
 Gameplay edits keep up to 128 complete definition snapshots for Undo and Redo, each history limited to 32 MiB of serialized definitions while retaining at least its latest snapshot. An edit made elsewhere in Workshop starts a new gameplay-history boundary, so undo cannot accidentally restore a stale draft over unrelated changes. Import/reset likewise invalidates the previous history. The history covers definitions including maps; asset imports retain their existing Workshop flow.
 
 Verify gameplay draft calls `WorkshopDocument::verify()`. It checks the complete resolved draft/dependency closure through the production content loader and reports the actual diagnostic. Export uses the existing verified pack path. The editor permits incomplete drafts while authoring; unresolved bindings and invalid combinations remain errors at verification/export rather than being silently repaired.
+
+File → Export pack copy downloads a verified ZIP in browsers, including embedded browsers without a working native save picker. It does not change the current save destination. Save continues to update an installed pack; Save as selects a separate destination.
 
 Renaming an entity repairs static placements, allowed ships, entity inheritance, scenario spawn-group placements and literal `spawn_entity` definition arguments in state tasks and inherited-state patches. It preserves ordinary text, result handles and runtime bindings even when their text matches the previous definition ID.
 

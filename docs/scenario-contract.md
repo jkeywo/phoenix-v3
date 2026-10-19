@@ -92,6 +92,12 @@ Declared events are append-only records with source instance, time, typed scalar
 
 ## Tick and recovery contract
 
+### Repeating objective sequences
+
+`scenario.objective_sequences` contains `{ "id": "route", "objectives": ["reach-a", "reach-b"], "repeat": true }` definitions. Lists are nonempty and ordered; their objective definitions must share an actor and recipient scope. `start_objective_sequence(sequence, actor, handle)` starts one sequence using an explicit assigned actor and a stable result handle. Workshop exposes the list and repeat option alongside objective definitions.
+
+Each activation owns one reusable objective slot. It stores the current definition, zero-based `sequence_index` and `cycle`. Completed legs advance at a later tick only after completion publication and credit are acknowledged and no old-leg publications remain pending. Physical movement still supplies completion; resetting a slot clears its previous completion evidence. A non-repeating sequence stops on its last completed leg; failure or cancellation stops progression. Repetition does not allocate additional objectives, situations or tree-action receipts. Save/resume retains the slot, cycle, current leg and pending publications; old saves without sequence fields retain ordinary objective behavior.
+
 World calls `begin_tick` with committed ship-slot bindings and actual positions before evaluating scenario trees. It then admits scenario actions, constructs pending entities, and runs machinery/movement. `evaluate` receives all actual executed movement segments, including successive collision-resolved pieces; stationary positions are checked too. Centre entry, boundary contact and a complete high-speed crossing all count. No speed or dwell test applies. Terminal objectives are never re-completed.
 
 Geometry uses signed integer dot/cross products and portable exact two-limb multiplication for circle/segment comparisons. It uses no platform floating point, libm or per-tick JSON parsing.

@@ -315,12 +315,12 @@ void ScenarioRuntime::objective_publication(const ScenarioObjective &o)
 }
 const ScenarioActionResult &ScenarioRuntime::add_objective(ScenarioActionToken t, std::string definition,
                                                            std::string handle, std::optional<ScenarioActor> target,
-                                                           bool activate)
+                                                           bool activate, std::string sequence)
 {
 	if (target)
 		validate_actor(*target);
 	const auto fp = part(definition) + part(handle) + (target ? fingerprint_actor(*target) : "default") +
-	                (activate ? ":active" : ":pending");
+	                (activate ? ":active" : ":pending") + (sequence.empty() ? "" : part(sequence));
 	const bool repeated = result(t) != nullptr;
 	auto &out = admit(t, ScenarioActionKind::Objective, fp);
 	if (repeated)
@@ -331,6 +331,12 @@ const ScenarioActionResult &ScenarioRuntime::add_objective(ScenarioActionToken t
 		out.reason = std::move(reason);
 		return out;
 	};
+	if (!sequence.empty())
+	{
+		if (!definition_.objective_sequences.contains(sequence))
+			return fail("unknown objective sequence");
+		definition = definition_.objective_sequences.at(sequence).objectives.front();
+	}
 	if (!definition_.objectives.contains(definition))
 		return fail("unknown objective definition");
 	if (!valid_identifier(handle) || instance(t.instance).objective_handles.contains(handle))
@@ -345,6 +351,7 @@ const ScenarioActionResult &ScenarioRuntime::add_objective(ScenarioActionToken t
 	o.id = allocate();
 	o.instance = t.instance;
 	o.definition = std::move(definition);
+	o.sequence = std::move(sequence);
 	o.handle = std::move(handle);
 	o.actor = assigned;
 	o.recipients = d.recipients;
@@ -564,6 +571,37 @@ void ScenarioRuntime::begin_tick(ScenarioTick tick, std::map<std::string, Entity
 	tick_ = tick;
 	slots_ = std::move(slots);
 	positions_ = std::move(positions);
+	for (auto &[id, o] : objectives_)
+	{
+		if (o.sequence.empty() || o.status != ObjectiveStatus::Completed || !o.completion_published ||
+		    !o.completion_credited || o.completed_tick >= tick_)
+			continue;
+		// Do not reuse the slot while any publication still refers to its previous leg.
+		if (std::any_of(publications_.begin(), publications_.end(),
+		                [&](const auto &p)
+		                {
+			                return p.objective == id;
+		                }))
+			continue;
+		const auto &sequence = definition_.objective_sequences.at(o.sequence);
+		auto next = o.sequence_index + 1;
+		if (next == sequence.objectives.size())
+		{
+			if (!sequence.repeat)
+				continue;
+			require(o.cycle < std::numeric_limits<std::uint64_t>::max(), "objective cycle overflow");
+			++o.cycle;
+			next = 0;
+		}
+		o.sequence_index = next;
+		o.definition = sequence.objectives.at(next);
+		o.status = ObjectiveStatus::Active;
+		o.created_tick = tick_;
+		o.completed_tick = 0;
+		o.completed_actor = 0;
+		o.completion_published = o.completion_credited = false;
+		objective_publication(o);
+	}
 }
 void ScenarioRuntime::evaluate(std::span<const ScenarioMotionSegment> motion)
 {
@@ -580,9 +618,10 @@ void ScenarioRuntime::evaluate(std::span<const ScenarioMotionSegment> motion)
 		if (!entity)
 			continue;
 		const auto &r = definition_.regions.at(definition_.objectives.at(o.definition).region);
-		bool reached = scenario_contains(r, positions_.at(entity));
+		bool reached = o.sequence.empty() && scenario_contains(r, positions_.at(entity));
 		for (const auto &m : motion)
-			if (m.entity == entity && scenario_crosses(r, m.from, m.to))
+			if (m.entity == entity && (o.sequence.empty() || !scenario_contains(r, m.from)) &&
+			    scenario_crosses(r, m.from, m.to))
 			{
 				reached = true;
 				break;
@@ -645,6 +684,9 @@ Json ScenarioRuntime::save() const
 		j["objectives"].push_back({{"id", id},
 		                           {"instance", o.instance},
 		                           {"definition", o.definition},
+		                           {"sequence", o.sequence},
+		                           {"sequence_index", o.sequence_index},
+		                           {"cycle", o.cycle},
 		                           {"handle", o.handle},
 		                           {"actor", encode_actor(o.actor)},
 		                           {"recipients", encode_recipients(o.recipients)},
@@ -763,6 +805,20 @@ void ScenarioRuntime::restore(const Json &j)
 		o.instance = unsigned_number(v.at("instance"), "instance");
 		require(r.instances_.contains(o.instance), "saved objective has unknown instance");
 		o.definition = text(v, "definition");
+		o.sequence = v.value("sequence", std::string{});
+		o.cycle = unsigned_number(v.value("cycle", Json(0)), "cycle");
+		const auto index = unsigned_number(v.value("sequence_index", Json(0)), "sequence_index");
+		if (!o.sequence.empty())
+		{
+			require(definition_.objective_sequences.contains(o.sequence), "saved objective sequence missing");
+			const auto &sequence = definition_.objective_sequences.at(o.sequence);
+			require(index < sequence.objectives.size() && sequence.objectives[index] == o.definition &&
+			            (sequence.repeat || o.cycle == 0),
+			        "invalid saved sequence position");
+		}
+		else
+			require(index == 0 && o.cycle == 0, "ordinary objective has sequence state");
+		o.sequence_index = static_cast<std::uint32_t>(index);
 		o.handle = identifier(v, "handle");
 		require(definition_.objectives.contains(o.definition), "saved objective definition missing");
 		o.actor = actor(v.at("actor"));

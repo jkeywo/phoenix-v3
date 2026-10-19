@@ -1668,6 +1668,13 @@ struct GameplayEditor
 				    strings(objective["recipients"], "consoles");
 			    }
 		    });
+		records(scenario, "objective_sequences", {{"id", "sequence"}, {"objectives", Json::array()}, {"repeat", false}},
+		        [&](Json &sequence)
+		        {
+			        string(sequence, "id");
+			        strings(sequence, "objectives");
+			        boolean(sequence, "repeat");
+		        });
 		if (ScopedTree scope(label("Scenario limits").c_str()); scope)
 		{
 			if (!scenario.contains("limits"))

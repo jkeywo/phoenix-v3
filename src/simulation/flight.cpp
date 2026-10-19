@@ -193,6 +193,7 @@ FlightCommandResult apply_flight(const FlightDefinition &def, FlightState &state
 {
 	validate_motion(pose, motion);
 	auto candidate = state;
+	candidate.following = candidate.follow_stale = false;
 	const auto flag = command.value == 0 || command.value == 1;
 	switch (command.kind)
 	{
@@ -424,6 +425,68 @@ FlightExecution step_flight(const FlightDefinition &def, FlightState &state, Pos
 	motion = new_motion;
 	return result;
 }
+void guide_follow(const FlightDefinition &def, FlightState &state, const Pose &pose, const Motion &motion,
+                  const std::optional<FlightContactObservation> &observed)
+{
+	if (!state.following)
+		return;
+	state.follow_stale = !observed || observed->contact != state.selected_contact;
+	state.desired_speed = 0;
+	if (state.follow_stale)
+	{
+		state.desired_heading = pose.heading;
+		return;
+	}
+	const auto &target = *observed;
+	const auto behind = fixed::direction(target.heading);
+	const fixed::Vec aim{target.position.x - behind.x * state.follow_distance / fixed::unit,
+	                     target.position.y - behind.y * state.follow_distance / fixed::unit};
+	const auto delta = aim - pose.position;
+	const auto separation = fixed::length(target.position - pose.position);
+	// A velocity target damps pursuit rather than accelerating at a moving point.
+	// Project it onto the current hull heading: turning must not create extra speed.
+	fixed::Vec desired{target.velocity.x + delta.x / 5, target.velocity.y + delta.y / 5};
+	const auto magnitude = fixed::length(desired);
+	if (magnitude > state.follow_speed_limit)
+		desired = {desired.x * state.follow_speed_limit / magnitude, desired.y * state.follow_speed_limit / magnitude};
+	const fixed::Vec correction_direction{desired.x * 3 - motion.velocity.x * 2, desired.y * 3 - motion.velocity.y * 2};
+	state.desired_heading = target.heading;
+	if (fixed::length(correction_direction) > 100)
+	{
+		auto direction = correction_direction;
+		std::int64_t offset = 0;
+		if (direction.y < 0)
+		{
+			direction = -direction;
+			offset = 180000;
+		}
+		std::int64_t low = 0, high = 180000;
+		while (high - low > 1)
+		{
+			const auto middle = (low + high) / 2;
+			const auto forward = fixed::direction(middle);
+			if (forward.x * direction.y - forward.y * direction.x > 0)
+				low = middle;
+			else
+				high = middle;
+		}
+		state.desired_heading = (low + offset) % 360000;
+	}
+	if (def.kind != FlightKind::Engine)
+		return;
+	const auto cap = std::min(def.maximum_speed, state.follow_speed_limit);
+	state.desired_speed =
+	    std::clamp(fixed::dot(desired, fixed::direction(pose.heading)) / fixed::unit, std::int64_t{0}, cap);
+	// Relative velocity along the contact line includes crossing/opposing traffic.
+	const auto relative = motion.velocity - target.velocity;
+	const auto to_target = target.position - pose.position;
+	const auto closing =
+	    std::max<std::int64_t>(0, fixed::dot(relative, to_target) / std::max<std::int64_t>(1, separation));
+	const auto braking = closing * closing / (2 * std::max<std::int64_t>(1, def.acceleration));
+	if (separation < state.follow_distance / 2 + braking ||
+	    std::abs(heading_difference(state.desired_heading, pose.heading)) > 60000)
+		state.desired_speed = 0;
+}
 Json save_flight(const FlightDefinition &def, const FlightState &state)
 {
 	return {{"schema", 3},
@@ -432,6 +495,10 @@ Json save_flight(const FlightDefinition &def, const FlightState &state)
 	        {"assisted", state.assisted},
 	        {"boost", state.boost},
 	        {"matching", state.matching},
+	        {"following", state.following},
+	        {"follow_stale", state.follow_stale},
+	        {"follow_distance", state.follow_distance},
+	        {"follow_speed_limit", state.follow_speed_limit},
 	        {"desired_speed", state.desired_speed},
 	        {"desired_heading", state.desired_heading},
 	        {"longitudinal", state.longitudinal},
@@ -477,6 +544,10 @@ FlightState load_flight(const FlightDefinition &def, const Json &saved)
 	result.assisted = flag("assisted");
 	result.boost = flag("boost");
 	result.matching = flag("matching");
+	result.following = json_boolean(saved, "following", false, "flight save");
+	result.follow_stale = json_boolean(saved, "follow_stale", false, "flight save");
+	result.follow_distance = json_integer(saved, "follow_distance", 0, 0, 1000000000, "flight save");
+	result.follow_speed_limit = json_integer(saved, "follow_speed_limit", 0, 0, maximum_velocity, "flight save");
 	result.desired_speed = number("desired_speed", -def.reverse_speed, def.maximum_speed);
 	result.desired_heading = number("desired_heading", 0, 359999);
 	result.longitudinal = static_cast<int>(number("longitudinal", -1000, 1000));
@@ -518,6 +589,11 @@ FlightState load_flight(const FlightDefinition &def, const Json &saved)
 	                         result.matched_contact != result.selected_contact ||
 	                         (result.matched_observed && result.desired_speed != result.matched_speed))))
 		throw std::runtime_error("flight save: inconsistent mode continuation");
+	if ((result.following &&
+	     (result.matching || !result.assisted || !result.selected_contact || result.follow_distance <= 0 ||
+	      result.follow_speed_limit <= 0 || (def.kind != FlightKind::Engine && def.kind != FlightKind::Steering))) ||
+	    (!result.following && result.follow_stale))
+		throw std::runtime_error("flight save: inconsistent following mode");
 	return result;
 }
 } // namespace phoenix

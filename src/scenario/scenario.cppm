@@ -104,6 +104,12 @@ struct ScenarioObjectiveDefinition
 	ScenarioActor actor;
 	ScenarioRecipients recipients;
 };
+struct ScenarioObjectiveSequence
+{
+	std::string id;
+	std::vector<std::string> objectives;
+	bool repeat = false;
+};
 struct ScenarioDefinition
 {
 	std::vector<ScenarioRegion> regions;
@@ -111,6 +117,7 @@ struct ScenarioDefinition
 	std::map<std::string, ScenarioPoint> spawn_points;
 	std::map<std::string, ScenarioSpawnGroup> spawn_groups;
 	std::map<std::string, ScenarioObjectiveDefinition> objectives;
+	std::map<std::string, ScenarioObjectiveSequence> objective_sequences;
 	std::vector<std::string> entity_definitions, ship_slots, events, publications;
 	std::map<std::string, ScenarioParameter> parameters;
 	std::uint32_t spawn_per_tick = 64, spawned_population = 1024, maximum_instances = 128;
@@ -152,6 +159,9 @@ struct ScenarioObjective
 {
 	ScenarioId id = 0, instance = 0;
 	std::string definition, handle;
+	std::string sequence;
+	std::uint64_t cycle = 0;
+	std::uint32_t sequence_index = 0;
 	ScenarioActor actor;
 	ScenarioRecipients recipients;
 	ObjectiveStatus status = ObjectiveStatus::Pending;
@@ -215,7 +225,8 @@ public:
 	// acknowledge partial construction; caller's world operation must be atomic.
 	void confirm_spawn(ScenarioId request, std::span<const EntityId> entities, std::string failure = {});
 	const ScenarioActionResult &add_objective(ScenarioActionToken token, std::string definition, std::string handle,
-	                                          std::optional<ScenarioActor> actor = {}, bool activate = true);
+	                                          std::optional<ScenarioActor> actor = {}, bool activate = true,
+	                                          std::string sequence = {});
 	const ScenarioActionResult &set_objective_status(ScenarioActionToken token, ScenarioId objective,
 	                                                 ObjectiveStatus status);
 	const ScenarioActionResult &publish_objective(ScenarioActionToken token, ScenarioId objective);

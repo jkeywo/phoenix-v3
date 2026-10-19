@@ -159,6 +159,7 @@ ScenarioActionKind bridge_action_kind(GameplayTreeAction action)
 	case GameplayTreeAction::SpawnGroup:
 		return ScenarioActionKind::Spawn;
 	case GameplayTreeAction::AddObjective:
+	case GameplayTreeAction::StartObjectiveSequence:
 		return ScenarioActionKind::Objective;
 	case GameplayTreeAction::PublishObjective:
 		return ScenarioActionKind::ObjectivePublication;
@@ -701,6 +702,12 @@ ScenarioTreeReceipt GameplayScenarioBridge::execute(ScenarioActionToken token, G
 			                           ScenarioActor{ScenarioActorKind::Entity, static_cast<EntityId>(integer(1)), {}});
 			out.request = string(2);
 			break;
+		case GameplayTreeAction::StartObjectiveSequence:
+			out.result = runtime_.add_objective(
+			    token, {}, string(2), ScenarioActor{ScenarioActorKind::Entity, static_cast<EntityId>(integer(1)), {}},
+			    true, string(0));
+			out.request = string(2);
+			break;
 		case GameplayTreeAction::PublishObjective:
 			out.result = runtime_.publish_objective(token, static_cast<ScenarioId>(integer(0)));
 			break;
@@ -924,7 +931,7 @@ void GameplayScenarioBridge::restore(const Catalog &catalog, const std::string &
 		const auto a = scenario_unsigned(j.at("action")), kind = scenario_unsigned(j.at("kind")),
 		           status = scenario_unsigned(j.at("status"));
 		scenario_require(a >= static_cast<unsigned>(GameplayTreeAction::SpawnEntity) &&
-		                     a <= static_cast<unsigned>(GameplayTreeAction::SetObjectiveStatus) &&
+		                     a <= static_cast<unsigned>(GameplayTreeAction::StartObjectiveSequence) &&
 		                     kind <= static_cast<unsigned>(ScenarioActionKind::StartSituation) &&
 		                     status <= static_cast<unsigned>(ScenarioActionStatus::Failed),
 		                 "invalid saved scenario receipt vocabulary");
@@ -949,7 +956,8 @@ void GameplayScenarioBridge::restore(const Catalog &catalog, const std::string &
 			                     actual->handle == r.result.handle && actual->reason == r.result.reason,
 			                 "saved adapter/domain receipt mismatch");
 			if ((r.action == GameplayTreeAction::SpawnEntity || r.action == GameplayTreeAction::SpawnGroup ||
-			     r.action == GameplayTreeAction::AddObjective) &&
+			     (r.action == GameplayTreeAction::AddObjective ||
+			      r.action == GameplayTreeAction::StartObjectiveSequence)) &&
 			    actual->status != ScenarioActionStatus::Failed)
 				scenario_require(!actual->handle.empty() && r.request == actual->handle,
 				                 "saved request/handle identity mismatch");
@@ -958,7 +966,7 @@ void GameplayScenarioBridge::restore(const Catalog &catalog, const std::string &
 			scenario_require(r.result.status == ScenarioActionStatus::Failed,
 			                 "successful saved effect has no domain receipt");
 		if (r.action != GameplayTreeAction::SpawnEntity && r.action != GameplayTreeAction::SpawnGroup &&
-		    r.action != GameplayTreeAction::AddObjective)
+		    r.action != GameplayTreeAction::AddObjective && r.action != GameplayTreeAction::StartObjectiveSequence)
 			scenario_require(r.request == bridge_request(r.token), "saved receipt request identity mismatch");
 		scenario_require(candidate.receipts_.emplace(r.token, std::move(r)).second, "duplicate saved effect receipt");
 	}

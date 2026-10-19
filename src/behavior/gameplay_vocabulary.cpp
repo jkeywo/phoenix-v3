@@ -125,7 +125,9 @@ const std::vector<ObservationDefinition> &observation_definitions()
 	    {GameplayTreeObservation::RegionActorInside, "region.actor_inside", Type::Boolean, scenario_context, ""},
 	    {GameplayTreeObservation::ScenarioFinished, "scenario.finished", Type::Boolean, scenario_context, ""},
 	    {GameplayTreeObservation::SummaryLevel, "summary.level", Type::Integer, system_context,
-	     "authored-intent-level"}};
+	     "authored-intent-level"},
+	    {GameplayTreeObservation::Following, "flight.following", Type::Boolean, system_context, ""},
+	    {GameplayTreeObservation::FollowStale, "flight.follow_stale", Type::Boolean, system_context, ""}};
 	return result;
 }
 struct IntentDefinition
@@ -465,7 +467,24 @@ const std::vector<ActionDefinition> &action_definitions()
 	     "set_objective_status",
 	     scenario_context,
 	     {{"objective", Type::Objective}, {"status", Type::Integer}},
-	     true}};
+	     true},
+	    {GameplayTreeAction::StartObjectiveSequence,
+	     "start_objective_sequence",
+	     scenario_context,
+	     {{"sequence", Type::Text}, {"actor", Type::Entity}, {"handle", Type::Text}},
+	     true},
+	    {GameplayTreeAction::SetFollowContact,
+	     "set_follow_contact",
+	     system_context,
+	     {{"system", Type::System},
+	      {"contact", Type::Entity},
+	      {"distance_mm", Type::Integer},
+	      {"speed_limit_mm_s", Type::Integer},
+	      {"active", Type::Boolean}},
+	     false,
+	     GameplayTreeIntent::Count,
+	     none,
+	     {0}}};
 	return result;
 }
 const char *type_name(Type type)

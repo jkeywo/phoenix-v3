@@ -97,6 +97,28 @@ ScenarioDefinition compile_scenario(const Json &map, std::span<const std::string
 		check_slot(d.recipients.ship);
 		require(out.objectives.emplace(d.id, std::move(d)).second, "duplicate objective definition");
 	}
+	for (const auto &v : list(source, "objective_sequences"))
+	{
+		ScenarioObjectiveSequence sequence;
+		sequence.id = identifier(v, "id");
+		sequence.repeat = v.value("repeat", false);
+		for (const auto &entry : list(v, "objectives"))
+		{
+			require(entry.is_string() && out.objectives.contains(entry.get<std::string>()),
+			        "unresolved sequence objective");
+			sequence.objectives.push_back(entry.get<std::string>());
+		}
+		require(!sequence.objectives.empty(), "objective sequence must not be empty");
+		const auto &first = out.objectives.at(sequence.objectives.front());
+		for (const auto &id : sequence.objectives)
+		{
+			const auto &objective = out.objectives.at(id);
+			require(objective.actor == first.actor && objective.recipients == first.recipients,
+			        "sequence objectives must share actor and recipients");
+		}
+		require(out.objective_sequences.emplace(sequence.id, std::move(sequence)).second,
+		        "duplicate objective sequence");
+	}
 	auto names = [&](const char *key, std::vector<std::string> &target)
 	{
 		for (const auto &v : list(source, key))

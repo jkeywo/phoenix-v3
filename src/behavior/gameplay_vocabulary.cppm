@@ -92,6 +92,8 @@ enum class GameplayTreeObservation : std::uint32_t
 	RegionActorInside,
 	ScenarioFinished,
 	SummaryLevel,
+	Following,
+	FollowStale,
 	Count
 };
 enum class GameplayTreeIntent : std::uint32_t
@@ -154,6 +156,8 @@ enum class GameplayTreeAction : std::uint32_t
 	FinishScenario,
 	StartSituation,
 	SetObjectiveStatus,
+	StartObjectiveSequence,
+	SetFollowContact,
 	Count
 };
 enum class GameplayTreeRecordScope : std::uint8_t

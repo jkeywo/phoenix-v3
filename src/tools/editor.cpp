@@ -1486,6 +1486,14 @@ void render_editor(Application &app)
 				    {
 					    save_pack(app, true);
 				    });
+			if (ImGui::MenuItem(tool_label("Export pack copy...").c_str()))
+				attempt(
+				    []
+				    {
+					    const auto bytes = editor.document.export_pack();
+					    export_file(editor.document.manifest().at("id").get<std::string>() + ".zip", bytes);
+					    editor.status = "Pack copy exported";
+				    });
 			ImGui::Separator();
 			if (ImGui::MenuItem(tool_label("New map").c_str()))
 				attempt(add_map);

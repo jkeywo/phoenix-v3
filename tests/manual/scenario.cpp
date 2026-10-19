@@ -390,10 +390,73 @@ int scenario_journey()
 	return 0;
 }
 
+void repeated_sequence()
+{
+	using namespace phoenix;
+	auto data = parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "sequence fixture");
+	auto &map = data["maps"][0];
+	map["regions"] = Json::parse(R"([
+		{"id":"a","shape":"circle","x_mm":0,"y_mm":0,"radius_mm":100},
+		{"id":"b","shape":"circle","x_mm":5000,"y_mm":0,"radius_mm":100}])");
+	map["scenario"] = Json::parse(R"({"tree":"test.sequence","bindings":{"actor":{"slot":"test.slot"}},
+		"limits":{"objectives":1,"actions":1}, "objectives":[
+		{"id":"a","type":"reach_region","region":"a","actor":{"slot":"test.slot"},"recipients":{"ship":{"slot":"test.slot"}},"title_key":"test.a"},
+		{"id":"b","type":"reach_region","region":"b","actor":{"slot":"test.slot"},"recipients":{"ship":{"slot":"test.slot"}},"title_key":"test.b"}],
+		"objective_sequences":[{"id":"patrol","objectives":["a","b"],"repeat":true}]})");
+	data["trees"] = Json::parse(R"([{"id":"test.sequence","context":"scenario","initial":"run","states":[
+		{"id":"run","entry":[{"action":"start_objective_sequence","arguments":["patrol",{"observation":"self.entity"},"route"]}]}]}])");
+	PackDraft pack;
+	pack.manifest = {{"schema", 1}, {"id", "test-core"}};
+	pack.files["definitions.json"] = json_bytes(data);
+	pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+	const auto catalog = resolve_packs({read_pack(write_pack(pack))});
+	GameplayScenarioBridge bridge;
+	bridge.load(catalog, "test.map");
+	bridge.begin_tick(0, {{"test.slot", 2}}, scenario_bodies(-2000));
+	bridge.step();
+	const auto id = bridge.runtime().objectives().begin()->first;
+	for (std::uint64_t leg = 0; leg < 100; ++leg)
+	{
+		const auto x = leg % 2 == 0 ? 0 : 5000;
+		bridge.begin_tick(leg + 1, {{"test.slot", 2}}, scenario_bodies(x - 2000));
+		bridge.step();
+		scenario_check(bridge.runtime().objectives().at(id).sequence_index == leg % 2 &&
+		                   bridge.runtime().objectives().at(id).cycle == leg / 2,
+		               "sequence must advance in order with a distinct cycle");
+		const std::array wrong{ScenarioMotionSegment{2, {20000, 0}, {21000, 0}}};
+		bridge.evaluate(wrong);
+		const std::array dwelling{ScenarioMotionSegment{2, {x, 0}, {x, 0}}};
+		bridge.evaluate(dwelling);
+		scenario_check(bridge.runtime().objectives().at(id).status == ObjectiveStatus::Active,
+		               "unrelated movement or dwelling must not complete a sequence leg without entry");
+		const std::array crossing{ScenarioMotionSegment{2, {x - 2000, 0}, {x + 2000, 0}}};
+		bridge.evaluate(crossing);
+		scenario_check(bridge.runtime().objectives().at(id).status == ObjectiveStatus::Completed,
+		               "executed crossing must complete the current sequence leg");
+		GameplayScenarioBridge resumed;
+		resumed.restore(catalog, "test.map", bridge.save());
+		scenario_check(resumed.save() == bridge.save(), "pending sequence completion must round trip");
+		for (auto *current : {&bridge, &resumed})
+		{
+			for (const auto &p : current->runtime().pending_publications())
+				current->runtime().acknowledge_publication(p.id);
+			current->runtime().acknowledge_credit(id);
+		}
+		scenario_check(resumed.save() == bridge.save(), "completion acknowledgements must survive recovery");
+		// The next leg (including every wrap to cycle N+1) runs from recovered state.
+		bridge.restore(catalog, "test.map", resumed.save());
+		const auto saved = bridge.save();
+		scenario_check(saved.at("runtime").at("objectives").size() == 1 &&
+		                   saved.at("runtime").at("actions").size() == 1 && saved.at("receipts").size() == 1,
+		               "repetition must not consume objective or journal population");
+	}
+}
+
 int main()
 {
 	try
 	{
+		repeated_sequence();
 		return scenario_journey();
 	}
 	catch (const std::exception &error)

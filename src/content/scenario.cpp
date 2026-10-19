@@ -227,7 +227,8 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map)
 					}
 					if (action == GameplayTreeAction::SpawnGroup || action == GameplayTreeAction::StartSituation)
 						valid_handle(1);
-					if (action == GameplayTreeAction::AddObjective)
+					if (action == GameplayTreeAction::AddObjective ||
+					    action == GameplayTreeAction::StartObjectiveSequence)
 						valid_handle(2);
 					if (static_cast<GameplayTreeAction>(task.target) == GameplayTreeAction::SetObjectiveStatus &&
 					    task.arguments.at(1).source == state_tree::Source::Literal)
@@ -259,6 +260,9 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map)
 						break;
 					case GameplayTreeAction::AddObjective:
 						require(definition.objectives.contains(id), "unresolved objective " + id);
+						break;
+					case GameplayTreeAction::StartObjectiveSequence:
+						require(definition.objective_sequences.contains(id), "unresolved objective sequence " + id);
 						break;
 					case GameplayTreeAction::StartSituation:
 						require(configurations.contains(id), "unresolved situation configuration " + id);

@@ -600,6 +600,43 @@ void verify_prepared_catalog(const Catalog &catalog)
 				invalid(path, "unknown entity definition '" + definition + "'");
 			transform(instance, path + ".entity." + std::to_string(entity_id));
 		}
+		for (const auto &instance : map["entities"])
+		{
+			for (const auto &system : resolve_systems(catalog, instance.at("definition").get<std::string>()))
+			{
+				if (!catalog.tree_programs.contains(system.controller))
+					continue;
+				std::function<void(const state_tree::Program &)> check_follow = [&](const state_tree::Program &program)
+				{
+					for (const auto &state : program.states)
+						for (const auto *tasks : {&state.entry, &state.running, &state.exit})
+							for (const auto &task : *tasks)
+							{
+								if (task.kind != state_tree::TaskKind::Action ||
+								    task.target != static_cast<state_tree::Index>(GameplayTreeAction::SetFollowContact))
+									continue;
+								auto known = [&](std::size_t index) -> std::optional<state_tree::Value>
+								{
+									const auto &binding = task.arguments.at(index);
+									if (binding.source == state_tree::Source::Literal)
+										return binding.literal;
+									return {};
+								};
+								if (const auto target = known(1);
+								    target && (!entity_ids.contains(target->number) ||
+								               target->number == instance.at("id").get<std::int64_t>()))
+									invalid(path, "following target must identify another placed entity");
+								for (const auto index : {2u, 3u})
+									if (const auto value = known(index);
+									    value && (value->number <= 0 || value->number > 1000000000))
+										invalid(path, "following distance and speed must be positive bounded values");
+							}
+					for (const auto &reference : program.references)
+						check_follow(reference);
+				};
+				check_follow(catalog.tree_programs.at(system.controller));
+			}
+		}
 		for (const auto &slot : map["ship_slots"])
 		{
 			if (slot.contains("mandatory") && !slot.at("mandatory").is_boolean())
