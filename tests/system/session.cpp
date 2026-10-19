@@ -252,8 +252,27 @@ int main()
 		{
 			return parse_json(read_pack(archive).files().at("session.json"), "session.json").at("state");
 		};
-		require(state(session->save()) == state(recovered->save()),
-		        "Fresh console recovery must preserve tick, motion, requests, remainders and delegated work");
+		const auto uninterrupted = state(session->save());
+		auto resumed = state(recovered->save());
+		for (std::size_t body = 0; body < uninterrupted.at("bodies").size(); ++body)
+		{
+			const auto &original = uninterrupted.at("bodies")[body];
+			if (!original.contains("console_controllers"))
+				continue;
+			const auto &controllers = original.at("console_controllers").at("controllers");
+			for (std::size_t i = 0; i < controllers.size(); ++i)
+			{
+				const auto generation = controllers[i].at("generation").get<std::uint64_t>();
+				auto &recovered_generation =
+				    resumed["bodies"][body]["console_controllers"]["controllers"][i]["generation"];
+				const auto transitions = controllers[i].at("human").get<bool>() ? 2 : 0;
+				require(recovered_generation.get<std::uint64_t>() == generation + transitions,
+				        "Portable clear/reclaim invalidates human Controller generations without changing AI owners");
+				recovered_generation = generation;
+			}
+		}
+		require(uninterrupted == resumed, "Fresh recovery preserves all physical and Controller continuation state "
+		                                  "apart from fresh authority generations");
 		auto server = make_host_world();
 		server->restore(portable);
 		server->resume_server();

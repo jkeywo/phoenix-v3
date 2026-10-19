@@ -641,7 +641,9 @@ void knowledge()
 	runtime.register_console({13, 1, 30, {restricted}, false});
 	runtime.register_console({21, 2, 40, {role}, true});
 	runtime.register_system(101, 11);
-	runtime.register_system(102, 12);
+	runtime.register_controller(1001, 12);
+	runtime.register_controller(1002, 12);
+	runtime.register_controller(1003, 11);
 	runtime.register_ai(1001, 12);
 	runtime.register_ai(1002, 12);
 	KnowledgeRecordInput input;
@@ -663,8 +665,12 @@ void knowledge()
 	require(published.size() == 1 && published[0].value.fields.size() == 1 &&
 	            published[0].value.provenance.observed_tick == 0 && published[0].value.provenance.uncertainty == 4,
 	        "explicit publication must preserve only selected facts and original evidence provenance");
-	require(runtime.read_ship(13).empty() && runtime.read_ship(21).empty(),
-	        "publication must preserve reader permissions and isolate different ships");
+	const auto public_reader = runtime.read_ship(13);
+	require(public_reader.size() == 1 && public_reader[0].value.fields.size() == 1 &&
+	            std::get<std::int64_t>(public_reader[0].value.fields.at(amount)) == 7 &&
+	            runtime.read_console(13).empty() && runtime.read_ship(21).empty(),
+	        "explicitly published evidence is visible to every same-entity reader while private Console evidence "
+	        "and other entities remain isolated");
 	input.provenance.observed_tick = 1;
 	input.provenance.revision = 2;
 	input.fields[amount] = std::int64_t{9};
@@ -682,18 +688,18 @@ void knowledge()
 	input.provenance.revision = 1;
 	require(!runtime.write_console(11, input, 2), "delayed old reports must not replace newer evidence");
 	CoordinationInput message;
-	message.sender_system = 101;
+	message.sender_system = 1003;
 	message.origin = ControlOrigin::AI;
-	message.destination = {MessageDestinationKind::System, 102};
+	message.destination = {MessageDestinationKind::Controller, 1001};
 	message.payload = input;
-	message.payload.provenance = {101, 2, 4, 0, EvidenceKind::Intent};
+	message.payload.provenance = {1003, 2, 4, 0, EvidenceKind::Intent};
 	message.payload.fields.erase(note);
 	message.delay = 2;
 	message.request_key = 5;
 	const auto message_id = runtime.send(message, 2);
 	require(runtime.advance(3).empty(), "Coordination cannot deliver before its simulation-time delay");
 	runtime.set_human_control(12, true);
-	runtime.set_system_human_control(102, true);
+	runtime.set_system_human_control(1001, true);
 	const auto queued = runtime.save();
 	KnowledgeRuntime resumed(definition);
 	resumed.restore(queued);
@@ -702,18 +708,27 @@ void knowledge()
 	            delivered_resumed.size() == 1 && runtime.save() == resumed.save(),
 	        "pending AI reports must resolve current human control at delivery and resume without rerouting or "
 	        "duplication");
-	require(runtime.receive(1001).size() == 1 && runtime.receive(1002).size() == 1 && runtime.receive(1001).empty(),
-	        "each AI must retain an independent message-consumption cursor");
+	runtime.set_system_human_control(1001, false);
+	require(runtime.receive(1001).size() == 1 && runtime.receive(1002).empty() && runtime.receive(1001).empty(),
+	        "addressed work survives handover but never enters another Controller's inbox");
 	require(runtime.message_history(12).size() == 1 && !runtime.message_history(12)[0].notify_human,
 	        "reconnecting message history must not replay old human notification cues");
 	runtime.private_memory(1001).values[amount] = std::int64_t{99};
 	require(runtime.private_memory(1002).values.empty(),
 	        "private AI memory must remain independent on a shared Console");
+	message.destination = {MessageDestinationKind::Console, 12};
+	message.request_key = 0;
+	message.payload.provenance.observed_tick = 4;
+	message.payload.provenance.revision = 5;
+	runtime.send(message, 4);
+	runtime.advance(6);
+	require(runtime.receive(1001).size() == 1 && runtime.receive(1002).size() == 1 && runtime.receive(1001).empty(),
+	        "Console-wide delivery retains independent Controller consumption cursors");
 	message.destination = {MessageDestinationKind::Console, 21};
 	rejects(
 	    [&]
 	    {
-		    runtime.send(message, 4);
+		    runtime.send(message, 6);
 	    },
 	    "invalid cross-ship destinations must fail instead of widening into broadcasts");
 	require(runtime.stale(runtime.read_ship(12).back(), 5),
