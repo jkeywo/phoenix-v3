@@ -2047,7 +2047,8 @@ struct World::Impl
 		const auto address = claims.at(claimant);
 		const auto &console = *seat(address.ship, address.console);
 		const auto &spec = definition(address.ship);
-		if (entities.at(address.ship).has<EntityControls>() && !command.action.starts_with("message."))
+		if (entities.at(address.ship).has<EntityControls>() && !command.action.starts_with("message.") &&
+		    !command.action.starts_with("publish."))
 			return controller_meta(address, command, execute);
 		if (command.action == "away")
 		{
@@ -2133,6 +2134,9 @@ struct World::Impl
 		}
 		if (command.action.starts_with("publish."))
 		{
+			if (!command.system.empty() || !command.controller.empty() || !command.channel.empty() ||
+			    command.generation || command.request_id || command.value)
+				return false;
 			const auto name = command.action.substr(8);
 			if (std::find(spec.publications.begin(), spec.publications.end(), name) == spec.publications.end())
 				return false;
@@ -2329,6 +2333,25 @@ bool World::can_claim(std::uint64_t console, EntityId ship, const std::string &n
 	return impl_->definition(ship).explicit_stations || entity.has<NamedEquipment>() ||
 	       (entity.has<Movable>() && (legacy_component<Engine>(entity) != nullptr) &&
 	        (legacy_component<Steering>(entity) != nullptr));
+}
+bool World::prepare_console_profile(const ConsoleAddress &address, const std::string &profile)
+{
+	if (ticks() || !impl_->claims.empty() || !impl_->entities.contains(address.ship))
+		return false;
+	auto entity = impl_->entities.at(address.ship);
+	if (!entity.has<EntityControls>())
+		return false;
+	auto &controls = entity.get_mut<EntityControls>();
+	if (!controls.profiles.contains(address.console))
+		return false;
+	for (std::size_t i = 0; i < controls.layout.profiles.size(); ++i)
+		if (controls.layout.profiles[i].id == profile)
+		{
+			controls.profiles[address.console] = i;
+			impl_->refresh_controllers(address.ship);
+			return true;
+		}
+	return false;
 }
 bool World::claim(std::uint64_t console, EntityId ship, const std::string &name)
 {

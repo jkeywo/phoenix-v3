@@ -116,6 +116,12 @@ Entity Properties edits explicit Controller layouts, owned command sections, phy
 
 Isolated Test now reports bounded explicit Controller identities, operator generations, active states, transitions, diagnostics and command receipts. Independent verification built native and the Workshop test target, verified both production packs and passed a synthetic edit/export/reopen/Test journey with inherited bindings, actual command consumption and transactional refusal of an invalid replacement. Actual ImGui authoring interaction remains a manual acceptance gap. This is a step 6 foundation; maintained-content migration and the remaining integration requirements are still outstanding.
 
+## Lobby and settings complexity receipt
+
+Explicit-layout Consoles offer authored profiles in the lobby, local station Ready screen and both Console settings paths. Lobby ownership checks prevent changing another ship's or another player's Console. Changing a profile regenerates the prepared world and resets readiness; selecting the current profile is a no-op. Initial selections apply before the first tick and claims. Recovery retains saved allocation, with subsequent changes through authenticated in-game settings. Lobby negotiation uses `pregame-2`; direct hosts recognise pregame discovery independently of that version.
+
+Independent verification passed the native build, Controller runtime and session suites, and the real-signalling lobby journey. The journey selects an AI profile, confirms readiness invalidation and verifies AI allocation after launch despite a human Console claim. It also verifies explicit-layout Console publication and rejects a forged Controller publication envelope. Preparation/restore tests establish saved profile retention and refusal of setup mutations after claim or tick. Actual graphical lobby/settings interaction remains pending, as do legacy runtime removal and maintained-content migration.
+
 ## Compiler foundation receipt
 
 The first incremental change adds Controller addresses, typed setting/request channel metadata, physical consumer indices and Console profile allocations through `compile_controllable_layout`. Production loading verifies explicit layout schema 1, shared inputs, canonical enabled-channel aliases, input conflicts, fitted capability checks, speed bounds and request single-executor rules. Legacy whole-entity timed policies convert to one Controller rather than duplicate evaluation per actuator.

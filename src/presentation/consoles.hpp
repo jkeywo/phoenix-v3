@@ -120,11 +120,21 @@ class ConsoleSurface final : public Rml::EventListener
 			}
 		}
 		else if (model_.observation())
+		{
+			if (model_.observation()->gameplay.contains("profile"))
+				markup +=
+				    "<p>" + localise("Complexity") + ": " +
+				    Rml::StringUtilities::EncodeRml(model_.observation()->gameplay.at("profile").get<std::string>()) +
+				    "</p>";
 			for (const auto &control : model_.observation()->gameplay.value("controls", Json::array()))
 				if (control.value("action", "") == "away")
 					markup +=
 					    settings_button(descriptor_action(control.at("id")),
 					                    control.value("value", 0) ? "Away - hand control to AI" : "Resume control");
+				else if (control.value("action", "") == "preset")
+					markup += settings_button(descriptor_action(control.at("id")),
+					                          "Complexity: " + control.value("label", std::string{}));
+		}
 		markup += settings_button("local-settings.close", "Return to station") + "</div>";
 		if (markup != local_settings_markup_)
 		{
@@ -396,6 +406,22 @@ p {display:block;font-size:.85em;margin:4px 0;}
 			}
 			signature_.clear();
 			return true;
+		}
+		if (action.starts_with("complexity/"))
+		{
+			const auto lobby = app_->session->lobby();
+			if (!lobby.active || lobby.launched)
+				return false;
+			for (const auto &seat : lobby.consoles)
+				if (seat.local_screen == route_)
+				{
+					LobbyCommand command{LobbyAction::select_profile};
+					command.slot = seat.slot;
+					command.console = seat.id;
+					command.profile = action.substr(11);
+					return app_->session->lobby_command(command);
+				}
+			return false;
 		}
 		if (action == "ready")
 		{
@@ -785,6 +811,8 @@ p {display:block;font-size:.85em;margin:4px 0;}
 		const bool engineering = !cards.empty();
 		document_->SetClass("engineering", engineering);
 		std::string title = "Console", description;
+		std::string complexity;
+		std::vector<std::string> complexity_choices;
 		bool ready = false;
 		if (pregame)
 		{
@@ -794,6 +822,8 @@ p {display:block;font-size:.85em;margin:4px 0;}
 				{
 					title = seat.name;
 					ready = seat.ready;
+					complexity = seat.profile;
+					complexity_choices = seat.profiles;
 					for (const auto &member : lobby.members)
 						if (member.id == seat.member && !profile_open_)
 						{
@@ -824,7 +854,9 @@ p {display:block;font-size:.85em;margin:4px 0;}
 		// Authored widgets still determine controls, placement and authority.
 		std::string signature = (layout ? layout->dump() : "vacant") + (app.pseudo_locale ? "pseudo" : "normal") +
 		                        (pregame ? ready ? "ready" : "waiting" : "running") + (profile_open_ ? "profile" : "") +
-		                        (profile_open_ ? "" : profile_name_);
+		                        (profile_open_ ? "" : profile_name_) + "/complexity/" + complexity;
+		for (const auto &choice : complexity_choices)
+			signature += "/" + choice;
 		if (model_.observation())
 			signature += "/" + std::to_string(model_.observation()->own.id) + "/" + model_.observation()->console;
 		for (const auto &pad : pads)
@@ -911,6 +943,14 @@ p {display:block;font-size:.85em;margin:4px 0;}
 				        "</p>" + button("ready", ready ? "Not Ready" : "Ready") + "<p id=\"countdown\"/></div>";
 			if (pregame)
 			{
+				if (!complexity_choices.empty())
+				{
+					lobby += "<div class=\"ready-card\"><p>" + localise("Complexity") + ": " +
+					         Rml::StringUtilities::EncodeRml(complexity) + "</p>";
+					for (const auto &choice : complexity_choices)
+						lobby += button("complexity/" + choice, choice);
+					lobby += "</div>";
+				}
 				button("profile", "Edit profile");
 				const float tw = terminal_.value("display_width", 264.f), sw = terminal_.at("size").at(0),
 				            sh = terminal_.at("size").at(1);

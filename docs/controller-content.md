@@ -40,6 +40,8 @@ For example, this fragment gives two engines one throttle:
 
 To author two throttles, declare two Controllers or two owned channels and bind each engine to one channel. The compiler rejects two channels supplying the same physical input, including aliases. Ordinary numeric settings remain accepted until changed. `impulse` is a one-shot request and currently requires one executor. Request IDs identify retries; replaying an accepted ID does not repeat its effect. Operator generations reject writes queued before a handover. Held thrust, steering and boost are neutralised when authority changes.
 
+Players select a Console's complexity profile in the lobby or its settings. A lobby change regenerates the prepared world and resets readiness; reselecting the current profile is a no-op. A player can configure their selected Console, and a ship host can configure its unoccupied or local Consoles. Another ship's or another player's Console cannot be configured through that route. In-game settings use the ordinary authenticated Console command path. Recovery retains the saved live profile and offers changes through settings after launch.
+
 ## Controller trees and observations
 
 Use `context: controller`. Declare `command_bindings` for the channels the tree owns; each supplies `command.<channel>`, an internal intent and `write.<channel>`. Declare `type: boolean` for boolean channels and `semantics: request` for request channels. Default types and semantics are integer and setting.

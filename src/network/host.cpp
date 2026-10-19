@@ -213,7 +213,7 @@ class NetworkHost final : public SessionPort
 			return;
 		auto found = clients_.find(sender);
 		auto packet = decode_packet(bytes, sender, options_.link.self, "lobby", "");
-		if (packet && packet->type == "hello" && packet->body.value("protocol", std::string{}) == "pregame-1")
+		if (packet && packet->type == "hello" && packet->body.value("protocol", std::string{}).starts_with("pregame-"))
 		{
 			send(sender, "refused", {{"protocol", "direct"}, {"reason", "Use direct ship-server admission"}}, true);
 			return;

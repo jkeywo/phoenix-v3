@@ -116,6 +116,16 @@ public:
 			throw std::runtime_error("The local ship needs an authored console");
 		auto candidate = std::make_unique<World>();
 		candidate->load(catalog_, setup.mission, setup.ships);
+		for (const auto &[slot, profiles] : setup.console_profiles)
+		{
+			const auto target = candidate->ship_for_slot(slot);
+			if (!target || !setup.ships.contains(slot))
+				throw std::runtime_error("Console profile names an unselected slot");
+			for (const auto &[console, profile] : profiles)
+				if (!candidate->prepare_console_profile({*target, console}, profile))
+					throw std::runtime_error("Invalid initial Console complexity: " + slot + "/" + console + "/" +
+					                         profile);
+		}
 		const auto controlled = candidate->ship_for_slot(setup.local_slot);
 		auto selected_console = setup.local_console;
 		if (!claim_local && selected_console.empty() && controlled)

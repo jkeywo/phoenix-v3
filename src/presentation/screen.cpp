@@ -337,7 +337,8 @@ void prepare_settings(Application &app)
 		if (app.screen != Screen::settings || !app.session)
 			return false;
 		for (const auto &[control, text] : app.screen_controls)
-			if (control == id && (settings_ui::approval(id) || id == "settings.away" || id == "settings.resume"))
+			if (control == id && (settings_ui::approval(id) || id == "settings.away" || id == "settings.resume" ||
+			                      id.starts_with("settings.profile/")))
 				return settings_ui::session_action(app, id);
 		return false;
 	};

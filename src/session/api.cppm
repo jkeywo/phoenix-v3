@@ -43,6 +43,8 @@ struct LobbyConsole
 	std::string slot, id, name, member;
 	std::uint64_t local_screen = 0;
 	bool ready = false;
+	std::string profile;
+	std::vector<std::string> profiles;
 };
 struct LobbyProjection
 {
@@ -61,13 +63,15 @@ enum class LobbyAction
 	ready,
 	unready,
 	leave,
-	assign_local_console
+	assign_local_console,
+	select_profile
 };
 struct LobbyCommand
 {
 	LobbyAction action;
 	std::string member, slot, ship, console;
 	std::uint64_t screen = 0;
+	std::string profile;
 };
 struct GameSetup
 {
@@ -75,6 +79,7 @@ struct GameSetup
 	std::map<std::string, std::string> ships;
 	std::string local_slot;
 	std::string local_console;
+	std::map<std::string, std::map<std::string, std::string>> console_profiles;
 };
 struct ConsoleSeat
 {

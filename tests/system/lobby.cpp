@@ -52,6 +52,11 @@ int main(int argc, char **argv)
 		 {"schema":"test.public","producer":"crew","fields":{"enabled":"enabled"}}])json");
 		public_ship["publications"] = Json::parse(R"json([
 		 {"id":"engine-enabled","source_console":"main","schema":"test.public","subject":0,"fields":["enabled"],"live":true}])json");
+		public_ship["control_layout"] = Json::parse(R"json({"schema":1,"default_profile":"direct",
+		 "controllers":[{"id":"propulsion","console":"main","fallback":"hold","commands":[
+		  {"id":"speed","action":"speed_mm_s","consumers":["engine"]}]}],
+		 "profiles":[{"id":"direct","consoles":{"main":{"human":["propulsion"],"ai":[]}}},
+		 {"id":"automatic","consoles":{"main":{"human":[],"ai":["propulsion"]}}}]})json");
 		const auto original = defs["maps"][0]["ship_slots"][0];
 		for (const auto &id : {"second", "mandatory", "optional"})
 		{
@@ -219,6 +224,41 @@ int main(int argc, char **argv)
 			    return host->lobby().countdown_ms < 0;
 		    });
 		require(!host->running() && !participating->running(), "Cancellation does not activate either server");
+		LobbyCommand complexity{LobbyAction::select_profile, "", "second", "", "main"};
+		complexity.profile = "automatic";
+		require(!host->lobby_command(complexity), "Organiser cannot change another ship's occupied Console complexity");
+		LobbyCommand unknown_profile{LobbyAction::select_profile, "", "test.slot", "", "main"};
+		unknown_profile.profile = "missing";
+		require(!host->lobby_command(unknown_profile), "Lobby rejects unknown authored complexity");
+		require(crew->lobby_command({LobbyAction::ready}), "Crew can ready before changing complexity");
+		pump(
+		    [&]
+		    {
+			    return host->lobby().countdown_ms >= 0;
+		    });
+		require(crew->lobby_command(complexity), "Console owner chooses authored automatic complexity");
+		pump(
+		    [&]
+		    {
+			    const auto lobby = host->lobby();
+			    return lobby.countdown_ms < 0 && std::any_of(
+			                                         lobby.consoles.begin(), lobby.consoles.end(),
+			                                         [](const auto &seat)
+			                                         {
+				                                         return seat.slot == "second" && seat.id == "main" &&
+				                                                seat.profile == "automatic";
+			                                         });
+		    });
+		require(!host->running(), "Complexity change invalidates readiness before simulation starts");
+		pump(
+		    [&]
+		    {
+			    for (const auto &member : host->lobby().members)
+				    if (member.id == winner)
+					    return member.verified;
+			    return false;
+		    });
+		require(host->lobby_command(local_ready), "Local participant re-readies regenerated setup");
 		crew->lobby_command({LobbyAction::ready});
 		pump(
 		    [&]
@@ -233,6 +273,9 @@ int main(int argc, char **argv)
 			    return host->console_observation(3).has_value();
 		    });
 		require(!host->console_observation(2), "Moving a local console does not retain its old display claim");
+		const auto selected_controllers = crew->observation()->gameplay.at("controllers");
+		require(selected_controllers.size() == 1 && !selected_controllers[0].at("human").get<bool>(),
+		        "Lobby complexity reaches launched World before human Console handover");
 		require(host->release_console(3),
 		        "Releasing a local display also releases its lobby reservation for late crew");
 		require(
@@ -302,7 +345,18 @@ int main(int argc, char **argv)
 					    guarded->claim_console(9, seat.address);
 			    return false;
 		    });
-		require(guarded->console_command(9, {guarded->console_observation(9)->own.id, "publish.engine-enabled", 0, {}}),
+		const auto publication_observation = guarded->console_observation(9);
+		const auto &publication_controls = publication_observation->gameplay.at("controls");
+		require(std::any_of(publication_controls.begin(), publication_controls.end(),
+		                    [](const auto &control)
+		                    {
+			                    return control.value("action", "") == "publish.engine-enabled";
+		                    }),
+		        "explicit Console offers its permitted publication descriptor");
+		OperatingCommand malformed_publication{publication_observation->own.id, "publish.engine-enabled", 0, {}};
+		malformed_publication.controller = "propulsion";
+		require(!guarded->console_command(9, malformed_publication), "publication refuses forged Controller envelope");
+		require(guarded->console_command(9, {publication_observation->own.id, "publish.engine-enabled", 0, {}}),
 		        "synthetic host explicitly publishes its permitted live record");
 		pump(
 		    [&]

@@ -99,6 +99,17 @@ inline bool session_action(Application &app, const std::string &id)
 		return view && app.session->console_command(app.settings_console,
 		                                            {view->own.id, "away", id == "settings.away" ? 1 : 0, {}});
 	}
+	if (id.starts_with("settings.profile/"))
+	{
+		const auto view = app.session->console_observation(app.settings_console);
+		if (!view)
+			return false;
+		for (const auto &control : view->gameplay.value("controls", Json::array()))
+			if (control.value("action", "") == "preset" && control.value("id", "") == id.substr(17))
+				return app.session->console_command(
+				    app.settings_console, {view->own.id, "preset", control.at("value").get<std::int64_t>(), {}});
+		return false;
+	}
 	return app.session->session_action(id);
 }
 inline auto approvals(const Application &app)
@@ -115,6 +126,13 @@ inline auto approvals(const Application &app)
 				if (control.value("action", "") == "away")
 					result.emplace_back(control.value("value", 0) ? "settings.away" : "settings.resume",
 					                    control.value("value", 0) ? "Away - hand control to AI" : "Resume control");
+				else if (control.value("action", "") == "preset")
+					result.emplace_back(
+					    "settings.profile/" + control.at("id").get<std::string>(),
+					    "Complexity: " + control.value("label", std::string{}) +
+					        (view->gameplay.value("profile", std::string{}) == control.value("label", std::string{})
+					             ? " (selected)"
+					             : ""));
 	return result;
 }
 } // namespace phoenix::settings_ui

@@ -48,6 +48,26 @@ int main()
 	try
 	{
 		const auto content = load(controller_fixture());
+		World prepared;
+		prepared.load(content, "test.map");
+		require(!prepared.prepare_console_profile({1, "drive"}, "missing") &&
+		            !prepared.prepare_console_profile({1, "absent"}, "automatic"),
+		        "preparation validates authored Console and complexity identities");
+		require(prepared.prepare_console_profile({1, "drive"}, "automatic"),
+		        "unclaimed tick-zero World accepts selected Console complexity");
+		require(prepared.claim(101, 1, "drive") && !controller(prepared, 101, "propulsion").at("human").get<bool>(),
+		        "prepared AI allocation survives initial human Console claim");
+		require(!prepared.prepare_console_profile({1, "drive"}, "direct"),
+		        "preparation cannot bypass authenticated command path after a claim");
+		prepared.tick();
+		require(!prepared.prepare_console_profile({1, "drive"}, "direct"),
+		        "preparation cannot change a running simulation profile");
+		World prepared_restore;
+		prepared_restore.restore(content, prepared.save());
+		prepared_restore.clear_claims();
+		require(prepared_restore.claim(101, 1, "drive") &&
+		            !controller(prepared_restore, 101, "propulsion").at("human").get<bool>(),
+		        "saved prepared complexity survives recovery and a new human claim");
 		World world;
 		world.load(content, "test.map");
 		require(world.claim(101, 1, "drive") && world.claim(102, 1, "observer"), "Consoles claim independently");

@@ -111,7 +111,7 @@ class GameLobby final : public SessionPort
 		Json body{{"role", role_ == JoinRole::gm ? "gm" : "client"},
 		          {"join_role", static_cast<int>(role_)},
 		          {"nonce", nonce_},
-		          {"protocol", "pregame-1"}};
+		          {"protocol", "pregame-2"}};
 		if (!key_.empty())
 			body["resume"] = encode_packet({"lobby", self_, target_, "hello", body}, key_);
 		send(target_, "hello", body, true);
@@ -159,6 +159,7 @@ class GameLobby final : public SessionPort
 		    {"members", Json::array()},
 		    {"consoles", Json::object()}};
 		data["console_names"] = Json::object();
+		data["console_profiles"] = Json::object();
 		for (const auto &slot : slots())
 		{
 			data["slots"].push_back({{"id", slot.id},
@@ -167,12 +168,31 @@ class GameLobby final : public SessionPort
 			                         {"mandatory", slot.mandatory},
 			                         {"allowed", slot.allowed_ships}});
 			if (!slot.ship.empty())
+			{
+				const auto &entity = source_->catalog().entities.at(slot.ship);
+				if (entity.contains("control_layout") && !recovery_)
+				{
+					const auto layout = compile_controllable_layout(source_->catalog(), slot.ship);
+					for (const auto &seat : resolve_consoles(source_->catalog(), slot.ship))
+					{
+						Json choices = Json::array();
+						for (const auto &profile : layout.profiles)
+							choices.push_back(profile.id);
+						auto selected = layout.profiles.at(layout.default_profile).id;
+						if (selection_.console_profiles.contains(slot.id) &&
+						    selection_.console_profiles.at(slot.id).contains(seat.id))
+							selected = selection_.console_profiles.at(slot.id).at(seat.id);
+						data["console_profiles"][slot.id][seat.id] = {{"selected", selected},
+						                                              {"choices", recovery_ ? Json::array() : choices}};
+					}
+				}
 				for (const auto &seat : resolve_consoles(source_->catalog(), slot.ship))
 				{
 					data["consoles"][slot.id].push_back(seat.id);
 					const auto &definition = source_->catalog().consoles.at(seat.definition);
 					data["console_names"][slot.id][seat.id] = definition.value("name", seat.id);
 				}
+			}
 		}
 		for (const auto &[id, peer] : peers_)
 		{
@@ -346,7 +366,10 @@ class GameLobby final : public SessionPort
 			send(cmd.member, "removed", {{"reason", "Removed from lobby by host"}});
 			peers_.erase(cmd.member);
 			if (!recovery_ && removed.role == JoinRole::ship_server)
+			{
 				selection_.ships.erase(removed.slot);
+				selection_.console_profiles.erase(removed.slot);
+			}
 			invalidate();
 			return true;
 		}
@@ -365,6 +388,47 @@ class GameLobby final : public SessionPort
 		}
 		if (!member.approved || !member.connected)
 			return false;
+		if (cmd.action == LobbyAction::select_profile)
+		{
+			if (launched_ || recovery_ || member.role == JoinRole::gm || member.slot != cmd.slot ||
+			    !selection_.ships.contains(cmd.slot))
+				return false;
+			const bool occupied_elsewhere = std::any_of(peers_.begin(), peers_.end(),
+			                                            [&](const auto &peer)
+			                                            {
+				                                            return peer.first != id &&
+				                                                   peer.second.member.slot == cmd.slot &&
+				                                                   peer.second.member.console == cmd.console;
+			                                            });
+			if (occupied_elsewhere || (member.console != cmd.console && member.role != JoinRole::ship_server))
+				return false;
+			const auto &ship = selection_.ships.at(cmd.slot);
+			if (!source_->catalog().entities.at(ship).contains("control_layout"))
+				return false;
+			const auto seats = resolve_consoles(source_->catalog(), ship);
+			if (std::none_of(seats.begin(), seats.end(),
+			                 [&](const auto &seat)
+			                 {
+				                 return seat.id == cmd.console;
+			                 }))
+				return false;
+			const auto layout = compile_controllable_layout(source_->catalog(), ship);
+			if (std::none_of(layout.profiles.begin(), layout.profiles.end(),
+			                 [&](const auto &profile)
+			                 {
+				                 return profile.id == cmd.profile;
+			                 }))
+				return false;
+			const auto selected = selection_.console_profiles.contains(cmd.slot) &&
+			                              selection_.console_profiles.at(cmd.slot).contains(cmd.console)
+			                          ? selection_.console_profiles.at(cmd.slot).at(cmd.console)
+			                          : layout.profiles.at(layout.default_profile).id;
+			if (selected == cmd.profile)
+				return true;
+			selection_.console_profiles[cmd.slot][cmd.console] = cmd.profile;
+			invalidate();
+			return true;
+		}
 		if (cmd.action == LobbyAction::claim_ship)
 		{
 			if (launched_ || member.role != JoinRole::ship_server)
@@ -385,6 +449,8 @@ class GameLobby final : public SessionPort
 			if (!member.slot.empty() && !recovery_)
 				selection_.ships.erase(member.slot);
 			const auto old_slot = member.slot;
+			selection_.console_profiles.erase(old_slot);
+			selection_.console_profiles.erase(cmd.slot);
 			member.slot = cmd.slot;
 			member.console.clear();
 			selection_.ships[cmd.slot] = cmd.ship;
@@ -457,7 +523,10 @@ class GameLobby final : public SessionPort
 			if (!launched_)
 			{
 				if (!recovery_ && member.role == JoinRole::ship_server)
+				{
 					selection_.ships.erase(member.slot);
+					selection_.console_profiles.erase(member.slot);
+				}
 				peers_.erase(id);
 				invalidate();
 			}
@@ -559,7 +628,7 @@ class GameLobby final : public SessionPort
 		if (!packet)
 		{
 			auto hello = decode_packet(bytes, sender, self_, "lobby", "");
-			if (!hello || hello->type != "hello" || hello->body.value("protocol", std::string{}) != "pregame-1")
+			if (!hello || hello->type != "hello" || hello->body.value("protocol", std::string{}) != "pregame-2")
 				return;
 			const auto role = hello->body.at("join_role").get<int>();
 			const std::string nonce = hello->body.at("nonce");
@@ -588,7 +657,7 @@ class GameLobby final : public SessionPort
 			else if (found->second.nonce != nonce || static_cast<int>(found->second.member.role) != role)
 				return;
 			send(sender, "welcome",
-			     {{"key", found->second.key}, {"epoch", epoch_}, {"nonce", nonce}, {"protocol", "pregame-1"}}, true);
+			     {{"key", found->second.key}, {"epoch", epoch_}, {"nonce", nonce}, {"protocol", "pregame-2"}}, true);
 			return;
 		}
 		auto &peer = found->second;
@@ -617,7 +686,7 @@ class GameLobby final : public SessionPort
 			const auto &b = packet->body;
 			if (!command(sender, {static_cast<LobbyAction>(b.at("action").get<int>()), b.value("member", std::string{}),
 			                      b.value("slot", std::string{}), b.value("ship", std::string{}),
-			                      b.value("console", std::string{})}))
+			                      b.value("console", std::string{}), 0, b.value("profile", std::string{})}))
 				send(sender, "lobby-error", {{"reason", "Lobby selection changed or is unavailable"}});
 		}
 		else if (packet->type == "pack-request" && peer.member.role == JoinRole::ship_server && packs_source_)
@@ -652,7 +721,7 @@ class GameLobby final : public SessionPort
 				return;
 			}
 			if (welcome->type == "welcome" && welcome->body.at("nonce") == nonce_ &&
-			    welcome->body.value("protocol", std::string{}) == "pregame-1")
+			    welcome->body.value("protocol", std::string{}) == "pregame-2")
 			{
 				const std::string key = welcome->body.at("key"), epoch = welcome->body.at("epoch");
 				if (!valid_hex_token(key) || !valid_hex_token(epoch))
@@ -1036,6 +1105,13 @@ public:
 			for (const auto &id : seats)
 			{
 				LobbyConsole seat{slot, id, id};
+				if (data.contains("console_profiles") && data.at("console_profiles").contains(slot) &&
+				    data.at("console_profiles").at(slot).contains(seat.id))
+				{
+					const auto &profiles = data.at("console_profiles").at(slot).at(seat.id);
+					seat.profile = profiles.at("selected");
+					seat.profiles = profiles.at("choices").get<std::vector<std::string>>();
+				}
 				if (data.contains("console_names") && data.at("console_names").contains(slot))
 				{
 					seat.name = data.at("console_names").at(slot).value(seat.id, seat.id);
@@ -1098,7 +1174,8 @@ public:
 		      {"member", cmd.member},
 		      {"slot", cmd.slot},
 		      {"ship", cmd.ship},
-		      {"console", cmd.console}});
+		      {"console", cmd.console},
+		      {"profile", cmd.profile}});
 		return true;
 	}
 	std::vector<std::pair<std::string, std::string>> lobby_controls() const override
@@ -1115,6 +1192,15 @@ public:
 				continue;
 			if (m.id != self_ || !m.approved)
 				continue;
+			if (m.role != JoinRole::gm)
+				for (const auto &seat : view.consoles)
+					if (seat.slot == m.slot &&
+					    (seat.member == self_ || (m.role == JoinRole::ship_server &&
+					                              (seat.member.empty() || (coordinator_ && seat.local_screen)))))
+						for (const auto &profile : seat.profiles)
+							result.emplace_back("lobby.profile/" + seat.slot + "/" + seat.id + "/" + profile,
+							                    "Complexity: " + seat.name + " / " + profile +
+							                        (profile == seat.profile ? " (selected)" : ""));
 			if (!m.slot.empty() && m.role != JoinRole::gm && m.verified)
 			{
 				bool crew =
@@ -1161,6 +1247,17 @@ public:
 	}
 	bool session_action(const std::string &id) override
 	{
+		if (id.starts_with("lobby.profile/"))
+		{
+			const auto split = id.find('/', 14), last = split == std::string::npos ? split : id.find('/', split + 1);
+			if (last == std::string::npos)
+				return false;
+			LobbyCommand command{LobbyAction::select_profile};
+			command.slot = id.substr(14, split - 14);
+			command.console = id.substr(split + 1, last - split - 1);
+			command.profile = id.substr(last + 1);
+			return lobby_command(command);
+		}
 		if (id == "lobby.ready" || id == "lobby.unready")
 			return lobby_command({id == "lobby.ready" ? LobbyAction::ready : LobbyAction::unready});
 		if (id.starts_with("lobby.approve/"))

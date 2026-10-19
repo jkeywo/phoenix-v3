@@ -25,6 +25,7 @@ Bytes export_fleet_setup(const HostAccess &source, const GameSetup &selection, c
 	if (slots.empty() || slots.size() > 16)
 		throw std::runtime_error("A fixed fleet needs between one and sixteen authored ship slots");
 	GameSetup game{selection.mission, {}, selection.local_slot, selection.local_console};
+	game.console_profiles = selection.console_profiles;
 	Json members = Json::object();
 	std::string creator;
 	unsigned number = 0;
