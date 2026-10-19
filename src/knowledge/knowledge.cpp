@@ -447,8 +447,7 @@ std::vector<KnowledgeRecord> KnowledgeRuntime::read_ship(KnowledgeId console) co
 	require(consoles_.contains(console), "unknown Console");
 	std::vector<KnowledgeRecord> result;
 	for (const auto &record : records_)
-		if (record.scope == KnowledgeScope::Ship && record.owner == consoles_.at(console).ship &&
-		    readable(console, record.value.schema))
+		if (record.scope == KnowledgeScope::Ship && record.owner == consoles_.at(console).ship)
 			result.push_back(record);
 	return result;
 }
@@ -501,20 +500,17 @@ std::vector<KnowledgeId> KnowledgeRuntime::resolve_recipients(KnowledgeId ship, 
 	for (const auto console : recipients)
 	{
 		require(consoles_.at(console).ship == ship, "inter-ship Coordination is unsupported");
-		require(readable(console, key), "message payload forbidden to destination Console");
+		require((destination.kind == MessageDestinationKind::Ship && schema(key).ship_publishable) ||
+		            readable(console, key),
+		        "message payload forbidden to destination Console");
 	}
 	require(!recipients.empty(), "destination has no eligible recipient");
 	return recipients;
 }
 bool KnowledgeRuntime::public_message_candidate(const CoordinationInput &input) const
 {
-	const auto ship = consoles_.at(systems_.at(input.sender_system)).ship;
 	if (input.destination.kind == MessageDestinationKind::Ship)
-		return std::any_of(controllers_.begin(), controllers_.end(),
-		                   [&](const auto actor)
-		                   {
-			                   return consoles_.at(systems_.at(actor)).ship == ship;
-		                   });
+		return true;
 	return controllers_.contains(input.sender_system) && input.origin == ControlOrigin::AI &&
 	       input.destination.kind == MessageDestinationKind::Controller && input.presentation.urgency >= 2;
 }
@@ -597,7 +593,7 @@ std::vector<CoordinationDelivery> KnowledgeRuntime::advance(KnowledgeTick tick)
 			targets.emplace(console, false);
 		if (publish)
 			for (const auto &[id, binding] : consoles_)
-				if (binding.ship == message.sender_ship && readable(id, message.value.payload.schema))
+				if (binding.ship == message.sender_ship)
 					targets.try_emplace(id, true);
 		if (message.value.human_seeking)
 			for (const auto &[id, binding] : consoles_)
@@ -606,9 +602,10 @@ std::vector<CoordinationDelivery> KnowledgeRuntime::advance(KnowledgeTick tick)
 					targets.try_emplace(id, true);
 		for (const auto &[console, offer_only] : targets)
 		{
-			if (!readable(console, message.value.payload.schema))
+			const bool private_reader = readable(console, message.value.payload.schema);
+			if (!publish && !private_reader)
 				continue;
-			if (!offer_only)
+			if (!offer_only && private_reader)
 				write_console(console, message.value.payload, tick);
 			const auto &v = message.value;
 			const auto addressed_human = (v.destination.kind == MessageDestinationKind::System ||
@@ -640,7 +637,8 @@ std::vector<CoordinationDelivery> KnowledgeRuntime::message_history(KnowledgeId 
 	require(consoles_.contains(console), "unknown Console");
 	std::vector<CoordinationDelivery> result;
 	for (const auto &delivery : deliveries_)
-		if (delivery.console == console && readable(console, delivery.message.value.payload.schema))
+		if (delivery.console == console &&
+		    (delivery.public_copy || readable(console, delivery.message.value.payload.schema)))
 		{
 			auto copy = delivery;
 			copy.notify_human = false;
@@ -1010,7 +1008,7 @@ void KnowledgeRuntime::restore(const Json &j)
 		require(restored.consoles_.contains(d.console), "saved delivery Console is unknown");
 		const bool valid_offer = d.offer_only && !addressed && (d.message.value.human_seeking || d.public_copy) &&
 		                         restored.consoles_.at(d.console).ship == d.message.sender_ship &&
-		                         restored.readable(d.console, d.message.value.payload.schema);
+		                         (d.public_copy || restored.readable(d.console, d.message.value.payload.schema));
 		require(d.sequence > previous_sequence && d.sequence < restored.next_delivery_ &&
 		            (d.offer_only ? valid_offer : addressed) && d.delivered_tick >= d.message.delivery_tick &&
 		            d.delivered_tick <= restored.current_tick_ &&

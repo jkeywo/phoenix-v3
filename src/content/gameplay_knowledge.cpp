@@ -633,9 +633,8 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 			                  name + ": unknown/unfitted message template '" + id + "'");
 			const auto &message = compiled.messages.at(id);
 			const auto &ship = compiled.ships.at(name);
-			if (entity.contains("control_layout") &&
-			    (message.destination_kind == MessageDestinationKind::Ship ||
-			     (message.destination_kind == MessageDestinationKind::Controller && message.presentation.urgency >= 2)))
+			if (message.destination_kind == MessageDestinationKind::Ship ||
+			    (message.destination_kind == MessageDestinationKind::Controller && message.presentation.urgency >= 2))
 			{
 				const auto &schema = knowledge_schema(compiled.knowledge, message.schema);
 				knowledge_require(schema.ship_publishable, name + ": public message requires publishable schema");
@@ -691,7 +690,8 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 			                                          recipients.size() == 1),
 			                  name + ": unknown/ambiguous message destination for '" + id + "'");
 			for (const auto *console : recipients)
-				knowledge_require(knowledge_readable(compiled.knowledge, *console, message.schema),
+				knowledge_require(message.destination_kind == MessageDestinationKind::Ship ||
+				                      knowledge_readable(compiled.knowledge, *console, message.schema),
 				                  name + ": message schema is forbidden to its destination");
 		}
 	for (const auto &[name, ship] : compiled.ships)
@@ -756,7 +756,8 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 				}
 				for (const auto &binding : gameplay_record_bindings(catalog.trees.at(controller.tree), catalog))
 					knowledge_require(
-					    knowledge_readable(compiled.knowledge, *owner, compiled.knowledge.schema(binding.schema)),
+					    binding.scope == GameplayTreeRecordScope::Ship ||
+					        knowledge_readable(compiled.knowledge, *owner, compiled.knowledge.schema(binding.schema)),
 					    name + ".control_layout." + controller.id + ": record binding forbidden to owning Console");
 			}
 	for (const auto &[name, entity] : catalog.entities)

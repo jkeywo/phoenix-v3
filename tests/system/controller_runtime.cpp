@@ -412,6 +412,59 @@ int main()
 			    load(wrong_resource_type);
 		    },
 		    "Catalog preserves boolean thermal flag type");
+		auto bounded_cooling = resource_observations;
+		bounded_cooling["entities"][0]["control_layout"]["controllers"][0]["commands"].push_back(
+		    {{"id", "cooling"}, {"action", "cooling_allocation"}, {"consumers", {"cooler"}}});
+		const auto cooling_layout = compile_controllable_layout(load(bounded_cooling), "test.controllable");
+		require(cooling_layout.controllers[0].commands.back().maximum == 40,
+		        "shared command bound derives from actual coolant source/link capacity");
+		bounded_cooling["entities"][0]["control_layout"]["controllers"][0]["commands"].back()["maximum"] = 41;
+		rejects(
+		    [&]
+		    {
+			    load(bounded_cooling);
+		    },
+		    "authored coolant command cannot exceed fitted capacity");
+		auto phantom_resource = controller_fixture();
+		phantom_resource["entities"][0]["control_layout"]["controllers"][0]["commands"].push_back(
+		    {{"id", "overdrive"}, {"action", "overdrive"}, {"consumers", {"port"}}});
+		rejects(
+		    [&]
+		    {
+			    load(phantom_resource);
+		    },
+		    "engine without a resource store cannot accept resource mode command");
+		auto nonowner_mode = resource_observations;
+		nonowner_mode["entities"][0]["systems"]["storage"] = {{"kind", "storage"}, {"power_store", "cell"}};
+		nonowner_mode["entities"][0]["control_layout"]["controllers"][0]["commands"].push_back(
+		    {{"id", "overdrive"}, {"action", "overdrive"}, {"consumers", {"port"}}});
+		rejects(
+		    [&]
+		    {
+			    load(nonowner_mode);
+		    },
+		    "resource consumer cannot take store mode authority from dedicated storage fitting");
+		auto unsafe_held = controller_fixture();
+		unsafe_held["entities"][0]["control_layout"]["controllers"][0]["commands"].push_back(
+		    {{"id", "held"},
+		     {"action", "longitudinal_thrust"},
+		     {"minimum", 1},
+		     {"initial", 1},
+		     {"consumers", {"port"}}});
+		rejects(
+		    [&]
+		    {
+			    load(unsafe_held);
+		    },
+		    "held input range must permit neutral authority handover");
+		auto active_request = request_source;
+		active_request["entities"][0]["control_layout"]["controllers"][0]["commands"][1]["initial"] = 1;
+		rejects(
+		    [&]
+		    {
+			    load(active_request);
+		    },
+		    "one-shot request must start idle without synthetic execution");
 		auto command_read_source = observations_source;
 		command_read_source["trees"][1].erase("system_bindings");
 		command_read_source["trees"][1]["command_reads"] = Json::array(
@@ -647,7 +700,7 @@ int main()
 		public_source["entities"][0]["stations"][0]["consoles"].push_back({{"id", "spectator"},
 		                                                                   {"definition", "test.console"},
 		                                                                   {"systems", Json::array()},
-		                                                                   {"knowledge_roles", {"crew"}}});
+		                                                                   {"knowledge_roles", Json::array()}});
 		public_source["messages"][0]["urgency"] = 2;
 		public_source["messages"][0]["automatic"] = true;
 		const auto public_content = load(public_source);
@@ -760,6 +813,45 @@ int main()
 		            human_target.observe(103)->gameplay.at("messages").empty() &&
 		            human_target.observe(103)->gameplay.at("shared").empty(),
 		        "current human recipient suppresses automatic AI-to-AI public copy");
+		auto shared_reader_source = public_source;
+		auto &shared_entity = shared_reader_source["entities"][0];
+		shared_entity["systems"]["aux"] = {{"kind", "engine"}, {"max_speed_mm_s", 17000}, {"acceleration_mm_s2", 1000}};
+		shared_entity["stations"][0]["consoles"][2]["feeds"] = {"aux"};
+		shared_entity["control_layout"]["controllers"].push_back(
+		    {{"id", "reader"},
+		     {"console", "spectator"},
+		     {"tree", "test.shared"},
+		     {"commands", Json::array({{{"id", "speed"}, {"action", "speed_mm_s"}, {"consumers", {"aux"}}}})}});
+		shared_entity["control_layout"]["profiles"][0]["consoles"]["spectator"] = {{"human", {"reader"}}};
+		shared_entity["control_layout"]["profiles"][1]["consoles"]["spectator"] = {{"ai", {"reader"}}};
+		shared_reader_source["trees"].push_back(
+		    Json::parse(R"json({"id":"test.shared","context":"controller","initial":"run",
+		 "command_bindings":[{"channel":"speed"}],
+		 "record_bindings":[{"name":"shared_amount","scope":"ship","schema":"request","field":"amount","subject":"self"}],
+		 "states":[{"id":"run","running":[{"action":"write.speed","arguments":[{"observation":"shared_amount"}]}]}]})json"));
+		shared_reader_source["maps"][0]["entities"].push_back(
+		    {{"id", 2}, {"definition", "test.controllable"}, {"x_mm", 1000000}, {"y_mm", 0}, {"heading_mdeg", 0}});
+		World shared_reader;
+		shared_reader.load(load(shared_reader_source), "test.map");
+		claim_public(shared_reader);
+		require(shared_reader.claim(104, 2, "spectator"), "other entity public reader claim");
+		for (const auto claimant : {101, 102, 103})
+			require(shared_reader.submit(claimant, {1, "preset", 1, {}}), "shared reader AI profile");
+		for (int tick = 0; tick < 8; ++tick)
+			shared_reader.tick();
+		const auto shared_reader_view = shared_reader.observe(103);
+		require(shared_reader_view->systems[0].requested == 6000,
+		        "Controller with no private reader role consumes same-entity published evidence");
+		const auto other_entity_view = shared_reader.observe(104);
+		for (const auto &record : other_entity_view->gameplay.at("shared"))
+			require(record.at("subject") != 1, "public record visibility never crosses entity boundary");
+		shared_reader_source["trees"].back()["record_bindings"][0]["scope"] = "console";
+		rejects(
+		    [&]
+		    {
+			    load(shared_reader_source);
+		    },
+		    "shared readability grants no Console-private reader authority");
 		auto ordinary_source = public_source;
 		ordinary_source["messages"][0]["urgency"] = 1;
 		World ordinary_messages;

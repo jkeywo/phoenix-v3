@@ -76,6 +76,85 @@ bool accepts(const FittedSystemSpec &fit, const Json &spec, OperatingAction acti
 	}
 	return false;
 }
+using CommandBounds = std::map<OperatingAction, std::pair<std::int64_t, std::int64_t>>;
+CommandBounds fitted_commands(const FittedSystemSpec &fit, Json spec, const ShipResourcesDefinition *resources,
+                              std::size_t index)
+{
+	CommandBounds result;
+	const auto add = [&](OperatingAction action)
+	{
+		const auto &contract = operating_action(action);
+		result[action] = {contract.minimum, contract.maximum};
+	};
+	const auto kind = fit.kind;
+	if (kind == OperatingSystem::Engine || kind == OperatingSystem::Steering || kind == OperatingSystem::Lateral ||
+	    kind == OperatingSystem::Boost || kind == OperatingSystem::Impulse)
+	{
+		spec["kind"] = std::string(operating_system_name(kind));
+		const auto flight = compile_flight(spec, "System " + fit.id);
+		for (auto action : {OperatingAction::SystemEnabled, OperatingAction::EngineEnabled, OperatingAction::Assisted,
+		                    OperatingAction::SelectContact})
+			add(action);
+		if (kind == OperatingSystem::Engine)
+		{
+			add(OperatingAction::Longitudinal);
+			add(OperatingAction::MatchSpeed);
+			result[OperatingAction::Speed] = {-flight.reverse_speed, flight.maximum_speed};
+		}
+		if (kind == OperatingSystem::Steering || flight.turn_rate)
+			add(OperatingAction::Heading);
+		if (flight.turn_rate)
+			add(OperatingAction::ManualSteering);
+		if (flight.lateral_acceleration)
+			add(OperatingAction::Lateral);
+		if (flight.boost_available)
+			add(OperatingAction::Boost);
+		if (flight.impulse_available)
+			add(OperatingAction::Impulse);
+	}
+	if (kind == OperatingSystem::Radar)
+	{
+		add(OperatingAction::SystemEnabled);
+		add(OperatingAction::RadarEnabled);
+	}
+	if (kind == OperatingSystem::Coolant)
+		add(OperatingAction::SystemEnabled);
+	if (!resources)
+		return result;
+	const auto &binding = resources->systems.at(index);
+	const auto &network = resources->network;
+	if (kind == OperatingSystem::Generator && binding.generator != no_resource)
+	{
+		add(OperatingAction::SystemEnabled);
+		result[OperatingAction::GeneratorOutput] = {0, network.generators[binding.generator].maximum_rate};
+	}
+	if (kind == OperatingSystem::Storage && binding.store != no_resource)
+	{
+		add(OperatingAction::SystemEnabled);
+		result[OperatingAction::ChargeLimit] = {0, network.stores[binding.store].charge_rate};
+		result[OperatingAction::DischargeLimit] = {0, network.stores[binding.store].discharge_rate};
+	}
+	if (kind == OperatingSystem::Distribution)
+	{
+		if (binding.group != no_resource)
+			add(OperatingAction::GroupAllocation);
+		if (binding.conduit != no_resource)
+			add(OperatingAction::LinkIsolation);
+	}
+	if (kind == OperatingSystem::Coolant && binding.cooling != no_resource)
+	{
+		const auto &link = network.cooling_links[binding.cooling];
+		result[OperatingAction::CoolingAllocation] = {
+		    0, std::min(link.capacity_rate, network.coolant_sources[link.source].removal_rate)};
+	}
+	if (binding.store != no_resource && binding.store_modes)
+	{
+		add(OperatingAction::Overdrive);
+		if (network.stores[binding.store].allows_override)
+			add(OperatingAction::ThermalOverride);
+	}
+	return result;
+}
 OperatingAction input_key(OperatingAction action)
 {
 	if (action == OperatingAction::EngineEnabled || action == OperatingAction::RadarEnabled)
@@ -176,6 +255,11 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			result.profiles.push_back({"direct", std::vector<bool>(result.controllers.size(), true)});
 		return result;
 	}
+	const auto resources = compile_ship_resources(catalog, entity_id);
+	std::vector<CommandBounds> capabilities;
+	for (std::size_t i = 0; i < systems.size(); ++i)
+		capabilities.push_back(
+		    fitted_commands(systems[i], entity.at("systems").at(systems[i].id), resources ? &*resources : nullptr, i));
 	const auto &layout = entity.at("control_layout");
 	control_require(layout.is_object() && layout.value("schema", 0) == 1, path,
 	                "unsupported layout schema (expected 1)");
@@ -246,28 +330,29 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 				control_require(consumer.is_string() && system_ids.contains(consumer.get<std::string>()), where,
 				                "unknown physical consumer");
 				const auto index = system_ids.at(consumer.get<std::string>());
-				control_require(accepts(systems[index], entity.at("systems").at(systems[index].id), command.action),
-				                where, "incompatible physical input");
+				control_require(capabilities[index].contains(command.action), where, "incompatible physical input");
 				control_require(inputs.emplace(index, input_key(command.action)).second, where,
 				                "physical input has multiple command sources");
-				if (command.action == OperatingAction::Speed)
-				{
-					const auto low =
-					    -entity.at("systems").at(systems[index].id).value("reverse_speed_mm_s", std::int64_t{0});
-					const auto high = systems[index].maximum;
-					control_require(!field.contains("minimum") || command.minimum >= low, where,
-					                "range exceeds physical input");
-					control_require(!field.contains("maximum") || command.maximum <= high, where,
-					                "range exceeds physical input");
-					command.minimum = std::max(command.minimum, low);
-					command.maximum = std::min(command.maximum, high);
-				}
+				const auto [low, high] = capabilities[index].at(command.action);
+				control_require(!field.contains("minimum") || command.minimum >= low, where,
+				                "range exceeds physical input");
+				control_require(!field.contains("maximum") || command.maximum <= high, where,
+				                "range exceeds physical input");
+				command.minimum = std::max(command.minimum, low);
+				command.maximum = std::min(command.maximum, high);
 				command.consumers.push_back(index);
 			}
 			control_require(command.minimum <= command.initial && command.initial <= command.maximum, where,
 			                "initial exceeds physical input");
 			control_require(command.semantics != CommandSemantics::Request || command.consumers.size() == 1, where,
 			                "one-shot request requires a single executor");
+			const bool held =
+			    command.action == OperatingAction::Longitudinal || command.action == OperatingAction::Lateral ||
+			    command.action == OperatingAction::ManualSteering || command.action == OperatingAction::Boost;
+			control_require(!held || (command.minimum <= 0 && command.maximum >= 0), where,
+			                "held input range must include neutral zero for handover");
+			control_require(command.semantics != CommandSemantics::Request || command.initial == 0, where,
+			                "request channels must start idle");
 			controller.commands.push_back(std::move(command));
 		}
 		if (!controller.tree.empty() && catalog.tree_programs.contains(controller.tree))
