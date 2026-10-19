@@ -9,6 +9,7 @@ module;
 #include <stdexcept>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 module phoenix.content;
@@ -727,6 +728,66 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 					    knowledge_readable(compiled.knowledge, *owner, compiled.knowledge.schema(binding.schema)),
 					    name + ".control_layout." + controller.id + ": record binding forbidden to owning Console");
 			}
+	for (const auto &[name, entity] : catalog.entities)
+	{
+		if (!entity.contains("systems"))
+			continue;
+		auto &ship = compiled.ships.at(name);
+		for (auto system = entity.at("systems").begin(); system != entity.at("systems").end(); ++system)
+		{
+			const auto reports = system.value().value("reporters", Json::array());
+			knowledge_require(reports.is_array() && reports.size() <= 128,
+			                  name + ": expected bounded physical reporters");
+			knowledge_require(reports.empty() || entity.contains("control_layout"),
+			                  name + ": reporters require Controller layout");
+			std::set<std::string> identities;
+			for (const auto &row : reports)
+			{
+				GameplayKnowledgeShipDefinition::Reporter report;
+				report.id = row.at("id").get<std::string>();
+				report.field = row.at("field").get<std::string>();
+				report.above = std::get<std::int64_t>(knowledge_scalar(row.at("above"), KnowledgeType::Integer));
+				report.message = row.at("message").get<std::string>();
+				report.recovery_message = row.value("recovery_message", std::string{});
+				report.debounce = knowledge_unsigned(row.value("debounce_ticks", Json(0)));
+				report.recovery = knowledge_unsigned(row.value("recovery_ticks", Json(0)));
+				report.minimum_gap = knowledge_unsigned(row.value("minimum_gap_ticks", Json(0)));
+				knowledge_require(valid_identifier(report.id) && identities.insert(report.id).second &&
+				                      knowledge_telemetry_source(report.field),
+				                  name + ": invalid reporter identity or telemetry source");
+				knowledge_require(!row.contains("kind") || row.at("kind") == "fact",
+				                  name + ": reporters only emit facts");
+				const auto owner = std::find_if(ship.consoles.begin(), ship.consoles.end(),
+				                                [&](const auto &console)
+				                                {
+					                                return console.console.id == ship.owners.at(system.key());
+				                                });
+				for (const auto &template_name : {report.message, report.recovery_message})
+				{
+					if (template_name.empty())
+						continue;
+					const auto allowed = entity.value("message_templates", Json::array());
+					knowledge_require(compiled.messages.contains(template_name) &&
+					                      std::find(allowed.begin(), allowed.end(), template_name) != allowed.end(),
+					                  name + ": reporter message is not permitted by entity");
+					const auto &message = compiled.messages.at(template_name);
+					knowledge_require(owner != ship.consoles.end() &&
+					                      knowledge_producible(compiled.knowledge, *owner, message.schema),
+					                  name + ": reporter Console cannot produce message schema");
+					state_tree::Program facts;
+					knowledge_verify_message_context(message, facts, name + ".reporter." + report.id);
+					for (const auto &[key, binding] : message.field_bindings)
+						knowledge_require(binding.source == GameplayKnowledgeBindingSource::Argument,
+						                  name + ": reporter payload must bind measured arguments");
+					for (const auto &[key, binding] : message.parameter_bindings)
+						knowledge_require(binding.source == GameplayKnowledgeBindingSource::Argument,
+						                  name + ": reporter presentation must bind measured arguments");
+				}
+				knowledge_require(!report.message.empty(), name + ": reporter requires warning template");
+				ship.reporters[system.key()].push_back(std::move(report));
+			}
+		}
+	}
 	return compiled;
 }
 } // namespace phoenix

@@ -47,6 +47,8 @@ public:
 	std::size_t ingest_system(EntityId ship, const std::string &system, KnowledgeRecordInput value, KnowledgeTick tick);
 	bool ingest_console(const ConsoleAddress &address, KnowledgeRecordInput value, KnowledgeTick tick);
 	const std::vector<std::string> &telemetry_names() const;
+	void verify_reporter_fields(const std::string &definition, const std::string &system,
+	                            const std::map<std::string, std::int64_t> &values) const;
 	std::size_t ingest_telemetry(EntityId ship, const std::string &system,
 	                             const std::vector<std::optional<KnowledgeValue>> &values, KnowledgeTick tick);
 	std::size_t ingest_telemetry(EntityId ship, const std::string &system,
@@ -81,7 +83,8 @@ public:
 	void acknowledge_system(EntityId ship, const std::string &system, KnowledgeId through_message);
 	KnowledgePrivateMemory &private_memory(EntityId ship, const std::string &system);
 	bool status_change(EntityId ship, const std::string &system, KnowledgeKey status, bool value, KnowledgeTick tick,
-	                   KnowledgeTick debounce, KnowledgeTick recovery_hysteresis, KnowledgeTick minimum_gap = 0);
+	                   KnowledgeTick debounce, KnowledgeTick recovery_hysteresis, KnowledgeTick minimum_gap = 0,
+	                   bool report_initial = true);
 	bool stale(const KnowledgeRecord &record, KnowledgeTick now) const;
 	GameplayKnowledgeProjection project(const ConsoleAddress &address) const;
 	Json project_json(const ConsoleAddress &address) const;
@@ -95,6 +98,7 @@ private:
 	KnowledgeRuntime runtime_;
 	std::map<std::string, GameplayKnowledgeShipDefinition> definitions_;
 	std::map<std::string, GameplayKnowledgeMessageDefinition> messages_;
+	Json reporter_contract_ = Json::object();
 	std::map<std::string, KnowledgeId> request_keys_;
 	std::vector<std::string> telemetry_names_;
 	std::map<std::string, std::size_t> telemetry_indices_;

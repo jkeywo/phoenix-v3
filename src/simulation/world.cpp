@@ -677,10 +677,16 @@ struct World::Impl
 		{
 			flecs::entity entity;
 			bool indexed = false;
+			std::map<EntityId, flecs::entity> *registry = nullptr;
+			EntityId id = 0;
 			~Construction()
 			{
 				if (!indexed)
+				{
+					if (registry)
+						registry->erase(id);
 					entity.destruct();
+				}
 			}
 		} construction{entity};
 		if (data.collider.mass)
@@ -764,9 +770,10 @@ struct World::Impl
 		entity.set<EquipmentIndex>(std::move(index));
 		if (data.controller)
 			entity.set<Controller>({*data.controller, {}});
-		entities.emplace(id, entity);
-		construction.indexed = true;
-		next_entity = std::max(next_entity, id + 1);
+		if (!entities.emplace(id, entity).second)
+			throw std::runtime_error("duplicate entity identity");
+		construction.registry = &entities;
+		construction.id = id;
 		if (data.layout)
 		{
 			EntityControls controls;
@@ -776,6 +783,19 @@ struct World::Impl
 			controls.controllers = data.controller_templates;
 			entity.set<EntityControls>(std::move(controls));
 		}
+		if (data.layout)
+			for (const auto &system : (*fittings(entity)).values)
+			{
+				const auto values = telemetry(id, system.ordinal);
+				knowledge.verify_reporter_fields(definition, system.id, values);
+				for (const auto &controller : data.controller_templates)
+					for (const auto &binding : controller.telemetry_reads)
+						if (binding.system == system.id && !values.contains(binding.field))
+							throw std::runtime_error("Controller observation field unavailable on fitted System " +
+							                         system.id + ": " + binding.field);
+			}
+		construction.indexed = true;
+		next_entity = std::max(next_entity, id + 1);
 		knowledge.register_ship(id, definition, ecs.get<Clock>().tick);
 		if (!data.default_preset.empty())
 			for (const auto &p : data.presets)

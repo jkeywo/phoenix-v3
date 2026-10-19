@@ -41,7 +41,8 @@ enum class ControlOrigin
 {
 	Human,
 	AI,
-	Scenario
+	Scenario,
+	Reporter
 };
 enum class MessageDestinationKind
 {
@@ -165,6 +166,7 @@ struct KnowledgeStatusLatch
 {
 	bool initialised = false, reported = false, candidate = false;
 	KnowledgeTick candidate_since = 0, last_report = 0;
+	bool reported_once = false;
 };
 class KnowledgeRuntime
 {
@@ -201,7 +203,8 @@ public:
 	std::vector<CoordinationMessage> pending_messages(std::size_t limit = 32) const;
 	// Reports transitions only after a stable candidate and a minimum report gap.
 	bool status_change(KnowledgeId producer, KnowledgeKey status, bool value, KnowledgeTick tick,
-	                   KnowledgeTick debounce, KnowledgeTick recovery_hysteresis, KnowledgeTick minimum_gap = 0);
+	                   KnowledgeTick debounce, KnowledgeTick recovery_hysteresis, KnowledgeTick minimum_gap = 0,
+	                   bool report_initial = true);
 	Json save() const;
 	void restore(const Json &state);
 

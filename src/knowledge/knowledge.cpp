@@ -512,8 +512,12 @@ KnowledgeId KnowledgeRuntime::send(CoordinationInput input, KnowledgeTick tick, 
 	require(tick >= current_tick_, "cannot send a message in the past");
 	require(input.payload.provenance.observed_tick <= tick, "message evidence is from the future");
 	require(systems_.contains(input.sender_system), "unknown sender System");
-	require(static_cast<unsigned>(input.origin) <= static_cast<unsigned>(ControlOrigin::Scenario),
+	require(static_cast<unsigned>(input.origin) <= static_cast<unsigned>(ControlOrigin::Reporter),
 	        "invalid sender origin");
+	if (input.origin == ControlOrigin::Reporter)
+		require(!controllers_.contains(input.sender_system) && input.payload.provenance.kind == EvidenceKind::Fact &&
+		            input.payload.provenance.source == input.sender_system,
+		        "physical reporters can only emit their own facts");
 	require(input.presentation.urgency <= 3, "message urgency must be 0..3");
 	const auto sender_console = systems_.at(input.sender_system);
 	const auto ship = consoles_.at(sender_console).ship;
@@ -661,7 +665,7 @@ std::vector<CoordinationMessage> KnowledgeRuntime::pending_messages(std::size_t 
 }
 bool KnowledgeRuntime::status_change(KnowledgeId producer, KnowledgeKey status, bool value, KnowledgeTick tick,
                                      KnowledgeTick debounce, KnowledgeTick recovery_hysteresis,
-                                     KnowledgeTick minimum_gap)
+                                     KnowledgeTick minimum_gap, bool report_initial)
 {
 	require(producer != 0 && status != 0, "invalid status producer/key");
 	require(tick >= current_tick_, "cannot report status in the past");
@@ -669,8 +673,9 @@ bool KnowledgeRuntime::status_change(KnowledgeId producer, KnowledgeKey status, 
 	auto &latch = status_[{producer, status}];
 	if (!latch.initialised)
 	{
-		latch = {true, value, value, tick, tick};
-		return true;
+		latch = {true, report_initial ? value : false, value, tick, tick, report_initial};
+		if (report_initial)
+			return true;
 	}
 	require(tick >= latch.last_report && tick >= latch.candidate_since, "status time reversed");
 	if (value != latch.candidate)
@@ -679,10 +684,12 @@ bool KnowledgeRuntime::status_change(KnowledgeId producer, KnowledgeKey status, 
 		latch.candidate_since = tick;
 	}
 	const auto wait = value ? debounce : recovery_hysteresis;
-	if (value == latch.reported || tick - latch.candidate_since < wait || tick - latch.last_report < minimum_gap)
+	if (value == latch.reported || tick - latch.candidate_since < wait ||
+	    (latch.reported_once && tick - latch.last_report < minimum_gap))
 		return false;
 	latch.reported = value;
 	latch.last_report = tick;
+	latch.reported_once = true;
 	return true;
 }
 void KnowledgeRuntime::trim()
@@ -776,6 +783,7 @@ Json KnowledgeRuntime::save() const
 		                       {"key", key.second},
 		                       {"initialised", latch.initialised},
 		                       {"reported", latch.reported},
+		                       {"reported_once", latch.reported_once},
 		                       {"candidate", latch.candidate},
 		                       {"since", latch.candidate_since},
 		                       {"last", latch.last_report}});
@@ -915,9 +923,14 @@ void KnowledgeRuntime::restore(const Json &j)
 		require(m.sent_tick <= restored.current_tick_ &&
 		            m.sent_tick <= std::numeric_limits<KnowledgeTick>::max() - delay &&
 		            m.delivery_tick == m.sent_tick + delay && m.value.payload.provenance.observed_tick <= m.sent_tick &&
-		            static_cast<unsigned>(m.value.origin) <= static_cast<unsigned>(ControlOrigin::Scenario) &&
+		            static_cast<unsigned>(m.value.origin) <= static_cast<unsigned>(ControlOrigin::Reporter) &&
 		            m.value.presentation.urgency <= 3,
 		        "invalid saved delivery timing/origin/urgency");
+		if (m.value.origin == ControlOrigin::Reporter)
+			require(!restored.controllers_.contains(m.value.sender_system) &&
+			            m.value.payload.provenance.kind == EvidenceKind::Fact &&
+			            m.value.payload.provenance.source == m.value.sender_system,
+			        "invalid saved physical report");
 		require(m.value.expires_tick == 0 || m.value.expires_tick > m.delivery_tick,
 		        "saved message expires before delivery");
 		require(m.recipients == restored.resolve_recipients(m.sender_ship, m.value.destination, m.value.payload.schema),
@@ -992,9 +1005,12 @@ void KnowledgeRuntime::restore(const Json &j)
 	{
 		const auto key =
 		    std::pair{read_unsigned<KnowledgeId>(v.at("producer")), read_unsigned<KnowledgeKey>(v.at("key"))};
-		KnowledgeStatusLatch latch{v.at("initialised").get<bool>(), v.at("reported").get<bool>(),
-		                           v.at("candidate").get<bool>(), read_unsigned<KnowledgeTick>(v.at("since")),
-		                           read_unsigned<KnowledgeTick>(v.at("last"))};
+		KnowledgeStatusLatch latch{v.at("initialised").get<bool>(),
+		                           v.at("reported").get<bool>(),
+		                           v.at("candidate").get<bool>(),
+		                           read_unsigned<KnowledgeTick>(v.at("since")),
+		                           read_unsigned<KnowledgeTick>(v.at("last")),
+		                           v.value("reported_once", true)};
 		require(key.first != 0 && key.second != 0 && latch.initialised &&
 		            latch.candidate_since <= restored.current_tick_ && latch.last_report <= restored.current_tick_ &&
 		            restored.status_.emplace(key, latch).second,

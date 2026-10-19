@@ -530,6 +530,119 @@ int main()
 			    load(forbidden_message);
 		    },
 		    "Controller cannot bind inbox payload forbidden to owning Console");
+		auto reporter_source = ai_messages_source;
+		auto &reporter_entity = reporter_source["entities"][0];
+		reporter_entity["control_layout"]["controllers"][0].erase("tree");
+		reporter_entity["control_layout"]["controllers"][1]["tree"] = "test.receiver";
+		reporter_source["trees"].erase(0);
+		reporter_source["messages"][0]["destination"]["console"] = "observer";
+		reporter_source["messages"][0]["delay_ticks"] = 1;
+		auto recovery_template = reporter_source["messages"][0];
+		recovery_template["id"] = "test.recovered";
+		reporter_source["messages"].push_back(recovery_template);
+		reporter_entity["message_templates"].push_back("test.recovered");
+		reporter_entity["systems"]["port"]["reporters"] = Json::parse(R"json([
+		 {"id":"high","field":"requested","above":4000,"message":"test.request","recovery_message":"test.recovered",
+		  "debounce_ticks":2,"recovery_ticks":2,"minimum_gap_ticks":5}])json");
+		const auto reporter_content = load(reporter_source);
+		auto initially_hot_source = reporter_source;
+		initially_hot_source["entities"][0]["control_layout"]["controllers"][0]["commands"][0]["initial"] = 6000;
+		World initially_hot;
+		initially_hot.load(load(initially_hot_source), "test.map");
+		require(initially_hot.claim(101, 1, "drive") && initially_hot.claim(102, 1, "observer"), "initial hot claims");
+		initially_hot.tick();
+		initially_hot.tick();
+		require(initially_hot.observe(102)->gameplay.at("messages").empty(), "first hot sample also obeys debounce");
+		for (int tick = 0; tick < 3; ++tick)
+			initially_hot.tick();
+		require(initially_hot.observe(102)->gameplay.at("messages").size() == 1,
+		        "initial sustained warning eventually reports");
+		World reporting;
+		reporting.load(reporter_content, "test.map");
+		require(reporting.claim(101, 1, "drive") && reporting.claim(102, 1, "observer"), "reporter claims");
+		require(reporting.submit(102, {1, "preset", 1, {}}), "report recipient delegates to AI");
+		reporting.tick();
+		require(reporting.observe(102)->gameplay.at("messages").empty(), "initial healthy telemetry is not recovery");
+		require(reporting.submit(101, speed(reporting, 101, "port", 6000)), "human controls reporting physical System");
+		reporting.tick();
+		reporting.tick();
+		require(reporting.observe(102)->gameplay.at("messages").empty(), "warning waits for configured debounce");
+		for (int tick = 0; tick < 4; ++tick)
+			reporting.tick();
+		const auto warning_history = reporting.observe(102)->gameplay.at("messages");
+		require(warning_history.size() == 1 && requested(reporting, "starboard") == 6000,
+		        "always-active physical report reaches AI while producer remains human controlled");
+		require(warning_history[0].at("payload").at("fields").at("amount") == 6000,
+		        "report carries measured physical telemetry");
+		require(warning_history[0].at("payload").at("kind") == static_cast<unsigned>(EvidenceKind::Fact) &&
+		            warning_history[0].at("origin") == static_cast<unsigned>(ControlOrigin::Reporter),
+		        "physical report carries fact provenance distinct from Controller intent");
+		World reporting_resume;
+		reporting_resume.restore(reporter_content, reporting.save());
+		for (auto *run : {&reporting, &reporting_resume})
+		{
+			require(run->submit(101, {1, "preset", 1, {}}), "reporter producer hands over");
+			for (int tick = 0; tick < 3; ++tick)
+				run->tick();
+			require(run->observe(102)->gameplay.at("messages").size() == 1,
+			        "unchanged warning is not repeated after restore/handover");
+			require(run->submit(101, {1, "preset", 0, {}}), "producer returns human");
+			run->tick();
+			require(run->submit(101, speed(*run, 101, "port", 0)), "physical source recovers");
+			run->tick();
+			run->tick();
+			require(run->observe(102)->gameplay.at("messages").size() == 1, "recovery waits for hysteresis");
+			for (int tick = 0; tick < 3; ++tick)
+				run->tick();
+			require(run->observe(102)->gameplay.at("messages").size() == 2, "stable recovery emits once");
+		}
+		require(reporting.save() == reporting_resume.save(), "reporter latch continuation survives restore");
+		auto altered_reporter_save = reporting.save();
+		altered_reporter_save["knowledge"].erase("reporter_contract");
+		rejects(
+		    [&]
+		    {
+			    reporting_resume.restore(reporter_content, altered_reporter_save);
+		    },
+		    "restore refuses missing reporter contract");
+		require(reporting.save() == reporting_resume.save(), "failed reporter restore preserves live state");
+		auto gap_source = reporter_source;
+		gap_source["entities"][0]["systems"]["port"]["reporters"][0]["minimum_gap_ticks"] = 20;
+		World gap_reports;
+		gap_reports.load(load(gap_source), "test.map");
+		require(gap_reports.claim(101, 1, "drive") && gap_reports.claim(102, 1, "observer"), "minimum-gap claims");
+		gap_reports.tick();
+		require(gap_reports.submit(101, speed(gap_reports, 101, "port", 6000)), "minimum-gap warning input");
+		for (int tick = 0; tick < 5; ++tick)
+			gap_reports.tick();
+		require(gap_reports.observe(102)->gameplay.at("messages").size() == 1,
+		        "first warning is not delayed by minimum gap");
+		require(gap_reports.submit(101, speed(gap_reports, 101, "port", 0)), "minimum-gap recovery input");
+		for (int tick = 0; tick < 5; ++tick)
+			gap_reports.tick();
+		require(gap_reports.observe(102)->gameplay.at("messages").size() == 1,
+		        "minimum gap delays otherwise stable recovery");
+		for (int tick = 0; tick < 16; ++tick)
+			gap_reports.tick();
+		require(gap_reports.observe(102)->gameplay.at("messages").size() == 2,
+		        "recovery delivers when minimum gap expires");
+		auto invalid_reporter = reporter_source;
+		invalid_reporter["entities"][0]["systems"]["port"]["reporters"][0]["field"] = "heat";
+		rejects(
+		    [&]
+		    {
+			    World unavailable;
+			    unavailable.load(load(invalid_reporter), "test.map");
+		    },
+		    "World load refuses reporter telemetry absent from fitted physical System");
+		invalid_reporter = reporter_source;
+		invalid_reporter["entities"][0]["systems"]["port"]["reporters"][0]["kind"] = "claim";
+		rejects(
+		    [&]
+		    {
+			    load(invalid_reporter);
+		    },
+		    "physical reporter cannot originate editorial claims");
 		messages_source["messages"][0]["destination"]["id"] = "starboard";
 		rejects(
 		    [&]

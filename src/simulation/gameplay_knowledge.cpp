@@ -90,6 +90,11 @@ void GameplayKnowledge::configure(const Catalog &catalog)
 	configured.request_keys_ = std::move(definitions.request_keys);
 	configured.telemetry_names_ = std::move(definitions.telemetry_names);
 	configured.telemetry_indices_ = std::move(definitions.telemetry_indices);
+	for (const auto &[name, entity] : catalog.entities)
+		if (entity.contains("systems"))
+			for (auto system = entity.at("systems").begin(); system != entity.at("systems").end(); ++system)
+				if (system.value().contains("reporters") && !system.value().at("reporters").empty())
+					configured.reporter_contract_[name][system.key()] = system.value().at("reporters");
 	*this = std::move(configured);
 }
 KnowledgeId GameplayKnowledge::binding_id()
@@ -347,6 +352,16 @@ const std::vector<std::string> &GameplayKnowledge::telemetry_names() const
 {
 	return telemetry_names_;
 }
+void GameplayKnowledge::verify_reporter_fields(const std::string &name, const std::string &system,
+                                               const std::map<std::string, std::int64_t> &values) const
+{
+	const auto &definition = definitions_.at(name);
+	if (definition.reporters.contains(system))
+		for (const auto &report : definition.reporters.at(system))
+			knowledge_require(values.contains(report.field), "reporter " + report.id +
+			                                                     " field unavailable on fitted System " + system +
+			                                                     ": " + report.field);
+}
 std::size_t GameplayKnowledge::ingest_telemetry(EntityId ship, const std::string &system,
                                                 const std::vector<std::optional<KnowledgeValue>> &values,
                                                 KnowledgeTick tick)
@@ -391,7 +406,40 @@ std::size_t GameplayKnowledge::ingest_telemetry(EntityId ship, const std::string
 	for (const auto &[name, value] : values)
 		if (const auto found = telemetry_indices_.find(name); found != telemetry_indices_.end())
 			typed[found->second] = value;
-	return ingest_telemetry(ship, system, typed, tick);
+	const auto updated = ingest_telemetry(ship, system, typed, tick);
+	const auto &definition = definitions_.at(ships_.at(ship).definition);
+	if (definition.reporters.contains(system))
+	{
+		const auto &reports = definition.reporters.at(system);
+		for (std::size_t i = 0; i < reports.size(); ++i)
+		{
+			const auto &report = reports[i];
+			knowledge_require(values.contains(report.field), "reporter telemetry is unavailable: " + report.field);
+			const auto amount = values.at(report.field);
+			const bool warning = amount > report.above;
+			if (!status_change(ship, system, static_cast<KnowledgeKey>(i + 1), warning, tick, report.debounce,
+			                   report.recovery, report.minimum_gap, false))
+				continue;
+			const auto &name = warning ? report.message : report.recovery_message;
+			if (name.empty())
+				continue;
+			const ConsoleAddress source{ship, definition.owners.at(system)};
+			const auto &message = message_definition(name);
+			KnowledgeRecordInput payload;
+			payload.schema = message.schema;
+			payload.producer = message_producer(source, system, message.schema, ControlOrigin::Reporter);
+			payload.subject = ship;
+			payload.provenance = {system_id(ship, system), tick, tick, 0, EvidenceKind::Fact};
+			GameplayKnowledgeMessageContext context;
+			context.amount = amount;
+			context.flag = warning;
+			context.detail = system;
+			const auto bound = evaluate_gameplay_message(message, context);
+			payload.fields = bound.fields;
+			admit_template(source, system, name, payload, ControlOrigin::Reporter, tick, bound.parameters);
+		}
+	}
+	return updated;
 }
 bool GameplayKnowledge::publish_ship(EntityId ship, KnowledgeRecordInput value, KnowledgeTick tick)
 {
@@ -484,6 +532,11 @@ void GameplayKnowledge::admit_sender(const ConsoleAddress &source, KnowledgeId s
 	    "sender is not owned by source Console");
 	knowledge_require(known_record || knowledge_has(console_definition(source).producers, producer),
 	                  "sender producer role forbidden");
+	if (origin == ControlOrigin::Reporter)
+	{
+		knowledge_require(system != ship.systems.end(), "reporter source must be a physical System");
+		return;
+	}
 	const bool human = human_consoles_.at(console_id(source)) && human_systems_.at(sender);
 	knowledge_require((origin == ControlOrigin::Human && human) || (origin == ControlOrigin::AI && !human),
 	                  "sender origin does not hold effective control");
@@ -518,6 +571,14 @@ KnowledgeId GameplayKnowledge::admit_message(const ConsoleAddress &source, Coord
                                              bool execute)
 {
 	console_id(source);
+	if (value.origin == ControlOrigin::Reporter)
+	{
+		admit_sender(source, value.sender_system, value.payload.producer, value.origin);
+		knowledge_require(value.payload.provenance.kind == EvidenceKind::Fact &&
+		                      value.payload.provenance.source == value.sender_system,
+		                  "reporter can only originate measured facts");
+		return runtime_.send(std::move(value), tick, execute);
+	}
 	// An authorised new claim/intent already carries its sender's evidence.
 	// Only forwarding other evidence needs to search the permitted record history.
 	const bool own_intent = value.payload.provenance.source == value.sender_system &&
@@ -684,10 +745,10 @@ KnowledgePrivateMemory &GameplayKnowledge::private_memory(EntityId ship, const s
 }
 bool GameplayKnowledge::status_change(EntityId ship, const std::string &system, KnowledgeKey status, bool value,
                                       KnowledgeTick tick, KnowledgeTick debounce, KnowledgeTick recovery_hysteresis,
-                                      KnowledgeTick minimum_gap)
+                                      KnowledgeTick minimum_gap, bool report_initial)
 {
 	return runtime_.status_change(system_id(ship, system), status, value, tick, debounce, recovery_hysteresis,
-	                              minimum_gap);
+	                              minimum_gap, report_initial);
 }
 bool GameplayKnowledge::stale(const KnowledgeRecord &record, KnowledgeTick now) const
 {
@@ -759,11 +820,18 @@ Json GameplayKnowledge::save() const
 		                           {"controllers", binding.controllers}});
 	for (const auto &[id, console] : publication_owners_)
 		result["publications"].push_back({{"id", id}, {"console", console}});
+	if (!reporter_contract_.empty())
+	{
+		result["version"] = 2;
+		result["reporter_contract"] = reporter_contract_;
+	}
 	return result;
 }
 void GameplayKnowledge::restore(const Json &state)
 {
-	knowledge_require(state.at("version") == 1, "unsupported adapter save version");
+	knowledge_require(state.at("version") == 1 || state.at("version") == 2, "unsupported adapter save version");
+	knowledge_require(state.value("reporter_contract", Json::object()) == reporter_contract_,
+	                  "saved reporter contract differs from loaded content");
 	GameplayKnowledge restored;
 	restored.compiled_ = compiled_;
 	restored.runtime_ = KnowledgeRuntime(compiled_);
@@ -772,6 +840,7 @@ void GameplayKnowledge::restore(const Json &state)
 	restored.request_keys_ = request_keys_;
 	restored.telemetry_names_ = telemetry_names_;
 	restored.telemetry_indices_ = telemetry_indices_;
+	restored.reporter_contract_ = reporter_contract_;
 	restored.next_binding_ = knowledge_unsigned(state.at("next_binding"));
 	knowledge_require(restored.next_binding_ > 0 && restored.next_binding_ < std::numeric_limits<KnowledgeId>::max(),
 	                  "invalid saved binding counter");
@@ -793,6 +862,26 @@ void GameplayKnowledge::restore(const Json &state)
 	knowledge_require(expected == knowledge_registry_signature(restored.runtime_.save()),
 	                  "saved runtime does not match authored Console/System/AI bindings");
 	const auto runtime_state = restored.runtime_.save();
+	if (!reporter_contract_.empty())
+	{
+		std::map<KnowledgeId, std::size_t> reporter_counts;
+		std::set<KnowledgeId> legacy_sources;
+		for (const auto &[ship, binding] : restored.ships_)
+		{
+			if (restored.definitions_.at(binding.definition).controllers.empty())
+				for (const auto &[system, source] : binding.systems)
+					legacy_sources.insert(source);
+			for (const auto &[system, reports] : restored.definitions_.at(binding.definition).reporters)
+				reporter_counts.emplace(binding.systems.at(system), reports.size());
+		}
+		for (const auto &status : runtime_state.at("status"))
+		{
+			const auto producer = knowledge_unsigned(status.at("producer")), key = knowledge_unsigned(status.at("key"));
+			knowledge_require(key > 0 && (legacy_sources.contains(producer) ||
+			                              (reporter_counts.contains(producer) && key <= reporter_counts.at(producer))),
+			                  "saved reporter latch is not owned by a configured physical reporter");
+		}
+	}
 	std::map<KnowledgeId, KnowledgeId> expected_publications;
 	for (const auto &row : runtime_state.value("publications", Json::array()))
 		expected_publications.emplace(knowledge_unsigned(row.at("id")), knowledge_unsigned(row.at("console")));

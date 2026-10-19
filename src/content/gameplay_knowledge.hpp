@@ -38,6 +38,13 @@ struct GameplayKnowledgeShipDefinition
 		EvidenceKind kind = EvidenceKind::Fact;
 	};
 	std::map<std::string, std::vector<TelemetryRecord>> telemetry;
+	struct Reporter
+	{
+		std::string id, field, message, recovery_message;
+		std::int64_t above = 0;
+		KnowledgeTick debounce = 0, recovery = 0, minimum_gap = 0;
+	};
+	std::map<std::string, std::vector<Reporter>> reporters;
 };
 enum class GameplayKnowledgeBindingSource : std::uint8_t
 {

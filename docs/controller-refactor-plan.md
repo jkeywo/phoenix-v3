@@ -105,7 +105,8 @@ Manually trigger and record GUI journeys for lobby/settings selection, shared an
 | Agreed architecture, GDD reconciliation and refactoring plan | Documented |
 | 1–2: compiler and explicit-layout runtime foundations        | Partial    |
 | 3: shared observations and Controller trees                  | Partial    |
-| 4–7: messaging, presentation and final gate                  | Pending    |
+| 4: Controller messaging and factual reporting                | Partial    |
+| 5–7: full migration, presentation and final gate             | Pending    |
 
 The existing gameplay ledger remains evidence for the previous runtime. It does not establish completion of this refactor.
 
@@ -172,3 +173,9 @@ The independent verification agent built and passed Controller runtime and gamep
 Controller trees declare permitted message templates and use `send.<template>` through the same admitted template route as human actions. Addressed inbox metadata and typed `message_bindings` are frozen with other decision inputs. `acknowledge_message` advances only that Controller's cursor for an available addressed message. Message effects use the Controller's saved effect journal; outgoing interruption runs before operator authority transfers.
 
 Independent native Controller and gameplay-knowledge suites pass. Integration checks cover one-shot AI sending, a human recipient yielding with unhandled history, payload-driven command execution, the actual acknowledgement cursor, exact continuation before and after acknowledgement, same-name recipient isolation and template/reader authority refusal. Factual reporters and mandatory public publication remain outstanding; this receipt does not establish the complete messaging step.
+
+## Always-active factual reporter receipt
+
+Physical Systems now run threshold reporters during telemetry production, independently of their Controller's operator. Reports carry physical source identity, measured arguments and Fact provenance with a distinct Reporter origin. They cannot bind AI memory, intents or decision observations. Warning debounce applies to the initial sample; healthy startup emits no recovery. Recovery delay and minimum intervals use persisted event latches. Restoration checks the reporter configuration and latch ownership before replacing live state.
+
+Independent native Controller and gameplay-knowledge integration suites pass. Tests cover a human-operated System reporting to an AI Controller, factual metadata, warning/recovery timing, minimum gaps, unchanged-warning suppression across handover/restore and transactional refusal of missing reporter contracts. Reporter and Controller observation fields are preflighted against actual fitted telemetry before knowledge registration during `World.load`; unavailable fields are refused before play. Catalog-only validation still checks the global vocabulary rather than the complete fitted producer schema, so that compiler migration remains open. Mandatory public message publication and presentation also remain pending.
