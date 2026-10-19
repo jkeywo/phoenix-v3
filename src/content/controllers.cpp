@@ -562,4 +562,135 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 				}
 	return result;
 }
+
+Catalog convert_controller_content(const Catalog &source)
+{
+	auto result = source;
+	for (auto &[id, entity] : result.entities)
+	{
+		if (entity.contains("control_layout"))
+			continue;
+		const auto path = "entities." + id;
+		const auto systems = resolve_systems(source, id);
+		const auto seats = resolve_consoles(source, id);
+		const auto resources = compile_ship_resources(source, id);
+		const bool advanced = uses_advanced_machinery(source, id);
+		for (const auto &preset : entity.value("presets", Json::array()))
+			for (const auto &console : preset.at("consoles"))
+				control_require(console.value("summary_intents", Json::array()).empty(), path,
+				                "legacy summary intents require explicit Controller preference channels");
+		auto layout = compile_controllable_layout(source, id);
+		Json rows = Json::array();
+		for (const auto &controller : layout.controllers)
+		{
+			control_require(
+			    controller.tree.empty() || !source.tree_programs.contains(controller.tree), path,
+			    "legacy System decision trees require an explicit controller-context tree and owned channels");
+			Json row{{"id", controller.id}, {"console", controller.console}, {"commands", Json::array()}};
+			if (controller.tree.empty())
+				row["fallback"] = "hold";
+			else
+				row["tree"] = controller.tree;
+			std::set<std::size_t> consumers;
+			for (const auto &command : controller.commands)
+				consumers.insert(command.consumers.begin(), command.consumers.end());
+			for (const auto i : consumers)
+			{
+				const auto &fit = systems.at(i);
+				const auto &spec = entity.at("systems").at(fit.id);
+				const auto capabilities = fitted_commands(fit, spec, resources ? &*resources : nullptr, i, advanced);
+				for (const auto &[action, bounds] : capabilities)
+				{
+					if (action == OperatingAction::SystemEnabled &&
+					    (capabilities.contains(OperatingAction::EngineEnabled) ||
+					     capabilities.contains(OperatingAction::RadarEnabled)))
+						continue;
+					const auto name = std::string(operating_action(action).name);
+					Json command{{"id", consumers.size() == 1 ? name : fit.id + "." + name},
+					             {"action", name},
+					             {"minimum", bounds.first},
+					             {"maximum", bounds.second},
+					             {"consumers", Json::array({fit.id})}};
+					std::int64_t initial = 0;
+					if (action == OperatingAction::Assisted)
+						initial = 1;
+					if (action == OperatingAction::SystemEnabled || action == OperatingAction::EngineEnabled ||
+					    action == OperatingAction::RadarEnabled)
+						initial = spec.value("enabled", true);
+					if (resources)
+					{
+						const auto &binding = resources->systems.at(i);
+						const auto &network = resources->network;
+						if (action == OperatingAction::GeneratorOutput)
+							initial = network.generators.at(binding.generator).initial_output;
+						if (action == OperatingAction::ChargeLimit)
+							initial = network.stores.at(binding.store).charge_rate;
+						if (action == OperatingAction::DischargeLimit)
+							initial = network.stores.at(binding.store).discharge_rate;
+						if (action == OperatingAction::GroupAllocation)
+							initial = network.groups.at(binding.group).budget_rate;
+						if (action == OperatingAction::CoolingAllocation)
+							initial = network.cooling_links.at(binding.cooling).allocation_rate;
+						if (action == OperatingAction::LinkIsolation)
+							initial = network.links.at(binding.conduit).isolated;
+						if (action == OperatingAction::SystemEnabled && fit.kind == OperatingSystem::Storage)
+							initial = initial && network.stores.at(binding.store).enabled;
+						if (action == OperatingAction::SystemEnabled && fit.kind == OperatingSystem::Generator)
+							initial = initial && network.generators.at(binding.generator).enabled;
+					}
+					if (action != OperatingAction::Heading)
+						command["initial"] = initial;
+					Json arguments = Json::array();
+					for (const auto &argument : operating_arguments(action))
+						arguments.push_back(std::max<std::int64_t>(0, argument.minimum));
+					if (!arguments.empty())
+						command["arguments"] = std::move(arguments);
+					row["commands"].push_back(std::move(command));
+				}
+			}
+			rows.push_back(std::move(row));
+		}
+		Json profiles = Json::array();
+		for (const auto &profile : layout.profiles)
+		{
+			Json allocations = Json::object();
+			for (std::size_t i = 0; i < layout.controllers.size(); ++i)
+			{
+				const auto &controller = layout.controllers[i];
+				auto &ids = allocations[controller.console][profile.human[i] ? "human" : "ai"];
+				if (ids.is_null())
+					ids = Json::array();
+				ids.push_back(controller.id);
+			}
+			profiles.push_back({{"id", profile.id}, {"consoles", allocations}});
+		}
+		entity["motion_model"] = advanced ? "inertial" : "vector";
+		entity["control_layout"] = {{"schema", 1},
+		                            {"controllers", rows},
+		                            {"profiles", profiles},
+		                            {"default_profile", layout.profiles.at(layout.default_profile).id}};
+		for (const auto *key : {"controller", "controllers", "presets", "default_preset"})
+			entity.erase(key);
+		for (auto &system : entity.at("systems"))
+			system.erase("controller");
+		// Validate the generated definition through the same explicit-layout compiler.
+		const auto validated = compile_controllable_layout(result, id);
+		for (const auto &controller : validated.controllers)
+			if (!controller.tree.empty())
+				for (const auto &output : compile_tree(result.trees.at(controller.tree)).outputs)
+					control_require(std::count_if(controller.commands.begin(), controller.commands.end(),
+					                              [&](const auto &command)
+					                              {
+						                              return command.action == output.action &&
+						                                     output.value >= command.minimum &&
+						                                     output.value <= command.maximum &&
+						                                     operating_arguments_valid(command.action, output.value,
+						                                                               output.arguments);
+					                              }) == 1,
+					                path,
+					                "legacy timed output requires exactly one compatible Controller channel; author an "
+					                "explicit layout");
+	}
+	return result;
+}
 } // namespace phoenix

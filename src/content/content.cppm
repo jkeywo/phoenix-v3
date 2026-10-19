@@ -234,6 +234,8 @@ struct ControllableLayout
 };
 // Compiles explicit layout version 1 or converts unambiguous old ownership at the boundary.
 ControllableLayout compile_controllable_layout(const Catalog &, const std::string &entity);
+// Boundary conversion only. Unsupported decision/ownership mappings fail before runtime creation.
+Catalog convert_controller_content(const Catalog &);
 std::vector<FittedSystemSpec> resolve_systems(const Catalog &catalog, const std::string &entity);
 // Includes standard capability channels and the fitted controller's inherited declarations.
 std::vector<std::string> gameplay_summary_channels(const Catalog &, const std::string &entity,

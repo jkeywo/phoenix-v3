@@ -289,3 +289,9 @@ Independent native build and Controller runtime, content, simulation and flight 
 The survey, inherited tug and AI traffic now use explicit Console Controllers with vector motion, direct/automatic complexity profiles and addressed helm widgets. Traffic retains its timed patrol program on the navigation Controller. Engineering hulls explicitly retain inertial machinery. Heading channels preserve spawn orientation unless an initial heading is authored.
 
 Both production packs verify. Independent manually triggered production World smoke checks operated survey/tug and unclaimed traffic for 450 ticks, confirmed vector/inertial model inheritance and spawn headings, and compared 20 restored ticks exactly. These are behavioral evidence, not production-content golden tests. All maintained controllable craft now author the new model; legacy runtime removal and the final recovery/integration gate remain pending.
+
+## Legacy definition conversion boundary receipt
+
+A separate compiler conversion produces explicit Controller layouts for unambiguous legacy ownership and timed policies, preserving vector/inertial capability, spawn heading, enabled state and resource setting defaults. Generated layouts pass the normal explicit compiler. System-context decision trees and summary-intent presets require explicit migration; ambiguous or out-of-range timed writes are refused. The source catalogue is unchanged.
+
+Independent content build and integration suite pass, including single timed ownership, source immutability, physical defaults and diagnostic refusal cases. This helper is not yet the live runtime entry point; activation and removal of the old dispatch are the next step.
