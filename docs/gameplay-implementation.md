@@ -16,7 +16,7 @@ An example mission is evidence, not the scope boundary.
 | 6     | Scenario instances/events, dynamic entity/group spawning, objective lifecycle, reach-region crossing, branching and authoring                                               | Implemented |
 | 7     | Typed Coordination, addressed/broadcast delivery, human/AI presentation, expiry/replacement/withdrawal, history and controller policies                                     | Implemented |
 | 8     | Generic station presets, summary intent, live delegation/Away/backfill, human-seeking routing and safe handover                                                             | Implemented |
-| 9     | Reusable base/training content, equipment/roster variants, remote play, recovery/checkpoint continuation and acceptance evidence                                            | In progress |
+| 9     | Reusable base/training content, equipment/roster variants, remote play, recovery/checkpoint continuation and acceptance evidence                                            | Implemented |
 
 Every stage includes applicable production loading/verification, Workshop authoring,
 player semantics/localisation, native/browser integration and persistence. No stage
@@ -150,8 +150,9 @@ recovers returning peers and a portable session. Large accepted knowledge histor
 cross the authenticated chunked projection path with explicit whole-entry bounds.
 
 Reviewed followups reject future-dated saved observations and preserve authored
-summary labels in player controls. All 20 native cases pass after those changes;
-the affected flight and summary WASM cases are checked again after relinking.
+summary labels in player controls. All 20 native cases and the affected flight and
+summary WASM cases pass after the final relink. The integrated runtime, consoles,
+authoring, regression journeys and review receipts are committed as `a92bf35`.
 
 Actual browser Worker lifecycle and graphical Workshop edit/verify/export/test
 evidence is recorded in [the manual smoke receipt](smoke/gameplay-worker.md).
@@ -162,3 +163,27 @@ every inspector path, physical touch/gamepad routing, audible reader interaction
 six-screen performance or production tuning has been playtested. Those manual
 acceptance checks remain separate; no additional software subsystem is deferred
 from this approved gameplay phase.
+
+## Reusable content and phase delivery
+
+The Base pack supplies eleven reusable equipment templates and four typed assembly
+families, with a powered Courier engineering fit and a six-Console Cruiser using
+repeated drives, separate sensor/service reserves, shared generation/cooling,
+ordinary System policies, presets and typed Coordination. Free Flight supports the
+new fits while retaining the established Courier. Training supplies two distinct
+region layouts using the same scenario policy, independent observer situations,
+dynamic traffic, scoped objectives, sequential progression and failure branches.
+The [content guide](gameplay-content.md) records the definitions and intended use.
+
+Independent scenario/content review found no remaining blocking implementation
+gap. The full gate verifies Base alone and dependent Training, including unused
+equipment/assemblies, service references, controller contexts, ownership, presets,
+message permissions and scenario bindings. Browser Worker smoke runs the powered
+Training scenario; the graphical Workshop edit/test journey uses the Cruiser.
+Synthetic remote/checkpoint and continuation fixtures remain independent of these
+ships and their tuning. No shipped performance value is frozen as an assertion.
+
+All nine approved software stages are delivered. Agreed deferrals above remain
+unchanged. Production balance, broad playtesting, audible screen-reader operation,
+physical touch/five-gamepad routing and six-display performance remain explicit
+manual acceptance work; they are not represented as successful automated evidence.

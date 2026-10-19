@@ -1,5 +1,5 @@
 {
-	"schema": 3,
+	"schema": 4,
 	"entities": [
 		{
 			"id": "training.survey",
@@ -380,6 +380,1000 @@
 				"radius_mm": 1000,
 				"mass_grams": 0
 			}
+		},
+		{
+			"id": "base.courier-engineering",
+			"extends": "training.survey",
+			"name": "Courier — Engineering fit",
+			"controller": null,
+			"console": null,
+			"systems": {
+				"engine": null,
+				"steering": null,
+				"radar": null
+			},
+			"assemblies": [
+				{
+					"id": "core",
+					"assembly": "base.assembly.power-core"
+				},
+				{
+					"id": "drive",
+					"assembly": "base.assembly.drive",
+					"bindings": {
+						"power": "core.power",
+						"coolant": "core.coolant"
+					}
+				},
+				{
+					"id": "sensors",
+					"assembly": "base.assembly.sensors",
+					"bindings": {
+						"power": "core.power",
+						"coolant": "core.coolant"
+					}
+				}
+			],
+			"message_templates": [
+				"base.message.power-request",
+				"base.message.cooling-request",
+				"base.message.supply-limited",
+				"base.message.supply-restored",
+				"base.message.thermal-stop",
+				"base.message.navigation-advisory",
+				"base.message.engineering-request"
+			],
+			"publications": [
+				{
+					"id": "propulsion-availability",
+					"source_console": "helm",
+					"schema": "base.machinery-status",
+					"subject": 0,
+					"fields": ["limited"],
+					"live": true
+				}
+			],
+			"feeds": [
+				{
+					"id": "propulsion-to-engineering",
+					"source_console": "helm",
+					"target_console": "engineering",
+					"schema": "base.machinery-status",
+					"subject": 0,
+					"fields": ["limited"]
+				}
+			],
+			"default_preset": "middle",
+			"stations": [
+				{
+					"id": "helm",
+					"consoles": [
+						{
+							"id": "helm",
+							"definition": "base.console.helm",
+							"systems": [
+								"drive.engine",
+								"drive.steering",
+								"drive.lateral",
+								"drive.boost",
+								"drive.impulse",
+								"sensors.radar"
+							],
+							"feeds": [],
+							"knowledge_roles": ["base.crew", "base.helm"],
+							"knowledge_producers": ["base.machinery"]
+						}
+					]
+				},
+				{
+					"id": "engineering",
+					"consoles": [
+						{
+							"id": "engineering",
+							"definition": "base.console.engineering",
+							"systems": [
+								"core.generator",
+								"core.reserve",
+								"core.distribution",
+								"core.pump",
+								"core.reactor-cooling",
+								"drive.distribution",
+								"drive.engine-supply",
+								"drive.engine-cooling",
+								"drive.steering-supply",
+								"drive.steering-cooling",
+								"drive.lateral-supply",
+								"drive.lateral-cooling",
+								"drive.boost-supply",
+								"drive.boost-cooling",
+								"drive.impulse-supply",
+								"drive.impulse-cooling",
+								"sensors.distribution",
+								"sensors.cooling"
+							],
+							"feeds": [],
+							"knowledge_roles": ["base.crew", "base.engineering"],
+							"knowledge_producers": ["base.machinery"]
+						}
+					]
+				}
+			],
+			"presets": [
+				{
+					"id": "simple",
+					"name": "Simple",
+					"consoles": {
+						"helm": {
+							"direct": ["drive.engine", "drive.steering", "drive.lateral", "sensors.radar"],
+							"delegated": ["drive.boost", "drive.impulse"],
+							"summary_intents": []
+						},
+						"engineering": {
+							"direct": [],
+							"delegated": [
+								"core.generator",
+								"core.reserve",
+								"core.distribution",
+								"core.pump",
+								"core.reactor-cooling",
+								"drive.distribution",
+								"drive.engine-supply",
+								"drive.engine-cooling",
+								"drive.steering-supply",
+								"drive.steering-cooling",
+								"drive.lateral-supply",
+								"drive.lateral-cooling",
+								"drive.boost-supply",
+								"drive.boost-cooling",
+								"drive.impulse-supply",
+								"drive.impulse-cooling",
+								"sensors.distribution",
+								"sensors.cooling"
+							],
+							"summary_intents": [
+								{
+									"system": "core.generator",
+									"channel": "output",
+									"levels": [350, 650, 1000],
+									"default": 650
+								},
+								{
+									"system": "core.distribution",
+									"channel": "power",
+									"levels": [0, 500, 1000],
+									"default": 1000
+								},
+								{
+									"system": "core.reactor-cooling",
+									"channel": "coolant",
+									"levels": [0, 1500, 3000],
+									"default": 3000,
+									"level_labels": ["No coolant", "Low coolant", "High coolant"]
+								},
+								{
+									"system": "drive.distribution",
+									"channel": "power",
+									"levels": [4000, 8000, 10000],
+									"default": 8000
+								},
+								{
+									"system": "drive.engine-cooling",
+									"channel": "coolant",
+									"levels": [0, 500, 1000],
+									"default": 1000,
+									"level_labels": ["No coolant", "Low coolant", "High coolant"]
+								},
+								{
+									"system": "drive.steering-cooling",
+									"channel": "coolant",
+									"levels": [0, 50, 100],
+									"default": 100,
+									"level_labels": ["No coolant", "Low coolant", "High coolant"]
+								},
+								{
+									"system": "drive.lateral-cooling",
+									"channel": "coolant",
+									"levels": [0, 100, 200],
+									"default": 200,
+									"level_labels": ["No coolant", "Low coolant", "High coolant"]
+								},
+								{
+									"system": "drive.boost-cooling",
+									"channel": "coolant",
+									"levels": [0, 500, 1000],
+									"default": 1000,
+									"level_labels": ["No coolant", "Low coolant", "High coolant"]
+								},
+								{
+									"system": "drive.impulse-cooling",
+									"channel": "coolant",
+									"levels": [0, 750, 1500],
+									"default": 1500,
+									"level_labels": ["No coolant", "Low coolant", "High coolant"]
+								},
+								{
+									"system": "sensors.distribution",
+									"channel": "power",
+									"levels": [0, 500, 1000],
+									"default": 1000
+								},
+								{
+									"system": "sensors.cooling",
+									"channel": "coolant",
+									"levels": [0, 100, 200],
+									"default": 200,
+									"level_labels": ["No coolant", "Low coolant", "High coolant"]
+								}
+							]
+						}
+					}
+				},
+				{
+					"id": "middle",
+					"name": "Middle",
+					"consoles": {
+						"helm": {
+							"direct": [
+								"drive.engine",
+								"drive.steering",
+								"drive.lateral",
+								"drive.boost",
+								"drive.impulse",
+								"sensors.radar"
+							],
+							"delegated": [],
+							"summary_intents": []
+						},
+						"engineering": {
+							"direct": [
+								"core.generator",
+								"core.distribution",
+								"drive.distribution",
+								"sensors.distribution"
+							],
+							"delegated": [
+								"core.reserve",
+								"core.pump",
+								"core.reactor-cooling",
+								"drive.engine-supply",
+								"drive.engine-cooling",
+								"drive.steering-supply",
+								"drive.steering-cooling",
+								"drive.lateral-supply",
+								"drive.lateral-cooling",
+								"drive.boost-supply",
+								"drive.boost-cooling",
+								"drive.impulse-supply",
+								"drive.impulse-cooling",
+								"sensors.cooling"
+							],
+							"summary_intents": []
+						}
+					}
+				},
+				{
+					"id": "detailed",
+					"name": "Detailed",
+					"consoles": {
+						"helm": {
+							"direct": [
+								"drive.engine",
+								"drive.steering",
+								"drive.lateral",
+								"drive.boost",
+								"drive.impulse",
+								"sensors.radar"
+							],
+							"delegated": [],
+							"summary_intents": []
+						},
+						"engineering": {
+							"direct": [
+								"core.generator",
+								"core.reserve",
+								"core.distribution",
+								"core.pump",
+								"core.reactor-cooling",
+								"drive.distribution",
+								"drive.engine-supply",
+								"drive.engine-cooling",
+								"drive.steering-supply",
+								"drive.steering-cooling",
+								"drive.lateral-supply",
+								"drive.lateral-cooling",
+								"drive.boost-supply",
+								"drive.boost-cooling",
+								"drive.impulse-supply",
+								"drive.impulse-cooling",
+								"sensors.distribution",
+								"sensors.cooling"
+							],
+							"delegated": [],
+							"summary_intents": []
+						}
+					}
+				}
+			]
+		},
+		{
+			"id": "base.cruiser",
+			"extends": "base.courier-engineering",
+			"name": "Cruiser — Six-station fit",
+			"render": {
+				"scale": 18
+			},
+			"collision": {
+				"shape": "box",
+				"half_width_mm": 7000,
+				"half_length_mm": 12000,
+				"mass_grams": 90000000
+			},
+			"assemblies": [
+				{
+					"id": "core",
+					"assembly": "base.assembly.power-core",
+					"overrides": {
+						"resources": {
+							"stores": [
+								{
+									"id": "capacitor",
+									"capacity": 240000,
+									"initial": 180000,
+									"charge_rate": 30000,
+									"discharge_rate": 30000,
+									"loss_empty_ppm": 0,
+									"loss_full_ppm": 25,
+									"stop_heat": 60000,
+									"recover_heat": 35000,
+									"passive_cooling": 50,
+									"charge_heat_ppm": 20000,
+									"operation_heat_ppm": 0,
+									"depletion_heat_ppm": 10000,
+									"overdrive_permille": 1500,
+									"overdrive_heat_permille": 1800,
+									"stress_rate": 20,
+									"override_stress_rate": 50,
+									"stress_limit": 12000,
+									"allows_override": true
+								},
+								{
+									"id": "pump-cell",
+									"capacity": 15000,
+									"initial": 11250,
+									"charge_rate": 2000,
+									"discharge_rate": 10000,
+									"loss_empty_ppm": 0,
+									"loss_full_ppm": 25,
+									"stop_heat": 60000,
+									"recover_heat": 35000,
+									"passive_cooling": 50,
+									"charge_heat_ppm": 20000,
+									"operation_heat_ppm": 400000,
+									"depletion_heat_ppm": 10000,
+									"overdrive_permille": 1500,
+									"overdrive_heat_permille": 1800,
+									"stress_rate": 20,
+									"override_stress_rate": 50,
+									"stress_limit": 12000,
+									"allows_override": true,
+									"group": "services"
+								}
+							],
+							"generators": [
+								{
+									"id": "generator",
+									"store": "capacitor",
+									"maximum_rate": 30000,
+									"response_rate": 12000,
+									"initial_output": 19500,
+									"heat_ppm": 100000
+								}
+							],
+							"coolant_sources": [
+								{
+									"id": "coolant",
+									"initial": 800000,
+									"removal_rate": 18000,
+									"coolant_per_heat_ppm": 100000,
+									"power_store": "pump-cell"
+								}
+							]
+						}
+					}
+				},
+				{
+					"id": "drive",
+					"assembly": "base.assembly.drive",
+					"bindings": {
+						"power": "core.power",
+						"coolant": "core.coolant"
+					}
+				},
+				{
+					"id": "wing",
+					"assembly": "base.assembly.drive",
+					"bindings": {
+						"power": "core.power",
+						"coolant": "core.coolant"
+					},
+					"overrides": {
+						"systems": {
+							"engine": {
+								"max_speed_mm_s": 12000,
+								"acceleration_mm_s2": 1600
+							}
+						}
+					}
+				},
+				{
+					"id": "sensors",
+					"assembly": "base.assembly.sensors",
+					"bindings": {
+						"power": "core.power",
+						"coolant": "core.coolant"
+					}
+				},
+				{
+					"id": "tactical",
+					"assembly": "base.assembly.sensors",
+					"bindings": {
+						"power": "core.power",
+						"coolant": "core.coolant"
+					},
+					"overrides": {
+						"systems": {
+							"radar": {
+								"range_mm": 300000
+							}
+						}
+					}
+				},
+				{
+					"id": "communications",
+					"assembly": "base.assembly.console-service",
+					"bindings": {
+						"power": "core.power",
+						"coolant": "core.coolant"
+					}
+				},
+				{
+					"id": "command",
+					"assembly": "base.assembly.console-service",
+					"bindings": {
+						"power": "core.power",
+						"coolant": "core.coolant"
+					}
+				}
+			],
+			"stations": [
+				{
+					"id": "helm",
+					"consoles": [
+						{
+							"id": "helm",
+							"definition": "base.console.helm",
+							"systems": [
+								"drive.engine",
+								"drive.steering",
+								"drive.lateral",
+								"drive.boost",
+								"drive.impulse",
+								"wing.engine",
+								"wing.steering",
+								"wing.lateral",
+								"wing.boost",
+								"wing.impulse"
+							],
+							"feeds": ["sensors.radar"],
+							"knowledge_roles": ["base.crew", "base.helm"],
+							"knowledge_producers": ["base.machinery"]
+						}
+					]
+				},
+				{
+					"id": "engineering",
+					"consoles": [
+						{
+							"id": "engineering",
+							"definition": "base.console.engineering",
+							"systems": [
+								"core.generator",
+								"core.reserve",
+								"core.distribution",
+								"core.pump",
+								"core.reactor-cooling",
+								"drive.distribution",
+								"drive.engine-supply",
+								"drive.engine-cooling",
+								"drive.steering-supply",
+								"drive.steering-cooling",
+								"drive.lateral-supply",
+								"drive.lateral-cooling",
+								"drive.boost-supply",
+								"drive.boost-cooling",
+								"drive.impulse-supply",
+								"drive.impulse-cooling",
+								"wing.distribution",
+								"wing.engine-supply",
+								"wing.engine-cooling",
+								"wing.steering-supply",
+								"wing.steering-cooling",
+								"wing.lateral-supply",
+								"wing.lateral-cooling",
+								"wing.boost-supply",
+								"wing.boost-cooling",
+								"wing.impulse-supply",
+								"wing.impulse-cooling",
+								"sensors.distribution",
+								"sensors.cooling",
+								"tactical.distribution",
+								"tactical.cooling",
+								"communications.distribution",
+								"communications.cooling",
+								"command.distribution",
+								"command.cooling"
+							],
+							"feeds": [],
+							"knowledge_roles": ["base.crew", "base.engineering"],
+							"knowledge_producers": ["base.machinery"]
+						}
+					]
+				},
+				{
+					"id": "science",
+					"consoles": [
+						{
+							"id": "science",
+							"definition": "base.console.science",
+							"systems": ["sensors.radar"],
+							"feeds": [],
+							"knowledge_roles": ["base.crew", "base.science"],
+							"knowledge_producers": ["base.machinery"]
+						}
+					]
+				},
+				{
+					"id": "tactical",
+					"consoles": [
+						{
+							"id": "tactical",
+							"definition": "base.console.tactical",
+							"systems": ["tactical.radar"],
+							"feeds": [],
+							"knowledge_roles": ["base.crew", "base.tactical"],
+							"knowledge_producers": ["base.machinery"]
+						}
+					]
+				},
+				{
+					"id": "comms",
+					"consoles": [
+						{
+							"id": "comms",
+							"definition": "base.console.comms",
+							"systems": ["communications.reserve"],
+							"feeds": [],
+							"knowledge_roles": ["base.crew", "base.comms"],
+							"knowledge_producers": ["base.machinery"]
+						}
+					]
+				},
+				{
+					"id": "captain",
+					"consoles": [
+						{
+							"id": "captain",
+							"definition": "base.console.captain",
+							"systems": ["command.reserve"],
+							"feeds": [],
+							"knowledge_roles": ["base.crew", "base.captain"],
+							"knowledge_producers": ["base.machinery"]
+						}
+					]
+				}
+			],
+			"presets": [
+				{
+					"id": "simple",
+					"name": "Simple",
+					"consoles": {
+						"helm": {
+							"direct": [
+								"drive.engine",
+								"drive.steering",
+								"drive.lateral",
+								"wing.engine",
+								"wing.steering",
+								"wing.lateral"
+							],
+							"delegated": ["drive.boost", "drive.impulse", "wing.boost", "wing.impulse"],
+							"summary_intents": []
+						},
+						"engineering": {
+							"direct": [],
+							"delegated": [
+								"core.generator",
+								"core.reserve",
+								"core.distribution",
+								"core.pump",
+								"core.reactor-cooling",
+								"drive.distribution",
+								"drive.engine-supply",
+								"drive.engine-cooling",
+								"drive.steering-supply",
+								"drive.steering-cooling",
+								"drive.lateral-supply",
+								"drive.lateral-cooling",
+								"drive.boost-supply",
+								"drive.boost-cooling",
+								"drive.impulse-supply",
+								"drive.impulse-cooling",
+								"wing.distribution",
+								"wing.engine-supply",
+								"wing.engine-cooling",
+								"wing.steering-supply",
+								"wing.steering-cooling",
+								"wing.lateral-supply",
+								"wing.lateral-cooling",
+								"wing.boost-supply",
+								"wing.boost-cooling",
+								"wing.impulse-supply",
+								"wing.impulse-cooling",
+								"sensors.distribution",
+								"sensors.cooling",
+								"tactical.distribution",
+								"tactical.cooling",
+								"communications.distribution",
+								"communications.cooling",
+								"command.distribution",
+								"command.cooling"
+							],
+							"summary_intents": [
+								{
+									"system": "core.generator",
+									"channel": "output",
+									"levels": [350, 650, 1000],
+									"default": 650
+								},
+								{
+									"system": "core.distribution",
+									"channel": "power",
+									"levels": [0, 500, 1000],
+									"default": 1000
+								},
+								{
+									"system": "core.reactor-cooling",
+									"channel": "coolant",
+									"levels": [0, 1500, 3000],
+									"default": 3000,
+									"level_labels": ["No coolant", "Low coolant", "High coolant"]
+								},
+								{
+									"system": "drive.distribution",
+									"channel": "power",
+									"levels": [4000, 8000, 10000],
+									"default": 8000
+								},
+								{
+									"system": "drive.engine-cooling",
+									"channel": "coolant",
+									"levels": [0, 500, 1000],
+									"default": 1000,
+									"level_labels": ["No coolant", "Low coolant", "High coolant"]
+								},
+								{
+									"system": "drive.steering-cooling",
+									"channel": "coolant",
+									"levels": [0, 50, 100],
+									"default": 100,
+									"level_labels": ["No coolant", "Low coolant", "High coolant"]
+								},
+								{
+									"system": "drive.lateral-cooling",
+									"channel": "coolant",
+									"levels": [0, 100, 200],
+									"default": 200,
+									"level_labels": ["No coolant", "Low coolant", "High coolant"]
+								},
+								{
+									"system": "drive.boost-cooling",
+									"channel": "coolant",
+									"levels": [0, 500, 1000],
+									"default": 1000,
+									"level_labels": ["No coolant", "Low coolant", "High coolant"]
+								},
+								{
+									"system": "drive.impulse-cooling",
+									"channel": "coolant",
+									"levels": [0, 750, 1500],
+									"default": 1500,
+									"level_labels": ["No coolant", "Low coolant", "High coolant"]
+								},
+								{
+									"system": "wing.distribution",
+									"channel": "power",
+									"levels": [4000, 8000, 10000],
+									"default": 8000
+								},
+								{
+									"system": "wing.engine-cooling",
+									"channel": "coolant",
+									"levels": [0, 500, 1000],
+									"default": 1000,
+									"level_labels": ["No coolant", "Low coolant", "High coolant"]
+								},
+								{
+									"system": "wing.steering-cooling",
+									"channel": "coolant",
+									"levels": [0, 50, 100],
+									"default": 100,
+									"level_labels": ["No coolant", "Low coolant", "High coolant"]
+								},
+								{
+									"system": "wing.lateral-cooling",
+									"channel": "coolant",
+									"levels": [0, 100, 200],
+									"default": 200,
+									"level_labels": ["No coolant", "Low coolant", "High coolant"]
+								},
+								{
+									"system": "wing.boost-cooling",
+									"channel": "coolant",
+									"levels": [0, 500, 1000],
+									"default": 1000,
+									"level_labels": ["No coolant", "Low coolant", "High coolant"]
+								},
+								{
+									"system": "wing.impulse-cooling",
+									"channel": "coolant",
+									"levels": [0, 750, 1500],
+									"default": 1500,
+									"level_labels": ["No coolant", "Low coolant", "High coolant"]
+								},
+								{
+									"system": "sensors.distribution",
+									"channel": "power",
+									"levels": [0, 500, 1000],
+									"default": 1000
+								},
+								{
+									"system": "sensors.cooling",
+									"channel": "coolant",
+									"levels": [0, 100, 200],
+									"default": 200,
+									"level_labels": ["No coolant", "Low coolant", "High coolant"]
+								},
+								{
+									"system": "tactical.distribution",
+									"channel": "power",
+									"levels": [0, 500, 1000],
+									"default": 1000
+								},
+								{
+									"system": "tactical.cooling",
+									"channel": "coolant",
+									"levels": [0, 100, 200],
+									"default": 200,
+									"level_labels": ["No coolant", "Low coolant", "High coolant"]
+								},
+								{
+									"system": "communications.distribution",
+									"channel": "power",
+									"levels": [0, 500, 1000],
+									"default": 1000
+								},
+								{
+									"system": "communications.cooling",
+									"channel": "coolant",
+									"levels": [0, 50, 100],
+									"default": 100,
+									"level_labels": ["No coolant", "Low coolant", "High coolant"]
+								},
+								{
+									"system": "command.distribution",
+									"channel": "power",
+									"levels": [0, 500, 1000],
+									"default": 1000
+								},
+								{
+									"system": "command.cooling",
+									"channel": "coolant",
+									"levels": [0, 50, 100],
+									"default": 100,
+									"level_labels": ["No coolant", "Low coolant", "High coolant"]
+								}
+							]
+						},
+						"science": {
+							"direct": ["sensors.radar"],
+							"delegated": [],
+							"summary_intents": []
+						},
+						"tactical": {
+							"direct": ["tactical.radar"],
+							"delegated": [],
+							"summary_intents": []
+						},
+						"comms": {
+							"direct": ["communications.reserve"],
+							"delegated": [],
+							"summary_intents": []
+						},
+						"captain": {
+							"direct": ["command.reserve"],
+							"delegated": [],
+							"summary_intents": []
+						}
+					}
+				},
+				{
+					"id": "middle",
+					"name": "Middle",
+					"consoles": {
+						"helm": {
+							"direct": [
+								"drive.engine",
+								"drive.steering",
+								"drive.lateral",
+								"drive.boost",
+								"drive.impulse",
+								"wing.engine",
+								"wing.steering",
+								"wing.lateral",
+								"wing.boost",
+								"wing.impulse"
+							],
+							"delegated": [],
+							"summary_intents": []
+						},
+						"engineering": {
+							"direct": [
+								"core.generator",
+								"core.distribution",
+								"drive.distribution",
+								"wing.distribution",
+								"sensors.distribution",
+								"tactical.distribution",
+								"communications.distribution",
+								"command.distribution"
+							],
+							"delegated": [
+								"core.reserve",
+								"core.pump",
+								"core.reactor-cooling",
+								"drive.engine-supply",
+								"drive.engine-cooling",
+								"drive.steering-supply",
+								"drive.steering-cooling",
+								"drive.lateral-supply",
+								"drive.lateral-cooling",
+								"drive.boost-supply",
+								"drive.boost-cooling",
+								"drive.impulse-supply",
+								"drive.impulse-cooling",
+								"wing.engine-supply",
+								"wing.engine-cooling",
+								"wing.steering-supply",
+								"wing.steering-cooling",
+								"wing.lateral-supply",
+								"wing.lateral-cooling",
+								"wing.boost-supply",
+								"wing.boost-cooling",
+								"wing.impulse-supply",
+								"wing.impulse-cooling",
+								"sensors.cooling",
+								"tactical.cooling",
+								"communications.cooling",
+								"command.cooling"
+							],
+							"summary_intents": []
+						},
+						"science": {
+							"direct": ["sensors.radar"],
+							"delegated": [],
+							"summary_intents": []
+						},
+						"tactical": {
+							"direct": ["tactical.radar"],
+							"delegated": [],
+							"summary_intents": []
+						},
+						"comms": {
+							"direct": ["communications.reserve"],
+							"delegated": [],
+							"summary_intents": []
+						},
+						"captain": {
+							"direct": ["command.reserve"],
+							"delegated": [],
+							"summary_intents": []
+						}
+					}
+				},
+				{
+					"id": "detailed",
+					"name": "Detailed",
+					"consoles": {
+						"helm": {
+							"direct": [
+								"drive.engine",
+								"drive.steering",
+								"drive.lateral",
+								"drive.boost",
+								"drive.impulse",
+								"wing.engine",
+								"wing.steering",
+								"wing.lateral",
+								"wing.boost",
+								"wing.impulse"
+							],
+							"delegated": [],
+							"summary_intents": []
+						},
+						"engineering": {
+							"direct": [
+								"core.generator",
+								"core.reserve",
+								"core.distribution",
+								"core.pump",
+								"core.reactor-cooling",
+								"drive.distribution",
+								"drive.engine-supply",
+								"drive.engine-cooling",
+								"drive.steering-supply",
+								"drive.steering-cooling",
+								"drive.lateral-supply",
+								"drive.lateral-cooling",
+								"drive.boost-supply",
+								"drive.boost-cooling",
+								"drive.impulse-supply",
+								"drive.impulse-cooling",
+								"wing.distribution",
+								"wing.engine-supply",
+								"wing.engine-cooling",
+								"wing.steering-supply",
+								"wing.steering-cooling",
+								"wing.lateral-supply",
+								"wing.lateral-cooling",
+								"wing.boost-supply",
+								"wing.boost-cooling",
+								"wing.impulse-supply",
+								"wing.impulse-cooling",
+								"sensors.distribution",
+								"sensors.cooling",
+								"tactical.distribution",
+								"tactical.cooling",
+								"communications.distribution",
+								"communications.cooling",
+								"command.distribution",
+								"command.cooling"
+							],
+							"delegated": [],
+							"summary_intents": []
+						},
+						"science": {
+							"direct": ["sensors.radar"],
+							"delegated": [],
+							"summary_intents": []
+						},
+						"tactical": {
+							"direct": ["tactical.radar"],
+							"delegated": [],
+							"summary_intents": []
+						},
+						"comms": {
+							"direct": ["communications.reserve"],
+							"delegated": [],
+							"summary_intents": []
+						},
+						"captain": {
+							"direct": ["command.reserve"],
+							"delegated": [],
+							"summary_intents": []
+						}
+					}
+				}
+			]
 		}
 	],
 	"maps": [
@@ -393,7 +1387,7 @@
 					"x_mm": 0,
 					"y_mm": 0,
 					"heading_mdeg": 0,
-					"allowed_ships": ["training.survey"]
+					"allowed_ships": ["training.survey", "base.courier-engineering", "base.cruiser"]
 				}
 			]
 		}
@@ -435,7 +1429,2107 @@
 			],
 			"name": "Ship Operations",
 			"description": "Set the ship’s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew."
+		},
+		{
+			"id": "base.console.helm",
+			"name": "Helm",
+			"description": "Fly using actual propulsion, reserves and approved navigation objectives.",
+			"knowledge_roles": ["base.crew", "base.helm"],
+			"widgets": [
+				{
+					"id": "radar",
+					"kind": "radar",
+					"binding": "radar.contacts",
+					"label": "Permitted contacts",
+					"x": 220,
+					"y": 0,
+					"width": 780,
+					"height": 700,
+					"system": "sensors.radar"
+				},
+				{
+					"id": "engine",
+					"kind": "throttle",
+					"binding": "engine.desired_speed",
+					"label": "Main propulsion",
+					"x": 0,
+					"y": 0,
+					"width": 220,
+					"height": 1000,
+					"system": "drive.engine"
+				},
+				{
+					"id": "heading",
+					"kind": "heading",
+					"binding": "steering.desired_heading",
+					"label": "Heading",
+					"x": 220,
+					"y": 700,
+					"width": 780,
+					"height": 300,
+					"system": "drive.steering"
+				}
+			]
+		},
+		{
+			"id": "base.console.engineering",
+			"name": "Engineering",
+			"description": "Operate generation, incoming allocations, local reserves, conduits and cooling.",
+			"knowledge_roles": ["base.crew", "base.engineering"],
+			"widgets": [
+				{
+					"id": "status",
+					"kind": "status",
+					"binding": "ship.status",
+					"label": "Engineering and resource status",
+					"x": 0,
+					"y": 0,
+					"width": 1000,
+					"height": 1000
+				}
+			]
+		},
+		{
+			"id": "base.console.science",
+			"name": "Science",
+			"description": "Observe the fitted long-range sensor and share selected evidence.",
+			"knowledge_roles": ["base.crew", "base.science"],
+			"widgets": [
+				{
+					"id": "radar",
+					"kind": "radar",
+					"binding": "radar.contacts",
+					"label": "Science sensor",
+					"x": 0,
+					"y": 0,
+					"width": 1000,
+					"height": 1000,
+					"system": "sensors.radar"
+				}
+			]
+		},
+		{
+			"id": "base.console.tactical",
+			"name": "Tactical",
+			"description": "Observe the independent local sensor and coordinate ship readiness.",
+			"knowledge_roles": ["base.crew", "base.tactical"],
+			"widgets": [
+				{
+					"id": "radar",
+					"kind": "radar",
+					"binding": "radar.contacts",
+					"label": "Tactical sensor",
+					"x": 0,
+					"y": 0,
+					"width": 1000,
+					"height": 1000,
+					"system": "tactical.radar"
+				}
+			]
+		},
+		{
+			"id": "base.console.comms",
+			"name": "Comms",
+			"description": "Review received Coordination and send structured bridge requests.",
+			"knowledge_roles": ["base.crew", "base.comms"],
+			"widgets": [
+				{
+					"id": "status",
+					"kind": "status",
+					"binding": "ship.status",
+					"label": "Communications and received reports",
+					"x": 0,
+					"y": 0,
+					"width": 1000,
+					"height": 1000
+				}
+			]
+		},
+		{
+			"id": "base.console.captain",
+			"name": "Captain",
+			"description": "Review published objectives, deliberate reports and current delegation.",
+			"knowledge_roles": ["base.crew", "base.captain"],
+			"widgets": [
+				{
+					"id": "status",
+					"kind": "status",
+					"binding": "ship.status",
+					"label": "Shipwide objectives and reports",
+					"x": 0,
+					"y": 0,
+					"width": 1000,
+					"height": 1000
+				}
+			]
 		}
 	],
-	"trees": []
+	"trees": [
+		{
+			"id": "base.ai.messages",
+			"context": "system",
+			"initial": "listen",
+			"states": [
+				{
+					"id": "listen",
+					"transitions": [
+						{
+							"target": "accept",
+							"conditions": [
+								{
+									"left": {
+										"observation": "message.available"
+									},
+									"op": "eq",
+									"right": true
+								}
+							],
+							"reason": "accept"
+						}
+					]
+				},
+				{
+					"id": "accept",
+					"entry": [
+						{
+							"action": "receive_messages",
+							"arguments": [
+								{
+									"observation": "self.system"
+								},
+								{
+									"observation": "message.id"
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "listen",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 1
+								}
+							],
+							"reason": "listen"
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.ai.standby",
+			"context": "system",
+			"initial": "standing-orders",
+			"states": [
+				{
+					"id": "standing-orders",
+					"running": [
+						{
+							"call": "base.ai.messages"
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.ai.helm",
+			"context": "system",
+			"initial": "orders",
+			"states": [
+				{
+					"id": "orders",
+					"initial": "waiting",
+					"running": [
+						{
+							"call": "base.ai.messages"
+						}
+					]
+				},
+				{
+					"id": "waiting",
+					"parent": "orders",
+					"transitions": [
+						{
+							"target": "navigate",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.known"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "objective.state"
+									},
+									"op": "eq",
+									"right": 1
+								}
+							],
+							"reason": "navigate"
+						}
+					]
+				},
+				{
+					"id": "navigate",
+					"parent": "orders",
+					"running": [
+						{
+							"action": "set_destination",
+							"arguments": [
+								{
+									"observation": "self.system"
+								},
+								{
+									"observation": "objective.region"
+								},
+								{
+									"observation": "objective.x_mm"
+								},
+								{
+									"observation": "objective.y_mm"
+								}
+							]
+						},
+						{
+							"action": "set_speed",
+							"arguments": [
+								{
+									"observation": "self.system"
+								},
+								{
+									"parameter": "cruise_speed"
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "arrived",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.state"
+									},
+									"op": "eq",
+									"right": 2
+								}
+							],
+							"reason": "arrived"
+						},
+						{
+							"target": "limited",
+							"conditions": [
+								{
+									"left": {
+										"observation": "power.limited"
+									},
+									"op": "eq",
+									"right": true
+								}
+							],
+							"reason": "limited"
+						}
+					]
+				},
+				{
+					"id": "limited",
+					"parent": "orders",
+					"entry": [
+						{
+							"action": "send_ship_message",
+							"arguments": [
+								{
+									"observation": "self.system"
+								},
+								{
+									"observation": "self.entity"
+								},
+								"base.message.power-request",
+								{
+									"observation": "self.entity"
+								},
+								8000,
+								true,
+								"Propulsion supply is limiting the assigned transit.",
+								"propulsion-power",
+								2,
+								600,
+								1
+							]
+						}
+					],
+					"running": [
+						{
+							"action": "set_destination",
+							"arguments": [
+								{
+									"observation": "self.system"
+								},
+								{
+									"observation": "objective.region"
+								},
+								{
+									"observation": "objective.x_mm"
+								},
+								{
+									"observation": "objective.y_mm"
+								}
+							]
+						},
+						{
+							"action": "set_speed",
+							"arguments": [
+								{
+									"observation": "self.system"
+								},
+								{
+									"parameter": "cruise_speed"
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "arrived",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.state"
+									},
+									"op": "eq",
+									"right": 2
+								}
+							],
+							"reason": "arrived"
+						},
+						{
+							"target": "navigate",
+							"conditions": [
+								{
+									"left": {
+										"observation": "power.limited"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 40
+								}
+							],
+							"reason": "navigate"
+						}
+					]
+				},
+				{
+					"id": "arrived",
+					"parent": "orders",
+					"entry": [
+						{
+							"action": "set_speed",
+							"arguments": [
+								{
+									"observation": "self.system"
+								},
+								0
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "navigate",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.state"
+									},
+									"op": "eq",
+									"right": 1
+								}
+							],
+							"reason": "navigate"
+						}
+					]
+				}
+			],
+			"parameters": {
+				"cruise_speed": {
+					"type": "integer",
+					"default": 9000
+				}
+			}
+		},
+		{
+			"id": "base.ai.heading",
+			"context": "system",
+			"initial": "orders",
+			"states": [
+				{
+					"id": "orders",
+					"initial": "hold",
+					"running": [
+						{
+							"call": "base.ai.messages"
+						}
+					]
+				},
+				{
+					"id": "hold",
+					"parent": "orders",
+					"transitions": [
+						{
+							"target": "navigate",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.known"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "objective.state"
+									},
+									"op": "eq",
+									"right": 1
+								}
+							],
+							"reason": "navigate"
+						}
+					]
+				},
+				{
+					"id": "navigate",
+					"parent": "orders",
+					"running": [
+						{
+							"action": "set_destination",
+							"arguments": [
+								{
+									"observation": "self.system"
+								},
+								{
+									"observation": "objective.region"
+								},
+								{
+									"observation": "objective.x_mm"
+								},
+								{
+									"observation": "objective.y_mm"
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.state"
+									},
+									"op": "eq",
+									"right": 2
+								}
+							],
+							"reason": "hold"
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.ai.generator",
+			"context": "system",
+			"initial": "service",
+			"states": [
+				{
+					"id": "service",
+					"initial": "routine",
+					"running": [
+						{
+							"call": "base.ai.messages"
+						}
+					]
+				},
+				{
+					"id": "routine",
+					"parent": "service",
+					"running": [
+						{
+							"action": "set_generator_output",
+							"arguments": [
+								{
+									"observation": "self.system"
+								},
+								650
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "summary",
+							"conditions": [
+								{
+									"left": {
+										"observation": "summary.level"
+									},
+									"op": "present"
+								}
+							],
+							"reason": "summary"
+						},
+						{
+							"target": "hot",
+							"conditions": [
+								{
+									"left": {
+										"observation": "thermal.stopped"
+									},
+									"op": "eq",
+									"right": true
+								}
+							],
+							"reason": "hot"
+						},
+						{
+							"target": "requested",
+							"conditions": [
+								{
+									"left": {
+										"observation": "message.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "message.schema"
+									},
+									"op": "eq",
+									"right": "base.coordination"
+								},
+								{
+									"left": {
+										"observation": "message.boolean"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "message.integer"
+									},
+									"op": "gt",
+									"right": 0
+								}
+							],
+							"reason": "requested"
+						}
+					]
+				},
+				{
+					"id": "summary",
+					"parent": "service",
+					"running": [
+						{
+							"action": "set_generator_output",
+							"arguments": [
+								{
+									"observation": "self.system"
+								},
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "hot",
+							"conditions": [
+								{
+									"left": {
+										"observation": "thermal.stopped"
+									},
+									"op": "eq",
+									"right": true
+								}
+							],
+							"reason": "hot"
+						}
+					]
+				},
+				{
+					"id": "requested",
+					"parent": "service",
+					"entry": [
+						{
+							"action": "set_generator_output",
+							"arguments": [
+								{
+									"observation": "self.system"
+								},
+								1000
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "routine",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 200
+								}
+							],
+							"reason": "routine"
+						},
+						{
+							"target": "hot",
+							"conditions": [
+								{
+									"left": {
+										"observation": "thermal.stopped"
+									},
+									"op": "eq",
+									"right": true
+								}
+							],
+							"reason": "hot"
+						}
+					]
+				},
+				{
+					"id": "hot",
+					"parent": "service",
+					"entry": [
+						{
+							"action": "send_ship_message",
+							"arguments": [
+								{
+									"observation": "self.system"
+								},
+								{
+									"observation": "self.entity"
+								},
+								"base.message.thermal-stop",
+								{
+									"observation": "self.entity"
+								},
+								0,
+								true,
+								"Generator thermal protection is active; stored reserves remain available.",
+								"generator-thermal",
+								2,
+								600,
+								1
+							]
+						}
+					],
+					"running": [
+						{
+							"action": "set_generator_output",
+							"arguments": [
+								{
+									"observation": "self.system"
+								},
+								350
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "recovered",
+							"conditions": [
+								{
+									"left": {
+										"observation": "thermal.stopped"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 40
+								}
+							],
+							"reason": "recovered"
+						}
+					]
+				},
+				{
+					"id": "recovered",
+					"parent": "service",
+					"entry": [
+						{
+							"action": "send_ship_message",
+							"arguments": [
+								{
+									"observation": "self.system"
+								},
+								{
+									"observation": "self.entity"
+								},
+								"base.message.supply-restored",
+								{
+									"observation": "self.entity"
+								},
+								0,
+								false,
+								"Generator thermal protection has cleared under current orders.",
+								"generator-thermal",
+								2,
+								600,
+								1
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "routine",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 1
+								}
+							],
+							"reason": "routine"
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.ai.distribution",
+			"context": "system",
+			"initial": "service",
+			"states": [
+				{
+					"id": "service",
+					"initial": "routine",
+					"running": [
+						{
+							"call": "base.ai.messages"
+						}
+					]
+				},
+				{
+					"id": "routine",
+					"parent": "service",
+					"entry": [
+						{
+							"action": "set_group_allocation",
+							"arguments": [
+								{
+									"observation": "self.system"
+								},
+								"",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "summary",
+							"conditions": [
+								{
+									"left": {
+										"observation": "summary.level"
+									},
+									"op": "present"
+								}
+							],
+							"reason": "summary"
+						}
+					]
+				},
+				{
+					"id": "summary",
+					"parent": "service",
+					"running": [
+						{
+							"action": "set_group_allocation",
+							"arguments": [
+								{
+									"observation": "self.system"
+								},
+								"",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
+				}
+			],
+			"parameters": {
+				"default_allocation": {
+					"type": "integer",
+					"default": 8000
+				}
+			}
+		},
+		{
+			"id": "base.ai.coolant",
+			"context": "system",
+			"initial": "service",
+			"states": [
+				{
+					"id": "service",
+					"initial": "routine",
+					"running": [
+						{
+							"call": "base.ai.messages"
+						}
+					]
+				},
+				{
+					"id": "routine",
+					"parent": "service",
+					"entry": [
+						{
+							"action": "set_cooling_allocation",
+							"arguments": [
+								{
+									"observation": "self.system"
+								},
+								"",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "summary",
+							"conditions": [
+								{
+									"left": {
+										"observation": "summary.level"
+									},
+									"op": "present"
+								}
+							],
+							"reason": "summary"
+						}
+					]
+				},
+				{
+					"id": "summary",
+					"parent": "service",
+					"running": [
+						{
+							"action": "set_cooling_allocation",
+							"arguments": [
+								{
+									"observation": "self.system"
+								},
+								"",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
+				}
+			],
+			"parameters": {
+				"default_allocation": {
+					"type": "integer",
+					"default": 1000
+				}
+			}
+		},
+		{
+			"id": "base.ai.utility-distribution",
+			"extends": "base.ai.distribution",
+			"arguments": {
+				"default_allocation": 1000
+			}
+		},
+		{
+			"id": "base.ai.fine-distribution",
+			"extends": "base.ai.distribution",
+			"arguments": {
+				"default_allocation": 1000
+			}
+		},
+		{
+			"id": "base.ai.coolant-low",
+			"extends": "base.ai.coolant",
+			"arguments": {
+				"default_allocation": 200
+			}
+		},
+		{
+			"id": "base.ai.coolant-core",
+			"extends": "base.ai.coolant",
+			"arguments": {
+				"default_allocation": 3000
+			}
+		},
+		{
+			"id": "base.ai.engine-supply",
+			"extends": "base.ai.distribution",
+			"arguments": {
+				"default_allocation": 4000
+			}
+		},
+		{
+			"id": "base.ai.steering-supply",
+			"extends": "base.ai.distribution",
+			"arguments": {
+				"default_allocation": 500
+			}
+		},
+		{
+			"id": "base.ai.lateral-supply",
+			"extends": "base.ai.distribution",
+			"arguments": {
+				"default_allocation": 1000
+			}
+		},
+		{
+			"id": "base.ai.boost-supply",
+			"extends": "base.ai.distribution",
+			"arguments": {
+				"default_allocation": 1000
+			}
+		},
+		{
+			"id": "base.ai.impulse-supply",
+			"extends": "base.ai.distribution",
+			"arguments": {
+				"default_allocation": 1500
+			}
+		},
+		{
+			"id": "base.ai.engine-cooling",
+			"extends": "base.ai.coolant",
+			"arguments": {
+				"default_allocation": 1000
+			}
+		},
+		{
+			"id": "base.ai.steering-cooling",
+			"extends": "base.ai.coolant",
+			"arguments": {
+				"default_allocation": 100
+			}
+		},
+		{
+			"id": "base.ai.lateral-cooling",
+			"extends": "base.ai.coolant",
+			"arguments": {
+				"default_allocation": 200
+			}
+		},
+		{
+			"id": "base.ai.boost-cooling",
+			"extends": "base.ai.coolant",
+			"arguments": {
+				"default_allocation": 1000
+			}
+		},
+		{
+			"id": "base.ai.impulse-cooling",
+			"extends": "base.ai.coolant",
+			"arguments": {
+				"default_allocation": 1500
+			}
+		}
+	],
+	"equipment": [
+		{
+			"id": "base.equipment.engine",
+			"kind": "engine",
+			"max_speed_mm_s": 14000,
+			"reverse_speed_mm_s": 6000,
+			"acceleration_mm_s2": 2200,
+			"energy_per_second": 2400,
+			"power_store": "engine-cell",
+			"controller": "base.ai.helm",
+			"records": [
+				{
+					"schema": "base.machinery-status",
+					"producer": "base.machinery",
+					"kind": "fact",
+					"fields": {
+						"stored": "stored_energy",
+						"heat": "heat",
+						"limited": "supply_limited"
+					}
+				}
+			]
+		},
+		{
+			"id": "base.equipment.steering",
+			"kind": "steering",
+			"turn_mdeg_s": 24000,
+			"energy_per_second": 240,
+			"power_store": "steering-cell",
+			"controller": "base.ai.heading",
+			"records": [
+				{
+					"schema": "base.machinery-status",
+					"producer": "base.machinery",
+					"kind": "fact",
+					"fields": {
+						"stored": "stored_energy",
+						"heat": "heat",
+						"limited": "supply_limited"
+					}
+				}
+			]
+		},
+		{
+			"id": "base.equipment.lateral",
+			"kind": "lateral",
+			"max_speed_mm_s": 5000,
+			"acceleration_mm_s2": 1000,
+			"lateral_speed_mm_s": 5000,
+			"lateral_acceleration_mm_s2": 1000,
+			"assist_lateral": true,
+			"energy_per_second": 600,
+			"power_store": "lateral-cell",
+			"controller": "base.ai.standby",
+			"records": [
+				{
+					"schema": "base.machinery-status",
+					"producer": "base.machinery",
+					"kind": "fact",
+					"fields": {
+						"stored": "stored_energy",
+						"heat": "heat",
+						"limited": "supply_limited"
+					}
+				}
+			]
+		},
+		{
+			"id": "base.equipment.boost",
+			"kind": "boost",
+			"max_speed_mm_s": 14000,
+			"acceleration_mm_s2": 2200,
+			"speed_multiplier_permille": 1600,
+			"acceleration_multiplier_permille": 2200,
+			"power_rate": 4800,
+			"energy_per_second": 4800,
+			"power_store": "boost-cell",
+			"controller": "base.ai.standby",
+			"records": [
+				{
+					"schema": "base.machinery-status",
+					"producer": "base.machinery",
+					"kind": "fact",
+					"fields": {
+						"stored": "stored_energy",
+						"heat": "heat",
+						"limited": "supply_limited"
+					}
+				}
+			]
+		},
+		{
+			"id": "base.equipment.impulse",
+			"kind": "impulse",
+			"max_speed_mm_s": 14000,
+			"acceleration_mm_s2": 2200,
+			"charge_ticks": 60,
+			"speed_multiplier_permille": 8000,
+			"acceleration_multiplier_permille": 5000,
+			"steering_permille": 100,
+			"charge_power_rate": 4000,
+			"power_rate": 8000,
+			"energy_per_second": 8000,
+			"power_store": "impulse-cell",
+			"controller": "base.ai.standby",
+			"records": [
+				{
+					"schema": "base.machinery-status",
+					"producer": "base.machinery",
+					"kind": "fact",
+					"fields": {
+						"stored": "stored_energy",
+						"heat": "heat",
+						"limited": "supply_limited"
+					}
+				}
+			]
+		},
+		{
+			"id": "base.equipment.radar",
+			"kind": "radar",
+			"range_mm": 650000,
+			"energy_per_second": 200,
+			"power_store": "cell",
+			"controller": "base.ai.standby",
+			"records": [
+				{
+					"schema": "base.machinery-status",
+					"producer": "base.machinery",
+					"kind": "fact",
+					"fields": {
+						"stored": "stored_energy",
+						"heat": "heat",
+						"limited": "supply_limited"
+					}
+				}
+			]
+		},
+		{
+			"id": "base.equipment.generator",
+			"kind": "generator",
+			"generator": "generator",
+			"power_store": "capacitor",
+			"controller": "base.ai.generator",
+			"records": [
+				{
+					"schema": "base.machinery-status",
+					"producer": "base.machinery",
+					"kind": "fact",
+					"fields": {
+						"stored": "stored_energy",
+						"heat": "heat",
+						"limited": "supply_limited"
+					}
+				}
+			]
+		},
+		{
+			"id": "base.equipment.storage",
+			"kind": "storage",
+			"power_store": "cell",
+			"controller": "base.ai.standby",
+			"records": [
+				{
+					"schema": "base.machinery-status",
+					"producer": "base.machinery",
+					"kind": "fact",
+					"fields": {
+						"stored": "stored_energy",
+						"heat": "heat",
+						"limited": "supply_limited"
+					}
+				}
+			]
+		},
+		{
+			"id": "base.equipment.distribution",
+			"kind": "distribution",
+			"power_group": "drive",
+			"controller": "base.ai.distribution"
+		},
+		{
+			"id": "base.equipment.coolant-valve",
+			"kind": "coolant",
+			"cooling_link": "cooling",
+			"controller": "base.ai.coolant"
+		},
+		{
+			"id": "base.equipment.pump",
+			"kind": "coolant",
+			"power_store": "pump-cell",
+			"cooling_link": "pump-cooling",
+			"energy_per_second": 400,
+			"controller": "base.ai.standby",
+			"records": [
+				{
+					"schema": "base.machinery-status",
+					"producer": "base.machinery",
+					"kind": "fact",
+					"fields": {
+						"stored": "stored_energy",
+						"heat": "heat",
+						"limited": "supply_limited"
+					}
+				}
+			]
+		}
+	],
+	"assemblies": [
+		{
+			"id": "base.assembly.power-core",
+			"systems": {
+				"generator": {
+					"template": "base.equipment.generator"
+				},
+				"reserve": {
+					"template": "base.equipment.storage",
+					"power_store": "capacitor"
+				},
+				"distribution": {
+					"template": "base.equipment.distribution",
+					"power_group": "services",
+					"controller": "base.ai.utility-distribution"
+				},
+				"pump": {
+					"template": "base.equipment.pump"
+				},
+				"reactor-cooling": {
+					"template": "base.equipment.coolant-valve",
+					"cooling_link": "reactor-cooling",
+					"controller": "base.ai.coolant-core"
+				}
+			},
+			"resources": {
+				"stores": [
+					{
+						"id": "capacitor",
+						"capacity": 160000,
+						"initial": 120000,
+						"charge_rate": 20000,
+						"discharge_rate": 20000,
+						"loss_empty_ppm": 0,
+						"loss_full_ppm": 25,
+						"stop_heat": 60000,
+						"recover_heat": 35000,
+						"passive_cooling": 50,
+						"charge_heat_ppm": 20000,
+						"operation_heat_ppm": 0,
+						"depletion_heat_ppm": 10000,
+						"overdrive_permille": 1500,
+						"overdrive_heat_permille": 1800,
+						"stress_rate": 20,
+						"override_stress_rate": 50,
+						"stress_limit": 12000,
+						"allows_override": true
+					},
+					{
+						"id": "pump-cell",
+						"capacity": 10000,
+						"initial": 7500,
+						"charge_rate": 2000,
+						"discharge_rate": 10000,
+						"loss_empty_ppm": 0,
+						"loss_full_ppm": 25,
+						"stop_heat": 60000,
+						"recover_heat": 35000,
+						"passive_cooling": 50,
+						"charge_heat_ppm": 20000,
+						"operation_heat_ppm": 400000,
+						"depletion_heat_ppm": 10000,
+						"overdrive_permille": 1500,
+						"overdrive_heat_permille": 1800,
+						"stress_rate": 20,
+						"override_stress_rate": 50,
+						"stress_limit": 12000,
+						"allows_override": true,
+						"group": "services"
+					}
+				],
+				"generators": [
+					{
+						"id": "generator",
+						"store": "capacitor",
+						"maximum_rate": 20000,
+						"response_rate": 10000,
+						"initial_output": 13000,
+						"heat_ppm": 100000
+					}
+				],
+				"groups": [
+					{
+						"id": "services",
+						"budget_rate": 1000,
+						"restore_ticks": 40,
+						"restore_margin_rate": 100
+					}
+				],
+				"links": [
+					{
+						"id": "pump-feed",
+						"from": "capacitor",
+						"to": "pump-cell",
+						"capacity_rate": 2000
+					}
+				],
+				"coolant_sources": [
+					{
+						"id": "coolant",
+						"initial": 500000,
+						"removal_rate": 12000,
+						"coolant_per_heat_ppm": 100000,
+						"power_store": "pump-cell"
+					}
+				],
+				"cooling_links": [
+					{
+						"id": "reactor-cooling",
+						"source": "coolant",
+						"store": "capacitor",
+						"capacity_rate": 5000,
+						"allocation_rate": 3000
+					},
+					{
+						"id": "pump-cooling",
+						"source": "coolant",
+						"store": "pump-cell",
+						"capacity_rate": 1000,
+						"allocation_rate": 300
+					}
+				]
+			},
+			"services": {
+				"power": {
+					"kind": "power",
+					"direction": "output",
+					"target": "capacitor"
+				},
+				"coolant": {
+					"kind": "coolant",
+					"direction": "output",
+					"target": "coolant"
+				}
+			}
+		},
+		{
+			"id": "base.assembly.drive",
+			"systems": {
+				"engine": {
+					"template": "base.equipment.engine"
+				},
+				"engine-supply": {
+					"template": "base.equipment.distribution",
+					"power_group": "engine",
+					"controller": "base.ai.engine-supply"
+				},
+				"engine-cooling": {
+					"template": "base.equipment.coolant-valve",
+					"cooling_link": "engine-cooling",
+					"controller": "base.ai.engine-cooling"
+				},
+				"steering": {
+					"template": "base.equipment.steering"
+				},
+				"steering-supply": {
+					"template": "base.equipment.distribution",
+					"power_group": "steering",
+					"controller": "base.ai.steering-supply"
+				},
+				"steering-cooling": {
+					"template": "base.equipment.coolant-valve",
+					"cooling_link": "steering-cooling",
+					"controller": "base.ai.steering-cooling"
+				},
+				"lateral": {
+					"template": "base.equipment.lateral"
+				},
+				"lateral-supply": {
+					"template": "base.equipment.distribution",
+					"power_group": "lateral",
+					"controller": "base.ai.lateral-supply"
+				},
+				"lateral-cooling": {
+					"template": "base.equipment.coolant-valve",
+					"cooling_link": "lateral-cooling",
+					"controller": "base.ai.lateral-cooling"
+				},
+				"boost": {
+					"template": "base.equipment.boost"
+				},
+				"boost-supply": {
+					"template": "base.equipment.distribution",
+					"power_group": "boost",
+					"controller": "base.ai.boost-supply"
+				},
+				"boost-cooling": {
+					"template": "base.equipment.coolant-valve",
+					"cooling_link": "boost-cooling",
+					"controller": "base.ai.boost-cooling"
+				},
+				"impulse": {
+					"template": "base.equipment.impulse"
+				},
+				"impulse-supply": {
+					"template": "base.equipment.distribution",
+					"power_group": "impulse",
+					"controller": "base.ai.impulse-supply"
+				},
+				"impulse-cooling": {
+					"template": "base.equipment.coolant-valve",
+					"cooling_link": "impulse-cooling",
+					"controller": "base.ai.impulse-cooling"
+				},
+				"distribution": {
+					"template": "base.equipment.distribution",
+					"power_group": "drive",
+					"controller": "base.ai.distribution"
+				}
+			},
+			"resources": {
+				"stores": [
+					{
+						"id": "engine-cell",
+						"capacity": 30000,
+						"initial": 22500,
+						"charge_rate": 4000,
+						"discharge_rate": 10000,
+						"loss_empty_ppm": 0,
+						"loss_full_ppm": 25,
+						"stop_heat": 60000,
+						"recover_heat": 35000,
+						"passive_cooling": 50,
+						"charge_heat_ppm": 20000,
+						"operation_heat_ppm": 400000,
+						"depletion_heat_ppm": 10000,
+						"overdrive_permille": 1500,
+						"overdrive_heat_permille": 1800,
+						"stress_rate": 20,
+						"override_stress_rate": 50,
+						"stress_limit": 12000,
+						"allows_override": true,
+						"group": "engine"
+					},
+					{
+						"id": "steering-cell",
+						"capacity": 10000,
+						"initial": 7500,
+						"charge_rate": 1000,
+						"discharge_rate": 10000,
+						"loss_empty_ppm": 0,
+						"loss_full_ppm": 25,
+						"stop_heat": 60000,
+						"recover_heat": 35000,
+						"passive_cooling": 50,
+						"charge_heat_ppm": 20000,
+						"operation_heat_ppm": 400000,
+						"depletion_heat_ppm": 10000,
+						"overdrive_permille": 1500,
+						"overdrive_heat_permille": 1800,
+						"stress_rate": 20,
+						"override_stress_rate": 50,
+						"stress_limit": 12000,
+						"allows_override": true,
+						"group": "steering"
+					},
+					{
+						"id": "lateral-cell",
+						"capacity": 15000,
+						"initial": 11250,
+						"charge_rate": 2000,
+						"discharge_rate": 10000,
+						"loss_empty_ppm": 0,
+						"loss_full_ppm": 25,
+						"stop_heat": 60000,
+						"recover_heat": 35000,
+						"passive_cooling": 50,
+						"charge_heat_ppm": 20000,
+						"operation_heat_ppm": 400000,
+						"depletion_heat_ppm": 10000,
+						"overdrive_permille": 1500,
+						"overdrive_heat_permille": 1800,
+						"stress_rate": 20,
+						"override_stress_rate": 50,
+						"stress_limit": 12000,
+						"allows_override": true,
+						"group": "lateral"
+					},
+					{
+						"id": "boost-cell",
+						"capacity": 50000,
+						"initial": 37500,
+						"charge_rate": 6000,
+						"discharge_rate": 10000,
+						"loss_empty_ppm": 0,
+						"loss_full_ppm": 25,
+						"stop_heat": 60000,
+						"recover_heat": 35000,
+						"passive_cooling": 50,
+						"charge_heat_ppm": 20000,
+						"operation_heat_ppm": 400000,
+						"depletion_heat_ppm": 10000,
+						"overdrive_permille": 1500,
+						"overdrive_heat_permille": 1800,
+						"stress_rate": 20,
+						"override_stress_rate": 50,
+						"stress_limit": 12000,
+						"allows_override": true,
+						"group": "boost"
+					},
+					{
+						"id": "impulse-cell",
+						"capacity": 100000,
+						"initial": 75000,
+						"charge_rate": 8000,
+						"discharge_rate": 10000,
+						"loss_empty_ppm": 0,
+						"loss_full_ppm": 25,
+						"stop_heat": 60000,
+						"recover_heat": 35000,
+						"passive_cooling": 50,
+						"charge_heat_ppm": 20000,
+						"operation_heat_ppm": 400000,
+						"depletion_heat_ppm": 10000,
+						"overdrive_permille": 1500,
+						"overdrive_heat_permille": 1800,
+						"stress_rate": 20,
+						"override_stress_rate": 50,
+						"stress_limit": 12000,
+						"allows_override": true,
+						"group": "impulse"
+					}
+				],
+				"groups": [
+					{
+						"id": "drive",
+						"budget_rate": 8000,
+						"restore_ticks": 40,
+						"restore_margin_rate": 200
+					},
+					{
+						"id": "engine",
+						"parent": "drive",
+						"budget_rate": 4000,
+						"restore_ticks": 40,
+						"restore_margin_rate": 50
+					},
+					{
+						"id": "steering",
+						"parent": "drive",
+						"budget_rate": 500,
+						"restore_ticks": 40,
+						"restore_margin_rate": 50
+					},
+					{
+						"id": "lateral",
+						"parent": "drive",
+						"budget_rate": 1000,
+						"restore_ticks": 40,
+						"restore_margin_rate": 50
+					},
+					{
+						"id": "boost",
+						"parent": "drive",
+						"budget_rate": 1000,
+						"restore_ticks": 40,
+						"restore_margin_rate": 50
+					},
+					{
+						"id": "impulse",
+						"parent": "drive",
+						"budget_rate": 1500,
+						"restore_ticks": 40,
+						"restore_margin_rate": 50
+					}
+				],
+				"links": [
+					{
+						"id": "engine-feed",
+						"from": "$power",
+						"to": "engine-cell",
+						"capacity_rate": 3000
+					},
+					{
+						"id": "steering-feed",
+						"from": "$power",
+						"to": "steering-cell",
+						"capacity_rate": 1000
+					},
+					{
+						"id": "lateral-feed",
+						"from": "$power",
+						"to": "lateral-cell",
+						"capacity_rate": 2000
+					},
+					{
+						"id": "boost-feed",
+						"from": "$power",
+						"to": "boost-cell",
+						"capacity_rate": 6000
+					},
+					{
+						"id": "impulse-feed",
+						"from": "$power",
+						"to": "impulse-cell",
+						"capacity_rate": 8000
+					},
+					{
+						"id": "engine-backup-feed",
+						"from": "$power",
+						"to": "engine-cell",
+						"capacity_rate": 1000
+					}
+				],
+				"cooling_links": [
+					{
+						"id": "engine-cooling",
+						"source": "$coolant",
+						"store": "engine-cell",
+						"capacity_rate": 2000,
+						"allocation_rate": 1000
+					},
+					{
+						"id": "steering-cooling",
+						"source": "$coolant",
+						"store": "steering-cell",
+						"capacity_rate": 2000,
+						"allocation_rate": 100
+					},
+					{
+						"id": "lateral-cooling",
+						"source": "$coolant",
+						"store": "lateral-cell",
+						"capacity_rate": 2000,
+						"allocation_rate": 200
+					},
+					{
+						"id": "boost-cooling",
+						"source": "$coolant",
+						"store": "boost-cell",
+						"capacity_rate": 2000,
+						"allocation_rate": 1000
+					},
+					{
+						"id": "impulse-cooling",
+						"source": "$coolant",
+						"store": "impulse-cell",
+						"capacity_rate": 3000,
+						"allocation_rate": 1500
+					}
+				]
+			},
+			"services": {
+				"power": {
+					"kind": "power",
+					"direction": "input"
+				},
+				"coolant": {
+					"kind": "coolant",
+					"direction": "input"
+				}
+			}
+		},
+		{
+			"id": "base.assembly.sensors",
+			"systems": {
+				"radar": {
+					"template": "base.equipment.radar"
+				},
+				"distribution": {
+					"template": "base.equipment.distribution",
+					"power_group": "sensors",
+					"controller": "base.ai.utility-distribution"
+				},
+				"cooling": {
+					"template": "base.equipment.coolant-valve",
+					"cooling_link": "cooling",
+					"controller": "base.ai.coolant-low"
+				}
+			},
+			"resources": {
+				"stores": [
+					{
+						"id": "cell",
+						"capacity": 20000,
+						"initial": 15000,
+						"charge_rate": 1000,
+						"discharge_rate": 10000,
+						"loss_empty_ppm": 0,
+						"loss_full_ppm": 25,
+						"stop_heat": 60000,
+						"recover_heat": 35000,
+						"passive_cooling": 50,
+						"charge_heat_ppm": 20000,
+						"operation_heat_ppm": 400000,
+						"depletion_heat_ppm": 10000,
+						"overdrive_permille": 1500,
+						"overdrive_heat_permille": 1800,
+						"stress_rate": 20,
+						"override_stress_rate": 50,
+						"stress_limit": 12000,
+						"allows_override": true,
+						"group": "sensors"
+					}
+				],
+				"groups": [
+					{
+						"id": "sensors",
+						"budget_rate": 1000,
+						"restore_ticks": 40,
+						"restore_margin_rate": 50
+					}
+				],
+				"links": [
+					{
+						"id": "feed",
+						"from": "$power",
+						"to": "cell",
+						"capacity_rate": 1000
+					}
+				],
+				"cooling_links": [
+					{
+						"id": "cooling",
+						"source": "$coolant",
+						"store": "cell",
+						"capacity_rate": 1000,
+						"allocation_rate": 200
+					}
+				]
+			},
+			"services": {
+				"power": {
+					"kind": "power",
+					"direction": "input"
+				},
+				"coolant": {
+					"kind": "coolant",
+					"direction": "input"
+				}
+			}
+		},
+		{
+			"id": "base.assembly.console-service",
+			"systems": {
+				"reserve": {
+					"template": "base.equipment.storage",
+					"energy_per_second": 40
+				},
+				"distribution": {
+					"template": "base.equipment.distribution",
+					"power_group": "service",
+					"controller": "base.ai.utility-distribution"
+				},
+				"cooling": {
+					"template": "base.equipment.coolant-valve",
+					"cooling_link": "cooling",
+					"controller": "base.ai.coolant-low"
+				}
+			},
+			"resources": {
+				"stores": [
+					{
+						"id": "cell",
+						"capacity": 5000,
+						"initial": 3750,
+						"charge_rate": 1000,
+						"discharge_rate": 10000,
+						"loss_empty_ppm": 0,
+						"loss_full_ppm": 25,
+						"stop_heat": 60000,
+						"recover_heat": 35000,
+						"passive_cooling": 50,
+						"charge_heat_ppm": 20000,
+						"operation_heat_ppm": 400000,
+						"depletion_heat_ppm": 10000,
+						"overdrive_permille": 1500,
+						"overdrive_heat_permille": 1800,
+						"stress_rate": 20,
+						"override_stress_rate": 50,
+						"stress_limit": 12000,
+						"allows_override": true,
+						"group": "service"
+					}
+				],
+				"groups": [
+					{
+						"id": "service",
+						"budget_rate": 1000,
+						"restore_ticks": 40,
+						"restore_margin_rate": 50
+					}
+				],
+				"links": [
+					{
+						"id": "feed",
+						"from": "$power",
+						"to": "cell",
+						"capacity_rate": 1000
+					}
+				],
+				"cooling_links": [
+					{
+						"id": "cooling",
+						"source": "$coolant",
+						"store": "cell",
+						"capacity_rate": 500,
+						"allocation_rate": 100
+					}
+				]
+			},
+			"services": {
+				"power": {
+					"kind": "power",
+					"direction": "input"
+				},
+				"coolant": {
+					"kind": "coolant",
+					"direction": "input"
+				}
+			}
+		}
+	],
+	"knowledge": {
+		"history_limit": 256,
+		"roles": [
+			"base.crew",
+			"base.machinery",
+			"base.helm",
+			"base.engineering",
+			"base.science",
+			"base.tactical",
+			"base.comms",
+			"base.captain"
+		],
+		"schemas": [
+			{
+				"id": "base.machinery-status",
+				"producers": ["base.machinery"],
+				"readers": ["base.crew"],
+				"ship_publishable": true,
+				"stale_after_ticks": 100,
+				"fields": [
+					{
+						"id": "stored",
+						"type": "integer",
+						"publishable": false
+					},
+					{
+						"id": "heat",
+						"type": "integer",
+						"publishable": false
+					},
+					{
+						"id": "limited",
+						"type": "boolean",
+						"publishable": true
+					}
+				]
+			},
+			{
+				"id": "base.coordination",
+				"producers": ["base.machinery"],
+				"readers": ["base.crew"],
+				"ship_publishable": true,
+				"stale_after_ticks": 600,
+				"fields": [
+					{
+						"id": "amount",
+						"type": "integer",
+						"publishable": true
+					},
+					{
+						"id": "flag",
+						"type": "boolean",
+						"publishable": true
+					},
+					{
+						"id": "detail",
+						"type": "text",
+						"publishable": true
+					}
+				]
+			}
+		]
+	},
+	"messages": [
+		{
+			"id": "base.message.power-request",
+			"schema": "base.coordination",
+			"destination": {
+				"kind": "ship",
+				"id": "self"
+			},
+			"title_key": "Power request",
+			"body_key": "Propulsion requests additional power.",
+			"delay_ticks": 2,
+			"expires_after_ticks": 600,
+			"urgency": 1,
+			"automatic": true,
+			"request_key": "base.message.power-request",
+			"fields": {
+				"amount": {
+					"argument": "amount"
+				},
+				"flag": {
+					"argument": "flag"
+				},
+				"detail": {
+					"argument": "detail"
+				}
+			},
+			"parameters": {}
+		},
+		{
+			"id": "base.message.cooling-request",
+			"schema": "base.coordination",
+			"destination": {
+				"kind": "ship",
+				"id": "self"
+			},
+			"title_key": "Cooling request",
+			"body_key": "Additional cooling capacity is requested.",
+			"delay_ticks": 2,
+			"expires_after_ticks": 600,
+			"urgency": 1,
+			"automatic": true,
+			"request_key": "base.message.cooling-request",
+			"fields": {
+				"amount": {
+					"argument": "amount"
+				},
+				"flag": {
+					"argument": "flag"
+				},
+				"detail": {
+					"argument": "detail"
+				}
+			},
+			"parameters": {}
+		},
+		{
+			"id": "base.message.supply-limited",
+			"schema": "base.coordination",
+			"destination": {
+				"kind": "ship",
+				"id": "self"
+			},
+			"title_key": "Supply limited",
+			"body_key": "Engineering reports a supply constraint.",
+			"delay_ticks": 2,
+			"expires_after_ticks": 600,
+			"urgency": 1,
+			"automatic": true,
+			"request_key": "base.message.supply-limited",
+			"fields": {
+				"amount": {
+					"argument": "amount"
+				},
+				"flag": {
+					"argument": "flag"
+				},
+				"detail": {
+					"argument": "detail"
+				}
+			},
+			"parameters": {}
+		},
+		{
+			"id": "base.message.supply-restored",
+			"schema": "base.coordination",
+			"destination": {
+				"kind": "ship",
+				"id": "self"
+			},
+			"title_key": "Supply restored",
+			"body_key": "Engineering reports that supply has recovered.",
+			"delay_ticks": 2,
+			"expires_after_ticks": 600,
+			"urgency": 1,
+			"automatic": true,
+			"request_key": "base.message.supply-restored",
+			"fields": {
+				"amount": {
+					"argument": "amount"
+				},
+				"flag": {
+					"argument": "flag"
+				},
+				"detail": {
+					"argument": "detail"
+				}
+			},
+			"parameters": {}
+		},
+		{
+			"id": "base.message.thermal-stop",
+			"schema": "base.coordination",
+			"destination": {
+				"kind": "ship",
+				"id": "self"
+			},
+			"title_key": "Thermal protection",
+			"body_key": "Equipment has stopped at its thermal limit.",
+			"delay_ticks": 2,
+			"expires_after_ticks": 600,
+			"urgency": 1,
+			"automatic": true,
+			"request_key": "base.message.thermal-stop",
+			"fields": {
+				"amount": {
+					"argument": "amount"
+				},
+				"flag": {
+					"argument": "flag"
+				},
+				"detail": {
+					"argument": "detail"
+				}
+			},
+			"parameters": {}
+		},
+		{
+			"id": "base.message.navigation-advisory",
+			"schema": "base.coordination",
+			"destination": {
+				"kind": "ship",
+				"id": "self"
+			},
+			"title_key": "Navigation advisory",
+			"body_key": "The bridge has a navigation advisory.",
+			"delay_ticks": 2,
+			"expires_after_ticks": 600,
+			"urgency": 1,
+			"automatic": true,
+			"request_key": "base.message.navigation-advisory",
+			"fields": {
+				"amount": {
+					"argument": "amount"
+				},
+				"flag": {
+					"argument": "flag"
+				},
+				"detail": {
+					"argument": "detail"
+				}
+			},
+			"parameters": {}
+		},
+		{
+			"id": "base.message.engineering-request",
+			"human_seeking": true,
+			"schema": "base.coordination",
+			"destination": {
+				"kind": "console",
+				"id": "engineering"
+			},
+			"title_key": "Engineering request",
+			"body_key": "A bridge operator requests a supply review.",
+			"delay_ticks": 2,
+			"expires_after_ticks": 600,
+			"request_key": "engineering-review",
+			"urgency": 1,
+			"fields": {
+				"amount": 8000,
+				"flag": true,
+				"detail": "Review the requested operation and available power/cooling."
+			},
+			"parameters": {}
+		}
+	]
 }

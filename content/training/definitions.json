@@ -1,5 +1,5 @@
 {
-	"schema": 3,
+	"schema": 4,
 	"entities": [
 		{
 			"id": "training.tug",
@@ -58,6 +58,617 @@
 					"next": "north",
 					"speed_mm_s": 3000,
 					"heading_mdeg": 180000
+				}
+			}
+		},
+		{
+			"id": "training.power-route-tree",
+			"context": "scenario",
+			"initial": "traffic",
+			"states": [
+				{
+					"id": "traffic",
+					"entry": [
+						{
+							"action": "publish_scenario_message",
+							"arguments": [
+								"training.scenario-advisory",
+								{
+									"observation": "self.entity"
+								},
+								0,
+								false,
+								"Review the first published destination and arrange propulsion power with Engineering."
+							]
+						},
+						{
+							"action": "spawn_group",
+							"arguments": ["departure-traffic", "departure"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "arrival",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 1
+								},
+								{
+									"left": {
+										"observation": "result.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "result.succeeded"
+									},
+									"op": "eq",
+									"right": true
+								}
+							],
+							"reason": "arrival"
+						},
+						{
+							"target": "arrival-without-traffic",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 1
+								},
+								{
+									"left": {
+										"observation": "result.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "result.succeeded"
+									},
+									"op": "eq",
+									"right": false
+								}
+							],
+							"reason": "arrival-without-traffic"
+						}
+					]
+				},
+				{
+					"id": "arrival",
+					"entry": [
+						{
+							"action": "add_objective",
+							"arguments": [
+								"arrival",
+								{
+									"observation": "self.entity"
+								},
+								"arrival-objective"
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "first-leg",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 1
+								},
+								{
+									"left": {
+										"observation": "result.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "result.succeeded"
+									},
+									"op": "eq",
+									"right": true
+								}
+							],
+							"reason": "first-leg"
+						},
+						{
+							"target": "failed",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 1
+								},
+								{
+									"left": {
+										"observation": "result.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "result.succeeded"
+									},
+									"op": "eq",
+									"right": false
+								}
+							],
+							"reason": "failed"
+						}
+					]
+				},
+				{
+					"id": "arrival-without-traffic",
+					"entry": [
+						{
+							"action": "publish_scenario_message",
+							"arguments": [
+								"training.scenario-advisory",
+								{
+									"observation": "self.entity"
+								},
+								0,
+								false,
+								"Departure traffic is unavailable; navigation objectives remain active."
+							]
+						},
+						{
+							"action": "emit_scenario_event",
+							"arguments": ["traffic-unavailable", 0, false, "Departure traffic could not be created."]
+						},
+						{
+							"action": "add_objective",
+							"arguments": [
+								"arrival",
+								{
+									"observation": "self.entity"
+								},
+								"arrival-objective"
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "first-leg",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 1
+								},
+								{
+									"left": {
+										"observation": "result.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "result.succeeded"
+									},
+									"op": "eq",
+									"right": true
+								}
+							],
+							"reason": "first-leg"
+						},
+						{
+							"target": "failed",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 1
+								},
+								{
+									"left": {
+										"observation": "result.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "result.succeeded"
+									},
+									"op": "eq",
+									"right": false
+								}
+							],
+							"reason": "failed"
+						}
+					]
+				},
+				{
+					"id": "first-leg",
+					"transitions": [
+						{
+							"target": "follow-up",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.state"
+									},
+									"op": "eq",
+									"right": 2
+								}
+							],
+							"reason": "follow-up"
+						}
+					]
+				},
+				{
+					"id": "follow-up",
+					"entry": [
+						{
+							"action": "spawn_group",
+							"arguments": ["arrival-traffic", "arrival-traffic"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "transit",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 1
+								},
+								{
+									"left": {
+										"observation": "result.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "result.succeeded"
+									},
+									"op": "eq",
+									"right": true
+								}
+							],
+							"reason": "transit"
+						},
+						{
+							"target": "transit-without-traffic",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 1
+								},
+								{
+									"left": {
+										"observation": "result.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "result.succeeded"
+									},
+									"op": "eq",
+									"right": false
+								}
+							],
+							"reason": "transit-without-traffic"
+						}
+					]
+				},
+				{
+					"id": "transit",
+					"entry": [
+						{
+							"action": "add_objective",
+							"arguments": [
+								"transit",
+								{
+									"observation": "self.entity"
+								},
+								"transit-objective"
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "second-leg",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 1
+								},
+								{
+									"left": {
+										"observation": "result.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "result.succeeded"
+									},
+									"op": "eq",
+									"right": true
+								}
+							],
+							"reason": "second-leg"
+						},
+						{
+							"target": "failed",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 1
+								},
+								{
+									"left": {
+										"observation": "result.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "result.succeeded"
+									},
+									"op": "eq",
+									"right": false
+								}
+							],
+							"reason": "failed"
+						}
+					]
+				},
+				{
+					"id": "transit-without-traffic",
+					"entry": [
+						{
+							"action": "publish_scenario_message",
+							"arguments": [
+								"training.scenario-advisory",
+								{
+									"observation": "self.entity"
+								},
+								0,
+								false,
+								"Follow-up traffic is unavailable; continue to the published transit region."
+							]
+						},
+						{
+							"action": "emit_scenario_event",
+							"arguments": ["traffic-unavailable", 1, false, "Follow-up traffic could not be created."]
+						},
+						{
+							"action": "add_objective",
+							"arguments": [
+								"transit",
+								{
+									"observation": "self.entity"
+								},
+								"transit-objective"
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "second-leg",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 1
+								},
+								{
+									"left": {
+										"observation": "result.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "result.succeeded"
+									},
+									"op": "eq",
+									"right": true
+								}
+							],
+							"reason": "second-leg"
+						},
+						{
+							"target": "failed",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 1
+								},
+								{
+									"left": {
+										"observation": "result.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "result.succeeded"
+									},
+									"op": "eq",
+									"right": false
+								}
+							],
+							"reason": "failed"
+						}
+					]
+				},
+				{
+					"id": "second-leg",
+					"entry": [
+						{
+							"action": "start_situation",
+							"arguments": ["route-observer-second", "observer-two"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "success",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.state"
+									},
+									"op": "eq",
+									"right": 2
+								}
+							],
+							"reason": "success"
+						}
+					]
+				},
+				{
+					"id": "success",
+					"entry": [
+						{
+							"action": "publish_scenario_message",
+							"arguments": [
+								"training.scenario-advisory",
+								{
+									"observation": "self.entity"
+								},
+								0,
+								true,
+								"Both destination regions were reached through executed flight."
+							]
+						},
+						{
+							"action": "emit_scenario_event",
+							"arguments": ["route-complete", 2, true, "Both published destinations were reached."]
+						},
+						{
+							"action": "finish_scenario",
+							"arguments": [true, "Powered navigation complete."]
+						}
+					]
+				},
+				{
+					"id": "failed",
+					"entry": [
+						{
+							"action": "publish_scenario_message",
+							"arguments": [
+								"training.scenario-advisory",
+								{
+									"observation": "self.entity"
+								},
+								0,
+								false,
+								"The required objective could not be admitted; inspect scenario diagnostics."
+							]
+						},
+						{
+							"action": "finish_scenario",
+							"arguments": [false, "A required objective could not be created."]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "training.route-observer",
+			"context": "scenario",
+			"initial": "waiting",
+			"states": [
+				{
+					"id": "waiting",
+					"transitions": [
+						{
+							"target": "reported",
+							"conditions": [
+								{
+									"left": {
+										"observation": "event.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "event.name"
+									},
+									"op": "eq",
+									"right": "route-complete"
+								}
+							],
+							"reason": "reported"
+						}
+					]
+				},
+				{
+					"id": "reported",
+					"entry": [
+						{
+							"action": "emit_scenario_event",
+							"arguments": [
+								"observer-finished",
+								{
+									"parameter": "observer_number"
+								},
+								true,
+								"Independent route observer saw the completion event."
+							]
+						},
+						{
+							"action": "finish_scenario",
+							"arguments": [true, "Observation complete."]
+						}
+					]
+				}
+			],
+			"parameters": {
+				"observer_number": {
+					"type": "integer",
+					"default": 1
 				}
 			}
 		}
@@ -136,6 +747,366 @@
 					"enabled": true
 				}
 			}
+		},
+		{
+			"id": "training.powered-navigation",
+			"name": "Powered navigation and crew assistance",
+			"entities": [
+				{
+					"id": 1,
+					"definition": "training.beacon",
+					"x_mm": 200000,
+					"y_mm": 0,
+					"heading_mdeg": 0
+				}
+			],
+			"ship_slots": [
+				{
+					"id": "training.player",
+					"mandatory": true,
+					"x_mm": 0,
+					"y_mm": 0,
+					"heading_mdeg": 0,
+					"allowed_ships": ["base.courier-engineering", "base.cruiser"]
+				}
+			],
+			"regions": [
+				{
+					"id": "arrival",
+					"shape": "circle",
+					"x_mm": 200000,
+					"y_mm": 0,
+					"radius_mm": 20000
+				},
+				{
+					"id": "transit",
+					"shape": "rectangle",
+					"x_mm": 1500000,
+					"y_mm": 300000,
+					"half_width_mm": 40000,
+					"half_height_mm": 100000
+				}
+			],
+			"scenario": {
+				"tree": "training.power-route-tree",
+				"bindings": {
+					"actor": {
+						"slot": "training.player"
+					}
+				},
+				"parameters": {
+					"observer_number": 1
+				},
+				"spawn_points": [
+					{
+						"id": "traffic-entry",
+						"x_mm": 100000,
+						"y_mm": 60000
+					}
+				],
+				"spawn_groups": [
+					{
+						"id": "departure-traffic",
+						"entities": [
+							{
+								"definition": "training.traffic",
+								"x_mm": 100000,
+								"y_mm": 60000,
+								"heading_mdeg": 180000
+							}
+						]
+					},
+					{
+						"id": "arrival-traffic",
+						"entities": [
+							{
+								"definition": "training.traffic",
+								"x_mm": 1400000,
+								"y_mm": 450000,
+								"heading_mdeg": 270000
+							},
+							{
+								"definition": "training.tug",
+								"x_mm": 1600000,
+								"y_mm": 500000,
+								"heading_mdeg": 180000
+							}
+						]
+					}
+				],
+				"objectives": [
+					{
+						"id": "arrival",
+						"type": "reach_region",
+						"actor": {
+							"slot": "training.player"
+						},
+						"region": "arrival",
+						"recipients": {
+							"ship": {
+								"slot": "training.player"
+							}
+						},
+						"title_key": "Reach the departure marker",
+						"description_key": "Enter or cross the published region; no stopping or dwell is required."
+					},
+					{
+						"id": "transit",
+						"type": "reach_region",
+						"actor": {
+							"slot": "training.player"
+						},
+						"region": "transit",
+						"recipients": {
+							"ship": {
+								"slot": "training.player"
+							}
+						},
+						"title_key": "Reach the transit region",
+						"description_key": "Enter or cross the published region; no stopping or dwell is required."
+					}
+				],
+				"events": ["route-complete", "traffic-unavailable", "observer-finished"],
+				"publications": ["training.scenario-advisory"],
+				"situations": [
+					{
+						"id": "route-observer",
+						"tree": "training.route-observer",
+						"parameters": {
+							"observer_number": 1
+						},
+						"bindings": {
+							"actor": {
+								"slot": "training.player"
+							},
+							"event": "route-complete"
+						},
+						"start": true,
+						"instance_name": "observer-one"
+					},
+					{
+						"id": "route-observer-second",
+						"tree": "training.route-observer",
+						"parameters": {
+							"observer_number": 2
+						},
+						"bindings": {
+							"actor": {
+								"slot": "training.player"
+							},
+							"event": "route-complete"
+						},
+						"start": false
+					}
+				],
+				"limits": {
+					"spawn_per_tick": 16,
+					"spawned_population": 64,
+					"instances": 16,
+					"actions": 4096,
+					"objectives": 64,
+					"events": 1024
+				}
+			},
+			"presentation": {
+				"dust": {
+					"enabled": true
+				}
+			}
+		},
+		{
+			"id": "training.powered-navigation-offset",
+			"name": "Powered navigation — offset regions",
+			"entities": [
+				{
+					"id": 1,
+					"definition": "training.beacon",
+					"x_mm": 0,
+					"y_mm": 250000,
+					"heading_mdeg": 0
+				}
+			],
+			"ship_slots": [
+				{
+					"id": "training.player",
+					"mandatory": true,
+					"x_mm": 0,
+					"y_mm": 0,
+					"heading_mdeg": 0,
+					"allowed_ships": ["base.courier-engineering", "base.cruiser"]
+				}
+			],
+			"regions": [
+				{
+					"id": "arrival",
+					"shape": "circle",
+					"x_mm": 0,
+					"y_mm": 250000,
+					"radius_mm": 30000
+				},
+				{
+					"id": "transit",
+					"shape": "rectangle",
+					"x_mm": -1000000,
+					"y_mm": 900000,
+					"half_width_mm": 100000,
+					"half_height_mm": 40000
+				}
+			],
+			"scenario": {
+				"tree": "training.power-route-tree",
+				"bindings": {
+					"actor": {
+						"slot": "training.player"
+					}
+				},
+				"parameters": {
+					"observer_number": 1
+				},
+				"spawn_points": [
+					{
+						"id": "traffic-entry",
+						"x_mm": 100000,
+						"y_mm": 60000
+					}
+				],
+				"spawn_groups": [
+					{
+						"id": "departure-traffic",
+						"entities": [
+							{
+								"definition": "training.traffic",
+								"x_mm": 100000,
+								"y_mm": 60000,
+								"heading_mdeg": 180000
+							}
+						]
+					},
+					{
+						"id": "arrival-traffic",
+						"entities": [
+							{
+								"definition": "training.traffic",
+								"x_mm": 1400000,
+								"y_mm": 450000,
+								"heading_mdeg": 270000
+							},
+							{
+								"definition": "training.tug",
+								"x_mm": 1600000,
+								"y_mm": 500000,
+								"heading_mdeg": 180000
+							}
+						]
+					}
+				],
+				"objectives": [
+					{
+						"id": "arrival",
+						"type": "reach_region",
+						"actor": {
+							"slot": "training.player"
+						},
+						"region": "arrival",
+						"recipients": {
+							"ship": {
+								"slot": "training.player"
+							}
+						},
+						"title_key": "Reach the departure marker",
+						"description_key": "Enter or cross the published region; no stopping or dwell is required."
+					},
+					{
+						"id": "transit",
+						"type": "reach_region",
+						"actor": {
+							"slot": "training.player"
+						},
+						"region": "transit",
+						"recipients": {
+							"ship": {
+								"slot": "training.player"
+							}
+						},
+						"title_key": "Reach the transit region",
+						"description_key": "Enter or cross the published region; no stopping or dwell is required."
+					}
+				],
+				"events": ["route-complete", "traffic-unavailable", "observer-finished"],
+				"publications": ["training.scenario-advisory"],
+				"situations": [
+					{
+						"id": "route-observer",
+						"tree": "training.route-observer",
+						"parameters": {
+							"observer_number": 1
+						},
+						"bindings": {
+							"actor": {
+								"slot": "training.player"
+							},
+							"event": "route-complete"
+						},
+						"start": true,
+						"instance_name": "observer-one"
+					},
+					{
+						"id": "route-observer-second",
+						"tree": "training.route-observer",
+						"parameters": {
+							"observer_number": 2
+						},
+						"bindings": {
+							"actor": {
+								"slot": "training.player"
+							},
+							"event": "route-complete"
+						},
+						"start": false
+					}
+				],
+				"limits": {
+					"spawn_per_tick": 16,
+					"spawned_population": 64,
+					"instances": 16,
+					"actions": 4096,
+					"objectives": 64,
+					"events": 1024
+				}
+			},
+			"presentation": {
+				"dust": {
+					"enabled": true
+				}
+			}
 		}
-	]
+	],
+	"knowledge": {
+		"roles": [],
+		"schemas": [
+			{
+				"id": "training.scenario-advisory",
+				"producers": ["phoenix.scenario"],
+				"readers": ["phoenix.crew"],
+				"ship_publishable": true,
+				"fields": [
+					{
+						"id": "amount",
+						"type": "integer",
+						"publishable": true
+					},
+					{
+						"id": "flag",
+						"type": "boolean",
+						"publishable": true
+					},
+					{
+						"id": "detail",
+						"type": "text",
+						"publishable": true
+					}
+				]
+			}
+		]
+	}
 }
