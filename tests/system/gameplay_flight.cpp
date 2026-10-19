@@ -576,8 +576,15 @@ void match_speed()
 		world.tick();
 		command(world, "match_speed", 1, "drive");
 		world.tick();
+		const auto before_guidance = world.observe(101);
+		std::int64_t frozen_target_speed = 0;
+		for (const auto &contact : before_guidance->contacts)
+			if (contact.id == 2)
+				frozen_target_speed = contact.vx;
 		world.tick();
 		const auto matched = telemetry(world, "drive", "matched_speed");
+		require(matched == frozen_target_speed,
+		        "guidance uses the Console's tick-start contact velocity, before target physics advances");
 		if (!feed)
 		{
 			require(matched == 0 && telemetry(world, "drive", "match_stale") != 0 && body(world, 2).vx > 0 &&

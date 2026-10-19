@@ -223,3 +223,9 @@ Explicit command compilation uses compiled flight/resource capabilities and limi
 Throttle and heading widgets bind directly to an owning Controller and command channel. They read accepted commands and compiled ranges from the same Console projection used by AI, and submit through current operator-generation admission. Shared and independent throttle widgets address their respective sections; client-safe assets preserve these bindings without exporting AI programs. Workshop binding controls author the same contract.
 
 Independent verification passed native, Controller runtime, content and transfer builds/tests. Synthetic production-path journeys cover shared two-engine throttle, independent channels, heading, safe asset roundtrip, AI ownership refusal, malformed bindings, wrong actions and out-of-range numeric writes. Actual graphical touch/gamepad interaction remains part of the final manual gate.
+
+## Flight guidance observation receipt
+
+Match-speed and follow guidance now consume the owning Console's frozen permitted contact feed. The separate global body snapshot and actuator-specific sensor-range reconstruction are removed. Sensor changes take effect in the next observation snapshot, consistently with Controller decisions.
+
+Independent Controller runtime, simulation and gameplay-flight suites pass. The real-path flight journey verifies matched speed against the tick-start Console contact velocity before target actuation; existing checks cover missing feeds, disabled radar, stale observations, restoration and reacquisition. Compound navigation commands and removal of legacy System AI remain pending.

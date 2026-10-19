@@ -233,7 +233,6 @@ struct World::Impl
 	std::optional<GameplayScenarioBridge> scenario;
 	EntityId next_entity = 1;
 	std::map<EntityId, fixed::Vec> step_starts;
-	std::map<EntityId, BodyView> sensor_snapshot;
 	std::map<ConsoleAddress, GameplayKnowledgeProjection> brain_snapshots;
 	std::map<ConsoleAddress, Observation> observation_snapshots;
 	std::map<EntityId, std::vector<std::vector<std::int64_t>>> command_snapshots;
@@ -1734,23 +1733,21 @@ struct World::Impl
 			auto &flight = child.get_mut<FlightRuntime>();
 			flight.state.steering_limit_permille = restrictions.steering_limit;
 			const auto owner = system_owner(id, child.get<Equipment>().id);
-			std::int64_t range = 0;
-			for (const auto &name : seat(id, owner.console)->feed_systems)
-				range = std::max(range, sensor_range(id, name));
+			// Actuator guidance consumes the same frozen, permitted contact feed as its Console.
+			const auto &observation = observation_snapshots.at(owner);
 			std::optional<FlightContactObservation> observed;
-			if (flight.state.selected_contact && sensor_snapshot.contains(flight.state.selected_contact))
-			{
-				const auto &other = sensor_snapshot.at(flight.state.selected_contact);
-				const auto delta = fixed::Vec{other.x, other.y} - pose.position;
-				if (range && fixed::length(delta) <= range)
-					observed = FlightContactObservation{flight.state.selected_contact,
-					                                    fixed::length({other.vx, other.vy}),
+			for (const auto &contact : observation.contacts)
+				if (contact.id == flight.state.selected_contact)
+				{
+					observed = FlightContactObservation{contact.id,
+					                                    fixed::length({contact.vx, contact.vy}),
 					                                    tick,
 					                                    0,
-					                                    {other.x, other.y},
-					                                    {other.vx, other.vy},
-					                                    other.heading};
-			}
+					                                    {contact.x, contact.y},
+					                                    {contact.vx, contact.vy},
+					                                    contact.heading};
+					break;
+				}
 			observe_flight(flight.definition, flight.state, tick, observed);
 			guide_follow(flight.definition, flight.state, pose, motion, observed);
 			auto requested = flight.state;
@@ -2539,9 +2536,6 @@ void World::tick()
 		impl_->scenario_spawns();
 		impl_->scenario_publications();
 	}
-	impl_->sensor_snapshot.clear();
-	for (const auto &body : inspect())
-		impl_->sensor_snapshot.emplace(body.id, body);
 	impl_->brain_snapshots.clear();
 	impl_->inbox_snapshots.clear();
 	impl_->observation_snapshots.clear();
