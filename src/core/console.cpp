@@ -312,8 +312,12 @@ bool ConsoleModel::act(const std::string &id)
 						return false;
 					selected = &descriptor;
 				}
-		return selected && command(console_string(*selected, "action"), *console_integer(selected->at("value")),
-		                           console_string(*selected, "system"));
+		if (!selected)
+			return false;
+		if (!console_string(*selected, "controller").empty())
+			return submit(decode_operating_command(*selected));
+		return command(console_string(*selected, "action"), *console_integer(selected->at("value")),
+		               console_string(*selected, "system"));
 	}
 	const auto control = id.substr(0, id.find('/'));
 	if (control == "game.contacts")
@@ -471,7 +475,9 @@ bool ConsoleModel::hold_control(const std::string &id)
 	if (!value)
 		return false;
 	OperatingCommand request{observation_->own.id, action, value, console_string(*selected, "system")};
-	if (request.system.empty())
+	if (!console_string(*selected, "controller").empty())
+		request = decode_operating_command(*selected);
+	if (request.system.empty() && request.controller.empty())
 	{
 		const auto selected_system = select_system(observation_->systems, operating_action(action)->system);
 		if (!selected_system)
@@ -483,7 +489,8 @@ bool ConsoleModel::hold_control(const std::string &id)
 	std::erase_if(held_controls_,
 	              [&](const auto &held)
 	              {
-		              return held.second.action == request.action && held.second.system == request.system;
+		              return held.second.action == request.action && held.second.system == request.system &&
+		                     held.second.controller == request.controller && held.second.channel == request.channel;
 	              });
 	held_controls_[id] = std::move(request);
 	return true;
@@ -524,6 +531,10 @@ bool ConsoleModel::submit(OperatingCommand command)
 			for (const auto &descriptor : descriptors)
 				if (console_descriptor(descriptor) && console_string(descriptor, "action") == command.action &&
 				    console_string(descriptor, "system") == command.system &&
+				    console_string(descriptor, "controller") == command.controller &&
+				    console_string(descriptor, "channel") == command.channel &&
+				    descriptor.value("generation", std::uint64_t{0}) == command.generation &&
+				    descriptor.value("request_id", std::uint64_t{0}) == command.request_id &&
 				    *console_integer(descriptor.at("value")) == command.value)
 				{
 					projected = true;
@@ -532,9 +543,9 @@ bool ConsoleModel::submit(OperatingCommand command)
 						projected_label = console_label(console_string(descriptor, "label"));
 				}
 	}
-	if (!spec && !projected)
+	if ((!spec || !command.controller.empty()) && !projected)
 		return false;
-	if (spec)
+	if (spec && command.controller.empty())
 	{
 		if (!operating_value_valid(*spec, command.value))
 			return false;
@@ -561,11 +572,11 @@ bool ConsoleModel::submit(OperatingCommand command)
 		announcement_ = localise("The server refused that control request");
 		return false;
 	}
-	if (command.action == "speed_mm_s")
+	if (command.controller.empty() && command.action == "speed_mm_s")
 		speed_ = command.value;
-	else if (command.action == "heading_mdeg")
+	else if (command.controller.empty() && command.action == "heading_mdeg")
 		heading_ = command.value;
-	if (command.action == "speed_mm_s" || command.action == "heading_mdeg")
+	if (command.controller.empty() && (command.action == "speed_mm_s" || command.action == "heading_mdeg"))
 	{
 		pending_at_ = session->ticks();
 		pending_requests_[{command.system, command.action}] = command.value;

@@ -7,6 +7,8 @@
 #include <vector>
 
 import phoenix.simulation;
+import phoenix.console;
+import phoenix.session.execution;
 
 using namespace phoenix;
 using namespace phoenix::test;
@@ -275,6 +277,92 @@ int main()
 			    load(forbidden);
 		    },
 		    "scenario context cannot operate a Console Controller");
+		forbidden = contextual_source;
+		forbidden["knowledge"] = Json::parse(R"json({
+		    "roles":["drive","private"],
+		    "schemas":[{"id":"test.secret","producers":["private"],"readers":["private"],
+		      "fields":[{"id":"amount","type":"integer"}]}]
+		})json");
+		forbidden["entities"][0]["stations"][0]["consoles"][0]["knowledge_roles"] = {"drive"};
+		forbidden["trees"][0]["record_bindings"] =
+		    Json::array({{{"name", "secret"}, {"scope", "console"}, {"schema", "test.secret"}, {"field", "amount"}}});
+		rejected(
+		    [&]
+		    {
+			    load(forbidden);
+		    },
+		    "record binding forbidden to owning Console");
+		forbidden["trees"][0]["record_bindings"][0]["scope"] = "ship";
+		rejects(
+		    [&]
+		    {
+			    load(forbidden);
+		    },
+		    "entity-wide read cannot bypass private-field publication policy");
+
+		const auto session_archive = archive(controller_session_fixture());
+		const GameSetup setup{"test.map", {{"test.slot", "test.controllable"}}, "test.slot", "drive"};
+		auto local = make_local_session();
+		local->add_pack(session_archive);
+		local->start(setup);
+		ConsoleModel model;
+		model.refresh(local);
+		std::string increase;
+		for (const auto &[id, label] : model.gameplay_controls())
+			if (label == "propulsion speed 850")
+				increase = id;
+		require(!increase.empty() && model.act(increase),
+		        "ConsoleModel activates a Controller descriptor through SessionPort");
+		local->tick();
+		require(local->observation()->gameplay.at("controllers")[0].at("commands").at("speed").at("value") == 850,
+		        "presentation command retains Controller/channel/generation through local execution");
+		auto recovered = make_local_session();
+		recovered->restore(local->save());
+		require(recovered->recovery_pending() && !recovered->observation(),
+		        "portable Controller recovery drops live authority");
+		recovered->resume_local();
+		require(recovered->observation()->gameplay.at("controllers")[0].at("commands").at("speed").at("value") == 850,
+		        "portable recovery retains committed Controller settings");
+		model.refresh(recovered);
+		bool profile_changed = false;
+		for (const auto &[id, label] : model.gameplay_controls())
+			if (label == "automatic")
+				profile_changed = model.act(id);
+		require(profile_changed, "Console settings expose profile selection through the presentation model");
+		recovered->tick();
+		require(!recovered->observation()->gameplay.at("controllers")[0].at("human").get<bool>(),
+		        "Console profile action changes effective Controller operator");
+
+		auto host = make_host_world();
+		host->add_pack(session_archive);
+		host->start_server(setup);
+		GameExecution execution(host, {{"server", "test.slot"}});
+		const auto ship_id = *host->authoritative_world().ship_for_slot("test.slot");
+		const std::string lease(64, 'a');
+		require(execution.apply("server", {{"kind", "station-claim"},
+		                                   {"owner", "crew"},
+		                                   {"route", 1},
+		                                   {"ship", ship_id},
+		                                   {"seat", "drive"},
+		                                   {"lease", lease}}),
+		        "committed execution grants an authenticated Console lease");
+		const auto projected = execution.observe("server", "crew");
+		OperatingCommand framed{ship_id, {}, 4200, {}};
+		framed.controller = "propulsion";
+		framed.channel = "speed";
+		framed.generation = projected->gameplay.at("controllers")[0].at("generation").get<std::uint64_t>();
+		auto frame = encode_operating_command(framed);
+		frame.update({{"kind", "command"}, {"owner", "crew"}, {"route", 1}, {"lease", lease}, {"sequence", 1}});
+		require(execution.apply("server", frame) && !execution.apply("server", frame),
+		        "committed command frames preserve Controller metadata and reject sequence replay");
+		require(execution.apply("server", {{"kind", "tick"}, {"tick", 1}}), "committed tick executes routed command");
+		require(
+		    execution.observe("server", "crew")->gameplay.at("controllers")[0].at("commands").at("speed").at("value") ==
+		        4200,
+		    "frame execution reaches the shared command section");
+		execution.absent("server");
+		frame["sequence"] = 2;
+		require(!execution.apply("server", frame), "server absence cannot revive a stale Controller lease");
 		std::cout << "PASS Controller sections, physical subscriptions, operator generations and continuation\n";
 		return 0;
 	}

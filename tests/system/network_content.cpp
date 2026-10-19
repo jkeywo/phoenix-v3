@@ -137,15 +137,15 @@ int main()
 		    },
 		    "Oversized projections must fail before buffer allocation");
 		auto encoded = encode_packet({"synthetic", "a", "b", "command", {{"value", 42}}}, key);
-		// Independent Node crypto HMAC-SHA256 result for this canonical synthetic envelope.
-		require(Json::parse(encoded).at("mac") == "27940d400d6fdc0c8172869a71baf7bbcd988b63fa696c9a9ac4105b7ec3f548",
+		// Independent Python hmac/hashlib result for this canonical schema-3 envelope.
+		require(Json::parse(encoded).at("mac") == "e04656f956fda1a8caeb6b78dabf7a9f86d8d996525dfe57e8012cb16a293df3",
 		        "Wire authentication must match an independent HMAC implementation");
 		require(decode_packet(encoded, "a", "b", "synthetic", key).has_value(),
 		        "Correct session/route/key must admit the shared C++ packet");
 		auto altered = Json::parse(encoded);
 		auto old = altered;
-		old["schema"] = 1;
-		old["mac"] = "3408c0a866d65aa27b4a3b4032463fcaa6a83760e494e19deb5643ccd1e973ba";
+		old["schema"] = 2;
+		old["mac"] = "27940d400d6fdc0c8172869a71baf7bbcd988b63fa696c9a9ac4105b7ec3f548";
 		require(!decode_packet(old.dump(), "a", "b", "synthetic", key),
 		        "Old packet schema refuses before instance projection interpretation");
 		altered["body"]["value"] = 99;

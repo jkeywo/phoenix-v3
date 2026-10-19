@@ -214,7 +214,7 @@ std::vector<ConsoleSpec> resolve_consoles(const Catalog &catalog, const std::str
 			result.push_back(std::move(spec));
 		}
 	}
-	if (owned.size() != instances.size() && !entity.contains("control_layout"))
+	if (owned.size() != instances.size() && !entity.contains("control_layout") && !catalog.presentation)
 		fail("each fitted System requires one controlling Console");
 	return result;
 }

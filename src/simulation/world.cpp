@@ -2562,8 +2562,50 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 		                 }))
 			buttons.push_back({{"id", id}, {"label", label}, {"action", action}, {"system", system}, {"value", value}});
 	};
-	button("away", impl_->away[found->second] ? "Resume control" : "Away", "away", {},
-	       impl_->away[found->second] ? 0 : 1);
+	const bool away = impl_->away.contains(found->second) && impl_->away.at(found->second);
+	button("away", away ? "Resume control" : "Away", "away", {}, away ? 0 : 1);
+	if (entity.has<EntityControls>())
+	{
+		const auto &controls = entity.get<EntityControls>();
+		result.gameplay["profile"] = controls.layout.profiles.at(controls.profiles.at(seat.id)).id;
+		for (std::size_t i = 0; i < controls.layout.profiles.size(); ++i)
+			button("profile." + controls.layout.profiles[i].id, controls.layout.profiles[i].id, "preset", {}, i);
+		for (const auto &controller : controls.controllers)
+			if (controller.definition.console == seat.id && controller.human)
+				for (std::size_t i = 0; i < controller.commands.size(); ++i)
+				{
+					const auto &channel = controller.definition.commands[i];
+					const auto &state = controller.commands[i];
+					const auto step = std::max<std::int64_t>(1, (channel.maximum - channel.minimum) / 20);
+					std::set<std::int64_t> values;
+					if (channel.type == KnowledgeType::Boolean)
+						values = {0, 1};
+					else
+						values = {std::clamp(state.value - step, channel.minimum, channel.maximum),
+						          std::clamp(state.value + step, channel.minimum, channel.maximum)};
+					if (channel.minimum <= 0 && channel.maximum >= 0)
+						values.insert(0);
+					for (const auto value : values)
+					{
+						if (state.request_id == std::numeric_limits<std::uint64_t>::max())
+							continue;
+						OperatingCommand command{found->second.ship,
+						                         std::string(operating_action(channel.action).name),
+						                         value,
+						                         {},
+						                         controller.definition.id,
+						                         channel.id,
+						                         controller.generation,
+						                         channel.semantics == CommandSemantics::Request ? state.request_id + 1
+						                                                                        : 0};
+						auto descriptor = encode_operating_command(command);
+						descriptor["id"] =
+						    "controller." + controller.definition.id + "." + channel.id + "." + std::to_string(value);
+						descriptor["label"] = controller.definition.id + " " + channel.id + " " + std::to_string(value);
+						buttons.push_back(std::move(descriptor));
+					}
+				}
+	}
 	for (const auto &name : seat.controlled_systems)
 		if (impl_->meta(
 		        console,

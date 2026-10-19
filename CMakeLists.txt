@@ -173,6 +173,7 @@ add_library(
 	phoenix_foundation
 	STATIC
 	src/core/input.cpp
+	src/core/contracts.cpp
 	src/core/data.cpp
 	src/platform/random.cpp
 	src/platform/atomic_file.cpp

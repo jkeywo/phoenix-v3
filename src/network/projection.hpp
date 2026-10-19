@@ -39,7 +39,8 @@ static inline Json bounded_gameplay(const Json &source)
 	constexpr std::size_t budget = 1024 * 1024;
 	// Controls and fresh notifications take precedence over historical reports.
 	// Entries remain whole, and retained history keeps its original order.
-	const char *categories[] = {"controls", "notifications", "objectives", "shared", "records", "messages"};
+	const char *categories[] = {"controls", "notifications", "controllers", "objectives",
+	                            "shared",   "records",       "messages"};
 	Json result = source;
 	Json omitted = Json::object();
 	for (const auto *category : categories)
@@ -73,13 +74,13 @@ static inline Json bounded_gameplay(const Json &source)
 		for (auto entry = notifications->rbegin(); entry != notifications->rend(); ++entry)
 			keep("notifications", *entry);
 	std::size_t history = 0;
-	for (const auto *category : {"objectives", "shared", "records", "messages"})
+	for (const auto *category : {"controllers", "objectives", "shared", "records", "messages"})
 		if (const auto entries = source.find(category); entries != source.end() && entries->is_array())
 			history = std::max(history, entries->size());
 	// Round-robin recent entries so an old record stream cannot starve the
 	// newest message/report in another permitted stream.
 	for (std::size_t depth = 0; depth < history; ++depth)
-		for (const auto *category : {"objectives", "shared", "records", "messages"})
+		for (const auto *category : {"controllers", "objectives", "shared", "records", "messages"})
 			if (const auto entries = source.find(category);
 			    entries != source.end() && entries->is_array() && depth < entries->size())
 				keep(category, (*entries)[entries->size() - 1 - depth]);

@@ -460,14 +460,19 @@ public:
 				    descriptor.at("id").get_ref<const std::string &>().size() <= 256 && descriptor.contains("action") &&
 				    descriptor.at("action") == command.action &&
 				    descriptor.value("system", Json("")) == command.system && descriptor.contains("value") &&
+				    descriptor.value("controller", std::string{}) == command.controller &&
+				    descriptor.value("channel", std::string{}) == command.channel &&
+				    descriptor.value("generation", std::uint64_t{0}) == command.generation &&
+				    descriptor.value("request_id", std::uint64_t{0}) == command.request_id &&
 				    descriptor.at("value").is_number_integer() && descriptor.at("value") == command.value &&
 				    (!descriptor.contains("enabled") || descriptor.at("enabled") == true))
 					projected = true;
 		const auto *spec = operating_action(command.action);
-		if ((!spec && !projected) || (spec && !operating_value_valid(*spec, command.value)))
+		if (((!spec || !command.controller.empty()) && !projected) ||
+		    (spec && !operating_value_valid(*spec, command.value)))
 			return false;
 		auto system = command.system;
-		if (spec)
+		if (spec && command.controller.empty())
 		{
 			if (system.empty())
 			{
@@ -489,6 +494,10 @@ public:
 		                        {"action", command.action},
 		                        {"system", system},
 		                        {"value", command.value},
+		                        {"controller", command.controller},
+		                        {"channel", command.channel},
+		                        {"generation", command.generation},
+		                        {"request_id", command.request_id},
 		                        {"lease", lease_},
 		                        {"sequence", ++sequence_}});
 	}

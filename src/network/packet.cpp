@@ -55,7 +55,7 @@ Json object(const GamePacket &packet)
 	if (!valid_identifier(packet.session) || !valid_identifier(packet.from) || !valid_identifier(packet.to) ||
 	    !valid_identifier(packet.type) || !packet.body.is_object())
 		throw std::runtime_error("Invalid game packet envelope");
-	return {{"schema", 2},     {"session", packet.session}, {"from", packet.from},
+	return {{"schema", 3},     {"session", packet.session}, {"from", packet.from},
 	        {"to", packet.to}, {"type", packet.type},       {"body", packet.body}};
 }
 } // namespace
@@ -83,7 +83,7 @@ std::optional<GamePacket> decode_packet(const std::string &bytes, const std::str
 				                              throw std::runtime_error("Game packet nesting exceeds limit");
 			                              return true;
 		                              });
-		if (!data.is_object() || data.size() != 7 || data.at("schema") != 2 || data.at("from") != sender ||
+		if (!data.is_object() || data.size() != 7 || data.at("schema") != 3 || data.at("from") != sender ||
 		    data.at("to") != recipient || data.at("session") != session)
 			return {};
 		GamePacket packet{data.at("session"), data.at("from"), data.at("to"), data.at("type"), data.at("body")};

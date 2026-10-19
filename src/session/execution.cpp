@@ -120,8 +120,7 @@ bool GameExecution::apply(const std::string &server, const Json &frame)
 	}
 	if (kind == "command")
 	{
-		OperatingCommand command{frame.at("target"), frame.at("action"), frame.at("value"),
-		                         frame.value("system", std::string{})};
+		const auto command = decode_operating_command(frame);
 		const auto sequence = frame.at("sequence").get<std::uint64_t>();
 		if (!can_command(server, owner, route, frame.at("lease"), sequence, command))
 			return false;

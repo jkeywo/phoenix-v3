@@ -72,6 +72,8 @@ void controller_output(EntityId id, std::size_t index, const state_tree::Output 
 std::optional<ControllerProposal> controller_proposal(const ConsoleAddress &address, const OperatingCommand &command,
                                                       bool human) const
 {
+	if (!command.system.empty())
+		return {};
 	const auto entity = entities.at(address.ship);
 	const auto &controls = entity.get<EntityControls>();
 	for (std::size_t i = 0; i < controls.controllers.size(); ++i)
@@ -86,6 +88,8 @@ std::optional<ControllerProposal> controller_proposal(const ConsoleAddress &addr
 			const auto &spec = controller.definition.commands[field];
 			if (spec.id != command.channel)
 				continue;
+			if (!command.action.empty() && command.action != operating_action(spec.action).name)
+				return {};
 			if (command.value < spec.minimum || command.value > spec.maximum)
 				return {};
 			const auto &state = controller.commands[field];
@@ -196,6 +200,9 @@ void refresh_controllers(EntityId id, bool validate = false)
 }
 bool controller_meta(const ConsoleAddress &address, const OperatingCommand &command, bool execute)
 {
+	if (!command.controller.empty() || !command.channel.empty() || command.generation || command.request_id ||
+	    !command.system.empty())
+		return false;
 	auto &controls = entities.at(address.ship).get_mut<EntityControls>();
 	if (command.action == "away")
 	{

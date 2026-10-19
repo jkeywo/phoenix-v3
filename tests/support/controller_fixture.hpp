@@ -53,4 +53,16 @@ inline Json controller_fixture(bool split = false, std::int64_t initial = 0)
 	source["maps"][0]["ship_slots"] = Json::array();
 	return source;
 }
+inline Json controller_session_fixture()
+{
+	auto source = controller_fixture();
+	source["entities"][0]["systems"]["steering"] = {{"kind", "steering"}, {"turn_mdeg_s", 90000}};
+	source["maps"][0]["entities"] = Json::array();
+	source["maps"][0]["ship_slots"] = Json::array({{{"id", "test.slot"},
+	                                                {"x_mm", 0},
+	                                                {"y_mm", 0},
+	                                                {"heading_mdeg", 0},
+	                                                {"allowed_ships", {"test.controllable"}}}});
+	return source;
+}
 } // namespace phoenix::test

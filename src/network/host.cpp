@@ -343,8 +343,7 @@ class NetworkHost final : public SessionPort
 		{
 			if (!body.at("value").is_number_integer())
 				throw std::runtime_error("Operating command value must be an integer");
-			OperatingCommand command{network::counter(body.at("target")), body.at("action"),
-			                         body.at("value").get<std::int64_t>(), body.value("system", std::string{})};
+			const auto command = decode_operating_command(body);
 			const auto sequence = network::counter(body.at("sequence"));
 			const std::string token = body.at("lease");
 			if (client.role != "client" || client.renew || !game_ ||
@@ -357,7 +356,11 @@ class NetworkHost final : public SessionPort
 			             {"target", command.target},
 			             {"action", command.action},
 			             {"value", command.value},
-			             {"system", command.system}}))
+			             {"system", command.system},
+			             {"controller", command.controller},
+			             {"channel", command.channel},
+			             {"generation", command.generation},
+			             {"request_id", command.request_id}}))
 				send(sender, "command-result",
 				     {{"ok", false},
 				      {"reason", "Command refused: Console lease, sequence, quorum or System permission mismatch"}});
@@ -758,7 +761,11 @@ public:
 		               {"target", command.target},
 		               {"action", command.action},
 		               {"value", command.value},
-		               {"system", command.system}});
+		               {"system", command.system},
+		               {"controller", command.controller},
+		               {"channel", command.channel},
+		               {"generation", command.generation},
+		               {"request_id", command.request_id}});
 	}
 	std::optional<Observation> console_observation(std::uint64_t route) const override
 	{

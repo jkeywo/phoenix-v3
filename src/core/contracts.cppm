@@ -9,6 +9,8 @@ module;
 #include <string_view>
 #include <vector>
 #include <map>
+#include <stdexcept>
+#include <limits>
 
 export module phoenix.contracts;
 export import phoenix.data;
@@ -256,6 +258,8 @@ struct OperatingCommand
 	std::string controller, channel;
 	std::uint64_t generation = 0, request_id = 0;
 };
+Json encode_operating_command(const OperatingCommand &command);
+OperatingCommand decode_operating_command(const Json &value);
 // Capability masks above are legacy presentation hints. Instance identities are
 // the command authority boundary, including when several instances share a kind.
 inline std::optional<std::string> select_system(const std::vector<SystemView> &systems, OperatingSystem kind,
