@@ -223,6 +223,8 @@ export namespace phoenix
 {
 class WorkshopDocument
 {
+	friend class WorkshopHistory;
+
 public:
 	WorkshopDocument();
 	void reset();
@@ -282,6 +284,37 @@ private:
 	std::vector<Pack> libraries_;
 	Catalog library_catalog_;
 };
+// Complete draft history, including imported assets and dependency closure. Selection is not an edit.
+class WorkshopHistory
+{
+public:
+	void reset(const WorkshopDocument &);
+	void checkpoint(const WorkshopDocument &);
+	bool can_undo() const
+	{
+		return past_.size() > 1;
+	}
+	bool can_redo() const
+	{
+		return !future_.empty();
+	}
+	bool undo(WorkshopDocument &);
+	bool redo(WorkshopDocument &);
+
+private:
+	struct Snapshot
+	{
+		Json definitions, manifest;
+		std::size_t map_index, bytes, resource_bytes;
+		std::shared_ptr<const WorkshopDocument> resources;
+	};
+	std::vector<Snapshot> past_, future_;
+	static bool same_resources(const WorkshopDocument &, const WorkshopDocument &);
+	static void restore(WorkshopDocument &, const Snapshot &);
+	Snapshot snapshot(const WorkshopDocument &) const;
+	static void trim(std::vector<Snapshot> &);
+};
+
 } // namespace phoenix
 
 #include "gameplay_knowledge.hpp"

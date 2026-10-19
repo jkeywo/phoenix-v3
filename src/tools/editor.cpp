@@ -46,6 +46,8 @@ struct Editor
 	std::string saving_map;
 	bool saving = false;
 	WorkshopDocument document;
+	WorkshopHistory history;
+	std::string selection = "Entity";
 	std::uint64_t selected = 0;
 	int definition = -1, console = -1;
 	std::string status = "Import a PNG, create an entity definition, then place instances on the map.";
@@ -72,6 +74,8 @@ struct Editor
 	float pan_x = 0, pan_y = 0, zoom = 0.004f;
 	void reset_save_locations()
 	{
+		history.reset(document);
+		selection = "Entity";
 		saves.reset();
 		saving = false;
 		pack_location = {};
@@ -822,38 +826,6 @@ void entity_properties(Json &entity)
 			ImGui::TreePop();
 		}
 	}
-	auto &systems = entity["systems"];
-	if (ImGui::CollapsingHeader(tool_label("Systems").c_str(), ImGuiTreeNodeFlags_DefaultOpen))
-	{
-		for (const char *name : {"engine", "steering", "radar"})
-		{
-			bool enabled = systems.contains(name);
-			if (ImGui::Checkbox(name, &enabled))
-			{
-				if (!enabled)
-					systems.erase(name);
-				else if (std::string(name) == "engine")
-					systems[name] = {{"max_speed_mm_s", 30000}, {"acceleration_mm_s2", 3000}};
-				else if (std::string(name) == "steering")
-					systems[name] = {{"turn_mdeg_s", 45000}};
-				else
-					systems[name] = {{"range_mm", 200000}};
-			}
-			if (!enabled)
-				continue;
-			ImGui::PushID(name);
-			if (std::string(name) == "engine")
-			{
-				integer_field("Max speed (mm/s)", systems[name], "max_speed_mm_s");
-				integer_field("Acceleration (mm/s2)", systems[name], "acceleration_mm_s2");
-			}
-			if (std::string(name) == "steering")
-				integer_field("Turn rate (millidegrees/s)", systems[name], "turn_mdeg_s");
-			if (std::string(name) == "radar")
-				integer_field("Range (mm)", systems[name], "range_mm");
-			ImGui::PopID();
-		}
-	}
 	if (ImGui::CollapsingHeader(tool_label("Collision").c_str(), ImGuiTreeNodeFlags_DefaultOpen))
 	{
 		auto &collision = entity["collision"];
@@ -922,33 +894,41 @@ void entity_properties(Json &entity)
 		ImGui::EndCombo();
 	}
 }
-void console_editor(const Application &app)
+void console_editor(Application &app, bool inspector)
 {
 	auto &consoles = editor.document.definitions()["consoles"];
-	if (ImGui::Button(tool_label("New console").c_str()))
+	if (!inspector)
 	{
-		const auto prefix = editor.document.manifest().at("id").get<std::string>() + ".console";
-		std::string id;
-		unsigned number = 1;
-		do
+		if (ImGui::Button(tool_label("New console").c_str()))
 		{
-			id = prefix + std::to_string(number++);
-		} while (std::any_of(consoles.begin(), consoles.end(),
-		                     [&](const Json &value)
-		                     {
-			                     return value.at("id") == id;
-		                     }) ||
-		         editor.document.libraries().consoles.contains(id));
-		consoles.push_back({{"id", id}, {"widgets", Json::array()}});
-		editor.console = static_cast<int>(consoles.size() - 1);
-	}
-	for (std::size_t i = 0; i < consoles.size(); ++i)
-	{
-		auto id = consoles[i].at("id").get<std::string>();
-		const auto name = consoles[i].value("name", std::string{});
-		const auto label = (name.empty() ? id : name + " (" + id + ")") + "###" + id;
-		if (ImGui::Selectable(label.c_str(), editor.console == i))
-			editor.console = static_cast<int>(i);
+			const auto prefix = editor.document.manifest().at("id").get<std::string>() + ".console";
+			std::string id;
+			unsigned number = 1;
+			do
+			{
+				id = prefix + std::to_string(number++);
+			} while (std::any_of(consoles.begin(), consoles.end(),
+			                     [&](const Json &value)
+			                     {
+				                     return value.at("id") == id;
+			                     }) ||
+			         editor.document.libraries().consoles.contains(id));
+			consoles.push_back({{"id", id}, {"widgets", Json::array()}});
+			editor.console = static_cast<int>(consoles.size() - 1);
+			editor.selection = "Console";
+		}
+		for (std::size_t i = 0; i < consoles.size(); ++i)
+		{
+			auto id = consoles[i].at("id").get<std::string>();
+			const auto name = consoles[i].value("name", std::string{});
+			const auto label = (name.empty() ? id : name + " (" + id + ")") + "###" + id;
+			if (ImGui::Selectable(label.c_str(), editor.selection == "Console" && editor.console == i))
+			{
+				editor.console = static_cast<int>(i);
+				editor.selection = "Console";
+			}
+		}
+		return;
 	}
 	if (editor.console < 0 || editor.console >= static_cast<int>(consoles.size()))
 		return;
@@ -1011,6 +991,8 @@ void console_editor(const Application &app)
 		           }
 		           return false;
 	           });
+	if (ImGui::CollapsingHeader(tool_label("Bindings and knowledge").c_str()))
+		draw_console_gameplay_properties(editor.document, app, selected);
 	ImGui::SeparatorText(tool_label("Live Console preview").c_str());
 	ImGui::TextWrapped("Sample data; controls affect only this preview.");
 	static int preview_resolution = 0;
@@ -1024,13 +1006,24 @@ void console_editor(const Application &app)
 	const auto pointer = ImGui::GetIO().MousePos;
 	const bool hovered = ImGui::IsWindowHovered() && pointer.x >= origin.x && pointer.y >= origin.y &&
 	                     pointer.x < origin.x + width && pointer.y < origin.y + height;
-	const auto texture = draw_console_preview(consoles[editor.console], logical_width, logical_height,
-	                                          {hovered ? (pointer.x - origin.x) * logical_width / width : -100.f,
-	                                           hovered ? (pointer.y - origin.y) * logical_height / height : -100.f},
-	                                          hovered && ImGui::IsMouseClicked(0), ImGui::IsMouseReleased(0),
-	                                          hovered ? ImGui::GetIO().MouseWheel : 0.f, app.pseudo_locale);
-	ImGui::Image(static_cast<ImTextureID>(texture.id), {static_cast<float>(width), static_cast<float>(height)}, {0, 1},
-	             {1, 0});
+	// The isolated preview has canonical sample Systems, not this ship's fitted identities.
+	auto sample_layout = selected;
+	for (auto &widget : sample_layout["widgets"])
+		widget.erase("system");
+	try
+	{
+		const auto texture = draw_console_preview(sample_layout, logical_width, logical_height,
+		                                          {hovered ? (pointer.x - origin.x) * logical_width / width : -100.f,
+		                                           hovered ? (pointer.y - origin.y) * logical_height / height : -100.f},
+		                                          hovered && ImGui::IsMouseClicked(0), ImGui::IsMouseReleased(0),
+		                                          hovered ? ImGui::GetIO().MouseWheel : 0.f, app.pseudo_locale);
+		ImGui::Image(static_cast<ImTextureID>(texture.id), {static_cast<float>(width), static_cast<float>(height)},
+		             {0, 1}, {1, 0});
+	}
+	catch (const std::exception &error)
+	{
+		ImGui::TextWrapped("%s", error.what());
+	}
 }
 void slots_editor()
 {
@@ -1157,7 +1150,7 @@ void map_view(Application &app)
 	auto &definitions = editor.document.definitions()["entities"];
 	for (const auto &instance : editor.document.map()["entities"])
 	{
-		const bool selected = instance["id"] == editor.selected;
+		const bool selected = editor.selection == "Entity" && instance["id"] == editor.selected;
 		bool has_icon = false;
 		ImVec2 p{centre.x + instance["x_mm"].get<float>() * editor.zoom,
 		         centre.y - instance["y_mm"].get<float>() * editor.zoom};
@@ -1227,12 +1220,17 @@ void map_view(Application &app)
 	if (hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && editor.definition >= 0 &&
 	    editor.definition < static_cast<int>(definitions.size()))
 	{
+		editor.selection = "Entity";
 		editor.selected = editor.document.place(definitions[editor.definition]["id"],
 		                                        static_cast<std::int64_t>((io.MousePos.x - centre.x) / editor.zoom),
 		                                        static_cast<std::int64_t>((centre.y - io.MousePos.y) / editor.zoom));
 	}
 	else if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+	{
 		editor.selected = nearest;
+		if (nearest)
+			editor.selection = "Entity";
+	}
 	if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
 	{
 		if (auto *instance = selected_instance())
@@ -1298,10 +1296,11 @@ void render_editor(Application &app)
 		ImGui::DockBuilderSplitNode(centre, ImGuiDir_Right, 0.38f, &right, &centre);
 		ImGui::DockBuilderDockWindow(tool_label("Entities").c_str(), left);
 		ImGui::DockBuilderDockWindow(tool_label("Definitions").c_str(), left);
-		ImGui::DockBuilderDockWindow(tool_label("Properties").c_str(), right);
-		ImGui::DockBuilderDockWindow(tool_label("Consoles").c_str(), right);
-		ImGui::DockBuilderDockWindow(tool_label("Ship slots").c_str(), right);
 		ImGui::DockBuilderDockWindow(tool_label("Map").c_str(), centre);
+		for (const char *area : {"State trees", "Scenario", "Test"})
+			ImGui::DockBuilderDockWindow(tool_label(area).c_str(), centre);
+		ImGui::DockBuilderDockWindow(tool_label("Properties").c_str(), right);
+		ImGui::DockBuilderDockWindow(tool_label("Consoles").c_str(), left);
 		ImGui::DockBuilderDockWindow(tool_label("Lighting and sprite preview").c_str(), centre);
 		ImGui::DockBuilderFinish(dock);
 	}
@@ -1428,6 +1427,26 @@ void render_editor(Application &app)
 			    }
 		    }
 	    });
+
+	auto restore_history = [&](bool redo)
+	{
+		if (redo ? editor.history.redo(editor.document) : editor.history.undo(editor.document))
+		{
+			editor.clear_textures();
+			editor.pack_name = editor.document.manifest().at("id").get<std::string>();
+			editor.rename_from.clear();
+			editor.console_rename_from.clear();
+			editor.status = redo ? "Workshop edit redone." : "Workshop edit undone.";
+		}
+	};
+	if (!readonly && !ImGui::GetIO().WantTextInput)
+	{
+		if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Z, ImGuiInputFlags_RouteGlobal))
+			restore_history(false);
+		if (ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiKey_Y, ImGuiInputFlags_RouteGlobal) ||
+		    ImGui::Shortcut(ImGuiMod_Ctrl | ImGuiMod_Shift | ImGuiKey_Z, ImGuiInputFlags_RouteGlobal))
+			restore_history(true);
+	}
 	if (ImGui::BeginMainMenuBar())
 	{
 		if (!app.embedded_tools && ImGui::BeginMenu(tool_label("Phoenix").c_str()))
@@ -1455,6 +1474,7 @@ void render_editor(Application &app)
 				editor.definition = -1;
 				editor.console = -1;
 				editor.pack_name = "workshop";
+				editor.history.reset(editor.document);
 			}
 			if (ImGui::MenuItem(tool_label("Open pack...").c_str()))
 				attempt(
@@ -1521,6 +1541,16 @@ void render_editor(Application &app)
 				    {
 					    request_file(editor.imports, FilePurpose::WorkshopImage);
 				    });
+			ImGui::EndMenu();
+		}
+
+		if (!readonly && ImGui::BeginMenu(tool_label("Edit").c_str()))
+		{
+			editor.history.checkpoint(editor.document);
+			if (ImGui::MenuItem(tool_label("Undo").c_str(), "Ctrl+Z", false, editor.history.can_undo()))
+				restore_history(false);
+			if (ImGui::MenuItem(tool_label("Redo").c_str(), "Ctrl+Y", false, editor.history.can_redo()))
+				restore_history(true);
 			ImGui::EndMenu();
 		}
 		if (ImGui::MenuItem(tool_label("Verify").c_str(), nullptr, false, !readonly))
@@ -1618,10 +1648,13 @@ void render_editor(Application &app)
 	{
 		auto label = std::to_string(instance.at("id").get<std::uint64_t>()) + " / " +
 		             instance.at("definition").get<std::string>();
-		if (ImGui::Selectable(label.c_str(), editor.selected == instance["id"]))
+		if (ImGui::Selectable(label.c_str(), editor.selection == "Entity" && editor.selected == instance["id"]))
+		{
 			editor.selected = instance["id"];
+			editor.selection = "Entity";
+		}
 	}
-	if (editor.selected)
+	if (editor.selection == "Entity" && editor.selected)
 	{
 		if (ImGui::Button(tool_label("Duplicate").c_str()))
 			editor.document.duplicate(editor.selected);
@@ -1633,6 +1666,11 @@ void render_editor(Application &app)
 	}
 	ImGui::End();
 	ImGui::Begin(tool_label("Definitions").c_str());
+
+	for (const char *area : {"Templates and assemblies", "Knowledge", "Coordination"})
+		if (ImGui::Selectable(tool_label(area).c_str(), editor.selection == area))
+			editor.selection = area;
+	ImGui::Separator();
 	ImGui::InputText(tool_label("Pack ID").c_str(), &editor.pack_name);
 	if (ImGui::Button(tool_label("Apply pack ID").c_str()))
 		attempt(
@@ -1651,6 +1689,7 @@ void render_editor(Application &app)
 	{
 		editor.document.create_entity();
 		editor.definition = static_cast<int>(editor.document.definitions()["entities"].size() - 1);
+		editor.selection = "Entity";
 		editor.selected = 0;
 	}
 	auto &definitions = editor.document.definitions()["entities"];
@@ -1659,9 +1698,10 @@ void render_editor(Application &app)
 		auto id = definitions[i].at("id").get<std::string>();
 		const auto name = definitions[i].value("name", std::string{});
 		const auto label = (name.empty() ? id : name + " (" + id + ")") + "###" + id;
-		if (ImGui::Selectable(label.c_str(), editor.definition == i))
+		if (ImGui::Selectable(label.c_str(), editor.selection == "Entity" && editor.definition == i))
 		{
 			editor.definition = static_cast<int>(i);
+			editor.selection = "Entity";
 			editor.selected = 0;
 		}
 	}
@@ -1677,6 +1717,7 @@ void render_editor(Application &app)
 			    {
 				    editor.document.create_entity(editor.library_parent);
 				    editor.definition = static_cast<int>(definitions.size() - 1);
+				    editor.selection = "Entity";
 				    editor.selected = 0;
 			    });
 	}
@@ -1716,30 +1757,49 @@ void render_editor(Application &app)
 	ImGui::Separator();
 	ImGui::TextWrapped("%s", editor.status.c_str());
 	ImGui::End();
-	ImGui::Begin(tool_label("Properties").c_str());
-	if (auto *instance = selected_instance())
-	{
-		ImGui::Text("Instance %llu", static_cast<unsigned long long>(editor.selected));
-		transform_fields(*instance);
-		ImGui::Separator();
-		for (std::size_t i = 0; i < definitions.size(); ++i)
-			if (definitions[i]["id"] == (*instance)["definition"])
-				editor.definition = static_cast<int>(i);
-	}
-	if (editor.definition >= 0 && editor.definition < static_cast<int>(definitions.size()))
-		entity_properties(definitions[editor.definition]);
-	else
-		ImGui::TextWrapped("Create or select a reusable entity definition.");
-	ImGui::End();
+
 	ImGui::Begin(tool_label("Consoles").c_str());
-	console_editor(app);
+	console_editor(app, false);
 	ImGui::End();
-	ImGui::Begin(tool_label("Ship slots").c_str());
-	slots_editor();
-	ImGui::End();
-	draw_gameplay_authoring(editor.document, app, editor.status);
 	map_view(app);
+	draw_workshop_areas(editor.document, app, editor.status, editor.selection);
+	ImGui::Begin(tool_label("Properties").c_str());
+	if (editor.selection == "Entity")
+	{
+		if (auto *instance = selected_instance())
+		{
+			ImGui::Text("Instance %llu", static_cast<unsigned long long>(editor.selected));
+			transform_fields(*instance);
+			ImGui::Separator();
+			editor.definition = -1;
+			for (std::size_t i = 0; i < definitions.size(); ++i)
+				if (definitions[i]["id"] == (*instance)["definition"])
+					editor.definition = static_cast<int>(i);
+		}
+		if (editor.definition >= 0 && editor.definition < static_cast<int>(definitions.size()))
+		{
+			auto &definition = definitions[editor.definition];
+			ImGui::TextUnformatted(definition.at("id").get_ref<const std::string &>().c_str());
+			if (ImGui::CollapsingHeader(tool_label("Appearance and physics").c_str()))
+				entity_properties(definition);
+			draw_gameplay_properties(editor.document, app, editor.status, editor.selection,
+			                         definition.at("id").get<std::string>());
+		}
+		else
+			ImGui::TextWrapped("%s", localise("Create or select a reusable entity definition.").c_str());
+	}
+	else if (editor.selection == "Console")
+		console_editor(app, true);
+	else if (editor.selection == "Ship slots")
+		slots_editor();
+	else
+		draw_gameplay_properties(editor.document, app, editor.status, editor.selection, "");
+	ImGui::End();
+
 	lighting_preview();
+	if (!ImGui::IsAnyItemActive() && !ImGui::IsMouseDown(ImGuiMouseButton_Left))
+		editor.history.checkpoint(editor.document);
+
 	ImGui::Begin(tool_label("Status").c_str());
 	if (!app.status.empty())
 		ImGui::TextWrapped("%s", app.status.c_str());

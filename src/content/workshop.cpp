@@ -457,4 +457,102 @@ std::string WorkshopDocument::import_image(const std::string &filename, Bytes by
 	pack_.files[path] = std::move(bytes);
 	return reference;
 }
+
+bool WorkshopHistory::same_resources(const WorkshopDocument &a, const WorkshopDocument &b)
+{
+	if (a.pack_.files != b.pack_.files || a.libraries_.size() != b.libraries_.size())
+		return false;
+	for (std::size_t i = 0; i < a.libraries_.size(); ++i)
+		if (a.libraries_[i].hash() != b.libraries_[i].hash())
+			return false;
+	return true;
+}
+WorkshopHistory::Snapshot WorkshopHistory::snapshot(const WorkshopDocument &document) const
+{
+	Snapshot result{document.definitions_,
+	                document.pack_.manifest,
+	                document.map_index_,
+	                document.definitions_.dump().size() + document.pack_.manifest.dump().size(),
+	                0,
+	                {}};
+	if (!past_.empty() && same_resources(*past_.back().resources, document))
+	{
+		result.resources = past_.back().resources;
+		result.resource_bytes = past_.back().resource_bytes;
+	}
+	else
+	{
+		auto resources = std::make_shared<WorkshopDocument>(document);
+		resources->definitions_ = Json();
+		for (const auto &[name, data] : document.pack_.files)
+			result.resource_bytes += name.size() + data.size();
+		for (const auto &pack : document.libraries_)
+			result.resource_bytes += pack.archive().size();
+		result.resources = std::move(resources);
+	}
+	return result;
+}
+void WorkshopHistory::restore(WorkshopDocument &document, const Snapshot &snapshot)
+{
+	document = *snapshot.resources;
+	document.definitions_ = snapshot.definitions;
+	document.pack_.manifest = snapshot.manifest;
+	document.map_index_ = snapshot.map_index;
+}
+void WorkshopHistory::trim(std::vector<Snapshot> &history)
+{
+	// Charge shared assets once, excluding the latest resource set needed by the current draft.
+	// Always preserve one undo step even when an individual imported asset exceeds the budget.
+	while (history.size() > 2)
+	{
+		std::size_t bytes = 0;
+		std::set<const WorkshopDocument *> seen{history.back().resources.get()};
+		for (const auto &entry : history)
+		{
+			bytes += entry.bytes;
+			if (seen.insert(entry.resources.get()).second)
+				bytes += entry.resource_bytes;
+		}
+		if (history.size() <= 128 && bytes <= 32 * 1024 * 1024)
+			break;
+		history.erase(history.begin());
+	}
+}
+void WorkshopHistory::reset(const WorkshopDocument &document)
+{
+	past_.clear();
+	future_.clear();
+	past_.push_back(snapshot(document));
+}
+void WorkshopHistory::checkpoint(const WorkshopDocument &document)
+{
+	if (!past_.empty() && past_.back().definitions == document.definitions_ &&
+	    past_.back().manifest == document.pack_.manifest && same_resources(*past_.back().resources, document))
+		return;
+	past_.push_back(snapshot(document));
+	trim(past_);
+	future_.clear();
+}
+bool WorkshopHistory::undo(WorkshopDocument &document)
+{
+	checkpoint(document);
+	if (!can_undo())
+		return false;
+	future_.push_back(std::move(past_.back()));
+	past_.pop_back();
+	trim(future_);
+	restore(document, past_.back());
+	return true;
+}
+bool WorkshopHistory::redo(WorkshopDocument &document)
+{
+	checkpoint(document);
+	if (!can_redo())
+		return false;
+	past_.push_back(std::move(future_.back()));
+	future_.pop_back();
+	trim(past_);
+	restore(document, past_.back());
+	return true;
+}
 } // namespace phoenix

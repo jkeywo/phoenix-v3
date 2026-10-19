@@ -72,35 +72,16 @@ struct ScopedChild
 };
 struct GameplayEditor
 {
-	struct Snapshot
-	{
-		Json definitions;
-		std::size_t bytes;
-	};
-	const WorkshopDocument *owner = nullptr;
-	Json last, feedback = Json::object();
+
+	Json feedback = Json::object();
 	std::optional<GameplayTestRequest> test_request;
-	std::vector<Snapshot> undo, redo;
-	std::string entity, tree, test_slot, test_map;
-	std::string inspected_controller;
-	std::string verify_result;
+	std::string entity, tree, test_ship, test_slot, test_map;
+	std::string inspected_controller, selected_system, system_entity;
 	Json vocabulary = Json::object();
 	Json composition = Json::object();
 	Catalog composition_catalog;
 	int selected_state = -1;
 	bool pseudo = false;
-	void remember(std::vector<Snapshot> &history, const Json &definitions)
-	{
-		history.push_back({definitions, definitions.dump().size()});
-		std::size_t bytes = 0;
-		for (const auto &snapshot : history)
-			bytes += snapshot.bytes;
-		while (history.size() > 1 && (history.size() > 128 || bytes > 32 * 1024 * 1024))
-		{
-			bytes -= history.front().bytes;
-			history.erase(history.begin());
-		}
-	}
 	std::string label(const char *text) const
 	{
 		return translate(text, pseudo) + "###" + text;
@@ -479,12 +460,6 @@ struct GameplayEditor
 			return nullptr;
 		}
 		auto &entities = document.definitions()["entities"];
-		if (ScopedCombo scope(label("Fitted entity").c_str(), entity.c_str()); scope)
-		{
-			for (const auto &row : entities)
-				if (ImGui::Selectable(row.at("id").get<std::string>().c_str(), row.at("id") == entity))
-					entity = row.at("id").get<std::string>();
-		}
 		for (auto &row : entities)
 			if (row.at("id") == entity)
 				return &row;
@@ -582,6 +557,11 @@ struct GameplayEditor
 			return;
 		auto &ship = *selected;
 		choice(ship, "extends", definitions(document, "entities"), true);
+		if (system_entity != entity)
+		{
+			selected_system.clear();
+			system_entity = entity;
+		}
 		heading("Fitted Systems");
 		static std::string new_system;
 		ImGui::InputText(label("New System identity").c_str(), &new_system);
@@ -592,32 +572,36 @@ struct GameplayEditor
 			if (!ship["systems"].contains(new_system))
 				ship["systems"][new_system] = {
 				    {"kind", "engine"}, {"max_speed_mm_s", 10000}, {"acceleration_mm_s2", 1000}};
+			selected_system = new_system;
 			new_system.clear();
 		}
 		std::string remove;
 		if (ship.contains("systems"))
+		{
 			for (auto it = ship["systems"].begin(); it != ship["systems"].end(); ++it)
+				if (ImGui::Selectable(it.key().c_str(), selected_system == it.key()))
+					selected_system = it.key();
+			if (ship["systems"].contains(selected_system))
 			{
-				ScopedId id_scope_7(it.key().c_str());
-				if (ScopedTree scope(it.key().c_str()); scope)
-				{
-					choice(it.value(), "kind",
-					       {"engine", "steering", "radar", "generator", "distribution", "coolant", "storage", "lateral",
-					        "boost", "impulse"});
-					auto kind = equipment_kind(document, it.value());
-					if (kind.empty())
-						kind = it.key();
-					system_details(it.value(), kind);
-					telemetry_records(it.value(), document);
-					if (ship.contains("controllers"))
-						choice(ship["controllers"], it.key().c_str(), definitions(document, "trees"), true);
-					else if (button("Bind controller"))
-						ship["controllers"] = {{it.key(), ""}};
-					scalar_map(it.value(), "parameters");
-					if (button("Remove System"))
-						remove = it.key();
-				}
+				ScopedId identity(selected_system.c_str());
+				auto &spec = ship["systems"][selected_system];
+				heading("Selected System");
+				ImGui::TextUnformatted(selected_system.c_str());
+				choice(spec, "template", definitions(document, "equipment"), true);
+				choice(spec, "kind",
+				       {"engine", "steering", "radar", "generator", "distribution", "coolant", "storage", "lateral",
+				        "boost", "impulse"},
+				       true);
+				auto kind = equipment_kind(document, spec);
+				if (kind.empty())
+					kind = selected_system;
+				system_details(spec, kind);
+				telemetry_records(spec, document);
+				scalar_map(spec, "parameters");
+				if (button("Remove System"))
+					remove = selected_system;
 			}
+		}
 		if (!remove.empty())
 			ship["systems"].erase(remove);
 		const auto systems = fitted_ids(document, ship);
@@ -666,29 +650,6 @@ struct GameplayEditor
 				            gameplay_panel(console);
 			            });
 		        });
-		heading("Widget instance targets");
-		if (document.definitions().contains("consoles"))
-			for (auto &console : document.definitions()["consoles"])
-			{
-				ScopedId id_scope_8(console.at("id").get<std::string>().c_str());
-				if (ScopedTree scope(console.at("id").get<std::string>().c_str()); scope)
-				{
-					gameplay_panel(console);
-					const auto knowledge = knowledge_view(document);
-					std::vector<std::string> roles;
-					for (const auto &role : knowledge.at("roles"))
-						roles.push_back(role.get<std::string>());
-					names(console, "knowledge_roles", roles);
-					names(console, "knowledge_producers", roles);
-					if (console.contains("widgets"))
-						for (auto &widget : console.at("widgets"))
-						{
-							ScopedId id_scope_9(widget.at("id").get<std::string>().c_str());
-							ImGui::TextUnformatted(widget.at("id").get<std::string>().c_str());
-							choice(widget, "system", systems, true);
-						}
-				}
-			}
 	}
 	void resources(WorkshopDocument &document)
 	{
@@ -866,6 +827,13 @@ struct GameplayEditor
 		        });
 		text("Shipwide publication is explicit. Private Console observations and private AI memory are not "
 		     "automatically merged. Rendered visibility does not grant knowledge.");
+	}
+	void knowledge_bindings(WorkshopDocument &document)
+	{
+		const auto visible_contract = knowledge_view(document);
+		std::vector<std::string> roles;
+		for (const auto &role : visible_contract.at("roles"))
+			roles.push_back(role.get<std::string>());
 		if (auto *ship = select_entity(document); ship && ship->contains("stations"))
 		{
 			std::vector<std::string> consoles;
@@ -1221,7 +1189,7 @@ struct GameplayEditor
 		if (remove >= 0)
 			state[phase].erase(state[phase].begin() + remove);
 	}
-	void tree_graph(const Json &definition)
+	void tree_graph(const Json &definition, std::string &selection)
 	{
 		if (!definition.contains("states"))
 			return;
@@ -1295,7 +1263,10 @@ struct GameplayEditor
 				              ImGui::GetColorU32(ImGuiCol_CheckMark), 2, 0, 3);
 			}
 			if (ImGui::Selectable((id + "###node").c_str(), selected_state == static_cast<int>(i), 0, {170, 45}))
+			{
 				selected_state = static_cast<int>(i);
+				selection = "State trees";
+			}
 		}
 		ImGui::SetCursorScreenPos(origin);
 		ImGui::Dummy({width, std::max(260.f, states.size() * 65.f)});
@@ -1328,43 +1299,64 @@ struct GameplayEditor
 			                });
 		        });
 	}
-	void trees(WorkshopDocument &document)
+	void trees(WorkshopDocument &document, bool inspector, std::string &selection)
 	{
 		auto &defs = document.definitions();
-		static std::string derive_base;
-		Json derivation{{"Base tree", derive_base}};
-		if (choice(derivation, "Base tree", definitions(document, "trees")))
-			derive_base = derivation.at("Base tree").get<std::string>();
-		if (button("Derive tree from base") && !derive_base.empty())
+		if (!inspector)
 		{
+			static std::string derive_base;
+			Json derivation{{"Base tree", derive_base}};
+			if (choice(derivation, "Base tree", definitions(document, "trees")))
+				derive_base = derivation.at("Base tree").get<std::string>();
+			if (button("Derive tree from base") && !derive_base.empty())
+			{
+				if (!defs.contains("trees"))
+					defs["trees"] = Json::array();
+				tree = fresh(defs.at("trees"), "tree");
+				defs["trees"].push_back({{"id", tree}, {"extends", derive_base}});
+				selected_state = -1;
+				selection = "State trees";
+			}
+			if (button("New hierarchical tree"))
+			{
+				selected_state = -1;
+				selection = "State trees";
+				if (!defs.contains("trees"))
+					defs["trees"] = Json::array();
+				tree = fresh(defs.at("trees"), "tree");
+				defs["trees"].push_back({{"id", tree},
+				                         {"context", "system"},
+				                         {"initial", "operating"},
+				                         {"states", Json::array({{{"id", "operating"},
+				                                                  {"entry", Json::array()},
+				                                                  {"running", Json::array()},
+				                                                  {"exit", Json::array()},
+				                                                  {"transitions", Json::array()}}})}});
+			}
 			if (!defs.contains("trees"))
-				defs["trees"] = Json::array();
-			tree = fresh(defs.at("trees"), "tree");
-			defs["trees"].push_back({{"id", tree}, {"extends", derive_base}});
-			selected_state = -1;
-		}
-		if (button("New hierarchical tree"))
-		{
-			if (!defs.contains("trees"))
-				defs["trees"] = Json::array();
-			tree = fresh(defs.at("trees"), "tree");
-			defs["trees"].push_back({{"id", tree},
-			                         {"context", "system"},
-			                         {"initial", "operating"},
-			                         {"states", Json::array({{{"id", "operating"},
-			                                                  {"entry", Json::array()},
-			                                                  {"running", Json::array()},
-			                                                  {"exit", Json::array()},
-			                                                  {"transitions", Json::array()}}})}});
+				return;
+			Json tree_choice{{"Tree", tree}};
+			if (choice(tree_choice, "Tree", ids(defs.at("trees"))))
+			{
+				tree = tree_choice.at("Tree").get<std::string>();
+				selected_state = -1;
+				selection = "State trees";
+			}
+			for (const auto &definition : defs["trees"])
+				if (definition.at("id") == tree)
+				{
+					auto resolved = document.preview_tree(definition);
+					if (resolved.contains("context"))
+					{
+						tree_graph(resolved, selection);
+					}
+				}
+			if (button("Inspect selected tree") && !tree.empty())
+				selection = "State trees";
+			return;
 		}
 		if (!defs.contains("trees"))
 			return;
-		Json selection{{"Tree", tree}};
-		if (choice(selection, "Tree", ids(defs.at("trees"))))
-		{
-			tree = selection.at("Tree").get<std::string>();
-			selected_state = -1;
-		}
 		for (auto &definition : defs["trees"])
 			if (definition.at("id") == tree)
 			{
@@ -1460,7 +1452,7 @@ struct GameplayEditor
 					        binding(memory, "initial", resolved,
 					                {"integer", "boolean", "text", "reference", "parameter"});
 				        });
-				tree_graph(resolved);
+
 				if (definition.contains("states"))
 				{
 					if (button("Add state"))
@@ -1480,6 +1472,7 @@ struct GameplayEditor
 						{
 							definition["states"].erase(definition["states"].begin() + selected_state);
 							selected_state = -1;
+							selection = "State trees";
 						}
 					}
 				}
@@ -1837,16 +1830,12 @@ struct GameplayEditor
 					        assembly["resources"] = Json::object();
 			        }
 		        });
+	}
+	void placements(WorkshopDocument &document)
+	{
 		if (auto *ship = select_entity(document))
 		{
-			const auto equipment_ids = definitions(document, "equipment");
-			if (ship->contains("systems"))
-				for (auto it = (*ship)["systems"].begin(); it != (*ship)["systems"].end(); ++it)
-				{
-					ScopedId id_scope_25(it.key().c_str());
-					ImGui::TextUnformatted(it.key().c_str());
-					choice(it.value(), "template", equipment_ids, true);
-				}
+			names(*ship, "message_templates", definitions(document, "messages"));
 			structured_field(*ship, "parameters");
 			services(*ship);
 			records(
@@ -1993,8 +1982,7 @@ struct GameplayEditor
 			                    {"integer", "boolean", "text", "argument", "parameter", "observation", "intent",
 			                     "memory", "elapsed"});
 		        });
-		if (auto *ship = select_entity(document))
-			names(*ship, "message_templates", definitions(document, "messages"));
+
 		text("Payload fields are typed data. Display parameters format translated text; AI never parses that text. "
 		     "Sending requires a declared action or reporting rule, and delivery does not grant control authority.");
 	}
@@ -2002,11 +1990,11 @@ struct GameplayEditor
 	{
 		heading("Disposable production test");
 		text("Run an isolated simulation of the verified draft. Pause, step and restart apply to this test.");
-		Json selection{{"Mission", test_map}, {"Ship", entity}, {"Slot", test_slot}};
+		Json selection{{"Mission", test_map}, {"Ship", test_ship}, {"Slot", test_slot}};
 		if (choice(selection, "Mission", definitions(document, "maps")))
 			test_map = selection.at("Mission").get<std::string>();
 		if (choice(selection, "Ship", definitions(document, "entities")))
-			entity = selection.at("Ship").get<std::string>();
+			test_ship = selection.at("Ship").get<std::string>();
 		std::vector<std::string> slots;
 		if (document.libraries().maps.contains(test_map) &&
 		    document.libraries().maps.at(test_map).contains("ship_slots"))
@@ -2026,7 +2014,7 @@ struct GameplayEditor
 		{
 			if (button(title))
 			{
-				if (action == GameplayTestAction::Start && (test_map.empty() || test_slot.empty() || entity.empty()))
+				if (action == GameplayTestAction::Start && (test_map.empty() || test_slot.empty() || test_ship.empty()))
 					status = translate("Choose a mission, slot and ship before starting a test.", pseudo);
 				else
 				{
@@ -2034,7 +2022,7 @@ struct GameplayEditor
 					request.action = action;
 					request.mission = test_map;
 					request.slot = test_slot;
-					request.ship = entity;
+					request.ship = test_ship;
 					if (action == GameplayTestAction::Start)
 					{
 						request.pack = document.export_pack();
@@ -2062,106 +2050,158 @@ struct GameplayEditor
 		else
 			structure(feedback, false);
 	}
-	void draw(WorkshopDocument &document, Application &app, std::string &status)
+
+	void console_properties(WorkshopDocument &document, Application &app, Json &console)
 	{
 		pseudo = app.pseudo_locale;
-		if (owner != &document || (!last.is_null() && last != document.definitions()))
+		gameplay_panel(console);
+		const auto known = knowledge_view(document);
+		std::vector<std::string> roles;
+		for (const auto &role : known.at("roles"))
+			roles.push_back(role.get<std::string>());
+		names(console, "knowledge_roles", roles);
+		names(console, "knowledge_producers", roles);
+		std::set<std::string> available;
+		auto collect = [&](const Json &ship)
 		{
-			owner = &document;
-			undo.clear();
-			redo.clear();
+			bool uses = ship.value("console", std::string{}) == console.at("id").get<std::string>();
+			if (ship.contains("stations"))
+				for (const auto &station : ship.at("stations"))
+					for (const auto &seat : station.at("consoles"))
+						uses = uses || seat.value("definition", std::string{}) == console.at("id").get<std::string>();
+			if (uses && ship.contains("systems"))
+				for (const auto &id : ids(ship.at("systems")))
+					available.insert(id);
+		};
+		try
+		{
+			for (const auto &[id, ship] : document.preview_equipment().entities)
+				collect(ship);
 		}
-		if (ImGui::Begin(label("Gameplay authoring").c_str()))
+		catch (const std::exception &)
 		{
-			if (button("Undo gameplay edit") && !undo.empty())
+			for (const auto &ship : document.definitions().at("entities"))
+				collect(ship);
+		}
+		const std::vector<std::string> systems(available.begin(), available.end());
+		if (console.contains("widgets"))
+			for (auto &widget : console["widgets"])
 			{
-				remember(redo, document.definitions());
-				document.definitions() = undo.back().definitions;
-				undo.pop_back();
+				ScopedId identity(widget.at("id").get<std::string>().c_str());
+				ImGui::TextUnformatted(widget.at("id").get_ref<const std::string &>().c_str());
+				choice(widget, "system", systems, true);
 			}
-			ImGui::SameLine();
-			if (button("Redo gameplay edit") && !redo.empty())
+	}
+
+	void properties(WorkshopDocument &document, Application &app, std::string &status, const std::string &selection,
+	                const std::string &selected_entity)
+	{
+		pseudo = app.pseudo_locale;
+		entity = selected_entity;
+		try
+		{
+			if (selection == "Entity")
 			{
-				remember(undo, document.definitions());
-				document.definitions() = redo.back().definitions;
-				redo.pop_back();
+				using Inspector = void (GameplayEditor::*)(WorkshopDocument &);
+				for (const auto &[title, inspect] : std::vector<std::pair<const char *, Inspector>>{
+				         {"Systems and ownership", &GameplayEditor::fitted},
+				         {"Power and cooling", &GameplayEditor::resources},
+				         {"Fitting and assemblies", &GameplayEditor::placements},
+				         {"Knowledge feeds and publications", &GameplayEditor::knowledge_bindings},
+				         {"Station presets", &GameplayEditor::presets}})
+					if (ImGui::CollapsingHeader(label(title).c_str()))
+					{
+						ScopedId scope(title);
+						(this->*inspect)(document);
+					}
 			}
-			ImGui::SameLine();
-			if (button("Verify gameplay draft"))
+			else if (selection == "Templates and assemblies")
+				templates(document);
+			else if (selection == "Knowledge")
+				knowledge(document);
+			else if (selection == "Coordination")
+				messages(document);
+			else if (selection == "State trees")
 			{
-				try
-				{
-					document.verify();
-					verify_result = translate("Draft verified through the production loader.", pseudo);
-				}
-				catch (const std::exception &error)
-				{
-					verify_result = error.what();
-				}
-				status = verify_result;
+				auto active = selection;
+				trees(document, true, active);
 			}
-			if (!verify_result.empty())
-				ImGui::TextWrapped("%s", verify_result.c_str());
-			const Json before = document.definitions();
+			else if (selection == "Scenario")
+				scenario(document);
+		}
+		catch (const std::exception &error)
+		{
+			status = error.what();
+			ImGui::TextWrapped("%s", status.c_str());
+		}
+	}
+	void areas(WorkshopDocument &document, Application &app, std::string &status, std::string &selection)
+	{
+		pseudo = app.pseudo_locale;
+		if (ImGui::Begin(label("State trees").c_str()))
+		{
 			try
 			{
-				if (ImGui::BeginTabBar("gameplay-domains"))
-				{
-					using Inspector = void (GameplayEditor::*)(WorkshopDocument &);
-					for (const auto &[title, inspect] : std::vector<std::pair<const char *, Inspector>>{
-					         {"Systems and ownership", &GameplayEditor::fitted},
-					         {"Templates and assemblies", &GameplayEditor::templates},
-					         {"Power and cooling", &GameplayEditor::resources},
-					         {"Knowledge", &GameplayEditor::knowledge},
-					         {"Coordination", &GameplayEditor::messages},
-					         {"State trees", &GameplayEditor::trees},
-					         {"Scenario", &GameplayEditor::scenario},
-					         {"Station presets", &GameplayEditor::presets},
-					         {"Test", nullptr}})
-					{
-						if (ImGui::BeginTabItem(label(title).c_str()))
-						{
-							try
-							{
-								if (inspect)
-									(this->*inspect)(document);
-								else
-									disposable_test(document, status);
-							}
-							catch (const std::exception &error)
-							{
-								status = error.what();
-								ImGui::TextWrapped("%s", status.c_str());
-							}
-							ImGui::EndTabItem();
-						}
-					}
-					ImGui::EndTabBar();
-				}
+				trees(document, false, selection);
 			}
 			catch (const std::exception &error)
 			{
 				status = error.what();
-				ImGui::TextWrapped("%s", status.c_str());
-			}
-			if (before != document.definitions())
-			{
-				remember(undo, before);
-				redo.clear();
-				verify_result.clear();
 			}
 		}
 		ImGui::End();
-		last = document.definitions();
+		if (ImGui::Begin(label("Scenario").c_str()))
+		{
+			text("Select a map to inspect its regions, objectives, spawns and situations in Properties.");
+			auto &maps = document.definitions()["maps"];
+			const auto current = document.map().value("id", std::string{});
+			for (std::size_t i = 0; i < maps.size(); ++i)
+			{
+				const auto id = maps[i].at("id").get<std::string>();
+				if (ImGui::Selectable(id.c_str(), selection == "Scenario" && current == id))
+				{
+					document.select_map(i);
+					selection = "Scenario";
+				}
+			}
+			if (button("Inspect scenario"))
+				selection = "Scenario";
+			if (button("Inspect ship slots"))
+				selection = "Ship slots";
+		}
+		ImGui::End();
+		if (ImGui::Begin(label("Test").c_str()))
+		{
+			try
+			{
+				disposable_test(document, status);
+			}
+			catch (const std::exception &error)
+			{
+				status = error.what();
+			}
+		}
+		ImGui::End();
 	}
 };
 GameplayEditor gameplay_editor;
 } // namespace
-void draw_gameplay_authoring(WorkshopDocument &document, Application &app, std::string &status)
+void draw_workshop_areas(WorkshopDocument &document, Application &app, std::string &status, std::string &selection)
 {
 	if (gameplay_editor.vocabulary.empty())
 		set_gameplay_authoring_vocabulary(gameplay_tree_vocabulary());
-	gameplay_editor.draw(document, app, status);
+	gameplay_editor.areas(document, app, status, selection);
+}
+void draw_gameplay_properties(WorkshopDocument &document, Application &app, std::string &status,
+                              const std::string &selection, const std::string &entity)
+{
+	if (gameplay_editor.vocabulary.empty())
+		set_gameplay_authoring_vocabulary(gameplay_tree_vocabulary());
+	gameplay_editor.properties(document, app, status, selection, entity);
+}
+void draw_console_gameplay_properties(WorkshopDocument &document, Application &app, Json &console)
+{
+	gameplay_editor.console_properties(document, app, console);
 }
 void set_gameplay_authoring_vocabulary(const Json &vocabulary)
 {

@@ -1,6 +1,6 @@
 # Gameplay Workshop authoring
 
-The Gameplay authoring window edits the ordinary Workshop draft. It supplies structured controls for the gameplay phase and sends the result through the same production pack verification and export paths as other Workshop content. Opening inspectors does not activate equipment, publish information, spawn actors or modify a running game.
+Workshop has one active selection and one **Properties** inspector. Select an entity in Definitions or on the Map to edit appearance/physics, fitted Systems and ownership, power/cooling, assembly placements, knowledge feeds and station presets. Select a System within the fitted Systems section to edit its capabilities and template. Console selection opens its layout, bindings, knowledge roles and preview in the same inspector. Reusable templates/assemblies, knowledge schemas and Coordination templates are selected from Definitions. All edits use the ordinary Workshop draft and production verification/export paths. Opening inspectors does not activate equipment, publish information, spawn actors or modify a running game.
 
 ## Authoring areas
 
@@ -26,7 +26,7 @@ For patrols, author reach-region objectives under Scenario, then add an `objecti
 
 System trees can use `set_follow_contact(system, contact, distance_mm, speed_limit_mm_s, active)` on an engine or steering System. Assign the same target and separation to both Systems. The contact is an explicit entity reference (or a typed tree parameter); the usual argument editor provides reference and parameter controls. Following uses only the owning Console's available radar feed. Runtime telemetry exposes `following`, `follow_stale`, `follow_distance` and `follow_speed_limit`; tree conditions can observe `flight.following` and `flight.follow_stale`. Missing contact evidence requests braking and holds the current heading until reacquisition. Power and heat continue to constrain actual motion. This is trailing-point guidance, not obstacle avoidance.
 
-Tree nodes and transition edges appear together with their inspector. The node list uses parent depth for layout; selecting a node exposes its ordered tasks and conditions. Move controls change actual authored array order. The production vocabulary supplies action names, context permissions, expected argument names/types and observation/intent options. The editor does not maintain an independent executable action vocabulary.
+The separate **State trees** area selects a tree and displays its nodes and transition edges; the selected tree/state is edited in **Properties**. **Scenario** selects the same map used by Map and opens its scenario fields in Properties. **Test** remains a separate disposable runtime area; its mission/ship/slot choices do not change the authoring selection. The node list uses parent depth for layout; selecting a node exposes its ordered tasks and conditions. Move controls change actual authored array order. The production vocabulary supplies action names, context permissions, expected argument names/types and observation/intent options. The editor does not maintain an independent executable action vocabulary.
 
 Inherited trees are displayed through a read-only resolved view. Base context, states and parameters remain inherited until an explicit local edit or named-state override is requested. Reference calls retain their named parameter bindings. Literal parameter defaults, literal argument overrides, parent-parameter call bindings and ordinary runtime bindings use separate permitted source choices. Legacy timed trees retain their state names as object keys and their normal numeric/boolean output fields.
 
@@ -36,9 +36,9 @@ The graph highlights active state names supplied by the disposable runtime. The 
 
 ## Draft history and verification
 
-Gameplay edits keep up to 128 complete definition snapshots for Undo and Redo, each history limited to 32 MiB of serialized definitions while retaining at least its latest snapshot. An edit made elsewhere in Workshop starts a new gameplay-history boundary, so undo cannot accidentally restore a stale draft over unrelated changes. Import/reset likewise invalidates the previous history. The history covers definitions including maps; asset imports retain their existing Workshop flow.
+**Edit > Undo/Redo** applies across Workshop, including entity and Console edits, maps/scenarios, state trees, pack metadata, imported assets and dependencies. Ctrl+Z undoes and Ctrl+Y or Ctrl+Shift+Z redoes; active text fields retain their own text-editing shortcuts. Continuous drags/text edits become a document checkpoint when the interaction finishes. New/open pack starts a fresh history; saving does not clear history. Snapshots share unchanged asset/dependency storage. Each history keeps up to 128 snapshots within a 32 MiB additional serialized-data budget (excluding the latest resource set), retaining at least two snapshots so a large asset does not disable Undo. A new edit after Undo discards Redo.
 
-Verify gameplay draft calls `WorkshopDocument::verify()`. It checks the complete resolved draft/dependency closure through the production content loader and reports the actual diagnostic. Export uses the existing verified pack path. The editor permits incomplete drafts while authoring; unresolved bindings and invalid combinations remain errors at verification/export rather than being silently repaired.
+The single Workshop **Verify** menu action calls `WorkshopDocument::verify()` for the complete draft/dependency closure and reports the production diagnostic. Export and Test Start also require verification. Incomplete drafts remain editable; undo/redo does not require a draft to be valid.
 
 File → Export pack copy downloads a verified ZIP in browsers, including embedded browsers without a working native save picker. It does not change the current save destination. Save continues to update an installed pack; Save as selects a separate destination.
 
@@ -49,7 +49,9 @@ Renaming an entity repairs static placements, allowed ships, entity inheritance,
 The tools library has no simulation or Flecs dependency. Its public interface is:
 
 ```cpp
-void draw_gameplay_authoring(WorkshopDocument &, Application &, std::string &status);
+void draw_workshop_areas(WorkshopDocument &, Application &, std::string &status, std::string &selection);
+void draw_gameplay_properties(WorkshopDocument &, Application &, std::string &status,
+                              const std::string &selection, const std::string &entity);
 void set_gameplay_authoring_vocabulary(const Json &metadata);
 void set_gameplay_test_feedback(const Json &feedback);
 std::optional<GameplayTestRequest> take_gameplay_test_request();
@@ -57,7 +59,7 @@ std::optional<GameplayTestRequest> take_gameplay_test_request();
 
 `set_gameplay_authoring_vocabulary` accepts the production `gameplay_tree_vocabulary()` metadata directly, including context masks and typed argument signatures. It also accepts an already partitioned `{system:{actions,observations,intents},scenario:{...}}` view with stable descriptor `id` values.
 
-The authoring window initializes this metadata directly from the shared definition library if the application has not supplied it. Dependency schemas, templates and expanded assembly System identities participate in binding choices. Presets author `summary_intents` with numeric `levels`, a physical `default`, and translated `level_labels`; every resolved Console remains configurable, including read-only Consoles and the implicit main Console.
+The authoring controls initialize this metadata directly from the shared definition library if the application has not supplied it. Dependency schemas, templates and expanded assembly System identities participate in binding choices. Presets author `summary_intents` with numeric `levels`, a physical `default`, and translated `level_labels`; every resolved Console remains configurable, including read-only Consoles and the implicit main Console.
 
 Preset channel choices combine standard physical capability channels with the chosen fitted System controller's inherited `summary_bindings`. `WorkshopDocument::preview_equipment()` resolves template and assembly placement before `gameplay_summary_channels()` queries that exact controller, including local overrides and dependency trees. The production preset verifier uses the same channel lookup. A preserved imported value outside that list is shown as invalid and remains an export error; viewing it never silently replaces it. Preview does not require finished ownership/preset authoring or copy runtime worlds and asset bytes.
 

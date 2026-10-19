@@ -33,7 +33,10 @@ struct GameplayTestRequest
 	GameplayTestAction action = GameplayTestAction::Start;
 };
 std::optional<GameplayTestRequest> take_gameplay_test_request();
-void draw_gameplay_authoring(WorkshopDocument &, Application &, std::string &);
+void draw_workshop_areas(WorkshopDocument &, Application &, std::string &, std::string &);
+void draw_gameplay_properties(WorkshopDocument &, Application &, std::string &, const std::string &,
+                              const std::string &);
+void draw_console_gameplay_properties(WorkshopDocument &, Application &, Json &);
 void set_gameplay_authoring_vocabulary(const Json &);
 void set_gameplay_test_feedback(const Json &);
 void pump_browser_workshop_test(Application &);

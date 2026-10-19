@@ -24,6 +24,55 @@ int main()
 		auto loaded = read_pack(bytes);
 		require(loaded.hash() == sha256(bytes), "pack identity must be the SHA256 of transferred archive bytes");
 		auto catalog = resolve_packs({loaded});
+
+		WorkshopDocument history_document;
+		history_document.load_pack(bytes);
+		WorkshopHistory history;
+		history.reset(history_document);
+		const auto history_original = history_document.definitions();
+		history_document.definitions()["entities"][1]["name"] = "History ship";
+		history_document.definitions()["entities"][1]["systems"]["engine"]["max_speed_mm_s"] = 12345;
+		history.checkpoint(history_document);
+		const auto fitted = history_document.definitions();
+		history_document.new_map("test.history-map");
+		history_document.import_image("history.png", read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png"));
+		history_document.manifest()["description"] = "History pack";
+		history.checkpoint(history_document);
+		require(history.undo(history_document) && history_document.definitions() == fitted &&
+		            !history_document.pack().files.contains("assets/history.png") &&
+		            !history_document.manifest().contains("description"),
+		        "Workshop undo restores map, asset and manifest edits together without reverting earlier fitting");
+		require(history.undo(history_document) && history_document.definitions() == history_original,
+		        "Workshop undo crosses inspector domains");
+		require(history.redo(history_document) && history_document.definitions() == fitted,
+		        "Workshop redo restores both appearance and gameplay edits");
+		require(history.redo(history_document) && history_document.map().at("id") == "test.history-map",
+		        "Workshop redo restores selected map alongside authored data");
+		WorkshopDocument history_reopened;
+		history_reopened.load_pack(history_document.export_pack());
+		require(history_reopened.verify().maps.contains("test.history-map"),
+		        "Restored Workshop drafts export and reload through the production loader");
+		history.undo(history_document);
+		history_document.definitions()["consoles"][0]["name"] = "New branch";
+		history.checkpoint(history_document);
+		require(!history.can_redo(), "A new Console edit discards stale gameplay/map redo");
+		history.reset(history_document);
+		require(!history.can_undo() && !history.can_redo(), "Opening a document starts a fresh history");
+		// Large resource payloads must not crowd every ordinary edit out of history.
+		auto large_draft = base;
+		large_draft.files["history-resource-a.dat"] = Bytes(9 * 1024 * 1024, 0);
+		large_draft.files["history-resource-b.dat"] = Bytes(9 * 1024 * 1024, 0);
+		WorkshopDocument large_history_document;
+		large_history_document.load_pack(write_pack(large_draft));
+		history.reset(large_history_document);
+		for (int edit = 0; edit < 3; ++edit)
+		{
+			large_history_document.definitions()["entities"][1]["name"] = std::to_string(edit);
+			history.checkpoint(large_history_document);
+		}
+		require(history.undo(large_history_document) && history.undo(large_history_document) &&
+		            history.undo(large_history_document),
+		        "Large unchanged pack resources are shared across multiple undo steps");
 		WorkshopDocument console_document;
 		console_document.load_pack(bytes);
 		console_document.definitions()["consoles"].push_back(
