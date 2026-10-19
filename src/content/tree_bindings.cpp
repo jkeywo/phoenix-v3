@@ -275,6 +275,28 @@ std::vector<std::string> gameplay_summary_channels(const Catalog &catalog, const
 				result.push_back(binding.channel);
 	return result;
 }
+std::vector<ControllerTelemetryBinding> controller_telemetry_bindings(const Json &tree, const Catalog &catalog)
+{
+	const auto resolved = resolve_tree_definition(tree, catalog);
+	const auto bindings = resolved.value("system_bindings", Json::array());
+	binding_require(bindings.is_array() && bindings.size() <= 256, "Controller tree",
+	                "expected bounded system_bindings");
+	std::vector<ControllerTelemetryBinding> result;
+	for (const auto &binding : bindings)
+	{
+		ControllerTelemetryBinding value{binding.at("name").get<std::string>(), binding.at("system").get<std::string>(),
+		                                 binding.at("field").get<std::string>()};
+		binding_require(valid_identifier(value.name) && valid_identifier(value.system) &&
+		                    supported_system_observation(value.field),
+		                "Controller tree", "invalid System observation binding");
+		value.type = system_observation_type(value.field);
+		const std::string expected = value.type == state_tree::Type::Boolean ? "boolean" : "integer";
+		binding_require(binding.value("type", expected) == expected, "Controller tree",
+		                "System observation type differs from producer");
+		result.push_back(std::move(value));
+	}
+	return result;
+}
 state_tree::Registry gameplay_registry(const Json &tree, const Catalog &catalog, state_tree::Context context)
 {
 	const auto inherited = resolve_record_bindings(tree, catalog);
@@ -288,6 +310,8 @@ state_tree::Registry gameplay_registry(const Json &tree, const Catalog &catalog,
 		registry.observations = {{"self_entity", Type::Entity, 4, {}},
 		                         {"self_console", Type::Console, 4, {}},
 		                         {"tick", Type::Integer, 4, {}}};
+		for (const auto *name : {"own.x", "own.y", "own.vx", "own.vy", "own.heading"})
+			registry.observations.push_back({name, Type::Integer, 4, {}});
 		const auto resolved = resolve_tree_definition(tree, catalog);
 		binding_require(!resolved.contains("summary_bindings"), "Controller tree",
 		                "use owned command channels instead of System summary intents");
@@ -310,6 +334,8 @@ state_tree::Registry gameplay_registry(const Json &tree, const Catalog &catalog,
 			registry.actions.push_back({"write." + name, 4, {kind}, semantics == "request", index, none, index, 0});
 		}
 		for (const auto &binding : gameplay_record_bindings(tree, catalog))
+			registry.observations.push_back({binding.name, binding.type, 4, {}});
+		for (const auto &binding : controller_telemetry_bindings(tree, catalog))
 			registry.observations.push_back({binding.name, binding.type, 4, {}});
 		return registry;
 	}

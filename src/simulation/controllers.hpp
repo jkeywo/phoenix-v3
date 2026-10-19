@@ -16,6 +16,7 @@ struct ConsoleControllerRuntime
 	std::optional<Controller> timed;
 	std::optional<BrainRuntime> brain;
 	std::vector<std::size_t> tree_channels;
+	std::vector<ControllerTelemetryBinding> telemetry_reads;
 	ActionResult result;
 	std::map<std::string, std::int64_t> summary;
 	std::set<std::string> effects;

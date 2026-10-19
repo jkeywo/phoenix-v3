@@ -72,6 +72,15 @@ struct GameplayTreeSummaryBinding
 };
 std::vector<GameplayTreeSummaryBinding> gameplay_summary_bindings(const Json &, const Catalog &);
 state_tree::Registry gameplay_registry(const Json &, const Catalog &, state_tree::Context);
+inline constexpr std::size_t controller_observation_prefix = 8;
+struct ControllerTelemetryBinding
+{
+	std::string name, system, field;
+	state_tree::Type type = state_tree::Type::Integer;
+};
+bool supported_system_observation(const std::string &);
+state_tree::Type system_observation_type(const std::string &);
+std::vector<ControllerTelemetryBinding> controller_telemetry_bindings(const Json &, const Catalog &);
 void verify_scenario_authoring(const Catalog &catalog, const Json &map);
 // Render-only navigation aids. Distances are metres; speed is metres/second.
 struct DustConfig

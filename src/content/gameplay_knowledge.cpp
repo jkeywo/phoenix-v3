@@ -336,6 +336,18 @@ GameplayKnowledgeMessageValues evaluate_gameplay_message(const GameplayKnowledge
 	}
 	return result;
 }
+bool supported_system_observation(const std::string &name)
+{
+	return knowledge_telemetry_source(name);
+}
+state_tree::Type system_observation_type(const std::string &name)
+{
+	knowledge_detail::knowledge_require(knowledge_telemetry_source(name), "unsupported System observation");
+	static const std::set<std::string> flags{"enabled",          "assisted",    "boost",          "impulse",
+	                                         "match_speed",      "match_stale", "supply_limited", "thermal_stopped",
+	                                         "thermal_override", "overdrive",   "flow_cut",       "link_isolated"};
+	return flags.contains(name) ? state_tree::Type::Boolean : state_tree::Type::Integer;
+}
 GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 {
 	GameplayKnowledgeDefinitions compiled;

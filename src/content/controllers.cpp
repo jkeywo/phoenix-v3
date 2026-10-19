@@ -271,6 +271,16 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			controller.commands.push_back(std::move(command));
 		}
 		if (!controller.tree.empty() && catalog.tree_programs.contains(controller.tree))
+		{
+			const auto seat = std::find_if(consoles.begin(), consoles.end(),
+			                               [&](const auto &console)
+			                               {
+				                               return console.id == controller.console;
+			                               });
+			for (const auto &binding : controller_telemetry_bindings(catalog.trees.at(controller.tree), catalog))
+				control_require(std::find(seat->feed_systems.begin(), seat->feed_systems.end(), binding.system) !=
+				                    seat->feed_systems.end(),
+				                where, "System observation is outside Console feeds");
 			for (const auto &action : catalog.tree_programs.at(controller.tree).registry.actions)
 			{
 				const auto channel = action.name.substr(6);
@@ -288,6 +298,7 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 				                    action.effect == (found->semantics == CommandSemantics::Request),
 				                where, "tree command type/semantics differs from owned channel");
 			}
+		}
 		result.controllers.push_back(std::move(controller));
 	}
 	control_require(layout.contains("profiles") && layout.at("profiles").is_array() && !layout.at("profiles").empty() &&

@@ -235,6 +235,7 @@ struct World::Impl
 	std::map<EntityId, fixed::Vec> step_starts;
 	std::map<EntityId, BodyView> sensor_snapshot;
 	std::map<ConsoleAddress, GameplayKnowledgeProjection> brain_snapshots;
+	std::map<ConsoleAddress, Observation> observation_snapshots;
 	std::map<std::pair<EntityId, std::string>, std::vector<CoordinationDelivery>> inbox_snapshots;
 	bool gameplay = false;
 	std::vector<std::pair<std::uint64_t, OperatingCommand>> meta_pending;
@@ -463,6 +464,8 @@ struct World::Impl
 						if (content.tree_programs.contains(spec.tree))
 						{
 							controller.brain = BrainRuntime{content.tree_programs.at(spec.tree), spec.tree};
+							controller.telemetry_reads =
+							    controller_telemetry_bindings(content.trees.at(spec.tree), content);
 							for (const auto &action : controller.brain->program.registry.actions)
 								controller.tree_channels.push_back(static_cast<std::size_t>(
 								    std::find_if(spec.commands.begin(), spec.commands.end(),
@@ -1005,6 +1008,7 @@ struct World::Impl
 				values["impulse_progress"] = f.charge_milliticks;
 				values["match_speed"] = f.matching;
 				values["selected_contact"] = f.selected_contact;
+				values["matched_contact"] = f.matched_contact;
 				values["match_stale"] = f.match_stale;
 				values["following"] = f.following;
 				values["follow_stale"] = f.follow_stale;
@@ -1083,6 +1087,7 @@ struct World::Impl
 		}
 		return values;
 	}
+#include "console_observations.hpp"
 	std::vector<state_tree::Value> brain_observations(EntityId id, std::size_t index, GameplayRef system)
 	{
 		using state_tree::Type;
@@ -1102,14 +1107,17 @@ struct World::Impl
 		put(O::SelfSystem, Value::reference(Type::System, knowledge.system_id(id, fitted.id)));
 		put(O::SelfConsole, Value::reference(Type::Console, knowledge.console_id(owner)));
 		put(O::Tick, Value::integer(ecs.get<Clock>().tick));
-		const auto &pose = entity.get<Pose>();
-		const auto &motion = entity.get<Motion>();
-		put(O::PositionX, Value::integer(pose.position.x));
-		put(O::PositionY, Value::integer(pose.position.y));
-		put(O::VelocityX, Value::integer(motion.velocity.x));
-		put(O::VelocityY, Value::integer(motion.velocity.y));
-		put(O::Heading, Value::integer(pose.heading));
-		const auto data = telemetry(id, index);
+		const auto observation = observation_snapshots.contains(owner) ? observation_snapshots.at(owner)
+		                                                               : capture_console_observation(owner);
+		put(O::PositionX, Value::integer(observation.own.x));
+		put(O::PositionY, Value::integer(observation.own.y));
+		put(O::VelocityX, Value::integer(observation.own.vx));
+		put(O::VelocityY, Value::integer(observation.own.vy));
+		put(O::Heading, Value::integer(observation.own.heading));
+		std::map<std::string, std::int64_t> data;
+		for (const auto &state : observation.systems)
+			if (state.id == fitted.id)
+				data = state.telemetry;
 		const std::pair<O, const char *> fields[] = {{O::Enabled, "enabled"},
 		                                             {O::RequestedOutput, "requested"},
 		                                             {O::ActualOutput, "actual_output"},
@@ -1146,11 +1154,11 @@ struct World::Impl
 				        ? Value::boolean(n != 0)
 				        : Value::integer(n));
 			}
-		if (system.flight)
+		if (data.contains("assisted"))
 		{
-			put(O::FlightMode, Value::integer(system.flight->state.assisted ? 0 : 1));
-			if (system.flight->state.matched_contact)
-				put(O::MatchedContact, Value::reference(Type::Entity, system.flight->state.matched_contact));
+			put(O::FlightMode, Value::integer(data.at("assisted") ? 0 : 1));
+			if (data.at("matched_contact"))
+				put(O::MatchedContact, Value::reference(Type::Entity, data.at("matched_contact")));
 		}
 		const auto inbox = inbox_snapshots.contains({id, fitted.id}) ? inbox_snapshots.at({id, fitted.id})
 		                                                             : knowledge.peek_system(id, fitted.id);
@@ -1183,7 +1191,8 @@ struct World::Impl
 		for (std::size_t i = 0; i < system.brain->reads.size(); ++i)
 		{
 			const auto &binding = system.brain->reads[i];
-			const auto subject = binding.selected  ? (system.flight ? system.flight->state.selected_contact : 0)
+			const auto subject = binding.selected
+			                         ? (data.contains("selected_contact") ? data.at("selected_contact") : 0)
 			                     : binding.subject ? binding.subject
 			                                       : id;
 			const auto &records = binding.shared ? board.shared : board.records;
@@ -2448,6 +2457,13 @@ void World::tick()
 		impl_->sensor_snapshot.emplace(body.id, body);
 	impl_->brain_snapshots.clear();
 	impl_->inbox_snapshots.clear();
+	impl_->observation_snapshots.clear();
+	for (const auto &[id, entity] : impl_->entities)
+		for (const auto &console : impl_->definition(id).consoles)
+		{
+			const ConsoleAddress address{id, console.id};
+			impl_->observation_snapshots.emplace(address, impl_->capture_console_observation(address));
+		}
 	for (const auto &[id, entity] : impl_->entities)
 		if (entity.has<EntityControls>())
 			for (const auto &controller : entity.get<EntityControls>().controllers)
@@ -2497,6 +2513,9 @@ void World::tick()
 	}
 	++impl_->ecs.get_mut<Clock>().tick;
 	impl_->knowledge.tick(ticks());
+	impl_->observation_snapshots.clear();
+	impl_->brain_snapshots.clear();
+	impl_->inbox_snapshots.clear();
 }
 unsigned long long World::ticks() const
 {
@@ -2546,9 +2565,8 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 	if (found == impl_->claims.end())
 		return {};
 	auto entity = impl_->entities.at(found->second.ship);
-	const auto &own = entity.get<Pose>();
 	const auto &seat = *impl_->seat(found->second.ship, found->second.console);
-	Observation result{view(found->second.ship, entity.get<Definition>(), own, entity.get<Motion>()), {}};
+	Observation result = impl_->capture_console_observation(found->second);
 	result.gameplay = impl_->knowledge.project_json(found->second);
 	if (entity.has<EntityControls>())
 		result.gameplay["controllers"] = impl_->project_controllers(found->second);
@@ -2639,63 +2657,12 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 		for (const auto &system : seat.controlled_systems)
 			if (impl_->meta(console, {found->second.ship, "message." + name, 0, system}, false))
 				button("message." + name + "." + system, "Send " + name, "message." + name, system, 0);
-	result.console = seat.id;
-	result.controls = seat.controls;
-	result.feeds = seat.feeds;
-	result.engine_enabled = false;
-	result.radar_enabled = false;
-	for (const auto &id : seat.feed_systems)
+	for (const auto &state : result.systems)
 	{
+		const auto &id = state.id;
 		const auto instance = impl_->instance(entity, id);
-		SystemView state;
-		state.id = id;
-		state.controlled = std::find(seat.controlled_systems.begin(), seat.controlled_systems.end(), id) !=
-		                   seat.controlled_systems.end();
-		const auto *engine = instance         ? (instance->engine ? &*instance->engine : nullptr)
-		                     : id == "engine" ? legacy_component<Engine>(entity)
-		                                      : nullptr;
-		const auto *turn = instance           ? (instance->steering ? &*instance->steering : nullptr)
-		                   : id == "steering" ? legacy_component<Steering>(entity)
-		                                      : nullptr;
-		const auto *radar = instance        ? (instance->radar ? &*instance->radar : nullptr)
-		                    : id == "radar" ? legacy_component<Radar>(entity)
-		                                    : nullptr;
-		if (engine)
-		{
-			state.kind = OperatingSystem::Engine;
-			state.requested = engine->speed;
-			state.maximum = engine->max_speed;
-			state.enabled = engine->enabled;
-		}
-		else if (turn)
-		{
-			state.kind = OperatingSystem::Steering;
-			state.requested = turn->heading;
-			state.maximum = 359999;
-		}
-		else if (radar)
-		{
-			state.kind = OperatingSystem::Radar;
-			state.maximum = radar->range;
-			state.enabled = radar->enabled;
-		}
 		if (instance && instance->advanced)
 		{
-			const auto index = static_cast<std::size_t>(instance->ordinal);
-			state.kind = instance->kind;
-			state.telemetry = impl_->telemetry(found->second.ship, index);
-			state.enabled = state.telemetry.at("enabled") != 0;
-			state.requested = state.telemetry.at("requested");
-			state.controlled = instance->held;
-			if (auto runtime = gameplay_systems(entity); runtime && runtime->values[index].flight)
-				state.maximum = state.kind == OperatingSystem::Steering ? 359999
-				                : state.kind == OperatingSystem::Lateral
-				                    ? runtime->values[index].flight->definition.lateral_speed
-				                    : runtime->values[index].flight->definition.maximum_speed;
-			else
-				state.maximum = instance->maximum;
-			const auto runtime = (*gameplay_systems(entity)).values[index];
-			state.status = runtime.result.reason;
 			if (state.controlled)
 				for (const auto &action : operating_actions)
 				{
@@ -2746,79 +2713,17 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 							       std::string(action.name), id, value);
 				}
 		}
-		result.systems.push_back(std::move(state));
 	}
-	if (entity.has<NamedEquipment>())
-	{
-		std::int64_t range = 0;
-		for (const auto &state : result.systems)
-		{
-			if (state.kind == OperatingSystem::Engine)
-			{
-				result.requested_speed = state.requested;
-				result.engine_enabled = state.enabled;
-			}
-			else if (state.kind == OperatingSystem::Steering)
-				result.requested_heading = state.requested;
-			else if (state.kind == OperatingSystem::Radar && state.enabled)
-				range = std::max(range, impl_->sensor_range(found->second.ship, state.id));
-		}
-		result.radar_enabled = range > 0;
-		if (range)
-			impl_->contact_index.each(
-			    Bounds::around(own.position, range),
-			    [&](std::size_t row)
-			    {
-				    const auto &contact = impl_->contact_rows[row];
-				    if (contact.id != found->second.ship && fixed::length(contact.position - own.position) <= range)
-					    result.contacts.push_back(view(contact.id, contact.entity.get<Definition>(),
-					                                   contact.entity.get<Pose>(), contact.entity.get<Motion>()));
-			    });
-		std::sort(result.contacts.begin(), result.contacts.end(),
-		          [](const auto &a, const auto &b)
-		          {
-			          return a.id < b.id;
-		          });
-		for (const auto &system : result.systems)
-			if (system.controlled && system.kind == OperatingSystem::Engine)
-				for (const auto &contact : result.contacts)
-					if (impl_->operate(entity, system.id,
-					                   {OperatingAction::SelectContact, static_cast<std::int64_t>(contact.id)}, false))
-						button("select." + system.id + "." + std::to_string(contact.id),
-						       "Select " + contact.definition + " " + std::to_string(contact.id), "selected_contact",
-						       system.id, contact.id);
-		return result;
-	}
-	if (auto engine = legacy_component<Engine>(entity); engine && (seat.feeds & system_bit(OperatingSystem::Engine)))
-	{
-		result.requested_speed = engine->speed;
-		result.engine_enabled = engine->enabled;
-	}
-	if (auto turn = legacy_component<Steering>(entity); turn && (seat.feeds & system_bit(OperatingSystem::Steering)))
-		result.requested_heading = turn->heading;
-	if (!(seat.feeds & system_bit(OperatingSystem::Radar)))
-		return result;
-	auto radar = legacy_component<Radar>(entity);
-	result.radar_enabled = radar ? radar->enabled : impl_->operation(entity).radar_enabled;
-	if (!radar || !radar->enabled)
-		return result;
-	impl_->contact_index.each(
-	    Bounds::around(own.position, radar->range),
-	    [&](std::size_t row)
-	    {
-		    const auto &contact = impl_->contact_rows[row];
-		    if (contact.id != found->second.ship && fixed::length(contact.position - own.position) <= radar->range)
-			    result.contacts.push_back(view(contact.id, contact.entity.get<Definition>(), contact.entity.get<Pose>(),
-			                                   contact.entity.get<Motion>()));
-	    });
-	std::sort(result.contacts.begin(), result.contacts.end(),
-	          [](const auto &a, const auto &b)
-	          {
-		          return a.id < b.id;
-	          });
+	for (const auto &system : result.systems)
+		if (system.controlled && system.kind == OperatingSystem::Engine)
+			for (const auto &contact : result.contacts)
+				if (impl_->operate(entity, system.id,
+				                   {OperatingAction::SelectContact, static_cast<std::int64_t>(contact.id)}, false))
+					button("select." + system.id + "." + std::to_string(contact.id),
+					       "Select " + contact.definition + " " + std::to_string(contact.id), "selected_contact",
+					       system.id, contact.id);
 	return result;
 }
-
 Json World::debug() const
 {
 	Json result{{"tick", ticks()},

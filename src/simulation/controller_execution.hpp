@@ -9,13 +9,20 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 	values[0] = Value::reference(Type::Entity, id);
 	values[1] = Value::reference(Type::Console, knowledge.console_id(address));
 	values[2] = Value::integer(ecs.get<Clock>().tick);
+	const auto observation = observation_snapshots.contains(address) ? observation_snapshots.at(address)
+	                                                                 : capture_console_observation(address);
+	values[3] = Value::integer(observation.own.x);
+	values[4] = Value::integer(observation.own.y);
+	values[5] = Value::integer(observation.own.vx);
+	values[6] = Value::integer(observation.own.vy);
+	values[7] = Value::integer(observation.own.heading);
 	for (std::size_t i = 0; i < controller.tree_channels.size(); ++i)
 	{
 		const auto field = controller.tree_channels[i];
 		const auto amount = controller.commands[field].value;
-		values[3 + i] = controller.definition.commands[field].type == KnowledgeType::Boolean
-		                    ? Value::boolean(amount != 0)
-		                    : Value::integer(amount);
+		values[controller_observation_prefix + i] = controller.definition.commands[field].type == KnowledgeType::Boolean
+		                                                ? Value::boolean(amount != 0)
+		                                                : Value::integer(amount);
 	}
 	const auto board = brain_snapshots.contains(address) ? brain_snapshots.at(address) : knowledge.project(address);
 	for (std::size_t i = 0; i < brain.reads.size(); ++i)
@@ -30,13 +37,25 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 			    !knowledge.stale(*record, ecs.get<Clock>().tick) && record->value.fields.contains(binding.field))
 			{
 				const auto &value = record->value.fields.at(binding.field);
-				auto &target = values[3 + controller.tree_channels.size() + i];
+				auto &target = values[controller_observation_prefix + controller.tree_channels.size() + i];
 				if (auto n = std::get_if<std::int64_t>(&value))
 					target = Value::integer(*n);
 				else if (auto b = std::get_if<bool>(&value))
 					target = Value::boolean(*b);
 				else
 					target = Value::string(std::get<std::string>(value));
+				break;
+			}
+	}
+	for (std::size_t i = 0; i < controller.telemetry_reads.size(); ++i)
+	{
+		const auto &binding = controller.telemetry_reads[i];
+		for (const auto &system : observation.systems)
+			if (system.id == binding.system && system.telemetry.contains(binding.field))
+			{
+				const auto number = system.telemetry.at(binding.field);
+				values[controller_observation_prefix + controller.tree_channels.size() + brain.reads.size() + i] =
+				    binding.type == Type::Boolean ? Value::boolean(number != 0) : Value::integer(number);
 				break;
 			}
 	}

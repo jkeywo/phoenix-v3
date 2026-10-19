@@ -253,6 +253,54 @@ int main()
 		}
 		require(contextual.save() == contextual_resumed.save(),
 		        "interrupted hierarchical continuation survives restore");
+
+		auto observations_source = controller_fixture(true);
+		observations_source["trees"] = Json::parse(R"json([
+		    {"id":"test.writer","context":"controller","initial":"run",
+		     "command_bindings":[{"channel":"speed"}],
+		     "states":[{"id":"run","running":[{"action":"write.speed","arguments":[5000]}]}]},
+		    {"id":"test.reader","context":"controller","initial":"run",
+		     "command_bindings":[{"channel":"speed"}],
+		     "system_bindings":[{"name":"port_requested","system":"port","field":"requested","type":"integer"}],
+		     "states":[{"id":"run","running":[{"action":"write.speed","arguments":[{"observation":"port_requested"}]}]}]}
+		])json");
+		auto &observation_layout = observations_source["entities"][0]["control_layout"];
+		observation_layout["default_profile"] = "automatic";
+		observation_layout["controllers"][0].erase("fallback");
+		observation_layout["controllers"][0]["tree"] = "test.writer";
+		observation_layout["controllers"][1].erase("fallback");
+		observation_layout["controllers"][1]["tree"] = "test.reader";
+		World observations;
+		observations.load(load(observations_source), "test.map");
+		require(observations.claim(101, 1, "drive") && observations.claim(102, 1, "observer"),
+		        "human can observe a fully AI Console without changing its profile");
+		const auto before_tick = requested(observations, "port");
+		observations.tick();
+		require(requested(observations, "port") == 5000 && requested(observations, "starboard") == before_tick,
+		        "later Controller sees frozen pre-execution observations, not earlier Controller's physical effects");
+		const auto human_port = requested(observations, "port");
+		observations.tick();
+		require(requested(observations, "starboard") == human_port,
+		        "Controller reads the same permitted System observation presented to the human");
+		require(observations.observe(102)->systems.empty() && observations.observe(102)->contacts.empty(),
+		        "another Console does not inherit physical observations from a co-hosted Console");
+		auto foreign_feed = observations_source;
+		foreign_feed["entities"][0]["stations"][0]["consoles"][0]["feeds"] = {"starboard"};
+		rejects(
+		    [&]
+		    {
+			    load(foreign_feed);
+		    },
+		    "Controller System observation must belong to the Console's feed roster");
+		auto wrong_type = observations_source;
+		wrong_type["trees"][1]["system_bindings"][0]["type"] = "boolean";
+		wrong_type["trees"][1]["states"][0]["running"][0]["arguments"] = {5000};
+		rejects(
+		    [&]
+		    {
+			    load(wrong_type);
+		    },
+		    "System observation type cannot reinterpret requested speed as a boolean");
 		auto forbidden = contextual_source;
 		forbidden["trees"][0]["command_bindings"].push_back({{"channel", "foreign"}, {"type", "integer"}});
 		rejected(

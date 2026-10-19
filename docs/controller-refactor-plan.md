@@ -145,3 +145,9 @@ Independent integration verification covers ConsoleModel to LocalSession shared 
 ## Flecs parent identity receipt
 
 Physical Equipment no longer stores a duplicate `ship` field. Stable ordering and the remaining legacy snapshot adapter derive the parent entity through Flecs `ChildOf` and its `StableId`. `EquipmentIndex` retains only derived child handles, rebuilt during spawn/restore; it is not an ownership or state store. Independent native simulation and Controller runtime suites pass after the cleanup. This completes that specific step-7 cleanup item, not the remaining migration or final integration gate.
+
+## Shared operational observation receipt
+
+Console observation production now has one boundary for permitted own motion, fitted telemetry and detected contacts. Human projection and AI decision snapshots consume that output; the legacy tree observation adapter no longer constructs its own physical telemetry. Snapshots freeze before decisions and physical execution, then expire at the tick boundary. Controller trees can bind permitted System telemetry through typed `system_bindings`; field types come from the producer and foreign Console feeds are refused.
+
+Independent Controller integration verification covers two Controllers reading the same pre-execution state, next-tick agreement with human telemetry, observation-only Console isolation and invalid feed/type bindings. Native Controller, gameplay-knowledge and simulation suites pass. This is an operational observation foundation: provenance-rich Controller vocabulary, addressed messaging, shared command reads and removal of the legacy execution path remain outstanding.
