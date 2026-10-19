@@ -689,7 +689,7 @@ struct World::Impl
 		{
 			const auto &v = templates[i];
 			auto child = ecs.entity().child_of(entity).set<Equipment>(
-			    {id, v.id, v.kind, i, v.maximum, false, v.advanced, v.enabled});
+			    {v.id, v.kind, i, v.maximum, false, v.advanced, v.enabled});
 			index.values.push_back(child);
 			if (v.engine)
 				child.set<Engine>(*v.engine);
@@ -1590,7 +1590,8 @@ struct World::Impl
 		          {
 			          const auto &x = a.get<Equipment>();
 			          const auto &y = b.get<Equipment>();
-			          return std::pair{x.ship, x.ordinal} < std::pair{y.ship, y.ordinal};
+			          return std::pair{a.parent().get<StableId>().id, x.ordinal} <
+			                 std::pair{b.parent().get<StableId>().id, y.ordinal};
 		          });
 		return rows;
 	}
@@ -2456,14 +2457,15 @@ void World::tick()
 					impl_->brain_snapshots.emplace(address, impl_->knowledge.project(address));
 			}
 	impl_->autonomous_equipment.each(
-	    [&](const Equipment &fit, const BrainRuntime &)
+	    [&](flecs::entity child, const Equipment &fit, const BrainRuntime &)
 	    {
 		    if (fit.held)
 			    return;
-		    const auto owner = impl_->system_owner(fit.ship, fit.id);
+		    const auto entity = child.parent().get<StableId>().id;
+		    const auto owner = impl_->system_owner(entity, fit.id);
 		    if (!impl_->brain_snapshots.contains(owner))
 			    impl_->brain_snapshots.emplace(owner, impl_->knowledge.project(owner));
-		    impl_->inbox_snapshots.emplace(std::pair{fit.ship, fit.id}, impl_->knowledge.peek_system(fit.ship, fit.id));
+		    impl_->inbox_snapshots.emplace(std::pair{entity, fit.id}, impl_->knowledge.peek_system(entity, fit.id));
 	    });
 	impl_->step_starts.clear();
 	impl_->bodies.each(

@@ -5,7 +5,6 @@ namespace phoenix
 {
 struct Equipment
 {
-	EntityId ship = 0;
 	std::string id;
 	OperatingSystem kind = OperatingSystem::Engine;
 	std::size_t ordinal = 0;
