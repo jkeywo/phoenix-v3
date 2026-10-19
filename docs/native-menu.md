@@ -6,6 +6,8 @@ The menu uses the [comic HUD artwork and sprite sidecars](../content/ui/menu/REA
 
 ## Preparing a game
 
+Native startup adds missing definitions and assets from the bundled base pack to an already installed base. This makes newly shipped missions available after rebuilding/updating the game. Existing records and assets, including Workshop edits, keep their installed values; pack order and enabled state are preserved. The launcher catalogue is regenerated after an addition. Saved games retain their own exact archives.
+
 The fixed cockpit frame overlays a slowly panning, horizontally repeating space panorama. Reduced motion stops the pan. A ceiling-mounted CRT in the upper right displays the saved player avatar and username; the lobby reuses its housing for QR invitations. The scenery and screen aperture share source-pixel metadata with the HTML menu. See [menu artwork](../content/ui/menu/README.md) for assets and generation prompts.
 
 Import gameplay ZIPs in Mod Packs, enable them in dependency/override order, and Apply Pack Selection. Installation and activation are separate: an imported pack starts disabled. Phoenix Base Game and Phoenix Training are separate bundled packs; fresh libraries enable only the base. Every pack can be toggled, including the base. Enabling a mod enables and orders its prerequisites; disabling a prerequisite disables dependent mods. An entirely disabled selection persists across restarts. Packs remain installed between launches. Failed verification preserves the previous selection. Leave an active game before applying another selection. Removing an entry and applying removes its installed archive; portable saves retain their own exact content.

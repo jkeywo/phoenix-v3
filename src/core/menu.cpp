@@ -193,19 +193,55 @@ void MenuLibrary::install_bundled(const Bytes &base_archive, const Bytes &addon_
 						break;
 					}
 	}
+	// A rebuilt game can add missions and their supporting definitions. Keep
+	// authored records intact, but do not pin an installed base to its first build.
+	const auto shipped = parse_json(base.files().at("definitions.json"), "bundled base definitions");
+	bool added = false;
+	const auto merge_missing = [&](auto &&self, Json &destination, const Json &incoming) -> void
+	{
+		if (destination.is_object() && incoming.is_object())
+			for (const auto &[key, value] : incoming.items())
+			{
+				if (!destination.contains(key))
+				{
+					destination[key] = value;
+					added = true;
+				}
+				else
+					self(self, destination[key], value);
+			}
+		else if (destination.is_array() && incoming.is_array())
+			for (const auto &record : incoming)
+				if (record.is_object() && record.contains("id") &&
+				    std::none_of(destination.begin(), destination.end(),
+				                 [&](const auto &existing)
+				                 {
+					                 return existing.is_object() && existing.value("id", Json{}) == record.at("id");
+				                 }))
+				{
+					destination.push_back(record);
+					added = true;
+				}
+	};
+	merge_missing(merge_missing, from, shipped);
+	for (const auto &[name, bytes] : base.files())
+		if (name.starts_with("assets/") && !base_draft.files.contains(name))
+		{
+			base_draft.files[name] = bytes;
+			added = true;
+		}
 	if (!moved)
 	{
+		if (added)
+		{
+			base_draft.files["definitions.json"] = json_bytes(from);
+			base_draft.files.erase("launcher.json");
+			base_draft.files["launcher.json"] = json_bytes(launcher_catalog(resolve_draft({}, base_draft)));
+			replace_pack(source->hash, write_pack(base_draft));
+		}
 		install_default(addon_archive);
 		return;
 	}
-	const auto shipped = parse_json(base.files().at("definitions.json"), "bundled base definitions");
-	for (const auto &map : shipped.value("maps", Json::array()))
-		if (std::none_of(from["maps"].begin(), from["maps"].end(),
-		                 [&](const auto &m)
-		                 {
-			                 return m.at("id") == map.at("id");
-		                 }))
-			from["maps"].push_back(map);
 	base_draft.files["definitions.json"] = json_bytes(from);
 	addon_draft.files["definitions.json"] = json_bytes(to);
 	base_draft.files.erase("launcher.json");

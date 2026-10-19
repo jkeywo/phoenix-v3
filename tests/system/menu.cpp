@@ -114,6 +114,39 @@ int main()
 		require(migrated_base.maps.contains("test.user-map") && !migrated_base.maps.contains("test.practice") &&
 		            migrated_all.maps.at("test.practice").at("name") == "Edited practice" && migrated.packs[1].enabled,
 		        "Splitting an older base retains user maps and moves edited examples intact into the mod");
+		// Upgrade an already-installed, Workshop-edited base through startup's real path.
+		auto upgrade = draft;
+		auto updated = parse_json(upgrade.files.at("definitions.json"), "updated synthetic base");
+		auto extra_ship = updated["entities"][0];
+		extra_ship["id"] = "test.new-ship";
+		updated["entities"].push_back(extra_ship);
+		auto extra_map = updated["maps"][0];
+		extra_map["id"] = "test.new-mission";
+		extra_map["ship_slots"][0]["allowed_ships"] = {"test.new-ship"};
+		updated["maps"].push_back(extra_map);
+		upgrade.files["definitions.json"] = json_bytes(updated);
+		upgrade.files["assets/new.png"] = draft.files.at("assets/pixel.png");
+		const auto upgraded_archive = write_pack(upgrade);
+		const auto old_archive = migrated.read_pack_archive(migrated.packs[0].hash);
+		migrated.install_bundled(upgraded_archive, addon_archive);
+		MenuLibrary upgraded_library(directory + "/migrated");
+		upgraded_library.load();
+		const auto upgraded_pack = read_pack(upgraded_library.read_pack_archive(upgraded_library.packs[0].hash));
+		const auto upgraded_catalog = resolve_packs({upgraded_pack});
+		require(
+		    upgraded_catalog.maps.contains("test.new-mission") && upgraded_catalog.entities.contains("test.new-ship") &&
+		        upgraded_catalog.maps.contains("test.user-map") && upgraded_pack.files().contains("assets/new.png") &&
+		        upgraded_library.packs[0].enabled && upgraded_library.packs[1].enabled,
+		    "Startup adds shipped missions, support definitions and assets without losing authored maps or selections");
+		const auto before_upgrade = parse_json(read_pack(old_archive).files().at("definitions.json"), "prior base");
+		const auto after_upgrade = parse_json(upgraded_pack.files().at("definitions.json"), "upgraded base");
+		for (const auto &existing : before_upgrade.at("maps"))
+			require(std::find(after_upgrade.at("maps").begin(), after_upgrade.at("maps").end(), existing) !=
+			            after_upgrade.at("maps").end(),
+			        "Existing map definitions survive bundled additions unchanged");
+		const auto stable_hash = upgraded_library.packs[0].hash;
+		upgraded_library.install_bundled(upgraded_archive, addon_archive);
+		require(upgraded_library.packs[0].hash == stable_hash, "Repeated startup does not rewrite the upgraded pack");
 		MenuLibrary first_run(directory + "/first-run");
 		first_run.load();
 		first_run.install_default(archive);
