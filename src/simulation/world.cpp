@@ -223,6 +223,7 @@ struct World::Impl
 	std::vector<Bounds> collision_boxes, contact_boxes;
 	SpatialIndex collision_index, contact_index;
 	flecs::query<const StableId, const Definition, const Pose, const Motion> bodies;
+	flecs::query<const StableId, const FittedSystems, const GameplaySystems> autonomous_ships;
 	flecs::system controllers, system_controllers, steering, engines, fitted_controllers, fitted_steering,
 	    fitted_engines, advanced_systems, integrate, resolve_collisions, index_contacts;
 	bool instance_systems = false;
@@ -243,6 +244,8 @@ struct World::Impl
 	{
 		ecs.set<Clock>({0});
 		bodies = ecs.query_builder<const StableId, const Definition, const Pose, const Motion>().cached().build();
+		autonomous_ships =
+		    ecs.query_builder<const StableId, const FittedSystems, const GameplaySystems>().cached().build();
 		controllers = ecs.system<Controller, Engine *, Steering *, Radar *>("Controllers")
 		                  .kind(0)
 		                  .without<Claimed>()
@@ -2155,17 +2158,19 @@ void World::tick()
 		impl_->sensor_snapshot.emplace(body.id, body);
 	impl_->brain_snapshots.clear();
 	impl_->inbox_snapshots.clear();
-	for (const auto &[id, entity] : impl_->entities)
-		if (const auto *systems = entity.try_get<GameplaySystems>())
-			for (std::size_t i = 0; i < systems->values.size(); ++i)
-				if (systems->values[i].brain && !entity.get<FittedSystems>().values[i].held)
-				{
-					const auto &name = entity.get<FittedSystems>().values[i].id;
-					const auto owner = impl_->system_owner(id, name);
-					if (!impl_->brain_snapshots.contains(owner))
-						impl_->brain_snapshots.emplace(owner, impl_->knowledge.project(owner));
-					impl_->inbox_snapshots.emplace(std::pair{id, name}, impl_->knowledge.peek_system(id, name));
-				}
+	impl_->autonomous_ships.each(
+	    [&](const StableId &id, const FittedSystems &fitted, const GameplaySystems &systems)
+	    {
+		    for (std::size_t i = 0; i < systems.values.size(); ++i)
+			    if (systems.values[i].brain && !fitted.values[i].held)
+			    {
+				    const auto &name = fitted.values[i].id;
+				    const auto owner = impl_->system_owner(id.id, name);
+				    if (!impl_->brain_snapshots.contains(owner))
+					    impl_->brain_snapshots.emplace(owner, impl_->knowledge.project(owner));
+				    impl_->inbox_snapshots.emplace(std::pair{id.id, name}, impl_->knowledge.peek_system(id.id, name));
+			    }
+	    });
 	impl_->step_starts.clear();
 	impl_->bodies.each(
 	    [&](const StableId &id, const Definition &, const Pose &pose, const Motion &)
