@@ -18,7 +18,7 @@ struct ConsoleControllerRuntime
 	std::optional<BrainRuntime> brain;
 	std::vector<std::size_t> tree_channels;
 	std::vector<ControllerTelemetryBinding> telemetry_reads;
-	std::vector<std::pair<std::size_t, std::size_t>> command_reads;
+	std::vector<std::pair<std::size_t, std::size_t>> command_reads, contact_reads;
 	std::vector<RecordReadBinding> message_reads;
 	ActionResult result;
 	std::map<std::string, std::int64_t> summary;

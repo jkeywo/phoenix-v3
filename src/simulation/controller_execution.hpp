@@ -33,10 +33,19 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 	{
 		const auto &binding = brain.reads[i];
 		const auto &records = binding.shared ? board.shared : board.records;
+		KnowledgeId subject = binding.subject ? binding.subject : id;
+		if (binding.latest)
+		{
+			const auto latest = std::find_if(records.rbegin(), records.rend(),
+			                                 [&](const auto &record)
+			                                 {
+				                                 return record.value.schema == binding.schema;
+			                                 });
+			subject = latest == records.rend() ? 0 : latest->value.subject;
+		}
 		std::set<std::pair<KnowledgeId, KnowledgeId>> seen;
 		for (auto record = records.rbegin(); record != records.rend(); ++record)
-			if (record->value.schema == binding.schema &&
-			    record->value.subject == (binding.subject ? binding.subject : id) &&
+			if (record->value.schema == binding.schema && record->value.subject == subject &&
 			    seen.emplace(record->value.provenance.source, record->publication).second)
 			{
 				if (!evidence[i])
@@ -130,7 +139,7 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 	{
 		const auto *record = evidence[i];
 		const auto offset = payload_index;
-		payload_index += 9;
+		payload_index += 10;
 		values.at(offset) =
 		    Value::boolean(record && !record->value.withdrawn && !knowledge.stale(*record, ecs.get<Clock>().tick) &&
 		                   record->value.fields.contains(brain.reads[i].field));
@@ -144,6 +153,7 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 		values.at(offset + 6) = Value::boolean(record->value.withdrawn);
 		values.at(offset + 7) = Value::boolean(knowledge.stale(*record, ecs.get<Clock>().tick));
 		values.at(offset + 8) = Value::integer(record->value.provenance.revision);
+		values.at(offset + 9) = Value::integer(record->value.subject);
 	}
 	for (const auto field : controller.tree_channels)
 	{
@@ -154,6 +164,34 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 		values.at(payload_index++) = Value::integer(state.consumed);
 		values.at(payload_index++) = Value::integer(state.request_id);
 		values.at(payload_index++) = Value::boolean(state.consumed < state.revision);
+	}
+	for (const auto [target, channel] : controller.contact_reads)
+	{
+		const auto &source = controllers.at(target);
+		const auto &state = command_snapshots.contains(id) ? command_snapshots.at(id).at(target).at(channel)
+		                                                   : source.commands.at(channel);
+		const auto selected = source.definition.commands.at(channel).action == OperatingAction::FollowContact
+		                          ? state.arguments.at(0)
+		                          : state.value;
+		const auto contact = std::find_if(observation.contacts.begin(), observation.contacts.end(),
+		                                  [&](const auto &candidate)
+		                                  {
+			                                  return candidate.id == static_cast<EntityId>(selected);
+		                                  });
+		const auto offset = payload_index;
+		payload_index += 10;
+		values.at(offset) = Value::boolean(contact != observation.contacts.end());
+		if (contact == observation.contacts.end())
+			continue;
+		values.at(offset + 1) = Value::integer(contact->id);
+		values.at(offset + 2) = Value::integer(contact->x);
+		values.at(offset + 3) = Value::integer(contact->y);
+		values.at(offset + 4) = Value::integer(contact->vx);
+		values.at(offset + 5) = Value::integer(contact->vy);
+		values.at(offset + 6) = Value::integer(contact->heading);
+		values.at(offset + 7) = Value::integer(fixed::length({contact->vx, contact->vy}));
+		values.at(offset + 8) = Value::integer(observation.observed_tick);
+		values.at(offset + 9) = Value::integer(0);
 	}
 	return values;
 }

@@ -87,6 +87,11 @@ struct ControllerCommandReadBinding
 	state_tree::Type type = state_tree::Type::Integer;
 };
 std::vector<ControllerCommandReadBinding> controller_command_reads(const Json &, const Catalog &);
+struct ControllerContactBinding
+{
+	std::string name, controller, channel;
+};
+std::vector<ControllerContactBinding> controller_contact_bindings(const Json &, const Catalog &);
 std::vector<std::string> controller_message_templates(const Json &, const Catalog &);
 std::vector<GameplayTreeRecordBinding> controller_message_reads(const Json &, const Catalog &);
 inline constexpr std::size_t controller_inbox_metadata_count = 12;

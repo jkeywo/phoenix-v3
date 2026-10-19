@@ -1548,6 +1548,8 @@ struct GameplayEditor
 			        Json selected{{"Record subject", subject.is_string() ? subject.get<std::string>() : "entity"}};
 			        const auto subjects = resolved.value("context", std::string("system")) == "scenario"
 			                                  ? std::vector<std::string>{"self", "entity"}
+			                              : resolved.value("context", std::string("system")) == "controller"
+			                                  ? std::vector<std::string>{"self", "latest", "entity"}
 			                                  : std::vector<std::string>{"self", "selected_contact", "entity"};
 			        if (choice(selected, "Record subject", subjects))
 			        {
@@ -2041,6 +2043,14 @@ struct GameplayEditor
 				        string(binding, "controller");
 				        string(binding, "channel");
 				        choice(binding, "type", {"integer", "boolean"});
+			        });
+		if (editable("contact_bindings"))
+			records(tree, "contact_bindings", {{"name", "contact"}, {"controller", ""}, {"channel", ""}},
+			        [&](Json &binding)
+			        {
+				        string(binding, "name");
+				        string(binding, "controller");
+				        string(binding, "channel");
 			        });
 		if (editable("message_templates"))
 			names(tree, "message_templates", definitions(document, "messages"));

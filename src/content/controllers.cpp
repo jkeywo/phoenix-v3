@@ -450,6 +450,27 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 				                                                                         : state_tree::Type::Integer),
 				                path, "command read type differs from channel");
 			}
+	for (const auto &controller : result.controllers)
+		if (!controller.tree.empty() && catalog.tree_programs.contains(controller.tree))
+			for (const auto &binding : controller_contact_bindings(catalog.trees.at(controller.tree), catalog))
+			{
+				const auto target = std::find_if(result.controllers.begin(), result.controllers.end(),
+				                                 [&](const auto &candidate)
+				                                 {
+					                                 return candidate.id == binding.controller &&
+					                                        candidate.console == controller.console;
+				                                 });
+				control_require(target != result.controllers.end(), path, "contact selector is outside owning Console");
+				const auto channel = std::find_if(target->commands.begin(), target->commands.end(),
+				                                  [&](const auto &candidate)
+				                                  {
+					                                  return candidate.id == binding.channel;
+				                                  });
+				control_require(channel != target->commands.end() &&
+				                    (channel->action == OperatingAction::SelectContact ||
+				                     channel->action == OperatingAction::FollowContact),
+				                path, "contact selector requires a selected-contact or follow channel");
+			}
 	control_require(layout.contains("profiles") && layout.at("profiles").is_array() && !layout.at("profiles").empty() &&
 	                    layout.at("profiles").size() <= 32,
 	                path, "expected 1..32 complexity profiles");

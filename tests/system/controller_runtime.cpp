@@ -48,6 +48,82 @@ int main()
 	try
 	{
 		const auto content = load(controller_fixture());
+		for (const bool sensor_feed : {false, true})
+		{
+			auto contact_source = controller_fixture();
+			auto &contact_entity = contact_source["entities"][0];
+			contact_entity["systems"]["radar"] = {{"kind", "radar"}, {"range_mm", 100000}};
+			if (sensor_feed)
+				contact_entity["stations"][0]["consoles"][0]["feeds"].push_back("radar");
+			auto &contact_layout = contact_entity["control_layout"];
+			contact_layout["controllers"][0].erase("fallback");
+			contact_layout["controllers"][0]["tree"] = "test.contacts";
+			contact_layout["controllers"][0]["commands"].push_back(
+			    {{"id", "target"}, {"action", "selected_contact"}, {"consumers", {"port"}}});
+			contact_layout["controllers"].push_back({{"id", "sensor"},
+			                                         {"console", "drive"},
+			                                         {"fallback", "hold"},
+			                                         {"commands", Json::array({{{"id", "enabled"},
+			                                                                    {"action", "radar_enabled"},
+			                                                                    {"type", "boolean"},
+			                                                                    {"initial", 1},
+			                                                                    {"consumers", {"radar"}}}})}});
+			contact_layout["profiles"][0]["consoles"]["drive"] = {{"human", {"sensor"}}, {"ai", {"propulsion"}}};
+			contact_layout["profiles"][1]["consoles"]["drive"] = {{"ai", {"sensor", "propulsion"}}};
+			contact_source["trees"] = Json::parse(R"json([{"id":"test.contacts","context":"controller","initial":"run",
+			 "command_bindings":[{"channel":"speed"},{"channel":"target"}],
+			 "contact_bindings":[{"name":"target","controller":"propulsion","channel":"target"}],
+			 "states":[{"id":"run","running":[{"action":"write.target","arguments":[2]},
+			 {"action":"write.speed","arguments":[{"observation":"target.x"}]}]}]}])json");
+			contact_source["maps"][0]["entities"].push_back(
+			    {{"id", 2}, {"definition", "test.controllable"}, {"x_mm", 5000}, {"y_mm", 0}, {"heading_mdeg", 0}});
+			const auto contact_catalog = load(contact_source);
+			World contacts;
+			contacts.load(contact_catalog, "test.map");
+			require(contacts.claim(101, 1, "drive"), "contact reader Console claim");
+			contacts.tick();
+			require(controller(contacts, 101, "propulsion").at("commands").at("speed").at("value") == 0,
+			        "new selector cannot expose a contact to same-tick decision");
+			contacts.tick();
+			require(controller(contacts, 101, "propulsion").at("commands").at("speed").at("value") ==
+			            (sensor_feed ? 5000 : 0),
+			        "accepted selector only reads its permitted frozen Console contact feed");
+			if (sensor_feed)
+			{
+				OperatingCommand disable{1, {}, 0, {}};
+				disable.controller = "sensor";
+				disable.channel = "enabled";
+				disable.generation = controller(contacts, 101, "sensor").at("generation");
+				require(contacts.submit(101, disable), "human sensor operator disables feed");
+				contacts.tick();
+				const auto stopped_value =
+				    controller(contacts, 101, "propulsion").at("commands").at("speed").at("value");
+				contacts.tick();
+				require(contacts.observe(101)->contacts.empty() &&
+				            controller(contacts, 101, "propulsion").at("commands").at("speed").at("value") ==
+				                stopped_value,
+				        "disabled feed cannot provide fresh contact values");
+				World contacts_resumed;
+				contacts_resumed.restore(contact_catalog, contacts.save());
+				contacts.tick();
+				contacts_resumed.tick();
+				require(contacts.save() == contacts_resumed.save(), "contact-driven continuation restores exactly");
+			}
+			auto foreign_contact = contact_source;
+			foreign_contact["entities"][0]["control_layout"]["controllers"][1]["console"] = "observer";
+			foreign_contact["entities"][0]["control_layout"]["profiles"][0]["consoles"] = {
+			    {"drive", {{"ai", {"propulsion"}}}}, {"observer", {{"human", {"sensor"}}}}};
+			foreign_contact["entities"][0]["control_layout"]["profiles"][1]["consoles"] = {
+			    {"drive", {{"ai", {"propulsion"}}}}, {"observer", {{"ai", {"sensor"}}}}};
+			foreign_contact["trees"][0]["contact_bindings"][0]["controller"] = "sensor";
+			foreign_contact["trees"][0]["contact_bindings"][0]["channel"] = "enabled";
+			rejects(
+			    [&]
+			    {
+				    load(foreign_contact);
+			    },
+			    "foreign Console contact selector refused");
+		}
 		for (const std::string navigation : {"destination", "follow_contact"})
 		{
 			auto navigation_source = controller_fixture();
@@ -1027,6 +1103,53 @@ int main()
 		for (const auto &record : other_entity_view->gameplay.at("shared"))
 			require(record.at("subject") != 1, "public record visibility never crosses entity boundary");
 		auto evidence_source = shared_reader_source;
+		auto latest_source = shared_reader_source;
+		latest_source["maps"][0]["entities"].erase(1);
+		latest_source["entities"][0]["systems"]["port"]["records"] = Json::parse(R"json([
+		 {"schema":"request","producer":"crew","subject":77,"fields":{"amount":"requested"}}])json");
+		latest_source["entities"][0]["publications"] = Json::parse(R"json([
+		 {"id":"objective","source_console":"drive","schema":"request","subject":77,"fields":["amount"],"live":false}])json");
+		latest_source["trees"].back()["record_bindings"][0]["subject"] = "latest";
+		latest_source["trees"].back()["states"][0]["running"][0]["arguments"] =
+		    Json::array({{{"observation", "shared_amount.subject"}}});
+		latest_source["trees"].back()["states"][0]["transitions"] = Json::parse(R"json([
+		 {"target":"gone","conditions":[{"left":{"observation":"shared_amount.withdrawn"},"op":"eq","right":true}]}])json");
+		latest_source["trees"].back()["states"].push_back(Json::parse(R"json(
+		 {"id":"gone","running":[{"action":"write.speed","arguments":[88]}]})json"));
+		World latest_world;
+		const auto latest_catalog = load(latest_source);
+		latest_world.load(latest_catalog, "test.map");
+		claim_public(latest_world);
+		for (const auto claimant : {101, 102, 103})
+			latest_world.submit(claimant, {1, "preset", 1, {}});
+		for (int tick = 0; tick < 8; ++tick)
+			latest_world.tick();
+		require(latest_world.submit(101, {1, "publish.objective", 0, {}}), "publish objective-like non-entity subject");
+		latest_world.tick();
+		latest_world.tick();
+		require(latest_world.observe(103)->systems[0].requested == 77,
+		        "latest shared binding exposes permitted objective subject instead of assuming entity identity");
+		auto latest_tombstone = latest_world.save();
+		for (auto &record : latest_tombstone["knowledge"]["runtime"]["records"])
+			if (record["value"]["subject"] == 77)
+			{
+				record["value"]["withdrawn"] = true;
+				record["value"]["fields"] = Json::array();
+			}
+		World latest_withdrawn;
+		latest_withdrawn.restore(latest_catalog, latest_tombstone);
+		latest_withdrawn.tick();
+		latest_withdrawn.tick();
+		require(latest_withdrawn.observe(103)->systems[0].requested == 88,
+		        "latest subject tombstone cannot resurrect an older subject's record");
+		auto private_latest = latest_source;
+		private_latest["trees"].back()["record_bindings"][0]["scope"] = "console";
+		rejects(
+		    [&]
+		    {
+			    load(private_latest);
+		    },
+		    "latest subject cannot bypass private Console reader roles");
 		evidence_source["maps"][0]["entities"].erase(1);
 		evidence_source["knowledge"]["schemas"][0]["stale_after_ticks"] = 10;
 		evidence_source["trees"].back()["states"] = Json::parse(R"json([

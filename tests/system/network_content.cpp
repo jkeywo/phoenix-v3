@@ -22,6 +22,7 @@ using phoenix::test::require;
 void bounded_gameplay_projection(const Catalog &catalog, const std::string &key)
 {
 	Observation view{{1, "test.ship", 0, 0, 0, 0, 0}, {}};
+	view.observed_tick = 4;
 	const auto seat = resolve_consoles(catalog, "test.ship").front();
 	view.console = seat.id;
 	view.controls = seat.controls;
@@ -46,6 +47,16 @@ void bounded_gameplay_projection(const Catalog &catalog, const std::string &key)
 	const auto before = view.gameplay;
 	const auto projected = phoenix::network::observation_json(view);
 	const auto &gameplay = projected.at("gameplay");
+	const auto restored_view = phoenix::network::read_observation(projected, catalog);
+	require(restored_view.observed_tick == 4, "remote observation preserves producer sample tick");
+	auto invalid_sample_tick = projected;
+	invalid_sample_tick["observed_tick"] = -1;
+	phoenix::test::rejects(
+	    [&]
+	    {
+		    phoenix::network::read_observation(invalid_sample_tick, catalog);
+	    },
+	    "remote observation rejects malformed negative sample tick");
 	require(gameplay.dump().size() <= 1024 * 1024 && view.gameplay == before &&
 	            gameplay.at("controls") == before.at("controls") &&
 	            gameplay.at("notifications") == before.at("notifications"),

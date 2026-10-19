@@ -6,6 +6,7 @@ Observation capture_console_observation(const ConsoleAddress &address) const
 	const auto &seat = *this->seat(address.ship, address.console);
 	Observation result{view(address.ship, entity.get<Definition>(), own, entity.get<Motion>()), {}};
 	result.console = seat.id;
+	result.observed_tick = ecs.get<Clock>().tick;
 	result.controls = seat.controls;
 	result.feeds = seat.feeds;
 	result.engine_enabled = false;

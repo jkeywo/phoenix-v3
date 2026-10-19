@@ -145,6 +145,7 @@ static inline Json observation_json(const Observation &observation)
 		                   {"status", system.status}});
 	return {{"own", body_json(observation.own)},
 	        {"contacts", contacts},
+	        {"observed_tick", observation.observed_tick},
 	        {"requested_speed", observation.requested_speed},
 	        {"requested_heading", observation.requested_heading},
 	        {"engine_enabled", observation.engine_enabled},
@@ -168,6 +169,11 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 			throw std::runtime_error("Unknown projected contact definition");
 		result.contacts.push_back(std::move(body));
 	}
+	if (value.contains("observed_tick") &&
+	    (!value.at("observed_tick").is_number_integer() || value.at("observed_tick") < 0 ||
+	     value.at("observed_tick") > ~std::uint64_t{0}))
+		throw std::runtime_error("Invalid observation tick");
+	result.observed_tick = value.value("observed_tick", std::uint64_t{0});
 	result.requested_speed = value.at("requested_speed");
 	result.requested_heading = value.at("requested_heading");
 	result.engine_enabled = value.at("engine_enabled");

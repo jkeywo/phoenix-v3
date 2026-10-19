@@ -108,9 +108,9 @@ std::string binding_subject(const Json &binding, const std::string &path)
 	if (value.is_string())
 	{
 		const auto name = value.get<std::string>();
-		binding_require(name.empty() || name == "self" || name == "selected_contact", path + ".subject",
-		                "supported names are self and selected_contact");
-		return name == "selected_contact" ? name : std::string{};
+		binding_require(name.empty() || name == "self" || name == "selected_contact" || name == "latest",
+		                path + ".subject", "supported names are self, selected_contact and latest");
+		return name == "selected_contact" || name == "latest" ? name : std::string{};
 	}
 	binding_require(value.is_number_integer(), path + ".subject",
 	                "expected self, selected_contact, or a positive integer entity identity");
@@ -185,6 +185,8 @@ std::vector<GameplayTreeRecordBinding> gameplay_record_bindings(const Json &tree
 		}
 		binding.subject_parameter = binding_subject(value, field_path);
 		binding.contexts = static_cast<std::uint8_t>(*inherited.context);
+		binding_require(binding.subject_parameter != "latest" || inherited.context == state_tree::Context::Controller,
+		                field_path + ".subject", "latest requires a Controller context");
 		binding_require(binding.subject_parameter != "selected_contact" ||
 		                    inherited.context == state_tree::Context::System,
 		                field_path + ".subject", "selected_contact requires a System Console context");
@@ -318,6 +320,24 @@ std::vector<ControllerCommandReadBinding> controller_command_reads(const Json &t
 	}
 	return result;
 }
+std::vector<ControllerContactBinding> controller_contact_bindings(const Json &tree, const Catalog &catalog)
+{
+	const auto bindings = resolve_tree_definition(tree, catalog).value("contact_bindings", Json::array());
+	binding_require(bindings.is_array() && bindings.size() <= 64, "Controller tree",
+	                "expected bounded contact_bindings");
+	std::vector<ControllerContactBinding> result;
+	for (const auto &binding : bindings)
+	{
+		ControllerContactBinding value{binding.at("name").get<std::string>(),
+		                               binding.at("controller").get<std::string>(),
+		                               binding.at("channel").get<std::string>()};
+		binding_require(valid_identifier(value.name) && valid_identifier(value.controller) &&
+		                    valid_identifier(value.channel),
+		                "Controller tree", "invalid contact binding");
+		result.push_back(std::move(value));
+	}
+	return result;
+}
 std::vector<std::string> controller_message_templates(const Json &tree, const Catalog &catalog)
 {
 	const auto names = resolve_tree_definition(tree, catalog).value("message_templates", Json::array());
@@ -420,7 +440,7 @@ state_tree::Registry gameplay_registry(const Json &tree, const Catalog &catalog,
 					     {}});
 		for (const auto &binding : gameplay_record_bindings(tree, catalog))
 			for (const auto *field : {"available", "observed_tick", "received_tick", "source", "uncertainty", "kind",
-			                          "withdrawn", "stale", "revision"})
+			                          "withdrawn", "stale", "revision", "subject"})
 				registry.observations.push_back({binding.name + "." + field,
 				                                 std::string_view(field) == "available" ||
 				                                         std::string_view(field) == "withdrawn" ||
@@ -437,6 +457,13 @@ state_tree::Registry gameplay_registry(const Json &tree, const Catalog &catalog,
 				                                                                                   : Type::Integer,
 				     4,
 				     {}});
+		for (const auto &binding : controller_contact_bindings(tree, catalog))
+			for (const auto *field :
+			     {"available", "id", "x", "y", "vx", "vy", "heading", "speed", "observed_tick", "uncertainty"})
+				registry.observations.push_back({binding.name + "." + field,
+				                                 std::string_view(field) == "available" ? Type::Boolean : Type::Integer,
+				                                 4,
+				                                 {}});
 		return registry;
 	}
 	auto registry = gameplay_tree_registry(context, gameplay_record_bindings(tree, catalog));

@@ -281,6 +281,7 @@ struct Observation
 	std::vector<SystemView> systems;
 	// Permitted knowledge and coordination serialization boundary; never AI memory.
 	Json gameplay = Json::object();
+	std::uint64_t observed_tick = 0;
 };
 struct OperatingCommand
 {

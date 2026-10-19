@@ -40,7 +40,7 @@ struct FlightRuntime
 };
 struct RecordReadBinding
 {
-	bool shared = false, selected = false;
+	bool shared = false, selected = false, latest = false;
 	KnowledgeKey schema = 0, field = 0;
 	KnowledgeId subject = 0;
 };

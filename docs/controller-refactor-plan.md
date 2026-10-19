@@ -247,3 +247,9 @@ The independent real-signalling journey passed with ConsoleModel throttle fracti
 Controller record bindings now expose availability, source, observation/receipt ticks, uncertainty, evidence kind, withdrawal, staleness and revision from the same selected permitted record as the value. A withdrawn or stale stream cannot resurrect its older values. When no live field remains, metadata describes the newest matching unavailable stream. Owned command bindings expose accepted/consumed/pending revisions and request identity from the frozen command snapshot; human projections include the same consumption facts.
 
 Independent Controller runtime, gameplay-knowledge and content suites pass. Integration journeys cover fresh/stale/withdrawn decisions, existing scope refusals, a physically refused command and next-tick receipt visibility, plus exact restored continuation. General contact selection bindings and the legacy runtime/content migration remain outstanding.
+
+## Contact selection and latest record receipt
+
+Controller trees can select the latest permitted record subject without reading world state, including explicit withdrawal metadata rather than falling back to an older objective. Contact bindings resolve a same-Console selector channel against the frozen permitted sensor feed and expose availability, motion, uncertainty and the producer observation tick. Workshop authors both bindings; transport preserves the observation timestamp.
+
+Independent native build and Controller runtime, content, gameplay-knowledge and transfer suites pass. Checks cover tick-start selector isolation, missing and disabled feeds, foreign-Console refusal, latest-subject withdrawal, private record refusal, timestamp validation and exact continuation. Legacy control runtime and maintained-content migration remain outstanding.

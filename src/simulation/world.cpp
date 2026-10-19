@@ -483,6 +483,23 @@ struct World::Impl
 								controller.command_reads.emplace_back(target - result.layout->controllers.begin(),
 								                                      channel - target->commands.begin());
 							}
+							for (const auto &binding :
+							     controller_contact_bindings(content.trees.at(spec.tree), content))
+							{
+								const auto target = std::find_if(
+								    result.layout->controllers.begin(), result.layout->controllers.end(),
+								    [&](const auto &candidate)
+								    {
+									    return candidate.id == binding.controller && candidate.console == spec.console;
+								    });
+								const auto channel = std::find_if(target->commands.begin(), target->commands.end(),
+								                                  [&](const auto &candidate)
+								                                  {
+									                                  return candidate.id == binding.channel;
+								                                  });
+								controller.contact_reads.emplace_back(target - result.layout->controllers.begin(),
+								                                      channel - target->commands.begin());
+							}
 							for (const auto &action : controller.brain->program.registry.actions)
 								if (action.name.starts_with("write."))
 									controller.tree_channels.push_back(static_cast<std::size_t>(
@@ -505,7 +522,8 @@ struct World::Impl
 								read.shared = binding.scope == GameplayTreeRecordScope::Ship;
 								read.schema = content.knowledge_definition.schema(binding.schema);
 								read.field = content.knowledge_definition.field(read.schema, binding.field);
-								if (!binding.subject_parameter.empty())
+								read.latest = binding.subject_parameter == "latest";
+								if (!binding.subject_parameter.empty() && !read.latest)
 									read.subject = std::stoull(binding.subject_parameter);
 								controller.brain->reads.push_back(read);
 							}
