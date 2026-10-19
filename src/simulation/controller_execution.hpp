@@ -276,13 +276,42 @@ void controller_output(EntityId id, std::size_t index, const state_tree::Output 
 	                                               arguments});
 	controller.result.reason = controller.result.success ? "" : "Controller command refused";
 }
-std::optional<ControllerProposal> controller_proposal(const ConsoleAddress &address, const OperatingCommand &command,
+std::optional<ControllerProposal> controller_proposal(const ConsoleAddress &address, OperatingCommand command,
                                                       bool human) const
 {
-	if (!command.system.empty())
-		return {};
 	const auto entity = entities.at(address.ship);
 	const auto &controls = entity.get<EntityControls>();
+	if (controls.layout.converted && command.controller.empty() && command.channel.empty() && !command.generation &&
+	    !command.request_id)
+	{
+		// Compatibility ends here: queued work still carries an owned channel and operator generation.
+		const ConsoleControllerRuntime *owner = nullptr;
+		const ControllerCommandSpec *selected = nullptr;
+		for (const auto &controller : controls.controllers)
+			if (controller.definition.console == address.console)
+				for (const auto &field : controller.definition.commands)
+					if (operating_action(field.action).name == command.action &&
+					    (command.system.empty() || std::any_of(field.consumers.begin(), field.consumers.end(),
+					                                           [&](auto i)
+					                                           {
+						                                           return (*fittings(entity)).values[i].id ==
+						                                                  command.system;
+					                                           })))
+					{
+						if (selected)
+							return {};
+						owner = &controller;
+						selected = &field;
+					}
+		if (!selected || selected->semantics == CommandSemantics::Request)
+			return {};
+		command.controller = owner->definition.id;
+		command.channel = selected->id;
+		command.generation = owner->generation;
+		command.system.clear();
+	}
+	if (!command.system.empty())
+		return {};
 	for (std::size_t i = 0; i < controls.controllers.size(); ++i)
 	{
 		const auto &controller = controls.controllers[i];

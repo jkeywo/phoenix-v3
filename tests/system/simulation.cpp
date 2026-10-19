@@ -167,7 +167,7 @@ int main(int argc, char **)
 			require(world.claim(1, 1, "helm") && world.observe(1)->requested_speed == 3000,
 			        "released System controller resumes independently");
 			auto saved = world.save();
-			require(saved["schema"] == 2, "explicit Stations use versioned save state");
+			require(saved["schema"] == 6, "explicit Stations use versioned save state");
 			World resumed;
 			resumed.restore(content, saved);
 			require(resumed.save() == saved, "Console claims and independent controllers survive round-trip");
@@ -236,7 +236,7 @@ int main(int argc, char **)
 			require(world.observe(3)->systems[0].requested == 1000,
 			        "the sibling's ordinary controller cannot write the human's instance");
 			auto saved = world.save();
-			require(saved["schema"] == 3 && saved["bodies"][0]["systems"]["starboard"]["speed"] == 3000,
+			require(saved["schema"] == 6 && saved["bodies"][0]["systems"]["starboard"]["speed"] == 3000,
 			        "instance save records preserve independently controlled machinery");
 			World resumed;
 			resumed.restore(data, saved);
@@ -497,28 +497,30 @@ int main(int argc, char **)
 			trace.push_back(ordered.save().at("bodies"));
 		}
 
-		// Explicit schema-1 wire data: even inactive fields accepted by old saves
-		// must survive a round trip when the runtime no longer stores an Operation.
-		auto legacy = ordered.save();
-		legacy["bodies"][3]["operation"] = {{"speed", 123},
-		                                    {"heading", 23456},
-		                                    {"acceleration_remainder", 7},
-		                                    {"turn_remainder", 9},
-		                                    {"engine_enabled", false},
-		                                    {"radar_enabled", false},
-		                                    {"tree", {{"state", "unused"}, {"elapsed", 5}, {"entered", true}}}};
-		World legacy_resume;
-		legacy_resume.restore(mixed_content, legacy);
-		require(legacy_resume.save() == legacy, "schema-1 fields must round-trip without loss or renaming");
+		for (int schema = 1; schema < 6; ++schema)
+		{
+			auto legacy = ordered.save();
+			legacy["schema"] = schema;
+			bool refused = false;
+			try
+			{
+				World old;
+				old.restore(mixed_content, legacy);
+			}
+			catch (const std::exception &)
+			{
+				refused = true;
+			}
+			require(refused, "legacy authority saves require explicit migration");
+		}
 		World mixed_resume;
 		mixed_resume.restore(mixed_content, ordered.save());
 		for (int tick = 0; tick < 30; ++tick)
 		{
 			ordered.tick();
 			mixed_resume.tick();
-			legacy_resume.tick();
 			require(ordered.save() == mixed_resume.save(), "mixed-capability worlds must resume exactly");
-			trace.push_back(legacy_resume.save().at("bodies"));
+			trace.push_back(mixed_resume.save().at("bodies"));
 		}
 		trace.push_back(continuous.save().at("bodies"));
 

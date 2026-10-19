@@ -1,6 +1,26 @@
 #pragma once
 namespace phoenix
 {
+struct RecordReadBinding
+{
+	bool shared = false, latest = false;
+	KnowledgeKey schema = 0, field = 0;
+	KnowledgeId subject = 0;
+};
+struct ControllerBrain
+{
+	state_tree::Program program;
+	std::string tree;
+	std::vector<RecordReadBinding> reads;
+	state_tree::Instance continuation;
+	state_tree::Debug debug;
+};
+struct ActionResult
+{
+	bool available = false, success = false;
+	std::string reason;
+	std::uint64_t id = 0;
+};
 struct ControllerChannelState
 {
 	std::int64_t value = 0;
@@ -15,13 +35,12 @@ struct ConsoleControllerRuntime
 	bool human = false;
 	std::uint64_t generation = 1;
 	std::optional<Controller> timed;
-	std::optional<BrainRuntime> brain;
+	std::optional<ControllerBrain> brain;
 	std::vector<std::size_t> tree_channels;
 	std::vector<ControllerTelemetryBinding> telemetry_reads;
 	std::vector<std::pair<std::size_t, std::size_t>> command_reads, contact_reads;
 	std::vector<RecordReadBinding> message_reads;
 	ActionResult result;
-	std::map<std::string, std::int64_t> summary;
 	std::set<std::string> effects;
 };
 struct EntityControls

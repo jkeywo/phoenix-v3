@@ -199,9 +199,8 @@ public:
 		if (container.manifest.value("format", std::string{}) != "phoenix-runtime-save")
 			throw std::runtime_error("Select a Phoenix runtime save ZIP");
 		const auto data = parse_json(container.files.at("session.json"), "session.json");
-		if ((data.at("schema") != 1 && data.at("schema") != 2 && data.at("schema") != 3 && data.at("schema") != 4 &&
-		     data.at("schema") != 5) ||
-		    !data.at("packs").is_array() || data.at("packs").empty() || data.at("packs").size() > 32)
+		if (data.at("schema") != 6 || !data.at("packs").is_array() || data.at("packs").empty() ||
+		    data.at("packs").size() > 32)
 			throw std::runtime_error("Unsupported runtime save content roster");
 		LocalSession candidate;
 		for (const auto &chunks : data.at("packs"))

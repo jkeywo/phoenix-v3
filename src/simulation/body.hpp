@@ -61,10 +61,6 @@ struct Controller
 	std::size_t program = 0;
 	TreeCursor cursor;
 };
-struct CompiledControllers
-{
-	std::array<std::optional<Controller>, 3> values;
-};
 struct CompiledEquipment
 {
 	std::string id;
@@ -72,7 +68,6 @@ struct CompiledEquipment
 	std::optional<Engine> engine;
 	std::optional<Steering> steering;
 	std::optional<Radar> radar;
-	std::optional<Controller> controller;
 	bool advanced = false;
 	bool enabled = true;
 	std::int64_t maximum = 0;
@@ -103,9 +98,5 @@ struct SavedOperation
 	std::int64_t speed = 0, heading = 0, acceleration_remainder = 0, turn_remainder = 0;
 	bool engine_enabled = true, radar_enabled = true;
 	TreeState tree;
-};
-struct LegacyOperation
-{
-	SavedOperation value;
 };
 } // namespace phoenix

@@ -307,3 +307,9 @@ Independent native/session builds and the 25.5-second playable-fleet journey pas
 Engineering cards now derive their controls from Controller channel subscriptions, show shared commands once, and use the Detailed complexity profile for manual operation. Allocation steps scale to the authored operating setting rather than the generic safety bound.
 
 Independent native and Controller runtime builds/tests pass. The graphical engineering smoke admitted the Detailed profile and exercised generator, allocation and cooling controls across 18 cards; its fresh screenshot was inspected for readable layout and overflow. This is graphical smoke evidence, not screen-reader or six-display hardware acceptance.
+
+## Unified runtime and compatibility receipt
+
+The live World now converts unambiguous legacy definitions once at compilation and runs all command decisions through Console Controllers. Physical child entities no longer hold operator trees, human input state, summary intents or AI effect journals. Old per-System delegation and command dispatch are removed. Workshop inspection includes queued addressed Controller outputs.
+
+World/session save schema 6 refuses old authority continuations and obsolete authority fields; wire envelope schema 5 refuses old peers before play. Independent native builds and Controller runtime, simulation, fleet setup, durable fleet recovery and authenticated wire/transfer suites pass, including an independent HMAC vector. Legacy flight/knowledge/preference fixtures are still being migrated, and the full native/WASM/GUI gate remains open.

@@ -9,7 +9,7 @@ struct Equipment
 	OperatingSystem kind = OperatingSystem::Engine;
 	std::size_t ordinal = 0;
 	std::int64_t maximum = 0;
-	bool held = false, advanced = false, enabled = true;
+	bool advanced = false, enabled = true;
 };
 struct NamedEquipment
 {
@@ -38,35 +38,6 @@ struct FlightRuntime
 	FlightState state;
 	FlightDemand demand; // Derived fixed-tick quote, never serialized.
 };
-struct RecordReadBinding
-{
-	bool shared = false, selected = false, latest = false;
-	KnowledgeKey schema = 0, field = 0;
-	KnowledgeId subject = 0;
-};
-struct BrainRuntime
-{
-	state_tree::Program program;
-	std::string tree;
-	std::vector<RecordReadBinding> reads;
-	std::vector<GameplayTreeSummaryBinding> summary_reads;
-	state_tree::Instance continuation;
-	state_tree::Debug debug;
-};
-struct ActionResult
-{
-	bool available = false, success = false;
-	std::string reason;
-	std::uint64_t id = 0;
-};
-struct SummaryIntents
-{
-	std::map<std::string, std::int64_t> values;
-};
-struct EffectJournal
-{
-	std::set<std::string> values;
-};
 struct OperatingHeat
 {
 	std::int64_t remainder = 0;
@@ -82,8 +53,7 @@ struct EquipmentRef
 	Engine *engine;
 	Steering *steering;
 	Radar *radar;
-	Controller *controller;
-	bool &held, &advanced, &enabled;
+	bool &advanced, &enabled;
 	std::int64_t maximum;
 	std::size_t ordinal;
 };
@@ -96,8 +66,6 @@ inline EquipmentRef equipment_ref(flecs::entity entity)
 	        entity.try_get_mut<Engine>(),
 	        entity.try_get_mut<Steering>(),
 	        entity.try_get_mut<Radar>(),
-	        entity.try_get_mut<Controller>(),
-	        v.held,
 	        v.advanced,
 	        v.enabled,
 	        v.maximum,
@@ -106,17 +74,11 @@ inline EquipmentRef equipment_ref(flecs::entity entity)
 struct GameplayRef
 {
 	FlightRuntime *flight;
-	BrainRuntime *brain;
-	ActionResult &result;
 	std::int64_t &heat_remainder;
-	std::set<std::string> &effects;
-	std::map<std::string, std::int64_t> &summary;
 };
 inline GameplayRef gameplay_ref(flecs::entity entity)
 {
-	return {entity.try_get_mut<FlightRuntime>(),    entity.try_get_mut<BrainRuntime>(),
-	        entity.get_mut<ActionResult>(),         entity.get_mut<OperatingHeat>().remainder,
-	        entity.get_mut<EffectJournal>().values, entity.get_mut<SummaryIntents>().values};
+	return {entity.try_get_mut<FlightRuntime>(), entity.get_mut<OperatingHeat>().remainder};
 }
 template <bool Gameplay> struct EquipmentRange
 {
@@ -179,14 +141,5 @@ inline std::optional<GameplayView> gameplay_systems(flecs::entity ship)
 	if (!ship.has<GameplayShip>())
 		return {};
 	return GameplayView{{ship.get<EquipmentIndex>().values}, ship.try_get_mut<ShipResources>()};
-}
-template <typename T> T *legacy_component(flecs::entity ship)
-{
-	if (ship.has<NamedEquipment>())
-		return nullptr;
-	for (auto system : ship.get<EquipmentIndex>().values)
-		if (auto value = system.try_get_mut<T>())
-			return value;
-	return nullptr;
 }
 } // namespace phoenix
