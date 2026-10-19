@@ -99,6 +99,13 @@ bool knowledge_telemetry_source(const std::string &name)
 	                                             "match_speed",
 	                                             "selected_contact",
 	                                             "match_stale",
+	                                             "matched_contact",
+	                                             "following",
+	                                             "follow_stale",
+	                                             "follow_distance",
+	                                             "follow_speed_limit",
+	                                             "full_ticks",
+	                                             "thermal_recovery_ticks",
 	                                             "matched_speed",
 	                                             "actual_longitudinal",
 	                                             "actual_lateral",
@@ -128,6 +135,8 @@ bool knowledge_telemetry_source(const std::string &name)
 	                                             "flow_cut",
 	                                             "link_isolated",
 	                                             "cooling_allocation",
+	                                             "coolant_depletion_ticks",
+	                                             "actual_coolant_used",
 	                                             "coolant_stock"};
 	return supported.contains(name);
 }
@@ -346,9 +355,10 @@ bool supported_system_observation(const std::string &name)
 state_tree::Type system_observation_type(const std::string &name)
 {
 	knowledge_detail::knowledge_require(knowledge_telemetry_source(name), "unsupported System observation");
-	static const std::set<std::string> flags{"enabled",          "assisted",    "boost",          "impulse",
-	                                         "match_speed",      "match_stale", "supply_limited", "thermal_stopped",
-	                                         "thermal_override", "overdrive",   "flow_cut",       "link_isolated"};
+	static const std::set<std::string> flags{"following",      "follow_stale",    "enabled",          "assisted",
+	                                         "boost",          "impulse",         "match_speed",      "match_stale",
+	                                         "supply_limited", "thermal_stopped", "thermal_override", "overdrive",
+	                                         "flow_cut",       "link_isolated"};
 	return flags.contains(name) ? state_tree::Type::Boolean : state_tree::Type::Integer;
 }
 GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
@@ -754,6 +764,7 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 		if (!entity.contains("systems"))
 			continue;
 		auto &ship = compiled.ships.at(name);
+		const auto observation_schemas = compile_system_observations(catalog, name);
 		for (auto system = entity.at("systems").begin(); system != entity.at("systems").end(); ++system)
 		{
 			const auto reports = system.value().value("reporters", Json::array());
@@ -774,7 +785,7 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 				report.recovery = knowledge_unsigned(row.value("recovery_ticks", Json(0)));
 				report.minimum_gap = knowledge_unsigned(row.value("minimum_gap_ticks", Json(0)));
 				knowledge_require(valid_identifier(report.id) && identities.insert(report.id).second &&
-				                      knowledge_telemetry_source(report.field),
+				                      observation_schemas.at(system.key()).contains(report.field),
 				                  name + ": invalid reporter identity or telemetry source");
 				knowledge_require(!row.contains("kind") || row.at("kind") == "fact",
 				                  name + ": reporters only emit facts");

@@ -301,6 +301,57 @@ int main()
 			    load(wrong_type);
 		    },
 		    "System observation type cannot reinterpret requested speed as a boolean");
+		auto unavailable_observation = observations_source;
+		unavailable_observation["trees"][1]["system_bindings"][0]["field"] = "heat";
+		rejects(
+		    [&]
+		    {
+			    load(unavailable_observation);
+		    },
+		    "Catalog refuses telemetry absent from actual fitting");
+		auto resource_observations = observations_source;
+		resource_observations["entities"][0]["resources"] = Json::parse(R"json({"stores":[
+		 {"id":"cell","capacity":100000,"initial":50000,"charge_rate":100000,
+		  "discharge_rate":100000,"stop_heat":100000,"recover_heat":50000}]})json");
+		resource_observations["entities"][0]["systems"]["port"]["power_store"] = "cell";
+		resource_observations["entities"][0]["resources"]["coolant_sources"] =
+		    Json::parse(R"json([{"id":"tank","initial":100,"removal_rate":40,"coolant_per_heat_ppm":1000000}])json");
+		resource_observations["entities"][0]["resources"]["cooling_links"] = Json::parse(
+		    R"json([{"id":"feed","source":"tank","store":"cell","capacity_rate":40,"allocation_rate":40}])json");
+		resource_observations["entities"][0]["systems"]["cooler"] = {{"kind", "coolant"}, {"cooling_link", "feed"}};
+		resource_observations["entities"][0]["stations"][0]["consoles"][0]["feeds"].push_back("cooler");
+		resource_observations["trees"][1]["system_bindings"] = Json::parse(R"json([
+		 {"name":"port_requested","system":"port","field":"heat","type":"integer"},
+		 {"name":"thermal","system":"port","field":"thermal_stopped","type":"boolean"},
+		 {"name":"following","system":"port","field":"following","type":"boolean"},
+		 {"name":"forecast","system":"port","field":"thermal_recovery_ticks","type":"integer"},
+		 {"name":"coolant_forecast","system":"cooler","field":"coolant_depletion_ticks","type":"integer"},
+		 {"name":"coolant_used","system":"cooler","field":"actual_coolant_used","type":"integer"}])json");
+		const auto resource_catalog = load(resource_observations);
+		World resource_view;
+		resource_view.load(resource_catalog, "test.map");
+		require(resource_view.claim(101, 1, "drive"), "resource observation Console claim");
+		resource_view.tick();
+		const auto fitted_schemas = compile_system_observations(resource_catalog, "test.controllable");
+		require(fitted_schemas.at("port").contains("heat") && !fitted_schemas.at("starboard").contains("heat"),
+		        "store telemetry belongs only to fitted resource binding");
+		const auto resource_projection = resource_view.observe(101);
+		for (const auto &system : resource_projection->systems)
+		{
+			const auto &schema = fitted_schemas.at(system.id);
+			require(schema.size() == system.telemetry.size(),
+			        "compiled schema and produced telemetry have equal fields");
+			for (const auto &[field, value] : system.telemetry)
+				require(schema.contains(field), "compiled fitting contract includes each produced telemetry field");
+		}
+		auto wrong_resource_type = resource_observations;
+		wrong_resource_type["trees"][1]["system_bindings"][1]["type"] = "integer";
+		rejects(
+		    [&]
+		    {
+			    load(wrong_resource_type);
+		    },
+		    "Catalog preserves boolean thermal flag type");
 		auto command_read_source = observations_source;
 		command_read_source["trees"][1].erase("system_bindings");
 		command_read_source["trees"][1]["command_reads"] = Json::array(
@@ -745,10 +796,9 @@ int main()
 		rejects(
 		    [&]
 		    {
-			    World unavailable;
-			    unavailable.load(load(invalid_reporter), "test.map");
+			    load(invalid_reporter);
 		    },
-		    "World load refuses reporter telemetry absent from fitted physical System");
+		    "Catalog refuses reporter telemetry absent from fitted physical System");
 		invalid_reporter = reporter_source;
 		invalid_reporter["entities"][0]["systems"]["port"]["reporters"][0]["kind"] = "claim";
 		rejects(

@@ -179,6 +179,24 @@ struct FittedSystemSpec
 	std::int64_t maximum = 0, response = 0;
 	std::string controller;
 };
+struct SystemResourceBinding
+{
+	std::string id;
+	OperatingSystem kind = OperatingSystem::Engine;
+	bool store_modes = false;
+	ResourceIndex store = no_resource, generator = no_resource, group = no_resource, conduit = no_resource,
+	              cooling = no_resource;
+	ResourceAmount energy_per_second = 0, discrete_energy = 0;
+};
+struct ShipResourcesDefinition
+{
+	ResourceNetworkDefinition network;
+	std::vector<SystemResourceBinding> systems;
+	std::string signature;
+};
+std::optional<ShipResourcesDefinition> compile_ship_resources(const Catalog &catalog, const std::string &entity);
+using SystemObservationSchema = std::map<std::string, state_tree::Type>;
+std::map<std::string, SystemObservationSchema> compile_system_observations(const Catalog &, const std::string &entity);
 struct ControllerCommandSpec
 {
 	std::string id;

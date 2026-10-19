@@ -277,10 +277,18 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			                               {
 				                               return console.id == controller.console;
 			                               });
+			const auto observations = compile_system_observations(catalog, entity_id);
 			for (const auto &binding : controller_telemetry_bindings(catalog.trees.at(controller.tree), catalog))
+			{
 				control_require(std::find(seat->feed_systems.begin(), seat->feed_systems.end(), binding.system) !=
 				                    seat->feed_systems.end(),
 				                where, "System observation is outside Console feeds");
+				control_require(observations.contains(binding.system) &&
+				                    observations.at(binding.system).contains(binding.field),
+				                where, "System observation is unavailable on fitted mechanism");
+				control_require(observations.at(binding.system).at(binding.field) == binding.type, where,
+				                "System observation type differs from fitted producer");
+			}
 			for (const auto &action : catalog.tree_programs.at(controller.tree).registry.actions)
 			{
 				if (action.name == "acknowledge_message")

@@ -250,6 +250,7 @@ add_library(
 	src/content/gameplay_knowledge.cpp
 	src/content/tree_bindings.cpp
 	src/content/gameplay.cpp
+	src/content/resource_bindings.cpp
 	src/behavior/tree.cpp
 )
 target_link_libraries(

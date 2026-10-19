@@ -185,3 +185,9 @@ Independent native Controller and gameplay-knowledge integration suites pass. Te
 Entity-wide messages publish to the shared blackboard and permitted Console histories. Important AI-to-AI Controller messages also publish when the recipient is still AI at delivery. Public copies retain message identity and factual source metadata; spectator copies do not grant acknowledgement or action authority. Publishable schemas, payload fields and dynamic presentation bindings are validated to prevent private data entering public messages.
 
 The independent verification agent passed native Controller and gameplay-knowledge integration suites covering public/shared visibility, private routing, delivery-time handover, human broadcasts, pending/delivered restoration and forged actionability refusal. This verifies publication and projection; rendered Viewscreen presentation remains outstanding.
+
+## Fitted observation compilation receipt
+
+Resource fitting compilation now belongs to content and is shared by validation and simulation. Per-System observation schemas derive from the compiled resource bindings and flight capabilities. Catalog loading rejects Controller/reporter fields absent from the fitted producer, before World construction. The vocabulary includes following, store forecasts and coolant forecasts/use with their actual types.
+
+Independent verification passed native Controller, gameplay-knowledge, content and simulation integration suites. Synthetic fixtures compare complete compiled field sets with production telemetry for resource-bound engines, engines without stores and cooling equipment; unavailable fields and type mismatches are rejected. This closes the Catalog-only availability gap recorded above.
