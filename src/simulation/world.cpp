@@ -39,6 +39,33 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SavedOperation, speed, heading, acceleration_
 namespace
 {
 constexpr std::int64_t rate = World::ticks_per_second;
+void step_basic_steering(Pose &pose, Steering &turn)
+{
+	auto available = turn.rate + turn.remainder;
+	auto step = available / rate;
+	turn.remainder = available % rate;
+	auto difference = (turn.heading - pose.heading + 540000) % 360000 - 180000;
+	pose.heading = (pose.heading + std::clamp(difference, -step, step) + 360000) % 360000;
+}
+void step_basic_engine(const Pose &pose, Motion &motion, Engine &engine)
+{
+	engine.forward_output = 0;
+	if (!engine.enabled)
+		return;
+	auto available = engine.acceleration + engine.remainder;
+	auto step = available / rate;
+	engine.remainder = available % rate;
+	auto desired = fixed::scale(fixed::direction(pose.heading), engine.speed);
+	auto delta = desired - motion.velocity;
+	auto magnitude = fixed::length(delta);
+	const auto before = motion.velocity;
+	motion.velocity = magnitude <= step ? desired : motion.velocity + fixed::scale(fixed::normal(delta), step);
+	const auto applied = motion.velocity - before;
+	const auto forward = fixed::dot(applied, fixed::direction(pose.heading)) / fixed::unit;
+	engine.forward_output = static_cast<int>(
+	    std::clamp<std::int64_t>(forward * rate * 1000 / std::max<std::int64_t>(1, engine.acceleration), 0, 1000));
+}
+
 struct Clock
 {
 	std::uint64_t tick = 0;
@@ -237,38 +264,8 @@ struct World::Impl
 					            for (auto output : step_tree(programs[controller->program], controller->cursor))
 						            apply(output, engine, turn, radar);
 		            });
-		steering = ecs.system<Pose, Steering>("Steering")
-		               .kind(0)
-		               .with<Movable>()
-		               .each(
-		                   [](Pose &pose, Steering &turn)
-		                   {
-			                   auto available = turn.rate + turn.remainder;
-			                   auto step = available / rate;
-			                   turn.remainder = available % rate;
-			                   auto difference = (turn.heading - pose.heading + 540000) % 360000 - 180000;
-			                   pose.heading = (pose.heading + std::clamp(difference, -step, step) + 360000) % 360000;
-		                   });
-		engines = ecs.system<const Pose, Motion, Engine>("Engines").kind(0).with<Movable>().each(
-		    [](const Pose &pose, Motion &motion, Engine &engine)
-		    {
-			    engine.forward_output = 0;
-			    if (!engine.enabled)
-				    return;
-			    auto available = engine.acceleration + engine.remainder;
-			    auto step = available / rate;
-			    engine.remainder = available % rate;
-			    auto desired = fixed::scale(fixed::direction(pose.heading), engine.speed);
-			    auto delta = desired - motion.velocity;
-			    auto magnitude = fixed::length(delta);
-			    const auto before = motion.velocity;
-			    motion.velocity =
-			        magnitude <= step ? desired : motion.velocity + fixed::scale(fixed::normal(delta), step);
-			    const auto applied = motion.velocity - before;
-			    const auto forward = fixed::dot(applied, fixed::direction(pose.heading)) / fixed::unit;
-			    engine.forward_output = static_cast<int>(std::clamp<std::int64_t>(
-			        forward * rate * 1000 / std::max<std::int64_t>(1, engine.acceleration), 0, 1000));
-		    });
+		steering = ecs.system<Pose, Steering>("Steering").kind(0).with<Movable>().each(step_basic_steering);
+		engines = ecs.system<const Pose, Motion, Engine>("Engines").kind(0).with<Movable>().each(step_basic_engine);
 		fitted_controllers = ecs.system<FittedSystems>("FittedControllers")
 		                         .kind(0)
 		                         .each(
@@ -282,54 +279,26 @@ struct World::Impl
 						                                   system.steering ? &*system.steering : nullptr,
 						                                   system.radar ? &*system.radar : nullptr);
 		                             });
-		fitted_steering =
-		    ecs.system<Pose, FittedSystems>("FittedSteering")
-		        .kind(0)
-		        .with<Movable>()
-		        .each(
-		            [](Pose &pose, FittedSystems &systems)
-		            {
-			            for (auto &system : systems.values)
-				            if (!system.advanced && system.steering)
-				            {
-					            auto &turn = *system.steering;
-					            const auto available = turn.rate + turn.remainder;
-					            turn.remainder = available % rate;
-					            const auto difference = (turn.heading - pose.heading + 540000) % 360000 - 180000;
-					            pose.heading = (pose.heading +
-					                            std::clamp(difference, -available / rate, available / rate) + 360000) %
-					                           360000;
-				            }
-		            });
-		fitted_engines =
-		    ecs.system<const Pose, Motion, FittedSystems>("FittedEngines")
-		        .kind(0)
-		        .with<Movable>()
-		        .each(
-		            [](const Pose &pose, Motion &motion, FittedSystems &systems)
-		            {
-			            for (auto &system : systems.values)
-				            if (!system.advanced && system.engine)
-				            {
-					            auto &engine = *system.engine;
-					            engine.forward_output = 0;
-					            if (!engine.enabled)
-						            continue;
-					            const auto available = engine.acceleration + engine.remainder;
-					            const auto step = available / rate;
-					            engine.remainder = available % rate;
-					            const auto desired = fixed::scale(fixed::direction(pose.heading), engine.speed);
-					            const auto delta = desired - motion.velocity;
-					            const auto before = motion.velocity;
-					            motion.velocity = fixed::length(delta) <= step
-					                                  ? desired
-					                                  : motion.velocity + fixed::scale(fixed::normal(delta), step);
-					            const auto forward =
-					                fixed::dot(motion.velocity - before, fixed::direction(pose.heading)) / fixed::unit;
-					            engine.forward_output = static_cast<int>(std::clamp<std::int64_t>(
-					                forward * rate * 1000 / std::max<std::int64_t>(1, engine.acceleration), 0, 1000));
-				            }
-		            });
+		fitted_steering = ecs.system<Pose, FittedSystems>("FittedSteering")
+		                      .kind(0)
+		                      .with<Movable>()
+		                      .each(
+		                          [](Pose &pose, FittedSystems &systems)
+		                          {
+			                          for (auto &system : systems.values)
+				                          if (!system.advanced && system.steering)
+					                          step_basic_steering(pose, *system.steering);
+		                          });
+		fitted_engines = ecs.system<const Pose, Motion, FittedSystems>("FittedEngines")
+		                     .kind(0)
+		                     .with<Movable>()
+		                     .each(
+		                         [](const Pose &pose, Motion &motion, FittedSystems &systems)
+		                         {
+			                         for (auto &system : systems.values)
+				                         if (!system.advanced && system.engine)
+					                         step_basic_engine(pose, motion, *system.engine);
+		                         });
 		advanced_systems = ecs.system<const StableId, Pose, Motion, FittedSystems, GameplaySystems>("GameplaySystems")
 		                       .kind(0)
 		                       .each(
@@ -539,16 +508,7 @@ struct World::Impl
 			for (const auto &spec : resolve_systems(content, name))
 				if (spec.id != operating_system_name(spec.kind) || systems.at(spec.id).contains("kind"))
 					result.fitted.emplace();
-			bool advanced = definition.contains("resources") || definition.contains("presets");
-			for (const auto &spec : resolve_systems(content, name))
-			{
-				const auto &data = systems.at(spec.id);
-				advanced |= static_cast<unsigned>(spec.kind) > static_cast<unsigned>(OperatingSystem::Radar) ||
-				            data.contains("reverse_speed_mm_s") || data.contains("boost") || data.contains("impulse") ||
-				            data.contains("records") || data.contains("power_rate") || data.contains("heat_rate") ||
-				            data.contains("energy_per_second") || data.contains("discrete_energy") ||
-				            content.tree_programs.contains(spec.controller);
-			}
+			const bool advanced = uses_advanced_machinery(content, name);
 			if (advanced)
 			{
 				result.fitted.emplace();

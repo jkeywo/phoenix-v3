@@ -63,6 +63,7 @@ struct Catalog
 void inherit_definitions(std::map<std::string, Json> &, const std::string &kind, const std::string &root = {});
 Json resolve_tree_definition(const Json &, const Catalog &);
 void resolve_equipment(Catalog &catalog);
+bool uses_advanced_machinery(const Catalog &, const std::string &entity);
 void verify_gameplay_fitting(const Catalog &, const std::string &);
 std::vector<GameplayTreeRecordBinding> gameplay_record_bindings(const Json &, const Catalog &);
 struct GameplayTreeSummaryBinding

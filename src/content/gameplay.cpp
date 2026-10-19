@@ -72,6 +72,23 @@ void verify_gameplay_panel(const Json &owner, const std::string &path)
 }
 } // namespace
 
+bool uses_advanced_machinery(const Catalog &catalog, const std::string &entity_id)
+{
+	const auto &entity = catalog.entities.at(entity_id);
+	const auto fitted = resolve_systems(catalog, entity_id);
+	bool advanced = entity.contains("resources") || entity.contains("presets");
+	for (const auto &system : fitted)
+	{
+		const auto &spec = entity.at("systems").at(system.id);
+		advanced |= static_cast<unsigned>(system.kind) > static_cast<unsigned>(OperatingSystem::Radar) ||
+		            catalog.tree_programs.contains(system.controller);
+		for (const char *field : {"reverse_speed_mm_s", "boost", "impulse", "records", "power_rate", "heat_rate",
+		                          "energy_per_second", "discrete_energy"})
+			advanced |= spec.contains(field);
+	}
+	return advanced;
+}
+
 void verify_gameplay_fitting(const Catalog &catalog, const std::string &entity_id)
 {
 	const auto &entity = catalog.entities.at(entity_id);
@@ -98,16 +115,7 @@ void verify_gameplay_fitting(const Catalog &catalog, const std::string &entity_i
 				                                   ".consoles." + console.at("id").get<std::string>());
 	if (catalog.presentation)
 		return;
-	bool advanced = entity.contains("resources") || entity.contains("presets");
-	for (const auto &system : fitted)
-	{
-		const auto &spec = entity.at("systems").at(system.id);
-		advanced |= static_cast<unsigned>(system.kind) > static_cast<unsigned>(OperatingSystem::Radar) ||
-		            catalog.tree_programs.contains(system.controller);
-		for (const char *field : {"reverse_speed_mm_s", "boost", "impulse", "records", "power_rate", "heat_rate",
-		                          "energy_per_second", "discrete_energy"})
-			advanced |= spec.contains(field);
-	}
+	const bool advanced = uses_advanced_machinery(catalog, entity_id);
 	std::optional<ResourceNetworkDefinition> compiled;
 	if (entity.contains("resources"))
 	{

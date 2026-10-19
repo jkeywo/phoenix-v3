@@ -41,6 +41,54 @@ int main(int argc, char **)
 		    {instance(1, "test.ship", 0), instance(2, "test.ship", 10000), instance(3, "test.ship", 200000)});
 		auto catalog = load(fixture);
 		{
+			auto basic = fixture;
+			basic["maps"][0]["entities"] = Json::array({instance(1, "test.ship", 0)});
+			basic["entities"][0]["systems"]["engine"]["acceleration_mm_s2"] = 2001;
+			basic["entities"][0]["systems"]["steering"]["turn_mdeg_s"] = 90001;
+			auto named = basic;
+			for (const char *kind : {"engine", "steering", "radar"})
+				named["entities"][0]["systems"][kind]["kind"] = kind;
+			const auto legacy_content = load(basic), fitted_content = load(named);
+			World legacy, fitted, resumed_legacy, resumed_fitted;
+			legacy.load(legacy_content, "test.map");
+			fitted.load(fitted_content, "test.map");
+			require(legacy.claim(101, 1) && fitted.claim(101, 1), "Both machinery representations admit a pilot");
+			for (int tick = 0; tick < 41; ++tick)
+			{
+				std::vector<World *> worlds{&legacy, &fitted};
+				if (tick >= 7)
+				{
+					worlds.push_back(&resumed_legacy);
+					worlds.push_back(&resumed_fitted);
+				}
+				for (auto *world : worlds)
+				{
+					if (tick == 0 || tick == 22)
+					{
+						require(world->submit(101, {1, "speed_mm_s", 7000}) &&
+						            world->submit(101, {1, "heading_mdeg", tick == 0 ? 90000 : 250000}) &&
+						            world->submit(101, {1, "engine_enabled", 1}),
+						        "Movement requests admitted");
+					}
+					if (tick == 13)
+						require(world->submit(101, {1, "engine_enabled", 0}), "Coasting request admitted");
+					world->tick();
+				}
+				const auto a = legacy.inspect().at(0), b = fitted.inspect().at(0);
+				require(a.x == b.x && a.y == b.y && a.vx == b.vx && a.vy == b.vy && a.heading == b.heading &&
+				            legacy.scene().at(0).forward_thrust == fitted.scene().at(0).forward_thrust,
+				        "Legacy and fitted basic machinery must produce identical motion and exhaust");
+				if (tick == 6)
+				{
+					resumed_legacy.restore(legacy_content, legacy.save());
+					resumed_fitted.restore(fitted_content, fitted.save());
+				}
+				if (tick >= 7)
+					require(legacy.save() == resumed_legacy.save() && fitted.save() == resumed_fitted.save(),
+					        "Each machinery representation must preserve fractional rates through resume");
+			}
+		}
+		{
 			auto symbols = fixture;
 			symbols["entities"][0]["render"]["radar_icon"] = "ship";
 			symbols["entities"][1]["render"]["radar_icon"] = "asteroid";

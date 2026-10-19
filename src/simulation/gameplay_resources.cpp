@@ -88,16 +88,7 @@ std::optional<ShipResourcesDefinition> compile_ship_resources(const Catalog &cat
 	const auto &entity = catalog.entities.at(entity_id);
 	const auto cached = catalog.resource_definitions.find(entity_id);
 	const auto fitted = resolve_systems(catalog, entity_id);
-	bool advanced = entity.contains("resources") || entity.contains("presets");
-	for (const auto &system : fitted)
-	{
-		const auto &spec = entity.at("systems").at(system.id);
-		advanced |= static_cast<unsigned>(system.kind) > static_cast<unsigned>(OperatingSystem::Radar) ||
-		            catalog.tree_programs.contains(system.controller);
-		for (const char *field : {"reverse_speed_mm_s", "boost", "impulse", "records", "power_rate", "heat_rate",
-		                          "energy_per_second", "discrete_energy"})
-			advanced |= spec.contains(field);
-	}
+	const bool advanced = uses_advanced_machinery(catalog, entity_id);
 	if (cached == catalog.resource_definitions.end() && !entity.contains("resources"))
 	{
 		for (auto it = entity.at("systems").begin(); it != entity.at("systems").end(); ++it)
