@@ -23,7 +23,7 @@ concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  foundation:
+  native:
     runs-on: windows-2022
     timeout-minutes: 30
     steps:
@@ -31,9 +31,37 @@ jobs:
       - name: Bootstrap pinned local tools
         shell: pwsh
         run: ./scripts/bootstrap.ps1
-      - name: Build, verify and run native/WASM synthetic system integration
+      - name: Build, verify and run native and network system integration
         shell: pwsh
-        run: ./scripts/check.ps1
+        run: ./scripts/check.ps1 -Target native
+      - name: Upload verified packs and native continuation
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: native-verification
+          if-no-files-found: error
+          path: |
+            build/native/base.zip
+            build/native/base.zip.menu.json
+            build/native/training.zip
+            build/native/training.zip.menu.json
+            build/native/continuation.trace
+  web:
+    needs: native
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Bootstrap pinned local tools
+        shell: pwsh
+        run: ./scripts/bootstrap.ps1
+      - name: Download this run's verified native inputs
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: native-verification
+          path: build/native
+      - name: Build and run WASM system integration and continuation comparison
+        shell: pwsh
+        run: ./scripts/check.ps1 -Target web
       - name: Stage public browser files
         shell: pwsh
         run: |
@@ -64,7 +92,7 @@ jobs:
           path: build/pages
   deploy:
     if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    needs: foundation
+    needs: [native, web]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:

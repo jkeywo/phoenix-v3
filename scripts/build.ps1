@@ -11,7 +11,15 @@ $originalPath = $env:PATH
 Push-Location $repo
 try
 {
-	$cmake = Join-Path $repo '.tools/python/cmake/data/bin/cmake.exe'
+	$cmakeName = if ($IsWindows)
+	{
+		'cmake.exe'
+	}
+	else
+	{
+		'cmake'
+	}
+	$cmake = Join-Path $repo ".tools/python/cmake/data/bin/$cmakeName"
 	if (!(Test-Path $cmake))
 	{
 		throw 'Run scripts/bootstrap.ps1 first.'
@@ -27,7 +35,8 @@ try
 	}
 	if ($Target -eq 'web')
 	{
-		$env:PATH = "$repo/.tools/emsdk;$repo/.tools/emsdk/upstream/emscripten;$repo/.tools/python/bin;" + $env:PATH
+		$toolPaths = @("$repo/.tools/emsdk", "$repo/.tools/emsdk/upstream/emscripten", "$repo/.tools/python/ninja/data/bin", "$repo/.tools/python/bin")
+		$env:PATH = ($toolPaths + $env:PATH) -join [System.IO.Path]::PathSeparator
 	}
 	# Generated builds already rerun CMake when tracked configuration inputs change.
 	if ($Reconfigure -or $ConfigureOnly -or !(Test-Path "$buildDirectory/CMakeCache.txt") -or !(Test-Path "$buildDirectory/$buildFile"))

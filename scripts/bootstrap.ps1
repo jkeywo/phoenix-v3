@@ -21,12 +21,20 @@ try
 	{
 		throw 'SDK revision unavailable'
 	}
-	& .tools/emsdk/emsdk.bat install 6.0.12
+	$sdk = if ($IsWindows)
+	{
+		'./.tools/emsdk/emsdk.bat'
+	}
+	else
+	{
+		'./.tools/emsdk/emsdk'
+	}
+	& $sdk install 6.0.12
 	if ($LASTEXITCODE)
 	{
 		throw 'SDK installation failed'
 	}
-	& .tools/emsdk/emsdk.bat activate 6.0.12
+	& $sdk activate 6.0.12
 	if ($LASTEXITCODE)
 	{
 		throw 'SDK activation failed'
