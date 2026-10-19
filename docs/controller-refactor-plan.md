@@ -241,3 +241,9 @@ Independent native, Controller runtime, gameplay-flight, content and transfer su
 Network clients now admit arbitrary numeric Controller widget values only when the safe authored Console layout, current human section, generation, action and bounds match. Other Controller actions retain exact descriptor matching. A fresh reporter's empty latch history restores correctly during setup transfer; existing latch ownership validation remains enforced.
 
 The independent real-signalling journey passed with ConsoleModel throttle fraction 0.333 producing 5661 on both physical engines, one targeted factual report, and remote complexity handover to AI. Invalid ranges, unknown addresses and post-handover human writes were refused. Native and lobby builds passed. This closes remote widget admission and initial reporter restoration; checkpoint/rejoin still requires the separate recovery journey.
+
+## Evidence metadata and command receipt receipt
+
+Controller record bindings now expose availability, source, observation/receipt ticks, uncertainty, evidence kind, withdrawal, staleness and revision from the same selected permitted record as the value. A withdrawn or stale stream cannot resurrect its older values. When no live field remains, metadata describes the newest matching unavailable stream. Owned command bindings expose accepted/consumed/pending revisions and request identity from the frozen command snapshot; human projections include the same consumption facts.
+
+Independent Controller runtime, gameplay-knowledge and content suites pass. Integration journeys cover fresh/stale/withdrawn decisions, existing scope refusals, a physically refused command and next-tick receipt visibility, plus exact restored continuation. General contact selection bindings and the legacy runtime/content migration remain outstanding.

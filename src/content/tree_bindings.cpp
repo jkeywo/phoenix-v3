@@ -7,6 +7,7 @@ module;
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -417,6 +418,25 @@ state_tree::Registry gameplay_registry(const Json &tree, const Catalog &catalog,
 					     Type::Integer,
 					     4,
 					     {}});
+		for (const auto &binding : gameplay_record_bindings(tree, catalog))
+			for (const auto *field : {"available", "observed_tick", "received_tick", "source", "uncertainty", "kind",
+			                          "withdrawn", "stale", "revision"})
+				registry.observations.push_back({binding.name + "." + field,
+				                                 std::string_view(field) == "available" ||
+				                                         std::string_view(field) == "withdrawn" ||
+				                                         std::string_view(field) == "stale"
+				                                     ? Type::Boolean
+				                                     : Type::Integer,
+				                                 4,
+				                                 {}});
+		for (const auto &command : commands)
+			for (const auto *field : {"accepted", "revision", "consumed", "request_id", "pending"})
+				registry.observations.push_back(
+				    {"command." + command.at("channel").get<std::string>() + "." + field,
+				     std::string_view(field) == "accepted" || std::string_view(field) == "pending" ? Type::Boolean
+				                                                                                   : Type::Integer,
+				     4,
+				     {}});
 		return registry;
 	}
 	auto registry = gameplay_tree_registry(context, gameplay_record_bindings(tree, catalog));

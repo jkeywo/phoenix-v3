@@ -175,6 +175,38 @@ int main()
 			}
 		}
 		World prepared;
+		auto receipt_source = controller_fixture();
+		auto &receipt_owner = receipt_source["entities"][0]["control_layout"]["controllers"][0];
+		receipt_owner.erase("fallback");
+		receipt_owner["tree"] = "test.receipts";
+		receipt_owner["commands"].push_back(
+		    {{"id", "held"}, {"action", "longitudinal_thrust"}, {"consumers", {"port"}}});
+		receipt_source["trees"] = Json::parse(R"json([{"id":"test.receipts","context":"controller","initial":"run",
+		 "command_bindings":[{"channel":"speed"},{"channel":"held"}],
+		 "states":[{"id":"run","running":[{"action":"write.held","arguments":[500]},
+		 {"action":"write.speed","arguments":[{"observation":"command.held.consumed"}]}]}]}])json");
+		World receipt_world;
+		const auto receipt_catalog = load(receipt_source);
+		receipt_world.load(receipt_catalog, "test.map");
+		require(receipt_world.prepare_console_profile({1, "drive"}, "automatic") &&
+		            receipt_world.claim(101, 1, "drive"),
+		        "receipt fixture grants AI Controller with human observation");
+		receipt_world.tick();
+		const auto refused_receipt = controller(receipt_world, 101, "propulsion").at("commands").at("held");
+		require(!refused_receipt.at("accepted").get<bool>() && !refused_receipt.at("pending").get<bool>() &&
+		            refused_receipt.at("consumed") == refused_receipt.at("revision") &&
+		            controller(receipt_world, 101, "propulsion").at("commands").at("speed").at("value") == 0,
+		        "physical refusal records consumed receipt while same-tick tree reads retain previous receipt");
+		receipt_world.tick();
+		require(controller(receipt_world, 101, "propulsion").at("commands").at("speed").at("value") ==
+		            refused_receipt.at("consumed"),
+		        "next decision sees consumed physical refusal receipt");
+		World receipt_resumed;
+		receipt_resumed.restore(receipt_catalog, receipt_world.save());
+		receipt_world.tick();
+		receipt_resumed.tick();
+		require(receipt_world.save() == receipt_resumed.save(),
+		        "receipt-driven Controller continuation restores exactly");
 		prepared.load(content, "test.map");
 		require(!prepared.prepare_console_profile({1, "drive"}, "missing") &&
 		            !prepared.prepare_console_profile({1, "absent"}, "automatic"),
@@ -994,6 +1026,51 @@ int main()
 		const auto other_entity_view = shared_reader.observe(104);
 		for (const auto &record : other_entity_view->gameplay.at("shared"))
 			require(record.at("subject") != 1, "public record visibility never crosses entity boundary");
+		auto evidence_source = shared_reader_source;
+		evidence_source["maps"][0]["entities"].erase(1);
+		evidence_source["knowledge"]["schemas"][0]["stale_after_ticks"] = 10;
+		evidence_source["trees"].back()["states"] = Json::parse(R"json([
+		 {"id":"run","running":[{"action":"write.speed","arguments":[{"observation":"shared_amount"}]}],
+		  "transitions":[
+		   {"target":"withdrawn","conditions":[{"left":{"observation":"shared_amount.withdrawn"},"op":"eq","right":true}]},
+		   {"target":"stale","conditions":[{"left":{"observation":"shared_amount.stale"},"op":"eq","right":true}]}]},
+		 {"id":"withdrawn","running":[{"action":"write.speed","arguments":[300]}]},
+		 {"id":"stale","running":[{"action":"write.speed","arguments":[200]}]}
+		])json");
+		const auto evidence_catalog = load(evidence_source);
+		World evidence_world;
+		evidence_world.load(evidence_catalog, "test.map");
+		claim_public(evidence_world);
+		for (const auto claimant : {101, 102, 103})
+			require(evidence_world.submit(claimant, {1, "preset", 1, {}}), "evidence reader AI profile");
+		for (int tick = 0; tick < 8; ++tick)
+			evidence_world.tick();
+		require(evidence_world.observe(103)->systems[0].requested == 6000,
+		        "fresh permitted record supplies Controller value");
+		const auto fresh_evidence = evidence_world.save();
+		World evidence_resumed;
+		evidence_resumed.restore(evidence_catalog, fresh_evidence);
+		for (int tick = 0; tick < 10; ++tick)
+		{
+			evidence_world.tick();
+			evidence_resumed.tick();
+		}
+		require(evidence_world.observe(103)->systems[0].requested == 200 &&
+		            evidence_world.save() == evidence_resumed.save(),
+		        "stale metadata drives Controller fallback with exact restored continuation");
+		auto withdrawn_evidence = fresh_evidence;
+		for (auto &record : withdrawn_evidence["knowledge"]["runtime"]["records"])
+			if (record["value"]["schema"] == evidence_catalog.knowledge_definition.schema("request"))
+			{
+				record["value"]["withdrawn"] = true;
+				record["value"]["fields"] = Json::array();
+			}
+		World withdrawn_reader;
+		withdrawn_reader.restore(evidence_catalog, withdrawn_evidence);
+		withdrawn_reader.tick();
+		withdrawn_reader.tick();
+		require(withdrawn_reader.observe(103)->systems[0].requested == 300,
+		        "restored withdrawn stream exposes tombstone metadata without resurrecting its value");
 		shared_reader_source["trees"].back()["record_bindings"][0]["scope"] = "console";
 		rejects(
 		    [&]

@@ -74,6 +74,10 @@ This writes the same accepted throttle setting that a human control writes. It d
 
 Available decision inputs include own position, velocity and heading; permitted record bindings; typed `system_bindings`; same-Console `command_reads`; and the addressed message inbox. A System binding names `name`, `system` and `field`, with an optional checked `type`. Availability comes from the fitted producer, so an engine without a resource store cannot supply `heat`. The System must also be in the Console's feed roster. A command read names `name`, `controller`, `channel` and `type`; reading another Controller's channel grants no write authority.
 
+Each record binding also exposes `.available`, `.observed_tick`, `.received_tick`, `.source`, `.uncertainty`, `.kind`, `.withdrawn`, `.stale` and `.revision`. Metadata describes the same permitted record selected for its value. When no live value remains, the latest matching stream's metadata explains its absence; withdrawal prevents falling back to an older value from that stream. With no matching record, `.available` is false and other metadata is absent.
+
+Owned command bindings expose `.accepted`, `.revision`, `.consumed`, `.request_id` and `.pending`, alongside their values and any navigation tuple. `pending` distinguishes a newly committed command from its physical execution receipt; `accepted` describes the last consumption result. Human Console projections carry the same receipt fields. These are shared operational facts, separate from private tree continuation.
+
 Decision inputs freeze before Controller evaluation. An earlier Controller's write becomes visible to other Controllers on the next tick. Private tree memory and continuation remain separate from Console observations and are never supplied to the GUI. Human and AI projections use the same operational observation producer.
 
 ## Reports and Coordination

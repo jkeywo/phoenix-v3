@@ -28,6 +28,7 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 		                                                : Value::integer(amount);
 	}
 	const auto board = brain_snapshots.contains(address) ? brain_snapshots.at(address) : knowledge.project(address);
+	std::vector<const KnowledgeRecord *> evidence(brain.reads.size(), nullptr);
 	for (std::size_t i = 0; i < brain.reads.size(); ++i)
 	{
 		const auto &binding = brain.reads[i];
@@ -36,9 +37,14 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 		for (auto record = records.rbegin(); record != records.rend(); ++record)
 			if (record->value.schema == binding.schema &&
 			    record->value.subject == (binding.subject ? binding.subject : id) &&
-			    seen.emplace(record->value.provenance.source, record->publication).second && !record->value.withdrawn &&
-			    !knowledge.stale(*record, ecs.get<Clock>().tick) && record->value.fields.contains(binding.field))
+			    seen.emplace(record->value.provenance.source, record->publication).second)
 			{
+				if (!evidence[i])
+					evidence[i] = &*record;
+				if (record->value.withdrawn || knowledge.stale(*record, ecs.get<Clock>().tick) ||
+				    !record->value.fields.contains(binding.field))
+					continue;
+				evidence[i] = &*record;
 				const auto &value = record->value.fields.at(binding.field);
 				auto &target = values[controller_observation_prefix + controller.tree_channels.size() + i];
 				if (auto n = std::get_if<std::int64_t>(&value))
@@ -119,6 +125,35 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 		    command_snapshots.contains(id) ? command_snapshots.at(id).at(owner).at(field) : controller.commands[field];
 		for (const auto argument : state.arguments)
 			values.at(payload_index++) = Value::integer(argument);
+	}
+	for (std::size_t i = 0; i < evidence.size(); ++i)
+	{
+		const auto *record = evidence[i];
+		const auto offset = payload_index;
+		payload_index += 9;
+		values.at(offset) =
+		    Value::boolean(record && !record->value.withdrawn && !knowledge.stale(*record, ecs.get<Clock>().tick) &&
+		                   record->value.fields.contains(brain.reads[i].field));
+		if (!record)
+			continue;
+		values.at(offset + 1) = Value::integer(record->value.provenance.observed_tick);
+		values.at(offset + 2) = Value::integer(record->received_tick);
+		values.at(offset + 3) = Value::integer(record->value.provenance.source);
+		values.at(offset + 4) = Value::integer(record->value.provenance.uncertainty);
+		values.at(offset + 5) = Value::integer(static_cast<unsigned>(record->value.provenance.kind));
+		values.at(offset + 6) = Value::boolean(record->value.withdrawn);
+		values.at(offset + 7) = Value::boolean(knowledge.stale(*record, ecs.get<Clock>().tick));
+		values.at(offset + 8) = Value::integer(record->value.provenance.revision);
+	}
+	for (const auto field : controller.tree_channels)
+	{
+		const auto &state =
+		    command_snapshots.contains(id) ? command_snapshots.at(id).at(owner).at(field) : controller.commands[field];
+		values.at(payload_index++) = Value::boolean(state.accepted);
+		values.at(payload_index++) = Value::integer(state.revision);
+		values.at(payload_index++) = Value::integer(state.consumed);
+		values.at(payload_index++) = Value::integer(state.request_id);
+		values.at(payload_index++) = Value::boolean(state.consumed < state.revision);
 	}
 	return values;
 }
@@ -455,6 +490,8 @@ Json project_controllers(const ConsoleAddress &address) const
 			                     {"minimum", spec.minimum},
 			                     {"maximum", spec.maximum},
 			                     {"revision", state.revision},
+			                     {"consumed", state.consumed},
+			                     {"pending", state.consumed < state.revision},
 			                     {"semantics", spec.semantics == CommandSemantics::Setting ? "setting" : "request"},
 			                     {"accepted", state.accepted},
 			                     {"request_id", state.request_id}};
