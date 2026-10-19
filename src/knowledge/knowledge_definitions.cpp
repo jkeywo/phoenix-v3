@@ -107,4 +107,30 @@ CompiledKnowledge compile_knowledge(const Json &definition)
 	return result;
 }
 
+namespace knowledge_detail
+{
+void knowledge_require(bool condition, const std::string &reason)
+{
+	if (!condition)
+		throw std::runtime_error("gameplay knowledge: " + reason);
+}
+KnowledgeId knowledge_unsigned(const Json &value)
+{
+	knowledge_require(value.is_number_integer(), "expected a nonnegative integral identity/tick");
+	if (value.is_number_unsigned())
+		return value.get<KnowledgeId>();
+	const auto number = value.get<std::int64_t>();
+	knowledge_require(number >= 0, "negative identity/tick");
+	return static_cast<KnowledgeId>(number);
+}
+bool knowledge_has(const std::vector<KnowledgeKey> &keys, KnowledgeKey key)
+{
+	return std::find(keys.begin(), keys.end(), key) != keys.end();
+}
+const KnowledgeSchema &knowledge_schema(const CompiledKnowledge &definition, KnowledgeKey key)
+{
+	knowledge_require(key > 0 && key <= definition.schemas.size(), "unknown schema key");
+	return definition.schemas[key - 1];
+}
+} // namespace knowledge_detail
 } // namespace phoenix

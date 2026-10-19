@@ -12,26 +12,6 @@ namespace phoenix
 namespace
 {
 constexpr std::int64_t maximum_velocity = 1000000000, maximum_resource_rate = 1000000000000LL;
-std::int64_t flight_integer(const Json &source, const char *key, std::int64_t fallback, std::int64_t minimum,
-                            std::int64_t maximum, const std::string &path)
-{
-	if (!source.contains(key))
-		return fallback;
-	if (!source.at(key).is_number_integer())
-		throw std::runtime_error(path + "." + key + ": expected integer");
-	const auto value = source.at(key).get<std::int64_t>();
-	if (value < minimum || value > maximum)
-		throw std::runtime_error(path + "." + key + ": outside supported finite range");
-	return value;
-}
-bool flight_boolean(const Json &source, const char *key, bool fallback, const std::string &path)
-{
-	if (!source.contains(key))
-		return fallback;
-	if (!source.at(key).is_boolean())
-		throw std::runtime_error(path + "." + key + ": expected boolean");
-	return source.at(key).get<bool>();
-}
 } // namespace
 FlightDefinition compile_flight(const Json &spec, const std::string &path)
 {
@@ -54,7 +34,7 @@ FlightDefinition compile_flight(const Json &spec, const std::string &path)
 	const auto number = [&](const char *key, std::int64_t fallback = 0, std::int64_t minimum = 0,
 	                        std::int64_t maximum = maximum_velocity)
 	{
-		return flight_integer(spec, key, fallback, minimum, maximum, path);
+		return json_integer(spec, key, fallback, minimum, maximum, path);
 	};
 	result.maximum_speed = number("max_speed_mm_s");
 	result.reverse_speed = number("reverse_speed_mm_s", 0, 0, result.maximum_speed);
@@ -63,7 +43,7 @@ FlightDefinition compile_flight(const Json &spec, const std::string &path)
 	result.lateral_speed = number("lateral_speed_mm_s", result.maximum_speed);
 	result.lateral_acceleration =
 	    number("lateral_acceleration_mm_s2", result.kind == FlightKind::Lateral ? result.acceleration : 0);
-	result.assist_lateral = flight_boolean(spec, "assist_lateral", false, path);
+	result.assist_lateral = json_boolean(spec, "assist_lateral", false, path);
 	result.power_rate =
 	    number("power_rate", number("energy_per_second", 0, 0, maximum_resource_rate), 0, maximum_resource_rate);
 	result.heat_rate = number("heat_rate", 0, 0, maximum_resource_rate);
@@ -77,13 +57,13 @@ FlightDefinition compile_flight(const Json &spec, const std::string &path)
 			throw std::runtime_error(path + ".boost: expected object");
 		result.boost_available = true;
 		result.boost_acceleration_multiplier =
-		    flight_integer(mode, "acceleration_multiplier_permille", 1000, 1000, 100000, path + ".boost");
+		    json_integer(mode, "acceleration_multiplier_permille", 1000, 1000, 100000, path + ".boost");
 		result.boost_speed_multiplier =
-		    flight_integer(mode, "speed_multiplier_permille", 1000, 1000, 100000, path + ".boost");
+		    json_integer(mode, "speed_multiplier_permille", 1000, 1000, 100000, path + ".boost");
 		result.boost_power_rate =
-		    flight_integer(mode, "power_rate", result.kind == FlightKind::Boost ? result.power_rate : 0, 0,
-		                   maximum_resource_rate, path + ".boost");
-		result.boost_heat_rate = flight_integer(mode, "heat_rate", 0, 0, maximum_resource_rate, path + ".boost");
+		    json_integer(mode, "power_rate", result.kind == FlightKind::Boost ? result.power_rate : 0, 0,
+		                 maximum_resource_rate, path + ".boost");
+		result.boost_heat_rate = json_integer(mode, "heat_rate", 0, 0, maximum_resource_rate, path + ".boost");
 		if (result.kind == FlightKind::Boost)
 		{
 			result.power_rate = 0;
@@ -98,18 +78,18 @@ FlightDefinition compile_flight(const Json &spec, const std::string &path)
 		if (!mode.is_object())
 			throw std::runtime_error(path + ".impulse: expected object");
 		result.impulse_available = true;
-		result.impulse_charge_ticks = flight_integer(mode, "charge_ticks", 20, 1, 1000000, path + ".impulse");
+		result.impulse_charge_ticks = json_integer(mode, "charge_ticks", 20, 1, 1000000, path + ".impulse");
 		result.impulse_acceleration_multiplier =
-		    flight_integer(mode, "acceleration_multiplier_permille", 1000, 1000, 100000, path + ".impulse");
+		    json_integer(mode, "acceleration_multiplier_permille", 1000, 1000, 100000, path + ".impulse");
 		result.impulse_speed_multiplier =
-		    flight_integer(mode, "speed_multiplier_permille", 1000, 1000, 100000, path + ".impulse");
-		result.impulse_steering_permille = flight_integer(mode, "steering_permille", 0, 0, 1000, path + ".impulse");
+		    json_integer(mode, "speed_multiplier_permille", 1000, 1000, 100000, path + ".impulse");
+		result.impulse_steering_permille = json_integer(mode, "steering_permille", 0, 0, 1000, path + ".impulse");
 		result.impulse_power_rate =
-		    flight_integer(mode, "power_rate", result.kind == FlightKind::Impulse ? result.power_rate : 0, 0,
-		                   maximum_resource_rate, path + ".impulse");
-		result.impulse_charge_power_rate = flight_integer(mode, "charge_power_rate", result.impulse_power_rate, 0,
-		                                                  maximum_resource_rate, path + ".impulse");
-		result.impulse_heat_rate = flight_integer(mode, "heat_rate", 0, 0, maximum_resource_rate, path + ".impulse");
+		    json_integer(mode, "power_rate", result.kind == FlightKind::Impulse ? result.power_rate : 0, 0,
+		                 maximum_resource_rate, path + ".impulse");
+		result.impulse_charge_power_rate = json_integer(mode, "charge_power_rate", result.impulse_power_rate, 0,
+		                                                maximum_resource_rate, path + ".impulse");
+		result.impulse_heat_rate = json_integer(mode, "heat_rate", 0, 0, maximum_resource_rate, path + ".impulse");
 		if (result.kind == FlightKind::Impulse)
 		{
 			result.power_rate = 0;

@@ -1,5 +1,6 @@
 module;
 #include <picosha2.h>
+#include <nlohmann/json.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -50,5 +51,25 @@ bool valid_identifier(std::string_view value)
 bool valid_hex_token(std::string_view value)
 {
 	return value.size() == 64 && value.find_first_not_of("0123456789abcdef") == std::string_view::npos;
+}
+std::int64_t json_integer(const Json &source, const char *key, std::int64_t fallback, std::int64_t minimum,
+                          std::int64_t maximum, const std::string &path)
+{
+	if (!source.contains(key))
+		return fallback;
+	if (!source.at(key).is_number_integer())
+		throw std::runtime_error(path + "." + key + ": expected integer");
+	const auto value = source.at(key).get<std::int64_t>();
+	if (value < minimum || value > maximum)
+		throw std::runtime_error(path + "." + key + ": outside supported finite range");
+	return value;
+}
+bool json_boolean(const Json &source, const char *key, bool fallback, const std::string &path)
+{
+	if (!source.contains(key))
+		return fallback;
+	if (!source.at(key).is_boolean())
+		throw std::runtime_error(path + "." + key + ": expected boolean");
+	return source.at(key).get<bool>();
 }
 } // namespace phoenix

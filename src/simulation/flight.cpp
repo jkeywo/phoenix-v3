@@ -23,26 +23,6 @@ namespace phoenix
 namespace
 {
 constexpr std::int64_t flight_hz = 20, maximum_velocity = 1000000000;
-std::int64_t flight_integer(const Json &source, const char *key, std::int64_t fallback, std::int64_t minimum,
-                            std::int64_t maximum, const std::string &path)
-{
-	if (!source.contains(key))
-		return fallback;
-	if (!source.at(key).is_number_integer())
-		throw std::runtime_error(path + "." + key + ": expected integer");
-	const auto value = source.at(key).get<std::int64_t>();
-	if (value < minimum || value > maximum)
-		throw std::runtime_error(path + "." + key + ": outside supported finite range");
-	return value;
-}
-bool flight_boolean(const Json &source, const char *key, bool fallback, const std::string &path)
-{
-	if (!source.contains(key))
-		return fallback;
-	if (!source.at(key).is_boolean())
-		throw std::runtime_error(path + "." + key + ": expected boolean");
-	return source.at(key).get<bool>();
-}
 std::int64_t forward_speed(const Pose &pose, const Motion &motion)
 {
 	return fixed::dot(motion.velocity, fixed::direction(pose.heading)) / fixed::unit;
@@ -482,13 +462,13 @@ FlightState load_flight(const FlightDefinition &def, const Json &saved)
 	{
 		if (!saved.contains(key))
 			throw std::runtime_error(std::string("flight save: missing ") + key);
-		return flight_integer(saved, key, 0, minimum, maximum, "flight save");
+		return json_integer(saved, key, 0, minimum, maximum, "flight save");
 	};
 	const auto flag = [&](const char *key)
 	{
 		if (!saved.contains(key))
 			throw std::runtime_error(std::string("flight save: missing ") + key);
-		return flight_boolean(saved, key, false, "flight save");
+		return json_boolean(saved, key, false, "flight save");
 	};
 	result.enabled = flag("enabled");
 	result.assisted = flag("assisted");

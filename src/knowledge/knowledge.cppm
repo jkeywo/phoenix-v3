@@ -224,4 +224,11 @@ private:
 	                                            KnowledgeKey schema) const;
 	void trim();
 };
+namespace knowledge_detail
+{
+void knowledge_require(bool condition, const std::string &reason);
+KnowledgeId knowledge_unsigned(const Json &value);
+bool knowledge_has(const std::vector<KnowledgeKey> &keys, KnowledgeKey key);
+const KnowledgeSchema &knowledge_schema(const CompiledKnowledge &definition, KnowledgeKey key);
+} // namespace knowledge_detail
 } // namespace phoenix

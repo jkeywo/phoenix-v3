@@ -20,21 +20,10 @@ namespace phoenix::state_tree
 {
 namespace
 {
+#include "state_tree_validation.hpp"
 [[noreturn]] void fail(const std::string &message)
 {
 	throw std::runtime_error("state tree: " + message);
-}
-bool valid_value(const Value &value, Type type, bool missing = false)
-{
-	if (missing && value.type == Type::Missing)
-		return true;
-	if (value.type != type || type == Type::Missing)
-		return false;
-	if (type == Type::Boolean)
-		return value.text.empty() && (value.number == 0 || value.number == 1);
-	if (type == Type::Text)
-		return value.number == 0 && value.text.size() <= 4096;
-	return value.text.empty() && (type == Type::Integer || value.number > 0);
 }
 std::uint64_t unsigned_number(const Json &json, std::uint64_t maximum, const std::string &field)
 {

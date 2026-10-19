@@ -23,4 +23,8 @@ std::string random_token();
 // separate rules from authored pack identifiers.
 bool valid_identifier(std::string_view value);
 bool valid_hex_token(std::string_view value);
+// Optional typed fields; preserve caller-supplied defaults, ranges and path diagnostics.
+std::int64_t json_integer(const Json &source, const char *key, std::int64_t fallback, std::int64_t minimum,
+                          std::int64_t maximum, const std::string &path);
+bool json_boolean(const Json &source, const char *key, bool fallback, const std::string &path);
 } // namespace phoenix
