@@ -2,7 +2,7 @@ param([ValidateSet('all', 'native', 'web')][string]$Target = 'all')
 $ErrorActionPreference = 'Stop'
 
 $repo = Split-Path $PSScriptRoot -Parent
-$nodeName = if ($IsWindows)
+$nodeName = if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT)
 {
 	'node.exe'
 }

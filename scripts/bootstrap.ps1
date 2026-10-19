@@ -21,7 +21,7 @@ try
 	{
 		throw 'SDK revision unavailable'
 	}
-	$sdk = if ($IsWindows)
+	$sdk = if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT)
 	{
 		'./.tools/emsdk/emsdk.bat'
 	}

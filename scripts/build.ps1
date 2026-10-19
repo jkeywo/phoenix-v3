@@ -11,7 +11,7 @@ $originalPath = $env:PATH
 Push-Location $repo
 try
 {
-	$cmakeName = if ($IsWindows)
+	$cmakeName = if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT)
 	{
 		'cmake.exe'
 	}
