@@ -36,7 +36,7 @@ struct NativeMenuSmoke
 		};
 	}
 	int display_step = 0;
-	int navigation_aid_step = 0;
+	int navigation_aid_step = 0, settings_step = 0;
 	bool initial_dust = true, initial_grid = true, initial_motion = false;
 	int stage = 0, pack_edits = 0, console_frames = 0;
 	double changed = 0;
@@ -65,23 +65,38 @@ struct NativeMenuSmoke
 		case 1:
 			if (phoenix::invoke_navigation(app, "menu.host"))
 				throw std::runtime_error("Modal allowed a background semantic action");
-			if (app.music_volume != 25)
+			if (settings_step == 0)
 			{
-				if (!app.set_control_value("menu-volume", "25"))
-					throw std::runtime_error("Settings range action failed");
+				if (!app.set_control_value("menu-volume", "25") || !app.set_control_value("menu-master", "60") ||
+				    !app.set_control_value("menu-sfx", "35") || phoenix::invoke_navigation(app, "menu.pseudo"))
+					throw std::runtime_error("Audio tab exposes only its ranges");
+				action(app, "settings.tab/profile");
+				++settings_step;
 				changed = GetTime();
 				return false;
 			}
-			if (!app.pseudo_locale)
+			if (settings_step == 1)
 			{
-				action(app, "menu.pseudo");
+				if (app.set_control_value("menu-volume", "10") || !phoenix::probe_menu_keyboard(app) ||
+				    !phoenix::probe_native_accessibility(app))
+					throw std::runtime_error("Profile tab focus/semantics or hidden range admission failed");
+				capture("settings-profile");
+				action(app, "settings.tab/language");
+				++settings_step;
 				changed = GetTime();
 				return false;
 			}
-			if (app.master_volume != 60 || app.sfx_volume != 35)
+			if (settings_step == 2)
 			{
-				if (!app.set_control_value("menu-master", "60") || !app.set_control_value("menu-sfx", "35"))
-					throw std::runtime_error("Master/SFX range actions failed");
+				if (!app.pseudo_locale)
+				{
+					action(app, "menu.pseudo");
+					changed = GetTime();
+					return false;
+				}
+				capture("settings-language");
+				action(app, "settings.tab/display");
+				++settings_step;
 				changed = GetTime();
 				return false;
 			}
@@ -111,6 +126,18 @@ struct NativeMenuSmoke
 			if (app.dust_motes != initial_dust || app.reference_grid != initial_grid ||
 			    app.reduced_motion != initial_motion)
 				throw std::runtime_error("Navigation aid Settings did not retain independent values");
+			if (settings_step == 3)
+			{
+				if (!phoenix::probe_menu_keyboard(app) || !phoenix::probe_native_accessibility(app))
+					throw std::runtime_error("Display tab keyboard/UIA selection failed");
+				capture("settings-display");
+				action(app, "settings.tab/audio");
+				++settings_step;
+				changed = GetTime();
+				return false;
+			}
+			if (app.master_volume != 60 || app.music_volume != 25 || app.sfx_volume != 35)
+				throw std::runtime_error("Switching tabs lost audio settings");
 			if (!phoenix::probe_menu_keyboard(app) || !phoenix::probe_native_accessibility(app))
 				throw std::runtime_error("Settings keyboard/UIA range traversal failed");
 			capture("settings");
@@ -298,6 +325,12 @@ struct NativeMenuSmoke
 			break;
 		}
 		case 11:
+			if (app.settings_tab != "session")
+			{
+				action(app, "settings.tab/session");
+				changed = GetTime();
+				return false;
+			}
 			saves_before = app.library->saves.size();
 			action(app, "menu.save-game");
 			break;

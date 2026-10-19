@@ -1,4 +1,5 @@
 #include <iostream>
+#include <algorithm>
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <stdexcept>
@@ -87,6 +88,25 @@ int main()
 		host.screen_inputs = {{"music-volume", "Music volume", "100", true}};
 		require(navigation_controls(host).back().percentage,
 		        "music volume must publish range semantics rather than an unlabelled control");
+		host.screen_controls = settings_tabs(host);
+		host.screen_action = [](const std::string &)
+		{
+			return true;
+		};
+		require(!invoke_navigation(host, "menu.avatar") && !invoke_navigation(host, "menu.save-game"),
+		        "Stale callbacks from inactive pages cannot upload a profile or save through Audio");
+		host.screen_action = {};
+		const auto tabs = navigation_controls(host);
+		require(std::count_if(tabs.begin(), tabs.end(),
+		                      [](const auto &control)
+		                      {
+			                      return control.tab && control.selected;
+		                      }) == 1 &&
+		            !invoke_navigation(host, "settings.tab/session") &&
+		            !invoke_navigation(host, "settings.tab/unknown") &&
+		            invoke_navigation(host, "settings.tab/display") && host.settings_tab == "display" &&
+		            !set_audio_volume(host, "sfx", "10") && host.sfx_volume == 73,
+		        "Settings tabs publish one selection, reject unavailable tabs and prevent hidden slider edits");
 		require(invoke_navigation(host, "settings.dust") && !host.dust_motes &&
 		            invoke_navigation(host, "settings.grid") && !host.reference_grid &&
 		            invoke_navigation(host, "settings.motion") && host.reduced_motion &&
@@ -98,6 +118,8 @@ int main()
 		        "Display preferences cannot change through an inactive Settings control");
 		require(!set_audio_volume(host, "sfx", "50") && host.sfx_volume == 73,
 		        "Mixer edits cannot change preferences through a closed Settings popup");
+		require(!invoke_navigation(host, "settings.tab/audio"),
+		        "Closed Settings cannot change tabs through stale actions");
 		require(!invoke_navigation(client, "host") && !invoke_navigation(client, "edit"),
 		        "semantic actions must preserve role restrictions");
 		require(navigation_controls(client).size() == 4, "client semantics must not expose host/editor actions");

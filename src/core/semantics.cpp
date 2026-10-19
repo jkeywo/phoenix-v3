@@ -131,6 +131,19 @@ void load_display_preferences(Application &app)
 	}
 #endif
 }
+std::vector<std::pair<std::string, std::string>> settings_tabs(const Application &app)
+{
+	std::vector<std::pair<std::string, std::string>> tabs{{"settings.tab/audio", "Audio"}};
+	if (app.native_menu)
+	{
+		tabs.emplace_back("settings.tab/profile", "Profile");
+		tabs.emplace_back("settings.tab/language", "Language");
+	}
+	tabs.emplace_back("settings.tab/display", "Display");
+	if (game_active(app))
+		tabs.emplace_back("settings.tab/session", "Session");
+	return tabs;
+}
 std::vector<SemanticControl> navigation_controls(const Application &app)
 {
 	std::vector<SemanticControl> controls;
@@ -168,12 +181,34 @@ std::vector<SemanticControl> navigation_controls(const Application &app)
 		controls.push_back(
 		    {input.id, translate(input.label, app.pseudo_locale), {}, true, input.value, input.percentage});
 	for (auto &control : controls)
+	{
+		if (control.id.starts_with("settings.tab/"))
+		{
+			control.tab = true;
+			control.selected = control.id.substr(13) == app.settings_tab;
+		}
 		if (auto found = app.control_placements.find(control.id); found != app.control_placements.end())
 			control.placement = found->second;
+	}
 	return controls;
 }
 bool invoke_navigation(Application &app, const std::string &id)
 {
+	if (app.screen == Screen::settings)
+	{
+		const std::string page = id == "menu.avatar" || id == "menu.profile"    ? "profile"
+		                         : id == "menu.language" || id == "menu.pseudo" ? "language"
+		                         : id == "menu.motion" || id == "menu.dust" || id == "menu.grid" ||
+		                                 id == "settings.motion" || id == "settings.dust" || id == "settings.grid"
+		                             ? "display"
+		                         : id == "menu.save-game" || id == "menu.export-save" ||
+		                                 id.starts_with("lobby.approve/") || id.starts_with("network.approve/") ||
+		                                 id.starts_with("network.gm/")
+		                             ? "session"
+		                             : "";
+		if (!page.empty() && page != app.settings_tab)
+			return false;
+	}
 	if (app.button_click)
 		for (const auto &control : navigation_controls(app))
 			if (control.id == id && !control.editable && !control.read_only && control.placement.enabled)
@@ -188,15 +223,29 @@ bool invoke_navigation(Application &app, const std::string &id)
 	     id == "locale" || id == "game.console" || id == "game.scene" || id == "game.follow" || id == "game.local-gm"))
 		return false;
 	const bool settings_available = app.can_host || app.native_menu || active;
+	if (id.starts_with("settings.tab/"))
+	{
+		if (app.screen != Screen::settings || !settings_available)
+			return false;
+		for (const auto &[tab, label] : settings_tabs(app))
+			if (tab == id)
+			{
+				app.settings_tab = id.substr(13);
+				if (app.focus_control)
+					app.focus_control(id);
+				return true;
+			}
+		return false;
+	}
 	if (id == "settings.quit")
 	{
-		if (app.screen != Screen::settings || !active || !app.return_home)
+		if (app.screen != Screen::settings || app.settings_tab != "session" || !active || !app.return_home)
 			return false;
 		app.return_home();
 		return true;
 	}
 	if ((id == "settings.dust" || id == "settings.grid" || id == "settings.motion") && app.screen == Screen::settings &&
-	    settings_available)
+	    settings_available && app.settings_tab == "display")
 	{
 		if (id == "settings.dust")
 			app.dust_motes = !app.dust_motes;
@@ -244,7 +293,8 @@ bool set_music_volume(Application &app, const std::string &value)
 }
 bool set_audio_volume(Application &app, const std::string &channel, const std::string &value)
 {
-	if ((!app.can_host && !app.native_menu && !game_active(app)) || app.screen != Screen::settings)
+	if ((!app.can_host && !app.native_menu && !game_active(app)) || app.screen != Screen::settings ||
+	    app.settings_tab != "audio")
 		return false;
 	int *volume = channel == "music"    ? &app.music_volume
 	              : channel == "sfx"    ? &app.sfx_volume

@@ -204,6 +204,34 @@ struct Navigation : Rml::EventListener
 	{
 		if (!current_app)
 			return;
+		if (event.GetType() == "keydown" && event.GetTargetElement()->GetId().starts_with("settings.tab/"))
+		{
+			const auto tabs = settings_tabs(*current_app);
+			const auto focused = event.GetTargetElement()->GetId();
+			auto found = std::find_if(tabs.begin(), tabs.end(),
+			                          [&](const auto &tab)
+			                          {
+				                          return tab.first == focused;
+			                          });
+			if (found != tabs.end())
+			{
+				const auto key = event.GetParameter<int>("key_identifier", 0);
+				const int index = static_cast<int>(found - tabs.begin()), count = static_cast<int>(tabs.size());
+				const int next = key == Rml::Input::KI_LEFT    ? (index + count - 1) % count
+				                 : key == Rml::Input::KI_RIGHT ? (index + 1) % count
+				                 : key == Rml::Input::KI_HOME  ? 0
+				                 : key == Rml::Input::KI_END   ? count - 1
+				                                               : -1;
+				if (next >= 0)
+				{
+					invoke_navigation(*current_app, tabs[next].first);
+					event.StopPropagation();
+					return;
+				}
+			}
+		}
+		if (event.GetType() == "keydown")
+			return;
 		if (event.GetType() == "change")
 		{
 			const auto id = event.GetTargetElement()->GetId();
@@ -266,8 +294,26 @@ void prepare_settings(Application &app)
 	if (!visible)
 		return;
 	app.tools_keyboard_focus = false;
-	app.screen_controls = {{"settings.close", "Back"}};
-	const bool can_quit = game_active(app) && bool(app.return_home);
+	const auto tabs = settings_tabs(app);
+	if (std::none_of(tabs.begin(), tabs.end(),
+	                 [&](const auto &tab)
+	                 {
+		                 return tab.first == "settings.tab/" + app.settings_tab;
+	                 }))
+		app.settings_tab = "audio";
+	app.screen_controls = tabs;
+	std::string tab_markup;
+	for (const auto &[id, label] : tabs)
+		tab_markup += "<button id=\"" + id + "\"" + (id.substr(13) == app.settings_tab ? " class=\"selected\"" : "") +
+		              ">" + localise(label) + "</button>";
+	auto *tab_bar = document->GetElementById("settings-tabs");
+	if (tab_bar->GetInnerRML() != tab_markup)
+		tab_bar->SetInnerRML(tab_markup);
+	for (const char *section : {"audio", "display", "session"})
+		document->GetElementById(std::string("settings-") + section)
+		    ->SetProperty("display", app.settings_tab == section ? "block" : "none");
+	app.screen_controls.emplace_back("settings.close", "Back");
+	const bool can_quit = app.settings_tab == "session" && game_active(app) && bool(app.return_home);
 	document->GetElementById("settings.quit")->SetProperty("display", can_quit ? "block" : "none");
 	if (can_quit)
 		app.screen_controls.emplace_back("settings.quit", "Quit to Main Menu");
@@ -276,13 +322,14 @@ void prepare_settings(Application &app)
 	         {"settings.grid", app.reference_grid ? "Reference grid: On" : "Reference grid: Off"},
 	         {"settings.motion", app.reduced_motion ? "Reduced motion: On" : "Reduced motion: Off"}})
 	{
-		app.screen_controls.emplace_back(id, text);
+		if (app.settings_tab == "display")
+			app.screen_controls.emplace_back(id, text);
 		if (auto *element = document->GetElementById(id))
 			element->SetInnerRML(localise(text));
 	}
 	auto *approvals = document->GetElementById("settings-approvals");
 	approvals->SetInnerRML("");
-	if (game_active(app))
+	if (game_active(app) && app.settings_tab == "session")
 		for (const auto &[id, text] : app.session->lobby_controls())
 			if (id.starts_with("lobby.approve/") || id.starts_with("network.approve/") || id.starts_with("network.gm/"))
 			{
@@ -311,13 +358,16 @@ void prepare_settings(Application &app)
 		auto *slider = dynamic_cast<Rml::ElementFormControl *>(document->GetElementById(channel + "-volume"));
 		if (slider->GetAttribute<Rml::String>("value", "") != value)
 			slider->SetValue(value);
-		app.screen_inputs.push_back({channel + "-volume", label, value, true});
+		if (app.settings_tab == "audio")
+			app.screen_inputs.push_back({channel + "-volume", label, value, true});
 		document->GetElementById(channel + "-label")->SetInnerRML(localise(label));
 		document->GetElementById(channel + "-percent")->SetInnerRML(value + "%");
 	}
 	document->GetElementById("settings.close")->SetInnerRML(localise("Back"));
 	document->GetElementById("settings.quit")->SetInnerRML(localise("Quit to Main Menu"));
-	app.accessible_status = localise("Master volume") + ": " + std::to_string(app.master_volume) + "%";
+	app.accessible_status = localise(app.settings_tab == "audio"     ? "Audio"
+	                                 : app.settings_tab == "display" ? "Display"
+	                                                                 : "Session");
 }
 void prepare_runtime_chrome(Application &app)
 {
@@ -363,6 +413,31 @@ bool probe_menu_keyboard(Application &app)
 	const auto controls = navigation_controls(app);
 	if (controls.empty())
 		return false;
+	if (app.screen == Screen::settings)
+	{
+		const auto tabs = settings_tabs(app);
+		const auto original = app.settings_tab;
+		const auto at = std::find_if(tabs.begin(), tabs.end(),
+		                             [&](const auto &tab)
+		                             {
+			                             return tab.first == "settings.tab/" + original;
+		                             });
+		if (at == tabs.end())
+			return false;
+		auto *tab = document->GetElementById(at->first);
+		if (!tab)
+			return false;
+		tab->Focus(true);
+		context->ProcessKeyDown(Rml::Input::KI_RIGHT, 0);
+		context->ProcessKeyUp(Rml::Input::KI_RIGHT, 0);
+		const auto next = (static_cast<std::size_t>(at - tabs.begin()) + 1) % tabs.size();
+		if (app.settings_tab != tabs[next].first.substr(13))
+			return false;
+		context->ProcessKeyDown(Rml::Input::KI_LEFT, 0);
+		context->ProcessKeyUp(Rml::Input::KI_LEFT, 0);
+		if (app.settings_tab != original)
+			return false;
+	}
 	if (auto *element = document->GetElementById(controls.front().id))
 		element->Focus(true);
 	else
@@ -442,6 +517,9 @@ void open_window()
     .connection label { display:block; font-size:16px; }
     .connection input { display:block; width:700px; height:26px; font-size:18px; background:#173142; color:#d9e9ef; border:1px #76c9e8; margin:4px 0 8px; }
     #settings-panel { display:none; margin-top:20px; }
+    #settings-tabs { display:flex; margin-bottom:16px; }
+    #settings-tabs button { width:auto; min-width:120px; }
+    #settings-tabs .selected { background:#315a70; border:2px #d9e9ef; }
     #settings-panel label, #settings-panel .audio-percent { display:block; margin-bottom:12px; }
     #settings-panel .audio-volume { display:block; width:80%; max-width:600px; height:40px; margin-bottom:16px; }
     #settings-panel .audio-volume slidertrack { height:8px; margin:16px 0; background:#315a70; }
@@ -481,18 +559,19 @@ void open_window()
     <div id="nav"><button id="home">Home</button><button id="lobby" style="display:none;">Lobby</button><button id="host">New game</button><button id="join">Join console</button>
     <button id="view">Viewscreen</button><button id="edit">Workshop</button><button id="locale">Toggle pseudo-localisation</button><button id="settings">Settings</button></div>
     <h2 id="heading">Home</h2><p id="description"></p><div id="session-controls"></div><div id="game"></div>
-    <div id="settings-panel"><label id="master-label" for="master-volume">Master volume</label>
+    <div id="settings-panel"><div id="settings-tabs"></div><div id="settings-audio"><label id="master-label" for="master-volume">Master volume</label>
     <input class="audio-volume" id="master-volume" type="range" min="0" max="100" step="1" value="50"/><span class="audio-percent" id="master-percent">50%</span>
     <label id="music-label" for="music-volume">Music volume</label>
     <input class="audio-volume" id="music-volume" type="range" min="0" max="100" step="1" value="50"/>
     <span class="audio-percent" id="music-percent">50%</span>
     <label id="sfx-label" for="sfx-volume">SFX volume</label>
-    <input class="audio-volume" id="sfx-volume" type="range" min="0" max="100" step="1" value="50"/><span class="audio-percent" id="sfx-percent">50%</span><button id="settings.dust">Dust motes: On</button><button id="settings.grid">Reference grid: On</button><button id="settings.motion">Reduced motion: Off</button><div id="settings-approvals"></div><button id="settings.quit">Quit to Main Menu</button><button id="settings.close">Back</button></div></body></rml>)",
+    <input class="audio-volume" id="sfx-volume" type="range" min="0" max="100" step="1" value="50"/><span class="audio-percent" id="sfx-percent">50%</span></div><div id="settings-display"><button id="settings.dust">Dust motes: On</button><button id="settings.grid">Reference grid: On</button><button id="settings.motion">Reduced motion: Off</button></div><div id="settings-session"><div id="settings-approvals"></div><button id="settings.quit">Quit to Main Menu</button></div><button id="settings.close">Back</button></div></body></rml>)",
 	                                           (font_directory / "navigation.rml").generic_string());
 	if (!document)
 		throw std::runtime_error("Could not load home screen");
 	document->AddEventListener("click", &navigation);
 	document->AddEventListener("change", &navigation);
+	document->AddEventListener("keydown", &navigation);
 	document->Show();
 }
 bool close_requested()
@@ -616,6 +695,8 @@ void draw_screen(Application &app)
 					app.screen_inputs.push_back({id, label, field->GetValue()});
 		app.set_control_value = [&app](const std::string &id, const std::string &value)
 		{
+			if (app.screen == Screen::settings && id == "player-name" && app.settings_tab != "profile")
+				return false;
 			if (id == "music-volume" || id == "menu-volume")
 				return set_audio_volume(app, "music", value);
 			if (id == "master-volume" || id == "menu-master")

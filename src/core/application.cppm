@@ -68,6 +68,7 @@ struct Application
 	std::map<std::string, ConsoleId> gamepad_assignments;
 	Screen screen = Screen::home;
 	Screen settings_return = Screen::home;
+	std::string settings_tab = "audio";
 	Screen launch_screen = Screen::viewscreen;
 	int music_volume = 50, sfx_volume = 50, master_volume = 50;
 	std::function<void()> button_click;

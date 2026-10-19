@@ -489,3 +489,26 @@ body.reduced-motion #profile-crt .crt-screen {
 body.reduced-motion .column.active {
 	animation: none;
 }
+
+.settings-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin: 8px 0 16px;
+}
+.settings-tabs .skin {
+	flex: 1 1 110px;
+	width: auto;
+	min-height: 48px;
+	margin: 0;
+	padding: 8px;
+	font-size: 16px;
+}
+.settings-tabs [aria-selected="true"] {
+	color: #ffd093;
+	outline: 2px solid #e1893c;
+	outline-offset: -4px;
+}
+#settings-content {
+	margin-bottom: 16px;
+}

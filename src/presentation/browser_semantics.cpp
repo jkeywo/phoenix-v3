@@ -35,12 +35,12 @@ extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_semantic_value(const char *id, cons
 // clang-format off: embedded JavaScript must retain its operators.
 EM_JS(void, begin_semantics, (), {
     const root = document.getElementById('semantics');
-    for (const child of root.children) if (child.dataset.action) child.dataset.stale = 'true';
+    for (const child of root.querySelectorAll('[data-action]')) child.dataset.stale = 'true';
 });
-EM_JS(void, append_semantic_button, (const char* id, const char* label, float x, float y, float width, float height, bool focused, bool enabled, bool editable, const char* value, bool percentage, bool read_only), {
+EM_JS(void, append_semantic_button, (const char* id, const char* label, float x, float y, float width, float height, bool focused, bool enabled, bool editable, const char* value, bool percentage, bool read_only, bool tab, bool selected), {
     const action = UTF8ToString(id);
     const root = document.getElementById('semantics');
-    let button = Array.from(root.children).find(child => child.dataset.action === action);
+    let button = Array.from(root.querySelectorAll('[data-action]')).find(child => child.dataset.action === action);
     if (!button) {
         button = document.createElement(editable ? 'input' : read_only ? 'div' : 'button'); button.dataset.action = action;
         if(editable) {
@@ -48,12 +48,23 @@ EM_JS(void, append_semantic_button, (const char* id, const char* label, float x,
             if(percentage) { button.min='0'; button.max='100'; button.step='1'; }
             button.addEventListener('input', () => Module.ccall('phoenix_semantic_value',null,['string','string'],[action,button.value]));
         } else if(!read_only) button.addEventListener('click', () => Module.ccall('phoenix_semantic_action', null, ['string'], [action]));
+        if (tab) button.onkeydown = event => {
+            const tabs = Array.from(root.querySelectorAll('[role=tab]'));
+            const at = tabs.indexOf(button), n = tabs.length;
+            const next = event.key==='ArrowLeft' ? (at+n-1)%n : event.key==='ArrowRight' ? (at+1)%n : event.key==='Home' ? 0 : event.key==='End' ? n-1 : -1;
+            if(next>=0) { event.preventDefault(); event.stopPropagation(); tabs[next].focus(); tabs[next].click(); }
+        };
         button.addEventListener('focus', () => Module.ccall('phoenix_semantic_focus', null, ['string'], [action]));
-        root.appendChild(button);
+        if(tab) {
+            let tabs=root.querySelector('#semantic-settings-tabs');
+            if(!tabs) { tabs=document.createElement('div'); tabs.id='semantic-settings-tabs'; tabs.setAttribute('role','tablist'); tabs.style.display='contents'; root.append(tabs); }
+            tabs.append(button);
+        } else root.appendChild(button);
     }
     const text=UTF8ToString(label);
     if(editable) { button.setAttribute('aria-label',text); if(document.activeElement!==button)button.value=UTF8ToString(value); }
     else if(button.textContent!==text)button.textContent=text;
+    if(tab) { button.setAttribute('role','tab'); button.setAttribute('aria-selected',String(!!selected)); button.tabIndex=selected?0:-1; }
     delete button.dataset.stale;
     button.disabled = !enabled;
     const rect = Module.canvas.getBoundingClientRect(), sx=rect.width/Module.canvas.width, sy=rect.height/Module.canvas.height;
@@ -64,9 +75,11 @@ EM_JS(void, append_semantic_button, (const char* id, const char* label, float x,
     // DOM focus drives RmlUi through the queue. Re-focusing from the preceding
     // frame here would undo the user's Tab key before that queue is drained.
 });
-EM_JS(void, end_semantics, (), {
+EM_JS(void, end_semantics, (const char* settings_label), {
     const root = document.getElementById('semantics');
-    for (const child of Array.from(root.children)) if (child.dataset.stale) child.remove();
+    for (const child of root.querySelectorAll('[data-stale]')) child.remove();
+    const tabs=root.querySelector('#semantic-settings-tabs');
+    if(tabs) { if(!tabs.children.length) tabs.remove(); else tabs.setAttribute('aria-label',UTF8ToString(settings_label)); }
 });
 EM_JS(void, update_semantic_status, (const char* text), {
     const status = document.getElementById('player-status');
@@ -90,8 +103,8 @@ void publish_semantics(const Application &app)
 		append_semantic_button(control.id.c_str(), control.label.c_str(), control.placement.x, control.placement.y,
 		                       control.placement.width, control.placement.height, control.placement.focused,
 		                       control.placement.enabled, control.editable, control.value.c_str(), control.percentage,
-		                       control.read_only);
-	end_semantics();
+		                       control.read_only, control.tab, control.selected);
+	end_semantics(localise("Settings").c_str());
 }
 void drain_semantic_actions(Application &app)
 {

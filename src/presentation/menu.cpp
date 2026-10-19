@@ -173,7 +173,8 @@ struct NativeMenuScreen::State
 		    (id == "menu.new" && (branch == Branch::scenarios || branch == Branch::ships)) ||
 		    (id == "menu.join-ship" && branch == Branch::join_ship) ||
 		    (id == "menu.join-player" && branch == Branch::join_player) ||
-		    (id == "menu.join-gm" && branch == Branch::join_gm) || id == "menu.scenario/" + app.selected_scenario;
+		    (id == "menu.join-gm" && branch == Branch::join_gm) || id == "menu.scenario/" + app.selected_scenario ||
+		    (id.starts_with("settings.tab/") && id.substr(13) == app.settings_tab);
 		return "<button id=\"" + escaped(id) + "\" class=\"menu-skinned" + (selected ? " menu-selected" : "") + "\"" +
 		       (button_enabled ? "" : " disabled") + ">" +
 		       (id == "menu.settings" ? "<span class=\"menu-settings-icon\"/>" : "") +
@@ -442,7 +443,7 @@ struct NativeMenuScreen::State
 			              {
 				              app.settings_return = app.screen;
 				              app.screen = Screen::settings;
-				              focus_next = "menu-master";
+				              focus_next = "settings.tab/" + app.settings_tab;
 			              }) +
 			          "</div>";
 			markup += "<div class=\"menu-bottom\">" +
@@ -850,87 +851,122 @@ struct NativeMenuScreen::State
 			markup += "<div class=\"modal-shade\"><div class=\"menu-dialog\">";
 			if (app.screen == Screen::settings)
 			{
-				markup += heading("Settings");
-				for (const auto &[id, label, volume] : std::vector<std::tuple<std::string, std::string, int>>{
-				         {"menu-master", "Master volume", app.master_volume},
-				         {"menu-volume", "Music volume", app.music_volume},
-				         {"menu-sfx", "SFX volume", app.sfx_volume}})
+				const auto tabs = settings_tabs(app);
+				if (std::none_of(tabs.begin(), tabs.end(),
+				                 [&](const auto &tab)
+				                 {
+					                 return tab.first == "settings.tab/" + app.settings_tab;
+				                 }))
 				{
-					markup += "<label for=\"" + id + "\">" + escaped(localise(label)) +
-					          "</label><input class=\"audio-volume\" id=\"" + id +
-					          "\" type=\"range\" min=\"0\" max=\"100\" step=\"1\" value=\"50\"/><p id=\"" + id +
-					          "-value\"></p>";
-					app.screen_inputs.push_back({id, label, std::to_string(volume), true});
+					app.settings_tab = "audio";
+					focus_next = "settings.tab/audio";
 				}
-				markup += profile_controls();
-				markup +=
-				    add("menu.language", "Language: " + (app.language == "en" ? std::string("English") : app.language),
-				        [&]
-				        {
-					        const auto languages = installed_languages();
-					        auto found = std::find(languages.begin(), languages.end(), app.language);
-					        app.language =
-					            found == languages.end() || ++found == languages.end() ? languages.front() : *found;
-					        remember_preferences(app);
-				        });
-				markup += add("menu.pseudo", app.pseudo_locale ? "Pseudo-localisation: On" : "Pseudo-localisation: Off",
-				              [&]
-				              {
-					              app.pseudo_locale = !app.pseudo_locale;
-					              remember_preferences(app);
-				              });
-				markup += add("menu.motion", app.reduced_motion ? "Reduced motion: On" : "Reduced motion: Off",
-				              [&]
-				              {
-					              app.reduced_motion = !app.reduced_motion;
-					              remember_preferences(app);
-				              });
-				markup += add("menu.dust", app.dust_motes ? "Dust motes: On" : "Dust motes: Off",
-				              [&]
-				              {
-					              app.dust_motes = !app.dust_motes;
-					              remember_preferences(app);
-				              });
-				markup += add("menu.grid", app.reference_grid ? "Reference grid: On" : "Reference grid: Off",
-				              [&]
-				              {
-					              app.reference_grid = !app.reference_grid;
-					              remember_preferences(app);
-				              });
-				if (playing)
+				markup += heading("Settings") + "<div class=\"settings-tabs\" role=\"tablist\">";
+				for (const auto &[id, label] : tabs)
+					markup += add(id, label,
+					              []
+					              {
+					              });
+				markup += "</div><div class=\"settings-content\" role=\"tabpanel\" aria-labelledby=\"settings.tab/" +
+				          app.settings_tab + "\">";
+				if (app.settings_tab == "audio")
 				{
-					for (const auto &[id, text] : app.session->lobby_controls())
-						if (id.starts_with("lobby.approve/") || id.starts_with("network.approve/") ||
-						    id.starts_with("network.gm/"))
-							markup += add(id, text,
-							              [&, id]
-							              {
-								              app.session->session_action(id);
-							              });
-					if (app.can_host && app.session->running())
+					for (const auto &[id, label, volume] : std::vector<std::tuple<std::string, std::string, int>>{
+					         {"menu-master", "Master volume", app.master_volume},
+					         {"menu-volume", "Music volume", app.music_volume},
+					         {"menu-sfx", "SFX volume", app.sfx_volume}})
 					{
-						markup += add("menu.save-game", "Save Game",
-						              [&]
-						              {
-							              save_after = app.session->ticks();
-							              export_save = false;
-							              notice = "Saving at the next committed tick...";
-						              });
-						markup += add("menu.export-save", "Export Save",
-						              [&]
-						              {
-							              save_after = app.session->ticks();
-							              export_save = true;
-						              });
+						markup += "<label for=\"" + id + "\">" + escaped(localise(label)) +
+						          "</label><input class=\"audio-volume\" id=\"" + id +
+						          "\" type=\"range\" min=\"0\" max=\"100\" step=\"1\" value=\"50\"/><p id=\"" + id +
+						          "-value\"></p>";
+						app.screen_inputs.push_back({id, label, std::to_string(volume), true});
 					}
-					markup += add("settings.quit", "Quit to Main Menu",
+				}
+				else if (app.settings_tab == "profile")
+				{
+					markup += profile_controls();
+				}
+				else if (app.settings_tab == "language")
+				{
+					markup += add("menu.language",
+					              "Language: " + (app.language == "en" ? std::string("English") : app.language),
 					              [&]
 					              {
-						              invoke_navigation(app, "settings.quit");
+						              const auto languages = installed_languages();
+						              auto found = std::find(languages.begin(), languages.end(), app.language);
+						              app.language = found == languages.end() || ++found == languages.end()
+						                                 ? languages.front()
+						                                 : *found;
+						              remember_preferences(app);
 					              });
+					markup +=
+					    add("menu.pseudo", app.pseudo_locale ? "Pseudo-localisation: On" : "Pseudo-localisation: Off",
+					        [&]
+					        {
+						        app.pseudo_locale = !app.pseudo_locale;
+						        remember_preferences(app);
+					        });
 				}
-				if (app.reduced_motion)
-					markup += paragraph("Reduced motion hides dust motes and the reference grid.");
+				else if (app.settings_tab == "display")
+				{
+					markup += add("menu.motion", app.reduced_motion ? "Reduced motion: On" : "Reduced motion: Off",
+					              [&]
+					              {
+						              app.reduced_motion = !app.reduced_motion;
+						              remember_preferences(app);
+					              });
+					markup += add("menu.dust", app.dust_motes ? "Dust motes: On" : "Dust motes: Off",
+					              [&]
+					              {
+						              app.dust_motes = !app.dust_motes;
+						              remember_preferences(app);
+					              });
+					markup += add("menu.grid", app.reference_grid ? "Reference grid: On" : "Reference grid: Off",
+					              [&]
+					              {
+						              app.reference_grid = !app.reference_grid;
+						              remember_preferences(app);
+					              });
+					if (app.reduced_motion)
+						markup += paragraph("Reduced motion hides dust motes and the reference grid.");
+				}
+				else if (app.settings_tab == "session")
+				{
+					if (playing)
+					{
+						for (const auto &[id, text] : app.session->lobby_controls())
+							if (id.starts_with("lobby.approve/") || id.starts_with("network.approve/") ||
+							    id.starts_with("network.gm/"))
+								markup += add(id, text,
+								              [&, id]
+								              {
+									              app.session->session_action(id);
+								              });
+						if (app.can_host && app.session->running())
+						{
+							markup += add("menu.save-game", "Save Game",
+							              [&]
+							              {
+								              save_after = app.session->ticks();
+								              export_save = false;
+								              notice = "Saving at the next committed tick...";
+							              });
+							markup += add("menu.export-save", "Export Save",
+							              [&]
+							              {
+								              save_after = app.session->ticks();
+								              export_save = true;
+							              });
+						}
+						markup += add("settings.quit", "Quit to Main Menu",
+						              [&]
+						              {
+							              invoke_navigation(app, "settings.quit");
+						              });
+					}
+				}
+				markup += "</div>";
 			}
 			else
 			{
@@ -1408,6 +1444,9 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
     #native-menu .menu-top { width:184px; }
     #native-menu .menu-top button.menu-skinned { decorator:none; padding:18px 8px 18px 64px; }
     .menu-settings-icon { position:absolute; left:4px; top:4px; width:54px; height:54px; decorator:image(menu/settings.png contain); pointer-events:none; }
+    #native-menu .settings-tabs { display:flex; flex-wrap:wrap; margin-bottom:16px; }
+    #native-menu .settings-tabs button { flex:1 0 110px; width:auto; min-height:48px; font-size:16px; padding:8px; margin:0 4px 4px 0; }
+    #native-menu .settings-tabs .menu-selected { image-color:#ffd093; }
     #native-menu .menu-dialog { background:transparent; border:0px; padding:36px; }
     #native-menu .lobby-panel { left:5%; width:90%; display:flex; flex-direction:row; flex-wrap:wrap; align-items:flex-start; }
     #native-menu .lobby-invitation { width:440px; max-width:100%; flex-shrink:0; margin-right:24px; max-height:100%; overflow:auto; }

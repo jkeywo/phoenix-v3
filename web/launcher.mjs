@@ -819,57 +819,104 @@ async function boot() {
 		menuAmbient?.sync();
 		return popup;
 	}
-	function settings() {
-		const popup = dialog("Settings");
-		let firstVolume;
-		for (const [key, label] of [
-			["master_volume", "Master volume"],
-			["volume", "Music volume"],
-			["sfx_volume", "SFX volume"],
-		]) {
-			const slider = field(popup, key, label, library[key], "range");
-			slider.min = "0";
-			slider.max = "100";
-			slider.step = "1";
-			firstVolume ||= slider;
-			const value = element("output", library[key] + "%", popup);
-			value.htmlFor = slider.id;
-			slider.oninput = run(async () => {
-				library[key] = +slider.value;
-				value.textContent = library[key] + "%";
-				menuAudio.volume();
-				await remember();
-			});
+	let settingsTab = "audio";
+	function settings(page = settingsTab, focusId) {
+		const previousFocus = document.activeElement?.id;
+		settingsTab = page;
+		const popup = dialog("Settings"),
+			tabs = element("div", undefined, popup);
+		tabs.className = "settings-tabs";
+		tabs.setAttribute("role", "tablist");
+		tabs.setAttribute("aria-label", t("Settings"));
+		const choices = [
+			["audio", "Audio"],
+			["profile", "Profile"],
+			["language", "Language"],
+			["display", "Display"],
+		];
+		for (const [id, label] of choices) {
+			const tab = button(tabs, label, () => settings(id, "settings-tab-" + id));
+			tab.id = "settings-tab-" + id;
+			tab.setAttribute("role", "tab");
+			tab.setAttribute("aria-selected", String(id === page));
+			tab.setAttribute("aria-controls", "settings-content");
+			tab.classList.toggle("selected", id === page);
+			tab.tabIndex = id === page ? 0 : -1;
+			tab.onkeydown = (event) => {
+				const at = choices.findIndex((choice) => choice[0] === id),
+					n = choices.length;
+				const next =
+					event.key === "ArrowLeft"
+						? (at + n - 1) % n
+						: event.key === "ArrowRight"
+							? (at + 1) % n
+							: event.key === "Home"
+								? 0
+								: event.key === "End"
+									? n - 1
+									: -1;
+				if (next >= 0) {
+					event.preventDefault();
+					tabs.children[next].click();
+				}
+			};
 		}
-		profileFields(popup);
-		const language = element("label", "Language", popup),
-			select = element("select", undefined, language);
-		select.setAttribute("aria-label", t("Language"));
-		const english = element("option", "English", select);
-		english.value = "en";
-		button(popup, "Pseudo-localisation: " + (library.pseudo ? "On" : "Off"), async () => {
-			library.pseudo = !library.pseudo;
-			await remember();
-			settings();
-		});
-		button(popup, "Reduced motion: " + (library.reduced_motion ? "On" : "Off"), async () => {
-			library.reduced_motion = !library.reduced_motion;
-			await remember();
-			settings();
-		});
-		for (const [key, label] of [
-			["dust_motes", "Dust motes"],
-			["reference_grid", "Reference grid"],
-		])
-			button(popup, label + ": " + (library[key] !== false ? "On" : "Off"), async () => {
-				library[key] = library[key] === false;
+		const panel = element("div", undefined, popup);
+		panel.id = "settings-content";
+		panel.setAttribute("role", "tabpanel");
+		panel.setAttribute("aria-labelledby", "settings-tab-" + page);
+		if (page === "audio") {
+			for (const [key, label] of [
+				["master_volume", "Master volume"],
+				["volume", "Music volume"],
+				["sfx_volume", "SFX volume"],
+			]) {
+				const slider = field(panel, key, label, library[key], "range");
+				slider.min = "0";
+				slider.max = "100";
+				slider.step = "1";
+				const value = element("output", library[key] + "%", panel);
+				value.htmlFor = slider.id;
+				slider.oninput = run(async () => {
+					library[key] = +slider.value;
+					value.textContent = library[key] + "%";
+					menuAudio.volume();
+					await remember();
+				});
+			}
+		} else if (page === "profile") profileFields(panel);
+		else if (page === "language") {
+			const language = element("label", "Language", panel),
+				select = element("select", undefined, language);
+			select.setAttribute("aria-label", t("Language"));
+			element("option", "English", select).value = "en";
+			button(panel, "Pseudo-localisation: " + (library.pseudo ? "On" : "Off"), async () => {
+				library.pseudo = !library.pseudo;
 				await remember();
 				settings();
-			});
-		if (library.reduced_motion) element("p", "Reduced motion hides dust motes and the reference grid.", popup);
-		button(popup, "Back", () => $("popup").close());
-		firstVolume.focus();
+			}).id = "settings-pseudo";
+		} else if (page === "display") {
+			button(panel, "Reduced motion: " + (library.reduced_motion ? "On" : "Off"), async () => {
+				library.reduced_motion = !library.reduced_motion;
+				await remember();
+				settings();
+			}).id = "settings-motion";
+			for (const [key, label] of [
+				["dust_motes", "Dust motes"],
+				["reference_grid", "Reference grid"],
+			])
+				button(panel, label + ": " + (library[key] !== false ? "On" : "Off"), async () => {
+					library[key] = library[key] === false;
+					await remember();
+					settings();
+				}).id = "settings-" + key;
+			if (library.reduced_motion) element("p", "Reduced motion hides dust motes and the reference grid.", panel);
+		}
+		button(popup, "Back", () => $("popup").close()).id = "settings-close";
+		const restored = document.getElementById(focusId || previousFocus);
+		(restored && popup.contains(restored) ? restored : document.getElementById("settings-tab-" + page)).focus();
 	}
+
 	function packs() {
 		const popup = dialog("Mod Packs");
 		element(
@@ -1115,6 +1162,9 @@ async function boot() {
 					event.target.closest("#menu, #popup") ||
 					["INPUT", "BUTTON", "SELECT", "TEXTAREA"].includes(event.target.tagName)
 				) {
+					// GLFW uses window capture listeners. Run tab navigation before isolating DOM keys.
+					if (type === "keydown" && event.target.getAttribute("role") === "tab")
+						event.target.onkeydown?.(event);
 					if (type === "keydown" && event.key === "Escape" && event.target.closest("#semantics"))
 						window.Module?.ccall("phoenix_semantic_action", null, ["string"], ["settings"]);
 					event.stopImmediatePropagation();
@@ -1309,7 +1359,7 @@ async function boot() {
 		sync();
 		return { sync };
 	}
-	$("settings").onclick = settings;
+	$("settings").onclick = () => settings();
 	$("packs").onclick = packs;
 	$("back").onclick = back;
 	$("popup").onclose = () => {

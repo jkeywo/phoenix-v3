@@ -79,7 +79,8 @@ class Provider final : public IRawElementProviderSimple,
                        public IRawElementProviderFragmentRoot,
                        public IInvokeProvider,
                        public IValueProvider,
-                       public IRangeValueProvider
+                       public IRangeValueProvider,
+                       public ISelectionItemProvider
 {
 	std::atomic<ULONG> refs_{1};
 	std::shared_ptr<Shared> state_;
@@ -124,6 +125,8 @@ public:
 			*object = static_cast<IValueProvider *>(this);
 		else if (iid == __uuidof(IRangeValueProvider) && index_ >= 0)
 			*object = static_cast<IRangeValueProvider *>(this);
+		else if (iid == __uuidof(ISelectionItemProvider) && index_ >= 0)
+			*object = static_cast<ISelectionItemProvider *>(this);
 		else if (iid == __uuidof(IMarshal) && marshaler_)
 			return marshaler_->QueryInterface(iid, object);
 		if (!*object)
@@ -154,6 +157,17 @@ public:
 		if (!result)
 			return E_POINTER;
 		*result = nullptr;
+		if (index_ >= 0 && id == UIA_SelectionItemPatternId)
+		{
+			std::lock_guard lock(state_->mutex);
+			if (!valid())
+				return UIA_E_ELEMENTNOTAVAILABLE;
+			if (state_->controls[index_].tab)
+			{
+				*result = static_cast<ISelectionItemProvider *>(this);
+				AddRef();
+			}
+		}
 		if (index_ >= 0 && id == UIA_InvokePatternId)
 		{
 			std::lock_guard lock(state_->mutex);
@@ -201,10 +215,16 @@ public:
 		{
 			result->vt = VT_I4;
 			result->lVal = index_ < 0                            ? UIA_GroupControlTypeId
+			               : state_->controls[index_].tab        ? UIA_TabItemControlTypeId
 			               : state_->controls[index_].read_only  ? UIA_TextControlTypeId
 			               : state_->controls[index_].percentage ? UIA_SliderControlTypeId
 			               : state_->controls[index_].editable   ? UIA_EditControlTypeId
 			                                                     : UIA_ButtonControlTypeId;
+		}
+		else if (id == UIA_SelectionItemIsSelectedPropertyId && index_ >= 0 && state_->controls[index_].tab)
+		{
+			result->vt = VT_BOOL;
+			result->boolVal = state_->controls[index_].selected ? VARIANT_TRUE : VARIANT_FALSE;
 		}
 		else if (id == UIA_NamePropertyId || id == UIA_AutomationIdPropertyId)
 		{
@@ -442,6 +462,36 @@ public:
 		*result = make(state_->focus);
 		return S_OK;
 	}
+	HRESULT STDMETHODCALLTYPE Select() override
+	{
+		return Invoke();
+	}
+	HRESULT STDMETHODCALLTYPE AddToSelection() override
+	{
+		return Select();
+	}
+	HRESULT STDMETHODCALLTYPE RemoveFromSelection() override
+	{
+		return UIA_E_INVALIDOPERATION;
+	}
+	HRESULT STDMETHODCALLTYPE get_IsSelected(BOOL *result) override
+	{
+		if (!result)
+			return E_POINTER;
+		std::lock_guard lock(state_->mutex);
+		if (!valid() || index_ < 0)
+			return UIA_E_ELEMENTNOTAVAILABLE;
+		*result = state_->controls[index_].selected;
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE get_SelectionContainer(IRawElementProviderSimple **result) override
+	{
+		if (!result)
+			return E_POINTER;
+		// The platform bridge presents a flat semantic tree, without a selection container.
+		*result = nullptr;
+		return S_OK;
+	}
 	HRESULT STDMETHODCALLTYPE Invoke() override
 	{
 		std::lock_guard lock(state_->mutex);
@@ -573,7 +623,7 @@ bool probe_native_accessibility(Application &app)
 		for (std::size_t i = 0; i < controls.size(); ++i)
 		{
 			const auto &control = controls[i];
-			if (!control.read_only && !control.percentage)
+			if (!control.read_only && !control.percentage && !control.tab)
 				continue;
 			auto *provider = new Provider(state, static_cast<int>(i));
 			VARIANT type;
@@ -583,7 +633,22 @@ bool probe_native_accessibility(Application &app)
 			provider->get_BoundingRectangle(&bounds);
 			bool valid = type.vt == VT_I4 && bounds.width > 0 && bounds.height > 0;
 			IUnknown *pattern = nullptr;
-			if (control.read_only)
+			if (control.tab)
+			{
+				provider->GetPatternProvider(UIA_SelectionItemPatternId, &pattern);
+				ISelectionItemProvider *tab = nullptr;
+				if (pattern)
+				{
+					pattern->QueryInterface(__uuidof(ISelectionItemProvider), reinterpret_cast<void **>(&tab));
+					pattern->Release();
+				}
+				BOOL selected = FALSE;
+				valid = valid && type.lVal == UIA_TabItemControlTypeId && tab &&
+				        SUCCEEDED(tab->get_IsSelected(&selected)) && bool(selected) == control.selected;
+				if (tab)
+					tab->Release();
+			}
+			else if (control.read_only)
 			{
 				provider->GetPatternProvider(UIA_InvokePatternId, &pattern);
 				valid = valid && type.lVal == UIA_TextControlTypeId && !pattern;

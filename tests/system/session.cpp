@@ -138,7 +138,8 @@ int main()
 				app.session = replacement;
 				app.screen = Screen::home;
 			};
-			require(invoke_navigation(app, "settings.quit") && app.screen == Screen::home && !game_active(app) &&
+			require(!invoke_navigation(app, "settings.quit") && invoke_navigation(app, "settings.tab/session") &&
+			            invoke_navigation(app, "settings.quit") && app.screen == Screen::home && !game_active(app) &&
 			            !app.session->observation() && !app.session->running(),
 			        "Explicit quit returns to a fresh main-menu session without a running-world claim");
 		}

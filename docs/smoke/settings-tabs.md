@@ -1,0 +1,17 @@
+# Settings tabs evidence
+
+19 October 2026, Windows native and embedded Chromium, 1280 by 720. These are explicit graphical/keyboard checks, separate from physical reader/controller acceptance.
+
+## Observed
+
+- Native and HTML menus show Audio, Profile, Language and Display using the existing scalable button artwork. Audio contains Master/Music/SFX; Profile contains name/avatar; Language contains installed-language selection and pseudo-localisation; Display contains reduced motion, dust motes and the reference grid. The running native session exposes Session for approval/save/export/quit actions.
+- The native smoke journey visits all four preference tabs, changes independent mixer values, rejects hidden controls, checks expanded text and keyboard traversal, and verifies UIA TabItem selection patterns alongside range/text controls. It then launches, saves through Session, returns to the Viewscreen and quits through Session (`build/tabs-native-delivery-smoke.log`). The keyboard probe sends real RmlUi Left/Right events and verifies the selected page changes and returns.
+- HTML observations verify ArrowRight, Home and End selection/focus, labelled panels, one selected tab, focus retained on toggled options, expanded labels, Escape returning focus to Settings, and the last tab retained on reopening. Test pseudo-localisation and reduced-motion changes were restored. The loaded server WASM also exposes a named tab group, exactly one `aria-selected=true` tab and End-key selection of Display with only that page�s controls (`build/tabs-wasm-display.png`). The signalling connection failed in this local graphical run; no network admission claim is made. Captures: `build/tabs-web-audio.png`, `build/tabs-web-profile.png`, `build/tabs-web-language-expanded.png`, `build/tabs-web-display-expanded.png`; native captures: `build/tabs-native-audio.png`, `build/tabs-native-display.png`, `build/tabs-native-session.png`.
+
+## Checks and corrections
+
+Native and server/client/Workshop WASM builds pass (`build/tabs-native-delivery.log`, `build/tabs-web-delivery.log`). Focused native navigation/session integration checks pass (`build/tabs-integration-final.log`), as do the WASM equivalents and eight existing HTML shell checks. Formatting and whitespace checks pass.
+
+The first native graphical run rejected `menu.settings`: registering keydown handling allowed unrelated keys to reach ordinary button activation. Returning immediately for unhandled keydown events fixes that path. HTML tab handlers also require dispatch before the shell isolates DOM keyboard events from GLFW's capture listeners; the corrected path passes direct browser keyboard checks. A first WASM session invocation used the repository working directory and could not locate its packaged data; rerunning from `build/web` passes (`build/tabs-wasm-session-final.log`). A live WASM inspection also caught numeric C++ booleans being written as `0`/`1` ARIA strings; converting them to `false`/`true` ensures exactly one tab is selected. Previous failed outputs remain separate from passing evidence.
+
+Only the active page contributes actionable controls. Stale slider edits and inactive/unavailable tab/session actions are rejected through the shared navigation boundary. No simulation or content schema changes are involved. The Windows accessibility bridge retains its flat semantic tree; tabs expose TabItem/SelectionItem roles and selected state without claiming physical screen-reader usability.
