@@ -472,6 +472,35 @@ public:
 				    descriptor.at("value").is_number_integer() && descriptor.at("value") == command.value &&
 				    (!descriptor.contains("enabled") || descriptor.at("enabled") == true))
 					projected = true;
+		// Authored numeric widgets allow the full channel range, not just generated step buttons.
+		// Recheck the safe layout and current authority here as well as at the host.
+		if (!projected && command.system.empty() && !command.controller.empty() && !command.channel.empty() &&
+		    !command.request_id && command.arguments.empty() &&
+		    (command.action == "speed_mm_s" || command.action == "heading_mdeg"))
+		{
+			const auto sections = observation_->gameplay.value("controllers", Json::array());
+			for (const auto &section : sections)
+				if (section.value("id", std::string{}) == command.controller && section.value("human", false) &&
+				    section.value("console", std::string{}) == observation_->console &&
+				    section.value("generation", std::uint64_t{0}) == command.generation &&
+				    section.at("commands").contains(command.channel))
+				{
+					const auto &channel = section.at("commands").at(command.channel);
+					if (channel.value("action", std::string{}) != command.action ||
+					    channel.value("semantics", "") != "setting" ||
+					    command.value < channel.at("minimum").get<std::int64_t>() ||
+					    command.value > channel.at("maximum").get<std::int64_t>())
+						continue;
+					for (const auto &console : resolve_consoles(catalog(), observation_->own.definition))
+						if (console.id == observation_->console && catalog().consoles.contains(console.definition))
+							for (const auto &widget : catalog().consoles.at(console.definition).at("widgets"))
+								if (widget.value("controller", std::string{}) == command.controller &&
+								    widget.value("channel", std::string{}) == command.channel &&
+								    widget.value("kind", std::string{}) ==
+								        (command.action == "speed_mm_s" ? "throttle" : "heading"))
+									projected = true;
+				}
+		}
 		const auto *spec = operating_action(command.action);
 		if (((!spec || !command.controller.empty()) && !projected) ||
 		    (spec && !operating_value_valid(*spec, command.value)))

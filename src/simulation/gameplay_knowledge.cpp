@@ -915,7 +915,7 @@ void GameplayKnowledge::restore(const Json &state)
 			for (const auto &[system, reports] : restored.definitions_.at(binding.definition).reporters)
 				reporter_counts.emplace(binding.systems.at(system), reports.size());
 		}
-		for (const auto &status : runtime_state.at("status"))
+		for (const auto &status : runtime_state.value("status", Json::array()))
 		{
 			const auto producer = knowledge_unsigned(status.at("producer")), key = knowledge_unsigned(status.at("key"));
 			knowledge_require(key > 0 && (legacy_sources.contains(producer) ||

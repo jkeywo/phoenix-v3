@@ -15,6 +15,7 @@ import phoenix.network.host;
 import phoenix.network.client;
 import phoenix.session.local;
 import phoenix.fleet_setup;
+import phoenix.console;
 using namespace phoenix;
 using phoenix::test::require;
 int main(int argc, char **argv)
@@ -50,13 +51,29 @@ int main(int argc, char **argv)
 		 {"id":"main","definition":"test.console","systems":["engine","steering","radar"],"knowledge_roles":["crew"]}]}])json");
 		public_ship["systems"]["engine"]["records"] = Json::parse(R"json([
 		 {"schema":"test.public","producer":"crew","fields":{"enabled":"enabled"}}])json");
+		public_ship["systems"]["reserve"] = {
+		    {"kind", "engine"}, {"max_speed_mm_s", 17000}, {"acceleration_mm_s2", 1000}};
+		public_ship["stations"][0]["consoles"][0]["systems"].push_back("reserve");
 		public_ship["publications"] = Json::parse(R"json([
 		 {"id":"engine-enabled","source_console":"main","schema":"test.public","subject":0,"fields":["enabled"],"live":true}])json");
 		public_ship["control_layout"] = Json::parse(R"json({"schema":1,"default_profile":"direct",
 		 "controllers":[{"id":"propulsion","console":"main","fallback":"hold","commands":[
-		  {"id":"speed","action":"speed_mm_s","consumers":["engine"]}]}],
+		  {"id":"speed","action":"speed_mm_s","consumers":["engine","reserve"]}]}],
 		 "profiles":[{"id":"direct","consoles":{"main":{"human":["propulsion"],"ai":[]}}},
 		 {"id":"automatic","consoles":{"main":{"human":[],"ai":["propulsion"]}}}]})json");
+		defs["consoles"][0]["widgets"][1]["controller"] = "propulsion";
+		defs["consoles"][0]["widgets"][1]["channel"] = "speed";
+		defs["knowledge"]["schemas"].push_back({{"id", "test.report"},
+		                                        {"producers", {"crew"}},
+		                                        {"readers", {"crew"}},
+		                                        {"fields", Json::array({{{"id", "amount"}, {"type", "integer"}}})}});
+		defs["messages"] = Json::parse(
+		    R"json([{"id":"test.high","schema":"test.report","title_key":"test.high","body_key":"test.high.body",
+		 "destination":{"kind":"controller","console":"main","id":"propulsion"},"delay_ticks":1,"expires_after_ticks":1000,
+		 "fields":{"amount":{"argument":"amount"}},"parameters":{},"automatic":false}])json");
+		public_ship["message_templates"] = {"test.high"};
+		public_ship["systems"]["engine"]["reporters"] = Json::parse(R"json([
+		 {"id":"high","field":"requested","above":4000,"message":"test.high","debounce_ticks":1}])json");
 		const auto original = defs["maps"][0]["ship_slots"][0];
 		for (const auto &id : {"second", "mandatory", "optional"})
 		{
@@ -434,6 +451,51 @@ int main(int argc, char **argv)
 		    {
 			    return direct->observation().has_value();
 		    });
+		ConsoleModel remote_model;
+		remote_model.refresh(direct);
+		const auto remote_throttle = remote_model.widget_system("engine");
+		require(remote_model.set_speed_fraction(0.333, remote_throttle),
+		        "remote authored widget admits an arbitrary value outside generated step buttons");
+		pump(
+		    [&]
+		    {
+			    const auto view = direct->observation();
+			    return view && view->gameplay.at("controllers")[0].at("commands").at("speed").at("value") == 5661;
+		    });
+		const auto remote_view = direct->observation();
+		for (const auto &system : remote_view->systems)
+			if (system.id == "engine" || system.id == "reserve")
+				require(system.requested == 5661, "remote shared throttle drives both physical consumers");
+		pump(
+		    [&]
+		    {
+			    return !direct->observation()->gameplay.at("messages").empty();
+		    });
+		require(direct->observation()->gameplay.at("messages").size() == 1,
+		        "human-operated remote propulsion receives one factual threshold report");
+		OperatingCommand invalid_remote{remote_view->own.id, "speed_mm_s", 17001, {}};
+		invalid_remote.controller = "propulsion";
+		invalid_remote.channel = "speed";
+		invalid_remote.generation = remote_view->gameplay.at("controllers")[0].at("generation");
+		require(!direct->command(invalid_remote), "remote client refuses out-of-range arbitrary widget command");
+		invalid_remote.value = 5678;
+		invalid_remote.controller = "unknown";
+		require(!direct->command(invalid_remote), "remote client refuses foreign widget address");
+		remote_model.refresh(direct);
+		bool remote_delegated = false;
+		for (const auto &[id, label] : remote_model.gameplay_controls())
+			if (label == "automatic")
+				remote_delegated = remote_model.act(id);
+		require(remote_delegated, "remote settings change Console complexity");
+		pump(
+		    [&]
+		    {
+			    return !direct->observation()->gameplay.at("controllers")[0].at("human").get<bool>();
+		    });
+		remote_model.refresh(direct);
+		require(!remote_model.set_speed_fraction(0.5, remote_throttle), "remote AI-owned widget refuses human writes");
+		require(direct->observation()->gameplay.at("messages").size() == 1,
+		        "handover does not replay unchanged reporter warning");
 		std::cout << "PASS authenticated slot arbitration, automatic setup transfer, per-player readiness, "
 		             "cancellation, durable activation, AI-only slots and portable recovery\n";
 	}
