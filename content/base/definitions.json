@@ -1374,6 +1374,20 @@
 					}
 				}
 			]
+		},
+		{
+			"id": "base.courier-patrol-leader",
+			"name": "Patrol Courier",
+			"extends": "base.courier-engineering"
+		},
+		{
+			"id": "base.courier-patrol-follower",
+			"name": "Following Courier",
+			"extends": "base.courier-engineering",
+			"controllers": {
+				"drive.engine": "base.ai.follow-courier",
+				"drive.steering": "base.ai.follow-courier"
+			}
 		}
 	],
 	"maps": [
@@ -1388,6 +1402,237 @@
 					"y_mm": 0,
 					"heading_mdeg": 0,
 					"allowed_ships": ["training.survey", "base.courier-engineering", "base.cruiser"]
+				}
+			]
+		},
+		{
+			"entities": [
+				{
+					"definition": "base.courier-patrol-leader",
+					"heading_mdeg": 0,
+					"id": 1,
+					"x_mm": -110000,
+					"y_mm": -100000
+				},
+				{
+					"definition": "base.courier-patrol-follower",
+					"heading_mdeg": 0,
+					"id": 2,
+					"x_mm": -150000,
+					"y_mm": -100000
+				},
+				{
+					"definition": "training.asteroid",
+					"heading_mdeg": 0,
+					"id": 10,
+					"x_mm": -520000,
+					"y_mm": -340000
+				},
+				{
+					"definition": "training.asteroid",
+					"heading_mdeg": 27000,
+					"id": 11,
+					"x_mm": -160000,
+					"y_mm": -430000
+				},
+				{
+					"definition": "training.asteroid",
+					"heading_mdeg": 54000,
+					"id": 12,
+					"x_mm": 140000,
+					"y_mm": -380000
+				},
+				{
+					"definition": "training.asteroid",
+					"heading_mdeg": 81000,
+					"id": 13,
+					"x_mm": 520000,
+					"y_mm": -320000
+				},
+				{
+					"definition": "training.asteroid",
+					"heading_mdeg": 108000,
+					"id": 14,
+					"x_mm": 560000,
+					"y_mm": -60000
+				},
+				{
+					"definition": "training.asteroid",
+					"heading_mdeg": 135000,
+					"id": 15,
+					"x_mm": 520000,
+					"y_mm": 280000
+				},
+				{
+					"definition": "training.asteroid",
+					"heading_mdeg": 162000,
+					"id": 16,
+					"x_mm": 200000,
+					"y_mm": 440000
+				},
+				{
+					"definition": "training.asteroid",
+					"heading_mdeg": 189000,
+					"id": 17,
+					"x_mm": -80000,
+					"y_mm": 400000
+				},
+				{
+					"definition": "training.asteroid",
+					"heading_mdeg": 216000,
+					"id": 18,
+					"x_mm": -480000,
+					"y_mm": 380000
+				},
+				{
+					"definition": "training.asteroid",
+					"heading_mdeg": 243000,
+					"id": 19,
+					"x_mm": -580000,
+					"y_mm": 80000
+				},
+				{
+					"definition": "training.asteroid",
+					"heading_mdeg": 270000,
+					"id": 20,
+					"x_mm": -540000,
+					"y_mm": -120000
+				},
+				{
+					"definition": "training.asteroid",
+					"heading_mdeg": 297000,
+					"id": 21,
+					"x_mm": 30000,
+					"y_mm": 0
+				},
+				{
+					"definition": "training.sun",
+					"heading_mdeg": 0,
+					"id": 30,
+					"x_mm": -500000,
+					"y_mm": -600000
+				}
+			],
+			"id": "base.courier-patrol",
+			"lighting": {
+				"ambient": 0.14,
+				"hatch_spacing": 6,
+				"hatch_thickness": 2,
+				"shadows": true,
+				"sun_color": [1, 0.89, 0.7],
+				"sun_direction": [-0.5, 0.6, 0.6]
+			},
+			"name": "Courier Patrol",
+			"regions": [
+				{
+					"id": "patrol-1",
+					"radius_mm": 18000,
+					"shape": "circle",
+					"x_mm": 160000,
+					"y_mm": -100000
+				},
+				{
+					"id": "patrol-2",
+					"radius_mm": 18000,
+					"shape": "circle",
+					"x_mm": 160000,
+					"y_mm": 100000
+				},
+				{
+					"id": "patrol-3",
+					"radius_mm": 18000,
+					"shape": "circle",
+					"x_mm": -160000,
+					"y_mm": 100000
+				},
+				{
+					"id": "patrol-4",
+					"radius_mm": 18000,
+					"shape": "circle",
+					"x_mm": -160000,
+					"y_mm": -100000
+				}
+			],
+			"scenario": {
+				"bindings": {
+					"actor": {
+						"entity": 1
+					}
+				},
+				"objective_sequences": [
+					{
+						"id": "courier-route",
+						"objectives": ["patrol-1", "patrol-2", "patrol-3", "patrol-4"],
+						"repeat": true
+					}
+				],
+				"objectives": [
+					{
+						"actor": {
+							"entity": 1
+						},
+						"id": "patrol-1",
+						"recipients": {
+							"ship": {
+								"entity": 1
+							}
+						},
+						"region": "patrol-1",
+						"title_key": "Patrol zone 1",
+						"type": "reach_region"
+					},
+					{
+						"actor": {
+							"entity": 1
+						},
+						"id": "patrol-2",
+						"recipients": {
+							"ship": {
+								"entity": 1
+							}
+						},
+						"region": "patrol-2",
+						"title_key": "Patrol zone 2",
+						"type": "reach_region"
+					},
+					{
+						"actor": {
+							"entity": 1
+						},
+						"id": "patrol-3",
+						"recipients": {
+							"ship": {
+								"entity": 1
+							}
+						},
+						"region": "patrol-3",
+						"title_key": "Patrol zone 3",
+						"type": "reach_region"
+					},
+					{
+						"actor": {
+							"entity": 1
+						},
+						"id": "patrol-4",
+						"recipients": {
+							"ship": {
+								"entity": 1
+							}
+						},
+						"region": "patrol-4",
+						"title_key": "Patrol zone 4",
+						"type": "reach_region"
+					}
+				],
+				"tree": "base.scenario.courier-patrol"
+			},
+			"ship_slots": [
+				{
+					"allowed_ships": ["base.courier-engineering"],
+					"heading_mdeg": 0,
+					"id": "base.player",
+					"x_mm": 0,
+					"y_mm": 60000
 				}
 			]
 		}
@@ -2461,6 +2706,79 @@
 			"arguments": {
 				"default_allocation": 1500
 			}
+		},
+		{
+			"context": "system",
+			"id": "base.ai.follow-courier",
+			"initial": "follow",
+			"parameters": {
+				"distance": {
+					"default": 40000,
+					"type": "integer"
+				},
+				"leader": {
+					"default": {
+						"id": 1,
+						"type": "entity"
+					},
+					"type": "entity"
+				},
+				"speed_limit": {
+					"default": 12000,
+					"type": "integer"
+				}
+			},
+			"states": [
+				{
+					"id": "follow",
+					"running": [
+						{
+							"call": "base.ai.messages"
+						},
+						{
+							"action": "set_follow_contact",
+							"arguments": [
+								{
+									"observation": "self.system"
+								},
+								{
+									"parameter": "leader"
+								},
+								{
+									"parameter": "distance"
+								},
+								{
+									"parameter": "speed_limit"
+								},
+								true
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"context": "scenario",
+			"id": "base.scenario.courier-patrol",
+			"initial": "patrol",
+			"states": [
+				{
+					"entry": [
+						{
+							"action": "start_objective_sequence",
+							"arguments": [
+								"courier-route",
+								{
+									"id": 1,
+									"type": "entity"
+								},
+								"patrol"
+							]
+						}
+					],
+					"id": "patrol"
+				}
+			]
 		}
 	],
 	"equipment": [

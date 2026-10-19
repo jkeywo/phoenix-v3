@@ -326,10 +326,14 @@ std::vector<Json> objective_records(const Observation &observation)
 }
 } // namespace
 
-int main()
+#include "../manual/scenario_probe.hpp"
+
+int main(int argc, char **argv)
 {
 	try
 	{
+		if (argc == 5 && std::string(argv[1]) == "--smoke-pack")
+			return scenario_probe(argv[2], argv[3], std::stoi(argv[4]));
 		const auto catalog = fixture();
 		World original;
 		original.load(catalog, "test.map", {{"test.slot", "test.ship"}});
