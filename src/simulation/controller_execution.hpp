@@ -6,26 +6,43 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 	const ConsoleAddress address{id, controller.definition.console};
 	const auto &brain = *controller.brain;
 	std::vector<Value> values(brain.program.registry.observations.size());
-	values[0] = Value::reference(Type::Entity, id);
-	values[1] = Value::reference(Type::Console, knowledge.console_id(address));
-	values[2] = Value::integer(ecs.get<Clock>().tick);
+	values[brain.own[ControllerOwnField::Entity]] = Value::reference(Type::Entity, id);
+	values[brain.own[ControllerOwnField::Console]] = Value::reference(Type::Console, knowledge.console_id(address));
+	values[brain.own[ControllerOwnField::Tick]] = Value::integer(ecs.get<Clock>().tick);
 	const auto observation = observation_snapshots.contains(address) ? observation_snapshots.at(address)
 	                                                                 : capture_console_observation(address);
-	values[3] = Value::integer(observation.own.x);
-	values[4] = Value::integer(observation.own.y);
-	values[5] = Value::integer(observation.own.vx);
-	values[6] = Value::integer(observation.own.vy);
-	values[7] = Value::integer(observation.own.heading);
-	for (std::size_t i = 0; i < controller.tree_channels.size(); ++i)
+	values[brain.own[ControllerOwnField::X]] = Value::integer(observation.own.x);
+	values[brain.own[ControllerOwnField::Y]] = Value::integer(observation.own.y);
+	values[brain.own[ControllerOwnField::Vx]] = Value::integer(observation.own.vx);
+	values[brain.own[ControllerOwnField::Vy]] = Value::integer(observation.own.vy);
+	values[brain.own[ControllerOwnField::Heading]] = Value::integer(observation.own.heading);
+	bool blocked = false;
+	const auto forward = fixed::direction(observation.own.heading);
+	const auto speed = fixed::length({observation.own.vx, observation.own.vy});
+	const auto &own_shape = definitions.at(observation.own.definition).collider;
+	const auto own_radius = own_shape.box ? own_shape.half_width + own_shape.half_length : own_shape.radius;
+	for (const auto &contact : observation.contacts)
 	{
-		const auto field = controller.tree_channels[i];
+		const auto &shape = definitions.at(contact.definition).collider;
+		const auto radius = own_radius + (shape.box ? shape.half_width + shape.half_length : shape.radius) + 3000;
+		const auto dx = contact.x - observation.own.x, dy = contact.y - observation.own.y;
+		const auto ahead = (dx * forward.x + dy * forward.y) / fixed::unit;
+		const auto side = (dx * forward.y - dy * forward.x) / fixed::unit;
+		blocked |= ahead >= -radius && ahead <= radius + std::max<std::int64_t>(12000, speed * 4) && side >= -radius &&
+		           side <= radius;
+	}
+	values[brain.own[ControllerOwnField::Blocked]] = Value::boolean(blocked);
+	values[brain.own[ControllerOwnField::LeftHeading]] = Value::integer((observation.own.heading + 30000) % 360000);
+	for (std::size_t i = 0; i < brain.commands.size(); ++i)
+	{
+		const auto field = brain.commands[i].channel_index;
 		const auto &controllers = entities.at(id).get<EntityControls>().controllers;
 		const auto owner = static_cast<std::size_t>(&controller - controllers.data());
 		const auto amount = command_snapshots.contains(id) ? command_snapshots.at(id).at(owner).at(field).value
 		                                                   : controller.commands[field].value;
-		values[controller_observation_prefix + i] = controller.definition.commands[field].type == KnowledgeType::Boolean
-		                                                ? Value::boolean(amount != 0)
-		                                                : Value::integer(amount);
+		values[brain.commands[i].destination] = controller.definition.commands[field].type == KnowledgeType::Boolean
+		                                            ? Value::boolean(amount != 0)
+		                                            : Value::integer(amount);
 	}
 	const auto board = brain_snapshots.contains(address) ? brain_snapshots.at(address) : knowledge.project(address);
 	std::vector<const KnowledgeRecord *> evidence(brain.reads.size(), nullptr);
@@ -55,7 +72,7 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 					continue;
 				evidence[i] = &*record;
 				const auto &value = record->value.fields.at(binding.field);
-				auto &target = values[controller_observation_prefix + controller.tree_channels.size() + i];
+				auto &target = values[binding.destination];
 				if (auto n = std::get_if<std::int64_t>(&value))
 					target = Value::integer(*n);
 				else if (auto b = std::get_if<bool>(&value))
@@ -65,58 +82,60 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 				break;
 			}
 	}
-	for (std::size_t i = 0; i < controller.telemetry_reads.size(); ++i)
+	for (std::size_t i = 0; i < brain.telemetry_reads.size(); ++i)
 	{
-		const auto &binding = controller.telemetry_reads[i];
+		const auto &binding = brain.telemetry_reads[i].source;
 		for (const auto &system : observation.systems)
 			if (system.id == binding.system && system.telemetry.contains(binding.field))
 			{
 				const auto number = system.telemetry.at(binding.field);
-				values[controller_observation_prefix + controller.tree_channels.size() + brain.reads.size() + i] =
+				values[brain.telemetry_reads[i].destination] =
 				    binding.type == Type::Boolean ? Value::boolean(number != 0) : Value::integer(number);
 				break;
 			}
 	}
-	for (std::size_t i = 0; i < controller.command_reads.size(); ++i)
+	for (std::size_t i = 0; i < brain.command_reads.size(); ++i)
 	{
-		const auto [target, channel] = controller.command_reads[i];
+		const auto &read = brain.command_reads[i];
+		const auto target = read.controller, channel = read.channel;
 		const auto &source = entities.at(id).get<EntityControls>().controllers.at(target);
 		const auto number = command_snapshots.contains(id) ? command_snapshots.at(id).at(target).at(channel).value
 		                                                   : source.commands.at(channel).value;
-		values[controller_observation_prefix + controller.tree_channels.size() + brain.reads.size() +
-		       controller.telemetry_reads.size() + i] =
-		    source.definition.commands.at(channel).type == KnowledgeType::Boolean ? Value::boolean(number != 0)
-		                                                                          : Value::integer(number);
+		values[read.destination] = source.definition.commands.at(channel).type == KnowledgeType::Boolean
+		                               ? Value::boolean(number != 0)
+		                               : Value::integer(number);
 	}
 	const ControllerAddress recipient{id, controller.definition.console, controller.definition.id};
 	const auto inbox = controller_inboxes.contains(recipient) ? controller_inboxes.at(recipient)
 	                                                          : knowledge.peek_controller(recipient);
-	const auto base = controller_observation_prefix + controller.tree_channels.size() + brain.reads.size() +
-	                  controller.telemetry_reads.size() + controller.command_reads.size();
-	values[base] = Value::boolean(!inbox.empty());
+	values[brain.inbox[ControllerInboxField::Available]] = Value::boolean(!inbox.empty());
 	if (!inbox.empty())
 	{
 		const auto &delivery = inbox.front();
 		const auto &message = delivery.message;
 		const auto &payload = message.value.payload;
-		values[base + 1] = Value::reference(Type::Message, message.id);
-		values[base + 2] = Value::integer(message.value.sender_system);
-		values[base + 3] = Value::reference(Type::Console, message.sender_console);
-		values[base + 4] = Value::string(knowledge.definition().schemas.at(payload.schema - 1).name);
-		values[base + 5] = Value::reference(Type::Entity, payload.subject);
-		values[base + 6] = Value::integer(payload.provenance.observed_tick);
-		values[base + 7] = Value::integer(delivery.delivered_tick);
-		values[base + 8] = Value::integer(payload.provenance.uncertainty);
-		values[base + 9] = Value::integer(static_cast<unsigned>(payload.provenance.kind));
-		values[base + 10] = Value::integer(message.value.presentation.urgency);
-		values[base + 11] = Value::string(knowledge.request_key_name(message.value.request_key));
-		for (std::size_t i = 0; i < controller.message_reads.size(); ++i)
+		values[brain.inbox[ControllerInboxField::Id]] = Value::reference(Type::Message, message.id);
+		values[brain.inbox[ControllerInboxField::Source]] = Value::integer(message.value.sender_system);
+		values[brain.inbox[ControllerInboxField::SourceConsole]] =
+		    Value::reference(Type::Console, message.sender_console);
+		values[brain.inbox[ControllerInboxField::Schema]] =
+		    Value::string(knowledge.definition().schemas.at(payload.schema - 1).name);
+		values[brain.inbox[ControllerInboxField::Subject]] = Value::reference(Type::Entity, payload.subject);
+		values[brain.inbox[ControllerInboxField::ObservedTick]] = Value::integer(payload.provenance.observed_tick);
+		values[brain.inbox[ControllerInboxField::DeliveredTick]] = Value::integer(delivery.delivered_tick);
+		values[brain.inbox[ControllerInboxField::Uncertainty]] = Value::integer(payload.provenance.uncertainty);
+		values[brain.inbox[ControllerInboxField::Kind]] =
+		    Value::integer(static_cast<unsigned>(payload.provenance.kind));
+		values[brain.inbox[ControllerInboxField::Urgency]] = Value::integer(message.value.presentation.urgency);
+		values[brain.inbox[ControllerInboxField::RequestKey]] =
+		    Value::string(knowledge.request_key_name(message.value.request_key));
+		for (std::size_t i = 0; i < brain.message_reads.size(); ++i)
 		{
-			const auto &binding = controller.message_reads[i];
+			const auto &binding = brain.message_reads[i];
 			if (binding.schema != payload.schema || !payload.fields.contains(binding.field))
 				continue;
 			const auto &field = payload.fields.at(binding.field);
-			auto &target = values[base + controller_inbox_metadata_count + i];
+			auto &target = values[binding.destination];
 			if (const auto number = std::get_if<std::int64_t>(&field))
 				target = Value::integer(*number);
 			else if (const auto flag = std::get_if<bool>(&field))
@@ -125,48 +144,51 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 				target = Value::string(std::get<std::string>(field));
 		}
 	}
-	std::size_t payload_index = base + controller_inbox_metadata_count + controller.message_reads.size();
 	const auto &controllers = entities.at(id).get<EntityControls>().controllers;
 	const auto owner = static_cast<std::size_t>(&controller - controllers.data());
-	for (const auto field : controller.tree_channels)
+	for (const auto &binding : brain.commands)
 	{
+		const auto field = binding.channel_index;
 		const auto &state =
 		    command_snapshots.contains(id) ? command_snapshots.at(id).at(owner).at(field) : controller.commands[field];
-		for (const auto argument : state.arguments)
-			values.at(payload_index++) = Value::integer(argument);
+		for (std::size_t i = 0; i < binding.arguments.size(); ++i)
+			values.at(binding.arguments[i]) = Value::integer(state.arguments.at(i));
 	}
 	for (std::size_t i = 0; i < evidence.size(); ++i)
 	{
 		const auto *record = evidence[i];
-		const auto offset = payload_index;
-		payload_index += 10;
-		values.at(offset) =
+		const auto &fields = brain.reads[i].metadata;
+		values.at(fields[ControllerRecordField::Available]) =
 		    Value::boolean(record && !record->value.withdrawn && !knowledge.stale(*record, ecs.get<Clock>().tick) &&
 		                   record->value.fields.contains(brain.reads[i].field));
 		if (!record)
 			continue;
-		values.at(offset + 1) = Value::integer(record->value.provenance.observed_tick);
-		values.at(offset + 2) = Value::integer(record->received_tick);
-		values.at(offset + 3) = Value::integer(record->value.provenance.source);
-		values.at(offset + 4) = Value::integer(record->value.provenance.uncertainty);
-		values.at(offset + 5) = Value::integer(static_cast<unsigned>(record->value.provenance.kind));
-		values.at(offset + 6) = Value::boolean(record->value.withdrawn);
-		values.at(offset + 7) = Value::boolean(knowledge.stale(*record, ecs.get<Clock>().tick));
-		values.at(offset + 8) = Value::integer(record->value.provenance.revision);
-		values.at(offset + 9) = Value::integer(record->value.subject);
+		values.at(fields[ControllerRecordField::ObservedTick]) = Value::integer(record->value.provenance.observed_tick);
+		values.at(fields[ControllerRecordField::ReceivedTick]) = Value::integer(record->received_tick);
+		values.at(fields[ControllerRecordField::Source]) = Value::integer(record->value.provenance.source);
+		values.at(fields[ControllerRecordField::Uncertainty]) = Value::integer(record->value.provenance.uncertainty);
+		values.at(fields[ControllerRecordField::Kind]) =
+		    Value::integer(static_cast<unsigned>(record->value.provenance.kind));
+		values.at(fields[ControllerRecordField::Withdrawn]) = Value::boolean(record->value.withdrawn);
+		values.at(fields[ControllerRecordField::Stale]) =
+		    Value::boolean(knowledge.stale(*record, ecs.get<Clock>().tick));
+		values.at(fields[ControllerRecordField::Revision]) = Value::integer(record->value.provenance.revision);
+		values.at(fields[ControllerRecordField::Subject]) = Value::integer(record->value.subject);
 	}
-	for (const auto field : controller.tree_channels)
+	for (const auto &binding : brain.commands)
 	{
+		const auto field = binding.channel_index;
 		const auto &state =
 		    command_snapshots.contains(id) ? command_snapshots.at(id).at(owner).at(field) : controller.commands[field];
-		values.at(payload_index++) = Value::boolean(state.accepted);
-		values.at(payload_index++) = Value::integer(state.revision);
-		values.at(payload_index++) = Value::integer(state.consumed);
-		values.at(payload_index++) = Value::integer(state.request_id);
-		values.at(payload_index++) = Value::boolean(state.consumed < state.revision);
+		values.at(binding.metadata[ControllerCommandField::Accepted]) = Value::boolean(state.accepted);
+		values.at(binding.metadata[ControllerCommandField::Revision]) = Value::integer(state.revision);
+		values.at(binding.metadata[ControllerCommandField::Consumed]) = Value::integer(state.consumed);
+		values.at(binding.metadata[ControllerCommandField::RequestId]) = Value::integer(state.request_id);
+		values.at(binding.metadata[ControllerCommandField::Pending]) = Value::boolean(state.consumed < state.revision);
 	}
-	for (const auto [target, channel] : controller.contact_reads)
+	for (const auto &binding : brain.contact_reads)
 	{
+		const auto target = binding.controller, channel = binding.channel;
 		const auto &source = controllers.at(target);
 		const auto &state = command_snapshots.contains(id) ? command_snapshots.at(id).at(target).at(channel)
 		                                                   : source.commands.at(channel);
@@ -178,39 +200,29 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 		                                  {
 			                                  return candidate.id == static_cast<EntityId>(selected);
 		                                  });
-		const auto offset = payload_index;
-		payload_index += 10;
-		values.at(offset) = Value::boolean(contact != observation.contacts.end());
+		const auto &fields = binding.fields;
+		values.at(fields[ControllerContactField::Available]) = Value::boolean(contact != observation.contacts.end());
 		if (contact == observation.contacts.end())
 			continue;
-		values.at(offset + 1) = Value::integer(contact->id);
-		values.at(offset + 2) = Value::integer(contact->x);
-		values.at(offset + 3) = Value::integer(contact->y);
-		values.at(offset + 4) = Value::integer(contact->vx);
-		values.at(offset + 5) = Value::integer(contact->vy);
-		values.at(offset + 6) = Value::integer(contact->heading);
-		values.at(offset + 7) = Value::integer(fixed::length({contact->vx, contact->vy}));
-		values.at(offset + 8) = Value::integer(observation.observed_tick);
-		values.at(offset + 9) = Value::integer(0);
+		values.at(fields[ControllerContactField::Id]) = Value::integer(contact->id);
+		values.at(fields[ControllerContactField::X]) = Value::integer(contact->x);
+		values.at(fields[ControllerContactField::Y]) = Value::integer(contact->y);
+		values.at(fields[ControllerContactField::Vx]) = Value::integer(contact->vx);
+		values.at(fields[ControllerContactField::Vy]) = Value::integer(contact->vy);
+		values.at(fields[ControllerContactField::Heading]) = Value::integer(contact->heading);
+		values.at(fields[ControllerContactField::Speed]) = Value::integer(fixed::length({contact->vx, contact->vy}));
+		values.at(fields[ControllerContactField::ObservedTick]) = Value::integer(observation.observed_tick);
+		values.at(fields[ControllerContactField::Uncertainty]) = Value::integer(0);
 	}
 
 	const auto &result = controller.result;
-	for (std::size_t i = 0; i < brain.program.registry.observations.size(); ++i)
-	{
-		const auto &name = brain.program.registry.observations[i].name;
-		if (name == "result.available")
-			values[i] = Value::boolean(result.available);
-		else if (name == "result.success")
-			values[i] = Value::boolean(result.success);
-		else if (name == "result.id")
-			values[i] = Value::integer(result.id);
-		else if (name == "result.publication")
-			values[i] = Value::integer(result.publication);
-		else if (name == "result.message")
-			values[i] = result.message ? Value::reference(Type::Message, result.message) : Value{};
-		else if (name == "result.reason")
-			values[i] = Value::string(result.reason);
-	}
+	values[brain.result[ControllerResultField::Available]] = Value::boolean(result.available);
+	values[brain.result[ControllerResultField::Success]] = Value::boolean(result.success);
+	values[brain.result[ControllerResultField::Id]] = Value::integer(result.id);
+	values[brain.result[ControllerResultField::Publication]] = Value::integer(result.publication);
+	values[brain.result[ControllerResultField::Message]] =
+	    result.message ? Value::reference(Type::Message, result.message) : Value{};
+	values[brain.result[ControllerResultField::Reason]] = Value::string(result.reason);
 	return values;
 }
 void controller_output(EntityId id, std::size_t index, const state_tree::Output &output,
@@ -292,7 +304,7 @@ void controller_output(EntityId id, std::size_t index, const state_tree::Output 
 		}
 		return;
 	}
-	const auto field = controller.tree_channels.at(output.action);
+	const auto field = controller.brain->commands.at(output.action).channel_index;
 	const auto request = controller.definition.commands[field].semantics == CommandSemantics::Request;
 	const auto request_id = request ? controller.commands[field].request_id + 1 : 0;
 	controller.result = {};

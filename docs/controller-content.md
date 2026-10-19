@@ -70,6 +70,8 @@ Guidance runs in the physical execution path using the accepted setting and perm
 
 ## Controller trees and observations
 
+The content compiler builds Controller tree bindings and their registry together. Simulation setup resolves the bindings to entity-local sources; the tick reader uses their compiled destinations rather than reconstructing field offsets. These bindings are derived data, rebuilt with tree programs after Catalog edits and on restore. Registry ordering and saved Controller continuation retain their existing contracts.
+
 Use `context: controller`. Declare `command_bindings` for the channels the tree owns; each supplies `command.<channel>`, an internal intent and `write.<channel>`. Declare `type: boolean` for boolean channels and `semantics: request` for request channels. Default types and semantics are integer and setting.
 
 ```json

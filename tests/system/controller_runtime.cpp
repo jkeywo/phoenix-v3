@@ -1446,6 +1446,47 @@ int main()
 		shared_reader_source["maps"][0]["entities"].push_back(
 		    {{"id", 2}, {"definition", "test.controllable"}, {"x_mm", 1000000}, {"y_mm", 0}, {"heading_mdeg", 0}});
 		World shared_reader;
+		// Mix categories in one tree so changes to the compiled layout cannot
+		// silently redirect a record read into telemetry, commands or inbox data.
+		{
+			auto mixed = shared_reader_source;
+			auto &tree = mixed["trees"].back();
+			tree["system_bindings"] = Json::parse(R"json([
+			 {"name":"actual_request","system":"aux","field":"requested"}])json");
+			tree["command_reads"] = Json::parse(R"json([
+			 {"name":"prior_speed","controller":"reader","channel":"speed","type":"integer"}])json");
+			tree["states"][0]["transitions"] = Json::parse(R"json([
+			 {"target":"verified","conditions":[
+			 {"left":{"observation":"shared_amount.available"},"op":"eq","right":true},
+			 {"left":{"observation":"shared_amount"},"op":"eq","right":6000},
+			 {"left":{"observation":"actual_request"},"op":"eq","right":6000},
+			 {"left":{"observation":"prior_speed"},"op":"eq","right":6000},
+			 {"left":{"observation":"command.speed.accepted"},"op":"eq","right":true},
+			 {"left":{"observation":"message.available"},"op":"eq","right":false},
+			 {"left":{"observation":"result.available"},"op":"eq","right":true},
+			 {"left":{"observation":"result.success"},"op":"eq","right":true}]}])json");
+			tree["states"].push_back(Json::parse(R"json(
+			 {"id":"verified","entry":[{"action":"write.speed","arguments":[4321]}]})json"));
+			const auto content = load(mixed);
+			World run;
+			run.load(content, "test.map");
+			claim_public(run);
+			for (const auto claimant : {101, 102, 103})
+				require(run.submit(claimant, {1, "preset", 1, {}}), "mixed binding AI profile");
+			for (int tick = 0; tick < 4; ++tick)
+				run.tick();
+			World resumed;
+			resumed.restore(content, run.save());
+			for (int tick = 0; tick < 8; ++tick)
+			{
+				run.tick();
+				resumed.tick();
+			}
+			require(run.observe(103)->systems[0].requested == 4321,
+			        "mixed Controller bindings preserve values and metadata through actual tree decisions");
+			require(run.save() == resumed.save(),
+			        "mixed Controller bindings rebuild on restore without changing continuation");
+		}
 		shared_reader.load(load(shared_reader_source), "test.map");
 		claim_public(shared_reader);
 		require(shared_reader.claim(104, 2, "spectator"), "other entity public reader claim");

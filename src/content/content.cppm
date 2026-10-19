@@ -22,6 +22,7 @@ export import phoenix.flight;
 export namespace phoenix
 {
 struct Catalog;
+struct ControllerTreeBindings;
 struct PackDraft
 {
 	Json manifest;
@@ -46,19 +47,6 @@ private:
 	friend Pack read_pack(std::span<const std::uint8_t> bytes);
 	friend Pack read_pack(Bytes &&bytes);
 };
-struct Catalog
-{
-	std::map<std::string, Json> entities, maps, consoles, trees;
-	std::map<std::string, Json> equipment, assemblies, messages;
-	Json knowledge = Json::object();
-	CompiledKnowledge knowledge_definition;
-	std::map<std::string, ResourceNetworkDefinition> resource_definitions;
-	std::map<std::string, ScenarioDefinition> scenarios;
-	std::map<std::string, state_tree::Program> tree_programs;
-	std::map<std::string, Bytes> assets;
-	std::vector<std::pair<std::string, std::string>> ordered_packs;
-	bool presentation = false;
-};
 // Resolution only; a root restricts traversal to its dependency closure.
 void inherit_definitions(std::map<std::string, Json> &, const std::string &kind, const std::string &root = {});
 Json resolve_tree_definition(const Json &, const Catalog &);
@@ -72,7 +60,6 @@ struct GameplayTreeSummaryBinding
 };
 std::vector<GameplayTreeSummaryBinding> gameplay_summary_bindings(const Json &, const Catalog &);
 state_tree::Registry gameplay_registry(const Json &, const Catalog &, state_tree::Context);
-inline constexpr std::size_t controller_observation_prefix = 8;
 struct ControllerTelemetryBinding
 {
 	std::string name, system, field;
@@ -94,7 +81,146 @@ struct ControllerContactBinding
 std::vector<ControllerContactBinding> controller_contact_bindings(const Json &, const Catalog &);
 std::vector<std::string> controller_message_templates(const Json &, const Catalog &);
 std::vector<GameplayTreeRecordBinding> controller_message_reads(const Json &, const Catalog &);
-inline constexpr std::size_t controller_inbox_metadata_count = 12;
+enum class ControllerOwnField
+{
+	Entity,
+	Console,
+	Tick,
+	X,
+	Y,
+	Vx,
+	Vy,
+	Heading,
+	Blocked,
+	LeftHeading,
+	Count
+};
+enum class ControllerRecordField
+{
+	Available,
+	ObservedTick,
+	ReceivedTick,
+	Source,
+	Uncertainty,
+	Kind,
+	Withdrawn,
+	Stale,
+	Revision,
+	Subject,
+	Count
+};
+enum class ControllerCommandField
+{
+	Accepted,
+	Revision,
+	Consumed,
+	RequestId,
+	Pending,
+	Count
+};
+enum class ControllerInboxField
+{
+	Available,
+	Id,
+	Source,
+	SourceConsole,
+	Schema,
+	Subject,
+	ObservedTick,
+	DeliveredTick,
+	Uncertainty,
+	Kind,
+	Urgency,
+	RequestKey,
+	Count
+};
+enum class ControllerContactField
+{
+	Available,
+	Id,
+	X,
+	Y,
+	Vx,
+	Vy,
+	Heading,
+	Speed,
+	ObservedTick,
+	Uncertainty,
+	Count
+};
+enum class ControllerResultField
+{
+	Available,
+	Success,
+	Id,
+	Publication,
+	Message,
+	Reason,
+	Count
+};
+template <typename Field> struct ControllerDestinations
+{
+	std::array<std::size_t, static_cast<std::size_t>(Field::Count)> values{};
+	std::size_t &operator[](Field field)
+	{
+		return values.at(static_cast<std::size_t>(field));
+	}
+	std::size_t operator[](Field field) const
+	{
+		return values.at(static_cast<std::size_t>(field));
+	}
+};
+template <typename Source> struct ControllerRead
+{
+	Source source;
+	std::size_t destination = 0;
+};
+struct ControllerRecordRead : ControllerRead<GameplayTreeRecordBinding>
+{
+	ControllerDestinations<ControllerRecordField> metadata;
+};
+struct ControllerContactRead
+{
+	ControllerContactBinding source;
+	ControllerDestinations<ControllerContactField> fields;
+};
+struct ControllerCommandBinding
+{
+	std::string channel;
+	std::size_t destination = 0;
+	std::vector<std::size_t> arguments;
+	ControllerDestinations<ControllerCommandField> metadata;
+};
+// Derived together with the registry; never persisted. Sources are resolved to
+// entity-local indices by simulation setup, destinations are never reconstructed.
+struct ControllerTreeBindings
+{
+	state_tree::Registry registry;
+	ControllerDestinations<ControllerOwnField> own;
+	ControllerDestinations<ControllerInboxField> inbox;
+	ControllerDestinations<ControllerResultField> result;
+	std::vector<ControllerCommandBinding> commands;
+	std::vector<ControllerRecordRead> records;
+	std::vector<ControllerRead<ControllerTelemetryBinding>> telemetry;
+	std::vector<ControllerRead<ControllerCommandReadBinding>> command_reads;
+	std::vector<ControllerRead<GameplayTreeRecordBinding>> messages;
+	std::vector<ControllerContactRead> contacts;
+};
+struct Catalog
+{
+	std::map<std::string, Json> entities, maps, consoles, trees;
+	std::map<std::string, Json> equipment, assemblies, messages;
+	Json knowledge = Json::object();
+	CompiledKnowledge knowledge_definition;
+	std::map<std::string, ResourceNetworkDefinition> resource_definitions;
+	std::map<std::string, ScenarioDefinition> scenarios;
+	std::map<std::string, state_tree::Program> tree_programs;
+	std::map<std::string, ControllerTreeBindings> controller_bindings;
+	std::map<std::string, Bytes> assets;
+	std::vector<std::pair<std::string, std::string>> ordered_packs;
+	bool presentation = false;
+};
+ControllerTreeBindings compile_controller_bindings(const Json &, const Catalog &);
 void verify_scenario_authoring(const Catalog &catalog, const Json &map);
 // Render-only navigation aids. Distances are metres; speed is metres/second.
 struct DustConfig

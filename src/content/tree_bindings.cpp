@@ -363,131 +363,160 @@ std::vector<GameplayTreeRecordBinding> controller_message_reads(const Json &tree
 		                "Controller tree", "message bindings select fields of the addressed inbox message");
 	return gameplay_record_bindings(source, catalog);
 }
+ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catalog &catalog)
+{
+	const auto inherited = resolve_record_bindings(tree, catalog);
+	binding_require(!inherited.context || inherited.context == state_tree::Context::Controller,
+	                "trees." + tree.value("id", std::string("<inline>")) + ".context",
+	                "registry context differs from authored tree");
+	using namespace state_tree;
+	ControllerTreeBindings result;
+	auto &registry = result.registry;
+	auto add = [&](FieldSpec field)
+	{
+		const auto index = registry.observations.size();
+		registry.observations.push_back(std::move(field));
+		return index;
+	};
+	const std::vector<FieldSpec> own{{"self_entity", Type::Entity, 4, {}},
+	                                 {"self_console", Type::Console, 4, {}},
+	                                 {"tick", Type::Integer, 4, {}},
+	                                 {"own.x", Type::Integer, 4, {}},
+	                                 {"own.y", Type::Integer, 4, {}},
+	                                 {"own.vx", Type::Integer, 4, {}},
+	                                 {"own.vy", Type::Integer, 4, {}},
+	                                 {"own.heading", Type::Integer, 4, {}},
+	                                 {"navigation.blocked", Type::Boolean, 4, {}},
+	                                 {"navigation.left_heading", Type::Integer, 4, {}}};
+	for (std::size_t i = 0; i < own.size(); ++i)
+		result.own.values.at(i) = add(own[i]);
+	const auto resolved = resolve_tree_definition(tree, catalog);
+	binding_require(!resolved.contains("summary_bindings"), "Controller tree",
+	                "use owned command channels instead of System summary intents");
+	const auto commands = resolved.value("command_bindings", Json::array());
+	binding_require(commands.is_array() && commands.size() <= 256, "Controller tree",
+	                "expected bounded command_bindings");
+	for (const auto &command : commands)
+	{
+		const auto name = command.at("channel").get<std::string>();
+		binding_require(valid_identifier(name), "Controller tree", "invalid command channel");
+		const auto type = command.value("type", std::string("integer"));
+		binding_require(type == "integer" || type == "boolean", "Controller tree", "unsupported command type");
+		const auto kind = type == "boolean" ? Type::Boolean : Type::Integer;
+		const auto semantics = command.value("semantics", std::string("setting"));
+		binding_require(semantics == "setting" || semantics == "request", "Controller tree",
+		                "unsupported command semantics");
+		const auto index = static_cast<Index>(registry.intents.size());
+		result.commands.push_back({name, add({"command." + name, kind, 4, {}})});
+		registry.intents.push_back({name, kind, 4, {}});
+		registry.actions.push_back({"write." + name, 4, {kind}, semantics == "request", index, none, index, 0});
+		if (command.contains("action"))
+		{
+			const auto *contract = operating_action(command.at("action").get<std::string>());
+			binding_require(contract != nullptr, "Controller tree", "unknown command action");
+			for (const auto &field : operating_arguments(contract->action))
+				registry.actions.back().arguments.push_back(Type::Integer);
+		}
+	}
+	for (const auto &binding : gameplay_record_bindings(tree, catalog))
+		result.records.push_back({{binding, add({binding.name, binding.type, 4, {}})}, {}});
+	for (const auto &binding : controller_telemetry_bindings(tree, catalog))
+		result.telemetry.push_back({binding, add({binding.name, binding.type, 4, {}})});
+	for (const auto &binding : controller_command_reads(tree, catalog))
+		result.command_reads.push_back({binding, add({binding.name, binding.type, 4, {}})});
+	const std::vector<FieldSpec> inbox{
+	    {"message.available", Type::Boolean, 4, {}},     {"message.id", Type::Message, 4, {}},
+	    {"message.source", Type::Integer, 4, {}},        {"message.source_console", Type::Console, 4, {}},
+	    {"message.schema", Type::Text, 4, {}},           {"message.subject", Type::Entity, 4, {}},
+	    {"message.observed_tick", Type::Integer, 4, {}}, {"message.delivered_tick", Type::Integer, 4, {}},
+	    {"message.uncertainty", Type::Integer, 4, {}},   {"message.kind", Type::Integer, 4, {}},
+	    {"message.urgency", Type::Integer, 4, {}},       {"message.request_key", Type::Text, 4, {}}};
+	for (std::size_t i = 0; i < inbox.size(); ++i)
+		result.inbox.values.at(i) = add(inbox[i]);
+	for (const auto &binding : controller_message_reads(tree, catalog))
+		result.messages.push_back({binding, add({binding.name, binding.type, 4, {}})});
+
+	const auto publications = resolved.value("publication_templates", Json::array());
+	binding_require(publications.is_array() && publications.size() <= 128, "Controller tree",
+	                "expected bounded publication_templates");
+	std::set<std::string> publication_names;
+	for (const auto &entry : publications)
+	{
+		const auto name = entry.get<std::string>();
+		binding_require(valid_identifier(name) && publication_names.insert(name).second, "Controller tree",
+		                "invalid or duplicate publication template");
+		registry.actions.push_back({"publish." + name, 4, {}, true});
+	}
+	registry.actions.push_back({"stop_publication", 4, {Type::Integer}, true});
+	registry.actions.push_back({"withdraw_request", 4, {Type::Text}, true});
+	registry.actions.push_back({"acknowledge_message", 4, {Type::Message}, true});
+	for (const auto &name : controller_message_templates(tree, catalog))
+	{
+		ActionSpec action{"send." + name, 4, {Type::Integer, Type::Boolean, Type::Text}, true};
+		action.capture_context = true;
+		registry.actions.push_back(std::move(action));
+	}
+	for (std::size_t i = 0; i < commands.size(); ++i)
+		if (commands[i].contains("action"))
+			for (const auto &field :
+			     operating_arguments(operating_action(commands[i].at("action").get<std::string>())->action))
+				result.commands[i].arguments.push_back(add(
+				    {"command." + result.commands[i].channel + "." + std::string(field.name), Type::Integer, 4, {}}));
+	for (auto &binding : result.records)
+	{
+		std::size_t i = 0;
+		for (const auto *field : {"available", "observed_tick", "received_tick", "source", "uncertainty", "kind",
+		                          "withdrawn", "stale", "revision", "subject"})
+			binding.metadata.values.at(i++) =
+			    add({binding.source.name + "." + field,
+			         std::string_view(field) == "available" || std::string_view(field) == "withdrawn" ||
+			                 std::string_view(field) == "stale"
+			             ? Type::Boolean
+			             : Type::Integer,
+			         4,
+			         {}});
+	}
+	for (auto &command : result.commands)
+	{
+		std::size_t i = 0;
+		for (const auto *field : {"accepted", "revision", "consumed", "request_id", "pending"})
+			command.metadata.values.at(i++) =
+			    add({"command." + command.channel + "." + field,
+			         std::string_view(field) == "accepted" || std::string_view(field) == "pending" ? Type::Boolean
+			                                                                                       : Type::Integer,
+			         4,
+			         {}});
+	}
+	for (const auto &binding : controller_contact_bindings(tree, catalog))
+	{
+		ControllerContactRead read{binding};
+		std::size_t i = 0;
+		for (const auto *field :
+		     {"available", "id", "x", "y", "vx", "vy", "heading", "speed", "observed_tick", "uncertainty"})
+			read.fields.values.at(i++) = add({binding.name + "." + field,
+			                                  std::string_view(field) == "available" ? Type::Boolean : Type::Integer,
+			                                  4,
+			                                  {}});
+		result.contacts.push_back(std::move(read));
+	}
+	std::size_t result_index = 0;
+	for (const auto &field : std::vector<FieldSpec>{{"result.available", Type::Boolean, 4, {}},
+	                                                {"result.success", Type::Boolean, 4, {}},
+	                                                {"result.id", Type::Integer, 4, {}},
+	                                                {"result.publication", Type::Integer, 4, {}},
+	                                                {"result.message", Type::Message, 4, {}},
+	                                                {"result.reason", Type::Text, 4, {}}})
+		result.result.values.at(result_index++) = add(field);
+	return result;
+}
 state_tree::Registry gameplay_registry(const Json &tree, const Catalog &catalog, state_tree::Context context)
 {
+	if (context == state_tree::Context::Controller)
+		return compile_controller_bindings(tree, catalog).registry;
 	const auto inherited = resolve_record_bindings(tree, catalog);
 	binding_require(!inherited.context || inherited.context == context,
 	                "trees." + tree.value("id", std::string("<inline>")) + ".context",
 	                "registry context differs from authored tree");
-	if (context == state_tree::Context::Controller)
-	{
-		using namespace state_tree;
-		Registry registry;
-		registry.observations = {{"self_entity", Type::Entity, 4, {}},
-		                         {"self_console", Type::Console, 4, {}},
-		                         {"tick", Type::Integer, 4, {}}};
-		for (const auto *name : {"own.x", "own.y", "own.vx", "own.vy", "own.heading"})
-			registry.observations.push_back({name, Type::Integer, 4, {}});
-		const auto resolved = resolve_tree_definition(tree, catalog);
-		binding_require(!resolved.contains("summary_bindings"), "Controller tree",
-		                "use owned command channels instead of System summary intents");
-		const auto commands = resolved.value("command_bindings", Json::array());
-		binding_require(commands.is_array() && commands.size() <= 256, "Controller tree",
-		                "expected bounded command_bindings");
-		for (const auto &command : commands)
-		{
-			const auto name = command.at("channel").get<std::string>();
-			binding_require(valid_identifier(name), "Controller tree", "invalid command channel");
-			const auto type = command.value("type", std::string("integer"));
-			binding_require(type == "integer" || type == "boolean", "Controller tree", "unsupported command type");
-			const auto kind = type == "boolean" ? Type::Boolean : Type::Integer;
-			const auto semantics = command.value("semantics", std::string("setting"));
-			binding_require(semantics == "setting" || semantics == "request", "Controller tree",
-			                "unsupported command semantics");
-			const auto index = static_cast<Index>(registry.intents.size());
-			registry.observations.push_back({"command." + name, kind, 4, {}});
-			registry.intents.push_back({name, kind, 4, {}});
-			registry.actions.push_back({"write." + name, 4, {kind}, semantics == "request", index, none, index, 0});
-			if (command.contains("action"))
-			{
-				const auto *contract = operating_action(command.at("action").get<std::string>());
-				binding_require(contract != nullptr, "Controller tree", "unknown command action");
-				for (const auto &field : operating_arguments(contract->action))
-					registry.actions.back().arguments.push_back(Type::Integer);
-			}
-		}
-		for (const auto &binding : gameplay_record_bindings(tree, catalog))
-			registry.observations.push_back({binding.name, binding.type, 4, {}});
-		for (const auto &binding : controller_telemetry_bindings(tree, catalog))
-			registry.observations.push_back({binding.name, binding.type, 4, {}});
-		for (const auto &binding : controller_command_reads(tree, catalog))
-			registry.observations.push_back({binding.name, binding.type, 4, {}});
-		const std::vector<FieldSpec> inbox{
-		    {"message.available", Type::Boolean, 4, {}},     {"message.id", Type::Message, 4, {}},
-		    {"message.source", Type::Integer, 4, {}},        {"message.source_console", Type::Console, 4, {}},
-		    {"message.schema", Type::Text, 4, {}},           {"message.subject", Type::Entity, 4, {}},
-		    {"message.observed_tick", Type::Integer, 4, {}}, {"message.delivered_tick", Type::Integer, 4, {}},
-		    {"message.uncertainty", Type::Integer, 4, {}},   {"message.kind", Type::Integer, 4, {}},
-		    {"message.urgency", Type::Integer, 4, {}},       {"message.request_key", Type::Text, 4, {}}};
-		registry.observations.insert(registry.observations.end(), inbox.begin(), inbox.end());
-		for (const auto &binding : controller_message_reads(tree, catalog))
-			registry.observations.push_back({binding.name, binding.type, 4, {}});
-
-		const auto publications = resolved.value("publication_templates", Json::array());
-		binding_require(publications.is_array() && publications.size() <= 128, "Controller tree",
-		                "expected bounded publication_templates");
-		std::set<std::string> publication_names;
-		for (const auto &entry : publications)
-		{
-			const auto name = entry.get<std::string>();
-			binding_require(valid_identifier(name) && publication_names.insert(name).second, "Controller tree",
-			                "invalid or duplicate publication template");
-			registry.actions.push_back({"publish." + name, 4, {}, true});
-		}
-		registry.actions.push_back({"stop_publication", 4, {Type::Integer}, true});
-		registry.actions.push_back({"withdraw_request", 4, {Type::Text}, true});
-		registry.actions.push_back({"acknowledge_message", 4, {Type::Message}, true});
-		for (const auto &name : controller_message_templates(tree, catalog))
-		{
-			ActionSpec action{"send." + name, 4, {Type::Integer, Type::Boolean, Type::Text}, true};
-			action.capture_context = true;
-			registry.actions.push_back(std::move(action));
-		}
-		for (const auto &command : commands)
-			if (command.contains("action"))
-				for (const auto &field :
-				     operating_arguments(operating_action(command.at("action").get<std::string>())->action))
-					registry.observations.push_back(
-					    {"command." + command.at("channel").get<std::string>() + "." + std::string(field.name),
-					     Type::Integer,
-					     4,
-					     {}});
-		for (const auto &binding : gameplay_record_bindings(tree, catalog))
-			for (const auto *field : {"available", "observed_tick", "received_tick", "source", "uncertainty", "kind",
-			                          "withdrawn", "stale", "revision", "subject"})
-				registry.observations.push_back({binding.name + "." + field,
-				                                 std::string_view(field) == "available" ||
-				                                         std::string_view(field) == "withdrawn" ||
-				                                         std::string_view(field) == "stale"
-				                                     ? Type::Boolean
-				                                     : Type::Integer,
-				                                 4,
-				                                 {}});
-		for (const auto &command : commands)
-			for (const auto *field : {"accepted", "revision", "consumed", "request_id", "pending"})
-				registry.observations.push_back(
-				    {"command." + command.at("channel").get<std::string>() + "." + field,
-				     std::string_view(field) == "accepted" || std::string_view(field) == "pending" ? Type::Boolean
-				                                                                                   : Type::Integer,
-				     4,
-				     {}});
-		for (const auto &binding : controller_contact_bindings(tree, catalog))
-			for (const auto *field :
-			     {"available", "id", "x", "y", "vx", "vy", "heading", "speed", "observed_tick", "uncertainty"})
-				registry.observations.push_back({binding.name + "." + field,
-				                                 std::string_view(field) == "available" ? Type::Boolean : Type::Integer,
-				                                 4,
-				                                 {}});
-
-		for (const auto &field : std::vector<FieldSpec>{{"result.available", Type::Boolean, 4, {}},
-		                                                {"result.success", Type::Boolean, 4, {}},
-		                                                {"result.id", Type::Integer, 4, {}},
-		                                                {"result.publication", Type::Integer, 4, {}},
-		                                                {"result.message", Type::Message, 4, {}},
-		                                                {"result.reason", Type::Text, 4, {}}})
-			registry.observations.push_back(field);
-		return registry;
-	}
 	auto registry = gameplay_tree_registry(context, gameplay_record_bindings(tree, catalog));
 	for (const auto &binding : gameplay_summary_bindings(tree, catalog))
 		registry.observations.push_back(

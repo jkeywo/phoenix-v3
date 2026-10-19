@@ -394,10 +394,15 @@ struct World::Impl
 						if (content.tree_programs.contains(spec.tree))
 						{
 							controller.brain = ControllerBrain{content.tree_programs.at(spec.tree), spec.tree};
-							controller.telemetry_reads =
-							    controller_telemetry_bindings(content.trees.at(spec.tree), content);
-							for (const auto &binding : controller_command_reads(content.trees.at(spec.tree), content))
+							auto &brain = *controller.brain;
+							const auto &bindings = content.controller_bindings.at(spec.tree);
+							brain.own = bindings.own;
+							brain.inbox = bindings.inbox;
+							brain.result = bindings.result;
+							brain.telemetry_reads = bindings.telemetry;
+							for (const auto &read : bindings.command_reads)
 							{
+								const auto &binding = read.source;
 								const auto target = std::find_if(
 								    result.layout->controllers.begin(), result.layout->controllers.end(),
 								    [&](const auto &candidate)
@@ -409,12 +414,13 @@ struct World::Impl
 								                                  {
 									                                  return candidate.id == binding.channel;
 								                                  });
-								controller.command_reads.emplace_back(target - result.layout->controllers.begin(),
-								                                      channel - target->commands.begin());
+								brain.command_reads.push_back(
+								    {static_cast<std::size_t>(target - result.layout->controllers.begin()),
+								     static_cast<std::size_t>(channel - target->commands.begin()), read.destination});
 							}
-							for (const auto &binding :
-							     controller_contact_bindings(content.trees.at(spec.tree), content))
+							for (const auto &read : bindings.contacts)
 							{
+								const auto &binding = read.source;
 								const auto target = std::find_if(
 								    result.layout->controllers.begin(), result.layout->controllers.end(),
 								    [&](const auto &candidate)
@@ -426,28 +432,33 @@ struct World::Impl
 								                                  {
 									                                  return candidate.id == binding.channel;
 								                                  });
-								controller.contact_reads.emplace_back(target - result.layout->controllers.begin(),
-								                                      channel - target->commands.begin());
+								brain.contact_reads.push_back(
+								    {static_cast<std::size_t>(target - result.layout->controllers.begin()),
+								     static_cast<std::size_t>(channel - target->commands.begin()), read.fields});
 							}
-							for (const auto &action : controller.brain->program.registry.actions)
-								if (action.name.starts_with("write."))
-									controller.tree_channels.push_back(static_cast<std::size_t>(
-									    std::find_if(spec.commands.begin(), spec.commands.end(),
-									                 [&](const auto &command)
-									                 {
-										                 return "write." + command.id == action.name;
-									                 }) -
-									    spec.commands.begin()));
-							for (const auto &binding : controller_message_reads(content.trees.at(spec.tree), content))
+							for (const auto &binding : bindings.commands)
+								brain.commands.push_back(
+								    {binding,
+								     static_cast<std::size_t>(std::find_if(spec.commands.begin(), spec.commands.end(),
+								                                           [&](const auto &command)
+								                                           {
+									                                           return command.id == binding.channel;
+								                                           }) -
+								                              spec.commands.begin())});
+							for (const auto &binding : bindings.messages)
 							{
-								RecordReadBinding read;
-								read.schema = content.knowledge_definition.schema(binding.schema);
-								read.field = content.knowledge_definition.field(read.schema, binding.field);
-								controller.message_reads.push_back(read);
+								RuntimeRecordRead read;
+								read.destination = binding.destination;
+								read.schema = content.knowledge_definition.schema(binding.source.schema);
+								read.field = content.knowledge_definition.field(read.schema, binding.source.field);
+								brain.message_reads.push_back(read);
 							}
-							for (const auto &binding : gameplay_record_bindings(content.trees.at(spec.tree), content))
+							for (const auto &compiled : bindings.records)
 							{
-								RecordReadBinding read;
+								const auto &binding = compiled.source;
+								RuntimeRecordRead read;
+								read.destination = compiled.destination;
+								read.metadata = compiled.metadata;
 								read.shared = binding.scope == GameplayTreeRecordScope::Ship;
 								read.schema = content.knowledge_definition.schema(binding.schema);
 								read.field = content.knowledge_definition.field(read.schema, binding.field);
@@ -661,10 +672,12 @@ struct World::Impl
 				const auto values = telemetry(id, system.ordinal);
 				knowledge.verify_reporter_fields(definition, system.id, values);
 				for (const auto &controller : data.controller_templates)
-					for (const auto &binding : controller.telemetry_reads)
-						if (binding.system == system.id && !values.contains(binding.field))
-							throw std::runtime_error("Controller observation field unavailable on fitted System " +
-							                         system.id + ": " + binding.field);
+					if (controller.brain)
+						for (const auto &read : controller.brain->telemetry_reads)
+							if (const auto &binding = read.source;
+							    binding.system == system.id && !values.contains(binding.field))
+								throw std::runtime_error("Controller observation field unavailable on fitted System " +
+								                         system.id + ": " + binding.field);
 			}
 		construction.indexed = true;
 		next_entity = std::max(next_entity, id + 1);

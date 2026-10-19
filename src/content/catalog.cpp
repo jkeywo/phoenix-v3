@@ -689,10 +689,20 @@ void verify_prepared_catalog(const Catalog &catalog)
 void prepare_catalog(Catalog &catalog)
 {
 	catalog.tree_programs.clear();
+	catalog.controller_bindings.clear();
 	for (const auto &[id, tree] : catalog.trees)
 		if (const auto context = contextual_tree(catalog.trees, id))
-			catalog.tree_programs.emplace(
-			    id, state_tree::compile(tree, gameplay_registry(tree, catalog, *context), catalog.trees));
+		{
+			if (*context == state_tree::Context::Controller)
+			{
+				auto bindings = compile_controller_bindings(tree, catalog);
+				catalog.tree_programs.emplace(id, state_tree::compile(tree, bindings.registry, catalog.trees));
+				catalog.controller_bindings.emplace(id, std::move(bindings));
+			}
+			else
+				catalog.tree_programs.emplace(
+				    id, state_tree::compile(tree, gameplay_registry(tree, catalog, *context), catalog.trees));
+		}
 		else
 			verify_tree(tree, "trees." + id);
 	for (const auto &[id, map] : catalog.maps)

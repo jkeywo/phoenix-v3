@@ -7,11 +7,36 @@ struct RecordReadBinding
 	KnowledgeKey schema = 0, field = 0;
 	KnowledgeId subject = 0;
 };
+struct RuntimeRecordRead : RecordReadBinding
+{
+	std::size_t destination = 0;
+	ControllerDestinations<ControllerRecordField> metadata;
+};
+struct RuntimeCommandRead
+{
+	std::size_t controller = 0, channel = 0, destination = 0;
+};
+struct RuntimeContactRead
+{
+	std::size_t controller = 0, channel = 0;
+	ControllerDestinations<ControllerContactField> fields;
+};
+struct RuntimeCommandBinding : ControllerCommandBinding
+{
+	std::size_t channel_index = 0;
+};
 struct ControllerBrain
 {
 	state_tree::Program program;
 	std::string tree;
-	std::vector<RecordReadBinding> reads;
+	ControllerDestinations<ControllerOwnField> own;
+	ControllerDestinations<ControllerInboxField> inbox;
+	ControllerDestinations<ControllerResultField> result;
+	std::vector<RuntimeCommandBinding> commands;
+	std::vector<RuntimeRecordRead> reads, message_reads;
+	std::vector<ControllerRead<ControllerTelemetryBinding>> telemetry_reads;
+	std::vector<RuntimeCommandRead> command_reads;
+	std::vector<RuntimeContactRead> contact_reads;
 	state_tree::Instance continuation;
 	state_tree::Debug debug;
 };
@@ -36,10 +61,6 @@ struct ConsoleControllerRuntime
 	std::uint64_t generation = 1;
 	std::optional<Controller> timed;
 	std::optional<ControllerBrain> brain;
-	std::vector<std::size_t> tree_channels;
-	std::vector<ControllerTelemetryBinding> telemetry_reads;
-	std::vector<std::pair<std::size_t, std::size_t>> command_reads, contact_reads;
-	std::vector<RecordReadBinding> message_reads;
 	ActionResult result;
 	std::set<std::string> effects;
 };
