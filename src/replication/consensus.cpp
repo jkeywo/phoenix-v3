@@ -133,6 +133,8 @@ struct PeerConsensus::Impl
 	std::size_t dirty_from = 0;
 	explicit Impl(PeerRoster roster) : config(std::move(roster))
 	{
+		if (config.checkpoint_frames == 0 || config.checkpoint_frames > max_entries)
+			throw std::runtime_error("Invalid checkpoint frame interval");
 		std::set<std::string> members(config.members.begin(), config.members.end());
 		if (!valid_identifier(config.session) || !valid_identifier(config.self) ||
 		    members.size() != config.members.size() || members.empty() || members.size() > 16 ||
@@ -826,7 +828,7 @@ bool PeerConsensus::checkpoint_due() const
 {
 	const auto &s = *impl_;
 	return !s.write && s.role != PeerRole::failed && s.published == s.commit && s.commit > 0 &&
-	       (s.commit - s.base >= 4096 || s.journal_bytes >= 32 * 1024 * 1024);
+	       (s.commit - s.base >= s.config.checkpoint_frames || s.journal_bytes >= 32 * 1024 * 1024);
 }
 bool PeerConsensus::checkpoint(const WireJson &state)
 {

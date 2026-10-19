@@ -64,6 +64,10 @@ void large_network_knowledge(Json &definitions)
 }
 int fleet_journey(NetworkOptions options)
 {
+	// Exercise automatic compaction through the real host and flushed journal
+	// without requiring thousands of durable writes within a wall-clock budget.
+	constexpr std::uint64_t checkpoint_frames = 64;
+	options.checkpoint_frames = checkpoint_frames;
 	auto require = [](bool value, const char *message)
 	{
 		if (!value)
@@ -198,6 +202,7 @@ int fleet_journey(NetworkOptions options)
 	};
 	auto until = [&](const std::function<bool()> &done)
 	{
+		std::cout << "FLEET_STAGE " << stage << " at tick " << hosts[0]->ticks() << std::endl;
 		auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(20);
 		auto progress = hosts[0]->ticks();
 		while (!done())
@@ -397,9 +402,13 @@ int fleet_journey(NetworkOptions options)
 	until(
 	    [&]
 	    {
-		    return hosts[0]->ticks() > before + 4100 &&
+		    const bool checkpoint_ticks = hosts[0]->ticks() > before + checkpoint_frames + 4;
+		    if (checkpoint_ticks)
+			    advance = false;
+		    return checkpoint_ticks &&
 		           std::chrono::steady_clock::now() - disconnected > std::chrono::milliseconds(3500);
 	    });
+	advance = true;
 	accelerated = false;
 	hosts[2] = make(2);
 	stage = "returning snapshot member";
@@ -444,7 +453,8 @@ int fleet_journey(NetworkOptions options)
 		const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
 		while (!(stored = journal->poll()) && std::chrono::steady_clock::now() < deadline)
 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
-		require(stored && stored->error.empty() && stored->restored.at("base").get<std::uint64_t>() >= 4096 &&
+		require(stored && stored->error.empty() &&
+		            stored->restored.at("base").get<std::uint64_t>() >= checkpoint_frames &&
 		            stored->restored.contains("snapshot"),
 		        "Playable host did not persist its automatic checkpoint");
 	}

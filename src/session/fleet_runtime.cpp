@@ -98,6 +98,7 @@ struct FleetRuntime::Impl
 		FleetOptions config;
 		config.roster.session = setup->plan.at("session");
 		config.roster.self = setup->self;
+		config.roster.checkpoint_frames = options.checkpoint_frames;
 		for (const auto &[peer, slot] : setup->plan.at("members").items())
 			config.roster.members.push_back(peer);
 		config.link = options.link;

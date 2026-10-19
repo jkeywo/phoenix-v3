@@ -199,7 +199,7 @@ class NetworkHost final : public SessionPort
 		game_ = std::make_unique<GameExecution>(
 		    world_, std::map<std::string, std::string>{{member_, world_->setup().local_slot}});
 		journal_ = std::make_unique<DurableConsensus>(
-		    PeerRoster{epoch_, member_, {member_}},
+		    PeerRoster{epoch_, member_, {member_}, options_.checkpoint_frames},
 		    options_.data_location + "/peers/" + options_.profile + "-" + epoch_ + ".journal", JournalRecovery::fresh);
 		message_ = "Opening durable ship-server log";
 	}

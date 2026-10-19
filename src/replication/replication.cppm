@@ -15,6 +15,8 @@ struct PeerRoster
 {
 	std::string session, self;
 	std::vector<std::string> members;
+	// Local storage cadence; it is not part of the fixed roster's identity.
+	std::uint64_t checkpoint_frames = 4096;
 };
 enum class PeerRole
 {

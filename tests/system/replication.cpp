@@ -28,14 +28,14 @@ struct Cluster
 	std::vector<std::string> roster;
 	Catalog content;
 	std::string restart_during_snapshot;
-	explicit Cluster(std::vector<std::string> peers) : roster(std::move(peers))
+	explicit Cluster(std::vector<std::string> peers, std::uint64_t checkpoint_frames = 4096) : roster(std::move(peers))
 	{
 		auto pack =
 		    phoenix::test::fixture_pack(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "test-core");
 		content = resolve_packs({read_pack(write_pack(pack))});
 		for (const auto &id : roster)
 		{
-			nodes[id] = std::make_unique<PeerConsensus>(PeerRoster{"synthetic-session", id, roster});
+			nodes[id] = std::make_unique<PeerConsensus>(PeerRoster{"synthetic-session", id, roster, checkpoint_frames});
 			worlds[id] = std::make_unique<World>();
 			worlds[id]->load(content, "test.map");
 			worlds[id]->claim(1, 1);
@@ -296,6 +296,20 @@ int main()
 		        "Automatic threshold can checkpoint production world");
 		threshold.pump();
 		require(!threshold.nodes.at("solo")->checkpoint_due(), "Successful checkpoint resets the frame/byte threshold");
+		Cluster frequent({"solo"}, 16);
+		frequent.advance(4000);
+		for (int i = 0; i < 15; ++i)
+		{
+			require(frequent.nodes.at("solo")->propose(frame(i, 1000)), "Local checkpoint cadence accepts frames");
+			frequent.pump();
+		}
+		require(frequent.nodes.at("solo")->checkpoint_due() &&
+		            frequent.nodes.at("solo")->checkpoint({{"world", frequent.worlds["solo"]->save()}}),
+		        "Configured cadence checkpoints through the normal applied-world boundary");
+		frequent.pump();
+		PeerConsensus retuned({"synthetic-session", "solo", {"solo"}, 32}, frequent.disk["solo"]);
+		require(retuned.checkpoint_index() == frequent.nodes.at("solo")->checkpoint_index(),
+		        "Changing local storage cadence preserves durable roster identity and checkpoint recovery");
 		pair.advance(4000);
 		auto pair_leader = pair.leader();
 		require(!pair_leader.empty(), "Two connected peers must elect normally");

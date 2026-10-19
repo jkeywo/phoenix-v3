@@ -95,6 +95,8 @@ struct NetworkOptions
 	std::map<std::string, LobbyAdmission> lobby_tickets;
 	std::string player_name = "Player";
 	Bytes avatar;
+	// Local journal compaction policy, independent of gameplay and peer identity.
+	std::uint64_t checkpoint_frames = 4096;
 };
 // The frontend sees content and projections, never the authoritative ECS.
 class SessionPort

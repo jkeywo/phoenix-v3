@@ -434,6 +434,7 @@ test(
 		const address = await service.listen();
 		const directory = mkdtempSync(join(tmpdir(), "phoenix-playable-fleet-"));
 		let child;
+		let output = "";
 		try {
 			child = spawn(
 				process.env.PHOENIX_SESSION_PROBE,
@@ -448,7 +449,6 @@ test(
 				],
 				{ windowsHide: true, signal: context.signal },
 			);
-			let output = "";
 			child.stdout.on("data", (data) => {
 				output += data;
 			});
@@ -462,6 +462,7 @@ test(
 			assert.equal(code, 0, output);
 			assert.match(output, /PASS playable fleet/);
 		} finally {
+			if (context.signal.aborted) context.diagnostic(output || "No native probe output before cancellation");
 			if (child && child.exitCode === null && child.signalCode === null) {
 				child.kill();
 				await new Promise((resolve) => child.once("exit", resolve));
