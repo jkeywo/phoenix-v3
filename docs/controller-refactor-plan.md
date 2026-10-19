@@ -295,3 +295,9 @@ Both production packs verify. Independent manually triggered production World sm
 A separate compiler conversion produces explicit Controller layouts for unambiguous legacy ownership and timed policies, preserving vector/inertial capability, spawn heading, enabled state and resource setting defaults. Generated layouts pass the normal explicit compiler. System-context decision trees and summary-intent presets require explicit migration; ambiguous or out-of-range timed writes are refused. The source catalogue is unchanged.
 
 Independent content build and integration suite pass, including single timed ownership, source immutability, physical defaults and diagnostic refusal cases. This helper is not yet the live runtime entry point; activation and removal of the old dispatch are the next step.
+
+## Remote Controller continuation receipt
+
+The real three-host signaling journey now uses explicit Controllers and preference channels. It operates a shared reserve throttle, changes complexity and Away state, receives a targeted factual report, and recovers through checkpoint/rejoin while preserving a consumed impulse request identity and refusing its obsolete operator envelope.
+
+Independent native/session builds and the 25.5-second playable-fleet journey pass. The journey also verifies majority continuation, returning-member snapshot transfer, durable journal owner recovery, scoped scenario evidence and resource continuation. This closes the combined remote continuation acceptance gap; legacy dispatch removal and the final native/WASM/graphical audit remain pending.

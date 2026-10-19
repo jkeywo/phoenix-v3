@@ -135,13 +135,47 @@ int fleet_journey(NetworkOptions options)
 		 {"id":"ready","running":[{"action":"set_storage_charge_limit",
 		  "arguments":[{"observation":"self.system"},"cell",{"observation":"summary.level"}]}]}]}
 	])json");
-	definitions["entities"][0]["controllers"] = {{"storage", "test.storage-summary"}};
-	definitions["entities"][0]["default_preset"] = "direct";
-	definitions["entities"][0]["presets"] = Json::parse(R"json([
-		{"id":"direct","consoles":{"sensors":{"direct":["reserve","search","side","storage"],"delegated":[]}}},
-		{"id":"assisted","consoles":{"sensors":{"direct":["reserve","search","side"],"delegated":["storage"],
-		 "summary_intents":[{"system":"storage","channel":"charge","levels":[200,400,800],"default":200}]}}}
-	])json");
+	auto &layout_ship = definitions["entities"][0];
+	layout_ship["motion_model"] = "inertial";
+	layout_ship["systems"]["reserve2"] = layout_ship["systems"]["reserve"];
+	layout_ship["systems"]["reserve2"]["impulse"] = {{"charge_ticks", 20}};
+	auto &console_rows = layout_ship["stations"][0]["consoles"];
+	for (auto &console : console_rows)
+	{
+		console["feeds"] = console["systems"];
+		console["systems"] = Json::array();
+	}
+	console_rows[1]["feeds"].push_back("reserve2");
+	layout_ship["control_layout"] = Json::parse(R"json({"schema":1,"default_profile":"direct",
+      "controllers":[
+       {"id":"drive","console":"helm","fallback":"hold","commands":[{"id":"speed_mm_s","action":"speed_mm_s","maximum":15000,"consumers":["drive"]}]},
+       {"id":"steering","console":"helm","fallback":"hold","commands":[{"id":"heading_mdeg","action":"heading_mdeg","consumers":["steering"]}]},
+       {"id":"reserve","console":"sensors","fallback":"hold","commands":[
+         {"id":"speed_mm_s","action":"speed_mm_s","maximum":15000,"consumers":["reserve","reserve2"]},
+         {"id":"assisted","action":"assisted","initial":1,"consumers":["reserve","reserve2"]},
+         {"id":"longitudinal_thrust","action":"longitudinal_thrust","consumers":["reserve","reserve2"]},
+         {"id":"impulse","action":"impulse","consumers":["reserve2"]}]},
+       {"id":"search","console":"sensors","fallback":"hold","commands":[{"id":"radar_enabled","action":"radar_enabled","initial":1,"consumers":["search"]}]},
+       {"id":"side","console":"sensors","fallback":"hold","commands":[{"id":"lateral_thrust","action":"lateral_thrust","consumers":["side"]}]},
+       {"id":"storage","console":"sensors","tree":"test.storage-summary","commands":[{"id":"charge_limit","action":"charge_limit","initial":400,"maximum":8000,"consumers":["storage"]}]},
+       {"id":"preference","console":"sensors","fallback":"hold","commands":[{"id":"level","action":"intent_integer","initial":200,"minimum":0,"maximum":800,"consumers":[]}]}],
+      "profiles":[
+       {"id":"direct","consoles":{"helm":{"human":["drive","steering"]},"sensors":{"human":["reserve","search","side","storage","preference"]}}},
+       {"id":"assisted","consoles":{"helm":{"human":["drive","steering"]},"sensors":{"human":["reserve","search","side","preference"],"ai":["storage"]}}}]
+    })json");
+	definitions["trees"][1] = Json::parse(R"json({"id":"test.storage-summary","context":"controller","initial":"ready",
+       "command_bindings":[{"channel":"charge_limit"}],
+       "command_reads":[{"name":"preference","controller":"preference","channel":"level"}],
+       "states":[{"id":"ready","running":[{"action":"write.charge_limit","arguments":[{"observation":"preference"}]}]}]})json");
+	definitions["knowledge"] = Json::parse(
+	    R"json({"roles":["crew"],"schemas":[{"id":"test.fact","producers":["crew"],"readers":["crew"],"fields":[{"id":"amount","type":"integer"},{"id":"flag","type":"boolean"},{"id":"detail","type":"text"}]}]})json");
+	definitions["consoles"][1]["knowledge_roles"] = {"crew"};
+	definitions["consoles"][1]["knowledge_producers"] = {"crew"};
+	layout_ship["message_templates"] = {"test.high-throttle"};
+	definitions["messages"] = Json::parse(
+	    R"json([{"id":"test.high-throttle","schema":"test.fact","destination":{"kind":"controller","console":"sensors","id":"reserve"},"title_key":"High throttle","body_key":"Requested speed exceeds the reporting threshold.","delay_ticks":1,"automatic":false,"fields":{"amount":{"argument":"amount"},"flag":{"argument":"flag"},"detail":{"argument":"detail"}}}])json");
+	layout_ship["systems"]["reserve"]["reporters"] =
+	    Json::parse(R"json([{"id":"high","field":"requested","above":500,"message":"test.high-throttle"}])json");
 	auto original_slot = definitions["maps"][0]["ship_slots"][0];
 	for (int i = 2; i <= 3; ++i)
 	{
@@ -285,66 +319,135 @@ int fleet_journey(NetworkOptions options)
 	const auto objective = objectives(*client->observation()).front();
 	require(objective.contains("observed_tick") && objective.contains("uncertainty"),
 	        "Remote objective knowledge lost its provenance");
+	auto human = [&](const std::string &id)
+	{
+		const auto current_view = client->observation();
+		for (const auto &owner : current_view->gameplay.at("controllers"))
+			if (owner.at("id") == id)
+				return owner.at("human").get<bool>();
+		return false;
+	};
+	// Walk real current descriptors for numeric buttons; every step crosses the authenticated transport.
+	auto send = [&](const std::shared_ptr<SessionPort> &port, OperatingCommand input)
+	{
+		if (input.action == "preset" || input.action == "away")
+			return port->command(input);
+		std::string owner = input.system, channel = input.action;
+		if (channel == "intent_integer")
+		{
+			owner = "preference";
+			channel = "level";
+		}
+		if (owner.empty())
+			owner = channel == "radar_enabled" ? "search" : (port == client ? "reserve" : "drive");
+		for (int step = 0; step < 50; ++step)
+		{
+			const auto view = port->observation();
+			if (!view)
+				return false;
+			Json section;
+			for (const auto &candidate : view->gameplay.value("controllers", Json::array()))
+				if (candidate.at("id") == owner)
+					section = candidate;
+			if (section.is_null() || !section.at("human").get<bool>() || !section.at("commands").contains(channel))
+				return false;
+			const auto state = section.at("commands").at(channel);
+			if (input.value < state.at("minimum").get<std::int64_t>() ||
+			    input.value > state.at("maximum").get<std::int64_t>())
+				return false;
+			const auto current = state.at("value").get<std::int64_t>();
+			if (current == input.value)
+				return true;
+			std::optional<OperatingCommand> selected;
+			for (const auto &descriptor : view->gameplay.value("controls", Json::array()))
+			{
+				if (descriptor.value("controller", std::string{}) != owner ||
+				    descriptor.value("channel", std::string{}) != channel)
+					continue;
+				const auto value = descriptor.at("value").get<std::int64_t>();
+				if (value == input.value || (input.value > current && value > current && value < input.value) ||
+				    (input.value < current && value < current && value > input.value))
+					if (!selected || std::abs(input.value - value) < std::abs(input.value - selected->value))
+						selected = decode_operating_command(descriptor);
+			}
+			if (!selected)
+				return false;
+			if (!port->command(*selected))
+				return false;
+			const auto committed = selected->value;
+			until(
+			    [&]
+			    {
+				    const auto updated = port->observation();
+				    if (!updated)
+					    return false;
+				    for (const auto &candidate : updated->gameplay.value("controllers", Json::array()))
+					    if (candidate.at("id") == owner)
+						    return candidate.at("commands").at(channel).at("value") == committed;
+				    return false;
+			    });
+		}
+		return false;
+	};
 	const auto controls = client->observation()->gameplay.value("controls", Json::array());
 	require(std::any_of(controls.begin(), controls.end(),
 	                    [](const auto &value)
 	                    {
-		                    return value.at("action") == "lateral_thrust" && value.at("system") == "side";
+		                    return value.at("action") == "lateral_thrust" &&
+		                           value.value("controller", std::string{}) == "side";
 	                    }),
 	        "Remote gameplay projection omitted admitted semantic controls");
 	stage = "remote semantic controls";
-	require(!client->command({ship, "summary.unprojected", 800, "storage"}) &&
-	            !client->command({ship, "preset", 99, {}}) && client->command({ship, "preset", 1, {}}),
+	require(!send(client, {ship, "unprojected", 800, "storage"}) && !send(client, {ship, "preset", 99, {}}) &&
+	            send(client, {ship, "preset", 1, {}}),
 	        "Remote meta commands must match an exact current permitted descriptor");
 	until(
 	    [&]
 	    {
-		    return !fitted(*client->observation(), "storage").controlled &&
-		           remote_value("storage", "charge_limit") == 200;
+		    return !human("storage") && remote_value("storage", "charge_limit") == 200;
 	    });
-	require(client->command({ship, "summary.charge", 800, "storage"}) &&
-	            !client->command({ship, "summary.charge", 900, "storage"}),
-	        "Delegated summary controls must retain the authored level choices");
+	require(send(client, {ship, "intent_integer", 800, "preference"}) &&
+	            !send(client, {ship, "intent_integer", 900, "preference"}),
+	        "Controller preference controls must retain authored bounds");
 	until(
 	    [&]
 	    {
 		    return remote_value("storage", "charge_limit") == 800;
 	    });
-	// Retire the temporary high summary intent before direct takeover. During
+	// Retire the temporary high preference before direct takeover. During
 	// recovery a legitimately unoccupied tick may run this same AI backfill;
 	// its retained intent must agree with the human setting being recovered.
-	require(client->command({ship, "summary.charge", 400, "storage"}),
-	        "Remote storage summary could not retire its temporary high intent");
+	require(send(client, {ship, "intent_integer", 400, "preference"}),
+	        "Remote storage preference could not retire its temporary high intent");
 	until(
 	    [&]
 	    {
 		    return remote_value("storage", "charge_limit") == 400;
 	    });
-	require(client->command({ship, "delegate", 0, "storage"}),
+	require(send(client, {ship, "preset", 0, {}}),
 	        "Remote take-control descriptor was refused for its own delegated System");
 	until(
 	    [&]
 	    {
-		    return fitted(*client->observation(), "storage").controlled;
+		    return human("storage");
 	    });
-	require(client->command({ship, "preset", 0, {}}) && client->command({ship, "away", 1, {}}),
+	require(send(client, {ship, "preset", 0, {}}) && send(client, {ship, "away", 1, {}}),
 	        "Remote direct preset and Away descriptors were refused");
 	until(
 	    [&]
 	    {
-		    return !fitted(*client->observation(), "reserve").controlled;
+		    return !human("reserve");
 	    });
-	require(!client->command({ship, "longitudinal_thrust", 1000, "reserve"}) &&
-	            !client->command({ship, "away", 1, {}}) && client->command({ship, "away", 0, {}}),
+	require(!send(client, {ship, "longitudinal_thrust", 1000, "reserve"}) && !send(client, {ship, "away", 1, {}}) &&
+	            send(client, {ship, "away", 0, {}}),
 	        "Away must remove ordinary controls and require the current resume descriptor");
 	until(
 	    [&]
 	    {
-		    return fitted(*client->observation(), "reserve").controlled;
+		    return human("reserve");
 	    });
 	stage = "remote paid manual controls";
-	require(client->command({ship, "assisted", 0, "reserve"}) &&
-	            !hosts[0]->command({ship, "lateral_thrust", 1000, "side"}),
+	require(send(client, {ship, "assisted", 0, "reserve"}) && !send(hosts[0], {ship, "lateral_thrust", 1000, "side"}),
 	        "Advanced mode admission bypassed fitted Console ownership");
 	until(
 	    [&]
@@ -352,9 +455,9 @@ int fleet_journey(NetworkOptions options)
 		    return remote_value("reserve", "assisted") == 0;
 	    });
 	const auto manual_energy = remote_value("storage", "stored_energy");
-	require(client->command({ship, "longitudinal_thrust", -1000, "reserve"}) &&
-	            client->command({ship, "lateral_thrust", 1000, "side"}) &&
-	            client->command({ship, "charge_limit", 400, "storage"}),
+	require(send(client, {ship, "longitudinal_thrust", -1000, "reserve"}) &&
+	            send(client, {ship, "lateral_thrust", 1000, "side"}) &&
+	            send(client, {ship, "charge_limit", 400, "storage"}),
 	        "Remote advanced manual/power controls were refused");
 	until(
 	    [&]
@@ -364,9 +467,8 @@ int fleet_journey(NetworkOptions options)
 		           remote_value("storage", "charge_limit") == 400 &&
 		           remote_value("storage", "stored_energy") < manual_energy;
 	    });
-	require(client->command({ship, "longitudinal_thrust", 0, "reserve"}) &&
-	            client->command({ship, "lateral_thrust", 0, "side"}) &&
-	            client->command({ship, "assisted", 1, "reserve"}),
+	require(send(client, {ship, "longitudinal_thrust", 0, "reserve"}) &&
+	            send(client, {ship, "lateral_thrust", 0, "side"}) && send(client, {ship, "assisted", 1, "reserve"}),
 	        "Remote manual release did not admit exact neutral axes");
 	until(
 	    [&]
@@ -374,26 +476,49 @@ int fleet_journey(NetworkOptions options)
 		    return remote_value("reserve", "longitudinal_thrust") == 0 && remote_value("side", "lateral_thrust") == 0 &&
 		           remote_value("reserve", "assisted") == 1;
 	    });
-	require(client->command({ship, "speed_mm_s", -2000, "reserve"}),
-	        "Remote signed assisted speed request was refused");
+	require(send(client, {ship, "speed_mm_s", -2000, "reserve"}), "Remote signed assisted speed request was refused");
 	until(
 	    [&]
 	    {
 		    return fitted(*client->observation(), "reserve").requested == -2000 &&
 		           client->observation()->requested_speed == -2000;
 	    });
-	require(hosts[0]->command({ship, "speed_mm_s", 2000}) && client->command({ship, "radar_enabled", 0}),
+	require(send(hosts[0], {ship, "speed_mm_s", 2000}) && send(client, {ship, "radar_enabled", 0}),
 	        "Independent fleet Console commands were refused");
-	require(!hosts[0]->command({ship, "radar_enabled", 0}), "Local helm bypassed its System control boundary");
-	require(!client->command({ship, "speed_mm_s", 1000, "drive"}) &&
-	            client->command({ship, "speed_mm_s", 1500, "reserve"}),
+	require(!send(hosts[0], {ship, "radar_enabled", 0}), "Local helm bypassed its System control boundary");
+	require(!send(client, {ship, "speed_mm_s", 1000, "drive"}) && send(client, {ship, "speed_mm_s", 1000, "reserve"}),
 	        "remote commands must retain exact fitted instance ownership");
 	until(
 	    [&]
 	    {
 		    return hosts[0]->observation()->requested_speed == 2000 && !client->observation()->radar_enabled &&
-		           client->observation()->requested_speed == 1500;
+		           client->observation()->requested_speed == 1000 &&
+		           fitted(*client->observation(), "reserve2").requested == 1000 &&
+		           !client->observation()->gameplay.value("messages", Json::array()).empty();
 	    });
+	auto impulse_state = [&]
+	{
+		const auto current_view = client->observation();
+		for (const auto &owner : current_view->gameplay.at("controllers"))
+			if (owner.at("id") == "reserve")
+				return owner.at("commands").at("impulse");
+		throw std::runtime_error("Remote request section missing");
+	};
+	std::optional<OperatingCommand> impulse_request;
+	for (const auto &descriptor : client->observation()->gameplay.value("controls", Json::array()))
+		if (descriptor.value("controller", std::string{}) == "reserve" &&
+		    descriptor.value("channel", std::string{}) == "impulse" && descriptor.at("value") == 1)
+			impulse_request = decode_operating_command(descriptor);
+	require(impulse_request && client->command(*impulse_request), "remote one-shot request admitted");
+	until(
+	    [&]
+	    {
+		    return impulse_state().at("request_id") == impulse_request->request_id &&
+		           !impulse_state().at("pending").get<bool>();
+	    });
+	const auto consumed_impulse = impulse_state();
+	require(!client->command(*impulse_request), "stale request descriptor cannot issue another impulse");
+	const auto reporter_identity = client->observation()->gameplay.at("messages").front().at("id");
 	const auto before = hosts[0]->ticks();
 	stage = "majority checkpoint";
 	hosts[2].reset();
@@ -430,10 +555,10 @@ int fleet_journey(NetworkOptions options)
 	auto initial = read_fleet_setup(bundle);
 	const auto checkpoint = parse_json(read_pack(portable).files().at("session.json"), "fleet checkpoint").at("state");
 	const auto recovered_state = recovered.world->authoritative_world().save();
-	require(checkpoint.at("schema") == 4 && recovered_state.at("schema") == 4 &&
+	require(checkpoint.at("schema") == 5 && recovered_state.at("schema") == 5 &&
 	            checkpoint.at("scenario") == recovered_state.at("scenario") &&
 	            checkpoint.at("scenario").at("runtime").at("objectives").size() == 1,
-	        "Portable fleet envelope lost schema-4 scenario continuation or replayed its one-shot objective");
+	        "Portable fleet envelope lost schema-5 scenario continuation or replayed its one-shot objective");
 	require(checkpoint.at("bodies").size() == recovered_state.at("bodies").size(),
 	        "Portable fitted fleet recovery changed the actor roster");
 	for (std::size_t i = 0; i < checkpoint.at("bodies").size(); ++i)
@@ -467,7 +592,7 @@ int fleet_journey(NetworkOptions options)
 	    {
 		    return hosts[0]->observation() && client->observation() && hosts[0]->ticks() > saved_tick;
 	    });
-	require(client->observation()->console == "sensors" && client->command({ship, "radar_enabled", 1}),
+	require(client->observation()->console == "sensors" && send(client, {ship, "radar_enabled", 1}),
 	        "Checkpoint recovery lost approved crew ownership or sequence renewal");
 	stage = "restored crew command";
 	until(
@@ -475,6 +600,13 @@ int fleet_journey(NetworkOptions options)
 	    {
 		    return client->observation() && client->observation()->radar_enabled;
 	    });
+	require(impulse_state().at("request_id") == consumed_impulse.at("request_id") &&
+	            impulse_state().at("consumed") == consumed_impulse.at("consumed") && !client->command(*impulse_request),
+	        "checkpoint rejoin preserves consumed request identity and rejects old envelope replay");
+	const auto restored_messages = client->observation()->gameplay.value("messages", Json::array());
+	require(restored_messages.size() == 1 && restored_messages.front().at("id") == reporter_identity,
+	        "routed physical report is not duplicated by checkpoint/rejoin");
+	require_value("Durable shared second engine", fitted(*client->observation(), "reserve2").requested, 1000);
 	require_value("Durable storage charge_limit", remote_value("storage", "charge_limit"), 400);
 	require_value("Durable reserve minimum_speed", remote_value("reserve", "minimum_speed"), -5000);
 	require_value("Durable reserve longitudinal_thrust", remote_value("reserve", "longitudinal_thrust"), 0);
