@@ -1,3 +1,5 @@
+#include "../support/assertions.hpp"
+#include "../support/fixtures.hpp"
 #include <filesystem>
 #include <chrono>
 #include <thread>
@@ -15,11 +17,7 @@ import phoenix.fleet_setup;
 import phoenix.wire;
 
 using namespace phoenix;
-void require(bool value, const char *message)
-{
-	if (!value)
-		throw std::runtime_error(message);
-}
+using phoenix::test::require;
 struct Temporary
 {
 	std::filesystem::path root = std::filesystem::temp_directory_path() / ("phoenix-server-" + random_token());
@@ -71,10 +69,8 @@ int main()
 	try
 	{
 		Temporary storage;
-		PackDraft pack;
-		pack.manifest = {{"schema", 1}, {"id", "test-core"}};
-		pack.files["definitions.json"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json");
-		pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+		auto pack =
+		    phoenix::test::fixture_pack(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "test-core");
 		auto source = make_host_world();
 		source->add_pack(write_pack(pack));
 		const auto bundle = export_fleet_setup(*source, {"test.map", {{"test.slot", "test.ship"}}, "test.slot"},

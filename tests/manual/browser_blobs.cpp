@@ -1,3 +1,4 @@
+#include "../support/fixtures.hpp"
 #include <emscripten.h>
 #include <iostream>
 #include <cstdint>
@@ -48,10 +49,8 @@ void frame()
 			{
 				if (require_existing)
 					throw std::runtime_error("Previously cached pack did not survive reload");
-				PackDraft pack;
-				pack.manifest = {{"schema", 1}, {"id", "test-core"}};
-				pack.files["definitions.json"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json");
-				pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+				auto pack = phoenix::test::fixture_pack(
+				    read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "test-core");
 				auto archive = write_pack(pack);
 				resolve_packs({read_pack(archive)});
 				store->write(2, "synthetic-pack", archive);

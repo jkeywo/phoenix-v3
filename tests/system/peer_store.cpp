@@ -1,3 +1,5 @@
+#include "../support/assertions.hpp"
+#include "../support/polling.hpp"
 #include <chrono>
 #include <filesystem>
 #include <fstream>
@@ -16,21 +18,10 @@ import phoenix.content;
 import phoenix.persistence;
 
 using namespace phoenix;
-void require(bool value, const char *message)
-{
-	if (!value)
-		throw std::runtime_error(message);
-}
+using phoenix::test::require;
 PeerStoreResult wait(PeerStore &store)
 {
-	const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
-	do
-	{
-		if (auto value = store.poll())
-			return *value;
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-	} while (std::chrono::steady_clock::now() < deadline);
-	throw std::runtime_error("Peer store completion timed out");
+	return phoenix::test::wait(store, "Peer store completion timed out");
 }
 int main()
 {

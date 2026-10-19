@@ -1,3 +1,4 @@
+#include "../support/fixtures.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -28,10 +29,7 @@ Json action(std::string name, Json args)
 }
 Catalog load_fixture(const Json &data)
 {
-	PackDraft pack;
-	pack.manifest = {{"schema", 1}, {"id", "test-core"}};
-	pack.files["definitions.json"] = json_bytes(data);
-	pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+	auto pack = phoenix::test::fixture_pack(json_bytes(data), "test-core");
 	return resolve_packs({read_pack(write_pack(pack))});
 }
 Catalog fixture(bool fitted = false)

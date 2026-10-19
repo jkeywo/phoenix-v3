@@ -1,3 +1,5 @@
+#include "../support/assertions.hpp"
+#include "../support/fixtures.hpp"
 #include <iostream>
 #include <algorithm>
 #include <cstdint>
@@ -15,11 +17,7 @@ import phoenix.simulation;
 using namespace phoenix;
 namespace
 {
-void require(bool condition, const char *message)
-{
-	if (!condition)
-		throw std::runtime_error(message);
-}
+using phoenix::test::require;
 Json transform(int id, const char *definition, std::int64_t x, std::int64_t y = 0, std::int64_t heading = 0)
 {
 	return {{"id", id}, {"definition", definition}, {"x_mm", x}, {"y_mm", y}, {"heading_mdeg", heading}};
@@ -59,10 +57,7 @@ Json fixture(bool moving_box, bool target_box, bool dynamic_target, std::int64_t
 }
 Catalog load(const Json &definition)
 {
-	PackDraft draft;
-	draft.manifest = {{"schema", 1}, {"id", "sweep-test"}};
-	draft.files["definitions.json"] = json_bytes(definition);
-	draft.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+	auto draft = phoenix::test::fixture_pack(json_bytes(definition), "sweep-test");
 	return resolve_packs({read_pack(write_pack(draft))});
 }
 void drive(World &world, std::uint64_t claimant, EntityId entity)

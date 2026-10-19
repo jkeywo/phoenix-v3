@@ -1,3 +1,5 @@
+#include "../support/assertions.hpp"
+#include "../support/fixtures.hpp"
 #include <iostream>
 #include <cstdint>
 #include <map>
@@ -13,11 +15,7 @@ import phoenix.wire;
 import phoenix.session.execution;
 
 using namespace phoenix;
-void require(bool value, const char *message)
-{
-	if (!value)
-		throw std::runtime_error(message);
-}
+using phoenix::test::require;
 int main()
 {
 	try
@@ -28,10 +26,7 @@ int main()
 		second["id"] = "test.second";
 		second["x_mm"] = 50000;
 		definitions["maps"][0]["ship_slots"].push_back(second);
-		PackDraft pack;
-		pack.manifest = {{"schema", 1}, {"id", "test-core"}};
-		pack.files["definitions.json"] = json_bytes(definitions);
-		pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+		auto pack = phoenix::test::fixture_pack(json_bytes(definitions), "test-core");
 		const auto exact = write_pack(pack);
 		auto source = make_host_world();
 		source->add_pack(exact);
@@ -80,31 +75,23 @@ int main()
 			require(a.apply("ship1", claim) && !a.apply("ship1", request),
 			        "confirmed replacement cannot revive the old lease");
 		}
-		bool private_refused = false;
-		try
-		{
-			PackSource accidental({bundle});
-		}
-		catch (const std::exception &)
-		{
-			private_refused = true;
-		}
-		require(private_refused, "A private fleet setup must never be advertised as a gameplay pack to clients");
-		bool refused = false;
-		try
-		{
-			read_fleet_setup(bundle, "outsider");
-		}
-		catch (const std::exception &)
-		{
-			refused = true;
-		}
-		require(refused, "A setup cannot admit a server outside the fixed roster");
+		phoenix::test::rejects(
+		    [&]
+		    {
+			    PackSource accidental({bundle});
+		    },
+		    "A private fleet setup must never be advertised as a gameplay pack to clients");
+		phoenix::test::rejects(
+		    [&]
+		    {
+			    read_fleet_setup(bundle, "outsider");
+		    },
+		    "A setup cannot admit a server outside the fixed roster");
 		auto invalid = read_pack(bundle).draft();
 		auto plan = parse_json(invalid.files.at("fleet.json"), "fleet.json");
 		plan["members"]["ship2"] = plan["members"]["ship1"];
 		invalid.files["fleet.json"] = json_bytes(plan);
-		refused = false;
+		bool refused = false;
 		try
 		{
 			read_fleet_setup(write_pack(invalid), "ship1");

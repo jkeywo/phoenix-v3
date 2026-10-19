@@ -1,3 +1,5 @@
+#include "../support/assertions.hpp"
+#include "../support/fixtures.hpp"
 #include <iostream>
 #include <set>
 #include <stdexcept>
@@ -14,11 +16,7 @@ import phoenix.replication;
 import phoenix.simulation;
 
 using namespace phoenix;
-void require(bool result, const char *message)
-{
-	if (!result)
-		throw std::runtime_error(message);
-}
+using phoenix::test::require;
 struct Cluster
 {
 	std::map<std::string, std::unique_ptr<PeerConsensus>> nodes;
@@ -32,10 +30,8 @@ struct Cluster
 	std::string restart_during_snapshot;
 	explicit Cluster(std::vector<std::string> peers) : roster(std::move(peers))
 	{
-		PackDraft pack;
-		pack.manifest = {{"schema", 1}, {"id", "test-core"}};
-		pack.files["definitions.json"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json");
-		pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+		auto pack =
+		    phoenix::test::fixture_pack(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "test-core");
 		content = resolve_packs({read_pack(write_pack(pack))});
 		for (const auto &id : roster)
 		{
@@ -239,16 +235,12 @@ int main()
 			if (entry.value.at("kind") != "consensus-noop")
 				replay.push_back(entry.value);
 		require(replay == fleet.applied[returning], "Restart must replay exactly the durable committed prefix");
-		bool refused = false;
-		try
-		{
-			PeerConsensus wrong({"different-session", returning, fleet.roster}, durable);
-		}
-		catch (const std::exception &)
-		{
-			refused = true;
-		}
-		require(refused, "Durable state must be bound to the fixed roster, local identity and session epoch");
+		phoenix::test::rejects(
+		    [&]
+		    {
+			    PeerConsensus wrong({"different-session", returning, fleet.roster}, durable);
+		    },
+		    "Durable state must be bound to the fixed roster, local identity and session epoch");
 
 		Cluster pair({"x", "y"});
 		Cluster compact({"a", "b", "c"});

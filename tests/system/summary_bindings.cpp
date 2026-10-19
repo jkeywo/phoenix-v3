@@ -1,3 +1,5 @@
+#include "../support/assertions.hpp"
+#include "../support/fixtures.hpp"
 #include <algorithm>
 #include <cstdint>
 #include <iostream>
@@ -13,19 +15,8 @@ import phoenix.simulation;
 namespace
 {
 using namespace phoenix;
-void require(bool value, const char *message)
-{
-	if (!value)
-		throw std::runtime_error(message);
-}
-Catalog load(const Json &definition)
-{
-	PackDraft pack;
-	pack.manifest = {{"schema", 1}, {"id", "test-core"}};
-	pack.files["definitions.json"] = json_bytes(definition);
-	pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
-	return resolve_packs({read_pack(write_pack(pack))});
-}
+using phoenix::test::load;
+using phoenix::test::require;
 Json fixture(bool summaries = true)
 {
 	auto data = parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"),
@@ -104,16 +95,12 @@ void advance(World &world)
 }
 void refused(Json source, const char *message)
 {
-	bool failed = false;
-	try
-	{
-		(void)load(source);
-	}
-	catch (const std::exception &)
-	{
-		failed = true;
-	}
-	require(failed, message);
+	phoenix::test::rejects(
+	    [&]
+	    {
+		    (void)load(source);
+	    },
+	    message);
 }
 void workshop_channel_authoring()
 {
@@ -151,10 +138,7 @@ void workshop_channel_authoring()
 	    {"kind", "coolant"}, {"power_store", "$pump_power"}, {"energy_per_second", 1}, {"cooling_link", "cooling"}};
 	source["assemblies"][0]["resources"]["cooling_links"] = Json::array(
 	    {{{"id", "cooling"}, {"source", "pump"}, {"store", "reserve"}, {"capacity_rate", 10}, {"allocation_rate", 1}}});
-	PackDraft dependency;
-	dependency.manifest = {{"schema", 1}, {"id", "test-core"}};
-	dependency.files["definitions.json"] = json_bytes(source);
-	dependency.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+	auto dependency = phoenix::test::fixture_pack(json_bytes(source), "test-core");
 	const auto archive = write_pack(dependency);
 	WorkshopDocument document;
 	document.load_dependency(archive);

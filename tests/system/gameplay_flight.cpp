@@ -1,3 +1,5 @@
+#include "../support/assertions.hpp"
+#include "../support/fixtures.hpp"
 #include <algorithm>
 #include <array>
 #include <cstddef>
@@ -24,11 +26,7 @@ import phoenix.console;
 using namespace phoenix;
 namespace
 {
-void require(bool value, const char *contract)
-{
-	if (!value)
-		throw std::runtime_error(contract);
-}
+using phoenix::test::require;
 Json fixture()
 {
 	auto source =
@@ -69,18 +67,8 @@ Json fixture()
 	                 {{"id", 2}, {"definition", "test.ship"}, {"x_mm", 50000}, {"y_mm", 0}, {"heading_mdeg", 0}}});
 	return source;
 }
-Bytes archive(const Json &definitions)
-{
-	PackDraft draft;
-	draft.manifest = {{"schema", 1}, {"id", "test-core"}};
-	draft.files["definitions.json"] = json_bytes(definitions);
-	draft.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
-	return write_pack(draft);
-}
-Catalog load(const Json &definitions)
-{
-	return resolve_packs({read_pack(archive(definitions))});
-}
+using phoenix::test::archive;
+using phoenix::test::load;
 BodyView body(const World &world, EntityId id = 1)
 {
 	for (const auto &item : world.inspect())

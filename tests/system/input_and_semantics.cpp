@@ -1,3 +1,4 @@
+#include "../support/assertions.hpp"
 #include <iostream>
 #include <algorithm>
 #include <nlohmann/json.hpp>
@@ -15,11 +16,7 @@ import phoenix.input;
 import phoenix.navigation;
 
 using namespace phoenix;
-void require(bool value, const char *contract)
-{
-	if (!value)
-		throw std::runtime_error(contract);
-}
+using phoenix::test::require;
 int main()
 {
 	try

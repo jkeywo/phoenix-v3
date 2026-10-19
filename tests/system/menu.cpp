@@ -1,3 +1,5 @@
+#include "../support/assertions.hpp"
+#include "../support/fixtures.hpp"
 #include <filesystem>
 #include <iostream>
 #include <memory>
@@ -9,11 +11,7 @@
 import phoenix.menu;
 import phoenix.session.local;
 using namespace phoenix;
-void require(bool value, const char *message)
-{
-	if (!value)
-		throw std::runtime_error(message);
-}
+using phoenix::test::require;
 int main()
 {
 	try
@@ -41,16 +39,12 @@ int main()
 		{
 			auto invalid = skin_source;
 			invalid.update(patch);
-			bool rejected = false;
-			try
-			{
-				MenuSkin::parse(invalid, .5f);
-			}
-			catch (const std::exception &)
-			{
-				rejected = true;
-			}
-			require(rejected, "Invalid slice bounds, markers and resource paths are rejected");
+			phoenix::test::rejects(
+			    [&]
+			    {
+				    MenuSkin::parse(invalid, .5f);
+			    },
+			    "Invalid slice bounds, markers and resource paths are rejected");
 		}
 		// A nested library must not exceed Windows path limits just for its temporary writes.
 		const auto directory = "menu-integration-" + random_token() + "/nested-library";
@@ -69,10 +63,8 @@ int main()
 		            library.preferences.master_volume == 50 && library.preferences.language == "en" &&
 		            library.preferences.dust_motes && library.preferences.reference_grid,
 		        "First launch has English and half volume");
-		PackDraft draft;
-		draft.manifest = {{"schema", 1}, {"id", "test-core"}};
-		draft.files["definitions.json"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json");
-		draft.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+		auto draft =
+		    phoenix::test::fixture_pack(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "test-core");
 		const auto archive = write_pack(draft);
 		PackDraft addon;
 		addon.manifest = {{"schema", 1}, {"id", "test-practice"}, {"dependencies", {"test-core"}}};

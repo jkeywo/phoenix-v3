@@ -1,3 +1,5 @@
+#include "../support/assertions.hpp"
+#include "../support/fixtures.hpp"
 #include <algorithm>
 #include <cstdint>
 #include <exception>
@@ -17,31 +19,16 @@ import phoenix.simulation;
 using namespace phoenix;
 namespace
 {
-void require(bool condition, const char *contract)
-{
-	if (!condition)
-		throw std::runtime_error(contract);
-}
-Catalog load(const Json &definitions)
-{
-	PackDraft pack;
-	pack.manifest = {{"schema", 1}, {"id", "test-core"}};
-	pack.files["definitions.json"] = json_bytes(definitions);
-	pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
-	return resolve_packs({read_pack(write_pack(pack))});
-}
+using phoenix::test::load;
+using phoenix::test::require;
 void refused(const Json &definitions, const char *contract)
 {
-	bool rejected = false;
-	try
-	{
-		(void)load(definitions);
-	}
-	catch (const std::exception &)
-	{
-		rejected = true;
-	}
-	require(rejected, contract);
+	phoenix::test::rejects(
+	    [&]
+	    {
+		    (void)load(definitions);
+	    },
+	    contract);
 }
 Json fixture()
 {
@@ -844,16 +831,12 @@ void reject_saved(const Catalog &catalog, const Json &state, const char *contrac
 	World target;
 	target.load(catalog, "test.map");
 	const auto before = target.save();
-	bool rejected = false;
-	try
-	{
-		target.restore(catalog, state);
-	}
-	catch (const std::exception &)
-	{
-		rejected = true;
-	}
-	require(rejected, contract);
+	phoenix::test::rejects(
+	    [&]
+	    {
+		    target.restore(catalog, state);
+	    },
+	    contract);
 	require(target.save() == before, "failed continuation restore leaves the live World unchanged");
 }
 void remove_knowledge_ship(Json &state, EntityId ship)

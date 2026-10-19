@@ -1,3 +1,4 @@
+#include "../support/fixtures.hpp"
 #include <chrono>
 #include <iostream>
 #include <thread>
@@ -47,10 +48,7 @@ int main(int argc, char **argv)
 				slot["x_mm"] = i * 30000;
 				data["maps"][0]["ship_slots"].push_back(slot);
 			}
-			PackDraft pack;
-			pack.manifest = {{"schema", 1}, {"id", "test-core"}};
-			pack.files["definitions.json"] = json_bytes(data);
-			pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+			auto pack = phoenix::test::fixture_pack(json_bytes(data), "test-core");
 			auto source = make_host_world();
 			source->add_pack(write_pack(pack));
 			write_file(bundle_path, export_fleet_setup(*source, {"test.map", {{"test.slot", "test.ship"}}, "test.slot"},

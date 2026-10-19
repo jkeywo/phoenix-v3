@@ -1,3 +1,6 @@
+#include "../support/assertions.hpp"
+#include "../support/fixtures.hpp"
+#include "../support/polling.hpp"
 #include <chrono>
 #include <filesystem>
 #include <iostream>
@@ -15,21 +18,10 @@ import phoenix.blobs;
 import phoenix.wire;
 
 using namespace phoenix;
-void require(bool result, const char *message)
-{
-	if (!result)
-		throw std::runtime_error(message);
-}
+using phoenix::test::require;
 BlobResult wait(BlobStore &store)
 {
-	auto end = std::chrono::steady_clock::now() + std::chrono::seconds(10);
-	do
-	{
-		if (auto result = store.poll())
-			return *result;
-		std::this_thread::sleep_for(std::chrono::milliseconds(1));
-	} while (std::chrono::steady_clock::now() < end);
-	throw std::runtime_error("Blob store completion timed out");
+	return phoenix::test::wait(store, "Blob store completion timed out");
 }
 int main()
 {
@@ -51,10 +43,8 @@ int main()
 		require(store->read(1, "missing"), "Missing cache lookup must be accepted");
 		auto missing = wait(*store);
 		require(!missing.bytes && missing.error.empty(), "A cache miss must differ from storage corruption");
-		PackDraft pack;
-		pack.manifest = {{"schema", 1}, {"id", "test-core"}};
-		pack.files["definitions.json"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json");
-		pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+		auto pack =
+		    phoenix::test::fixture_pack(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "test-core");
 		auto archive = write_pack(pack);
 		auto key = sha256(archive);
 		PackSource source({archive});

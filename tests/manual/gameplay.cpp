@@ -1,3 +1,5 @@
+#include "../support/assertions.hpp"
+#include "../support/fixtures.hpp"
 #include <algorithm>
 #include <array>
 #include <cstddef>
@@ -23,36 +25,10 @@ using namespace phoenix;
 namespace st = phoenix::state_tree;
 namespace
 {
-void require(bool value, const char *contract)
-{
-	if (!value)
-		throw std::runtime_error(contract);
-}
-template <class Function> void rejects(Function function, const char *contract)
-{
-	bool refused = false;
-	try
-	{
-		function();
-	}
-	catch (const std::exception &)
-	{
-		refused = true;
-	}
-	require(refused, contract);
-}
-Bytes archive(Json definitions)
-{
-	PackDraft draft;
-	draft.manifest = {{"schema", 1}, {"id", "test-core"}};
-	draft.files["definitions.json"] = json_bytes(definitions);
-	draft.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
-	return write_pack(draft);
-}
-Catalog load(Json definitions)
-{
-	return resolve_packs({read_pack(archive(std::move(definitions)))});
-}
+using phoenix::test::archive;
+using phoenix::test::load;
+using phoenix::test::rejects;
+using phoenix::test::require;
 Json fixture()
 {
 	auto result =

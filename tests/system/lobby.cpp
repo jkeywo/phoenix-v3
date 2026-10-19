@@ -1,3 +1,4 @@
+#include "../support/assertions.hpp"
 #include <algorithm>
 #include <chrono>
 #include <functional>
@@ -15,11 +16,7 @@ import phoenix.network.client;
 import phoenix.session.local;
 import phoenix.fleet_setup;
 using namespace phoenix;
-void require(bool value, const char *message)
-{
-	if (!value)
-		throw std::runtime_error(message);
-}
+using phoenix::test::require;
 int main(int argc, char **argv)
 {
 	try

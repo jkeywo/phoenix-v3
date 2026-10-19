@@ -1,3 +1,4 @@
+#include "../support/assertions.hpp"
 // Explicit graphical smoke, not an automatic golden or performance gate.
 #include <raylib.h>
 #include <rlgl.h>
@@ -29,11 +30,7 @@ Bytes png(Color a, Color b)
 	UnloadImage(image);
 	return result;
 }
-void require(bool condition, const char *message)
-{
-	if (!condition)
-		throw std::runtime_error(message);
-}
+using phoenix::test::require;
 Json material(const std::string &asset, const std::string &normal = "", bool emissive = true)
 {
 	Json j = {

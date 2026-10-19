@@ -1,3 +1,5 @@
+#include "../support/assertions.hpp"
+#include "../support/fixtures.hpp"
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -8,19 +10,13 @@ import phoenix.files;
 import phoenix.content;
 import phoenix.session.local;
 using namespace phoenix;
-void require(bool value, const char *message)
-{
-	if (!value)
-		throw std::runtime_error(message);
-}
+using phoenix::test::require;
 int main()
 {
 	try
 	{
-		PackDraft pack;
-		pack.manifest = {{"schema", 1}, {"id", "test-core"}};
-		pack.files["definitions.json"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json");
-		pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+		auto pack =
+		    phoenix::test::fixture_pack(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "test-core");
 		const auto archive = write_pack(pack);
 		FileImportInbox saves;
 		const auto first_save = saves.begin(FilePurpose::WorkshopPackSave);
@@ -66,16 +62,12 @@ int main()
 		const auto editor_request = workshop.begin(FilePurpose::WorkshopPack);
 		complete_import(game_request, "game.zip", archive);
 		require(!workshop.take(), "Workshop must not consume a completed game request while game is inactive");
-		bool busy = false;
-		try
-		{
-			game.begin(FilePurpose::GameSave);
-		}
-		catch (const std::exception &)
-		{
-			busy = true;
-		}
-		require(busy, "A retained completion must not be overwritten by another request");
+		phoenix::test::rejects(
+		    [&]
+		    {
+			    game.begin(FilePurpose::GameSave);
+		    },
+		    "A retained completion must not be overwritten by another request");
 		complete_import(editor_request, "editor.zip", archive, {}, false, "synthetic/source/editor.zip");
 		auto editor_result = workshop.take();
 		require(editor_result && editor_result->destination == "synthetic/source/editor.zip",

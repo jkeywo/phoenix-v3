@@ -1,3 +1,5 @@
+#include "../support/assertions.hpp"
+#include "../support/fixtures.hpp"
 #include <iostream>
 #include <algorithm>
 #include <stdexcept>
@@ -14,19 +16,8 @@
 import phoenix.simulation;
 
 using namespace phoenix;
-void require(bool value, const char *contract)
-{
-	if (!value)
-		throw std::runtime_error(contract);
-}
-Catalog load(Json definitions)
-{
-	PackDraft pack;
-	pack.manifest = {{"schema", 1}, {"id", "test-core"}};
-	pack.files["definitions.json"] = json_bytes(definitions);
-	pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
-	return resolve_packs({read_pack(write_pack(pack))});
-}
+using phoenix::test::load;
+using phoenix::test::require;
 Json instance(int id, const std::string &definition, int x, int heading = 0)
 {
 	return {{"id", id}, {"definition", definition}, {"x_mm", x}, {"y_mm", 0}, {"heading_mdeg", heading}};
@@ -190,16 +181,12 @@ int main(int argc, char **)
 			require(world.save() == resumed.save(), "per-System continuation is deterministic");
 			auto invalid = stations;
 			invalid["entities"][0]["stations"][0]["consoles"][1]["systems"].push_back("engine");
-			bool rejected = false;
-			try
-			{
-				load(invalid);
-			}
-			catch (const std::exception &)
-			{
-				rejected = true;
-			}
-			require(rejected, "authored System ownership cannot overlap");
+			phoenix::test::rejects(
+			    [&]
+			    {
+				    load(invalid);
+			    },
+			    "authored System ownership cannot overlap");
 		}
 		{
 			auto instances = fixture;

@@ -1,3 +1,4 @@
+#include "../support/assertions.hpp"
 #include <iostream>
 #include <cstdint>
 #include <map>
@@ -14,11 +15,7 @@ import phoenix.workshop_test;
 using namespace phoenix;
 namespace
 {
-void require(bool condition, const char *message)
-{
-	if (!condition)
-		throw std::runtime_error(message);
-}
+using phoenix::test::require;
 WorkshopTestRequest fixture()
 {
 	PackDraft pack;

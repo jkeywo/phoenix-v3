@@ -1,3 +1,5 @@
+#include "../support/assertions.hpp"
+#include "../support/fixtures.hpp"
 #include <iostream>
 #include <stdexcept>
 #include <cstdint>
@@ -15,19 +17,13 @@ import phoenix.console;
 import phoenix.navigation;
 
 using namespace phoenix;
-void require(bool result, const char *message)
-{
-	if (!result)
-		throw std::runtime_error(message);
-}
+using phoenix::test::require;
 int main()
 {
 	try
 	{
-		PackDraft pack;
-		pack.manifest = {{"schema", 1}, {"id", "test-core"}};
-		pack.files["definitions.json"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json");
-		pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+		auto pack =
+		    phoenix::test::fixture_pack(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "test-core");
 		{
 			auto multi_pack = pack;
 			auto data = parse_json(multi_pack.files.at("definitions.json"), "stations fixture");

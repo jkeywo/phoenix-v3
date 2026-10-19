@@ -1,3 +1,5 @@
+#include "../support/assertions.hpp"
+#include "../support/fixtures.hpp"
 #include <iostream>
 #include <algorithm>
 #include <cstddef>
@@ -16,11 +18,7 @@ import phoenix.wire;
 #include "../../src/network/projection.hpp"
 
 using namespace phoenix;
-void require(bool value, const char *message)
-{
-	if (!value)
-		throw std::runtime_error(message);
-}
+using phoenix::test::require;
 void bounded_gameplay_projection(const Catalog &catalog, const std::string &key)
 {
 	Observation view{{1, "test.ship", 0, 0, 0, 0, 0}, {}};
@@ -132,16 +130,12 @@ int main()
 		require(bad_hash && !corrupt.ready(), "A complete projection with the wrong hash must never publish state");
 		auto invalid_state_offer = state_source.offer();
 		invalid_state_offer["size"] = 4 * 1024 * 1024 + 1;
-		bool invalid_state_refused = false;
-		try
-		{
-			StateTransfer rejected(invalid_state_offer);
-		}
-		catch (const std::exception &)
-		{
-			invalid_state_refused = true;
-		}
-		require(invalid_state_refused, "Oversized projections must fail before buffer allocation");
+		phoenix::test::rejects(
+		    [&]
+		    {
+			    StateTransfer rejected(invalid_state_offer);
+		    },
+		    "Oversized projections must fail before buffer allocation");
 		auto encoded = encode_packet({"synthetic", "a", "b", "command", {{"value", 42}}}, key);
 		// Independent Node crypto HMAC-SHA256 result for this canonical synthetic envelope.
 		require(Json::parse(encoded).at("mac") == "27940d400d6fdc0c8172869a71baf7bbcd988b63fa696c9a9ac4105b7ec3f548",
@@ -169,10 +163,8 @@ int main()
 		require(token.size() == 64 && token.find_first_not_of("0123456789abcdef") == std::string::npos &&
 		            token != random_token(),
 		        "Platform must supply independent cryptographic session tokens");
-		PackDraft base;
-		base.manifest = {{"schema", 1}, {"id", "test-core"}};
-		base.files["definitions.json"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json");
-		base.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+		auto base =
+		    phoenix::test::fixture_pack(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "test-core");
 		// Incompressible synthetic data forces several bounded transfer chunks.
 		Bytes bulk(65537);
 		std::uint32_t random = 1234567;
@@ -261,21 +253,17 @@ int main()
 		        "Only repaired cache content must be scheduled for persistence");
 		auto bad_offer = source.offer();
 		bad_offer["packs"][0]["size"] = 100000000;
-		bool refused = false;
-		try
-		{
-			PackTransfer::validate_offer(bad_offer);
-		}
-		catch (const std::exception &)
-		{
-			refused = true;
-		}
-		require(refused, "Oversized offers must fail before allocating the advertised archive");
+		phoenix::test::rejects(
+		    [&]
+		    {
+			    PackTransfer::validate_offer(bad_offer);
+		    },
+		    "Oversized offers must fail before allocating the advertised archive");
 		PackTransfer conflict(source.offer());
 		auto chunk = source.chunk({{"pack", 0}, {"offset", 0}});
 		conflict.accept(chunk);
 		chunk["data"] = std::string(chunk.at("data").get<std::string>().size(), 'A');
-		refused = false;
+		bool refused = false;
 		try
 		{
 			conflict.accept(chunk);

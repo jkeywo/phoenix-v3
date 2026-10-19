@@ -1,3 +1,5 @@
+#include "../support/assertions.hpp"
+#include "../support/fixtures.hpp"
 #include <iostream>
 #include <stdexcept>
 #include <cstdint>
@@ -10,33 +12,14 @@
 import phoenix.content;
 
 using namespace phoenix;
-void require(bool value, const char *contract)
-{
-	if (!value)
-		throw std::runtime_error(contract);
-}
-template <class Function> void rejected(Function function, const std::string &diagnostic)
-{
-	try
-	{
-		function();
-	}
-	catch (const std::exception &error)
-	{
-		if (std::string(error.what()).find(diagnostic) != std::string::npos)
-			return;
-		throw;
-	}
-	throw std::runtime_error("Expected refusal: " + diagnostic);
-}
+using phoenix::test::rejected;
+using phoenix::test::require;
 int main()
 {
 	try
 	{
-		PackDraft base;
-		base.manifest = {{"schema", 1}, {"id", "test-core"}};
-		base.files["definitions.json"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json");
-		base.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+		auto base =
+		    phoenix::test::fixture_pack(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "test-core");
 		auto bytes = write_pack(base);
 		auto loaded = read_pack(bytes);
 		require(loaded.hash() == sha256(bytes), "pack identity must be the SHA256 of transferred archive bytes");

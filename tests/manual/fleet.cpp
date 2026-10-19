@@ -1,3 +1,4 @@
+#include "../support/fixtures.hpp"
 #include <chrono>
 #include <thread>
 #include <iostream>
@@ -145,10 +146,7 @@ int main(int argc, char **argv)
 		}
 		if (mismatch)
 			definitions["entities"][0]["systems"]["engine"]["max_speed_mm_s"] = 18000;
-		PackDraft pack;
-		pack.manifest = {{"schema", 1}, {"id", "test-core"}};
-		pack.files["definitions.json"] = json_bytes(definitions);
-		pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+		auto pack = phoenix::test::fixture_pack(json_bytes(definitions), "test-core");
 		if (prepare)
 		{
 			if (fixture.empty())
