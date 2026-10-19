@@ -1,4 +1,74 @@
 // World::Impl methods. Physical mutation is confined to command consumption below.
+std::vector<state_tree::Value> controller_observations(EntityId id, const ConsoleControllerRuntime &controller)
+{
+	using state_tree::Type;
+	using state_tree::Value;
+	const ConsoleAddress address{id, controller.definition.console};
+	const auto &brain = *controller.brain;
+	std::vector<Value> values(brain.program.registry.observations.size());
+	values[0] = Value::reference(Type::Entity, id);
+	values[1] = Value::reference(Type::Console, knowledge.console_id(address));
+	values[2] = Value::integer(ecs.get<Clock>().tick);
+	for (std::size_t i = 0; i < controller.tree_channels.size(); ++i)
+	{
+		const auto field = controller.tree_channels[i];
+		const auto amount = controller.commands[field].value;
+		values[3 + i] = controller.definition.commands[field].type == KnowledgeType::Boolean
+		                    ? Value::boolean(amount != 0)
+		                    : Value::integer(amount);
+	}
+	const auto board = brain_snapshots.contains(address) ? brain_snapshots.at(address) : knowledge.project(address);
+	for (std::size_t i = 0; i < brain.reads.size(); ++i)
+	{
+		const auto &binding = brain.reads[i];
+		const auto &records = binding.shared ? board.shared : board.records;
+		std::set<std::pair<KnowledgeId, KnowledgeId>> seen;
+		for (auto record = records.rbegin(); record != records.rend(); ++record)
+			if (record->value.schema == binding.schema &&
+			    record->value.subject == (binding.subject ? binding.subject : id) &&
+			    seen.emplace(record->value.provenance.source, record->publication).second && !record->value.withdrawn &&
+			    !knowledge.stale(*record, ecs.get<Clock>().tick) && record->value.fields.contains(binding.field))
+			{
+				const auto &value = record->value.fields.at(binding.field);
+				auto &target = values[3 + controller.tree_channels.size() + i];
+				if (auto n = std::get_if<std::int64_t>(&value))
+					target = Value::integer(*n);
+				else if (auto b = std::get_if<bool>(&value))
+					target = Value::boolean(*b);
+				else
+					target = Value::string(std::get<std::string>(value));
+				break;
+			}
+	}
+	return values;
+}
+void controller_output(EntityId id, std::size_t index, const state_tree::Output &output)
+{
+	auto &controller = entities.at(id).get_mut<EntityControls>().controllers.at(index);
+	const auto field = controller.tree_channels.at(output.action);
+	const auto request = controller.definition.commands[field].semantics == CommandSemantics::Request;
+	if (request)
+	{
+		std::string receipt = std::to_string(output.activation) + "/" + std::to_string(output.task);
+		for (std::size_t i = 0; i < output.call_path.size(); ++i)
+			receipt += "/" + std::to_string(output.call_path[i]) + ":" + std::to_string(output.call_activations.at(i));
+		if (controller.effects.contains(receipt))
+			return;
+		if (controller.effects.size() >= 65536)
+			throw std::runtime_error("Controller effect journal exhausted");
+		controller.effects.insert(receipt);
+	}
+	const auto request_id = request ? controller.commands[field].request_id + 1 : 0;
+	controller.result.available = true;
+	controller.result.success = commit_controller({{id, controller.definition.console, controller.definition.id},
+	                                               index,
+	                                               field,
+	                                               output.arguments.at(0).number,
+	                                               controller.generation,
+	                                               request_id,
+	                                               false});
+	controller.result.reason = controller.result.success ? "" : "Controller command refused";
+}
 std::optional<ControllerProposal> controller_proposal(const ConsoleAddress &address, const OperatingCommand &command,
                                                       bool human) const
 {
@@ -99,6 +169,14 @@ void refresh_controllers(EntityId id, bool validate = false)
 			throw std::runtime_error("Saved Controller operator differs from profile/claims");
 		if (human == controller.human)
 			continue;
+		if (!controller.human && controller.brain)
+		{
+			const auto observations = controller_observations(id, controller);
+			const auto result =
+			    state_tree::interrupt(controller.brain->program, controller.brain->continuation, observations);
+			for (const auto &output : result.outputs)
+				controller_output(id, i, output);
+		}
 		if (controller.generation == std::numeric_limits<std::uint64_t>::max())
 			throw std::runtime_error("Controller operator generation exhausted");
 		++controller.generation;
@@ -150,20 +228,32 @@ void run_console_controllers(flecs::entity entity)
 	for (std::size_t i = 0; i < controls.controllers.size(); ++i)
 	{
 		auto &controller = controls.controllers[i];
-		if (controller.human || !controller.timed)
+		if (controller.human)
 			continue;
-		for (const auto &output : step_tree(programs[controller.timed->program], controller.timed->cursor))
-			for (std::size_t j = 0; j < controller.definition.commands.size(); ++j)
-				if (controller.definition.commands[j].action == output.action)
-					commit_controller({{id, controller.definition.console, controller.definition.id},
-					                   i,
-					                   j,
-					                   output.value,
-					                   controller.generation,
-					                   controller.definition.commands[j].semantics == CommandSemantics::Request
-					                       ? controller.commands[j].request_id + 1
-					                       : 0,
-					                   false});
+		if (controller.brain)
+		{
+			auto &brain = *controller.brain;
+			if (brain.continuation.interrupted)
+				state_tree::resume(brain.continuation);
+			const auto observations = controller_observations(id, controller);
+			const auto result = state_tree::step(brain.program, brain.continuation, observations);
+			brain.debug = result.debug;
+			for (const auto &output : result.outputs)
+				controller_output(id, i, output);
+		}
+		if (controller.timed)
+			for (const auto &output : step_tree(programs[controller.timed->program], controller.timed->cursor))
+				for (std::size_t j = 0; j < controller.definition.commands.size(); ++j)
+					if (controller.definition.commands[j].action == output.action)
+						commit_controller({{id, controller.definition.console, controller.definition.id},
+						                   i,
+						                   j,
+						                   output.value,
+						                   controller.generation,
+						                   controller.definition.commands[j].semantics == CommandSemantics::Request
+						                       ? controller.commands[j].request_id + 1
+						                       : 0,
+						                   false});
 	}
 	// Consume changes, not repeated method calls: speed writes must not cancel Match Speed every tick.
 	for (auto &controller : controls.controllers)
@@ -242,6 +332,7 @@ Json save_controllers(flecs::entity entity) const
 			row["timed"] = save_tree(programs[controller.timed->program], controller.timed->cursor);
 		if (controller.brain)
 			row["brain"] = state_tree::save(controller.brain->program, controller.brain->continuation);
+		row["effects"] = controller.effects;
 		result["controllers"].push_back(std::move(row));
 	}
 	return result;
@@ -293,6 +384,14 @@ void restore_controllers(flecs::entity entity, const Json &saved)
 			controller.timed->cursor = load_tree(programs[controller.timed->program], row.at("timed").get<TreeState>());
 		if (controller.brain)
 			controller.brain->continuation = state_tree::load(controller.brain->program, row.at("brain"));
+		const auto &effects = row.at("effects");
+		fail(effects.is_array() && effects.size() <= 65536);
+		for (const auto &effect : effects)
+		{
+			fail(effect.is_string() && !effect.get_ref<const std::string &>().empty() &&
+			     effect.get_ref<const std::string &>().size() <= 2048);
+			fail(controller.effects.insert(effect.get<std::string>()).second);
+		}
 	}
 	controls.profiles = std::move(profiles);
 }

@@ -49,8 +49,11 @@ InheritedRecordBindings inherited_record_bindings(const Json &tree, const Catalo
 	{
 		binding_require(tree.at("context").is_string(), path + ".context", "expected system or scenario");
 		const auto name = tree.at("context").get<std::string>();
-		binding_require(name == "system" || name == "scenario", path + ".context", "expected system or scenario");
-		const auto context = name == "system" ? state_tree::Context::System : state_tree::Context::Scenario;
+		binding_require(name == "system" || name == "scenario" || name == "controller", path + ".context",
+		                "expected system, controller or scenario");
+		const auto context = name == "controller" ? state_tree::Context::Controller
+		                     : name == "system"   ? state_tree::Context::System
+		                                          : state_tree::Context::Scenario;
 		binding_require(!result.context || *result.context == context, path + ".context",
 		                "inherited tree context cannot change");
 		result.context = context;
@@ -188,7 +191,7 @@ std::vector<GameplayTreeRecordBinding> gameplay_record_bindings(const Json &tree
 	}
 	// Use the production vocabulary's limits and name checks, including collisions
 	// with built-in observations. This reads schema metadata only.
-	if (inherited.context)
+	if (inherited.context && inherited.context != state_tree::Context::Controller)
 		(void)gameplay_tree_registry(*inherited.context, result);
 	return result;
 }
@@ -278,6 +281,38 @@ state_tree::Registry gameplay_registry(const Json &tree, const Catalog &catalog,
 	binding_require(!inherited.context || inherited.context == context,
 	                "trees." + tree.value("id", std::string("<inline>")) + ".context",
 	                "registry context differs from authored tree");
+	if (context == state_tree::Context::Controller)
+	{
+		using namespace state_tree;
+		Registry registry;
+		registry.observations = {{"self_entity", Type::Entity, 4, {}},
+		                         {"self_console", Type::Console, 4, {}},
+		                         {"tick", Type::Integer, 4, {}}};
+		const auto resolved = resolve_tree_definition(tree, catalog);
+		binding_require(!resolved.contains("summary_bindings"), "Controller tree",
+		                "use owned command channels instead of System summary intents");
+		const auto commands = resolved.value("command_bindings", Json::array());
+		binding_require(commands.is_array() && commands.size() <= 256, "Controller tree",
+		                "expected bounded command_bindings");
+		for (const auto &command : commands)
+		{
+			const auto name = command.at("channel").get<std::string>();
+			binding_require(valid_identifier(name), "Controller tree", "invalid command channel");
+			const auto type = command.value("type", std::string("integer"));
+			binding_require(type == "integer" || type == "boolean", "Controller tree", "unsupported command type");
+			const auto kind = type == "boolean" ? Type::Boolean : Type::Integer;
+			const auto semantics = command.value("semantics", std::string("setting"));
+			binding_require(semantics == "setting" || semantics == "request", "Controller tree",
+			                "unsupported command semantics");
+			const auto index = static_cast<Index>(registry.intents.size());
+			registry.observations.push_back({"command." + name, kind, 4, {}});
+			registry.intents.push_back({name, kind, 4, {}});
+			registry.actions.push_back({"write." + name, 4, {kind}, semantics == "request", index, none, index, 0});
+		}
+		for (const auto &binding : gameplay_record_bindings(tree, catalog))
+			registry.observations.push_back({binding.name, binding.type, 4, {}});
+		return registry;
+	}
 	auto registry = gameplay_tree_registry(context, gameplay_record_bindings(tree, catalog));
 	for (const auto &binding : gameplay_summary_bindings(tree, catalog))
 		registry.observations.push_back(

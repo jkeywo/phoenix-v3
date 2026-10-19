@@ -188,6 +188,93 @@ int main()
 			std::cerr << Json::diff(automatic.save(), ai_resumed.save()).dump(2) << '\n';
 		require(automatic.save() == ai_resumed.save(),
 		        "Controller decision continuation resumes independently of equipment");
+
+		auto contextual_source = controller_fixture();
+		contextual_source["trees"] = Json::parse(R"json([
+		    {"id":"test.contextual","context":"controller","initial":"root",
+		     "command_bindings":[{"channel":"speed","type":"integer","semantics":"setting"}],
+		     "memory":[{"name":"remembered","type":"integer","initial":5000}],
+		     "states":[
+		       {"id":"root","initial":"operate"},
+		       {"id":"operate","parent":"root","running":[
+		         {"action":"write.speed","arguments":[{"memory":"remembered"}]},
+		         {"memory":"remembered","value":{"intent":"speed"}}
+		       ]}
+		     ]}
+		])json");
+		auto &contextual_definition = contextual_source["entities"][0]["control_layout"]["controllers"][0];
+		contextual_definition.erase("fallback");
+		contextual_definition["tree"] = "test.contextual";
+		const auto contextual_content = load(contextual_source);
+		World contextual, direct;
+		contextual.load(contextual_content, "test.map");
+		direct.load(content, "test.map");
+		require(direct.claim(101, 1, "drive") && direct.submit(101, speed(direct, 101, "propulsion", 5000)),
+		        "human supplies same setting as contextual Controller");
+		for (int tick = 0; tick < 5; ++tick)
+		{
+			contextual.tick();
+			direct.tick();
+			const auto a = contextual.inspect().at(0), b = direct.inspect().at(0);
+			require(a.x == b.x && a.y == b.y && a.vx == b.vx && a.vy == b.vy,
+			        "hierarchical Controller AI and human use equivalent admitted commands");
+		}
+		const auto memory = contextual.save()
+		                        .at("bodies")[0]
+		                        .at("console_controllers")
+		                        .at("controllers")[0]
+		                        .at("brain")
+		                        .at("instance")
+		                        .at("memory");
+		require(contextual.claim(101, 1, "drive"), "human takes over contextual Controller");
+		require(!controller(contextual, 101, "propulsion").contains("memory"),
+		        "private AI memory stays out of Console projection");
+		require(contextual.submit(101, speed(contextual, 101, "propulsion", 7000)),
+		        "human writes after tree interruption");
+		contextual.tick();
+		require(requested(contextual, "port") == 7000, "interrupted AI cannot overwrite human control");
+		require(contextual.save()
+		                .at("bodies")[0]
+		                .at("console_controllers")
+		                .at("controllers")[0]
+		                .at("brain")
+		                .at("instance")
+		                .at("memory") == memory,
+		        "human operation preserves the Controller's private memory");
+		World contextual_resumed;
+		contextual_resumed.restore(contextual_content, contextual.save());
+		require(contextual.release(101) && contextual_resumed.release(101), "ordinary AI resumes on release");
+		for (int tick = 0; tick < 5; ++tick)
+		{
+			contextual.tick();
+			contextual_resumed.tick();
+		}
+		require(contextual.save() == contextual_resumed.save(),
+		        "interrupted hierarchical continuation survives restore");
+		auto forbidden = contextual_source;
+		forbidden["trees"][0]["command_bindings"].push_back({{"channel", "foreign"}, {"type", "integer"}});
+		rejected(
+		    [&]
+		    {
+			    load(forbidden);
+		    },
+		    "unowned command channel");
+		forbidden = contextual_source;
+		forbidden["trees"][0]["states"][1]["running"][0]["arguments"] = Json::array({{{"observation", "self.x"}}});
+		rejects(
+		    [&]
+		    {
+			    load(forbidden);
+		    },
+		    "Controller trees cannot acquire direct physical observations");
+		forbidden = contextual_source;
+		forbidden["trees"][0]["context"] = "scenario";
+		rejects(
+		    [&]
+		    {
+			    load(forbidden);
+		    },
+		    "scenario context cannot operate a Console Controller");
 		std::cout << "PASS Controller sections, physical subscriptions, operator generations and continuation\n";
 		return 0;
 	}

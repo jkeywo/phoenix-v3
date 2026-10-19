@@ -19,7 +19,8 @@ inline constexpr Index none = std::numeric_limits<Index>::max();
 enum class Context : std::uint8_t
 {
 	System = 1,
-	Scenario = 2
+	Scenario = 2,
+	Controller = 4
 };
 enum class Type : std::uint8_t
 {

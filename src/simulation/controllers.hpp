@@ -15,6 +15,7 @@ struct ConsoleControllerRuntime
 	std::uint64_t generation = 1;
 	std::optional<Controller> timed;
 	std::optional<BrainRuntime> brain;
+	std::vector<std::size_t> tree_channels;
 	ActionResult result;
 	std::map<std::string, std::int64_t> summary;
 	std::set<std::string> effects;

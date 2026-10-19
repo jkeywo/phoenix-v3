@@ -659,6 +659,23 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 				                      ": schema reader roles exclude owning Console '" + owner_name + "'");
 			}
 		}
+	for (const auto &[name, ship] : compiled.ships)
+		if (catalog.entities.at(name).contains("control_layout"))
+			for (const auto &controller : compile_controllable_layout(catalog, name).controllers)
+			{
+				if (controller.tree.empty())
+					continue;
+				const auto owner = std::find_if(ship.consoles.begin(), ship.consoles.end(),
+				                                [&](const auto &console)
+				                                {
+					                                return console.console.id == controller.console;
+				                                });
+				knowledge_require(owner != ship.consoles.end(), name + ": unresolved Controller Console");
+				for (const auto &binding : gameplay_record_bindings(catalog.trees.at(controller.tree), catalog))
+					knowledge_require(
+					    knowledge_readable(compiled.knowledge, *owner, compiled.knowledge.schema(binding.schema)),
+					    name + ".control_layout." + controller.id + ": record binding forbidden to owning Console");
+			}
 	return compiled;
 }
 } // namespace phoenix

@@ -461,19 +461,40 @@ struct World::Impl
 					if (!spec.tree.empty())
 					{
 						if (content.tree_programs.contains(spec.tree))
-							throw std::runtime_error(
-							    "Contextual Controller trees require the Controller vocabulary migration");
-						controller.timed = Controller{tree_ids.at(spec.tree), {}};
-						for (const auto &output : programs.at(controller.timed->program).outputs)
-							if (std::count_if(spec.commands.begin(), spec.commands.end(),
-							                  [&](const auto &command)
-							                  {
-								                  return command.action == output.action &&
-								                         output.value >= command.minimum &&
-								                         output.value <= command.maximum;
-							                  }) != 1)
-								throw std::runtime_error(
-								    "Controller timed output requires exactly one compatible owned channel");
+						{
+							controller.brain = BrainRuntime{content.tree_programs.at(spec.tree), spec.tree};
+							for (const auto &action : controller.brain->program.registry.actions)
+								controller.tree_channels.push_back(static_cast<std::size_t>(
+								    std::find_if(spec.commands.begin(), spec.commands.end(),
+								                 [&](const auto &command)
+								                 {
+									                 return "write." + command.id == action.name;
+								                 }) -
+								    spec.commands.begin()));
+							for (const auto &binding : gameplay_record_bindings(content.trees.at(spec.tree), content))
+							{
+								RecordReadBinding read;
+								read.shared = binding.scope == GameplayTreeRecordScope::Ship;
+								read.schema = content.knowledge_definition.schema(binding.schema);
+								read.field = content.knowledge_definition.field(read.schema, binding.field);
+								if (!binding.subject_parameter.empty())
+									read.subject = std::stoull(binding.subject_parameter);
+								controller.brain->reads.push_back(read);
+							}
+						}
+						else
+							controller.timed = Controller{tree_ids.at(spec.tree), {}};
+						if (controller.timed)
+							for (const auto &output : programs.at(controller.timed->program).outputs)
+								if (std::count_if(spec.commands.begin(), spec.commands.end(),
+								                  [&](const auto &command)
+								                  {
+									                  return command.action == output.action &&
+									                         output.value >= command.minimum &&
+									                         output.value <= command.maximum;
+								                  }) != 1)
+									throw std::runtime_error(
+									    "Controller timed output requires exactly one compatible owned channel");
 					}
 					result.controller_templates.push_back(std::move(controller));
 				}
@@ -2426,6 +2447,14 @@ void World::tick()
 		impl_->sensor_snapshot.emplace(body.id, body);
 	impl_->brain_snapshots.clear();
 	impl_->inbox_snapshots.clear();
+	for (const auto &[id, entity] : impl_->entities)
+		if (entity.has<EntityControls>())
+			for (const auto &controller : entity.get<EntityControls>().controllers)
+			{
+				const ConsoleAddress address{id, controller.definition.console};
+				if (!impl_->brain_snapshots.contains(address))
+					impl_->brain_snapshots.emplace(address, impl_->knowledge.project(address));
+			}
 	impl_->autonomous_equipment.each(
 	    [&](const Equipment &fit, const BrainRuntime &)
 	    {

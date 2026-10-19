@@ -201,8 +201,8 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			controller.tree = control_name(row, "tree", where);
 			control_require(catalog.trees.contains(controller.tree), where, "unknown Controller tree");
 			if (catalog.tree_programs.contains(controller.tree))
-				control_require(catalog.tree_programs.at(controller.tree).context == state_tree::Context::System, where,
-				                "scenario tree cannot operate a Controller");
+				control_require(catalog.tree_programs.at(controller.tree).context == state_tree::Context::Controller,
+				                where, "Controller requires a controller-context tree");
 		}
 		else
 			control_require(row.value("fallback", std::string{}) == "hold", where,
@@ -270,6 +270,24 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			                "one-shot request requires a single executor");
 			controller.commands.push_back(std::move(command));
 		}
+		if (!controller.tree.empty() && catalog.tree_programs.contains(controller.tree))
+			for (const auto &action : catalog.tree_programs.at(controller.tree).registry.actions)
+			{
+				const auto channel = action.name.substr(6);
+				const auto found = std::find_if(controller.commands.begin(), controller.commands.end(),
+				                                [&](const auto &command)
+				                                {
+					                                return command.id == channel;
+				                                });
+				control_require(action.name.starts_with("write.") && found != controller.commands.end(), where,
+				                "tree writes an unowned command channel");
+				control_require(action.arguments.size() == 1 &&
+				                    action.arguments.front() == (found->type == KnowledgeType::Boolean
+				                                                     ? state_tree::Type::Boolean
+				                                                     : state_tree::Type::Integer) &&
+				                    action.effect == (found->semantics == CommandSemantics::Request),
+				                where, "tree command type/semantics differs from owned channel");
+			}
 		result.controllers.push_back(std::move(controller));
 	}
 	control_require(layout.contains("profiles") && layout.at("profiles").is_array() && !layout.at("profiles").empty() &&

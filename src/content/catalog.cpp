@@ -115,9 +115,11 @@ std::optional<state_tree::Context> contextual_tree(const std::map<std::string, J
 		if (tree.contains("context"))
 		{
 			const auto context = tree.at("context").get<std::string>();
-			if (context != "system" && context != "scenario")
+			if (context != "system" && context != "scenario" && context != "controller")
 				invalid("trees." + id, "unsupported tree context");
-			return context == "scenario" ? state_tree::Context::Scenario : state_tree::Context::System;
+			return context == "controller" ? state_tree::Context::Controller
+			       : context == "scenario" ? state_tree::Context::Scenario
+			                               : state_tree::Context::System;
 		}
 		if (!tree.contains("extends"))
 			return {};

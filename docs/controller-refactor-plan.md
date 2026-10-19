@@ -125,3 +125,11 @@ Schema 5 World saves preserve Controller command revisions, consumed revisions, 
 Native content, simulation and new Controller runtime integration suites pass. The independent verification agent authored and ran shared/split throttle, real timed-AI/human equivalence, Away/return, clear-claims cancellation, obsolete-generation refusal, forged operator restore refusal, impulse request deduplication and deterministic restore journeys. Changed C++ formatting and whitespace checks pass.
 
 This does not complete step 2: contextual Controller trees, compound destination/follow commands and migration/removal of the old execution paths remain. Observation/reporting, GUI, Workshop, remote continuation, production-content conversion, full native/WASM gate and manual GUI evidence are not yet established.
+
+## Controller-context tree receipt
+
+Controller-context trees now declare owned `command_bindings`, read accepted values as `command.<channel>`, and emit `write.<channel>` proposals through the common commit function. They use the existing hierarchical evaluator, ordered intents, references and private memory. Declared Console/entity record bindings use the same permitted knowledge projection as human readers, frozen before physical execution. Content compilation rejects foreign command declarations, mismatched channel types/semantics and forbidden record-reader roles. Physical component observations and System action handlers are unavailable in this context.
+
+Controller continuations and bounded request-effect journals persist in schema 5. Handover interrupts outgoing trees and resumes private memory when ordinary AI control returns. Independent native integration verification covers hierarchical execution, internal intent readback, equivalent human commands, suppression during human operation, private-memory isolation and restored resume. Content and Controller runtime suites pass.
+
+This is a further foundation, not completion of step 3: the previous System-context runtime remains for old definitions, physical GUI telemetry still needs the common observation boundary, and Controller message vocabulary/provenance-rich observations are pending. The earlier temporary World refusal applies to System/scenario contextual trees, not the new Controller context.
