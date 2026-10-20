@@ -200,13 +200,12 @@ test("portrait and landscape viewport fitting preserves canvas pointer coordinat
 	}
 });
 
-test("title enters from beyond the right edge at twice the panorama speed", () => {
+test("title entrance finishes in three seconds on different viewports", () => {
 	for (const [width, height, period] of [
 		[1000, 600, 400],
 		[4000, 500, 900],
 	]) {
 		const motion = menuMotion(width, height, period);
-		const backgroundSpeed = (2 * Math.max(height * 3, width / 2)) / period;
-		assert.equal(motion.logoDuration * 2 * backgroundSpeed, (width + motion.logoWidth) / 2);
+		assert.equal(motion.logoDuration, 3);
 	}
 });

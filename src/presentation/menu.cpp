@@ -494,7 +494,7 @@ struct NativeMenuScreen::State
 			       "</div>";
 		};
 		using Branch = Application::MenuBranch;
-		std::string markup = "<h1 id=\"menu-title\">Against the Stars</h1>";
+		std::string markup = "<h1 id=\"menu-title\">Against the Stars</h1><div id=\"menu-frame\"></div>";
 		if (!playing)
 		{
 			if (app.screen == Screen::home || modal || !app.can_host)
@@ -1281,10 +1281,15 @@ struct NativeMenuScreen::State
 		if (auto *title = document.GetElementById("menu-title"))
 		{
 			const float logo_width = std::min(300.f, std::max(180.f, region.width - 740.f));
-			const double speed = 4 * std::max(region.height * 3.f, region.width / 2) / panorama_period;
-			const double left = app.reduced_motion ? (region.width - logo_width) / 2
-			                                       : std::max(double((region.width - logo_width) / 2),
-			                                                  region.width - logo_elapsed * speed);
+			const double target = (region.width - logo_width) / 2;
+			const double t = std::clamp(logo_elapsed / 3., 0., 1.);
+			const auto ease = [](double x)
+			{
+				return 1 - (1 - x) * (1 - x);
+			};
+			const double left = app.reduced_motion ? target
+			                    : t < .8           ? region.width + (target - 18 - region.width) * ease(t / .8)
+			                                       : target - 18 + 18 * ease((t - .8) / .2);
 			title->SetProperty("top", "0px");
 			title->SetProperty("left", std::to_string(left) + "px");
 			title->SetProperty("width", std::to_string(logo_width) + "px");
@@ -1602,7 +1607,9 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 	state_->terminal_aspect = terminal_height / terminal_width;
 	state_->terminal_width = terminal.value("display_width", 264.f);
 	std::string styles = state_->button_skin.sprite_sheet("menu-button") + panel.sprite_sheet("menu-panel");
-	styles += "#native-menu { background:transparent; decorator:image(menu/" +
+	styles += "#native-menu { background:transparent; }\n";
+	styles += "#native-menu #menu-frame { position:absolute; left:0; top:0; width:100%; height:100%; "
+	          "pointer-events:none; background:transparent; decorator:image(menu/" +
 	          scene.at("foreground").at("file").get<std::string>() + " cover); }\n";
 	styles +=
 	    "#native-menu #menu-title { color:transparent; font-size:1px; pointer-events:none; decorator:image(menu/" +

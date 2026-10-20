@@ -114,6 +114,7 @@ button.selected {
 	overflow: hidden;
 }
 #menu-frame {
+	z-index: 0;
 	background: var(--menu-frame) center / cover;
 }
 #menu-scutter {
@@ -681,11 +682,15 @@ body.compact .avatar-choices {
 	pointer-events: none;
 	background: var(--menu-logotype) center / contain no-repeat;
 	transform: translateX(-50%);
-	animation: title-arrival var(--logo-duration) linear both;
+	z-index: -1;
+	animation: title-arrival var(--logo-duration) ease-out both;
 }
 @keyframes title-arrival {
 	from {
 		transform: translateX(calc(var(--stage-width) / 2));
+	}
+	80% {
+		transform: translateX(calc(-50% - 18px));
 	}
 	to {
 		transform: translateX(-50%);

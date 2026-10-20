@@ -10,7 +10,7 @@ Logotype: Exact wording "Against" above "the Stars", tucked together in heavy bl
 
 ## Motion
 
-Both renderers keep debris at 1.5 times the panorama speed, with a faint warm rim driven by the existing flash envelope. The title enters at twice the panorama speed and stops horizontally centred. Reduced motion pauses scenery, disables flashes and centres the title immediately. The deliberately slow panorama makes the title entrance gradual (about 66 seconds at 1280 x 720).
+Both renderers keep debris at 1.5 times the panorama speed, with a faint warm rim driven by the existing flash envelope. The title enters from the right over three seconds, overshoots its centred position by 18 pixels, then settles back. It passes behind the cockpit frame. Reduced motion pauses scenery, disables flashes and centres the title immediately. Title timing is independent of the panorama speed.
 
 ## Verification
 

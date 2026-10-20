@@ -12,11 +12,8 @@ export function canvasPoint(rect, width, height, rotated, clientX, clientY) {
 		? [((clientY - rect.top) * width) / rect.height, ((rect.right - clientX) * height) / rect.width]
 		: [((clientX - rect.left) * width) / rect.width, ((clientY - rect.top) * height) / rect.height];
 }
-export function menuMotion(width, height, period = 720) {
-	const tile = Math.max(height * 3, width / 2),
-		logoWidth = Math.min(300, Math.max(180, width - 740));
-	const backgroundSpeed = (2 * tile) / period;
-	return { logoWidth, logoDuration: (width + logoWidth) / (4 * backgroundSpeed) };
+export function menuMotion(width) {
+	return { logoWidth: Math.min(300, Math.max(180, width - 740)), logoDuration: 3 };
 }
 if (typeof document !== "undefined") {
 	const fit = () => {
