@@ -704,6 +704,29 @@ struct World::Impl
 				return equipment_ref(entity);
 		return {};
 	}
+	std::uint64_t console_operator(const ConsoleAddress &address) const
+	{
+		const auto *spec = seat(address.ship, address.console);
+		if (!spec || (away.contains(address) && away.at(address)))
+			return 0;
+		for (const auto &[claimant, claim] : claims)
+			if (claim == address)
+				return claimant;
+		if (spec->human_seeking)
+			for (const auto &station : spec->human_preferences)
+				for (const auto &[claimant, claim] : claims)
+					if (claim.ship == address.ship && seat(claim.ship, claim.console)->station == station &&
+					    !(away.contains(claim) && away.at(claim)))
+						return claimant;
+		return 0;
+	}
+	ConsoleAddress command_address(std::uint64_t claimant, const OperatingCommand &command) const
+	{
+		auto address = claims.at(claimant);
+		if (!command.console.empty())
+			address.console = command.console;
+		return address;
+	}
 	ConsoleAddress system_owner(EntityId ship, const std::string &system) const
 	{
 		if (definition(ship).layout)
@@ -878,6 +901,46 @@ struct World::Impl
 			return true;
 		}
 		return false;
+	}
+	void publish_waypoint(EntityId ship, const ControllerChannelState &state, bool reached)
+	{
+		const auto &schema = knowledge.definition();
+		const auto key = schema.schema("phoenix.waypoint");
+		KnowledgeRecordInput record;
+		record.schema = key;
+		record.producer = schema.role("phoenix.scenario");
+		record.subject = ship;
+		record.provenance = {ship, ecs.get<Clock>().tick, state.revision * 2 + (reached ? 1 : 0), 0,
+		                     EvidenceKind::Fact};
+		record.fields = {{schema.field(key, "active"), state.value != 0},
+		                 {schema.field(key, "reached"), reached},
+		                 {schema.field(key, "x"), state.arguments.at(0)},
+		                 {schema.field(key, "y"), state.arguments.at(1)},
+		                 {schema.field(key, "revision"), static_cast<std::int64_t>(state.revision)}};
+		knowledge.publish_ship(ship, record, ecs.get<Clock>().tick);
+	}
+	void waypoint_arrivals()
+	{
+		for (const auto &[id, entity] : entities)
+			if (entity.has<EntityControls>())
+				for (const auto &controller : entity.get<EntityControls>().controllers)
+					for (std::size_t i = 0; i < controller.commands.size(); ++i)
+					{
+						const auto &state = controller.commands[i];
+						if (controller.definition.commands[i].action != OperatingAction::Waypoint || !state.value)
+							continue;
+						const auto board = knowledge.project_json({id, controller.definition.console});
+						bool reached = false;
+						for (const auto &record : board.at("shared"))
+							if (record.at("schema") == "phoenix.waypoint")
+								reached = record.at("fields").value("reached", false);
+						const auto from = step_starts.at(id), to = entity.get<Pose>().position;
+						ScenarioRegion region;
+						region.centre = {state.arguments[0], state.arguments[1]};
+						region.radius = controller.definition.commands[i].arrival_radius;
+						if (!reached && scenario_crosses(region, {from.x, from.y}, {to.x, to.y}))
+							publish_waypoint(id, state, true);
+					}
 	}
 #include "controller_execution.hpp"
 	std::int64_t sensor_range(EntityId ship, const std::string &name) const
@@ -1278,6 +1341,9 @@ struct World::Impl
 				    {schema.field(key, "id"), static_cast<std::int64_t>(objective.id)},
 				    {schema.field(key, "status"), std::string(names[static_cast<unsigned>(publication.status)])},
 				    {schema.field(key, "title"), spec.title_key},
+				    {schema.field(key, "description"), spec.description_key},
+				    {schema.field(key, "outcome"), objective.outcome},
+				    {schema.field(key, "radius"), region.radius},
 				    {schema.field(key, "region"), region.id},
 				    {schema.field(key, "credited"),
 				     objective.completion_credited || publication.status == ObjectiveStatus::Completed},
@@ -1328,7 +1394,9 @@ struct World::Impl
 	{
 		if (!claims.contains(claimant) || command.target != claims.at(claimant).ship)
 			return false;
-		const auto address = claims.at(claimant);
+		const auto address = command_address(claimant, command);
+		if (address != claims.at(claimant) && console_operator(address) != claimant)
+			return false;
 		const auto &console = *seat(address.ship, address.console);
 		const auto &spec = definition(address.ship);
 		if (entities.at(address.ship).has<EntityControls>() && !command.action.starts_with("message.") &&
@@ -1477,7 +1545,7 @@ bool World::can_claim(std::uint64_t console, EntityId ship, const std::string &n
 	if (!console || impl_->claims.contains(console) || !impl_->entities.contains(ship))
 		return false;
 	auto seat = impl_->seat(ship, name);
-	if (!seat)
+	if (!seat || seat->human_seeking)
 		return false;
 	for (const auto &[owner, address] : impl_->claims)
 		if (address.ship == ship && address.console == seat->id)
@@ -1548,10 +1616,13 @@ bool World::can_submit(std::uint64_t console, const OperatingCommand &command) c
 	auto claim = impl_->claims.find(console);
 	if (claim == impl_->claims.end() || claim->second.ship != command.target)
 		return false;
+	const auto address = impl_->command_address(console, command);
+	if (address != claim->second && impl_->console_operator(address) != console)
+		return false;
 	if (command.arguments.empty() && impl_->meta(console, command, false))
 		return impl_->meta_pending.size() < 4096;
 	if (impl_->entities.at(command.target).has<EntityControls>())
-		return impl_->controller_proposal(claim->second, command, true).has_value() &&
+		return impl_->controller_proposal(address, command, true).has_value() &&
 		       impl_->controller_pending.size() < 4096;
 	return false;
 }
@@ -1566,7 +1637,8 @@ bool World::submit(std::uint64_t console, const OperatingCommand &command)
 	}
 	if (impl_->entities.at(command.target).has<EntityControls>())
 	{
-		impl_->controller_pending.push_back(*impl_->controller_proposal(impl_->claims.at(console), command, true));
+		impl_->controller_pending.push_back(
+		    *impl_->controller_proposal(impl_->command_address(console, command), command, true));
 		return true;
 	}
 	return false;
@@ -1583,6 +1655,14 @@ void World::clear_claims()
 }
 void World::tick()
 {
+	// Keep committed frame numbering live after the race, but freeze its world.
+	if (impl_->scenario && impl_->scenario->runtime().mission_complete())
+	{
+		impl_->meta_pending.clear();
+		impl_->controller_pending.clear();
+		++impl_->ecs.get_mut<Clock>().tick;
+		return;
+	}
 	for (const auto &[claim, command] : impl_->meta_pending)
 		impl_->meta(claim, command, true);
 	impl_->meta_pending.clear();
@@ -1662,6 +1742,7 @@ void World::tick()
 	impl_->integrate.run();
 	impl_->resolve_collisions.run();
 	impl_->index_contacts.run();
+	impl_->waypoint_arrivals();
 	if (impl_->scenario)
 	{
 		std::vector<ScenarioMotionSegment> motion;
@@ -1727,15 +1808,26 @@ Json World::public_board(EntityId entity) const
 }
 std::optional<Observation> World::observe(std::uint64_t console) const
 {
-	auto found = impl_->claims.find(console);
+	const auto found = impl_->claims.find(console);
 	if (found == impl_->claims.end())
 		return {};
-	auto entity = impl_->entities.at(found->second.ship);
-	const auto &seat = *impl_->seat(found->second.ship, found->second.console);
-	Observation result = impl_->capture_console_observation(found->second);
-	result.gameplay = impl_->knowledge.project_json(found->second);
+	auto result = observe_at(console, found->second);
+	for (const auto &seat : impl_->definition(found->second.ship).consoles)
+	{
+		const ConsoleAddress address{found->second.ship, seat.id};
+		if (address != found->second && seat.human_seeking && impl_->console_operator(address) == console)
+			result.additional_consoles.push_back(observe_at(console, address));
+	}
+	return result;
+}
+Observation World::observe_at(std::uint64_t console, const ConsoleAddress &address) const
+{
+	auto entity = impl_->entities.at(address.ship);
+	const auto &seat = *impl_->seat(address.ship, address.console);
+	Observation result = impl_->capture_console_observation(address);
+	result.gameplay = impl_->knowledge.project_json(address);
 	if (entity.has<EntityControls>())
-		result.gameplay["controllers"] = impl_->project_controllers(found->second);
+		result.gameplay["controllers"] = impl_->project_controllers(address);
 
 	auto &buttons = result.gameplay["controls"] = Json::array();
 	const auto button = [&](const std::string &id, const std::string &label, const std::string &action,
@@ -1748,7 +1840,7 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 		                 }))
 			buttons.push_back({{"id", id}, {"label", label}, {"action", action}, {"system", system}, {"value", value}});
 	};
-	const bool away = impl_->away.contains(found->second) && impl_->away.at(found->second);
+	const bool away = impl_->away.contains(address) && impl_->away.at(address);
 	button("away", away ? "Resume control" : "Away", "away", {}, away ? 0 : 1);
 	if (entity.has<EntityControls>())
 	{
@@ -1781,7 +1873,7 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 					{
 						if (state.request_id == std::numeric_limits<std::uint64_t>::max())
 							continue;
-						OperatingCommand command{found->second.ship,
+						OperatingCommand command{address.ship,
 						                         std::string(operating_action(channel.action).name),
 						                         value,
 						                         {},
@@ -1822,7 +1914,7 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 								                          fields[argument].maximum));
 						for (const auto value : choices)
 						{
-							OperatingCommand command{found->second.ship,
+							OperatingCommand command{address.ship,
 							                         std::string(operating_action(channel.action).name),
 							                         state.value,
 							                         {},
@@ -1844,11 +1936,11 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 	if (entity.has<EntityControls>())
 		for (const auto &controller : entity.get<EntityControls>().controllers)
 			if (controller.definition.console == seat.id && controller.human)
-				for (const auto &name : impl_->definition(found->second.ship).message_templates)
+				for (const auto &name : impl_->definition(address.ship).message_templates)
 				{
-					OperatingCommand command{
-					    found->second.ship,   "message." + name, 0, {}, controller.definition.id, {},
-					    controller.generation};
+					OperatingCommand command{address.ship, "message." + name,    0, {}, controller.definition.id,
+					                         {},           controller.generation};
+					command.console = address.console;
 					if (!impl_->meta(console, command, false))
 						continue;
 					auto descriptor = encode_operating_command(command);
@@ -1856,10 +1948,16 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 					descriptor["label"] = "Send " + name;
 					buttons.push_back(std::move(descriptor));
 				}
-	const auto &spec = impl_->definition(found->second.ship);
+	const auto &spec = impl_->definition(address.ship);
 	for (const auto &name : spec.publications)
-		if (impl_->meta(console, {found->second.ship, "publish." + name, 0, {}}, false))
+	{
+		OperatingCommand command{address.ship, "publish." + name, 0, {}};
+		command.console = address.console;
+		if (impl_->meta(console, command, false))
 			button("publish." + name, "Publish " + name, "publish." + name, {}, 0);
+	}
+	for (auto &button : buttons)
+		button["console"] = address.console;
 	return result;
 }
 Json World::debug() const

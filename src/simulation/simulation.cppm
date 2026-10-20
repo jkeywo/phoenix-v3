@@ -43,6 +43,7 @@ public:
 	void restore(const Catalog &content, const Json &saved);
 
 private:
+	Observation observe_at(std::uint64_t claimant, const ConsoleAddress &) const;
 	struct Impl;
 	std::unique_ptr<Impl> impl_;
 };

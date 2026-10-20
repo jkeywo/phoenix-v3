@@ -16,6 +16,8 @@ The [Workshop](docs/workshop.md) authors maps, entities and Consoles, previews l
 
 The native [main menu and pre-game lobby](docs/native-menu.md) provide cascading setup, ship/player/GM join forms, installed pack management, persistent settings and managed saves. Approved crews ready individually before a five-second launch countdown.
 
+[Courier Race and Navigation](docs/courier-race.md) adds two playable Couriers, shipwide race objectives, a shared waypoint and a navigation map with pan, zoom and reset. Human-seeking consoles follow available crew, and each ship receives its own race result.
+
 The [comic renderer](docs/comic-rendering.md) uses calibrated sprite depth for lighting and per-pixel occlusion, with depth-backed sun shadows, crosshatching and directional engine light. The Phoenix Base Game pack includes the Courier, powered engineering fit, six-Console Cruiser and Free Flight. Enable the separate Phoenix Training mod in Mod Packs for powered objective scenarios and navigation/lighting exercises; see the [reusable content guide](docs/gameplay-content.md). Workshop provides a live material/lighting preview. Browser graphics require WebGL 2.
 
 The [source guide](docs/source-guide.md) explains the inputs; the [prior setting agreement](docs/settled-dark-direction.md) preserves the earlier pivot decisions. The consolidated GDD incorporates those decisions and the subsequent V3 consolidation choices. Historical snapshots remain unchanged.

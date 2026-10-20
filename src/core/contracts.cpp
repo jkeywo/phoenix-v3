@@ -12,7 +12,8 @@ Json encode_operating_command(const OperatingCommand &command)
 {
 	return {{"target", command.target},         {"action", command.action},         {"value", command.value},
 	        {"system", command.system},         {"controller", command.controller}, {"channel", command.channel},
-	        {"generation", command.generation}, {"request_id", command.request_id}, {"arguments", command.arguments}};
+	        {"generation", command.generation}, {"request_id", command.request_id}, {"arguments", command.arguments},
+	        {"console", command.console}};
 }
 OperatingCommand decode_operating_command(const Json &value)
 {
@@ -48,7 +49,8 @@ OperatingCommand decode_operating_command(const Json &value)
 			result.arguments.push_back(argument.get<std::int64_t>());
 		}
 	}
-	for (const auto *text : {&result.action, &result.system, &result.controller, &result.channel})
+	result.console = value.value("console", std::string{});
+	for (const auto *text : {&result.action, &result.system, &result.controller, &result.channel, &result.console})
 		if (text->size() > 256)
 			throw std::runtime_error("Command identifier exceeds limit");
 	return result;

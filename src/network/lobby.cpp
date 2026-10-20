@@ -188,6 +188,8 @@ class GameLobby final : public SessionPort
 				}
 				for (const auto &seat : resolve_consoles(source_->catalog(), slot.ship))
 				{
+					if (seat.human_seeking)
+						continue;
 					data["consoles"][slot.id].push_back(seat.id);
 					const auto &definition = source_->catalog().consoles.at(seat.definition);
 					data["console_names"][slot.id][seat.id] = definition.value("name", seat.id);
@@ -327,7 +329,7 @@ class GameLobby final : public SessionPort
 			if (std::none_of(seats.begin(), seats.end(),
 			                 [&](const auto &seat)
 			                 {
-				                 return seat.id == cmd.console;
+				                 return !seat.human_seeking && seat.id == cmd.console;
 			                 }) ||
 			    std::any_of(peers_.begin(), peers_.end(),
 			                [&](const auto &p)
@@ -409,7 +411,7 @@ class GameLobby final : public SessionPort
 			if (std::none_of(seats.begin(), seats.end(),
 			                 [&](const auto &seat)
 			                 {
-				                 return seat.id == cmd.console;
+				                 return !seat.human_seeking && seat.id == cmd.console;
 			                 }))
 				return false;
 			const auto layout = compile_controllable_layout(source_->catalog(), ship);
@@ -484,7 +486,7 @@ class GameLobby final : public SessionPort
 			if (!cmd.console.empty() && std::none_of(seats.begin(), seats.end(),
 			                                         [&](const auto &seat)
 			                                         {
-				                                         return seat.id == cmd.console;
+				                                         return !seat.human_seeking && seat.id == cmd.console;
 			                                         }))
 				return false;
 			if (!cmd.console.empty() && std::any_of(peers_.begin(), peers_.end(),

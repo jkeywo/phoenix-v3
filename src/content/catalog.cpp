@@ -260,6 +260,16 @@ Catalog resolve(const std::vector<PackView> &ordered)
 			if (schema.at("id") == "phoenix.objective")
 				invalid("knowledge.phoenix.objective", "reserved schema");
 		schemas.push_back(
+		    {{"id", "phoenix.waypoint"},
+		     {"producers", {"phoenix.scenario"}},
+		     {"readers", {"phoenix.crew"}},
+		     {"ship_publishable", true},
+		     {"fields", Json::array({{{"id", "active"}, {"type", "boolean"}, {"publishable", true}},
+		                             {{"id", "reached"}, {"type", "boolean"}, {"publishable", true}},
+		                             {{"id", "x"}, {"type", "integer"}, {"publishable", true}},
+		                             {{"id", "y"}, {"type", "integer"}, {"publishable", true}},
+		                             {{"id", "revision"}, {"type", "integer"}, {"publishable", true}}})}});
+		schemas.push_back(
 		    {{"id", "phoenix.objective"},
 		     {"producers", {"phoenix.scenario"}},
 		     {"readers", {"phoenix.crew"}},
@@ -267,6 +277,9 @@ Catalog resolve(const std::vector<PackView> &ordered)
 		     {"fields", Json::array({{{"id", "id"}, {"type", "integer"}, {"publishable", true}},
 		                             {{"id", "status"}, {"type", "text"}, {"publishable", true}},
 		                             {{"id", "title"}, {"type", "text"}, {"publishable", true}},
+		                             {{"id", "description"}, {"type", "text"}, {"publishable", true}},
+		                             {{"id", "outcome"}, {"type", "text"}, {"publishable", true}},
+		                             {{"id", "radius"}, {"type", "integer"}, {"publishable", true}},
 		                             {{"id", "region"}, {"type", "text"}, {"publishable", true}},
 		                             {{"id", "credited"}, {"type", "boolean"}, {"publishable", true}},
 		                             {{"id", "destination_x"}, {"type", "integer"}, {"publishable", true}},
@@ -320,10 +333,9 @@ Catalog resolve_draft(const std::vector<Pack> &libraries, const PackDraft &draft
 }
 std::span<const WidgetBinding> widget_bindings()
 {
-	static constexpr WidgetBinding bindings[] = {{"radar", "radar.contacts"},
-	                                             {"throttle", "engine.desired_speed"},
-	                                             {"heading", "steering.desired_heading"},
-	                                             {"status", "ship.status"}};
+	static constexpr WidgetBinding bindings[] = {
+	    {"radar", "radar.contacts"}, {"throttle", "engine.desired_speed"}, {"heading", "steering.desired_heading"},
+	    {"status", "ship.status"},   {"objectives", "ship.objectives"},    {"navigation", "ship.navigation"}};
 	return bindings;
 }
 namespace
@@ -567,7 +579,7 @@ void verify_prepared_catalog(const Catalog &catalog)
 			text(widget, "label", path + "." + widget_id);
 			if (widget.contains("controller") || widget.contains("channel"))
 			{
-				if ((kind != "throttle" && kind != "heading") || widget.contains("system") ||
+				if ((kind != "throttle" && kind != "heading" && kind != "navigation") || widget.contains("system") ||
 				    !widget.contains("controller") || !widget.contains("channel"))
 					invalid(path + "." + widget_id,
 					        "Controller widgets require controller/channel and no System binding");

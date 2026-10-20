@@ -14,6 +14,7 @@
 
 import phoenix.simulation;
 import phoenix.gameplay_scenario;
+import phoenix.session.local;
 
 namespace
 {
@@ -31,6 +32,104 @@ Catalog load_fixture(const Json &data)
 {
 	auto pack = phoenix::test::fixture_pack(json_bytes(data), "test-core");
 	return resolve_packs({read_pack(write_pack(pack))});
+}
+void competition_resolution()
+{
+	Json map = {{"regions",
+	             Json::array({{{"id", "finish"}, {"shape", "circle"}, {"x_mm", 0}, {"y_mm", 0}, {"radius_mm", 100}}})}};
+	for (int actor = 1; actor <= 2; ++actor)
+		map["scenario"]["objectives"].push_back({{"id", "race-" + std::to_string(actor)},
+		                                         {"type", "reach_region"},
+		                                         {"region", "finish"},
+		                                         {"competition", "race"},
+		                                         {"actor", {{"entity", actor}}},
+		                                         {"recipients", {{"ship", {{"entity", actor}}}}},
+		                                         {"title_key", "Finish"}});
+	for (const bool tie : {false, true})
+	{
+		ScenarioRuntime runtime(compile_scenario(map, {}));
+		const auto instance = runtime.create_instance("race");
+		runtime.begin_tick(100, {}, {{1, {-1000, 0}}, {2, {-1000, 0}}});
+		for (int actor = 1; actor <= 2; ++actor)
+			runtime.add_objective({instance, 1, static_cast<std::uint32_t>(actor)}, "race-" + std::to_string(actor),
+			                      "ship-" + std::to_string(actor));
+		ScenarioRuntime restored(compile_scenario(map, {}));
+		restored.restore(runtime.save());
+		const std::vector<ScenarioMotionSegment> movement{{1, {-1000, 0}, {1000, 0}},
+		                                                  {2, {-1000, 0}, {tie ? 1000 : -500, 0}}};
+		for (auto *r : {&runtime, &restored})
+		{
+			r->evaluate(movement);
+			check(r->mission_complete(), "Race did not finish after swept arrival");
+			for (const auto &[id, objective] : r->objectives())
+				check(objective.outcome == (tie                           ? "draw"
+				                            : objective.actor.entity == 1 ? "won"
+				                                                          : "lost"),
+				      "Race result depends on iteration order");
+		}
+		check(runtime.save() == restored.save(), "Race recovery diverged");
+		const auto count = runtime.pending_publications().size();
+		runtime.evaluate(movement);
+		check(count == runtime.pending_publications().size(), "Race result was published twice");
+	}
+}
+void delayed_competition()
+{
+	auto data = parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "delayed race fixture");
+	auto &map = data["maps"][0];
+	map["entities"] = Json::array();
+	map["ship_slots"][0]["x_mm"] = -10000;
+	map["ship_slots"].push_back(
+	    {{"id", "other"}, {"allowed_ships", {"test.ship"}}, {"x_mm", -10000}, {"y_mm", 20000}, {"heading_mdeg", 0}});
+	map["regions"] =
+	    Json::array({{{"id", "finish"}, {"shape", "circle"}, {"x_mm", 10000}, {"y_mm", 0}, {"radius_mm", 1000}}});
+	map["scenario"] = {{"tree", "test.race-a"},
+	                   {"bindings", {{"actor", {{"slot", "test.slot"}}}}},
+	                   {"situations", Json::array({{{"id", "other"},
+	                                                {"tree", "test.race-b"},
+	                                                {"bindings", {{"actor", {{"slot", "other"}}}}},
+	                                                {"start", true}}})}};
+	for (const auto &[name, slot] :
+	     std::vector<std::pair<std::string, std::string>>{{"a", "test.slot"}, {"b", "other"}})
+	{
+		map["scenario"]["objectives"].push_back({{"id", name},
+		                                         {"type", "reach_region"},
+		                                         {"region", "finish"},
+		                                         {"competition", "race"},
+		                                         {"actor", {{"slot", slot}}},
+		                                         {"recipients", {{"ship", {{"slot", slot}}}}},
+		                                         {"title_key", "Finish"}});
+		data["trees"].push_back(
+		    {{"id", "test.race-" + name},
+		     {"context", "scenario"},
+		     {"initial", "wait"},
+		     {"states",
+		      Json::array({{{"id", "wait"},
+		                    {"transitions",
+		                     Json::array({{{"target", "run"},
+		                                   {"conditions", Json::array({{{"left", {{"observation", "scenario.elapsed"}}},
+		                                                                {"op", "ge"},
+		                                                                {"right", 100}}})}}})}},
+		                   {{"id", "run"},
+		                    {"entry", Json::array({action(
+		                                  "add_objective",
+		                                  Json::array({name, {{"observation", "self.entity"}}, "finish"}))})}}})}});
+	}
+	const auto catalog = load_fixture(data);
+	World world;
+	world.load(catalog, "test.map", {{"test.slot", "test.ship"}, {"other", "test.ship"}});
+	for (int i = 0; i < 100; ++i)
+		world.tick();
+	check(world.save().at("scenario").at("runtime").at("objectives").empty(),
+	      "race objective appeared before five seconds");
+	World resumed;
+	resumed.restore(catalog, world.save());
+	world.tick();
+	resumed.tick();
+	check(world.save() == resumed.save(), "five-second delay changed after recovery");
+	const auto objectives = world.save().at("scenario").at("runtime").at("objectives");
+	check(objectives.size() == 2 && objectives[0].at("created") == 100 && objectives[1].at("created") == 100,
+	      "both race objectives must activate at five seconds");
 }
 Catalog fixture(bool fitted = false)
 {
@@ -332,6 +431,8 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		if (argc == 6 && std::string(argv[1]) == "--smoke-gameover")
+			return scenario_probe(argv[2], argv[3], std::stoi(argv[4]), argv[5]);
 		if (argc == 5 && std::string(argv[1]) == "--smoke-pack")
 			return scenario_probe(argv[2], argv[3], std::stoi(argv[4]));
 		const auto catalog = fixture();
@@ -405,6 +506,8 @@ int main(int argc, char **argv)
 		check(original.save() == resumed.save(),
 		      "Later physical continuation diverged after restored scenario effects");
 		scenario_record_readers();
+		competition_resolution();
+		delayed_competition();
 		spawned_equipment_continuation();
 		std::cout << "World scenario spawn/objective/recovery integration passed\n";
 		return 0;

@@ -927,6 +927,7 @@ void console_editor(Application &app, bool inspector)
 			    editor.status = "Console renamed; ship and Station references updated.";
 		    });
 	string_field("Display name", selected, "name");
+	edit_field("Human seeking", selected, "human_seeking", false);
 	auto &widgets = consoles[editor.console]["widgets"];
 	for (auto [kind, binding] : widget_bindings())
 	{

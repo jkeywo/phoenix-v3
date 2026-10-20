@@ -100,6 +100,7 @@ struct ScenarioSpawnGroup
 struct ScenarioObjectiveDefinition
 {
 	std::string id, title_key, description_key;
+	std::string competition;
 	std::uint32_t region = 0;
 	ScenarioActor actor;
 	ScenarioRecipients recipients;
@@ -160,6 +161,7 @@ struct ScenarioObjective
 	ScenarioId id = 0, instance = 0;
 	std::string definition, handle;
 	std::string sequence;
+	std::string outcome;
 	std::uint64_t cycle = 0;
 	std::uint32_t sequence_index = 0;
 	ScenarioActor actor;
@@ -247,6 +249,7 @@ public:
 	void begin_tick(ScenarioTick tick, std::map<std::string, EntityId> slots,
 	                std::map<EntityId, ScenarioPoint> positions);
 	void evaluate(std::span<const ScenarioMotionSegment> movement);
+	bool mission_complete() const;
 	std::vector<ScenarioPublication> pending_publications() const;
 	void acknowledge_publication(ScenarioId publication);
 	void acknowledge_credit(ScenarioId objective);

@@ -452,17 +452,16 @@ void refresh_controllers(EntityId id, bool validate = false)
 	{
 		auto &controller = controls.controllers[i];
 		const ConsoleAddress address{id, controller.definition.console};
-		const bool present =
-		    !(away.contains(address) && away.at(address)) && std::any_of(claims.begin(), claims.end(),
-		                                                                 [&](const auto &claim)
-		                                                                 {
-			                                                                 return claim.second == address;
-		                                                                 });
+		const auto claimant = console_operator(address);
+		const bool present = claimant != 0;
 		const bool human = present && controls.layout.profiles.at(controls.profiles.at(address.console)).human.at(i);
 		if (validate && human != controller.human)
 			throw std::runtime_error("Saved Controller operator differs from profile/claims");
-		if (human == controller.human)
+		if (validate)
+			controller.operator_claimant = claimant;
+		if (human == controller.human && (!human || claimant == controller.operator_claimant))
 		{
+			controller.operator_claimant = claimant;
 			knowledge.set_controller_control({id, address.console, controller.definition.id}, present, human);
 			continue;
 		}
@@ -478,6 +477,7 @@ void refresh_controllers(EntityId id, bool validate = false)
 			throw std::runtime_error("Controller operator generation exhausted");
 		++controller.generation;
 		controller.human = human;
+		controller.operator_claimant = claimant;
 		knowledge.set_controller_control({id, address.console, controller.definition.id}, present, human);
 		for (std::size_t j = 0; j < controller.commands.size(); ++j)
 		{
@@ -496,12 +496,7 @@ void refresh_controllers(EntityId id, bool validate = false)
 	for (const auto &console : definition(id).consoles)
 	{
 		const ConsoleAddress address{id, console.id};
-		const bool present =
-		    !(away.contains(address) && away.at(address)) && std::any_of(claims.begin(), claims.end(),
-		                                                                 [&](const auto &claim)
-		                                                                 {
-			                                                                 return claim.second == address;
-		                                                                 });
+		const bool present = console_operator(address) != 0;
 		knowledge.set_console_presence(address, present);
 	}
 }
@@ -589,6 +584,8 @@ void consume_controller_commands(flecs::entity entity)
 				continue;
 			}
 			bool admitted = true;
+			if (command.action == OperatingAction::Waypoint)
+				publish_waypoint(entity.get<StableId>().id, value, false);
 			for (const auto consumer : command.consumers)
 			{
 				const auto child = entity.get<EquipmentIndex>().values.at(consumer);

@@ -1,4 +1,5 @@
 #pragma once
+#include "navigation_camera.hpp"
 namespace phoenix
 {
 class ConsoleSurface final : public Rml::EventListener
@@ -14,6 +15,7 @@ class ConsoleSurface final : public Rml::EventListener
 	Rml::Context *context_ = nullptr;
 	Rml::ElementDocument *document_ = nullptr;
 	ConsoleModel model_;
+#include "navigation_surface.hpp"
 	TextureCache radar_textures_;
 	Application *app_ = nullptr;
 	std::string signature_;
@@ -297,10 +299,29 @@ p {display:block;font-size:.85em;margin:4px 0;}
 .local-settings-card {position:absolute;left:8%;top:8%;width:84%;max-height:84%;overflow:auto;box-sizing:border-box;padding:24px;background:#0b1719;border:2px #988b71;}
 .local-settings-card h1 {display:block;}
 .local-settings-card button {width:190px;min-height:48px;box-sizing:border-box;}
-</style></head><body><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="engineering-cards"></div><div id="gameplay-controls"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div><div id="local-settings"></div></body></rml>)");
+.navigation-console #widgets,.navigation-console #gameplay {display:none;}
+.navigation-console #gameplay {left:45%;top:0;width:45%;height:100px;background:transparent;}
+.navigation-controls {position:absolute;left:1%;bottom:1%;width:98%;background:#08171bee;}
+.navigation-controls button {min-height:42px;margin:3px;}
+.navigation-controls input {width:140px;}
+.navigation-objectives {position:absolute;left:12px;top:115px;max-width:320px;background:#08171bdd;padding:8px;}
+.mission-result {position:absolute;left:0;top:0;width:100%;height:100%;background:#070c09;z-index:15;color:#bce8ad;pointer-events:auto;}
+.mission-art {position:absolute;left:0;top:0;width:100%;height:100%;}
+.mission-copy {position:absolute;left:20%;top:21%;width:60%;height:51%;overflow:auto;font-family:Space Mono;}
+.mission-copy h1 {font-size:18px;letter-spacing:3px;color:#81af79;margin:0 0 22px 0;}
+.mission-copy h2 {font-size:44px;letter-spacing:2px;color:#d1f9be;margin:0 0 20px 0;}
+.mission-copy p {font-size:22px;margin:10px 0;}
+.mission-copy .terminal-rule {height:1px;background:#51744c;margin:18px 0;}
+.mission-copy .terminal-status {font-size:16px;letter-spacing:2px;color:#81af79;}
+.mission-copy button {margin:22px 0 0 0;padding:12px 20px;background:#122116;border:1px #87b77b;color:#d1f9be;}
+.mission-copy button:hover,.mission-copy button:focus {background:#bce8ad;color:#102014;border-color:#d1f9be;}
+#navigation-layer {position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;}
+#navigation-layer button,#navigation-layer input,#navigation-canvas {pointer-events:auto;}
+</style></head><body><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="engineering-cards"></div><div id="gameplay-controls"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div><div id="navigation-layer"></div><div id="local-settings"></div></body></rml>)");
 		if (!document_)
 			throw std::runtime_error("Cannot create Console document");
 		document_->AddEventListener("click", this);
+		document_->AddEventListener("mousescroll", this);
 		document_->AddEventListener("change", this);
 		document_->AddEventListener("mousedown", this);
 		document_->AddEventListener("mouseup", this);
@@ -330,6 +351,8 @@ p {display:block;font-size:.85em;margin:4px 0;}
 		if (!app_ || !name.starts_with(prefix))
 			return false;
 		const auto action = name.substr(prefix.size());
+		if (app_ && navigation_action(action))
+			return true;
 		if ((app_->screen != Screen::console && app_->screen != Screen::viewscreen &&
 		     app_->screen != Screen::server_lobby && app_->screen != Screen::settings) ||
 		    owner_.lock() != app_->session || (app_->session && generation_ != app_->session->generation()))
@@ -476,6 +499,15 @@ p {display:block;font-size:.85em;margin:4px 0;}
 		if (syncing_values_)
 			return;
 		const auto name = event.GetTargetElement()->GetId();
+		if (event.GetType() == "mousescroll" && navigation_visible_ && !settings_open_)
+		{
+			const auto x = event.GetParameter<float>("mouse_x", 0), y = event.GetParameter<float>("mouse_y", 0);
+			if (CheckCollisionPointRec({x, y}, navigation_area_))
+				navigation_camera_.zoom(std::pow(1.2, event.GetParameter<float>("wheel_delta", 0)),
+				                        x - navigation_area_.width / 2,
+				                        y - navigation_area_.y - navigation_area_.height / 2);
+			return;
+		}
 		if (event.GetType() == "mousedown" || event.GetType() == "touchstart")
 		{
 			if (name.starts_with(id("game.control/")) && model_.hold_control(name.substr(id("").size())))
@@ -521,6 +553,16 @@ p {display:block;font-size:.85em;margin:4px 0;}
 	}
 	bool set_value(const std::string &name, const std::string &text)
 	{
+		if (name == id("nav.x") || name == id("nav.y"))
+		{
+			std::int64_t value = 0;
+			const auto parsed = std::from_chars(text.data(), text.data() + text.size(), value);
+			if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() || value < -1000000000 ||
+			    value > 1000000000)
+				return false;
+			(name == id("nav.x") ? navigation_x_ : navigation_y_) = static_cast<double>(value);
+			return true;
+		}
 		if (settings_open_)
 			return false;
 		if (app_ && profile_open_ && name == id("profile-name"))
@@ -558,6 +600,8 @@ p {display:block;font-size:.85em;margin:4px 0;}
 		if (!app_ || !game_active(*app_) || owner_.lock() != app_->session ||
 		    generation_ != app_->session->generation())
 			return false;
+		if (navigation_pointer(contact, x, y, kind))
+			return true;
 		if (kind == DeviceEventKind::Down)
 			for (const auto &[key, track] : throttle_tracks_)
 				if (CheckCollisionPointRec({x, y}, {track.x - track.width * .2f, track.y - track.width * .2f,
@@ -629,6 +673,8 @@ p {display:block;font-size:.85em;margin:4px 0;}
 	}
 	void cancel_pointer()
 	{
+		navigation_contacts_.clear();
+		navigation_starts_.clear();
 		heading_contacts_.clear();
 		throttle_contacts_.clear();
 		model_.release_controls();
@@ -1472,6 +1518,7 @@ p {display:block;font-size:.85em;margin:4px 0;}
 				place(app, region, field.id);
 		if (pregame)
 			place(app, region, id("lobby-title"));
+		prepare_navigation(app, region, pregame);
 		app.frame_metrics["console/" + std::to_string(route_) + "/layout"] = GetTime() - layout_started;
 	}
 	void draw_profile(const ConsoleRegion &region)
@@ -1559,6 +1606,24 @@ p {display:block;font-size:.85em;margin:4px 0;}
 							                    centre.y - static_cast<float>(dy / range) * radius * .66f};
 							draw_radar_body(radar_textures_, app_->session->catalog(), contact, point, 7, SKYBLUE);
 						}
+						const auto waypoint = model_.waypoint();
+						if (waypoint.value("active", false))
+						{
+							const double dx = waypoint.value("x", 0.0) - view->own.x,
+							             dy = waypoint.value("y", 0.0) - view->own.y;
+							const double distance = std::hypot(dx, dy), divisor = std::max(range, distance);
+							const Vector2 point{centre.x + static_cast<float>(dx / divisor) * radius * .66f,
+							                    centre.y - static_cast<float>(dy / divisor) * radius * .66f};
+							if (distance <= range)
+								DrawCircleLinesV(point, 8, GOLD);
+							else
+							{
+								const float ux = static_cast<float>(dx / distance),
+								            uy = static_cast<float>(-dy / distance);
+								DrawLineEx(point, {point.x - ux * 15 - uy * 7, point.y - uy * 15 + ux * 7}, 3, GOLD);
+								DrawLineEx(point, {point.x - ux * 15 + uy * 7, point.y - uy * 15 - ux * 7}, 3, GOLD);
+							}
+						}
 					}
 					image(hud("helm-radar-ring"), {centre.x - radius, centre.y - radius, radius * 2, radius * 2});
 					if (dial_systems_.contains(key))
@@ -1608,6 +1673,7 @@ p {display:block;font-size:.85em;margin:4px 0;}
 					                             readout->GetOffsetHeight() + 16});
 				}
 			}
+		draw_navigation(ox, oy);
 		EndScissorMode();
 	}
 };

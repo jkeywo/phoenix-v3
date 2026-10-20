@@ -637,6 +637,7 @@ struct GameplayEditor
 				            choice(console, "definition", document.definition_choices(WorkshopDefinitionKind::Console));
 				            names(console, "systems", systems);
 				            names(console, "feeds", systems);
+				            names(console, "human_preferences", ids(ship.at("stations")));
 				            gameplay_panel(console);
 			            });
 		        });
@@ -1608,6 +1609,7 @@ struct GameplayEditor
 			    actor(objective, "actor", slots);
 			    string(objective, "title_key");
 			    string(objective, "description_key");
+			    string(objective, "competition");
 			    if (!objective.contains("recipients"))
 			    {
 				    if (button("Bind objective recipients"))
@@ -1891,7 +1893,7 @@ struct GameplayEditor
 				                }
 				                string(command, "label_key");
 				                const auto action = command.value("action", std::string{});
-				                if (action == "intent_integer" || action == "intent_boolean")
+				                if (action == "intent_integer" || action == "intent_boolean" || action == "waypoint")
 				                {
 					                if (!command.contains("choices"))
 					                {

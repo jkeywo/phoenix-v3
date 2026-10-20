@@ -120,12 +120,15 @@ Pack console_assets(const Catalog &catalog, const std::string &ship)
 			stations.push_back({{"id", seat.station}, {"consoles", Json::array()}});
 			station = stations.end() - 1;
 		}
-		(*station)["consoles"].push_back(
-		    {{"id", seat.id}, {"definition", seat.definition}, {"systems", controls}, {"feeds", feeds}});
+		(*station)["consoles"].push_back({{"id", seat.id},
+		                                  {"definition", seat.definition},
+		                                  {"systems", controls},
+		                                  {"feeds", feeds},
+		                                  {"human_preferences", seat.human_preferences}});
 		if (included.insert(seat.definition).second)
 		{
 			Json layout{{"id", seat.definition}, {"widgets", Json::array()}};
-			for (const char *field : {"name", "description"})
+			for (const char *field : {"name", "description", "human_seeking"})
 				if (catalog.consoles.at(seat.definition).contains(field))
 					layout[field] = catalog.consoles.at(seat.definition).at(field);
 			for (const auto &widget : catalog.consoles.at(seat.definition).at("widgets"))

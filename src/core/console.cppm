@@ -27,6 +27,9 @@ public:
 	void release_controls();
 	bool set_speed_fraction(double fraction, const std::string &system = {});
 	bool set_heading_degrees(double degrees, const std::string &system = {});
+	bool set_waypoint(std::int64_t x, std::int64_t y, bool active = true);
+	Json objectives() const;
+	Json waypoint() const;
 	std::string widget_system(const std::string &widget) const;
 	std::int64_t system_maximum(const std::string &system) const;
 	std::int64_t system_minimum(const std::string &system) const;
@@ -60,6 +63,8 @@ public:
 	std::vector<std::pair<std::string, std::string>> gameplay_readouts() const;
 
 private:
+	std::string selected_console_;
+	std::vector<std::pair<std::string, std::string>> available_consoles_;
 	const Json *controller_section(const std::string &binding) const;
 	const Json *controller_channel(const std::string &binding) const;
 	std::string default_binding(const std::string &action) const;

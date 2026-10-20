@@ -39,6 +39,7 @@ bool accepts(const FittedSystemSpec &fit, const Json &spec, OperatingAction acti
 	{
 	case OperatingAction::IntentInteger:
 	case OperatingAction::IntentBoolean:
+	case OperatingAction::Waypoint:
 		return false;
 	case OperatingAction::SystemEnabled:
 		return true;
@@ -365,8 +366,14 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			                where, "command arguments differ from action contract");
 			control_require(command.minimum <= command.initial && command.initial <= command.maximum, where + "." + id,
 			                "initial outside command range");
-			const bool intent =
-			    command.action == OperatingAction::IntentInteger || command.action == OperatingAction::IntentBoolean;
+			const bool intent = command.action == OperatingAction::IntentInteger ||
+			                    command.action == OperatingAction::IntentBoolean ||
+			                    command.action == OperatingAction::Waypoint;
+			control_require(!field.contains("arrival_radius_mm") || field.at("arrival_radius_mm").is_number_integer(),
+			                where, "arrival radius must be an integer");
+			command.arrival_radius = field.value("arrival_radius_mm", std::int64_t{5000});
+			control_require(command.arrival_radius > 0 && command.arrival_radius <= 1000000000, where,
+			                "invalid waypoint arrival radius");
 			control_require(
 			    field.contains("consumers") && field.at("consumers").is_array() &&
 			        field.at("consumers").size() <= 256 &&
@@ -591,10 +598,17 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 					                                  });
 					control_require(command != owner->commands.end(), path, "widget names an unknown command channel");
 					control_require(command->semantics == CommandSemantics::Setting &&
-					                    command->action == (widget.at("kind") == "throttle" ? OperatingAction::Speed
-					                                                                        : OperatingAction::Heading),
+					                    command->action ==
+					                        (widget.at("kind") == "navigation" ? OperatingAction::Waypoint
+					                         : widget.at("kind") == "throttle" ? OperatingAction::Speed
+					                                                           : OperatingAction::Heading),
 					                path, "widget action differs from command channel");
 				}
+	std::size_t waypoints = 0;
+	for (const auto &controller : result.controllers)
+		for (const auto &command : controller.commands)
+			waypoints += command.action == OperatingAction::Waypoint;
+	control_require(waypoints <= 1, path, "one ship waypoint requires a single owning Controller channel");
 	return result;
 }
 

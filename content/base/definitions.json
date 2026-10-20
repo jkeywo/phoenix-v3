@@ -5454,6 +5454,1170 @@
 				],
 				"default_profile": "middle"
 			}
+		},
+		{
+			"id": "base.race-courier",
+			"name": "Race Courier",
+			"extends": "base.courier-engineering",
+			"stations": [
+				{
+					"consoles": [
+						{
+							"definition": "base.console.helm",
+							"feeds": [
+								"drive.engine",
+								"drive.steering",
+								"drive.lateral",
+								"drive.boost",
+								"drive.impulse",
+								"sensors.radar"
+							],
+							"id": "helm",
+							"knowledge_producers": ["base.machinery"],
+							"knowledge_roles": ["base.crew", "base.helm"],
+							"systems": []
+						}
+					],
+					"id": "helm"
+				},
+				{
+					"consoles": [
+						{
+							"definition": "base.console.engineering",
+							"feeds": [
+								"core.generator",
+								"core.reserve",
+								"core.distribution",
+								"core.pump",
+								"core.reactor-cooling",
+								"drive.distribution",
+								"drive.engine-supply",
+								"drive.engine-cooling",
+								"drive.steering-supply",
+								"drive.steering-cooling",
+								"drive.lateral-supply",
+								"drive.lateral-cooling",
+								"drive.boost-supply",
+								"drive.boost-cooling",
+								"drive.impulse-supply",
+								"drive.impulse-cooling",
+								"sensors.distribution",
+								"sensors.cooling"
+							],
+							"id": "engineering",
+							"knowledge_producers": ["base.machinery"],
+							"knowledge_roles": ["base.crew", "base.engineering"],
+							"systems": []
+						},
+						{
+							"id": "navigation",
+							"definition": "base.console.navigation",
+							"systems": [],
+							"feeds": [],
+							"knowledge_roles": ["base.crew"],
+							"human_preferences": ["engineering", "helm"]
+						}
+					],
+					"id": "engineering"
+				}
+			],
+			"control_layout": {
+				"schema": 1,
+				"controllers": [
+					{
+						"id": "core.distribution.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 1000,
+								"initial": 1000,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "core.distribution",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.core.distribution",
+						"commands": [
+							{
+								"id": "group_allocation",
+								"action": "group_allocation",
+								"initial": 1000,
+								"consumers": ["core.distribution"]
+							}
+						]
+					},
+					{
+						"id": "core.generator.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 20000,
+								"initial": 13000,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "core.generator",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.core.generator",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["core.generator"]
+							},
+							{
+								"id": "generator_output",
+								"action": "generator_output",
+								"initial": 13000,
+								"consumers": ["core.generator"]
+							}
+						]
+					},
+					{
+						"id": "core.pump",
+						"console": "engineering",
+						"tree": "base.ai.standby",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["core.pump"]
+							},
+							{
+								"id": "cooling_allocation",
+								"action": "cooling_allocation",
+								"initial": 300,
+								"consumers": ["core.pump"]
+							},
+							{
+								"id": "overdrive",
+								"action": "overdrive",
+								"initial": 0,
+								"consumers": ["core.pump"]
+							},
+							{
+								"id": "thermal_override",
+								"action": "thermal_override",
+								"initial": 0,
+								"consumers": ["core.pump"]
+							}
+						]
+					},
+					{
+						"id": "core.reactor-cooling.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 3000,
+								"initial": 3000,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "core.reactor-cooling",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.core.reactor-cooling",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["core.reactor-cooling"]
+							},
+							{
+								"id": "cooling_allocation",
+								"action": "cooling_allocation",
+								"initial": 3000,
+								"consumers": ["core.reactor-cooling"]
+							}
+						]
+					},
+					{
+						"id": "core.reserve",
+						"console": "engineering",
+						"tree": "base.ai.standby",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["core.reserve"]
+							},
+							{
+								"id": "charge_limit",
+								"action": "charge_limit",
+								"initial": 20000,
+								"consumers": ["core.reserve"]
+							},
+							{
+								"id": "discharge_limit",
+								"action": "discharge_limit",
+								"initial": 20000,
+								"consumers": ["core.reserve"]
+							},
+							{
+								"id": "overdrive",
+								"action": "overdrive",
+								"initial": 0,
+								"consumers": ["core.reserve"]
+							},
+							{
+								"id": "thermal_override",
+								"action": "thermal_override",
+								"initial": 0,
+								"consumers": ["core.reserve"]
+							}
+						]
+					},
+					{
+						"id": "drive.boost",
+						"console": "helm",
+						"tree": "base.ai.standby",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive.boost"]
+							},
+							{
+								"id": "assisted",
+								"action": "assisted",
+								"initial": 1,
+								"consumers": ["drive.boost"]
+							},
+							{
+								"id": "selected_contact",
+								"action": "selected_contact",
+								"initial": 0,
+								"consumers": ["drive.boost"]
+							},
+							{
+								"id": "boost",
+								"action": "boost",
+								"initial": 0,
+								"consumers": ["drive.boost"]
+							},
+							{
+								"id": "overdrive",
+								"action": "overdrive",
+								"initial": 0,
+								"consumers": ["drive.boost"]
+							},
+							{
+								"id": "thermal_override",
+								"action": "thermal_override",
+								"initial": 0,
+								"consumers": ["drive.boost"]
+							}
+						]
+					},
+					{
+						"id": "drive.boost-cooling.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 1000,
+								"initial": 1000,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "drive.boost-cooling",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.drive.boost-cooling",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive.boost-cooling"]
+							},
+							{
+								"id": "cooling_allocation",
+								"action": "cooling_allocation",
+								"initial": 1000,
+								"consumers": ["drive.boost-cooling"]
+							}
+						]
+					},
+					{
+						"id": "drive.boost-supply.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 1000,
+								"initial": 1000,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "drive.boost-supply",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.drive.boost-supply",
+						"commands": [
+							{
+								"id": "group_allocation",
+								"action": "group_allocation",
+								"initial": 1000,
+								"consumers": ["drive.boost-supply"]
+							}
+						]
+					},
+					{
+						"id": "drive.distribution.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 10000,
+								"initial": 8000,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "drive.distribution",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.drive.distribution",
+						"commands": [
+							{
+								"id": "group_allocation",
+								"action": "group_allocation",
+								"initial": 8000,
+								"consumers": ["drive.distribution"]
+							}
+						]
+					},
+					{
+						"id": "drive.engine",
+						"console": "helm",
+						"tree": "base.ai.race.engine",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive.engine"]
+							},
+							{
+								"id": "assisted",
+								"action": "assisted",
+								"initial": 1,
+								"consumers": ["drive.engine"]
+							},
+							{
+								"id": "selected_contact",
+								"action": "selected_contact",
+								"initial": 0,
+								"consumers": ["drive.engine"]
+							},
+							{
+								"id": "destination",
+								"action": "destination",
+								"initial": 0,
+								"consumers": ["drive.engine"],
+								"arguments": [0, 0]
+							},
+							{
+								"id": "follow_contact",
+								"action": "follow_contact",
+								"initial": 0,
+								"consumers": ["drive.engine"],
+								"arguments": [0, 40000, 12000]
+							},
+							{
+								"id": "speed_mm_s",
+								"action": "speed_mm_s",
+								"initial": 0,
+								"consumers": ["drive.engine"]
+							},
+							{
+								"id": "longitudinal_thrust",
+								"action": "longitudinal_thrust",
+								"initial": 0,
+								"consumers": ["drive.engine"]
+							},
+							{
+								"id": "match_speed",
+								"action": "match_speed",
+								"initial": 0,
+								"consumers": ["drive.engine"]
+							},
+							{
+								"id": "overdrive",
+								"action": "overdrive",
+								"initial": 0,
+								"consumers": ["drive.engine"]
+							},
+							{
+								"id": "thermal_override",
+								"action": "thermal_override",
+								"initial": 0,
+								"consumers": ["drive.engine"]
+							}
+						]
+					},
+					{
+						"id": "drive.engine-cooling.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 1000,
+								"initial": 1000,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "drive.engine-cooling",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.drive.engine-cooling",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive.engine-cooling"]
+							},
+							{
+								"id": "cooling_allocation",
+								"action": "cooling_allocation",
+								"initial": 1000,
+								"consumers": ["drive.engine-cooling"]
+							}
+						]
+					},
+					{
+						"id": "drive.engine-supply.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 4000,
+								"initial": 4000,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "drive.engine-supply",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.drive.engine-supply",
+						"commands": [
+							{
+								"id": "group_allocation",
+								"action": "group_allocation",
+								"initial": 4000,
+								"consumers": ["drive.engine-supply"]
+							}
+						]
+					},
+					{
+						"id": "drive.impulse",
+						"console": "helm",
+						"tree": "base.ai.standby",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive.impulse"]
+							},
+							{
+								"id": "assisted",
+								"action": "assisted",
+								"initial": 1,
+								"consumers": ["drive.impulse"]
+							},
+							{
+								"id": "selected_contact",
+								"action": "selected_contact",
+								"initial": 0,
+								"consumers": ["drive.impulse"]
+							},
+							{
+								"id": "impulse",
+								"action": "impulse",
+								"initial": 0,
+								"consumers": ["drive.impulse"]
+							},
+							{
+								"id": "overdrive",
+								"action": "overdrive",
+								"initial": 0,
+								"consumers": ["drive.impulse"]
+							},
+							{
+								"id": "thermal_override",
+								"action": "thermal_override",
+								"initial": 0,
+								"consumers": ["drive.impulse"]
+							}
+						]
+					},
+					{
+						"id": "drive.impulse-cooling.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 1500,
+								"initial": 1500,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "drive.impulse-cooling",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.drive.impulse-cooling",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive.impulse-cooling"]
+							},
+							{
+								"id": "cooling_allocation",
+								"action": "cooling_allocation",
+								"initial": 1500,
+								"consumers": ["drive.impulse-cooling"]
+							}
+						]
+					},
+					{
+						"id": "drive.impulse-supply.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 1500,
+								"initial": 1500,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "drive.impulse-supply",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.drive.impulse-supply",
+						"commands": [
+							{
+								"id": "group_allocation",
+								"action": "group_allocation",
+								"initial": 1500,
+								"consumers": ["drive.impulse-supply"]
+							}
+						]
+					},
+					{
+						"id": "drive.lateral",
+						"console": "helm",
+						"tree": "base.ai.standby",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive.lateral"]
+							},
+							{
+								"id": "assisted",
+								"action": "assisted",
+								"initial": 1,
+								"consumers": ["drive.lateral"]
+							},
+							{
+								"id": "selected_contact",
+								"action": "selected_contact",
+								"initial": 0,
+								"consumers": ["drive.lateral"]
+							},
+							{
+								"id": "lateral_thrust",
+								"action": "lateral_thrust",
+								"initial": 0,
+								"consumers": ["drive.lateral"]
+							},
+							{
+								"id": "overdrive",
+								"action": "overdrive",
+								"initial": 0,
+								"consumers": ["drive.lateral"]
+							},
+							{
+								"id": "thermal_override",
+								"action": "thermal_override",
+								"initial": 0,
+								"consumers": ["drive.lateral"]
+							}
+						]
+					},
+					{
+						"id": "drive.lateral-cooling.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 200,
+								"initial": 200,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "drive.lateral-cooling",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.drive.lateral-cooling",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive.lateral-cooling"]
+							},
+							{
+								"id": "cooling_allocation",
+								"action": "cooling_allocation",
+								"initial": 200,
+								"consumers": ["drive.lateral-cooling"]
+							}
+						]
+					},
+					{
+						"id": "drive.lateral-supply.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 1000,
+								"initial": 1000,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "drive.lateral-supply",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.drive.lateral-supply",
+						"commands": [
+							{
+								"id": "group_allocation",
+								"action": "group_allocation",
+								"initial": 1000,
+								"consumers": ["drive.lateral-supply"]
+							}
+						]
+					},
+					{
+						"id": "drive.steering",
+						"console": "helm",
+						"tree": "base.ai.race.steering",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive.steering"]
+							},
+							{
+								"id": "assisted",
+								"action": "assisted",
+								"initial": 1,
+								"consumers": ["drive.steering"]
+							},
+							{
+								"id": "selected_contact",
+								"action": "selected_contact",
+								"initial": 0,
+								"consumers": ["drive.steering"]
+							},
+							{
+								"id": "destination",
+								"action": "destination",
+								"initial": 0,
+								"consumers": ["drive.steering"],
+								"arguments": [0, 0]
+							},
+							{
+								"id": "follow_contact",
+								"action": "follow_contact",
+								"initial": 0,
+								"consumers": ["drive.steering"],
+								"arguments": [0, 40000, 12000]
+							},
+							{
+								"id": "heading_mdeg",
+								"action": "heading_mdeg",
+								"consumers": ["drive.steering"]
+							},
+							{
+								"id": "manual_steering",
+								"action": "manual_steering",
+								"initial": 0,
+								"consumers": ["drive.steering"]
+							},
+							{
+								"id": "overdrive",
+								"action": "overdrive",
+								"initial": 0,
+								"consumers": ["drive.steering"]
+							},
+							{
+								"id": "thermal_override",
+								"action": "thermal_override",
+								"initial": 0,
+								"consumers": ["drive.steering"]
+							}
+						]
+					},
+					{
+						"id": "drive.steering-cooling.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 100,
+								"initial": 100,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "drive.steering-cooling",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.drive.steering-cooling",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive.steering-cooling"]
+							},
+							{
+								"id": "cooling_allocation",
+								"action": "cooling_allocation",
+								"initial": 100,
+								"consumers": ["drive.steering-cooling"]
+							}
+						]
+					},
+					{
+						"id": "drive.steering-supply.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 1000,
+								"initial": 500,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "drive.steering-supply",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.drive.steering-supply",
+						"commands": [
+							{
+								"id": "group_allocation",
+								"action": "group_allocation",
+								"initial": 500,
+								"consumers": ["drive.steering-supply"]
+							}
+						]
+					},
+					{
+						"id": "sensors.cooling.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 200,
+								"initial": 200,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "sensors.cooling",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.sensors.cooling",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["sensors.cooling"]
+							},
+							{
+								"id": "cooling_allocation",
+								"action": "cooling_allocation",
+								"initial": 200,
+								"consumers": ["sensors.cooling"]
+							}
+						]
+					},
+					{
+						"id": "sensors.distribution.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 1000,
+								"initial": 1000,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "sensors.distribution",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.sensors.distribution",
+						"commands": [
+							{
+								"id": "group_allocation",
+								"action": "group_allocation",
+								"initial": 1000,
+								"consumers": ["sensors.distribution"]
+							}
+						]
+					},
+					{
+						"id": "sensors.radar",
+						"console": "helm",
+						"tree": "base.ai.standby",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["sensors.radar"]
+							},
+							{
+								"id": "overdrive",
+								"action": "overdrive",
+								"initial": 0,
+								"consumers": ["sensors.radar"]
+							},
+							{
+								"id": "thermal_override",
+								"action": "thermal_override",
+								"initial": 0,
+								"consumers": ["sensors.radar"]
+							}
+						]
+					},
+					{
+						"id": "navigation.orders",
+						"console": "navigation",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "waypoint",
+								"action": "waypoint",
+								"initial": 0,
+								"arguments": [0, 0],
+								"consumers": []
+							}
+						]
+					}
+				],
+				"profiles": [
+					{
+						"id": "simple",
+						"consoles": {
+							"engineering": {
+								"human": [
+									"core.distribution.orders",
+									"core.generator.orders",
+									"core.reactor-cooling.orders",
+									"drive.boost-cooling.orders",
+									"drive.distribution.orders",
+									"drive.engine-cooling.orders",
+									"drive.impulse-cooling.orders",
+									"drive.lateral-cooling.orders",
+									"drive.steering-cooling.orders",
+									"sensors.cooling.orders",
+									"sensors.distribution.orders"
+								],
+								"ai": [
+									"core.distribution",
+									"core.generator",
+									"core.pump",
+									"core.reactor-cooling",
+									"core.reserve",
+									"drive.boost-cooling",
+									"drive.boost-supply.orders",
+									"drive.boost-supply",
+									"drive.distribution",
+									"drive.engine-cooling",
+									"drive.engine-supply.orders",
+									"drive.engine-supply",
+									"drive.impulse-cooling",
+									"drive.impulse-supply.orders",
+									"drive.impulse-supply",
+									"drive.lateral-cooling",
+									"drive.lateral-supply.orders",
+									"drive.lateral-supply",
+									"drive.steering-cooling",
+									"drive.steering-supply.orders",
+									"drive.steering-supply",
+									"sensors.cooling",
+									"sensors.distribution"
+								]
+							},
+							"helm": {
+								"human": ["drive.engine", "drive.lateral", "drive.steering", "sensors.radar"],
+								"ai": ["drive.boost", "drive.impulse"]
+							},
+							"navigation": {
+								"human": ["navigation.orders"]
+							}
+						}
+					},
+					{
+						"id": "middle",
+						"consoles": {
+							"engineering": {
+								"human": [
+									"core.distribution",
+									"core.generator",
+									"drive.distribution",
+									"sensors.distribution"
+								],
+								"ai": [
+									"core.distribution.orders",
+									"core.generator.orders",
+									"core.pump",
+									"core.reactor-cooling.orders",
+									"core.reactor-cooling",
+									"core.reserve",
+									"drive.boost-cooling.orders",
+									"drive.boost-cooling",
+									"drive.boost-supply.orders",
+									"drive.boost-supply",
+									"drive.distribution.orders",
+									"drive.engine-cooling.orders",
+									"drive.engine-cooling",
+									"drive.engine-supply.orders",
+									"drive.engine-supply",
+									"drive.impulse-cooling.orders",
+									"drive.impulse-cooling",
+									"drive.impulse-supply.orders",
+									"drive.impulse-supply",
+									"drive.lateral-cooling.orders",
+									"drive.lateral-cooling",
+									"drive.lateral-supply.orders",
+									"drive.lateral-supply",
+									"drive.steering-cooling.orders",
+									"drive.steering-cooling",
+									"drive.steering-supply.orders",
+									"drive.steering-supply",
+									"sensors.cooling.orders",
+									"sensors.cooling",
+									"sensors.distribution.orders"
+								]
+							},
+							"helm": {
+								"human": [
+									"drive.boost",
+									"drive.engine",
+									"drive.impulse",
+									"drive.lateral",
+									"drive.steering",
+									"sensors.radar"
+								],
+								"ai": []
+							},
+							"navigation": {
+								"human": ["navigation.orders"]
+							}
+						}
+					},
+					{
+						"id": "detailed",
+						"consoles": {
+							"engineering": {
+								"human": [
+									"core.distribution",
+									"core.generator",
+									"core.pump",
+									"core.reactor-cooling",
+									"core.reserve",
+									"drive.boost-cooling",
+									"drive.boost-supply",
+									"drive.distribution",
+									"drive.engine-cooling",
+									"drive.engine-supply",
+									"drive.impulse-cooling",
+									"drive.impulse-supply",
+									"drive.lateral-cooling",
+									"drive.lateral-supply",
+									"drive.steering-cooling",
+									"drive.steering-supply",
+									"sensors.cooling",
+									"sensors.distribution"
+								],
+								"ai": [
+									"core.distribution.orders",
+									"core.generator.orders",
+									"core.reactor-cooling.orders",
+									"drive.boost-cooling.orders",
+									"drive.boost-supply.orders",
+									"drive.distribution.orders",
+									"drive.engine-cooling.orders",
+									"drive.engine-supply.orders",
+									"drive.impulse-cooling.orders",
+									"drive.impulse-supply.orders",
+									"drive.lateral-cooling.orders",
+									"drive.lateral-supply.orders",
+									"drive.steering-cooling.orders",
+									"drive.steering-supply.orders",
+									"sensors.cooling.orders",
+									"sensors.distribution.orders"
+								]
+							},
+							"helm": {
+								"human": [
+									"drive.boost",
+									"drive.engine",
+									"drive.impulse",
+									"drive.lateral",
+									"drive.steering",
+									"sensors.radar"
+								],
+								"ai": []
+							},
+							"navigation": {
+								"human": ["navigation.orders"]
+							}
+						}
+					},
+					{
+						"id": "automatic",
+						"consoles": {
+							"helm": {
+								"ai": [
+									"drive.boost",
+									"drive.engine",
+									"drive.impulse",
+									"drive.lateral",
+									"drive.steering",
+									"sensors.radar"
+								]
+							},
+							"engineering": {
+								"ai": [
+									"core.distribution.orders",
+									"core.distribution",
+									"core.generator.orders",
+									"core.generator",
+									"core.pump",
+									"core.reactor-cooling.orders",
+									"core.reactor-cooling",
+									"core.reserve",
+									"drive.boost-cooling.orders",
+									"drive.boost-cooling",
+									"drive.boost-supply.orders",
+									"drive.boost-supply",
+									"drive.distribution.orders",
+									"drive.distribution",
+									"drive.engine-cooling.orders",
+									"drive.engine-cooling",
+									"drive.engine-supply.orders",
+									"drive.engine-supply",
+									"drive.impulse-cooling.orders",
+									"drive.impulse-cooling",
+									"drive.impulse-supply.orders",
+									"drive.impulse-supply",
+									"drive.lateral-cooling.orders",
+									"drive.lateral-cooling",
+									"drive.lateral-supply.orders",
+									"drive.lateral-supply",
+									"drive.steering-cooling.orders",
+									"drive.steering-cooling",
+									"drive.steering-supply.orders",
+									"drive.steering-supply",
+									"sensors.cooling.orders",
+									"sensors.cooling",
+									"sensors.distribution.orders",
+									"sensors.distribution"
+								]
+							},
+							"navigation": {
+								"human": ["navigation.orders"]
+							}
+						}
+					}
+				],
+				"default_profile": "middle"
+			}
 		}
 	],
 	"maps": [
@@ -5701,6 +6865,128 @@
 					"y_mm": 60000
 				}
 			]
+		},
+		{
+			"id": "base.courier-race",
+			"name": "Courier Race",
+			"ship_slots": [
+				{
+					"id": "racer-a",
+					"mandatory": true,
+					"allowed_ships": ["base.race-courier"],
+					"x_mm": -180000,
+					"y_mm": -40000,
+					"heading_mdeg": 0
+				},
+				{
+					"id": "racer-b",
+					"mandatory": true,
+					"allowed_ships": ["base.race-courier"],
+					"x_mm": -180000,
+					"y_mm": 40000,
+					"heading_mdeg": 0
+				}
+			],
+			"entities": [
+				{
+					"id": 1,
+					"definition": "training.asteroid",
+					"x_mm": -80000,
+					"y_mm": -40000,
+					"heading_mdeg": 0
+				},
+				{
+					"id": 2,
+					"definition": "training.asteroid",
+					"x_mm": -80000,
+					"y_mm": 40000,
+					"heading_mdeg": 0
+				},
+				{
+					"id": 3,
+					"definition": "training.asteroid",
+					"x_mm": 10000,
+					"y_mm": 0,
+					"heading_mdeg": 0
+				},
+				{
+					"id": 4,
+					"definition": "training.asteroid",
+					"x_mm": 90000,
+					"y_mm": -50000,
+					"heading_mdeg": 0
+				},
+				{
+					"id": 5,
+					"definition": "training.asteroid",
+					"x_mm": 90000,
+					"y_mm": 50000,
+					"heading_mdeg": 0
+				}
+			],
+			"regions": [
+				{
+					"id": "finish",
+					"shape": "circle",
+					"x_mm": 220000,
+					"y_mm": 0,
+					"radius_mm": 18000
+				}
+			],
+			"scenario": {
+				"tree": "base.scenario.race-a",
+				"bindings": {
+					"actor": {
+						"slot": "racer-a"
+					}
+				},
+				"situations": [
+					{
+						"id": "racer-b",
+						"tree": "base.scenario.race-b",
+						"bindings": {
+							"actor": {
+								"slot": "racer-b"
+							}
+						},
+						"start": true
+					}
+				],
+				"objectives": [
+					{
+						"id": "race-a",
+						"type": "reach_region",
+						"region": "finish",
+						"competition": "courier-race",
+						"actor": {
+							"slot": "racer-a"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "racer-a"
+							}
+						},
+						"title_key": "Reach the race finish",
+						"description_key": "Be the first Courier to enter the marked finish area."
+					},
+					{
+						"id": "race-b",
+						"type": "reach_region",
+						"region": "finish",
+						"competition": "courier-race",
+						"actor": {
+							"slot": "racer-b"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "racer-b"
+							}
+						},
+						"title_key": "Reach the race finish",
+						"description_key": "Be the first Courier to enter the marked finish area."
+					}
+				]
+			}
 		}
 	],
 	"consoles": [
@@ -5877,6 +7163,36 @@
 					"y": 0,
 					"width": 1000,
 					"height": 1000
+				}
+			]
+		},
+		{
+			"id": "base.console.navigation",
+			"name": "Navigation",
+			"description": "Plot a waypoint and review shipwide objectives.",
+			"human_seeking": true,
+			"widgets": [
+				{
+					"id": "map",
+					"kind": "navigation",
+					"binding": "ship.navigation",
+					"label": "Navigation map",
+					"controller": "navigation.orders",
+					"channel": "waypoint",
+					"x": 0,
+					"y": 0,
+					"width": 1000,
+					"height": 1000
+				},
+				{
+					"id": "objectives",
+					"kind": "objectives",
+					"binding": "ship.objectives",
+					"label": "Ship objectives",
+					"x": 0,
+					"y": 0,
+					"width": 300,
+					"height": 200
 				}
 			]
 		}
@@ -9784,6 +11100,746 @@
 			"record_bindings": [],
 			"message_bindings": [],
 			"message_templates": []
+		},
+		{
+			"id": "base.ai.race.engine",
+			"context": "controller",
+			"initial": "waiting",
+			"states": [
+				{
+					"id": "waiting",
+					"running": [
+						{
+							"action": "write.destination",
+							"arguments": [false, 0, 0]
+						},
+						{
+							"action": "write.speed_mm_s",
+							"arguments": [0]
+						}
+					],
+					"transitions": [
+						{
+							"target": "waypoint",
+							"conditions": [
+								{
+									"left": {
+										"observation": "waypoint.active.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "waypoint.active"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "waypoint.reached"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"target": "objective",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.status.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "objective.status"
+									},
+									"op": "eq",
+									"right": "active"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "objective",
+					"running": [
+						{
+							"action": "write.destination",
+							"arguments": [
+								true,
+								{
+									"observation": "objective.x"
+								},
+								{
+									"observation": "objective.y"
+								}
+							]
+						},
+						{
+							"action": "write.speed_mm_s",
+							"arguments": [9000]
+						}
+					],
+					"transitions": [
+						{
+							"target": "avoid",
+							"conditions": [
+								{
+									"left": {
+										"observation": "navigation.blocked"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "waypoint",
+							"conditions": [
+								{
+									"left": {
+										"observation": "waypoint.active.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "waypoint.active"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "waypoint.reached"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"target": "waiting",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.status"
+									},
+									"op": "ne",
+									"right": "active"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "waypoint",
+					"running": [
+						{
+							"action": "write.destination",
+							"arguments": [
+								true,
+								{
+									"observation": "waypoint.x"
+								},
+								{
+									"observation": "waypoint.y"
+								}
+							]
+						},
+						{
+							"action": "write.speed_mm_s",
+							"arguments": [9000]
+						}
+					],
+					"transitions": [
+						{
+							"target": "avoid",
+							"conditions": [
+								{
+									"left": {
+										"observation": "navigation.blocked"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "waiting",
+							"conditions": [
+								{
+									"left": {
+										"observation": "waypoint.active"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"target": "waiting",
+							"conditions": [
+								{
+									"left": {
+										"observation": "waypoint.reached"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "avoid",
+					"running": [
+						{
+							"action": "write.destination",
+							"arguments": [false, 0, 0]
+						},
+						{
+							"action": "write.speed_mm_s",
+							"arguments": [0]
+						}
+					],
+					"transitions": [
+						{
+							"target": "clear",
+							"conditions": [
+								{
+									"left": {
+										"observation": "navigation.blocked"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "clear",
+					"entry": [
+						{
+							"action": "write.destination",
+							"arguments": [false, 0, 0]
+						},
+						{
+							"action": "write.speed_mm_s",
+							"arguments": [2000]
+						}
+					],
+					"transitions": [
+						{
+							"target": "avoid",
+							"conditions": [
+								{
+									"left": {
+										"observation": "navigation.blocked"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "waiting",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 40
+								}
+							]
+						}
+					]
+				}
+			],
+			"command_bindings": [
+				{
+					"channel": "destination",
+					"type": "boolean",
+					"action": "destination"
+				},
+				{
+					"channel": "speed_mm_s"
+				}
+			],
+			"record_bindings": [
+				{
+					"name": "objective.status",
+					"scope": "ship",
+					"schema": "phoenix.objective",
+					"field": "status",
+					"subject": "latest",
+					"type": "text"
+				},
+				{
+					"name": "objective.x",
+					"scope": "ship",
+					"schema": "phoenix.objective",
+					"field": "destination_x",
+					"subject": "latest",
+					"type": "integer"
+				},
+				{
+					"name": "objective.y",
+					"scope": "ship",
+					"schema": "phoenix.objective",
+					"field": "destination_y",
+					"subject": "latest",
+					"type": "integer"
+				},
+				{
+					"name": "waypoint.active",
+					"scope": "ship",
+					"schema": "phoenix.waypoint",
+					"field": "active",
+					"subject": "latest",
+					"type": "boolean"
+				},
+				{
+					"name": "waypoint.reached",
+					"scope": "ship",
+					"schema": "phoenix.waypoint",
+					"field": "reached",
+					"subject": "latest",
+					"type": "boolean"
+				},
+				{
+					"name": "waypoint.x",
+					"scope": "ship",
+					"schema": "phoenix.waypoint",
+					"field": "x",
+					"subject": "latest",
+					"type": "integer"
+				},
+				{
+					"name": "waypoint.y",
+					"scope": "ship",
+					"schema": "phoenix.waypoint",
+					"field": "y",
+					"subject": "latest",
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"id": "base.ai.race.steering",
+			"context": "controller",
+			"initial": "waiting",
+			"states": [
+				{
+					"id": "waiting",
+					"running": [
+						{
+							"action": "write.destination",
+							"arguments": [false, 0, 0]
+						}
+					],
+					"transitions": [
+						{
+							"target": "waypoint",
+							"conditions": [
+								{
+									"left": {
+										"observation": "waypoint.active.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "waypoint.active"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "waypoint.reached"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"target": "objective",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.status.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "objective.status"
+									},
+									"op": "eq",
+									"right": "active"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "objective",
+					"running": [
+						{
+							"action": "write.destination",
+							"arguments": [
+								true,
+								{
+									"observation": "objective.x"
+								},
+								{
+									"observation": "objective.y"
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "avoid",
+							"conditions": [
+								{
+									"left": {
+										"observation": "navigation.blocked"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "waypoint",
+							"conditions": [
+								{
+									"left": {
+										"observation": "waypoint.active.available"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "waypoint.active"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "waypoint.reached"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"target": "waiting",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.status"
+									},
+									"op": "ne",
+									"right": "active"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "waypoint",
+					"running": [
+						{
+							"action": "write.destination",
+							"arguments": [
+								true,
+								{
+									"observation": "waypoint.x"
+								},
+								{
+									"observation": "waypoint.y"
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "avoid",
+							"conditions": [
+								{
+									"left": {
+										"observation": "navigation.blocked"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "waiting",
+							"conditions": [
+								{
+									"left": {
+										"observation": "waypoint.active"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"target": "waiting",
+							"conditions": [
+								{
+									"left": {
+										"observation": "waypoint.reached"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "avoid",
+					"running": [
+						{
+							"action": "write.destination",
+							"arguments": [false, 0, 0]
+						},
+						{
+							"action": "write.heading_mdeg",
+							"arguments": [
+								{
+									"observation": "navigation.left_heading"
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "clear",
+							"conditions": [
+								{
+									"left": {
+										"observation": "navigation.blocked"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "clear",
+					"entry": [
+						{
+							"action": "write.destination",
+							"arguments": [false, 0, 0]
+						},
+						{
+							"action": "write.heading_mdeg",
+							"arguments": [
+								{
+									"observation": "own.heading"
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "avoid",
+							"conditions": [
+								{
+									"left": {
+										"observation": "navigation.blocked"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "waiting",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 40
+								}
+							]
+						}
+					]
+				}
+			],
+			"command_bindings": [
+				{
+					"channel": "destination",
+					"type": "boolean",
+					"action": "destination"
+				},
+				{
+					"channel": "heading_mdeg"
+				}
+			],
+			"record_bindings": [
+				{
+					"name": "objective.status",
+					"scope": "ship",
+					"schema": "phoenix.objective",
+					"field": "status",
+					"subject": "latest",
+					"type": "text"
+				},
+				{
+					"name": "objective.x",
+					"scope": "ship",
+					"schema": "phoenix.objective",
+					"field": "destination_x",
+					"subject": "latest",
+					"type": "integer"
+				},
+				{
+					"name": "objective.y",
+					"scope": "ship",
+					"schema": "phoenix.objective",
+					"field": "destination_y",
+					"subject": "latest",
+					"type": "integer"
+				},
+				{
+					"name": "waypoint.active",
+					"scope": "ship",
+					"schema": "phoenix.waypoint",
+					"field": "active",
+					"subject": "latest",
+					"type": "boolean"
+				},
+				{
+					"name": "waypoint.reached",
+					"scope": "ship",
+					"schema": "phoenix.waypoint",
+					"field": "reached",
+					"subject": "latest",
+					"type": "boolean"
+				},
+				{
+					"name": "waypoint.x",
+					"scope": "ship",
+					"schema": "phoenix.waypoint",
+					"field": "x",
+					"subject": "latest",
+					"type": "integer"
+				},
+				{
+					"name": "waypoint.y",
+					"scope": "ship",
+					"schema": "phoenix.waypoint",
+					"field": "y",
+					"subject": "latest",
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"id": "base.scenario.race-a",
+			"context": "scenario",
+			"initial": "delay",
+			"states": [
+				{
+					"id": "delay",
+					"transitions": [
+						{
+							"target": "race",
+							"conditions": [
+								{
+									"left": {
+										"observation": "scenario.elapsed"
+									},
+									"op": "ge",
+									"right": 100
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "race",
+					"entry": [
+						{
+							"action": "add_objective",
+							"arguments": [
+								"race-a",
+								{
+									"observation": "self.entity"
+								},
+								"finish"
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.scenario.race-b",
+			"context": "scenario",
+			"initial": "delay",
+			"states": [
+				{
+					"id": "delay",
+					"transitions": [
+						{
+							"target": "race",
+							"conditions": [
+								{
+									"left": {
+										"observation": "scenario.elapsed"
+									},
+									"op": "ge",
+									"right": 100
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "race",
+					"entry": [
+						{
+							"action": "add_objective",
+							"arguments": [
+								"race-b",
+								{
+									"observation": "self.entity"
+								},
+								"finish"
+							]
+						}
+					]
+				}
+			]
 		}
 	],
 	"equipment": [

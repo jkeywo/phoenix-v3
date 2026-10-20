@@ -101,6 +101,11 @@ std::vector<ConsoleSpec> resolve_consoles(const Catalog &catalog, const std::str
 	if (!entity.contains("stations"))
 	{
 		ConsoleSpec seat{"main", "main", entity.value("console", std::string{}), fitted, fitted};
+		if (!seat.definition.empty() && catalog.consoles.contains(seat.definition))
+		{
+			seat.human_seeking = catalog.consoles.at(seat.definition).value("human_seeking", false);
+			seat.human_preferences = {"main"};
+		}
 		for (const auto &system : instances)
 		{
 			seat.controlled_systems.push_back(system.id);
@@ -184,6 +189,8 @@ std::vector<ConsoleSpec> resolve_consoles(const Catalog &catalog, const std::str
 				fail("Console identities must be unique within 32 seats per ship");
 			if (!catalog.consoles.contains(spec.definition))
 				fail("unresolved Console definition");
+			spec.human_seeking = catalog.consoles.at(spec.definition).value("human_seeking", false);
+			spec.human_preferences = console.value("human_preferences", std::vector<std::string>{});
 			spec.controls = mask(console.value("systems", Json::array()), spec.controlled_systems);
 			spec.feeds = spec.controls | mask(console.value("feeds", Json::array()), spec.feed_systems);
 			for (const auto &system : spec.controlled_systems)
@@ -224,6 +231,20 @@ std::vector<ConsoleSpec> resolve_consoles(const Catalog &catalog, const std::str
 					fail("radar widget requires an explicit feed");
 			}
 			result.push_back(std::move(spec));
+		}
+	}
+	for (auto &spec : result)
+	{
+		std::set<std::string> seen;
+		for (const auto &station : spec.human_preferences)
+			if (!stations.contains(station) || !seen.insert(station).second)
+				fail("unknown or repeated human-seeking station preference");
+		if (spec.human_preferences.empty())
+		{
+			spec.human_preferences.push_back(spec.station);
+			for (const auto &station : entity["stations"])
+				if (station.at("id") != spec.station)
+					spec.human_preferences.push_back(station.at("id"));
 		}
 	}
 	if (owned.size() != instances.size() && !entity.contains("control_layout") && !catalog.presentation)

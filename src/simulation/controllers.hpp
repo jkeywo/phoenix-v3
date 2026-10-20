@@ -59,6 +59,7 @@ struct ConsoleControllerRuntime
 	std::vector<ControllerChannelState> commands;
 	bool human = false;
 	std::uint64_t generation = 1;
+	std::uint64_t operator_claimant = 0;
 	std::optional<Controller> timed;
 	std::optional<ControllerBrain> brain;
 	ActionResult result;

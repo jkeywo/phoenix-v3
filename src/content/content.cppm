@@ -303,6 +303,8 @@ struct ConsoleSpec
 	std::string id, station, definition;
 	SystemMask controls = 0, feeds = 0;
 	std::vector<std::string> controlled_systems, feed_systems;
+	bool human_seeking = false;
+	std::vector<std::string> human_preferences;
 };
 struct FittedSystemSpec
 {
@@ -340,6 +342,7 @@ struct ControllerCommandSpec
 	std::vector<std::size_t> consumers;
 	std::vector<std::int64_t> initial_arguments;
 	bool initial_heading = false;
+	std::int64_t arrival_radius = 5000;
 	std::string label_key;
 	std::map<std::int64_t, std::string> choices;
 };

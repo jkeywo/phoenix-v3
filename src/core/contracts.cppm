@@ -45,7 +45,8 @@ enum class OperatingAction
 	Destination,
 	FollowContact,
 	IntentInteger,
-	IntentBoolean
+	IntentBoolean,
+	Waypoint
 };
 enum class OperatingSystem
 {
@@ -134,7 +135,8 @@ inline constexpr std::array operating_actions{
     OperatingActionSpec{OperatingAction::FollowContact, "follow_contact", OperatingSystem::Engine, true, 1},
     OperatingActionSpec{OperatingAction::IntentInteger, "intent_integer", OperatingSystem::Engine, false, 1000000000000,
                         -1000000000000},
-    OperatingActionSpec{OperatingAction::IntentBoolean, "intent_boolean", OperatingSystem::Engine, true, 1}};
+    OperatingActionSpec{OperatingAction::IntentBoolean, "intent_boolean", OperatingSystem::Engine, true, 1},
+    OperatingActionSpec{OperatingAction::Waypoint, "waypoint", OperatingSystem::Engine, true, 1}};
 constexpr const OperatingActionSpec *operating_action(std::string_view name)
 {
 	for (const auto &spec : operating_actions)
@@ -158,7 +160,7 @@ inline constexpr std::array follow_arguments{OperatingArgumentSpec{"contact", 0,
                                              OperatingArgumentSpec{"speed", 1, 1000000000}};
 constexpr std::span<const OperatingArgumentSpec> operating_arguments(OperatingAction action)
 {
-	if (action == OperatingAction::Destination)
+	if (action == OperatingAction::Destination || action == OperatingAction::Waypoint)
 		return destination_arguments;
 	if (action == OperatingAction::FollowContact)
 		return follow_arguments;
@@ -287,6 +289,7 @@ struct Observation
 	// Permitted knowledge and coordination serialization boundary; never AI memory.
 	Json gameplay = Json::object();
 	std::uint64_t observed_tick = 0;
+	std::vector<Observation> additional_consoles;
 };
 struct OperatingCommand
 {
@@ -298,6 +301,7 @@ struct OperatingCommand
 	std::string controller, channel;
 	std::uint64_t generation = 0, request_id = 0;
 	std::vector<std::int64_t> arguments;
+	std::string console;
 };
 Json encode_operating_command(const OperatingCommand &command);
 OperatingCommand decode_operating_command(const Json &value);

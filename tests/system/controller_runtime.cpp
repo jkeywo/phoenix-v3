@@ -1,5 +1,6 @@
 #include "../support/assertions.hpp"
 #include "../support/controller_fixture.hpp"
+#include "../../src/presentation/navigation_camera.hpp"
 #include <algorithm>
 #include <iostream>
 #include <optional>
@@ -47,6 +48,113 @@ int main()
 {
 	try
 	{
+		{
+			NavigationCamera camera;
+			camera.fit(-10000, -20000, 90000, 20000, 1000, 500);
+			require(camera.x == 40000 && camera.y == 0 && camera.scale >= 100,
+			        "map fits ship and destination with padding");
+			const auto world_x = camera.x + 100 * camera.scale, world_y = camera.y - 50 * camera.scale;
+			camera.zoom(.5, 100, 50);
+			require(camera.x + 100 * camera.scale == world_x && camera.y - 50 * camera.scale == world_y,
+			        "zoom preserves cursor world position");
+			const auto scale = camera.scale;
+			camera.fit(0, 0, 1000000, 1000000, 1000, 500);
+			require(camera.scale == scale, "manual view survives automatic fit updates");
+			camera.automatic = true;
+			camera.fit(0, 0, 1000000, 1000000, 1000, 500);
+			require(camera.scale > scale, "reset refits current level extents");
+		}
+		for (const bool visible : {false, true})
+		{
+			auto source = controller_fixture();
+			auto &entity = source["entities"][0];
+			entity["systems"]["radar"] = {{"kind", "radar"}, {"range_mm", visible ? 100000 : 1000}};
+			entity["stations"][0]["consoles"][0]["feeds"].push_back("radar");
+			entity["control_layout"]["controllers"][0]["tree"] = "test.clearance";
+			entity["control_layout"]["controllers"][0].erase("fallback");
+			entity["control_layout"]["controllers"].push_back(
+			    {{"id", "sensor"},
+			     {"console", "drive"},
+			     {"fallback", "hold"},
+			     {"commands",
+			      Json::array(
+			          {{{"id", "enabled"}, {"action", "radar_enabled"}, {"initial", 1}, {"consumers", {"radar"}}}})}});
+			for (auto &profile : entity["control_layout"]["profiles"])
+				profile["consoles"]["drive"]["ai"].push_back("sensor");
+			source["entities"].push_back(
+			    {{"id", "test.rock"},
+			     {"render", entity["render"]},
+			     {"systems", Json::object()},
+			     {"collision", {{"shape", "circle"}, {"radius_mm", 1000}, {"mass_grams", 1000000}}}});
+			source["maps"][0]["entities"].push_back(
+			    {{"id", 2}, {"definition", "test.rock"}, {"x_mm", 10000}, {"y_mm", 0}, {"heading_mdeg", 0}});
+			source["trees"] = Json::parse(
+			    R"json([{"id":"test.clearance","context":"controller","initial":"clear","command_bindings":[{"channel":"speed"}],"states":[{"id":"clear","running":[{"action":"write.speed","arguments":[1000]}],"transitions":[{"target":"blocked","conditions":[{"left":{"observation":"navigation.blocked"},"op":"eq","right":true}]}]},{"id":"blocked","running":[{"action":"write.speed","arguments":[0]}],"transitions":[{"target":"clear","conditions":[{"left":{"observation":"navigation.blocked"},"op":"eq","right":false}]}]}]}])json");
+			World world;
+			world.load(load(source), "test.map");
+			for (int i = 0; i < 5; ++i)
+				world.tick();
+			world.claim(101, 1, "drive");
+			require(requested(world, "port") == (visible ? 0 : 1000),
+			        "clearance must use permitted contacts rather than hidden obstacles");
+		}
+		{
+			auto source = controller_fixture();
+			auto &entity = source["entities"][0];
+			auto observer = entity["stations"][0]["consoles"][1];
+			entity["stations"][0]["consoles"].erase(1);
+			entity["stations"].push_back({{"id", "support"}, {"consoles", Json::array({observer})}});
+			source["consoles"].push_back({{"id", "test.seeking"}, {"human_seeking", true}, {"widgets", Json::array()}});
+			for (const auto *name : {"navigation", "reports"})
+				entity["stations"][0]["consoles"].push_back({{"id", name},
+				                                             {"definition", "test.seeking"},
+				                                             {"systems", Json::array()},
+				                                             {"human_preferences", {"support", "operations"}}});
+			entity["control_layout"]["controllers"].push_back(
+			    {{"id", "planner"},
+			     {"console", "navigation"},
+			     {"fallback", "hold"},
+			     {"commands", Json::array({{{"id", "point"},
+			                                {"action", "waypoint"},
+			                                {"initial", 0},
+			                                {"arguments", {0, 0}},
+			                                {"consumers", Json::array()}}})}});
+			for (auto &profile : entity["control_layout"]["profiles"])
+				profile["consoles"]["navigation"] = {{"human", {"planner"}}};
+			const auto catalog = load(source);
+			World world;
+			world.load(catalog, "test.map");
+			require(world.claim(101, 1, "drive"), "fallback operator can claim primary console");
+			auto first = world.observe(101);
+			require(first->additional_consoles.size() == 2, "any human-seeking console follows available human");
+			const auto planner = first->additional_consoles[0].gameplay.at("controllers")[0];
+			OperatingCommand command{1, "waypoint", 1, {}, "planner", "point", planner.at("generation")};
+			command.console = "navigation";
+			command.arguments = {30000, 0};
+			require(world.submit(101, command), "additional Console admits its owner's waypoint");
+			world.tick();
+			require(world.claim(102, 1, "observer"), "preferred support operator joins");
+			require(world.observe(101)->additional_consoles.empty() &&
+			            world.observe(102)->additional_consoles.size() == 2,
+			        "preference transfers both generic Consoles");
+			require(!world.submit(101, command) && !world.submit(102, command),
+			        "old operator and old generation cannot write after transfer");
+			command.generation =
+			    world.observe(102)->additional_consoles[0].gameplay.at("controllers")[0].at("generation");
+			require(world.submit(102, command), "new operator generation can write");
+			world.tick();
+			World restored;
+			restored.restore(catalog, world.save());
+			require(restored.observe(102)->additional_consoles.size() == 2,
+			        "recovery derives same supplemental assignment");
+			require(world.release(102) && world.observe(101)->additional_consoles.size() == 2,
+			        "departure restores fallback assignment");
+			bool shared = false;
+			const auto final_view = world.observe(101);
+			for (const auto &record : final_view->gameplay.at("shared"))
+				shared |= record.at("schema") == "phoenix.waypoint";
+			require(shared, "waypoint is published shipwide");
+		}
 		{
 			auto source = controller_fixture();
 			source["entities"][0]["control_layout"]["controllers"][0]["tree"] = "test.mutable";

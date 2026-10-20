@@ -1,7 +1,7 @@
 #pragma once
 
 // Explicit, opt-in authored-content smoke. Never runs as part of CTest.
-int scenario_probe(const char *archive, const char *mission, int ticks)
+int scenario_probe(const char *archive, const char *mission, int ticks, const char *save_path = nullptr)
 {
 	using namespace phoenix;
 	const auto catalog = resolve_packs({read_pack(read_file(archive))});
@@ -61,6 +61,16 @@ int scenario_probe(const char *archive, const char *mission, int ticks)
 			row["minimum_terrain_squared"] = minimum_terrain_squared;
 			std::cout << row.dump() << '\n';
 		}
+	}
+	if (save_path)
+	{
+		auto session = make_host_world();
+		session->add_pack(read_file(archive));
+		const auto slot = map.at("ship_slots")[0].at("id").get<std::string>();
+		const auto console = resolve_consoles(catalog, ships.at(slot)).front().id;
+		session->start_server({mission, ships, slot, console});
+		session->authoritative_world().restore(catalog, world.save());
+		write_file(save_path, session->save());
 	}
 	return 0;
 }

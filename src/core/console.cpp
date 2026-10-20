@@ -351,6 +351,28 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 		packs_ = catalog.ordered_packs;
 	}
 	auto next = session->console_observation(route);
+	available_consoles_.clear();
+	if (next)
+	{
+		available_consoles_.emplace_back(next->console, next->console);
+		for (const auto &extra : next->additional_consoles)
+			available_consoles_.emplace_back(extra.console, extra.console);
+		if (!selected_console_.empty() && selected_console_ != next->console)
+		{
+			const auto extra = std::find_if(next->additional_consoles.begin(), next->additional_consoles.end(),
+			                                [&](const auto &view)
+			                                {
+				                                return view.console == selected_console_;
+			                                });
+			if (extra != next->additional_consoles.end())
+			{
+				auto view = *extra;
+				next = std::move(view);
+			}
+			else
+				selected_console_.clear();
+		}
+	}
 	const bool changed = observation_.has_value() != next.has_value() ||
 	                     (next && observation_ &&
 	                      (next->own.id != observation_->own.id || next->console != observation_->console ||
@@ -436,6 +458,11 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 }
 bool ConsoleModel::act(const std::string &id)
 {
+	if (id.starts_with("game.console/"))
+	{
+		selected_console_ = id.substr(13);
+		return true;
+	}
 	auto session = owner_.lock();
 	if (!session)
 		return false;
@@ -591,6 +618,51 @@ bool ConsoleModel::set_speed_fraction(double fraction, const std::string &system
 	       submit({observation_->own.id, "speed_mm_s",
 	               static_cast<std::int64_t>(std::llround(minimum + (maximum - minimum) * fraction)), binding});
 }
+bool ConsoleModel::set_waypoint(std::int64_t x, std::int64_t y, bool active)
+{
+	const auto session = owner_.lock();
+	if (!session || !observation_ || !observation_->gameplay.contains("controllers"))
+		return false;
+	for (const auto &controller : observation_->gameplay.at("controllers"))
+		if (controller.value("human", false))
+			for (auto channel = controller.at("commands").begin(); channel != controller.at("commands").end();
+			     ++channel)
+				if (channel.value().at("action") == "waypoint")
+				{
+					OperatingCommand command{
+					    observation_->own.id,       "waypoint", active ? 1 : 0, {}, controller.at("id"), channel.key(),
+					    controller.at("generation")};
+					command.arguments = {x, y};
+					command.console = observation_->console;
+					return operating_arguments_valid(OperatingAction::Waypoint, command.value, command.arguments) &&
+					       session->console_command(route_, command);
+				}
+	return false;
+}
+Json ConsoleModel::objectives() const
+{
+	std::map<std::uint64_t, Json> latest;
+	if (observation_)
+		for (const auto &record : observation_->gameplay.value("shared", Json::array()))
+			if (record.value("schema", "") == "phoenix.objective")
+			{
+				const auto &fields = record.at("fields");
+				latest[fields.at("id").get<std::uint64_t>()] = fields;
+			}
+	Json result = Json::array();
+	for (const auto &[key, fields] : latest)
+		result.push_back(fields);
+	return result;
+}
+Json ConsoleModel::waypoint() const
+{
+	Json result = Json::object();
+	if (observation_)
+		for (const auto &record : observation_->gameplay.value("shared", Json::array()))
+			if (record.value("schema", "") == "phoenix.waypoint")
+				result = record.at("fields");
+	return result;
+}
 bool ConsoleModel::set_heading_degrees(double degrees, const std::string &system)
 {
 	if (!std::isfinite(degrees) || degrees < 0 || degrees >= 360)
@@ -729,6 +801,7 @@ bool ConsoleModel::submit(OperatingCommand command)
 	auto session = owner_.lock();
 	if (!session || !observation_)
 		return false;
+	command.console = observation_->console;
 	const auto *spec = operating_action(command.action);
 	std::string projected_label;
 	bool projected = false;
@@ -828,6 +901,9 @@ bool ConsoleModel::submit(OperatingCommand command)
 std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls() const
 {
 	std::vector<std::pair<std::string, std::string>> result;
+	if (available_consoles_.size() > 1)
+		for (const auto &[key, label] : available_consoles_)
+			result.emplace_back("game.console/" + key, localise("Open console") + " " + localise(label));
 	if (!observation_ || !observation_->gameplay.is_object())
 		return result;
 	const auto controls = observation_->gameplay.value("controls", Json::array());
@@ -878,6 +954,17 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 	}
 	for (auto row : board_readouts(observation_->gameplay, now))
 		result.push_back(std::move(row));
+	const auto marker = waypoint();
+	if (marker.value("active", false))
+	{
+		const double dx = marker.value("x", 0.0) - observation_->own.x,
+		             dy = marker.value("y", 0.0) - observation_->own.y;
+		result.emplace_back(
+		    "game.readout/waypoint-guidance",
+		    localise("Waypoint") + ": " + std::to_string(static_cast<int>(std::hypot(dx, dy) / 1000)) + " m; " +
+		        std::to_string(static_cast<int>(std::fmod(std::atan2(dy, dx) * 180 / 3.141592653589793 + 360, 360))) +
+		        " degrees");
+	}
 	return result;
 }
 

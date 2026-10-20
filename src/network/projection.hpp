@@ -130,6 +130,9 @@ static inline Json public_board_json(const Json &source)
 }
 static inline Json observation_json(const Observation &observation)
 {
+	Json additional = Json::array();
+	for (const auto &console : observation.additional_consoles)
+		additional.push_back(observation_json(console));
 	Json contacts = Json::array();
 	for (const auto &contact : observation.contacts)
 		contacts.push_back(body_json(contact));
@@ -154,11 +157,24 @@ static inline Json observation_json(const Observation &observation)
 	        {"controls", observation.controls},
 	        {"feeds", observation.feeds},
 	        {"systems", systems},
-	        {"gameplay", bounded_gameplay(observation.gameplay)}};
+	        {"gameplay", bounded_gameplay(observation.gameplay)},
+	        {"additional_consoles", additional}};
 }
 static inline Observation read_observation(const Json &value, const Catalog &catalog)
 {
 	Observation result{read_body(value.at("own")), {}};
+	const auto additional = value.value("additional_consoles", Json::array());
+	if (!additional.is_array() || additional.size() > 31)
+		throw std::runtime_error("Invalid additional Console count");
+	for (const auto &entry : additional)
+	{
+		if (!entry.value("additional_consoles", Json::array()).empty())
+			throw std::runtime_error("Nested additional Consoles are unsupported");
+		auto console = read_observation(entry, catalog);
+		if (console.own.id != result.own.id)
+			throw std::runtime_error("Additional Console belongs to another ship");
+		result.additional_consoles.push_back(std::move(console));
+	}
 	if (!catalog.entities.contains(result.own.definition) || !value.at("contacts").is_array() ||
 	    value.at("contacts").size() > 4096)
 		throw std::runtime_error("Projected observation does not match verified content");

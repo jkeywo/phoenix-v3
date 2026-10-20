@@ -51,6 +51,7 @@ int main(int argc, char **argv)
 	int smoke_frames = 0;
 	bool helm_smoke = false, readout_smoke = false, controller_report_smoke = false;
 	bool engineering_smoke = false;
+	bool navigation_smoke = false;
 	std::uint64_t helm_smoke_tick = 0;
 	bool workshop_smoke = false, controller_workshop_smoke = false;
 	std::string workshop_pack;
@@ -146,6 +147,11 @@ int main(int argc, char **argv)
 		{
 			engineering_smoke = true;
 			smoke_frames = 90;
+		}
+		if (argument == "--navigation-smoke")
+		{
+			navigation_smoke = true;
+			smoke_frames = 50;
 		}
 		if (argument == "--join-smoke")
 		{
@@ -753,6 +759,18 @@ int main(int argc, char **argv)
 			    (smoke_frames == 50 && !phoenix::probe_console_engineering(1, 1)) ||
 			    (smoke_frames == 20 && !phoenix::probe_console_engineering(1, 2)))
 				throw std::runtime_error("Engineering telemetry/control probe failed");
+		}
+		if (navigation_smoke)
+		{
+			const auto action = smoke_frames == 45   ? "game.console/navigation"
+			                    : smoke_frames == 35 ? "nav.set"
+			                    : smoke_frames == 30 ? "nav.in"
+			                    : smoke_frames == 25 ? "nav.right"
+			                    : smoke_frames == 20 ? "nav.clear"
+			                    : smoke_frames == 15 ? "nav.reset"
+			                                         : "";
+			if (*action && !phoenix::invoke_navigation(app, std::string("console/1/") + action))
+				throw std::runtime_error(std::string("Navigation smoke action failed: ") + action);
 		}
 		if (smoke_frames && --smoke_frames == 0)
 		{

@@ -48,7 +48,7 @@ std::vector<ConsoleSeat> GameExecution::seats(const std::string &server) const
 	for (const auto &lease : leases_)
 		if (lease.server == server)
 			for (const auto &seat : world_->authoritative_world().consoles(lease.address.ship))
-				if (seat.id == lease.address.console)
+				if (seat.id == lease.address.console && !seat.human_seeking)
 					result.push_back({lease.address, seat, !lease.active});
 	return result;
 }

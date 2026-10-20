@@ -88,6 +88,8 @@ ScenarioDefinition compile_scenario(const Json &map, std::span<const std::string
 		d.recipients = recipients(v.at("recipients"));
 		d.title_key = text(v, "title_key");
 		d.description_key = text(v, "description_key", true);
+		d.competition = text(v, "competition", true);
+		require(d.competition.empty() || valid_identifier(d.competition), "invalid objective competition");
 		auto check_slot = [&](const ScenarioActor &a)
 		{
 			if (a.kind == ScenarioActorKind::ShipSlot)
@@ -96,6 +98,18 @@ ScenarioDefinition compile_scenario(const Json &map, std::span<const std::string
 		check_slot(d.actor);
 		check_slot(d.recipients.ship);
 		require(out.objectives.emplace(d.id, std::move(d)).second, "duplicate objective definition");
+	}
+	std::map<std::string, std::vector<const ScenarioObjectiveDefinition *>> competitions;
+	for (const auto &[id, objective] : out.objectives)
+		if (!objective.competition.empty())
+			competitions[objective.competition].push_back(&objective);
+	for (const auto &[id, entries] : competitions)
+	{
+		require(entries.size() >= 2, "competition requires at least two objectives");
+		for (std::size_t i = 0; i < entries.size(); ++i)
+			for (std::size_t j = 0; j < i; ++j)
+				require(entries[i]->region == entries[j]->region && entries[i]->actor != entries[j]->actor,
+				        "competition requires distinct actors and a shared finish region");
 	}
 	for (const auto &v : list(source, "objective_sequences"))
 	{
@@ -113,6 +127,7 @@ ScenarioDefinition compile_scenario(const Json &map, std::span<const std::string
 		for (const auto &id : sequence.objectives)
 		{
 			const auto &objective = out.objectives.at(id);
+			require(objective.competition.empty(), "competition objectives cannot repeat in a sequence");
 			require(objective.actor == first.actor && objective.recipients == first.recipients,
 			        "sequence objectives must share actor and recipients");
 		}

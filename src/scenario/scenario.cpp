@@ -344,6 +344,11 @@ const ScenarioActionResult &ScenarioRuntime::add_objective(ScenarioActionToken t
 	if (objectives_.size() >= definition_.maximum_objectives)
 		return fail("objective population limit reached");
 	const auto &d = definition_.objectives.at(definition);
+	if (!d.competition.empty())
+		for (const auto &[id, existing] : objectives_)
+			if (definition_.objectives.at(existing.definition).competition == d.competition &&
+			    (!existing.outcome.empty() || existing.definition == definition))
+				return fail("competition already finished or participant already admitted");
 	const auto assigned = target.value_or(d.actor);
 	if (activate && !resolve(t.instance, assigned))
 		return fail("assigned objective actor is unavailable or handle is not singular");
@@ -362,7 +367,7 @@ const ScenarioActionResult &ScenarioRuntime::add_objective(ScenarioActionToken t
 	{
 		o.status = ObjectiveStatus::Active;
 		const auto id = resolve(t.instance, o.actor);
-		if (id && scenario_contains(definition_.regions.at(d.region), positions_.at(id)))
+		if (d.competition.empty() && id && scenario_contains(definition_.regions.at(d.region), positions_.at(id)))
 		{
 			o.status = ObjectiveStatus::Completed;
 			o.completed_tick = tick_;
@@ -410,8 +415,9 @@ const ScenarioActionResult &ScenarioRuntime::set_objective_status(ScenarioAction
 	if (status == ObjectiveStatus::Active)
 	{
 		const auto actor_id = resolve(o.instance, o.actor);
-		if (actor_id && scenario_contains(definition_.regions.at(definition_.objectives.at(o.definition).region),
-		                                  positions_.at(actor_id)))
+		if (definition_.objectives.at(o.definition).competition.empty() && actor_id &&
+		    scenario_contains(definition_.regions.at(definition_.objectives.at(o.definition).region),
+		                      positions_.at(actor_id)))
 		{
 			o.status = ObjectiveStatus::Completed;
 			o.completed_tick = tick_;
@@ -605,6 +611,7 @@ void ScenarioRuntime::begin_tick(ScenarioTick tick, std::map<std::string, Entity
 }
 void ScenarioRuntime::evaluate(std::span<const ScenarioMotionSegment> motion)
 {
+	std::map<std::string, std::vector<ScenarioId>> arrivals;
 	for (const auto &m : motion)
 	{
 		require(m.entity > 0 && valid_point(m.from) && valid_point(m.to), "invalid executed movement segment");
@@ -628,12 +635,42 @@ void ScenarioRuntime::evaluate(std::span<const ScenarioMotionSegment> motion)
 			}
 		if (reached)
 		{
+			const auto &competition = definition_.objectives.at(o.definition).competition;
+			if (!competition.empty())
+			{
+				arrivals[competition].push_back(id);
+				continue;
+			}
 			o.status = ObjectiveStatus::Completed;
 			o.completed_tick = tick_;
 			o.completed_actor = entity;
 			objective_publication(o);
 		}
 	}
+	// Resolve a whole movement tick before assigning credit: map iteration order
+	// must never choose the winner of simultaneous physical arrivals.
+	for (const auto &[group, winners] : arrivals)
+		for (auto &[id, o] : objectives_)
+			if (o.status == ObjectiveStatus::Active && definition_.objectives.at(o.definition).competition == group)
+			{
+				const bool won = std::find(winners.begin(), winners.end(), id) != winners.end();
+				o.status = won ? ObjectiveStatus::Completed : ObjectiveStatus::Failed;
+				o.outcome = won ? (winners.size() > 1 ? "draw" : "won") : "lost";
+				if (won)
+				{
+					o.completed_tick = tick_;
+					o.completed_actor = resolve(o.instance, o.actor);
+				}
+				objective_publication(o);
+			}
+}
+bool ScenarioRuntime::mission_complete() const
+{
+	return std::any_of(objectives_.begin(), objectives_.end(),
+	                   [](const auto &entry)
+	                   {
+		                   return !entry.second.outcome.empty();
+	                   });
 }
 std::vector<ScenarioPublication> ScenarioRuntime::pending_publications() const
 {
@@ -685,6 +722,7 @@ Json ScenarioRuntime::save() const
 		                           {"instance", o.instance},
 		                           {"definition", o.definition},
 		                           {"sequence", o.sequence},
+		                           {"outcome", o.outcome},
 		                           {"sequence_index", o.sequence_index},
 		                           {"cycle", o.cycle},
 		                           {"handle", o.handle},
@@ -830,6 +868,12 @@ void ScenarioRuntime::restore(const Json &j)
 		const auto status = v.at("status").get<unsigned>();
 		require(status <= static_cast<unsigned>(ObjectiveStatus::Cancelled), "invalid saved objective status");
 		o.status = static_cast<ObjectiveStatus>(status);
+		o.outcome = v.value("outcome", std::string{});
+		require(o.outcome.empty() ||
+		            (!definition_.objectives.at(o.definition).competition.empty() &&
+		             ((o.outcome == "lost" && o.status == ObjectiveStatus::Failed) ||
+		              ((o.outcome == "won" || o.outcome == "draw") && o.status == ObjectiveStatus::Completed))),
+		        "invalid saved competition result");
 		o.created_tick = unsigned_number(v.at("created"), "created");
 		o.completed_tick = unsigned_number(v.at("completed"), "completed");
 		o.completed_actor = unsigned_number(v.at("completed_actor"), "completed_actor");
