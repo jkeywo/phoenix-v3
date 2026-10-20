@@ -17,6 +17,37 @@ inline void draw_radar_plot(TextureCache &textures, const Catalog &catalog, cons
 		return Vector2{centre.x + static_cast<float>((x - view.own.x) / range) * radius,
 		               centre.y - static_cast<float>((y - view.own.y) / range) * radius};
 	};
+	if (settings.value("fire_arcs", false))
+	{
+		int layer = 0;
+		for (const auto &arc : view.gameplay.value("combat", Json::object()).value("arcs", Json::array()))
+		{
+			const bool turret = arc.at("kind") == "turret";
+			const auto centre_bearing = arc.at(turret ? "rest_mdeg" : "bearing_mdeg").get<float>() / 1000.f;
+			const auto width = arc.at("arc_mdeg").get<float>() / 1000.f;
+			const float r = radius * (turret ? .92f : .76f) - static_cast<float>(layer++ % 5) * 3;
+			const Color colour = arc.at("disabled").get<bool>() ? GRAY
+			                     : turret                       ? Color{140, 160, 180, 180}
+			                     : arc.at("active").get<bool>() ? GOLD
+			                                                    : Color{110, 215, 195, 210};
+			const auto point_at = [&](float angle)
+			{
+				const float a = angle * DEG2RAD;
+				return Vector2{centre.x + std::cos(a) * r, centre.y - std::sin(a) * r};
+			};
+			const float begin = centre_bearing - width / 2;
+			const int segments = std::max(2, static_cast<int>(width / 4));
+			for (int i = 0; i < segments; ++i)
+				if (!turret || i % 2 == 0)
+					DrawLineEx(point_at(begin + width * i / segments), point_at(begin + width * (i + 1) / segments),
+					           turret ? 1.f : 2.f, colour);
+			if (width < 360)
+			{
+				DrawLineV(centre, point_at(begin), colour);
+				DrawLineV(centre, point_at(begin + width), colour);
+			}
+		}
+	}
 	sweep.draw(centre, radius, sensor, settings, time, reduced_motion);
 	draw_region_markers(view.regions, point, range / radius, &sensor, centre, radius);
 	draw_radar_body(textures, catalog, view.own, centre, 9, WHITE);

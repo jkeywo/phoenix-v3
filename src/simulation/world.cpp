@@ -205,6 +205,8 @@ struct World::Impl
 	flecs::query<const Equipment> advanced_equipment_query;
 	flecs::query<const Equipment, const ResourceBinding> passive_resource_query;
 	flecs::query<const StableId, const GameplayShip> advanced_ships;
+	flecs::query<const StableId, const CombatStructure> combat_ships;
+	flecs::query<const Projectile> projectile_query;
 	flecs::system integrate, resolve_collisions, index_contacts;
 	bool instance_systems = false;
 	GameplayKnowledge knowledge;
@@ -264,6 +266,8 @@ struct World::Impl
 		                             .cached()
 		                             .build();
 		advanced_ships = ecs.query_builder<const StableId, const GameplayShip>().cached().build();
+		combat_ships = ecs.query_builder<const StableId, const CombatStructure>().cached().build();
+		projectile_query = ecs.query_builder<const Projectile>().cached().build();
 		integrate = ecs.system<Pose, Motion>("Integrate")
 		                .kind(0)
 		                .with<Movable>()
@@ -394,6 +398,8 @@ struct World::Impl
 			            // No structural changes occur in this phase; pointers never escape it.
 			            for (auto &entry : collisions)
 			            {
+				            if (combat_dead(entities.at(entry.id)))
+					            entry.body.velocity = {};
 				            entry.pose->position = entry.body.position;
 				            entry.motion->velocity = entry.body.velocity;
 			            }
@@ -691,6 +697,12 @@ struct World::Impl
 			structure.random = id * 7919 + 1;
 			for (const auto &c : data.combat->compartments)
 				structure.compartments.push_back({c.initial, 0, c.initial == 0});
+			if (std::all_of(structure.compartments.begin(), structure.compartments.end(),
+			                [](const auto &c)
+			                {
+				                return c.hp == 0;
+			                }))
+				structure.destroyed_tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
 			entity.set<CombatStructure>(std::move(structure));
 		}
 		if (data.collider.mass)
@@ -1580,9 +1592,53 @@ struct World::Impl
 			prepare_combat(ship);
 			request_flight_resources(ship, restrictions);
 			request_combat_resources(ship);
+			struct RestoreService
+			{
+				ResourceControl kind;
+				std::size_t slot;
+				std::int64_t value;
+			};
+			std::vector<RestoreService> restore_services;
+			if (auto *power = ship.try_get_mut<ShipResources>())
+				for (auto child : ship.get<EquipmentIndex>().values)
+				{
+					const auto &fit = child.get<Equipment>();
+					if (!structurally_disabled(ship, fit.id))
+						continue;
+					const auto slot = child.get<ResourceBinding>().slot;
+					const auto &binding = power->definition.systems.at(slot);
+					if (fit.kind == OperatingSystem::Generator && binding.generator != no_resource)
+					{
+						const bool enabled = power->network.generators()[binding.generator].enabled;
+						restore_services.push_back({ResourceControl::Enabled, slot, enabled ? 1 : 0});
+						control_resource(*power, slot, ResourceControl::Enabled, 0);
+					}
+					if (fit.kind == OperatingSystem::Storage && binding.store != no_resource)
+					{
+						const bool enabled = power->network.stores()[binding.store].enabled;
+						restore_services.push_back({ResourceControl::Enabled, slot, enabled ? 1 : 0});
+						control_resource(*power, slot, ResourceControl::Enabled, 0);
+					}
+					if (fit.kind == OperatingSystem::Distribution && binding.conduit != no_resource)
+					{
+						const bool isolated = power->network.links()[binding.conduit].isolated;
+						restore_services.push_back({ResourceControl::ConduitIsolated, slot, isolated ? 1 : 0});
+						control_resource(*power, slot, ResourceControl::ConduitIsolated, 1);
+					}
+					if (fit.kind == OperatingSystem::Coolant && binding.cooling != no_resource)
+					{
+						const bool isolated = power->network.cooling_links()[binding.cooling].isolated;
+						restore_services.push_back({ResourceControl::CoolingIsolated, slot, isolated ? 1 : 0});
+						control_resource(*power, slot, ResourceControl::CoolingIsolated, 1);
+					}
+				}
 			prepare_paid_modifiers(ship, restrictions);
 			if (auto power = ship.try_get_mut<ShipResources>())
+			{
 				tick_ship_resources(*power);
+				for (const auto &saved : restore_services)
+					control_resource(*power, saved.slot, saved.kind, saved.value);
+			}
 			actuate_combat(ship);
 			run_equipment_actuation(id, restrictions);
 		}
@@ -2299,20 +2355,20 @@ std::vector<SceneBody> World::scene() const
 					continue;
 				item.forward_thrust = 0;
 			}
-			else
-				for (auto child : entity.get<EquipmentIndex>().values)
-					if (const auto *m = child.try_get<CombatMechanism>();
-					    m && m->definition.kind == OperatingSystem::Turret)
-					{
-						const auto &d = m->definition;
-						item.attachments.push_back({d.id, d.visual, d.marker, combat_angle(body.heading + m->heading),
-						                            d.scale_permille / 1000.f, d.flip_y});
-					}
+			for (auto child : entity.get<EquipmentIndex>().values)
+				if (const auto *m = child.try_get<CombatMechanism>();
+				    m && m->definition.kind == OperatingSystem::Turret)
+				{
+					const auto &d = m->definition;
+					item.attachments.push_back({d.id, d.visual, d.marker, combat_angle(body.heading + m->heading),
+					                            d.scale_permille / 1000.f, d.flip_y});
+				}
 		}
 		result.push_back(std::move(item));
 	}
-	for (const auto &p : impl_->projectiles)
+	for (const auto particle : impl_->projectile_rows())
 	{
+		const auto &p = particle.get<Projectile>();
 		SceneBody shot;
 		shot.id = 7000000000000000ULL + p.id;
 		shot.definition = p.definition.visual;
@@ -2340,6 +2396,18 @@ Json World::public_board(EntityId entity) const
 	auto board = impl_->knowledge.public_board(entity);
 	board["alert"] = impl_->alert_board(entity);
 	board["navigation"] = impl_->navigation_board(entity);
+
+	if (impl_->combat_duel && impl_->duel_ended())
+	{
+		int alive = 0;
+		for (const auto &[id, ship] : impl_->combat_rows())
+			if (!impl_->combat_dead(ship))
+				++alive;
+		board["combat_result"] = alive == 0                                       ? "Draw"
+		                         : impl_->combat_dead(impl_->entities.at(entity)) ? "Defeat"
+		                                                                          : "Victory";
+	}
+
 	board["sidebar"] = Json::array();
 	const auto &bridge_data = impl_->definition(entity);
 	for (const auto &seat : bridge_data.consoles)

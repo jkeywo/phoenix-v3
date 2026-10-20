@@ -71,7 +71,7 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 			b.y = amount(v, "y_mm", 0, -1000000, 1000000);
 			b.half_width = amount(v, "half_width_mm", 0, 1, 1000000);
 			b.half_length = amount(v, "half_length_mm", 0, 1, 1000000);
-			b.maximum = amount(v, "hp", 0, 1, 1000000);
+			b.maximum = amount(v, "hp", 0, 2, 1000000);
 			b.initial = amount(v, "initial_hp", b.maximum, 0, b.maximum);
 			b.resistance = amount(v, "resistance_per_m", 0, 1, 1000000);
 			b.recovery = amount(v, "recovery_hp", std::max<std::int64_t>(1, b.maximum / 5), 1, b.maximum - 1);

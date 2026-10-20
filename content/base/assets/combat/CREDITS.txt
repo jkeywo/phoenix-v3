@@ -1,0 +1,3 @@
+Courier and pirate sprites: existing project imagegen art kits, promoted from raw.
+Explosion billboard: copied unchanged from Project Phoenix V2 assets/pfx/explosion/explosion_puff.png.
+Projectile marker and explosion sound: original procedural assets created for Phoenix V3.

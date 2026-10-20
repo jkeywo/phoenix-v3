@@ -135,6 +135,7 @@ uniform vec4 cones[16];
 uniform vec4 lightColors[16];
 uniform int burstGraphic;
 uniform vec4 burstTint;
+uniform float itemAlpha;
 vec4 packDepth(float d){vec4 v=fract(d*vec4(16777216.0,65536.0,256.0,1.0));v-=v.xxyz*vec4(0.0,1.0/256.0,1.0/256.0,1.0/256.0);return v;}
 float unpackDepth(vec4 v){return dot(v,vec4(1.0/16777216.0,1.0/65536.0,1.0/256.0,1.0));}
 float visibility(vec3 p){
@@ -164,7 +165,7 @@ void main(){
     if(r>edge)discard;
     finalColor=vec4(mix(vec3(1.0,.85,.48),burstTint.rgb,smoothstep(.05,.5,r)),burstTint.a);return;
   }
-  vec4 base=texture(texture0,sampleUV(uv));if(base.a<.15)discard;
+  vec4 base=texture(texture0,sampleUV(uv));base.a*=instanced==1?1.0:itemAlpha;if(base.a<.01)discard;
   if(shadowPass==1){finalColor=packDepth(pixelDepth);return;}
   if(emissive==1||diagnostic==2){finalColor=applyFog(base,cameraPosition,p);return;}
   vec3 n;
@@ -215,6 +216,9 @@ struct Item
 	bool engine = false;
 	int layer = 0;
 	bool colour_visible = true, shadow_visible = true;
+	bool effect = false;
+	bool flip_y = false;
+	float alpha = 1;
 };
 struct LocalLight
 {
@@ -428,7 +432,8 @@ struct SpriteScene::State
 			                                  [&](const auto &body)
 			                                  {
 				                                  return body.id == entry.first.first &&
-				                                         body.definition == entry.first.second;
+				                                         (body.definition == entry.first.second ||
+				                                          entry.first.second.starts_with(body.definition + "#"));
 			                                  });
 		              });
 		items.clear();
@@ -478,7 +483,8 @@ struct SpriteScene::State
 					materials.emplace(key, std::move(d));
 				}
 				auto &d = materials.at(body.definition + ":legacy:" + std::to_string(index));
-				items.push_back({&d, &d.sprite.frames.front(), p, render.at("scale").get<float>()});
+				items.push_back({&d, &d.sprite.frames.front(), p, render.at("scale").get<float>() * body.visual_scale});
+				items.back().alpha = body.alpha;
 				continue;
 			}
 			auto &data = load(body.definition, render.at("sprite"), catalog);
@@ -494,7 +500,15 @@ struct SpriteScene::State
 				previous->second = selected->azimuth;
 			}
 			const auto &f = *selected;
-			Item hull{&data, &f, p, render.at("scale").get<float>()};
+			Item hull{&data, &f, p, render.at("scale").get<float>() * body.visual_scale};
+			hull.alpha = body.alpha;
+			if (!body.sound.empty())
+			{
+				hull.effect = true;
+				hull.engine = true;
+				hull.shadow_visible = false;
+				hull.anchor = Vector3Add(hull.anchor, Vector3Scale(near, 1.f));
+			}
 			std::vector<Item> behind, front;
 			if (body.forward_thrust > 0 && render.contains("engines"))
 			{
@@ -527,6 +541,31 @@ struct SpriteScene::State
 						                  {1, .23f, .035f, config.at("power").get<float>() * thrust}});
 					}
 			}
+			for (const auto &attachment : body.attachments)
+			{
+				const auto mount = f.attachments.find(attachment.marker);
+				if (mount == f.attachments.end())
+					continue;
+				const auto &turret_render = catalog.entities.at(attachment.definition).at("render");
+				auto &turret = load(attachment.definition, turret_render.at("sprite"), catalog);
+				const auto turret_angle = bearing(camera, world, attachment.heading);
+				const auto *frame = &select_frame(turret.sprite, turret_angle, 0);
+				auto [previous, added] =
+				    directions.try_emplace(std::pair{body.id, body.definition + "#" + attachment.id}, frame->azimuth);
+				if (!added && retain_sprite_direction(turret_angle, previous->second, frame->azimuth))
+					frame = &select_frame(turret.sprite, previous->second, 0);
+				previous->second = frame->azimuth;
+				const auto &point = mount->second;
+				Item mounted{&turret,
+				             frame,
+				             Vector3Add(surface(hull, point.x, point.y, point.depth_offset),
+				                        Vector3Scale(near, point.layer * hull.height * .001f)),
+				             hull.height * attachment.scale * frame->rect[3] / f.rect[3],
+				             false,
+				             point.layer};
+				mounted.flip_y = attachment.flip_y;
+				(point.layer < 0 ? behind : front).push_back(mounted);
+			}
 			const auto order = [](const Item &a, const Item &b)
 			{
 				return a.layer < b.layer;
@@ -537,15 +576,21 @@ struct SpriteScene::State
 			items.push_back(hull);
 			items.insert(items.end(), front.begin(), front.end());
 		}
+		std::stable_partition(items.begin(), items.end(),
+		                      [](const auto &item)
+		                      {
+			                      return !item.effect;
+		                      });
 	}
 	void draw_item(const Item &item, bool shadowPass)
 	{
 		integer("instanced", 0);
+		number("itemAlpha", item.alpha);
 		const auto &f = *item.frame;
 		auto &m = *item.material;
 		vec("anchor", item.anchor);
 		vec("basisRight", right);
-		vec("basisUp", up);
+		vec("basisUp", item.flip_y ? Vector3Negate(up) : up);
 		vec("basisNear", near);
 		vec("cameraPosition", cameraPosition);
 		number("height", item.height);

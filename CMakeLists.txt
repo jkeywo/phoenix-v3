@@ -997,3 +997,10 @@ foreach(
 		phoenix_forbid_dependency(${frontend} ${forbidden} "")
 	endforeach()
 endforeach()
+
+# Manually invoked combat UI journey; deliberately excluded from CI/CTest.
+if(NOT EMSCRIPTEN)
+	add_executable(phoenix_combat_smoke EXCLUDE_FROM_ALL tests/manual/combat_ui.cpp)
+	target_link_libraries(phoenix_combat_smoke PRIVATE phoenix_session phoenix_presentation)
+	add_dependencies(phoenix_combat_smoke base_pack)
+endif()

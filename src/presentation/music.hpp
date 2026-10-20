@@ -16,6 +16,11 @@ private:
 	std::string track_asset_, siren_asset_;
 	Bytes track_bytes_;
 	Sound siren_{};
+	std::map<std::string, Sound> combat_sounds_;
+	std::set<std::uint64_t> combat_seen_;
+	const void *combat_session_ = nullptr;
+	std::uint64_t combat_generation_ = 0;
+	bool combat_initialised_ = false;
 	const void *alert_session_ = nullptr;
 	std::uint64_t alert_generation_ = 0;
 	AlertAudioTransition alert_transition_;

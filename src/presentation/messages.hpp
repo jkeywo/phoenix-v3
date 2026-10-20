@@ -27,7 +27,8 @@ inline std::string markup(const ConsoleMessageView &message)
 	       "border-radius:12px;padding:10px;\">"
 	       "<div style=\"display:block;position:absolute;left:-7px;top:12px;width:10px;height:10px;"
 	       "background:#fff7e5;border-left:2px #191919;border-bottom:2px #191919;transform:rotate(45deg);\"></div>"
-	       "<div style=\"display:block;font-family:Comic Neue;font-size:1.1em;white-space:pre-wrap;word-break:break-word;\">" +
+	       "<div style=\"display:block;font-family:Comic "
+	       "Neue;font-size:1.1em;white-space:pre-wrap;word-break:break-word;\">" +
 	       escape(message.text) + "</div></div></div>";
 }
 // Keep existing rows mounted. Arriving messages neither recreate focused siblings

@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 import phoenix.simulation;
+#include "../../src/network/projection.hpp"
 using namespace phoenix;
 using namespace phoenix::test;
 namespace
@@ -20,6 +21,7 @@ Json fixture()
 	ship["render"]["radar_icon"] = "ship";
 	ship["render"]["sprite"] = {
 	    {"albedo", "test-core:assets/pixel.png"},
+	    {"radar_icon", "ship"},
 	    {"frames",
 	     Json::array({{{"name", "single"},
 	                   {"rect", {0, 0, 1, 1}},
@@ -170,13 +172,32 @@ void advance(World &w, int ticks)
 		w.tick();
 }
 } // namespace
-int main()
+int main(int argc, char **argv)
 {
 	try
 	{
 		auto source = fixture();
 		auto catalog = load(source);
 		const auto map = source["maps"][0]["id"].get<std::string>();
+		if (argc > 1 && std::string(argv[1]) == "--trace")
+		{
+			World world;
+			world.load(catalog, map);
+			claim(world);
+			submit(world, 101, "gun", "target", 2);
+			submit(world, 102, "team-a", "assignment", 2);
+			advance(world, 6);
+			World resumed;
+			resumed.restore(catalog, world.save());
+			advance(resumed, 25);
+			auto continued = resumed.save();
+			// Synthetic ZIP creation timestamps are not simulation state. Restore
+			// above still validates the actual pack identity within each run.
+			continued.erase("packs");
+			std::cout << sha256(json_bytes(continued)) << '\n';
+			return 0;
+		}
+
 		{
 			World w;
 			w.load(catalog, map);
@@ -197,9 +218,13 @@ int main()
 			const auto s = state(w);
 			require(s.at("systems").at("gun").at("target") == 3 && s.at("systems").at("second").at("target") == 3,
 			        "shared turret retargets all active weapons");
+			submit(w, 101, "gun", "target", 2);
+			w.tick();
+			require(state(w).at("systems").at("second").at("target") == 2,
+			        "reasserting a weapon's original target retakes the shared turret after sibling retargeting");
 			submit(w, 101, "gun", "target", 0);
 			w.tick();
-			require(state(w).at("systems").at("second").at("target") == 3,
+			require(state(w).at("systems").at("second").at("target") == 2,
 			        "cancelling one weapon retains its neighbour");
 			const auto observer = w.observe(102);
 			require(observer->gameplay.at("combat").at("compartments").size() == 2,
@@ -256,6 +281,8 @@ int main()
 		{
 			auto setup = fixture();
 			auto &rooms = setup["entities"][0]["combat"]["decks"][0]["compartments"];
+			setup["maps"][0]["combat_duel"] = true;
+			setup["maps"][0]["entities"].erase(2);
 			rooms.erase(1);
 			rooms[0]["x_mm"] = 0;
 			rooms[0]["half_width_mm"] = 10000;
@@ -271,6 +298,8 @@ int main()
 			submit(w, 101, "gun", "target", 2);
 			advance(w, 12);
 			require(state(w, 2).at("destroyed_tick").get<std::int64_t>() >= 0, "all compartments zero destroys ship");
+			require(w.public_board(1).at("combat_result") == "Victory",
+			        "duel outcome survives physical ship loss on the public Viewscreen board");
 			const auto scene = w.scene();
 			require(std::any_of(scene.begin(), scene.end(),
 			                    [](const auto &b)
@@ -361,6 +390,90 @@ int main()
 				refused = true;
 			}
 			require(refused, "incompatible magazine binding rejected");
+		}
+		{
+			auto setup = fixture();
+			setup["entities"][1]["collision"] = {{"shape", "circle"}, {"radius_mm", 4000}, {"mass_grams", 0}};
+			setup["maps"][0]["entities"].push_back(
+			    {{"id", 4}, {"definition", "test.visual"}, {"x_mm", 30000}, {"y_mm", 0}, {"heading_mdeg", 0}});
+			auto c = load(setup);
+			World w;
+			w.load(c, map);
+			claim(w);
+			submit(w, 101, "gun", "target", 2);
+			advance(w, 30);
+			require(hp(w) == 200, "solid cover intercepts physical projectile before the target");
+		}
+		{
+			auto wide = fixture();
+			wide["maps"][0]["entities"][2]["x_mm"] = -60000;
+			auto narrow = wide;
+			narrow["entities"][0]["systems"]["mount"]["arc_mdeg"] = 180000;
+			auto a = load(wide), b = load(narrow);
+			World top, bottom;
+			top.load(a, map);
+			bottom.load(b, map);
+			claim(top);
+			claim(bottom);
+			submit(top, 101, "gun", "target", 3);
+			submit(bottom, 101, "gun", "target", 3);
+			advance(top, 65);
+			advance(bottom, 65);
+			require(state(top).at("systems").at("gun").at("shots").get<int>() > 0 &&
+			            state(bottom).at("systems").at("gun").at("shots") == 0,
+			        "270 degree turret reaches rear quarter while 180 degree turret cannot");
+			require(state(bottom).at("systems").at("mount").at("heading").get<int>() <= 90000,
+			        "traversal respects physical arc boundary");
+			const auto projected = network::read_observation(network::observation_json(*bottom.observe(101)), b);
+			require(projected.gameplay.at("combat").at("arcs").size() == 3,
+			        "combat arc and readiness projection survives remote serialization");
+		}
+		{
+			auto setup = fixture();
+			auto &ship = setup["entities"][0];
+			ship["systems"]["drive"] = {{"kind", "engine"},
+			                            {"max_speed_mm_s", 100000},
+			                            {"acceleration_mm_s2", 1000000},
+			                            {"compartment", "fore"}};
+			ship["control_layout"]["controllers"].push_back(
+			    {{"id", "drive"},
+			     {"console", "drive"},
+			     {"fallback", "hold"},
+			     {"commands",
+			      Json::array(
+			          {{{"id", "speed"}, {"action", "speed_mm_s"}, {"consumers", {"drive"}}},
+			           {{"id", "enabled"}, {"action", "system_enabled"}, {"initial", 1}, {"consumers", {"drive"}}}})}});
+			ship["control_layout"]["profiles"][0]["consoles"]["drive"]["human"].push_back("drive");
+			ship["stations"][0]["consoles"][0]["feeds"].push_back("drive");
+			auto c = load(setup);
+			World w;
+			w.load(c, map);
+			claim(w);
+			advance(w, 5);
+			require(hp(w, 1) == 200 && hp(w, 2) == 200, "stationary ships do not accumulate collision damage");
+			submit(w, 101, "drive", "speed", 100000);
+			advance(w, 30);
+			require(hp(w, 1) < 200 && hp(w, 2) < 200,
+			        "closing ship collision damages physical compartments on both ships");
+		}
+		{
+			auto setup = fixture();
+			for (auto &controller : setup["entities"][0]["control_layout"]["controllers"])
+				if (controller.at("id") == "gun")
+					controller["policy"] = "combat";
+			auto visible = load(setup);
+			World ai;
+			ai.load(visible, map);
+			advance(ai, 25);
+			require(state(ai).at("systems").at("gun").at("shots").get<int>() > 0,
+			        "unoccupied Tactical uses ordinary admitted combat policy against visible ship contacts");
+			setup["entities"][0]["systems"]["radar"]["range_mm"] = 1000;
+			auto hidden = load(setup);
+			World blind;
+			blind.load(hidden, map);
+			advance(blind, 25);
+			require(state(blind).at("systems").at("gun").at("shots") == 0,
+			        "combat AI cannot target ships absent from its permitted sensor feed");
 		}
 		std::cout << "Combat system contracts passed\n";
 		return 0;

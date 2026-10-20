@@ -393,7 +393,7 @@ Compartment atmosphere, breaches, isolation, suppression and venting use coarse 
 
 ### 10.4 Disablement, abandonment, capture and destruction
 
-Depleted compartment HP does not itself explode the ship. Physical destruction requires a supported catastrophe. Recoverable disablement, abandonment, catastrophe and an observer's assessment that an opponent is out of action are distinct states. AI assesses available evidence and doctrine rather than waiting for an explosion or reading hidden components; later recovery can change that assessment.
+A compartment reaching zero HP disables its contents. When every compartment has zero remaining structural HP, the ship is destroyed; its authored destruction behaviour controls the explosion presentation. Other supported catastrophes may also destroy a ship. Recoverable disablement, abandonment, catastrophe and an observer's assessment that an opponent is out of action are distinct states. AI assesses available evidence and doctrine rather than waiting for an explosion or reading hidden components; later recovery can change that assessment.
 
 When humans are aboard, a human initiates abandonment. Ordinary delegated steps order non-hostile standby while retaining supported evacuation, life support and distress functions. Fully AI-crewed vessels can decide through ordinary policies. An authorised crew can restore the same abandoned ship to service during the scenario through actual personnel transfer and repairs, preserving its identity and condition; abandonment alone imposes no port-return requirement.
 
@@ -878,81 +878,81 @@ Every historical catalogue ID appears once in the tables below. IDs are traceabi
 
 All 76 reviewed architecture decisions are accounted for below. Behavior and authoring contracts carry forward; language/runtime/storage choices and V2 migration obligations do not. These are logical requirements, not a prescribed codebase layout or public API. The revised mission-planning contracts following AD76 are consolidated in chapter 13. The current away-tree timeout/default rule also comes from the explicit consolidation clarification, not an inference from the older summaries.
 
-| Decision | Consolidated treatment                                                                                                             | Chapter                                      |
-| -------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| AD01     | Revised: one effective operator per Controller, one owner per command section and one source per physical input.                   | [4](#4-authority-knowledge-and-assistance)   |
-| AD02     | Revised: Controller AIs and GUI share permitted Console observations; entity board serves all AIs and shared Viewscreen.           | [4](#4-authority-knowledge-and-assistance)   |
-| AD03     | Physical condition/repair parts and reusable mechanisms have explicit distinct bindings.                                           | [10](#10-damage-restoration-and-loss)        |
-| AD04     | Shared services are explicit; turret capabilities consume compatible Controller channels without competing physical input writers. | [4](#4-authority-knowledge-and-assistance)   |
-| AD05     | Controller-owned command sections drive explicitly bound physical inputs; one output can serve multiple Systems.                   | [4](#4-authority-knowledge-and-assistance)   |
-| AD06     | Resource and information links preserve their separate constraints and ownership.                                                  | [4](#4-authority-knowledge-and-assistance)   |
-| AD07     | Authored scoped feeds update automatically without publishing all Console knowledge.                                               | [6](#6-sensing-investigation-and-evidence)   |
-| AD08     | Show partial capability/status and known conditions rather than a binary health label.                                             | [14](#14-fitting-authoring-and-presentation) |
-| AD09     | Prototype Console screens by composing and binding supported reusable widgets.                                                     | [14](#14-fitting-authoring-and-presentation) |
-| AD10     | Prototype rectangles and circle-cutout/corner presets, not arbitrary free-form packing.                                            | [14](#14-fitting-authoring-and-presentation) |
-| AD11     | Shared responsive fallbacks preserve actions, order, labels, targets and bindings.                                                 | [14](#14-fitting-authoring-and-presentation) |
-| AD12     | Console working context follows handover; personal accessibility remains the incoming player's.                                    | [3](#3-crew-stations-and-participation)      |
-| AD13     | Workshop composes supported mechanisms; new primitives require implementation work.                                                | [14](#14-fitting-authoring-and-presentation) |
-| AD14     | Revised: Console Controller trees use board variables, owned command writes, addressed messages and private instance memory.       | [4](#4-authority-knowledge-and-assistance)   |
-| AD15     | Inheritance can change parameters and named structure; validate the resolved definition.                                           | [4](#4-authority-knowledge-and-assistance)   |
-| AD16     | Reference nodes call reusable trees within distinct instance/context boundaries.                                                   | [4](#4-authority-knowledge-and-assistance)   |
-| AD17     | Callers can interrupt referenced decision trees without cancelling physical work by implication.                                   | [4](#4-authority-knowledge-and-assistance)   |
-| AD18     | Deterministic task ordering resolves competing writes by later-write precedence.                                                   | [4](#4-authority-knowledge-and-assistance)   |
-| AD19     | Later evaluation can read earlier internal writes without confusing intent with physical results.                                  | [4](#4-authority-knowledge-and-assistance)   |
-| AD20     | Revised: always-active factual System reporters expose permitted faults regardless of human/AI Controller operation.               | [10](#10-damage-restoration-and-loss)        |
-| AD21     | Repair retains report-driven work records; completion does not reveal unrelated hidden state.                                      | [10](#10-damage-restoration-and-loss)        |
-| AD22     | Finite activities share job lifecycle contracts with activity-specific execution rules.                                            | [4](#4-authority-knowledge-and-assistance)   |
-| AD23     | Reserve for the next executable stage, not all future queued work.                                                                 | [4](#4-authority-knowledge-and-assistance)   |
-| AD24     | Job workflows reuse tree authoring/evaluation with separate context and supported vocabulary.                                      | [4](#4-authority-knowledge-and-assistance)   |
-| AD25     | Initial jobs are independent with reusable subtrees; no separate nested-job lifecycle.                                             | [4](#4-authority-knowledge-and-assistance)   |
-| AD26     | Shared conditions/modifiers produce explicit supported capability effects.                                                         | [10](#10-damage-restoration-and-loss)        |
-| AD27     | Condition progression composes supported rules, not arbitrary privileged author code.                                              | [14](#14-fitting-authoring-and-presentation) |
-| AD28     | Assemblies resolve explicit default service connections and permitted local overrides.                                             | [14](#14-fitting-authoring-and-presentation) |
-| AD29     | Batch/continuous recipes share finite input/output/work accounting.                                                                | [9](#9-energy-heat-and-material-supply)      |
-| AD30     | Scenario progression uses authored visual state trees.                                                                             | [13](#13-scenarios-modes-and-continuity)     |
-| AD31     | Retain sandboxed scenario-script integration behavior; V2's Rhai language is not a V3 stack decision.                              | [13](#13-scenarios-modes-and-continuity)     |
-| AD32     | Reusable situation instances retain independent runtime state and identity.                                                        | [13](#13-scenarios-modes-and-continuity)     |
-| AD33     | Situations coordinate through declared contracts/events rather than private-memory reads.                                          | [13](#13-scenarios-modes-and-continuity)     |
-| AD34     | Use shared provenance-preserving observation/report records across supported consumers.                                            | [4](#4-authority-knowledge-and-assistance)   |
-| AD35     | Console-owned knowledge processing combines permitted evidence without omniscient inference or extra analysis timers.              | [6](#6-sensing-investigation-and-evidence)   |
-| AD36     | Reusable multi-System assemblies have distinct placement identities without extra command authority.                               | [14](#14-fitting-authoring-and-presentation) |
-| AD37     | Physical compartments and component/System/compartment template units remain explicit.                                             | [10](#10-damage-restoration-and-loss)        |
-| AD38     | A System's equipment belongs to one compartment; service connections can cross boundaries.                                         | [10](#10-damage-restoration-and-loss)        |
-| AD39     | Each deck has a 2D physical layout for damage, repair and compartment membership.                                                  | [10](#10-damage-restoration-and-loss)        |
-| AD40     | Ordinary incoming damage follows its supported incoming planar line, not arbitrary subsystem teleportation.                        | [10](#10-damage-restoration-and-loss)        |
-| AD41     | Separate penetration from deposited damage/effects without multiplying payload on traversal.                                       | [8](#8-combat-and-protection)                |
-| AD42     | Material properties belong to compartments, not overlapping private component hull models.                                         | [10](#10-damage-restoration-and-loss)        |
-| AD43     | Charge penetration resistance by distance through compartment material.                                                            | [10](#10-damage-restoration-and-loss)        |
-| AD44     | Compartments own structural HP; component conditions arise from supported damage effects.                                          | [10](#10-damage-restoration-and-loss)        |
-| AD45     | Select a weighted random deck independently of shot Z height.                                                                      | [10](#10-damage-restoration-and-loss)        |
-| AD46     | Effective resistance progressively declines with compartment structural damage.                                                    | [10](#10-damage-restoration-and-loss)        |
-| AD47     | Deposited damage and susceptibility govern eligible condition chance/severity.                                                     | [10](#10-damage-restoration-and-loss)        |
-| AD48     | Select eligible component faults compartment-wide without precise internal component coordinates.                                  | [10](#10-damage-restoration-and-loss)        |
-| AD49     | Zero compartment HP disables its contents through a distinct condition.                                                            | [10](#10-damage-restoration-and-loss)        |
-| AD50     | Clear structural disablement at an authored partial recovery threshold; reapply only at zero.                                      | [10](#10-damage-restoration-and-loss)        |
-| AD51     | Allow compatible component and structural repair concurrently without premature reactivation.                                      | [10](#10-damage-restoration-and-loss)        |
-| AD52     | Physical destruction needs supported catastrophe; disablement is separately assessed from evidence.                                | [10](#10-damage-restoration-and-loss)        |
-| AD53     | Abandonment defaults to non-hostile standby while retaining feasible survival/distress work.                                       | [10](#10-damage-restoration-and-loss)        |
-| AD54     | Humans initiate abandonment when aboard; ordinary AI performs authorised delegated steps.                                          | [10](#10-damage-restoration-and-loss)        |
-| AD55     | Return the same abandoned ship to service through supported personnel transfer/restoration.                                        | [10](#10-damage-restoration-and-loss)        |
-| AD56     | Supported capture transfers whole-ship control, not room-by-room System authority.                                                 | [10](#10-damage-restoration-and-loss)        |
-| AD57     | Capture exposes already-readable retained Console records, not hidden/encrypted/private AI truth.                                  | [10](#10-damage-restoration-and-loss)        |
-| AD58     | Teams and deliveries route over authored access/safety-aware compartment links.                                                    | [9](#9-energy-heat-and-material-supply)      |
-| AD59     | Internal deliveries are located aggregate batches with conserved quantity/progress.                                                | [9](#9-energy-heat-and-material-supply)      |
-| AD60     | Dispatch reserves compatible destination space; queueing alone does not.                                                           | [9](#9-energy-heat-and-material-supply)      |
-| AD61     | Routine logistics has throughput/concurrency limits without a separate porter team per batch.                                      | [9](#9-energy-heat-and-material-supply)      |
-| AD62     | Required output blockage pauses/slows a recipe while preserving legitimate work and stock.                                         | [9](#9-energy-heat-and-material-supply)      |
-| AD63     | Deliberate recipe changes discard unfinished work and retain compatible stock within capacity.                                     | [9](#9-energy-heat-and-material-supply)      |
-| AD64     | Implementation defines physical processing phases; authors compose supported mechanisms and workflows.                             | [14](#14-fitting-authoring-and-presentation) |
-| AD65     | Shared request/resolve/consume accounting remains; V3 main-hold stock uses first-eligible allocation.                              | [9](#9-energy-heat-and-material-supply)      |
-| AD66     | An indivisible stage secures its required resource set atomically; failed attempts leave no new partial claims.                    | [4](#4-authority-knowledge-and-assistance)   |
-| AD67     | Reprioritisation affects waiting/subsequent work; active interruption requires an explicit supported action/cause.                 | [4](#4-authority-knowledge-and-assistance)   |
-| AD68     | Shared typed events have scoped reactions and separate permitted observations.                                                     | [14](#14-fitting-authoring-and-presentation) |
-| AD69     | Environment/equipment fields share suitable geometry/sampling with distinct supported effects.                                     | [12](#12-a-world-that-continues-working)     |
-| AD70     | Applicable field effects act along signal paths, independently of endpoint exposure.                                               | [12](#12-a-world-that-continues-working)     |
-| AD71     | Substantial solid terrain can obstruct/attenuate applicable signals through authored bounds/properties.                            | [12](#12-a-world-that-continues-working)     |
-| AD72     | Pending remote orders use authored expiry/supersession; accepted onboard work is not implicitly cancelled.                         | [7](#7-communications-and-psychic-warfare)   |
-| AD73     | Delivery/acceptance receipts return automatically over viable links; absence remains uncertainty.                                  | [7](#7-communications-and-psychic-warfare)   |
-| AD74     | Reject message-capacity, bandwidth-pool and traffic-budget simulation.                                                             | [7](#7-communications-and-psychic-warfare)   |
-| AD75     | One actual boundary state serves access and containment; commanded closure is not proven sealing.                                  | [10](#10-damage-restoration-and-loss)        |
-| AD76     | Automatic routes respect deliberate seals and request authorised access changes.                                                   | [9](#9-energy-heat-and-material-supply)      |
+| Decision | Consolidated treatment                                                                                                                | Chapter                                      |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| AD01     | Revised: one effective operator per Controller, one owner per command section and one source per physical input.                      | [4](#4-authority-knowledge-and-assistance)   |
+| AD02     | Revised: Controller AIs and GUI share permitted Console observations; entity board serves all AIs and shared Viewscreen.              | [4](#4-authority-knowledge-and-assistance)   |
+| AD03     | Physical condition/repair parts and reusable mechanisms have explicit distinct bindings.                                              | [10](#10-damage-restoration-and-loss)        |
+| AD04     | Shared services are explicit; turret capabilities consume compatible Controller channels without competing physical input writers.    | [4](#4-authority-knowledge-and-assistance)   |
+| AD05     | Controller-owned command sections drive explicitly bound physical inputs; one output can serve multiple Systems.                      | [4](#4-authority-knowledge-and-assistance)   |
+| AD06     | Resource and information links preserve their separate constraints and ownership.                                                     | [4](#4-authority-knowledge-and-assistance)   |
+| AD07     | Authored scoped feeds update automatically without publishing all Console knowledge.                                                  | [6](#6-sensing-investigation-and-evidence)   |
+| AD08     | Show partial capability/status and known conditions rather than a binary health label.                                                | [14](#14-fitting-authoring-and-presentation) |
+| AD09     | Prototype Console screens by composing and binding supported reusable widgets.                                                        | [14](#14-fitting-authoring-and-presentation) |
+| AD10     | Prototype rectangles and circle-cutout/corner presets, not arbitrary free-form packing.                                               | [14](#14-fitting-authoring-and-presentation) |
+| AD11     | Shared responsive fallbacks preserve actions, order, labels, targets and bindings.                                                    | [14](#14-fitting-authoring-and-presentation) |
+| AD12     | Console working context follows handover; personal accessibility remains the incoming player's.                                       | [3](#3-crew-stations-and-participation)      |
+| AD13     | Workshop composes supported mechanisms; new primitives require implementation work.                                                   | [14](#14-fitting-authoring-and-presentation) |
+| AD14     | Revised: Console Controller trees use board variables, owned command writes, addressed messages and private instance memory.          | [4](#4-authority-knowledge-and-assistance)   |
+| AD15     | Inheritance can change parameters and named structure; validate the resolved definition.                                              | [4](#4-authority-knowledge-and-assistance)   |
+| AD16     | Reference nodes call reusable trees within distinct instance/context boundaries.                                                      | [4](#4-authority-knowledge-and-assistance)   |
+| AD17     | Callers can interrupt referenced decision trees without cancelling physical work by implication.                                      | [4](#4-authority-knowledge-and-assistance)   |
+| AD18     | Deterministic task ordering resolves competing writes by later-write precedence.                                                      | [4](#4-authority-knowledge-and-assistance)   |
+| AD19     | Later evaluation can read earlier internal writes without confusing intent with physical results.                                     | [4](#4-authority-knowledge-and-assistance)   |
+| AD20     | Revised: always-active factual System reporters expose permitted faults regardless of human/AI Controller operation.                  | [10](#10-damage-restoration-and-loss)        |
+| AD21     | Repair retains report-driven work records; completion does not reveal unrelated hidden state.                                         | [10](#10-damage-restoration-and-loss)        |
+| AD22     | Finite activities share job lifecycle contracts with activity-specific execution rules.                                               | [4](#4-authority-knowledge-and-assistance)   |
+| AD23     | Reserve for the next executable stage, not all future queued work.                                                                    | [4](#4-authority-knowledge-and-assistance)   |
+| AD24     | Job workflows reuse tree authoring/evaluation with separate context and supported vocabulary.                                         | [4](#4-authority-knowledge-and-assistance)   |
+| AD25     | Initial jobs are independent with reusable subtrees; no separate nested-job lifecycle.                                                | [4](#4-authority-knowledge-and-assistance)   |
+| AD26     | Shared conditions/modifiers produce explicit supported capability effects.                                                            | [10](#10-damage-restoration-and-loss)        |
+| AD27     | Condition progression composes supported rules, not arbitrary privileged author code.                                                 | [14](#14-fitting-authoring-and-presentation) |
+| AD28     | Assemblies resolve explicit default service connections and permitted local overrides.                                                | [14](#14-fitting-authoring-and-presentation) |
+| AD29     | Batch/continuous recipes share finite input/output/work accounting.                                                                   | [9](#9-energy-heat-and-material-supply)      |
+| AD30     | Scenario progression uses authored visual state trees.                                                                                | [13](#13-scenarios-modes-and-continuity)     |
+| AD31     | Retain sandboxed scenario-script integration behavior; V2's Rhai language is not a V3 stack decision.                                 | [13](#13-scenarios-modes-and-continuity)     |
+| AD32     | Reusable situation instances retain independent runtime state and identity.                                                           | [13](#13-scenarios-modes-and-continuity)     |
+| AD33     | Situations coordinate through declared contracts/events rather than private-memory reads.                                             | [13](#13-scenarios-modes-and-continuity)     |
+| AD34     | Use shared provenance-preserving observation/report records across supported consumers.                                               | [4](#4-authority-knowledge-and-assistance)   |
+| AD35     | Console-owned knowledge processing combines permitted evidence without omniscient inference or extra analysis timers.                 | [6](#6-sensing-investigation-and-evidence)   |
+| AD36     | Reusable multi-System assemblies have distinct placement identities without extra command authority.                                  | [14](#14-fitting-authoring-and-presentation) |
+| AD37     | Physical compartments and component/System/compartment template units remain explicit.                                                | [10](#10-damage-restoration-and-loss)        |
+| AD38     | A System's equipment belongs to one compartment; service connections can cross boundaries.                                            | [10](#10-damage-restoration-and-loss)        |
+| AD39     | Each deck has a 2D physical layout for damage, repair and compartment membership.                                                     | [10](#10-damage-restoration-and-loss)        |
+| AD40     | Ordinary incoming damage follows its supported incoming planar line, not arbitrary subsystem teleportation.                           | [10](#10-damage-restoration-and-loss)        |
+| AD41     | Separate penetration from deposited damage/effects without multiplying payload on traversal.                                          | [8](#8-combat-and-protection)                |
+| AD42     | Material properties belong to compartments, not overlapping private component hull models.                                            | [10](#10-damage-restoration-and-loss)        |
+| AD43     | Charge penetration resistance by distance through compartment material.                                                               | [10](#10-damage-restoration-and-loss)        |
+| AD44     | Compartments own structural HP; component conditions arise from supported damage effects.                                             | [10](#10-damage-restoration-and-loss)        |
+| AD45     | Select a weighted random deck independently of shot Z height.                                                                         | [10](#10-damage-restoration-and-loss)        |
+| AD46     | Effective resistance progressively declines with compartment structural damage.                                                       | [10](#10-damage-restoration-and-loss)        |
+| AD47     | Deposited damage and susceptibility govern eligible condition chance/severity.                                                        | [10](#10-damage-restoration-and-loss)        |
+| AD48     | Select eligible component faults compartment-wide without precise internal component coordinates.                                     | [10](#10-damage-restoration-and-loss)        |
+| AD49     | Zero compartment HP disables its contents through a distinct condition.                                                               | [10](#10-damage-restoration-and-loss)        |
+| AD50     | Clear structural disablement at an authored partial recovery threshold; reapply only at zero.                                         | [10](#10-damage-restoration-and-loss)        |
+| AD51     | Allow compatible component and structural repair concurrently without premature reactivation.                                         | [10](#10-damage-restoration-and-loss)        |
+| AD52     | Revised: zero HP in every compartment destroys the ship; other supported catastrophes and evidence-based disablement remain distinct. | [10](#10-damage-restoration-and-loss)        |
+| AD53     | Abandonment defaults to non-hostile standby while retaining feasible survival/distress work.                                          | [10](#10-damage-restoration-and-loss)        |
+| AD54     | Humans initiate abandonment when aboard; ordinary AI performs authorised delegated steps.                                             | [10](#10-damage-restoration-and-loss)        |
+| AD55     | Return the same abandoned ship to service through supported personnel transfer/restoration.                                           | [10](#10-damage-restoration-and-loss)        |
+| AD56     | Supported capture transfers whole-ship control, not room-by-room System authority.                                                    | [10](#10-damage-restoration-and-loss)        |
+| AD57     | Capture exposes already-readable retained Console records, not hidden/encrypted/private AI truth.                                     | [10](#10-damage-restoration-and-loss)        |
+| AD58     | Teams and deliveries route over authored access/safety-aware compartment links.                                                       | [9](#9-energy-heat-and-material-supply)      |
+| AD59     | Internal deliveries are located aggregate batches with conserved quantity/progress.                                                   | [9](#9-energy-heat-and-material-supply)      |
+| AD60     | Dispatch reserves compatible destination space; queueing alone does not.                                                              | [9](#9-energy-heat-and-material-supply)      |
+| AD61     | Routine logistics has throughput/concurrency limits without a separate porter team per batch.                                         | [9](#9-energy-heat-and-material-supply)      |
+| AD62     | Required output blockage pauses/slows a recipe while preserving legitimate work and stock.                                            | [9](#9-energy-heat-and-material-supply)      |
+| AD63     | Deliberate recipe changes discard unfinished work and retain compatible stock within capacity.                                        | [9](#9-energy-heat-and-material-supply)      |
+| AD64     | Implementation defines physical processing phases; authors compose supported mechanisms and workflows.                                | [14](#14-fitting-authoring-and-presentation) |
+| AD65     | Shared request/resolve/consume accounting remains; V3 main-hold stock uses first-eligible allocation.                                 | [9](#9-energy-heat-and-material-supply)      |
+| AD66     | An indivisible stage secures its required resource set atomically; failed attempts leave no new partial claims.                       | [4](#4-authority-knowledge-and-assistance)   |
+| AD67     | Reprioritisation affects waiting/subsequent work; active interruption requires an explicit supported action/cause.                    | [4](#4-authority-knowledge-and-assistance)   |
+| AD68     | Shared typed events have scoped reactions and separate permitted observations.                                                        | [14](#14-fitting-authoring-and-presentation) |
+| AD69     | Environment/equipment fields share suitable geometry/sampling with distinct supported effects.                                        | [12](#12-a-world-that-continues-working)     |
+| AD70     | Applicable field effects act along signal paths, independently of endpoint exposure.                                                  | [12](#12-a-world-that-continues-working)     |
+| AD71     | Substantial solid terrain can obstruct/attenuate applicable signals through authored bounds/properties.                               | [12](#12-a-world-that-continues-working)     |
+| AD72     | Pending remote orders use authored expiry/supersession; accepted onboard work is not implicitly cancelled.                            | [7](#7-communications-and-psychic-warfare)   |
+| AD73     | Delivery/acceptance receipts return automatically over viable links; absence remains uncertainty.                                     | [7](#7-communications-and-psychic-warfare)   |
+| AD74     | Reject message-capacity, bandwidth-pool and traffic-budget simulation.                                                                | [7](#7-communications-and-psychic-warfare)   |
+| AD75     | One actual boundary state serves access and containment; commanded closure is not proven sealing.                                     | [10](#10-damage-restoration-and-loss)        |
+| AD76     | Automatic routes respect deliberate seals and request authorised access changes.                                                      | [9](#9-energy-heat-and-material-supply)      |

@@ -4,6 +4,8 @@ module;
 #include <algorithm>
 #include <chrono>
 #include <string>
+#include <map>
+#include <set>
 
 module phoenix.presentation;
 import phoenix.application;
@@ -82,6 +84,9 @@ ServerMusic::~ServerMusic()
 		UnloadSound(click_);
 	if (IsSoundValid(siren_))
 		UnloadSound(siren_);
+	for (auto &[asset, sound] : combat_sounds_)
+		if (IsSoundValid(sound))
+			UnloadSound(sound);
 	if (owns_device_)
 		CloseAudioDevice();
 }
@@ -95,6 +100,42 @@ void ServerMusic::update(const Application &app)
 				SetSoundVolume(voice, std::clamp(app.sfx_volume, 0, 100) / 100.f);
 	}
 	const bool playing = app.session && app.session->running();
+	if (combat_session_ != app.session.get() || combat_generation_ != (app.session ? app.session->generation() : 0))
+	{
+		combat_session_ = app.session.get();
+		combat_generation_ = app.session ? app.session->generation() : 0;
+		combat_seen_.clear();
+		combat_initialised_ = false;
+	}
+	if (playing && app.can_host)
+	{
+		for (const auto &effect : app.session->scene())
+			if (!effect.sound.empty() && !combat_seen_.contains(effect.id))
+			{
+				combat_seen_.insert(effect.id);
+				if (!combat_initialised_ || app.session->ticks() > effect.effect_tick + 3)
+					continue;
+				if (!combat_sounds_.contains(effect.sound) && IsAudioDeviceReady() &&
+				    app.session->catalog().assets.contains(effect.sound))
+				{
+					const auto &bytes = app.session->catalog().assets.at(effect.sound);
+					auto wave = LoadWaveFromMemory(".wav", bytes.data(), static_cast<int>(bytes.size()));
+					if (IsWaveValid(wave))
+					{
+						combat_sounds_[effect.sound] = LoadSoundFromWave(wave);
+						UnloadWave(wave);
+					}
+				}
+				if (combat_sounds_.contains(effect.sound) && IsSoundValid(combat_sounds_.at(effect.sound)))
+				{
+					auto sound = combat_sounds_.at(effect.sound);
+					SetSoundVolume(sound, std::clamp(app.sfx_volume, 0, 100) / 100.f);
+					PlaySound(sound);
+				}
+			}
+		combat_initialised_ = true;
+	}
+
 	const auto alert = playing ? app.session->public_board().value("alert", Json::object()) : Json::object();
 	const bool live_alert = playing && app.can_host && !alert.empty();
 	const auto generation = app.session ? app.session->generation() : 0;

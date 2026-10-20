@@ -493,6 +493,54 @@ struct GameplayEditor
 			        text("Physical reporters emit measured facts under both human and AI operation.");
 		        });
 		const auto kind = spec.value("kind", fallback_kind);
+		optional_string(spec, "compartment");
+		if (kind == "weapon" || kind == "turret")
+		{
+			integer(spec, "arc_mdeg", 360000);
+			integer(spec, "bearing_mdeg");
+			integer(spec, "x_mm");
+			integer(spec, "y_mm");
+		}
+		if (kind == "weapon")
+		{
+			string(spec, "magazine");
+			optional_string(spec, "turret");
+			integer(spec, "fire_ticks", 20);
+			integer(spec, "ammo_use", 1);
+			if (!spec.contains("projectile"))
+				spec["projectile"] = Json::object();
+			auto &p = spec["projectile"];
+			string(p, "visual");
+			for (const auto *key :
+			     {"speed_mm_s", "lifetime_ticks", "penetration", "damage", "damage_per_m", "spread_mdeg"})
+				integer(p, key);
+		}
+		if (kind == "turret")
+		{
+			integer(spec, "traverse_mdeg_s", 45000);
+			string(spec, "marker");
+			string(spec, "visual");
+			integer(spec, "scale_permille", 1000);
+			boolean(spec, "flip_y");
+		}
+		if (kind == "magazine")
+		{
+			integer(spec, "capacity", 10);
+			integer(spec, "initial", 10);
+			if (!spec.contains("reload"))
+				spec["reload"] = {{"strategy", "none"}};
+			auto &r = spec["reload"];
+			choice(r, "strategy", {"none", "infinite", "energy"});
+			integer(r, "ticks", 20);
+			integer(r, "amount", 1);
+			integer(r, "energy_per_second");
+		}
+		if (kind == "repair_team")
+		{
+			integer(spec, "hp_per_second", 10);
+			integer(spec, "stack_penalty_permille", 500);
+		}
+
 		if (kind == "engine" || ((kind == "boost" || kind == "impulse") && !spec.contains("targets")))
 		{
 			integer(spec, "max_speed_mm_s");
@@ -583,6 +631,82 @@ struct GameplayEditor
 				}
 			}
 	}
+	void combat(WorkshopDocument &document)
+	{
+		auto *ship = select_entity(document);
+		if (!ship)
+			return;
+		if (!ship->contains("combat"))
+		{
+			if (button("Add compartment combat layout"))
+				(*ship)["combat"] = {
+				    {"decks", Json::array()}, {"connections", Json::array()}, {"destruction", Json::object()}};
+			return;
+		}
+		auto &c = (*ship)["combat"];
+		string(c, "repair_console");
+		integer(c, "collision_scale", 1);
+		integer(c, "collision_threshold_mm_s", 1000);
+		records(c, "decks", {{"id", "deck"}, {"weight", 1}, {"compartments", Json::array()}},
+		        [&](Json &deck)
+		        {
+			        string(deck, "id");
+			        integer(deck, "weight", 1);
+			        records(deck, "compartments",
+			                {{"id", "room"},
+			                 {"x_mm", 0},
+			                 {"y_mm", 0},
+			                 {"half_width_mm", 1000},
+			                 {"half_length_mm", 1000},
+			                 {"hp", 100},
+			                 {"resistance_per_m", 10},
+			                 {"recovery_hp", 20}},
+			                [&](Json &room)
+			                {
+				                string(room, "id");
+				                for (const auto *key : {"x_mm", "y_mm", "half_width_mm", "half_length_mm", "hp",
+				                                        "resistance_per_m", "recovery_hp"})
+					                integer(room, key);
+			                });
+			        const auto origin = ImGui::GetCursorScreenPos();
+			        const float size = 280;
+			        auto *draw = ImGui::GetWindowDrawList();
+			        std::int64_t extent = 1;
+			        for (const auto &room : deck.value("compartments", Json::array()))
+				        extent = std::max({extent,
+				                           std::abs(room.value("x_mm", std::int64_t{0})) +
+				                               room.value("half_width_mm", std::int64_t{1}),
+				                           std::abs(room.value("y_mm", std::int64_t{0})) +
+				                               room.value("half_length_mm", std::int64_t{1})});
+			        const float scale = size / (extent * 2.f);
+			        for (const auto &room : deck.value("compartments", Json::array()))
+			        {
+				        const float x = room.value("x_mm", 0.f), y = room.value("y_mm", 0.f),
+				                    hw = room.value("half_width_mm", 1.f), hl = room.value("half_length_mm", 1.f);
+				        const ImVec2 a{origin.x + size / 2 + (y - hl) * scale, origin.y + size / 2 - (x + hw) * scale},
+				            b{origin.x + size / 2 + (y + hl) * scale, origin.y + size / 2 - (x - hw) * scale};
+				        draw->AddRectFilled(a, b, IM_COL32(20, 65, 65, 255));
+				        draw->AddRect(a, b, IM_COL32(210, 200, 160, 255));
+				        draw->AddText(a, IM_COL32(240, 230, 190, 255), room.value("id", std::string{}).c_str());
+			        }
+			        ImGui::Dummy({size, size});
+		        });
+		records(c, "connections", {{"from", ""}, {"to", ""}, {"travel_ticks", 20}},
+		        [&](Json &edge)
+		        {
+			        string(edge, "from");
+			        string(edge, "to");
+			        integer(edge, "travel_ticks", 20);
+		        });
+		if (!c.contains("destruction"))
+			c["destruction"] = Json::object();
+		auto &d = c["destruction"];
+		string(d, "visual");
+		string(d, "sound");
+		integer(d, "growth_ticks", 10);
+		integer(d, "fade_ticks", 20);
+		integer(d, "size_mm", 100000);
+	}
 	void fitted(WorkshopDocument &document)
 	{
 		auto *selected = select_entity(document);
@@ -651,7 +775,7 @@ struct GameplayEditor
 				choice(spec, "template", document.definition_choices(WorkshopDefinitionKind::Equipment), true);
 				choice(spec, "kind",
 				       {"engine", "steering", "radar", "generator", "distribution", "coolant", "storage", "lateral",
-				        "boost", "impulse"},
+				        "boost", "impulse", "weapon", "turret", "magazine", "repair_team"},
 				       true);
 				auto kind = equipment_kind(document, spec);
 				if (kind.empty())
@@ -1970,6 +2094,12 @@ struct GameplayEditor
 		        {
 			        string(controller, "id");
 			        choice(controller, "console", consoles);
+			        if (choice(controller, "policy", {"combat"}, true) &&
+			            !controller.value("policy", std::string{}).empty())
+			        {
+				        controller.erase("tree");
+				        controller["fallback"] = "hold";
+			        }
 			        if (choice(controller, "tree", document.definition_choices(WorkshopDefinitionKind::Tree), true))
 			        {
 				        if (controller.contains("tree") && !controller.at("tree").get<std::string>().empty())
@@ -2391,6 +2521,8 @@ struct GameplayEditor
 			{
 				ScopedId identity(widget.at("id").get<std::string>().c_str());
 				ImGui::TextUnformatted(widget.at("id").get_ref<const std::string &>().c_str());
+				if (widget.at("kind") == "radar")
+					boolean(widget, "fire_arcs");
 				if (widget.at("kind") == "throttle" || widget.at("kind") == "heading")
 				{
 					bool controlled = widget.contains("controller");
@@ -2443,6 +2575,7 @@ struct GameplayEditor
 				using Inspector = void (GameplayEditor::*)(WorkshopDocument &);
 				for (const auto &[title, inspect] : std::vector<std::pair<const char *, Inspector>>{
 				         {"Systems and ownership", &GameplayEditor::fitted},
+				         {"Compartments and combat", &GameplayEditor::combat},
 				         {"Power and cooling", &GameplayEditor::resources},
 				         {"Fitting and assemblies", &GameplayEditor::placements},
 				         {"Knowledge feeds and publications", &GameplayEditor::knowledge_bindings},

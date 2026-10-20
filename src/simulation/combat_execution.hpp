@@ -1,12 +1,41 @@
 // World::Impl combat adapter. All decisions originate at Controllers; mechanisms consume admitted intent.
-std::vector<Projectile> projectiles;
+std::vector<flecs::entity> projectile_rows() const
+{
+	std::vector<flecs::entity> rows;
+	projectile_query.each(
+	    [&](flecs::entity e, const Projectile &)
+	    {
+		    rows.push_back(e);
+	    });
+	std::sort(rows.begin(), rows.end(),
+	          [](auto a, auto b)
+	          {
+		          return a.template get<Projectile>().id < b.template get<Projectile>().id;
+	          });
+	return rows;
+}
+std::vector<std::pair<EntityId, flecs::entity>> combat_rows() const
+{
+	std::vector<std::pair<EntityId, flecs::entity>> rows;
+	combat_ships.each(
+	    [&](flecs::entity e, const StableId &id, const CombatStructure &)
+	    {
+		    rows.emplace_back(id.id, e);
+	    });
+	std::sort(rows.begin(), rows.end(),
+	          [](const auto &a, const auto &b)
+	          {
+		          return a.first < b.first;
+	          });
+	return rows;
+}
 std::uint64_t next_projectile = 1;
 bool combat_duel = false;
 bool duel_ended() const
 {
 	if (!combat_duel)
 		return false;
-	for (const auto &[id, e] : entities)
+	for (const auto &[id, e] : combat_rows())
 		if (combat_dead(e))
 			return true;
 	return false;
@@ -45,6 +74,7 @@ void combat_damage(flecs::entity ship, std::size_t compartment, std::int64_t amo
 	                }))
 	{
 		s.destroyed_tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
+		ship.get_mut<Motion>().velocity = {};
 	}
 }
 bool operate_combat(flecs::entity ship, flecs::entity child, OperatingRequest output, bool execute)
@@ -130,7 +160,7 @@ void combat_telemetry(flecs::entity ship, flecs::entity child, std::map<std::str
 void apply_structural_disablement()
 {
 	// Stop actuation without overwriting accepted enable/mode settings.
-	for (auto &[id, ship] : entities)
+	for (const auto &[id, ship] : combat_rows())
 		if (ship.has<CombatStructure>())
 		{
 			if (combat_dead(ship))
@@ -177,9 +207,12 @@ void prepare_combat(flecs::entity ship)
 					break;
 				}
 			const auto origin = combat_world({d.x, d.y}, pose);
-			const auto travel = fixed::length(fixed::Vec{target->x, target->y} - origin) * 1000 / speed;
-			const auto lead = fixed::Vec{target->x + (target->vx - ship.get<Motion>().velocity.x) * travel / 1000,
-			                             target->y + (target->vy - ship.get<Motion>().velocity.y) * travel / 1000};
+			const auto travel = std::min<std::int64_t>(
+			    5000000, fixed::length(fixed::Vec{target->x, target->y} - origin) * 1000 / speed);
+			auto lead = fixed::Vec{target->x + (target->vx - ship.get<Motion>().velocity.x) * travel / 1000,
+			                       target->y + (target->vy - ship.get<Motion>().velocity.y) * travel / 1000};
+			lead.x = std::clamp(lead.x, -fixed::unit, fixed::unit);
+			lead.y = std::clamp(lead.y, -fixed::unit, fixed::unit);
 			const auto wanted = combat_delta(combat_bearing(lead - origin), pose.heading);
 			const auto offset = std::clamp(combat_delta(wanted, d.bearing), -d.arc / 2, d.arc / 2);
 			const auto desired = combat_angle(d.bearing + offset);
@@ -188,7 +221,9 @@ void prepare_combat(flecs::entity ship)
 			m->turn_remainder %= rate;
 			// Traverse within the authored interval, never through a blind sector.
 			const auto current = combat_delta(m->heading, d.bearing);
-			m->heading = combat_angle(d.bearing + current + std::clamp(offset - current, -step, step));
+			m->heading = d.arc == 360000
+			                 ? combat_angle(m->heading + std::clamp(combat_delta(desired, m->heading), -step, step))
+			                 : combat_angle(d.bearing + current + std::clamp(offset - current, -step, step));
 		}
 	std::map<std::string, std::int64_t> reserved;
 	for (auto child : ship.get<EquipmentIndex>().values)
@@ -210,7 +245,7 @@ void prepare_combat(flecs::entity ship)
 				if (!turret.get<Equipment>().enabled || structurally_disabled(ship, d.turret))
 					continue;
 				orientation = pose.heading + t.heading + d.bearing;
-				mount = {t.definition.x + d.x, t.definition.y + d.y};
+				mount = combat_world({d.x, d.y}, Pose{{t.definition.x, t.definition.y}, t.heading});
 			}
 			const auto observed = capture_console_observation(system_owner(id, d.id));
 			const auto target = std::find_if(observed.contacts.begin(), observed.contacts.end(),
@@ -221,9 +256,13 @@ void prepare_combat(flecs::entity ship)
 			if (target == observed.contacts.end())
 				continue;
 			const auto origin = combat_world(mount, pose);
-			const auto travel = fixed::length(fixed::Vec{target->x, target->y} - origin) * 1000 / d.projectile.speed;
-			const auto lead = fixed::Vec{target->x + (target->vx - ship.get<Motion>().velocity.x) * travel / 1000,
-			                             target->y + (target->vy - ship.get<Motion>().velocity.y) * travel / 1000};
+			const auto travel = std::min<std::int64_t>(d.projectile.lifetime * 1000 / rate,
+			                                           fixed::length(fixed::Vec{target->x, target->y} - origin) * 1000 /
+			                                               d.projectile.speed);
+			auto lead = fixed::Vec{target->x + (target->vx - ship.get<Motion>().velocity.x) * travel / 1000,
+			                       target->y + (target->vy - ship.get<Motion>().velocity.y) * travel / 1000};
+			lead.x = std::clamp(lead.x, -fixed::unit, fixed::unit);
+			lead.y = std::clamp(lead.y, -fixed::unit, fixed::unit);
 			m->ready = std::abs(combat_delta(combat_bearing(lead - origin), orientation)) <= d.arc / 2;
 			if (m->ready)
 			{
@@ -304,7 +343,7 @@ void actuate_combat(flecs::entity ship)
 				if (!turret.get<Equipment>().enabled || structurally_disabled(ship, d.turret))
 					continue;
 				orientation = pose.heading + t.heading + d.bearing;
-				mount = {t.definition.x + d.x, t.definition.y + d.y};
+				mount = combat_world({d.x, d.y}, Pose{{t.definition.x, t.definition.y}, t.heading});
 			}
 			const auto owner = system_owner(id, d.id);
 			const auto observed = capture_console_observation(owner);
@@ -316,9 +355,13 @@ void actuate_combat(flecs::entity ship)
 			if (target == observed.contacts.end())
 				continue;
 			const auto origin = combat_world(mount, pose);
-			const auto travel = fixed::length(fixed::Vec{target->x, target->y} - origin) * 1000 / d.projectile.speed;
-			const auto lead = fixed::Vec{target->x + (target->vx - ship.get<Motion>().velocity.x) * travel / 1000,
-			                             target->y + (target->vy - ship.get<Motion>().velocity.y) * travel / 1000};
+			const auto travel = std::min<std::int64_t>(d.projectile.lifetime * 1000 / rate,
+			                                           fixed::length(fixed::Vec{target->x, target->y} - origin) * 1000 /
+			                                               d.projectile.speed);
+			auto lead = fixed::Vec{target->x + (target->vx - ship.get<Motion>().velocity.x) * travel / 1000,
+			                       target->y + (target->vy - ship.get<Motion>().velocity.y) * travel / 1000};
+			lead.x = std::clamp(lead.x, -fixed::unit, fixed::unit);
+			lead.y = std::clamp(lead.y, -fixed::unit, fixed::unit);
 			auto bearing = combat_bearing(lead - origin);
 			if (std::abs(combat_delta(bearing, orientation)) > d.arc / 2)
 				continue;
@@ -341,7 +384,7 @@ void actuate_combat(flecs::entity ship)
 				                 static_cast<std::int64_t>((structure.random >> 16) %
 				                                           static_cast<std::uint64_t>(d.projectile.spread * 2 + 1)) -
 				                 d.projectile.spread);
-			if (projectiles.size() >= 8192)
+			if (projectile_rows().size() >= 8192)
 				throw std::runtime_error("Combat projectile capacity exceeded");
 			Projectile p;
 			p.id = next_projectile++;
@@ -349,11 +392,13 @@ void actuate_combat(flecs::entity ship)
 			p.position = origin;
 			p.heading = bearing;
 			p.velocity = fixed::scale(fixed::direction(bearing), d.projectile.speed) + ship.get<Motion>().velocity;
+			p.velocity.x = std::clamp(p.velocity.x, -fixed::unit, fixed::unit);
+			p.velocity.y = std::clamp(p.velocity.y, -fixed::unit, fixed::unit);
 			p.life = d.projectile.lifetime;
 			p.penetration = d.projectile.penetration;
 			p.damage = d.projectile.damage;
 			p.definition = d.projectile;
-			projectiles.push_back(p);
+			ecs.entity().set<Projectile>(p);
 		}
 }
 void penetrate(Projectile &p, flecs::entity ship, fixed::Vec start, fixed::Vec end)
@@ -424,11 +469,35 @@ void step_projectiles()
 {
 	if (duel_ended())
 	{
-		projectiles.clear();
+		for (auto particle : projectile_rows())
+			particle.destruct();
 		return;
 	}
-	for (auto &p : projectiles)
+	struct ProjectileTarget
 	{
+		EntityId id;
+		flecs::entity entity;
+		fixed::Vec start;
+	};
+	std::vector<ProjectileTarget> targets;
+	std::vector<Bounds> boxes;
+	SpatialIndex target_index;
+	bodies.each(
+	    [&](flecs::entity entity, const StableId &id, const Definition &, const Pose &pose, const Motion &)
+	    {
+		    if (combat_dead(entity))
+			    return;
+		    const auto &shape = entity.get<Collider>();
+		    const auto start = step_starts.contains(id.id) ? step_starts.at(id.id) : pose.position;
+		    targets.push_back({id.id, entity, start});
+		    boxes.push_back(Bounds::merge(
+		        Bounds::around(start, shape.box ? shape.half_width + shape.half_length : shape.radius),
+		        Bounds::around(pose.position, shape.box ? shape.half_width + shape.half_length : shape.radius)));
+	    });
+	target_index.rebuild(boxes);
+	for (auto particle : projectile_rows())
+	{
+		auto &p = particle.get_mut<Projectile>();
 		const auto from = p.position;
 		p.remainder = p.remainder + p.velocity;
 		const fixed::Vec delta{p.remainder.x / rate, p.remainder.y / rate};
@@ -446,9 +515,12 @@ void step_projectiles()
 		shot.position = p.position;
 		shot.radius = 1;
 		shot.mass = 1;
-		for (const auto &[id, entity] : entities)
-			if (id != p.source && !combat_dead(entity))
+		for (auto row = target_index.first(Bounds::merge(Bounds::around(from, 1), Bounds::around(p.position, 1)), 0);
+		     row != SpatialIndex::none;
+		     row = target_index.first(Bounds::merge(Bounds::around(from, 1), Bounds::around(p.position, 1)), row + 1))
+			if (const auto id = targets[row].id; id != p.source && !combat_dead(targets[row].entity))
 			{
+				const auto entity = targets[row].entity;
 				const auto &pose = entity.get<Pose>();
 				const auto &shape = entity.get<Collider>();
 				const auto begin = step_starts.contains(id) ? step_starts.at(id) : pose.position;
@@ -486,12 +558,13 @@ void step_projectiles()
 		}
 		--p.life;
 	}
-	std::erase_if(projectiles,
-	              [](const auto &p)
-	              {
-		              return p.life <= 0 || p.damage <= 0 || p.penetration <= 0 ||
-		                     std::abs(p.position.x) > fixed::unit || std::abs(p.position.y) > fixed::unit;
-	              });
+	for (auto particle : projectile_rows())
+	{
+		const auto &p = particle.get<Projectile>();
+		if (p.life <= 0 || p.damage <= 0 || p.penetration <= 0 || std::abs(p.position.x) > fixed::unit ||
+		    std::abs(p.position.y) > fixed::unit)
+			particle.destruct();
+	}
 }
 std::pair<std::int64_t, std::int64_t> repair_route(const CombatStructure &s, std::size_t from, std::size_t to) const
 {
@@ -536,7 +609,7 @@ void step_repairs()
 {
 	if (duel_ended())
 		return;
-	for (auto &[id, ship] : entities)
+	for (const auto &[id, ship] : combat_rows())
 		if (auto *s = ship.try_get_mut<CombatStructure>(); s && !combat_dead(ship))
 		{
 			std::map<std::size_t, std::vector<flecs::entity>> workers;
@@ -610,9 +683,10 @@ void collision_damage(EntityId a, EntityId b, const CollisionBody &before_a, con
 				continue;
 			const auto mass = before_a.mass && before_b.mass ? std::min(before_a.mass, before_b.mass)
 			                                                 : std::max(before_a.mass, before_b.mass);
-			const auto metres = std::min<std::int64_t>(closing / 1000, 10000);
-			const auto damage = std::min<std::int64_t>(1000000, std::max<std::int64_t>(1, mass / 1000000) * metres *
-			                                                        metres / 100 * s.definition.collision_scale);
+			const auto metres = std::min<std::int64_t>(closing / 1000, 1000);
+			const auto damage =
+			    std::min<std::int64_t>(1000000, std::clamp<std::int64_t>(mass / 1000000, 1, 1000000) * metres * metres /
+			                                        100 * s.definition.collision_scale);
 			const auto contact = combat_local(id == a ? before_b.position : before_a.position, ship.get<Pose>());
 			std::size_t nearest = 0;
 			std::int64_t best = std::numeric_limits<std::int64_t>::max();
@@ -687,7 +761,7 @@ void project_combat(const ConsoleAddress &address, Observation &result) const
 	if (combat_duel && duel_ended())
 	{
 		int alive = 0;
-		for (const auto &[id, e] : entities)
+		for (const auto &[id, e] : combat_rows())
 			if (e.has<CombatStructure>() && !combat_dead(e))
 				++alive;
 		output["result"] = alive == 0 ? "Draw" : combat_dead(ship) ? "Defeat" : "Victory";
@@ -760,7 +834,9 @@ void restore_combat(flecs::entity ship, const Json &j)
 Json save_projectiles() const
 {
 	Json out = Json::array();
-	for (const auto &p : projectiles)
+	for (const auto particle : projectile_rows())
+	{
+		const auto &p = particle.get<Projectile>();
 		out.push_back({{"id", p.id},
 		               {"source", p.source},
 		               {"position", p.position},
@@ -781,6 +857,7 @@ Json save_projectiles() const
 		                 {"damage", p.definition.damage},
 		                 {"deposition", p.definition.deposition},
 		                 {"spread", p.definition.spread}}}});
+	}
 	return out;
 }
 void restore_projectiles(const Json &saved)
@@ -826,7 +903,7 @@ void restore_projectiles(const Json &saved)
 				                 return c.deck == deck;
 			                 }))
 				throw std::runtime_error("Invalid projectile deck selection");
-		projectiles.push_back(p);
+		ecs.entity().set<Projectile>(p);
 	}
 }
 

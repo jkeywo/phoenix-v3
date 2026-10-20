@@ -6699,6 +6699,1813 @@
 				"alert_console": "engineering",
 				"sidebar_default": "command"
 			}
+		},
+		{
+			"id": "base.combat-projectile",
+			"render": {
+				"mode": "camera",
+				"scale": 0.35,
+				"sprite": {
+					"albedo": "phoenix-base:assets/combat/projectile.png",
+					"emissive": true,
+					"frames": [
+						{
+							"name": "single",
+							"rect": [0, 0, 16, 16],
+							"pivot": [8, 8],
+							"azimuth": 0,
+							"depth_scale": 0,
+							"depth_offset": 0
+						}
+					]
+				}
+			},
+			"collision": {
+				"shape": "circle",
+				"radius_mm": 1,
+				"mass_grams": 0
+			},
+			"systems": {}
+		},
+		{
+			"id": "base.combat-explosion",
+			"render": {
+				"mode": "camera",
+				"scale": 1,
+				"sprite": {
+					"albedo": "phoenix-base:assets/combat/explosion.png",
+					"emissive": true,
+					"frames": [
+						{
+							"name": "single",
+							"rect": [0, 0, 256, 256],
+							"pivot": [128.0, 128.0],
+							"azimuth": 0,
+							"depth_scale": 0,
+							"depth_offset": 0
+						}
+					]
+				}
+			},
+			"collision": {
+				"shape": "circle",
+				"radius_mm": 1,
+				"mass_grams": 0
+			},
+			"systems": {}
+		},
+		{
+			"id": "base.courier-turret",
+			"render": {
+				"mode": "eight",
+				"scale": 1,
+				"sprite": {
+					"albedo": "phoenix-base:assets/combat/courier-turret.png",
+					"frames": [
+						{
+							"name": "bow",
+							"rect": [0, 0, 512, 512],
+							"pivot": [259.19, 373.58],
+							"azimuth": 0,
+							"mirror_x": false,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {}
+						},
+						{
+							"name": "bow_port",
+							"rect": [512, 0, 512, 512],
+							"pivot": [306.33, 370.61],
+							"azimuth": 45,
+							"mirror_x": false,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {}
+						},
+						{
+							"name": "port",
+							"rect": [1024, 0, 512, 512],
+							"pivot": [328.49, 371.91],
+							"azimuth": 90,
+							"mirror_x": false,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {}
+						},
+						{
+							"name": "stern_port",
+							"rect": [1536, 0, 512, 512],
+							"pivot": [310.71, 373.55],
+							"azimuth": 135,
+							"mirror_x": false,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {}
+						},
+						{
+							"name": "stern",
+							"rect": [2048, 0, 512, 512],
+							"pivot": [259.34, 374.63],
+							"azimuth": 180,
+							"mirror_x": false,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {}
+						},
+						{
+							"name": "stern_starboard",
+							"rect": [1536, 0, 512, 512],
+							"pivot": [310.71, 373.55],
+							"azimuth": 225,
+							"mirror_x": true,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {}
+						},
+						{
+							"name": "starboard",
+							"rect": [1024, 0, 512, 512],
+							"pivot": [328.49, 371.91],
+							"azimuth": 270,
+							"mirror_x": true,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {}
+						},
+						{
+							"name": "bow_starboard",
+							"rect": [512, 0, 512, 512],
+							"pivot": [306.33, 370.61],
+							"azimuth": 315,
+							"mirror_x": true,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {}
+						}
+					]
+				}
+			},
+			"collision": {
+				"shape": "circle",
+				"radius_mm": 1,
+				"mass_grams": 0
+			},
+			"systems": {}
+		},
+		{
+			"id": "base.pirate-turret",
+			"render": {
+				"mode": "eight",
+				"scale": 1,
+				"sprite": {
+					"albedo": "phoenix-base:assets/combat/pirate-turret.png",
+					"frames": [
+						{
+							"name": "bow",
+							"rect": [0, 0, 455, 550],
+							"pivot": [236, 483],
+							"azimuth": 0,
+							"mirror_x": false,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {}
+						},
+						{
+							"name": "bow_port",
+							"rect": [455, 0, 569, 550],
+							"pivot": [315, 490],
+							"azimuth": 45,
+							"mirror_x": false,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {}
+						},
+						{
+							"name": "port",
+							"rect": [0, 550, 620, 460],
+							"pivot": [398, 388],
+							"azimuth": 90,
+							"mirror_x": false,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {}
+						},
+						{
+							"name": "stern_port",
+							"rect": [620, 550, 404, 460],
+							"pivot": [205, 398],
+							"azimuth": 135,
+							"mirror_x": false,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {}
+						},
+						{
+							"name": "stern",
+							"rect": [0, 1010, 460, 526],
+							"pivot": [229, 416],
+							"azimuth": 180,
+							"mirror_x": false,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {}
+						},
+						{
+							"name": "stern_starboard",
+							"rect": [620, 550, 404, 460],
+							"pivot": [205, 398],
+							"azimuth": 225,
+							"mirror_x": true,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {}
+						},
+						{
+							"name": "starboard",
+							"rect": [0, 550, 620, 460],
+							"pivot": [398, 388],
+							"azimuth": 270,
+							"mirror_x": true,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {}
+						},
+						{
+							"name": "bow_starboard",
+							"rect": [455, 0, 569, 550],
+							"pivot": [315, 490],
+							"azimuth": 315,
+							"mirror_x": true,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {}
+						}
+					]
+				}
+			},
+			"collision": {
+				"shape": "circle",
+				"radius_mm": 1,
+				"mass_grams": 0
+			},
+			"systems": {}
+		},
+		{
+			"id": "base.armed-courier",
+			"name": "Armed Courier",
+			"tags": ["ship"],
+			"motion_model": "inertial",
+			"render": {
+				"mode": "eight",
+				"scale": 24,
+				"sprite": {
+					"albedo": "phoenix-base:assets/combat/courier-hull.png",
+					"frames": [
+						{
+							"name": "bow",
+							"rect": [0, 0, 1536, 768],
+							"pivot": [769.37, 405.57],
+							"azimuth": 0,
+							"mirror_x": false,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {
+								"turret_top": {
+									"x": 769.37,
+									"y": 258.88,
+									"layer": -1,
+									"depth_offset": 0
+								},
+								"turret_bottom": {
+									"x": 769.37,
+									"y": 558.74,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
+						},
+						{
+							"name": "bow_port",
+							"rect": [1536, 0, 1536, 768],
+							"pivot": [815.52, 402.77],
+							"azimuth": 45,
+							"mirror_x": false,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {
+								"turret_top": {
+									"x": 861.71,
+									"y": 304.6,
+									"layer": 1,
+									"depth_offset": 0
+								},
+								"turret_bottom": {
+									"x": 890.58,
+									"y": 560.41,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
+						},
+						{
+							"name": "port",
+							"rect": [3072, 0, 1536, 768],
+							"pivot": [859.76, 417.39],
+							"azimuth": 90,
+							"mirror_x": false,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {
+								"turret_top": {
+									"x": 884.8,
+									"y": 289.67,
+									"layer": 1,
+									"depth_offset": 0
+								},
+								"turret_bottom": {
+									"x": 884.8,
+									"y": 555.13,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
+						},
+						{
+							"name": "stern_port",
+							"rect": [4608, 0, 1536, 768],
+							"pivot": [791.65, 395.46],
+							"azimuth": 135,
+							"mirror_x": false,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {
+								"turret_top": {
+									"x": 763.0,
+									"y": 266.51,
+									"layer": 1,
+									"depth_offset": 0
+								},
+								"turret_bottom": {
+									"x": 717.15,
+									"y": 515.82,
+									"layer": -1,
+									"depth_offset": 0
+								}
+							}
+						},
+						{
+							"name": "stern",
+							"rect": [6144, 0, 1536, 768],
+							"pivot": [768.44, 413.75],
+							"azimuth": 180,
+							"mirror_x": false,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {
+								"turret_top": {
+									"x": 768.44,
+									"y": 308.28,
+									"layer": 1,
+									"depth_offset": 0
+								},
+								"turret_bottom": {
+									"x": 768.44,
+									"y": 559.77,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
+						},
+						{
+							"name": "stern_starboard",
+							"rect": [4608, 0, 1536, 768],
+							"pivot": [791.65, 395.46],
+							"azimuth": 225,
+							"mirror_x": true,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {
+								"turret_top": {
+									"x": 763.0,
+									"y": 266.51,
+									"layer": 1,
+									"depth_offset": 0
+								},
+								"turret_bottom": {
+									"x": 717.15,
+									"y": 515.82,
+									"layer": -1,
+									"depth_offset": 0
+								}
+							}
+						},
+						{
+							"name": "starboard",
+							"rect": [3072, 0, 1536, 768],
+							"pivot": [859.76, 417.39],
+							"azimuth": 270,
+							"mirror_x": true,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {
+								"turret_top": {
+									"x": 884.8,
+									"y": 289.67,
+									"layer": 1,
+									"depth_offset": 0
+								},
+								"turret_bottom": {
+									"x": 884.8,
+									"y": 555.13,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
+						},
+						{
+							"name": "bow_starboard",
+							"rect": [1536, 0, 1536, 768],
+							"pivot": [815.52, 402.77],
+							"azimuth": 315,
+							"mirror_x": true,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {
+								"turret_top": {
+									"x": 861.71,
+									"y": 304.6,
+									"layer": 1,
+									"depth_offset": 0
+								},
+								"turret_bottom": {
+									"x": 890.58,
+									"y": 560.41,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
+						}
+					],
+					"radar_icon": "ship"
+				},
+				"radar_icon": "ship"
+			},
+			"collision": {
+				"shape": "box",
+				"mass_grams": 6000000,
+				"half_width_mm": 12000,
+				"half_length_mm": 5000
+			},
+			"systems": {
+				"drive": {
+					"kind": "engine",
+					"max_speed_mm_s": 22000,
+					"reverse_speed_mm_s": 4000,
+					"acceleration_mm_s2": 3500,
+					"compartment": "stern-port",
+					"observation_console": "helm"
+				},
+				"helm": {
+					"kind": "steering",
+					"turn_mdeg_s": 35000,
+					"compartment": "bow-port",
+					"observation_console": "helm"
+				},
+				"radar": {
+					"kind": "radar",
+					"range_mm": 350000,
+					"shows": ["ship", "asteroid"],
+					"compartment": "bow-starboard",
+					"observation_console": "support"
+				},
+				"top": {
+					"kind": "turret",
+					"compartment": "mid-port",
+					"arc_mdeg": 270000,
+					"traverse_mdeg_s": 80000,
+					"marker": "turret_top",
+					"visual": "base.courier-turret",
+					"scale_permille": 420,
+					"flip_y": false,
+					"x_mm": 4000,
+					"observation_console": "tactical"
+				},
+				"top-mag": {
+					"kind": "magazine",
+					"compartment": "mid-port",
+					"capacity": 6,
+					"reload": {
+						"strategy": "infinite",
+						"ticks": 80,
+						"amount": 6
+					},
+					"observation_console": "tactical"
+				},
+				"top-gun": {
+					"kind": "weapon",
+					"compartment": "mid-port",
+					"turret": "top",
+					"arc_mdeg": 6000,
+					"magazine": "top-mag",
+					"fire_ticks": 25,
+					"projectile": {
+						"visual": "base.combat-projectile",
+						"speed_mm_s": 100000,
+						"lifetime_ticks": 120,
+						"penetration": 180,
+						"damage": 85,
+						"damage_per_m": 15,
+						"spread_mdeg": 800
+					},
+					"observation_console": "tactical"
+				},
+				"bottom": {
+					"kind": "turret",
+					"compartment": "mid-starboard",
+					"arc_mdeg": 300000,
+					"traverse_mdeg_s": 80000,
+					"marker": "turret_bottom",
+					"visual": "base.courier-turret",
+					"scale_permille": 420,
+					"flip_y": true,
+					"x_mm": 0,
+					"observation_console": "tactical"
+				},
+				"bottom-mag": {
+					"kind": "magazine",
+					"compartment": "mid-starboard",
+					"capacity": 6,
+					"reload": {
+						"strategy": "infinite",
+						"ticks": 80,
+						"amount": 6
+					},
+					"observation_console": "tactical"
+				},
+				"bottom-gun": {
+					"kind": "weapon",
+					"compartment": "mid-starboard",
+					"turret": "bottom",
+					"arc_mdeg": 6000,
+					"magazine": "bottom-mag",
+					"fire_ticks": 25,
+					"projectile": {
+						"visual": "base.combat-projectile",
+						"speed_mm_s": 100000,
+						"lifetime_ticks": 120,
+						"penetration": 180,
+						"damage": 85,
+						"damage_per_m": 15,
+						"spread_mdeg": 800
+					},
+					"observation_console": "tactical"
+				},
+				"forward-mag": {
+					"kind": "magazine",
+					"compartment": "bow-port",
+					"capacity": 4,
+					"reload": {
+						"strategy": "infinite",
+						"ticks": 100,
+						"amount": 4
+					},
+					"observation_console": "tactical"
+				},
+				"forward-gun": {
+					"kind": "weapon",
+					"compartment": "bow-port",
+					"arc_mdeg": 10000,
+					"magazine": "forward-mag",
+					"fire_ticks": 35,
+					"projectile": {
+						"visual": "base.combat-projectile",
+						"speed_mm_s": 180000,
+						"lifetime_ticks": 100,
+						"penetration": 2000,
+						"damage": 60,
+						"damage_per_m": 2,
+						"spread_mdeg": 250
+					},
+					"observation_console": "tactical",
+					"x_mm": 12000
+				},
+				"team-1": {
+					"kind": "repair_team",
+					"compartment": "stern-starboard",
+					"hp_per_second": 8,
+					"stack_penalty_permille": 500,
+					"observation_console": "support"
+				},
+				"team-2": {
+					"kind": "repair_team",
+					"compartment": "stern-starboard",
+					"hp_per_second": 8,
+					"stack_penalty_permille": 500,
+					"observation_console": "support"
+				}
+			},
+			"stations": [
+				{
+					"id": "helm",
+					"consoles": [
+						{
+							"id": "helm",
+							"definition": "base.console.combat-helm",
+							"systems": [],
+							"feeds": [
+								"drive",
+								"helm",
+								"radar",
+								"top",
+								"top-mag",
+								"top-gun",
+								"bottom",
+								"bottom-mag",
+								"bottom-gun",
+								"forward-mag",
+								"forward-gun",
+								"team-1",
+								"team-2"
+							]
+						},
+						{
+							"id": "tactical",
+							"definition": "base.console.combat-tactical",
+							"human_seeking": true,
+							"human_preferences": ["helm"],
+							"systems": [],
+							"feeds": [
+								"radar",
+								"top",
+								"top-mag",
+								"top-gun",
+								"bottom",
+								"bottom-mag",
+								"bottom-gun",
+								"forward-mag",
+								"forward-gun"
+							]
+						}
+					]
+				},
+				{
+					"id": "support",
+					"consoles": [
+						{
+							"id": "support",
+							"definition": "base.console.combat-support",
+							"systems": [],
+							"feeds": [
+								"drive",
+								"helm",
+								"radar",
+								"top",
+								"top-mag",
+								"top-gun",
+								"bottom",
+								"bottom-mag",
+								"bottom-gun",
+								"forward-mag",
+								"forward-gun",
+								"team-1",
+								"team-2"
+							]
+						}
+					]
+				}
+			],
+			"control_layout": {
+				"schema": 1,
+				"controllers": [
+					{
+						"id": "drive",
+						"console": "helm",
+						"fallback": "hold",
+						"policy": "combat",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive"]
+							},
+							{
+								"id": "speed_mm_s",
+								"action": "speed_mm_s",
+								"initial": 0,
+								"consumers": ["drive"]
+							},
+							{
+								"id": "assisted",
+								"action": "assisted",
+								"initial": 1,
+								"consumers": ["drive"]
+							}
+						]
+					},
+					{
+						"id": "helm",
+						"console": "helm",
+						"fallback": "hold",
+						"policy": "combat",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["helm"]
+							},
+							{
+								"id": "heading_mdeg",
+								"action": "heading_mdeg",
+								"initial": 0,
+								"consumers": ["helm"]
+							}
+						]
+					},
+					{
+						"id": "radar",
+						"console": "support",
+						"fallback": "hold",
+						"policy": "combat",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["radar"]
+							}
+						]
+					},
+					{
+						"id": "top",
+						"console": "tactical",
+						"fallback": "hold",
+						"policy": "combat",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["top"]
+							}
+						]
+					},
+					{
+						"id": "top-mag",
+						"console": "tactical",
+						"fallback": "hold",
+						"policy": "combat",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["top-mag"]
+							}
+						]
+					},
+					{
+						"id": "top-gun",
+						"console": "tactical",
+						"fallback": "hold",
+						"policy": "combat",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["top-gun"]
+							},
+							{
+								"id": "weapon_target",
+								"action": "weapon_target",
+								"initial": 0,
+								"consumers": ["top-gun"]
+							}
+						]
+					},
+					{
+						"id": "bottom",
+						"console": "tactical",
+						"fallback": "hold",
+						"policy": "combat",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["bottom"]
+							}
+						]
+					},
+					{
+						"id": "bottom-mag",
+						"console": "tactical",
+						"fallback": "hold",
+						"policy": "combat",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["bottom-mag"]
+							}
+						]
+					},
+					{
+						"id": "bottom-gun",
+						"console": "tactical",
+						"fallback": "hold",
+						"policy": "combat",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["bottom-gun"]
+							},
+							{
+								"id": "weapon_target",
+								"action": "weapon_target",
+								"initial": 0,
+								"consumers": ["bottom-gun"]
+							}
+						]
+					},
+					{
+						"id": "forward-mag",
+						"console": "tactical",
+						"fallback": "hold",
+						"policy": "combat",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["forward-mag"]
+							}
+						]
+					},
+					{
+						"id": "forward-gun",
+						"console": "tactical",
+						"fallback": "hold",
+						"policy": "combat",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["forward-gun"]
+							},
+							{
+								"id": "weapon_target",
+								"action": "weapon_target",
+								"initial": 0,
+								"consumers": ["forward-gun"]
+							}
+						]
+					},
+					{
+						"id": "team-1",
+						"console": "support",
+						"fallback": "hold",
+						"policy": "combat",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["team-1"]
+							},
+							{
+								"id": "repair_compartment",
+								"action": "repair_compartment",
+								"initial": 0,
+								"consumers": ["team-1"]
+							}
+						]
+					},
+					{
+						"id": "team-2",
+						"console": "support",
+						"fallback": "hold",
+						"policy": "combat",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["team-2"]
+							},
+							{
+								"id": "repair_compartment",
+								"action": "repair_compartment",
+								"initial": 0,
+								"consumers": ["team-2"]
+							}
+						]
+					}
+				],
+				"default_profile": "direct",
+				"profiles": [
+					{
+						"id": "direct",
+						"consoles": {
+							"helm": {
+								"human": ["drive", "helm"]
+							},
+							"tactical": {
+								"human": [
+									"top",
+									"top-mag",
+									"top-gun",
+									"bottom",
+									"bottom-mag",
+									"bottom-gun",
+									"forward-mag",
+									"forward-gun"
+								]
+							},
+							"support": {
+								"human": ["radar", "team-1", "team-2"]
+							}
+						}
+					},
+					{
+						"id": "automatic",
+						"consoles": {
+							"helm": {
+								"ai": ["drive", "helm"]
+							},
+							"tactical": {
+								"ai": [
+									"top",
+									"top-mag",
+									"top-gun",
+									"bottom",
+									"bottom-mag",
+									"bottom-gun",
+									"forward-mag",
+									"forward-gun"
+								]
+							},
+							"support": {
+								"ai": ["radar", "team-1", "team-2"]
+							}
+						}
+					}
+				]
+			},
+			"combat": {
+				"repair_console": "support",
+				"decks": [
+					{
+						"id": "main",
+						"weight": 1,
+						"compartments": [
+							{
+								"id": "stern-port",
+								"x_mm": -8000,
+								"y_mm": 2500,
+								"half_width_mm": 4000,
+								"half_length_mm": 2500,
+								"hp": 320,
+								"resistance_per_m": 20,
+								"recovery_hp": 50
+							},
+							{
+								"id": "stern-starboard",
+								"x_mm": -8000,
+								"y_mm": -2500,
+								"half_width_mm": 4000,
+								"half_length_mm": 2500,
+								"hp": 320,
+								"resistance_per_m": 20,
+								"recovery_hp": 50
+							},
+							{
+								"id": "mid-port",
+								"x_mm": 0,
+								"y_mm": 2500,
+								"half_width_mm": 4000,
+								"half_length_mm": 2500,
+								"hp": 320,
+								"resistance_per_m": 20,
+								"recovery_hp": 50
+							},
+							{
+								"id": "mid-starboard",
+								"x_mm": 0,
+								"y_mm": -2500,
+								"half_width_mm": 4000,
+								"half_length_mm": 2500,
+								"hp": 320,
+								"resistance_per_m": 20,
+								"recovery_hp": 50
+							},
+							{
+								"id": "bow-port",
+								"x_mm": 8000,
+								"y_mm": 2500,
+								"half_width_mm": 4000,
+								"half_length_mm": 2500,
+								"hp": 320,
+								"resistance_per_m": 20,
+								"recovery_hp": 50
+							},
+							{
+								"id": "bow-starboard",
+								"x_mm": 8000,
+								"y_mm": -2500,
+								"half_width_mm": 4000,
+								"half_length_mm": 2500,
+								"hp": 320,
+								"resistance_per_m": 20,
+								"recovery_hp": 50
+							}
+						]
+					}
+				],
+				"connections": [
+					{
+						"from": "stern-port",
+						"to": "mid-port",
+						"travel_ticks": 30
+					},
+					{
+						"from": "mid-port",
+						"to": "bow-port",
+						"travel_ticks": 30
+					},
+					{
+						"from": "stern-starboard",
+						"to": "mid-starboard",
+						"travel_ticks": 30
+					},
+					{
+						"from": "mid-starboard",
+						"to": "bow-starboard",
+						"travel_ticks": 30
+					},
+					{
+						"from": "stern-port",
+						"to": "stern-starboard",
+						"travel_ticks": 30
+					},
+					{
+						"from": "mid-port",
+						"to": "mid-starboard",
+						"travel_ticks": 30
+					},
+					{
+						"from": "bow-port",
+						"to": "bow-starboard",
+						"travel_ticks": 30
+					}
+				],
+				"destruction": {
+					"visual": "base.combat-explosion",
+					"sound": "phoenix-base:assets/combat/explosion.wav",
+					"growth_ticks": 12,
+					"fade_ticks": 30,
+					"size_mm": 65000
+				},
+				"collision_scale": 1,
+				"collision_threshold_mm_s": 2000
+			}
+		},
+		{
+			"id": "base.pirate-raider",
+			"name": "Pirate raider",
+			"tags": ["ship"],
+			"motion_model": "inertial",
+			"render": {
+				"mode": "eight",
+				"scale": 38,
+				"sprite": {
+					"albedo": "phoenix-base:assets/combat/pirate-hull.png",
+					"frames": [
+						{
+							"name": "bow",
+							"rect": [0, 0, 700, 370],
+							"pivot": [351, 230],
+							"azimuth": 0,
+							"mirror_x": false,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {
+								"turret_forward": {
+									"x": 351,
+									"y": 78,
+									"layer": 1,
+									"depth_offset": 0
+								},
+								"turret_aft": {
+									"x": 351,
+									"y": 21,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
+						},
+						{
+							"name": "bow_port",
+							"rect": [700, 0, 836, 370],
+							"pivot": [420, 230],
+							"azimuth": 45,
+							"mirror_x": false,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {
+								"turret_forward": {
+									"x": 240,
+									"y": 100,
+									"layer": 1,
+									"depth_offset": 0
+								},
+								"turret_aft": {
+									"x": 280,
+									"y": 48,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
+						},
+						{
+							"name": "port",
+							"rect": [0, 370, 920, 295],
+							"pivot": [460, 180],
+							"azimuth": 90,
+							"mirror_x": false,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {
+								"turret_forward": {
+									"x": 317,
+									"y": 56,
+									"layer": 1,
+									"depth_offset": 0
+								},
+								"turret_aft": {
+									"x": 577,
+									"y": 37,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
+						},
+						{
+							"name": "stern_port",
+							"rect": [920, 370, 616, 350],
+							"pivot": [310, 190],
+							"azimuth": 135,
+							"mirror_x": false,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {
+								"turret_forward": {
+									"x": 212,
+									"y": 42,
+									"layer": 1,
+									"depth_offset": 0
+								},
+								"turret_aft": {
+									"x": 326,
+									"y": 18,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
+						},
+						{
+							"name": "stern",
+							"rect": [0, 665, 720, 359],
+							"pivot": [368, 190],
+							"azimuth": 180,
+							"mirror_x": false,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {
+								"turret_forward": {
+									"x": 368,
+									"y": 10,
+									"layer": -1,
+									"depth_offset": 0
+								},
+								"turret_aft": {
+									"x": 368,
+									"y": 10,
+									"layer": -1,
+									"depth_offset": 0
+								}
+							}
+						},
+						{
+							"name": "stern_starboard",
+							"rect": [920, 370, 616, 350],
+							"pivot": [310, 190],
+							"azimuth": 225,
+							"mirror_x": true,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {
+								"turret_forward": {
+									"x": 212,
+									"y": 42,
+									"layer": 1,
+									"depth_offset": 0
+								},
+								"turret_aft": {
+									"x": 326,
+									"y": 18,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
+						},
+						{
+							"name": "starboard",
+							"rect": [0, 370, 920, 295],
+							"pivot": [460, 180],
+							"azimuth": 270,
+							"mirror_x": true,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {
+								"turret_forward": {
+									"x": 317,
+									"y": 56,
+									"layer": 1,
+									"depth_offset": 0
+								},
+								"turret_aft": {
+									"x": 577,
+									"y": 37,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
+						},
+						{
+							"name": "bow_starboard",
+							"rect": [700, 0, 836, 370],
+							"pivot": [420, 230],
+							"azimuth": 315,
+							"mirror_x": true,
+							"depth_scale": 0,
+							"depth_offset": 0,
+							"attachments": {
+								"turret_forward": {
+									"x": 240,
+									"y": 100,
+									"layer": 1,
+									"depth_offset": 0
+								},
+								"turret_aft": {
+									"x": 280,
+									"y": 48,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
+						}
+					],
+					"radar_icon": "ship"
+				},
+				"radar_icon": "ship"
+			},
+			"collision": {
+				"shape": "box",
+				"mass_grams": 18000000,
+				"half_width_mm": 18000,
+				"half_length_mm": 7500
+			},
+			"systems": {
+				"drive": {
+					"kind": "engine",
+					"max_speed_mm_s": 10000,
+					"reverse_speed_mm_s": 4000,
+					"acceleration_mm_s2": 1500,
+					"compartment": "stern-port",
+					"observation_console": "helm"
+				},
+				"helm": {
+					"kind": "steering",
+					"turn_mdeg_s": 12000,
+					"compartment": "bow-port",
+					"observation_console": "helm"
+				},
+				"radar": {
+					"kind": "radar",
+					"range_mm": 350000,
+					"shows": ["ship", "asteroid"],
+					"compartment": "bow-starboard",
+					"observation_console": "support"
+				},
+				"top": {
+					"kind": "turret",
+					"compartment": "mid-port",
+					"arc_mdeg": 270000,
+					"traverse_mdeg_s": 45000,
+					"marker": "turret_forward",
+					"visual": "base.pirate-turret",
+					"scale_permille": 240,
+					"flip_y": false,
+					"x_mm": 6000,
+					"observation_console": "tactical"
+				},
+				"top-mag": {
+					"kind": "magazine",
+					"compartment": "mid-port",
+					"capacity": 6,
+					"reload": {
+						"strategy": "infinite",
+						"ticks": 80,
+						"amount": 6
+					},
+					"observation_console": "tactical"
+				},
+				"top-gun": {
+					"kind": "weapon",
+					"compartment": "mid-port",
+					"turret": "top",
+					"arc_mdeg": 6000,
+					"magazine": "top-mag",
+					"fire_ticks": 35,
+					"projectile": {
+						"visual": "base.combat-projectile",
+						"speed_mm_s": 75000,
+						"lifetime_ticks": 120,
+						"penetration": 180,
+						"damage": 180,
+						"damage_per_m": 15,
+						"spread_mdeg": 800
+					},
+					"observation_console": "tactical"
+				},
+				"bottom": {
+					"kind": "turret",
+					"compartment": "mid-starboard",
+					"arc_mdeg": 180000,
+					"traverse_mdeg_s": 45000,
+					"marker": "turret_aft",
+					"visual": "base.pirate-turret",
+					"scale_permille": 240,
+					"flip_y": false,
+					"x_mm": 0,
+					"observation_console": "tactical"
+				},
+				"bottom-mag": {
+					"kind": "magazine",
+					"compartment": "mid-starboard",
+					"capacity": 6,
+					"reload": {
+						"strategy": "infinite",
+						"ticks": 80,
+						"amount": 6
+					},
+					"observation_console": "tactical"
+				},
+				"bottom-gun": {
+					"kind": "weapon",
+					"compartment": "mid-starboard",
+					"turret": "bottom",
+					"arc_mdeg": 6000,
+					"magazine": "bottom-mag",
+					"fire_ticks": 35,
+					"projectile": {
+						"visual": "base.combat-projectile",
+						"speed_mm_s": 75000,
+						"lifetime_ticks": 120,
+						"penetration": 180,
+						"damage": 180,
+						"damage_per_m": 15,
+						"spread_mdeg": 800
+					},
+					"observation_console": "tactical"
+				},
+				"team-1": {
+					"kind": "repair_team",
+					"compartment": "stern-starboard",
+					"hp_per_second": 8,
+					"stack_penalty_permille": 500,
+					"observation_console": "support"
+				},
+				"team-2": {
+					"kind": "repair_team",
+					"compartment": "stern-starboard",
+					"hp_per_second": 8,
+					"stack_penalty_permille": 500,
+					"observation_console": "support"
+				}
+			},
+			"stations": [
+				{
+					"id": "helm",
+					"consoles": [
+						{
+							"id": "helm",
+							"definition": "base.console.combat-helm",
+							"systems": [],
+							"feeds": [
+								"drive",
+								"helm",
+								"radar",
+								"top",
+								"top-mag",
+								"top-gun",
+								"bottom",
+								"bottom-mag",
+								"bottom-gun",
+								"team-1",
+								"team-2"
+							]
+						},
+						{
+							"id": "tactical",
+							"definition": "base.console.combat-tactical",
+							"human_seeking": true,
+							"human_preferences": ["helm"],
+							"systems": [],
+							"feeds": ["radar", "top", "top-mag", "top-gun", "bottom", "bottom-mag", "bottom-gun"]
+						}
+					]
+				},
+				{
+					"id": "support",
+					"consoles": [
+						{
+							"id": "support",
+							"definition": "base.console.combat-support",
+							"systems": [],
+							"feeds": [
+								"drive",
+								"helm",
+								"radar",
+								"top",
+								"top-mag",
+								"top-gun",
+								"bottom",
+								"bottom-mag",
+								"bottom-gun",
+								"team-1",
+								"team-2"
+							]
+						}
+					]
+				}
+			],
+			"control_layout": {
+				"schema": 1,
+				"controllers": [
+					{
+						"id": "drive",
+						"console": "helm",
+						"fallback": "hold",
+						"policy": "combat",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive"]
+							},
+							{
+								"id": "speed_mm_s",
+								"action": "speed_mm_s",
+								"initial": 0,
+								"consumers": ["drive"]
+							},
+							{
+								"id": "assisted",
+								"action": "assisted",
+								"initial": 1,
+								"consumers": ["drive"]
+							}
+						]
+					},
+					{
+						"id": "helm",
+						"console": "helm",
+						"fallback": "hold",
+						"policy": "combat",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["helm"]
+							},
+							{
+								"id": "heading_mdeg",
+								"action": "heading_mdeg",
+								"initial": 0,
+								"consumers": ["helm"]
+							}
+						]
+					},
+					{
+						"id": "radar",
+						"console": "support",
+						"fallback": "hold",
+						"policy": "combat",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["radar"]
+							}
+						]
+					},
+					{
+						"id": "top",
+						"console": "tactical",
+						"fallback": "hold",
+						"policy": "combat",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["top"]
+							}
+						]
+					},
+					{
+						"id": "top-mag",
+						"console": "tactical",
+						"fallback": "hold",
+						"policy": "combat",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["top-mag"]
+							}
+						]
+					},
+					{
+						"id": "top-gun",
+						"console": "tactical",
+						"fallback": "hold",
+						"policy": "combat",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["top-gun"]
+							},
+							{
+								"id": "weapon_target",
+								"action": "weapon_target",
+								"initial": 0,
+								"consumers": ["top-gun"]
+							}
+						]
+					},
+					{
+						"id": "bottom",
+						"console": "tactical",
+						"fallback": "hold",
+						"policy": "combat",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["bottom"]
+							}
+						]
+					},
+					{
+						"id": "bottom-mag",
+						"console": "tactical",
+						"fallback": "hold",
+						"policy": "combat",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["bottom-mag"]
+							}
+						]
+					},
+					{
+						"id": "bottom-gun",
+						"console": "tactical",
+						"fallback": "hold",
+						"policy": "combat",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["bottom-gun"]
+							},
+							{
+								"id": "weapon_target",
+								"action": "weapon_target",
+								"initial": 0,
+								"consumers": ["bottom-gun"]
+							}
+						]
+					},
+					{
+						"id": "team-1",
+						"console": "support",
+						"fallback": "hold",
+						"policy": "combat",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["team-1"]
+							},
+							{
+								"id": "repair_compartment",
+								"action": "repair_compartment",
+								"initial": 0,
+								"consumers": ["team-1"]
+							}
+						]
+					},
+					{
+						"id": "team-2",
+						"console": "support",
+						"fallback": "hold",
+						"policy": "combat",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["team-2"]
+							},
+							{
+								"id": "repair_compartment",
+								"action": "repair_compartment",
+								"initial": 0,
+								"consumers": ["team-2"]
+							}
+						]
+					}
+				],
+				"default_profile": "direct",
+				"profiles": [
+					{
+						"id": "direct",
+						"consoles": {
+							"helm": {
+								"human": ["drive", "helm"]
+							},
+							"tactical": {
+								"human": ["top", "top-mag", "top-gun", "bottom", "bottom-mag", "bottom-gun"]
+							},
+							"support": {
+								"human": ["radar", "team-1", "team-2"]
+							}
+						}
+					},
+					{
+						"id": "automatic",
+						"consoles": {
+							"helm": {
+								"ai": ["drive", "helm"]
+							},
+							"tactical": {
+								"ai": ["top", "top-mag", "top-gun", "bottom", "bottom-mag", "bottom-gun"]
+							},
+							"support": {
+								"ai": ["radar", "team-1", "team-2"]
+							}
+						}
+					}
+				]
+			},
+			"combat": {
+				"repair_console": "support",
+				"decks": [
+					{
+						"id": "main",
+						"weight": 1,
+						"compartments": [
+							{
+								"id": "stern-port",
+								"x_mm": -12000,
+								"y_mm": 3750,
+								"half_width_mm": 6000,
+								"half_length_mm": 3750,
+								"hp": 550,
+								"resistance_per_m": 20,
+								"recovery_hp": 80
+							},
+							{
+								"id": "stern-starboard",
+								"x_mm": -12000,
+								"y_mm": -3750,
+								"half_width_mm": 6000,
+								"half_length_mm": 3750,
+								"hp": 550,
+								"resistance_per_m": 20,
+								"recovery_hp": 80
+							},
+							{
+								"id": "mid-port",
+								"x_mm": 0,
+								"y_mm": 3750,
+								"half_width_mm": 6000,
+								"half_length_mm": 3750,
+								"hp": 550,
+								"resistance_per_m": 20,
+								"recovery_hp": 80
+							},
+							{
+								"id": "mid-starboard",
+								"x_mm": 0,
+								"y_mm": -3750,
+								"half_width_mm": 6000,
+								"half_length_mm": 3750,
+								"hp": 550,
+								"resistance_per_m": 20,
+								"recovery_hp": 80
+							},
+							{
+								"id": "bow-port",
+								"x_mm": 12000,
+								"y_mm": 3750,
+								"half_width_mm": 6000,
+								"half_length_mm": 3750,
+								"hp": 550,
+								"resistance_per_m": 20,
+								"recovery_hp": 80
+							},
+							{
+								"id": "bow-starboard",
+								"x_mm": 12000,
+								"y_mm": -3750,
+								"half_width_mm": 6000,
+								"half_length_mm": 3750,
+								"hp": 550,
+								"resistance_per_m": 20,
+								"recovery_hp": 80
+							}
+						]
+					}
+				],
+				"connections": [
+					{
+						"from": "stern-port",
+						"to": "mid-port",
+						"travel_ticks": 30
+					},
+					{
+						"from": "mid-port",
+						"to": "bow-port",
+						"travel_ticks": 30
+					},
+					{
+						"from": "stern-starboard",
+						"to": "mid-starboard",
+						"travel_ticks": 30
+					},
+					{
+						"from": "mid-starboard",
+						"to": "bow-starboard",
+						"travel_ticks": 30
+					},
+					{
+						"from": "stern-port",
+						"to": "stern-starboard",
+						"travel_ticks": 30
+					},
+					{
+						"from": "mid-port",
+						"to": "mid-starboard",
+						"travel_ticks": 30
+					},
+					{
+						"from": "bow-port",
+						"to": "bow-starboard",
+						"travel_ticks": 30
+					}
+				],
+				"destruction": {
+					"visual": "base.combat-explosion",
+					"sound": "phoenix-base:assets/combat/explosion.wav",
+					"growth_ticks": 12,
+					"fade_ticks": 30,
+					"size_mm": 90000
+				},
+				"collision_scale": 1,
+				"collision_threshold_mm_s": 2000
+			}
 		}
 	],
 	"maps": [
@@ -7077,6 +8884,55 @@
 					}
 				]
 			}
+		},
+		{
+			"id": "base.asteroid-duel",
+			"name": "Asteroid duel",
+			"presentation": {
+				"skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png"
+			},
+			"entities": [
+				{
+					"id": 10,
+					"definition": "base.pirate-raider",
+					"x_mm": 140000,
+					"y_mm": 18000,
+					"heading_mdeg": 180000
+				}
+			],
+			"ship_slots": [
+				{
+					"id": "base.duellist",
+					"x_mm": -140000,
+					"y_mm": -18000,
+					"heading_mdeg": 0,
+					"allowed_ships": ["base.armed-courier"],
+					"default_ship": "base.armed-courier"
+				}
+			],
+			"regions": [
+				{
+					"id": "duel-field",
+					"shape": "circle",
+					"x_mm": 0,
+					"y_mm": 0,
+					"radius_mm": 400000,
+					"asteroids": {
+						"seed": 90210,
+						"spacing_mm": 65000,
+						"types": [
+							{
+								"definition": "base.asteroid",
+								"weight": 1000
+							}
+						],
+						"visual_distance_mm": 400000,
+						"density": 5e-5,
+						"unload_margin_mm": 65000
+					}
+				}
+			],
+			"combat_duel": true
 		}
 	],
 	"consoles": [
@@ -7406,6 +9262,91 @@
 			],
 			"compact": {
 				"widgets": []
+			}
+		},
+		{
+			"id": "base.console.combat-helm",
+			"name": "Helm",
+			"widgets": [
+				{
+					"id": "radar",
+					"kind": "radar",
+					"binding": "radar.contacts",
+					"system": "radar",
+					"label": "Combat radar",
+					"x": 200,
+					"y": 0,
+					"width": 800,
+					"height": 650,
+					"fire_arcs": true
+				},
+				{
+					"id": "throttle",
+					"kind": "throttle",
+					"binding": "engine.desired_speed",
+					"controller": "drive",
+					"channel": "speed_mm_s",
+					"label": "Speed",
+					"x": 0,
+					"y": 0,
+					"width": 200,
+					"height": 1000
+				},
+				{
+					"id": "heading",
+					"kind": "heading",
+					"binding": "steering.desired_heading",
+					"controller": "helm",
+					"channel": "heading_mdeg",
+					"label": "Heading",
+					"x": 200,
+					"y": 650,
+					"width": 800,
+					"height": 350
+				}
+			],
+			"gameplay_panel": {
+				"x": 0.05,
+				"y": 0.7,
+				"width": 0.7,
+				"height": 0.29
+			}
+		},
+		{
+			"id": "base.console.combat-tactical",
+			"name": "Tactical",
+			"human_seeking": true,
+			"human_preferences": ["helm"],
+			"widgets": [
+				{
+					"id": "radar",
+					"kind": "radar",
+					"binding": "radar.contacts",
+					"system": "radar",
+					"label": "Combat radar",
+					"x": 200,
+					"y": 0,
+					"width": 800,
+					"height": 480,
+					"fire_arcs": true
+				}
+			],
+			"gameplay_panel": {
+				"x": 0,
+				"y": 0.5,
+				"width": 1,
+				"height": 0.5
+			}
+		},
+		{
+			"id": "base.console.combat-support",
+			"name": "Support",
+			"widgets": [],
+			"gameplay_panel": {
+				"x": 0,
+				"y": 0,
+				"width": 1,
+				"height": 1
 			}
 		}
 	],

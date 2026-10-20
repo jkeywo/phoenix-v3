@@ -1,35 +1,35 @@
 {
-  "source": "Recovered original built-in imagegen portraits from 18 October 2026, before naval-uniform edits. Display copies resized to 192px.",
-  "portraits": [
-    {
-      "asset": "console-1.png",
-      "source": "exec-0ddb3b34-f67d-4408-b907-9130b20bc5a4.png",
-      "source_sha256": "b54eef561c737438a586c869a2ce755ad5d93437a1b53484fe6aa1d5724eb6a4"
-    },
-    {
-      "asset": "console-2.png",
-      "source": "exec-15f71332-40fa-44b7-8be0-006168cb36ba.png",
-      "source_sha256": "10ac1966114518bb3481e1b2f6707a6702b87447861149648d8df585e3fcb309"
-    },
-    {
-      "asset": "console-3.png",
-      "source": "exec-1b5e9a17-5374-4f5e-91db-32fdf1af6a7e.png",
-      "source_sha256": "7e31f3847ec265c8365acf9e519227262d0598dc8358ee6bce1f8c3b28e9dbd6"
-    },
-    {
-      "asset": "console-4.png",
-      "source": "exec-4267fe32-06bc-4cfe-b0ce-3670662ffc24.png",
-      "source_sha256": "1307a0afaefa6f058c50ff8b38a9d969e888bbe692d3334f3f6b23e49b169444"
-    },
-    {
-      "asset": "console-5.png",
-      "source": "exec-78e6ef64-7b3d-4ace-bfcb-91404fb26dcb.png",
-      "source_sha256": "d280349efaa29b298ab0affaba49eebf841d27747869680b4421eff2e8c20b96"
-    },
-    {
-      "asset": "console-6.png",
-      "source": "exec-8e5c1eab-d16a-4fc1-9c6d-e6c204388ed5.png",
-      "source_sha256": "5592079b97666d45292788ee0818c50e11f83b74f13d43722de48b55f480a169"
-    }
-  ]
+	"source": "Recovered original built-in imagegen portraits from 18 October 2026, before naval-uniform edits. Display copies resized to 192px.",
+	"portraits": [
+		{
+			"asset": "console-1.png",
+			"source": "exec-0ddb3b34-f67d-4408-b907-9130b20bc5a4.png",
+			"source_sha256": "b54eef561c737438a586c869a2ce755ad5d93437a1b53484fe6aa1d5724eb6a4"
+		},
+		{
+			"asset": "console-2.png",
+			"source": "exec-15f71332-40fa-44b7-8be0-006168cb36ba.png",
+			"source_sha256": "10ac1966114518bb3481e1b2f6707a6702b87447861149648d8df585e3fcb309"
+		},
+		{
+			"asset": "console-3.png",
+			"source": "exec-1b5e9a17-5374-4f5e-91db-32fdf1af6a7e.png",
+			"source_sha256": "7e31f3847ec265c8365acf9e519227262d0598dc8358ee6bce1f8c3b28e9dbd6"
+		},
+		{
+			"asset": "console-4.png",
+			"source": "exec-4267fe32-06bc-4cfe-b0ce-3670662ffc24.png",
+			"source_sha256": "1307a0afaefa6f058c50ff8b38a9d969e888bbe692d3334f3f6b23e49b169444"
+		},
+		{
+			"asset": "console-5.png",
+			"source": "exec-78e6ef64-7b3d-4ace-bfcb-91404fb26dcb.png",
+			"source_sha256": "d280349efaa29b298ab0affaba49eebf841d27747869680b4421eff2e8c20b96"
+		},
+		{
+			"asset": "console-6.png",
+			"source": "exec-8e5c1eab-d16a-4fc1-9c6d-e6c204388ed5.png",
+			"source_sha256": "5592079b97666d45292788ee0818c50e11f83b74f13d43722de48b55f480a169"
+		}
+	]
 }

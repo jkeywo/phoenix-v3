@@ -448,6 +448,16 @@ bool commit_controller(const ControllerProposal &proposal)
 				    flight && flight->state.assisted != (proposal.value != 0))
 					same_effect = false;
 			}
+		// A sibling weapon can retarget the shared turret. Reasserting this
+		// weapon's old setting must still retarget the physical mount.
+		if (spec.action == OperatingAction::WeaponTarget)
+			for (const auto consumer : spec.consumers)
+			{
+				const auto child = entity.get<EquipmentIndex>().values.at(consumer);
+				if (const auto *weapon = child.try_get<CombatMechanism>();
+				    weapon && weapon->target != static_cast<EntityId>(proposal.value))
+					same_effect = false;
+			}
 		if (same_effect)
 			return true;
 	}

@@ -120,6 +120,13 @@ static inline Json public_board_json(const Json &source)
 			selected[key].push_back(std::move(row));
 		}
 	}
+	if (source.contains("combat_result"))
+	{
+		const auto result = source.at("combat_result");
+		if (result != "Victory" && result != "Defeat" && result != "Draw")
+			throw std::runtime_error("Invalid combat outcome");
+		selected["combat_result"] = result;
+	}
 	if (source.contains("display"))
 		selected["display"] = display::sanitise(source.at("display"));
 	if (source.contains("alert") && !source.at("alert").empty())
@@ -227,8 +234,9 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 	result.radar_enabled = value.at("radar_enabled");
 	result.console = value.value("console", std::string{"main"});
 	const auto controls = value.value("controls", 7), feeds = value.value("feeds", 7);
-	if (controls < 0 || controls > 1023 || feeds < 0 || feeds > 1023 || (controls & feeds) != controls ||
-	    result.console.size() > 128)
+	if (controls < 0 || controls > static_cast<std::int64_t>((system_bit(OperatingSystem::RepairTeam) << 1) - 1) ||
+	    feeds < 0 || feeds > static_cast<std::int64_t>((system_bit(OperatingSystem::RepairTeam) << 1) - 1) ||
+	    (controls & feeds) != controls || result.console.size() > 128)
 		throw std::runtime_error("Invalid projected Console permissions");
 	result.controls = static_cast<SystemMask>(controls);
 	result.feeds = static_cast<SystemMask>(feeds);

@@ -28,6 +28,8 @@ The [source guide](docs/source-guide.md) explains the inputs; the [prior setting
 
 See [launch bases and development test content](docs/base-mods.md) for fixed base selection, child mods, isolated preferences and the model test level.
 
+The [first combat stage](docs/combat-stage-one.md) adds an armed Courier versus pirate asteroid duel, projectile weapons, separate turrets/magazines, structural compartments, repair teams and optional radar fire arcs.
+
 ## Hosted browser build
 
 [Open Phoenix V3](https://jkeywo.github.io/phoenix-v3/). The [HTML main menu](docs/browser-menu.md) matches native and loads the appropriate WASM build at lobby or Workshop entry. Host Game offers scenarios from the selected production base; Join Game separates new ships, players and GMs. QR invitations go directly to the chosen runtime. Native and browser multiplayer default to the hosted Northflank signalling service. Advanced Connection Settings allow a custom service.

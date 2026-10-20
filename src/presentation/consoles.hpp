@@ -2201,8 +2201,62 @@ button.on-screen-active .share-live {display:block;}
 				model_.release_control(held.substr(id("").size()));
 			held_clicks_.clear();
 			std::string markup = command_markup_;
+			if (model_.observation())
+			{
+				const auto compartments =
+				    model_.observation()->gameplay.value("combat", Json::object()).value("compartments", Json::array());
+				std::set<std::string> decks;
+				for (const auto &c : compartments)
+					decks.insert(c.at("deck").get<std::string>());
+				for (const auto &deck : decks)
+				{
+					std::int64_t minx = 1000000000, miny = 1000000000, maxx = -1000000000, maxy = -1000000000;
+					for (const auto &c : compartments)
+						if (c.at("deck") == deck)
+						{
+							const auto x = c.at("x_mm").get<std::int64_t>(), y = c.at("y_mm").get<std::int64_t>(),
+							           hw = c.at("half_width_mm").get<std::int64_t>(),
+							           hl = c.at("half_length_mm").get<std::int64_t>();
+							minx = std::min(minx, x - hw);
+							maxx = std::max(maxx, x + hw);
+							miny = std::min(miny, y - hl);
+							maxy = std::max(maxy, y + hl);
+						}
+					markup += "<h2>" + Rml::StringUtilities::EncodeRml(deck) +
+					          "</h2><div "
+					          "style=\"display:block;position:relative;width:100%;height:300px;min-height:300px;clear:"
+					          "both;overflow:hidden;\">";
+					for (const auto &c : compartments)
+						if (c.at("deck") == deck)
+						{
+							const auto index = c.at("index").get<std::int64_t>();
+							const auto x = c.at("x_mm").get<double>(), y = c.at("y_mm").get<double>(),
+							           hw = c.at("half_width_mm").get<double>(),
+							           hl = c.at("half_length_mm").get<double>();
+							const auto name = "game.compartment/" + std::to_string(index);
+							std::string label;
+							for (const auto &control : gameplay_controls)
+								if (control.first == name)
+									label = control.second;
+							markup +=
+							    "<button id=\"" + Rml::StringUtilities::EncodeRml(id(name)) +
+							    "\" style=\"position:absolute;left:" +
+							    std::to_string(100 * (maxy - y - hl) / std::max<std::int64_t>(1, maxy - miny)) +
+							    "%;top:" +
+							    std::to_string(100 * (maxx - x - hw) / std::max<std::int64_t>(1, maxx - minx)) +
+							    "%;width:" + std::to_string(100 * 2 * hl / std::max<std::int64_t>(1, maxy - miny)) +
+							    "%;height:" + std::to_string(100 * 2 * hw / std::max<std::int64_t>(1, maxx - minx)) +
+							    "%;margin:0;min-width:0;min-height:0;box-sizing:border-box;background:" +
+							    (c.at("disabled").get<bool>() ? std::string("#702c2c") : std::string("#164244")) +
+							    ";\">" + Rml::StringUtilities::EncodeRml(label) + "</button>";
+						}
+					markup += "</div>";
+				}
+			}
+
 			for (const auto &[name, label] : gameplay_controls)
-				if (!stance_controls.contains(name) && !engineering_controls.contains(name))
+				if (!stance_controls.contains(name) && !engineering_controls.contains(name) &&
+				    !name.starts_with("game.compartment/"))
 					markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(id(name)) + "\">" +
 					          Rml::StringUtilities::EncodeRml(label) + "</button>";
 			document_->GetElementById("gameplay-controls")->SetInnerRML(markup);
@@ -2219,6 +2273,17 @@ button.on-screen-active .share-live {display:block;}
 				if (auto *element = this->element(id(name)))
 					element->SetInnerRML(Rml::StringUtilities::EncodeRml(label));
 				displayed_values_["control/" + name] = label;
+			}
+		if (model_.observation())
+			for (const auto &c :
+			     model_.observation()->gameplay.value("combat", Json::object()).value("compartments", Json::array()))
+			{
+				if (auto *compartment =
+				        element(id("game.compartment/" + std::to_string(c.at("index").get<std::int64_t>()))))
+					property(compartment, "background-color",
+					         c.at("disabled").get<bool>()                                         ? "#702c2c"
+					         : model_.selected_compartment() == c.at("index").get<std::int64_t>() ? "#486b56"
+					                                                                              : "#164244");
 			}
 		gameplay_identity = Json::array();
 		for (const auto &[name, text] : gameplay_readouts)
@@ -2240,6 +2305,14 @@ button.on-screen-active .share-live {display:block;}
 		for (const auto &[name, text] : gameplay_readouts)
 		{
 			update_readout(name, text, placement_changed);
+			if (name.starts_with("game.readout/system-"))
+				if (auto *readout = element(id(name)))
+				{
+					property(readout, "border-left",
+					         text.find("[!]") != std::string::npos ? "8px #f08060" : "8px #83be90");
+					property(readout, "padding-left", "8px");
+				}
+
 			app.screen_readouts.emplace_back(id(name), text);
 		}
 		{
@@ -2592,7 +2665,11 @@ button.on-screen-active .share-live {display:block;}
 								if (const auto *layout = model_.layout())
 									for (const auto &w : layout->at("widgets"))
 										if (w.at("id") == key)
+										{
 											settings = w.value("sweep", Json::object());
+											settings["fire_arcs"] =
+											    w.value("fire_arcs", false) && model_.fire_arcs_visible();
+										}
 								auto &sweep = radar_sweeps_[key];
 								if (!sweep)
 									sweep = std::make_unique<RadarSweep>();

@@ -348,6 +348,8 @@ std::vector<std::pair<std::string, std::string>> public_board_readouts(const Jso
 	}
 
 	auto rows = board_readouts(selected, now);
+	if (board.contains("combat_result"))
+		rows.emplace_back("game.readout/combat-result", localise(board.at("combat_result")));
 	const auto alert = board.value("alert", Json::object());
 	if (!alert.empty())
 		rows.emplace_back("game.readout/alert", localise("Alert condition") + ": " + localise(alert.at("label")));
@@ -382,6 +384,9 @@ std::vector<std::pair<std::string, std::string>> public_board_readouts(const Jso
 }
 void ConsoleModel::reset()
 {
+	combat_target_ = 0;
+	selected_compartment_ = 0;
+	fire_arcs_ = true;
 	owner_.reset();
 	packs_.clear();
 	observation_.reset();
@@ -535,6 +540,21 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 }
 bool ConsoleModel::act(const std::string &id)
 {
+	if (id == "game.fire-arcs")
+	{
+		fire_arcs_ = !fire_arcs_;
+		return true;
+	}
+	if (id.starts_with("game.combat-target/"))
+	{
+		combat_target_ = std::stoll(id.substr(19));
+		return true;
+	}
+	if (id.starts_with("game.compartment/"))
+	{
+		selected_compartment_ = std::stoll(id.substr(17));
+		return true;
+	}
 	if (id.starts_with("game.console/"))
 	{
 		selected_console_ = id.substr(13);
@@ -1195,6 +1215,30 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 			result.emplace_back("game.console/" + key, localise("Open console") + " " + localise(label));
 	if (!observation_ || !observation_->gameplay.is_object())
 		return result;
+	const auto combat = observation_->gameplay.value("combat", Json::object());
+	bool weapons = false;
+	for (const auto &descriptor : observation_->gameplay.value("controls", Json::array()))
+		weapons |= descriptor.value("action", std::string{}) == "weapon_target";
+	if (weapons)
+		for (const auto &contact : observation_->contacts)
+			if (contact.radar_icon == RadarIcon::ship)
+				result.emplace_back("game.combat-target/" + std::to_string(contact.id),
+				                    localise("Select target") + " " + contact.definition + " " +
+				                        std::to_string(contact.id) +
+				                        (combat_target_ == static_cast<std::int64_t>(contact.id) ? " [*]" : ""));
+	for (const auto &c : combat.value("compartments", Json::array()))
+		result.emplace_back("game.compartment/" + std::to_string(c.at("index").get<std::int64_t>()),
+		                    c.at("id").get<std::string>() + " " + std::to_string(c.at("hp").get<std::int64_t>()) + "/" +
+		                        std::to_string(c.at("maximum").get<std::int64_t>()) +
+		                        (selected_compartment_ == c.at("index").get<std::int64_t>() ? " [*]" : ""));
+	if (layout_.is_object())
+		for (const auto &w : layout_.at("widgets"))
+			if (w.value("fire_arcs", false))
+			{
+				result.emplace_back("game.fire-arcs",
+				                    localise("Fire arcs") + ": " + localise(fire_arcs_ ? "On" : "Off"));
+				break;
+			}
 	const auto controls = observation_->gameplay.value("controls", Json::array());
 	if (!controls.is_array())
 		return result;
@@ -1206,10 +1250,28 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 	{
 		if (!console_descriptor(descriptor))
 			continue;
+		if (descriptor.value("action", std::string{}) == "system_enabled")
+		{
+			bool combat_control = false;
+			for (const auto &system : observation_->systems)
+				if (system.id == descriptor.value("controller", std::string{}) &&
+				    system.kind >= OperatingSystem::Weapon)
+					combat_control = true;
+			if (combat_control)
+				continue;
+		}
+
 		// Keep neutral in the admitted projection for remote clients; the two
 		// visible direction buttons provide its press/release interaction.
 		if (descriptor.value("action", "") == "lateral_thrust" && descriptor.value("value", std::int64_t{0}) == 0)
 			continue;
+		if (descriptor.contains("combat_choice"))
+		{
+			const auto value = descriptor.at("value").get<std::int64_t>();
+			const auto selected = descriptor.at("combat_choice") == "weapon" ? combat_target_ : selected_compartment_;
+			if (value && value != selected)
+				continue;
+		}
 		const auto id = console_string(descriptor, "id");
 		if (occurrences[id] != 1)
 			continue;
@@ -1232,6 +1294,39 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 	std::vector<std::pair<std::string, std::string>> result;
 	if (!observation_)
 		return result;
+	const auto combat = observation_->gameplay.value("combat", Json::object());
+	if (!combat.empty())
+	{
+		if (combat.contains("result"))
+			result.emplace_back("combat.outcome", localise(combat.at("result")));
+		if (combat.value("destroyed", false))
+			result.emplace_back("combat.result", localise("Ship destroyed"));
+		for (const auto &c : combat.value("compartments", Json::array()))
+			result.emplace_back("compartment." + c.at("id").get<std::string>(),
+			                    c.at("deck").get<std::string>() + " / " + c.at("id").get<std::string>() + ": " +
+			                        std::to_string(c.at("hp").get<std::int64_t>()) + "/" +
+			                        std::to_string(c.at("maximum").get<std::int64_t>()) + " " +
+			                        localise(c.at("disabled").get<bool>() ? "Disabled" : "Operational"));
+		for (const auto &t : combat.value("teams", Json::array()))
+			result.emplace_back(
+			    "team." + t.at("id").get<std::string>(),
+			    t.at("id").get<std::string>() + ": " + localise("Compartment") + " " +
+			        std::to_string(t.at("location").get<std::int64_t>() + 1) + "; " + localise("Destination") + " " +
+			        std::to_string(t.at("destination").get<std::int64_t>() + 1) + "; " + localise("Travel remaining") +
+			        " " + std::to_string(t.at("travel").get<std::int64_t>()));
+		if (fire_arcs_ && layout_.is_object() &&
+		    std::any_of(layout_.at("widgets").begin(), layout_.at("widgets").end(),
+		                [](const auto &w)
+		                {
+			                return w.value("fire_arcs", false);
+		                }))
+			for (const auto &arc : combat.value("arcs", Json::array()))
+				result.emplace_back("arc." + arc.at("id").get<std::string>(),
+				                    arc.at("id").get<std::string>() + ": " + localise("Fire arc") + " " +
+				                        std::to_string(arc.at("arc_mdeg").get<std::int64_t>() / 1000) + "; " +
+				                        localise("Bearing") + " " +
+				                        std::to_string(arc.at("bearing_mdeg").get<std::int64_t>() / 1000));
+	}
 	for (const auto *key : {"alert", "stance"})
 	{
 		const auto state = observation_->gameplay.value(key, Json::object());
@@ -1245,7 +1340,40 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 	{
 		if (system.telemetry.empty() && system.status.empty())
 			continue;
+		if (!combat.empty())
+		{
+			auto name = system.id;
+			std::replace(name.begin(), name.end(), '-', ' ');
+			const bool disabled =
+			    system.telemetry.contains("structural_disabled") && system.telemetry.at("structural_disabled");
+			std::string text = name + (disabled ? ": [!] " : ": [+] ") +
+			                   localise(disabled         ? "Disabled: compartment structure"
+			                            : system.enabled ? "Operational"
+			                                             : "Off");
+			if (system.kind == OperatingSystem::Magazine)
+				text += "; " + localise("Ammunition") + " " + std::to_string(system.telemetry.at("ammo")) + "/" +
+				        std::to_string(system.telemetry.at("capacity")) + "; " + localise("Reload") + " " +
+				        std::to_string(system.telemetry.at("reload_progress")) + "/" +
+				        std::to_string(system.telemetry.at("reload_ticks"));
+			if (system.kind == OperatingSystem::Weapon)
+				text +=
+				    "; " + localise("Target") + " " + std::to_string(system.telemetry.at("target")) + "; " +
+				    localise(system.telemetry.at("ready") ? "Firing solution ready" : "Waiting for firing solution");
+			if (system.kind == OperatingSystem::Turret)
+				text += "; " + localise("Bearing") + " " + std::to_string(system.telemetry.at("heading_mdeg") / 1000);
+			if (system.kind == OperatingSystem::Engine || system.kind == OperatingSystem::Steering)
+				text += "; " + localise("Requested") + " " + std::to_string(system.requested);
+			result.emplace_back("game.readout/system-" + console_encoded(system.id), std::move(text));
+			continue;
+		}
 		std::string text = system.id + ": " + console_label(system.status);
+		if (system.telemetry.contains("structural_disabled"))
+			text += (system.telemetry.at("structural_disabled") ? " [!] " : " [+] ") +
+			        localise(system.telemetry.at("structural_disabled") ? "Disabled: compartment structure"
+			                                                            : "Operational");
+		if (system.telemetry.contains("ammo") && system.kind == OperatingSystem::Magazine)
+			text += "; " + localise("Ammunition") + " " + std::to_string(system.telemetry.at("ammo")) + "/" +
+			        std::to_string(system.telemetry.at("capacity"));
 		text += "; " + localise("Requested") + " " + std::to_string(system.requested);
 		if (system.kind == OperatingSystem::Impulse && system.telemetry.contains("impulse_phase"))
 		{
@@ -1270,7 +1398,8 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 				    "; " + localise(t.at("impulse_ready") ? "Impulse ready" : "Impulse battery reserve insufficient");
 		}
 		for (const auto &[key, value] : system.telemetry)
-			text += "; " + console_label(key) + " " + std::to_string(value);
+			if (system.kind < OperatingSystem::Weapon && key != "structural_disabled")
+				text += "; " + console_label(key) + " " + std::to_string(value);
 		if (system.telemetry.contains("depletion_ticks") || system.telemetry.contains("coolant_depletion_ticks"))
 			text +=
 			    "; " +

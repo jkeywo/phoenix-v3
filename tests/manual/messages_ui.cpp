@@ -88,11 +88,12 @@ scrollbarvertical slidertrack {width:14px;}
 		SetWindowSize(360, 740);
 		document->SetProperty("font-size", "26px");
 		capture("messages-narrow.png");
-        auto *one = document->GetElementById("one");
-        auto *two = document->GetElementById("two");
-        require(one->GetOffsetWidth() > 200 && one->GetOffsetHeight() < 200 &&
-            two->GetAbsoluteOffset(Rml::BoxArea::Border).y >= one->GetAbsoluteOffset(Rml::BoxArea::Border).y + one->GetOffsetHeight(),
-            "narrow bubbles retain usable width and separate vertical rows");
+		auto *one = document->GetElementById("one");
+		auto *two = document->GetElementById("two");
+		require(one->GetOffsetWidth() > 200 && one->GetOffsetHeight() < 200 &&
+		            two->GetAbsoluteOffset(Rml::BoxArea::Border).y >=
+		                one->GetAbsoluteOffset(Rml::BoxArea::Border).y + one->GetOffsetHeight(),
+		        "narrow bubbles retain usable width and separate vertical rows");
 		document->GetElementById("focus")->Focus();
 		history->SetScrollTop(110);
 		context->Update();
