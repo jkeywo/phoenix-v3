@@ -19,6 +19,9 @@ GameExecution::GameExecution(std::shared_ptr<HostAccess> world, std::map<std::st
 	std::set<std::string> assigned;
 	for (const auto &[server, slot] : slots_)
 	{
+		// A GM participates in replication without owning a ship or any player leases.
+		if (slot.empty())
+			continue;
 		if (!assigned.insert(slot).second)
 			throw std::runtime_error("Duplicate server slot ownership");
 		auto ship = world_->authoritative_world().ship_for_slot(slot);

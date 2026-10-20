@@ -2,6 +2,9 @@
 	"schema": 1,
 	"languages": {
 		"en": {
+			"Unable to complete action": "Unable to complete action",
+			"Unable to load game": "Unable to load game",
+			"Dismiss": "Dismiss",
 			"A bridge operator requests a supply review.": "A bridge operator requests a supply review.",
 			"Additional cooling capacity is requested.": "Additional cooling capacity is requested.",
 			"Captain": "Captain",

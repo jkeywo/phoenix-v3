@@ -30,7 +30,7 @@ struct NativeMenuScreen::State
 {
 	FileImportInbox imports;
 	std::vector<LibraryPack> draft;
-	std::string previous, notice, focus_next;
+	std::string previous, notice, focus_next, action_error;
 	std::string lobby_tab = "crew";
 	std::size_t console_page = 0;
 	std::optional<std::uint64_t> save_after;
@@ -178,16 +178,7 @@ struct NativeMenuScreen::State
 	}
 	void choose_scenario(Application &app, std::string id)
 	{
-		const auto &slots = app.session->catalog().maps.at(id).at("ship_slots");
-		if (slots.size() == 1 && slots.front().at("allowed_ships").size() == 1)
-		{
-			const std::string slot = slots.front().at("id"), ship = slots.front().at("allowed_ships").front();
-			app.session->prepare_lobby({id, {{slot, ship}}, slot, ""});
-			app.screen = Screen::server_lobby;
-			focus_next = "lobby.ready";
-		}
-		else
-			focus_next = "menu.back";
+		focus_next = "menu.back";
 		app.selected_scenario = id;
 		app.menu_branch = Application::MenuBranch::ships;
 	}
@@ -640,10 +631,32 @@ struct NativeMenuScreen::State
 					if (branch == Branch::ships && app.session->catalog().maps.contains(app.selected_scenario))
 					{
 						markup += "<div class=\"menu-column\">";
+						markup += add("menu.host-gm", "GM",
+						              [&]
+						              {
+							              GameSetup setup{app.selected_scenario};
+							              setup.gm_host = true;
+							              app.session->prepare_lobby(setup);
+							              app.screen = Screen::server_lobby;
+							              focus_next = "lobby.ready";
+						              });
 						for (const auto &slot : app.session->catalog().maps.at(app.selected_scenario).at("ship_slots"))
 						{
 							const std::string slot_id = slot.at("id");
 							markup += heading(slot_id);
+							const auto default_ship =
+							    slot.value("default_ship", slot.at("allowed_ships").front().get<std::string>());
+							markup +=
+							    add("menu.default/" + slot_id,
+							        "Default: " +
+							            app.session->catalog().entities.at(default_ship).value("name", default_ship),
+							        [&, slot_id, default_ship]
+							        {
+								        app.session->prepare_lobby(
+								            {app.selected_scenario, {{slot_id, default_ship}}, slot_id, ""});
+								        app.screen = Screen::server_lobby;
+								        focus_next = "lobby.ready";
+							        });
 							for (const auto &choice : slot.at("allowed_ships"))
 							{
 								const std::string ship = choice;
@@ -789,7 +802,7 @@ struct NativeMenuScreen::State
 							markup += readout("menu.slot/" + slot.id,
 							                  slot.id + ": " +
 							                      (slot.host.empty()
-							                           ? slot.mandatory ? "AI / " + slot.ship : localise("Empty")
+							                           ? !slot.ship.empty() ? "AI / " + slot.ship : localise("Empty")
 							                           : slot.ship));
 						for (const auto &member : lobby.members)
 						{
@@ -806,13 +819,14 @@ struct NativeMenuScreen::State
 							                 {
 								                 return seat.member == member.id && seat.local_screen;
 							                 });
-							const std::string state = !member.connected             ? "Disconnected"
-							                          : !member.approved            ? "Awaiting approval"
-							                          : !member.verified            ? "Verifying content"
-							                          : member.role == JoinRole::gm ? "Observer"
-							                          : crew_readying               ? "Viewscreen"
-							                          : member.ready                ? "Ready"
-							                                                        : "Not Ready";
+							const std::string state = !member.connected  ? "Disconnected"
+							                          : !member.approved ? "Awaiting approval"
+							                          : !member.verified ? "Verifying content"
+							                          : member.role == JoinRole::gm && member.id != lobby.self
+							                              ? "Observer"
+							                          : crew_readying ? "Viewscreen"
+							                          : member.ready  ? "Ready"
+							                                          : "Not Ready";
 							markup += (member.avatar.empty() || member.role == JoinRole::ship_server
 							               ? ""
 							               : "<div id=\"avatar-" + Rml::StringUtilities::EncodeRml(member.id) +
@@ -950,7 +964,7 @@ struct NativeMenuScreen::State
 #endif
 						}
 					}
-					if (own != lobby.members.end() && own->role == JoinRole::gm)
+					if (!lobby.coordinator && own != lobby.members.end() && own->role == JoinRole::gm)
 						for (const auto &slot : lobby.slots)
 							if (!slot.host.empty())
 								markup +=
@@ -1175,6 +1189,15 @@ struct NativeMenuScreen::State
 			          "</div></div>";
 		}
 		markup += "<p id=\"menu-status\"></p>";
+		if (!action_error.empty())
+			markup += "<div id=\"menu-error\">" + heading("Unable to complete action") +
+			          readout("menu-error-detail", action_error) +
+			          add("menu.dismiss-error", "Dismiss",
+			              [&]
+			              {
+				              action_error.clear();
+			              }) +
+			          "</div>";
 		app.screen_action = [this, &app](const std::string &id)
 		{
 			if (id == "menu.back" && (!game_active(app) || app.screen == Screen::settings))
@@ -1191,12 +1214,14 @@ struct NativeMenuScreen::State
 				actions.clear();
 				notice.clear();
 				app.status.clear();
+				action_error.clear();
 				callback();
 				return true;
 			}
 			catch (const std::exception &error)
 			{
-				notice = error.what();
+				action_error = error.what();
+				focus_next = "menu.dismiss-error";
 				return false;
 			}
 		};
@@ -1320,10 +1345,11 @@ struct NativeMenuScreen::State
 			app.screen_readouts.emplace_back("lobby-countdown", countdown_text);
 		}
 		settings_ui::refresh_audio(app, document, true);
-		const auto status = !app.status.empty() ? app.status
-		                    : !notice.empty()   ? notice
-		                    : app.session       ? app.session->lobby().status
-		                                        : std::string{};
+		const auto status = !action_error.empty() ? action_error
+		                    : !app.status.empty() ? app.status
+		                    : !notice.empty()     ? notice
+		                    : app.session         ? app.session->lobby().status
+		                                          : std::string{};
 		document.GetElementById("menu-status")->SetInnerRML(Rml::StringUtilities::EncodeRml(localise(status)));
 		app.accessible_status = localise(status);
 		if (!app.screen_readouts.empty())
@@ -1342,7 +1368,8 @@ struct NativeMenuScreen::State
 			opened_runtime = true;
 			if (app.can_host && app.apply_displays)
 				app.apply_displays();
-			app.screen = app.can_host ? Screen::viewscreen
+			app.screen = app.can_host ? (own != lobby.members.end() && own->role == JoinRole::gm ? Screen::gm
+			                                                                                     : Screen::viewscreen)
 			                          : (!app.session->inspection().is_null() ? Screen::gm : Screen::console);
 		}
 		return true;

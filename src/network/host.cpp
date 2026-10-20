@@ -93,7 +93,7 @@ class NetworkHost final : public SessionPort
 		console_source_.reset();
 		if (!world_->content_packs().empty())
 			source_ = std::make_unique<PackSource>(world_->content_packs());
-		if (world_->running())
+		if (world_->running() && !world_->setup().gm_host)
 			console_source_ = std::make_unique<PackSource>(std::vector<Pack>{
 			    console_assets(world_->catalog(), world_->setup().ships.at(world_->setup().local_slot))});
 		offer_ = random_token();

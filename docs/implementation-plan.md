@@ -1,5 +1,7 @@
 # Foundation implementation plan
 
+Courier loading and GM hosting, 20 October 2026: fleet setup no longer attempts to claim human-seeking Navigation as a separate player seat. Every scenario offers GM hosting without an occupied ship slot, an explicit GM Ready button, and default AI ships for unclaimed slots. Native failures show a dismissible diagnostic; browser startup failures display their reason. Verified with both Courier setup paths, synthetic native/WASM fleet setup, all 21 native system cases, real-network solo/mixed GM readiness, and the manually invoked native menu error/retry/save/quit journey. The network gate's one initial GM-client timeout passed on a focused rerun. This does not establish physical-device or screen-reader acceptance.
+
 ## Console Controller architecture
 
 The [Console Controller architecture](controller-architecture.md), agreed 19 October 2026, supersedes the per-System command-AI and individual-delegation model described in earlier receipts. Its [completed delivery record](controller-refactor-plan.md) records the common Controller runtime, scoped observations, factual reporting, addressed/public messages, profiles, authoring, remote continuation, maintained-content migration and removal of old dispatch. Independent source and graphical audits and the full native/WASM/network gate pass. Earlier execution notes below retain their historical scope and do not override this control model.

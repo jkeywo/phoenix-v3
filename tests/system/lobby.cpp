@@ -519,6 +519,80 @@ int main(int argc, char **argv)
 		require(!remote_model.set_speed_fraction(0.5, remote_throttle), "remote AI-owned widget refuses human writes");
 		require(direct->observation()->gameplay.at("messages").size() == 1,
 		        "handover does not replay unchanged reporter warning");
+		{
+			auto gm_options = options;
+			gm_options.link.room = "gm-" + random_token();
+			gm_options.link.self = "gm-host";
+			gm_options.profile = "gm-host";
+			auto organiser = make_game_lobby(gm_options);
+			organiser->add_pack(write_pack(pack));
+			GameSetup setup{"test.map"};
+			setup.gm_host = true;
+			organiser->prepare_lobby(setup);
+			nodes.push_back(organiser);
+			const auto lobby = organiser->lobby();
+			require(lobby.active && !lobby.launched && lobby.members.front().role == JoinRole::gm &&
+			            lobby.members.front().slot.empty() &&
+			            std::all_of(lobby.slots.begin(), lobby.slots.end(),
+			                        [](const auto &slot)
+			                        {
+				                        return slot.host.empty() && !slot.ship.empty();
+			                        }),
+			        "A GM lobby leaves every ship slot free and supplies default AI ships");
+			require(organiser->session_action("lobby.ready"), "The GM has an explicit Ready action");
+			pump(
+			    [&]
+			    {
+				    return organiser->running();
+			    });
+			require(!organiser->inspection().is_null() && !organiser->observation() &&
+			            organiser->console_seats().empty(),
+			        "Solo GM launch exposes inspection without claiming a ship or player Console");
+
+			auto mixed_options = gm_options;
+			mixed_options.link.room = "mixed-" + random_token();
+			mixed_options.profile = "mixed-gm";
+			auto mixed = make_game_lobby(mixed_options);
+			mixed->add_pack(write_pack(pack));
+			mixed->prepare_lobby(setup);
+			nodes.push_back(mixed);
+			auto crew_options = mixed_options;
+			crew_options.server = mixed_options.link.self;
+			crew_options.link.self = "joined-ship";
+			crew_options.profile = "joined-ship";
+			auto joined = join_game_lobby(crew_options, JoinRole::ship_server);
+			nodes.push_back(joined);
+			pump(
+			    [&]
+			    {
+				    return mixed->lobby().members.size() == 2;
+			    });
+			require(mixed->session_action("lobby.approve/joined-ship"), "GM approves a joining ship host");
+			pump(
+			    [&]
+			    {
+				    return !joined->catalog().maps.empty();
+			    });
+			require(joined->session_action("lobby.ship/test.slot/test.ship"),
+			        "Ship host can take a slot in a GM lobby");
+			pump(
+			    [&]
+			    {
+				    for (const auto &member : joined->lobby().members)
+					    if (member.id == "joined-ship")
+						    return member.verified && member.slot == "test.slot";
+				    return false;
+			    });
+			require(mixed->session_action("lobby.ready") && joined->session_action("lobby.ready"),
+			        "GM and joining ship host ready independently");
+			pump(
+			    [&]
+			    {
+				    return mixed->running() && joined->running();
+			    });
+			require(mixed->console_seats().empty() && !joined->console_seats().empty(),
+			        "Mixed GM fleet preserves exclusive ship ownership");
+		}
 		std::cout << "PASS authenticated slot arbitration, automatic setup transfer, per-player readiness, "
 		             "cancellation, durable activation, AI-only slots and portable recovery\n";
 	}

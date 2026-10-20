@@ -28,6 +28,8 @@ Race helm trees select an unreached manual waypoint before the active objective.
 
 ## Validation
 
+Courier lobby loading validates directly claimable seats; human-seeking Navigation follows an existing operator and is not admitted as a separate seat. The synthetic fleet-setup case covers this distinction. To verify current authored scenarios through ship and GM setup, run `phoenix_fleet_setup_tests --verify-pack build/native/base.zip` from the repository root (using the executable in `build/native/Release`).
+
 Synthetic tests cover same-tick competition resolution, delay/recovery, generic console assignment and stale generations, waypoint publication, map fit/zoom/reset and exclusion of unseen obstacles from clearance. Shipped race runs are opt-in smoke evidence, not tuning assertions. Physical touch, screen-reader usability and six-screen performance require their own manual acceptance runs.
 
 Verified on 20 October 2026: native and all browser role builds; all 21 native system cases and 18 WASM checks; matching native/WASM synthetic continuation; signalling, fleet recovery, live Console routing and verified native WSS checks. The authored race smoke issued both objectives at tick 100 and resolved a winner and loser at tick 994. These tick results record this run, not a balance assertion.

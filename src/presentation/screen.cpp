@@ -631,6 +631,7 @@ void open_window()
     .modal-shade { position:absolute; top:0; left:0; width:100%; height:100%; background:#080f19dd; }
     .menu-dialog { position:absolute; top:12%; left:20%; width:60%; max-height:76%; padding:24px; box-sizing:border-box; background:#102535; border:2px #76c9e8; overflow:auto; }
     #menu-status { position:absolute; left:200px; right:180px; bottom:14px; max-height:72px; overflow:auto; font-size:16px; }
+    #menu-error { position:absolute; z-index:20; left:10%; right:10%; top:25%; max-height:60%; overflow:auto; padding:24px; background:#201018; border:2px #ff8796; }
     #native-menu .audio-volume { display:block; width:100%; height:44px; margin-top:14px; }
     #native-menu .audio-volume slidertrack { height:8px; margin:18px 0; background:#315a70; }
     #native-menu .audio-volume sliderbar { width:24px; height:44px; background:#76c9e8; border:2px #d9e9ef; }

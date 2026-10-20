@@ -30,7 +30,11 @@ Json launcher_catalog(const Catalog &catalog)
 		Json scenario{{"id", id}, {"name", map.value("name", id)}, {"slots", Json::array()}};
 		for (const auto &slot : map.at("ship_slots"))
 		{
-			Json entry{{"id", slot.at("id")}, {"mandatory", slot.value("mandatory", false)}, {"ships", Json::array()}};
+			Json entry{
+			    {"id", slot.at("id")},
+			    {"mandatory", slot.value("mandatory", false)},
+			    {"default_ship", slot.value("default_ship", slot.at("allowed_ships").front().get<std::string>())},
+			    {"ships", Json::array()}};
 			for (const auto &ship : slot.at("allowed_ships"))
 			{
 				const auto ship_id = ship.get<std::string>();
@@ -625,6 +629,10 @@ void verify_prepared_catalog(const Catalog &catalog)
 			transform(slot, path + ".slot." + slot_id);
 			if (!slot.contains("allowed_ships") || !slot["allowed_ships"].is_array() || slot["allowed_ships"].empty())
 				invalid(path + ".slot." + slot_id, "allowed_ships must be nonempty");
+			if (slot.contains("default_ship") && (!slot.at("default_ship").is_string() ||
+			                                      std::find(slot["allowed_ships"].begin(), slot["allowed_ships"].end(),
+			                                                slot.at("default_ship")) == slot["allowed_ships"].end()))
+				invalid(path + ".slot." + slot_id, "default_ship must name an allowed ship");
 			std::set<std::string> allowed;
 			for (const auto &ship : slot["allowed_ships"])
 			{

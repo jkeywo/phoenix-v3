@@ -10,7 +10,6 @@ import {
 	skinProperties,
 	menuPreview,
 	zipEntry,
-	automaticHostChoice,
 	mergeRuntimeLibrary,
 	refreshPublishedPack,
 	togglePack,
@@ -75,25 +74,6 @@ test("runtime profile saves preserve unfetched published packs without carrying 
 	assert.equal(mergeRuntimeLibrary(current, previous).player_name, "Navigator");
 	assert.equal(mergeRuntimeLibrary({ packs: [{ id: "test", hash: "edited" }] }, previous).packs[0].url, undefined);
 });
-test("host selection skips only unambiguous scenario, slot and ship choices", () => {
-	const scene = { id: "test.map", slots: [{ id: "test.slot", ships: [{ id: "test.ship" }] }] };
-	const other = { ...scene, id: "test.other" };
-	assert.deepEqual(automaticHostChoice([scene]), { scenario: scene.id, slot: "test.slot", ship: "test.ship" });
-	assert.equal(automaticHostChoice([]), null);
-	assert.equal(automaticHostChoice([scene, other]), null);
-	assert.deepEqual(automaticHostChoice([scene, other], scene.id), automaticHostChoice([scene]));
-	assert.equal(automaticHostChoice([scene], "missing"), null);
-	assert.equal(automaticHostChoice([{ ...scene, slots: [] }]), null);
-	assert.equal(
-		automaticHostChoice([{ ...scene, slots: [...scene.slots, { ...scene.slots[0], id: "second" }] }]),
-		null,
-	);
-	assert.equal(automaticHostChoice([{ ...scene, slots: [{ id: "test.slot", ships: [] }] }]), null);
-	assert.equal(
-		automaticHostChoice([{ ...scene, slots: [{ id: "test.slot", ships: [{ id: "a" }, { id: "b" }] }] }]),
-		null,
-	);
-});
 test("landing page waits; explicit and QR roles select one appropriate runtime", () => {
 	assert.equal(route("role=player&code=aBc123").code, "ABC123");
 	assert.equal(route("role=gm&code=ABC123").code, "ABC123");
@@ -119,6 +99,12 @@ test("landing page waits; explicit and QR roles select one appropriate runtime",
 	assert.equal(pairs.get("--ship"), "test.ship");
 	assert.equal(pairs.get("--page"), "https://example.test/phoenix-v3/");
 	assert.equal(pairs.get("--action"), "host");
+	const gm = route("type=server&action=host-gm&scenario=test.map");
+	assert.equal(gm.action, "host-gm");
+	assert.equal(gm.slot, "");
+	assert.equal(gm.ship, "");
+	assert.throws(() => route("type=client&action=host-gm&scenario=test.map"));
+	assert.throws(() => route("type=server&action=host-gm&scenario=test.map&slot=bridge"));
 });
 test("untrusted launch hints cannot choose arbitrary scripts or conflicting roles", () => {
 	for (const query of [

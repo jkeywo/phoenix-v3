@@ -105,9 +105,11 @@ export function launchOptions(params, origin = "http://localhost") {
 						? "join"
 						: "legacy"
 				: "join");
-	if (!["host", "recover", "join", "workshop", "legacy"].includes(action)) throw Error("Unknown launch action.");
+	if (!["host", "host-gm", "recover", "join", "workshop", "legacy"].includes(action))
+		throw Error("Unknown launch action.");
 	if (
-		((action === "host" || action === "recover" || action === "legacy") && type !== "server") ||
+		((action === "host" || action === "host-gm" || action === "recover" || action === "legacy") &&
+			type !== "server") ||
 		(action === "workshop" && role !== "editor") ||
 		(action === "join" && role === "editor")
 	)
@@ -115,6 +117,8 @@ export function launchOptions(params, origin = "http://localhost") {
 	if (action === "join" && !/^(?:[A-Z0-9]{6}|[\w.-]+\/[\w.-]+)$/.test(code))
 		throw Error("Enter the host's six-character Join Code.");
 	if (action === "host" && (!scenario || !slot || !ship)) throw Error("Choose a scenario and ship first.");
+	if (action === "host-gm" && (!scenario || slot || ship))
+		throw Error("Choose a scenario without a ship slot for GM hosting.");
 	if (action === "recover" && !/^[a-f0-9]{32,64}$/.test(save)) throw Error("Invalid saved game.");
 	const service = text("service", 2048) || "wss://site--phoenix-v3-coordinator--lzwyxyg44n9n.code.run/phoenix";
 	const url = new URL(service);
@@ -281,11 +285,6 @@ export function nebulaEnvelope(age, flash) {
 		pulse(age - 2 * r - flash.short_hold_seconds - flash.gap_seconds, flash.long_hold_seconds),
 	);
 }
-export function automaticHostChoice(scenes, selected = "") {
-	const scene = selected ? scenes.find((entry) => entry.id === selected) : scenes.length === 1 ? scenes[0] : null;
-	if (scene?.slots.length !== 1 || scene.slots[0].ships.length !== 1) return null;
-	return { scenario: scene.id, slot: scene.slots[0].id, ship: scene.slots[0].ships[0].id };
-}
 export function mergeRuntimeLibrary(index, previous) {
 	return {
 		...index,
@@ -379,6 +378,7 @@ export function menuPreview(source) {
 			name: text(scene.name || scene.id),
 			slots: list(scene.slots, 64).map((slot) => ({
 				id: text(slot.id),
+				default_ship: slot.default_ship === undefined ? "" : text(slot.default_ship),
 				ships: list(slot.ships, 256).map((ship) => ({ id: text(ship.id), name: text(ship.name || ship.id) })),
 			})),
 		})),
@@ -641,6 +641,7 @@ async function boot() {
 					name: map.name || map.id,
 					slots: map.ship_slots.map((slot) => ({
 						id: slot.id,
+						default_ship: slot.default_ship,
 						ships: slot.allowed_ships.map((id) => ({
 							id,
 							name: definitions.entities?.find((e) => e.id === id)?.name || id,
@@ -658,8 +659,6 @@ async function boot() {
 	function choose(next, id = "") {
 		if (next === "scenarios" || next === "ships") {
 			const scenes = scenarios();
-			const automatic = automaticHostChoice(scenes, next === "ships" ? id : "");
-			if (automatic) return start(options({ type: "server", action: "host", ...automatic }));
 			if (next === "scenarios" && scenes.length === 1) {
 				next = "ships";
 				id = scenes[0].id;
@@ -886,8 +885,22 @@ async function boot() {
 				if (branch === "ships") {
 					const ships = column("Ships"),
 						scene = scenarios().find((s) => s.id === scenario);
+					button(ships, "GM", () => start(options({ type: "server", action: "host-gm", scenario })));
 					for (const slot of scene?.slots || []) {
 						element("h2", slot.id, ships);
+						const defaultShip = slot.ships.find((ship) => ship.id === slot.default_ship) || slot.ships[0];
+						if (defaultShip)
+							button(ships, "Default: " + (defaultShip.name || defaultShip.id), () =>
+								start(
+									options({
+										type: "server",
+										action: "host",
+										scenario,
+										slot: slot.id,
+										ship: defaultShip.id,
+									}),
+								),
+							);
 						for (const ship of slot.ships)
 							button(ships, ship.name || ship.id, () =>
 								start(
@@ -1179,7 +1192,10 @@ async function boot() {
 		$("settings").disabled = $("packs").disabled = true;
 		try {
 			const migration = new Map();
-			if (library.split_bundled_pending && (o.action === "host" || o.action === "workshop")) {
+			if (
+				library.split_bundled_pending &&
+				(o.action === "host" || o.action === "host-gm" || o.action === "workshop")
+			) {
 				await ensurePacks(true);
 				for (const bundle of ["base", "training"]) {
 					const meta = await fetch(`${bundle}.zip.menu.json`, { cache: "no-cache" }).then((r) => r.json());
@@ -1189,7 +1205,7 @@ async function boot() {
 					migration.set(bundle, bytes);
 				}
 			}
-			if (o.action === "host" || o.action === "legacy" || o.action === "workshop")
+			if (o.action === "host" || o.action === "host-gm" || o.action === "legacy" || o.action === "workshop")
 				await ensurePacks(o.action === "workshop");
 			await remember();
 			// No generated JS, WASM or .data is requested before this point.
@@ -1243,7 +1259,7 @@ async function boot() {
 						}
 					},
 				],
-				onAbort: () => launchError("Startup failed. See the browser console for diagnostics."),
+				onAbort: (reason) => launchError("Startup failed: " + String(reason || "Unknown runtime error")),
 				setStatus: (message) => {
 					if (!failed && message) status(t("Loading application...") + " " + message);
 				},
@@ -1279,6 +1295,10 @@ async function boot() {
 		window.dispatchEvent(new Event("resize"));
 		status(message);
 		$("columns").replaceChildren();
+		const failure = element("section", "", $("columns"));
+		failure.setAttribute("role", "alert");
+		element("h2", "Unable to load game", failure);
+		element("p", String(message), failure);
 		button($("columns"), "Return to Menu", () => location.assign(location.origin + location.pathname)).disabled =
 			false;
 	}

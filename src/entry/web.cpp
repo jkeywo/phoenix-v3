@@ -19,7 +19,7 @@ import phoenix.network.lobby;
 #else
 import phoenix.network.lobby.protocol;
 #endif
-#ifdef PHOENIX_WORKSHOP
+#if defined(PHOENIX_WORKSHOP) || defined(PHOENIX_SERVER)
 import phoenix.tools;
 #endif
 
@@ -53,7 +53,7 @@ void frame()
 #endif
 	BeginDrawing();
 	phoenix::draw_screen(app);
-#ifdef PHOENIX_WORKSHOP
+#if defined(PHOENIX_WORKSHOP) || defined(PHOENIX_SERVER)
 	phoenix::pump_browser_workshop_test(app);
 	if (app.screen == phoenix::Screen::workshop || app.screen == phoenix::Screen::gm)
 		phoenix::draw_workshop(app);
@@ -163,6 +163,12 @@ int main(int argc, char **argv)
 				app.session->restore(app.library->read_save(save));
 			else if (action == "host")
 				app.session->prepare_lobby({scenario, {{slot, ship}}, slot, ""});
+			else if (action == "host-gm")
+			{
+				phoenix::GameSetup setup{scenario};
+				setup.gm_host = true;
+				app.session->prepare_lobby(setup);
+			}
 		}
 		app.screen = action.empty() ? phoenix::Screen::home : phoenix::Screen::server_lobby;
 #elif defined(PHOENIX_WORKSHOP)
@@ -196,7 +202,7 @@ int main(int argc, char **argv)
 	phoenix::load_display_preferences(app);
 	phoenix::open_window();
 	phoenix::select_language(app.language, app.pseudo_locale);
-#ifdef PHOENIX_WORKSHOP
+#if defined(PHOENIX_WORKSHOP) || defined(PHOENIX_SERVER)
 	phoenix::begin_tools();
 #endif
 	emscripten_set_main_loop(frame, 0, true);

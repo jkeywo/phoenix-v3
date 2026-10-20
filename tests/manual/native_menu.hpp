@@ -43,6 +43,7 @@ struct NativeMenuSmoke
 	int navigation_aid_step = 0, settings_step = 0;
 	bool initial_dust = true, initial_grid = true, initial_motion = false;
 	int stage = 0, pack_edits = 0, console_frames = 0;
+	int load_error_step = 0;
 	double changed = 0;
 	std::size_t saves_before = 0;
 	void action(phoenix::Application &app, const std::string &id)
@@ -212,8 +213,31 @@ struct NativeMenuSmoke
 				break;
 			capture("ships");
 			const auto &slot = app.session->catalog().maps.at(app.selected_scenario).at("ship_slots").at(0);
-			action(app, "menu.ship/" + slot.at("id").get<std::string>() + "/" +
-			                slot.at("allowed_ships").at(0).get<std::string>());
+			const auto choice = "menu.ship/" + slot.at("id").get<std::string>() + "/" +
+			                    slot.at("allowed_ships").at(0).get<std::string>();
+			if (load_error_step == 0)
+			{
+				const auto selected = app.selected_scenario;
+				app.selected_scenario = "smoke.missing";
+				const bool accepted = phoenix::invoke_navigation(app, choice);
+				app.selected_scenario = selected;
+				if (accepted)
+					throw std::runtime_error("Invalid scenario unexpectedly loaded");
+				++load_error_step;
+				changed = GetTime();
+				return false;
+			}
+			if (load_error_step == 1)
+			{
+				if (app.accessible_status.find("Choose a scenario, slot and allowed ship") == std::string::npos)
+					throw std::runtime_error("Scenario load error is missing from accessible status");
+				capture("load-error");
+				action(app, "menu.dismiss-error");
+				++load_error_step;
+				changed = GetTime();
+				return false;
+			}
+			action(app, choice);
 			break;
 		}
 		case 8:

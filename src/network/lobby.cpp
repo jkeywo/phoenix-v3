@@ -142,8 +142,8 @@ class GameLobby final : public SessionPort
 					if (!recovery_)
 						value.ship = selection_.ships.at(value.id);
 				}
-			if (value.ship.empty() && value.mandatory)
-				value.ship = value.allowed_ships.front();
+			if (value.ship.empty() && (value.mandatory || selection_.gm_host))
+				value.ship = slot.value("default_ship", value.allowed_ships.front());
 			result.push_back(std::move(value));
 		}
 		return result;
@@ -244,15 +244,20 @@ class GameLobby final : public SessionPort
 			member.ready = false;
 		setup_source_.reset();
 		bundle_.clear();
-		if (selection_.local_slot.empty())
+		if (selection_.local_slot.empty() && !selection_.gm_host)
 			return;
 		std::map<std::string, std::string> members;
+		if (selection_.gm_host)
+			members[self_] = "";
 		for (const auto &[id, p] : peers_)
 			if (p.member.role == JoinRole::ship_server && !p.member.slot.empty())
 				members[id] = p.member.slot;
 		if (recovery_)
 		{
-			Json plan{{"room", options_.link.room}, {"members", members}, {"creator", self_}};
+			Json plan{{"room", options_.link.room},
+			          {"members", members},
+			          {"creator", self_},
+			          {"gm_host", selection_.gm_host}};
 			bundle_ = services_.recovery(*source_, plan);
 		}
 		else
@@ -274,6 +279,12 @@ class GameLobby final : public SessionPort
 		for (const auto &[id, p] : peers_)
 		{
 			const auto &m = p.member;
+			if (selection_.gm_host && id == self_)
+			{
+				if (!m.ready || !m.verified)
+					return false;
+				continue;
+			}
 			if (!m.approved || m.role == JoinRole::gm)
 				continue;
 			if (!m.connected || !m.verified || m.slot.empty())
@@ -471,6 +482,8 @@ class GameLobby final : public SessionPort
 		{
 			if (member.role == JoinRole::gm)
 			{
+				if (coordinator_ && id == self_)
+					return false;
 				member.slot = cmd.slot;
 				return true;
 			}
@@ -511,8 +524,9 @@ class GameLobby final : public SessionPort
 		}
 		if (cmd.action == LobbyAction::ready || cmd.action == LobbyAction::unready)
 		{
-			if (launched_ || member.role == JoinRole::gm || !member.verified || member.slot.empty() ||
-			    (member.role == JoinRole::player && member.console.empty()))
+			if (launched_ ||
+			    ((!selection_.gm_host || id != self_) && (member.role == JoinRole::gm || member.slot.empty())) ||
+			    !member.verified || (member.role == JoinRole::player && member.console.empty()))
 				return false;
 			member.ready = cmd.action == LobbyAction::ready;
 			countdown_.reset();
@@ -921,13 +935,25 @@ public:
 	{
 		if (!coordinator_ || active_)
 			throw std::runtime_error("Leave the current lobby first");
-		if (!source_->catalog().maps.contains(setup.mission) || !setup.ships.contains(setup.local_slot))
+		if (!source_->catalog().maps.contains(setup.mission) ||
+		    (!setup.gm_host && !setup.ships.contains(setup.local_slot)))
 			throw std::runtime_error("Choose a scenario, slot and allowed ship");
 		selection_ = setup;
 		selection_.local_console.clear();
 		peers_.at(self_).member.slot = setup.local_slot;
+		peers_.at(self_).member.role = setup.gm_host ? JoinRole::gm : JoinRole::ship_server;
 		packs_source_ = std::make_unique<PackSource>(services_.packs(*source_));
-		invalidate();
+		try
+		{
+			invalidate();
+		}
+		catch (...)
+		{
+			selection_ = {};
+			peers_.at(self_).member.slot.clear();
+			peers_.at(self_).member.role = JoinRole::ship_server;
+			throw;
+		}
 		active_ = true;
 	}
 	void restore(const Bytes &archive) override
@@ -942,13 +968,15 @@ public:
 			auto prepared = services_.read(archive, {});
 			candidate = prepared.world;
 			for (const auto &[id, slot] : prepared.plan.at("members").items())
-				required.push_back(slot);
+				if (slot != "")
+					required.push_back(slot);
 		}
 		else
 		{
 			candidate->restore(archive);
 			services_.resume(*candidate);
-			required.push_back(services_.setup(*candidate).local_slot);
+			if (!services_.setup(*candidate).gm_host)
+				required.push_back(services_.setup(*candidate).local_slot);
 		}
 		auto setup = services_.setup(*candidate);
 		backend_.reset();
@@ -964,6 +992,7 @@ public:
 			              return p.first != self_;
 		              });
 		peers_.at(self_).member.slot = selection_.local_slot;
+		peers_.at(self_).member.role = selection_.gm_host ? JoinRole::gm : JoinRole::ship_server;
 		peers_.at(self_).member.console.clear();
 		packs_source_ = std::make_unique<PackSource>(services_.packs(*source_));
 		invalidate();
@@ -1194,6 +1223,8 @@ public:
 				continue;
 			if (m.id != self_ || !m.approved)
 				continue;
+			if (selection_.gm_host && coordinator_ && m.id == self_)
+				result.emplace_back(m.ready ? "lobby.unready" : "lobby.ready", m.ready ? "Not Ready" : "Ready");
 			if (m.role != JoinRole::gm)
 				for (const auto &seat : view.consoles)
 					if (seat.slot == m.slot &&

@@ -13,6 +13,7 @@ On each menu load, published base/training catalogues are revalidated over HTTP,
 | Choice                                 | Runtime                 | Entry                                                |
 | -------------------------------------- | ----------------------- | ---------------------------------------------------- |
 | Host Game / selected scenario and ship | `server`                | Verified, stopped pre-game lobby                     |
+| Host Game / selected scenario / GM     | `server` with GM tools  | GM readiness, default AI ships, no occupied slot     |
 | Saved Game                             | `server`                | Verified recovery lobby                              |
 | Join Game (New Ship)                   | `server`                | Approval and available ship-slot selection           |
 | Join Game (As Player)                  | `client`                | Approval, Console selection and individual readiness |

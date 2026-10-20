@@ -109,11 +109,16 @@ public:
 	{
 		if (!catalog_.maps.contains(setup.mission))
 			throw std::runtime_error("Select a loaded mission");
-		if (!setup.ships.contains(setup.local_slot))
+		if (setup.gm_host && (claim_local || !setup.local_slot.empty() || !setup.local_console.empty()))
+			throw std::runtime_error("A GM host cannot claim a player ship or console");
+		if (!setup.gm_host && !setup.ships.contains(setup.local_slot))
 			throw std::runtime_error("Select a ship for the local slot");
-		const auto &ship = catalog_.entities.at(setup.ships.at(setup.local_slot));
-		if (!ship.contains("console") && !ship.contains("stations"))
-			throw std::runtime_error("The local ship needs an authored console");
+		if (!setup.gm_host)
+		{
+			const auto &ship = catalog_.entities.at(setup.ships.at(setup.local_slot));
+			if (!ship.contains("console") && !ship.contains("stations"))
+				throw std::runtime_error("The local ship needs an authored console");
+		}
 		auto candidate = std::make_unique<World>();
 		candidate->load(catalog_, setup.mission, setup.ships);
 		for (const auto &[slot, profiles] : setup.console_profiles)
@@ -131,10 +136,15 @@ public:
 		if (!claim_local && selected_console.empty() && controlled)
 		{
 			const auto seats = candidate->consoles(*controlled);
-			if (!seats.empty())
-				selected_console = seats.front().id;
+			const auto primary = std::find_if(seats.begin(), seats.end(),
+			                                  [](const auto &seat)
+			                                  {
+				                                  return !seat.human_seeking;
+			                                  });
+			if (primary != seats.end())
+				selected_console = primary->id;
 		}
-		if (!controlled || !candidate->can_claim(local_console, *controlled, selected_console))
+		if (!setup.gm_host && (!controlled || !candidate->can_claim(local_console, *controlled, selected_console)))
 			throw std::runtime_error("The selected ship cannot admit a local console");
 		if (claim_local)
 			candidate->claim(local_console, *controlled, setup.local_console);
@@ -183,6 +193,7 @@ public:
 		                 {"mission", setup_.mission},
 		                 {"ships", setup_.ships},
 		                 {"local_slot", setup_.local_slot},
+		                 {"gm_host", setup_.gm_host},
 		                 {"packs", paths},
 		                 {"state", state}};
 		if (state.at("schema").get<int>() >= 2)
@@ -221,6 +232,7 @@ public:
 		candidate.catalog_ = resolve_packs(candidate.packs_);
 		GameSetup setup{data.at("mission"), data.at("ships").get<std::map<std::string, std::string>>(),
 		                data.at("local_slot"), data.value("local_console", std::string{})};
+		setup.gm_host = data.value("gm_host", false);
 		// Verify that recovery can admit the selected console before touching live state.
 		candidate.start_server(setup);
 		candidate.world_->restore(candidate.catalog_, data.at("state"));
@@ -229,7 +241,8 @@ public:
 		// A portable save carries historical claims, never a live operator lease.
 		candidate.world_->clear_claims();
 		const auto controlled = candidate.world_->ship_for_slot(setup.local_slot);
-		if (!controlled || !candidate.world_->can_claim(local_console, *controlled, candidate.setup_.local_console))
+		if (!setup.gm_host &&
+		    (!controlled || !candidate.world_->can_claim(local_console, *controlled, candidate.setup_.local_console)))
 			throw std::runtime_error("The recovered ship cannot admit a local console");
 		candidate.active_ = false;
 		packs_ = std::move(candidate.packs_);
@@ -244,7 +257,7 @@ public:
 		if (!recovery_pending())
 			throw std::runtime_error("There is no paused recovery session");
 		auto ship = world_->ship_for_slot(setup_.local_slot);
-		if (!ship || !world_->claim(local_console, *ship, setup_.local_console))
+		if (!setup_.gm_host && (!ship || !world_->claim(local_console, *ship, setup_.local_console)))
 			throw std::runtime_error("Recovery console claim was refused");
 		active_ = true;
 	}

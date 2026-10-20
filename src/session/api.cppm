@@ -80,6 +80,7 @@ struct GameSetup
 	std::string local_slot;
 	std::string local_console;
 	std::map<std::string, std::map<std::string, std::string>> console_profiles;
+	bool gm_host = false;
 };
 struct ConsoleSeat
 {
