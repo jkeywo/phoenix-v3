@@ -258,9 +258,20 @@ int main(int argc, char **argv)
 					{
 						const std::string peer = value.at("origin");
 						const auto target = *world.ship_for_slot(peer);
-						if (!world.submit(consoles.at(peer), {target, "speed_mm_s", 1000}) ||
-						    !world.submit(consoles.at(peer), {target, "heading_mdeg", 90000}))
-							throw std::runtime_error("Committed fleet input failed production admission");
+						const auto observation = world.observe(consoles.at(peer));
+						if (!observation)
+							throw std::runtime_error("Committed fleet input has no owning Console");
+						const auto &controller = observation->gameplay.at("controllers").at(0);
+						for (const auto &[channel, amount] :
+						     {std::pair{"speed_mm_s", 1000}, std::pair{"heading_mdeg", 90000}})
+						{
+							OperatingCommand command{target, {}, amount, {}};
+							command.controller = controller.at("id");
+							command.channel = channel;
+							command.generation = controller.at("generation");
+							if (!world.submit(consoles.at(peer), command))
+								throw std::runtime_error("Committed fleet input failed production admission");
+						}
 					}
 					else if (action == "tick")
 					{

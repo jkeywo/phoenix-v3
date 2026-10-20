@@ -8,6 +8,7 @@ The integer readers now validate signedness, representability and bounds before 
 - `scripts/check.ps1 -Target web` passed, including every configured WASM case and exact comparison with the native synthetic continuation trace.
 - Both base and training packs verified; no shipped tuning values were frozen.
 - The fleet probe was migrated to explicit Controller/channel/generation submissions after the network gate exposed its obsolete action-only requests.
+- The final `scripts/check-network-service.ps1` run passed all eight network cases, including real fleet recovery, playable fleet routing, live sessions, verified WSS and lobby admission.
 
 Local logs are under `build/audit-*.log`; they are build artifacts, not checked-in evidence snapshots.
 
