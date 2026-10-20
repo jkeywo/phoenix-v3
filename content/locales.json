@@ -14,7 +14,6 @@
 			"W/S thrust; A/D yaw. Left stick: yaw and thrust. Release to coast.": "W/S thrust; A/D yaw. Left stick: yaw and thrust. Release to coast.",
 			"Yaw": "Yaw",
 			"Thrust": "Thrust",
-
 			"Unable to complete action": "Unable to complete action",
 			"Unable to load game": "Unable to load game",
 			"Dismiss": "Dismiss",
@@ -381,7 +380,23 @@
 			"Forward-left": "Forward-left",
 			"Selected": "Selected",
 			"Standby": "Standby",
-			"Live": "Live"
+			"Live": "Live",
+			"Package...": "Package...",
+			"Game pack": "Game pack",
+			"Selected scenario": "Selected scenario",
+			"Source ZIP...": "Source ZIP...",
+			"Compiled DAT...": "Compiled DAT...",
+			"Pack loading background": "Pack loading background",
+			"Scenario loading background": "Scenario loading background",
+			"Loading game": "Loading game",
+			"Receiving Console assets": "Receiving Console assets",
+			"Preparing assets": "Preparing assets",
+			"Preparing graphics": "Preparing graphics",
+			"Loading failed": "Loading failed",
+			"Cancel loading": "Cancel loading",
+			"Loading cancelled": "Loading cancelled",
+			"Packaging...": "Packaging...",
+			"Packaging cancelled": "Packaging cancelled"
 		}
 	}
 }

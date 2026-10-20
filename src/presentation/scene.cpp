@@ -396,7 +396,7 @@ struct SceneRenderer::State
 			if (!asset.empty())
 			{
 				const auto &bytes = catalog.assets.at(asset);
-				data.cpu.push_back(LoadImageFromMemory(".png", bytes.data(), static_cast<int>(bytes.size())));
+				data.cpu.push_back(load_asset_image(bytes));
 			}
 		return materials.emplace(key, std::move(data)).first->second;
 	}
@@ -617,6 +617,34 @@ Json SceneRenderer::instance_statistics() const
 	                                          })},
 	        {"shadow_coverage", state_->shadow_coverage},
 	        {"batches", state_->instance_batches.size()}};
+}
+SpriteMaterial SceneRenderer::prepared_sprite(const Catalog &catalog, const std::string &definition)
+{
+	return state_->load(definition, catalog.entities.at(definition).at("render").at("sprite"), catalog).sprite;
+}
+void SceneRenderer::preload_environment(const Catalog &catalog, const SceneEnvironment &environment)
+{
+	state_->init();
+	const Camera3D camera{{0, 10, 10}, {0, 0, 0}, {0, 1, 0}, 45, CAMERA_PERSPECTIVE};
+	state_->navigation.draw(catalog, environment, camera, {}, {0, 0, 1, 1});
+}
+void SceneRenderer::preload(const Catalog &catalog, const std::string &definition)
+{
+	auto &s = *state_;
+	s.init();
+	const auto &render = catalog.entities.at(definition).at("render");
+	if (render.contains("sprite"))
+	{
+		s.load(definition, render.at("sprite"), catalog);
+		if (render.contains("engines"))
+			s.load(definition + ":engines", render.at("engines").at("sprite"), catalog);
+	}
+	else
+		for (const auto &asset : render.at("images"))
+		{
+			const auto name = asset.get<std::string>();
+			s.textures.load(name, catalog.assets.at(name));
+		}
 }
 void SceneRenderer::explosion(const ExplosionEffect &effect)
 {

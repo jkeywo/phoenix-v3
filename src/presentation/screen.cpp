@@ -84,6 +84,149 @@ Application *current_app = nullptr;
 std::unique_ptr<GameScreen> game_screen;
 std::unique_ptr<NativeMenuScreen> native_menu;
 std::unique_ptr<ServerMusic> server_music;
+Rml::ElementDocument *loading_document = nullptr;
+Texture2D loading_background{};
+TextureCache loading_images;
+std::string loading_markup, loading_art_identity;
+bool loading_visible = false;
+bool show_loading(Application &app)
+{
+	const bool eligible = app.screen == Screen::console || app.screen == Screen::viewscreen ||
+	                      app.screen == Screen::server_lobby || app.screen == Screen::client_lobby;
+	if (!eligible)
+	{
+		if (loading_document)
+			loading_document->Hide();
+		if (loading_visible)
+		{
+			document->Show();
+			loading_visible = false;
+		}
+		return false;
+	}
+	const auto progress = game_screen->preload(app);
+	if (!progress.active)
+	{
+		if (loading_document)
+			loading_document->Hide();
+		if (loading_visible)
+		{
+			document->Show();
+			loading_visible = false;
+		}
+		return false;
+	}
+	if (!loading_visible)
+	{
+		document->Hide();
+		loading_visible = true;
+	}
+	if (!loading_background.id)
+	{
+#ifdef __EMSCRIPTEN__
+		const std::string path = "/assets/menu/space-panorama.png";
+#else
+		const std::string path = std::string(GetApplicationDirectory()) + "assets/menu/space-panorama.png";
+#endif
+		loading_background = LoadTexture(path.c_str());
+	}
+	auto backdrop = loading_background;
+	if (app.session)
+	{
+		const auto &catalog = app.session->catalog();
+		auto reference = catalog.loading_background;
+		const auto mission = app.session->loading_scenario();
+		if (catalog.maps.contains(mission))
+			reference = catalog.maps.at(mission).value("loading_background", reference);
+		if (!reference.empty() && catalog.assets.contains(reference))
+			try
+			{
+				std::string identity = reference;
+				for (const auto &[id, hash] : catalog.ordered_packs)
+					identity += "/" + hash;
+				if (loading_art_identity != identity)
+				{
+					loading_images.clear();
+					loading_art_identity = identity;
+				}
+				backdrop = loading_images.load(identity, catalog.assets.at(reference));
+			}
+			catch (const std::exception &)
+			{ /* Keep the bootstrap background; the resource loader reports the failure. */
+			}
+	}
+	if (backdrop.id)
+		DrawTexturePro(backdrop, {0, 0, static_cast<float>(backdrop.width), static_cast<float>(backdrop.height)},
+		               {0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())}, {0, 0}, 0,
+		               WHITE);
+	DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {0, 0, 0, 150});
+	if (!loading_document)
+		loading_document = context->LoadDocumentFromMemory(R"(<rml><head><style>
+		body {width:100%;height:100%;font-family:LatoLatin;font-size:24px;color:#fff0d4;}
+		#loading-card {position:absolute;left:15%;top:36%;width:70%;padding:24px;background:#101c23ee;}
+		h1,p {display:block;margin-bottom:16px;} h1 {font-size:32px;}
+		#loading-track {display:block;height:20px;width:100%;background:#20313d;}
+		#loading-fill {display:block;height:20px;background:#d48a48;} button {display:block;margin-top:20px;padding:12px;background:#243c48;}
+		</style></head><body><div id="loading-card"/></body></rml>)");
+	const auto percent = progress.total ? std::min<std::size_t>(100, progress.completed * 100 / progress.total) : 0;
+	const auto phase = localise(progress.phase);
+	const auto text = phase + (progress.total ? " " + std::to_string(percent) + "%" : "");
+	const auto markup =
+	    "<h1>" + Rml::StringUtilities::EncodeRml(progress.title.empty() ? localise("Loading game") : progress.title) +
+	    "</h1><p>" + Rml::StringUtilities::EncodeRml(text) +
+	    "</p><div id='loading-track'><div id='loading-fill' style='width:" + std::to_string(percent) + "%'/></div><p>" +
+	    Rml::StringUtilities::EncodeRml(progress.error) + "</p><button>" + localise("Cancel loading") + "</button>";
+	if (markup != loading_markup)
+	{
+		loading_document->GetElementById("loading-card")->SetInnerRML(markup);
+		loading_markup = markup;
+	}
+	loading_document->Show();
+	context->SetDimensions({GetScreenWidth(), GetScreenHeight()});
+	context->Update();
+	app.console_surface_active = false;
+	app.screen_controls = {{"loading.cancel", "Cancel loading"}};
+	app.screen_readouts = {{"loading.progress", text}};
+	app.screen_inputs.clear();
+	app.screen_toggles.clear();
+	app.control_placements.clear();
+	app.accessible_status = progress.error.empty() ? text : progress.error;
+	app.screen_action = [&app](const std::string &action)
+	{
+		if (action != "loading.cancel")
+			return false;
+		if (app.return_home)
+			app.return_home();
+		else
+		{
+			if (app.session)
+				app.session->lobby_command({LobbyAction::leave});
+			app.screen = Screen::home;
+		}
+		app.status = localise("Loading cancelled");
+		return true;
+	};
+	Rml::ElementList buttons;
+	loading_document->GetElementsByTagName(buttons, "button");
+	if (!buttons.empty())
+	{
+		auto *button = buttons.front();
+		const auto at = button->GetAbsoluteOffset(Rml::BoxArea::Border);
+		const Rectangle area{at.x, at.y, button->GetOffsetWidth(), button->GetOffsetHeight()};
+		app.control_placements["loading.cancel"] = {area.x, area.y, area.width, area.height, true, true};
+		if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER) ||
+		    (IsMouseButtonReleased(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), area)))
+			app.screen_action("loading.cancel");
+	}
+	publish_semantics(app);
+	drain_semantic_actions(app);
+	renderer.viewport({0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())});
+	// Render this document only; other contexts remain hidden behind the loading view.
+	context->Render();
+	renderer.finish();
+	return true;
+}
+
 std::map<ConsoleId, std::unique_ptr<ConsoleSurface>> console_surfaces;
 class PreviewSession final : public SessionPort
 {
@@ -723,6 +866,8 @@ void draw_screen(Application &app)
 	};
 	native_menu->poll(app);
 	select_language(app.language, app.pseudo_locale);
+	if (show_loading(app))
+		return;
 	if ((app.can_host || app.native_menu) && app.screen != Screen::workshop && app.screen != Screen::gm &&
 	    IsKeyPressed(KEY_ESCAPE) && graphics_has_keyboard_focus())
 	{
@@ -1221,6 +1366,12 @@ void close_window()
 		current_app->screen_action = {};
 		current_app->button_click = {};
 	}
+	if (loading_background.id)
+		UnloadTexture(loading_background);
+	loading_background = {};
+	loading_images.clear();
+	loading_document = nullptr;
+	loading_markup.clear();
 	game_screen.reset();
 	native_menu.reset();
 	server_music.reset();

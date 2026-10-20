@@ -67,6 +67,9 @@ public:
 	SceneRenderer(const SceneRenderer &) = delete;
 	SceneRenderer &operator=(const SceneRenderer &) = delete;
 	void clear();
+	void preload(const Catalog &, const std::string &definition);
+	void preload_environment(const Catalog &, const SceneEnvironment &);
+	SpriteMaterial prepared_sprite(const Catalog &, const std::string &definition);
 	void explosion(const ExplosionEffect &effect);
 	Json instance_statistics() const;
 	void draw(const Catalog &catalog, std::span<const SceneBody> bodies, Camera3D camera, Rectangle region,
@@ -94,6 +97,7 @@ private:
 	std::unique_ptr<State> state_;
 };
 // Each content owner keeps a separate cache and clears it before replacing assets.
+Image load_asset_image(std::span<const std::uint8_t> bytes);
 class TextureCache
 {
 public:
@@ -102,10 +106,11 @@ public:
 	TextureCache &operator=(const TextureCache &) = delete;
 	~TextureCache();
 	Texture2D load(const std::string &id, std::span<const std::uint8_t> png);
+	Texture2D load_file(const std::string &path);
 	void clear();
 
 private:
-	std::map<std::string, Texture2D> textures_;
+	std::map<std::string, std::shared_ptr<Texture2D>> textures_;
 };
 void draw_radar_body(TextureCache &textures, const Catalog &catalog, const BodyView &body, Vector2 centre, float radius,
                      Color colour);

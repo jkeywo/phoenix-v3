@@ -306,12 +306,20 @@ Catalog resolve(const std::vector<PackView> &ordered)
 	for (const auto &[name, entity] : result.entities)
 		entity_ids.push_back(name);
 	for (const auto &[name, map] : result.maps)
-		if (map.contains("scenario") || map.contains("regions"))
+		if (map.contains("scenario") || map.contains("regions") || map.contains("preload"))
 		{
 			std::vector<std::string> slots;
 			for (const auto &slot : map.at("ship_slots"))
 				slots.push_back(slot.at("id"));
-			result.scenarios.emplace(name, compile_scenario(map, entity_ids, slots));
+			auto spawnable = entity_ids;
+			if (map.contains("preload"))
+			{
+				spawnable.clear();
+				for (const auto &id : scenario_definitions(result, name))
+					if (result.entities.contains(id))
+						spawnable.push_back(id);
+			}
+			result.scenarios.emplace(name, compile_scenario(map, spawnable, slots));
 		}
 	prepare_catalog(result);
 	// Public icon aliases use identical addresses in full and restricted catalogues.

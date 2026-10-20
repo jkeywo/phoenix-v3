@@ -116,6 +116,7 @@ class ConsoleSurface final : public Rml::EventListener
 	std::string engineering_signature_;
 	std::set<std::string> held_clicks_;
 	std::map<std::string, Texture2D> hud_;
+	TextureCache hud_cache_;
 	std::map<std::string, Json> hud_metadata_;
 	std::optional<std::array<float, 3>> heading_dial_;
 	std::map<std::uint64_t, std::string> heading_contacts_;
@@ -240,7 +241,7 @@ class ConsoleSurface final : public Rml::EventListener
 	{
 		if (!hud_.contains(name))
 		{
-			const auto texture = LoadTexture(asset_path(name + ".png").c_str());
+			const auto texture = hud_cache_.load_file(asset_path(name + ".png"));
 			if (!texture.id)
 				throw std::runtime_error("Missing Console artwork: " + name);
 			hud_[name] = texture;
@@ -283,9 +284,6 @@ class ConsoleSurface final : public Rml::EventListener
 	{
 		return "console/" + std::to_string(route_) + "/" + action;
 	}
-<<<<<<< HEAD
-	std::string button(const std::string &action, const std::string &label, const std::string &visual = "")
-=======
 	std::string on_screen_markup(const std::string &action) const
 	{
 		return "<button class=\"on-screen\" id=\"" + Rml::StringUtilities::EncodeRml(id(action)) +
@@ -297,8 +295,7 @@ class ConsoleSurface final : public Rml::EventListener
 		       "</span><span class=\"share-caption share-live\">" + Rml::StringUtilities::EncodeRml(localise("Live")) +
 		       "</span><span class=\"share-lamp-housing\"><span class=\"share-lamp\"/></span></button>";
 	}
-	std::string button(const std::string &action, const std::string &label)
->>>>>>> 70549d2 (Style On screen controls with live lamps and radar bezel mounting)
+	std::string button(const std::string &action, const std::string &label, const std::string &visual = "")
 	{
 		controls_.emplace_back(id(action), label);
 		if (action.starts_with("on-screen/"))
@@ -482,8 +479,6 @@ button.on-screen-active .share-live {display:block;}
 	}
 	~ConsoleSurface()
 	{
-		for (const auto &[name, texture] : hud_)
-			UnloadTexture(texture);
 		Rml::RemoveContext(context_name_);
 	}
 	Rml::Context &context()

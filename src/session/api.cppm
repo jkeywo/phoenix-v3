@@ -118,6 +118,14 @@ public:
 	virtual void add_pack(const Bytes &archive) = 0;
 	virtual void clear_packs() = 0;
 	virtual const Catalog &catalog() const = 0;
+	virtual std::string loading_scenario() const
+	{
+		return {};
+	}
+	virtual std::optional<std::pair<std::uint64_t, std::uint64_t>> content_progress() const
+	{
+		return {};
+	}
 	virtual void start(const GameSetup &setup) = 0;
 	virtual void prepare_lobby(const GameSetup &setup)
 	{

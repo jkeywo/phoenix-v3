@@ -7,6 +7,7 @@ module;
 #include <algorithm>
 #include <cstdint>
 #include <functional>
+#include <filesystem>
 #include <map>
 #include <iterator>
 #include <memory>
@@ -40,6 +41,7 @@ struct Editor
 {
 	FileImportInbox imports;
 	FileImportInbox saves;
+	FileImportInbox packages;
 	struct SaveLocation
 	{
 		std::string filename, destination;
@@ -145,7 +147,8 @@ void save_pack(Application &app, bool save_as)
 {
 	if (editor.saving)
 		return;
-	const auto bytes = editor.document.export_pack();
+	const auto bytes = editor.document.export_pack(editor.pack_location.filename.ends_with(".dat") ? PackEncoding::Dat
+	                                                                                               : PackEncoding::Zip);
 	if (!save_as && !editor.library_pack.empty())
 	{
 		if (!app.library || game_active(app))
@@ -1242,6 +1245,14 @@ void map_view(Application &app)
 		ImGui::EndCombo();
 	}
 	string_field("Map name", editor.document.map(), "name");
+	{
+		Json background = editor.document.map().value("loading_background", Json(""));
+		asset_picker("Scenario loading background", background);
+		if (background.is_string() && !background.get<std::string>().empty())
+			editor.document.map()["loading_background"] = background;
+		else
+			editor.document.map().erase("loading_background");
+	}
 	ImGui::TextWrapped("Double-click: place selected definition | drag: move | middle-drag: pan | wheel: zoom | touch: "
 	                   "drag to pan, pinch to zoom");
 	auto origin = ImGui::GetCursorScreenPos(), size = ImGui::GetContentRegionAvail();
@@ -1427,10 +1438,12 @@ void close_editor()
 void open_workshop_pack(const std::string &path)
 {
 	editor.imports.reset();
-	editor.document.load_pack(read_file(path));
+	editor.document.load_pack(read_pack_path(path).archive());
 	editor.reset_save_locations();
 	editor.pack_location = {
 	    path.substr(path.find_last_of("/\\") == std::string::npos ? 0 : path.find_last_of("/\\") + 1), path};
+	if (std::filesystem::is_directory(std::filesystem::u8path(path)))
+		editor.pack_location = {};
 	editor.started = true;
 	editor.clear_textures();
 	editor.pack_name = editor.document.manifest()["id"].get<std::string>();
@@ -1508,6 +1521,10 @@ void render_editor(Application &app)
 	bool readonly = app.screen == Screen::gm;
 	if (!readonly)
 	{
+		if (auto packaged = editor.packages.take())
+			editor.status = packaged->status == ImportStatus::Success     ? "Packaged " + packaged->filename
+			                : packaged->status == ImportStatus::Cancelled ? "Packaging cancelled"
+			                                                              : packaged->error;
 		if (auto saved = editor.saves.take())
 		{
 			editor.saving = false;
@@ -1706,14 +1723,31 @@ void render_editor(Application &app)
 				    {
 					    save_pack(app, true);
 				    });
-			if (ImGui::MenuItem(tool_label("Export pack copy...").c_str()))
-				attempt(
-				    []
-				    {
-					    const auto bytes = editor.document.export_pack();
-					    export_file(editor.document.manifest().at("id").get<std::string>() + ".zip", bytes);
-					    editor.status = "Pack copy exported";
-				    });
+			if (ImGui::BeginMenu(tool_label("Package...").c_str()))
+			{
+				for (const bool scenario : {false, true})
+					if (ImGui::BeginMenu(tool_label(scenario ? "Selected scenario" : "Game pack").c_str()))
+					{
+						for (const auto encoding : {PackEncoding::Zip, PackEncoding::Dat})
+							if (ImGui::MenuItem(
+							        tool_label(encoding == PackEncoding::Zip ? "Source ZIP..." : "Compiled DAT...")
+							            .c_str()))
+								attempt(
+								    [&]
+								    {
+									    const auto bytes = editor.document.export_pack(encoding, scenario);
+									    const auto name =
+									        editor.document.manifest().at("id").get<std::string>() +
+									        (scenario ? "-" + editor.document.map().at("id").get<std::string>() : "") +
+									        (encoding == PackEncoding::Zip ? ".zip" : ".dat");
+									    request_save(editor.packages, FilePurpose::WorkshopPackSave, name, bytes, {},
+									                 true);
+									    editor.status = "Packaging...";
+								    });
+						ImGui::EndMenu();
+					}
+				ImGui::EndMenu();
+			}
 			ImGui::Separator();
 			if (ImGui::MenuItem(tool_label("New map").c_str()))
 				attempt(add_map);
@@ -1872,6 +1906,14 @@ void render_editor(Application &app)
 		if (ImGui::Selectable(tool_label(area).c_str(), editor.selection == area))
 			editor.selection = area;
 	ImGui::Separator();
+	{
+		Json background = editor.document.manifest().value("loading_background", Json(""));
+		asset_picker("Pack loading background", background);
+		if (background.is_string() && !background.get<std::string>().empty())
+			editor.document.manifest()["loading_background"] = background;
+		else
+			editor.document.manifest().erase("loading_background");
+	}
 	ImGui::InputText(tool_label("Pack ID").c_str(), &editor.pack_name);
 	if (ImGui::Button(tool_label("Apply pack ID").c_str()))
 		attempt(

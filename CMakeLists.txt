@@ -390,7 +390,7 @@ else()
 	target_link_libraries(phoenix_system_tests PRIVATE phoenix_core)
 	add_test(NAME system.input-and-semantics COMMAND phoenix_system_tests)
 	add_executable(phoenix_content_tests tests/system/content.cpp)
-	target_link_libraries(phoenix_content_tests PRIVATE phoenix_content)
+	target_link_libraries(phoenix_content_tests PRIVATE phoenix_content phoenix_gameplay_runtime)
 	phoenix_fixture(phoenix_content_tests)
 	add_test(NAME system.content-and-packs COMMAND phoenix_content_tests)
 	add_executable(phoenix_simulation_tests tests/system/simulation.cpp)
@@ -645,7 +645,7 @@ if(EMSCRIPTEN)
 		PRIVATE "-sALLOW_MEMORY_GROWTH=1" "-sASSERTIONS=2" "-sSTACK_SIZE=1048576" "-sSTACK_OVERFLOW_CHECK=2" "-g2"
 	)
 	add_executable(phoenix_content_check tests/system/content.cpp)
-	target_link_libraries(phoenix_content_check PRIVATE phoenix_content)
+	target_link_libraries(phoenix_content_check PRIVATE phoenix_content phoenix_gameplay_runtime)
 	phoenix_fixture(phoenix_content_check)
 	add_executable(phoenix_transfer_check tests/system/network_content.cpp)
 	target_link_libraries(phoenix_transfer_check PRIVATE phoenix_wire)
@@ -676,7 +676,22 @@ if(EMSCRIPTEN)
 				"-sSTACK_OVERFLOW_CHECK=2"
 				"-g2"
 		)
-		target_link_options(${role} PRIVATE "--preload-file" "${CMAKE_CURRENT_BINARY_DIR}/assets@/assets")
+		# Crew clients receive gameplay presentation content from their ship server.
+		# Do not hide full installed game packs inside the common WASM .data file.
+		if(role STREQUAL "client")
+			file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/client-assets")
+			file(
+				COPY "${CMAKE_CURRENT_BINARY_DIR}/assets/"
+				DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/client-assets"
+				PATTERN "*.zip"
+				EXCLUDE
+				PATTERN "*.dat"
+				EXCLUDE
+			)
+			target_link_options(${role} PRIVATE "--preload-file" "${CMAKE_CURRENT_BINARY_DIR}/client-assets@/assets")
+		else()
+			target_link_options(${role} PRIVATE "--preload-file" "${CMAKE_CURRENT_BINARY_DIR}/assets@/assets")
+		endif()
 		target_link_options(${role} PRIVATE "-sEXPORTED_RUNTIME_METHODS=['ccall','FS']")
 		target_link_options(${role} PRIVATE "-sEXPORTED_FUNCTIONS=['_main','_malloc','_free']")
 	endforeach()

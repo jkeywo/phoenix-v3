@@ -520,15 +520,17 @@ int main(int argc, char **argv)
 	{
 		try
 		{
-			const auto archive = phoenix::read_file(game_pack);
-			const auto imported_hash = phoenix::read_pack(archive).hash();
+			const auto imported = phoenix::read_pack_path(game_pack);
+			const auto &archive = imported.archive();
+			const auto imported_hash = imported.hash();
+			const auto imported_id = imported.manifest().at("id").get<std::string>();
 			if (menu_smoke.enabled)
 			{
 				app.library->install(archive);
 				auto selected = app.library->packs;
 				for (auto &pack : selected)
-					if (pack.hash == imported_hash)
-						pack.enabled = true;
+					if (pack.id == imported_id)
+						pack.enabled = pack.hash == imported_hash;
 				app.library->apply(selected);
 			}
 			if (std::none_of(app.session->catalog().ordered_packs.begin(), app.session->catalog().ordered_packs.end(),
@@ -536,7 +538,24 @@ int main(int argc, char **argv)
 			                 {
 				                 return pack.second == imported_hash;
 			                 }))
-				app.session->add_pack(archive);
+			{
+				const auto &ordered = app.session->catalog().ordered_packs;
+				const bool replacing = std::any_of(ordered.begin(), ordered.end(),
+				                                   [&](const auto &pack)
+				                                   {
+					                                   return pack.first == imported_id;
+				                                   });
+				if (replacing && app.library)
+				{
+					auto candidate = app.library->archives(app.library->packs);
+					for (auto &bytes : candidate)
+						if (phoenix::read_pack(bytes).manifest().at("id") == imported_id)
+							bytes = archive;
+					app.session->replace_packs(candidate);
+				}
+				else
+					app.session->add_pack(archive);
+			}
 			if (!mission.empty())
 			{
 				if (seat.empty())

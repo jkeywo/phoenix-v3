@@ -317,6 +317,8 @@ void verify_pack_draft(const PackDraft &pack);
 Catalog resolve_packs(const std::vector<Pack> &ordered);
 Pack console_assets(const Catalog &catalog, const std::string &ship, const std::string &console = {},
                     const std::string &background = {});
+Pack console_assets(const Catalog &catalog, const std::string &ship, const std::vector<std::string> &consoles,
+                    const std::string &background = {});
 // Resolved references, including future spawn content; no production-content assumptions.
 std::vector<std::string> scenario_definitions(const Catalog &catalog, const std::string &map);
 std::vector<std::string> scenario_assets(const Catalog &catalog, const std::string &map);

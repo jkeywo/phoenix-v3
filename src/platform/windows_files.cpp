@@ -40,7 +40,7 @@ void open_file(ImportId id, FilePurpose purpose)
 	dialog.nMaxFile = 32768;
 	dialog.lpstrFilter = purpose == FilePurpose::PlayerAvatar
 	                         ? L"Avatar image\0*.png;*.jpg;*.jpeg\0"
-	                         : L"Phoenix content\0*.zip;*.json;*.png\0All files\0*.*\0";
+	                         : L"Phoenix content\0*.zip;*.dat;*.json;*.png\0All files\0*.*\0";
 	dialog.Flags = OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
 	if (!GetOpenFileNameW(&dialog))
 	{
@@ -101,9 +101,10 @@ void save_file(ImportId id, const std::string &filename, const Bytes &bytes, con
 	dialog.lpstrFile = path;
 	dialog.nMaxFile = 32768;
 	dialog.Flags = OFN_OVERWRITEPROMPT | OFN_NOCHANGEDIR | OFN_PATHMUSTEXIST;
-	dialog.lpstrFilter =
-	    filename.ends_with(".zip") ? L"Phoenix pack\0*.zip\0All files\0*.*\0" : L"Map JSON\0*.json\0All files\0*.*\0";
-	dialog.lpstrDefExt = filename.ends_with(".zip") ? L"zip" : L"json";
+	dialog.lpstrFilter = (filename.ends_with(".zip") || filename.ends_with(".dat"))
+	                         ? L"Phoenix pack\0*.zip;*.dat\0All files\0*.*\0"
+	                         : L"Map JSON\0*.json\0All files\0*.*\0";
+	dialog.lpstrDefExt = filename.ends_with(".dat") ? L"dat" : filename.ends_with(".zip") ? L"zip" : L"json";
 	if ((destination.empty() || save_as) && !GetSaveFileNameW(&dialog))
 	{
 		const auto error = CommDlgExtendedError();

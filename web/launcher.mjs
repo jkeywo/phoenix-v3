@@ -385,6 +385,8 @@ export function menuPreview(source) {
 }
 // Bounded preview extraction only. The production ZIP/content loader verifies it again.
 export async function zipEntry(bytes, name, optional = false) {
+	// DAT retains bounded text metadata for the pre-WASM launcher; gameplay definitions are binary.
+	if (new TextDecoder().decode(bytes.subarray(0, 8)) === "PHXDAT1\n") bytes = bytes.subarray(8);
 	if (bytes.length > 32 * 1024 * 1024) throw Error("Archive exceeds 32 MiB.");
 	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 	let end = bytes.length - 22;
@@ -1094,7 +1096,7 @@ async function boot() {
 	async function importFile(kind) {
 		const input = document.createElement("input");
 		input.type = "file";
-		input.accept = ".zip,application/zip";
+		input.accept = ".zip,.dat,application/zip,application/octet-stream";
 		input.onchange = run(async () => {
 			const file = input.files[0];
 			if (!file) return;
@@ -1157,8 +1159,15 @@ async function boot() {
 				else if (!pack.url && !files.has(`packs/${pack.hash}.zip`))
 					throw Error("Installed pack archive is missing: " + pack.id);
 			}
-			for (const save of index.saves)
-				changes.push([`saves/${save.id}.zip`, fs.readFile(`/launcher/menu/saves/${save.id}.zip`)]);
+			for (const save of index.saves) {
+				const key = `saves/${save.id}.zip`;
+				try {
+					changes.push([key, fs.readFile(`/launcher/menu/${key}`)]);
+				} catch {
+					if (!window.Module.phoenixConsoleOnly || !files.has(key))
+						throw Error("Managed save archive is missing: " + save.id);
+				}
+			}
 			lastIndex = raw;
 			persist = persist
 				.catch(() => {})
@@ -1205,7 +1214,10 @@ async function boot() {
 					migration.set(bundle, bytes);
 				}
 			}
-			if (o.action === "host" || o.action === "host-gm" || o.action === "legacy" || o.action === "workshop")
+			if (
+				o.type !== "client" &&
+				(o.action === "host" || o.action === "host-gm" || o.action === "legacy" || o.action === "workshop")
+			)
 				await ensurePacks(o.action === "workshop");
 			await remember();
 			let tabStorage;
@@ -1236,8 +1248,12 @@ async function boot() {
 			nebulaFlashes?.sync();
 			menuAmbient?.sync();
 			status(t("Loading application..."));
+			$("startup-loading").hidden = false;
+			$("startup-loading").querySelector("h1").textContent = t("Loading application...");
+			$("startup-progress").removeAttribute("value");
 			window.Module = {
 				canvas: $("canvas"),
+				phoenixConsoleOnly: o.type === "client",
 				phoenixCanvasPoint: (x, y) =>
 					canvasPoint(
 						$("canvas").getBoundingClientRect(),
@@ -1261,7 +1277,10 @@ async function boot() {
 						fs.mkdirTree("/launcher/menu/saves");
 						for (const [bundle, bytes] of migration) fs.writeFile(`/launcher/bundled-${bundle}.zip`, bytes);
 						for (const [key, bytes] of files)
-							if (key === "library.json" || /^(packs|saves)\/[a-f0-9]{32,64}\.zip$/.test(key))
+							if (
+								key === "library.json" ||
+								(o.type !== "client" && /^(packs|saves)\/[a-f0-9]{32,64}\.zip$/.test(key))
+							)
 								fs.writeFile("/launcher/menu/" + key, bytes);
 						lastIndex = decoder.decode(files.get("library.json"));
 					},
@@ -1269,6 +1288,7 @@ async function boot() {
 				postRun: [
 					() => {
 						if (!failed) {
+							$("startup-loading").hidden = true;
 							status("");
 							$("canvas").focus();
 						}
@@ -1276,7 +1296,15 @@ async function boot() {
 				],
 				onAbort: (reason) => launchError("Startup failed: " + String(reason || "Unknown runtime error")),
 				setStatus: (message) => {
-					if (!failed && message) status(t("Loading application...") + " " + message);
+					if (!failed && message) {
+						status(t("Loading application...") + " " + message);
+						const match = /\((\d+(?:\.\d+)?)\/(\d+)\)/.exec(message);
+						const bar = $("startup-progress");
+						if (match && Number(match[2]) > 0) {
+							bar.max = Number(match[2]);
+							bar.value = Number(match[1]);
+						} else bar.removeAttribute("value");
+					}
 				},
 				phoenixPersistMenu: () => {
 					return snapshotRuntime();
@@ -1311,6 +1339,7 @@ async function boot() {
 		}
 	}
 	function launchError(message) {
+		$("startup-loading").hidden = true;
 		failed = true;
 		document.documentElement.classList.remove("direct-launch");
 		$("runtime").hidden = true;

@@ -935,6 +935,14 @@ public:
 		}
 		++generation_;
 	}
+	std::string loading_scenario() const override
+	{
+		return backend_ ? backend_->loading_scenario() : selection_.mission;
+	}
+	std::optional<std::pair<std::uint64_t, std::uint64_t>> content_progress() const override
+	{
+		return backend_ ? backend_->content_progress() : std::nullopt;
+	}
 	const Catalog &catalog() const override
 	{
 		return backend_ ? backend_->catalog() : source_ ? source_->catalog() : empty_catalog_;

@@ -6,6 +6,13 @@ class GameScreen
 public:
 	GameScreen();
 	~GameScreen();
+	struct Loading
+	{
+		bool active = false;
+		std::size_t completed = 0, total = 0;
+		std::string phase, title, error;
+	};
+	Loading preload(Application &app);
 	void prepare(Application &app, Rml::ElementDocument &document);
 	void draw(const Application &app);
 	void draw_viewscreen(Application &app, Rectangle region);

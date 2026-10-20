@@ -272,6 +272,11 @@ test("pack previews handle stored/deflated ZIPs and bound decompression", async 
 	const json = JSON.stringify({ schema: 1, scenarios: [] });
 	for (const method of [0, 8])
 		assert.equal(new TextDecoder().decode(await zipEntry(archive(json, method), "launcher.json")), json);
+	const source = archive(json);
+	const compiled = new Uint8Array(8 + source.length);
+	compiled.set(new TextEncoder().encode("PHXDAT1\n"));
+	compiled.set(source, 8);
+	assert.equal(new TextDecoder().decode(await zipEntry(compiled, "launcher.json")), json);
 	assert.equal(await zipEntry(archive(json), "absent", true), null);
 	await assert.rejects(zipEntry(archive("x".repeat(5000), 8, 3), "launcher.json"));
 	await assert.rejects(zipEntry(archive(json, 0, 1024 * 1024 + 1), "launcher.json"));

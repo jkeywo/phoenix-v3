@@ -93,6 +93,10 @@ public:
 		active_ = false;
 		++generation_;
 	}
+	std::string loading_scenario() const override
+	{
+		return setup_.mission;
+	}
 	const Catalog &catalog() const override
 	{
 		return catalog_;

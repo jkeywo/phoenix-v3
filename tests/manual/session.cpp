@@ -757,7 +757,9 @@ int main(int argc, char **argv)
 			{
 				if (!session->catalog().ordered_packs.empty() &&
 				    (!session->catalog().presentation || !session->catalog().maps.empty() ||
-				     !session->catalog().trees.empty() || session->catalog().entities.size() != 1))
+				     !session->catalog().trees.empty() ||
+				     (session->catalog().selection ? !session->catalog().entities.empty()
+				                                   : session->catalog().entities.size() != 1)))
 					throw std::runtime_error(
 					    "Crew received authoritative content instead of permitted presentation assets");
 				if (!session->observation())

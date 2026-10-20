@@ -13,14 +13,14 @@ module;
 module phoenix.content;
 namespace phoenix
 {
-Pack console_assets(const Catalog &catalog, const std::string &ship, const std::string &console,
+Pack console_assets(const Catalog &catalog, const std::string &ship, const std::vector<std::string> &console_ids,
                     const std::string &background)
 {
 	const auto &source = catalog.entities.at(ship);
 	PackDraft draft;
 	const std::string pack_id = "console-assets";
 	draft.manifest = {{"schema", 1}, {"id", pack_id}, {"format", "phoenix-console-assets"}};
-	if (console == "__selection__")
+	if (console_ids == std::vector<std::string>{"__selection__"})
 	{
 		draft.manifest["format"] = "phoenix-console-selection";
 		draft.files["definitions.json"] = json_bytes(Json{{"schema", 3}});
@@ -136,7 +136,7 @@ Pack console_assets(const Catalog &catalog, const std::string &ship, const std::
 	std::set<std::string> included;
 	for (const auto &seat : resolve_consoles(catalog, ship))
 	{
-		if (!console.empty() && seat.id != console)
+		if (!console_ids.empty() && std::find(console_ids.begin(), console_ids.end(), seat.id) == console_ids.end())
 			continue;
 		Json controls = seat.controlled_systems, feeds = seat.feed_systems;
 		// Copy the public fields, never arbitrary authored metadata.
@@ -181,7 +181,7 @@ Pack console_assets(const Catalog &catalog, const std::string &ship, const std::
 		}
 	}
 	entity["stations"] = stations;
-	if (!console.empty())
+	if (!console_ids.empty())
 	{
 		// A Console needs public radar icons, not the ship's detailed hull material.
 		entity["render"] = {{"mode", "camera"}, {"scale", 1}, {"images", Json::array()}};
@@ -206,8 +206,14 @@ Pack console_assets(const Catalog &catalog, const std::string &ship, const std::
 	}
 	draft.files["definitions.json"] =
 	    json_bytes(Json{{"schema", 3}, {"entities", Json::array({entity})}, {"consoles", consoles}});
-	auto pack = read_pack(write_pack(draft, console.empty() ? PackEncoding::Zip : PackEncoding::Dat));
+	auto pack = read_pack(write_pack(draft, console_ids.empty() ? PackEncoding::Zip : PackEncoding::Dat));
 	resolve_packs({pack});
 	return pack;
+}
+Pack console_assets(const Catalog &catalog, const std::string &ship, const std::string &console,
+                    const std::string &background)
+{
+	return console_assets(catalog, ship,
+	                      console.empty() ? std::vector<std::string>{} : std::vector<std::string>{console}, background);
 }
 } // namespace phoenix

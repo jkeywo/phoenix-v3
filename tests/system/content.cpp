@@ -96,6 +96,18 @@ int main()
 		const auto future = scenario_assets(packaging.verify(), map_id);
 		require(std::find(future.begin(), future.end(), extra_image) != future.end(),
 		        "future dynamic entities preload their complete material dependencies");
+		later["id"] = "test.unused";
+		packaging.definitions()["entities"].push_back(later);
+		const auto bounded_catalog = packaging.verify();
+		ScenarioRuntime preloaded_scenario(bounded_catalog.scenarios.at(map_id));
+		preloaded_scenario.begin_tick(0, {}, {});
+		const auto preload_instance = preloaded_scenario.create_instance("preload-contract");
+		preloaded_scenario.spawn_entity({preload_instance, 1, 0}, "test.later", {}, 0, "declared");
+		require(
+		    preloaded_scenario.pending_spawns().size() == 1 &&
+		        preloaded_scenario.spawn_entity({preload_instance, 1, 1}, "test.unused", {}, 0, "undeclared").status ==
+		            ScenarioActionStatus::Failed,
+		    "dynamic spawns admit prepared definitions and refuse undeclared definitions without first-use loading");
 		const auto scenario_dat = packaging.export_pack(PackEncoding::Dat, true);
 		const auto scenario_catalog = resolve_packs({read_pack(packaging.export_pack()), read_pack(scenario_dat)});
 		require(scenario_catalog.maps.size() == 1 &&
@@ -253,6 +265,12 @@ int main()
 			return resolve_packs({read_pack(write_pack(draft))});
 		};
 		auto control_catalog = load_controls(control_source);
+		const auto one_console = resolve_packs({console_assets(control_catalog, "test.ship", "helm")});
+		const auto console_set =
+		    resolve_packs({console_assets(control_catalog, "test.ship", std::vector<std::string>{"helm", "support"})});
+		require(resolve_consoles(one_console, "test.ship").size() == 1 &&
+		            resolve_consoles(console_set, "test.ship").size() == 2,
+		        "restricted bundles include exactly the assigned Console set, including additional profile Consoles");
 		auto layout = compile_controllable_layout(control_catalog, "test.variant");
 		require(!layout.converted && layout.controllers.size() == 2 &&
 		            layout.controllers[0].commands[0].consumers.size() == 2,

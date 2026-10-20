@@ -42,8 +42,8 @@ EM_JS(void, choose_file, (unsigned id, int purpose), {
         (async () => {
             let pointer = 0;
             try {
-                const extension = purpose === 4 ? '.json' : '.zip';
-                const [handle] = await window.showOpenFilePicker({multiple:false,types:[{description:'Phoenix content',accept:{'application/octet-stream':[extension]}}]});
+                const extension = purpose === 4 ? '.json' : '.zip,.dat';
+                const [handle] = await window.showOpenFilePicker({multiple:false,types:[{description:'Phoenix content',accept:{'application/octet-stream':extension.split(',')}}]});
                 const file = await handle.getFile();
                 if (file.size > 32*1024*1024) throw new Error('File exceeds 32 MiB');
                 const bytes = new Uint8Array(await file.arrayBuffer());
@@ -63,7 +63,7 @@ EM_JS(void, choose_file, (unsigned id, int purpose), {
     }
     const input = document.createElement('input'); input.type = 'file';
     input.hidden = true; document.body.appendChild(input);
-    input.accept = purpose === 9 ? '.png,.jpg,.jpeg' : purpose === 5 ? '.png' : (purpose === 4 || purpose === 6) ? '.json' : '.zip';
+    input.accept = purpose === 9 ? '.png,.jpg,.jpeg' : purpose === 5 ? '.png' : (purpose === 4 || purpose === 6) ? '.json' : '.zip,.dat';
     let finished = false;
     const failure = (error, cancelled = false) => {
         if (finished) return;
@@ -105,8 +105,8 @@ EM_JS(void, save_browser_file, (unsigned id, const char* filename, const unsigne
             let handle = !save_as && previous ? Module.phoenixFileHandles.get(previous) : null;
             if (!handle && previous && !save_as) throw new Error('The saved file is no longer available. Use Save as.');
             if (!handle && window.showSaveFilePicker && window.isSecureContext) {
-                const extension = suggested.endsWith('.zip') ? '.zip' : '.json';
-                handle = await window.showSaveFilePicker({suggestedName:suggested,types:[{description:'Phoenix content',accept:{'application/octet-stream':[extension]}}]});
+                const extension = suggested.endsWith('.dat') ? '.dat' : suggested.endsWith('.zip') ? '.zip' : '.json';
+                handle = await window.showSaveFilePicker({suggestedName:suggested,types:[{description:'Phoenix content',accept:{'application/octet-stream':extension.split(',')}}]});
                 Module.phoenixFileHandleSequence = (Module.phoenixFileHandleSequence || 0) + 1;
                 location = 'browser-file/' + Module.phoenixFileHandleSequence;
             }

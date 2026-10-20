@@ -33,6 +33,8 @@ class NetworkHost final : public SessionPort
 		bool ready = false, approved = false, connected = true, renew = false;
 		std::uint64_t seen = 0;
 		std::shared_ptr<StateSource> projection;
+		std::shared_ptr<PackSource> console_source;
+		std::string console, content_offer = random_token();
 		std::uint64_t projection_sequence = 0, projection_started = 0;
 		std::string projection_stream = random_token();
 	};
@@ -83,9 +85,35 @@ class NetworkHost final : public SessionPort
 	void advertise(const std::string &peer)
 	{
 		auto &client = clients_.at(peer);
-		auto *source = client.role == "gm" ? source_.get() : console_source_.get();
+		auto *source = client.role == "gm"     ? source_.get()
+		               : client.console_source ? client.console_source.get()
+		                                       : console_source_.get();
 		if (source && client.approved)
-			send(peer, "pack-offer", {{"offer", offer_}, {"content", source->offer()}});
+			send(peer, "pack-offer",
+			     {{"offer", client.content_offer}, {"content", source->offer()}, {"stream", client.projection_stream}});
+	}
+	bool prepare_console_source(const std::string &peer, const Observation &observation)
+	{
+		auto &client = clients_.at(peer);
+		std::vector<std::string> consoles{observation.console};
+		for (const auto &additional : observation.additional_consoles)
+			consoles.push_back(additional.console);
+		std::sort(consoles.begin(), consoles.end());
+		consoles.erase(std::unique(consoles.begin(), consoles.end()), consoles.end());
+		std::string identity = observation.own.definition;
+		for (const auto &console : consoles)
+			identity += "/" + console;
+		if (client.console == identity && client.console_source)
+			return false;
+		client.console = identity;
+		client.content_offer = random_token();
+		client.console_source = std::make_shared<PackSource>(std::vector<Pack>{console_assets(
+		    world_->catalog(), observation.own.definition, consoles,
+		    world_->catalog().maps.at(world_->setup().mission).value("loading_background", std::string{}))});
+		client.ready = false;
+		client.projection.reset();
+		advertise(peer);
+		return true;
 	}
 	void refresh_source()
 	{
@@ -94,12 +122,15 @@ class NetworkHost final : public SessionPort
 		if (!world_->content_packs().empty())
 			source_ = std::make_unique<PackSource>(world_->content_packs());
 		if (world_->running() && !world_->setup().gm_host)
-			console_source_ = std::make_unique<PackSource>(std::vector<Pack>{
-			    console_assets(world_->catalog(), world_->setup().ships.at(world_->setup().local_slot))});
+			console_source_ = std::make_unique<PackSource>(std::vector<Pack>{console_assets(
+			    world_->catalog(), world_->setup().ships.at(world_->setup().local_slot), "__selection__")});
 		offer_ = random_token();
 		for (auto &[id, client] : clients_)
 		{
 			client.ready = false;
+			client.console_source.reset();
+			client.console.clear();
+			client.content_offer = random_token();
 			advertise(id);
 		}
 	}
@@ -304,7 +335,9 @@ class NetworkHost final : public SessionPort
 		const auto &body = decoded->body;
 		if (decoded->type.starts_with("state-") && body.value("stream", std::string{}) != client.projection_stream)
 			return;
-		auto *source = client.role == "gm" ? source_.get() : console_source_.get();
+		auto *source = client.role == "gm"     ? source_.get()
+		               : client.console_source ? client.console_source.get()
+		                                       : console_source_.get();
 		if (decoded->type == "state-request" && client.ready && client.projection)
 		{
 			if (body.at("sequence") == client.projection->offer().at("sequence"))
@@ -317,10 +350,10 @@ class NetworkHost final : public SessionPort
 		}
 		else if (decoded->type == "offer-request")
 			advertise(sender);
-		else if (decoded->type == "pack-request" && source && body.at("offer") == offer_)
+		else if (decoded->type == "pack-request" && source && body.at("offer") == client.content_offer)
 		{
 			auto chunk = source->chunk(body);
-			chunk["offer"] = offer_;
+			chunk["offer"] = client.content_offer;
 			send(sender, "pack-chunk", chunk);
 		}
 		else if (decoded->type == "ready")
@@ -331,7 +364,7 @@ class NetworkHost final : public SessionPort
 				const auto offer = source->offer();
 				for (const auto &pack : offer.at("packs"))
 					identities.emplace_back(pack.at("id"), pack.at("hash"));
-				if (body.at("offer") == offer_ && body.at("packs") == Json(identities))
+				if (body.at("offer") == client.content_offer && body.at("packs") == Json(identities))
 					client.ready = true;
 			}
 		}
@@ -402,6 +435,11 @@ class NetworkHost final : public SessionPort
 		if (kind == "station-claim")
 		{
 			const std::string owner = value.at("owner");
+			if (accepted && owner != local && clients_.contains(owner))
+			{
+				if (const auto view = game_->observe(member_, owner))
+					prepare_console_source(owner, *view);
+			}
 			if (owner != local)
 				send(owner, "claim-result",
 				     accepted ? Json{{"ok", true}, {"lease", value.at("lease")}}
@@ -474,6 +512,9 @@ class NetworkHost final : public SessionPort
 				continue;
 			}
 			auto held = game_ ? game_->owned(member_, id) : nullptr;
+			const auto view = held && client.role == "client" ? game_->observe(member_, id) : std::nullopt;
+			if (view && prepare_console_source(id, *view))
+				continue;
 			Json seats = Json::array();
 			bool previous_owner = false;
 			if (game_)
@@ -490,7 +531,8 @@ class NetworkHost final : public SessionPort
 					                 {"available", seat.available},
 					                 {"replace", !lease->active && !lease->owner.empty() && lease->owner != id}});
 				}
-			Json state{{"started", running()},
+			Json state{{"content_offer", client.content_offer},
+			           {"started", running()},
 			           {"tick", ticks()},
 			           {"station", held             ? "occupied"
 			                       : previous_owner ? "disconnected"
@@ -502,7 +544,7 @@ class NetworkHost final : public SessionPort
 			if (running() && client.role == "client" && !client.renew)
 				state["public_board"] = network::public_board_json(world_->public_board());
 			if (running() && client.role == "client" && !client.renew && held)
-				if (auto view = game_->observe(member_, id))
+				if (view)
 				{
 					state["observation"] = network::observation_json(*view);
 					state["lease"] = held->token;
@@ -603,6 +645,10 @@ public:
 		want_local_ = false;
 		tick_due_ = false;
 		last_proposal_was_tick_ = true;
+	}
+	std::string loading_scenario() const override
+	{
+		return world_->setup().mission;
 	}
 	const Catalog &catalog() const override
 	{

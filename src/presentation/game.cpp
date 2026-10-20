@@ -1,5 +1,8 @@
 module;
 #include <raylib.h>
+#ifdef __EMSCRIPTEN__
+#include <GLES3/gl3.h>
+#endif
 #include "ship_camera.hpp"
 #include <rlgl.h>
 #include <cmath>
@@ -33,28 +36,80 @@ import phoenix.session.api;
 
 namespace phoenix
 {
+Image load_asset_image(std::span<const std::uint8_t> bytes)
+{
+	if (!compiled_image(bytes))
+		return LoadImageFromMemory(".png", bytes.data(), static_cast<int>(bytes.size()));
+	const auto decoded = decode_asset_image(bytes);
+	Image image{MemAlloc(static_cast<unsigned int>(decoded.rgba.size())), decoded.width, decoded.height, 1,
+	            PIXELFORMAT_UNCOMPRESSED_R8G8B8A8};
+	if (!image.data)
+		throw std::runtime_error("Image allocation failed");
+	std::copy(decoded.rgba.begin(), decoded.rgba.end(), static_cast<std::uint8_t *>(image.data));
+	return image;
+}
+namespace
+{
+std::map<std::string, std::weak_ptr<Texture2D>> shared_textures;
+std::map<std::string, Bytes> bundled_images;
+} // namespace
 TextureCache::~TextureCache()
 {
 	clear();
 }
 void TextureCache::clear()
 {
-	for (const auto &[id, texture] : textures_)
-		UnloadTexture(texture);
 	textures_.clear();
+	std::erase_if(shared_textures,
+	              [](const auto &entry)
+	              {
+		              return entry.second.expired();
+	              });
 }
-Texture2D TextureCache::load(const std::string &id, std::span<const std::uint8_t> png)
+Texture2D TextureCache::load(const std::string &id, std::span<const std::uint8_t> bytes)
 {
 	if (const auto found = textures_.find(id); found != textures_.end())
-		return found->second;
-	const auto image = LoadImageFromMemory(".png", png.data(), static_cast<int>(png.size()));
-	if (!image.data)
-		return {};
-	const auto texture = LoadTextureFromImage(image);
-	UnloadImage(image);
-	if (texture.id)
-		textures_.emplace(id, texture);
-	return texture;
+		return *found->second;
+	const auto hash = sha256(bytes);
+	auto texture = shared_textures[hash].lock();
+	if (!texture)
+	{
+		const auto image = load_asset_image(bytes);
+		if (!image.data)
+			throw std::runtime_error(id + ": image cannot decode");
+		int maximum = 0;
+#ifdef __EMSCRIPTEN__
+		glGetIntegerv(GL_MAX_TEXTURE_SIZE, &maximum);
+#else
+		using GetInteger = void (*)(unsigned, int *);
+		if (const auto get = reinterpret_cast<GetInteger>(rlGetProcAddress("glGetIntegerv")))
+			get(0x0D33, &maximum);
+#endif
+		if (maximum > 0 && (image.width > maximum || image.height > maximum))
+		{
+			UnloadImage(image);
+			throw std::runtime_error(id + ": image exceeds this graphics device's texture limit");
+		}
+		const auto uploaded = LoadTextureFromImage(image);
+		UnloadImage(image);
+		if (!uploaded.id)
+			throw std::runtime_error(id + ": texture upload failed");
+		texture = std::shared_ptr<Texture2D>(new Texture2D(uploaded),
+		                                     [](Texture2D *value)
+		                                     {
+			                                     UnloadTexture(*value);
+			                                     delete value;
+		                                     });
+		shared_textures[hash] = texture;
+	}
+	textures_[id] = texture;
+	return *texture;
+}
+Texture2D TextureCache::load_file(const std::string &path)
+{
+	if (!bundled_images.contains(path))
+		bundled_images[path] = read_file(path);
+	return load(path, bundled_images.at(path));
 }
 struct GameScreen::State
 {
@@ -88,6 +143,10 @@ struct GameScreen::State
 	bool was_running = false;
 	std::string previous_markup, previous_description, previous_network;
 	bool markup_ready = false;
+	bool preload_planned = false, preload_finished = false;
+	std::vector<std::string> preload_images, preload_definitions, preload_ui;
+	std::size_t preload_done = 0;
+	std::string preload_error;
 	~State()
 	{
 		close_resources();
@@ -113,6 +172,12 @@ struct GameScreen::State
 		presentation_identity = nullptr;
 		grid_definition.clear();
 		markup_ready = false;
+		preload_planned = preload_finished = false;
+		preload_ui.clear();
+		preload_images.clear();
+		preload_definitions.clear();
+		preload_done = 0;
+		preload_error.clear();
 	}
 	void bind_session(const Application &app)
 	{
@@ -449,10 +514,6 @@ struct GameScreen::State
 			const auto focus_body =
 			    observation ? std::optional(observation->own)
 			                : (app.can_host && app.session->networked() ? app.session->focus_body() : std::nullopt);
-			if (app.session->running() && !was_running)
-			{
-				close_resources();
-			}
 			was_running = app.session->running();
 			if (app.screen == Screen::client_lobby && observation)
 				app.screen = Screen::console;
@@ -652,7 +713,7 @@ struct GameScreen::State
 					camera_aspect = 1;
 					if (render.contains("sprite"))
 					{
-						const auto sprite = compile_sprite(render.at("sprite"), app.session->catalog(), "ship camera");
+						const auto sprite = scene.prepared_sprite(app.session->catalog(), definition);
 						const auto frames = [&](const auto &values)
 						{
 							for (const auto &frame : values)
@@ -775,7 +836,7 @@ struct GameScreen::State
 #else
 				const std::string path = std::string(GetApplicationDirectory()) + "assets/helm/viewscreen-frame.png";
 #endif
-				viewscreen_frame = LoadTexture(path.c_str());
+				viewscreen_frame = textures.load_file(path);
 			}
 			if (viewscreen_frame.id)
 			{
@@ -860,8 +921,6 @@ struct GameScreen::State
 	void close_resources()
 	{
 		textures.clear();
-		if (viewscreen_frame.id)
-			UnloadTexture(viewscreen_frame);
 		viewscreen_frame = {};
 		scene.clear();
 		if (invitation.id)
@@ -875,6 +934,124 @@ GameScreen::GameScreen() : state_(std::make_unique<State>())
 {
 }
 GameScreen::~GameScreen() = default;
+GameScreen::Loading GameScreen::preload(Application &app)
+{
+	auto &s = *state_;
+	s.bind_session(app);
+	if (!app.session)
+		return {};
+	if (const auto progress = app.session->content_progress())
+		return {true,
+		        static_cast<std::size_t>(progress->first),
+		        static_cast<std::size_t>(progress->second),
+		        "Receiving Console assets",
+		        {},
+		        {}};
+	const auto &catalog = app.session->catalog();
+	const auto mission = app.session->loading_scenario();
+	const bool eligible = catalog.presentation || (!mission.empty() && catalog.maps.contains(mission));
+	if (!eligible || s.preload_finished)
+		return {};
+	const auto title = mission.empty() ? localise("Console") : catalog.maps.at(mission).value("name", mission);
+	if (!s.preload_error.empty())
+		return {true,
+		        s.preload_done,
+		        s.preload_images.size() + s.preload_definitions.size() + s.preload_ui.size() + 1,
+		        "Loading failed",
+		        title,
+		        s.preload_error};
+	try
+	{
+		if (!s.preload_planned)
+		{
+			if (catalog.presentation)
+				for (const auto &[id, bytes] : catalog.assets)
+					s.preload_images.push_back(id);
+			else
+			{
+				s.preload_images = scenario_assets(catalog, mission);
+				for (const auto &id : scenario_definitions(catalog, mission))
+					if (catalog.entities.contains(id))
+						s.preload_definitions.push_back(id);
+			}
+#ifdef __EMSCRIPTEN__
+			const std::string ui_root = "/assets/helm/";
+#else
+			const std::string ui_root = std::string(GetApplicationDirectory()) + "assets/helm/";
+#endif
+			for (const auto *name : {"helm-background-9slice", "readout-panel", "heading-pointer", "helm-radar-ring",
+			                         "helm-throttle-track", "helm-throttle-handle"})
+				s.preload_ui.push_back(ui_root + name + ".png");
+			if (!catalog.presentation)
+				s.preload_ui.push_back(ui_root + "viewscreen-frame.png");
+			s.preload_planned = true;
+			return {true,
+			        0,
+			        s.preload_images.size() + s.preload_definitions.size() + s.preload_ui.size() + 1,
+			        "Preparing assets",
+			        title,
+			        {}};
+		}
+		const auto total = s.preload_images.size() + s.preload_definitions.size() + s.preload_ui.size() + 1;
+		// Yield to the platform after each bounded resource; GPU work stays on the graphics thread.
+		if (s.preload_done < s.preload_images.size())
+		{
+			const auto &id = s.preload_images.at(s.preload_done);
+			const auto &bytes = catalog.assets.at(id);
+			if (compiled_image(bytes) ||
+			    (bytes.size() >= 4 && bytes[0] == 137 && bytes[1] == 80 && bytes[2] == 78 && bytes[3] == 71))
+				s.textures.load(id, bytes);
+			++s.preload_done;
+		}
+		else if (s.preload_done < s.preload_images.size() + s.preload_definitions.size())
+		{
+			s.scene.preload(catalog, s.preload_definitions.at(s.preload_done - s.preload_images.size()));
+			++s.preload_done;
+		}
+		else if (s.preload_done < total - 1)
+		{
+			s.textures.load_file(
+			    s.preload_ui.at(s.preload_done - s.preload_images.size() - s.preload_definitions.size()));
+			++s.preload_done;
+		}
+		else if (s.preload_done == total - 1)
+		{
+			if (!catalog.presentation)
+			{
+				SceneEnvironment environment;
+				environment.own = BodyView{};
+#ifdef __EMSCRIPTEN__
+				constexpr bool web = true;
+#else
+				constexpr bool web = false;
+#endif
+				const auto &map = catalog.maps.at(mission);
+				environment.dust =
+				    compile_dust(map.value("presentation", Json::object()).value("dust", dust_defaults()), catalog, web,
+				                 "loading.dust");
+				environment.grid = compile_reference_grid(reference_grid_defaults(), "loading.grid");
+				s.scene.preload_environment(catalog, environment);
+			}
+			++s.preload_done;
+		}
+		else
+		{
+			s.preload_finished = true;
+			return {};
+		}
+		return {true, s.preload_done, total, "Preparing graphics", title, {}};
+	}
+	catch (const std::exception &error)
+	{
+		s.preload_error = error.what();
+		return {true,
+		        s.preload_done,
+		        s.preload_images.size() + s.preload_definitions.size() + s.preload_ui.size() + 1,
+		        "Loading failed",
+		        title,
+		        s.preload_error};
+	}
+}
 void GameScreen::prepare(Application &app, Rml::ElementDocument &document)
 {
 	state_->prepare(app, document);

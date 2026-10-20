@@ -285,6 +285,9 @@ class NetworkClient final : public SessionPort
 			if (token == offer_id_)
 				return;
 			offer_id_ = token;
+			projection_stream_ = body.value("stream", projection_stream_);
+			state_transfer_.reset();
+			observation_.reset();
 			offer_ = body.at("content");
 			transfer_.reset();
 			ready_sent_ = false;
@@ -310,6 +313,8 @@ class NetworkClient final : public SessionPort
 		}
 		else if (packet->type == "state")
 		{
+			if (body.value("content_offer", offer_id_) != offer_id_)
+				return;
 			if (!transfer_ || !transfer_->ready() || !profile_durable_)
 				return;
 			const auto tick = network::counter(body.at("tick"));
@@ -408,6 +413,14 @@ public:
 	void clear_packs() override
 	{
 		throw std::runtime_error("Leave this client connection through the launcher");
+	}
+	std::optional<std::pair<std::uint64_t, std::uint64_t>> content_progress() const override
+	{
+		if (!fatal_ && !offer_.is_null() && !transfer_)
+			return std::pair<std::uint64_t, std::uint64_t>{0, 0};
+		if (!fatal_ && transfer_ && !transfer_->ready())
+			return std::pair{transfer_->received_bytes(), transfer_->total_bytes()};
+		return {};
 	}
 	const Catalog &catalog() const override
 	{

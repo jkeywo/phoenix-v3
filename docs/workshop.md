@@ -1,5 +1,7 @@
 # Workshop foundation
 
+Use **File > Package…** to package a game pack or selected scenario directly as source ZIP or compiled DAT. See [packaging and loading assets](asset-loading.md) for dependencies, client Console bundles and loading backgrounds.
+
 Run `native.exe --workshop`, or launch `?type=workshop` from the browser build. The same C++ editor runs on both platforms. Native uses Windows file dialogs. Browsers with File System Access use open/save pickers and retain a file handle for saving in place during the editing session. Other browsers download a copy and explicitly report that limitation; they cannot overwrite a previously downloaded file. Browser saves never rely on temporary WASM filesystem writes.
 
 1. Workshop starts with an editable **Phoenix Base Game** (`phoenix-base`) pack. Use **Add map** above the map to add a scenario directly to this pack; **Editing pack** identifies the destination. Set its **Map name**, author the map, then **Save pack**. **File > New pack** starts a separate mod with the base game as a dependency. In **Definitions**, set the mod's unique pack ID and apply it. A draft can be incomplete; verification/save names missing or incompatible fields.

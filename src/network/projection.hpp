@@ -232,7 +232,11 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 		                               return entry.id == result.console;
 	                               });
 	if (seat == seats.end() || seat->controls != result.controls || seat->feeds != result.feeds)
-		throw std::runtime_error("Projected Console permissions disagree with verified content");
+		throw std::runtime_error(
+		    "Projected Console permissions disagree with verified content: " + result.console + " received " +
+		    std::to_string(result.controls) + "/" + std::to_string(result.feeds) +
+		    (seat == seats.end() ? " (Console absent)"
+		                         : " expected " + std::to_string(seat->controls) + "/" + std::to_string(seat->feeds)));
 	const auto &projected = value.at("systems");
 	if (!projected.is_array() || projected.size() != seat->feed_systems.size())
 		throw std::runtime_error("Projected System roster mismatch");
