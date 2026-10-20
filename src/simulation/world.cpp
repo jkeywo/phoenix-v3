@@ -1891,6 +1891,14 @@ void World::tick()
 				impl_->knowledge.ingest_telemetry(id, fit.id, impl_->telemetry(id, fit.ordinal), ticks());
 			}
 	impl_->run_advanced_equipment();
+	// Commands may change velocity this tick. Activate swept collision partners
+	// after propulsion, including their starting poses, before any integration.
+	impl_->stream_fields();
+	impl_->bodies.each(
+	    [&](const StableId &id, const Definition &, const Pose &pose, const Motion &)
+	    {
+		    impl_->step_starts.try_emplace(id.id, pose.position);
+	    });
 	impl_->integrate.run();
 	impl_->resolve_collisions.run();
 	impl_->index_contacts.run();

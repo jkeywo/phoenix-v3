@@ -55,16 +55,27 @@ void unload_rock(FieldRock &rock)
 }
 void stream_fields()
 {
-	std::int64_t spacing = 0, visual = 0, margin = 0;
+	std::int64_t spacing = 0, visual = 0, margin = 0, rock_extent = 0, rock_travel = 0;
 	for (const auto &r : regions)
 		if (r.asteroids)
 		{
 			spacing = r.asteroids->spacing;
 			visual = std::max(visual, r.asteroids->visual_distance);
 			margin = std::max(margin, r.asteroids->unload_margin);
+			for (const auto &type : r.asteroids->types)
+			{
+				const auto &shape = definitions.at(type.definition).collider;
+				rock_extent = std::max(rock_extent, shape.box ? shape.half_width + shape.half_length : shape.radius);
+			}
 		}
 	if (!spacing)
 		return;
+	for (const auto &[id, rock] : field_rocks)
+		if (!rock.decorative)
+		{
+			const auto velocity = rock.loaded ? entities.at(id).get<Motion>().velocity : rock.velocity;
+			rock_travel = std::max(rock_travel, (fixed::length(velocity) + rate - 1) / rate);
+		}
 	struct Focus
 	{
 		fixed::Vec position;
@@ -81,7 +92,7 @@ void stream_fields()
 						radius = std::max(radius, fit.radar ? fit.radar->range : fit.maximum);
 			const auto &d = definition(id).collider;
 			radius += fixed::length(entity.get<Motion>().velocity) / rate +
-			          (d.box ? d.half_width + d.half_length : d.radius) + spacing * 2;
+			          (d.box ? d.half_width + d.half_length : d.radius) + rock_extent + rock_travel + spacing * 2;
 			foci.push_back({entity.get<Pose>().position, radius});
 		}
 	std::set<std::pair<std::int64_t, std::int64_t>> cells;

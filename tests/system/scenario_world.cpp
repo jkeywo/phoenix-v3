@@ -236,6 +236,64 @@ void asteroid_streaming()
 	}
 	check(rejected, "invalid field entry accepted");
 }
+void field_collision_safety()
+{
+	auto data =
+	    parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "field collision fixture");
+	data["entities"][0]["systems"]["engine"] = {{"max_speed_mm_s", 4000000}, {"acceleration_mm_s2", 80000000}};
+	data["entities"][0]["systems"]["radar"]["range_mm"] = 1000;
+	data["entities"].push_back(
+	    {{"id", "test.rock"},
+	     {"render",
+	      {{"mode", "camera"},
+	       {"scale", 2},
+	       {"sprite",
+	        {{"albedo", "test-core:assets/pixel.png"},
+	         {"frames", Json::array({{{"name", "front"}, {"rect", {0, 0, 1, 1}}, {"pivot", {.5, .5}}}})}}}}},
+	     {"systems", Json::object()},
+	     {"collision", {{"shape", "circle"}, {"radius_mm", 1000}, {"mass_grams", 0}}}});
+	auto &map = data["maps"][0];
+	map["entities"] = Json::array();
+	map["ship_slots"][0]["x_mm"] = 0;
+	map["ship_slots"][0]["y_mm"] = 5000;
+	map["regions"] = Json::array({{{"id", "rock-cell"},
+	                               {"shape", "rectangle"},
+	                               {"x_mm", 105000},
+	                               {"y_mm", 5000},
+	                               {"half_width_mm", 1000},
+	                               {"half_height_mm", 1000},
+	                               {"asteroids",
+	                                {{"spacing_mm", 10000},
+	                                 {"jitter_mm", 0},
+	                                 {"density", 1},
+	                                 {"clustering_permille", 0},
+	                                 {"visual_distance_mm", 1000},
+	                                 {"types", Json::array({{{"definition", "test.rock"}}})}}}}});
+	auto catalog = load_fixture(data);
+	World world;
+	world.load(catalog, "test.map", {{"test.slot", "test.ship"}});
+	const auto ship = *world.ship_for_slot("test.slot");
+	check(world.inspect().size() == 1, "small distant rock should begin outside streaming window");
+	check(world.claim(99, ship) && world.submit(99, {ship, "speed_mm_s", 4000000}), "high-speed field request refused");
+	world.tick();
+	const auto bodies = world.inspect();
+	const auto own = std::find_if(bodies.begin(), bodies.end(),
+	                              [&](const auto &b)
+	                              {
+		                              return b.id == ship;
+	                              });
+	check(bodies.size() == 2 && own->x > 100000 && own->x < 105000 && own->vx < 4000000,
+	      "new propulsion velocity tunneled through unstreamed field rock");
+	for (bool box : {false, true})
+	{
+		data["entities"].back()["collision"] =
+		    box ? Json{{"shape", "box"}, {"half_width_mm", 110000}, {"half_length_mm", 1000}, {"mass_grams", 0}}
+		        : Json{{"shape", "circle"}, {"radius_mm", 110000}, {"mass_grams", 0}};
+		catalog = load_fixture(data);
+		world.load(catalog, "test.map", {{"test.slot", "test.ship"}});
+		check(world.inspect().size() == 2, "large field collider surface intersects ship but rock was not activated");
+	}
+}
 void competition_resolution()
 {
 	Json map = {{"regions",
@@ -711,6 +769,7 @@ int main(int argc, char **argv)
 		scenario_record_readers();
 		nebula_paths();
 		asteroid_streaming();
+		field_collision_safety();
 		competition_resolution();
 		delayed_competition();
 		spawned_equipment_continuation();
