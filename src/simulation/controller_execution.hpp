@@ -562,6 +562,8 @@ void run_console_controllers(flecs::entity entity)
 		auto &controller = controls.controllers[i];
 		if (controller.human)
 			continue;
+		if (controller.definition.policy == "combat")
+			run_combat_controller(entity, i);
 		if (controller.brain)
 		{
 			auto &brain = *controller.brain;

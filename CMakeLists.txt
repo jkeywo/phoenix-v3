@@ -252,6 +252,7 @@ add_library(
 	src/content/sprite.cpp
 	src/content/model.cpp
 	src/content/stations.cpp
+	src/content/combat.cpp
 	src/content/bridge.cpp
 	src/content/controllers.cpp
 	src/content/console_assets.cpp
@@ -359,6 +360,7 @@ foreach(
 		swept_collision
 		workshop_test
 		controller_runtime
+		combat
 )
 	add_executable(phoenix_${case}_tests tests/system/${case}.cpp)
 	target_link_libraries(
@@ -970,10 +972,7 @@ if(EMSCRIPTEN)
 	set_property(
 		TARGET phoenix_lobby_smoke
 		APPEND
-		PROPERTY
-			LINK_DEPENDS
-				"${CMAKE_CURRENT_BINARY_DIR}/base.zip"
-				"${CMAKE_CURRENT_SOURCE_DIR}/tests/manual/lobby_ui.html"
+		PROPERTY LINK_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/base.zip" "${CMAKE_CURRENT_SOURCE_DIR}/tests/manual/lobby_ui.html"
 	)
 endif()
 

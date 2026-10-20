@@ -570,7 +570,8 @@ void verify_prepared_catalog(const Catalog &catalog)
 					integer(system, "acceleration_mm_s2", field, 1);
 				}
 			}
-			else if (kind != "generator" && kind != "storage" && kind != "distribution" && kind != "coolant")
+			else if (kind != "generator" && kind != "storage" && kind != "distribution" && kind != "coolant" &&
+			         kind != "weapon" && kind != "turret" && kind != "magazine" && kind != "repair_team")
 				invalid(field, "unsupported System capability");
 		}
 		if (!catalog.presentation)
@@ -598,6 +599,7 @@ void verify_prepared_catalog(const Catalog &catalog)
 			invalid(path + ".controller", "unresolved state tree");
 		resolve_consoles(catalog, id);
 		verify_gameplay_fitting(catalog, id);
+		(void)compile_combat(catalog, id);
 		(void)compile_controllable_layout(catalog, id);
 		if (entity.contains("controllers"))
 		{
@@ -629,6 +631,8 @@ void verify_prepared_catalog(const Catalog &catalog)
 			if (!widget_ids.insert(widget_id).second)
 				invalid(path + "." + widget_id, "duplicate widget id");
 			auto kind = text(widget, "kind", path + "." + widget_id);
+			if (widget.contains("fire_arcs") && (kind != "radar" || !widget.at("fire_arcs").is_boolean()))
+				invalid(path + "." + widget_id, "fire_arcs requires a radar boolean");
 			if (widget.contains("sweep"))
 			{
 				const auto &sweep = widget.at("sweep");

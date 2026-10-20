@@ -10,6 +10,7 @@ Observation capture_console_observation(const ConsoleAddress &address) const
 	result.observed_tick = ecs.get<Clock>().tick;
 	result.controls = seat.controls;
 	result.feeds = seat.feeds;
+	project_combat(address, result);
 	result.engine_enabled = false;
 	result.radar_enabled = false;
 	for (const auto &id : seat.feed_systems)
@@ -73,6 +74,11 @@ Observation capture_console_observation(const ConsoleAddress &address) const
 			state.reach_profile = envelope.profile;
 			state.reach_uncertainty_mm = envelope.uncertainty;
 			state.reach_limited = envelope.limited;
+		}
+		if (instance && structurally_disabled(entity, id))
+		{
+			state.enabled = false;
+			state.status = "Disabled: compartment structure";
 		}
 		result.systems.push_back(std::move(state));
 	}

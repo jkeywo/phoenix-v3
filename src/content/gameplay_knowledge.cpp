@@ -149,7 +149,19 @@ bool knowledge_telemetry_source(const std::string &name)
 	                                             "cooling_allocation",
 	                                             "coolant_depletion_ticks",
 	                                             "actual_coolant_used",
-	                                             "coolant_stock"};
+	                                             "coolant_stock",
+	                                             "structural_disabled",
+	                                             "target",
+	                                             "ready",
+	                                             "heading_mdeg",
+	                                             "ammo",
+	                                             "capacity",
+	                                             "reload_progress",
+	                                             "reload_ticks",
+	                                             "shots",
+	                                             "team_location",
+	                                             "team_destination",
+	                                             "travel_remaining"};
 	return supported.contains(name);
 }
 GameplayKnowledgeMessageBinding knowledge_dynamic_binding(const Json &value, const std::string &path,
@@ -370,7 +382,8 @@ state_tree::Type system_observation_type(const std::string &name)
 	static const std::set<std::string> flags{"navigating",  "following",      "follow_stale",    "enabled",
 	                                         "assisted",    "boost",          "impulse",         "match_speed",
 	                                         "match_stale", "supply_limited", "thermal_stopped", "thermal_override",
-	                                         "overdrive",   "flow_cut",       "link_isolated"};
+	                                         "overdrive",   "flow_cut",       "link_isolated",   "structural_disabled",
+	                                         "ready"};
 	return flags.contains(name) ? state_tree::Type::Boolean : state_tree::Type::Integer;
 }
 GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)

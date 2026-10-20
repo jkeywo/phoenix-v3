@@ -389,6 +389,47 @@ struct ConsoleBridgeDefinition
 };
 BridgeDefinition compile_bridge(const Catalog &, const std::string &entity);
 ConsoleBridgeDefinition compile_console_bridge(const Json &, const std::string &path);
+// Combat definitions are compiled once. Runtime components never interpret JSON.
+struct CompartmentDefinition
+{
+	std::string id, deck;
+	std::int64_t x = 0, y = 0, half_width = 0, half_length = 0, maximum = 0, initial = 0, resistance = 0, recovery = 0;
+	std::int64_t deck_weight = 1;
+};
+struct CompartmentConnection
+{
+	std::size_t from = 0, to = 0;
+	std::int64_t ticks = 1;
+};
+struct ProjectileDefinition
+{
+	std::string visual;
+	std::int64_t speed = 0, lifetime = 0, penetration = 0, damage = 0, deposition = 0, spread = 0;
+};
+struct CombatSystemDefinition
+{
+	std::string id, compartment, magazine, turret, marker, visual;
+	OperatingSystem kind = OperatingSystem::Weapon;
+	std::int64_t x = 0, y = 0, bearing = 0, arc = 360000, traverse = 0, interval = 1, ammo_use = 1;
+	std::int64_t capacity = 0, initial = 0, refill_ticks = 1, refill_amount = 0, reload_energy = 0, repair_rate = 0,
+	             stack_penalty = 500;
+	std::string reload = "none";
+	std::int64_t scale_permille = 1000;
+	bool flip_y = false;
+	ProjectileDefinition projectile;
+};
+struct CombatDefinition
+{
+	std::vector<CompartmentDefinition> compartments;
+	std::vector<CompartmentConnection> connections;
+	std::vector<CombatSystemDefinition> systems;
+	std::map<std::string, std::size_t> compartment_ids, system_ids;
+	std::map<std::string, std::string> equipment_compartments;
+	std::string repair_console, explosion, explosion_sound;
+	std::int64_t growth_ticks = 10, fade_ticks = 20, explosion_size = 100000, collision_scale = 1,
+	             collision_threshold = 1000;
+};
+std::optional<CombatDefinition> compile_combat(const Catalog &, const std::string &entity);
 struct FittedSystemSpec
 {
 	std::string id;
@@ -435,6 +476,7 @@ struct ControllerCommandSpec
 struct ConsoleControllerSpec
 {
 	std::string id, console, tree;
+	std::string policy;
 	std::vector<ControllerCommandSpec> commands;
 };
 struct ConsoleComplexitySpec

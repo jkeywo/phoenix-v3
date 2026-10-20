@@ -55,7 +55,9 @@ enum class OperatingAction
 	FollowContact,
 	IntentInteger,
 	IntentBoolean,
-	Waypoint
+	Waypoint,
+	WeaponTarget,
+	RepairCompartment
 };
 enum class OperatingSystem
 {
@@ -68,7 +70,11 @@ enum class OperatingSystem
 	Coolant,
 	Lateral,
 	Boost,
-	Impulse
+	Impulse,
+	Weapon,
+	Turret,
+	Magazine,
+	RepairTeam
 };
 using SystemMask = std::uint32_t;
 constexpr SystemMask system_bit(OperatingSystem system)
@@ -145,7 +151,10 @@ inline constexpr std::array operating_actions{
     OperatingActionSpec{OperatingAction::IntentInteger, "intent_integer", OperatingSystem::Engine, false, 1000000000000,
                         -1000000000000},
     OperatingActionSpec{OperatingAction::IntentBoolean, "intent_boolean", OperatingSystem::Engine, true, 1},
-    OperatingActionSpec{OperatingAction::Waypoint, "waypoint", OperatingSystem::Engine, true, 1}};
+    OperatingActionSpec{OperatingAction::Waypoint, "waypoint", OperatingSystem::Engine, true, 1},
+    OperatingActionSpec{OperatingAction::WeaponTarget, "weapon_target", OperatingSystem::Weapon, false, 1000000000},
+    OperatingActionSpec{OperatingAction::RepairCompartment, "repair_compartment", OperatingSystem::RepairTeam, false,
+                        256}};
 constexpr const OperatingActionSpec *operating_action(std::string_view name)
 {
 	for (const auto &spec : operating_actions)
@@ -210,6 +219,14 @@ constexpr std::string_view operating_system_name(OperatingSystem system)
 		return "boost";
 	case OperatingSystem::Impulse:
 		return "impulse";
+	case OperatingSystem::Weapon:
+		return "weapon";
+	case OperatingSystem::Turret:
+		return "turret";
+	case OperatingSystem::Magazine:
+		return "magazine";
+	case OperatingSystem::RepairTeam:
+		return "repair_team";
 	}
 	return {};
 }
@@ -270,6 +287,13 @@ struct BodyView
 	RadarIcon radar_icon = RadarIcon::contact;
 	std::string radar_sprite;
 };
+struct SceneAttachment
+{
+	std::string id, definition, marker;
+	std::int64_t heading = 0;
+	float scale = 1;
+	bool flip_y = false;
+};
 // Viewscreen-only visual output. Deliberately absent from radar observations.
 struct SceneBody : BodyView
 {
@@ -278,6 +302,10 @@ struct SceneBody : BodyView
 	std::int64_t visual_height_mm = 0;
 	std::int64_t rotation_mdeg = 0, spin_mdeg_s = 0;
 	bool field_instance = false;
+	std::vector<SceneAttachment> attachments;
+	float visual_scale = 1, alpha = 1;
+	std::string sound;
+	std::uint64_t effect_tick = 0;
 };
 struct SensorReachInterval
 {

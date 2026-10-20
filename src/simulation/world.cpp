@@ -26,6 +26,7 @@ import phoenix.gameplay_scenario;
 #include "flight.hpp"
 #include "equipment.hpp"
 #include "controllers.hpp"
+#include "combat.hpp"
 #include "../core/display_projection.hpp"
 
 namespace phoenix::fixed
@@ -87,6 +88,7 @@ struct CompiledGameplay
 };
 struct CompiledDefinition
 {
+	std::optional<CombatDefinition> combat;
 	BridgeDefinition bridge;
 	std::map<std::string, ConsoleBridgeDefinition> console_bridge;
 	std::vector<std::string> tags;
@@ -192,6 +194,7 @@ struct World::Impl
 	bool explicit_stations = false;
 	std::vector<ControllerProposal> controller_pending;
 	std::vector<CollisionEntry> collisions;
+	std::map<std::string, float> visual_scales;
 	std::vector<ContactEntry> contact_rows;
 	std::vector<Bounds> collision_boxes, contact_boxes;
 	SpatialIndex collision_index, contact_index;
@@ -291,8 +294,11 @@ struct World::Impl
 				            auto motions = it.field<Motion>(2);
 				            auto shapes = it.field<const Collider>(3);
 				            for (auto row : it)
-					            collisions.push_back(
-					                {ids[row].id, &poses[row], &motions[row], {poses[row], motions[row], shapes[row]}});
+					            if (!combat_dead(it.entity(row)))
+						            collisions.push_back({ids[row].id,
+						                                  &poses[row],
+						                                  &motions[row],
+						                                  {poses[row], motions[row], shapes[row]}});
 			            }
 			            std::sort(collisions.begin(), collisions.end(),
 			                      [](const auto &a, const auto &b)
@@ -341,13 +347,17 @@ struct World::Impl
 				                             (a.time == b.time && std::pair{a.a, a.b} < std::pair{b.a, b.b});
 			                      });
 			            for (const auto &pair : swept)
+			            {
+				            const auto before_a = collisions[pair.a].body, before_b = collisions[pair.b].body;
 				            if (sweep_collide(collisions[pair.a].body, collisions[pair.b].body,
 				                              step_starts.at(collisions[pair.a].id),
 				                              step_starts.at(collisions[pair.b].id)))
 				            {
+					            collision_damage(collisions[pair.a].id, collisions[pair.b].id, before_a, before_b);
 					            cancel_ship_impulse(collisions[pair.a].id);
 					            cancel_ship_impulse(collisions[pair.b].id);
 				            }
+			            }
 			            for (std::size_t i = 0; i < collisions.size(); ++i)
 				            collision_boxes[i] = collision_bounds(collisions[i].body);
 			            collision_index.rebuild(collision_boxes);
@@ -363,6 +373,7 @@ struct World::Impl
 						            auto b = collision_index.first(collision_bounds(collisions[a].body), begin);
 						            if (b == SpatialIndex::none)
 							            break;
+						            const auto impact_a = collisions[a].body, impact_b = collisions[b].body;
 						            const auto before_a = collisions[a].body.position,
 						                       before_b = collisions[b].body.position;
 						            collide(collisions[a].body, collisions[b].body);
@@ -371,6 +382,7 @@ struct World::Impl
 						                before_b.x != collisions[b].body.position.x ||
 						                before_b.y != collisions[b].body.position.y)
 						            {
+							            collision_damage(collisions[a].id, collisions[b].id, impact_a, impact_b);
 							            cancel_ship_impulse(collisions[a].id);
 							            cancel_ship_impulse(collisions[b].id);
 						            }
@@ -400,6 +412,8 @@ struct World::Impl
 				                         auto poses = it.field<const Pose>(1);
 				                         for (auto row : it)
 				                         {
+					                         if (combat_dead(it.entity(row)))
+						                         continue;
 					                         contact_rows.push_back({ids[row].id, it.entity(row), poses[row].position});
 					                         contact_boxes.push_back(Bounds::around(poses[row].position, 0));
 				                         }
@@ -427,6 +441,8 @@ struct World::Impl
 		for (const auto &[name, definition] : content.entities)
 		{
 			CompiledDefinition result;
+			result.combat = compile_combat(content, name);
+			visual_scales[name] = definition.at("render").at("scale");
 			result.bridge = compile_bridge(content, name);
 			for (const auto &console : resolve_consoles(content, name))
 				if (!console.definition.empty())
@@ -668,6 +684,15 @@ struct World::Impl
 				}
 			}
 		} construction{entity};
+		if (data.combat)
+		{
+			CombatStructure structure;
+			structure.definition = *data.combat;
+			structure.random = id * 7919 + 1;
+			for (const auto &c : data.combat->compartments)
+				structure.compartments.push_back({c.initial, 0, c.initial == 0});
+			entity.set<CombatStructure>(std::move(structure));
+		}
 		if (data.collider.mass)
 			entity.add<Movable>();
 		if (data.fitted)
@@ -686,6 +711,16 @@ struct World::Impl
 			auto child =
 			    ecs.entity().child_of(entity).set<Equipment>({v.id, v.kind, i, v.maximum, v.advanced, v.enabled});
 			index.values.push_back(child);
+			if (data.combat && data.combat->system_ids.contains(v.id))
+			{
+				CombatMechanism mechanism;
+				mechanism.definition = data.combat->systems.at(data.combat->system_ids.at(v.id));
+				mechanism.ammo = mechanism.definition.initial;
+				mechanism.heading = mechanism.definition.bearing;
+				mechanism.location =
+				    static_cast<std::int64_t>(data.combat->compartment_ids.at(mechanism.definition.compartment));
+				child.set<CombatMechanism>(std::move(mechanism));
+			}
 			if (v.engine)
 				child.set<Engine>(*v.engine);
 			if (v.steering)
@@ -893,6 +928,9 @@ struct World::Impl
 	}
 	bool operate(flecs::entity entity, const std::string &name, OperatingRequest output, bool execute)
 	{
+		if (entity.has<CombatStructure>())
+			if (auto target = instance(entity, name); target && target->entity.has<CombatMechanism>())
+				return operate_combat(entity, target->entity, output, execute);
 		auto fitted = fittings(entity);
 		auto systems = gameplay_systems(entity);
 		if (!fitted)
@@ -1054,7 +1092,8 @@ struct World::Impl
 	{
 		const auto entity = entities.at(ship);
 		const auto sensor = instance(entity, name);
-		if (!sensor || !sensor->radar || !sensor->enabled || !sensor->radar->enabled)
+		if (!sensor || !sensor->radar || !sensor->enabled || !sensor->radar->enabled ||
+		    structurally_disabled(entity, name))
 			return 0;
 		auto range = sensor->radar->range;
 		if (auto systems = gameplay_systems(entity); systems && systems->power)
@@ -1211,6 +1250,7 @@ struct World::Impl
 				}
 			}
 		}
+		combat_telemetry(entity, fitted.entity, values);
 		return values;
 	}
 #include "console_observations.hpp"
@@ -1244,13 +1284,15 @@ struct World::Impl
 	void run_basic_steering()
 	{
 		for (auto child : ordered_equipment(steering_query))
-			if (auto ship = child.parent(); ship.has<Movable>())
+			if (auto ship = child.parent();
+			    ship.has<Movable>() && !structurally_disabled(ship, child.get<Equipment>().id))
 				step_basic_steering(ship.get_mut<Pose>(), child.get_mut<Steering>());
 	}
 	void run_basic_engines()
 	{
 		for (auto child : ordered_equipment(engine_query))
-			if (auto ship = child.parent(); ship.has<Movable>())
+			if (auto ship = child.parent();
+			    ship.has<Movable>() && !structurally_disabled(ship, child.get<Equipment>().id))
 				step_basic_engine(ship.get<Pose>(), ship.get_mut<Motion>(), child.get_mut<Engine>());
 	}
 	struct FlightRestrictions
@@ -1313,6 +1355,8 @@ struct World::Impl
 			observe_flight(flight.definition, flight.state, tick, observed);
 			guide_follow(flight.definition, flight.state, pose, motion, observed);
 			auto requested = flight.state;
+			if (structurally_disabled(ship, child.get<Equipment>().id))
+				requested.enabled = false;
 			if (restrictions.impulse)
 				requested.boost = false;
 			flight.demand = flight_demand(flight.definition, requested, pose, motion);
@@ -1337,8 +1381,9 @@ struct World::Impl
 		{
 			const auto &fit = child.get<Equipment>();
 			const auto radar = child.try_get<Radar>();
-			request_system_resource(ship.get_mut<ShipResources>(), child.get<ResourceBinding>().slot,
-			                        fit.enabled && (!radar || radar->enabled) ? 1000 : 0);
+			request_system_resource(
+			    ship.get_mut<ShipResources>(), child.get<ResourceBinding>().slot,
+			    fit.enabled && !structurally_disabled(ship, fit.id) && (!radar || radar->enabled) ? 1000 : 0);
 		}
 	}
 	void prepare_paid_modifiers(flecs::entity ship, FlightRestrictions restrictions)
@@ -1425,6 +1470,8 @@ struct World::Impl
 			definition.acceleration = definition.acceleration * acceleration / 1000;
 			definition.turn_rate = definition.turn_rate * turn / 1000;
 			auto state = flight.state;
+			if (structurally_disabled(ship, target.get<Equipment>().id))
+				state.enabled = false;
 			state.steering_limit_permille = restrictions.steering_limit;
 			if (restrictions.impulse)
 				state.boost = false;
@@ -1462,6 +1509,10 @@ struct World::Impl
 		}
 		if (restrictions.impulse && flight.definition.kind == FlightKind::Boost)
 			paid = 0;
+		const bool structural_stop = structurally_disabled(ship, child.get<Equipment>().id);
+		const bool accepted_enabled = flight.state.enabled;
+		if (structural_stop)
+			flight.state.enabled = false;
 		const bool requested_boost = flight.state.boost;
 		if (restrictions.impulse)
 			flight.state.boost = false;
@@ -1480,6 +1531,7 @@ struct World::Impl
 				remainder %= rate;
 			}
 		}
+		flight.state.enabled = accepted_enabled;
 		flight.state.boost = requested_boost;
 		if (auto engine = child.try_get_mut<Engine>())
 		{
@@ -1507,6 +1559,8 @@ struct World::Impl
 			knowledge.ingest_telemetry(id, fit.id, telemetry(id, fit.ordinal), ecs.get<Clock>().tick);
 		}
 	}
+
+#include "combat_execution.hpp"
 	void run_advanced_equipment()
 	{
 		std::vector<std::pair<EntityId, flecs::entity>> ships;
@@ -1523,10 +1577,13 @@ struct World::Impl
 		for (const auto &[id, ship] : ships)
 		{
 			const auto restrictions = flight_restrictions(id);
+			prepare_combat(ship);
 			request_flight_resources(ship, restrictions);
+			request_combat_resources(ship);
 			prepare_paid_modifiers(ship, restrictions);
 			if (auto power = ship.try_get_mut<ShipResources>())
 				tick_ship_resources(*power);
+			actuate_combat(ship);
 			run_equipment_actuation(id, restrictions);
 		}
 	}
@@ -1864,6 +1921,7 @@ void World::load(const Catalog &source, const std::string &map, const std::map<s
 	candidate->map = map;
 	candidate->ships = ships;
 	const auto &data = content.maps.at(map);
+	candidate->combat_duel = data.value("combat_duel", false);
 	std::vector<std::string> entity_names;
 	for (const auto &[name, definition] : content.entities)
 		entity_names.push_back(name);
@@ -2122,6 +2180,7 @@ void World::tick()
 	for (const auto &[id, entity] : impl_->entities)
 		if (entity.has<EntityControls>())
 			impl_->run_console_controllers(entity);
+	impl_->apply_structural_disablement();
 	impl_->run_basic_steering();
 	impl_->run_basic_engines();
 	for (const auto &[id, entity] : impl_->entities)
@@ -2142,6 +2201,8 @@ void World::tick()
 	    });
 	impl_->integrate.run();
 	impl_->resolve_collisions.run();
+	impl_->step_projectiles();
+	impl_->step_repairs();
 	impl_->index_contacts.run();
 	impl_->waypoint_arrivals();
 	if (impl_->scenario)
@@ -2210,7 +2271,57 @@ std::vector<SceneBody> World::scene() const
 				if (system.flight)
 					item.forward_thrust =
 					    std::max(item.forward_thrust, std::max(0, system.flight->state.actual_longitudinal));
+		const auto entity = impl_->entities.at(body.id);
+		if (const auto *structure = entity.try_get<CombatStructure>())
+		{
+			if (structure->destroyed_tick >= 0)
+			{
+				const auto age = static_cast<std::int64_t>(ticks()) - structure->destroyed_tick;
+				const auto &d = structure->definition;
+				if (age < d.growth_ticks + d.fade_ticks)
+				{
+					SceneBody burst = item;
+					burst.id = 8000000000000000ULL + body.id;
+					burst.definition = d.explosion;
+					burst.forward_thrust = 0;
+					burst.sprite_entry = 0;
+					burst.visual_scale = static_cast<float>(d.explosion_size) / 1000.f /
+					                     std::max(0.001f, impl_->visual_scales.at(d.explosion)) *
+					                     std::min(1.f, std::max(.01f, static_cast<float>(age) / d.growth_ticks));
+					burst.alpha = age < d.growth_ticks
+					                  ? 1.f
+					                  : std::max(0.f, 1.f - static_cast<float>(age - d.growth_ticks) / d.fade_ticks);
+					burst.sound = d.explosion_sound;
+					burst.effect_tick = static_cast<std::uint64_t>(structure->destroyed_tick);
+					result.push_back(burst);
+				}
+				if (age >= d.growth_ticks)
+					continue;
+				item.forward_thrust = 0;
+			}
+			else
+				for (auto child : entity.get<EquipmentIndex>().values)
+					if (const auto *m = child.try_get<CombatMechanism>();
+					    m && m->definition.kind == OperatingSystem::Turret)
+					{
+						const auto &d = m->definition;
+						item.attachments.push_back({d.id, d.visual, d.marker, combat_angle(body.heading + m->heading),
+						                            d.scale_permille / 1000.f, d.flip_y});
+					}
+		}
 		result.push_back(std::move(item));
+	}
+	for (const auto &p : impl_->projectiles)
+	{
+		SceneBody shot;
+		shot.id = 7000000000000000ULL + p.id;
+		shot.definition = p.definition.visual;
+		shot.x = p.position.x;
+		shot.y = p.position.y;
+		shot.vx = p.velocity.x;
+		shot.vy = p.velocity.y;
+		shot.heading = p.heading;
+		result.push_back(shot);
 	}
 	for (const auto &[id, rock] : impl_->field_rocks)
 		if (rock.loaded && rock.decorative)
@@ -2327,6 +2438,7 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	result.gameplay["alert"] = impl_->alert_board(address.ship);
 	result.gameplay["navigation"] = impl_->navigation_board(address.ship);
 	result.gameplay["stance"] = impl_->stance_board(address);
+	impl_->project_combat(address, result);
 	if (entity.has<EntityControls>())
 		result.gameplay["controllers"] = impl_->project_controllers(address);
 
@@ -2372,6 +2484,37 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 					                       : channel.maximum - channel.minimum;
 					const auto step = std::max<std::int64_t>(1, scale / 20);
 					std::set<std::int64_t> values;
+					if (channel.action == OperatingAction::WeaponTarget ||
+					    channel.action == OperatingAction::RepairCompartment)
+					{
+						std::set<std::int64_t> choices{0};
+						if (channel.action == OperatingAction::WeaponTarget)
+							for (const auto &contact : result.contacts)
+								choices.insert(static_cast<std::int64_t>(contact.id));
+						else if (const auto *structure = entity.try_get<CombatStructure>())
+							for (std::size_t c = 0; c < structure->compartments.size(); ++c)
+								choices.insert(static_cast<std::int64_t>(c + 1));
+						for (const auto choice : choices)
+						{
+							OperatingCommand command{address.ship,
+							                         std::string(operating_action(channel.action).name),
+							                         choice,
+							                         {},
+							                         controller.definition.id,
+							                         channel.id,
+							                         controller.generation};
+							auto descriptor = encode_operating_command(command);
+							descriptor["id"] =
+							    "combat." + controller.definition.id + "." + channel.id + "." + std::to_string(choice);
+							descriptor["label"] =
+							    choice ? controller.definition.id : "Cancel " + controller.definition.id;
+							descriptor["combat_choice"] =
+							    channel.action == OperatingAction::WeaponTarget ? "weapon" : "repair";
+							buttons.push_back(std::move(descriptor));
+						}
+						continue;
+					}
+
 					if (!channel.choices.empty())
 						for (const auto &[value, label] : channel.choices)
 							values.insert(value);
@@ -2731,6 +2874,8 @@ Json World::save() const
 			if (systems->power)
 				result["bodies"].back()["resources"] = save_ship_resources(*systems->power);
 		}
+		if (entity.has<CombatStructure>())
+			result["bodies"].back()["combat"] = impl_->save_combat(entity);
 		if (entity.has<EntityControls>())
 			result["bodies"].back()["console_controllers"] = impl_->save_controllers(entity);
 		if (const auto *bridge = entity.try_get<BridgeBlackboard>())
@@ -2750,6 +2895,8 @@ Json World::save() const
 		if (impl_->scenario)
 			result["scenario"] = impl_->scenario->save();
 	}
+	result["projectiles"] = impl_->save_projectiles();
+	result["next_projectile"] = impl_->next_projectile;
 	return result;
 }
 void World::restore(const Catalog &content, const Json &saved)
@@ -2803,6 +2950,8 @@ void World::restore(const Catalog &content, const Json &saved)
 		if (!seen.insert(restored.id).second || !candidate.impl_->entities.contains(restored.id))
 			throw std::runtime_error("Saved state duplicate/unknown entity");
 		auto entity = candidate.impl_->entities.at(restored.id);
+		if (entity.has<CombatStructure>())
+			candidate.impl_->restore_combat(entity, value.at("combat"));
 		if (value.contains("bridge"))
 			candidate.impl_->restore_bridge(restored.id, value.at("bridge"));
 		if (entity.has<EntityControls>())
@@ -2959,6 +3108,7 @@ void World::restore(const Catalog &content, const Json &saved)
 	else
 		candidate.impl_->stream_fields();
 	candidate.impl_->index_contacts.run();
+	candidate.impl_->restore_projectiles(saved);
 	impl_ = std::move(candidate.impl_);
 }
 } // namespace phoenix

@@ -39,6 +39,10 @@ bool accepts(const FittedSystemSpec &fit, const Json &spec, OperatingAction acti
 	                    kind == OperatingSystem::Impulse;
 	switch (action)
 	{
+	case OperatingAction::WeaponTarget:
+		return kind == OperatingSystem::Weapon;
+	case OperatingAction::RepairCompartment:
+		return kind == OperatingSystem::RepairTeam;
 	case OperatingAction::IntentInteger:
 	case OperatingAction::IntentBoolean:
 	case OperatingAction::Waypoint:
@@ -96,6 +100,16 @@ CommandBounds fitted_commands(const FittedSystemSpec &fit, Json spec, const Ship
 		result[action] = {contract.minimum, contract.maximum};
 	};
 	const auto kind = fit.kind;
+	if (kind == OperatingSystem::Weapon || kind == OperatingSystem::Turret || kind == OperatingSystem::Magazine ||
+	    kind == OperatingSystem::RepairTeam)
+	{
+		add(OperatingAction::SystemEnabled);
+		if (kind == OperatingSystem::Weapon)
+			add(OperatingAction::WeaponTarget);
+		if (kind == OperatingSystem::RepairTeam)
+			add(OperatingAction::RepairCompartment);
+		return result;
+	}
 	if (!advanced)
 	{
 		if (kind == OperatingSystem::Engine)
@@ -292,6 +306,10 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 		ConsoleControllerSpec controller;
 		controller.id = control_name(row, "id", path);
 		controller.console = control_name(row, "console", path);
+		controller.policy = row.value("policy", std::string{});
+		control_require(controller.policy.empty() || controller.policy == "combat", path,
+		                "unsupported Controller policy");
+		control_require(controller.policy.empty() || !row.contains("tree"), path, "choose tree or policy");
 		const auto where = path + "." + controller.console + "." + controller.id;
 		control_require(console_ids.contains(controller.console), where, "unknown Console");
 		control_require(
