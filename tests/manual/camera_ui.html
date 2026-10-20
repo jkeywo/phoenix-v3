@@ -30,7 +30,9 @@
 			var Module = {
 				arguments: [
 					"/assets",
-					...["portrait", "courier", "skybox"].filter((flag) => new URLSearchParams(location.search).has(flag)),
+					...["portrait", "courier", "skybox"].filter((flag) =>
+						new URLSearchParams(location.search).has(flag),
+					),
 				],
 				canvas: document.getElementById("canvas"),
 				print(text) {

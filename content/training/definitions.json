@@ -1301,7 +1301,7 @@
 			}
 		},
 		{
-			"presentation": {"skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png"},
+			"presentation": { "skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png" },
 			"id": "training.nebula-belt",
 			"name": "Nebula and asteroid field",
 			"entities": [
