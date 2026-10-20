@@ -206,7 +206,13 @@ int main(int argc, char **argv)
 			}
 			require(complete, "Real network accepts matching launch roots and refuses foreign IDs/revisions");
 		}
-		host->add_pack(write_pack(pack));
+		auto mixed_defs = defs;
+		mixed_defs["consoles"].push_back({{"id", "test.spare"}, {"name", "Spare station"}, {"widgets", Json::array()}});
+		mixed_defs["entities"][0]["stations"][0]["consoles"].push_back(
+		    {{"id", "spare"}, {"definition", "test.spare"}, {"systems", Json::array()}});
+		auto mixed_pack = pack;
+		mixed_pack.files["definitions.json"] = json_bytes(mixed_defs);
+		host->add_pack(write_pack(mixed_pack));
 		host->prepare_lobby({"test.map", {{"test.slot", "test.ship"}}, "test.slot"});
 		std::vector<std::shared_ptr<SessionPort>> nodes{host};
 		auto join = [&](const std::string &id, JoinRole role)
@@ -305,6 +311,45 @@ int main(int argc, char **argv)
 			    for (const auto &m : gm->lobby().members)
 				    if (m.local_screen == 3)
 					    return m.name == "Local navigator" && !m.avatar.empty();
+			    return false;
+		    });
+		pump(
+		    [&]
+		    {
+			    const auto controls = crew->lobby_controls();
+			    return std::any_of(controls.begin(), controls.end(),
+			                       [](const auto &control)
+			                       {
+				                       return control.first == "lobby.seat/test.slot/spare";
+			                       });
+		    });
+		require(crew->session_action("lobby.seat/test.slot/spare"),
+		        "Remote crew can select a free console beside a native display reservation");
+		pump(
+		    [&]
+		    {
+			    for (const auto &seat : host->lobby().consoles)
+				    if (seat.slot == "test.slot" && seat.id == "spare")
+					    return seat.member == "crew";
+			    return false;
+		    });
+		require(crew->session_action("lobby.profile/test.slot/spare/automatic"),
+		        "Remote crew can choose complexity before readying");
+		pump(
+		    [&]
+		    {
+			    for (const auto &seat : host->lobby().consoles)
+				    if (seat.slot == "test.slot" && seat.id == "spare")
+					    return seat.profile == "automatic";
+			    return false;
+		    });
+		require(crew->session_action("lobby.seat/test.slot/"), "Remote crew can return to console selection");
+		pump(
+		    [&]
+		    {
+			    for (const auto &member : host->lobby().members)
+				    if (member.id == "crew")
+					    return member.console.empty();
 			    return false;
 		    });
 		require(ship->lobby_command({LobbyAction::claim_ship, "", "second", "test.ship"}),

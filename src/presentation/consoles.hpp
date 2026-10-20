@@ -677,6 +677,8 @@ button.on-screen-active .share-live {display:block;}
 			signature_.clear();
 			return true;
 		}
+		if (action.starts_with("complexity/"))
+			return select_lobby_complexity(action.substr(11));
 		if (action == "ready")
 		{
 			const auto lobby = app_->session->lobby();
@@ -1774,12 +1776,20 @@ button.on-screen-active .share-live {display:block;}
 			document_->GetElementById("toolbar")->SetProperty("display", pregame ? "none" : "block");
 			std::string lobby;
 			if (pregame)
+			{
 				lobby = "<div class=\"ready-card\"><h1 id=\"" + id("lobby-title") + "\">" +
 				        Rml::StringUtilities::EncodeRml(localise(title)) + "</h1><p>" +
 				        Rml::StringUtilities::EncodeRml(localise(description)) + "</p><p>" +
 				        Rml::StringUtilities::EncodeRml(
 				            localise(ready ? "Ready. Waiting for the crew." : "Check your Console, then ready up.")) +
-				        "</p>" + button("ready", ready ? "Not Ready" : "Ready") + "<p id=\"countdown\"/></div>";
+				        "</p>";
+				if (!complexity_choices.empty())
+					lobby += "<p>" + localise("Complexity") + ": " +
+					         Rml::StringUtilities::EncodeRml(localise(complexity)) + "</p>";
+				for (const auto &choice : complexity_choices)
+					lobby += button("complexity/" + choice, choice + (choice == complexity ? " (selected)" : ""));
+				lobby += button("ready", ready ? "Not Ready" : "Ready") + "<p id=\"countdown\"/></div>";
+			}
 			if (pregame)
 			{
 				lobby += button("settings", "Settings");

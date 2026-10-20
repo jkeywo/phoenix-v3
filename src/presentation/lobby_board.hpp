@@ -45,6 +45,56 @@ std::string lobby_board(Application &app, Add &add, Heading &heading, Paragraph 
 		    },
 		    selected);
 	};
+	// A crew client chooses from the authoritative roster, then sees only its station.
+	if (app.screen == Screen::client_lobby && (own == lobby.members.end() || own->role == JoinRole::player))
+	{
+		std::string html = "<div id=\"lobby-board\" class=\"lobby-board lobby-player-board\"><div id=\"lobby-player\">";
+		html += heading(own != lobby.members.end() && !own->console.empty() ? "Your console" : "Choose a console");
+		if (own == lobby.members.end() || !own->approved)
+			html += paragraph("Connecting to the ship lobby...");
+		else
+			for (const auto &seat : lobby.consoles)
+			{
+				const bool selected = seat.member == lobby.self;
+				if (!own->console.empty() && !selected)
+					continue;
+				html += "<div class=\"lobby-player-card\">" + heading(seat.name) + paragraph(seat.description);
+				if (selected)
+				{
+					html += paragraph("Complexity") + "<div class=\"lobby-profile-choices\">";
+					for (const auto &profile : seat.profiles)
+					{
+						const auto id = "lobby.profile/" + seat.slot + "/" + seat.id + "/" + profile;
+						if (allowed(id))
+							html += act(id, profile, profile == seat.profile);
+					}
+					html += "</div>" + paragraph(seat.ready ? "Ready. Waiting for the crew."
+					                                        : "Check your Console, then ready up.");
+					if (allowed(own->ready ? "lobby.unready" : "lobby.ready"))
+						html += act(own->ready ? "lobby.unready" : "lobby.ready", own->ready ? "Not Ready" : "Ready");
+					html += act("lobby.seat/" + seat.slot + "/", "Change console");
+				}
+				else if (seat.member.empty())
+					html += act("lobby.seat/" + seat.slot + "/" + seat.id, "Choose this console");
+				else
+					html += paragraph("Claimed");
+				html += "</div>";
+			}
+		html += "</div><div class=\"lobby-footer\"><p id=\"lobby-countdown\"></p><div>";
+		html += control("menu.settings", "Settings",
+		                [&]
+		                {
+			                app.settings_return = app.screen;
+			                app.screen = Screen::settings;
+		                });
+		html += control("menu.leave", "Leave Game",
+		                [&]
+		                {
+			                app.session->lobby_command({LobbyAction::leave});
+			                app.return_home();
+		                });
+		return html + "</div></div></div>";
+	}
 	if (std::none_of(lobby.slots.begin(), lobby.slots.end(),
 	                 [&](const auto &slot)
 	                 {
@@ -86,7 +136,7 @@ std::string lobby_board(Application &app, Add &add, Heading &heading, Paragraph 
 		qr_button.replace(label_at, qr_button.find("</span>", label_at) + 7 - label_at,
 		                  "<div id=\"menu-join-qr\"></div>");
 		qr_button.insert(qr_button.find("lobby-action") + 12, " lobby-qr");
-		html += "<div class=\"lobby-code\">" + qr_button + "<div>" +
+		html += "<div id=\"lobby-code\" class=\"lobby-code\">" + qr_button + "<div>" +
 		        readout("menu.join-code", "Join Code: " + lobby.code) +
 		        control("menu.copy-code", "Copy Join Code",
 		                [&]
@@ -343,7 +393,7 @@ void layout_lobby(const Application &app, Rml::ElementDocument &document, const 
 	const bool visible = document.GetElementById("lobby-board") != nullptr;
 	if (auto *title = document.GetElementById("menu-title"))
 		title->SetProperty("display", visible ? "none" : "block");
-	if (!visible)
+	if (!visible || document.GetElementById("lobby-player"))
 		return;
 	const float sidebar = std::clamp(region.width * .23f, 205.f, 290.f);
 	const float gap = 12, height = std::max(1.f, region.height - 210);
@@ -369,9 +419,16 @@ void layout_lobby(const Application &app, Rml::ElementDocument &document, const 
 		box(cards[i], (i % columns) * (card_width + gap), (i / columns) * (card_height + gap), card_width, card_height);
 	}
 	document.GetElementById("lobby-gm")->SetClass("lobby-compact", sidebar < 240);
-	box(document.GetElementById("lobby-sidebar"), region.width - sidebar - 24, 126, sidebar, height);
-	const float gm_height = std::min(190.f, height * .4f);
-	const float remainder = height - gm_height - 2 * gap;
+	const float sidebar_top = document.GetElementById("lobby-code") ? sidebar + 112 : 126;
+	if (auto *code = document.GetElementById("lobby-code"))
+		box(code, region.width - sidebar - 24, 20, sidebar, sidebar + 80);
+	if (auto *qr = document.GetElementById("menu.open-qr"))
+		qr->SetProperty("height", std::to_string(sidebar) + "px");
+	const float sidebar_height = std::max(410.f, region.height - sidebar_top - 84);
+	box(document.GetElementById("lobby-sidebar"), region.width - sidebar - 24, sidebar_top, sidebar,
+	    std::max(1.f, region.height - sidebar_top - 84));
+	const float gm_height = 190.f;
+	const float remainder = sidebar_height - gm_height - 2 * gap;
 	const auto lobby = app.session->lobby();
 	const auto ships = std::count_if(lobby.slots.begin(), lobby.slots.end(),
 	                                 [&](const auto &slot)

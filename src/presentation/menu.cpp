@@ -1372,13 +1372,21 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
     #native-menu .lobby-heading { position:absolute; left:28px; top:22px; width:46%; }
     #native-menu .lobby-heading h2 { color:#fff0d4; font-family:UnifrakturCook; font-weight:bold; font-size:40px; line-height:40px; letter-spacing:0; margin:0 0 6px; }
     #native-menu .lobby-heading p { font-size:18px; margin:0; }
-    #native-menu .lobby-code { position:absolute; top:20px; right:28px; width:42%; height:88px; display:flex; justify-content:flex-end; align-items:center; }
+    #native-menu .lobby-code { position:absolute; top:20px; right:24px; display:block; text-align:center; }
     #native-menu .lobby-code #menu-join-qr { width:88px; height:88px; flex-shrink:0; margin-right:14px; }
-    #native-menu .lobby-code button.lobby-qr { width:88px; height:88px; min-height:88px; padding:0; margin:0 14px 0 0; border:0px; background:#ffffff; flex-shrink:0; }
+    #native-menu .lobby-code button.lobby-qr { width:100%; min-height:0; padding:0; margin:0 0 8px; border:0px; background:#ffffff; flex-shrink:0; }
     #native-menu .lobby-code .lobby-qr #menu-join-qr { width:100%; height:100%; margin:0; pointer-events:none; }
     #native-menu .lobby-code p { margin:0 0 8px; font-size:19px; }
     #native-menu .lobby-card { position:absolute; box-sizing:border-box; padding:24px 18px 18px; background:#10191c; }
     #lobby-console-grid, #lobby-sidebar { position:absolute; }
+    #lobby-sidebar { overflow:auto; clip:always; }
+    #lobby-player { position:absolute; left:5%; top:24px; width:90%; bottom:120px; overflow:auto; }
+    #native-menu .lobby-player-board .lobby-footer { height:90px; padding:8px; box-sizing:border-box; background:#10191cee; flex-direction:column; align-items:stretch; }
+    #native-menu .lobby-player-board .lobby-footer p { font-size:14px; }
+    #native-menu .lobby-player-board .lobby-footer div { justify-content:flex-end; }
+    #native-menu .lobby-player-card { display:block; box-sizing:border-box; width:100%; padding:18px; margin:12px 0; background:#10191c; }
+    #native-menu .lobby-footer { z-index:2; }
+    #native-menu .lobby-footer button.lobby-action .menu-button-label { display:block; }
     #native-menu .lobby-card h2 { font-size:19px; margin:0 0 7px; }
     #native-menu .lobby-card p { font-size:14px; line-height:18px; margin:0 0 7px; }
     #native-menu .lobby-console-description { min-height:36px; }

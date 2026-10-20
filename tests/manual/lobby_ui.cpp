@@ -1,6 +1,7 @@
 // Explicit graphical smoke through the real offline lobby and menu renderer.
 #include "../support/assertions.hpp"
 #include <raylib.h>
+#include <nlohmann/json.hpp>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
 #endif
@@ -12,6 +13,7 @@
 #include <vector>
 import phoenix.presentation;
 import phoenix.network.lobby;
+import phoenix.network.lobby.protocol;
 using namespace phoenix;
 using phoenix::test::require;
 namespace
@@ -60,8 +62,11 @@ int main(int argc, char **argv)
 		};
 		open_window();
 		opened = true;
+		std::shared_ptr<SessionPort> network_host;
 		auto frame = [&]
 		{
+			if (network_host)
+				network_host->poll();
 			app.session->poll();
 			BeginDrawing();
 			draw_screen(app);
@@ -160,6 +165,72 @@ int main(int argc, char **argv)
 					            rect.x + rect.width <= width + 1 && rect.y + rect.height <= height + 1,
 					        ("Console and GM controls fit the viewport: " + id).c_str());
 			capture("lobby-" + std::to_string(width) + "x" + std::to_string(height) + ".png");
+		}
+		SetWindowSize(1600, 900);
+		action("menu.console-screen/" + first.id + "/1");
+		app.viewscreen_region = ConsoleRegion{1, 0, 0, 800, 900};
+		app.console_regions = {{3, 800, 0, 800, 900}};
+		frame();
+		frame();
+		capture("lobby-local-complexity.png");
+		app.viewscreen_region.reset();
+		app.console_regions.clear();
+		if (argc > 2)
+		{
+			options.link.url = argv[2];
+			options.link.room = "smoke-" + random_token();
+			network_host = make_game_lobby(options);
+			network_host->add_pack(read_file(std::string(argv[1]) + "/base.zip"));
+			network_host->prepare_lobby({"base.free-flight", {{"base.player", "base.cruiser"}}, "base.player", ""});
+			LobbyCommand reserve{LobbyAction::assign_local_console, "", first.slot, "", first.id};
+			reserve.screen = 3;
+			require(network_host->lobby_command(reserve), "Native station is reserved before phone join");
+			options.expected_base = network_host->catalog().base;
+			options.server = "host";
+			options.link.self = "phone";
+			app.session = join_client_lobby(options, JoinRole::player);
+			app.can_host = false;
+			app.screen = Screen::client_lobby;
+			SetWindowSize(480, 900);
+			const auto other = lobby.consoles.at(1);
+			const auto claim = "lobby.seat/" + other.slot + "/" + other.id;
+			for (int i = 0; i < 600; ++i)
+			{
+				frame();
+				if (std::any_of(app.screen_controls.begin(), app.screen_controls.end(),
+				                [&](const auto &control)
+				                {
+					                return control.first == claim;
+				                }))
+					break;
+			}
+			frame();
+			frame();
+			capture("lobby-phone-choices.png");
+			action(claim);
+			for (int i = 0; i < 600; ++i)
+			{
+				frame();
+				if (std::any_of(app.screen_controls.begin(), app.screen_controls.end(),
+				                [](const auto &control)
+				                {
+					                return control.first == "lobby.ready";
+				                }))
+					break;
+			}
+			require(std::any_of(app.screen_controls.begin(), app.screen_controls.end(),
+			                    [](const auto &control)
+			                    {
+				                    return control.first.starts_with("lobby.profile/");
+			                    }),
+			        "Selected remote station exposes complexity choices");
+			frame();
+			frame();
+			capture("lobby-phone-ready.png");
+			action("menu.settings");
+			require(app.screen == Screen::settings, "Phone lobby opens Settings");
+			action("menu.close-dialog");
+			action("lobby.seat/" + other.slot + "/");
 		}
 		close_window();
 		opened = false;
