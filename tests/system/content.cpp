@@ -27,6 +27,73 @@ int main()
 		auto loaded = read_pack(bytes);
 		require(loaded.hash() == sha256(bytes), "pack identity must be the SHA256 of transferred archive bytes");
 		auto catalog = resolve_packs({loaded});
+		{
+			// Independent 2x1 panorama, never derived from production artwork.
+			const Bytes pixels{'P', 'H', 'X', 'R', 'G', 'B', 'A', '1', 2,  0,  0,  0,
+			                   1,   0,   0,   0,   80,  20,  10,  255, 10, 20, 80, 255};
+			PackDraft sky;
+			sky.manifest = {{"schema", 1}, {"id", "test-sky"}};
+			sky.files["definitions.json"] = json_bytes(Json{{"schema", 3}});
+			sky.files["assets/sky.png"] = source_asset_image(pixels);
+			const auto sky_pack = read_pack(write_pack(sky));
+			auto source = parse_json(base.files.at("definitions.json"), "skybox fixture");
+			const auto map = source["maps"][0]["id"].get<std::string>();
+			auto draft = base;
+			draft.manifest["dependencies"] = Json::array({"test-sky"});
+			auto load_sky = [&](const Json &selection)
+			{
+				source["maps"][0]["presentation"]["skybox"] = selection;
+				draft.files["definitions.json"] = json_bytes(source);
+				return resolve_packs({sky_pack, read_pack(write_pack(draft))});
+			};
+			require(!catalog.maps.at(map).value("presentation", Json::object()).contains("skybox"),
+			        "legacy maps have no implicit skybox");
+			load_sky("");
+			const std::string reference = "test-sky:assets/sky.png";
+			const auto selected = load_sky(reference);
+			const auto prepared = scenario_assets(selected, map);
+			require(std::find(prepared.begin(), prepared.end(), reference) != prepared.end(),
+			        "selected dependency skybox is prepared before play");
+			for (const auto &invalid :
+			     {Json(7), Json(nullptr), Json("missing:assets/sky.png"), Json("test-core:assets/pixel.png")})
+				rejected(
+				    [&]
+				    {
+					    load_sky(invalid);
+				    },
+				    "presentation.skybox");
+			load_sky(reference);
+			for (const auto encoding : {PackEncoding::Zip, PackEncoding::Dat})
+			{
+				WorkshopDocument document;
+				document.load_dependency(write_pack(sky, encoding));
+				document.load_pack(write_pack(draft, encoding));
+				require(document.map()["presentation"]["skybox"] == reference,
+				        "Workshop reload retains selected skybox");
+				const auto saved = read_pack(document.export_pack(encoding));
+				const auto scenario = read_pack(document.export_pack(encoding, true));
+				const auto roundtrip = resolve_packs({sky_pack, saved, scenario});
+				require(roundtrip.maps.at(map)["presentation"]["skybox"] == reference &&
+				            decode_asset_image(roundtrip.assets.at(reference)).rgba == decode_asset_image(pixels).rgba,
+				        "ZIP/DAT scenario export retains dependency panorama and pixels");
+				document.map()["presentation"].erase("skybox");
+				require(!resolve_packs({sky_pack, read_pack(document.export_pack(encoding))})
+				             .maps.at(map)
+				             .at("presentation")
+				             .contains("skybox"),
+				        "clearing skybox persists without a fallback");
+				document.new_map("test.blank-sky");
+				require(!document.map().value("presentation", Json::object()).contains("skybox"),
+				        "new maps default to no skybox");
+			}
+			sky.files["assets/sky.png"] = {1, 2, 3};
+			rejected(
+			    [&]
+			    {
+				    resolve_packs({read_pack(write_pack(sky)), read_pack(write_pack(draft))});
+			    },
+			    "presentation.skybox");
+		}
 		const auto dat = write_pack(base, PackEncoding::Dat);
 		const auto compiled_pack = read_pack(dat);
 		const auto compiled_catalog = resolve_packs({compiled_pack});

@@ -48,10 +48,21 @@ const char *fog_background_fragment = R"GLSL(
 in vec2 uv;
 out vec4 finalColor;
 uniform mat4 inverseViewProjection;
+uniform sampler2D texture0;
+uniform int hasSkybox;
 void main(){
  vec4 a=inverseViewProjection*vec4(uv*2.0-1.0,-1,1);
  vec4 b=inverseViewProjection*vec4(uv*2.0-1.0,1,1);
- vec4 fog=fogAlong(a.xyz/a.w,b.xyz/b.w);
- finalColor=vec4(fog.rgb,fog.a);
+ vec3 start=a.xyz/a.w,end=b.xyz/b.w;
+ vec4 fog=fogAlong(start,end);
+ if(hasSkybox==1){
+  vec3 direction=normalize(end-start);
+  vec2 skyUV=vec2(atan(direction.z,direction.x)/6.28318530718+.5,
+                  acos(clamp(direction.y,-1.0,1.0))/3.14159265359);
+  float pole=.5/float(textureSize(texture0,0).y);
+  skyUV.y=clamp(skyUV.y,pole,1.0-pole);
+  vec3 sky=texture(texture0,skyUV).rgb;
+  finalColor=vec4(mix(sky,fog.rgb,fog.a),1.0);
+ }else finalColor=vec4(fog.rgb,fog.a);
 }
 )GLSL";

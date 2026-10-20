@@ -52,6 +52,7 @@ struct ExplosionEffect
 };
 struct SceneEnvironment
 {
+	std::string skybox;
 	DustConfig dust;
 	std::optional<ReferenceGridConfig> grid;
 	std::optional<BodyView> own;

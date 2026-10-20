@@ -341,6 +341,7 @@ struct SceneRenderer::State
 			throw std::runtime_error("Nebula shader failed to compile");
 		fog_material = LoadMaterialDefault();
 		fog_material.shader = fog_shader;
+		fog_shader.locs[SHADER_LOC_MAP_ALBEDO] = GetShaderLocation(fog_shader, "texture0");
 		shader.locs[SHADER_LOC_MAP_ALBEDO] = loc("texture0");
 		shader.locs[SHADER_LOC_MAP_METALNESS] = loc("depthMap");
 		shader.locs[SHADER_LOC_MAP_NORMAL] = loc("normalMap");
@@ -632,6 +633,8 @@ SpriteMaterial SceneRenderer::prepared_sprite(const Catalog &catalog, const std:
 void SceneRenderer::preload_environment(const Catalog &catalog, const SceneEnvironment &environment)
 {
 	state_->init();
+	if (!environment.skybox.empty())
+		state_->textures.load(environment.skybox, catalog.assets.at(environment.skybox));
 	const Camera3D camera{{0, 10, 10}, {0, 0, 0}, {0, 1, 0}, 45, CAMERA_PERSPECTIVE};
 	state_->navigation.draw(catalog, environment, camera, {}, {0, 0, 1, 1});
 }
@@ -809,8 +812,19 @@ void SceneRenderer::draw(const Catalog &catalog, std::span<const SceneBody> bodi
 	const auto vp = MatrixMultiply(MatrixLookAt(camera.position, camera.target, camera.up), projection);
 	const auto fog_environment = lighting.value("environment", Json::object());
 	s.fog_uniforms(s.shader, fog_environment);
-	if (!fog_environment.value("nebulae", Json::array()).empty())
+	if (!environment.skybox.empty() || !fog_environment.value("nebulae", Json::array()).empty())
 	{
+		const int has_skybox = !environment.skybox.empty();
+		SetShaderValue(s.fog_shader, GetShaderLocation(s.fog_shader, "hasSkybox"), &has_skybox, SHADER_UNIFORM_INT);
+		if (has_skybox)
+		{
+			const auto texture = s.textures.load(environment.skybox, catalog.assets.at(environment.skybox));
+			SetTextureFilter(texture, TEXTURE_FILTER_BILINEAR);
+			SetTextureWrap(texture, TEXTURE_WRAP_REPEAT);
+			s.fog_material.maps[MATERIAL_MAP_ALBEDO].texture = texture;
+		}
+		else
+			s.fog_material.maps[MATERIAL_MAP_ALBEDO].texture = s.white;
 		s.fog_uniforms(s.fog_shader, fog_environment);
 		SetShaderValueMatrix(s.fog_shader, GetShaderLocation(s.fog_shader, "inverseViewProjection"), MatrixInvert(vp));
 		rlDisableDepthMask();

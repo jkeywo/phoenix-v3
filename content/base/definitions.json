@@ -6575,6 +6575,7 @@
 	],
 	"maps": [
 		{
+			"presentation": {"skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png"},
 			"id": "base.free-flight",
 			"name": "Free Flight",
 			"entities": [],
@@ -6589,6 +6590,7 @@
 			]
 		},
 		{
+			"presentation": {"skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png"},
 			"entities": [
 				{
 					"definition": "base.courier-patrol-leader",
@@ -6820,6 +6822,7 @@
 			]
 		},
 		{
+			"presentation": {"skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png"},
 			"id": "base.courier-race",
 			"name": "Courier Race",
 			"ship_slots": [

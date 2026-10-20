@@ -62,6 +62,7 @@ struct Editor
 	std::string rename_from, template_id;
 	std::string console_rename_from, console_id;
 	TextureCache textures;
+	std::map<std::string, bool> skybox_images;
 	SceneRenderer scene;
 	RenderTexture2D scene_preview{};
 	std::string preview_identity;
@@ -99,6 +100,7 @@ struct Editor
 	void clear_textures()
 	{
 		textures.clear();
+		skybox_images.clear();
 		scene.clear();
 		preview_identity.clear();
 		preview_content.clear();
@@ -270,23 +272,45 @@ Json *selected_instance()
 			return &instance;
 	return nullptr;
 }
-void asset_picker(const char *label, Json &value)
+void asset_picker(const char *label, Json &value, bool skybox = false)
 {
 	std::string current = value.is_string() ? value.get<std::string>() : "";
+	const auto compatible = [&](const Bytes &bytes)
+	{
+		if (!skybox)
+			return true;
+		const auto hash = sha256(bytes);
+		if (const auto found = editor.skybox_images.find(hash); found != editor.skybox_images.end())
+			return found->second;
+		bool valid = false;
+		try
+		{
+			const auto image = decode_asset_image(bytes);
+			valid = image.width == image.height * 2;
+		}
+		catch (const std::exception &)
+		{
+		}
+		editor.skybox_images[hash] = valid;
+		return valid;
+	};
 	ImGui::TextWrapped("%s", localise(label).c_str());
 	ImGui::SetNextItemWidth(-1);
 	if (ImGui::BeginCombo((std::string("##") + label).c_str(),
-	                      current.empty() ? localise("Choose PNG").c_str() : current.c_str()))
+	                      current.empty() ? localise(skybox ? "None" : "Choose PNG").c_str() : current.c_str()))
 	{
+		if (skybox && ImGui::Selectable(localise("None").c_str(), current.empty()))
+			value = "";
 		for (const auto &[path, bytes] : editor.document.pack().files)
-			if (path.starts_with("assets/") && path.ends_with(".png"))
+			if (path.starts_with("assets/") && path.ends_with(".png") && compatible(bytes))
 			{
 				auto reference = editor.document.manifest().at("id").get<std::string>() + ":" + path;
 				if (ImGui::Selectable(reference.c_str(), reference == current))
 					value = reference;
 			}
 		for (const auto &[reference, bytes] : editor.document.libraries().assets)
-			if (reference.ends_with(".png") && !reference.starts_with("console-assets:assets/radar/"))
+			if (reference.ends_with(".png") && !reference.starts_with("console-assets:assets/radar/") &&
+			    compatible(bytes))
 				if (ImGui::Selectable(reference.c_str(), reference == current))
 					value = reference;
 		ImGui::EndCombo();
@@ -1248,6 +1272,15 @@ void map_view(Application &app)
 		ImGui::EndCombo();
 	}
 	string_field("Map name", editor.document.map(), "name");
+	{
+		auto &map = editor.document.map();
+		Json skybox = map.value("presentation", Json::object()).value("skybox", Json(""));
+		asset_picker("Skybox", skybox, true);
+		if (skybox.is_string() && !skybox.get<std::string>().empty())
+			map["presentation"]["skybox"] = skybox;
+		else if (map.contains("presentation"))
+			map["presentation"].erase("skybox");
+	}
 	{
 		Json background = editor.document.map().value("loading_background", Json(""));
 		asset_picker("Scenario loading background", background);

@@ -1,5 +1,15 @@
 # Workshop foundation
 
+The Map panel's **Skybox** picker selects a 2:1 panoramic PNG from the current pack
+or its dependencies. **None** clears it; new maps start with None. Import a suitable
+PNG through the normal image import flow to add a choice. Save/reopen and both
+package encodings preserve the choice. Existing base and training maps explicitly
+select the Settled Dark panorama supplied by the base pack.
+
+Play the map to view its skybox. It follows camera direction at infinite distance,
+behind ships, navigation effects and nebula fog; translating the camera does not
+move it. The top-down editing grid and individual material previews remain unchanged.
+
 Use **File > Package…** to package a game pack or selected scenario directly as source ZIP or compiled DAT. See [packaging and loading assets](asset-loading.md) for dependencies, client Console bundles and loading backgrounds.
 
 Run `native.exe --workshop`, or launch `?type=workshop` from the browser build. The same C++ editor runs on both platforms. Native uses Windows file dialogs. Browsers with File System Access use open/save pickers and retain a file handle for saving in place during the editing session. Other browsers download a copy and explicitly report that limitation; they cannot overwrite a previously downloaded file. Browser saves never rely on temporary WASM filesystem writes.

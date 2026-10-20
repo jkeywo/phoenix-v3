@@ -10,23 +10,41 @@
 		</div>
 		<canvas id="canvas" width="1280" height="720"></canvas>
 		<pre id="result">Running camera smoke…</pre>
+		<div id="captures" style="display: flex; flex-wrap: wrap; gap: 12px"></div>
 		<script>
+			function showCaptures() {
+				const gallery = document.getElementById("captures");
+				gallery.replaceChildren();
+				for (const [name, image] of Object.entries(Module.cameraCaptures || {})) {
+					const figure = document.createElement("figure");
+					const caption = document.createElement("figcaption");
+					caption.textContent = name;
+					const picture = document.createElement("img");
+					picture.src = image;
+					picture.alt = name;
+					picture.width = 480;
+					figure.append(caption, picture);
+					gallery.append(figure);
+				}
+			}
 			var Module = {
 				arguments: [
 					"/assets",
-					...["portrait", "courier"].filter((flag) => new URLSearchParams(location.search).has(flag)),
+					...["portrait", "courier", "skybox"].filter((flag) => new URLSearchParams(location.search).has(flag)),
 				],
 				canvas: document.getElementById("canvas"),
 				print(text) {
 					console.log(text);
 					if (text.startsWith("PASS ")) {
 						document.getElementById("result").textContent = text;
+						showCaptures();
 					}
 				},
 				printErr(text) {
 					console.error(text);
 					if (text.startsWith("FAIL ")) {
 						document.getElementById("result").textContent = text;
+						showCaptures();
 					}
 				},
 			};

@@ -2,6 +2,7 @@
 	"schema": 1,
 	"languages": {
 		"en": {
+			"Skybox": "Skybox",
 			"Thrust port": "Thrust port",
 			"Thrust starboard": "Thrust starboard",
 			"Hold boost": "Hold boost",

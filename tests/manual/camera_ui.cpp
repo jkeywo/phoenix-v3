@@ -4,9 +4,11 @@
 #include <emscripten.h>
 #endif
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <nlohmann/json.hpp>
 #include <string>
 #include <vector>
 import phoenix.navigation;
@@ -30,6 +32,7 @@ void capture(const std::string &name)
 #endif
 }
 } // namespace
+#include "skybox.hpp"
 int main(int argc, char **argv)
 {
 	bool opened = false;
@@ -59,6 +62,9 @@ int main(int argc, char **argv)
 		opened = true;
 		if (portrait)
 			SetWindowSize(1080, 1920);
+		for (int i = 2; i < argc; ++i)
+			if (std::string(argv[i]) == "skybox")
+				skybox_smoke(app.session->catalog(), app.session->scene_presentation().at("skybox"));
 		const auto frame = [&]
 		{
 			BeginDrawing();
@@ -68,6 +74,10 @@ int main(int argc, char **argv)
 		};
 		frame();
 		frame();
+		// Graphics preparation now yields between assets before exposing controls.
+		for (int loading = 0; loading < 300 && !app.screen_toggles.contains("console/1/manual"); ++loading)
+			frame();
+		require(app.screen_toggles.contains("console/1/manual"), "Console finishes graphics preparation");
 		const auto action = [&](const std::string &name)
 		{
 			require(app.screen_action && app.screen_action("console/1/" + name), "camera widget action is admitted");

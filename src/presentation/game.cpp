@@ -699,6 +699,7 @@ struct GameScreen::State
 			const auto definition = environment.own ? environment.own->definition : std::string{};
 			if (!environment_ready || presentation_identity != presentation || grid_definition != definition)
 			{
+				environment.skybox = presentation.value("skybox", std::string{});
 #ifdef __EMSCRIPTEN__
 				constexpr bool web = true;
 #else
@@ -1026,6 +1027,7 @@ GameScreen::Loading GameScreen::preload(Application &app)
 				constexpr bool web = false;
 #endif
 				const auto &map = catalog.maps.at(mission);
+				environment.skybox = map.value("presentation", Json::object()).value("skybox", std::string{});
 				environment.dust =
 				    compile_dust(map.value("presentation", Json::object()).value("dust", dust_defaults()), catalog, web,
 				                 "loading.dust");

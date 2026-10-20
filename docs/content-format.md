@@ -1,5 +1,14 @@
 # Foundation content format
 
+Maps may set `presentation.skybox` to a pack-qualified PNG reference, for example
+`"phoenix-base:assets/skyboxes/settled-dark-v1.png"`. It must decode as a 2:1
+equirectangular panorama within the ordinary image limits. Omitted or empty means
+no skybox; there is no inherited base-game fallback. Invalid types, missing assets,
+bad pixels and non-2:1 images are verification errors naming the map field.
+The reference participates in scenario asset preparation and ordinary dependency,
+ZIP/DAT and scenario-export handling. It affects the world Viewscreen background,
+not loading-screen artwork, lighting or the Workshop map grid.
+
 Source ZIPs and compiled DAT packages share this logical content format. Workshop packages both directly; see [packaging and loading assets](asset-loading.md) for encoding, limits and preload declarations.
 
 This page describes the foundation fields and legacy definition boundary. Current fitted equipment uses [gameplay content](gameplay-content.md); decision ownership, command channels, complexity profiles and save compatibility use [Console Controllers](controller-content.md). All live gameplay uses the Controller runtime, including unambiguous converted foundation definitions.

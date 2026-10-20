@@ -655,6 +655,28 @@ void verify_prepared_catalog(const Catalog &catalog)
 			const auto &p = map.at("presentation");
 			if (!p.is_object())
 				invalid("maps." + id + ".presentation", "expected object");
+			if (p.contains("skybox"))
+			{
+				const auto path = "maps." + id + ".presentation.skybox";
+				if (!p.at("skybox").is_string())
+					invalid(path, "expected image reference or empty string");
+				const auto reference = p.at("skybox").get<std::string>();
+				if (!reference.empty())
+				{
+					if (!catalog.assets.contains(reference))
+						invalid(path, "unresolved image");
+					try
+					{
+						const auto image = decode_asset_image(catalog.assets.at(reference));
+						if (image.width != image.height * 2)
+							invalid(path, "expected 2:1 equirectangular panorama");
+					}
+					catch (const std::exception &error)
+					{
+						invalid(path, error.what());
+					}
+				}
+			}
 			if (p.contains("dust"))
 				for (bool web : {false, true})
 					compile_dust(p.at("dust"), catalog, web, "maps." + id + ".presentation.dust");
