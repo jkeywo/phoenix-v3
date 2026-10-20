@@ -37,6 +37,7 @@ struct NativeMenuSmoke
 	}
 	int display_step = 0;
 	int profile_step = 0;
+	int image_step = 0;
 	int complexity_step = 0;
 	std::string complexity_slot, complexity_console, complexity_initial, complexity_selected;
 	int navigation_aid_step = 0, settings_step = 0;
@@ -80,6 +81,12 @@ struct NativeMenuSmoke
 			}
 			if (settings_step == 1)
 			{
+				if (image_step < 2)
+				{
+					action(app, "menu.avatar-choice/" + std::to_string(image_step++));
+					changed = GetTime();
+					return false;
+				}
 				if (app.set_control_value("menu-volume", "10") || !phoenix::probe_menu_keyboard(app) ||
 				    !phoenix::probe_native_accessibility(app))
 					throw std::runtime_error("Profile tab focus/semantics or hidden range admission failed");

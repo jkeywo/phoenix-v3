@@ -36,6 +36,7 @@ import phoenix.application;
 import phoenix.navigation;
 import phoenix.console;
 import phoenix.devices;
+#include "menu_images.hpp"
 #include "rml_backend.hpp"
 #include "game.hpp"
 #include "menu.hpp"
@@ -46,6 +47,32 @@ import phoenix.devices;
 
 namespace phoenix
 {
+namespace
+{
+std::map<std::string, Bytes> menu_images;
+}
+std::string register_menu_image(const Bytes &png)
+{
+	const auto source = "phoenix-menu://image/" + sha256(png) + ".png";
+	menu_images.try_emplace(source, png);
+	return source;
+}
+const Bytes *menu_image_data(const std::string &source)
+{
+	const auto found = menu_images.find(source);
+	return found == menu_images.end() ? nullptr : &found->second;
+}
+void retain_menu_images(const std::set<std::string> &sources)
+{
+	for (auto it = menu_images.begin(); it != menu_images.end();)
+		if (!sources.contains(it->first))
+		{
+			Rml::ReleaseTexture(it->first);
+			it = menu_images.erase(it);
+		}
+		else
+			++it;
+}
 namespace
 {
 UiSystem system;

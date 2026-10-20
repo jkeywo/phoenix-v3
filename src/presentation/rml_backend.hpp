@@ -80,7 +80,10 @@ public:
 	}
 	Rml::TextureHandle LoadTexture(Rml::Vector2i &dimensions, const Rml::String &path) override
 	{
-		Image image = LoadImage(path.c_str());
+		const auto *memory = menu_image_data(path);
+		Image image = memory ? LoadImageFromMemory(".png", memory->data(), static_cast<int>(memory->size()))
+		              : path.starts_with("phoenix-menu://image/") ? Image{}
+		                                                          : LoadImage(path.c_str());
 		if (!image.data)
 			return 0;
 		ImageFormat(&image, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8);

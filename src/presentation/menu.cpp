@@ -10,6 +10,7 @@ module;
 #include <functional>
 #include <tuple>
 #include <map>
+#include <set>
 #include <memory>
 #include <optional>
 #include <string>
@@ -21,6 +22,7 @@ module;
 module phoenix.presentation;
 import phoenix.files;
 #include "menu.hpp"
+#include "menu_images.hpp"
 #include "settings.hpp"
 namespace phoenix
 {
@@ -39,7 +41,7 @@ struct NativeMenuScreen::State
 	bool button_enabled = true;
 	MenuSkin button_skin;
 	std::map<std::string, std::function<void()>> actions;
-	Texture2D join_qr{};
+	Bytes join_qr;
 	Texture2D panorama{}, debris{}, debris_light{};
 	double debris_phase = .12, logo_elapsed = 0;
 	Texture2D flash_overlay{};
@@ -51,7 +53,7 @@ struct NativeMenuScreen::State
 	float terminal_width = 264;
 	std::map<std::string, Bytes> crew_portraits;
 	std::string join_qr_url;
-	TextureCache avatar_textures;
+	std::set<std::string> image_elements;
 	std::uint64_t avatar_screen = 0;
 	std::string avatar_directory;
 	std::vector<Bytes> avatars;
@@ -77,8 +79,7 @@ struct NativeMenuScreen::State
 	}
 	~State()
 	{
-		if (join_qr.id)
-			UnloadTexture(join_qr);
+		retain_menu_images({});
 		if (panorama.id)
 			UnloadTexture(panorama);
 		if (debris.id)
@@ -120,11 +121,60 @@ struct NativeMenuScreen::State
 			for (int x = 0; x < qr.getSize(); ++x)
 				if (qr.getModule(x, y))
 					ImageDrawRectangle(&image, (x + 4) * scale, (y + 4) * scale, scale, scale, BLACK);
-		if (join_qr.id)
-			UnloadTexture(join_qr);
-		join_qr = LoadTextureFromImage(image);
+		int length = 0;
+		auto *png = ExportImageToMemory(image, ".png", &length);
 		UnloadImage(image);
+		if (!png)
+			throw std::runtime_error("Cannot prepare invitation image");
+		join_qr.assign(png, png + length);
+		MemFree(png);
 		join_qr_url = url;
+	}
+	void update_images(const Application &app, Rml::ElementDocument &document)
+	{
+		std::set<std::string> sources, elements;
+		const auto *root = document.GetElementById("native-menu");
+		const auto image = [&](const std::string &id, const Bytes &png, const char *fit)
+		{
+			auto *element = document.GetElementById(id);
+			if (!element || png.empty())
+				return;
+			const auto source = register_menu_image(png);
+			const auto decoration = "image(" + source + " " + fit + ")";
+			if (element->GetAttribute<std::string>("data-menu-image", "") != decoration)
+			{
+				element->SetProperty("decorator", decoration);
+				element->SetAttribute("data-menu-image", decoration);
+			}
+			sources.insert(source);
+			elements.insert(id);
+		};
+		if (app.native_menu && root && root->IsVisible())
+		{
+			if (!app.avatar.empty())
+			{
+				const auto key = sha256(app.avatar);
+				const auto found = crew_portraits.find(key);
+				image("profile-avatar", app.avatar, "contain");
+				if (app.screen != Screen::settings && !app.packs_popup)
+					image("menu-profile-avatar", found == crew_portraits.end() ? app.avatar : found->second, "cover");
+			}
+			if (app.session)
+				for (const auto &member : app.session->lobby().members)
+					image("avatar-" + member.id, member.avatar, "contain");
+			if (app.can_host && app.screen == Screen::server_lobby && !app.packs_popup)
+				image("menu-join-qr", join_qr, "contain");
+		}
+		for (const auto &id : image_elements)
+			if (!elements.contains(id))
+				if (auto *element = document.GetElementById(id))
+				{
+					element->RemoveProperty("decorator");
+					element->RemoveAttribute("data-menu-image");
+				}
+		image_elements = std::move(elements);
+		// All document references have now been replaced or removed.
+		retain_menu_images(sources);
 	}
 	void choose_scenario(Application &app, std::string id)
 	{
@@ -1308,7 +1358,9 @@ void NativeMenuScreen::poll(Application &app)
 }
 bool NativeMenuScreen::prepare(Application &app, Rml::ElementDocument &document)
 {
-	return state_->prepare(app, document);
+	const bool prepared = state_->prepare(app, document);
+	state_->update_images(app, document);
+	return prepared;
 }
 void NativeMenuScreen::draw_backdrop(const Application &app, Rml::ElementDocument &document)
 {
@@ -1376,56 +1428,6 @@ void NativeMenuScreen::draw(const Application &app, Rml::ElementDocument &docume
 	if (!app.native_menu || (app.screen != Screen::home && app.screen != Screen::server_lobby &&
 	                         app.screen != Screen::client_lobby && app.screen != Screen::settings))
 		return;
-	auto draw = [&](const std::string &id, Texture2D texture)
-	{
-		if (!texture.id)
-			return;
-		if (auto *element = document.GetElementById(id); element && element->IsVisible())
-		{
-			const auto at = element->GetAbsoluteOffset(Rml::BoxArea::Content);
-			auto *root = document.GetElementById("native-menu");
-			const auto origin = root->GetAbsoluteOffset(Rml::BoxArea::Content);
-			Rectangle clip{origin.x, origin.y, root->GetClientWidth(), root->GetClientHeight()};
-			for (auto *parent = element->GetParentNode(); parent; parent = parent->GetParentNode())
-				if (parent->IsClassSet("lobby-invitation") || parent->IsClassSet("lobby-roster") ||
-				    parent->IsClassSet("menu-column") || parent->IsClassSet("menu-dialog") ||
-				    parent->IsClassSet("crt-screen") || parent->IsClassSet("qr-crt"))
-				{
-					const auto position = parent->GetAbsoluteOffset(Rml::BoxArea::Content);
-					const float right = std::min(clip.x + clip.width, position.x + parent->GetClientWidth());
-					const float bottom = std::min(clip.y + clip.height, position.y + parent->GetClientHeight());
-					clip.x = std::max(clip.x, position.x);
-					clip.y = std::max(clip.y, position.y);
-					clip.width = std::max(0.f, right - clip.x);
-					clip.height = std::max(0.f, bottom - clip.y);
-				}
-			if (clip.width <= 0 || clip.height <= 0)
-				return;
-			BeginScissorMode(static_cast<int>(clip.x), static_cast<int>(clip.y), static_cast<int>(clip.width),
-			                 static_cast<int>(clip.height));
-			float scale =
-			    std::min(element->GetClientWidth() / texture.width, element->GetClientHeight() / texture.height);
-			const bool cover = id == "menu-profile-avatar";
-			if (cover)
-			{
-				const float w = element->GetClientWidth(), h = element->GetClientHeight();
-				const float fill = std::max(w / texture.width, h / texture.height);
-				DrawTexturePro(texture,
-				               {(texture.width - w / fill) / 2, (texture.height - h / fill) / 2, w / fill, h / fill},
-				               {at.x, at.y, w, h}, {0, 0}, 0, Fade(WHITE, state_->ambient.television_opacity()));
-			}
-			if (!cover && scale > 0)
-			{
-				const float width = texture.width * scale, height = texture.height * scale;
-				DrawTexturePro(texture, {0, 0, static_cast<float>(texture.width), static_cast<float>(texture.height)},
-				               {at.x + (element->GetClientWidth() - width) / 2,
-				                at.y + (element->GetClientHeight() - height) / 2, width, height},
-				               {0, 0}, 0,
-				               id == "menu-profile-avatar" ? Fade(WHITE, state_->ambient.television_opacity()) : WHITE);
-			}
-			EndScissorMode();
-		}
-	};
 	if (app.packs_popup)
 		for (const auto &pack : state_->draft)
 		{
@@ -1461,22 +1463,6 @@ void NativeMenuScreen::draw(const Application &app, Rml::ElementDocument &docume
 				}
 			}
 		}
-	if (!app.avatar.empty())
-	{
-		const auto key = sha256(app.avatar);
-		const auto &portrait = state_->crew_portraits.contains(key) ? state_->crew_portraits.at(key) : app.avatar;
-		draw("profile-avatar", state_->avatar_textures.load(sha256(app.avatar), app.avatar));
-		if (app.screen != Screen::settings && !app.packs_popup)
-			draw("menu-profile-avatar", state_->avatar_textures.load(key + "/portrait", portrait));
-	}
-	if (app.session)
-		for (const auto &member : app.session->lobby().members)
-			if (!member.avatar.empty())
-				draw("avatar-" + member.id, state_->avatar_textures.load(sha256(member.avatar), member.avatar));
-	if (app.can_host && app.screen == Screen::server_lobby && !app.packs_popup)
-	{
-		draw("menu-join-qr", state_->join_qr);
-	}
 }
 std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 {
