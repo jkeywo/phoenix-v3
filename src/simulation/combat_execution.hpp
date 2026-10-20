@@ -1,3 +1,4 @@
+#include "combat_effects.hpp"
 // World::Impl combat adapter. All decisions originate at Controllers; mechanisms consume admitted intent.
 std::vector<flecs::entity> projectile_rows() const
 {
@@ -43,7 +44,8 @@ bool duel_ended() const
 bool combat_dead(flecs::entity ship) const
 {
 	const auto *s = ship.try_get<CombatStructure>();
-	return s && s->destroyed_tick >= 0;
+	const auto *d = ship.try_get<Destructible>();
+	return (s && s->destroyed_tick >= 0) || (d && d->destroyed_tick >= 0);
 }
 bool structurally_disabled(flecs::entity ship, const std::string &equipment) const
 {
@@ -54,6 +56,8 @@ bool structurally_disabled(flecs::entity ship, const std::string &equipment) con
 		return s->destroyed_tick >= 0;
 	if (s->destroyed_tick >= 0)
 		return true;
+	if (!fault_effectiveness(ship, equipment))
+		return true;
 	const auto at = s->definition.equipment_compartments.find(equipment);
 	return at != s->definition.equipment_compartments.end() &&
 	       s->compartments.at(s->definition.compartment_ids.at(at->second)).disabled;
@@ -63,6 +67,7 @@ void combat_damage(flecs::entity ship, std::size_t compartment, std::int64_t amo
 	auto &s = ship.get_mut<CombatStructure>();
 	if (s.destroyed_tick >= 0 || amount <= 0)
 		return;
+	damage_faults(ship, compartment, amount);
 	auto &c = s.compartments.at(compartment);
 	c.hp = std::max<std::int64_t>(0, c.hp - amount);
 	if (!c.hp)
@@ -90,6 +95,65 @@ bool operate_combat(flecs::entity ship, flecs::entity child, OperatingRequest ou
 			child.get_mut<Equipment>().enabled = output.value != 0;
 		return true;
 	}
+	if (output.action == OperatingAction::MagazineSelect && m.definition.kind == OperatingSystem::Weapon)
+	{
+		if (output.value < 0 || output.value >= static_cast<std::int64_t>(m.definition.magazines.size()))
+			return false;
+		if (execute && m.selected_magazine != output.value)
+		{
+			if (m.loaded_magazine >= 0)
+			{
+				auto &mag =
+				    instance(ship, m.definition.magazines.at(m.loaded_magazine))->entity.get_mut<CombatMechanism>();
+				mag.ammo += m.definition.ammo_use;
+				mag.reserved_return -= m.definition.ammo_use;
+			}
+			m.selected_magazine = output.value;
+			m.loaded_magazine = -1;
+			m.loading = 0;
+		}
+		return true;
+	}
+	if (output.action == OperatingAction::WeaponMode && m.definition.point_defence)
+	{
+		if (output.value < 0 || output.value > 2)
+			return false;
+		if (execute)
+		{
+			m.mode = output.value;
+			if (m.mode != 2)
+				m.target = 0;
+		}
+		return true;
+	}
+	if (output.action == OperatingAction::ShieldDischarge && m.definition.kind == OperatingSystem::Shield)
+	{
+		if (output.value < 0 || output.value > 1)
+			return false;
+		if (execute)
+			m.discharge = output.value != 0;
+		return true;
+	}
+	if (output.action == OperatingAction::RepairSystem && m.definition.kind == OperatingSystem::RepairTeam)
+	{
+		const auto &s = ship.get<CombatStructure>();
+		if (output.value < 0 || output.value > static_cast<std::int64_t>(s.definition.equipment_compartments.size()))
+			return false;
+		if (execute)
+		{
+			m.repair_system = output.value - 1;
+			m.repair_auto = output.value == 0;
+			if (!output.value)
+				m.destination = -1;
+			if (output.value)
+			{
+				auto it = s.definition.equipment_compartments.begin();
+				std::advance(it, m.repair_system);
+				m.destination = s.definition.compartment_ids.at(it->second);
+			}
+		}
+		return true;
+	}
 	if (output.action == OperatingAction::WeaponTarget && m.definition.kind == OperatingSystem::Weapon)
 	{
 		const auto target = static_cast<EntityId>(output.value);
@@ -109,6 +173,8 @@ bool operate_combat(flecs::entity ship, flecs::entity child, OperatingRequest ou
 		if (execute)
 		{
 			m.target = target;
+			if (m.definition.point_defence)
+				m.mode = target ? 2 : 1;
 			if (target && !m.definition.turret.empty())
 				for (auto other : ship.get<EquipmentIndex>().values)
 					if (auto *w = other.try_get_mut<CombatMechanism>())
@@ -128,7 +194,11 @@ bool operate_combat(flecs::entity ship, flecs::entity child, OperatingRequest ou
 		if (output.value < 0 || output.value > count)
 			return false;
 		if (execute)
+		{
 			m.destination = output.value - 1;
+			m.repair_auto = output.value == 0;
+			m.repair_system = -1;
+		}
 		return true;
 	}
 	return false;
@@ -137,7 +207,27 @@ void combat_telemetry(flecs::entity ship, flecs::entity child, std::map<std::str
 {
 	const auto &fit = child.get<Equipment>();
 	const bool stopped = structurally_disabled(ship, fit.id);
-	v["structural_disabled"] = stopped;
+	const auto *structure = ship.try_get<CombatStructure>();
+	const auto compartment = structure ? structure->definition.equipment_compartments.find(fit.id)
+	                                   : std::map<std::string, std::string>::const_iterator{};
+	v["structural_disabled"] =
+	    structure && compartment != structure->definition.equipment_compartments.end() &&
+	    structure->compartments.at(structure->definition.compartment_ids.at(compartment->second)).disabled;
+	v["damaged"] = fault_effectiveness(ship, fit.id) < 1000;
+	v["destroyed"] = 0;
+	v["overheated"] = 0;
+	if (structure && structure->faults.contains(fit.id))
+		for (std::size_t i = 0; i < structure->faults.at(fit.id).size(); ++i)
+			if (structure->faults.at(fit.id)[i].active && structure->definition.faults.at(fit.id)[i].destroys)
+				v["destroyed"] = 1;
+	if (const auto *power = ship.try_get<ShipResources>())
+	{
+		const auto slot = child.get<ResourceBinding>().slot;
+		const auto store = power->definition.systems.at(slot).store;
+		if (store != no_resource)
+			v["overheated"] = power->network.stores()[store].thermal_stop;
+	}
+
 	if (stopped)
 		v["enabled"] = 0;
 	if (const auto *m = child.try_get<CombatMechanism>())
@@ -170,130 +260,21 @@ void apply_structural_disablement()
 			}
 		}
 }
+#include "combat_weapons.hpp"
 void prepare_combat(flecs::entity ship)
 {
 	if (!ship.has<CombatStructure>())
 		return;
-	const auto id = ship.get<StableId>().id;
-	const auto &pose = ship.get<Pose>();
-	for (auto child : ship.get<EquipmentIndex>().values)
-		if (auto *m = child.try_get_mut<CombatMechanism>())
-		{
-			m->ready = false;
-			if (m->cooldown > 0)
-				--m->cooldown;
-		}
-	if (duel_ended())
-		return;
-	// Turret steering is a separate mechanism, shared by any hosted weapons.
-	for (auto child : ship.get<EquipmentIndex>().values)
-		if (auto *m = child.try_get_mut<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Turret)
-		{
-			const auto &d = m->definition;
-			if (!child.get<Equipment>().enabled || structurally_disabled(ship, d.id))
-				continue;
-			const auto owner = system_owner(id, d.id);
-			const auto observed = capture_console_observation(owner);
-			const auto target = std::find_if(observed.contacts.begin(), observed.contacts.end(),
-			                                 [&](const auto &c)
-			                                 {
-				                                 return c.id == m->target;
-			                                 });
-			if (target == observed.contacts.end())
-				continue;
-			std::int64_t speed = 100000;
-			const CombatSystemDefinition *aiming_weapon = nullptr;
-			for (auto weapon : ship.get<EquipmentIndex>().values)
-				if (const auto *w = weapon.try_get<CombatMechanism>(); w && w->definition.turret == d.id && w->target &&
-				                                                       weapon.get<Equipment>().enabled &&
-				                                                       !structurally_disabled(ship, w->definition.id))
-				{
-					aiming_weapon = &w->definition;
-					speed = w->definition.projectile.speed;
-					break;
-				}
-			const auto origin = combat_world({d.x, d.y}, pose);
-			const auto travel = std::min<std::int64_t>(
-			    5000000, fixed::length(fixed::Vec{target->x, target->y} - origin) * 1000 / speed);
-			auto lead = fixed::Vec{target->x + (target->vx - ship.get<Motion>().velocity.x) * travel / 1000,
-			                       target->y + (target->vy - ship.get<Motion>().velocity.y) * travel / 1000};
-			lead.x = std::clamp(lead.x, -fixed::unit, fixed::unit);
-			lead.y = std::clamp(lead.y, -fixed::unit, fixed::unit);
-			auto aim = combat_bearing(lead - origin);
-			if (aiming_weapon)
-			{
-				// Align the hosted gun's bore, including its lateral muzzle offset.
-				const auto axis = fixed::direction(aiming_weapon->bearing);
-				const auto lateral = (axis.x * aiming_weapon->y - axis.y * aiming_weapon->x) / fixed::unit;
-				const auto offset_squared = lateral * lateral;
-				const auto distance_squared = fixed::dot(lead - origin, lead - origin);
-				const auto forward = static_cast<std::int64_t>(fixed::sqrt(
-				    static_cast<std::uint64_t>(std::max<std::int64_t>(0, distance_squared - offset_squared))));
-				aim -= aiming_weapon->bearing + combat_bearing({forward, lateral});
-			}
-			const auto wanted = combat_delta(aim, pose.heading);
-			const auto offset = std::clamp(combat_delta(wanted, d.bearing), -d.arc / 2, d.arc / 2);
-			const auto desired = combat_angle(d.bearing + offset);
-			m->turn_remainder += d.traverse;
-			const auto step = m->turn_remainder / rate;
-			m->turn_remainder %= rate;
-			// Traverse within the authored interval, never through a blind sector.
-			const auto current = combat_delta(m->heading, d.bearing);
-			m->heading = d.arc == 360000
-			                 ? combat_angle(m->heading + std::clamp(combat_delta(desired, m->heading), -step, step))
-			                 : combat_angle(d.bearing + current + std::clamp(offset - current, -step, step));
-		}
-	std::map<std::string, std::int64_t> reserved;
-	for (auto child : ship.get<EquipmentIndex>().values)
-		if (auto *m = child.try_get_mut<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Weapon)
-		{
-			const auto &d = m->definition;
-			if (!m->target || m->cooldown || !child.get<Equipment>().enabled || structurally_disabled(ship, d.id))
-				continue;
-			const auto mag = instance(ship, d.magazine)->entity;
-			if (!mag.get<Equipment>().enabled || structurally_disabled(ship, d.magazine) ||
-			    mag.get<CombatMechanism>().ammo < d.ammo_use)
-				continue;
-			std::int64_t orientation = pose.heading + d.bearing;
-			fixed::Vec mount{d.x, d.y};
-			if (!d.turret.empty())
-			{
-				const auto turret = instance(ship, d.turret)->entity;
-				const auto &t = turret.get<CombatMechanism>();
-				if (!turret.get<Equipment>().enabled || structurally_disabled(ship, d.turret))
-					continue;
-				orientation = pose.heading + t.heading + d.bearing;
-				mount = combat_world({d.x, d.y}, Pose{{t.definition.x, t.definition.y}, t.heading});
-			}
-			const auto observed = capture_console_observation(system_owner(id, d.id));
-			const auto target = std::find_if(observed.contacts.begin(), observed.contacts.end(),
-			                                 [&](const auto &c)
-			                                 {
-				                                 return c.id == m->target;
-			                                 });
-			if (target == observed.contacts.end())
-				continue;
-			const auto origin = combat_world(mount, pose);
-			const auto travel = std::min<std::int64_t>(d.projectile.lifetime * 1000 / rate,
-			                                           fixed::length(fixed::Vec{target->x, target->y} - origin) * 1000 /
-			                                               d.projectile.speed);
-			auto lead = fixed::Vec{target->x + (target->vx - ship.get<Motion>().velocity.x) * travel / 1000,
-			                       target->y + (target->vy - ship.get<Motion>().velocity.y) * travel / 1000};
-			lead.x = std::clamp(lead.x, -fixed::unit, fixed::unit);
-			lead.y = std::clamp(lead.y, -fixed::unit, fixed::unit);
-			m->ready = std::abs(combat_delta(combat_bearing(lead - origin), orientation)) <= d.arc / 2;
-			if (m->ready)
-			{
-				const auto available = mag.get<CombatMechanism>().ammo - reserved[d.magazine];
-				if (available < d.ammo_use)
-					m->ready = false;
-				else
-					reserved[d.magazine] += d.ammo_use;
-			}
-		}
+	if (!duel_ended())
+		prepare_weapons(ship);
+	else
+		for (auto child : ship.get<EquipmentIndex>().values)
+			if (auto *m = child.try_get_mut<CombatMechanism>())
+				m->ready = false;
 }
 void request_combat_resources(flecs::entity ship)
 {
+	request_shields(ship);
 	auto *power = ship.try_get_mut<ShipResources>();
 	if (!power)
 		return;
@@ -304,10 +285,13 @@ void request_combat_resources(flecs::entity ship)
 			const bool enabled = !duel_ended() && child.get<Equipment>().enabled && !structurally_disabled(ship, d.id);
 			const auto index = child.get<ResourceBinding>().slot;
 			if (d.kind == OperatingSystem::Magazine)
-				request_system_resource(*power, index, 0, false,
-				                        enabled && d.reload == "energy" && m->ammo < d.capacity ? d.reload_energy : 0);
+				request_system_resource(
+				    *power, index, 0, false,
+				    enabled && d.reload == "energy" && m->ammo + m->reserved_return < d.capacity ? d.reload_energy : 0);
 			if (d.kind == OperatingSystem::Weapon)
-				request_system_resource(*power, index, 0, enabled && m->ready);
+				request_system_resource(*power, index, enabled && m->ready ? 1000 : 0,
+				                        enabled && m->ready && d.family != "beam",
+				                        enabled && d.point_defence && m->mode == 1 ? d.standby_energy : 0);
 		}
 }
 void actuate_combat(flecs::entity ship)
@@ -316,6 +300,7 @@ void actuate_combat(flecs::entity ship)
 		return;
 	const auto id = ship.get<StableId>().id;
 	const auto &pose = ship.get<Pose>();
+	actuate_shields(ship);
 	auto equipment = [&](const std::string &name)
 	{
 		return instance(ship, name)->entity;
@@ -326,7 +311,7 @@ void actuate_combat(flecs::entity ship)
 			const auto &d = m->definition;
 			if (!child.get<Equipment>().enabled || structurally_disabled(ship, d.id))
 				continue;
-			if (d.kind == OperatingSystem::Magazine && d.reload != "none" && m->ammo < d.capacity)
+			if (d.kind == OperatingSystem::Magazine && d.reload != "none" && m->ammo + m->reserved_return < d.capacity)
 			{
 				bool paid = d.reload == "infinite";
 				if (d.reload == "energy")
@@ -335,96 +320,25 @@ void actuate_combat(flecs::entity ship)
 						       !p->grants.at(child.get<ResourceBinding>().slot).blocked;
 				if (paid && ++m->refill >= d.refill_ticks)
 				{
-					m->ammo = std::min(d.capacity, m->ammo + d.refill_amount);
+					m->ammo = std::min(d.capacity - m->reserved_return, m->ammo + d.refill_amount);
 					m->refill = 0;
 				}
 			}
 		}
 
-	for (auto child : ship.get<EquipmentIndex>().values)
-		if (auto *m = child.try_get_mut<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Weapon)
-		{
-			const auto &d = m->definition;
-			if (!m->ready || !m->target || m->cooldown || !child.get<Equipment>().enabled ||
-			    structurally_disabled(ship, d.id))
-				continue;
-			auto mag = equipment(d.magazine);
-			auto &ammo = mag.get_mut<CombatMechanism>();
-			if (!mag.get<Equipment>().enabled || structurally_disabled(ship, d.magazine) || ammo.ammo < d.ammo_use)
-				continue;
-			std::int64_t orientation = pose.heading + d.bearing;
-			fixed::Vec mount{d.x, d.y};
-			if (!d.turret.empty())
-			{
-				auto turret = equipment(d.turret);
-				const auto &t = turret.get<CombatMechanism>();
-				if (!turret.get<Equipment>().enabled || structurally_disabled(ship, d.turret))
-					continue;
-				orientation = pose.heading + t.heading + d.bearing;
-				mount = combat_world({d.x, d.y}, Pose{{t.definition.x, t.definition.y}, t.heading});
-			}
-			const auto owner = system_owner(id, d.id);
-			const auto observed = capture_console_observation(owner);
-			const auto target = std::find_if(observed.contacts.begin(), observed.contacts.end(),
-			                                 [&](const auto &c)
-			                                 {
-				                                 return c.id == m->target;
-			                                 });
-			if (target == observed.contacts.end())
-				continue;
-			const auto origin = combat_world(mount, pose);
-			const auto travel = std::min<std::int64_t>(d.projectile.lifetime * 1000 / rate,
-			                                           fixed::length(fixed::Vec{target->x, target->y} - origin) * 1000 /
-			                                               d.projectile.speed);
-			auto lead = fixed::Vec{target->x + (target->vx - ship.get<Motion>().velocity.x) * travel / 1000,
-			                       target->y + (target->vy - ship.get<Motion>().velocity.y) * travel / 1000};
-			lead.x = std::clamp(lead.x, -fixed::unit, fixed::unit);
-			lead.y = std::clamp(lead.y, -fixed::unit, fixed::unit);
-			auto bearing = combat_bearing(lead - origin);
-			if (std::abs(combat_delta(bearing, orientation)) > d.arc / 2)
-				continue;
-			if (const auto *power = ship.try_get<ShipResources>())
-			{
-				const auto &grant = power->grants.at(child.get<ResourceBinding>().slot);
-				const auto &binding = power->definition.systems.at(child.get<ResourceBinding>().slot);
-				if (grant.blocked || (binding.discrete_energy && !grant.discrete_paid))
-					continue;
-			}
-			m->ready = true;
-			ammo.ammo -= d.ammo_use;
-			m->cooldown = d.interval;
-			++m->shots;
-			auto &structure = ship.get_mut<CombatStructure>();
-			structure.random = structure.random * 6364136223846793005ULL + 1;
-			if (d.projectile.spread)
-				bearing =
-				    combat_angle(bearing +
-				                 static_cast<std::int64_t>((structure.random >> 16) %
-				                                           static_cast<std::uint64_t>(d.projectile.spread * 2 + 1)) -
-				                 d.projectile.spread);
-			if (projectile_rows().size() >= 8192)
-				throw std::runtime_error("Combat projectile capacity exceeded");
-			Projectile p;
-			p.id = next_projectile++;
-			p.source = id;
-			p.position = origin;
-			p.heading = bearing;
-			p.velocity = fixed::scale(fixed::direction(bearing), d.projectile.speed) + ship.get<Motion>().velocity;
-			p.velocity.x = std::clamp(p.velocity.x, -fixed::unit, fixed::unit);
-			p.velocity.y = std::clamp(p.velocity.y, -fixed::unit, fixed::unit);
-			p.life = d.projectile.lifetime;
-			p.penetration = d.projectile.penetration;
-			p.damage = d.projectile.damage;
-			p.definition = d.projectile;
-			ecs.entity().set<Projectile>(p);
-		}
+	fire_weapons(ship);
 }
+
 void penetrate(Projectile &p, flecs::entity ship, fixed::Vec start, fixed::Vec end)
 {
 	auto &s = ship.get_mut<CombatStructure>();
 	if (combat_dead(ship))
 		return;
 	const auto id = ship.get<StableId>().id;
+	if (p.shield_hits.insert(id).second)
+		p.damage = absorb_shields(ship, p.heading, p.damage, p.definition.shield_bypass);
+	if (!p.damage)
+		return;
 	if (!p.decks.contains(id))
 	{
 		std::map<std::string, std::int64_t> weights;
@@ -483,106 +397,10 @@ void penetrate(Projectile &p, flecs::entity ship, fixed::Vec start, fixed::Vec e
 		combat_damage(ship, line.index, deposit);
 	}
 }
+#include "combat_ordnance.hpp"
 void step_projectiles()
 {
-	if (duel_ended())
-	{
-		for (auto particle : projectile_rows())
-			particle.destruct();
-		return;
-	}
-	struct ProjectileTarget
-	{
-		EntityId id;
-		flecs::entity entity;
-		fixed::Vec start;
-	};
-	std::vector<ProjectileTarget> targets;
-	std::vector<Bounds> boxes;
-	SpatialIndex target_index;
-	bodies.each(
-	    [&](flecs::entity entity, const StableId &id, const Definition &, const Pose &pose, const Motion &)
-	    {
-		    if (combat_dead(entity))
-			    return;
-		    const auto &shape = entity.get<Collider>();
-		    const auto start = step_starts.contains(id.id) ? step_starts.at(id.id) : pose.position;
-		    targets.push_back({id.id, entity, start});
-		    boxes.push_back(Bounds::merge(
-		        Bounds::around(start, shape.box ? shape.half_width + shape.half_length : shape.radius),
-		        Bounds::around(pose.position, shape.box ? shape.half_width + shape.half_length : shape.radius)));
-	    });
-	target_index.rebuild(boxes);
-	for (auto particle : projectile_rows())
-	{
-		auto &p = particle.get_mut<Projectile>();
-		const auto from = p.position;
-		p.remainder = p.remainder + p.velocity;
-		const fixed::Vec delta{p.remainder.x / rate, p.remainder.y / rate};
-		p.remainder.x %= rate;
-		p.remainder.y %= rate;
-		p.position = p.position + delta;
-		struct Hit
-		{
-			std::int64_t time;
-			EntityId id;
-			fixed::Vec start, end;
-		};
-		std::vector<Hit> hits;
-		CollisionBody shot;
-		shot.position = p.position;
-		shot.radius = 1;
-		shot.mass = 1;
-		for (auto row = target_index.first(Bounds::merge(Bounds::around(from, 1), Bounds::around(p.position, 1)), 0);
-		     row != SpatialIndex::none;
-		     row = target_index.first(Bounds::merge(Bounds::around(from, 1), Bounds::around(p.position, 1)), row + 1))
-			if (const auto id = targets[row].id; id != p.source && !combat_dead(targets[row].entity))
-			{
-				const auto entity = targets[row].entity;
-				const auto &pose = entity.get<Pose>();
-				const auto &shape = entity.get<Collider>();
-				const auto begin = step_starts.contains(id) ? step_starts.at(id) : pose.position;
-				const auto radius = shape.box ? shape.half_width + shape.half_length : shape.radius;
-				const auto minx = std::min(from.x, p.position.x), maxx = std::max(from.x, p.position.x),
-				           miny = std::min(from.y, p.position.y), maxy = std::max(from.y, p.position.y);
-				if (maxx < std::min(begin.x, pose.position.x) - radius ||
-				    minx > std::max(begin.x, pose.position.x) + radius ||
-				    maxy < std::min(begin.y, pose.position.y) - radius ||
-				    miny > std::max(begin.y, pose.position.y) + radius)
-					continue;
-				CollisionBody target;
-				static_cast<Pose &>(target) = pose;
-				static_cast<Collider &>(target) = shape;
-				if (auto time = sweep_contact_time(shot, target, from, begin))
-					hits.push_back({*time, id, from + (pose.position - begin), p.position});
-			}
-		std::sort(hits.begin(), hits.end(),
-		          [](const auto &a, const auto &b)
-		          {
-			          return std::pair{a.time, a.id} < std::pair{b.time, b.id};
-		          });
-		for (const auto &hit : hits)
-		{
-			if (!p.damage || !p.penetration)
-				break;
-			auto ship = entities.at(hit.id);
-			if (ship.has<CombatStructure>())
-				penetrate(p, ship, hit.start, hit.end);
-			else
-			{
-				p.damage = 0;
-				p.penetration = 0;
-			}
-		}
-		--p.life;
-	}
-	for (auto particle : projectile_rows())
-	{
-		const auto &p = particle.get<Projectile>();
-		if (p.life <= 0 || p.damage <= 0 || p.penetration <= 0 || std::abs(p.position.x) > fixed::unit ||
-		    std::abs(p.position.y) > fixed::unit)
-			particle.destruct();
-	}
+	step_ordnance();
 }
 std::pair<std::int64_t, std::int64_t> repair_route(const CombatStructure &s, std::size_t from, std::size_t to) const
 {
@@ -623,68 +441,163 @@ std::pair<std::int64_t, std::int64_t> repair_route(const CombatStructure &s, std
 			return {first[to], edge.ticks};
 	return {-1, 0};
 }
+std::int64_t repair_score(const CombatStructure &s, std::size_t compartment, const std::string &equipment = {}) const
+{
+	const auto &c = s.compartments[compartment];
+	const auto &d = s.definition.compartments[compartment];
+	auto score = equipment.empty() && c.hp < d.maximum ? (c.disabled ? 10000 : (d.maximum - c.hp) * 1000 / d.maximum)
+	                                                   : std::int64_t{0};
+	for (const auto &[id, defs] : s.definition.faults)
+	{
+		if ((!equipment.empty() && equipment != id) ||
+		    s.definition.compartment_ids.at(s.definition.equipment_compartments.at(id)) != compartment)
+			continue;
+		for (std::size_t i = 0; i < defs.size(); ++i)
+			if (s.faults.at(id)[i].active && !defs[i].destroys)
+				score = std::max(
+				    score, (defs[i].effect == "disabled" || defs[i].effect == "feed" || !defs[i].effectiveness ? 10000
+				                                                                                               : 1000) +
+				               defs[i].severity);
+	}
+	return score;
+}
 void step_repairs()
 {
 	if (duel_ended())
 		return;
 	for (const auto &[id, ship] : combat_rows())
-		if (auto *s = ship.try_get_mut<CombatStructure>(); s && !combat_dead(ship))
-		{
-			std::map<std::size_t, std::vector<flecs::entity>> workers;
-			for (auto child : ship.get<EquipmentIndex>().values)
-				if (auto *m = child.try_get_mut<CombatMechanism>();
-				    m && m->definition.kind == OperatingSystem::RepairTeam)
-				{
-					if (!child.get<Equipment>().enabled)
-						continue;
-					if (m->travel > 0)
-					{
-						if (--m->travel == 0)
-						{
-							m->location = m->edge_to;
-							m->edge_to = -1;
-							m->edge_total = 0;
-						}
-						else
-							continue;
-					}
-					if (m->destination < 0)
-						continue;
-					if (m->location != m->destination)
-					{
-						const auto route = repair_route(*s, static_cast<std::size_t>(m->location),
-						                                static_cast<std::size_t>(m->destination));
-						m->edge_to = route.first;
-						m->travel = route.second;
-						m->edge_total = route.second;
-						continue;
-					}
-					workers[static_cast<std::size_t>(m->location)].push_back(child);
-				}
-			for (auto &[index, teams] : workers)
+	{
+		auto &s = ship.get_mut<CombatStructure>();
+		if (combat_dead(ship))
+			continue;
+		std::map<std::size_t, std::vector<flecs::entity>> structural_workers;
+		std::set<std::pair<std::string, std::size_t>> claimed;
+		for (auto child : ship.get<EquipmentIndex>().values)
+			if (auto *m = child.try_get_mut<CombatMechanism>(); m && m->definition.kind == OperatingSystem::RepairTeam)
 			{
-				std::sort(teams.begin(), teams.end(),
-				          [](auto a, auto b)
-				          {
-					          const auto &x = a.template get<CombatMechanism>();
-					          const auto &y = b.template get<CombatMechanism>();
-					          return x.definition.repair_rate != y.definition.repair_rate
-					                     ? x.definition.repair_rate > y.definition.repair_rate
-					                     : x.definition.id < y.definition.id;
-				          });
-				auto &c = s->compartments[index];
-				for (std::size_t rank = 0; rank < teams.size(); ++rank)
+				if (!child.get<Equipment>().enabled || !fault_effectiveness(ship, m->definition.id))
+					continue;
+				if (m->travel > 0)
 				{
-					const auto &d = teams[rank].get<CombatMechanism>().definition;
-					c.work += d.repair_rate * 1000000 / (1000 + d.stack_penalty * static_cast<std::int64_t>(rank));
+					if (--m->travel > 0)
+						continue;
+					m->location = m->edge_to;
+					m->edge_to = -1;
+					m->edge_total = 0;
 				}
-				const auto restored = c.work / (rate * 1000);
-				c.work %= rate * 1000;
-				c.hp = std::min(s->definition.compartments[index].maximum, c.hp + restored);
-				if (c.disabled && c.hp >= s->definition.compartments[index].recovery)
-					c.disabled = false;
+				// Inspection is performed whenever a team reaches a physical compartment.
+				for (auto &[equipment, states] : s.faults)
+					if (s.definition.compartment_ids.at(s.definition.equipment_compartments.at(equipment)) ==
+					    static_cast<std::size_t>(m->location))
+						for (auto &state : states)
+							if (state.active)
+								state.diagnosed = true;
+				if (m->repair_auto)
+				{
+					std::tuple<std::int64_t, std::int64_t, std::int64_t> best{
+					    0, std::numeric_limits<std::int64_t>::min(), 0};
+					m->destination = -1;
+					for (std::size_t i = 0; i < s.compartments.size(); ++i)
+					{
+						const auto route = repair_route(s, m->location, i);
+						if (i != static_cast<std::size_t>(m->location) && route.first < 0)
+							continue;
+						const auto score = repair_score(s, i);
+						if (!score)
+							continue;
+						const auto key = std::tuple{score, -route.second, -static_cast<std::int64_t>(i)};
+						if (key > best)
+						{
+							best = key;
+							m->destination = i;
+						}
+					}
+				}
+				if (m->destination < 0)
+					continue;
+				if (m->destination != m->location)
+				{
+					const auto route = repair_route(s, m->location, m->destination);
+					m->edge_to = route.first;
+					m->travel = route.second;
+					m->edge_total = route.second;
+					continue;
+				}
+				std::string priority;
+				if (m->repair_system >= 0)
+				{
+					auto at = s.definition.equipment_compartments.begin();
+					std::advance(at, m->repair_system);
+					priority = at->first;
+				}
+				const auto index = static_cast<std::size_t>(m->location);
+				const auto &compartment = s.compartments[index];
+				const auto &definition = s.definition.compartments[index];
+				auto best =
+				    priority.empty() && compartment.hp < definition.maximum
+				        ? (compartment.disabled ? std::int64_t{10000}
+				                                : (definition.maximum - compartment.hp) * 1000 / definition.maximum)
+				        : std::int64_t{0};
+				std::optional<std::pair<std::string, std::size_t>> task;
+				for (const auto &[equipment, defs] : s.definition.faults)
+				{
+					if ((!priority.empty() && equipment != priority) ||
+					    s.definition.compartment_ids.at(s.definition.equipment_compartments.at(equipment)) != index)
+						continue;
+					for (std::size_t f = 0; f < defs.size(); ++f)
+					{
+						const auto key = std::pair{equipment, f};
+						const auto &state = s.faults.at(equipment)[f];
+						const auto &d = defs[f];
+						if (!state.active || d.destroys || claimed.contains(key))
+							continue;
+						const auto score =
+						    (d.effect == "disabled" || d.effect == "feed" || !d.effectiveness ? 10000 : 1000) +
+						    d.severity;
+						if (score > best)
+						{
+							best = score;
+							task = key;
+						}
+					}
+				}
+				if (task)
+				{
+					claimed.insert(*task);
+					auto &f = s.faults.at(task->first)[task->second];
+					const auto &d = s.definition.faults.at(task->first)[task->second];
+					f.work += m->definition.repair_rate * 1000 * fault_effectiveness(ship, m->definition.id) / 1000;
+					if (f.work >= d.repair_work * rate * 1000)
+					{
+						f.active = false;
+						f.work = 0;
+					}
+				}
+				else if (priority.empty() && compartment.hp < definition.maximum)
+					structural_workers[index].push_back(child);
 			}
+		for (auto &[index, teams] : structural_workers)
+		{
+			std::sort(teams.begin(), teams.end(),
+			          [](auto a, auto b)
+			          {
+				          const auto &x = a.template get<CombatMechanism>().definition;
+				          const auto &y = b.template get<CombatMechanism>().definition;
+				          return x.repair_rate != y.repair_rate ? x.repair_rate > y.repair_rate : x.id < y.id;
+			          });
+			auto &c = s.compartments[index];
+			for (std::size_t rank = 0; rank < teams.size(); ++rank)
+			{
+				const auto &d = teams[rank].get<CombatMechanism>().definition;
+				c.work += d.repair_rate * 1000000 / (1000 + d.stack_penalty * static_cast<std::int64_t>(rank)) *
+				          fault_effectiveness(ship, d.id) / 1000;
+			}
+			c.hp = std::min(s.definition.compartments[index].maximum, c.hp + c.work / (rate * 1000));
+			c.work %= rate * 1000;
+			if (c.disabled && c.hp >= s.definition.compartments[index].recovery)
+				c.disabled = false;
 		}
+	}
 }
 void collision_damage(EntityId a, EntityId b, const CollisionBody &before_a, const CollisionBody &before_b)
 {
@@ -784,6 +697,58 @@ void project_combat(const ConsoleAddress &address, Observation &result) const
 				++alive;
 		output["result"] = alive == 0 ? "Draw" : combat_dead(ship) ? "Defeat" : "Victory";
 	}
+	output["faults"] = Json::array();
+	output["shields"] = Json::array();
+	output["weapons"] = Json::array();
+	for (const auto &[equipment, defs] : s->definition.faults)
+	{
+		if (address.console != s->definition.repair_console &&
+		    std::find(feeds.begin(), feeds.end(), equipment) == feeds.end())
+			continue;
+		for (std::size_t i = 0; i < defs.size(); ++i)
+		{
+			const auto &state = s->faults.at(equipment)[i];
+			const auto &d = defs[i];
+			if (!state.active)
+				continue;
+			output["faults"].push_back({{"system", equipment},
+			                            {"compartment", s->definition.equipment_compartments.at(equipment)},
+			                            {"symptom", d.symptom},
+			                            {"diagnosed", state.diagnosed},
+			                            {"diagnosis", state.diagnosed ? d.diagnosis : std::string{}},
+			                            {"destroyed", d.destroys},
+			                            {"work", state.work / (rate * 1000)},
+			                            {"required_work", d.repair_work}});
+		}
+	}
+	for (auto child : ship.get<EquipmentIndex>().values)
+		if (const auto *m = child.try_get<CombatMechanism>())
+		{
+			const auto &d = m->definition;
+			const auto at = std::find(feeds.begin(), feeds.end(), d.id);
+			if (at == feeds.end())
+				continue;
+			if (d.kind == OperatingSystem::Shield)
+				output["shields"].push_back({{"id", d.id},
+				                             {"strength", m->strength},
+				                             {"capacity", d.capacity},
+				                             {"warmup", m->warmup},
+				                             {"warmup_ticks", d.warmup_ticks},
+				                             {"arc_mdeg", d.arc},
+				                             {"bearing_mdeg", combat_angle(ship.get<Pose>().heading + d.bearing)},
+				                             {"layer", d.layer},
+				                             {"discharging", m->discharge}});
+			if (d.kind == OperatingSystem::Weapon)
+				output["weapons"].push_back({{"id", d.id},
+				                             {"magazines", d.magazines},
+				                             {"selected", m->selected_magazine},
+				                             {"loaded", m->loaded_magazine},
+				                             {"loading", m->loading},
+				                             {"load_ticks", d.load_ticks},
+				                             {"mode", m->mode},
+				                             {"point_defence", d.point_defence},
+				                             {"intercept", m->intercept}});
+		}
 	result.gameplay["combat"] = std::move(output);
 }
 Json save_combat(flecs::entity ship) const
@@ -791,18 +756,42 @@ Json save_combat(flecs::entity ship) const
 	const auto &s = ship.get<CombatStructure>();
 	Json j = {{"destroyed_tick", s.destroyed_tick},
 	          {"random", s.random},
+	          {"faults", s.faults},
 	          {"compartments", Json::array()},
 	          {"systems", Json::object()}};
 	for (const auto &c : s.compartments)
 		j["compartments"].push_back({{"hp", c.hp}, {"work", c.work}, {"disabled", c.disabled}});
 	for (auto child : ship.get<EquipmentIndex>().values)
 		if (const auto *m = child.try_get<CombatMechanism>())
-			j["systems"][m->definition.id] = {
-			    {"target", m->target},     {"heading", m->heading},   {"turn_remainder", m->turn_remainder},
-			    {"cooldown", m->cooldown}, {"ammo", m->ammo},         {"refill", m->refill},
-			    {"shots", m->shots},       {"location", m->location}, {"destination", m->destination},
-			    {"edge_to", m->edge_to},   {"travel", m->travel},     {"edge_total", m->edge_total},
-			    {"ready", m->ready}};
+			j["systems"][m->definition.id] = {{"target", m->target},
+			                                  {"heading", m->heading},
+			                                  {"turn_remainder", m->turn_remainder},
+			                                  {"cooldown", m->cooldown},
+			                                  {"ammo", m->ammo},
+			                                  {"refill", m->refill},
+			                                  {"shots", m->shots},
+			                                  {"location", m->location},
+			                                  {"destination", m->destination},
+			                                  {"edge_to", m->edge_to},
+			                                  {"travel", m->travel},
+			                                  {"edge_total", m->edge_total},
+			                                  {"ready", m->ready},
+			                                  {"selected_magazine", m->selected_magazine},
+			                                  {"loaded_magazine", m->loaded_magazine},
+			                                  {"loading", m->loading},
+			                                  {"reserved_return", m->reserved_return},
+			                                  {"mode", m->mode},
+			                                  {"strength", m->strength},
+			                                  {"warmup", m->warmup},
+			                                  {"recharge_remainder", m->recharge_remainder},
+			                                  {"discharge_remainder", m->discharge_remainder},
+			                                  {"beam_remainder", m->beam_remainder},
+			                                  {"repair_system", m->repair_system},
+			                                  {"beam_tick", m->beam_tick},
+			                                  {"beam_end", m->beam_end},
+			                                  {"discharge", m->discharge},
+			                                  {"intercept", m->intercept},
+			                                  {"repair_auto", m->repair_auto}};
 	return j;
 }
 void restore_combat(flecs::entity ship, const Json &j)
@@ -811,6 +800,10 @@ void restore_combat(flecs::entity ship, const Json &j)
 	s.destroyed_tick = checked_integer(j.at("destroyed_tick"), -1, static_cast<std::int64_t>(1000000000000LL),
 	                                   "combat.destroyed_tick");
 	s.random = j.at("random");
+	s.faults = j.value("faults", Json(s.faults)).get<std::map<std::string, std::vector<FaultState>>>();
+	for (const auto &[id, defs] : s.definition.faults)
+		if (!s.faults.contains(id) || s.faults.at(id).size() != defs.size())
+			throw std::runtime_error("Fault roster mismatch");
 	if (j.at("compartments").size() != s.compartments.size())
 		throw std::runtime_error("Combat compartment roster mismatch");
 	for (std::size_t i = 0; i < s.compartments.size(); ++i)
@@ -833,7 +826,7 @@ void restore_combat(flecs::entity ship, const Json &j)
 			m->target = checked_integer(v.at("target"), 0, 1000000000, "weapon.target");
 			m->heading = checked_integer(v.at("heading"), 0, 359999, "turret.heading");
 			m->turn_remainder = checked_integer(v.at("turn_remainder"), 0, rate - 1, "turret.remainder");
-			m->cooldown = checked_integer(v.at("cooldown"), 0, m->definition.interval, "weapon.cooldown");
+			m->cooldown = checked_integer(v.at("cooldown"), 0, m->definition.interval * 1000, "weapon.cooldown");
 			m->ammo = checked_integer(v.at("ammo"), 0, m->definition.capacity, "magazine.ammo");
 			m->refill = checked_integer(v.at("refill"), 0, m->definition.refill_ticks - 1, "magazine.refill");
 			m->shots = checked_integer(v.at("shots"), 0, 1000000000000LL, "weapon.shots");
@@ -843,6 +836,32 @@ void restore_combat(flecs::entity ship, const Json &j)
 			m->travel = checked_integer(v.at("travel"), 0, 1000000, "team.travel");
 			m->edge_total = checked_integer(v.at("edge_total"), 0, 1000000, "team.edge_total");
 			m->ready = v.at("ready");
+			m->selected_magazine = v.at("selected_magazine").get<decltype(m->selected_magazine)>();
+			m->loaded_magazine = v.at("loaded_magazine").get<decltype(m->loaded_magazine)>();
+			m->loading = v.at("loading").get<decltype(m->loading)>();
+			m->reserved_return = v.at("reserved_return").get<decltype(m->reserved_return)>();
+			m->mode = v.at("mode").get<decltype(m->mode)>();
+			m->strength = v.at("strength").get<decltype(m->strength)>();
+			m->warmup = v.at("warmup").get<decltype(m->warmup)>();
+			m->recharge_remainder = v.at("recharge_remainder").get<decltype(m->recharge_remainder)>();
+			m->discharge_remainder = v.at("discharge_remainder").get<decltype(m->discharge_remainder)>();
+			m->beam_remainder = v.at("beam_remainder").get<decltype(m->beam_remainder)>();
+			m->repair_system = v.at("repair_system").get<decltype(m->repair_system)>();
+			m->beam_tick = v.at("beam_tick").get<decltype(m->beam_tick)>();
+			m->beam_end = v.at("beam_end").get<decltype(m->beam_end)>();
+			m->discharge = v.at("discharge").get<decltype(m->discharge)>();
+			m->intercept = v.at("intercept").get<decltype(m->intercept)>();
+			m->repair_auto = v.at("repair_auto");
+			if (m->selected_magazine < 0 ||
+			    (!m->definition.magazines.empty() &&
+			     m->selected_magazine >= static_cast<std::int64_t>(m->definition.magazines.size())) ||
+			    m->loaded_magazine < -1 ||
+			    m->loaded_magazine >= static_cast<std::int64_t>(m->definition.magazines.size()) ||
+			    m->reserved_return < 0 || m->ammo + m->reserved_return > m->definition.capacity || m->strength < 0 ||
+			    m->strength > m->definition.capacity || m->warmup < 0 || m->warmup > m->definition.warmup_ticks ||
+			    m->mode < 0 || m->mode > 2)
+				throw std::runtime_error("Invalid extended combat state");
+
 			if ((m->travel > 0) != (m->edge_to >= 0) || m->travel > m->edge_total)
 				throw std::runtime_error("Invalid team traversal");
 		}
@@ -867,14 +886,19 @@ Json save_projectiles() const
 		               {"deposit_remainder", p.deposit_remainder},
 		               {"resistance_remainder", p.resistance_remainder},
 		               {"decks", p.decks},
-		               {"definition",
-		                {{"visual", p.definition.visual},
-		                 {"speed", p.definition.speed},
-		                 {"lifetime", p.definition.lifetime},
-		                 {"penetration", p.definition.penetration},
-		                 {"damage", p.definition.damage},
-		                 {"deposition", p.definition.deposition},
-		                 {"spread", p.definition.spread}}}});
+		               {"definition", p.definition},
+		               {"target", p.target},
+		               {"altitude", p.altitude},
+		               {"vz", p.vz},
+		               {"z_remainder", p.z_remainder},
+		               {"durability", p.durability},
+		               {"age", p.age},
+		               {"initial_distance", p.initial_distance},
+		               {"base_heading", p.base_heading},
+		               {"turn_remainder", p.turn_remainder},
+		               {"random", p.random},
+		               {"shield_hits", p.shield_hits},
+		               {"missile_hits", p.missile_hits}});
 	}
 	return out;
 }
@@ -900,9 +924,19 @@ void restore_projectiles(const Json &saved)
 		p.deposit_remainder = v.at("deposit_remainder");
 		p.resistance_remainder = v.at("resistance_remainder");
 		p.decks = v.at("decks").get<std::map<EntityId, std::string>>();
-		const auto &d = v.at("definition");
-		p.definition = {d.at("visual"), d.at("speed"),      d.at("lifetime"), d.at("penetration"),
-		                d.at("damage"), d.at("deposition"), d.at("spread")};
+		p.definition = v.at("definition").get<ProjectileDefinition>();
+		p.target = v.at("target").get<decltype(p.target)>();
+		p.altitude = v.at("altitude").get<decltype(p.altitude)>();
+		p.vz = v.at("vz").get<decltype(p.vz)>();
+		p.z_remainder = v.at("z_remainder").get<decltype(p.z_remainder)>();
+		p.durability = v.at("durability").get<decltype(p.durability)>();
+		p.age = v.at("age").get<decltype(p.age)>();
+		p.initial_distance = v.at("initial_distance").get<decltype(p.initial_distance)>();
+		p.base_heading = v.at("base_heading").get<decltype(p.base_heading)>();
+		p.turn_remainder = v.at("turn_remainder").get<decltype(p.turn_remainder)>();
+		p.random = v.at("random").get<decltype(p.random)>();
+		p.shield_hits = v.at("shield_hits").get<decltype(p.shield_hits)>();
+		p.missile_hits = v.at("missile_hits").get<decltype(p.missile_hits)>();
 		if (!seen.insert(p.id).second || p.id >= next_projectile || !entities.contains(p.source) ||
 		    !definitions.contains(p.definition.visual) || p.life < 1 || p.life > p.definition.lifetime ||
 		    p.damage < 1 || p.damage > p.definition.damage || p.penetration < 1 ||
@@ -921,7 +955,7 @@ void restore_projectiles(const Json &saved)
 				                 return c.deck == deck;
 			                 }))
 				throw std::runtime_error("Invalid projectile deck selection");
-		ecs.entity().set<Projectile>(p);
+		ecs.entity().set<Projectile>(p).set<Destructible>({p.definition.destruction, p.durability});
 	}
 }
 

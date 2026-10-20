@@ -165,6 +165,7 @@ public:
 	void set_link_isolated(ResourceIndex link, bool isolated);
 	void set_cooling(ResourceIndex link, ResourceAmount removal_per_second, bool isolated = false);
 	void tick();
+	ResourceAmount receive_external(ResourceIndex store, ResourceAmount offered);
 	void apply_operating_heat(ResourceIndex store, ResourceAmount paid_heat);
 	ResourceForecast forecast(ResourceIndex store) const;
 	CoolantForecast coolant_forecast(ResourceIndex source) const;

@@ -571,7 +571,8 @@ void verify_prepared_catalog(const Catalog &catalog)
 				}
 			}
 			else if (kind != "generator" && kind != "storage" && kind != "distribution" && kind != "coolant" &&
-			         kind != "weapon" && kind != "turret" && kind != "magazine" && kind != "repair_team")
+			         kind != "weapon" && kind != "turret" && kind != "magazine" && kind != "repair_team" &&
+			         kind != "shield")
 				invalid(field, "unsupported System capability");
 		}
 		if (!catalog.presentation)

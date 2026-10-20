@@ -234,8 +234,8 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 	result.radar_enabled = value.at("radar_enabled");
 	result.console = value.value("console", std::string{"main"});
 	const auto controls = value.value("controls", 7), feeds = value.value("feeds", 7);
-	if (controls < 0 || controls > static_cast<std::int64_t>((system_bit(OperatingSystem::RepairTeam) << 1) - 1) ||
-	    feeds < 0 || feeds > static_cast<std::int64_t>((system_bit(OperatingSystem::RepairTeam) << 1) - 1) ||
+	if (controls < 0 || controls > static_cast<std::int64_t>((system_bit(OperatingSystem::Shield) << 1) - 1) ||
+	    feeds < 0 || feeds > static_cast<std::int64_t>((system_bit(OperatingSystem::Shield) << 1) - 1) ||
 	    (controls & feeds) != controls || result.console.size() > 128)
 		throw std::runtime_error("Invalid projected Console permissions");
 	result.controls = static_cast<SystemMask>(controls);

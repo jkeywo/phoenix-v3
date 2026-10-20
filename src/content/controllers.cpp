@@ -39,8 +39,13 @@ bool accepts(const FittedSystemSpec &fit, const Json &spec, OperatingAction acti
 	                    kind == OperatingSystem::Impulse;
 	switch (action)
 	{
+	case OperatingAction::MagazineSelect:
+	case OperatingAction::WeaponMode:
 	case OperatingAction::WeaponTarget:
 		return kind == OperatingSystem::Weapon;
+	case OperatingAction::ShieldDischarge:
+		return kind == OperatingSystem::Shield;
+	case OperatingAction::RepairSystem:
 	case OperatingAction::RepairCompartment:
 		return kind == OperatingSystem::RepairTeam;
 	case OperatingAction::IntentInteger:
@@ -101,13 +106,22 @@ CommandBounds fitted_commands(const FittedSystemSpec &fit, Json spec, const Ship
 	};
 	const auto kind = fit.kind;
 	if (kind == OperatingSystem::Weapon || kind == OperatingSystem::Turret || kind == OperatingSystem::Magazine ||
-	    kind == OperatingSystem::RepairTeam)
+	    kind == OperatingSystem::RepairTeam || kind == OperatingSystem::Shield)
 	{
 		add(OperatingAction::SystemEnabled);
 		if (kind == OperatingSystem::Weapon)
+		{
 			add(OperatingAction::WeaponTarget);
+			add(OperatingAction::MagazineSelect);
+			add(OperatingAction::WeaponMode);
+		}
+		if (kind == OperatingSystem::Shield)
+			add(OperatingAction::ShieldDischarge);
 		if (kind == OperatingSystem::RepairTeam)
+		{
 			add(OperatingAction::RepairCompartment);
+			add(OperatingAction::RepairSystem);
+		}
 		return result;
 	}
 	if (!advanced)

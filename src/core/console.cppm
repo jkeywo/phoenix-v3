@@ -92,9 +92,14 @@ public:
 	std::vector<std::pair<std::string, std::string>> gameplay_controls() const;
 	std::vector<std::pair<std::string, std::string>> gameplay_readouts() const;
 	std::vector<ConsoleMessageView> messages() const;
+	std::string system_details() const;
+	const std::string &status_system() const
+	{
+		return status_system_;
+	}
 
 private:
-	std::string selected_console_;
+	std::string selected_console_, status_system_;
 	std::int64_t combat_target_ = 0, selected_compartment_ = 0;
 	bool fire_arcs_ = true;
 	std::vector<std::pair<std::string, std::string>> available_consoles_;

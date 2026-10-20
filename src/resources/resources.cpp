@@ -350,6 +350,21 @@ void ResourceNetwork::add_heat(ResourceIndex i, ResourceAmount heat)
 	stores_[i].heat += heat;
 	telemetry_[i].heat_added += heat;
 }
+ResourceAmount ResourceNetwork::receive_external(ResourceIndex i, ResourceAmount offered)
+{
+	if (i >= stores_.size() || offered < 0)
+		throw std::runtime_error("Invalid external charge");
+	if (!operational(i))
+		return 0;
+	auto &s = stores_[i];
+	const auto &d = definition_.stores[i];
+	const auto received = std::min({offered, charge_left_[i], d.capacity - s.energy});
+	s.energy += received;
+	charge_left_[i] -= received;
+	telemetry_[i].accepted_incoming += received;
+	add_heat(i, scaled(received, d.charge_heat_ppm, s.charge_heat_remainder));
+	return received;
+}
 void ResourceNetwork::apply_operating_heat(ResourceIndex store, ResourceAmount heat)
 {
 	bounded(heat, "paid operating heat");

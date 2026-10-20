@@ -14,6 +14,7 @@ module;
 #include <span>
 #include <string>
 #include <utility>
+#include <tuple>
 #include <vector>
 
 module phoenix.simulation;
@@ -35,6 +36,15 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Vec, x, y)
 }
 namespace phoenix
 {
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(DestructionDefinition, visual, sound, chance, damage, radius,
+                                                shield_bypass, growth_ticks, fade_ticks, size, affects_missiles)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ProjectileDefinition, visual, speed, lifetime, penetration, damage,
+                                                deposition, spread, guidance, trail, shield_bypass, turn_rate,
+                                                seeker_range, arc_height, chaos, durability, radius, resistance,
+                                                blast_radius, fuse_radius, destruction)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(FaultState, active, diagnosed, work, generation)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Destructible, definition, durability, destroyed_tick, processed)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(BlastVisual, id, position, altitude, tick, definition)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ConsoleAddress, ship, console)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SavedBody, id, definition, position, velocity, remainder, heading)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SavedOperation, speed, heading, acceleration_remainder, turn_remainder,
@@ -89,6 +99,8 @@ struct CompiledGameplay
 struct CompiledDefinition
 {
 	std::optional<CombatDefinition> combat;
+	std::optional<DestructionDefinition> destruction;
+	std::int64_t durability = 0, half_height = 5000;
 	BridgeDefinition bridge;
 	std::map<std::string, ConsoleBridgeDefinition> console_bridge;
 	std::vector<std::string> tags;
@@ -448,6 +460,17 @@ struct World::Impl
 		{
 			CompiledDefinition result;
 			result.combat = compile_combat(content, name);
+			if (result.combat)
+				result.destruction = result.combat->destruction;
+			if (definition.contains("destruction"))
+				result.destruction =
+				    compile_destruction(definition.at("destruction"), content, "entities." + name + ".destruction");
+			result.durability = definition.value("durability", std::int64_t{0});
+			result.half_height =
+			    definition.value("half_height_mm", result.combat ? result.combat->half_height : std::int64_t{5000});
+			if (result.durability < 0 || result.durability > 1000000 || result.half_height < 1 ||
+			    result.half_height > 1000000)
+				throw std::runtime_error("Invalid entity durability/vertical extent");
 			visual_scales[name] = definition.at("render").at("scale");
 			result.bridge = compile_bridge(content, name);
 			for (const auto &console : resolve_consoles(content, name))
@@ -690,11 +713,15 @@ struct World::Impl
 				}
 			}
 		} construction{entity};
+		if (data.destruction || data.durability)
+			entity.set<Destructible>({data.destruction.value_or(DestructionDefinition{}), data.durability});
 		if (data.combat)
 		{
 			CombatStructure structure;
 			structure.definition = *data.combat;
 			structure.random = id * 7919 + 1;
+			for (const auto &[equipment, faults] : data.combat->faults)
+				structure.faults[equipment].resize(faults.size());
 			for (const auto &c : data.combat->compartments)
 				structure.compartments.push_back({c.initial, 0, c.initial == 0});
 			if (std::all_of(structure.compartments.begin(), structure.compartments.end(),
@@ -728,6 +755,7 @@ struct World::Impl
 				CombatMechanism mechanism;
 				mechanism.definition = data.combat->systems.at(data.combat->system_ids.at(v.id));
 				mechanism.ammo = mechanism.definition.initial;
+				mechanism.strength = mechanism.definition.initial;
 				mechanism.heading = mechanism.definition.bearing;
 				mechanism.location =
 				    static_cast<std::int64_t>(data.combat->compartment_ids.at(mechanism.definition.compartment));
@@ -1121,7 +1149,7 @@ struct World::Impl
 			}
 			range = range * power.grants[index].supply_permille / 1000;
 		}
-		return range;
+		return range * fault_effectiveness(entity, name) / 1000;
 	}
 #include "sensor_profile.hpp"
 
@@ -1498,7 +1526,8 @@ struct World::Impl
 		auto ship = child.parent();
 		auto power = ship.try_get_mut<ShipResources>();
 		const auto slot = power ? child.get<ResourceBinding>().slot : 0;
-		int paid = power ? power->grants[slot].supply_permille : 1000;
+		int paid = (power ? power->grants[slot].supply_permille : 1000) *
+		           fault_effectiveness(ship, child.get<Equipment>().id) / 1000;
 		if (flight.state.impulse == ImpulsePhase::Charging && flight.definition.impulse_charge_energy)
 		{
 			const auto &grant = power->grants[slot];
@@ -2258,6 +2287,7 @@ void World::tick()
 	impl_->integrate.run();
 	impl_->resolve_collisions.run();
 	impl_->step_projectiles();
+	impl_->resolve_destructions();
 	impl_->step_repairs();
 	impl_->index_contacts.run();
 	impl_->waypoint_arrivals();
@@ -2552,16 +2582,58 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 					                       : channel.maximum - channel.minimum;
 					const auto step = std::max<std::int64_t>(1, scale / 20);
 					std::set<std::int64_t> values;
+					if (channel.action == OperatingAction::MagazineSelect ||
+					    channel.action == OperatingAction::WeaponMode ||
+					    channel.action == OperatingAction::RepairSystem)
+					{
+						if (channel.consumers.empty())
+							continue;
+						const auto child = entity.get<EquipmentIndex>().values.at(channel.consumers.front());
+						const auto *mechanism = child.try_get<CombatMechanism>();
+						if (!mechanism)
+							continue;
+						std::vector<std::string> labels;
+						if (channel.action == OperatingAction::MagazineSelect)
+							labels = mechanism->definition.magazines;
+						if (channel.action == OperatingAction::WeaponMode && mechanism->definition.point_defence)
+							labels = {"Off", "Auto", "Manual"};
+						if (channel.action == OperatingAction::RepairSystem)
+						{
+							labels.push_back("Automatic repairs");
+							for (const auto &[equipment, compartment] :
+							     entity.get<CombatStructure>().definition.equipment_compartments)
+								labels.push_back(equipment);
+						}
+						for (std::size_t choice = 0; choice < labels.size(); ++choice)
+						{
+							OperatingCommand command{address.ship,
+							                         std::string(operating_action(channel.action).name),
+							                         static_cast<std::int64_t>(choice),
+							                         {},
+							                         controller.definition.id,
+							                         channel.id,
+							                         controller.generation};
+							auto descriptor = encode_operating_command(command);
+							descriptor["id"] =
+							    "combat." + controller.definition.id + "." + channel.id + "." + std::to_string(choice);
+							descriptor["label"] = labels[choice];
+							descriptor["label_prefix"] = controller.definition.id + ": ";
+							descriptor["selected"] = state.value == static_cast<std::int64_t>(choice);
+							buttons.push_back(std::move(descriptor));
+						}
+						continue;
+					}
 					if (channel.action == OperatingAction::WeaponTarget ||
 					    channel.action == OperatingAction::RepairCompartment)
 					{
 						std::set<std::int64_t> choices{0};
 						if (channel.action == OperatingAction::WeaponTarget)
 							for (const auto &contact : result.contacts)
-								choices.insert(static_cast<std::int64_t>(contact.id));
-						else if (const auto *structure = entity.try_get<CombatStructure>())
-							for (std::size_t c = 0; c < structure->compartments.size(); ++c)
-								choices.insert(static_cast<std::int64_t>(c + 1));
+								if (contact.id <= 1000000000ULL)
+									choices.insert(static_cast<std::int64_t>(contact.id));
+								else if (const auto *structure = entity.try_get<CombatStructure>())
+									for (std::size_t c = 0; c < structure->compartments.size(); ++c)
+										choices.insert(static_cast<std::int64_t>(c + 1));
 						for (const auto choice : choices)
 						{
 							OperatingCommand command{address.ship,
@@ -2873,7 +2945,7 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 7},           {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 8},           {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
 	if (impl_->display_revision)
 	{
@@ -2944,6 +3016,8 @@ Json World::save() const
 		}
 		if (entity.has<CombatStructure>())
 			result["bodies"].back()["combat"] = impl_->save_combat(entity);
+		if (const auto *d = entity.try_get<Destructible>())
+			result["bodies"].back()["destructible"] = *d;
 		if (entity.has<EntityControls>())
 			result["bodies"].back()["console_controllers"] = impl_->save_controllers(entity);
 		if (const auto *bridge = entity.try_get<BridgeBlackboard>())
@@ -2964,6 +3038,8 @@ Json World::save() const
 			result["scenario"] = impl_->scenario->save();
 	}
 	result["projectiles"] = impl_->save_projectiles();
+	result["blast_visuals"] = impl_->blast_visuals;
+	result["next_blast"] = impl_->next_blast;
 	result["next_projectile"] = impl_->next_projectile;
 	return result;
 }
@@ -2972,9 +3048,9 @@ void World::restore(const Catalog &content, const Json &saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 7 || saved.at("packs") != Json(content.ordered_packs))
+	if (saved.at("schema") != 8 || saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error(
-		    "Saved state schema/content identity mismatch; Controller runtime requires schema 7; start a new session");
+		    "Saved state schema/content identity mismatch; Controller runtime requires schema 8; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))
 		throw std::runtime_error("Legacy authority fields are not Controller continuation");
 	World candidate;
@@ -3020,12 +3096,14 @@ void World::restore(const Catalog &content, const Json &saved)
 		auto entity = candidate.impl_->entities.at(restored.id);
 		if (entity.has<CombatStructure>())
 			candidate.impl_->restore_combat(entity, value.at("combat"));
+		if (entity.has<Destructible>())
+			entity.set<Destructible>(value.at("destructible").get<Destructible>());
 		if (value.contains("bridge"))
 			candidate.impl_->restore_bridge(restored.id, value.at("bridge"));
 		if (entity.has<EntityControls>())
 		{
-			if (saved.at("schema") != 7)
-				throw std::runtime_error("Controller state requires schema 7; start a new session");
+			if (saved.at("schema") != 8)
+				throw std::runtime_error("Controller state requires schema 8; start a new session");
 			candidate.impl_->restore_controllers(entity, value.at("console_controllers"));
 		}
 		else if (value.contains("console_controllers"))
@@ -3177,6 +3255,8 @@ void World::restore(const Catalog &content, const Json &saved)
 		candidate.impl_->stream_fields();
 	candidate.impl_->index_contacts.run();
 	candidate.impl_->restore_projectiles(saved);
+	candidate.impl_->blast_visuals = saved.value("blast_visuals", Json::array()).get<std::vector<BlastVisual>>();
+	candidate.impl_->next_blast = saved.value("next_blast", std::uint64_t{1});
 	impl_ = std::move(candidate.impl_);
 }
 } // namespace phoenix

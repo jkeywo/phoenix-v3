@@ -6,12 +6,32 @@ struct CompartmentState
 	std::int64_t hp = 0, work = 0;
 	bool disabled = false;
 };
+struct Destructible
+{
+	DestructionDefinition definition;
+	std::int64_t durability = 0, destroyed_tick = -1;
+	bool processed = false;
+};
+struct BlastVisual
+{
+	std::uint64_t id = 0;
+	fixed::Vec position;
+	std::int64_t altitude = 0, tick = 0;
+	DestructionDefinition definition;
+};
+struct FaultState
+{
+	bool active = false, diagnosed = false;
+	std::int64_t work = 0, generation = 0;
+};
 struct CombatStructure
 {
 	CombatDefinition definition;
 	std::vector<CompartmentState> compartments;
 	std::int64_t destroyed_tick = -1;
 	std::uint64_t random = 1;
+	std::map<std::string, std::vector<FaultState>> faults;
+	bool destruction_processed = false;
 };
 struct CombatMechanism
 {
@@ -21,6 +41,12 @@ struct CombatMechanism
 	// Route endpoints identify a physical position even when the assignment changes mid-edge.
 	std::int64_t location = 0, destination = -1, edge_to = -1, travel = 0, edge_total = 0;
 	bool ready = false;
+	std::int64_t selected_magazine = 0, loaded_magazine = -1, loading = 0, reserved_return = 0, mode = 1;
+	std::int64_t strength = 0, warmup = 0, recharge_remainder = 0, discharge_remainder = 0, beam_remainder = 0;
+	std::int64_t repair_system = -1, beam_tick = -1;
+	fixed::Vec beam_end;
+	bool discharge = false, repair_auto = true;
+	std::uint64_t intercept = 0;
 };
 struct Projectile
 {
@@ -29,6 +55,12 @@ struct Projectile
 	fixed::Vec position, velocity, remainder;
 	std::int64_t heading = 0, life = 0, penetration = 0, damage = 0, deposit_remainder = 0, resistance_remainder = 0;
 	ProjectileDefinition definition;
+	EntityId target = 0;
+	std::int64_t altitude = 0, vz = 0, z_remainder = 0, durability = 0, age = 0, initial_distance = 0, base_heading = 0;
+	std::int64_t turn_remainder = 0;
+	std::uint64_t random = 1;
+	std::set<EntityId> shield_hits;
+	std::set<std::uint64_t> missile_hits;
 	std::map<EntityId, std::string> decks;
 };
 inline std::int64_t combat_angle(std::int64_t v)

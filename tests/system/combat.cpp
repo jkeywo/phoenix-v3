@@ -171,6 +171,229 @@ void advance(World &w, int ticks)
 	for (int n = 0; n < ticks; ++n)
 		w.tick();
 }
+void add_fit(Json &source, const std::string &id, Json spec, std::vector<std::pair<std::string, std::string>> actions,
+             const std::string &console = "drive")
+{
+	auto &ship = source["entities"][0];
+	ship["systems"][id] = std::move(spec);
+	Json commands =
+	    Json::array({{{"id", "enabled"}, {"action", "system_enabled"}, {"initial", 1}, {"consumers", {id}}}});
+	for (const auto &[channel, action] : actions)
+		commands.push_back({{"id", channel}, {"action", action}, {"consumers", {id}}});
+	ship["control_layout"]["controllers"].push_back(
+	    {{"id", id}, {"console", console}, {"fallback", "hold"}, {"commands", commands}});
+	ship["control_layout"]["profiles"][0]["consoles"][console]["human"].push_back(id);
+	ship["stations"][0]["consoles"][console == "drive" ? 0 : 1]["feeds"].push_back(id);
+}
+Json powered_fixture()
+{
+	auto s = fixture();
+	auto &ship = s["entities"][0];
+	ship["resources"] = {{"stores", Json::array({{{"id", "cell"},
+	                                              {"capacity", 100000},
+	                                              {"initial", 100000},
+	                                              {"charge_rate", 100000},
+	                                              {"discharge_rate", 100000}}})}};
+	for (auto &c : ship["combat"]["decks"][0]["compartments"])
+		c["hp"] = 10000;
+	for (auto &c : ship["control_layout"]["controllers"])
+		if (c["id"] == "team-a" || c["id"] == "team-b")
+			c["commands"][0]["initial"] = 0;
+	return s;
+}
+void add_beam(Json &s, int damage = 20, int bypass = 0)
+{
+	add_fit(s, "beam",
+	        {{"kind", "weapon"},
+	         {"family", "beam"},
+	         {"compartment", "fore"},
+	         {"range_mm", 200000},
+	         {"damage_per_second", damage},
+	         {"shield_bypass_permille", bypass},
+	         {"penetration", 1000},
+	         {"energy_per_second", 40},
+	         {"power_store", "cell"}},
+	        {{"target", "weapon_target"}});
+}
+void extended_contracts()
+{
+	{
+		auto s = powered_fixture();
+		auto &ship = s["entities"][0];
+		auto payload = ship["systems"]["gun"]["projectile"];
+		Json magazines = Json::array({"mag"});
+		for (int n = 1; n <= 12; ++n)
+		{
+			const auto id = "ammo-" + std::to_string(n);
+			magazines.push_back(id);
+			payload["damage"] = 40 + n;
+			add_fit(s, id,
+			        {{"kind", "magazine"},
+			         {"compartment", "fore"},
+			         {"capacity", 3},
+			         {"reload", {{"strategy", "none"}}},
+			         {"projectile", payload}},
+			        {});
+		}
+		ship["systems"]["gun"]["magazines"] = magazines;
+		ship["systems"]["gun"]["load_ticks"] = 4;
+		for (auto &c : ship["control_layout"]["controllers"])
+			if (c["id"] == "gun")
+				c["commands"].push_back({{"id", "magazine"}, {"action", "magazine_select"}, {"consumers", {"gun"}}});
+		const auto catalog = load(s);
+		const std::string map = s["maps"][0]["id"];
+		World w;
+		w.load(catalog, map);
+		claim(w);
+		advance(w, 4);
+		require(state(w)["systems"]["gun"]["loaded_magazine"] == 0, "weapon loads from selected magazine");
+		submit(w, 101, "gun", "magazine", 12);
+		advance(w, 4);
+		require(state(w)["systems"]["mag"]["ammo"] == 3 && state(w)["systems"]["ammo-12"]["ammo"] == 2,
+		        "unload returns stock and loads arbitrary compatible type");
+		require(state(w)["systems"]["gun"]["loaded_magazine"] == 12, "more than two magazine types supported");
+		World resumed;
+		resumed.restore(catalog, w.save());
+		submit(w, 101, "gun", "target", 2);
+		submit(resumed, 101, "gun", "target", 2);
+		advance(w, 12);
+		advance(resumed, 12);
+		require(w.save() == resumed.save(), "loaded ammunition commitments survive continuation");
+	}
+	{
+		auto s = powered_fixture();
+		add_beam(s);
+		const auto catalog = load(s);
+		const std::string map = s["maps"][0]["id"];
+		World w;
+		w.load(catalog, map);
+		claim(w);
+		submit(w, 101, "beam", "target", 2);
+		advance(w, 20);
+		require(hp(w) == 19980, "beam deposits constant authored damage per second");
+		require(w.save()["bodies"][0]["resources"]["network"]["stores"][0]["energy"] == 99960,
+		        "beam pays continuous energy");
+		submit(w, 101, "beam", "enabled", 0);
+		advance(w, 10);
+		require(hp(w) == 19980, "disabled beam has no damage");
+		auto blocker = s["entities"][1];
+		blocker["id"] = "test.cover";
+		blocker["collision"] = {{"shape", "circle"}, {"radius_mm", 5000}, {"mass_grams", 0}};
+		s["entities"].push_back(blocker);
+		s["maps"][0]["entities"].push_back(
+		    {{"id", 4}, {"definition", "test.cover"}, {"x_mm", 30000}, {"y_mm", 0}, {"heading_mdeg", 0}});
+		const auto blocked = load(s);
+		World b;
+		b.load(blocked, map);
+		claim(b);
+		submit(b, 101, "beam", "target", 2);
+		advance(b, 20);
+		require(hp(b) == 20000, "solid cover stops beam before ship");
+	}
+	{
+		auto s = powered_fixture();
+		add_beam(s, 400, 250);
+		for (int i = 0; i < 2; ++i)
+			add_fit(s, "shield-" + std::to_string(i),
+			        {{"kind", "shield"},
+			         {"compartment", "fore"},
+			         {"bearing_mdeg", 180000},
+			         {"arc_mdeg", 90000},
+			         {"layer", i},
+			         {"capacity", i ? 1000 : 100},
+			         {"recharge_per_second", 1},
+			         {"off_recharge_per_second", 0},
+			         {"warmup_ticks", 4},
+			         {"sustain_energy_per_second", 20},
+			         {"power_store", "cell"}},
+			        {{"discharge", "shield_discharge"}});
+		const auto catalog = load(s);
+		const std::string map = s["maps"][0]["id"];
+		World w;
+		w.load(catalog, map);
+		claim(w);
+		advance(w, 5);
+		submit(w, 101, "beam", "target", 2);
+		advance(w, 20);
+		require(hp(w) == 19900, "shield bypass applies once across overlapping layers");
+		require(state(w, 2)["systems"]["shield-0"]["strength"].get<int>() <= 1 &&
+		            state(w, 2)["systems"]["shield-1"]["strength"].get<int>() < 1000,
+		        "authored first layer depletes before second");
+		World resumed;
+		resumed.restore(catalog, w.save());
+		advance(w, 10);
+		advance(resumed, 10);
+		require(w.save() == resumed.save(), "shield and beam continuation is exact");
+	}
+	{
+		auto s = powered_fixture();
+		add_fit(s, "shield",
+		        {{"kind", "shield"},
+		         {"compartment", "fore"},
+		         {"capacity", 100},
+		         {"initial", 20},
+		         {"recharge_per_second", 40},
+		         {"off_recharge_per_second", 20},
+		         {"warmup_ticks", 4},
+		         {"sustain_energy_per_second", 20},
+		         {"discharge_per_second", 20},
+		         {"power_store", "cell"}},
+		        {{"discharge", "shield_discharge"}});
+		const auto catalog = load(s);
+		const std::string map = s["maps"][0]["id"];
+		World w;
+		w.load(catalog, map);
+		claim(w);
+		submit(w, 101, "shield", "enabled", 0);
+		advance(w, 20);
+		require(state(w)["systems"]["shield"]["strength"] == 40 && state(w)["systems"]["shield"]["warmup"] == 0,
+		        "off shield retains strength and regenerates slowly using power");
+		const auto before = w.save()["bodies"][0]["resources"]["network"]["stores"][0]["energy"].get<std::int64_t>() +
+		                    state(w)["systems"]["shield"]["strength"].get<std::int64_t>();
+		submit(w, 101, "shield", "discharge", 1);
+		advance(w, 20);
+		const auto after = w.save()["bodies"][0]["resources"]["network"]["stores"][0]["energy"].get<std::int64_t>() +
+		                   state(w)["systems"]["shield"]["strength"].get<std::int64_t>();
+		require(before == after, "redistribution conserves stored strength and real battery energy");
+		submit(w, 101, "shield", "enabled", 1);
+		w.tick();
+		require(state(w)["systems"]["shield"]["warmup"] == 1, "raised shield ramps coverage");
+	}
+	{
+		auto s = powered_fixture();
+		add_beam(s, 20);
+		auto &ship = s["entities"][0];
+		ship["systems"]["radar"]["compartment"] = "aft";
+		ship["systems"]["radar"]["faults"] = Json::array({{{"id", "receiver"},
+		                                                   {"symptom", "Unstable reception"},
+		                                                   {"diagnosis", "Receiver damaged"},
+		                                                   {"chance_permille", 1000},
+		                                                   {"damage_threshold", 1},
+		                                                   {"effectiveness_permille", 500},
+		                                                   {"repair_work", 100}}});
+		const auto catalog = load(s);
+		const std::string map = s["maps"][0]["id"];
+		World w;
+		w.load(catalog, map);
+		claim(w);
+		require(w.claim(201, 2, "drive") && w.claim(202, 2, "observer"), "claim damaged vessel seats");
+		submit(w, 101, "beam", "target", 2);
+		advance(w, 2);
+		submit(w, 101, "beam", "target", 0);
+		w.tick();
+		const auto faults = w.observe(201)->gameplay["combat"]["faults"];
+		require(!faults.empty() && faults[0]["diagnosis"] == "", "exact fault hidden until team inspection");
+		auto enable = command(w, 202, "team-a", "enabled", 1);
+		enable.target = 2;
+		require(w.submit(202, enable), "enable inspecting team");
+		auto repair = command(w, 202, "team-a", "assignment", 2);
+		repair.target = 2;
+		require(w.submit(202, repair), "assign inspecting team");
+		advance(w, 12);
+		require(w.observe(201)->gameplay["combat"]["faults"][0]["diagnosed"].get<bool>(),
+		        "team arrival reveals diagnosis to owner");
+	}
+}
 } // namespace
 int main(int argc, char **argv)
 {
@@ -242,6 +465,7 @@ int main(int argc, char **argv)
 			two.load(c, map);
 			claim(one);
 			claim(two);
+			submit(one, 102, "team-b", "enabled", 0);
 			submit(one, 102, "team-a", "assignment", 2);
 			submit(two, 102, "team-a", "assignment", 2);
 			submit(two, 102, "team-b", "assignment", 2);
@@ -347,6 +571,9 @@ int main(int argc, char **argv)
 		{
 			auto long_source = fixture();
 			long_source["entities"][0]["systems"]["gun"]["fire_ticks"] = 1000;
+			for (auto &controller : long_source["entities"][0]["control_layout"]["controllers"])
+				if (controller["id"] == "team-a" || controller["id"] == "team-b")
+					controller["commands"][0]["initial"] = 0;
 			auto side_source = long_source;
 			side_source["maps"][0]["entities"][1]["heading_mdeg"] = 90000;
 			auto long_content = load(long_source), side_content = load(side_source);
@@ -552,6 +779,7 @@ int main(int argc, char **argv)
 			require(state(blind).at("systems").at("gun").at("shots") == 0,
 			        "combat AI cannot target ships absent from its permitted sensor feed");
 		}
+		extended_contracts();
 		std::cout << "Combat system contracts passed\n";
 		return 0;
 	}

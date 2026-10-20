@@ -11,6 +11,33 @@ module;
 module phoenix.content;
 namespace phoenix
 {
+DestructionDefinition compile_destruction(const Json &v, const Catalog &catalog, const std::string &path)
+{
+	DestructionDefinition d;
+	const auto n = [&](const char *key, std::int64_t fallback, std::int64_t high)
+	{
+		const auto x = v.value(key, Json(fallback));
+		if (!x.is_number_integer() || x < 0 || x > high)
+			throw std::runtime_error(path + ": invalid " + key);
+		return x.get<std::int64_t>();
+	};
+	d.visual = v.value("visual", std::string{});
+	d.sound = v.value("sound", std::string{});
+	if ((!d.visual.empty() && !catalog.entities.contains(d.visual)) ||
+	    (!d.sound.empty() && !catalog.assets.contains(d.sound)))
+		throw std::runtime_error(path + ": unresolved destruction asset");
+	d.chance = n("chance_permille", 1000, 1000);
+	d.damage = n("damage", 0, 1000000);
+	d.radius = n("radius_mm", 0, 10000000);
+	d.shield_bypass = n("shield_bypass_permille", 0, 1000);
+	d.growth_ticks = n("growth_ticks", 1, 10000);
+	d.fade_ticks = n("fade_ticks", 10, 10000);
+	d.size = n("size_mm", 10000, 10000000);
+	d.affects_missiles = v.value("affects_missiles", true);
+	if ((d.damage && !d.radius) || !d.growth_ticks || !d.fade_ticks || !d.size)
+		throw std::runtime_error(path + ": invalid destruction geometry/timing");
+	return d;
+}
 std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std::string &name)
 {
 	const auto &entity = catalog.entities.at(name);
@@ -38,6 +65,7 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 	};
 	CombatDefinition d;
 	const auto &c = entity.at("combat");
+	d.half_height = amount(c, "half_height_mm", 5000, 1, 1000000);
 	d.repair_console = c.value("repair_console", std::string{});
 	if (!d.repair_console.empty())
 	{
@@ -98,6 +126,38 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 		d.connections.push_back(
 		    {d.compartment_ids.at(a), d.compartment_ids.at(b), amount(v, "travel_ticks", 20, 1, 1000000)});
 	}
+	const auto projectile = [&](const Json &p)
+	{
+		ProjectileDefinition r;
+		r.visual = p.at("visual");
+		r.speed = amount(p, "speed_mm_s", 0, 1, 10000000);
+		r.lifetime = amount(p, "lifetime_ticks", 200, 1, 100000);
+		r.penetration = amount(p, "penetration", 1, 1, 1000000);
+		r.damage = amount(p, "damage", 1, 1, 1000000);
+		r.deposition = amount(p, "damage_per_m", 1, 1, 1000000);
+		r.spread = amount(p, "spread_mdeg", 0, 0, 45000);
+		r.shield_bypass = amount(p, "shield_bypass_permille", 0, 0, 1000);
+		r.guidance = p.value("guidance", std::string("none"));
+		if (r.guidance != "none" && r.guidance != "homing" && r.guidance != "chaotic")
+			fail("unsupported projectile guidance");
+		r.turn_rate = amount(p, "turn_mdeg_s", 90000, 1, 360000);
+		r.seeker_range = amount(p, "seeker_range_mm", 1000000, 1, 10000000);
+		r.arc_height = amount(p, "arc_height_mm", 0, 0, 1000000);
+		r.chaos = amount(p, "chaos_mdeg", 0, 0, 90000);
+		r.durability = amount(p, "durability", 0, 0, 1000000);
+		r.radius = amount(p, "radius_mm", 100, 1, 100000);
+		r.resistance = amount(p, "resistance_per_m", 1, 1, 1000000);
+		r.blast_radius = amount(p, "blast_radius_mm", 0, 0, 10000000);
+		r.fuse_radius = amount(p, "fuse_radius_mm", 0, 0, 1000000);
+		r.trail = p.value("trail", std::string{});
+		if (!catalog.entities.contains(r.visual) || (!r.trail.empty() && !catalog.entities.contains(r.trail)))
+			fail("unknown projectile/trail visual");
+		if (p.contains("destruction"))
+			r.destruction = compile_destruction(p.at("destruction"), catalog, path + ".projectile.destruction");
+		if (r.durability && (r.destruction.shield_bypass || r.destruction.affects_missiles && r.destruction.damage))
+			fail("missile destruction damage must have no shield bypass and exclude missiles");
+		return r;
+	};
 	for (const auto &fit : resolve_systems(catalog, name))
 	{
 		const auto &v = entity.at("systems").at(fit.id);
@@ -105,6 +165,27 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 		if (!d.compartment_ids.contains(compartment))
 			fail("System " + fit.id + ": missing/unknown physical compartment");
 		d.equipment_compartments[fit.id] = compartment;
+		for (const auto &f : v.value("faults", Json::array()))
+		{
+			FaultDefinition fault;
+			fault.id = f.at("id");
+			fault.symptom = f.at("symptom");
+			fault.diagnosis = f.at("diagnosis");
+			fault.effect = f.value("effect", std::string("output"));
+			if (!valid_identifier(fault.id) ||
+			    (fault.effect != "output" && fault.effect != "disabled" && fault.effect != "feed"))
+				fail("invalid fault identity/effect");
+			for (const auto &existing : d.faults[fit.id])
+				if (existing.id == fault.id)
+					fail("duplicate fault");
+			fault.chance = amount(f, "chance_permille", 100, 0, 1000);
+			fault.threshold = amount(f, "damage_threshold", 1, 1, 1000000);
+			fault.severity = amount(f, "severity", 1, 1, 1000);
+			fault.effectiveness = amount(f, "effectiveness_permille", 500, 0, 1000);
+			fault.repair_work = amount(f, "repair_work", 100, 1, 1000000);
+			fault.destroys = f.value("destroyed", false);
+			d.faults[fit.id].push_back(fault);
+		}
 		if (fit.kind < OperatingSystem::Weapon)
 			continue;
 		CombatSystemDefinition s;
@@ -117,20 +198,57 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 		s.arc = amount(v, "arc_mdeg", 360000, 1, 360000);
 		if (s.kind == OperatingSystem::Weapon)
 		{
-			s.magazine = v.at("magazine");
+			s.family = v.value("family", std::string("projectile"));
+			if (s.family != "projectile" && s.family != "beam")
+				fail("unsupported weapon family");
+			s.magazine = v.value("magazine", std::string{});
+			s.magazines = v.value("magazines", std::vector<std::string>{});
+			if (s.magazines.empty() && !s.magazine.empty())
+				s.magazines.push_back(s.magazine);
+			if (!s.magazines.empty())
+				s.magazine = s.magazines.front();
+			if (s.family == "projectile" && s.magazines.empty())
+				fail("projectile weapon requires magazines");
 			s.turret = v.value("turret", std::string{});
 			s.interval = amount(v, "fire_ticks", 20, 1, 1000000);
 			s.ammo_use = amount(v, "ammo_use", 1, 1, 1000000);
-			const auto &p = v.at("projectile");
-			s.projectile.visual = p.at("visual");
-			s.projectile.speed = amount(p, "speed_mm_s", 0, 1, 10000000);
-			s.projectile.lifetime = amount(p, "lifetime_ticks", 200, 1, 100000);
-			s.projectile.penetration = amount(p, "penetration", 0, 1, 1000000);
-			s.projectile.damage = amount(p, "damage", 0, 1, 1000000);
-			s.projectile.deposition = amount(p, "damage_per_m", 0, 1, 1000000);
-			s.projectile.spread = amount(p, "spread_mdeg", 0, 0, 45000);
-			if (!catalog.entities.contains(s.projectile.visual))
-				fail("unknown projectile visual " + s.projectile.visual);
+			s.load_ticks = amount(v, "load_ticks", 0, 0, 1000000);
+			s.range = amount(v, "range_mm", 1000000, 1, 10000000);
+			s.beam_damage = amount(v, "damage_per_second", 1, 1, 1000000);
+			s.standby_energy = amount(v, "auto_energy_per_second", 0, 0, 1000000000);
+			if (s.family == "beam" && (!v.contains("power_store") || amount(v, "energy_per_second", 0) == 0))
+				fail("beam requires positive operating energy and power_store");
+			s.point_defence = v.value("point_defence", false);
+			if (s.point_defence && (!v.contains("power_store") || !s.standby_energy))
+				fail("point defence requires standby energy and power_store");
+			s.intercept_classes = v.value("intercept_classes", std::vector<std::string>{"missile"});
+			for (const auto &tag : s.intercept_classes)
+				if (tag != "missile")
+					fail("unsupported intercept class");
+			if (v.contains("projectile"))
+				s.projectile = projectile(v.at("projectile"));
+			else if (s.family == "beam")
+			{
+				s.projectile.speed = 10000000;
+				s.projectile.penetration = amount(v, "penetration", 1000, 1, 1000000);
+				s.projectile.deposition = amount(v, "damage_per_m", 1000000, 1, 1000000);
+				s.projectile.shield_bypass = amount(v, "shield_bypass_permille", 0, 0, 1000);
+			}
+		}
+		if (s.kind == OperatingSystem::Shield)
+		{
+			s.capacity = amount(v, "capacity", 0, 1, 1000000);
+			s.initial = amount(v, "initial", s.capacity, 0, s.capacity);
+			s.sustain_energy = amount(v, "sustain_energy_per_second", 1, 1, 1000000000);
+			s.recharge_energy = amount(v, "energy_per_strength", 1, 1, 1000000);
+			s.recharge_rate = amount(v, "recharge_per_second", 1, 1, 1000000);
+			s.off_recharge_rate = amount(v, "off_recharge_per_second", 1, 0, s.recharge_rate);
+			s.warmup_ticks = amount(v, "warmup_ticks", 20, 1, 1000000);
+			s.layer = amount(v, "layer", 0, 0, 1000000);
+			s.discharge_rate = amount(v, "discharge_per_second", 1, 1, 1000000);
+			s.discharge_efficiency = amount(v, "discharge_efficiency_permille", 1000, 1, 1000);
+			if (!v.contains("power_store"))
+				fail("shield requires power_store");
 		}
 		if (s.kind == OperatingSystem::Turret)
 		{
@@ -154,6 +272,8 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 		}
 		if (s.kind == OperatingSystem::Magazine)
 		{
+			if (v.contains("projectile"))
+				s.projectile = projectile(v.at("projectile"));
 			s.capacity = amount(v, "capacity", 0, 1, 1000000);
 			s.initial = amount(v, "initial", s.capacity, 0, s.capacity);
 			const auto reload = v.value("reload", Json{{"strategy", "none"}});
@@ -182,13 +302,20 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 				if (!d.system_ids.contains(id) || d.systems[d.system_ids.at(id)].kind != kind)
 					fail(s.id + ": incompatible reference " + id);
 			};
-			check(s.magazine, OperatingSystem::Magazine);
+			std::set<std::string> seen_magazines;
+			for (const auto &mag : s.magazines)
+			{
+				check(mag, OperatingSystem::Magazine);
+				if (!seen_magazines.insert(mag).second || s.ammo_use > d.systems[d.system_ids.at(mag)].capacity)
+					fail(s.id + ": invalid magazine capacity/duplicate");
+				if (s.projectile.visual.empty() && d.systems[d.system_ids.at(mag)].projectile.visual.empty())
+					fail(s.id + ": missing ammunition projectile");
+			}
 			if (!s.turret.empty())
 				check(s.turret, OperatingSystem::Turret);
-			if (s.ammo_use > d.systems[d.system_ids.at(s.magazine)].capacity)
-				fail(s.id + ": shot exceeds magazine capacity");
 		}
 	const auto destruction = c.at("destruction");
+	d.destruction = compile_destruction(destruction, catalog, path + ".destruction");
 	d.explosion = destruction.at("visual");
 	d.explosion_sound = destruction.at("sound");
 	if (!catalog.entities.contains(d.explosion) || !catalog.assets.contains(d.explosion_sound))

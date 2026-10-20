@@ -126,6 +126,27 @@ Observation capture_console_observation(const ConsoleAddress &address) const
 					    result.contacts.push_back(view(contact.id, contact.entity.get<Definition>(),
 					                                   contact.entity.get<Pose>(), contact.entity.get<Motion>()));
 			    });
+		for (auto missile : projectile_rows())
+		{
+			const auto &p = missile.get<Projectile>();
+			if (!p.definition.durability || p.durability <= 0)
+				continue;
+			bool visible = false;
+			const auto contact_id = 7000000000000000ULL + p.id;
+			for (auto &sensor : result.systems)
+				if (sensor.kind == OperatingSystem::Radar && sensor.enabled &&
+				    std::find(sensor.shows.begin(), sensor.shows.end(), "missile") != sensor.shows.end() &&
+				    scenario_sensor_visible(regions, {own.position.x, own.position.y}, {p.position.x, p.position.y},
+				                            sensor.effective_range) &&
+				    fixed::length(p.position - own.position) + std::abs(p.altitude) <= sensor.effective_range)
+				{
+					sensor.contact_ids.push_back(contact_id);
+					visible = true;
+				}
+			if (visible)
+				result.contacts.push_back({contact_id, p.definition.visual, p.position.x, p.position.y, p.velocity.x,
+				                           p.velocity.y, p.heading});
+		}
 		std::sort(result.contacts.begin(), result.contacts.end(),
 		          [](const auto &a, const auto &b)
 		          {

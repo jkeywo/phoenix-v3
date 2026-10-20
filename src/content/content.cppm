@@ -401,10 +401,27 @@ struct CompartmentConnection
 	std::size_t from = 0, to = 0;
 	std::int64_t ticks = 1;
 };
+struct DestructionDefinition
+{
+	std::string visual, sound;
+	std::int64_t chance = 1000, damage = 0, radius = 0, shield_bypass = 0;
+	std::int64_t growth_ticks = 1, fade_ticks = 10, size = 10000;
+	bool affects_missiles = true;
+};
 struct ProjectileDefinition
 {
 	std::string visual;
 	std::int64_t speed = 0, lifetime = 0, penetration = 0, damage = 0, deposition = 0, spread = 0;
+	std::string guidance = "none", trail;
+	std::int64_t shield_bypass = 0, turn_rate = 0, seeker_range = 0, arc_height = 0, chaos = 0;
+	std::int64_t durability = 0, radius = 100, resistance = 1, blast_radius = 0, fuse_radius = 0;
+	DestructionDefinition destruction;
+};
+struct FaultDefinition
+{
+	std::string id, symptom, diagnosis, effect = "output";
+	std::int64_t chance = 0, threshold = 1, severity = 1, effectiveness = 500, repair_work = 100;
+	bool destroys = false;
 };
 struct CombatSystemDefinition
 {
@@ -413,10 +430,15 @@ struct CombatSystemDefinition
 	std::int64_t x = 0, y = 0, bearing = 0, arc = 360000, traverse = 0, interval = 1, ammo_use = 1;
 	std::int64_t capacity = 0, initial = 0, refill_ticks = 1, refill_amount = 0, reload_energy = 0, repair_rate = 0,
 	             stack_penalty = 500;
-	std::string reload = "none";
+	std::string reload = "none", family = "projectile";
 	std::int64_t scale_permille = 1000;
-	bool flip_y = false;
+	bool flip_y = false, point_defence = false;
+	std::vector<std::string> magazines, intercept_classes;
+	std::int64_t load_ticks = 0, range = 0, beam_damage = 0, standby_energy = 0;
+	std::int64_t sustain_energy = 0, recharge_energy = 1, recharge_rate = 0, off_recharge_rate = 0;
+	std::int64_t warmup_ticks = 1, layer = 0, discharge_rate = 0, discharge_efficiency = 1000;
 	ProjectileDefinition projectile;
+	std::vector<FaultDefinition> faults;
 };
 struct CombatDefinition
 {
@@ -425,11 +447,14 @@ struct CombatDefinition
 	std::vector<CombatSystemDefinition> systems;
 	std::map<std::string, std::size_t> compartment_ids, system_ids;
 	std::map<std::string, std::string> equipment_compartments;
+	std::map<std::string, std::vector<FaultDefinition>> faults;
 	std::string repair_console, explosion, explosion_sound;
 	std::int64_t growth_ticks = 10, fade_ticks = 20, explosion_size = 100000, collision_scale = 1,
-	             collision_threshold = 1000;
+	             collision_threshold = 1000, half_height = 5000;
+	DestructionDefinition destruction;
 };
 std::optional<CombatDefinition> compile_combat(const Catalog &, const std::string &entity);
+DestructionDefinition compile_destruction(const Json &, const Catalog &, const std::string &path);
 struct FittedSystemSpec
 {
 	std::string id;

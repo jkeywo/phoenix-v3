@@ -540,6 +540,16 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 }
 bool ConsoleModel::act(const std::string &id)
 {
+	if (id == "game.status-close")
+	{
+		status_system_.clear();
+		return true;
+	}
+	if (id.starts_with("game.status/"))
+	{
+		status_system_ = id.substr(12);
+		return true;
+	}
 	if (id == "game.fire-arcs")
 	{
 		fire_arcs_ = !fire_arcs_;
@@ -1216,6 +1226,24 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 	if (!observation_ || !observation_->gameplay.is_object())
 		return result;
 	const auto combat = observation_->gameplay.value("combat", Json::object());
+	if (!combat.empty())
+		for (const auto &system : observation_->systems)
+		{
+			const auto flag = [&](const char *key)
+			{
+				return system.telemetry.contains(key) && system.telemetry.at(key) != 0;
+			};
+			const auto label = flag("destroyed")             ? "Destroyed"
+			                   : flag("overheated")          ? "Overheated"
+			                   : flag("structural_disabled") ? "Compartment disabled"
+			                   : flag("damaged")             ? "Damaged"
+			                                                 : "Operational";
+			result.emplace_back("game.status/" + system.id,
+			                    std::string(label == std::string("Operational") ? "[+] " : "[!] ") + system.id + ": " +
+			                        localise(label));
+		}
+	if (!status_system_.empty())
+		result.emplace_back("game.status-close", localise("Close system details"));
 	bool weapons = false;
 	for (const auto &descriptor : observation_->gameplay.value("controls", Json::array()))
 		weapons |= descriptor.value("action", std::string{}) == "weapon_target";
@@ -1255,7 +1283,7 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 			bool combat_control = false;
 			for (const auto &system : observation_->systems)
 				if (system.id == descriptor.value("controller", std::string{}) &&
-				    system.kind >= OperatingSystem::Weapon)
+				    system.kind >= OperatingSystem::Weapon && system.kind != OperatingSystem::Shield)
 					combat_control = true;
 			if (combat_control)
 				continue;
@@ -1289,11 +1317,49 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 	}
 	return result;
 }
+std::string ConsoleModel::system_details() const
+{
+	if (!observation_ || status_system_.empty())
+		return {};
+	std::string text = status_system_;
+	bool fault = false;
+	const auto combat = observation_->gameplay.value("combat", Json::object());
+	for (const auto &f : combat.value("faults", Json::array()))
+		if (f.at("system") == status_system_)
+		{
+			fault = true;
+			text += ". " + localise(f.at("symptom"));
+			text += ". " + localise(f.at("diagnosed").get<bool>() ? f.at("diagnosis").get<std::string>()
+			                                                      : "Awaiting team inspection");
+			text += ". " + localise(f.at("destroyed").get<bool>() ? "Destroyed: cannot repair during this encounter"
+			                                                      : "Repairable");
+			if (f.at("diagnosed").get<bool>() && !f.at("destroyed").get<bool>())
+				text += " " + std::to_string(f.at("work").get<std::int64_t>()) + "/" +
+				        std::to_string(f.at("required_work").get<std::int64_t>());
+		}
+	for (const auto &system : observation_->systems)
+		if (system.id == status_system_)
+		{
+			const auto flag = [&](const char *key)
+			{
+				return system.telemetry.contains(key) && system.telemetry.at(key) != 0;
+			};
+			if (flag("overheated"))
+				text += ". " + localise("Overheated: waiting for cooling below recovery threshold");
+			if (flag("structural_disabled"))
+				text += ". " + localise("Disabled: compartment structure");
+			if (!fault && !flag("overheated") && !flag("structural_disabled"))
+				text += ". " + localise("No known faults");
+		}
+	return text;
+}
 std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts() const
 {
 	std::vector<std::pair<std::string, std::string>> result;
 	if (!observation_)
 		return result;
+	if (!status_system_.empty())
+		result.emplace_back("game.readout/system-details", system_details());
 	const auto combat = observation_->gameplay.value("combat", Json::object());
 	if (!combat.empty())
 	{
@@ -1326,6 +1392,26 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 				                        std::to_string(arc.at("arc_mdeg").get<std::int64_t>() / 1000) + "; " +
 				                        localise("Bearing") + " " +
 				                        std::to_string(arc.at("bearing_mdeg").get<std::int64_t>() / 1000));
+	}
+	for (const auto &shield : combat.value("shields", Json::array()))
+		result.emplace_back("shield." + shield.at("id").get<std::string>(),
+		                    shield.at("id").get<std::string>() + ": " + localise("Stored strength") + " " +
+		                        std::to_string(shield.at("strength").get<std::int64_t>()) + "/" +
+		                        std::to_string(shield.at("capacity").get<std::int64_t>()) + "; " + localise("Warm-up") +
+		                        " " + std::to_string(shield.at("warmup").get<std::int64_t>()) + "/" +
+		                        std::to_string(shield.at("warmup_ticks").get<std::int64_t>()));
+	for (const auto &weapon : combat.value("weapons", Json::array()))
+	{
+		std::string text = weapon.at("id").get<std::string>();
+		if (!weapon.at("magazines").empty())
+			text += "; " + localise("Selected magazine") + " " +
+			        weapon.at("magazines").at(weapon.at("selected").get<std::size_t>()).get<std::string>() + "; " +
+			        localise("Loading") + " " + std::to_string(weapon.at("loading").get<std::int64_t>()) + "/" +
+			        std::to_string(weapon.at("load_ticks").get<std::int64_t>()) + "; " +
+			        localise(weapon.at("loaded").get<std::int64_t>() < 0 ? "Unloaded" : "Loaded");
+		if (weapon.at("point_defence").get<bool>())
+			text += "; " + localise(weapon.at("mode") == 0 ? "Off" : weapon.at("mode") == 1 ? "Auto" : "Manual");
+		result.emplace_back("weapon." + weapon.at("id").get<std::string>(), text);
 	}
 	for (const auto *key : {"alert", "stance"})
 	{

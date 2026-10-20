@@ -57,7 +57,11 @@ enum class OperatingAction
 	IntentBoolean,
 	Waypoint,
 	WeaponTarget,
-	RepairCompartment
+	RepairCompartment,
+	MagazineSelect,
+	WeaponMode,
+	RepairSystem,
+	ShieldDischarge
 };
 enum class OperatingSystem
 {
@@ -74,7 +78,8 @@ enum class OperatingSystem
 	Weapon,
 	Turret,
 	Magazine,
-	RepairTeam
+	RepairTeam,
+	Shield
 };
 using SystemMask = std::uint32_t;
 constexpr SystemMask system_bit(OperatingSystem system)
@@ -154,7 +159,11 @@ inline constexpr std::array operating_actions{
     OperatingActionSpec{OperatingAction::Waypoint, "waypoint", OperatingSystem::Engine, true, 1},
     OperatingActionSpec{OperatingAction::WeaponTarget, "weapon_target", OperatingSystem::Weapon, false, 1000000000},
     OperatingActionSpec{OperatingAction::RepairCompartment, "repair_compartment", OperatingSystem::RepairTeam, false,
-                        256}};
+                        256},
+    OperatingActionSpec{OperatingAction::MagazineSelect, "magazine_select", OperatingSystem::Weapon, false, 256},
+    OperatingActionSpec{OperatingAction::WeaponMode, "weapon_mode", OperatingSystem::Weapon, false, 2},
+    OperatingActionSpec{OperatingAction::RepairSystem, "repair_system", OperatingSystem::RepairTeam, false, 256},
+    OperatingActionSpec{OperatingAction::ShieldDischarge, "shield_discharge", OperatingSystem::Shield, true, 1}};
 constexpr const OperatingActionSpec *operating_action(std::string_view name)
 {
 	for (const auto &spec : operating_actions)
@@ -225,6 +234,8 @@ constexpr std::string_view operating_system_name(OperatingSystem system)
 		return "turret";
 	case OperatingSystem::Magazine:
 		return "magazine";
+	case OperatingSystem::Shield:
+		return "shield";
 	case OperatingSystem::RepairTeam:
 		return "repair_team";
 	}
