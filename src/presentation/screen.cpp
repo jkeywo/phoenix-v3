@@ -1097,6 +1097,9 @@ void draw_screen(Application &app)
 	}
 	if (console_mode)
 	{
+		// Console layouts bypass full GameScreen preparation; keep telemetry live
+		// before fresh Console announcements override it for this frame.
+		game_screen->refresh_status(app);
 		std::erase_if(console_surfaces,
 		              [&](const auto &entry)
 		              {

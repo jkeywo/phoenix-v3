@@ -79,6 +79,11 @@ int main(int argc, char **argv)
 				return 1;
 			}
 			base_file = argv[++i];
+			if (base_file.empty())
+			{
+				std::cerr << "--base requires a nonempty pack file\n";
+				return 1;
+			}
 		}
 		if (argument == "--base-url" && i + 1 < argc)
 			app.base_reference = argv[++i];
