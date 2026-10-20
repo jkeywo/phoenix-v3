@@ -9,6 +9,19 @@ public:
 	{
 		return GetTime();
 	}
+	void JoinPath(Rml::String &translated, const Rml::String &document, const Rml::String &path) override
+	{
+#if defined(__linux__) && !defined(__EMSCRIPTEN__)
+		// RmlUi's default web-style resolver strips the root slash. Native
+		// Linux resources use absolute filesystem paths and must retain it.
+		if (path.starts_with('/'))
+		{
+			translated = path;
+			return;
+		}
+#endif
+		Rml::SystemInterface::JoinPath(translated, document, path);
+	}
 	bool LogMessage(Rml::Log::Type type, const Rml::String &message) override
 	{
 		auto &stream = type <= Rml::Log::LT_WARNING ? std::cerr : std::cout;

@@ -30,6 +30,7 @@ public:
 	bool on_screen(const std::string &widget, const std::vector<std::int64_t> &camera, bool update = false);
 	bool is_on_screen(const std::string &widget) const;
 	bool set_waypoint(std::int64_t x, std::int64_t y, bool active = true);
+	ShipCameraState camera() const;
 	Json objectives() const;
 	Json waypoint() const;
 	std::string widget_system(const std::string &widget) const;

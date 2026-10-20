@@ -101,7 +101,8 @@ try
 					'phoenix_summary_bindings_tests.js',
 					'phoenix_swept_collision_tests.js',
 					'phoenix_workshop_test_tests.js',
-					'phoenix_controller_runtime_tests.js'
+					'phoenix_controller_runtime_tests.js',
+					'phoenix_camera_tests.js'
 				))
 			{
 				& $node $gameplayCase

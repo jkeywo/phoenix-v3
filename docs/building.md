@@ -63,6 +63,43 @@ The peer-consensus case runs on native and WASM against synthetic production-loa
 
 Native networking additionally builds pinned libdatachannel 0.24.6 and Mbed TLS 3.6.7 static dependencies (their submodules are pinned by immutable parent commits). Git and Git for Windows' OpenSSL executable are required. The automatic gate installs the integrity-locked `service/` dependency with the bundled Node/npm and exercises signalling, relay and actual native verified WSS. The WSS fixture checks both an explicitly trusted ephemeral CA and refusal without it. Direct native/browser connectivity remains a manually triggered [transport smoke](smoke/network-transport.md); see [network setup](network-transport.md).
 
+## Linux native game and packager
+
+The Linux port builds the same `native`, `phoenix_pack` and `phoenix_verify` targets, plus the native system and network probes. Use Clang 19 with its matching `clang-scan-deps`, CMake 3.28+ (3.31.6 is the repository bootstrap pin), Ninja, Python, Git, Node 22+ and OpenSSL. GCC is not selected by the wrapper because the first-party C++20 named modules need a supported CMake dependency scanner.
+
+On Debian 13 / Ubuntu with Clang 19 packages available, install the development dependencies:
+
+```sh
+sudo apt-get update
+sudo apt-get install clang-19 clang-tools-19 cmake ninja-build python3 git openssl pkg-config \
+  libgl1-mesa-dev libx11-dev libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev \
+  libasound2-dev libudev-dev libdbus-1-dev libgtk-3-dev
+./scripts/build-linux.sh
+./build/linux/native --build-check
+./scripts/check-linux.sh
+```
+
+Install Node 22+ with npm separately if the distribution packages are older, and confirm `node --version` before running the checks. The cloud environment already provides Node 24.19.0.
+
+Run commands from the checkout root. `./scripts/build-linux.sh native phoenix_pack` selects just those targets; `JOBS=4` controls parallelism. `CC`/`CXX` can select another compatible Clang installation on the first configuration. Dependencies retain the same immutable revisions and archive hashes as Windows/WebAssembly. SDL supplies gamepads only; raylib/GLFW owns the X11/OpenGL window. Wayland desktops need XWayland. GTK 3 supplies file pickers and clipboard services.
+
+The packager is a command-line executable and needs no display:
+
+```sh
+./build/linux/phoenix_pack content/base build/linux/base.zip
+./build/linux/phoenix_pack content/training build/linux/training.zip build/linux/base.zip
+./build/linux/phoenix_verify build/linux/base.zip build/linux/training.zip
+./build/linux/native
+```
+
+The normal build already generates and verifies both packs and their menu sidecars. Keep the executable beside its generated `assets/` directory. Native user data defaults to `$XDG_DATA_HOME/phoenix-v3` or `$HOME/.local/share/phoenix-v3`; `--data` overrides it. Linux journal ownership uses a separate `flock` lock file so it survives atomic checkpoint replacement. Journal/blob durability uses file and directory `fsync`. Secure tokens use `getrandom`; verified WSS uses the distribution CA bundle, `SSL_CERT_FILE`, or the existing explicit CA option.
+
+`check-linux.sh` runs the registered CTest suite, the native build check, simulation trace, HTML launcher suite and all network-service cases with real Linux probes, including trusted/untrusted WSS. It creates an ephemeral TLS fixture under the ignored build directory and removes it on exit. Graphics remain separately invoked smoke evidence. For a machine without a desktop, install `xvfb` and `xauth`, then run `(cd build/linux && xvfb-run -a ./native --local-only --smoke --data smoke-data)`.
+
+This initial port supports the ordinary mouse/keyboard path and SDL gamepad code. Native Linux AT-SPI screen-reader integration and per-contact touchscreen routing are not implemented. The accessibility probe returns failure rather than claiming support; the full `--menu-smoke` journey therefore also fails at its accessibility assertion on Linux. Windows UIA and browser DOM semantics are unchanged. Physical gamepads, Linux desktop file-dialog interaction and real multi-display performance still need device testing; a build or virtual-display smoke does not establish that acceptance.
+
+Linux validation on 20 October 2026 used Debian 13, Clang 19.1.7, CMake 3.31.6 and four build workers. The full Linux gate passed 21 CTest cases, 10 launcher tests and all eight service/network cases with no skips, including real fleet recovery and verified WSS. The packager generated both shipped packs and `phoenix_verify` accepted their combined content. Explicit Xvfb/llvmpipe smoke runs rendered the home screen and the `training.navigation` Console and Viewscreen; the profile journey loaded all avatar resources after preserving POSIX absolute paths. That full menu journey still failed its native accessibility assertion, consistent with the unsupported Linux provider. There is no audio device in the cloud machine, so sound output was not verified. Windows/WebAssembly checks were not rerun for this port.
+
 ## GitHub Pages
 
 The public launcher is **https://jkeywo.github.io/phoenix-v3/**. Use Host Game, one of the three Join Game roles, or Workshop. The HTML menu offers verified training scenarios and defers WASM until lobby/Workshop entry; QR links bypass the menu. See [browser menu behavior](browser-menu.md).

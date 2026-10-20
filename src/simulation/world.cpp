@@ -171,6 +171,7 @@ struct World::Impl
 	std::vector<std::pair<std::string, std::string>> packs;
 	std::map<std::string, CompiledDefinition> definitions;
 	std::map<std::string, Json> console_layouts;
+	std::map<std::string, std::vector<std::string>> camera_widgets;
 	std::string map;
 	std::map<std::string, std::string> ships;
 	std::map<std::string, EntityId> slot_entities;
@@ -394,6 +395,16 @@ struct World::Impl
 		const auto content = convert_controller_content(source);
 		console_layouts = content.consoles;
 		packs = content.ordered_packs;
+		camera_widgets.clear();
+		for (const auto &[name, layout] : content.consoles)
+		{
+			auto &kinds = camera_widgets[name];
+			for (const auto &widget : layout.at("widgets"))
+				if (const auto kind = widget.at("kind").get<std::string>();
+				    (kind == "camera_mode" || kind == "camera_direction") &&
+				    std::find(kinds.begin(), kinds.end(), kind) == kinds.end())
+					kinds.push_back(kind);
+		}
 		knowledge.configure(content);
 		gameplay = true;
 		for (const auto &[name, definition] : content.entities)
@@ -712,6 +723,8 @@ struct World::Impl
 		construction.indexed = true;
 		next_entity = std::max(next_entity, id + 1);
 		knowledge.register_ship(id, definition, ecs.get<Clock>().tick);
+		if (!data.consoles.empty())
+			knowledge.set_camera(id, {}, ecs.get<Clock>().tick);
 		if (data.layout)
 			consume_controller_commands(entity);
 	}
@@ -1498,6 +1511,26 @@ struct World::Impl
 		const auto &spec = definition(address.ship);
 		if (command.action.starts_with("display."))
 			return display_command(claimant, command, execute);
+		if (command.action == "camera_mode" || command.action == "camera_direction")
+		{
+			if (!command.system.empty() || !command.controller.empty() || !command.channel.empty() ||
+			    command.generation || command.request_id || !command.arguments.empty() || command.value < 0 ||
+			    command.value > (command.action == "camera_mode" ? 1 : 7))
+				return false;
+			const auto &kinds = camera_widgets.at(console.definition);
+			if (std::find(kinds.begin(), kinds.end(), command.action) == kinds.end())
+				return false;
+			if (execute)
+			{
+				auto camera = ship_camera_state(knowledge.public_board(address.ship));
+				if (command.action == "camera_mode")
+					camera.mode = static_cast<int>(command.value);
+				else
+					camera.direction = static_cast<int>(command.value);
+				knowledge.set_camera(address.ship, camera, ecs.get<Clock>().tick);
+			}
+			return true;
+		}
 		if (entities.at(address.ship).has<EntityControls>() && !command.action.starts_with("message.") &&
 		    !command.action.starts_with("publish."))
 			return controller_meta(address, command, execute);
@@ -1776,6 +1809,10 @@ void World::tick()
 	// Keep committed frame numbering live after the race, but freeze its world.
 	if (impl_->scenario && impl_->scenario->runtime().mission_complete())
 	{
+		// Presentation settings remain usable after physical mission execution stops.
+		for (const auto &[claim, command] : impl_->meta_pending)
+			if (command.action == "camera_mode" || command.action == "camera_direction")
+				impl_->meta(claim, command, true);
 		impl_->meta_pending.clear();
 		impl_->controller_pending.clear();
 		++impl_->ecs.get_mut<Clock>().tick;
@@ -2059,6 +2096,14 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 		                 }))
 			buttons.push_back({{"id", id}, {"label", label}, {"action", action}, {"system", system}, {"value", value}});
 	};
+	for (const auto &kind : impl_->camera_widgets.at(seat.definition))
+	{
+		if (kind == "camera_mode" || kind == "camera_direction")
+			for (int value = 0; value < (kind == "camera_mode" ? 2 : 8); ++value)
+				button(kind + "." + std::to_string(value),
+				       kind == "camera_mode" ? (value ? "Third person" : "First person") : camera_directions[value],
+				       kind, {}, value);
+	}
 	const bool away = impl_->away.contains(address) && impl_->away.at(address);
 	button("away", away ? "Resume control" : "Away", "away", {}, away ? 0 : 1);
 	if (entity.has<EntityControls>())

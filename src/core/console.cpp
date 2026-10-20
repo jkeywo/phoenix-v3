@@ -199,7 +199,7 @@ std::vector<std::pair<std::string, std::string>> board_readouts(const Json &boar
 		std::map<std::string, Json> latest;
 		for (const auto &record : records)
 		{
-			if (!record.is_object())
+			if (!record.is_object() || console_string(record, "schema") == "phoenix.camera")
 				continue;
 			std::string identity = console_string(record, "schema");
 			for (const auto *key : {"subject", "source", "publication"})
@@ -711,6 +711,10 @@ Json ConsoleModel::objectives() const
 	for (const auto &[key, fields] : latest)
 		result.push_back(fields);
 	return result;
+}
+ShipCameraState ConsoleModel::camera() const
+{
+	return observation_ ? ship_camera_state(observation_->gameplay) : ShipCameraState{};
 }
 Json ConsoleModel::waypoint() const
 {

@@ -1,8 +1,13 @@
 module;
+#ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
 #include <wincrypt.h>
+#else
+#include <filesystem>
+#include <cstdlib>
+#endif
 #include <nlohmann/json.hpp>
 #include <rtc/rtc.hpp>
 #include <algorithm>
@@ -61,6 +66,7 @@ struct Inbox
 };
 std::string system_roots()
 {
+#ifdef _WIN32
 	HCERTSTORE store = CertOpenSystemStoreW(0, L"ROOT");
 	if (!store)
 		throw std::runtime_error("Cannot read Windows trusted roots for WSS");
@@ -91,6 +97,20 @@ std::string system_roots()
 	if (pem.empty())
 		throw std::runtime_error("No Windows trusted roots available for WSS");
 	return pem;
+#else
+	// libdatachannel accepts either a PEM string or a filename. Preserve the
+	// distribution trust store, including locally installed enterprise roots.
+	if (const auto *file = std::getenv("SSL_CERT_FILE"); file && *file)
+	{
+		if (!std::filesystem::is_regular_file(file))
+			throw std::runtime_error("SSL_CERT_FILE does not name a CA bundle");
+		return file;
+	}
+	for (const auto *file : {"/etc/ssl/certs/ca-certificates.crt", "/etc/pki/tls/certs/ca-bundle.crt"})
+		if (std::filesystem::is_regular_file(file))
+			return file;
+	throw std::runtime_error("Cannot locate the system CA bundle for WSS; set SSL_CERT_FILE");
+#endif
 }
 class NativeTransport final : public PeerTransport
 {

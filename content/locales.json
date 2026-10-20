@@ -352,7 +352,20 @@
 			"Off": "Off",
 			"Normal viewscreen": "Normal viewscreen",
 			"Viewscreen request sent": "Viewscreen request sent",
-			"Additional radar contacts omitted": "Additional radar contacts omitted"
+			"Additional radar contacts omitted": "Additional radar contacts omitted",
+			"Camera mode": "Camera mode",
+			"Camera direction": "Camera direction",
+			"First person": "First person",
+			"Third person": "Third person",
+			"Forward": "Forward",
+			"Forward-right": "Forward-right",
+			"Right": "Right",
+			"Rear-right": "Rear-right",
+			"Rear": "Rear",
+			"Rear-left": "Rear-left",
+			"Left": "Left",
+			"Forward-left": "Forward-left",
+			"Selected": "Selected"
 		}
 	}
 }

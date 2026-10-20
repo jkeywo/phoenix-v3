@@ -2,10 +2,13 @@ module;
 #include <array>
 #ifdef __EMSCRIPTEN__
 #include <emscripten.h>
-#else
+#elif defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 #include <bcrypt.h>
+#else
+#include <cerrno>
+#include <sys/random.h>
 #endif
 #include <string>
 #include <stdexcept>
@@ -27,9 +30,20 @@ std::string random_token()
 #ifdef __EMSCRIPTEN__
 	if (!phoenix_secure_random(bytes.data()))
 		throw std::runtime_error("Secure browser randomness is unavailable");
-#else
+#elif defined(_WIN32)
 	if (BCryptGenRandom(nullptr, bytes.data(), static_cast<ULONG>(bytes.size()), BCRYPT_USE_SYSTEM_PREFERRED_RNG) != 0)
 		throw std::runtime_error("Secure native randomness is unavailable");
+#else
+	std::size_t offset = 0;
+	while (offset < bytes.size())
+	{
+		const auto count = getrandom(bytes.data() + offset, bytes.size() - offset, 0);
+		if (count < 0 && errno == EINTR)
+			continue;
+		if (count <= 0)
+			throw std::runtime_error("Secure native randomness is unavailable");
+		offset += static_cast<std::size_t>(count);
+	}
 #endif
 	std::string result;
 	const char *hex = "0123456789abcdef";

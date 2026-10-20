@@ -6,6 +6,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "Static dependencies" FORCE)
 include(FetchContent)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+	# Clang module producers and consumers must agree on POSIX thread support.
+	# GTK also adds this flag to consumers; apply it consistently from the start.
+	add_compile_options("$<$<COMPILE_LANGUAGE:CXX>:-pthread>")
+	add_link_options(-pthread)
+endif()
 
 function(phoenix_fixture target)
 	if(EMSCRIPTEN)
@@ -99,6 +105,8 @@ if(NOT EMSCRIPTEN)
 	set(SDL_TEST_LIBRARY OFF CACHE BOOL "" FORCE)
 	set(SDL_TESTS OFF CACHE BOOL "" FORCE)
 	set(SDL_EXAMPLES OFF CACHE BOOL "" FORCE)
+	# raylib/GLFW owns the window; SDL is used only for controllers.
+	set(SDL_UNIX_CONSOLE_BUILD ON CACHE BOOL "" FORCE)
 	set(SDL_VIDEO OFF CACHE BOOL "" FORCE)
 	set(SDL_AUDIO OFF CACHE BOOL "" FORCE)
 	set(SDL_RENDER OFF CACHE BOOL "" FORCE)
@@ -179,7 +187,7 @@ add_library(
 	src/platform/atomic_file.cpp
 )
 target_include_directories(phoenix_foundation PRIVATE ${picosha2_SOURCE_DIR})
-if(NOT EMSCRIPTEN)
+if(WIN32)
 	target_link_libraries(phoenix_foundation PRIVATE bcrypt)
 endif()
 target_sources(
@@ -273,8 +281,10 @@ if(EMSCRIPTEN)
 			"-sEXPORTED_RUNTIME_METHODS=['ccall']"
 	)
 	configure_file(web/storage-probe.html "${CMAKE_CURRENT_BINARY_DIR}/storage-probe.html" COPYONLY)
-else()
+elseif(WIN32)
 	target_sources(phoenix_persistence PRIVATE src/platform/windows_store.cpp)
+else()
+	target_sources(phoenix_persistence PRIVATE src/platform/posix_store.cpp)
 endif()
 target_include_directories(phoenix_content PRIVATE ${raylib_SOURCE_DIR}/src/external)
 add_library(phoenix_wire STATIC src/network/packet.cpp src/network/transfer.cpp)
@@ -285,7 +295,7 @@ target_link_libraries(phoenix_blobs PUBLIC phoenix_foundation)
 if(EMSCRIPTEN)
 	target_sources(phoenix_blobs PRIVATE src/platform/browser_blobs.cpp)
 else()
-	target_sources(phoenix_blobs PRIVATE src/platform/windows_blobs.cpp)
+	target_sources(phoenix_blobs PRIVATE src/platform/native_blobs.cpp)
 endif()
 add_library(phoenix_scenario_bridge STATIC src/simulation/gameplay_scenario.cpp)
 target_sources(phoenix_scenario_bridge PUBLIC FILE_SET CXX_MODULES FILES src/simulation/gameplay_scenario.cppm)
@@ -328,8 +338,11 @@ if(EMSCRIPTEN)
 	target_sources(phoenix_devices PRIVATE src/platform/browser_devices.cpp)
 	target_compile_options(phoenix_devices PUBLIC -fexceptions)
 else()
-	target_sources(phoenix_devices PRIVATE src/platform/windows_devices.cpp)
-	target_link_libraries(phoenix_devices PRIVATE SDL3::SDL3-static comctl32)
+	target_sources(phoenix_devices PRIVATE src/platform/native_devices.cpp)
+	target_link_libraries(phoenix_devices PRIVATE SDL3::SDL3-static)
+	if(WIN32)
+		target_link_libraries(phoenix_devices PRIVATE comctl32)
+	endif()
 endif()
 foreach(
 	case
@@ -480,11 +493,15 @@ else()
 			"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets/training.zip"
 		DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/training.zip" "${CMAKE_CURRENT_BINARY_DIR}/assets/training.zip"
 	)
-	target_sources(phoenix_presentation PRIVATE src/presentation/windows_semantics.cpp)
-	target_link_libraries(
-		phoenix_presentation
-		PRIVATE uiautomationcore ole32 oleaut32 comctl32 imm32
-	)
+	if(WIN32)
+		target_sources(phoenix_presentation PRIVATE src/presentation/windows_semantics.cpp)
+		target_link_libraries(
+			phoenix_presentation
+			PRIVATE uiautomationcore ole32 oleaut32 comctl32 imm32
+		)
+	else()
+		target_sources(phoenix_presentation PRIVATE src/presentation/linux_semantics.cpp)
+	endif()
 endif()
 
 target_link_libraries(
@@ -603,9 +620,14 @@ endif()
 target_link_libraries(phoenix_tools PUBLIC phoenix_presentation phoenix_imgui phoenix_content)
 if(EMSCRIPTEN)
 	target_sources(phoenix_files PRIVATE src/platform/browser_files.cpp)
-else()
+elseif(WIN32)
 	target_sources(phoenix_files PRIVATE src/platform/windows_files.cpp)
 	target_link_libraries(phoenix_files PRIVATE comdlg32)
+else()
+	find_package(PkgConfig REQUIRED)
+	pkg_check_modules(GTK3 REQUIRED IMPORTED_TARGET gtk+-3.0)
+	target_sources(phoenix_files PRIVATE src/platform/linux_files.cpp)
+	target_link_libraries(phoenix_files PRIVATE PkgConfig::GTK3)
 endif()
 if(EMSCRIPTEN)
 	add_executable(phoenix_blob_probe tests/manual/browser_blobs.cpp)
@@ -724,7 +746,10 @@ if(EMSCRIPTEN)
 	target_sources(phoenix_transport PRIVATE src/platform/browser_transport.cpp)
 else()
 	target_sources(phoenix_transport PRIVATE src/platform/native_transport.cpp)
-	target_link_libraries(phoenix_transport PRIVATE datachannel-static crypt32)
+	target_link_libraries(phoenix_transport PRIVATE datachannel-static)
+	if(WIN32)
+		target_link_libraries(phoenix_transport PRIVATE crypt32)
+	endif()
 endif()
 add_executable(phoenix_network_probe tests/manual/network.cpp)
 target_link_libraries(phoenix_network_probe PRIVATE phoenix_transport nlohmann_json::nlohmann_json)
@@ -803,6 +828,41 @@ if(EMSCRIPTEN)
 	add_executable(phoenix_input_check tests/system/input_and_semantics.cpp)
 	target_link_libraries(phoenix_input_check PRIVATE phoenix_core)
 	set_property(TARGET phoenix_input_check PROPERTY CXX_SCAN_FOR_MODULES ON)
+endif()
+
+add_executable(phoenix_camera_tests tests/system/camera.cpp)
+target_link_libraries(phoenix_camera_tests PRIVATE phoenix_session phoenix_core)
+phoenix_fixture(phoenix_camera_tests)
+add_executable(phoenix_camera_smoke EXCLUDE_FROM_ALL tests/manual/camera_ui.cpp)
+target_link_libraries(phoenix_camera_smoke PRIVATE phoenix_session phoenix_presentation)
+if(EMSCRIPTEN)
+	set_target_properties(phoenix_camera_smoke PROPERTIES SUFFIX ".html")
+	target_link_options(
+		phoenix_camera_smoke
+		PRIVATE
+			"-O1"
+			"-sEXPORTED_RUNTIME_METHODS=['ccall']"
+			"-sALLOW_MEMORY_GROWTH=1"
+			"-sSTACK_SIZE=1048576"
+			"-sSTACK_OVERFLOW_CHECK=2"
+			"--preload-file"
+			"${CMAKE_CURRENT_BINARY_DIR}/assets@/assets"
+			"SHELL:--preload-file \"${CMAKE_CURRENT_BINARY_DIR}/base.zip@/assets/base.zip\""
+			"SHELL:--preload-file \"${CMAKE_CURRENT_BINARY_DIR}/training.zip@/assets/training.zip\""
+			"--shell-file"
+			"${CMAKE_CURRENT_SOURCE_DIR}/tests/manual/camera_ui.html"
+	)
+	set_property(
+		TARGET phoenix_camera_smoke
+		APPEND
+		PROPERTY
+			LINK_DEPENDS
+				"${CMAKE_CURRENT_BINARY_DIR}/base.zip"
+				"${CMAKE_CURRENT_BINARY_DIR}/training.zip"
+				"${CMAKE_CURRENT_SOURCE_DIR}/tests/manual/camera_ui.html"
+	)
+else()
+	add_test(NAME system.ship-camera COMMAND phoenix_camera_tests)
 endif()
 
 include(cmake/Modules.cmake)

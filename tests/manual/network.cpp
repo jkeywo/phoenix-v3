@@ -13,7 +13,7 @@ import phoenix.transport;
 
 using namespace phoenix;
 using Json = nlohmann::json;
-std::unique_ptr<PeerTransport> link;
+std::unique_ptr<PeerTransport> transport;
 LinkOptions options;
 std::string remote = "native";
 bool echo_mode = false, done = false, success = false;
@@ -28,13 +28,14 @@ void report(const std::string &text)
 }
 void send_probe()
 {
-	link->send(remote, Json{{"kind", "transport-probe"}, {"nonce", "synthetic-v3"}, {"sequence", ++sequence}}.dump());
+	transport->send(remote,
+	                Json{{"kind", "transport-probe"}, {"nonce", "synthetic-v3"}, {"sequence", ++sequence}}.dump());
 }
 void frame()
 {
 	try
 	{
-		for (const auto &event : link->poll())
+		for (const auto &event : transport->poll())
 		{
 			if (event.kind == LinkEvent::error)
 				report("Transport: " + event.data);
@@ -50,7 +51,7 @@ void frame()
 			{
 				packet["kind"] = "transport-reply";
 				packet["received_direct"] = event.direct;
-				link->send(event.peer, packet.dump());
+				transport->send(event.peer, packet.dump());
 				report(std::string("Echoed ") + (event.direct ? "direct" : "relay") + " packet from " + event.peer);
 			}
 			else if (!echo_mode && event.peer == remote && packet.at("kind") == "transport-reply")
@@ -121,7 +122,7 @@ int main(int argc, char **argv)
 	try
 	{
 		deadline = std::chrono::steady_clock::now() + std::chrono::seconds(seconds);
-		link = open_peer_transport(options);
+		transport = open_peer_transport(options);
 		report("Connecting C++ transport probe...");
 #ifdef __EMSCRIPTEN__
 		emscripten_set_main_loop(frame, 0, true);

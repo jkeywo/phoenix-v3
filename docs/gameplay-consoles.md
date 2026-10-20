@@ -102,3 +102,7 @@ session generation or pack identity establishes a fresh baseline.
 This presentation work supplies ordinary graphical and semantic information. It
 does not establish audible screen-reader, physical touch/controller or six-screen
 performance acceptance without the corresponding manually triggered smoke runs.
+
+## Shared camera widgets
+
+`camera_mode` and `camera_direction` widgets change the shared ship camera through exact projected commands and the normal Console admission path. Their bindings are `ship.camera.mode` and `ship.camera.direction`; neither requires a physical System or Controller channel. Their selection follows the accepted `phoenix.camera` ship-blackboard record. Workshop supports placement and isolated preview on any Console, and shipped Helm layouts include both. See [camera behavior, input and persistence](ship-camera.md).

@@ -51,6 +51,7 @@ public:
 	std::size_t ingest_telemetry(EntityId ship, const std::string &system,
 	                             const std::map<std::string, std::int64_t> &values, KnowledgeTick tick);
 	// Trusted scenario/objective publication. Human admission must never call it.
+	void set_camera(EntityId ship, ShipCameraState state, KnowledgeTick tick);
 	bool publish_ship(EntityId ship, KnowledgeRecordInput value, KnowledgeTick tick);
 	bool publish_scenario_console(const ConsoleAddress &address, KnowledgeRecordInput value, KnowledgeTick tick);
 	KnowledgeId activate_publication(const ConsoleAddress &address, const std::string &name, KnowledgeTick tick,
