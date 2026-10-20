@@ -346,7 +346,20 @@
 			"Customize radar sweep": "Customize radar sweep",
 			"Sweep speed (degrees/s)": "Sweep speed (degrees/s)",
 			"Sweep duration (seconds)": "Sweep duration (seconds)",
-			"Sweep colour": "Sweep colour"
+			"Sweep colour": "Sweep colour",
+			"Camera mode": "Camera mode",
+			"Camera direction": "Camera direction",
+			"First person": "First person",
+			"Third person": "Third person",
+			"Forward": "Forward",
+			"Forward-right": "Forward-right",
+			"Right": "Right",
+			"Rear-right": "Rear-right",
+			"Rear": "Rear",
+			"Rear-left": "Rear-left",
+			"Left": "Left",
+			"Forward-left": "Forward-left",
+			"Selected": "Selected"
 		}
 	}
 }

@@ -19,6 +19,15 @@ export import phoenix.data;
 export namespace phoenix
 {
 using EntityId = std::uint64_t;
+struct ShipCameraState
+{
+	int mode = 0, direction = 0;
+	bool operator==(const ShipCameraState &) const = default;
+};
+inline constexpr std::array<const char *, 8> camera_directions{"Forward", "Forward-right", "Right", "Rear-right",
+                                                               "Rear",    "Rear-left",     "Left",  "Forward-left"};
+ShipCameraState ship_camera_state(const Json &board);
+
 enum class OperatingAction
 {
 	Speed,

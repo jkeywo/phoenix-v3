@@ -172,6 +172,12 @@ std::vector<DeviceEvent> poll_devices()
 			case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
 				control = "game.right";
 				break;
+			case SDL_GAMEPAD_BUTTON_NORTH:
+				control = "game.camera";
+				break;
+			case SDL_GAMEPAD_BUTTON_EAST:
+				control = "game.camera-back";
+				break;
 			case SDL_GAMEPAD_BUTTON_SOUTH:
 				control = "game.contacts";
 				break;

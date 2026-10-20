@@ -28,6 +28,16 @@ using namespace phoenix;
 void large_network_knowledge(Json &definitions)
 {
 	definitions["schema"] = 4;
+	for (const auto &[kind, binding] : std::vector<std::pair<std::string, std::string>>{
+	         {"camera_mode", "ship.camera.mode"}, {"camera_direction", "ship.camera.direction"}})
+		definitions["consoles"][0]["widgets"].push_back({{"id", kind},
+		                                                 {"kind", kind},
+		                                                 {"binding", binding},
+		                                                 {"label", kind},
+		                                                 {"x", 0},
+		                                                 {"y", 0},
+		                                                 {"width", 300},
+		                                                 {"height", 300}});
 	definitions["knowledge"] = Json::parse(R"json({
 		"history_limit":8,"roles":["crew"],"schemas":[
 		 {"id":"network-speed","producers":["crew"],"readers":["crew"],"ship_publishable":true,
@@ -783,6 +793,12 @@ int main(int argc, char **argv)
 				{
 					if (!sent)
 					{
+						if (options.link.self == "replacement" &&
+						    ship_camera_state(view->gameplay) != ShipCameraState{1, 6})
+							throw std::runtime_error("Replacement operator lost shared camera selection");
+						if (!session->command({view->own.id, "camera_mode", 1}) ||
+						    !session->command({view->own.id, "camera_direction", 6}))
+							throw std::runtime_error("Remote authored camera controls refused");
 						if (view->own.radar_icon != RadarIcon::ship || view->contacts.empty() ||
 						    view->contacts[0].radar_icon != RadarIcon::asteroid)
 							throw std::runtime_error("Remote radar lost the authored contact symbols");
@@ -842,14 +858,16 @@ int main(int argc, char **argv)
 							}
 						for (const auto &record : view->gameplay.value("shared", Json::array()))
 							publication = publication || record.at("schema") == "network-speed";
-						if (!report || !publication)
+						if (!report || !publication || ship_camera_state(view->gameplay) != ShipCameraState{1, 6} ||
+						    ship_camera_state(session->public_board()) != ShipCameraState{1, 6})
 							continue;
 						if (view->gameplay.dump().size() <= 40000)
 							throw std::runtime_error(
 							    "Network knowledge fixture did not cross the old sub-envelope bound");
-						std::cout << "PASS remote verified content, committed claim, scoped radar, engine and steering"
-						             ", authored message/publication and chunked large knowledge projection"
-						          << std::endl;
+						std::cout
+						    << "PASS remote verified content, committed claim, scoped radar, engine and steering"
+						       ", shared camera, authored message/publication and chunked large knowledge projection"
+						    << std::endl;
 						return 0;
 					}
 				}

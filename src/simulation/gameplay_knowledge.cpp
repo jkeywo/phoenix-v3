@@ -420,6 +420,25 @@ std::size_t GameplayKnowledge::ingest_telemetry(EntityId ship, const std::string
 	}
 	return updated;
 }
+void GameplayKnowledge::set_camera(EntityId ship, ShipCameraState state, KnowledgeTick tick)
+{
+	knowledge_require(state.mode >= 0 && state.mode <= 1 && state.direction >= 0 && state.direction <= 7,
+	                  "invalid ship camera state");
+	const auto key = compiled_.schema("phoenix.camera");
+	KnowledgeRecordInput record;
+	record.schema = key;
+	record.producer = compiled_.role("phoenix.scenario");
+	record.subject = ship;
+	std::uint64_t revision = 0;
+	const auto board = public_board(ship);
+	for (const auto &previous : board.at("shared"))
+		if (previous.at("schema") == "phoenix.camera")
+			revision = previous.at("revision").get<std::uint64_t>() + 1;
+	record.provenance = {ship, tick, revision, 0, EvidenceKind::Fact};
+	record.fields = {{compiled_.field(key, "mode"), static_cast<std::int64_t>(state.mode)},
+	                 {compiled_.field(key, "direction"), static_cast<std::int64_t>(state.direction)}};
+	knowledge_require(runtime_.write_ship(ship, std::move(record), tick), "camera update was not accepted");
+}
 bool GameplayKnowledge::publish_ship(EntityId ship, KnowledgeRecordInput value, KnowledgeTick tick)
 {
 	knowledge_require(ships_.contains(ship), "unknown objective/publication recipient ship");
@@ -684,7 +703,18 @@ bool GameplayKnowledge::stale(const KnowledgeRecord &record, KnowledgeTick now) 
 GameplayKnowledgeProjection GameplayKnowledge::project(const ConsoleAddress &address) const
 {
 	const auto id = console_id(address);
-	return {id, runtime_.read_console(id), runtime_.read_ship(id), runtime_.message_history(id),
+	auto shared = runtime_.read_ship(id);
+	KnowledgeId camera = 0;
+	for (const auto &record : shared)
+		if (compiled_.schemas.at(record.value.schema - 1).name == "phoenix.camera")
+			camera = std::max(camera, record.id);
+	std::erase_if(shared,
+	              [&](const auto &record)
+	              {
+		              return record.id != camera &&
+		                     compiled_.schemas.at(record.value.schema - 1).name == "phoenix.camera";
+	              });
+	return {id, runtime_.read_console(id), std::move(shared), runtime_.message_history(id),
 	        notifications_.contains(id) ? notifications_.at(id) : std::vector<CoordinationDelivery>{}};
 }
 Json GameplayKnowledge::project_json(const ConsoleAddress &address) const
@@ -769,6 +799,18 @@ Json GameplayKnowledge::public_board(EntityId entity) const
 				result[name].push_back(value);
 	};
 	append("shared", records, 128);
+	// Camera settings are live ship state, not expendable report history.
+	for (const auto &[id, record] : records)
+		if (record.at("schema") == "phoenix.camera" && std::none_of(result["shared"].begin(), result["shared"].end(),
+		                                                            [&](const auto &row)
+		                                                            {
+			                                                            return row.at("id") == id;
+		                                                            }))
+		{
+			if (result["shared"].size() == 128)
+				result["shared"].erase(0);
+			result["shared"].push_back(record);
+		}
 	append("messages", messages, 64);
 	return result;
 }
@@ -826,7 +868,16 @@ void GameplayKnowledge::restore(const Json &state)
 		restored.install_ship(knowledge_unsigned(row.at("ship")), std::move(binding), 0, false);
 	}
 	const auto expected = knowledge_registry_signature(restored.runtime_.save());
-	restored.runtime_.restore(state.at("runtime"));
+	auto saved_runtime = state.at("runtime");
+	const auto current_contract = restored.runtime_.save().at("contract");
+	auto legacy_contract = current_contract;
+	if (!legacy_contract.at("schemas").empty() && legacy_contract.at("schemas").back().at("name") == "phoenix.camera")
+	{
+		legacy_contract["schemas"].erase(legacy_contract["schemas"].size() - 1);
+		if (saved_runtime.at("contract") == legacy_contract)
+			saved_runtime["contract"] = current_contract;
+	}
+	restored.runtime_.restore(saved_runtime);
 	knowledge_require(expected == knowledge_registry_signature(restored.runtime_.save()),
 	                  "saved runtime does not match authored Console/System/Controller bindings");
 	const auto runtime_state = restored.runtime_.save();
@@ -863,6 +914,18 @@ void GameplayKnowledge::restore(const Json &state)
 	knowledge_require(expected_publications == restored.publication_owners_,
 	                  "saved publication ownership differs from runtime");
 	restored.clear_control();
+	for (const auto &[ship, binding] : restored.ships_)
+		if (!binding.consoles.empty())
+		{
+			const auto board = restored.public_board(ship);
+			ship_camera_state(board); // Reject malformed saved camera values before committing restoration.
+			if (std::none_of(board.at("shared").begin(), board.at("shared").end(),
+			                 [](const auto &record)
+			                 {
+				                 return record.at("schema") == "phoenix.camera";
+			                 }))
+				restored.set_camera(ship, {}, saved_runtime.at("tick").get<KnowledgeTick>());
+		}
 	*this = std::move(restored);
 }
 } // namespace phoenix

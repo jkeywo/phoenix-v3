@@ -1,5 +1,6 @@
 module;
 #include <raylib.h>
+#include "ship_camera.hpp"
 #include <rlgl.h>
 #include <cmath>
 #include <algorithm>
@@ -72,6 +73,7 @@ struct GameScreen::State
 	SceneEnvironment environment;
 	Json presentation_identity;
 	std::string grid_definition;
+	float camera_aspect = 1;
 	float game_top = 200;
 	std::optional<Rectangle> display_region;
 	std::map<std::string, double> scene_metrics;
@@ -644,6 +646,29 @@ struct GameScreen::State
 				if (!definition.empty())
 				{
 					const auto &render = app.session->catalog().entities.at(definition).at("render");
+					camera_aspect = 1;
+					if (render.contains("sprite"))
+					{
+						const auto sprite = compile_sprite(render.at("sprite"), app.session->catalog(), "ship camera");
+						const auto frames = [&](const auto &values)
+						{
+							for (const auto &frame : values)
+								camera_aspect =
+								    std::max(camera_aspect, static_cast<float>(frame.rect[2]) / frame.rect[3]);
+						};
+						frames(sprite.frames);
+						for (const auto &entry : sprite.entries)
+							frames(entry.frames);
+					}
+					else
+						for (const auto &reference : render.at("images"))
+						{
+							const auto &png = app.session->catalog().assets.at(reference.get<std::string>());
+							auto image = LoadImageFromMemory(".png", png.data(), static_cast<int>(png.size()));
+							if (image.height > 0)
+								camera_aspect = std::max(camera_aspect, static_cast<float>(image.width) / image.height);
+							UnloadImage(image);
+						}
 					if (render.contains("reference_grid"))
 						environment.grid = compile_reference_grid(render.at("reference_grid"), "render.reference_grid");
 				}
@@ -651,22 +676,22 @@ struct GameScreen::State
 				grid_definition = definition;
 				environment_ready = true;
 			}
-			// The bridge display is fixed to its ship: planar position, forward
-			// heading and a shallow downward view from just above the plane.
 			if (!environment.own)
 				return;
 			const auto &own = *environment.own;
-			constexpr float radians = 3.14159265358979323846f / 180000.f;
-			const float heading = own.heading * radians;
-			const float height = std::max(
-			    2.f, app.session->catalog().entities.at(own.definition).at("render").at("scale").get<float>() * .2f);
-			const float ahead = height * 8.f;
-			Camera3D camera{
-			    {own.x / 1000.f, height, -own.y / 1000.f},
-			    {own.x / 1000.f + std::cos(heading) * ahead, 0, -own.y / 1000.f - std::sin(heading) * ahead},
-			    {0, 1, 0},
-			    50,
-			    CAMERA_PERSPECTIVE};
+			const auto settings = ship_camera_state(app.session->public_board());
+			const auto scale = app.session->catalog().entities.at(own.definition).at("render").at("scale").get<float>();
+			const auto pose =
+			    ship_camera_pose(own.x, own.y, own.heading, scale, camera_aspect, settings.mode, settings.direction);
+			const float heading = static_cast<float>(pose.bearing);
+			const float ahead = std::max(2.f, scale * .2f) * 8.f;
+			Camera3D camera{{static_cast<float>(pose.position[0]), static_cast<float>(pose.position[1]),
+			                 static_cast<float>(pose.position[2])},
+			                {static_cast<float>(pose.target[0]), static_cast<float>(pose.target[1]),
+			                 static_cast<float>(pose.target[2])},
+			                {0, 1, 0},
+			                50,
+			                CAMERA_PERSPECTIVE};
 			const auto tick = app.session->ticks();
 			if (!shake_previous || shake_previous->id != own.id || tick < shake_tick)
 			{
@@ -699,7 +724,7 @@ struct GameScreen::State
 			std::erase_if(bodies,
 			              [&](const auto &body)
 			              {
-				              return body.id == own.id;
+				              return settings.mode == 0 && body.id == own.id;
 			              });
 			scene.draw(app.session->catalog(), bodies, camera, area(), app.session->scene_lighting(), GetTime(),
 			           SceneDiagnostic::comic, {}, environment);

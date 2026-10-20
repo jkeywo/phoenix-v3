@@ -8,6 +8,23 @@ module;
 module phoenix.contracts;
 namespace phoenix
 {
+ShipCameraState ship_camera_state(const Json &board)
+{
+	ShipCameraState result;
+	bool found = false;
+	for (const auto &record : board.value("shared", Json::array()))
+		if (record.is_object() && record.value("schema", "") == "phoenix.camera")
+		{
+			if (found || record.value("withdrawn", false))
+				throw std::runtime_error("Invalid shared camera record");
+			found = true;
+			const auto &fields = record.at("fields");
+			const auto mode = checked_integer(fields.at("mode"), 0, 1, "camera.mode");
+			const auto direction = checked_integer(fields.at("direction"), 0, 7, "camera.direction");
+			result = {static_cast<int>(mode), static_cast<int>(direction)};
+		}
+	return result;
+}
 Json encode_operating_command(const OperatingCommand &command)
 {
 	return {{"target", command.target},         {"action", command.action},         {"value", command.value},

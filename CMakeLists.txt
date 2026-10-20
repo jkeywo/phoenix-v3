@@ -830,6 +830,41 @@ if(EMSCRIPTEN)
 	set_property(TARGET phoenix_input_check PROPERTY CXX_SCAN_FOR_MODULES ON)
 endif()
 
+add_executable(phoenix_camera_tests tests/system/camera.cpp)
+target_link_libraries(phoenix_camera_tests PRIVATE phoenix_session phoenix_core)
+phoenix_fixture(phoenix_camera_tests)
+add_executable(phoenix_camera_smoke EXCLUDE_FROM_ALL tests/manual/camera_ui.cpp)
+target_link_libraries(phoenix_camera_smoke PRIVATE phoenix_session phoenix_presentation)
+if(EMSCRIPTEN)
+	set_target_properties(phoenix_camera_smoke PROPERTIES SUFFIX ".html")
+	target_link_options(
+		phoenix_camera_smoke
+		PRIVATE
+			"-O1"
+			"-sEXPORTED_RUNTIME_METHODS=['ccall']"
+			"-sALLOW_MEMORY_GROWTH=1"
+			"-sSTACK_SIZE=1048576"
+			"-sSTACK_OVERFLOW_CHECK=2"
+			"--preload-file"
+			"${CMAKE_CURRENT_BINARY_DIR}/assets@/assets"
+			"SHELL:--preload-file \"${CMAKE_CURRENT_BINARY_DIR}/base.zip@/assets/base.zip\""
+			"SHELL:--preload-file \"${CMAKE_CURRENT_BINARY_DIR}/training.zip@/assets/training.zip\""
+			"--shell-file"
+			"${CMAKE_CURRENT_SOURCE_DIR}/tests/manual/camera_ui.html"
+	)
+	set_property(
+		TARGET phoenix_camera_smoke
+		APPEND
+		PROPERTY
+			LINK_DEPENDS
+				"${CMAKE_CURRENT_BINARY_DIR}/base.zip"
+				"${CMAKE_CURRENT_BINARY_DIR}/training.zip"
+				"${CMAKE_CURRENT_SOURCE_DIR}/tests/manual/camera_ui.html"
+	)
+else()
+	add_test(NAME system.ship-camera COMMAND phoenix_camera_tests)
+endif()
+
 include(cmake/Modules.cmake)
 include(cmake/BuildPerformance.cmake)
 foreach(

@@ -258,8 +258,8 @@ Catalog resolve(const std::vector<PackView> &ordered)
 		if (schemas.is_null())
 			schemas = Json::array();
 		for (const auto &schema : schemas)
-			if (schema.at("id") == "phoenix.objective")
-				invalid("knowledge.phoenix.objective", "reserved schema");
+			if (schema.at("id") == "phoenix.objective" || schema.at("id") == "phoenix.camera")
+				invalid("knowledge." + schema.at("id").get<std::string>(), "reserved schema");
 		schemas.push_back(
 		    {{"id", "phoenix.waypoint"},
 		     {"producers", {"phoenix.scenario"}},
@@ -286,6 +286,14 @@ Catalog resolve(const std::vector<PackView> &ordered)
 		                             {{"id", "destination_x"}, {"type", "integer"}, {"publishable", true}},
 		                             {{"id", "destination_y"}, {"type", "integer"}, {"publishable", true}}})}});
 	}
+	if (!result.presentation)
+		result.knowledge["schemas"].push_back(
+		    {{"id", "phoenix.camera"},
+		     {"producers", {"phoenix.scenario"}},
+		     {"readers", {"phoenix.crew"}},
+		     {"ship_publishable", true},
+		     {"fields", Json::array({{{"id", "mode"}, {"type", "integer"}, {"publishable", true}},
+		                             {{"id", "direction"}, {"type", "integer"}, {"publishable", true}}})}});
 	if (!result.knowledge.empty())
 		result.knowledge_definition = compile_knowledge(result.knowledge);
 	for (const auto &[name, entity] : result.entities)
@@ -334,9 +342,14 @@ Catalog resolve_draft(const std::vector<Pack> &libraries, const PackDraft &draft
 }
 std::span<const WidgetBinding> widget_bindings()
 {
-	static constexpr WidgetBinding bindings[] = {
-	    {"radar", "radar.contacts"}, {"throttle", "engine.desired_speed"}, {"heading", "steering.desired_heading"},
-	    {"status", "ship.status"},   {"objectives", "ship.objectives"},    {"navigation", "ship.navigation"}};
+	static constexpr WidgetBinding bindings[] = {{"radar", "radar.contacts"},
+	                                             {"throttle", "engine.desired_speed"},
+	                                             {"heading", "steering.desired_heading"},
+	                                             {"camera_mode", "ship.camera.mode"},
+	                                             {"camera_direction", "ship.camera.direction"},
+	                                             {"status", "ship.status"},
+	                                             {"objectives", "ship.objectives"},
+	                                             {"navigation", "ship.navigation"}};
 	return bindings;
 }
 namespace
@@ -587,6 +600,9 @@ void verify_prepared_catalog(const Catalog &catalog)
 				                 return kind == entry.kind && binding == entry.binding;
 			                 }))
 				invalid(path + "." + widget_id, "unsupported widget/binding combination");
+			if ((kind == "camera_mode" || kind == "camera_direction") &&
+			    (widget.contains("system") || widget.contains("controller") || widget.contains("channel")))
+				invalid(path + "." + widget_id, "camera widgets use ship settings, not physical bindings");
 			text(widget, "label", path + "." + widget_id);
 			if (widget.contains("controller") || widget.contains("channel"))
 			{

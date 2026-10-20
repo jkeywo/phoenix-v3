@@ -36,6 +36,7 @@ static inline Json bounded_gameplay(const Json &source)
 {
 	if (!source.is_object())
 		return Json::object();
+	ship_camera_state(source);
 	constexpr std::size_t budget = 1024 * 1024;
 	// Controls and fresh notifications take precedence over historical reports.
 	// Entries remain whole, and retained history keeps its original order.
@@ -64,6 +65,10 @@ static inline Json bounded_gameplay(const Json &source)
 			omitted[category] = omitted[category].get<std::size_t>() - 1;
 		}
 	};
+	if (const auto shared = source.find("shared"); shared != source.end() && shared->is_array())
+		for (const auto &record : *shared)
+			if (record.value("schema", "") == "phoenix.camera")
+				keep("shared", record);
 	// World emits Away/resume and complexity profiles before optional actuator
 	// descriptors. Preserve that priority so truncation cannot strand control.
 	if (const auto controls = source.find("controls"); controls != source.end() && controls->is_array())
@@ -83,7 +88,11 @@ static inline Json bounded_gameplay(const Json &source)
 		for (const auto *category : {"controllers", "objectives", "shared", "records", "messages"})
 			if (const auto entries = source.find(category);
 			    entries != source.end() && entries->is_array() && depth < entries->size())
-				keep(category, (*entries)[entries->size() - 1 - depth]);
+			{
+				const auto &entry = (*entries)[entries->size() - 1 - depth];
+				if (std::string_view(category) != "shared" || entry.value("schema", "") != "phoenix.camera")
+					keep(category, entry);
+			}
 	for (const auto *category : categories)
 		if (category != categories[0] && result.contains(category) && result.at(category).is_array())
 			std::reverse(result[category].begin(), result[category].end());

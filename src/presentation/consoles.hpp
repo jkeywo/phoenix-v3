@@ -256,7 +256,9 @@ button:hover,button:focus {background:#455458;border-color:#ec9c52;}
 #widgets {position:absolute;left:4%;right:4%;top:125px;bottom:4%;}
 #gameplay {position:absolute;left:60%;right:4%;top:125px;bottom:4%;overflow-x:hidden;overflow-y:auto;clip:always;box-sizing:border-box;background:#0b1719ee;border:1px #988b71;padding:8px;display:none;}
 #gameplay-controls button {width:210px;min-height:48px;box-sizing:border-box;}
-.engineering #widgets {display:none;}
+.engineering #widgets {display:block;pointer-events:none;z-index:4;}
+.engineering #widgets .widget {display:none;}
+.engineering #widgets .camera_mode-widget,.engineering #widgets .camera_direction-widget {display:block;pointer-events:auto;}
 .engineering #connection-status {display:none;}
 .engineering #gameplay {background:transparent;border:0px;}
 #engineering-cards {display:block;width:100%;}
@@ -301,7 +303,10 @@ p {display:block;font-size:.85em;margin:4px 0;}
 .local-settings-card {position:absolute;left:8%;top:8%;width:84%;max-height:84%;overflow:auto;box-sizing:border-box;padding:24px;background:#0b1719;border:2px #988b71;}
 .local-settings-card h1 {display:block;}
 .local-settings-card button {width:190px;min-height:48px;box-sizing:border-box;}
-.navigation-console #widgets,.navigation-console #gameplay {display:none;}
+.navigation-console #gameplay {display:none;}
+.navigation-console #widgets {display:block;pointer-events:none;z-index:4;}
+.navigation-console #widgets .widget {display:none;}
+.navigation-console #widgets .camera_mode-widget,.navigation-console #widgets .camera_direction-widget {display:block;pointer-events:auto;}
 .navigation-console #gameplay {left:45%;top:0;width:45%;height:100px;background:transparent;}
 .navigation-controls {position:absolute;left:1%;bottom:1%;width:98%;background:#08171bee;}
 .navigation-controls button {min-height:42px;margin:3px;}
@@ -309,6 +314,13 @@ p {display:block;font-size:.85em;margin:4px 0;}
 .navigation-objectives {position:absolute;left:12px;top:115px;max-width:320px;background:#08171bdd;padding:8px;}
 .mission-result {position:absolute;left:0;top:0;width:100%;height:100%;background:#070c09;z-index:15;color:#bce8ad;pointer-events:auto;}
 .mission-art {position:absolute;left:0;top:0;width:100%;height:100%;}
+.camera-choices {display:flex;flex-wrap:wrap;}
+.camera-choices button {position:relative;left:auto;bottom:auto;box-sizing:border-box;min-width:0;min-height:56px;font-size:14px;padding:3px;margin:0;flex-shrink:0;white-space:normal;word-break:break-word;text-align:center;tab-index:auto;}
+.camera_mode-widget .camera-choices button {width:50%;}
+.camera_direction-widget .camera-choices button,.camera-gap {width:33.333%;}
+.camera-gap {display:block;min-height:56px;flex-shrink:0;}
+.camera-choices button.selected {background:#82c6a0;color:#081719;}
+.camera_mode-widget h2,.camera_direction-widget h2 {font-size:16px;margin:0;}
 .mission-copy {position:absolute;left:20%;top:21%;width:60%;height:51%;overflow:auto;font-family:Space Mono;}
 .mission-copy h1 {font-size:18px;letter-spacing:3px;color:#81af79;margin:0 0 22px 0;}
 .mission-copy h2 {font-size:44px;letter-spacing:2px;color:#d1f9be;margin:0 0 20px 0;}
@@ -460,6 +472,70 @@ p {display:block;font-size:.85em;margin:4px 0;}
 					command.screen = route_;
 					return app_->session->lobby_command(command);
 				}
+			return false;
+		}
+
+		if ((action.starts_with("camera/") || action == "game.camera" || action == "game.camera-back") &&
+		    (!game_active(*app_) || app_->screen == Screen::settings))
+			return false;
+		if (action == "game.camera")
+		{
+			for (const auto &[name, label] : controls_)
+				if (name.find("/camera/") != std::string::npos)
+					if (auto *choice = element(name))
+					{
+						choice->Focus();
+						return true;
+					}
+			return false;
+		}
+		if (auto *focused = context_->GetFocusElement();
+		    focused && focused->GetId().find("/camera/") != std::string::npos)
+		{
+			if (action == "game.camera-back")
+			{
+				focused->Blur();
+				return true;
+			}
+			if (action == "game.contacts")
+			{
+				context_->ProcessKeyDown(Rml::Input::KI_RETURN, 0);
+				context_->ProcessKeyUp(Rml::Input::KI_RETURN, 0);
+				return true;
+			}
+			if (action == "game.left" || action == "game.right" || action == "game.faster" || action == "game.slower")
+			{
+				std::vector<std::string> choices;
+				for (const auto &[name, label] : controls_)
+					if (name.find("/camera/") != std::string::npos)
+						choices.push_back(name);
+				const auto current = std::find(choices.begin(), choices.end(), focused->GetId());
+				if (current == choices.end() || choices.empty())
+					return false;
+				const int step = action == "game.left" || action == "game.faster" ? -1 : 1;
+				const auto index =
+				    (static_cast<int>(current - choices.begin()) + static_cast<int>(choices.size()) + step) %
+				    choices.size();
+				if (auto *choice = element(choices[index]))
+					choice->Focus();
+				return true;
+			}
+		}
+		if (action.starts_with("camera/"))
+		{
+			if (owner_.lock() != app_->session || generation_ != app_->session->generation())
+				return false;
+			const auto split = action.rfind('/');
+			if (split <= 7 || split + 2 != action.size() || action.back() < '0' || action.back() > '7')
+				return false;
+			const auto key = action.substr(7, split - 7);
+			const auto *layout = model_.layout();
+			if (!layout)
+				return false;
+			for (const auto &widget : layout->at("widgets"))
+				if (widget.at("id") == key &&
+				    (widget.at("kind") == "camera_mode" || widget.at("kind") == "camera_direction"))
+					return model_.command(widget.at("kind"), action.back() - '0');
 			return false;
 		}
 
@@ -918,6 +994,12 @@ p {display:block;font-size:.85em;margin:4px 0;}
 		                                        {
 			                                        return widget.at("kind") == "throttle";
 		                                        });
+		const bool has_camera = layout && std::any_of(layout->at("widgets").begin(), layout->at("widgets").end(),
+		                                              [](const auto &widget)
+		                                              {
+			                                              return widget.at("kind") == "camera_mode" ||
+			                                                     widget.at("kind") == "camera_direction";
+		                                              });
 		document_->SetClass("helm", helm && !pregame);
 		const auto cards = !pregame && !helm && model_.observation() ? engineering_cards(*model_.observation())
 		                                                             : std::vector<EngineeringCard>{};
@@ -1020,6 +1102,24 @@ p {display:block;font-size:.85em;margin:4px 0;}
 					           Rml::StringUtilities::EncodeRml(key) + "\" style=\"left:" + percent("x") +
 					           ";top:" + percent("y") + ";width:" + percent("width") + ";height:" + percent("height") +
 					           "\"><h2>" + Rml::StringUtilities::EncodeRml(localise(widget.at("label"))) + "</h2>";
+					if (kind == "camera_mode" || kind == "camera_direction")
+					{
+						widgets += "<div class=\"camera-choices\">";
+						const int positions[] = {7, 0, 1, 6, -1, 2, 5, 4, 3};
+						for (int i = 0; i < (kind == "camera_mode" ? 2 : 9); ++i)
+						{
+							const int value = kind == "camera_mode" ? i : positions[i];
+							if (value < 0)
+							{
+								widgets += "<span class=\"camera-gap\"/>";
+								continue;
+							}
+							widgets += button("camera/" + key + "/" + std::to_string(value),
+							                  kind == "camera_mode" ? (value ? "Third person" : "First person")
+							                                        : camera_directions[value]);
+						}
+						widgets += "</div>";
+					}
 					if (kind == "throttle")
 						widgets += "<input class=\"throttle\" id=\"" + id("speed/" + key) +
 						           "\" type=\"range\" orientation=\"vertical\" min=\"-100\" max=\"0\" step=\"0.1\" "
@@ -1129,6 +1229,18 @@ p {display:block;font-size:.85em;margin:4px 0;}
 			              // ConsoleModel encodes descriptor IDs as hexadecimal.
 			              return control.first == "game.control/61776179";
 		              });
+		if (model_.observation())
+		{
+			std::set<std::string> camera_controls;
+			for (const auto &d : model_.observation()->gameplay.value("controls", Json::array()))
+				if (d.value("action", "") == "camera_mode" || d.value("action", "") == "camera_direction")
+					camera_controls.insert(descriptor_action(d.at("id")));
+			std::erase_if(gameplay_controls,
+			              [&](const auto &control)
+			              {
+				              return camera_controls.contains(control.first);
+			              });
+		}
 		if (helm && model_.observation())
 		{
 			std::set<std::string> dial_controls;
@@ -1293,14 +1405,17 @@ p {display:block;font-size:.85em;margin:4px 0;}
 				widgets->SetProperty("right", "4%");
 				widgets->SetProperty("bottom", "4%");
 				const float width = region.width * .92f, height = region.height * .92f;
-				const float side = std::min(height, width * .70f);
+				const float side = std::min(height, width * (has_camera ? .60f : .70f));
 				for (const auto &widget : layout->at("widgets"))
 				{
 					auto *element = document_->GetElementById("widget/" + widget.at("id").get<std::string>());
 					const std::string kind = widget.at("kind");
 					if (kind == "radar")
 					{
-						element->SetProperty("left", std::to_string((width - side) / 2) + "px");
+						element->SetProperty(
+						    "left",
+						    std::to_string(has_camera ? width * .24f + (width * .61f - side) / 2 : (width - side) / 2) +
+						        "px");
 						element->SetProperty("top", std::to_string((height - side) / 2) + "px");
 						element->SetProperty("width", std::to_string(side) + "px");
 						element->SetProperty("height", std::to_string(side) + "px");
@@ -1312,6 +1427,13 @@ p {display:block;font-size:.85em;margin:4px 0;}
 						element->SetProperty("width", "15%");
 						element->SetProperty("height", "80%");
 					}
+					else if (kind == "camera_mode" || kind == "camera_direction")
+					{
+						element->SetProperty("left", "0%");
+						element->SetProperty("top", kind == "camera_mode" ? "10%" : "28%");
+						element->SetProperty("width", "18%");
+						element->SetProperty("height", kind == "camera_mode" ? "16%" : "40%");
+					}
 					else if (kind == "heading")
 					{
 						element->SetProperty("left", "0%");
@@ -1321,9 +1443,9 @@ p {display:block;font-size:.85em;margin:4px 0;}
 					}
 				}
 				gameplay->SetProperty("left", "4%");
-				gameplay->SetProperty("top", "18%");
+				gameplay->SetProperty("top", has_camera ? "70%" : "18%");
 				gameplay->SetProperty("width", "12%");
-				gameplay->SetProperty("height", "60%");
+				gameplay->SetProperty("height", has_camera ? "12%" : "60%");
 				gameplay->RemoveProperty("right");
 				gameplay->RemoveProperty("bottom");
 			}
@@ -1479,6 +1601,14 @@ p {display:block;font-size:.85em;margin:4px 0;}
 					         "%.1f", model_.system_request(model_.widget_system(key), "heading_mdeg") / 1000.0)),
 					     false});
 				}
+				if (kind == "camera_mode" || kind == "camera_direction")
+				{
+					const auto camera = model_.camera();
+					const auto selected = kind == "camera_mode" ? camera.mode : camera.direction;
+					for (int i = 0; i < (kind == "camera_mode" ? 2 : 8); ++i)
+						if (auto *choice = document_->GetElementById(id("camera/" + key + "/" + std::to_string(i))))
+							choice->SetClass("selected", i == selected);
+				}
 				std::string value =
 				    kind == "throttle" ? "Requested " +
 				                             std::string(TextFormat(
@@ -1504,7 +1634,11 @@ p {display:block;font-size:.85em;margin:4px 0;}
 		}
 		for (const auto &[name, label] : controls_)
 		{
-			app.screen_controls.emplace_back(name, label);
+			const auto *choice = element(name);
+			const bool selected =
+			    name.find("/camera/") != std::string::npos && choice && choice->IsClassSet("selected");
+			app.screen_controls.emplace_back(name, selected ? localise(label) + ". " + localise("Selected")
+			                                                : localise(label));
 			place(app, region, name);
 		}
 		for (const auto &[name, label] : gameplay_controls)

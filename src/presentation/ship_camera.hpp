@@ -1,0 +1,41 @@
+#pragma once
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <stdexcept>
+
+namespace phoenix
+{
+struct ShipCameraPose
+{
+	std::array<double, 3> position{}, target{};
+	double bearing = 0;
+};
+// World millimetres/heading become renderer metres; directions are clockwise
+// from the ship's forward bearing. No graphics or simulation ownership here.
+inline ShipCameraPose ship_camera_pose(double x, double y, double heading, double scale, double aspect, int mode,
+                                       int direction)
+{
+	if (mode < 0 || mode > 1 || direction < 0 || direction > 7)
+		throw std::invalid_argument("Invalid ship camera selection");
+	constexpr double pi = 3.14159265358979323846;
+	ShipCameraPose pose;
+	pose.bearing = heading * pi / 180000 - direction * pi / 4;
+	const double forward_x = std::cos(pose.bearing), forward_z = -std::sin(pose.bearing);
+	x /= 1000;
+	y /= -1000;
+	if (!mode)
+	{
+		const double height = std::max(2.0, scale * .2), ahead = height * 8;
+		pose.position = {x, height, y};
+		pose.target = {x + forward_x * ahead, 0, y + forward_z * ahead};
+	}
+	else
+	{
+		const double extent = std::max(2.0, scale) * std::max(1.0, aspect);
+		pose.position = {x - forward_x * extent * 3, extent * 1.5, y - forward_z * extent * 3};
+		pose.target = {x, scale * .5, y};
+	}
+	return pose;
+}
+} // namespace phoenix

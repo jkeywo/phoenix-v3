@@ -28,6 +28,7 @@ public:
 	bool set_speed_fraction(double fraction, const std::string &system = {});
 	bool set_heading_degrees(double degrees, const std::string &system = {});
 	bool set_waypoint(std::int64_t x, std::int64_t y, bool active = true);
+	ShipCameraState camera() const;
 	Json objectives() const;
 	Json waypoint() const;
 	std::string widget_system(const std::string &widget) const;

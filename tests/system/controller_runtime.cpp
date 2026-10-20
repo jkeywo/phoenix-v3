@@ -378,8 +378,7 @@ int main()
 		 {"id":"enabled","action":"intent_boolean","type":"boolean","initial":1,"consumers":[]}]})json"));
 		preference_layout["profiles"][0]["consoles"]["drive"] = {{"human", {"preference"}}, {"ai", {"propulsion"}}};
 		preference_layout["profiles"][1]["consoles"]["drive"] = {{"ai", {"preference", "propulsion"}}};
-		preference_source["trees"] =
-		    Json::parse(R"json([{"id":"test.preference","context":"controller","initial":"run",
+		preference_source["trees"] = Json::parse(R"json([{"id":"test.preference","context":"controller","initial":"run",
 		 "command_bindings":[{"channel":"speed"},{"channel":"enabled","type":"boolean"}],
 		 "command_reads":[{"name":"cruise","controller":"preference","channel":"cruise"},
 		  {"name":"enabled","controller":"preference","channel":"enabled","type":"boolean"}],
@@ -1563,7 +1562,15 @@ int main()
 				run->tick();
 		const auto public_view = public_messages.observe(103)->gameplay;
 		const auto target_view = public_messages.observe(101)->gameplay;
-		require(public_view.at("messages").size() == 1 && public_view.at("shared").size() == 1,
+		const auto evidence_count = [](const Json &board)
+		{
+			return std::count_if(board.at("shared").begin(), board.at("shared").end(),
+			                     [](const auto &record)
+			                     {
+				                     return record.at("schema") != "phoenix.camera";
+			                     });
+		};
+		require(public_view.at("messages").size() == 1 && evidence_count(public_view) == 1,
 		        "important AI-to-AI message reaches spectator history and shared entity board");
 		require(public_view.at("messages")[0].at("id") == target_view.at("messages")[0].at("id") &&
 		            public_view.at("messages")[0].at("public") == true &&
@@ -1573,7 +1580,7 @@ int main()
 		        "public copy preserves identity without broadening Controller actionability");
 		require(public_messages.save() == public_resume.save(), "pending public delivery restores exactly");
 		const auto board = public_messages.public_board(1);
-		require(board.at("messages").size() == 1 && board.at("shared").size() == 1 && !board.contains("controllers") &&
+		require(board.at("messages").size() == 1 && evidence_count(board) == 1 && !board.contains("controllers") &&
 		            !board.contains("records") && !board.contains("controls"),
 		        "public board deduplicates Console copies without exposing private or command sections");
 		require(board.at("messages")[0].at("actionable") == false && board.at("messages")[0].at("offer_only") == true,
@@ -1654,7 +1661,7 @@ int main()
 			human_target.tick();
 		require(human_target.observe(101)->gameplay.at("messages").size() == 1 &&
 		            human_target.observe(103)->gameplay.at("messages").empty() &&
-		            human_target.observe(103)->gameplay.at("shared").empty(),
+		            evidence_count(human_target.observe(103)->gameplay) == 0,
 		        "current human recipient suppresses automatic AI-to-AI public copy");
 		auto shared_reader_source = public_source;
 		auto &shared_entity = shared_reader_source["entities"][0];
@@ -1853,7 +1860,7 @@ int main()
 		for (int tick = 0; tick < 6; ++tick)
 			broadcast.tick();
 		require(broadcast.observe(103)->gameplay.at("messages").size() == 1 &&
-		            broadcast.observe(103)->gameplay.at("shared").size() == 1,
+		            evidence_count(broadcast.observe(103)->gameplay) == 1,
 		        "human entity-wide message publishes regardless urgency");
 		auto private_publication = public_source;
 		private_publication["knowledge"]["schemas"][0]["ship_publishable"] = false;

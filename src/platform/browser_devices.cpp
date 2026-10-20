@@ -44,7 +44,7 @@ EM_JS(void, begin_devices, (), {
 });
 EM_JS(void, read_gamepads, (), {
     const state=Module.phoenixDevices; if(!state) return;
-    const seen=new Set(), controls=[[12,'game.faster'],[13,'game.slower'],[14,'game.left'],[15,'game.right'],[0,'game.contacts']];
+    const seen=new Set(), controls=[[12,'game.faster'],[13,'game.slower'],[14,'game.left'],[15,'game.right'],[0,'game.contacts'],[3,'game.camera'],[1,'game.camera-back']];
     for(const pad of navigator.getGamepads?.() || []) if(pad?.connected) {
         const id=String(pad.index); seen.add(id);
         let held=state.pads.get(id); if(!held) { held=new Map(); state.pads.set(id,held); state.send(5,0,0,0,id); }

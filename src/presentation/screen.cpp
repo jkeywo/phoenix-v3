@@ -120,6 +120,20 @@ public:
 			catalog_.consoles["preview.console"] = std::move(value);
 			++generation_;
 		}
+		view_.gameplay["controls"] = Json::array();
+		for (const auto &widget : catalog_.consoles.at("preview.console").at("widgets"))
+		{
+			const auto kind = widget.at("kind").get<std::string>();
+			if (kind != "camera_mode" && kind != "camera_direction")
+				continue;
+			for (int i = 0; i < (kind == "camera_mode" ? 2 : 8); ++i)
+				view_.gameplay["controls"].push_back(
+				    {{"id", kind + "." + std::to_string(i)},
+				     {"action", kind},
+				     {"system", ""},
+				     {"value", i},
+				     {"label", kind == "camera_mode" ? (i ? "Third person" : "First person") : camera_directions[i]}});
+		}
 	}
 	void add_pack(const Bytes &) override
 	{
@@ -171,6 +185,18 @@ public:
 			view_.requested_speed = std::clamp<std::int64_t>(value.value, 0, 30000);
 		else if (value.action == "heading_mdeg")
 			view_.requested_heading = value.value;
+		else if (value.action == "camera_mode" || value.action == "camera_direction")
+		{
+			if (value.value < 0 || value.value > (value.action == "camera_mode" ? 1 : 7))
+				return false;
+			auto camera = ship_camera_state(view_.gameplay);
+			if (value.action == "camera_mode")
+				camera.mode = static_cast<int>(value.value);
+			else
+				camera.direction = static_cast<int>(value.value);
+			view_.gameplay["shared"] = Json::array(
+			    {{{"schema", "phoenix.camera"}, {"fields", {{"mode", camera.mode}, {"direction", camera.direction}}}}});
+		}
 		else
 			return false;
 		return true;
