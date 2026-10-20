@@ -141,7 +141,7 @@ std::vector<std::pair<std::string, std::string>> settings_tabs(const Application
 		tabs.emplace_back("settings.tab/language", "Language");
 	}
 	tabs.emplace_back("settings.tab/display", "Display");
-	if (game_active(app))
+	if (game_active(app) || (app.session && app.session->lobby().active))
 		tabs.emplace_back("settings.tab/session", "Session");
 	return tabs;
 }

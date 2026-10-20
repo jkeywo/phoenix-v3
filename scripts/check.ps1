@@ -30,7 +30,7 @@ try
 		& "$repo/build/native/Release/native.exe" --build-check
 		if ($LASTEXITCODE)
 		{
-			throw 'Native build check failed'
+			throw ("Native build check failed (exit code {0}, 0x{0:X8})" -f $LASTEXITCODE)
 		}
 		$nativeTrace = & "$repo/build/native/Release/phoenix_simulation_tests.exe" --trace
 		if ($LASTEXITCODE)

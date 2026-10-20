@@ -486,7 +486,23 @@
 			"Normal Power": "Normal Power",
 			"Generation follows demand within the requested operating limit.": "Generation follows demand within the requested operating limit.",
 			"Recharge Power": "Recharge Power",
-			"Maximum safe generation with reduced nonessential allocations to recharge reserves.": "Maximum safe generation with reduced nonessential allocations to recharge reserves."
+			"Maximum safe generation with reduced nonessential allocations to recharge reserves.": "Maximum safe generation with reduced nonessential allocations to recharge reserves.",
+			"Courier — Engineering fit": "Courier — Engineering fit",
+			"Cruiser — Six-station fit": "Cruiser — Six-station fit",
+			"Powered navigation — offset regions": "Powered navigation — offset regions",
+			"Set the ship’s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew.": "Set the ship’s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew.",
+			"GM console": "GM console",
+			"Map, entities and inspection": "Map, entities and inspection",
+			"AI crew": "AI crew",
+			"Screen": "Screen",
+			"Release screen": "Release screen",
+			"Other ships": "Other ships",
+			"Awaiting console": "Awaiting console",
+			"Everyone has a console": "Everyone has a console",
+			"No other ships connected": "No other ships connected",
+			"Choose a ship": "Choose a ship",
+			"Open player invitation in a new tab": "Open player invitation in a new tab",
+			"GM screen claimed. Inspection begins when the game launches.": "GM screen claimed. Inspection begins when the game launches."
 		}
 	}
 }

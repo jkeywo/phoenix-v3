@@ -177,7 +177,7 @@ void draw_workshop(Application &app)
 }
 void draw_gm_region(Application &app)
 {
-	if (!app.can_host || !app.session || !app.session->running())
+	if (!app.can_host || !app.session || (!app.session->running() && !app.session->lobby().active))
 		return;
 	Application inspector = app;
 	inspector.screen = Screen::gm;

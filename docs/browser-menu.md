@@ -20,9 +20,9 @@ On each menu load, published base/training catalogues are revalidated over HTTP,
 | Join Game (As GM)                      | `workshop`, GM mode     | Approval and inspection-ship selection               |
 | Workshop                               | `workshop`, editor mode | Workshop                                             |
 
-Explicit invitations bypass the HTML choices. Existing QR links (`type=client` or `type=workshop&mode=gm`, plus `code` and `service`) retain their format. Links may also use `role=ship|player|gm|editor`. Host links include `action=host`, `scenario`, `slot` and `ship`. Recovery links use `action=recover&save=...` for an origin-local save; use ZIP import between devices. Parameters grant no approval, credentials, readiness or authority. Scripts and assets retain the deployment directory, including Pages subpaths.
+Explicit invitations bypass the HTML choices. Existing QR links (`type=client` or `type=workshop&mode=gm`, plus `code` and `service`) retain their format. Links may also use `role=ship|player|gm|editor`. Host links include `action=host`, `scenario`, `slot` and `ship`. Recovery links use `action=recover&save=...` for an origin-local save; use ZIP import between devices. Invitation codes admit a lobby participant after the C++ handshake; URL parameters alone grant no credentials, readiness or Console authority. Scripts and assets retain the deployment directory, including Pages subpaths.
 
-The shared C++ lobby protocol injects host-world creation/fleet preparation from a separate server composition library. Client and Workshop builds retain enforced dependency boundaries excluding simulation/Flecs. Setup verification, admission, countdown, replication and activation remain in C++. Late approval controls remain available after runtime activation.
+The shared C++ lobby protocol injects host-world creation/fleet preparation from a separate server composition library. Client and Workshop builds retain enforced dependency boundaries excluding simulation/Flecs. Setup verification, admission, countdown, replication and activation remain in C++. Late crew and GM invitation joins are admitted automatically; new ship hosts remain excluded once the roster launches. The shared lobby board keeps all selected-ship Consoles visible, alongside the GM/fleet/waiting-player column. Clicking its QR button opens the player invitation in a new tab.
 
 The loaded runtime has no separate HTML navigation toolbar. After launch the Viewscreen fills the canvas and exposes only Settings over the world. Settings returns to the current display or explicitly quits to Main Menu; returning to a lobby requires a new host/join flow. Console and GM clients remain separate runtime roles.
 
@@ -39,6 +39,8 @@ Settings persist separate Master, Music and SFX levels, installed English, pseud
 Build native content tooling/training first, then web. `scripts/build.ps1 -Target web` copies both verified native ZIPs/catalogues when available. CMake packages the HTML/CSS/module and standalone menu assets; Pages stages them alongside the three role bundles. `scripts/check.ps1` runs synthetic routing/preview checks with the native/WASM and real-transport gates. See [graphical evidence](smoke/browser-menu.md).
 
 Click the profile TV to set a name and choose from twelve crew portraits. A fresh profile picks a random portrait and uses `<username>` as the name placeholder. Join forms reuse the saved profile. Mod packs use inline checkbox, name, reorder and removal controls.
+
+Hidden runtime tabs continue polling connections from the shared acknowledged worker clock. Browser hosts advance the existing bounded fixed-tick accumulator there, independently of drawing, so opening a QR invitation does not suspend its admission handshake.
 
 ## Browser frame diagnostics
 

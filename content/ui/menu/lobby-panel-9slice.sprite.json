@@ -1,0 +1,25 @@
+{
+	"$schema": "sprite-set.schema.json",
+	"schema_version": 1,
+	"id": "lobby-panel",
+	"description": "Generated station dossier backing; nine regions retain corners and resize edges and center.",
+	"files": {
+		"sprite": "lobby-panel-9slice.png",
+		"normal": null,
+		"depth": null
+	},
+	"image_size": [1536, 1024],
+	"coordinate_system": "frame_pixels_top_left_y_down",
+	"sprite_color_space": "srgb",
+	"normal_encoding": null,
+	"depth_encoding": null,
+	"sprite_sheet": null,
+	"pivot": [768, 512],
+	"markers": {},
+	"nine_slice": {
+		"top": 160,
+		"right": 160,
+		"bottom": 160,
+		"left": 340
+	}
+}

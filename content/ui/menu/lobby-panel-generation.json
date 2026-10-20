@@ -1,0 +1,12 @@
+{
+	"tool": "image_gen",
+	"generated": "2026-10-20",
+	"source": "exec-d829ca06-e800-4d1a-9d38-4d04aa373d1e.png",
+	"prompt": "Empty nine-slice station dossier panel, straight-on, distressed inked comic style. Charcoal blue-black center, rust orange painted gunmetal frame, dirty ivory blank nameplate, bolts and tiny green/amber rim indicators. Edge-to-edge 1536 x 1024 texture; uniform stretchable edges and unobstructed dark center. No text, labels or central controls.",
+	"slice_source_pixels": {
+		"top": 160,
+		"right": 160,
+		"bottom": 160,
+		"left": 340
+	}
+}

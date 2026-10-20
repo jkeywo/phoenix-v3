@@ -1999,7 +1999,9 @@ void render_editor(Application &app)
 		if (state.is_null())
 		{
 			ImGui::Begin(tool_label("Map").c_str());
-			ImGui::TextWrapped("Waiting for host approval. Live world data is unavailable.");
+			ImGui::TextWrapped("%s", app.session && app.session->lobby().active
+			                             ? "GM screen claimed. Inspection begins when the game launches."
+			                             : "Waiting for host approval. Live world data is unavailable.");
 			ImGui::End();
 			return;
 		}

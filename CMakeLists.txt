@@ -526,6 +526,8 @@ foreach(
 		button-generic-9slice.sprite.json
 		helm-background-9slice.png
 		helm-background-9slice.sprite.json
+		lobby-panel-9slice.png
+		lobby-panel-9slice.sprite.json
 		sprite-set.schema.json
 		settings.png
 		background.png
@@ -944,6 +946,34 @@ else()
 		COMMAND
 			${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/assets"
 			"$<TARGET_FILE_DIR:phoenix_messages_smoke>/assets"
+	)
+endif()
+
+add_executable(phoenix_lobby_smoke EXCLUDE_FROM_ALL tests/manual/lobby_ui.cpp)
+target_link_libraries(phoenix_lobby_smoke PRIVATE phoenix_network_lobby phoenix_presentation)
+if(EMSCRIPTEN)
+	set_target_properties(phoenix_lobby_smoke PROPERTIES SUFFIX ".html")
+	target_link_options(
+		phoenix_lobby_smoke
+		PRIVATE
+			"-O1"
+			"-sEXPORTED_RUNTIME_METHODS=['ccall']"
+			"-sALLOW_MEMORY_GROWTH=1"
+			"-sSTACK_SIZE=1048576"
+			"-sSTACK_OVERFLOW_CHECK=2"
+			"--preload-file"
+			"${CMAKE_CURRENT_BINARY_DIR}/assets@/assets"
+			"SHELL:--preload-file \"${CMAKE_CURRENT_BINARY_DIR}/base.zip@/assets/base.zip\""
+			"--shell-file"
+			"${CMAKE_CURRENT_SOURCE_DIR}/tests/manual/lobby_ui.html"
+	)
+	set_property(
+		TARGET phoenix_lobby_smoke
+		APPEND
+		PROPERTY
+			LINK_DEPENDS
+				"${CMAKE_CURRENT_BINARY_DIR}/base.zip"
+				"${CMAKE_CURRENT_SOURCE_DIR}/tests/manual/lobby_ui.html"
 	)
 endif()
 

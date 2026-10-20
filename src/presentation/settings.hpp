@@ -116,6 +116,10 @@ inline bool session_action(Application &app, const std::string &id)
 inline auto approvals(const Application &app)
 {
 	std::vector<std::pair<std::string, std::string>> result;
+	if (app.session && app.settings_tab == "session" && app.session->lobby().active && !app.session->lobby().launched)
+		for (const auto &[id, text] : app.session->lobby_controls())
+			if (id.starts_with("lobby.profile/"))
+				result.emplace_back(id, text);
 	if (game_active(app) && app.settings_tab == "session")
 		for (const auto &[id, text] : app.session->lobby_controls())
 			if (approval(id))

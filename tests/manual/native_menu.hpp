@@ -58,9 +58,11 @@ struct NativeMenuSmoke
 	{
 		if (!enabled || GetTime() - changed < .4)
 			return false;
-		if (display_transition_only &&
-		    std::any_of(app.screen_controls.begin(), app.screen_controls.end(),
-		                [](const auto &control) { return control.first == "loading.cancel"; }))
+		if (display_transition_only && std::any_of(app.screen_controls.begin(), app.screen_controls.end(),
+		                                           [](const auto &control)
+		                                           {
+			                                           return control.first == "loading.cancel";
+		                                           }))
 			return false;
 		auto capture = [](const char *name)
 		{
@@ -267,9 +269,7 @@ struct NativeMenuSmoke
 							                 return control.first == id;
 						                 }))
 						{
-							action(app, "menu.lobby-tab/consoles");
-							changed = GetTime();
-							return false;
+							throw std::runtime_error("Console screen claim must be visible without a tab");
 						}
 						action(app,
 						       "menu.console-screen/" + lobby.consoles.front().id + "/" + std::to_string(display.id));
@@ -350,6 +350,21 @@ struct NativeMenuSmoke
 							changed = GetTime();
 							return false;
 						}
+			if (complexity_step < 3 && app.screen != phoenix::Screen::settings)
+			{
+				for (const auto &[id, label] : app.screen_controls)
+					if (id.starts_with("lobby.profile/"))
+						throw std::runtime_error("Complexity choices leaked onto lobby board");
+				action(app, "menu.settings");
+				changed = GetTime();
+				return false;
+			}
+			if (complexity_step < 3 && app.settings_tab != "session")
+			{
+				action(app, "settings.tab/session");
+				changed = GetTime();
+				return false;
+			}
 			if (complexity_step == 0)
 			{
 				const auto controls = app.session->lobby_controls();
@@ -399,6 +414,9 @@ struct NativeMenuSmoke
 				}
 				TraceLog(LOG_INFO, "Menu complexity smoke restored %s before Ready", complexity_initial.c_str());
 				complexity_step = 3;
+				action(app, "menu.close-dialog");
+				changed = GetTime();
+				return false;
 			}
 			if (!phoenix::probe_native_accessibility(app))
 				throw std::runtime_error("Lobby UIA readouts failed");

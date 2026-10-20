@@ -171,6 +171,8 @@ class GameLobby final : public SessionPort
 		    {"slots", Json::array()},
 		    {"members", Json::array()},
 		    {"consoles", Json::object()}};
+		if (source_ && source_->catalog().maps.contains(selection_.mission))
+			data["scenario_name"] = source_->catalog().maps.at(selection_.mission).value("name", selection_.mission);
 		data["console_names"] = Json::object();
 		data["console_profiles"] = Json::object();
 		for (const auto &slot : slots())
@@ -208,6 +210,7 @@ class GameLobby final : public SessionPort
 					data["consoles"][slot.id].push_back(seat.id);
 					const auto &definition = source_->catalog().consoles.at(seat.definition);
 					data["console_names"][slot.id][seat.id] = definition.value("name", seat.id);
+					data["console_descriptions"][slot.id][seat.id] = definition.value("description", std::string{});
 				}
 			}
 		}
@@ -706,6 +709,14 @@ class GameLobby final : public SessionPort
 			countdown_.reset();
 		}
 		peer.seen = now_;
+		// Possession of the invitation and completion of the nonce/key handshake
+		// admits a lobby member. Content verification and seat claims remain separate.
+		if (!peer.member.approved)
+		{
+			peer.member.approved = true;
+			if (!launched_)
+				invalidate();
+		}
 		if (packet->type == "profile")
 		{
 			profile(peer.member, packet->body.at("name"), packet->body.at("avatar").get<Bytes>());
@@ -1178,6 +1189,7 @@ public:
 		result.status = error_;
 		const auto data = coordinator_ ? snapshot() : received_;
 		result.scenario = data.value("scenario", std::string{});
+		result.scenario_name = data.value("scenario_name", result.scenario);
 		result.countdown_ms = data.value("countdown", -1);
 		for (const auto &s : data.value("slots", Json::array()))
 			result.slots.push_back({s.at("id"), s.at("ship"), s.at("host"), s.at("mandatory"),
@@ -1209,6 +1221,8 @@ public:
 					if (seat.name.empty())
 						seat.name = seat.id;
 				}
+				if (data.contains("console_descriptions") && data.at("console_descriptions").contains(slot))
+					seat.description = data.at("console_descriptions").at(slot).value(seat.id, std::string{});
 				for (const auto &member : result.members)
 					if (member.slot == slot && member.console == seat.id)
 					{
@@ -1275,8 +1289,6 @@ public:
 		const auto view = lobby();
 		for (const auto &m : view.members)
 		{
-			if (view.coordinator && !m.approved && m.connected)
-				result.emplace_back("lobby.approve/" + m.id, "Approve " + m.name);
 			if (view.coordinator && m.id != self_ && !m.local_screen && !launched_)
 				result.emplace_back("lobby.remove/" + m.id, "Remove " + m.name);
 			if (backend_)
