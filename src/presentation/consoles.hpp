@@ -381,6 +381,7 @@ body {width:100%;height:100%;font-family:LatoLatin;font-size:20px;color:#e5e4ca;
 .stance-row {display:block;}
 .command-console #toolbar h1 {background:#101b1cee;padding:8px 14px;}
 .narrow-command #gameplay-controls .stance-button {width:96%;max-width:none;}
+.stance-label {pointer-events:none;display:block;max-width:90px;margin:0 auto;font-size:20px;text-align:center;}
 .stance-state {pointer-events:none;display:block;font-size:12px;margin-top:8px;color:#ffd082;}
 .stance-button:focus .stance-state {background:#fff3d9;color:#101b1c;}
 .command-card h2 {margin:0 8px 10px;color:#ffbd76;}
@@ -2141,8 +2142,9 @@ button.on-screen-active .share-live {display:block;}
 					stance_controls.insert(descriptor_action(d.at("id")));
 					groups[target] +=
 					    "<button class=\"stance-button " + std::string(d.value("selected", false) ? "selected" : "") +
-					    "\" id=\"" + id(descriptor_action(d.at("id"))) + "\">" +
-					    Rml::StringUtilities::EncodeRml(localise(d.at("label"))) + "<span class=\"stance-state\">" +
+					    "\" id=\"" + id(descriptor_action(d.at("id"))) + "\">" + "<span class=\"stance-label\">" +
+					    Rml::StringUtilities::EncodeRml(localise(d.at("label"))) +
+					    "</span><span class=\"stance-state\">" +
 					    (d.value("selected", false) ? Rml::StringUtilities::EncodeRml(localise("Selected"))
 					                                : std::string("&nbsp;")) +
 					    "</span></button>";

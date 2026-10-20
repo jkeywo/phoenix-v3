@@ -142,6 +142,7 @@ bool knowledge_telemetry_source(const std::string &name)
 	                                             "thermal_stop_ticks",
 	                                             "generator_output",
 	                                             "actual_output",
+	                                             "demand_output",
 	                                             "group_allocation",
 	                                             "flow_cut",
 	                                             "link_isolated",

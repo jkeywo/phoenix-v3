@@ -1180,6 +1180,11 @@ struct World::Impl
 					values["requested"] = v.commanded_rate;
 					values["generator_output"] = v.commanded_rate;
 					values["actual_output"] = v.actual_rate;
+					const auto &generator = p.definition.network.generators[binding.generator];
+					const auto &load = p.network.telemetry()[generator.store];
+					// Previous committed load, including exported power and storage losses.
+					values["demand_output"] =
+					    std::min(generator.maximum_rate, (load.outgoing + load.consumed + load.lost) * rate);
 				}
 				if (binding.group != no_resource)
 				{

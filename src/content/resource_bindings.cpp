@@ -213,7 +213,7 @@ std::map<std::string, SystemObservationSchema> compile_system_observations(const
 			     "passive_cooling", "actual_cooling", "depletion_ticks", "thermal_stop_ticks", "full_ticks",
 			     "thermal_recovery_ticks"});
 		if (binding.generator != no_resource)
-			add({"generator_output", "actual_output"});
+			add({"generator_output", "actual_output", "demand_output"});
 		if (binding.group != no_resource)
 			add({"group_allocation", "flow_cut"});
 		if (binding.conduit != no_resource)

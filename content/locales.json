@@ -480,7 +480,13 @@
 			"Parent mod": "Parent mod",
 			"Procedural star": "Procedural star",
 			"Mod tree": "Mod tree",
-			"Base pack: parent is fixed": "Base pack: parent is fixed"
+			"Base pack: parent is fixed": "Base pack: parent is fixed",
+			"Combat Power": "Combat Power",
+			"Maximum safe generation and full operating power allocations.": "Maximum safe generation and full operating power allocations.",
+			"Normal Power": "Normal Power",
+			"Generation follows demand within the requested operating limit.": "Generation follows demand within the requested operating limit.",
+			"Recharge Power": "Recharge Power",
+			"Maximum safe generation with reduced nonessential allocations to recharge reserves.": "Maximum safe generation with reduced nonessential allocations to recharge reserves."
 		}
 	}
 }

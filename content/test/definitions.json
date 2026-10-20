@@ -7881,13 +7881,18 @@
 			"stances": [
 				{
 					"id": "routine",
-					"label": "Normal generation",
-					"description": "Automated generation follows ordinary orders."
+					"label": "Normal Power",
+					"description": "Generation follows demand within the requested operating limit."
 				},
 				{
 					"id": "reserve",
-					"label": "Reduced generation",
-					"description": "Request reduced generator output while retaining physical thermal protection."
+					"label": "Recharge Power",
+					"description": "Maximum safe generation with reduced nonessential allocations to recharge reserves."
+				},
+				{
+					"id": "combat",
+					"label": "Combat Power",
+					"description": "Maximum safe generation and full operating power allocations."
 				}
 			],
 			"default_stance": "routine"
@@ -8330,22 +8335,14 @@
 					"running": [
 						{
 							"action": "write.generator_output",
-							"arguments": [13000]
+							"arguments": [
+								{
+									"observation": "power.demand"
+								}
+							]
 						}
 					],
 					"transitions": [
-						{
-							"conditions": [
-								{
-									"left": {
-										"observation": "summary.level"
-									},
-									"op": "present"
-								}
-							],
-							"reason": "summary",
-							"target": "summary"
-						},
 						{
 							"conditions": [
 								{
@@ -8356,42 +8353,19 @@
 									"right": true
 								}
 							],
-							"reason": "hot",
 							"target": "hot"
 						},
 						{
 							"conditions": [
 								{
 									"left": {
-										"observation": "message.available"
+										"observation": "console.stance"
 									},
 									"op": "eq",
-									"right": true
-								},
-								{
-									"left": {
-										"observation": "message.schema"
-									},
-									"op": "eq",
-									"right": "test.coordination"
-								},
-								{
-									"left": {
-										"observation": "message.boolean"
-									},
-									"op": "eq",
-									"right": true
-								},
-								{
-									"left": {
-										"observation": "message.integer"
-									},
-									"op": "gt",
-									"right": 0
+									"right": "combat"
 								}
 							],
-							"reason": "requested",
-							"target": "requested"
+							"target": "combat"
 						},
 						{
 							"conditions": [
@@ -8403,13 +8377,26 @@
 									"right": "reserve"
 								}
 							],
-							"target": "stance-reserve",
-							"reason": "Reduced generation stance"
+							"target": "recharge"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "power.demand"
+									},
+									"op": "gt",
+									"right": {
+										"observation": "summary.level"
+									}
+								}
+							],
+							"target": "capped"
 						}
 					]
 				},
 				{
-					"id": "summary",
+					"id": "capped",
 					"parent": "service",
 					"running": [
 						{
@@ -8432,8 +8419,19 @@
 									"right": true
 								}
 							],
-							"reason": "hot",
 							"target": "hot"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
 						},
 						{
 							"conditions": [
@@ -8445,34 +8443,34 @@
 									"right": "reserve"
 								}
 							],
-							"target": "stance-reserve",
-							"reason": "Reduced generation stance"
+							"target": "recharge"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "power.demand"
+									},
+									"op": "le",
+									"right": {
+										"observation": "summary.level"
+									}
+								}
+							],
+							"target": "routine"
 						}
 					]
 				},
 				{
-					"entry": [
+					"id": "combat",
+					"parent": "service",
+					"running": [
 						{
 							"action": "write.generator_output",
 							"arguments": [20000]
 						}
 					],
-					"id": "requested",
-					"parent": "service",
 					"transitions": [
-						{
-							"conditions": [
-								{
-									"left": {
-										"elapsed": true
-									},
-									"op": "ge",
-									"right": 200
-								}
-							],
-							"reason": "routine",
-							"target": "routine"
-						},
 						{
 							"conditions": [
 								{
@@ -8483,7 +8481,6 @@
 									"right": true
 								}
 							],
-							"reason": "hot",
 							"target": "hot"
 						},
 						{
@@ -8492,12 +8489,47 @@
 									"left": {
 										"observation": "console.stance"
 									},
+									"op": "ne",
+									"right": "combat"
+								}
+							],
+							"target": "routine"
+						}
+					]
+				},
+				{
+					"id": "recharge",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.generator_output",
+							"arguments": [20000]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "thermal.stopped"
+									},
 									"op": "eq",
+									"right": true
+								}
+							],
+							"target": "hot"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
 									"right": "reserve"
 								}
 							],
-							"target": "stance-reserve",
-							"reason": "Reduced generation stance"
+							"target": "routine"
 						}
 					]
 				},
@@ -8519,74 +8551,9 @@
 									},
 									"op": "eq",
 									"right": false
-								},
-								{
-									"left": {
-										"elapsed": true
-									},
-									"op": "ge",
-									"right": 40
 								}
 							],
-							"reason": "recovered",
-							"target": "recovered"
-						}
-					]
-				},
-				{
-					"id": "recovered",
-					"parent": "service",
-					"transitions": [
-						{
-							"conditions": [
-								{
-									"left": {
-										"elapsed": true
-									},
-									"op": "ge",
-									"right": 1
-								}
-							],
-							"reason": "routine",
 							"target": "routine"
-						}
-					]
-				},
-				{
-					"id": "stance-reserve",
-					"parent": "service",
-					"running": [
-						{
-							"action": "write.generator_output",
-							"arguments": [6500]
-						}
-					],
-					"transitions": [
-						{
-							"conditions": [
-								{
-									"left": {
-										"observation": "thermal.stopped"
-									},
-									"op": "eq",
-									"right": true
-								}
-							],
-							"target": "hot",
-							"reason": "Thermal protection"
-						},
-						{
-							"conditions": [
-								{
-									"left": {
-										"observation": "console.stance"
-									},
-									"op": "ne",
-									"right": "reserve"
-								}
-							],
-							"target": "routine",
-							"reason": "Resume normal generation"
 						}
 					]
 				}
@@ -8602,6 +8569,12 @@
 					"system": "core.generator",
 					"field": "thermal_stopped",
 					"type": "boolean"
+				},
+				{
+					"name": "power.demand",
+					"system": "core.generator",
+					"field": "demand_output",
+					"type": "integer"
 				}
 			],
 			"record_bindings": [],
@@ -8838,6 +8811,30 @@
 							"conditions": [
 								{
 									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
 										"observation": "summary.level"
 									},
 									"op": "present"
@@ -8859,6 +8856,80 @@
 									"observation": "summary.level"
 								}
 							]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						}
+					]
+				},
+				{
+					"id": "combat",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [1000]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "combat"
+								}
+							],
+							"target": "routine"
+						}
+					]
+				},
+				{
+					"id": "reserve",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [250]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "reserve"
+								}
+							],
+							"target": "routine"
 						}
 					]
 				}
@@ -8919,6 +8990,30 @@
 							"conditions": [
 								{
 									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
 										"observation": "summary.level"
 									},
 									"op": "present"
@@ -8940,6 +9035,80 @@
 									"observation": "summary.level"
 								}
 							]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						}
+					]
+				},
+				{
+					"id": "combat",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [10000]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "combat"
+								}
+							],
+							"target": "routine"
+						}
+					]
+				},
+				{
+					"id": "reserve",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [2000]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "reserve"
+								}
+							],
+							"target": "routine"
 						}
 					]
 				}
@@ -9370,6 +9539,30 @@
 							"conditions": [
 								{
 									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
 										"observation": "summary.level"
 									},
 									"op": "present"
@@ -9391,6 +9584,80 @@
 									"observation": "summary.level"
 								}
 							]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						}
+					]
+				},
+				{
+					"id": "combat",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [4000]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "combat"
+								}
+							],
+							"target": "routine"
+						}
+					]
+				},
+				{
+					"id": "reserve",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [1000]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "reserve"
+								}
+							],
+							"target": "routine"
 						}
 					]
 				}
@@ -9538,6 +9805,30 @@
 							"conditions": [
 								{
 									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
 										"observation": "summary.level"
 									},
 									"op": "present"
@@ -9559,6 +9850,80 @@
 									"observation": "summary.level"
 								}
 							]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						}
+					]
+				},
+				{
+					"id": "combat",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [1500]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "combat"
+								}
+							],
+							"target": "routine"
+						}
+					]
+				},
+				{
+					"id": "reserve",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [375]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "reserve"
+								}
+							],
+							"target": "routine"
 						}
 					]
 				}
@@ -9706,6 +10071,30 @@
 							"conditions": [
 								{
 									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
 										"observation": "summary.level"
 									},
 									"op": "present"
@@ -9727,6 +10116,80 @@
 									"observation": "summary.level"
 								}
 							]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						}
+					]
+				},
+				{
+					"id": "combat",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [1000]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "combat"
+								}
+							],
+							"target": "routine"
+						}
+					]
+				},
+				{
+					"id": "reserve",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [250]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "reserve"
+								}
+							],
+							"target": "routine"
 						}
 					]
 				}
@@ -9985,6 +10448,30 @@
 							"conditions": [
 								{
 									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
 										"observation": "summary.level"
 									},
 									"op": "present"
@@ -10006,6 +10493,80 @@
 									"observation": "summary.level"
 								}
 							]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						}
+					]
+				},
+				{
+					"id": "combat",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [1000]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "combat"
+								}
+							],
+							"target": "routine"
+						}
+					]
+				},
+				{
+					"id": "reserve",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [125]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "reserve"
+								}
+							],
+							"target": "routine"
 						}
 					]
 				}
@@ -10153,6 +10714,30 @@
 							"conditions": [
 								{
 									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
 										"observation": "summary.level"
 									},
 									"op": "present"
@@ -10174,6 +10759,80 @@
 									"observation": "summary.level"
 								}
 							]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						}
+					]
+				},
+				{
+					"id": "combat",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [1000]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "combat"
+								}
+							],
+							"target": "routine"
+						}
+					]
+				},
+				{
+					"id": "reserve",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [250]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "reserve"
+								}
+							],
+							"target": "routine"
 						}
 					]
 				}
@@ -10321,6 +10980,30 @@
 							"conditions": [
 								{
 									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
 										"observation": "summary.level"
 									},
 									"op": "present"
@@ -10342,6 +11025,80 @@
 									"observation": "summary.level"
 								}
 							]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						}
+					]
+				},
+				{
+					"id": "combat",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [1000]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "combat"
+								}
+							],
+							"target": "routine"
+						}
+					]
+				},
+				{
+					"id": "reserve",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [250]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "reserve"
+								}
+							],
+							"target": "routine"
 						}
 					]
 				}
@@ -10489,6 +11246,30 @@
 							"conditions": [
 								{
 									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
 										"observation": "summary.level"
 									},
 									"op": "present"
@@ -10510,6 +11291,80 @@
 									"observation": "summary.level"
 								}
 							]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						}
+					]
+				},
+				{
+					"id": "combat",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [1000]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "combat"
+								}
+							],
+							"target": "routine"
+						}
+					]
+				},
+				{
+					"id": "reserve",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [250]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "reserve"
+								}
+							],
+							"target": "routine"
 						}
 					]
 				}
@@ -10552,22 +11407,14 @@
 					"running": [
 						{
 							"action": "write.generator_output",
-							"arguments": [19500]
+							"arguments": [
+								{
+									"observation": "power.demand"
+								}
+							]
 						}
 					],
 					"transitions": [
-						{
-							"conditions": [
-								{
-									"left": {
-										"observation": "summary.level"
-									},
-									"op": "present"
-								}
-							],
-							"reason": "summary",
-							"target": "summary"
-						},
 						{
 							"conditions": [
 								{
@@ -10578,42 +11425,19 @@
 									"right": true
 								}
 							],
-							"reason": "hot",
 							"target": "hot"
 						},
 						{
 							"conditions": [
 								{
 									"left": {
-										"observation": "message.available"
+										"observation": "console.stance"
 									},
 									"op": "eq",
-									"right": true
-								},
-								{
-									"left": {
-										"observation": "message.schema"
-									},
-									"op": "eq",
-									"right": "test.coordination"
-								},
-								{
-									"left": {
-										"observation": "message.boolean"
-									},
-									"op": "eq",
-									"right": true
-								},
-								{
-									"left": {
-										"observation": "message.integer"
-									},
-									"op": "gt",
-									"right": 0
+									"right": "combat"
 								}
 							],
-							"reason": "requested",
-							"target": "requested"
+							"target": "combat"
 						},
 						{
 							"conditions": [
@@ -10625,13 +11449,26 @@
 									"right": "reserve"
 								}
 							],
-							"target": "stance-reserve",
-							"reason": "Reduced generation stance"
+							"target": "recharge"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "power.demand"
+									},
+									"op": "gt",
+									"right": {
+										"observation": "summary.level"
+									}
+								}
+							],
+							"target": "capped"
 						}
 					]
 				},
 				{
-					"id": "summary",
+					"id": "capped",
 					"parent": "service",
 					"running": [
 						{
@@ -10654,8 +11491,19 @@
 									"right": true
 								}
 							],
-							"reason": "hot",
 							"target": "hot"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
 						},
 						{
 							"conditions": [
@@ -10667,34 +11515,34 @@
 									"right": "reserve"
 								}
 							],
-							"target": "stance-reserve",
-							"reason": "Reduced generation stance"
+							"target": "recharge"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "power.demand"
+									},
+									"op": "le",
+									"right": {
+										"observation": "summary.level"
+									}
+								}
+							],
+							"target": "routine"
 						}
 					]
 				},
 				{
-					"entry": [
+					"id": "combat",
+					"parent": "service",
+					"running": [
 						{
 							"action": "write.generator_output",
 							"arguments": [30000]
 						}
 					],
-					"id": "requested",
-					"parent": "service",
 					"transitions": [
-						{
-							"conditions": [
-								{
-									"left": {
-										"elapsed": true
-									},
-									"op": "ge",
-									"right": 200
-								}
-							],
-							"reason": "routine",
-							"target": "routine"
-						},
 						{
 							"conditions": [
 								{
@@ -10705,7 +11553,6 @@
 									"right": true
 								}
 							],
-							"reason": "hot",
 							"target": "hot"
 						},
 						{
@@ -10714,12 +11561,47 @@
 									"left": {
 										"observation": "console.stance"
 									},
+									"op": "ne",
+									"right": "combat"
+								}
+							],
+							"target": "routine"
+						}
+					]
+				},
+				{
+					"id": "recharge",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.generator_output",
+							"arguments": [30000]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "thermal.stopped"
+									},
 									"op": "eq",
+									"right": true
+								}
+							],
+							"target": "hot"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
 									"right": "reserve"
 								}
 							],
-							"target": "stance-reserve",
-							"reason": "Reduced generation stance"
+							"target": "routine"
 						}
 					]
 				},
@@ -10741,74 +11623,9 @@
 									},
 									"op": "eq",
 									"right": false
-								},
-								{
-									"left": {
-										"elapsed": true
-									},
-									"op": "ge",
-									"right": 40
 								}
 							],
-							"reason": "recovered",
-							"target": "recovered"
-						}
-					]
-				},
-				{
-					"id": "recovered",
-					"parent": "service",
-					"transitions": [
-						{
-							"conditions": [
-								{
-									"left": {
-										"elapsed": true
-									},
-									"op": "ge",
-									"right": 1
-								}
-							],
-							"reason": "routine",
 							"target": "routine"
-						}
-					]
-				},
-				{
-					"id": "stance-reserve",
-					"parent": "service",
-					"running": [
-						{
-							"action": "write.generator_output",
-							"arguments": [9750]
-						}
-					],
-					"transitions": [
-						{
-							"conditions": [
-								{
-									"left": {
-										"observation": "thermal.stopped"
-									},
-									"op": "eq",
-									"right": true
-								}
-							],
-							"target": "hot",
-							"reason": "Thermal protection"
-						},
-						{
-							"conditions": [
-								{
-									"left": {
-										"observation": "console.stance"
-									},
-									"op": "ne",
-									"right": "reserve"
-								}
-							],
-							"target": "routine",
-							"reason": "Resume normal generation"
 						}
 					]
 				}
@@ -10824,6 +11641,12 @@
 					"system": "core.generator",
 					"field": "thermal_stopped",
 					"type": "boolean"
+				},
+				{
+					"name": "power.demand",
+					"system": "core.generator",
+					"field": "demand_output",
+					"type": "integer"
 				}
 			],
 			"record_bindings": [],
@@ -10976,6 +11799,30 @@
 							"conditions": [
 								{
 									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
 										"observation": "summary.level"
 									},
 									"op": "present"
@@ -10997,6 +11844,80 @@
 									"observation": "summary.level"
 								}
 							]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						}
+					]
+				},
+				{
+					"id": "combat",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [1000]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "combat"
+								}
+							],
+							"target": "routine"
+						}
+					]
+				},
+				{
+					"id": "reserve",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [250]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "reserve"
+								}
+							],
+							"target": "routine"
 						}
 					]
 				}
@@ -11144,6 +12065,30 @@
 							"conditions": [
 								{
 									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
 										"observation": "summary.level"
 									},
 									"op": "present"
@@ -11165,6 +12110,80 @@
 									"observation": "summary.level"
 								}
 							]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						}
+					]
+				},
+				{
+					"id": "combat",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [1000]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "combat"
+								}
+							],
+							"target": "routine"
+						}
+					]
+				},
+				{
+					"id": "reserve",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [250]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "reserve"
+								}
+							],
+							"target": "routine"
 						}
 					]
 				}
@@ -11225,6 +12244,30 @@
 							"conditions": [
 								{
 									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
 										"observation": "summary.level"
 									},
 									"op": "present"
@@ -11246,6 +12289,80 @@
 									"observation": "summary.level"
 								}
 							]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						}
+					]
+				},
+				{
+					"id": "combat",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [10000]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "combat"
+								}
+							],
+							"target": "routine"
+						}
+					]
+				},
+				{
+					"id": "reserve",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [2000]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "reserve"
+								}
+							],
+							"target": "routine"
 						}
 					]
 				}
@@ -11676,6 +12793,30 @@
 							"conditions": [
 								{
 									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
 										"observation": "summary.level"
 									},
 									"op": "present"
@@ -11697,6 +12838,80 @@
 									"observation": "summary.level"
 								}
 							]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						}
+					]
+				},
+				{
+					"id": "combat",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [4000]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "combat"
+								}
+							],
+							"target": "routine"
+						}
+					]
+				},
+				{
+					"id": "reserve",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [1000]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "reserve"
+								}
+							],
+							"target": "routine"
 						}
 					]
 				}
@@ -11844,6 +13059,30 @@
 							"conditions": [
 								{
 									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
 										"observation": "summary.level"
 									},
 									"op": "present"
@@ -11865,6 +13104,80 @@
 									"observation": "summary.level"
 								}
 							]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						}
+					]
+				},
+				{
+					"id": "combat",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [1500]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "combat"
+								}
+							],
+							"target": "routine"
+						}
+					]
+				},
+				{
+					"id": "reserve",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [375]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "reserve"
+								}
+							],
+							"target": "routine"
 						}
 					]
 				}
@@ -12012,6 +13325,30 @@
 							"conditions": [
 								{
 									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
 										"observation": "summary.level"
 									},
 									"op": "present"
@@ -12033,6 +13370,80 @@
 									"observation": "summary.level"
 								}
 							]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						}
+					]
+				},
+				{
+					"id": "combat",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [1000]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "combat"
+								}
+							],
+							"target": "routine"
+						}
+					]
+				},
+				{
+					"id": "reserve",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [250]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "reserve"
+								}
+							],
+							"target": "routine"
 						}
 					]
 				}
@@ -12180,6 +13591,30 @@
 							"conditions": [
 								{
 									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
 										"observation": "summary.level"
 									},
 									"op": "present"
@@ -12201,6 +13636,80 @@
 									"observation": "summary.level"
 								}
 							]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "combat"
+								}
+							],
+							"target": "combat"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "reserve"
+						}
+					]
+				},
+				{
+					"id": "combat",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [1000]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "combat"
+								}
+							],
+							"target": "routine"
+						}
+					]
+				},
+				{
+					"id": "reserve",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [125]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "reserve"
+								}
+							],
+							"target": "routine"
 						}
 					]
 				}

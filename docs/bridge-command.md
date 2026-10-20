@@ -14,7 +14,7 @@ A Console may author `stances`, each with an `id`, localised `label` and optiona
 
 Command defaults in shipped content to `human_seeking: true`. `hide_without_ai: true` hides its supplemental presentation when no eligible stance targets remain. Command itself and Consoles without stance choices are excluded. Helm's Follow orders and Hold position stances demonstrate tree-driven behaviour: delegated propulsion can follow objectives or cancel destination guidance and request a stop. Human-owned propulsion remains under its operator's control.
 
-Engineering supplies Normal generation and Reduced generation stances. Reduced generation requests a lower authored generator output from the AI while retaining the mechanism's thermal protection. Stance values do not directly alter machinery.
+Engineering supplies Combat Power, Normal Power and Recharge Power. Combat requests maximum safe generation and full authored operating allocations. Normal follows the previous committed generator-store load (exports, consumption and losses), bounded by the fitted maximum and the operator’s generation limit. Recharge requests maximum safe generation while reducing nonessential distribution allocations to a quarter of their normal values, leaving core services available so surplus energy replenishes the reserve. Thermal protection retains priority in every mode; stances only affect AI-owned Controllers. The existing routine and reserve identities remain compatible with saved selections.
 
 ## Viewscreen placement
 
@@ -57,3 +57,5 @@ Native and browser server/client builds passed. The synthetic Controller integra
 Explicit graphical probes passed at 1285×725, 1920×1080 and 960×720. Captures checked the framed condition, grouped stance buttons, selected state, shared settings, sidebar close/reopen and expanded localisation labels. No physical touch/gamepad or actual screen-reader run is claimed.
 
 The condition housing is a raised extension of the bottom rail, assembled from the viewscreen frame sprite and joined beneath its outer rail. Embedded consoles continue the same top and bottom rails and share one divider. Command cards use fixed frame clearance; narrow consoles wrap stance buttons to the available card width.
+
+Engineering power follow-up: all three authored packs verify with Normal, Recharge and Combat choices. The synthetic Controller check exercises typed, capped generator-load telemetry through the permitted observation path. Explicit captures at all three sizes confirm larger two-line English labels and wrapping expanded labels inside the frame.

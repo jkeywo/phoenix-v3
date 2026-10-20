@@ -1574,6 +1574,30 @@ int main()
 			for (const auto &[field, value] : system.telemetry)
 				require(schema.contains(field), "compiled fitting contract includes each produced telemetry field");
 		}
+		// A synthetic generator exposes committed load through the same typed feed
+		// used by demand-following Engineering policies; no shipped tuning is loaded.
+		auto demand_source = resource_observations;
+		auto &demand_ship = demand_source["entities"][0];
+		demand_ship["systems"]["generator"] = {{"kind", "generator"}, {"generator", "source"}};
+		demand_ship["resources"]["generators"] = Json::parse(R"json([
+		 {"id":"source","store":"cell","maximum_rate":700,"response_rate":700,"initial_output":100}])json");
+		demand_ship["resources"]["stores"][0]["loss_full_ppm"] = 2000;
+		demand_ship["stations"][0]["consoles"][0]["feeds"].push_back("generator");
+		demand_source["trees"][1]["system_bindings"][0] = {
+		    {"name", "port_requested"}, {"system", "generator"}, {"field", "demand_output"}, {"type", "integer"}};
+		World demand_world;
+		demand_world.load(load(demand_source), "test.map");
+		require(demand_world.claim(101, 1, "drive"), "claim demand-following observation Console");
+		demand_world.tick();
+		std::int64_t last_demand = -1;
+		const auto demand_view = demand_world.observe(101);
+		for (const auto &system : demand_view->systems)
+			if (system.id == "generator")
+				last_demand = system.telemetry.at("demand_output");
+		require(last_demand > 0 && last_demand <= 700, "generator demand includes losses and respects fitted maximum");
+		demand_world.tick();
+		require(requested(demand_world, "starboard") == last_demand,
+		        "AI reads committed generator demand through its permitted feed");
 		auto wrong_resource_type = resource_observations;
 		wrong_resource_type["trees"][1]["system_bindings"][1]["type"] = "integer";
 		rejects(
