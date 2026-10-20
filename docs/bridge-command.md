@@ -37,3 +37,5 @@ Implementation commit `22be094` passed the final native build and all 22 native 
 The complete WASM check passed, including the browser launcher, input/semantics, content, Controller runtime and save/recovery integrations, and comparison with the native continuation trace.
 
 The network gate passed seven of eight cases on its initial run. The remaining live-session case timed out waiting for GM approval; its focused rerun passed. The copied siren's SHA-256 matches the V2 original. No rendered, audible or physical-device smoke run was performed for this change.
+
+Integration into main retained the newer skybox and sprite-mirroring work. Additive conflicts retained both the skybox translations/delivery notes and the map-gesture/sidebar tests. The combined `scripts/check.ps1 -Target all` passed all 22 native cases, all 8 network cases and the WASM checks. Production content verification again accepted 12 entity definitions, 8 maps and 9 Consoles; formatting verification passed. This integration did not run additional graphical, audible or physical-device smoke checks.
