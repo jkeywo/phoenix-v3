@@ -550,8 +550,7 @@ int main()
 		 {"id":"enabled","action":"intent_boolean","type":"boolean","initial":1,"consumers":[]}]})json"));
 		preference_layout["profiles"][0]["consoles"]["drive"] = {{"human", {"preference"}}, {"ai", {"propulsion"}}};
 		preference_layout["profiles"][1]["consoles"]["drive"] = {{"ai", {"preference", "propulsion"}}};
-		preference_source["trees"] =
-		    Json::parse(R"json([{"id":"test.preference","context":"controller","initial":"run",
+		preference_source["trees"] = Json::parse(R"json([{"id":"test.preference","context":"controller","initial":"run",
 		 "command_bindings":[{"channel":"speed"},{"channel":"enabled","type":"boolean"}],
 		 "command_reads":[{"name":"cruise","controller":"preference","channel":"cruise"},
 		  {"name":"enabled","controller":"preference","channel":"enabled","type":"boolean"}],
