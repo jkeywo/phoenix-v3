@@ -108,6 +108,8 @@ int main(int argc, char **argv)
 		                                {"consumers", Json::array()}}})}});
 		for (auto &profile : public_ship["control_layout"]["profiles"])
 			profile["consoles"]["navigation"] = {{"human", {"planner"}}};
+		defs["consoles"][0]["name"] = "Synthetic Helm";
+		defs["consoles"][0]["description"] = "Steer and set speed.";
 		pack.files["definitions.json"] = json_bytes(defs);
 		pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
 		{
@@ -188,16 +190,26 @@ int main(int argc, char **argv)
 		    [&]
 		    {
 			    const auto lobby = host->lobby();
-			    return lobby.members.size() == 5 && std::any_of(lobby.members.begin(), lobby.members.end(),
-			                                                    [](const auto &member)
-			                                                    {
-				                                                    return member.id == "crew" &&
-				                                                           member.name == "Navigator" &&
-				                                                           !member.avatar.empty();
-			                                                    });
+			    return lobby.members.size() == 5 &&
+			           std::all_of(lobby.members.begin(), lobby.members.end(),
+			                       [](const auto &m)
+			                       {
+				                       return m.approved;
+			                       }) &&
+			           std::any_of(lobby.members.begin(), lobby.members.end(),
+			                       [](const auto &member)
+			                       {
+				                       return member.id == "crew" && member.name == "Navigator" &&
+				                              !member.avatar.empty();
+			                       });
 		    });
-		for (const auto &id : {"ship-two", "rival", "crew", "inspector"})
-			require(host->lobby_command({LobbyAction::approve, id}), "Host approves an authenticated lobby member");
+		const auto admission_controls = host->lobby_controls();
+		require(std::none_of(admission_controls.begin(), admission_controls.end(),
+		                     [](const auto &control)
+		                     {
+			                     return control.first.starts_with("lobby.approve/");
+		                     }),
+		        "Authenticated code joins enter without host approval controls");
 		pump(
 		    [&]
 		    {
@@ -360,6 +372,13 @@ int main(int argc, char **argv)
 		    host->viewscreen().size() == 4,
 		    "World contains its authored entity, two claimed ships and mandatory AI, with the optional slot absent");
 		require(!host->observation(), "Readying an AI-only host must not claim a human Console");
+		const auto crew_lobby = crew->lobby();
+		require(std::any_of(crew_lobby.consoles.begin(), crew_lobby.consoles.end(),
+		                    [](const auto &seat)
+		                    {
+			                    return seat.name == "Synthetic Helm" && seat.description == "Steer and set speed.";
+		                    }),
+		        "Console cards receive authored names and descriptions without loading a private server catalogue");
 		const auto saved = host->save();
 		const auto restored = read_fleet_setup(saved);
 		require(restored.plan.at("members").size() == 2 && restored.world->setup().ships.size() == 3,
@@ -370,18 +389,16 @@ int main(int argc, char **argv)
 		    {
 			    for (const auto &m : host->lobby().members)
 				    if (m.id == "late-crew")
-					    return !m.approved;
+					    return m.approved;
 			    return false;
 		    });
 		const auto late_controls = host->lobby_controls();
-		require(std::any_of(late_controls.begin(), late_controls.end(),
-		                    [](const auto &control)
-		                    {
-			                    return control.first == "lobby.approve/late-crew";
-		                    }),
-		        "Running lobby UI retains approval controls after backend activation");
-		require(host->session_action("lobby.approve/late-crew"),
-		        "The running lobby admits late crew without changing the server roster");
+		require(std::none_of(late_controls.begin(), late_controls.end(),
+		                     [](const auto &control)
+		                     {
+			                     return control.first == "lobby.approve/late-crew";
+		                     }),
+		        "Late code joins are admitted automatically after backend activation");
 		pump(
 		    [&]
 		    {
@@ -668,7 +685,7 @@ int main(int argc, char **argv)
 			    {
 				    return mixed->lobby().members.size() == 2;
 			    });
-			require(mixed->session_action("lobby.approve/joined-ship"), "GM approves a joining ship host");
+
 			pump(
 			    [&]
 			    {

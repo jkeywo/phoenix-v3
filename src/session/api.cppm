@@ -45,6 +45,7 @@ struct LobbyConsole
 	bool ready = false;
 	std::string profile;
 	std::vector<std::string> profiles;
+	std::string description;
 };
 struct LobbyProjection
 {
