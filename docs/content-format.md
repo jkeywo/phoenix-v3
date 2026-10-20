@@ -69,3 +69,7 @@ Older installed combined base packs are split through the production loader: tra
 ## Pre-game ship-slot requirements
 
 A map ship slot may include `"mandatory": true` (boolean; omitted means false). Workshop exposes this as Mandatory ship slot. The optional `default_ship` must name an entry of `allowed_ships`; omission uses the first allowed ship. At an ordinary ship-host lobby launch, an unclaimed mandatory slot uses its default under deterministic AI on every host; an unclaimed optional slot is absent. A GM-hosted game fills every unclaimed slot with its default AI ship. Claimed slots use the participant's allowed selection. AI ships are part of the saved simulation but do not create fleet servers or quorum votes. A GM coordinator has one replication vote and an empty slot in the private ownership map, with no player Console leases. Existing private fleet setup/recovery schema 1 remains readable; new GM setups declare `gm_host`. Recovery retains its exact saved ships rather than regenerating omitted optional slots.
+
+## Region environments and sprite entries
+
+See [regions, fields and radar](regions-and-fields.md) for region fog, field generation, public map markers, entity/radar tags, sprite-sheet entries and radar sweep settings. Existing definitions without these optional fields retain their legacy defaults.

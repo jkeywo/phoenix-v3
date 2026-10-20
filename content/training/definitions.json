@@ -89,6 +89,56 @@
 				],
 				"default_profile": "direct"
 			}
+		},
+		{
+			"id": "training.field-asteroid",
+			"render": {
+				"mode": "camera",
+				"scale": 12,
+				"sprite": {
+					"albedo": "phoenix-training:assets/asteroid-atlas-albedo.png",
+					"depth": "phoenix-training:assets/asteroid-atlas-depth.png",
+					"normal": "phoenix-training:assets/asteroid-atlas-normal.png",
+					"radar_sprite": "phoenix-base:assets/radar/asteroid.png",
+					"entries": [
+						{
+							"name": "original",
+							"frames": [
+								{
+									"name": "asteroid",
+									"rect": [0, 0, 1254, 1254],
+									"pivot": [627, 627],
+									"azimuth": 0,
+									"depth_scale": 0.65,
+									"depth_offset": 0,
+									"attachments": {}
+								}
+							]
+						},
+						{
+							"name": "turned",
+							"frames": [
+								{
+									"name": "turned",
+									"rect": [1254, 0, 1254, 1254],
+									"pivot": [627, 627],
+									"azimuth": 0,
+									"depth_scale": 0.65,
+									"depth_offset": 0,
+									"attachments": {}
+								}
+							]
+						}
+					]
+				}
+			},
+			"systems": {},
+			"collision": {
+				"shape": "circle",
+				"radius_mm": 5000,
+				"mass_grams": 0
+			},
+			"tags": ["contact", "asteroid"]
 		}
 	],
 	"trees": [
@@ -1245,6 +1295,103 @@
 					"enabled": true
 				}
 			}
+		},
+		{
+			"id": "training.nebula-belt",
+			"name": "Nebula and asteroid field",
+			"entities": [
+				{
+					"id": 1,
+					"definition": "training.beacon",
+					"x_mm": 140000,
+					"y_mm": 0,
+					"heading_mdeg": 0
+				}
+			],
+			"ship_slots": [
+				{
+					"id": "base.player",
+					"x_mm": -100000,
+					"y_mm": 0,
+					"heading_mdeg": 0,
+					"allowed_ships": [
+						"training.survey",
+						"base.courier-engineering",
+						"base.cruiser",
+						"base.race-courier"
+					]
+				}
+			],
+			"regions": [
+				{
+					"id": "violet-cloud",
+					"shape": "circle",
+					"x_mm": 45000,
+					"y_mm": 0,
+					"radius_mm": 60000,
+					"nebula": {
+						"colour": [0.38, 0.2, 0.65],
+						"density": 0.018,
+						"sensor_factor": 3,
+						"half_height_mm": 45000
+					},
+					"display": {
+						"name": "Violet cloud",
+						"colour": [0.65, 0.3, 0.85],
+						"navigation": true,
+						"radar": true,
+						"tags": ["contact", "nebula"]
+					}
+				},
+				{
+					"id": "asteroid-belt",
+					"shape": "annulus",
+					"x_mm": 180000,
+					"y_mm": 0,
+					"radius_mm": 170000,
+					"inner_radius_mm": 90000,
+					"asteroids": {
+						"seed": 271828,
+						"spacing_mm": 30000,
+						"density": 0.00035,
+						"jitter_mm": 9000,
+						"clustering_permille": 400,
+						"noise_cells": 5,
+						"spin_min_mdeg_s": 1000,
+						"spin_max_mdeg_s": 9000,
+						"visual_distance_mm": 300000,
+						"unload_margin_mm": 60000,
+						"decorative_height_mm": 26000,
+						"decorative_fill_permille": 300,
+						"types": [
+							{
+								"definition": "training.field-asteroid",
+								"sprite_entry": "original",
+								"weight": 1000
+							},
+							{
+								"definition": "training.field-asteroid",
+								"sprite_entry": "turned",
+								"weight": 1000
+							}
+						],
+						"decorative_types": [
+							{
+								"definition": "training.field-asteroid",
+								"sprite_entry": "turned",
+								"weight": 1000
+							}
+						]
+					},
+					"display": {
+						"name": "Asteroid belt",
+						"colour": [0.6, 0.5, 0.3],
+						"navigation": true,
+						"radar": true,
+						"tags": ["contact", "asteroid"]
+					}
+				}
+			]
 		}
 	],
 	"knowledge": {

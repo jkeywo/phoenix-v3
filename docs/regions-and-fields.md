@@ -1,0 +1,39 @@
+# Regions, nebulae, asteroid fields and radar
+
+Regions retain their objective containment and swept-crossing behaviour. `shape` accepts `circle`, `rectangle` and `annulus`; annuli add `inner_radius_mm` to `radius_mm`. Empty ring centres are excluded from containment, generation and sensor attenuation.
+
+## Public map markers and tags
+
+An optional region `display` object contains `name`, RGB `colour` (0..1), independent `navigation` and `radar` booleans, and `tags`. Markers are authored public chart information; enabling them deliberately projects their name and footprint to Consoles. Hidden region geometry and environmental settings are not included in Console observations. Nav maps draw all navigation-enabled markers. Radars draw radar-enabled markers whose tags match their `shows` list, clipped to the circular radar display. Marker visibility does not change fog, collisions or objective behaviour. Names pass through localisation and explicit radar readouts include marker coordinates.
+
+Entity definitions accept `tags: ["ship", "friendly"]`; fitted radar Systems accept `shows: ["ship", "asteroid"]`. As in V2, any shared tag matches. Explicit empty lists match nothing. For legacy V3 content, an omitted list defaults to `["contact"]` on both entities and radars. Inherited tags follow ordinary definition inheritance. Generated physical asteroids use their selected entity definition's tags; decorative asteroids never become contacts. Detection, accessible contact lists and Controller AI share the authoritative filtered observation boundary. Each radar carries its own permitted contact identities so multiple radar feeds cannot bypass a narrower filter.
+
+## Nebulae
+
+`nebula` accepts `colour` (three 0..1 channels), `density` (optical thickness per metre), `sensor_factor` (dimensionless, default 1) and `half_height_mm`. Horizontal bounds use the region footprint. Zero density disables both effects; zero sensor factor preserves visual fog without attenuation. Overlap adds optical depth and blends colours by their optical contributions.
+
+Sensors integrate the entire observer-to-contact segment using fixed-point path clipping. Detection requires `distance * (1 + optical depth) <= power-adjusted sensor range`. Existing knowledge ageing remains unchanged. Communications are unaffected. Visual rendering integrates bounded ray intersections to each sprite's reconstructed surface depth, and to the far plane for unobstructed space; interface overlays remain clear. The supported bound is 32 fog volumes per map.
+
+## Radar sweep
+
+Radar widgets accept `sweep: {enabled, colour, duration_seconds, speed_degrees_s}`. Colour is RGBA (0..1); defaults are green, three seconds and 60 degrees/second. Duration is capped at one revolution. The authoritative sensor envelope contains 128 fixed-point directional reach measurements. Rendering conservatively interpolates reach using the smaller adjacent value.
+
+A persistent procedural triangle mesh reads a circular 2,048-sample RGBA32F texture. Each ordinary rendered frame updates exactly one direction/distance/time sample and advances the head index. The shader places vertices, highlights the leading edge and fades older points. Reset/discontinuity clears the buffer; repeated draws at the same timestamp do not advance it. Reduced-motion mode draws a static reach outline. Console observations contain this envelope, not private nebula geometry.
+
+## Sprite entries and spin
+
+A sprite may replace its legacy `frames` array with `entries: [{name, frames}, ...]`. Each entry has one camera-facing frame or eight directional frames. Atlas textures and material settings are shared; each frame retains its crop, pivot, depth calibration and attachments. `render.sprite_entry` selects a default entry; a map entity's `sprite_entry` overrides it. Names compile to indices. Legacy sprites form entry zero and need no edits. Engine effects must provide matching frame names for every parent entry.
+
+Field rotation is billboard-plane rotation independent of physical collider heading. Initial angle, clockwise/anticlockwise direction and speed derive from stable identity and field seed. Rendering groups persistent instance records by definition and 256-metre spatial chunk. Time and camera changes update uniforms, not instance buffers; population or physical-state changes update affected batches. Both colour and shadow passes use instanced draws and the same rotated basis and normals. Chunk origins are rebased through uniforms. The simulation epoch is saved and restored.
+
+## Asteroid authoring and lifecycle
+
+`asteroids` supports `seed`, `spacing_mm`, `density` (rocks per square metre), `weight`, `jitter_mm`, `clustering_permille`, `noise_cells`, `decorative_height_mm`, `decorative_fill_permille`, `spin_min_mdeg_s`, `spin_max_mdeg_s`, `visual_distance_mm`, `unload_margin_mm`, `types` and `decorative_types`. Each type contains `definition`, optional `sprite_entry` and relative `weight`. Types must use sprite materials and have no fitted Systems. All fields on a map share one lattice spacing. Overlap chooses one weighted field/type at a cell, avoiding duplicate physical rocks. Placement is rechecked against its region after jitter.
+
+Streaming uses the union of neighborhoods around player and NPC controllable ships, including sensor range, visual distance, swept movement and collider size. Unload hysteresis retains nearby rocks. Stable generated identities occupy a separate reserved range. Modified physical state survives unloading and recovery; decorative layers never create colliders or contacts. Schema-7 saves without the new optional state still load. Resource bounds fail explicitly: 512 cells across one ship window, 65,536 candidate cells across the fleet and 200,000 retained generated records. Increase spacing or reduce authored distances if a map exceeds these bounds.
+
+Workshop uses the production geometry, generator and renderer for bounded field previews, provides region/material/entry/tag controls, and retains its ordinary undo/redo and verified export pipeline. `training.nebula-belt` demonstrates a violet cloud and asteroid belt using the existing asteroid artwork assembled into two atlas entries by `scripts/prepare-asteroid-atlas.py`. V2 and reference snapshots remain untouched.
+
+## Validation
+
+Synthetic production-loader cases cover annulus holes, intervening attenuation, zero sensor factor, directional reach, tag matching, public marker projection, deterministic field identities/entries/spin and save continuation. The explicitly invoked `phoenix_comic_probe` covers atlas selection, shader rotation without instance reuploads, fog occlusion and radar sample writes/truncation. Graphical smoke and performance evidence are recorded separately; successful builds and headless cases do not establish physical six-display or screen-reader acceptance.

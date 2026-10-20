@@ -325,7 +325,28 @@
 			"Editing pack": "Editing pack",
 			"Entries omitted from network view": "Entries omitted from network view",
 			"Estimates assume current demand and supply remain constant; future commands are excluded.": "Estimates assume current demand and supply remain constant; future commands are excluded.",
-			"Work offer": "Work offer"
+			"Work offer": "Work offer",
+			"Sensor reach": "Sensor reach",
+			"Nebula and asteroid field": "Nebula and asteroid field",
+			"Violet cloud": "Violet cloud",
+			"Asteroid belt": "Asteroid belt",
+			"Map marker": "Map marker",
+			"Map marker colour": "Map marker colour",
+			"navigation": "navigation",
+			"radar": "radar",
+			"shows": "shows",
+			"tags": "tags",
+			"Nebula": "Nebula",
+			"Nebula colour": "Nebula colour",
+			"Density / metre": "Density / metre",
+			"Sensor attenuation factor": "Sensor attenuation factor",
+			"Asteroid field": "Asteroid field",
+			"Sprite entry": "Sprite entry",
+			"Sprite entry override": "Sprite entry override",
+			"Customize radar sweep": "Customize radar sweep",
+			"Sweep speed (degrees/s)": "Sweep speed (degrees/s)",
+			"Sweep duration (seconds)": "Sweep duration (seconds)",
+			"Sweep colour": "Sweep colour"
 		}
 	}
 }
