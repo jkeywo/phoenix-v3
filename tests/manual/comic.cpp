@@ -71,6 +71,7 @@ SceneBody body(int id, const char *definition, int x, int y, int heading = 0, in
 	b.forward_thrust = thrust;
 	return b;
 }
+#include "mirroring.hpp"
 } // namespace
 int main()
 {
@@ -550,6 +551,7 @@ int main()
 			std::cout << "PASS procedural radar sweep, sensor truncation and one-sample GPU updates\n";
 		}
 
+		sprite_mirror_smoke();
 		std::cout << "PASS production-loader graphical sprite depth, flat fallback, directional engines and internal "
 		             "explosion lighting\n";
 		renderer.clear();

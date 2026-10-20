@@ -83,7 +83,7 @@ void prepare_instances(const Catalog &catalog, std::span<const SceneBody> bodies
 					put(i * 25 + 1 + j * 3, {static_cast<float>(f.rect[0]), static_cast<float>(f.rect[1]),
 					                         static_cast<float>(f.rect[2]), static_cast<float>(f.rect[3])});
 					put(i * 25 + 2 + j * 3, {f.pivot[0], f.pivot[1], f.depth_scale, f.depth_offset});
-					put(i * 25 + 3 + j * 3, {f.azimuth, 0, 0, 0});
+					put(i * 25 + 3 + j * 3, {f.azimuth, f.mirror_x ? 1.f : 0.f, 0, 0});
 				}
 			}
 			b.metadata = {rlLoadTexture(pixels.data(), 256, rows, PIXELFORMAT_UNCOMPRESSED_R32G32B32A32, 1), 256, rows,

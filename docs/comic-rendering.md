@@ -14,6 +14,8 @@ Definitions schema 3 adds optional `render.sprite` and `render.engines`. Schema 
 
 A sprite material contains `albedo`, optional `normal` and `depth` PNG references, optional `emissive` (default false), and `frames` (one or eight, matching `render.mode`). All maps share atlas dimensions. Each frame contains a unique `name`, integer `rect: [x,y,width,height]`, `pivot: [x,y]`, `azimuth` in degrees from bow around port, `depth_scale` (default zero), `depth_offset` (default zero), and optional `attachments`.
 
+Frames also support optional `mirror_x: true`; see the [mirroring contract and eight-bearing example](content-format.md#sprite-region-mirroring). Both ordinary and instanced colour/shadow passes reflect the source maps and pivot; normals reverse their horizontal component. CPU engine placement reflects the original marker around the source pivot and samples depth at the original marker coordinate. Existing conservative bounds remain valid under reflection.
+
 Depth is linear red, white nearer. A sample's camera-facing displacement is `render.scale * (depth_offset + (depth - 0.5) * depth_scale)`. Calibration is per view, scales with the entity and does not change simulation collision geometry. Normals are linear RGB view-space data (+X right, +Y up, +Z toward the viewer). Alpha coverage comes from albedo.
 
 Attachments are named objects with frame-local `x`, `y`, signed integer `layer`, and optional `depth_offset` in rendered-height units. Layers are ordering hints, never physical depth. Engines contain a matching named `sprite` material plus positive `scale`, `power` and `range` parameters. No source sidecar is executed; `import_sprite_sidecar` converts its supported coordinate and image contract to pack data.
@@ -64,3 +66,5 @@ Entity transforms and calibrated pixel depth must determine lighting and GPU occ
 - Captures/logs remain ignored under `build/`, including `comic-workshop-browser.png`, `comic-integration-gate.log`, native `comic-*-smoke.png` and `bridge-smoke/six-regions-comic.json`. Generate the independent heavier workload with `tests/manual/comic_bridge_fixture.py`, then use the normal six-region command with `bridge-comic.zip`.
 
 Depth remains an authored visual approximation with one visible surface per view. Shadows approximate relief with a bounded grid, and hidden surfaces are absent. Per-view calibration and derived normals improve the existing draft maps; this is not a watertight geometry bake or a collision-model change. Touchscreen, physical controllers, readers and off-machine networking retain the foundation acceptance limits in `mvp-status.md`.
+
+Per-frame horizontal mirroring was verified on native OpenGL and browser WebGL 2 on 20 October 2026; see the [separate integration and graphical evidence](smoke/sprite-mirroring.md).

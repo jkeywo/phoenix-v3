@@ -527,6 +527,9 @@ void material_properties(Json &sprite, bool with_radar_icon = true)
 		if (ImGui::TreeNode(frame.at("name").get_ref<const std::string &>().c_str()))
 		{
 			string_field("Frame name", frame, "name");
+			bool mirror_x = frame.value("mirror_x", false);
+			if (ImGui::Checkbox(tool_label("Mirror horizontally").c_str(), &mirror_x))
+				frame["mirror_x"] = mirror_x;
 			int rect[4];
 			for (int k = 0; k < 4; k++)
 				rect[k] = frame["rect"][k];

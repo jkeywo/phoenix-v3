@@ -259,6 +259,7 @@ struct SpriteFrame
 	std::string name;
 	std::array<int, 4> rect{};
 	std::array<float, 2> pivot{};
+	bool mirror_x = false;
 	float azimuth = 0, depth_scale = 0, depth_offset = 0;
 	std::map<std::string, SpriteAttachment> attachments;
 };

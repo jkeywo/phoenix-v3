@@ -520,6 +520,85 @@ int main()
 		require(imported_render.at("mode") == "eight" && imported_render.at("sprite").at("frames").size() == 8,
 		        "eight-bearing sidecar sets the render mode without separate image selection");
 		eight_sidecar["billboard_mode"] = "camera";
+		{
+			// Five physical regions supply eight explicit bearings through the
+			// real importer, pack loader, Workshop and permitted crew transfer.
+			auto draft = sprite_draft;
+			draft.files["assets/mirror-atlas.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/mirror-atlas.png");
+			auto initial = resolve_packs({read_pack(write_pack(draft))});
+			auto source = eight_sidecar;
+			source["billboard_mode"] = "eight";
+			for (int i = 0; i < 8; ++i)
+			{
+				auto &f = source["sprite_sheet"]["frames"][i];
+				f["rect"] = {4 * (i <= 4 ? i : 8 - i), 0, 4, 4};
+				f["pivot"] = {.75, 2};
+				f["markers"] = {{"engine_port", {3, 1, -1}}};
+				if (i > 4)
+					f["mirror_x"] = true;
+			}
+			const std::map<std::string, std::string> images = {{"sprite", "test-core:assets/mirror-atlas.png"},
+			                                                   {"normal", "test-core:assets/mirror-atlas.png"},
+			                                                   {"depth", "test-core:assets/mirror-atlas.png"},
+			                                                   {"radar_icon", "test-core:assets/pixel.png"}};
+			Json render;
+			apply_sprite_sidecar(render, source, images, initial);
+			auto defs = sprite_defs;
+			defs["entities"][0]["render"] = render;
+			draft.files["definitions.json"] = json_bytes(defs);
+			WorkshopDocument document;
+			document.load_pack(write_pack(draft));
+			const auto resolved = resolve_packs({read_pack(document.export_pack(PackEncoding::Dat))});
+			const auto crew = resolve_packs({console_assets(resolved, "test.ship")});
+			const auto &saved = crew.entities.at("test.ship").at("render").at("sprite");
+			require(resolved.entities.at("test.ship").at("render").at("sprite") == render.at("sprite") &&
+			            saved.at("frames") == render.at("sprite").at("frames") && saved.contains("normal") &&
+			            saved.contains("depth"),
+			        "Mirroring and maps survive compiled export and crew transfer");
+			const auto compiled = compile_sprite(saved, crew, "mirrored");
+			for (int i = 0; i < 8; ++i)
+			{
+				const auto &f = sprite_frame(compiled, 0, i * 45.f);
+				require(f.name == std::to_string(i) && f.mirror_x == (i > 4) && f.rect[0] == 4 * (i <= 4 ? i : 8 - i) &&
+				            f.pivot[0] == .75f && f.attachments.at("engine_port").x == 3,
+				        "Explicit bearings reuse regions without changing source pivots or attachments");
+			}
+			auto named = source;
+			named["sprite_sheet"] = {
+			    {"entries", Json::array({{{"name", "hull"}, {"frames", source["sprite_sheet"]["frames"]}}})}};
+			require(
+			    compile_sprite(import_sprite_sidecar(named, images), initial, "named").entries[0].frames[7].mirror_x,
+			    "Named sidecar entries preserve mirroring");
+			auto single = complete_sidecar;
+			single["mirror_x"] = true;
+			require(
+			    compile_sprite(import_sprite_sidecar(single, mapped_images), initial, "single").frames[0].mirror_x &&
+			        !compiled.frames[0].mirror_x && !compile_sprite(sprite, initial, "legacy").frames[0].mirror_x,
+			    "Single-image mirroring is optional and legacy frames remain unmirrored");
+			for (const auto &invalid : {Json("true"), Json(1), Json(nullptr)})
+			{
+				auto bad_source = source;
+				bad_source["sprite_sheet"]["frames"][7]["mirror_x"] = invalid;
+				const auto before = render;
+				rejected(
+				    [&]
+				    {
+					    apply_sprite_sidecar(render, bad_source, images, initial);
+				    },
+				    "mirror_x");
+				require(render == before, "Invalid mirror flags preserve the current render configuration");
+				auto bad_defs = defs;
+				bad_defs["entities"][0]["render"]["sprite"]["frames"][7]["mirror_x"] = invalid;
+				draft.files["definitions.json"] = json_bytes(bad_defs);
+				rejected(
+				    [&]
+				    {
+					    resolve_packs({read_pack(write_pack(draft))});
+				    },
+				    "mirror_x");
+			}
+		}
+
 		const auto before_refusal = imported_render;
 		rejected(
 		    [&]

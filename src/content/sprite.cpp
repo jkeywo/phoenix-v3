@@ -288,6 +288,9 @@ SpriteMaterial compile_sprite(const Json &sprite, const Catalog &catalog, const 
 	for (const auto &f : sprite.at("frames"))
 	{
 		SpriteFrame frame;
+		if (f.contains("mirror_x") && !f.at("mirror_x").is_boolean())
+			bad(path + ".frames.mirror_x", "expected boolean");
+		frame.mirror_x = f.value("mirror_x", false);
 		frame.name = f.at("name").get<std::string>();
 		if (frame.name.empty() || frame.name.size() > 128 ||
 		    std::any_of(material.frames.begin(), material.frames.end(),
@@ -430,10 +433,14 @@ Json import_sprite_sidecar(const Json &source, const std::map<std::string, std::
 	                        : Json::array({{{"name", source.at("id")},
 	                                        {"rect", {0, 0, source.at("image_size")[0], source.at("image_size")[1]}},
 	                                        {"pivot", source.at("pivot")},
+	                                        {"mirror_x", source.value("mirror_x", Json(false))},
 	                                        {"markers", source.value("markers", Json::object())}}});
 	for (const auto &f : frames)
 	{
+		if (f.contains("mirror_x") && !f.at("mirror_x").is_boolean())
+			bad("sidecar.sprite_sheet.frames.mirror_x", "expected boolean");
 		Json out = {{"name", f.at("name")},
+		            {"mirror_x", f.value("mirror_x", Json(false))},
 		            {"rect", f.at("rect")},
 		            {"pivot", f.at("pivot")},
 		            {"azimuth", f.value("camera_azimuth_degrees", 0)},

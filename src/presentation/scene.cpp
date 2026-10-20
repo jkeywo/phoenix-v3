@@ -48,6 +48,7 @@ uniform vec3 cameraPosition;
 uniform float height;
 uniform float depthScale;
 uniform float depthOffset;
+uniform int mirrorX;
 uniform int hasDepth;
 uniform int perspective;
 uniform int instanced;
@@ -70,18 +71,21 @@ void initInstance(){
  fieldCrop=meta(base+1+selected*3);
  fieldPivotDepth=meta(base+2+selected*3);
  fieldSpin=instanceSpin;
+ fieldSpin.z=meta(base+3+selected*3).y;
 }
 #else
 flat in vec4 fieldAnchor, fieldCrop, fieldPivotDepth, fieldSpin;
 #endif
 vec4 activeCrop(){return instanced==1?fieldCrop:crop;}
 vec2 activeSize(){return instanced==1?fieldCrop.zw:frameSize;}
-vec2 activePivot(){return instanced==1?fieldPivotDepth.xy:pivot;}
+float mirrorSign(){return (instanced==1?fieldSpin.z:float(mirrorX))>.5?-1.0:1.0;}
+vec2 sourceUV(vec2 uv){return vec2(mirrorSign()<0.0?1.0-uv.x:uv.x,uv.y);}
+vec2 activePivot(){vec2 p=instanced==1?fieldPivotDepth.xy:pivot;if(mirrorSign()<0.0)p.x=activeSize().x-p.x;return p;}
 vec3 activeAnchor(){return instanced==1?fieldAnchor.xyz:anchor;}
 float activeHeight(){return instanced==1?fieldAnchor.w:height;}
 vec3 activeRight(){float a=instanced==1?fieldSpin.x+fieldSpin.y*simulationTime:0.0;return basisRight*cos(a)+basisUp*sin(a);}
 vec3 activeUp(){float a=instanced==1?fieldSpin.x+fieldSpin.y*simulationTime:0.0;return basisUp*cos(a)-basisRight*sin(a);}
-vec2 sampleUV(vec2 uv){vec4 c=activeCrop();return clamp((c.xy+uv*c.zw)/atlasSize,(c.xy+.5)/atlasSize,(c.xy+c.zw-.5)/atlasSize);}
+vec2 sampleUV(vec2 uv){vec4 c=activeCrop();return clamp((c.xy+sourceUV(uv)*c.zw)/atlasSize,(c.xy+.5)/atlasSize,(c.xy+c.zw-.5)/atlasSize);}
 float reliefAt(vec2 uv){return (instanced==1?fieldPivotDepth.w:depthOffset)+(hasDepth==1?texture(depthMap,sampleUV(uv)).r-.5:0.0)*(instanced==1?fieldPivotDepth.z:depthScale);}
 vec3 surfaceAt(vec2 uv){
   vec2 size=activeSize(), pv=activePivot();float h=activeHeight();
@@ -164,7 +168,7 @@ void main(){
   if(shadowPass==1){finalColor=packDepth(pixelDepth);return;}
   if(emissive==1||diagnostic==2){finalColor=applyFog(base,cameraPosition,p);return;}
   vec3 n;
-  if(hasNormal==1){vec3 raw=texture(normalMap,sampleUV(uv)).rgb*2.0-1.0;n=normalize(activeRight()*raw.x+activeUp()*raw.y+basisNear*raw.z);}
+  if(hasNormal==1){vec3 raw=texture(normalMap,sampleUV(uv)).rgb*2.0-1.0;n=normalize(activeRight()*raw.x*mirrorSign()+activeUp()*raw.y+basisNear*raw.z);}
   else {n=normalize(cross(dFdx(p),dFdy(p)));if(dot(n,basisNear)<0.0)n=-n;}
   if(diagnostic==3){finalColor=vec4(n*.5+.5,1);return;}
   if(diagnostic==4){finalColor=vec4(vec3(clamp(reliefAt(uv)+.5,0.0,1.0)),1);return;}
@@ -181,7 +185,7 @@ void main(){
   }
   float dark=1.0-clamp(ambient+direct*.95+localPower,0.0,1.0);
   // Stable frame-local ink coordinates, independent of viewport resolution.
-  vec2 paper=uv*activeSize()/paperLod;
+  vec2 paper=sourceUV(uv)*activeSize()/paperLod;
   float hatch=max(stroke(paper,.74,spacing,.66,2.0)*smoothstep(.10,.38,dark),
       max(stroke(paper,-.78,spacing*1.12,.66,8.0)*smoothstep(.37,.68,dark),
           stroke(paper,1.52,spacing*.83,.62,4.0)*smoothstep(.66,.89,dark)));
@@ -230,8 +234,8 @@ float sample_depth(const MaterialData &data, const SpriteFrame &f, float x, floa
 	if (data.cpu.size() < 2)
 		return 0;
 	const auto &im = data.cpu[1];
-	const int sx = std::clamp(f.rect[0] + static_cast<int>(x), 0, im.width - 1),
-	          sy = std::clamp(f.rect[1] + static_cast<int>(y), 0, im.height - 1);
+	const int sx = std::clamp(f.rect[0] + static_cast<int>(x), f.rect[0], f.rect[0] + f.rect[2] - 1),
+	          sy = std::clamp(f.rect[1] + static_cast<int>(y), f.rect[1], f.rect[1] + f.rect[3] - 1);
 	return GetImageColor(im, sx, sy).r / 255.f - .5f;
 }
 } // namespace
@@ -403,8 +407,10 @@ struct SceneRenderer::State
 	Vector3 surface(const Item &item, float x, float y, float offset = 0) const
 	{
 		const auto &f = *item.frame;
-		Vector3 p = Vector3Add(item.anchor, Vector3Add(Vector3Scale(right, (x - f.pivot[0]) * item.height / f.rect[3]),
-		                                               Vector3Scale(up, -(y - f.pivot[1]) * item.height / f.rect[3])));
+		Vector3 p = Vector3Add(
+		    item.anchor,
+		    Vector3Add(Vector3Scale(right, (f.mirror_x ? -1.f : 1.f) * (x - f.pivot[0]) * item.height / f.rect[3]),
+		               Vector3Scale(up, -(y - f.pivot[1]) * item.height / f.rect[3])));
 		const float z = item.height * (f.depth_offset + sample_depth(*item.material, f, x, y) * f.depth_scale + offset);
 		const float distance = Vector3DotProduct(Vector3Subtract(cameraPosition, p), near);
 		// Preserve the sign behind the eye; a positive-only denominator folds
@@ -553,6 +559,7 @@ struct SceneRenderer::State
 		}
 		number("depthScale", f.depth_scale);
 		number("depthOffset", f.depth_offset);
+		integer("mirrorX", f.mirror_x ? 1 : 0);
 		integer("hasDepth", m.sprite.depth.empty() ? 0 : 1);
 		integer("hasNormal", m.sprite.normal.empty() ? 0 : 1);
 		integer("emissive", m.sprite.emissive || item.engine ? 1 : 0);

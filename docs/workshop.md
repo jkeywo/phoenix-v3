@@ -33,6 +33,8 @@ For the packaged example, load the base ZIP as a dependency and open the separat
 
 **Console Controllers and complexity** defines decision ownership. Add Controllers, select their trees and command channels, bind physical consumers, and assign each Controller to human or AI operation in each Console profile. The same Controllers run when the entity is unclaimed or fully AI-operated. Physical Systems retain factual reporters. See [Controller authoring](controller-content.md).
 
+Each material frame offers **Mirror horizontally**, including frames inside named entries. The live preview reflects its maps, pivot and engine markers together. Source coordinates remain editable as drawn. Save/export/reload and crew asset transfer preserve the flag. See the [five-region, eight-bearing example](content-format.md#sprite-region-mirroring).
+
 ## Verification receipt - 18 October 2026
 
 The native integration suite passed all 12 cases. The browser build, nine headless WASM checks, launcher checks and matching native/WASM continuation trace passed. The default pack verified through the production pack utility. Synthetic cases cover template-reference repair/refusal, one/eight-frame sidecar application/refusal, public PNG transfer and preservation of explicit default-pack selections.

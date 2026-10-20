@@ -75,3 +75,34 @@ A map ship slot may include `"mandatory": true` (boolean; omitted means false). 
 ## Region environments and sprite entries
 
 See [regions, fields and radar](regions-and-fields.md) for region fog, field generation, public map markers, entity/radar tags, sprite-sheet entries and radar sweep settings. Existing definitions without these optional fields retain their legacy defaults.
+
+## Sprite region mirroring
+
+Sidecar frames and canonical material frames accept optional boolean `mirror_x`, defaulting to `false`. It reflects the selected region horizontally around its pivot, including albedo, depth, normal orientation and engine attachment placement. Keep rectangles, pivots and markers in the original source coordinates. Attachment names, signed layers and depth offsets stay as authored. Engine-effect frames choose their own mirror flags independently. One-frame materials and named sprite entries support the same flag; standalone single-image sidecars may declare it at the top level.
+
+Eight-direction sprites still declare eight unique frame names and explicit bearings. Three can reuse existing rectangles with `mirror_x: true`, so only five drawings are needed. No missing directions are generated automatically. For a 500Ã—100 atlas containing five 100Ã—100 drawings, use these frame entries, each with `pivot: [50, 50]`:
+
+| Frame name      | Sidecar `camera_azimuth_degrees` / canonical `azimuth` | `rect`               | `mirror_x` |
+| --------------- | ------------------------------------------------------ | -------------------- | ---------- |
+| bow             | 0                                                      | `[0, 0, 100, 100]`   | `false`    |
+| port-bow        | 45                                                     | `[100, 0, 100, 100]` | `false`    |
+| port            | 90                                                     | `[200, 0, 100, 100]` | `false`    |
+| port-stern      | 135                                                    | `[300, 0, 100, 100]` | `false`    |
+| stern           | 180                                                    | `[400, 0, 100, 100]` | `false`    |
+| starboard-stern | 225                                                    | `[300, 0, 100, 100]` | `true`     |
+| starboard       | 270                                                    | `[200, 0, 100, 100]` | `true`     |
+| starboard-bow   | 315                                                    | `[100, 0, 100, 100]` | `true`     |
+
+For example, the final entry in `sprite_sheet.frames` is:
+
+```json
+{
+  "name": "starboard-bow",
+  "rect": [100, 0, 100, 100],
+  "pivot": [50, 50],
+  "camera_azimuth_degrees": 315,
+  "mirror_x": true
+}
+```
+
+Canonical frames use `azimuth` and `attachments` instead of sidecar bearings and markers. Their rectangle, pivot and mirror flag have the same meaning. An asymmetric source pivot at X=30 in a 100-pixel region displays at X=70; a source attachment at X=80 displays at X=20. Its displacement from the pivot changes from +50 to âˆ’50. Existing unmirrored packs need no migration, and mirroring does not change physical collision shapes or gameplay heading.
