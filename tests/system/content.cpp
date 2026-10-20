@@ -518,6 +518,47 @@ int main()
 			        "Sprite entries or radar filters lost in Console packaging");
 			require(history.undo(entries) && history.redo(entries) && entries.definitions() == reopened.definitions(),
 			        "Environment authoring failed undo/redo");
+			Json directional = Json::array();
+			for (int i = 0; i < 8; ++i)
+			{
+				auto f = sprite.at("frames")[0];
+				f["name"] = "view" + std::to_string(i);
+				f["azimuth"] = i * 45;
+				directional.push_back(f);
+			}
+			auto &authored = entries.definitions();
+			authored["entities"][0]["render"]["sprite"]["entries"][1]["frames"] = directional;
+			entries.map()["entities"][0]["sprite_entry"] = "variant";
+			authored["entities"][1] = {{"id", "test.variant"}, {"extends", "test.ship"}, {"render", {{"scale", 2}}}};
+			const auto mixed = entries.verify();
+			const auto mixed_sprite =
+			    compile_sprite(mixed.entities.at("test.variant").at("render").at("sprite"), mixed, "inherited entries");
+			require(sprite_frame(mixed_sprite, sprite_entry_index(mixed_sprite, "variant"), 270).azimuth == 270 &&
+			            sprite_frame(mixed_sprite, 0, 270).name == sprite["frames"][0]["name"].get<std::string>(),
+			        "Inherited mixed entries did not select direction independently");
+			auto rock = authored["entities"][0];
+			rock["id"] = "test.field-rock";
+			rock["systems"] = Json::object();
+			rock.erase("console");
+			authored["entities"].push_back(rock);
+			auto &field = entries.map()["regions"][0]["asteroids"];
+			field = {{"types", Json::array({{{"definition", "test.field-rock"}, {"sprite_entry", "variant"}}})},
+			         {"decorative_types", Json::array({{{"definition", "test.field-rock"}}})}};
+			entries.map()["scenario"]["regions"] = entries.map()["regions"];
+			history.checkpoint(entries);
+			entries.rename_entity("test.field-rock", "test.renamed-rock");
+			history.checkpoint(entries);
+			auto renamed = entries.export_pack();
+			WorkshopDocument renamed_copy;
+			renamed_copy.load_pack(renamed);
+			for (const auto *key : {"types", "decorative_types"})
+				require(renamed_copy.map()["regions"][0]["asteroids"][key][0]["definition"] == "test.renamed-rock" &&
+				            renamed_copy.map()["scenario"]["regions"][0]["asteroids"][key][0]["definition"] ==
+				                "test.renamed-rock",
+				        "Renaming left stale field references");
+			require(history.undo(entries) && history.redo(entries) &&
+			            entries.verify().entities == renamed_copy.verify().entities,
+			        "Field reference rename did not survive undo/redo");
 		}
 		for (const auto &bad_rect : {Json({0, 0, 2, 1}), Json({0, 0, 1.5, 1})})
 		{

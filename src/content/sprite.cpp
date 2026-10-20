@@ -224,6 +224,18 @@ RadarIcon render_radar_icon(const Json &render)
 		return compile_radar_icon(render.at("sprite").value("radar_icon", Json("contact")), "sprite.radar_icon");
 	return compile_radar_icon(render.value("radar_icon", Json("contact")), "render.radar_icon");
 }
+const SpriteFrame &sprite_frame(const SpriteMaterial &sprite, std::uint32_t entry, float bearing)
+{
+	const auto &frames = sprite.entries.empty() ? sprite.frames : sprite.entries.at(entry).frames;
+	if (frames.empty())
+		throw std::runtime_error("Sprite entry has no frames");
+	return *std::min_element(frames.begin(), frames.end(),
+	                         [&](const auto &a, const auto &b)
+	                         {
+		                         return std::abs(std::remainder(a.azimuth - bearing, 360.f)) <
+		                                std::abs(std::remainder(b.azimuth - bearing, 360.f));
+	                         });
+}
 SpriteMaterial compile_sprite(const Json &sprite, const Catalog &catalog, const std::string &path)
 {
 	if (!sprite.is_object() || !sprite.contains("albedo"))

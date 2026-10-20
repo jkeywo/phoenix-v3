@@ -503,6 +503,21 @@ void WorkshopDocument::rename_entity(const std::string &from, const std::string 
 			for (auto &ship : slot["allowed_ships"])
 				if (ship == from)
 					ship = to;
+		auto rename_fields = [&](Json &owner)
+		{
+			if (!owner.contains("regions") || !owner.at("regions").is_array())
+				return;
+			for (auto &region : owner["regions"])
+				if (region.contains("asteroids"))
+					for (const auto *key : {"types", "decorative_types"})
+						if (region["asteroids"].contains(key) && region["asteroids"][key].is_array())
+							for (auto &type : region["asteroids"][key])
+								if (type.value("definition", Json()) == from)
+									type["definition"] = to;
+		};
+		rename_fields(map);
+		if (map.contains("scenario") && map["scenario"].is_object())
+			rename_fields(map["scenario"]);
 		if (map.contains("scenario") && map.at("scenario").is_object() && map.at("scenario").contains("spawn_groups") &&
 		    map.at("scenario").at("spawn_groups").is_array())
 			for (auto &group : map["scenario"]["spawn_groups"])

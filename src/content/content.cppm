@@ -274,6 +274,7 @@ struct SpriteMaterial
 	std::vector<Entry> entries;
 };
 std::uint32_t sprite_entry_index(const SpriteMaterial &sprite, const std::string &name);
+const SpriteFrame &sprite_frame(const SpriteMaterial &sprite, std::uint32_t entry, float bearing);
 // Public PNG icon; content-addressed references travel with radar observations.
 std::string radar_sprite_reference(const Json &render);
 std::string radar_sprite_id(const Bytes &png);

@@ -60,7 +60,8 @@ struct Editor
 	RenderTexture2D scene_preview{};
 	std::string preview_identity;
 	std::string preview_content;
-	std::optional<Catalog> preview_catalog;
+	std::optional<Catalog> preview_catalog, map_catalog;
+	std::string map_content;
 	std::vector<SceneBody> preview_fields;
 	bool preview_fields_ready = false;
 	DustConfig preview_dust;
@@ -96,6 +97,8 @@ struct Editor
 		preview_identity.clear();
 		preview_content.clear();
 		preview_catalog.reset();
+		map_catalog.reset();
+		map_content.clear();
 		preview_fields.clear();
 		preview_fields_ready = false;
 		if (scene_preview.id)
@@ -1266,6 +1269,17 @@ void map_view(Application &app)
 	}
 	std::uint64_t nearest = 0;
 	float distance = 24;
+	const auto map_content = editor.document.definitions().dump() + editor.document.manifest().dump();
+	if (map_content != editor.map_content)
+	{
+		editor.map_content = map_content;
+		editor.map_catalog.reset();
+		attempt(
+		    [&]
+		    {
+			    editor.map_catalog = editor.document.verify();
+		    });
+	}
 	auto &definitions = editor.document.definitions()["entities"];
 	for (const auto &instance : editor.document.map()["entities"])
 	{
@@ -1278,42 +1292,57 @@ void map_view(Application &app)
 		                               {
 			                               return entity["id"] == instance["definition"];
 		                               });
-		if (definition != definitions.end() && definition->contains("render"))
-		{
-			const auto &render = (*definition)["render"];
-			const auto icon = render_radar_icon(render);
-			const auto sprite = editor.texture(radar_sprite_reference(render));
-			has_icon = sprite.id || icon != RadarIcon::contact;
-			if (has_icon)
-				map_radar_icon(draw, icon, p, instance["heading_mdeg"].get<float>(),
-				               selected ? IM_COL32(255, 205, 90, 255) : IM_COL32(180, 225, 240, 255), sprite);
-			if (!has_icon && render.contains("sprite"))
-			{
-				const auto &sprite = render.at("sprite");
-				const auto texture = editor.texture(sprite.at("albedo"));
-				if (texture.id)
-				{
-					const auto &frame = sprite.at("frames").at(0), &rect = frame.at("rect");
-					const float half = std::clamp(render.value("scale", 1.f) * 16, 2.f, 200.f),
-					            aspect = rect[2].get<float>() / rect[3].get<float>();
-					const ImVec2 uv0{rect[0].get<float>() / texture.width, rect[1].get<float>() / texture.height};
-					const ImVec2 uv1{(rect[0].get<float>() + rect[2].get<float>()) / texture.width,
-					                 (rect[1].get<float>() + rect[3].get<float>()) / texture.height};
-					draw->AddImage(static_cast<ImTextureID>(texture.id), {p.x - half * aspect, p.y - half},
-					               {p.x + half * aspect, p.y + half}, uv0, uv1);
-				}
-			}
-			if (!has_icon && render.contains("images") && !render["images"].empty() && render["images"][0].is_string())
-			{
-				auto texture = editor.texture(render["images"][0]);
-				if (texture.id)
-				{
-					float half = std::clamp(render.value("scale", 1.0f) * 16, 2.0f, 200.0f);
-					draw->AddImage(static_cast<ImTextureID>(texture.id), {p.x - half, p.y - half},
-					               {p.x + half, p.y + half});
-				}
-			}
-		}
+		const Json *resolved = definition == definitions.end() ? nullptr : &*definition;
+		if (editor.map_catalog)
+			if (const auto found = editor.map_catalog->entities.find(instance.at("definition").get<std::string>());
+			    found != editor.map_catalog->entities.end())
+				resolved = &found->second;
+		if (resolved && resolved->contains("render"))
+			attempt(
+			    [&]
+			    {
+				    const auto &render = resolved->at("render");
+				    const auto icon = render_radar_icon(render);
+				    const auto sprite = editor.texture(radar_sprite_reference(render));
+				    has_icon = sprite.id || icon != RadarIcon::contact;
+				    if (has_icon)
+					    map_radar_icon(draw, icon, p, instance["heading_mdeg"].get<float>(),
+					                   selected ? IM_COL32(255, 205, 90, 255) : IM_COL32(180, 225, 240, 255), sprite);
+				    if (!has_icon && render.contains("sprite") && editor.map_catalog)
+				    {
+					    const auto material =
+					        compile_sprite(render.at("sprite"), *editor.map_catalog, instance.at("definition"));
+					    const auto entry = sprite_entry_index(
+					        material, instance.value("sprite_entry", render.value("sprite_entry", std::string{})));
+					    const auto &frame =
+					        sprite_frame(material, entry, -instance.at("heading_mdeg").get<float>() / 1000.f);
+					    const auto &rect = frame.rect;
+					    const auto texture = editor.texture(material.albedo);
+					    if (texture.id)
+					    {
+						    const float half = std::clamp(render.value("scale", 1.f) * 16, 2.f, 200.f),
+						                aspect = static_cast<float>(rect[2]) / static_cast<float>(rect[3]);
+						    const ImVec2 uv0{static_cast<float>(rect[0]) / texture.width,
+						                     static_cast<float>(rect[1]) / texture.height};
+						    const ImVec2 uv1{
+						        (static_cast<float>(rect[0]) + static_cast<float>(rect[2])) / texture.width,
+						        (static_cast<float>(rect[1]) + static_cast<float>(rect[3])) / texture.height};
+						    draw->AddImage(static_cast<ImTextureID>(texture.id), {p.x - half * aspect, p.y - half},
+						                   {p.x + half * aspect, p.y + half}, uv0, uv1);
+					    }
+				    }
+				    if (!has_icon && render.contains("images") && !render["images"].empty() &&
+				        render["images"][0].is_string())
+				    {
+					    auto texture = editor.texture(render["images"][0]);
+					    if (texture.id)
+					    {
+						    float half = std::clamp(render.value("scale", 1.0f) * 16, 2.0f, 200.0f);
+						    draw->AddImage(static_cast<ImTextureID>(texture.id), {p.x - half, p.y - half},
+						                   {p.x + half, p.y + half});
+					    }
+				    }
+			    });
 		if (selected || !has_icon)
 			draw->AddCircle(p, selected ? 14.0f : 8.0f,
 			                selected ? IM_COL32(255, 205, 90, 255) : IM_COL32(118, 201, 232, 255));
