@@ -470,17 +470,22 @@ struct NativeMenuScreen::State
 			}
 			choices += "</div>";
 			return field(app, "player-name", "Player name", app.player_name) + choices +
-			       "<div class=\"profile-actions\">" +
 			       add("menu.avatar", "Upload avatar...",
 			           [&]
 			           {
 				           avatar_screen = 0;
 				           request_file(imports, FilePurpose::PlayerAvatar);
 			           }) +
+			       "<div class=\"profile-actions\">" +
 			       add("menu.profile", "Use this profile",
 			           [&]
 			           {
 				           apply_profile(app);
+				           back(app);
+			           }) +
+			       add("menu.close-dialog", "Cancel",
+			           [&]
+			           {
 				           back(app);
 			           }) +
 			       "</div>";
@@ -501,8 +506,8 @@ struct NativeMenuScreen::State
 				       });
 				markup += "<button id=\"menu-profile\" class=\"menu-crt\"><div class=\"crt-screen\">"
 				          "<div id=\"menu-profile-avatar\" class=\"crt-avatar\">" +
-				          (app.avatar.empty() ? std::string("?") : std::string{}) + "</div><p class=\"crt-name\">" +
-				          Rml::StringUtilities::EncodeRml(app.player_name) + "</p></div></button>";
+				          (app.avatar.empty() ? std::string("?") : std::string{}) +
+				          "</div><p id=\"menu-profile-name\" class=\"crt-name\"></p></div></button>";
 			}
 			if (app.screen == Screen::home || modal)
 			{
@@ -882,12 +887,13 @@ struct NativeMenuScreen::State
 					    notice = "Pack selection verified and applied.";
 				    });
 			}
-			markup += add("menu.close-dialog", "Back",
-			              [&]
-			              {
-				              back(app);
-			              }) +
-			          "</div></div>";
+			if (app.screen != Screen::settings || app.settings_tab != "profile")
+				markup += add("menu.close-dialog", "Back",
+				              [&]
+				              {
+					              back(app);
+				              });
+			markup += "</div></div>";
 		}
 		markup += "<p id=\"menu-status\"></p>";
 		if (!action_error.empty())
@@ -944,6 +950,13 @@ struct NativeMenuScreen::State
 			previous = markup;
 			if (focus_next.empty())
 				focus_next = focused;
+		}
+		// Live name edits must not rebuild the form and discard its caret/selection.
+		if (auto *name = document.GetElementById("menu-profile-name"))
+		{
+			const auto text = Rml::StringUtilities::EncodeRml(app.player_name);
+			if (name->GetInnerRML() != text)
+				name->SetInnerRML(text);
 		}
 		layout_lobby(app, document, region);
 		const bool compact = region.width < 900;
