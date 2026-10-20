@@ -211,6 +211,15 @@ struct ControllerTreeBindings
 	std::vector<ControllerRead<GameplayTreeRecordBinding>> messages;
 	std::vector<ControllerContactRead> contacts;
 };
+struct BaseConfiguration
+{
+	std::string id, hash, render_mode = "sprites", interface_style = "current";
+	bool operator==(const BaseConfiguration &) const = default;
+};
+// Parent is the required dependency for rooted packs. Legacy synthetic fixtures
+// may still use the old dependency vocabulary outside a launched base tree.
+std::vector<std::string> pack_dependencies(const Json &manifest);
+BaseConfiguration base_configuration(const Pack &pack);
 struct Catalog
 {
 	std::map<std::string, Json> entities, maps, consoles, trees;
@@ -225,7 +234,21 @@ struct Catalog
 	std::vector<std::pair<std::string, std::string>> ordered_packs;
 	bool presentation = false, selection = false;
 	std::string loading_background;
+	BaseConfiguration base;
 };
+struct ModelPart
+{
+	std::vector<float> positions, normals, texcoords;
+	Bytes albedo, emissive;
+	std::array<float, 4> tint{1, 1, 1, 1};
+	std::array<float, 3> emission{};
+};
+struct StaticModel
+{
+	std::vector<ModelPart> parts;
+};
+StaticModel compile_model(std::span<const std::uint8_t> bytes);
+void verify_model_render(const Json &render, const Catalog &catalog, const std::string &path);
 ControllerTreeBindings compile_controller_bindings(const Json &, const Catalog &);
 void verify_scenario_authoring(const Catalog &catalog, const Json &map);
 // Render-only navigation aids. Distances are metres; speed is metres/second.
@@ -488,6 +511,7 @@ public:
 	void erase(std::uint64_t instance);
 	void duplicate(std::uint64_t instance);
 	std::string import_image(const std::string &filename, Bytes bytes);
+	std::string import_model(const std::string &filename, Bytes bytes);
 	Catalog verify() const;
 	// Resolves reusable equipment and controller namespaces without requiring finished ownership/presets.
 	Catalog preview_equipment() const;

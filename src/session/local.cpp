@@ -234,6 +234,8 @@ public:
 			candidate.packs_.push_back(read_pack(std::move(bytes)));
 		}
 		candidate.catalog_ = resolve_packs(candidate.packs_);
+		if (!catalog_.base.id.empty() && candidate.catalog_.base != catalog_.base)
+			throw std::runtime_error("Relaunch with this save's base pack revision");
 		GameSetup setup{data.at("mission"), data.at("ships").get<std::map<std::string, std::string>>(),
 		                data.at("local_slot"), data.value("local_console", std::string{})};
 		setup.gm_host = data.value("gm_host", false);

@@ -1,0 +1,173 @@
+{
+	"schema_version": 1,
+	"id": "courier",
+	"description": "Packaged courier material; calibrated maps and abstract radar symbol. Original source inputs remain in raw/.",
+	"files": {
+		"sprite": "courier-albedo.png",
+		"normal": "courier-normal.png",
+		"depth": "courier-depth.png",
+		"radar_icon": "../radar/ship.png"
+	},
+	"image_size": [1983, 793],
+	"coordinate_system": "frame_pixels_top_left_y_down",
+	"sprite_color_space": "srgb",
+	"normal_encoding": {
+		"space": "view",
+		"axes": {
+			"x": "right",
+			"y": "up",
+			"z": "toward_viewer"
+		},
+		"color_space": "linear",
+		"decode": "normalize(rgb * 2 - 1)",
+		"quality": "derived_from_calibrated_depth"
+	},
+	"depth_encoding": {
+		"channel": "r",
+		"color_space": "linear",
+		"near_value": 1,
+		"far_value": 0,
+		"normalization": "per_frame",
+		"metric_scale": null,
+		"quality": "calibrated_draft"
+	},
+	"sprite_sheet": {
+		"kind": "directions",
+		"frames": [
+			{
+				"name": "bow",
+				"rect": [0, 0, 365, 396],
+				"pivot": [188, 222],
+				"camera_azimuth_degrees": 0,
+				"depth_scale": 1.8,
+				"depth_offset": 0,
+				"markers": {
+					"engine_port": [244, 222, -1],
+					"engine_starboard": [132, 222, -1]
+				},
+				"attachment_depth_offsets": {
+					"engine_port": -1.30235,
+					"engine_starboard": -1.38
+				}
+			},
+			{
+				"name": "bow_port",
+				"rect": [365, 0, 472, 396],
+				"pivot": [240, 225],
+				"camera_azimuth_degrees": 45,
+				"depth_scale": 1.3788582233137678,
+				"depth_offset": 0,
+				"markers": {
+					"engine_port": [450, 222, -1],
+					"engine_starboard": [431, 211, -1]
+				},
+				"attachment_depth_offsets": {
+					"engine_port": -0.01809,
+					"engine_starboard": -0.01809
+				}
+			},
+			{
+				"name": "port",
+				"rect": [837, 0, 708, 396],
+				"pivot": [354, 211],
+				"camera_azimuth_degrees": 90,
+				"depth_scale": 0.75,
+				"depth_offset": 0,
+				"markers": {
+					"engine_port": [692, 211, -1],
+					"engine_starboard": [692, 211, -1]
+				},
+				"attachment_depth_offsets": {
+					"engine_port": 0.09853,
+					"engine_starboard": 0.09853
+				}
+			},
+			{
+				"name": "stern_port",
+				"rect": [1545, 0, 438, 396],
+				"pivot": [222, 220],
+				"camera_azimuth_degrees": 135,
+				"depth_scale": 1.3788582233137676,
+				"depth_offset": 0,
+				"markers": {
+					"engine_port": [300, 220, 1],
+					"engine_starboard": [390, 220, 1]
+				},
+				"attachment_depth_offsets": {
+					"engine_port": 0.5426,
+					"engine_starboard": 0.46149
+				}
+			},
+			{
+				"name": "stern",
+				"rect": [0, 396, 365, 397],
+				"pivot": [186, 185],
+				"camera_azimuth_degrees": 180,
+				"depth_scale": 1.8,
+				"depth_offset": 0,
+				"markers": {
+					"engine_port": [130, 185, 1],
+					"engine_starboard": [242, 185, 1]
+				},
+				"attachment_depth_offsets": {
+					"engine_port": 1.12588,
+					"engine_starboard": 1.17529
+				}
+			},
+			{
+				"name": "stern_starboard",
+				"rect": [365, 396, 465, 397],
+				"pivot": [233, 185],
+				"camera_azimuth_degrees": 225,
+				"depth_scale": 1.378858223313768,
+				"depth_offset": 0,
+				"markers": {
+					"engine_port": [41, 185, 1],
+					"engine_starboard": [126, 185, 1]
+				},
+				"attachment_depth_offsets": {
+					"engine_port": 0.31009,
+					"engine_starboard": 0.45068
+				}
+			},
+			{
+				"name": "starboard",
+				"rect": [830, 396, 680, 397],
+				"pivot": [340, 183],
+				"camera_azimuth_degrees": 270,
+				"depth_scale": 0.75,
+				"depth_offset": 0,
+				"markers": {
+					"engine_port": [10, 183, -1],
+					"engine_starboard": [10, 183, -1]
+				},
+				"attachment_depth_offsets": {
+					"engine_port": 0.16912,
+					"engine_starboard": 0.16912
+				}
+			},
+			{
+				"name": "bow_starboard",
+				"rect": [1510, 396, 473, 397],
+				"pivot": [236, 190],
+				"camera_azimuth_degrees": 315,
+				"depth_scale": 1.3788582233137674,
+				"depth_offset": 0,
+				"markers": {
+					"engine_port": [35, 177, -1],
+					"engine_starboard": [15, 190, -1]
+				},
+				"attachment_depth_offsets": {
+					"engine_port": 0.03057,
+					"engine_starboard": 0.03598
+				}
+			}
+		]
+	},
+	"pivot": null,
+	"markers": {},
+	"marker_notes": "Nozzle centres visually estimated; forward-view hidden nozzles inferred. Broadside nozzles coincide. Port/starboard are ship-relative. Attachment render order comes from the parent marker. Normal/depth maps have approximate feature and alpha registration; use sprite alpha for coverage.",
+	"emissive": false,
+	"billboard_mode": "eight",
+	"render_scale": 8
+}

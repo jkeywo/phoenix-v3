@@ -4,7 +4,7 @@ Manually triggered investigation of a reported approximately 1 FPS in Chrome on 
 
 The hosted site reported revision `74d0a5289f48eedd927cfafc7e2560266488272f`. Its navigation lobby loaded and accepted Ready. An isolated local copy of that deployment's server JS/WASM/data and packs, with timing around Emscripten's main-loop callback, measured 57–60 FPS and a median callback duration of 16.3 ms. It was served locally without connecting the diagnostic build to the external coordinator.
 
-A local source build based on `eda7234`, before the pacing change, measured 59–60 FPS in the `training.navigation` / `training.player` / `training.survey` lobby. Representative samples spent 4–7 ms in drawing and 9–12 ms in `EndDrawing`. The available display/browser schedules animation frames at approximately 120 Hz; the canvas was 1280 × 720.
+A local source build based on `eda7234`, before the pacing change, measured 59–60 FPS in the `test.navigation` / `test.player` / `base.courier` lobby. Representative samples spent 4–7 ms in drawing and 9–12 ms in `EndDrawing`. The available display/browser schedules animation frames at approximately 120 Hz; the canvas was 1280 × 720.
 
 ## Change and evidence
 

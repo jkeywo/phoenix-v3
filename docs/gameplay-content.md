@@ -14,7 +14,7 @@ The base pack now authors reusable equipment and operating policies for the full
 | `base.courier-engineering`      | Split Helm/Engineering fit using one power core, one drive assembly and sensors                                                                 |
 | `base.cruiser`                  | Six independent Consoles, two drive placements, separate Science/Tactical sensors and separate Comms/Captain service reserves                   |
 
-The established Courier (`training.survey`) and Free Flight IDs remain available. Free Flight additionally permits the new fits. Existing Training navigation/lighting content remains independent of the new exercises. New fit construction uses inheritance and assembly placements; it does not duplicate a provider for each consumer. The Cruiser uses the existing ship art at a larger authored scale while supplying its own physical dimensions and equipment configuration.
+The established Courier (`base.courier`) and Free Flight IDs remain available. Free Flight additionally permits the new fits. Existing Training navigation/lighting content remains independent of the new exercises. New fit construction uses inheritance and assembly placements; it does not duplicate a provider for each consumer. The Cruiser uses the existing ship art at a larger authored scale while supplying its own physical dimensions and equipment configuration.
 
 Helm owns its actual propulsion/steering mechanisms. Engineering owns generator, main reserve, distribution and cooling services. Science and Tactical own their separate sensors. Comms and Captain operate their current service reserves and typed Coordination/shared-information controls; this phase does not claim that later dialogue, weapons, repair or other specialist gameplay is implemented merely because those Consoles exist.
 
@@ -34,7 +34,7 @@ Authored player text uses the existing source-text localisation keys. Their Engl
 
 ## Training scenarios and reusable situations
 
-`training.powered-navigation` starts from a published destination marker and progresses to a longer transit region. `training.powered-navigation-offset` changes the actual region geometry and destination direction while reusing the same scenario tree and ship definitions.
+`test.powered-navigation` starts from a published destination marker and progresses to a longer transit region. `test.powered-navigation-offset` changes the actual region geometry and destination direction while reusing the same scenario tree and ship definitions.
 
 The shared scenario tree:
 
@@ -44,11 +44,11 @@ The shared scenario tree:
 4. Starts another independent observer situation, then waits for the second physical completion.
 5. Emits a declared completion event and ends successfully. Required objective-admission failure takes an explicit failure branch; unavailable optional traffic reports its condition and retains the navigation journey.
 
-The scenario selects the latest objective belonging to its own situation, rather than hard-coding a single objective handle into every stage. Receipt-gated transitions wait for the committed result. Re-evaluation or recovery cannot repeat an accepted spawn/objective action. The two observer configurations reuse `training.route-observer` with distinct parameters and independent instances; each responds to the declared completion event without accessing the other's memory.
+The scenario selects the latest objective belonging to its own situation, rather than hard-coding a single objective handle into every stage. Receipt-gated transitions wait for the committed result. Re-evaluation or recovery cannot repeat an accepted spawn/objective action. The two observer configurations reuse `test.route-observer` with distinct parameters and independent instances; each responds to the declared completion event without accessing the other's memory.
 
 Circular and rectangular regions use authored millimetres. Starting inside, entering or crossing at high speed completes the assigned objective without a stop/dwell requirement. Publishing a destination does not take human Helm control. Delegated Helm may pursue the approved destination through its normal admitted steering/propulsion behavior.
 
-Scenario advisories use the explicitly declared `training.scenario-advisory` knowledge schema, with the trusted scenario producer and permitted crew readers. No hidden future spawn schedule, scenario-private state or unobserved ship internals are included in ordinary player records.
+Scenario advisories use the explicitly declared `test.scenario-advisory` knowledge schema, with the trusted scenario producer and permitted crew readers. No hidden future spawn schedule, scenario-private state or unobserved ship internals are included in ordinary player records.
 
 ## Verification and playable evidence
 

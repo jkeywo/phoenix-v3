@@ -11,6 +11,7 @@ module;
 #include <ctime>
 #include <filesystem>
 #include <functional>
+#include <set>
 #include <iomanip>
 #include <sstream>
 #include <stdexcept>
@@ -20,6 +21,20 @@ module;
 module phoenix.menu;
 namespace phoenix
 {
+namespace
+{
+const Json global_defaults = {
+    {"volume", 50},    {"sfx_volume", 50},        {"siren_volume", 50}, {"master_volume", 50},   {"language", "en"},
+    {"pseudo", false}, {"reduced_motion", false}, {"dust_motes", true}, {"reference_grid", true}};
+Json global_preferences(const Json &data)
+{
+	auto result = global_defaults;
+	for (auto &[key, value] : result.items())
+		if (data.contains(key))
+			value = data.at(key);
+	return result;
+}
+} // namespace
 std::string native_data_directory()
 {
 #ifdef _WIN32
@@ -40,7 +55,8 @@ std::string native_data_directory()
 	return "userdata";
 #endif
 }
-MenuLibrary::MenuLibrary(std::string directory) : directory_(std::move(directory))
+MenuLibrary::MenuLibrary(std::string directory, std::string scope)
+    : directory_(std::move(directory)), scope_(std::move(scope))
 {
 }
 std::string MenuLibrary::path(const std::string &folder, const std::string &id, const std::string &extension) const
@@ -62,7 +78,29 @@ void MenuLibrary::load()
 		return;
 	writable_ = false;
 	const auto encoded = filename.u8string();
-	const auto data = parse_json(read_file(std::string(encoded.begin(), encoded.end()), 1024 * 1024), "native library");
+	auto data = parse_json(read_file(std::string(encoded.begin(), encoded.end()), 4 * 1024 * 1024), "native library");
+	profiles_ = data.value("base_profiles", Json::object());
+	global_profiles_ = data.value("global_profiles", Json::object());
+	if (!scope_.empty())
+	{
+		const auto profile = scope_.substr(0, scope_.find('/'));
+		if (global_profiles_.empty())
+			global_profiles_["default"] = global_preferences(data);
+		const auto global = global_profiles_.value(profile, global_defaults);
+		for (const auto &[key, value] : global.items())
+			data[key] = value;
+		if (profiles_.empty())
+			profiles_["default/phoenix-base"] = {{"player_name", data.value("player_name", std::string("<username>"))},
+			                                     {"avatar", data.value("avatar", Bytes{})},
+			                                     {"packs", data.at("packs")},
+			                                     {"saves", data.at("saves")}};
+		const auto scoped = profiles_.value(scope_, Json{{"player_name", "<username>"},
+		                                                 {"avatar", Bytes{}},
+		                                                 {"packs", Json::array()},
+		                                                 {"saves", Json::array()}});
+		for (const auto &[key, value] : scoped.items())
+			data[key] = value;
+	}
 	if (data.at("schema") != 1 || data.at("packs").size() > 256 || data.at("saves").size() > 4096)
 		throw std::runtime_error("Unsupported native library index");
 	MenuPreferences prefs;
@@ -140,8 +178,52 @@ void MenuLibrary::remember()
 		data["packs"].push_back({{"hash", p.hash}, {"id", p.id}, {"enabled", p.enabled}});
 	for (const auto &s : saves)
 		data["saves"].push_back({{"id", s.id}, {"name", s.name}, {"scenario", s.scenario}, {"saved_at", s.saved_at}});
+	if (!scope_.empty())
+	{
+		const auto index = std::filesystem::u8path(directory_) / "library.json";
+		if (std::filesystem::exists(index))
+		{
+			const auto encoded = index.u8string();
+			const auto latest =
+			    parse_json(read_file(std::string(encoded.begin(), encoded.end()), 4 * 1024 * 1024), "native library");
+			if (latest.contains("base_profiles"))
+				profiles_ = latest.at("base_profiles");
+			global_profiles_ = latest.value("global_profiles", global_profiles_);
+		}
+		profiles_[scope_] = {{"player_name", preferences.player_name},
+		                     {"avatar", preferences.avatar},
+		                     {"packs", data["packs"]},
+		                     {"saves", data["saves"]}};
+		data["base_profiles"] = profiles_;
+		global_profiles_[scope_.substr(0, scope_.find('/'))] = global_preferences(data);
+		data["global_profiles"] = global_profiles_;
+		if (global_profiles_.contains("default"))
+			for (const auto &[key, value] : global_profiles_.at("default").items())
+				data[key] = value;
+		if (profiles_.contains("default/phoenix-base"))
+			for (const auto &[key, value] : profiles_.at("default/phoenix-base").items())
+				data[key] = value;
+	}
 	const auto encoded = (std::filesystem::u8path(directory_) / "library.json").u8string();
 	atomic_write(std::string(encoded.begin(), encoded.end()), json_bytes(data));
+}
+void MenuLibrary::launch_base(const Bytes &archive)
+{
+	const auto root = read_pack(archive);
+	const auto config = base_configuration(root);
+	if (!base_.id.empty() && base_ != config)
+		throw std::runtime_error("The launch base is fixed until restart");
+	resolve_packs({root});
+	base_ = config;
+	atomic_write(path("packs", root.hash(), ".zip"), archive);
+	std::erase_if(packs,
+	              [&](const auto &p)
+	              {
+		              return p.id == config.id || p.id == "test" || p.id == "phoenix-training";
+	              });
+	packs.insert(packs.begin(), {root.hash(), config.id, true});
+	archives(packs);
+	remember();
 }
 void MenuLibrary::install_default(const Bytes &archive)
 {
@@ -287,8 +369,7 @@ std::vector<LibraryPack> MenuLibrary::toggle_pack(const std::vector<LibraryPack>
 	auto candidate = selection;
 	std::vector<std::vector<std::string>> dependencies;
 	for (const auto &p : candidate)
-		dependencies.push_back(
-		    read_pack(read_pack_archive(p.hash)).manifest().value("dependencies", std::vector<std::string>{}));
+		dependencies.push_back(pack_dependencies(read_pack(read_pack_archive(p.hash)).manifest()));
 	const auto entry = std::find_if(candidate.begin(), candidate.end(),
 	                                [&](const auto &p)
 	                                {
@@ -297,6 +378,8 @@ std::vector<LibraryPack> MenuLibrary::toggle_pack(const std::vector<LibraryPack>
 	if (entry == candidate.end())
 		throw std::runtime_error("Select an installed pack");
 	const auto index = static_cast<std::size_t>(entry - candidate.begin());
+	if (!base_.id.empty() && entry->id == base_.id)
+		throw std::runtime_error("The launch base cannot be disabled");
 	std::vector<int> visiting(candidate.size());
 	std::function<void(std::size_t)> enable = [&](std::size_t i)
 	{
@@ -364,6 +447,29 @@ std::vector<LibraryPack> MenuLibrary::toggle_pack(const std::vector<LibraryPack>
 void MenuLibrary::install(const Bytes &archive)
 {
 	const auto pack = read_pack(archive);
+	if (!base_.id.empty() && (pack.manifest().at("id") == base_.id || !pack.manifest().contains("parent")))
+		throw std::runtime_error("Import a child of the launched base; the base cannot be replaced");
+	if (!base_.id.empty())
+	{
+		std::set<std::string> seen;
+		auto parent = pack.manifest().at("parent").get<std::string>();
+		while (parent != base_.id)
+		{
+			if (!seen.insert(parent).second || parent == pack.manifest().at("id").get<std::string>())
+				throw std::runtime_error("Pack parent cycle");
+			const auto found = std::find_if(packs.begin(), packs.end(),
+			                                [&](const auto &p)
+			                                {
+				                                return p.id == parent;
+			                                });
+			if (found == packs.end())
+				throw std::runtime_error("Install the parent mod first: " + parent);
+			const auto manifest = read_pack(read_pack_archive(found->hash)).manifest();
+			if (!manifest.contains("parent"))
+				throw std::runtime_error("The pack belongs to another base");
+			parent = manifest.at("parent");
+		}
+	}
 	const auto format = pack.manifest().value("format", std::string{});
 	if (!format.empty() && format != "phoenix-mod-pack")
 		throw std::runtime_error("Import gameplay packs here; use Saved Games for runtime saves");
@@ -390,6 +496,9 @@ void MenuLibrary::install(const Bytes &archive)
 std::vector<Bytes> MenuLibrary::archives(const std::vector<LibraryPack> &selection) const
 {
 	std::vector<Bytes> result;
+	if (!base_.id.empty() && (selection.empty() || selection.front().id != base_.id ||
+	                          selection.front().hash != base_.hash || !selection.front().enabled))
+		throw std::runtime_error("The launch base must remain enabled and first");
 	std::vector<Pack> loaded;
 	for (const auto &p : selection)
 		if (p.enabled)
@@ -422,6 +531,8 @@ Bytes MenuLibrary::read_pack_archive(const std::string &hash) const
 }
 LibraryPack MenuLibrary::replace_pack(const std::string &hash, const Bytes &archive)
 {
+	if (!base_.id.empty() && hash == base_.hash)
+		throw std::runtime_error("The launch base cannot be replaced; export and relaunch instead");
 	auto selected = packs;
 	auto entry = std::find_if(selected.begin(), selected.end(),
 	                          [&](const auto &p)
@@ -461,16 +572,7 @@ void MenuLibrary::apply(const std::vector<LibraryPack> &selection)
 		packs = std::move(previous);
 		throw;
 	}
-	for (const auto &old : previous)
-		if (std::none_of(packs.begin(), packs.end(),
-		                 [&](const auto &p)
-		                 {
-			                 return p.hash == old.hash;
-		                 }))
-		{
-			std::error_code error;
-			std::filesystem::remove(std::filesystem::u8path(path("packs", old.hash, ".zip")), error);
-		}
+	// Content-addressed blobs may be referenced by another base profile.
 }
 ManagedSave MenuLibrary::store_save(const Bytes &archive, const std::string &name, const std::string &scenario)
 {

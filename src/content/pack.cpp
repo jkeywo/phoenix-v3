@@ -70,6 +70,26 @@ void validate_manifest(const Json &manifest)
 	if (id.empty() || id.size() > 128 ||
 	    id.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789._-") != std::string::npos)
 		throw std::runtime_error("manifest.json: invalid pack id '" + id + "'");
+	if (manifest.contains("parent"))
+	{
+		const auto parent = manifest.at("parent").get<std::string>();
+		if (parent.empty() || parent == id || parent.size() > 128 ||
+		    parent.find_first_not_of("abcdefghijklmnopqrstuvwxyz0123456789._-") != std::string::npos ||
+		    manifest.contains("base") || manifest.contains("dependencies"))
+			throw std::runtime_error(
+			    "manifest.json: child requires one valid parent and cannot declare base/dependencies");
+	}
+	if (manifest.contains("base"))
+	{
+		const auto &base = manifest.at("base");
+		if (!base.is_object() || manifest.contains("dependencies"))
+			throw std::runtime_error("manifest.json: base must be an independent root");
+		const auto mode = base.value("render_mode", std::string("sprites"));
+		if (mode != "sprites" && mode != "models")
+			throw std::runtime_error("manifest.json: unsupported base render_mode");
+		if (base.value("interface_style", std::string("current")) != "current")
+			throw std::runtime_error("manifest.json: unsupported interface_style");
+	}
 	for (auto key : {"dependencies", "overrides"})
 	{
 		if (manifest.contains(key))

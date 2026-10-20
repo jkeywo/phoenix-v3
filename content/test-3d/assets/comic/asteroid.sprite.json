@@ -1,0 +1,55 @@
+{
+	"schema_version": 1,
+	"id": "asteroid",
+	"description": "Packaged asteroid material; calibrated maps and abstract radar symbol. Original source inputs remain in raw/.",
+	"files": {
+		"sprite": "asteroid-albedo.png",
+		"normal": "asteroid-normal.png",
+		"depth": "asteroid-depth.png",
+		"radar_icon": "../radar/asteroid.png"
+	},
+	"image_size": [1254, 1254],
+	"coordinate_system": "frame_pixels_top_left_y_down",
+	"sprite_color_space": "srgb",
+	"normal_encoding": {
+		"space": "view",
+		"axes": {
+			"x": "right",
+			"y": "up",
+			"z": "toward_viewer"
+		},
+		"color_space": "linear",
+		"decode": "normalize(rgb * 2 - 1)",
+		"quality": "derived_from_calibrated_depth"
+	},
+	"depth_encoding": {
+		"channel": "r",
+		"color_space": "linear",
+		"near_value": 1,
+		"far_value": 0,
+		"normalization": "per_frame",
+		"metric_scale": null,
+		"quality": "calibrated_draft"
+	},
+	"sprite_sheet": {
+		"kind": "directions",
+		"frames": [
+			{
+				"name": "asteroid",
+				"rect": [0, 0, 1254, 1254],
+				"pivot": [627, 627],
+				"camera_azimuth_degrees": 0,
+				"depth_scale": 0.65,
+				"depth_offset": 0,
+				"markers": {},
+				"attachment_depth_offsets": {}
+			}
+		]
+	},
+	"pivot": [627, 627],
+	"markers": {},
+	"marker_notes": "No authored effect attachment points. Maps have approximate registration; sprite alpha is authoritative.",
+	"emissive": false,
+	"billboard_mode": "camera",
+	"render_scale": 12
+}

@@ -52,7 +52,11 @@ int main(int argc, char **argv)
 			                                  });
 		              });
 		preview["name"] = pack.manifest.value("name", pack.manifest.at("id").get<std::string>());
-		preview["dependencies"] = pack.manifest.value("dependencies", phoenix::Json::array());
+		preview["dependencies"] = phoenix::pack_dependencies(pack.manifest);
+		if (pack.manifest.contains("parent"))
+			preview["parent"] = pack.manifest.at("parent");
+		if (pack.manifest.contains("base"))
+			preview["base"] = pack.manifest.at("base");
 		pack.files["launcher.json"] = phoenix::json_bytes(preview);
 		auto archive = phoenix::write_pack(pack, std::string(argv[2]).ends_with(".dat") ? phoenix::PackEncoding::Dat
 		                                                                                : phoenix::PackEncoding::Zip);

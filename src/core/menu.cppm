@@ -34,7 +34,12 @@ struct ManagedSave
 class MenuLibrary
 {
 public:
-	explicit MenuLibrary(std::string directory);
+	explicit MenuLibrary(std::string directory, std::string scope = {});
+	void launch_base(const Bytes &archive);
+	const BaseConfiguration &base() const
+	{
+		return base_;
+	}
 	MenuPreferences preferences;
 	std::vector<LibraryPack> packs;
 	std::vector<ManagedSave> saves;
@@ -53,6 +58,9 @@ public:
 
 private:
 	std::string directory_;
+	std::string scope_;
+	BaseConfiguration base_;
+	Json profiles_ = Json::object(), global_profiles_ = Json::object();
 	bool writable_ = true;
 	std::string path(const std::string &folder, const std::string &id, const std::string &extension) const;
 	void atomic_write(const std::string &path, const Bytes &bytes) const;

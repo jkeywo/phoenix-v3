@@ -1127,6 +1127,14 @@ struct NativeMenuScreen::State
 				{
 					const auto first_control = app.screen_controls.size();
 					markup += "<div class=\"pack-row\">" + paragraph(draft[i].id);
+					const auto manifest = read_pack(app.library->read_pack_archive(draft[i].hash)).manifest();
+					if (manifest.contains("parent"))
+						markup += paragraph(localise("Parent mod") + ": " + manifest.at("parent").get<std::string>());
+					if (draft[i].hash == app.library->base().hash)
+					{
+						markup += paragraph("Launch base (locked)") + "</div>";
+						continue;
+					}
 					add("menu.pack-toggle/" + draft[i].hash, draft[i].enabled ? "Disable pack" : "Enable pack",
 					    [&, i]
 					    {
@@ -1135,7 +1143,7 @@ struct NativeMenuScreen::State
 					markup += "<input type=\"checkbox\" id=\"menu.pack-toggle/" + draft[i].hash + "\"" +
 					          (draft[i].enabled ? " checked" : "") + "/>";
 
-					if (i)
+					if (i > 1 || app.library->base().id.empty())
 						markup += add("menu.pack-up/" + draft[i].hash, "Move Up",
 						              [&, i]
 						              {

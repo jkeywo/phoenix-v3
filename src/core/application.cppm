@@ -44,6 +44,7 @@ struct Application
 	bool dust_motes = true, reference_grid = true;
 	MenuBranch menu_branch = MenuBranch::root;
 	std::string selected_scenario, menu_focus;
+	std::string base_reference = "base.zip";
 	std::shared_ptr<MenuLibrary> library;
 	std::string player_name = "<username>";
 	Bytes avatar;

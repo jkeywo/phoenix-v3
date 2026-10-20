@@ -86,6 +86,13 @@ int main()
 				require(!document.map().value("presentation", Json::object()).contains("skybox"),
 				        "new maps default to no skybox");
 			}
+			Bytes cube{'P', 'H', 'X', 'R', 'G', 'B', 'A', '1', 1, 0, 0, 0, 6, 0, 0, 0};
+			for (int face = 0; face < 6; ++face)
+				cube.insert(cube.end(), {static_cast<unsigned char>(face * 40), 20, 80, 255});
+			sky.files["assets/sky.png"] = source_asset_image(cube);
+			auto cube_catalog = resolve_packs({read_pack(write_pack(sky)), read_pack(write_pack(draft))});
+			require(scenario_assets(cube_catalog, map) == prepared,
+			        "cube strip uses ordinary map preparation and export references");
 			sky.files["assets/sky.png"] = {1, 2, 3};
 			rejected(
 			    [&]

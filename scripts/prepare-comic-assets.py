@@ -11,8 +11,8 @@ from pathlib import Path
 from PIL import Image, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[1]
-OUTPUT = ROOT / "content/base/assets/comic"
-PREFIX = "phoenix-base:assets/comic/"
+OUTPUT = ROOT / "content/test/assets/comic"
+PREFIX = "test:assets/comic/"
 
 
 def load_json(path):
@@ -30,7 +30,7 @@ def material(sidecar_path, stem, depth_span=0):
         "pivot": source["pivot"], "markers": source.get("markers", {})}]
     result = {"albedo": PREFIX + f"{stem}-albedo.png", "frames": []}
     if stem in ("courier", "asteroid", "sun"):
-        result["radar_sprite"] = "phoenix-base:assets/radar/" + ("ship" if stem == "courier" else stem) + ".png"
+        result["radar_sprite"] = "test:assets/radar/" + ("ship" if stem == "courier" else stem) + ".png"
     depth_atlas = Image.new("L", albedo.size, 128)
     normal_atlas = Image.new("RGB", albedo.size, (128, 128, 255))
     source_depth = (Image.open(sidecar_path.parent / source["files"]["depth"]).convert("L")
@@ -121,33 +121,33 @@ def material(sidecar_path, stem, depth_span=0):
 
 
 def main():
-    defs_path = ROOT / "content/base/definitions.json"
+    defs_path = ROOT / "content/test/definitions.json"
     defs = load_json(defs_path)
-    training_path = ROOT / "content/training/definitions.json"
-    training = load_json(training_path)
-    defs["schema"] = 3
+    training_path = ROOT / "content/test/definitions.json"
+    training = defs
+    defs["schema"] = 4
     courier = material(ROOT/"raw/relighting-v1/courier.sprite.json", "courier", 1)
     asteroid = material(ROOT/"raw/relighting-v1/asteroid.sprite.json", "asteroid", .65)
     sun = material(ROOT/"raw/sun.sprite.json", "sun")
     thrust = material(ROOT/"raw/courier-thrust-eight-angles.sprite.json", "thrust")
-    ship = next(e for e in defs["entities"] if e["id"] == "training.survey")
+    ship = next(e for e in defs["entities"] if e["id"] == "test.courier")
     ship["render"] = {"mode":"eight", "scale":8, "sprite":courier,
                       "engines":{"sprite":thrust, "scale":.4, "range":32, "power":2}}
     # The legacy one-view tug deliberately retains its original presentation.
-    tug = next(e for e in training["entities"] if e["id"] == "training.tug")
-    tug["render"].update(sprite=None, engines=None, radar_sprite="phoenix-base:assets/radar/ship.png")
+    tug = next(e for e in training["entities"] if e["id"] == "test.tug")
+    tug["render"].update(sprite=None, engines=None, radar_sprite="test:assets/radar/ship.png")
     def entity(name, sprite, height, radius):
         return {"id":name, "render":{"mode":"camera", "scale":height,"sprite":sprite},
                 "systems":{}, "collision":{"shape":"circle","radius_mm":radius,"mass_grams":0}}
-    defs["entities"] = [e for e in defs["entities"] if e["id"] not in ("training.asteroid","training.sun")]
-    defs["entities"] += [entity("training.asteroid",asteroid,12,5000), entity("training.sun",sun,14,1000)]
-    training["maps"] = [m for m in training["maps"] if m["id"] != "training.lighting"]
-    training["maps"].append({"id":"training.lighting", "lighting":{
+    defs["entities"] = [e for e in defs["entities"] if e["id"] not in ("test.asteroid","test.sun")]
+    defs["entities"] += [entity("test.asteroid",asteroid,12,5000), entity("test.sun",sun,14,1000)]
+    training["maps"] = [m for m in training["maps"] if m["id"] != "test.lighting"]
+    training["maps"].append({"id":"test.lighting", "lighting":{
         "sun_direction":[-.5,.6,.6], "sun_color":[1,.89,.7], "ambient":.14,
         "hatch_thickness":2, "hatch_spacing":6, "shadows":True},
-        "entities":[{"id":10,"definition":"training.asteroid","x_mm":-24000,"y_mm":0,"heading_mdeg":0},
-                    {"id":11,"definition":"training.sun","x_mm":-40000,"y_mm":-60000,"heading_mdeg":0}],
-        "ship_slots":[{"id":"training.player","x_mm":0,"y_mm":0,"heading_mdeg":0,"allowed_ships":["training.survey"]}]})
+        "entities":[{"id":10,"definition":"test.asteroid","x_mm":-24000,"y_mm":0,"heading_mdeg":0},
+                    {"id":11,"definition":"test.sun","x_mm":-40000,"y_mm":-60000,"heading_mdeg":0}],
+        "ship_slots":[{"id":"test.player","x_mm":0,"y_mm":0,"heading_mdeg":0,"allowed_ships":["test.courier"]}]})
     defs_path.write_text(json.dumps(defs, indent=2)+"\n", encoding="utf-8")
     training_path.write_text(json.dumps(training, indent=2)+"\n", encoding="utf-8")
     print("Prepared calibrated comic training assets; original raw inputs unchanged.")

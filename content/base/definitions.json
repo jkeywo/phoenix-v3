@@ -2,7 +2,7 @@
 	"schema": 4,
 	"entities": [
 		{
-			"id": "training.survey",
+			"id": "base.courier",
 			"render": {
 				"mode": "eight",
 				"scale": 8,
@@ -374,7 +374,7 @@
 					"consoles": [
 						{
 							"id": "main",
-							"definition": "training.bridge",
+							"definition": "base.console.bridge",
 							"systems": [],
 							"feeds": ["engine", "steering", "radar"]
 						}
@@ -383,7 +383,7 @@
 			]
 		},
 		{
-			"id": "training.beacon",
+			"id": "base.beacon",
 			"render": {
 				"mode": "camera",
 				"images": ["phoenix-base:assets/beacon.png"],
@@ -397,7 +397,7 @@
 			}
 		},
 		{
-			"id": "training.asteroid",
+			"id": "base.asteroid",
 			"render": {
 				"mode": "camera",
 				"scale": 12,
@@ -427,7 +427,7 @@
 			}
 		},
 		{
-			"id": "training.sun",
+			"id": "base.sun",
 			"render": {
 				"mode": "camera",
 				"scale": 14,
@@ -457,7 +457,7 @@
 		},
 		{
 			"id": "base.courier-engineering",
-			"extends": "training.survey",
+			"extends": "base.courier",
 			"name": "Courier — Engineering fit",
 			"controller": null,
 			"console": null,
@@ -6713,7 +6713,7 @@
 					"x_mm": 0,
 					"y_mm": 0,
 					"heading_mdeg": 0,
-					"allowed_ships": ["training.survey", "base.courier-engineering", "base.cruiser"]
+					"allowed_ships": ["base.courier", "base.courier-engineering", "base.cruiser"]
 				}
 			]
 		},
@@ -6735,91 +6735,91 @@
 					"y_mm": -100000
 				},
 				{
-					"definition": "training.asteroid",
+					"definition": "base.asteroid",
 					"heading_mdeg": 0,
 					"id": 10,
 					"x_mm": -520000,
 					"y_mm": -340000
 				},
 				{
-					"definition": "training.asteroid",
+					"definition": "base.asteroid",
 					"heading_mdeg": 27000,
 					"id": 11,
 					"x_mm": -160000,
 					"y_mm": -430000
 				},
 				{
-					"definition": "training.asteroid",
+					"definition": "base.asteroid",
 					"heading_mdeg": 54000,
 					"id": 12,
 					"x_mm": 140000,
 					"y_mm": -380000
 				},
 				{
-					"definition": "training.asteroid",
+					"definition": "base.asteroid",
 					"heading_mdeg": 81000,
 					"id": 13,
 					"x_mm": 520000,
 					"y_mm": -320000
 				},
 				{
-					"definition": "training.asteroid",
+					"definition": "base.asteroid",
 					"heading_mdeg": 108000,
 					"id": 14,
 					"x_mm": 560000,
 					"y_mm": -60000
 				},
 				{
-					"definition": "training.asteroid",
+					"definition": "base.asteroid",
 					"heading_mdeg": 135000,
 					"id": 15,
 					"x_mm": 520000,
 					"y_mm": 280000
 				},
 				{
-					"definition": "training.asteroid",
+					"definition": "base.asteroid",
 					"heading_mdeg": 162000,
 					"id": 16,
 					"x_mm": 200000,
 					"y_mm": 440000
 				},
 				{
-					"definition": "training.asteroid",
+					"definition": "base.asteroid",
 					"heading_mdeg": 189000,
 					"id": 17,
 					"x_mm": -80000,
 					"y_mm": 400000
 				},
 				{
-					"definition": "training.asteroid",
+					"definition": "base.asteroid",
 					"heading_mdeg": 216000,
 					"id": 18,
 					"x_mm": -480000,
 					"y_mm": 380000
 				},
 				{
-					"definition": "training.asteroid",
+					"definition": "base.asteroid",
 					"heading_mdeg": 243000,
 					"id": 19,
 					"x_mm": -580000,
 					"y_mm": 80000
 				},
 				{
-					"definition": "training.asteroid",
+					"definition": "base.asteroid",
 					"heading_mdeg": 270000,
 					"id": 20,
 					"x_mm": -540000,
 					"y_mm": -120000
 				},
 				{
-					"definition": "training.asteroid",
+					"definition": "base.asteroid",
 					"heading_mdeg": 297000,
 					"id": 21,
 					"x_mm": 30000,
 					"y_mm": 0
 				},
 				{
-					"definition": "training.sun",
+					"definition": "base.sun",
 					"heading_mdeg": 0,
 					"id": 30,
 					"x_mm": -500000,
@@ -6974,35 +6974,35 @@
 			"entities": [
 				{
 					"id": 1,
-					"definition": "training.asteroid",
+					"definition": "base.asteroid",
 					"x_mm": -80000,
 					"y_mm": -40000,
 					"heading_mdeg": 0
 				},
 				{
 					"id": 2,
-					"definition": "training.asteroid",
+					"definition": "base.asteroid",
 					"x_mm": -80000,
 					"y_mm": 40000,
 					"heading_mdeg": 0
 				},
 				{
 					"id": 3,
-					"definition": "training.asteroid",
+					"definition": "base.asteroid",
 					"x_mm": 10000,
 					"y_mm": 0,
 					"heading_mdeg": 0
 				},
 				{
 					"id": 4,
-					"definition": "training.asteroid",
+					"definition": "base.asteroid",
 					"x_mm": 90000,
 					"y_mm": -50000,
 					"heading_mdeg": 0
 				},
 				{
 					"id": 5,
-					"definition": "training.asteroid",
+					"definition": "base.asteroid",
 					"x_mm": 90000,
 					"y_mm": 50000,
 					"heading_mdeg": 0
@@ -7075,7 +7075,7 @@
 	],
 	"consoles": [
 		{
-			"id": "training.bridge",
+			"id": "base.console.bridge",
 			"widgets": [
 				{
 					"id": "radar",

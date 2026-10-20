@@ -1,0 +1,9 @@
+{
+	"schema": 1,
+	"id": "test-3d",
+	"name": "test-3d",
+	"base": {
+		"render_mode": "models",
+		"interface_style": "current"
+	}
+}

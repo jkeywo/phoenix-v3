@@ -80,7 +80,7 @@ int main(int argc, char **argv)
 {
 	phoenix::NetworkOptions network;
 	network.link.url = phoenix::default_network_service;
-	std::string action, scenario, slot, ship, save;
+	std::string action, scenario, slot, ship, save, base_file = "/assets/base.zip", menu_scope;
 #ifdef PHOENIX_SERVER
 	app.can_host = true;
 #endif
@@ -99,6 +99,12 @@ int main(int argc, char **argv)
 			slot = value;
 		if (argument == "--ship")
 			ship = value;
+		if (argument == "--base")
+			base_file = value;
+		if (argument == "--base-url")
+			app.base_reference = value;
+		if (argument == "--menu-scope")
+			menu_scope = value;
 		if (argument == "--save")
 			save = value;
 		if (std::string(argv[i]) == "--text-probe")
@@ -137,16 +143,13 @@ int main(int argc, char **argv)
 		if (!action.empty())
 		{
 			app.native_menu = true;
-			app.library = std::make_shared<phoenix::MenuLibrary>("/launcher/menu");
+			const auto root_bytes = phoenix::read_file(base_file);
+			const auto root = phoenix::base_configuration(phoenix::read_pack(root_bytes));
+			app.library = std::make_shared<phoenix::MenuLibrary>(
+			    "/launcher/menu", menu_scope.empty() ? network.profile + "/" + root.id : menu_scope);
 			app.library->load();
-			if (EM_ASM_INT({ return Module.phoenixMigrateBundled ? 1 : 0; }))
-				app.library->install_bundled(phoenix::read_file("/launcher/bundled-base.zip"),
-				                             phoenix::read_file("/launcher/bundled-training.zip"));
-#ifdef PHOENIX_WORKSHOP
-			if (action == "workshop")
-				app.library->install_bundled(phoenix::read_file("/assets/base.zip"),
-				                             phoenix::read_file("/assets/training.zip"));
-#endif
+			app.library->launch_base(root_bytes);
+			network.expected_base = root;
 			const auto &preferences = app.library->preferences;
 			app.music_volume = preferences.volume;
 			app.sfx_volume = preferences.sfx_volume;

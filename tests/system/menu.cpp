@@ -71,6 +71,175 @@ int main()
 		        "First launch has English and half volume");
 		auto draft =
 		    phoenix::test::fixture_pack(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "test-core");
+
+		// Independent fixtures exercise rooted trees and profile isolation through the real loader.
+		auto rooted = draft;
+		rooted.manifest["base"] = {{"render_mode", "sprites"}, {"interface_style", "current"}};
+		const auto root_bytes = write_pack(rooted);
+		const auto root_id = rooted.manifest.at("id").get<std::string>();
+		const auto scoped_directory = directory + "/rooted";
+		MenuLibrary rooted_library(scoped_directory, "default/" + root_id);
+		rooted_library.load();
+		rooted_library.launch_base(root_bytes);
+		auto rejects = [&](auto action, const char *message)
+		{
+			bool rejected = false;
+			try
+			{
+				action();
+			}
+			catch (const std::exception &)
+			{
+				rejected = true;
+			}
+			require(rejected, message);
+		};
+		rejects(
+		    [&]
+		    {
+			    rooted_library.toggle_pack(rooted_library.packs, rooted_library.base().hash);
+		    },
+		    "Launch base cannot be toggled");
+		rejects(
+		    [&]
+		    {
+			    rooted_library.apply({});
+		    },
+		    "Launch base cannot be removed");
+		rejects(
+		    [&]
+		    {
+			    rooted_library.replace_pack(rooted_library.base().hash, root_bytes);
+		    },
+		    "Launch base cannot be replaced");
+		PackDraft child;
+		child.manifest = {{"schema", 1}, {"id", "child"}, {"parent", root_id}};
+		child.files["definitions.json"] = json_bytes(Json{{"schema", 1}});
+		auto child_bytes = write_pack(child);
+		rooted_library.install(child_bytes);
+		PackDraft grandchild = child;
+		grandchild.manifest["id"] = "grandchild";
+		grandchild.manifest["parent"] = "child";
+		auto grandchild_bytes = write_pack(grandchild);
+		rooted_library.install(grandchild_bytes);
+		rooted_library.apply(rooted_library.toggle_pack(rooted_library.packs, read_pack(grandchild_bytes).hash()));
+		require(rooted_library.packs[0].enabled && rooted_library.packs[1].enabled && rooted_library.packs[2].enabled,
+		        "Enabling descendants enables ordered ancestors");
+		rooted_library.apply(rooted_library.toggle_pack(rooted_library.packs, read_pack(child_bytes).hash()));
+		require(rooted_library.packs[0].enabled && !rooted_library.packs[1].enabled && !rooted_library.packs[2].enabled,
+		        "Disabling parent leaves base enabled and disables descendants");
+		rooted_library.preferences.player_name = "First base";
+		rooted_library.preferences.volume = 37;
+		rooted_library.remember();
+		auto second = rooted;
+		second.manifest["id"] = "other-root";
+		// Rewrite fixture asset addresses to the second independent root.
+		auto second_text =
+		    std::string(second.files.at("definitions.json").begin(), second.files.at("definitions.json").end());
+		for (size_t at = 0; (at = second_text.find(root_id + ":", at)) != std::string::npos; at += 11)
+			second_text.replace(at, root_id.size() + 1, "other-root:");
+		second.files["definitions.json"] = json_bytes(Json::parse(second_text));
+		const auto second_bytes = write_pack(second);
+		MenuLibrary other(scoped_directory, "default/other-root");
+		other.load();
+		other.launch_base(second_bytes);
+		require(other.preferences.player_name == "<username>" && other.preferences.volume == 37 &&
+		            other.packs.size() == 1,
+		        "Base profile isolates player/content but shares audio preferences");
+		MenuLibrary separate_profile(scoped_directory, "second/" + root_id);
+		separate_profile.load();
+		require(separate_profile.preferences.volume == 50, "Global preferences are isolated between local profiles");
+		separate_profile.launch_base(root_bytes);
+		separate_profile.preferences.volume = 12;
+		separate_profile.remember();
+		other.preferences.player_name = "Second base";
+		other.remember();
+		MenuLibrary root_reopened(scoped_directory, "default/" + root_id);
+		root_reopened.load();
+		root_reopened.launch_base(root_bytes);
+		require(root_reopened.preferences.player_name == "First base" && root_reopened.packs.size() == 3,
+		        "Reopening a base restores its own profile and mod choices");
+		rejects(
+		    [&]
+		    {
+			    root_reopened.launch_base(second_bytes);
+		    },
+		    "A process cannot switch its launch root");
+		auto root_session = make_local_session();
+		root_session->replace_packs({root_bytes});
+		root_session->start({"test.map", {{"test.slot", "test.ship"}}, "test.slot", "main"});
+		const auto root_save = root_session->save();
+		auto matching_session = make_local_session();
+		matching_session->replace_packs({root_bytes});
+		matching_session->restore(root_save);
+		require(matching_session->recovery_pending(), "Matching root can restore its paused save");
+		auto foreign_session = make_local_session();
+		foreign_session->replace_packs({second_bytes});
+		rejects(
+		    [&]
+		    {
+			    foreign_session->restore(root_save);
+		    },
+		    "Cross-base saves are rejected before state restoration");
+		auto updated_root = rooted;
+		updated_root.manifest["name"] = "Updated fixture";
+		auto revision_session = make_local_session();
+		revision_session->replace_packs({write_pack(updated_root)});
+		rejects(
+		    [&]
+		    {
+			    revision_session->restore(root_save);
+		    },
+		    "Different root revisions cannot silently restore saves");
+		auto cycle_a = child, cycle_b = child;
+		cycle_a.manifest = {{"schema", 1}, {"id", "cycle-a"}, {"parent", "cycle-b"}};
+		cycle_b.manifest = {{"schema", 1}, {"id", "cycle-b"}, {"parent", "cycle-a"}};
+		rejects(
+		    [&]
+		    {
+			    resolve_packs({read_pack(root_bytes), read_pack(write_pack(cycle_a)), read_pack(write_pack(cycle_b))});
+		    },
+		    "Cyclic parent relationships cannot resolve under the launch base");
+		auto wrong = child;
+		wrong.manifest["parent"] = "other-root";
+		rejects(
+		    [&]
+		    {
+			    resolve_packs({read_pack(root_bytes), read_pack(write_pack(wrong))});
+		    },
+		    "Cross-base children cannot resolve");
+		auto presentation = rooted;
+		auto visuals = parse_json(presentation.files.at("definitions.json"), "synthetic visuals");
+		for (auto &e : visuals["entities"])
+			e["render"] = {{"scale", 2}, {"star", Json::object()}, {"radar_icon", "sun"}};
+		presentation.manifest["base"]["render_mode"] = "models";
+		presentation.files["definitions.json"] = json_bytes(visuals);
+		const auto model_catalog = resolve_packs({read_pack(write_pack(presentation))});
+		require(model_catalog.base.render_mode == "models", "Procedural model base loads without sprite assets");
+		const auto model_console = resolve_packs({console_assets(model_catalog, "test.ship")});
+		require(model_console.base == model_catalog.base &&
+		            model_console.entities.at("test.ship").at("render").value("contact_only", false) &&
+		            !model_console.entities.at("test.ship").at("render").contains("images"),
+		        "Model Console projection retains its launch identity and radar without sprite fallbacks");
+		WorkshopDocument model_document;
+		model_document.load_dependency(write_pack(presentation));
+		const auto created = model_document.create_entity();
+		require(model_document.verify().entities.at(created).at("render").contains("star"),
+		        "New model-base Workshop entities use a model-family representation");
+
+		rejects(
+		    [&]
+		    {
+			    resolve_packs({read_pack(write_pack(PackDraft{rooted.manifest, presentation.files}))});
+		    },
+		    "Mixed visual family is rejected");
+		rejects(
+		    [&]
+		    {
+			    compile_model(Bytes{1, 2, 3});
+		    },
+		    "Malformed models rejected before GPU upload");
+
 		const auto archive = write_pack(draft);
 		PackDraft addon;
 		addon.manifest = {{"schema", 1}, {"id", "test-practice"}, {"dependencies", {"test-core"}}};

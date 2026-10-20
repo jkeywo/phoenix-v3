@@ -24,10 +24,10 @@ Native and all three browser role targets build. Formatting and staged whitespac
 
 ## Explicit native smoke
 
-Setup: Windows native, one 1280 x 720 window/framebuffer, NVIDIA GeForce RTX 5090 Laptop GPU, the built training ZIP, scenario `training.lighting`, slot `training.player`, ship `training.survey`, local Console `main`. This is a functional UI capture, not a reference-machine performance measurement.
+Setup: Windows native, one 1280 x 720 window/framebuffer, NVIDIA GeForce RTX 5090 Laptop GPU, the built training ZIP, scenario `test.lighting`, slot `test.player`, ship `base.courier`, local Console `main`. This is a functional UI capture, not a reference-machine performance measurement.
 
 ```powershell
-./build/native/Release/native.exe --local-only --game-pack build/native/training.zip --data build/menu-smoke-save-receipt --menu-smoke
+./build/native/Release/native.exe --local-only --game-pack build/native/test.zip --data build/menu-smoke-save-receipt --menu-smoke
 ```
 
 The journey passed both a fresh-data launch and a repeat launch using the same data folder. It recorded:
@@ -57,11 +57,11 @@ Explicitly ran the same native graphical journey with fresh `--data build/menu-a
 
 The complete automatic gate passed: all twelve native integration cases, production verification, WASM checks, matching native/WASM continuation and all seven real-network journeys (`build/viewscreen-final-gate.log`). The extended synthetic session test rejects stale navigation/role changes, preserves the current display through Settings and admits explicit quit into a fresh session.
 
-The explicitly invoked native `--menu-smoke` journey passed with fresh data, selecting the default Viewscreen in the lobby, checking the sole Settings navigation action, saving from Settings, closing back into the game and quitting to an inactive Main Menu session (`build/viewscreen-menu-smoke.log`). A separate `training.navigation` capture shows the beacon ahead and the world-locked grid from the new POV (`build/viewscreen-forward-native.png`). Native's single-screen lobby also offers Player console or GM inspector as its launch role; configured mixed-display layouts retain their roles.
+The explicitly invoked native `--menu-smoke` journey passed with fresh data, selecting the default Viewscreen in the lobby, checking the sole Settings navigation action, saving from Settings, closing back into the game and quitting to an inactive Main Menu session (`build/viewscreen-menu-smoke.log`). A separate `test.navigation` capture shows the beacon ahead and the world-locked grid from the new POV (`build/viewscreen-forward-native.png`). Native's single-screen lobby also offers Player console or GM inspector as its launch role; configured mixed-display layouts retain their roles.
 
 The manually invoked production-loader comic probe passed its existing depth/shadow/engine/navigation checks and a new synthetic rear-sprite check: relief behind the eye must contribute no foreground pixels while the forward sprite remains visible (`build/viewscreen-comic.log`, `build/comic-forward-pov-smoke.png`). This caught and fixed a positive-only relief denominator that folded behind-camera geometry into the forward view.
 
-The actual in-app WebGL browser journey hosted `training.navigation`, readied through the countdown, rendered the forward world with only Settings, opened Settings and quit to the HTML main menu. Final browser and native views were inspected after rebuilding the corrected projection. These are functional checks on the available machine, not physical reader/device or six-display performance evidence.
+The actual in-app WebGL browser journey hosted `test.navigation`, readied through the countdown, rendered the forward world with only Settings, opened Settings and quit to the HTML main menu. Final browser and native views were inspected after rebuilding the corrected projection. These are functional checks on the available machine, not physical reader/device or six-display performance evidence.
 
 ## Lobby invitations, players and local screens
 
@@ -75,7 +75,7 @@ An actual in-app browser journey used the local signalling service. It entered a
 
 ## Base game and training mod separation
 
-18 October 2026: `base.zip` and `training.zip` are distinct production-verified packs. Base alone has Free Flight; training depends on base and adds two authored practice scenarios, ship variants and patrol AI. Fresh libraries install both and enable only base. All packs can be toggled off; dependency toggles enable prerequisites and disable dependants. This authored smoke content remains separate from synthetic integration fixtures.
+18 October 2026: `base.zip` and `test.zip` are distinct production-verified packs. Base alone has Free Flight; training depends on base and adds two authored practice scenarios, ship variants and patrol AI. Fresh libraries install both and enable only base. All packs can be toggled off; dependency toggles enable prerequisites and disable dependants. This authored smoke content remains separate from synthetic integration fixtures.
 
 The native menu-library integration passed with independent synthetic base/mod fixtures, actual dependency resolution, all-off persistence, reordered prerequisite activation and migration of an edited combined pack without losing a user-authored map or edited practice map. Eight browser launcher checks passed. Production verification passed for base alone and base followed by training; training alone was rejected for its missing dependency. Native and all three WASM role targets build (`build/training-pack-final-content.log`, `build/training-pack-web.log`).
 

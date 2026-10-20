@@ -7,8 +7,8 @@ The implementation supports Workshop **File > Package� > Game pack / Selected 
 - All 22 native system integration cases passed in `build/asset-native-final.log`, including source-directory/ZIP/DAT loading, dependent scenario exports, exact pixels, editable reimports, malformed input, restricted Console sets, and declared/undeclared dynamic spawn handling through the production ScenarioRuntime.
 - The final WASM gate (`build/asset-web-final.log`) completed successfully, including the native/WASM continuation comparison. HTML launcher checks passed, including bounded DAT metadata preview.
 - The isolated real-transport client/reconnection/GM journey and pre-game multi-ship/readiness journey both passed in `build/asset-network-final.log`. These exercise compiled client bundles and additional Consoles supplied by a profile.
-- Both authored packs were exported as DAT and resolved together through the production loader. The generated artifacts are `build/native/base.dat` and `build/native/training.dat`. No production tuning values were frozen.
-- Browser runtime metadata was inspected: `client.js` contains neither `/assets/base.zip` nor `/assets/training.zip`; Workshop retains its bundled authoring packs. The client launcher also avoids fetching or copying installed gameplay archives into the client filesystem.
+- Both authored packs were exported as DAT and resolved together through the production loader. The generated artifacts are `build/native/base.dat` and `build/native/test.dat`. No production tuning values were frozen.
+- Browser runtime metadata was inspected: `client.js` contains neither `/assets/base.zip` nor `/assets/test.zip`; Workshop retains its bundled authoring packs. The client launcher also avoids fetching or copying installed gameplay archives into the client filesystem.
 
 ## Manual graphical evidence
 

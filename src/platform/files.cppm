@@ -25,7 +25,8 @@ enum class FilePurpose
 	WorkshopSprite,
 	WorkshopPackSave,
 	WorkshopMapSave,
-	PlayerAvatar
+	PlayerAvatar,
+	WorkshopModel
 };
 enum class ImportStatus
 {

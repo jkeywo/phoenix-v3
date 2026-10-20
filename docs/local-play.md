@@ -1,6 +1,6 @@
 # Play the local prototype
 
-Build with `./scripts/build.ps1 -Target native`. The build produces `build/native/base.zip` from `content/base/` and a separate `build/native/training.zip` from `content/training/`, verified as a mod over the base. Fresh libraries enable the base and install training disabled. Enable Phoenix Training in Mod Packs for the authored smoke scenarios. Both packs can be toggled off; disabling the base also disables dependent mods. Synthetic integration fixtures remain independent.
+Build with `./scripts/build.ps1 -Target native`. The build produces `build/native/base.zip` from `content/base/` and a separate `build/native/test.zip` from `content/test/`, verified as a mod over the base. Fresh libraries enable the base and install training disabled. Enable test in Mod Packs for the authored smoke scenarios. Both packs can be toggled off; disabling the base also disables dependent mods. Synthetic integration fixtures remain independent.
 
 Run `build/native/Release/native.exe --local-only` for offline play. Use Mod Packs to install, enable and order ZIP packs, then Host Game > New Game > scenario > ship. The stopped lobby offers local Console selection or AI crew and starts after readiness plus a five-second countdown. Settings and managed saves persist beneath `--data`; see the [native menu](native-menu.md). Native's default mode adds networked ship/crew/GM joining. Invalid pack selection or save import preserves the previous verified selection/session. The browser server retains its existing flat setup controls.
 
@@ -17,8 +17,8 @@ Imported content cannot be changed during play. Workshop opens independently fro
 Manual native captures can be invoked with:
 
 ```powershell
-./build/native/Release/native.exe --local-only --game-pack ./build/native/training.zip --mission training.navigation --slot training.player --ship training.survey --smoke
-./build/native/Release/native.exe --local-only --game-pack ./build/native/training.zip --mission training.navigation --slot training.player --ship training.survey --console --smoke
+./build/native/Release/native.exe --local-only --game-pack ./build/native/test.zip --mission test.navigation --slot test.player --ship base.courier --smoke
+./build/native/Release/native.exe --local-only --game-pack ./build/native/test.zip --mission test.navigation --slot test.player --ship base.courier --console --smoke
 ```
 
 Captures are written to the working directory as `viewscreen-smoke.png` or `console-smoke.png`. These are manually invoked smoke evidence, not automatic pixel tests or performance guarantees.

@@ -280,14 +280,14 @@ void WorkshopDocument::load_pack(std::span<const std::uint8_t> archive)
 	auto loaded = read_pack(archive);
 	// A standalone pack opens independently of the current draft's dependencies.
 	// A mod retains the explicitly loaded dependency closure it declares.
-	auto dependencies = loaded.manifest().value("dependencies", Json::array());
+	auto dependencies = pack_dependencies(loaded.manifest());
 	std::set<std::string> needed;
 	for (const auto &dependency : dependencies)
-		needed.insert(dependency.get<std::string>());
+		needed.insert(dependency);
 	for (auto it = libraries_.rbegin(); it != libraries_.rend(); ++it)
 		if (needed.contains(it->manifest().at("id").get<std::string>()))
-			for (const auto &dependency : it->manifest().value("dependencies", Json::array()))
-				needed.insert(dependency.get<std::string>());
+			for (const auto &dependency : pack_dependencies(it->manifest()))
+				needed.insert(dependency);
 	std::vector<Pack> retained;
 	for (const auto &library : libraries_)
 		if (needed.contains(library.manifest().at("id").get<std::string>()))
@@ -344,11 +344,20 @@ void WorkshopDocument::load_dependency(std::span<const std::uint8_t> archive)
 		throw std::runtime_error("Rename the authored pack before loading a dependency with the same id");
 	libraries_ = std::move(order);
 	library_catalog_ = std::move(catalog);
-	if (!pack_.manifest.contains("dependencies"))
-		pack_.manifest["dependencies"] = Json::array();
-	auto &dependencies = pack_.manifest["dependencies"];
-	if (std::find(dependencies.begin(), dependencies.end(), Json(id)) == dependencies.end())
-		dependencies.push_back(id);
+	if (!library_catalog_.base.id.empty())
+	{
+		pack_.manifest.erase("base");
+		pack_.manifest.erase("dependencies");
+		pack_.manifest["parent"] = id;
+	}
+	else
+	{
+		if (!pack_.manifest.contains("dependencies"))
+			pack_.manifest["dependencies"] = Json::array();
+		auto &required = pack_.manifest["dependencies"];
+		if (std::find(required.begin(), required.end(), Json(id)) == required.end())
+			required.push_back(id);
+	}
 }
 void WorkshopDocument::rename_pack(const std::string &id)
 {
@@ -408,10 +417,10 @@ Bytes WorkshopDocument::export_pack(PackEncoding encoding, bool scenario_only) c
 		draft = {};
 		draft.manifest = {{"schema", 1},
 		                  {"id", scenario_id},
-		                  {"dependencies", required},
+		                  {"parent", parent},
 		                  {"overrides", Json::array({map_id})},
 		                  {"scenario", map_id}};
-		draft.manifest["dependencies"].push_back(parent);
+
 		draft.files["definitions.json"] = json_bytes(Json{{"schema", 3}, {"maps", Json::array({map()})}});
 		const auto assets = scenario_assets(catalog, map_id);
 		(void)assets; // Validate future-spawn dependencies before packaging.
@@ -471,6 +480,16 @@ std::string WorkshopDocument::create_entity(const std::string &parent)
 		if (!library_catalog_.entities.contains(parent))
 			throw std::runtime_error("Unknown library entity: " + parent);
 		definitions_["entities"].push_back({{"id", id}, {"extends", parent}});
+		return id;
+	}
+	if (library_catalog_.base.render_mode == "models" ||
+	    pack_.manifest.value("base", Json::object()).value("render_mode", "sprites") == "models")
+	{
+		definitions_["entities"].push_back(
+		    {{"id", id},
+		     {"render", {{"scale", 1}, {"star", Json::object()}}},
+		     {"systems", Json::object()},
+		     {"collision", {{"shape", "circle"}, {"radius_mm", 2000}, {"mass_grams", 1000000}}}});
 		return id;
 	}
 	std::string image;
@@ -667,6 +686,19 @@ void WorkshopDocument::duplicate(std::uint64_t instance)
 			(void)id;
 			return;
 		}
+}
+std::string WorkshopDocument::import_model(const std::string &filename, Bytes bytes)
+{
+	compile_model(bytes);
+	auto leaf =
+	    filename.substr(filename.find_last_of("/\\") == std::string::npos ? 0 : filename.find_last_of("/\\") + 1);
+	if (leaf.empty() || leaf.find(':') != std::string::npos || !leaf.ends_with(".glb"))
+		throw std::runtime_error("Choose a GLB filename");
+	const auto path = "assets/" + leaf;
+	if (pack_.files.contains(path))
+		throw std::runtime_error("Asset already exists; rename the imported model");
+	pack_.files[path] = std::move(bytes);
+	return pack_.manifest.at("id").get<std::string>() + ":" + path;
 }
 std::string WorkshopDocument::import_image(const std::string &filename, Bytes bytes)
 {

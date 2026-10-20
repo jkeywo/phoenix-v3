@@ -2,9 +2,9 @@
 
 Maps may set `presentation.skybox` to a pack-qualified PNG reference, for example
 `"phoenix-base:assets/skyboxes/settled-dark-v1.png"`. It must decode as a 2:1
-equirectangular panorama within the ordinary image limits. Omitted or empty means
+equirectangular panorama or a vertical six-face cube strip (+X, -X, +Y, -Y, +Z, -Z) within the ordinary image limits. Omitted or empty means
 no skybox; there is no inherited base-game fallback. Invalid types, missing assets,
-bad pixels and non-2:1 images are verification errors naming the map field.
+bad pixels and unsupported image layouts are verification errors naming the map field.
 The reference participates in scenario asset preparation and ordinary dependency,
 ZIP/DAT and scenario-export handling. It affects the world Viewscreen background,
 not loading-screen artwork, lighting or the Workshop map grid.
@@ -73,7 +73,7 @@ Source sidecars declare `files.radar_icon` alongside `files.sprite`, optional `n
 
 Public radar PNGs are included in restricted crew presentation bundles under content-addressed `console-assets:assets/radar/<sha256>.png` references. The same address accompanies existing permitted body observations. Other ships' definitions, maps, controllers and detailed hull sprites remain excluded. This adds presentation data without expanding which contacts are observed.
 
-The default **Phoenix Base Game** pack has ID `phoenix-base` and editable sources under `content/base/`. It supplies Courier, reusable scenery, the bridge Console, sprites and Free Flight. Shared templates retain existing `training.*` IDs for authored-map compatibility. **Phoenix Training** (`phoenix-training`, sources in `content/training/`) depends on `phoenix-base` and adds training scenarios, practice variants and patrol AI. Builds emit separate `base.zip` and `training.zip`, verifying the latter against the former. Both appear in Mod Packs; fresh libraries enable only the base. All packs can be disabled, including the base. Dependency toggles maintain the prerequisite selection and order.
+The default **Phoenix Base Game** pack has ID `phoenix-base` and editable sources under `content/base/`. It supplies Courier, reusable scenery, the bridge Console, sprites and Free Flight. Shared templates retain existing `test.*` IDs for authored-map compatibility. **test** (`test`, sources in `content/test/`) depends on `phoenix-base` and adds training scenarios, practice variants and patrol AI. Builds emit separate `base.zip` and `test.zip`, verifying the latter against the former. Both appear in Mod Packs; fresh libraries enable only the base. All packs can be disabled, including the base. Dependency toggles maintain the prerequisite selection and order.
 
 Older installed combined base packs are split through the production loader: training definitions move into the training mod, preserving edits to them and retaining other authored maps in the base. Browser previews reflect that split before the C++ migration at the next hosting or Workshop entry. Existing activation choices are preserved; a migrated training pack inherits the old base's activation unless the user has already selected a different state. Synthetic system fixtures do not depend on either shipped pack.
 

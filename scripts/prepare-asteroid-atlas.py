@@ -10,7 +10,7 @@ from PIL import Image, ImageChops
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "content/base/assets/comic"
-OUTPUT = ROOT / "content/training/assets"
+OUTPUT = ROOT / "content/test/assets"
 OUTPUT.mkdir(parents=True, exist_ok=True)
 
 for kind in ("albedo", "normal", "depth"):

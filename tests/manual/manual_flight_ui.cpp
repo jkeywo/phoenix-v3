@@ -25,7 +25,7 @@ int main(int argc, char **argv)
 		app.can_host = app.native_menu = true;
 		app.session = make_local_session();
 		app.session->add_pack(read_file(std::string(argv[1]) + "/base.zip"));
-		app.session->start({"base.free-flight", {{"base.player", "base.courier-engineering"}}, "base.player", "helm"});
+		app.session->start({"base.free-flight", {{"base.player", "test.courier-engineering"}}, "base.player", "helm"});
 		app.screen = Screen::console;
 		open_window();
 		opened = true;

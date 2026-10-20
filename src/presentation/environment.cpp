@@ -33,6 +33,48 @@ out vec3 position;
 out vec4 colour;
 void main(){uv=vertexTexCoord;position=vertexPosition;colour=vertexColor;gl_Position=mvp*vec4(vertexPosition,1.0);}
 )GLSL";
+const char *sky_vertex = R"GLSL(
+in vec3 vertexPosition;
+in vec2 vertexTexCoord;
+out vec2 uv;
+void main(){uv=vertexTexCoord;gl_Position=vec4(vertexPosition.xy,1,1);}
+)GLSL";
+const char *sky_fragment = R"GLSL(
+in vec2 uv;
+out vec4 finalColor;
+uniform sampler2D texture0;
+uniform mat4 inverseViewProjection;
+uniform int cubeStrip;
+vec2 cubeUV(vec3 d){
+ vec3 a=abs(d);vec2 q;float face;
+ if(a.x>=a.y && a.x>=a.z){
+  if(d.x>0.0){q=vec2(-d.z,-d.y)/a.x;face=0.0;}
+  else{q=vec2(d.z,-d.y)/a.x;face=1.0;}
+ }else if(a.y>=a.z){
+  if(d.y>0.0){q=vec2(d.x,d.z)/a.y;face=2.0;}
+  else{q=vec2(d.x,-d.z)/a.y;face=3.0;}
+ }else{
+  if(d.z>0.0){q=vec2(d.x,-d.y)/a.z;face=4.0;}
+  else{q=vec2(-d.x,-d.y)/a.z;face=5.0;}
+ }
+ vec2 halfTexel=vec2(.5/float(textureSize(texture0,0).x));
+ q=clamp(q*.5+.5,halfTexel,1.0-halfTexel);
+ return vec2(q.x,(q.y+face)/6.0);
+}
+void main(){
+ vec4 a=inverseViewProjection*vec4(uv*2.0-1.0,-1,1);
+ vec4 b=inverseViewProjection*vec4(uv*2.0-1.0,1,1);
+ vec3 d=normalize(b.xyz/b.w-a.xyz/a.w);
+ vec2 skyUV;
+ if(cubeStrip==1)skyUV=cubeUV(d);
+ else{
+  skyUV=vec2(atan(d.z,d.x)/6.28318530718+.5,acos(clamp(d.y,-1.0,1.0))/3.14159265359);
+  float pole=.5/float(textureSize(texture0,0).y);
+  skyUV.y=clamp(skyUV.y,pole,1.0-pole);
+ }
+ finalColor=vec4(texture(texture0,skyUV).rgb,1);
+}
+)GLSL";
 const char *dust_fragment = R"GLSL(
 in vec2 uv;
 in vec4 colour;
@@ -134,7 +176,41 @@ void NavigationEffects::clear()
 		UnloadShader(dust_shader_);
 	if (grid_shader_.id)
 		UnloadShader(grid_shader_);
-	dust_shader_ = grid_shader_ = {};
+	if (sky_shader_.id)
+		UnloadShader(sky_shader_);
+	dust_shader_ = grid_shader_ = sky_shader_ = {};
+}
+void NavigationEffects::background(const Catalog &catalog, const SceneEnvironment &environment, Camera3D camera)
+{
+	if (environment.skybox.empty())
+		return;
+	if (!sky_shader_.id)
+	{
+		const auto vs = prefix + sky_vertex, fs = prefix + sky_fragment;
+		sky_shader_ = LoadShaderFromMemory(vs.c_str(), fs.c_str());
+		if (!sky_shader_.id || sky_shader_.id == rlGetShaderIdDefault())
+			throw std::runtime_error("Skybox shader failed to compile");
+	}
+	auto texture = textures_.load(environment.skybox, catalog.assets.at(environment.skybox));
+	SetTextureFilter(texture, TEXTURE_FILTER_BILINEAR);
+	const int strip = texture.height == texture.width * 6;
+	SetTextureWrap(texture, strip ? TEXTURE_WRAP_CLAMP : TEXTURE_WRAP_REPEAT);
+	uniform(sky_shader_, "cubeStrip", &strip, SHADER_UNIFORM_INT);
+	SetShaderValueMatrix(sky_shader_, GetShaderLocation(sky_shader_, "inverseViewProjection"),
+	                     MatrixInvert(MatrixMultiply(GetCameraMatrix(camera), rlGetMatrixProjection())));
+	rlDrawRenderBatchActive();
+	rlDisableDepthMask();
+	rlDisableDepthTest();
+	rlDisableBackfaceCulling();
+	BeginShaderMode(sky_shader_);
+	rlSetTexture(texture.id);
+	quad({}, {1, 0, 0}, {0, 1, 0});
+	rlDrawRenderBatchActive();
+	rlSetTexture(0);
+	EndShaderMode();
+	rlEnableDepthTest();
+	rlEnableDepthMask();
+	rlEnableBackfaceCulling();
 }
 void NavigationEffects::draw(const Catalog &catalog, const SceneEnvironment &environment, Camera3D camera,
                              Vector3 rebase, Rectangle region)

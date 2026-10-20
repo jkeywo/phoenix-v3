@@ -122,7 +122,9 @@ class GameLobby final : public SessionPort
 		Json body{{"role", role_ == JoinRole::gm ? "gm" : "client"},
 		          {"join_role", static_cast<int>(role_)},
 		          {"nonce", nonce_},
-		          {"protocol", "pregame-2"}};
+		          {"protocol", "pregame-2"},
+		          {"base_id", options_.expected_base.id},
+		          {"base_hash", options_.expected_base.hash}};
 		if (!key_.empty())
 			body["resume"] = encode_packet({"lobby", self_, target_, "hello", body}, key_);
 		send(target_, "hello", body, true);
@@ -657,6 +659,13 @@ class GameLobby final : public SessionPort
 			auto hello = decode_packet(bytes, sender, self_, "lobby", "");
 			if (!hello || hello->type != "hello" || hello->body.value("protocol", std::string{}) != "pregame-2")
 				return;
+			const auto &root = source_->catalog().base;
+			if (!root.id.empty() && (hello->body.value("base_id", std::string{}) != root.id ||
+			                         hello->body.value("base_hash", std::string{}) != root.hash))
+			{
+				send(sender, "refused", {{"reason", "Launch the same base pack revision before joining"}}, true);
+				return;
+			}
 			const auto role = hello->body.at("join_role").get<int>();
 			const std::string nonce = hello->body.at("nonce");
 			if (role < 0 || role > 2 || !valid_hex_token(nonce) || sender == self_)
@@ -906,6 +915,10 @@ public:
 		if (active_)
 			throw std::runtime_error("Leave the lobby before changing packs");
 		controller_layouts_.clear();
+		auto check = services_.world();
+		check->replace_packs(archives);
+		if (!options_.expected_base.id.empty() && check->catalog().base != options_.expected_base)
+			throw std::runtime_error("Pack selection does not match the launch base");
 		source_->replace_packs(archives);
 		++generation_;
 	}
@@ -1003,6 +1016,8 @@ public:
 			if (!services_.setup(*candidate).gm_host)
 				required.push_back(services_.setup(*candidate).local_slot);
 		}
+		if (!options_.expected_base.id.empty() && candidate->catalog().base != options_.expected_base)
+			throw std::runtime_error("Relaunch with this save's base pack revision");
 		auto setup = services_.setup(*candidate);
 		backend_.reset();
 		controller_layouts_.clear();

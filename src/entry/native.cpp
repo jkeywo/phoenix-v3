@@ -57,6 +57,7 @@ int main(int argc, char **argv)
 	bool workshop_smoke = false, controller_workshop_smoke = false;
 	std::string workshop_pack;
 	std::string game_pack;
+	std::string base_file;
 	std::string mission, slot, ship, seat;
 	bool console = false;
 	std::string runtime_save;
@@ -66,9 +67,21 @@ int main(int argc, char **argv)
 	unsigned frame_limit = 0;
 	phoenix::FrameCapture performance;
 	bool resume_local = false;
+	phoenix::Bytes launch_bytes;
 	for (int i = 1; i < argc; ++i)
 	{
 		const std::string argument = argv[i];
+		if (argument == "--base")
+		{
+			if (i + 1 >= argc)
+			{
+				std::cerr << "--base requires a pack file\n";
+				return 1;
+			}
+			base_file = argv[++i];
+		}
+		if (argument == "--base-url" && i + 1 < argc)
+			app.base_reference = argv[++i];
 		if (argument == "--menu-smoke")
 			menu_smoke.enabled = true;
 		if (argument == "--lobby-regions-smoke")
@@ -80,6 +93,8 @@ int main(int argc, char **argv)
 			menu_smoke.enabled = true;
 			menu_smoke.assign_displays = true;
 		}
+		if (argument == "--capture-frames" && i + 1 < argc)
+			smoke_frames = std::clamp(std::stoi(argv[++i]), 1, 3600);
 		if (argument == "--vsync")
 			vsync = true;
 		if (argument == "--uncapped")
@@ -212,6 +227,12 @@ int main(int argc, char **argv)
 		network.link.self = network.server;
 	try
 	{
+		launch_bytes = phoenix::read_file(base_file.empty() ? std::string(GetApplicationDirectory()) + "assets/base.zip"
+		                                                    : base_file);
+		network.expected_base = phoenix::base_configuration(phoenix::read_pack(launch_bytes));
+		if (!base_file.empty() && app.base_reference == "base.zip")
+			app.base_reference = base_file.substr(
+			    base_file.find_last_of("/\\") == std::string::npos ? 0 : base_file.find_last_of("/\\") + 1);
 		if (!custom_data)
 			network.data_location = phoenix::native_data_directory();
 		app.session = remote ? phoenix::make_network_client(network) : phoenix::make_game_lobby(network, local_only);
@@ -233,6 +254,8 @@ int main(int argc, char **argv)
 	{
 		const auto target = phoenix::parse_join_code(code);
 		auto options = network;
+		if (app.library)
+			options.expected_base = app.library->base();
 		options.link.room = target.room;
 		options.server = target.server;
 		options.link.self.clear();
@@ -253,6 +276,8 @@ int main(int argc, char **argv)
 	app.new_host = [&app, network, local_only]()
 	{
 		auto options = network;
+		if (app.library)
+			options.expected_base = app.library->base();
 		options.link.room.clear();
 		options.link.self.clear();
 		options.server.clear();
@@ -278,12 +303,12 @@ int main(int argc, char **argv)
 	};
 	try
 	{
-		app.library = std::make_shared<phoenix::MenuLibrary>(network.data_location + "/menu");
+		const auto &root_bytes = launch_bytes;
+		const auto root = phoenix::base_configuration(phoenix::read_pack(root_bytes));
+		app.library =
+		    std::make_shared<phoenix::MenuLibrary>(network.data_location + "/menu", network.profile + "/" + root.id);
 		app.library->load();
-		if (!remote)
-			app.library->install_bundled(
-			    phoenix::read_file(std::string(GetApplicationDirectory()) + "assets/base.zip"),
-			    phoenix::read_file(std::string(GetApplicationDirectory()) + "assets/training.zip"));
+		app.library->launch_base(root_bytes);
 		const auto &prefs = app.library->preferences;
 		app.music_volume = prefs.volume;
 		app.sfx_volume = prefs.sfx_volume;
@@ -302,7 +327,8 @@ int main(int argc, char **argv)
 	}
 	catch (const std::exception &error)
 	{
-		app.status = error.what();
+		std::cerr << "Launch failed: " << error.what() << "\n";
+		return 1;
 	}
 	phoenix::open_window();
 	app.host_display = GetCurrentMonitor();
@@ -517,6 +543,27 @@ int main(int argc, char **argv)
 		return passed ? 0 : 1;
 	}
 	phoenix::begin_tools();
+	if (game_pack.empty() && !mission.empty())
+	{
+		try
+		{
+			if (seat.empty())
+			{
+				auto seats = phoenix::resolve_consoles(app.session->catalog(), ship);
+				if (!seats.empty())
+					seat = seats.front().id;
+			}
+			app.session->start({mission, {{slot, ship}}, slot, seat});
+			app.screen = console ? phoenix::Screen::console : phoenix::Screen::viewscreen;
+		}
+		catch (const std::exception &e)
+		{
+			std::cerr << e.what() << '\n';
+			phoenix::end_tools();
+			phoenix::close_window();
+			return 1;
+		}
+	}
 	if (!game_pack.empty())
 	{
 		try

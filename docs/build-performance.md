@@ -11,11 +11,11 @@ Build just the application or integration case needed for the current edit:
 ./scripts/build.ps1 -Target web -BuildTarget server,client,workshop
 ```
 
-CMake builds each selected target's dependencies. Omitting `-BuildTarget` still builds everything; `scripts/check.ps1` retains the complete automatic gate. A focused application build does not build or run the other integration cases. Native's starter archive can be built separately with `-BuildTarget base_pack` (with `training_pack` retained as an alias).
+CMake builds each selected target's dependencies. Omitting `-BuildTarget` still builds everything; `scripts/check.ps1` retains the complete automatic gate. A focused application build does not build or run the other integration cases. Native's starter archive can be built separately with `-BuildTarget base_pack` (with `test_pack` retained as an alias).
 
 `-Jobs` controls the build worker count, retaining eight as the default. For example, use `-Jobs 4` when memory pressure or other work makes eight unsuitable. The wrapper restores the caller's PATH after a web build, including failed builds.
 
-The base-game ZIP (`base.zip`, with the identical `training.zip` compatibility alias) is a tracked build output. It is regenerated and verified when a source file changes, when files are added or removed, when the pack utility changes, or when the archive is missing. A generated source-list dependency catches removals even when the remaining files are older than the ZIP. Unchanged builds leave the archive untouched.
+The base-game ZIP (`base.zip`, with the identical `test.zip` compatibility alias) is a tracked build output. It is regenerated and verified when a source file changes, when files are added or removed, when the pack utility changes, or when the archive is missing. A generated source-list dependency catches removals even when the remaining files are older than the ZIP. Unchanged builds leave the archive untouched.
 
 ## Local measurements — 18 October 2026
 

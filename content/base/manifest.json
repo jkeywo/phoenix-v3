@@ -1,5 +1,9 @@
 {
 	"schema": 1,
 	"id": "phoenix-base",
-	"name": "Phoenix Base Game"
+	"name": "Phoenix Base Game",
+	"base": {
+		"render_mode": "sprites",
+		"interface_style": "current"
+	}
 }

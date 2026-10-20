@@ -177,23 +177,14 @@ std::pair<std::string, Bytes> installed_base_pack(Application &app)
 {
 	if (!app.library)
 		throw std::runtime_error("The installed pack library is unavailable");
-	auto find_base = [&]
-	{
-		return std::find_if(app.library->packs.begin(), app.library->packs.end(),
-		                    [](const auto &entry)
-		                    {
-			                    return entry.id == "phoenix-base";
-		                    });
-	};
-	if (find_base() == app.library->packs.end())
-	{
-#ifdef __EMSCRIPTEN__
-		app.library->install_default(read_file("/assets/base.zip"));
-#else
-		app.library->install_default(read_file(std::string(GetApplicationDirectory()) + "assets/base.zip"));
-#endif
-	}
-	const auto entry = *find_base();
+	const auto entry_it = std::find_if(app.library->packs.begin(), app.library->packs.end(),
+	                                   [&](const auto &entry)
+	                                   {
+		                                   return entry.hash == app.library->base().hash;
+	                                   });
+	if (entry_it == app.library->packs.end())
+		throw std::runtime_error("The launch base is unavailable");
+	const auto entry = *entry_it;
 	return {entry.hash, app.library->read_pack_archive(entry.hash)};
 }
 void open_base_pack(Application &app)
@@ -205,12 +196,12 @@ void open_base_pack(Application &app)
 	editor.reset_save_locations();
 	editor.library_pack = hash;
 	editor.clear_textures();
-	editor.pack_name = "phoenix-base";
+	editor.pack_name = editor.document.manifest().at("id").get<std::string>();
 	editor.definition = 0;
 	editor.console = 0;
 	editor.selected = 0;
 	editor.pending_sidecar = nullptr;
-	editor.status = "Editing the base game. Save updates this pack; Save as creates a separate file.";
+	editor.status = "Editing the launch base. Export a separate file and relaunch to use changes.";
 }
 void save_map(bool save_as)
 {
@@ -286,7 +277,7 @@ void asset_picker(const char *label, Json &value, bool skybox = false)
 		try
 		{
 			const auto image = decode_asset_image(bytes);
-			valid = image.width == image.height * 2;
+			valid = image.width == image.height * 2 || image.height == image.width * 6;
 		}
 		catch (const std::exception &)
 		{
@@ -715,7 +706,8 @@ void lighting_preview()
 	                      ":" + std::to_string(editor.diagnostic) + ":" + std::to_string(editor.preview_speed) + ":" +
 	                      std::to_string(editor.preview_heading) + ":" + std::to_string(editor.preview_x) + ":" +
 	                      std::to_string(editor.preview_y);
-	if (identity != editor.preview_identity || editor.preview_whole_map)
+	if (identity != editor.preview_identity || editor.preview_whole_map ||
+	    (editor.preview_catalog && editor.preview_catalog->base.render_mode == "models"))
 		attempt(
 		    [&]
 		    {
@@ -835,6 +827,7 @@ void lighting_preview()
 				    bodies.insert(bodies.end(), editor.preview_fields.begin(), editor.preview_fields.end());
 			    }
 			    SceneEnvironment environment;
+			    environment.skybox = map.value("presentation", Json::object()).value("skybox", std::string{});
 			    environment.dust = editor.preview_dust;
 			    // The selected preview hull is the sole local reference, never every map entity.
 			    if (!bodies.empty())
@@ -931,41 +924,106 @@ void entity_properties(Json &entity)
 	}
 	auto &render = entity["render"];
 	grid_properties(render);
-	sprite_import(render);
-	bool eight = render["mode"] == "eight";
-	if (!render.contains("sprite"))
+	if (render.contains("model") || render.contains("star"))
 	{
-		radar_icon_picker(render);
-		if (ImGui::Checkbox(tool_label("Eight-direction billboard").c_str(), &eight))
+		bool procedural = render.contains("star");
+		if (ImGui::Checkbox(tool_label("Procedural star").c_str(), &procedural))
 		{
-			render["mode"] = eight ? "eight" : "camera";
-			std::string image = render["images"].empty() ? "" : render["images"][0].get<std::string>();
-			render["images"] = Json::array();
-			for (int i = 0; i < (eight ? 8 : 1); ++i)
-				render["images"].push_back(image);
+			if (procedural)
+			{
+				render.erase("model");
+				render["star"] = Json::object();
+			}
+			else
+			{
+				render.erase("star");
+				render["model"] = {{"asset", ""}};
+			}
 		}
-		double scale = render.value("scale", 1.0);
-		if (ImGui::InputDouble(tool_label("Render scale").c_str(), &scale))
-			render["scale"] = scale;
-		for (std::size_t i = 0; i < render["images"].size(); ++i)
+		radar_icon_picker(render);
+		real_field("Render scale", render, "scale", 1, .001f, 1000000);
+		auto vector_edit = [&](const char *label, Json &object, const char *key, std::array<float, 3> fallback)
 		{
-			ImGui::PushID(static_cast<int>(i));
-			asset_picker(eight ? "Bearing image" : "Camera-facing image", render["images"][i]);
+			auto value = object.value(key, fallback);
+			if (ImGui::InputFloat3(tool_label(label).c_str(), value.data()))
+				object[key] = value;
+		};
+		if (render.contains("model"))
+		{
+			string_field("Model asset", render["model"], "asset");
+			if (ImGui::Button(tool_label("Import GLB model...").c_str()))
+				request_file(editor.imports, FilePurpose::WorkshopModel);
+			vector_edit("Model offset", render["model"], "offset", {});
+			vector_edit("Model rotation (degrees)", render["model"], "rotation", {});
+			vector_edit("Model scale", render["model"], "scale", {1, 1, 1});
+		}
+		else
+		{
+			auto &star = render["star"];
+			for (const char *key : {"surface_colour", "hot_colour", "cell_colour", "halo_colour"})
+				vector_edit(key, star, key, {1, .7f, .2f});
+			real_field("Animation speed", star, "animation_speed", 1, .001f, 16);
+			real_field("Corona radius multiplier", star, "halo_radius_multiplier", 2.4f, .001f, 16);
+		}
+		if (!render.contains("attachments"))
+			render["attachments"] = Json::object();
+		std::string remove;
+		for (auto &[name, a] : render["attachments"].items())
+		{
+			ImGui::PushID(name.c_str());
+			ImGui::TextUnformatted(name.c_str());
+			vector_edit("Attachment position", a, "position", {});
+			vector_edit("Attachment direction", a, "direction", {0, 0, 1});
+			if (ImGui::Button(tool_label("Remove attachment").c_str()))
+				remove = name;
 			ImGui::PopID();
+		}
+		if (!remove.empty())
+			render["attachments"].erase(remove);
+		if (ImGui::Button(tool_label("Add engine attachment").c_str()))
+		{
+			const auto key = "engine_" + std::to_string(render["attachments"].size() + 1);
+			render["attachments"][key] = {{"position", {0, 0, 0}}, {"direction", {0, 0, 1}}};
 		}
 	}
 	else
 	{
-		real_field("Render scale", render, "scale", 1, .001f, 1000000);
-		string_field("Sprite entry", render, "sprite_entry");
-		material_properties(render["sprite"]);
-		if (render.contains("engines") && ImGui::TreeNode(tool_label("Engine effect").c_str()))
+		sprite_import(render);
+		bool eight = render["mode"] == "eight";
+		if (!render.contains("sprite"))
 		{
-			real_field("Plume scale", render["engines"], "scale", .4, .001f, 10);
-			real_field("Engine light intensity", render["engines"], "power", 2, .001f, 16);
-			real_field("Engine light range (m)", render["engines"], "range", 32, .001f, 1000000);
-			material_properties(render["engines"]["sprite"], false);
-			ImGui::TreePop();
+			radar_icon_picker(render);
+			if (ImGui::Checkbox(tool_label("Eight-direction billboard").c_str(), &eight))
+			{
+				render["mode"] = eight ? "eight" : "camera";
+				std::string image = render["images"].empty() ? "" : render["images"][0].get<std::string>();
+				render["images"] = Json::array();
+				for (int i = 0; i < (eight ? 8 : 1); ++i)
+					render["images"].push_back(image);
+			}
+			double scale = render.value("scale", 1.0);
+			if (ImGui::InputDouble(tool_label("Render scale").c_str(), &scale))
+				render["scale"] = scale;
+			for (std::size_t i = 0; i < render["images"].size(); ++i)
+			{
+				ImGui::PushID(static_cast<int>(i));
+				asset_picker(eight ? "Bearing image" : "Camera-facing image", render["images"][i]);
+				ImGui::PopID();
+			}
+		}
+		else
+		{
+			real_field("Render scale", render, "scale", 1, .001f, 1000000);
+			string_field("Sprite entry", render, "sprite_entry");
+			material_properties(render["sprite"]);
+			if (render.contains("engines") && ImGui::TreeNode(tool_label("Engine effect").c_str()))
+			{
+				real_field("Plume scale", render["engines"], "scale", .4, .001f, 10);
+				real_field("Engine light intensity", render["engines"], "power", 2, .001f, 16);
+				real_field("Engine light range (m)", render["engines"], "range", 32, .001f, 1000000);
+				material_properties(render["engines"]["sprite"], false);
+				ImGui::TreePop();
+			}
 		}
 	}
 	if (ImGui::CollapsingHeader(tool_label("Collision").c_str(), ImGuiTreeNodeFlags_DefaultOpen))
@@ -1634,6 +1692,14 @@ void render_editor(Application &app)
 					    editor.map_locations[editor.document.map().at("id").get<std::string>()] = {
 					        imported->filename, imported->destination};
 					    editor.selected = 0;
+				    }
+				    if (imported->purpose == FilePurpose::WorkshopModel)
+				    {
+					    const auto ref = editor.document.import_model(imported->filename, std::move(imported->bytes));
+					    auto &entities = editor.document.definitions()["entities"];
+					    if (editor.definition >= 0 && editor.definition < static_cast<int>(entities.size()))
+						    entities[editor.definition]["render"]["model"]["asset"] = ref;
+					    editor.clear_textures();
 				    }
 				    if (imported->purpose == FilePurpose::WorkshopImage)
 				    {

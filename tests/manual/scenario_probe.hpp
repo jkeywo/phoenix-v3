@@ -11,7 +11,7 @@ int scenario_probe(const char *archive, const char *mission, int ticks, const ch
 		ships.emplace(slot.at("id").get<std::string>(), slot.at("allowed_ships")[0].get<std::string>());
 	World world;
 	world.load(catalog, mission, ships);
-	if (std::string(mission) == "base.courier-patrol")
+	if (std::string(mission) == "test.courier-patrol")
 	{
 		World controls;
 		controls.restore(catalog, world.save());

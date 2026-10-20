@@ -2,7 +2,7 @@
 
 This is the current status of the approved architecture MVP, not completion of the full GDD. Older delivery notes in the implementation record describe their state at delivery.
 
-The subsequent [comic rendering increment](comic-rendering.md) adds calibrated per-pixel sprite depth, visual occlusion, depth-backed sun shadows, hatching, propulsion lighting and shared Workshop previews. It upgrades the training art and adds `training.lighting`; explosion events remain internal and untriggered.
+The subsequent [comic rendering increment](comic-rendering.md) adds calibrated per-pixel sprite depth, visual occlusion, depth-backed sun shadows, hatching, propulsion lighting and shared Workshop previews. It upgrades the training art and adds `test.lighting`; explosion events remain internal and untriggered.
 
 The [Console Controller delivery record](controller-refactor-plan.md) tracks the subsequent control refactor. Human and AI operators share admitted command sections and permitted observations; complexity profiles select operators, physical Systems consume bindings and report facts, and public messages use the entity board. Save schema 6 and wire schema 5 refuse the old authority format.
 

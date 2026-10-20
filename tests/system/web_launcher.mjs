@@ -318,3 +318,26 @@ test("title entrance finishes in three seconds on different viewports", () => {
 		assert.equal(motion.logoDuration, 3);
 	}
 });
+
+test("launch base stays enabled while child branches follow their parents", () => {
+	const selection = [
+		{ id: "root", hash: "r", enabled: true, locked: true },
+		{ id: "a", hash: "a", enabled: false },
+		{ id: "b", hash: "b", enabled: false },
+		{ id: "c", hash: "c", enabled: false },
+	];
+	const meta = new Map([
+		["r", {}],
+		["a", { parent: "root" }],
+		["b", { parent: "a" }],
+		["c", { parent: "root" }],
+	]);
+	assert.throws(() => togglePack(selection, "r", meta), /launch base/);
+	let selected = togglePack(selection, "b", meta);
+	selected = togglePack(selected, "c", meta);
+	assert.ok(selected.every((p) => p.enabled));
+	selected = togglePack(selected, "a", meta);
+	assert.equal(selected.find((p) => p.id === "root").enabled, true);
+	assert.equal(selected.find((p) => p.id === "b").enabled, false);
+	assert.equal(selected.find((p) => p.id === "c").enabled, true);
+});

@@ -1,6 +1,0 @@
-{
-	"schema": 1,
-	"id": "phoenix-training",
-	"name": "Phoenix Training",
-	"dependencies": ["phoenix-base"]
-}

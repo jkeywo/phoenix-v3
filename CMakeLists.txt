@@ -250,6 +250,7 @@ add_library(
 	src/content/pack.cpp
 	src/content/catalog.cpp
 	src/content/sprite.cpp
+	src/content/model.cpp
 	src/content/stations.cpp
 	src/content/bridge.cpp
 	src/content/controllers.cpp
@@ -330,6 +331,8 @@ add_library(
 	src/presentation/menu.cpp
 	src/presentation/music.cpp
 	src/presentation/scene.cpp
+	src/presentation/sprite_scene.cpp
+	src/presentation/model_scene.cpp
 	src/presentation/radar_sweep.cpp
 	src/presentation/environment.cpp
 	src/presentation/icons.cpp
@@ -455,45 +458,26 @@ else()
 			"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets/base.zip"
 		DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/base.zip" "${CMAKE_CURRENT_BINARY_DIR}/assets/base.zip"
 	)
-	file(
-		GLOB_RECURSE phoenix_training_sources
-		LIST_DIRECTORIES FALSE
-		CONFIGURE_DEPENDS
-		"${CMAKE_CURRENT_SOURCE_DIR}/content/training/*"
-	)
-	file(
-		CONFIGURE
-		OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/training-pack-inputs.txt"
-		CONTENT "${phoenix_training_sources}"
-		@ONLY
-	)
-	add_custom_command(
-		OUTPUT
-			"${CMAKE_CURRENT_BINARY_DIR}/training.zip"
-			"${CMAKE_CURRENT_BINARY_DIR}/training.zip.menu.json"
-			"${CMAKE_CURRENT_BINARY_DIR}/assets/training.zip"
-		COMMAND
-			phoenix_pack "${CMAKE_CURRENT_SOURCE_DIR}/content/training" "${CMAKE_CURRENT_BINARY_DIR}/training.zip"
-			"${CMAKE_CURRENT_BINARY_DIR}/base.zip"
-		COMMAND
-			${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/training.zip"
-			"${CMAKE_CURRENT_BINARY_DIR}/assets/training.zip"
-		DEPENDS
-			phoenix_pack
-			${phoenix_training_sources}
-			"${CMAKE_CURRENT_BINARY_DIR}/base.zip"
-			"${CMAKE_CURRENT_BINARY_DIR}/training-pack-inputs.txt"
-		VERBATIM
-	)
-	add_custom_target(
-		training_pack
-		ALL
-		COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets"
-		COMMAND
-			${CMAKE_COMMAND} -E copy_if_different "${CMAKE_CURRENT_BINARY_DIR}/training.zip"
-			"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/assets/training.zip"
-		DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/training.zip" "${CMAKE_CURRENT_BINARY_DIR}/assets/training.zip"
-	)
+	foreach(test_base IN ITEMS test test-3d)
+		file(
+			GLOB_RECURSE test_sources
+			LIST_DIRECTORIES FALSE
+			CONFIGURE_DEPENDS
+			"${CMAKE_CURRENT_SOURCE_DIR}/content/${test_base}/*"
+		)
+		file(CONFIGURE OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${test_base}-inputs.txt" CONTENT "${test_sources}" @ONLY)
+		add_custom_command(
+			OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/${test_base}.zip" "${CMAKE_CURRENT_BINARY_DIR}/${test_base}.zip.menu.json"
+			COMMAND
+				phoenix_pack "${CMAKE_CURRENT_SOURCE_DIR}/content/${test_base}" "${CMAKE_CURRENT_BINARY_DIR}/${test_base}.zip"
+			DEPENDS phoenix_pack ${test_sources} "${CMAKE_CURRENT_BINARY_DIR}/${test_base}-inputs.txt"
+			VERBATIM
+		)
+		string(REPLACE "-" "_" test_target "${test_base}")
+		add_custom_target(${test_target}_pack DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/${test_base}.zip")
+	endforeach()
+	add_custom_target(development_packs DEPENDS test_pack test_3d_pack)
+
 	if(WIN32)
 		target_sources(phoenix_presentation PRIVATE src/presentation/windows_semantics.cpp)
 		target_link_libraries(
@@ -511,6 +495,13 @@ target_link_libraries(
 	PRIVATE phoenix_qr phoenix_devices phoenix_shaping
 )
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/assets")
+# Retire archives left by older builds before any asset directory is preloaded.
+file(
+	REMOVE
+	"${CMAKE_CURRENT_BINARY_DIR}/assets/training.zip"
+	"${CMAKE_CURRENT_BINARY_DIR}/assets/test.zip"
+	"${CMAKE_CURRENT_BINARY_DIR}/assets/test-3d.zip"
+)
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/assets/pfx")
 foreach(mote space_mote_streak_head.png space_mote_streak_soft.png space_mote_compact_core.png)
 	configure_file("content/pfx/${mote}" "${CMAKE_CURRENT_BINARY_DIR}/assets/pfx/${mote}" COPYONLY)
@@ -723,18 +714,9 @@ if(EMSCRIPTEN)
 	target_link_libraries(workshop PRIVATE phoenix_tools phoenix_lobby_protocol)
 	# Workshop can open the shipped base directly, including without launcher state.
 	configure_file("${CMAKE_CURRENT_SOURCE_DIR}/build/native/base.zip" "${CMAKE_CURRENT_BINARY_DIR}/base.zip" COPYONLY)
-	configure_file(
-		"${CMAKE_CURRENT_SOURCE_DIR}/build/native/training.zip"
-		"${CMAKE_CURRENT_BINARY_DIR}/training.zip"
-		COPYONLY
-	)
+
 	target_link_options(workshop PRIVATE "SHELL:--preload-file \"${CMAKE_CURRENT_BINARY_DIR}/base.zip@/assets/base.zip\"")
-	target_link_options(
-		workshop
-		PRIVATE "SHELL:--preload-file \"${CMAKE_CURRENT_BINARY_DIR}/training.zip@/assets/training.zip\""
-	)
 	set_property(TARGET workshop APPEND PROPERTY LINK_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/base.zip")
-	set_property(TARGET workshop APPEND PROPERTY LINK_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/training.zip")
 	target_compile_definitions(workshop PRIVATE PHOENIX_WORKSHOP=1)
 	configure_file(web/index.html "${CMAKE_CURRENT_BINARY_DIR}/index.html" COPYONLY)
 	configure_file(web/menu.css "${CMAKE_CURRENT_BINARY_DIR}/menu.css" COPYONLY)
@@ -744,7 +726,7 @@ if(EMSCRIPTEN)
 	configure_file(web/session-clock.js "${CMAKE_CURRENT_BINARY_DIR}/session-clock.js" COPYONLY)
 else()
 	add_executable(native src/entry/native.cpp)
-	add_dependencies(native base_pack training_pack)
+	add_dependencies(native base_pack)
 	target_link_libraries(
 		native
 		PRIVATE phoenix_network_lobby phoenix_network_host phoenix_network_client phoenix_tools phoenix_workshop_test_host
@@ -752,6 +734,9 @@ else()
 	add_custom_command(
 		TARGET native
 		POST_BUILD
+		COMMAND
+			${CMAKE_COMMAND} -E rm -f "$<TARGET_FILE_DIR:native>/assets/training.zip" "$<TARGET_FILE_DIR:native>/assets/test.zip"
+			"$<TARGET_FILE_DIR:native>/assets/test-3d.zip"
 		COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/assets" "$<TARGET_FILE_DIR:native>/assets"
 		COMMAND
 			${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/server-audio"
@@ -871,6 +856,13 @@ phoenix_fixture(phoenix_camera_tests)
 add_executable(phoenix_camera_smoke EXCLUDE_FROM_ALL tests/manual/camera_ui.cpp)
 target_link_libraries(phoenix_camera_smoke PRIVATE phoenix_session phoenix_presentation)
 if(EMSCRIPTEN)
+	if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/build/native/test.zip")
+		configure_file("${CMAKE_CURRENT_SOURCE_DIR}/build/native/test.zip" "${CMAKE_CURRENT_BINARY_DIR}/test.zip" COPYONLY)
+	endif()
+	target_link_options(
+		phoenix_camera_smoke
+		PRIVATE "SHELL:--preload-file \"${CMAKE_CURRENT_BINARY_DIR}/test.zip@/assets/test.zip\""
+	)
 	set_target_properties(phoenix_camera_smoke PROPERTIES SUFFIX ".html")
 	target_link_options(
 		phoenix_camera_smoke
@@ -883,7 +875,6 @@ if(EMSCRIPTEN)
 			"--preload-file"
 			"${CMAKE_CURRENT_BINARY_DIR}/assets@/assets"
 			"SHELL:--preload-file \"${CMAKE_CURRENT_BINARY_DIR}/base.zip@/assets/base.zip\""
-			"SHELL:--preload-file \"${CMAKE_CURRENT_BINARY_DIR}/training.zip@/assets/training.zip\""
 			"--shell-file"
 			"${CMAKE_CURRENT_SOURCE_DIR}/tests/manual/camera_ui.html"
 	)
@@ -893,7 +884,7 @@ if(EMSCRIPTEN)
 		PROPERTY
 			LINK_DEPENDS
 				"${CMAKE_CURRENT_BINARY_DIR}/base.zip"
-				"${CMAKE_CURRENT_BINARY_DIR}/training.zip"
+				"${CMAKE_CURRENT_BINARY_DIR}/test.zip"
 				"${CMAKE_CURRENT_SOURCE_DIR}/tests/manual/camera_ui.html"
 	)
 else()
@@ -942,11 +933,7 @@ if(EMSCRIPTEN)
 	set_target_properties(phoenix_messages_smoke PROPERTIES SUFFIX ".html")
 	target_link_options(
 		phoenix_messages_smoke
-		PRIVATE
-			"-sALLOW_MEMORY_GROWTH=1"
-			"-sSTACK_SIZE=1048576"
-			"--preload-file"
-			"${CMAKE_CURRENT_BINARY_DIR}/assets@/assets"
+		PRIVATE "-sALLOW_MEMORY_GROWTH=1" "-sSTACK_SIZE=1048576" "--preload-file" "${CMAKE_CURRENT_BINARY_DIR}/assets@/assets"
 	)
 else()
 	add_custom_command(

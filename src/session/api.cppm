@@ -96,6 +96,7 @@ struct LobbyAdmission
 struct NetworkOptions
 {
 	LinkOptions link;
+	BaseConfiguration expected_base;
 	std::string server, data_location = "userdata", profile = "default";
 	bool inspector = false;
 	std::string admission;

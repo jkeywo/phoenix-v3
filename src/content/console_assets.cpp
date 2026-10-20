@@ -20,14 +20,20 @@ Pack console_assets(const Catalog &catalog, const std::string &ship, const std::
 	PackDraft draft;
 	const std::string pack_id = "console-assets";
 	draft.manifest = {{"schema", 1}, {"id", pack_id}, {"format", "phoenix-console-assets"}};
+	if (!catalog.base.id.empty())
+		draft.manifest["presentation_base"] = {{"id", catalog.base.id},
+		                                       {"hash", catalog.base.hash},
+		                                       {"render_mode", catalog.base.render_mode},
+		                                       {"interface_style", catalog.base.interface_style}};
 	if (console_ids == std::vector<std::string>{"__selection__"})
 	{
 		draft.manifest["format"] = "phoenix-console-selection";
 		draft.files["definitions.json"] = json_bytes(Json{{"schema", 3}});
 		return read_pack(write_pack(draft, PackEncoding::Dat));
 	}
+	const bool contact_only = source.at("render").contains("model") || source.at("render").contains("star");
 	Json entity{{"id", ship}, {"systems", Json::object()}};
-	entity["render"] = {{"mode", source.at("render").at("mode")},
+	entity["render"] = {{"mode", source.at("render").value("mode", std::string("camera"))},
 	                    {"scale", source.at("render").at("scale")},
 	                    {"images", Json::array()}};
 	if (!source.at("render").contains("sprite") && source.at("render").contains("radar_icon"))
@@ -54,7 +60,13 @@ Pack console_assets(const Catalog &catalog, const std::string &ship, const std::
 	const auto own_icon = render_radar_sprite(source.at("render"), catalog);
 	if (!own_icon.empty() && !source.at("render").contains("sprite"))
 		entity["render"]["radar_sprite"] = own_icon;
-	if (source.at("render").contains("sprite"))
+	if (contact_only)
+	{
+		entity["render"].erase("mode");
+		entity["render"].erase("images");
+		entity["render"]["contact_only"] = true;
+	}
+	else if (source.at("render").contains("sprite"))
 	{
 		auto copy_material = [&](const Json &original)
 		{
@@ -191,8 +203,17 @@ Pack console_assets(const Catalog &catalog, const std::string &ship, const std::
 		if (!own_icon.empty())
 			entity["render"]["radar_sprite"] = own_icon;
 		entity["render"]["radar_icon"] = std::string(radar_icon_name(render_radar_icon(source.at("render"))));
-		draft.files["assets/contact.png"] = source_asset_image(pixel);
-		entity["render"]["images"].push_back(pack_id + ":assets/contact.png");
+		if (contact_only)
+		{
+			entity["render"].erase("mode");
+			entity["render"].erase("images");
+			entity["render"]["contact_only"] = true;
+		}
+		else
+		{
+			draft.files["assets/contact.png"] = source_asset_image(pixel);
+			entity["render"]["images"].push_back(pack_id + ":assets/contact.png");
+		}
 		std::erase_if(draft.files,
 		              [](const auto &entry)
 		              {

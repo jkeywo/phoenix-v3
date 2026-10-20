@@ -40,7 +40,7 @@ void open_file(ImportId id, FilePurpose purpose)
 	dialog.nMaxFile = 32768;
 	dialog.lpstrFilter = purpose == FilePurpose::PlayerAvatar
 	                         ? L"Avatar image\0*.png;*.jpg;*.jpeg\0"
-	                         : L"Phoenix content\0*.zip;*.dat;*.json;*.png\0All files\0*.*\0";
+	                         : L"Phoenix content\0*.zip;*.dat;*.json;*.png;*.glb\0All files\0*.*\0";
 	dialog.Flags = OFN_FILEMUSTEXIST | OFN_NOCHANGEDIR;
 	if (!GetOpenFileNameW(&dialog))
 	{

@@ -165,7 +165,7 @@ struct NativeMenuSmoke
 					id = "menu.pack-toggle/" + app.library->packs.front().hash;
 				if (pack_edits == 2)
 					for (const auto &pack : app.library->packs)
-						if (pack.id == "phoenix-training")
+						if (pack.id == "test")
 							id = "menu.pack-toggle/" + pack.hash;
 				action(app, id);
 				++pack_edits;
@@ -199,7 +199,7 @@ struct NativeMenuSmoke
 			{
 				auto selected = app.session->catalog().maps.begin()->first;
 				for (const auto &[id, map] : app.session->catalog().maps)
-					if (id.starts_with("training."))
+					if (id.starts_with("test."))
 					{
 						selected = id;
 						break;

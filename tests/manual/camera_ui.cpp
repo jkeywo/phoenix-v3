@@ -43,8 +43,7 @@ int main(int argc, char **argv)
 			throw std::runtime_error("Usage: phoenix_camera_smoke pack-directory [portrait] [courier]");
 		app.can_host = app.can_edit = app.native_menu = true;
 		app.session = make_local_session();
-		app.session->add_pack(read_file(std::string(argv[1]) + "/base.zip"));
-		app.session->add_pack(read_file(std::string(argv[1]) + "/training.zip"));
+		app.session->add_pack(read_file(std::string(argv[1]) + "/test.zip"));
 		bool portrait = false, courier = false;
 		for (int i = 2; i < argc; ++i)
 		{
@@ -53,10 +52,9 @@ int main(int argc, char **argv)
 		}
 		if (courier)
 			app.session->start(
-			    {"base.free-flight", {{"base.player", "base.courier-engineering"}}, "base.player", "helm"});
+			    {"test.free-flight", {{"test.player", "test.courier-engineering"}}, "test.player", "helm"});
 		else
-			app.session->start(
-			    {"training.navigation", {{"training.player", "training.survey"}}, "training.player", "main"});
+			app.session->start({"test.navigation", {{"test.player", "test.courier"}}, "test.player", "main"});
 		app.screen = Screen::console;
 		open_window();
 		opened = true;

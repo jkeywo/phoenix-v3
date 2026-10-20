@@ -22,13 +22,15 @@ The native [main menu and pre-game lobby](docs/native-menu.md) provide cascading
 
 [Courier Race and Navigation](docs/courier-race.md) adds two playable Couriers, shipwide race objectives, a shared waypoint and a navigation map with pan, zoom and reset. Human-seeking consoles follow available crew, and each ship receives its own race result.
 
-The [comic renderer](docs/comic-rendering.md) uses calibrated sprite depth for lighting and per-pixel occlusion, with depth-backed sun shadows, crosshatching and directional engine light. The Phoenix Base Game pack includes the Courier, powered engineering fit, six-Console Cruiser and Free Flight. Enable the separate Phoenix Training mod in Mod Packs for powered objective scenarios and navigation/lighting exercises; see the [reusable content guide](docs/gameplay-content.md). Workshop provides a live material/lighting preview. Browser graphics require WebGL 2.
+The [comic renderer](docs/comic-rendering.md) uses calibrated sprite depth for lighting and per-pixel occlusion, with depth-backed sun shadows, crosshatching and directional engine light. The Phoenix Base Game pack includes the Courier, powered engineering fit, six-Console Cruiser and Free Flight. Use the development-only test base for powered objective scenarios and navigation/lighting exercises; see the [reusable content guide](docs/gameplay-content.md). Workshop provides a live material/lighting preview. Browser graphics require WebGL 2.
 
 The [source guide](docs/source-guide.md) explains the inputs; the [prior setting agreement](docs/settled-dark-direction.md) preserves the earlier pivot decisions. The consolidated GDD incorporates those decisions and the subsequent V3 consolidation choices. Historical snapshots remain unchanged.
 
+See [launch bases and development test content](docs/base-mods.md) for fixed base selection, child mods, isolated preferences and the model test level.
+
 ## Hosted browser build
 
-[Open Phoenix V3](https://jkeywo.github.io/phoenix-v3/). The [HTML main menu](docs/browser-menu.md) matches native and loads the appropriate WASM build at lobby or Workshop entry. Host Game offers verified training scenarios; Join Game separates new ships, players and GMs. QR invitations go directly to the chosen runtime. Native and browser multiplayer default to the hosted Northflank signalling service. Advanced Connection Settings allow a custom service.
+[Open Phoenix V3](https://jkeywo.github.io/phoenix-v3/). The [HTML main menu](docs/browser-menu.md) matches native and loads the appropriate WASM build at lobby or Workshop entry. Host Game offers scenarios from the selected production base; Join Game separates new ships, players and GMs. QR invitations go directly to the chosen runtime. Native and browser multiplayer default to the hosted Northflank signalling service. Advanced Connection Settings allow a custom service.
 
 Every push to `main` builds, verifies and deploys the browser apps through [GitHub Actions](https://github.com/jkeywo/phoenix-v3/actions/workflows/build.yml). See [hosting details](docs/building.md#github-pages).
 

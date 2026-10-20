@@ -99,7 +99,10 @@ class NetworkClient final : public SessionPort
 	{
 		if (!transport_)
 			return;
-		Json body{{"role", role()}, {"nonce", nonce_}};
+		Json body{{"role", role()},
+		          {"nonce", nonce_},
+		          {"base_id", options_.expected_base.id},
+		          {"base_hash", options_.expected_base.hash}};
 		if (!options_.admission.empty())
 			body["admission"] =
 			    encode_packet({"lobby", options_.link.self, options_.server, "hello", body}, options_.admission);

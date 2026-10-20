@@ -267,6 +267,13 @@ class NetworkHost final : public SessionPort
 			     {{"reason", "This identity needs its stored credential; use a new profile if starting again"}}, true);
 			return;
 		}
+		const auto &root = world_->catalog().base;
+		if (!root.id.empty() && (packet->body.value("base_id", std::string{}) != root.id ||
+		                         packet->body.value("base_hash", std::string{}) != root.hash))
+		{
+			send(sender, "refused", {{"reason", "Launch the same base pack revision before joining"}}, true);
+			return;
+		}
 		const std::string role = packet->body.at("role"), nonce = packet->body.at("nonce");
 		if ((role != "client" && role != "gm") || !valid_hex_token(nonce))
 			return;

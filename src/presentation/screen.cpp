@@ -1024,7 +1024,8 @@ void draw_screen(Application &app)
 	{
 		if (app.screen == Screen::viewscreen)
 		{
-			document->GetElementById("native-menu")->SetProperty("display", "none");
+			if (auto *menu = document->GetElementById("native-menu"))
+				menu->SetProperty("display", "none");
 			prepare_runtime_chrome(app);
 		}
 		app.screen_controls.clear();

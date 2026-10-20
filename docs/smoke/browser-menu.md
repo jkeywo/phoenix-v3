@@ -1,6 +1,6 @@
 # HTML menu and WASM entry validation
 
-18 October 2026, Windows, embedded Chromium browser at 1280 x 720, WebGL 2. Local static server on loopback port 8094, private production signalling service on 8095, verified training pack and `training.lighting` / `training.player` / `training.survey`. This is manually triggered functional evidence, separate from automatic checks and physical reader/controller/phone acceptance.
+18 October 2026, Windows, embedded Chromium browser at 1280 x 720, WebGL 2. Local static server on loopback port 8094, private production signalling service on 8095, verified training pack and `test.lighting` / `test.player` / `base.courier`. This is manually triggered functional evidence, separate from automatic checks and physical reader/controller/phone acceptance.
 
 ## Automatic checks
 

@@ -68,7 +68,7 @@ try
 		}
 		if ($Target -eq 'web')
 		{
-			foreach ($file in @('base.zip', 'base.zip.menu.json', 'training.zip', 'training.zip.menu.json'))
+			foreach ($file in @('base.zip', 'base.zip.menu.json'))
 			{
 				if (Test-Path "build/native/$file")
 				{

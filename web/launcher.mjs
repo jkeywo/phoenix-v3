@@ -151,6 +151,9 @@ export function launchArguments(options, page) {
 		slot: o.slot,
 		service: o.service,
 		profile: o.profile,
+		base: o.base || "/launcher/base.zip",
+		"menu-scope": o.menu_scope || "",
+		"base-url": o.base_url || "base.zip",
 		page,
 		"text-probe": o.textprobe ? "1" : "0",
 		language: o.language,
@@ -313,7 +316,9 @@ export function togglePack(selection, hash, metadata) {
 	const candidate = selection.map((p) => ({ ...p }));
 	const chosen = candidate.find((p) => p.hash === hash);
 	if (!chosen) throw Error("Select an installed pack.");
-	const dependencies = (p) => metadata.get(p.hash)?.dependencies || [];
+	const dependencies = (p) =>
+		metadata.get(p.hash)?.parent ? [metadata.get(p.hash).parent] : metadata.get(p.hash)?.dependencies || [];
+	if (chosen.locked) throw Error("The launch base cannot be disabled.");
 	const visiting = new Set(),
 		done = new Set();
 	function enable(pack) {
@@ -371,7 +376,9 @@ export function menuPreview(source) {
 		schema: 1,
 		id: source.id === undefined ? "" : text(source.id),
 		name: source.name === undefined ? "" : text(source.name),
-		dependencies: list(source.dependencies || [], 32).map(text),
+		dependencies: list(source.parent ? [source.parent] : source.dependencies || [], 32).map(text),
+		parent: source.parent,
+		base: source.base,
 		scenarios: list(source.scenarios, 1024).map((scene) => ({
 			id: text(scene.id),
 			name: text(scene.name || scene.id),
@@ -454,6 +461,10 @@ async function boot() {
 	const status = (message) => {
 		$("status").textContent = message;
 	};
+	let scopeKey = "",
+		launchBase,
+		launchBaseBytes;
+	const baseUrl = new URL(new URLSearchParams(location.search).get("base") || "base.zip", location.href).href;
 	let library = defaults(),
 		nebulaFlashes,
 		menuAmbient,
@@ -583,8 +594,33 @@ async function boot() {
 			if (value === null) files.delete(key);
 			else files.set(key, value);
 	}
+	const globalDefaults = {
+		volume: 50,
+		sfx_volume: 50,
+		siren_volume: 50,
+		master_volume: 50,
+		language: "en",
+		pseudo: false,
+		reduced_motion: false,
+		dust_motes: true,
+		reference_grid: true,
+	};
+	const globals = (data) =>
+		Object.fromEntries(Object.entries(globalDefaults).map(([key, value]) => [key, data[key] ?? value]));
 	async function remember(changes = []) {
-		const candidate = JSON.stringify(library);
+		if (scopeKey) {
+			library.global_profiles ||= {};
+			library.global_profiles[scopeKey.split("/")[0]] = globals(library);
+			library.base_profiles ||= {};
+			library.base_profiles[scopeKey] = Object.fromEntries(
+				["player_name", "avatar", "packs", "saves"].map((k) => [k, library[k]]),
+			);
+		}
+		const disk = { ...library };
+		if (scopeKey && library.base_profiles?.["default/phoenix-base"])
+			Object.assign(disk, library.base_profiles["default/phoenix-base"]);
+		if (scopeKey && library.global_profiles?.default) Object.assign(disk, library.global_profiles.default);
+		const candidate = JSON.stringify(disk);
 		try {
 			await write([...changes, ["library.json", encoder.encode(candidate)]]);
 			savedLibrary = candidate;
@@ -635,6 +671,8 @@ async function boot() {
 			id: manifest.id,
 			name: manifest.name,
 			dependencies: manifest.dependencies,
+			parent: manifest.parent,
+			base: manifest.base,
 			scenarios: (definitions.maps || [])
 				.filter((map) => Array.isArray(map.ship_slots))
 				.map((map) => ({
@@ -1052,11 +1090,22 @@ async function boot() {
 		for (const [index, pack] of library.packs.entries()) {
 			const row = element("div", undefined, popup);
 			row.className = "pack-row";
+			const seen = new Set();
+			let ancestor = previews.get(pack.hash)?.parent,
+				depth = 0;
+			while (ancestor && !seen.has(ancestor)) {
+				seen.add(ancestor);
+				depth++;
+				const entry = library.packs.find((p) => p.id === ancestor);
+				ancestor = entry && previews.get(entry.hash)?.parent;
+			}
+			row.style.marginLeft = `${depth * 16}px`;
 			const name = previews.get(pack.hash)?.name || pack.id;
 			const label = element("label", undefined, row);
 			const toggle = element("input", undefined, label);
 			toggle.type = "checkbox";
 			toggle.checked = pack.enabled;
+			toggle.disabled = !!pack.locked;
 			element("span", name, label);
 			toggle.onchange = run(async () => {
 				library.packs = togglePack(library.packs, pack.hash, previews);
@@ -1077,17 +1126,16 @@ async function boot() {
 					packs();
 				});
 				move.setAttribute("aria-label", t(title) + ": " + name);
-				move.disabled = index + shift < 0 || index + shift >= library.packs.length;
+				move.disabled = !!pack.locked || index + shift <= 0 || index + shift >= library.packs.length;
 			}
 			const remove = button(row, "🗑", async () => {
+				if (pack.locked) throw Error("The launch base cannot be removed.");
 				library.packs.splice(index, 1);
-				await remember([
-					[`packs/${pack.hash}.zip`, null],
-					[`preview/${pack.hash}.json`, null],
-				]);
+				await remember();
 				render();
 				packs();
 			});
+			remove.disabled = !!pack.locked;
 			remove.setAttribute("aria-label", t("Remove from Library") + ": " + name);
 		}
 
@@ -1105,6 +1153,18 @@ async function boot() {
 			if (kind === "pack") {
 				const meta = await preview(bytes),
 					hash = hex(await crypto.subtle.digest("SHA-256", bytes));
+				if (!meta.parent || meta.base || meta.id === launchBase.id)
+					throw Error("Import a child mod of the launched base.");
+				const seen = new Set([meta.id]);
+				let parent = meta.parent;
+				while (parent !== launchBase.id) {
+					if (seen.has(parent)) throw Error("Pack parent cycle.");
+					seen.add(parent);
+					const entry = library.packs.find((p) => p.id === parent);
+					if (!entry) throw Error("Install the parent mod first: " + parent);
+					parent = previews.get(entry.hash)?.parent;
+					if (!parent) throw Error("The mod belongs to another base.");
+				}
 				if (!library.packs.some((p) => p.hash === hash)) {
 					library.packs.push({ hash, id: meta.id, enabled: false });
 					previews.set(hash, meta);
@@ -1141,14 +1201,16 @@ async function boot() {
 		try {
 			const raw = fs.readFile("/launcher/menu/library.json", { encoding: "utf8" });
 			if (raw === lastIndex) return persist;
-			const index = mergeRuntimeLibrary(JSON.parse(raw), library),
-				changes = [["library.json", encoder.encode(JSON.stringify(index))]];
+			const diskIndex = JSON.parse(raw);
+			const scoped = diskIndex.base_profiles?.[scopeKey];
+			const global = diskIndex.global_profiles?.[scopeKey.split("/")[0]] || {};
+			const index = mergeRuntimeLibrary(scoped ? { ...diskIndex, ...scoped, ...global } : diskIndex, library),
+				changes = [["library.json", encoder.encode(raw)]];
 			const retained = new Set([
 				...index.packs.map((pack) => `packs/${pack.hash}.zip`),
 				...index.saves.map((save) => `saves/${save.id}.zip`),
 			]);
-			for (const key of files.keys())
-				if (/^(packs|saves)\//.test(key) && !retained.has(key)) changes.push([key, null]);
+			// Blobs may be retained by another base profile; library removal only unlinks them.
 			for (const pack of index.packs) {
 				const path = `/launcher/menu/packs/${pack.hash}.zip`;
 				let exists = false;
@@ -1188,7 +1250,7 @@ async function boot() {
 		returning = true;
 		try {
 			await snapshotRuntime();
-			location.assign(location.origin + location.pathname);
+			location.assign(location.origin + location.pathname + "?base=" + encodeURIComponent(baseUrl));
 		} catch {
 			returning = false;
 		}
@@ -1200,25 +1262,7 @@ async function boot() {
 		render();
 		$("settings").disabled = $("packs").disabled = true;
 		try {
-			const migration = new Map();
-			if (
-				library.split_bundled_pending &&
-				(o.action === "host" || o.action === "host-gm" || o.action === "workshop")
-			) {
-				await ensurePacks(true);
-				for (const bundle of ["base", "training"]) {
-					const meta = await fetch(`${bundle}.zip.menu.json`, { cache: "no-cache" }).then((r) => r.json());
-					const bytes = await fetchFile(`${bundle}.zip`, undefined, "no-cache");
-					if (hex(await crypto.subtle.digest("SHA-256", bytes)) !== meta.hash)
-						throw Error("Published content changed. Reload the menu.");
-					migration.set(bundle, bytes);
-				}
-			}
-			if (
-				o.type !== "client" &&
-				(o.action === "host" || o.action === "host-gm" || o.action === "legacy" || o.action === "workshop")
-			)
-				await ensurePacks(o.action === "workshop");
+			if (true) await ensurePacks(o.action === "workshop");
 			await remember();
 			let tabStorage;
 			try {
@@ -1236,6 +1280,7 @@ async function boot() {
 			started = true;
 			if (!direct) {
 				const query = new URLSearchParams(o);
+				query.set("base", baseUrl);
 				query.set("relay", o.relay ? "1" : "0");
 				query.set("textprobe", o.textprobe ? "1" : "0");
 				history.replaceState(null, "", "?" + query);
@@ -1264,23 +1309,26 @@ async function boot() {
 						y,
 					),
 				arguments: launchArguments(
-					{ ...o, profile: profileLease.profile },
+					{
+						...o,
+						profile: profileLease.profile,
+						base: "/launcher/base.zip",
+						base_url: baseUrl,
+						menu_scope: scopeKey,
+					},
 					location.origin + location.pathname,
 				),
 				print: console.log,
 				printErr: console.error,
-				phoenixMigrateBundled: migration.size > 0,
+
 				preRun: [
 					() => {
 						const fs = window.Module.FS;
 						fs.mkdirTree("/launcher/menu/packs");
 						fs.mkdirTree("/launcher/menu/saves");
-						for (const [bundle, bytes] of migration) fs.writeFile(`/launcher/bundled-${bundle}.zip`, bytes);
+						fs.writeFile("/launcher/base.zip", launchBaseBytes);
 						for (const [key, bytes] of files)
-							if (
-								key === "library.json" ||
-								(o.type !== "client" && /^(packs|saves)\/[a-f0-9]{32,64}\.zip$/.test(key))
-							)
+							if (key === "library.json" || /^(packs|saves)\/[a-f0-9]{32,64}\.zip$/.test(key))
 								fs.writeFile("/launcher/menu/" + key, bytes);
 						lastIndex = decoder.decode(files.get("library.json"));
 					},
@@ -1352,8 +1400,9 @@ async function boot() {
 		failure.setAttribute("role", "alert");
 		element("h2", "Unable to load game", failure);
 		element("p", String(message), failure);
-		button($("columns"), "Return to Menu", () => location.assign(location.origin + location.pathname)).disabled =
-			false;
+		button($("columns"), "Return to Menu", () =>
+			location.assign(location.origin + location.pathname + "?base=" + encodeURIComponent(baseUrl)),
+		).disabled = false;
 	}
 	// Install before GLFW. Native HTML and semantic controls retain their keyboard behavior.
 	for (const type of ["keydown", "keypress", "keyup"])
@@ -1621,10 +1670,38 @@ async function boot() {
 			style.setProperty(prefix === "button" ? "--slice" : "--panel-slice", properties.slices);
 			style.setProperty(`--${prefix}-edge`, properties.edges);
 		}
-		if (routes && !["host", "legacy", "workshop"].includes(routes.action)) {
-			await start(routes, true);
-			return;
-		}
+		launchBaseBytes = await fetchFile(baseUrl, undefined, "no-cache");
+		launchBase = await preview(launchBaseBytes);
+		if (!launchBase.base || launchBase.parent || launchBase.dependencies.length)
+			throw Error("Launch base must be an independent root.");
+		if (!/^[a-z0-9._-]{1,128}$/.test(launchBase.id)) throw Error("Invalid base identity.");
+		const mode = launchBase.base?.render_mode || "sprites",
+			style = launchBase.base?.interface_style || "current";
+		if (!["sprites", "models"].includes(mode) || style !== "current") throw Error("Unsupported base presentation.");
+		scopeKey =
+			(routes?.profile || new URLSearchParams(location.search).get("profile") || "default") + "/" + launchBase.id;
+		library.global_profiles ||= { default: globals(library) };
+		Object.assign(library, library.global_profiles[scopeKey.split("/")[0]] || globalDefaults);
+		library.base_profiles ||= {
+			"default/phoenix-base": Object.fromEntries(
+				["player_name", "avatar", "packs", "saves"].map((k) => [k, library[k]]),
+			),
+		};
+		Object.assign(
+			library,
+			library.base_profiles[scopeKey] || { player_name: "<username>", avatar: [], packs: [], saves: [] },
+		);
+		const hash = hex(await crypto.subtle.digest("SHA-256", launchBaseBytes));
+		library.packs = library.packs.filter(
+			(p) => p.id !== launchBase.id && p.id !== "test" && p.id !== "phoenix-training",
+		);
+		library.packs.unshift({ id: launchBase.id, hash, enabled: true, locked: true, url: baseUrl });
+		previews.set(hash, launchBase);
+		await remember([
+			[`packs/${hash}.zip`, launchBaseBytes],
+			[`preview/${hash}.json`, encoder.encode(JSON.stringify(launchBase))],
+		]);
+
 		if (!library.avatar?.length) {
 			library.avatar = [
 				...(await fetchFile(
@@ -1642,55 +1719,7 @@ async function boot() {
 				} catch {}
 			}
 		}
-		const published = new Map();
-		let addedTraining = false;
-		for (const bundle of ["base", "training"]) {
-			const marker = `published-${bundle}-split-catalog.json`;
-			const previousHash = files.has(marker) ? decoder.decode(files.get(marker)) : undefined;
-			try {
-				// IndexedDB markers are fallback data, not proof that the deployment is unchanged.
-				const response = await fetch(`${bundle}.zip.menu.json`, { cache: "no-cache" });
-				if (!response.ok) throw Error("Base game content unavailable. Import a pack in Mod Packs.");
-				const meta = await response.json();
-				const parsed = menuPreview(meta);
-				if (!/^[a-f0-9]{64}$/.test(meta.hash)) throw Error("Invalid published pack identity.");
-				published.set(bundle, parsed);
-				const added = refreshPublishedPack(library, meta, previousHash, bundle);
-				if (bundle === "training") addedTraining = added;
-				previews.set(meta.hash, parsed);
-				await remember([
-					[`preview/${meta.hash}.json`, encoder.encode(JSON.stringify(meta))],
-					[marker, encoder.encode(meta.hash)],
-				]);
-			} catch (error) {
-				const cached = previousHash && files.get(`preview/${previousHash}.json`);
-				if (cached) published.set(bundle, menuPreview(JSON.parse(decoder.decode(cached))));
-				status(t(error.message));
-			}
-		}
-		const base = library.packs.find((p) => p.id === "phoenix-base");
-		const training = library.packs.find((p) => p.id === "phoenix-training");
-		const basePreview = base && previews.get(base.hash),
-			trainingPreview = published.get("training");
-		if (
-			basePreview &&
-			trainingPreview &&
-			(basePreview.scenarios.some((s) => trainingPreview.scenarios.some((t) => t.id === s.id)) ||
-				published.get("base")?.scenarios.some((s) => !basePreview.scenarios.some((old) => old.id === s.id)))
-		) {
-			const maps = new Map(
-				basePreview.scenarios
-					.filter((s) => !trainingPreview.scenarios.some((t) => t.id === s.id))
-					.map((s) => [s.id, s]),
-			);
-			for (const scene of published.get("base")?.scenarios || [])
-				if (!maps.has(scene.id)) maps.set(scene.id, scene);
-			const migratedPreview = { ...basePreview, scenarios: [...maps.values()] };
-			previews.set(base.hash, migratedPreview);
-			library.split_bundled_pending = true;
-			if (addedTraining) training.enabled = base.enabled;
-			await remember([[`preview/${base.hash}.json`, encoder.encode(JSON.stringify(migratedPreview))]]);
-		}
+
 		if (routes) {
 			await start(routes, true);
 			return;

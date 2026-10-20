@@ -1,0 +1,37 @@
+[
+	{
+		"source": "C:\\Coding\\project-phoenix-v2\\assets\\models\\alliance_courier_recreated.glb",
+		"sha256": "900cbb42be00c6149437b774d6052bfb7576221aa5e15ad16dc4f2b752014db2"
+	},
+	{
+		"source": "C:\\Coding\\project-phoenix-v2\\assets\\models\\alliance_courier_recreated.model.toml",
+		"sha256": "a2c46ad0900a42bb3061612031c73558be788fdfda00743b6879f5b8b551e98f"
+	},
+	{
+		"source": "C:\\Coding\\project-phoenix-v2\\assets\\models\\asteroid_common_1_lod1.glb",
+		"sha256": "e9884fad6dba39a9f913038d7d3f0c48ffab3ae35adf50db60a4db331e79dc8a"
+	},
+	{
+		"source": "C:\\Coding\\project-phoenix-v2\\assets\\models\\asteroid_common_1.large.toml",
+		"sha256": "f3edfa988b8112b630d7a30e591d11e45ff34609aa65827f0b0004c3b76a582c"
+	},
+	{
+		"source": "C:\\Coding\\project-phoenix-v2\\assets\\shaders\\star_surface.wgsl",
+		"sha256": "4ad57c3f84143a58f6a3cac3aefdac645834be1eaf9ec8a55238fc366aecb2a7"
+	},
+	{
+		"source": "C:\\Coding\\project-phoenix-v2\\assets\\shaders\\star_halo.wgsl",
+		"sha256": "e0560d8ff80d1dba3c43397715deb3ca08c7a4373227c677f79a013c43f1d41a"
+	},
+	{
+		"source": "C:\\Coding\\project-phoenix-v2\\assets\\entities\\star_sun.toml",
+		"sha256": "9e425571733a5ac7ba826b65ea090381f4e4deafe8e223029a35bec6aaeb7915"
+	},
+	{
+		"source": "C:\\Coding\\project-phoenix-v2\\assets\\skybox\\phoenix_space_cubemap.png",
+		"sha256": "e04f8993a4e1af020cdd86ececa6b23e249ef3386e1b94a1fe9cb9a099b2c032",
+		"derivation": "Each face downsampled independently from 2048 to 512 pixels with Lanczos, preserving cube order and preventing face-edge bleed. Fits ZIP/DAT per-entry bounds.",
+		"asset": "assets/skyboxes/phoenix_space_cubemap.png",
+		"asset_sha256": "e5595cff6b08643581330e0b162267b6a1ac98b8a22770da39452ebdb74f3308"
+	}
+]

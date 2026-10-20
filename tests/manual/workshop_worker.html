@@ -39,19 +39,18 @@
 		};
 		worker.onerror = (e) => (document.querySelector("#result").textContent = e.message);
 		document.querySelector("#start").onclick = async () => {
-			const base = await (await fetch("base.zip")).arrayBuffer();
-			const training = await (await fetch("training.zip")).arrayBuffer();
+			const training = await (await fetch("test.zip")).arrayBuffer();
 			worker.postMessage(
 				{
 					type: "request",
 					action: "start",
-					mission: "training.powered-navigation",
-					slot: "training.player",
-					ship: "base.courier-engineering",
+					mission: "test.powered-navigation",
+					slot: "test.player",
+					ship: "test.courier-engineering",
 					pack: training,
-					dependencies: [base],
+					dependencies: [],
 				},
-				[base, training],
+				[training],
 			);
 		};
 		for (const action of ["pause", "step", "restart", "stop"])

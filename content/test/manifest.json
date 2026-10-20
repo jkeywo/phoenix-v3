@@ -1,0 +1,9 @@
+{
+	"schema": 1,
+	"id": "test",
+	"name": "test",
+	"base": {
+		"render_mode": "sprites",
+		"interface_style": "current"
+	}
+}

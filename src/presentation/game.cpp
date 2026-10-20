@@ -228,7 +228,8 @@ struct GameScreen::State
 		if (!app.session || app.session->invitation_code().empty())
 			throw std::runtime_error("No ship-server invitation is available");
 		const auto url = page + "?type=" + (gm ? "workshop&mode=gm" : "client") +
-		                 "&code=" + query(app.session->invitation_code()) + "&service=" + query(app.network_service);
+		                 "&code=" + query(app.session->invitation_code()) + "&service=" + query(app.network_service) +
+		                 "&base=" + query(app.base_reference);
 		const auto qr = qrcodegen::QrCode::encodeText(url.c_str(), qrcodegen::QrCode::Ecc::MEDIUM);
 		auto image = GenImageColor((qr.getSize() + 8) * 4, (qr.getSize() + 8) * 4, WHITE);
 		for (int y = 0; y < qr.getSize(); ++y)
@@ -725,7 +726,7 @@ struct GameScreen::State
 						for (const auto &entry : sprite.entries)
 							frames(entry.frames);
 					}
-					else
+					else if (render.contains("images"))
 						for (const auto &reference : render.at("images"))
 						{
 							const auto &png = app.session->catalog().assets.at(reference.get<std::string>());

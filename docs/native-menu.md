@@ -10,7 +10,7 @@ Native startup adds missing definitions and assets from the bundled base pack to
 
 The fixed cockpit frame overlays a slowly panning, horizontally repeating space panorama. Reduced motion stops the pan. A ceiling-mounted CRT in the upper right displays the saved player avatar and username; the lobby reuses its housing for QR invitations. The scenery and screen aperture share source-pixel metadata with the HTML menu. See [menu artwork](../content/ui/menu/README.md) for assets and generation prompts.
 
-Import gameplay ZIPs in Mod Packs, enable them in dependency/override order, and Apply Pack Selection. Installation and activation are separate: an imported pack starts disabled. Phoenix Base Game and Phoenix Training are separate bundled packs; fresh libraries enable only the base. Every pack can be toggled, including the base. Enabling a mod enables and orders its prerequisites; disabling a prerequisite disables dependent mods. An entirely disabled selection persists across restarts. Packs remain installed between launches. Failed verification preserves the previous selection. Leave an active game before applying another selection. Removing an entry and applying removes its installed archive; portable saves retain their own exact content.
+Import gameplay ZIPs in Mod Packs, enable them in dependency/override order, and Apply Pack Selection. Installation and activation are separate: an imported pack starts disabled. Phoenix Base Game and test are separate bundled packs; fresh libraries enable only the base. Every pack can be toggled, including the base. Enabling a mod enables and orders its prerequisites; disabling a prerequisite disables dependent mods. An entirely disabled selection persists across restarts. Packs remain installed between launches. Failed verification preserves the previous selection. Leave an active game before applying another selection. Removing an entry and applying removes its installed archive; portable saves retain their own exact content.
 
 Host Game shows New Game followed by managed Saved Games and Import Save. New Game shows resolved scenarios, then a GM choice and each ship slot with its default and allowed ships. A sole scenario is selected automatically, but the GM/ship choice always remains available. A slot's `default_ship` must be one of its allowed ships; omission uses the first allowed ship. Native and browser menus use the same behavior. Entering the lobby does not start simulation or claim a human Console. Failed actions show a dismissible error panel with the diagnostic.
 
@@ -49,7 +49,7 @@ The visible menu and Windows UI Automation share controls, text/range values, an
 Explicitly trigger the graphical journey with:
 
 ```powershell
-./build/native/Release/native.exe --local-only --game-pack build/native/training.zip --data build/menu-smoke-data --menu-smoke
+./build/native/Release/native.exe --local-only --game-pack build/native/test.zip --data build/menu-smoke-data --menu-smoke
 ```
 
 This writes `build/menu-native-*.png` and exercises native RmlUi Tab traversal, UIA range/readout contracts, pack selection, the readiness countdown and managed saving from in-game Settings and explicit quit to Main Menu. It is manually triggered development evidence, separate from automatic CI and actual reader/device acceptance. See the [validation receipt](smoke/native-menu.md).

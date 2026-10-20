@@ -22,9 +22,28 @@ module phoenix.content;
 
 namespace phoenix
 {
+std::vector<std::string> pack_dependencies(const Json &manifest)
+{
+	if (manifest.contains("parent"))
+		return {manifest.at("parent").get<std::string>()};
+	return manifest.value("dependencies", std::vector<std::string>{});
+}
+BaseConfiguration base_configuration(const Pack &pack)
+{
+	const auto &manifest = pack.manifest();
+	if (!manifest.contains("base") || manifest.contains("parent") || !pack_dependencies(manifest).empty())
+		throw std::runtime_error("Launch base must be an independent root pack");
+	const auto config = manifest.value("base", Json::object());
+	return {manifest.at("id"), pack.hash(), config.value("render_mode", std::string("sprites")),
+	        config.value("interface_style", std::string("current"))};
+}
 Json launcher_catalog(const Catalog &catalog)
 {
 	Json result{{"schema", 1}, {"scenarios", Json::array()}};
+	result["base"] = {{"id", catalog.base.id},
+	                  {"hash", catalog.base.hash},
+	                  {"render_mode", catalog.base.render_mode},
+	                  {"interface_style", catalog.base.interface_style}};
 	for (const auto &[id, map] : catalog.maps)
 	{
 		Json scenario{{"id", id}, {"name", map.value("name", id)}, {"slots", Json::array()}};
@@ -143,6 +162,13 @@ struct PackView
 Catalog resolve(const std::vector<PackView> &ordered)
 {
 	Catalog result;
+	if (!ordered.empty() && ordered.front().manifest.contains("base"))
+	{
+		const auto &root = ordered.front();
+		result.base = {root.manifest.at("id"), root.hash,
+		               root.manifest.at("base").value("render_mode", std::string("sprites")),
+		               root.manifest.at("base").value("interface_style", std::string("current"))};
+	}
 	std::set<std::string> loaded, global_ids;
 	for (const auto &pack : ordered)
 	{
@@ -153,15 +179,26 @@ Catalog resolve(const std::vector<PackView> &ordered)
 				invalid("pack", "Console assets cannot be mixed with gameplay packs");
 			result.presentation = true;
 			result.selection = format == "phoenix-console-selection";
+			if (pack.manifest.contains("presentation_base"))
+			{
+				const auto &root = pack.manifest.at("presentation_base");
+				const auto mode = root.at("render_mode").get<std::string>();
+				if ((mode != "sprites" && mode != "models") || root.at("interface_style") != "current")
+					invalid("presentation_base", "unsupported presentation");
+				result.base = {root.at("id"), root.at("hash"), mode, "current"};
+			}
 		}
 		if (format == "phoenix-runtime-save" || format == "phoenix-fleet-setup")
 			invalid("pack", "session/setup containers are not gameplay packs; use their dedicated loader");
 		auto id = text(pack.manifest, "id", "manifest");
+		if (!result.presentation && !result.base.id.empty() && id != result.base.id &&
+		    !pack.manifest.contains("parent"))
+			invalid(id, "child pack must declare a parent in the launched base tree");
 		if (!loaded.insert(id).second)
 			invalid(id, "duplicate pack id");
-		for (const auto &dependency : pack.manifest.value("dependencies", Json::array()))
+		for (const auto &dependency : pack_dependencies(pack.manifest))
 		{
-			if (!dependency.is_string() || dependency == id || !loaded.contains(dependency.get<std::string>()))
+			if (dependency == id || !loaded.contains(dependency))
 				invalid(id + ".dependencies", "dependency must appear earlier in the selected pack order");
 		}
 		if (pack.manifest.contains("loading_background"))
@@ -419,14 +456,27 @@ void verify_prepared_catalog(const Catalog &catalog)
 			             {"frames", Json::array({{{"name", "icon"}, {"rect", {0, 0, 1, 1}}, {"pivot", {0, 0}}}})}};
 			compile_sprite(icon, catalog, path + ".render.radar_sprite");
 		}
-		auto mode = text(render, "mode", path + ".render");
+		const bool model = render.contains("model") || render.contains("star");
+		const bool contact_only = render.value("contact_only", false);
+		if (contact_only && !catalog.presentation)
+			invalid(path + ".render", "contact-only visuals are restricted Console projections");
+		if (!catalog.presentation && !catalog.base.id.empty() && model != (catalog.base.render_mode == "models"))
+			invalid(path + ".render", "entity representation must match launch base");
+		auto mode = (model || contact_only) ? std::string("camera") : text(render, "mode", path + ".render");
 		if (mode != "camera" && mode != "eight")
 			invalid(path + ".render.mode", "supported values are camera and eight");
 		if (!render.contains("scale") || !render["scale"].is_number() ||
 		    !std::isfinite(render["scale"].get<double>()) || render["scale"].get<double>() <= 0 ||
 		    render["scale"].get<double>() > 1000000)
 			invalid(path + ".render.scale", "expected positive finite scale <= 1000000");
-		if (render.contains("sprite"))
+		if (contact_only)
+		{
+			if (model || render.contains("images") || render.contains("sprite"))
+				invalid(path + ".render", "contact-only projection cannot contain hull assets");
+		}
+		else if (model)
+			verify_model_render(render, catalog, path + ".render");
+		else if (render.contains("sprite"))
 		{
 			const auto material = compile_sprite(render.at("sprite"), catalog, path + ".render.sprite");
 			sprite_entry_index(material, render.value("sprite_entry", std::string{}));
@@ -671,8 +721,8 @@ void verify_prepared_catalog(const Catalog &catalog)
 					try
 					{
 						const auto image = decode_asset_image(catalog.assets.at(reference));
-						if (image.width != image.height * 2)
-							invalid(path, "expected 2:1 equirectangular panorama");
+						if (image.width != image.height * 2 && image.height != image.width * 6)
+							invalid(path, "expected 2:1 panorama or vertical six-face cube strip");
 					}
 					catch (const std::exception &error)
 					{

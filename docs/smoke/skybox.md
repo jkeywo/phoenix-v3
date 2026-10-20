@@ -28,7 +28,8 @@ Commands used include:
 ```powershell
 ./scripts/build.ps1 -Target native -BuildTarget native,phoenix_camera_smoke,phoenix_content_tests,phoenix_session_tests,phoenix_workshop_test_tests -Jobs 1
 ./.tools/python/cmake/data/bin/ctest.exe --test-dir build/native -C Release -R 'system.(content-and-packs|local-session|workshop_test)' --output-on-failure
-./build/native/Release/phoenix_verify.exe build/native/base.zip build/native/training.zip
+./build/native/Release/phoenix_verify.exe build/native/base.zip
+./build/native/Release/phoenix_verify.exe build/native/test.zip
 ```
 
 From `build/web`, run the bundled Node executable against
