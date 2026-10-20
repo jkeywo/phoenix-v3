@@ -62,6 +62,11 @@ try
 			{
 				throw 'WASM content integration failed'
 			}
+			& $node "$repo/tests/system/base_verifier.mjs" './phoenix_workshop_test.js'
+			if ($LASTEXITCODE)
+			{
+				throw 'WASM production launch preflight failed'
+			}
 			& $node phoenix_simulation_check.js
 			if ($LASTEXITCODE)
 			{

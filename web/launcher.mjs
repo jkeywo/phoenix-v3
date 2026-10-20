@@ -1,5 +1,92 @@
 import { startSessionPump } from "./session-pump.mjs";
 import { acquireSessionProfile } from "./session-profile.mjs";
+import { verifyLaunchBase } from "./base-verifier.mjs";
+const globalPreferenceDefaults = {
+	volume: 50,
+	sfx_volume: 50,
+	siren_volume: 50,
+	master_volume: 50,
+	language: "en",
+	pseudo: false,
+	reduced_motion: false,
+	dust_motes: true,
+	reference_grid: true,
+};
+const globalPreferences = (data) =>
+	Object.fromEntries(Object.entries(globalPreferenceDefaults).map(([key, value]) => [key, data[key] ?? value]));
+const scopedPreferenceKeys = ["player_name", "avatar", "packs", "saves"];
+// Merge only the active namespaces, inside the IndexedDB read/write transaction.
+// Other tabs may have saved another base or local profile since this tab loaded.
+export function mergeScopedLibrary(latest, incoming, scope) {
+	if (!scope) return { ...latest, ...incoming };
+	const profile = scope.split("/")[0];
+	const disk = {
+		...latest,
+		...incoming,
+		base_profiles: {
+			...(latest.base_profiles || incoming.base_profiles || {}),
+			[scope]: Object.fromEntries(scopedPreferenceKeys.map((key) => [key, incoming[key]])),
+		},
+		global_profiles: {
+			...(latest.global_profiles || incoming.global_profiles || {}),
+			[profile]: globalPreferences(incoming),
+		},
+	};
+	if (disk.base_profiles["default/phoenix-base"]) Object.assign(disk, disk.base_profiles["default/phoenix-base"]);
+	if (disk.global_profiles.default) Object.assign(disk, disk.global_profiles.default);
+	return disk;
+}
+export function menuLocation(page, base, profile) {
+	const url = new URL(page);
+	url.search = "";
+	url.hash = "";
+	url.searchParams.set("base", base);
+	url.searchParams.set("profile", profile || "default");
+	return url.href;
+}
+export function movePack(selection, hash, shift, metadata) {
+	const candidate = selection.map((pack) => ({ ...pack }));
+	const index = candidate.findIndex((pack) => pack.hash === hash),
+		next = index + shift;
+	if (index < 0 || candidate[index].locked || next <= 0 || next >= candidate.length)
+		throw Error("The launch base must remain first.");
+	[candidate[index], candidate[next]] = [candidate[next], candidate[index]];
+	const positions = new Map(candidate.map((pack, i) => [pack.id, i]));
+	for (const [i, pack] of candidate.entries()) {
+		const parent = metadata.get(pack.hash)?.parent;
+		if (parent && (!positions.has(parent) || positions.get(parent) >= i))
+			throw Error("Parent mods must remain before their children.");
+	}
+	return candidate;
+}
+export function removePack(selection, hash, metadata) {
+	const chosen = selection.find((pack) => pack.hash === hash);
+	if (!chosen) throw Error("Unknown installed pack.");
+	if (chosen.locked) throw Error("The launch base cannot be removed.");
+	if (selection.some((pack) => metadata.get(pack.hash)?.parent === chosen.id))
+		throw Error("Remove child mods before removing their parent.");
+	return selection.filter((pack) => pack.hash !== hash);
+}
+export function installPack(selection, meta, hash, metadata, baseId) {
+	if (!/^[a-z0-9._-]{1,128}$/.test(meta.id) || !meta.parent || meta.base || meta.id === baseId)
+		throw Error("Import a child mod of the launched base.");
+	if (selection.some((pack) => pack.hash === hash)) return selection;
+	if (selection.some((pack) => pack.id === meta.id))
+		throw Error("A pack with this ID is already installed. Remove it before importing another revision.");
+	if (selection.length >= 256) throw Error("Pack library is full.");
+	const seen = new Set([meta.id]);
+	let parent = meta.parent;
+	while (parent !== baseId) {
+		if (seen.has(parent)) throw Error("Pack parent cycle.");
+		seen.add(parent);
+		const entry = selection.find((pack) => pack.id === parent);
+		if (!entry) throw Error("Install the parent mod first: " + parent);
+		parent = metadata.get(entry.hash)?.parent;
+		if (!parent) throw Error("The mod belongs to another base.");
+	}
+	return [...selection, { hash, id: meta.id, enabled: false }];
+}
+
 // The HTML shell gathers launch hints. C++ verifies content, setup and admission.
 // Keep one landscape coordinate space for rendering, touch and semantic controls.
 export function viewportLayout(width, height, runtime = false) {
@@ -464,7 +551,7 @@ async function boot() {
 	let scopeKey = "",
 		launchBase,
 		launchBaseBytes;
-	const baseUrl = new URL(new URLSearchParams(location.search).get("base") || "base.zip", location.href).href;
+	let baseUrl;
 	let library = defaults(),
 		nebulaFlashes,
 		menuAmbient,
@@ -580,50 +667,46 @@ async function boot() {
 		});
 	}
 	async function write(changes) {
-		const tx = db.transaction("files", "readwrite");
+		const pending = changes.map(([key, value]) => [key, value]);
+		const tx = db.transaction("files", "readwrite"),
+			store = tx.objectStore("files");
+		let merged;
 		const done = new Promise((resolve, reject) => {
 			tx.oncomplete = resolve;
 			tx.onabort = () => reject(tx.error || Error("Browser storage failed."));
 			tx.onerror = () => {};
 		});
-		for (const [key, value] of changes)
-			if (value === null) tx.objectStore("files").delete(key);
-			else tx.objectStore("files").put(value, key);
+		for (const entry of pending) {
+			const [key, value] = entry;
+			if (key === "library.json" && value !== null) {
+				const read = store.get(key);
+				read.onsuccess = () => {
+					try {
+						const previous = read.result ? JSON.parse(decoder.decode(read.result)) : {};
+						merged = mergeScopedLibrary(previous, JSON.parse(decoder.decode(value)), scopeKey);
+						entry[1] = encoder.encode(JSON.stringify(merged));
+						store.put(entry[1], key);
+					} catch (error) {
+						tx.abort();
+					}
+				};
+			} else if (value === null) store.delete(key);
+			else store.put(value, key);
+		}
 		await done;
-		for (const [key, value] of changes)
+		for (const [key, value] of pending)
 			if (value === null) files.delete(key);
 			else files.set(key, value);
+		return merged;
 	}
-	const globalDefaults = {
-		volume: 50,
-		sfx_volume: 50,
-		siren_volume: 50,
-		master_volume: 50,
-		language: "en",
-		pseudo: false,
-		reduced_motion: false,
-		dust_motes: true,
-		reference_grid: true,
-	};
-	const globals = (data) =>
-		Object.fromEntries(Object.entries(globalDefaults).map(([key, value]) => [key, data[key] ?? value]));
+	const globalDefaults = globalPreferenceDefaults;
+	const globals = globalPreferences;
 	async function remember(changes = []) {
-		if (scopeKey) {
-			library.global_profiles ||= {};
-			library.global_profiles[scopeKey.split("/")[0]] = globals(library);
-			library.base_profiles ||= {};
-			library.base_profiles[scopeKey] = Object.fromEntries(
-				["player_name", "avatar", "packs", "saves"].map((k) => [k, library[k]]),
-			);
-		}
-		const disk = { ...library };
-		if (scopeKey && library.base_profiles?.["default/phoenix-base"])
-			Object.assign(disk, library.base_profiles["default/phoenix-base"]);
-		if (scopeKey && library.global_profiles?.default) Object.assign(disk, library.global_profiles.default);
-		const candidate = JSON.stringify(disk);
 		try {
-			await write([...changes, ["library.json", encoder.encode(candidate)]]);
-			savedLibrary = candidate;
+			const disk = await write([...changes, ["library.json", encoder.encode(JSON.stringify(library))]]);
+			library.base_profiles = disk.base_profiles;
+			library.global_profiles = disk.global_profiles;
+			savedLibrary = JSON.stringify(library);
 			updateProfile();
 			document.body.classList.toggle("reduced-motion", !!library.reduced_motion);
 			nebulaFlashes?.sync();
@@ -912,7 +995,11 @@ async function boot() {
 				library.service = data.get("service");
 				library.profile = data.get("profile");
 			};
-			form.onchange = run(() => remember());
+			form.onchange = run(async () => {
+				await remember();
+				if (library.profile !== scopeKey.split("/")[0])
+					location.assign(menuLocation(location.href, baseUrl, library.profile));
+			});
 			if (branch !== "host") {
 				if (scenarios().length !== 1) {
 					const maps = column("Scenarios");
@@ -1118,10 +1205,7 @@ async function boot() {
 				["↓", "Move Down", 1],
 			]) {
 				const move = button(row, symbol, async () => {
-					[library.packs[index], library.packs[index + shift]] = [
-						library.packs[index + shift],
-						library.packs[index],
-					];
+					library.packs = movePack(library.packs, pack.hash, shift, previews);
 					await remember();
 					packs();
 				});
@@ -1129,8 +1213,7 @@ async function boot() {
 				move.disabled = !!pack.locked || index + shift <= 0 || index + shift >= library.packs.length;
 			}
 			const remove = button(row, "🗑", async () => {
-				if (pack.locked) throw Error("The launch base cannot be removed.");
-				library.packs.splice(index, 1);
+				library.packs = removePack(library.packs, pack.hash, previews);
 				await remember();
 				render();
 				packs();
@@ -1153,20 +1236,9 @@ async function boot() {
 			if (kind === "pack") {
 				const meta = await preview(bytes),
 					hash = hex(await crypto.subtle.digest("SHA-256", bytes));
-				if (!meta.parent || meta.base || meta.id === launchBase.id)
-					throw Error("Import a child mod of the launched base.");
-				const seen = new Set([meta.id]);
-				let parent = meta.parent;
-				while (parent !== launchBase.id) {
-					if (seen.has(parent)) throw Error("Pack parent cycle.");
-					seen.add(parent);
-					const entry = library.packs.find((p) => p.id === parent);
-					if (!entry) throw Error("Install the parent mod first: " + parent);
-					parent = previews.get(entry.hash)?.parent;
-					if (!parent) throw Error("The mod belongs to another base.");
-				}
-				if (!library.packs.some((p) => p.hash === hash)) {
-					library.packs.push({ hash, id: meta.id, enabled: false });
+				const next = installPack(library.packs, meta, hash, previews, launchBase.id);
+				if (next !== library.packs) {
+					library.packs = next;
 					previews.set(hash, meta);
 					await remember([
 						[`packs/${hash}.zip`, bytes],
@@ -1205,7 +1277,7 @@ async function boot() {
 			const scoped = diskIndex.base_profiles?.[scopeKey];
 			const global = diskIndex.global_profiles?.[scopeKey.split("/")[0]] || {};
 			const index = mergeRuntimeLibrary(scoped ? { ...diskIndex, ...scoped, ...global } : diskIndex, library),
-				changes = [["library.json", encoder.encode(raw)]];
+				changes = [["library.json", encoder.encode(JSON.stringify(index))]];
 			const retained = new Set([
 				...index.packs.map((pack) => `packs/${pack.hash}.zip`),
 				...index.saves.map((save) => `saves/${save.id}.zip`),
@@ -1250,12 +1322,21 @@ async function boot() {
 		returning = true;
 		try {
 			await snapshotRuntime();
-			location.assign(location.origin + location.pathname + "?base=" + encodeURIComponent(baseUrl));
+			location.assign(menuLocation(location.href, baseUrl, scopeKey.split("/")[0]));
 		} catch {
 			returning = false;
 		}
 	}
 	async function start(o, direct = false) {
+		if (!launchBase) throw Error("A verified launch base is required.");
+		if (o.profile !== scopeKey.split("/")[0]) {
+			const query = new URLSearchParams(o);
+			query.set("base", baseUrl);
+			query.set("relay", o.relay ? "1" : "0");
+			query.set("textprobe", o.textprobe ? "1" : "0");
+			location.assign(location.origin + location.pathname + "?" + query);
+			return;
+		}
 		let profileLease;
 		if (started || busy) return;
 		busy = true;
@@ -1276,7 +1357,7 @@ async function boot() {
 			window.addEventListener("pagehide", (event) => {
 				if (!event.persisted) profileLease.release();
 			});
-			// No generated JS, WASM or .data is requested before this point.
+			// The chosen role runtime starts only after root verification and profile selection.
 			started = true;
 			if (!direct) {
 				const query = new URLSearchParams(o);
@@ -1401,7 +1482,7 @@ async function boot() {
 		element("h2", "Unable to load game", failure);
 		element("p", String(message), failure);
 		button($("columns"), "Return to Menu", () =>
-			location.assign(location.origin + location.pathname + "?base=" + encodeURIComponent(baseUrl)),
+			location.assign(menuLocation(location.href, baseUrl, scopeKey.split("/")[0])),
 		).disabled = false;
 	}
 	// Install before GLFW. Native HTML and semantic controls retain their keyboard behavior.
@@ -1623,6 +1704,7 @@ async function boot() {
 		popupFocus?.focus();
 	};
 	try {
+		baseUrl = new URL(new URLSearchParams(location.search).get("base") ?? "base.zip", location.href).href;
 		const opening = indexedDB.open("phoenix-v3-menu", 1);
 		opening.onupgradeneeded = () => opening.result.createObjectStore("files");
 		db = await request(opening);
@@ -1671,15 +1753,18 @@ async function boot() {
 			style.setProperty(`--${prefix}-edge`, properties.edges);
 		}
 		launchBaseBytes = await fetchFile(baseUrl, undefined, "no-cache");
-		launchBase = await preview(launchBaseBytes);
+		launchBase = menuPreview(await verifyLaunchBase(launchBaseBytes));
 		if (!launchBase.base || launchBase.parent || launchBase.dependencies.length)
 			throw Error("Launch base must be an independent root.");
 		if (!/^[a-z0-9._-]{1,128}$/.test(launchBase.id)) throw Error("Invalid base identity.");
 		const mode = launchBase.base?.render_mode || "sprites",
 			style = launchBase.base?.interface_style || "current";
 		if (!["sprites", "models"].includes(mode) || style !== "current") throw Error("Unsupported base presentation.");
-		scopeKey =
-			(routes?.profile || new URLSearchParams(location.search).get("profile") || "default") + "/" + launchBase.id;
+		const localProfile = routes?.profile || new URLSearchParams(location.search).get("profile") || "default";
+		if (!/^[\w.-]{1,64}$/.test(localProfile))
+			throw Error("Use letters, numbers, dots, underscores or hyphens in the local profile.");
+		scopeKey = localProfile + "/" + launchBase.id;
+		library.profile = scopeKey.split("/")[0];
 		library.global_profiles ||= { default: globals(library) };
 		Object.assign(library, library.global_profiles[scopeKey.split("/")[0]] || globalDefaults);
 		library.base_profiles ||= {
@@ -1728,9 +1813,9 @@ async function boot() {
 		if (!$("status").textContent || $("status").textContent === "Loading menu…") status("");
 	} catch (error) {
 		document.documentElement.classList.remove("direct-launch");
-		$("menu").hidden = false;
+		$("menu").hidden = !launchBase;
 		report(error);
-		render();
+		if (launchBase) render();
 	}
 }
 if (typeof document !== "undefined") boot();

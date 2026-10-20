@@ -479,12 +479,20 @@ void MenuLibrary::install(const Bytes &archive)
 		                return p.hash == pack.hash();
 	                }))
 		return;
+	if (std::any_of(packs.begin(), packs.end(),
+	                [&](const auto &p)
+	                {
+		                return p.id == pack.manifest().at("id").get<std::string>();
+	                }))
+		throw std::runtime_error("A pack with this ID is already installed; replace or remove it first");
 	if (packs.size() >= 256)
 		throw std::runtime_error("Native pack library is full");
 	atomic_write(path("packs", pack.hash(), ".zip"), archive);
 	packs.push_back({pack.hash(), pack.manifest().at("id"), false});
 	try
 	{
+		if (!base_.id.empty())
+			archives(packs);
 		remember();
 	}
 	catch (...)
@@ -500,16 +508,36 @@ std::vector<Bytes> MenuLibrary::archives(const std::vector<LibraryPack> &selecti
 	                          selection.front().hash != base_.hash || !selection.front().enabled))
 		throw std::runtime_error("The launch base must remain enabled and first");
 	std::vector<Pack> loaded;
+	std::map<std::string, std::string> parents;
+	std::set<std::string> identities;
 	for (const auto &p : selection)
+	{
+		auto bytes = read_file(path("packs", p.hash, ".zip"));
+		auto pack = read_pack(bytes);
+		if (pack.hash() != p.hash || pack.manifest().at("id").get<std::string>() != p.id ||
+		    !identities.insert(p.id).second)
+			throw std::runtime_error("Installed pack failed its identity check: " + p.id);
+		if (!base_.id.empty())
+		{
+			if (p.id != base_.id)
+			{
+				if (!pack.manifest().contains("parent"))
+					throw std::runtime_error("Child pack requires a parent: " + p.id);
+				const auto parent = pack.manifest().at("parent").get<std::string>();
+				if (!parents.contains(parent))
+					throw std::runtime_error(
+					    "Keep installed parents before their children; remove descendants first: " + p.id);
+				parents[p.id] = parent;
+			}
+			else
+				parents[p.id] = "";
+		}
 		if (p.enabled)
 		{
-			auto bytes = read_file(path("packs", p.hash, ".zip"));
-			auto pack = read_pack(bytes);
-			if (pack.hash() != p.hash)
-				throw std::runtime_error("Installed pack failed its integrity check: " + p.id);
 			loaded.push_back(std::move(pack));
 			result.push_back(std::move(bytes));
 		}
+	}
 	if (loaded.size() > 32)
 		throw std::runtime_error("Enable at most 32 ordered packs");
 	if (!loaded.empty())

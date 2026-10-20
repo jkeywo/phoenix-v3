@@ -333,6 +333,8 @@ void WorkshopDocument::load_pack(std::span<const std::uint8_t> archive)
 }
 void WorkshopDocument::load_dependency(std::span<const std::uint8_t> archive)
 {
+	if (pack_.manifest.contains("base"))
+		throw std::runtime_error("A base pack cannot be reparented by loading dependencies");
 	auto library = read_pack(archive);
 	auto order = libraries_;
 	order.push_back(library);
@@ -346,9 +348,9 @@ void WorkshopDocument::load_dependency(std::span<const std::uint8_t> archive)
 	library_catalog_ = std::move(catalog);
 	if (!library_catalog_.base.id.empty())
 	{
-		pack_.manifest.erase("base");
 		pack_.manifest.erase("dependencies");
-		pack_.manifest["parent"] = id;
+		if (!pack_.manifest.contains("parent"))
+			pack_.manifest["parent"] = library_catalog_.base.id;
 	}
 	else
 	{

@@ -478,7 +478,9 @@
 			"cell_colour": "cell_colour",
 			"halo_colour": "halo_colour",
 			"Parent mod": "Parent mod",
-			"Procedural star": "Procedural star"
+			"Procedural star": "Procedural star",
+			"Mod tree": "Mod tree",
+			"Base pack: parent is fixed": "Base pack: parent is fixed"
 		}
 	}
 }

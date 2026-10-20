@@ -28,10 +28,16 @@ std::vector<std::string> pack_dependencies(const Json &manifest)
 		return {manifest.at("parent").get<std::string>()};
 	return manifest.value("dependencies", std::vector<std::string>{});
 }
+bool legacy_phoenix_root(const Json &manifest)
+{
+	return manifest.value("id", std::string{}) == "phoenix-base" && !manifest.contains("base") &&
+	       !manifest.contains("parent") && pack_dependencies(manifest).empty() && !manifest.contains("format");
+}
 BaseConfiguration base_configuration(const Pack &pack)
 {
 	const auto &manifest = pack.manifest();
-	if (!manifest.contains("base") || manifest.contains("parent") || !pack_dependencies(manifest).empty())
+	if ((!manifest.contains("base") && !legacy_phoenix_root(manifest)) || manifest.contains("parent") ||
+	    !pack_dependencies(manifest).empty())
 		throw std::runtime_error("Launch base must be an independent root pack");
 	const auto config = manifest.value("base", Json::object());
 	return {manifest.at("id"), pack.hash(), config.value("render_mode", std::string("sprites")),
@@ -162,12 +168,13 @@ struct PackView
 Catalog resolve(const std::vector<PackView> &ordered)
 {
 	Catalog result;
-	if (!ordered.empty() && ordered.front().manifest.contains("base"))
+	const bool legacy_tree = !ordered.empty() && legacy_phoenix_root(ordered.front().manifest);
+	if (!ordered.empty() && (ordered.front().manifest.contains("base") || legacy_tree))
 	{
 		const auto &root = ordered.front();
 		result.base = {root.manifest.at("id"), root.hash,
-		               root.manifest.at("base").value("render_mode", std::string("sprites")),
-		               root.manifest.at("base").value("interface_style", std::string("current"))};
+		               root.manifest.value("base", Json::object()).value("render_mode", std::string("sprites")),
+		               root.manifest.value("base", Json::object()).value("interface_style", std::string("current"))};
 	}
 	std::set<std::string> loaded, global_ids;
 	for (const auto &pack : ordered)
@@ -191,7 +198,7 @@ Catalog resolve(const std::vector<PackView> &ordered)
 		if (format == "phoenix-runtime-save" || format == "phoenix-fleet-setup")
 			invalid("pack", "session/setup containers are not gameplay packs; use their dedicated loader");
 		auto id = text(pack.manifest, "id", "manifest");
-		if (!result.presentation && !result.base.id.empty() && id != result.base.id &&
+		if (!result.presentation && !legacy_tree && !result.base.id.empty() && id != result.base.id &&
 		    !pack.manifest.contains("parent"))
 			invalid(id, "child pack must declare a parent in the launched base tree");
 		if (!loaded.insert(id).second)

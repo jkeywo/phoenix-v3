@@ -117,6 +117,16 @@ int main()
 		child.files["definitions.json"] = json_bytes(Json{{"schema", 1}});
 		auto child_bytes = write_pack(child);
 		rooted_library.install(child_bytes);
+		auto duplicate_child = child;
+		duplicate_child.manifest["name"] = "Updated child archive";
+		rejects(
+		    [&]
+		    {
+			    rooted_library.install(write_pack(duplicate_child));
+		    },
+		    "Installing a different revision cannot duplicate a child identity");
+		require(rooted_library.packs.size() == 2, "Rejected duplicate import preserves the installed tree");
+
 		PackDraft grandchild = child;
 		grandchild.manifest["id"] = "grandchild";
 		grandchild.manifest["parent"] = "child";
@@ -128,6 +138,22 @@ int main()
 		rooted_library.apply(rooted_library.toggle_pack(rooted_library.packs, read_pack(child_bytes).hash()));
 		require(rooted_library.packs[0].enabled && !rooted_library.packs[1].enabled && !rooted_library.packs[2].enabled,
 		        "Disabling parent leaves base enabled and disables descendants");
+		auto orphaned = rooted_library.packs;
+		orphaned.erase(orphaned.begin() + 1);
+		rejects(
+		    [&]
+		    {
+			    rooted_library.apply(orphaned);
+		    },
+		    "Removing a parent cannot orphan disabled installed children");
+		auto reversed_tree = rooted_library.packs;
+		std::swap(reversed_tree[1], reversed_tree[2]);
+		rejects(
+		    [&]
+		    {
+			    rooted_library.apply(reversed_tree);
+		    },
+		    "Disabled child ordering retains a valid installed tree");
 		rooted_library.preferences.player_name = "First base";
 		rooted_library.preferences.volume = 37;
 		rooted_library.remember();
@@ -191,6 +217,11 @@ int main()
 			    revision_session->restore(root_save);
 		    },
 		    "Different root revisions cannot silently restore saves");
+		MenuLibrary updated_namespace(scoped_directory, "default/" + root_id);
+		updated_namespace.load();
+		updated_namespace.launch_base(write_pack(updated_root));
+		require(updated_namespace.preferences.player_name == "First base" && updated_namespace.packs.size() == 3,
+		        "Updating base bytes preserves its ID-scoped identity and child selection");
 		auto cycle_a = child, cycle_b = child;
 		cycle_a.manifest = {{"schema", 1}, {"id", "cycle-a"}, {"parent", "cycle-b"}};
 		cycle_b.manifest = {{"schema", 1}, {"id", "cycle-b"}, {"parent", "cycle-a"}};
@@ -214,6 +245,20 @@ int main()
 			e["render"] = {{"scale", 2}, {"star", Json::object()}, {"radar_icon", "sun"}};
 		presentation.manifest["base"]["render_mode"] = "models";
 		presentation.files["definitions.json"] = json_bytes(visuals);
+		WorkshopDocument rooted_document;
+		rooted_document.load_pack(root_bytes);
+		rejects(
+		    [&]
+		    {
+			    rooted_document.load_dependency(child_bytes);
+		    },
+		    "Dependency import cannot turn an edited base into a child");
+		require(rooted_document.manifest().contains("base"), "Rejected dependency import preserves the root manifest");
+		WorkshopDocument child_document;
+		child_document.load_dependency(root_bytes);
+		child_document.load_dependency(child_bytes);
+		require(child_document.manifest().at("parent") == root_id,
+		        "Loading another library preserves an existing child parent");
 		const auto model_catalog = resolve_packs({read_pack(write_pack(presentation))});
 		require(model_catalog.base.render_mode == "models", "Procedural model base loads without sprite assets");
 		const auto model_console = resolve_packs({console_assets(model_catalog, "test.ship")});
@@ -240,6 +285,30 @@ int main()
 		    },
 		    "Malformed models rejected before GPU upload");
 
+		auto legacy_root = draft;
+		legacy_root.manifest["id"] = "phoenix-base";
+		auto legacy_source = parse_json(legacy_root.files.at("definitions.json"), "legacy fixture").dump();
+		for (size_t at = 0; (at = legacy_source.find("test-core:", at)) != std::string::npos; at += 13)
+			legacy_source.replace(at, 10, "phoenix-base:");
+		legacy_root.files["definitions.json"] = json_bytes(Json::parse(legacy_source));
+		const auto legacy_bytes = write_pack(legacy_root);
+		auto legacy_session = make_local_session();
+		legacy_session->replace_packs({legacy_bytes});
+		legacy_session->start({"test.map", {{"test.slot", "test.ship"}}, "test.slot", "main"});
+		const auto legacy_save = legacy_session->save();
+		MenuLibrary old_library(directory + "/legacy-profile");
+		old_library.install_default(legacy_bytes);
+		old_library.preferences.player_name = "Existing player";
+		old_library.store_save(legacy_save, "Legacy save", "test.map");
+		old_library.remember();
+		MenuLibrary migrated_profile(directory + "/legacy-profile", "default/phoenix-base");
+		migrated_profile.load();
+		migrated_profile.launch_base(legacy_bytes);
+		auto legacy_recovery = make_local_session();
+		legacy_recovery->replace_packs(migrated_profile.archives(migrated_profile.packs));
+		legacy_recovery->restore(migrated_profile.read_save(migrated_profile.saves.front().id));
+		require(legacy_recovery->recovery_pending() && migrated_profile.preferences.player_name == "Existing player",
+		        "Legacy identity/save migration restores under its original sprite base revision");
 		const auto archive = write_pack(draft);
 		PackDraft addon;
 		addon.manifest = {{"schema", 1}, {"id", "test-practice"}, {"dependencies", {"test-core"}}};

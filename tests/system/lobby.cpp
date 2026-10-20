@@ -146,6 +146,63 @@ int main(int argc, char **argv)
 			select.profile = "direct";
 			require(!content_lobby->lobby_command(select), "A removed authored profile cannot be selected");
 		}
+		{
+			auto rooted = pack;
+			rooted.manifest["base"] = {{"render_mode", "sprites"}};
+			const auto archive = write_pack(rooted);
+			auto config = options;
+			config.link.room = "root-" + random_token();
+			config.link.self = "root-host";
+			config.server = "root-host";
+			config.expected_base = base_configuration(read_pack(archive));
+			auto root_host = make_game_lobby(config);
+			root_host->add_pack(archive);
+			root_host->prepare_lobby({"test.map", {{"test.slot", "test.ship"}}, "test.slot"});
+			auto join_root = [&](std::string id, BaseConfiguration base)
+			{
+				auto client = config;
+				client.link.self = id;
+				client.profile = id;
+				client.expected_base = std::move(base);
+				return join_client_lobby(client, JoinRole::player);
+			};
+			auto wrong_id = config.expected_base;
+			wrong_id.id = "another-base";
+			auto wrong_hash = config.expected_base;
+			wrong_hash.hash = std::string(64, '0');
+			auto foreign = join_root("root-foreign", wrong_id), revision = join_root("root-revision", wrong_hash),
+			     matching = join_root("root-match", config.expected_base);
+			bool complete = false;
+			const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+			while (std::chrono::steady_clock::now() < deadline)
+			{
+				for (const auto &node : {root_host, foreign, revision, matching})
+					node->poll();
+				const auto members = root_host->lobby().members;
+				const auto refused = [](const auto &node)
+				{
+					return node->lobby().status.find("same base pack revision") != std::string::npos;
+				};
+				if (refused(foreign) && refused(revision) &&
+				    std::any_of(members.begin(), members.end(),
+				                [](const auto &m)
+				                {
+					                return m.id == "root-match";
+				                }))
+				{
+					require(std::none_of(members.begin(), members.end(),
+					                     [](const auto &m)
+					                     {
+						                     return m.id == "root-foreign" || m.id == "root-revision";
+					                     }),
+					        "Incompatible launch roots are refused before lobby admission");
+					complete = true;
+					break;
+				}
+				std::this_thread::sleep_for(std::chrono::milliseconds(5));
+			}
+			require(complete, "Real network accepts matching launch roots and refuses foreign IDs/revisions");
+		}
 		host->add_pack(write_pack(pack));
 		host->prepare_lobby({"test.map", {{"test.slot", "test.ship"}}, "test.slot"});
 		std::vector<std::shared_ptr<SessionPort>> nodes{host};

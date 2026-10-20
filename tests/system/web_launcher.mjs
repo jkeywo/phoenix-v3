@@ -3,6 +3,7 @@ import test from "node:test";
 import { Worker } from "node:worker_threads";
 import { fileURLToPath } from "node:url";
 import { startSessionPump } from "../../web/session-pump.mjs";
+import { verifyLaunchBase } from "../../web/base-verifier.mjs";
 import { acquireSessionProfile } from "../../web/session-profile.mjs";
 import { deflateRawSync } from "node:zlib";
 import {
@@ -17,6 +18,11 @@ import {
 	mergeRuntimeLibrary,
 	refreshPublishedPack,
 	togglePack,
+	movePack,
+	removePack,
+	installPack,
+	mergeScopedLibrary,
+	menuLocation,
 } from "../../web/launcher.mjs";
 const route = (query) => launchOptions(new URLSearchParams(query), "https://example.test/phoenix-v3/");
 test("concurrent default-profile tabs and duplicated tabs keep separate durable identities", async () => {
@@ -340,4 +346,142 @@ test("launch base stays enabled while child branches follow their parents", () =
 	assert.equal(selected.find((p) => p.id === "root").enabled, true);
 	assert.equal(selected.find((p) => p.id === "b").enabled, false);
 	assert.equal(selected.find((p) => p.id === "c").enabled, true);
+});
+
+test("scoped browser writes retain concurrent base and profile changes", () => {
+	const initial = {
+		schema: 1,
+		volume: 50,
+		language: "en",
+		player_name: "Original",
+		avatar: [],
+		packs: [],
+		saves: [],
+		base_profiles: { "default/phoenix-base": { player_name: "Original", avatar: [], packs: [], saves: [] } },
+	};
+	const tabA = structuredClone(initial),
+		tabB = structuredClone(initial),
+		tabC = structuredClone(initial);
+	tabA.player_name = "Sprite operator";
+	tabA.packs = [{ id: "sprite-root", hash: "s", enabled: true }];
+	tabB.player_name = "Model operator";
+	tabB.packs = [{ id: "model-root", hash: "m", enabled: true }];
+	tabB.saves = [{ id: "model-save" }];
+	tabC.player_name = "Another profile";
+	tabC.volume = 19;
+	let disk = mergeScopedLibrary(initial, tabA, "default/test");
+	disk = mergeScopedLibrary(disk, tabB, "default/test-3d");
+	disk = mergeScopedLibrary(disk, tabC, "second/test");
+	// Tab A's metadata is now stale. Its next active-scope edit must not revert B or C.
+	tabA.player_name = "Sprite renamed";
+	disk = mergeScopedLibrary(disk, tabA, "default/test");
+	assert.equal(disk.base_profiles["default/test"].player_name, "Sprite renamed");
+	assert.deepEqual(disk.base_profiles["default/test-3d"].saves, [{ id: "model-save" }]);
+	assert.equal(disk.base_profiles["second/test"].player_name, "Another profile");
+	assert.equal(disk.global_profiles.second.volume, 19);
+	assert.equal(disk.player_name, "Original");
+	assert.equal(disk.volume, 50);
+});
+
+test("menu returns retain the launched base and local profile", () => {
+	const target = new URL(
+		menuLocation(
+			"https://example.test/game/?type=server&profile=alice#runtime",
+			"https://packs.test/root.zip",
+			"alice",
+		),
+	);
+	assert.equal(target.searchParams.get("base"), "https://packs.test/root.zip");
+	assert.equal(target.searchParams.get("profile"), "alice");
+	assert.equal(target.searchParams.has("type"), false);
+	assert.equal(target.hash, "");
+});
+
+test("mod ordering and removal cannot orphan disabled descendants", () => {
+	const packs = [
+		{ id: "root", hash: "r", locked: true, enabled: true },
+		{ id: "a", hash: "a", enabled: false },
+		{ id: "b", hash: "b", enabled: false },
+		{ id: "c", hash: "c", enabled: true },
+	];
+	const meta = new Map([
+		["r", {}],
+		["a", { parent: "root" }],
+		["b", { parent: "a" }],
+		["c", { parent: "root" }],
+	]);
+	assert.throws(() => movePack(packs, "b", -1, meta), /Parent mods/);
+	assert.throws(() => removePack(packs, "a", meta), /child mods/);
+	assert.throws(() => removePack(packs, "r", meta), /launch base/);
+	assert.deepEqual(
+		movePack(packs, "c", -1, meta).map((p) => p.id),
+		["root", "a", "c", "b"],
+	);
+	assert.deepEqual(
+		removePack(removePack(packs, "b", meta), "a", meta).map((p) => p.id),
+		["root", "c"],
+	);
+});
+
+test("child imports reject duplicate IDs, missing ancestors and foreign roots", () => {
+	const root = [{ id: "root", hash: "r", enabled: true, locked: true }];
+	const meta = new Map([["r", {}]]);
+	const installed = installPack(root, { id: "child", parent: "root" }, "a", meta, "root");
+	meta.set("a", { parent: "root" });
+	assert.throws(
+		() => installPack(installed, { id: "child", parent: "root" }, "a2", meta, "root"),
+		/already installed/,
+	);
+	assert.equal(installPack(installed, { id: "child", parent: "root" }, "a", meta, "root"), installed);
+	assert.throws(
+		() => installPack(root, { id: "grandchild", parent: "child" }, "g", meta, "root"),
+		/parent mod first/,
+	);
+	assert.throws(
+		() => installPack(root, { id: "other", base: { render_mode: "models" } }, "o", meta, "root"),
+		/child mod/,
+	);
+	assert.equal(installPack(installed, { id: "grandchild", parent: "child" }, "g", meta, "root").length, 3);
+});
+
+test("launch preflight resolves production previews and always releases its worker", async () => {
+	const bytes = new Uint8Array([1, 2, 3]);
+	let terminated = 0;
+	const worker = {
+		postMessage(value) {
+			assert.equal(value, bytes);
+			queueMicrotask(() => this.onmessage({ data: { ok: true, preview: { id: "verified" } } }));
+		},
+		terminate() {
+			terminated++;
+		},
+	};
+	assert.deepEqual(await verifyLaunchBase(bytes, () => worker), { id: "verified" });
+	assert.equal(terminated, 1);
+	assert.deepEqual([...bytes], [1, 2, 3]);
+	const rejectedWorker = {
+		postMessage() {
+			queueMicrotask(() => this.onmessage({ data: { ok: false, error: "missing model" } }));
+		},
+		terminate() {
+			terminated++;
+		},
+	};
+	await assert.rejects(
+		verifyLaunchBase(bytes, () => rejectedWorker),
+		/missing model/,
+	);
+	const crashedWorker = {
+		postMessage() {
+			queueMicrotask(() => this.onerror({ message: "worker failed" }));
+		},
+		terminate() {
+			terminated++;
+		},
+	};
+	await assert.rejects(
+		verifyLaunchBase(bytes, () => crashedWorker),
+		/worker failed/,
+	);
+	assert.equal(terminated, 3);
 });

@@ -59,6 +59,9 @@ struct Editor
 	int definition = -1, console = -1;
 	std::string status = "Import a PNG, create an entity definition, then place instances on the map.";
 	std::string pack_name = "workshop", library_parent;
+	std::string mod_tree_identity;
+	std::map<std::string, Json> mod_manifests;
+	std::map<std::string, std::string> mod_hashes;
 	std::string rename_from, template_id;
 	std::string console_rename_from, console_id;
 	TextureCache textures;
@@ -1572,6 +1575,92 @@ bool probe_workshop_controllers(unsigned stage)
 	}
 	return probe_gameplay_controller_test(editor.document, stage);
 }
+void pack_parent_properties(Application &app)
+{
+	if (!app.library || !ImGui::CollapsingHeader(tool_label("Mod tree").c_str()))
+		return;
+	std::string identity;
+	for (const auto &pack : app.library->packs)
+		identity += pack.id + ":" + pack.hash + ";";
+	if (identity != editor.mod_tree_identity)
+	{
+		editor.mod_manifests.clear();
+		editor.mod_hashes.clear();
+		attempt(
+		    [&]
+		    {
+			    for (const auto &entry : app.library->packs)
+			    {
+				    auto archive = app.library->read_pack_archive(entry.hash);
+				    editor.mod_manifests[entry.id] = read_pack(archive).manifest();
+				    editor.mod_hashes[entry.id] = entry.hash;
+			    }
+			    editor.mod_tree_identity = identity;
+		    });
+	}
+	const auto own = editor.document.manifest().at("id").get<std::string>();
+	const auto root = app.library->base().id;
+	auto path = [&](std::string id)
+	{
+		std::vector<std::string> chain;
+		std::set<std::string> seen;
+		while (seen.insert(id).second && editor.mod_manifests.contains(id))
+		{
+			chain.push_back(id);
+			if (id == root)
+				break;
+			id = editor.mod_manifests.at(id).value("parent", std::string{});
+		}
+		return chain;
+	};
+	for (const auto &entry : app.library->packs)
+	{
+		const auto chain = path(entry.id);
+		const auto depth = chain.empty() ? 0 : chain.size() - 1;
+		if (depth)
+			ImGui::Indent(static_cast<float>(depth) * 16);
+		ImGui::TextUnformatted(entry.id.c_str());
+		if (depth)
+			ImGui::Unindent(static_cast<float>(depth) * 16);
+	}
+	auto &manifest = editor.document.manifest();
+	if (manifest.contains("base"))
+	{
+		ImGui::TextUnformatted(localise("Base pack: parent is fixed").c_str());
+		return;
+	}
+	const auto parent = manifest.value("parent", std::string{});
+	if (ImGui::BeginCombo(tool_label("Parent mod").c_str(), parent.c_str()))
+	{
+		for (const auto &entry : app.library->packs)
+		{
+			const auto chain = path(entry.id);
+			if (chain.empty() || chain.back() != root || std::find(chain.begin(), chain.end(), own) != chain.end())
+				continue;
+			if (ImGui::Selectable(entry.id.c_str(), parent == entry.id))
+				attempt(
+				    [&]
+				    {
+					    auto candidate = editor.document;
+					    std::set<std::string> loaded;
+					    for (const auto &[id, hash] : candidate.libraries().ordered_packs)
+						    loaded.insert(id);
+					    for (auto ancestor = chain.rbegin(); ancestor != chain.rend(); ++ancestor)
+						    if (!loaded.contains(*ancestor))
+						    {
+							    candidate.load_dependency(
+							        app.library->read_pack_archive(editor.mod_hashes.at(*ancestor)));
+							    loaded.insert(*ancestor);
+						    }
+					    candidate.manifest().erase("dependencies");
+					    candidate.manifest()["parent"] = entry.id;
+					    editor.document = std::move(candidate);
+					    editor.clear_textures();
+				    });
+		}
+		ImGui::EndCombo();
+	}
+}
 void render_editor(Application &app)
 {
 	auto base_archive = [&]
@@ -2016,6 +2105,7 @@ void render_editor(Application &app)
 		else
 			editor.document.manifest().erase("loading_background");
 	}
+	pack_parent_properties(app);
 	ImGui::InputText(tool_label("Pack ID").c_str(), &editor.pack_name);
 	if (ImGui::Button(tool_label("Apply pack ID").c_str()))
 		attempt(

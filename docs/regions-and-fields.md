@@ -32,7 +32,7 @@ Field rotation is billboard-plane rotation independent of physical collider head
 
 Streaming uses the union of neighborhoods around player and NPC controllable ships, including sensor range, visual distance, swept movement, generated collider extents and retained rock velocity. A second stream after propulsion admits new colliders before the same tick’s swept collision pass. Unload hysteresis retains nearby rocks. Stable generated identities occupy a separate reserved range. Modified physical state survives unloading and recovery; decorative layers never create colliders or contacts. Schema-7 saves without the new optional state still load. Resource bounds fail explicitly: 512 cells across one ship window, 65,536 candidate cells across the fleet and 200,000 retained generated records. Increase spacing or reduce authored distances if a map exceeds these bounds.
 
-Workshop uses the production geometry, generator and renderer for bounded field previews, provides region/material/entry/tag controls, and retains its ordinary undo/redo and verified export pipeline. `training.nebula-belt` demonstrates a violet cloud and asteroid belt using the existing asteroid artwork assembled into two atlas entries by `scripts/prepare-asteroid-atlas.py`. V2 and reference snapshots remain untouched.
+Workshop uses the production geometry, generator and renderer for bounded field previews, provides region/material/entry/tag controls, and retains its ordinary undo/redo and verified export pipeline. `test.nebula-belt` demonstrates a violet cloud and asteroid belt using the existing asteroid artwork assembled into two atlas entries by `scripts/prepare-asteroid-atlas.py`. V2 and reference snapshots remain untouched.
 
 ## Validation
 

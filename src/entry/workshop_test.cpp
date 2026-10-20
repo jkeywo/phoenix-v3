@@ -12,6 +12,7 @@
 #include <vector>
 
 import phoenix.workshop_test;
+import phoenix.content;
 
 namespace
 {
@@ -29,6 +30,29 @@ const char *failure(const std::string &message)
 	return response.c_str();
 }
 } // namespace
+extern "C" EMSCRIPTEN_KEEPALIVE const char *phoenix_verify_launch_base(const std::uint8_t *bytes, unsigned size)
+{
+	try
+	{
+		if (!bytes || !size || size > 32 * 1024 * 1024)
+			throw std::runtime_error("Invalid launch base archive size");
+		const auto pack = phoenix::read_pack(phoenix::Bytes(bytes, bytes + size));
+		const auto base = phoenix::base_configuration(pack);
+		const auto catalog = phoenix::resolve_packs({pack});
+		auto preview = phoenix::launcher_catalog(catalog);
+		preview["id"] = base.id;
+		preview["hash"] = base.hash;
+		preview["name"] = pack.manifest().value("name", base.id);
+		preview["base"] = {{"render_mode", base.render_mode}, {"interface_style", base.interface_style}};
+		preview["dependencies"] = phoenix::Json::array();
+		response = phoenix::Json{{"ok", true}, {"preview", preview}}.dump();
+	}
+	catch (const std::exception &error)
+	{
+		response = phoenix::Json{{"ok", false}, {"error", error.what()}}.dump();
+	}
+	return response.c_str();
+}
 extern "C" EMSCRIPTEN_KEEPALIVE int phoenix_workshop_test_blob(const std::uint8_t *data, unsigned size)
 {
 	if (!data || !size || size > 32 * 1024 * 1024 || blobs.size() >= 65 || blob_bytes + size > 128 * 1024 * 1024)
