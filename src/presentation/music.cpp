@@ -102,7 +102,13 @@ void ServerMusic::update(const Application &app)
 	if (!live_alert || alert_session_ != app.session.get() || alert_generation_ != generation)
 	{
 		if (alert_session_ != app.session.get() || alert_generation_ != generation)
+		{
 			stop();
+			if (IsSoundValid(siren_))
+				UnloadSound(siren_);
+			siren_ = {};
+			siren_asset_.clear();
+		}
 		alert_session_ = app.session.get();
 		alert_generation_ = generation;
 		if (IsSoundValid(siren_))
