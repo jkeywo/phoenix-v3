@@ -1,8 +1,10 @@
 module;
+#ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
 #include <commctrl.h>
+#endif
 #include <SDL3/SDL.h>
 #include <cstdint>
 #include <map>
@@ -18,8 +20,11 @@ namespace phoenix
 namespace
 {
 std::vector<DeviceEvent> pending;
+#ifdef _WIN32
 std::map<UINT32, POINT> contacts;
+#endif
 std::map<SDL_JoystickID, SDL_Gamepad *> pads;
+#ifdef _WIN32
 void cancel_contacts()
 {
 	for (const auto &[id, point] : contacts)
@@ -70,6 +75,7 @@ LRESULT CALLBACK device_proc(HWND window, UINT message, WPARAM wparam, LPARAM lp
 		return 0;
 	return DefSubclassProc(window, message, wparam, lparam);
 }
+#endif
 void add(SDL_JoystickID id)
 {
 	if (pads.contains(id))
@@ -83,6 +89,7 @@ void add(SDL_JoystickID id)
 } // namespace
 void open_devices(void *window)
 {
+#ifdef _WIN32
 	std::cout << "Pointer hardware: " << GetSystemMetrics(SM_MAXIMUMTOUCHES) << " maximum simultaneous contacts\n";
 	UINT32 pointer_count = 0;
 	if (GetPointerDevices(&pointer_count, nullptr) && pointer_count <= 64)
@@ -98,6 +105,7 @@ void open_devices(void *window)
 					          << display.right - display.left << 'x' << display.bottom - display.top << '\n';
 			}
 	}
+#endif
 	SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "0");
 	SDL_SetHint(SDL_HINT_JOYSTICK_HIDAPI, "1");
 	SDL_SetHint(SDL_HINT_JOYSTICK_WGI, "1");
@@ -113,13 +121,17 @@ void open_devices(void *window)
 			std::cout << "Controller " << ids[i] << ": " << SDL_GetGamepadName(pads.at(ids[i])) << '\n';
 	}
 	SDL_free(ids);
+#ifdef _WIN32
 	if (!SetWindowSubclass(static_cast<HWND>(window), device_proc, 2, 0))
 		throw std::runtime_error("Cannot install pointer input routing");
+#endif
 }
 void close_devices(void *window)
 {
+#ifdef _WIN32
 	RemoveWindowSubclass(static_cast<HWND>(window), device_proc, 2);
 	cancel_contacts();
+#endif
 	for (const auto &[id, pad] : pads)
 		SDL_CloseGamepad(pad);
 	pads.clear();

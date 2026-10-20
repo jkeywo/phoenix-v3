@@ -679,7 +679,7 @@ test(
 			child = spawn(process.env.PHOENIX_LOBBY_PROBE, [`ws://127.0.0.1:${address.port}/phoenix`], {
 				windowsHide: true,
 				signal: context.signal,
-				cwd: new URL("../build/native/", import.meta.url),
+				cwd: process.env.PHOENIX_NATIVE_BUILD_DIR || new URL("../build/native/", import.meta.url),
 			});
 			let output = "";
 			child.stdout.on("data", (data) => {

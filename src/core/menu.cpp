@@ -5,6 +5,7 @@ module;
 #include <windows.h>
 #include <shlobj.h>
 #endif
+#include <cstdlib>
 #include <algorithm>
 #include <chrono>
 #include <ctime>
@@ -29,6 +30,12 @@ std::string native_data_directory()
 	CoTaskMemFree(folder);
 	const auto encoded = (root / "PhoenixV3").u8string();
 	return {encoded.begin(), encoded.end()};
+#elif defined(__linux__)
+	if (const auto *root = std::getenv("XDG_DATA_HOME"); root && std::filesystem::path(root).is_absolute())
+		return (std::filesystem::path(root) / "phoenix-v3").string();
+	if (const auto *home = std::getenv("HOME"); home && std::filesystem::path(home).is_absolute())
+		return (std::filesystem::path(home) / ".local/share/phoenix-v3").string();
+	throw std::runtime_error("Cannot locate the local application data folder; specify --data explicitly");
 #else
 	return "userdata";
 #endif

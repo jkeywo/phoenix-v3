@@ -18,7 +18,7 @@ namespace phoenix
 {
 namespace
 {
-class WindowsBlobs final : public BlobStore
+class NativeBlobs final : public BlobStore
 {
 	std::filesystem::path root_;
 	std::future<BlobResult> pending_;
@@ -29,7 +29,7 @@ class WindowsBlobs final : public BlobStore
 	}
 
 public:
-	explicit WindowsBlobs(const std::string &location)
+	explicit NativeBlobs(const std::string &location)
 	    : root_(std::filesystem::absolute(std::filesystem::u8path(location)))
 	{
 		pending_ = std::async(std::launch::async,
@@ -130,6 +130,6 @@ public:
 } // namespace
 std::unique_ptr<BlobStore> open_blob_store(const std::string &location)
 {
-	return std::make_unique<WindowsBlobs>(location);
+	return std::make_unique<NativeBlobs>(location);
 }
 } // namespace phoenix
