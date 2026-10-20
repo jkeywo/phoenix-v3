@@ -1,5 +1,7 @@
 #include "../support/assertions.hpp"
 #include <iostream>
+#include <cmath>
+#include <iterator>
 #include <algorithm>
 #include <nlohmann/json.hpp>
 #include <optional>
@@ -12,6 +14,11 @@
 #include <utility>
 #include <vector>
 
+namespace
+{
+#include "../../src/tools/map_gesture.hpp"
+}
+
 import phoenix.input;
 import phoenix.navigation;
 
@@ -21,6 +28,34 @@ int main()
 {
 	try
 	{
+		using P = Application::ToolPointer;
+		MapGesture gesture;
+		float pan_x = 0, pan_y = 0, zoom = 1;
+		auto send = [&](P::Phase phase, std::uint64_t id, float x, float y, bool inside = true)
+		{
+			gesture.event(P{phase, id, x, y}, inside, 200, 200, .25f, 4.f, pan_x, pan_y, zoom);
+		};
+		send(P::down, 1, 100, 100);
+		send(P::move, 1, 120, 110);
+		require(pan_x == 20 && pan_y == 10 && zoom == 1, "One finger pans without changing scale");
+		send(P::down, 2, 220, 110);
+		const auto world_x = (170 - 200 - pan_x) / zoom;
+		const auto world_y = (110 - 200 - pan_y) / zoom;
+		send(P::move, 2, 320, 110);
+		require(zoom == 2 && std::abs((220 - 200 - pan_x) / zoom - world_x) < .001f &&
+		            std::abs((110 - 200 - pan_y) / zoom - world_y) < .001f,
+		        "Pinch zoom preserves the world point beneath the moving midpoint");
+		send(P::move, 2, 10000, 110);
+		require(zoom == 4, "Pinching respects the map zoom limit");
+		send(P::cancel, 1, 0, 0);
+		const auto prior_pan = pan_x;
+		send(P::move, 2, 10010, 110, false);
+		require(pan_x == prior_pan + 10, "Lifting one finger resumes pan without a jump and keeps capture outside");
+		send(P::up, 2, 10010, 110);
+		send(P::down, 3, 20, 20, false);
+		send(P::move, 3, 50, 50);
+		require(gesture.contacts.empty() && pan_x == prior_pan + 10,
+		        "Touches beginning outside the map never capture it");
 		InputRouter router;
 		require(router.set_regions({{11, 0, 0, 1920, 1080},
 		                            {22, 1920, 0, 1920, 1080},

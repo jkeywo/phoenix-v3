@@ -6,6 +6,7 @@ module;
 #include <array>
 #include <functional>
 #include <memory>
+#include <map>
 #include <nlohmann/json.hpp>
 #include <string>
 #include <utility>
@@ -49,16 +50,51 @@ void draw_workshop(Application &app)
 	}
 	io.DisplaySize = {area.width, area.height};
 	io.DeltaTime = GetFrameTime() > 0 ? GetFrameTime() : 1.0f / 60;
-	io.AddMousePosEvent(GetMouseX() - area.x, GetMouseY() - area.y);
-	const bool hovered = CheckCollisionPointRec(GetMousePosition(), area);
-	static bool mouse_capture = false;
-	if (hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
-		mouse_capture = true;
-	for (int i = 0; i < 3; ++i)
-		io.AddMouseButtonEvent(i, (hovered || mouse_capture) && IsMouseButtonDown(i));
-	if (!IsMouseButtonDown(MOUSE_BUTTON_LEFT))
-		mouse_capture = false;
-	io.AddMouseWheelEvent(0, hovered ? GetMouseWheelMove() : 0);
+	static std::map<std::uint64_t, Vector2> touches;
+	if (touches.empty() && app.tools_pointers.empty())
+	{
+		io.AddMouseSourceEvent(ImGuiMouseSource_Mouse);
+		io.AddMousePosEvent(GetMouseX() - area.x, GetMouseY() - area.y);
+		const bool hovered = CheckCollisionPointRec(GetMousePosition(), area);
+		static bool mouse_capture = false;
+		if (hovered && IsMouseButtonPressed(MOUSE_BUTTON_LEFT))
+			mouse_capture = true;
+		for (int i = 0; i < 3; ++i)
+			io.AddMouseButtonEvent(i, (hovered || mouse_capture) && IsMouseButtonDown(i));
+		if (!IsMouseButtonDown(MOUSE_BUTTON_LEFT))
+			mouse_capture = false;
+		io.AddMouseWheelEvent(0, hovered ? GetMouseWheelMove() : 0);
+	}
+	if (!IsWindowFocused())
+	{
+		touches.clear();
+		io.AddMouseButtonEvent(0, false);
+	}
+	for (const auto &event : app.tools_pointers)
+	{
+		using P = Application::ToolPointer;
+		const Vector2 point{event.x - area.x, event.y - area.y};
+		if (event.phase == P::down && CheckCollisionPointRec({event.x, event.y}, area))
+			touches[event.id] = point;
+		else if (touches.contains(event.id))
+		{
+			if (event.phase == P::up || event.phase == P::cancel)
+				touches.erase(event.id);
+			else
+				touches[event.id] = point;
+		}
+		else
+			continue;
+		io.AddMouseSourceEvent(ImGuiMouseSource_TouchScreen);
+		io.AddMousePosEvent(point.x, point.y);
+		io.AddMouseButtonEvent(0, touches.size() == 1 && event.phase != P::cancel);
+	}
+	if (!touches.empty())
+	{
+		const auto point = touches.begin()->second;
+		io.AddMousePosEvent(point.x, point.y);
+		io.AddMouseButtonEvent(0, touches.size() == 1);
+	}
 	bool keyboard = graphics_has_keyboard_focus() && (!app.embedded_tools || app.tools_keyboard_focus);
 	static bool previous_focus = true;
 	if (keyboard != previous_focus)

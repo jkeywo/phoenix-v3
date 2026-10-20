@@ -8,6 +8,7 @@ module;
 #include <SDL3/SDL.h>
 #include <cstdint>
 #include <map>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -76,6 +77,23 @@ LRESULT CALLBACK device_proc(HWND window, UINT message, WPARAM wparam, LPARAM lp
 	return DefSubclassProc(window, message, wparam, lparam);
 }
 #endif
+#ifndef _WIN32
+std::mutex touch_mutex;
+std::vector<SDL_TouchFingerEvent> touch_events;
+bool SDLCALL touch_watch(void *, SDL_Event *event)
+{
+	if (event->type == SDL_EVENT_FINGER_DOWN || event->type == SDL_EVENT_FINGER_MOTION ||
+	    event->type == SDL_EVENT_FINGER_UP || event->type == SDL_EVENT_FINGER_CANCELED)
+	{
+		// SDL watches can run on the thread that posts an event. Window queries
+		// and the presentation queue stay on the main thread in poll_devices.
+		std::lock_guard lock(touch_mutex);
+		if (touch_events.size() < 4096)
+			touch_events.push_back(event->tfinger);
+	}
+	return true;
+}
+#endif
 void add(SDL_JoystickID id)
 {
 	if (pads.contains(id))
@@ -89,6 +107,10 @@ void add(SDL_JoystickID id)
 } // namespace
 void open_devices(void *window)
 {
+#ifndef _WIN32
+	SDL_SetHint(SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
+	SDL_AddEventWatch(touch_watch, nullptr);
+#endif
 #ifdef _WIN32
 	std::cout << "Pointer hardware: " << GetSystemMetrics(SM_MAXIMUMTOUCHES) << " maximum simultaneous contacts\n";
 	UINT32 pointer_count = 0;
@@ -128,6 +150,13 @@ void open_devices(void *window)
 }
 void close_devices(void *window)
 {
+#ifndef _WIN32
+	SDL_RemoveEventWatch(touch_watch, nullptr);
+	{
+		std::lock_guard lock(touch_mutex);
+		touch_events.clear();
+	}
+#endif
 #ifdef _WIN32
 	RemoveWindowSubclass(static_cast<HWND>(window), device_proc, 2);
 	cancel_contacts();
@@ -190,6 +219,23 @@ std::vector<DeviceEvent> poll_devices()
 				                   event.gbutton.down ? 1.f : 0.f});
 		}
 	}
+#ifndef _WIN32
+	std::vector<SDL_TouchFingerEvent> fingers;
+	{
+		std::lock_guard lock(touch_mutex);
+		fingers.swap(touch_events);
+	}
+	for (const auto &finger : fingers)
+	{
+		int width = 0, height = 0;
+		SDL_GetWindowSize(SDL_GetWindowFromID(finger.windowID), &width, &height);
+		const auto kind = finger.type == SDL_EVENT_FINGER_DOWN     ? DeviceEventKind::Down
+		                  : finger.type == SDL_EVENT_FINGER_MOTION ? DeviceEventKind::Move
+		                  : finger.type == SDL_EVENT_FINGER_UP     ? DeviceEventKind::Up
+		                                                           : DeviceEventKind::Cancel;
+		pending.push_back({kind, static_cast<std::uint64_t>(finger.fingerID), finger.x * width, finger.y * height});
+	}
+#endif
 	auto result = std::move(pending);
 	pending.clear();
 	return result;

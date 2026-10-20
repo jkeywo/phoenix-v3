@@ -8,6 +8,7 @@ module;
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <iterator>
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <optional>
@@ -28,6 +29,9 @@ namespace phoenix
 namespace
 {
 #include "editor_controls.hpp"
+#include "map_gesture.hpp"
+MapGesture map_gesture;
+bool map_touch = false;
 std::string tool_label(const std::string &text)
 {
 	return localise(text) + "###" + text;
@@ -1189,6 +1193,26 @@ void slots_editor()
 		           return false;
 	           });
 }
+void map_gestures(Application &app, ImVec2 origin, ImVec2 size, float minimum, float maximum)
+{
+	if (!IsWindowFocused())
+		map_gesture.contacts.clear();
+	map_touch = !app.tools_pointers.empty() || !map_gesture.contacts.empty() ||
+	            ImGui::GetIO().MouseSource == ImGuiMouseSource_TouchScreen;
+	for (auto event : app.tools_pointers)
+	{
+		if (app.embedded_tools && app.gm_region)
+		{
+			event.x -= app.gm_region->x;
+			event.y -= app.gm_region->y;
+		}
+		const bool inside = ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenBlockedByActiveItem) &&
+		                    event.x >= origin.x && event.y >= origin.y && event.x < origin.x + size.x &&
+		                    event.y < origin.y + size.y;
+		map_gesture.event(event, inside, origin.x + size.x / 2, origin.y + size.y / 2, minimum, maximum, editor.pan_x,
+		                  editor.pan_y, editor.zoom);
+	}
+}
 void map_view(Application &app)
 {
 	ImGui::Begin(tool_label("Map").c_str());
@@ -1218,11 +1242,13 @@ void map_view(Application &app)
 		ImGui::EndCombo();
 	}
 	string_field("Map name", editor.document.map(), "name");
-	ImGui::TextWrapped("Double-click: place selected definition | drag: move | middle-drag: pan | wheel: zoom");
+	ImGui::TextWrapped("Double-click: place selected definition | drag: move | middle-drag: pan | wheel: zoom | touch: "
+	                   "drag to pan, pinch to zoom");
 	auto origin = ImGui::GetCursorScreenPos(), size = ImGui::GetContentRegionAvail();
 	size.x = std::max(size.x, 1.0f);
 	size.y = std::max(size.y, 1.0f);
 	ImGui::InvisibleButton("map-canvas", size, ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle);
+	map_gestures(app, origin, size, 0.00005f, 0.1f);
 	bool hovered = ImGui::IsItemHovered();
 	auto &io = ImGui::GetIO();
 	if (hovered)
@@ -1365,7 +1391,7 @@ void map_view(Application &app)
 		              slot.at("id").get_ref<const std::string &>().c_str());
 	}
 	draw->PopClipRect();
-	if (hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && editor.definition >= 0 &&
+	if (!map_touch && hovered && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left) && editor.definition >= 0 &&
 	    editor.definition < static_cast<int>(definitions.size()))
 	{
 		editor.selection = "Entity";
@@ -1373,13 +1399,13 @@ void map_view(Application &app)
 		                                        static_cast<std::int64_t>((io.MousePos.x - centre.x) / editor.zoom),
 		                                        static_cast<std::int64_t>((centre.y - io.MousePos.y) / editor.zoom));
 	}
-	else if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
+	else if (!map_touch && hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left))
 	{
 		editor.selected = nearest;
 		if (nearest)
 			editor.selection = "Entity";
 	}
-	if (ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
+	if (!map_touch && ImGui::IsItemActive() && ImGui::IsMouseDragging(ImGuiMouseButton_Left))
 	{
 		if (auto *instance = selected_instance())
 		{
@@ -1392,6 +1418,7 @@ void map_view(Application &app)
 } // namespace
 void close_editor()
 {
+	map_gesture.contacts.clear();
 	editor.imports.reset();
 	editor.saves.reset();
 	editor.saving = false;
@@ -1774,6 +1801,7 @@ void render_editor(Application &app)
 		const auto origin = ImGui::GetCursorScreenPos(), size = ImGui::GetContentRegionAvail();
 		ImGui::InvisibleButton("Live map", ImVec2(std::max(1.f, size.x), std::max(1.f, size.y)),
 		                       ImGuiButtonFlags_MouseButtonLeft | ImGuiButtonFlags_MouseButtonMiddle);
+		map_gestures(app, origin, size, 0.000001f, 1.f);
 		if (ImGui::IsItemHovered())
 		{
 			auto &io = ImGui::GetIO();

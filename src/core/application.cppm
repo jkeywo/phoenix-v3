@@ -65,6 +65,20 @@ struct Application
 	std::optional<ConsoleRegion> viewscreen_region;
 	std::optional<ConsoleRegion> gm_region;
 	bool tools_keyboard_focus = false, embedded_tools = false;
+	struct ToolPointer
+	{
+		enum Phase
+		{
+			down,
+			move,
+			up,
+			cancel
+		};
+		Phase phase;
+		std::uint64_t id;
+		float x, y;
+	};
+	std::vector<ToolPointer> tools_pointers;
 	std::map<std::string, ConsoleId> gamepad_assignments;
 	Screen screen = Screen::home;
 	Screen settings_return = Screen::home;

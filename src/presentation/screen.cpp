@@ -922,6 +922,7 @@ void draw_screen(Application &app)
 	    (app.screen == Screen::viewscreen || (console_mode && app.viewscreen_region && app.screen == Screen::console));
 	prepare_public_board(app, public_visible);
 	app.frame_metrics["semantics"] = GetTime() - semantics_started;
+	app.tools_pointers.clear();
 	for (const auto &event : poll_devices())
 	{
 		if (event.kind == DeviceEventKind::Added)
@@ -953,7 +954,17 @@ void draw_screen(Application &app)
 		}
 		else
 		{
-			if (app.screen == Screen::workshop || app.screen == Screen::gm)
+			const bool tools = app.screen == Screen::workshop || app.screen == Screen::gm;
+			if (tools || app.gm_region)
+			{
+				using P = Application::ToolPointer;
+				const auto phase = event.kind == DeviceEventKind::Down   ? P::down
+				                   : event.kind == DeviceEventKind::Move ? P::move
+				                   : event.kind == DeviceEventKind::Up   ? P::up
+				                                                         : P::cancel;
+				app.tools_pointers.push_back({phase, event.contact, event.x, event.y});
+			}
+			if (tools)
 			{
 				cancel_captures();
 				continue;
