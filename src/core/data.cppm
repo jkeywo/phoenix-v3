@@ -45,6 +45,10 @@ std::string random_token();
 // separate rules from authored pack identifiers.
 bool valid_identifier(std::string_view value);
 bool valid_hex_token(std::string_view value);
+// Read a numeric value without narrowing unsigned JSON integers before validation.
+std::int64_t checked_integer(const Json &value, std::int64_t minimum, std::int64_t maximum, const std::string &path);
+std::uint64_t checked_unsigned(const Json &value, std::uint64_t minimum, std::uint64_t maximum,
+                               const std::string &path);
 // Optional typed fields; preserve caller-supplied defaults, ranges and path diagnostics.
 std::int64_t json_integer(const Json &source, const char *key, std::int64_t fallback, std::int64_t minimum,
                           std::int64_t maximum, const std::string &path);

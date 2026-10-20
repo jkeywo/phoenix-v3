@@ -5,6 +5,7 @@ module;
 #include <cstdint>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -52,17 +53,36 @@ bool valid_hex_token(std::string_view value)
 {
 	return value.size() == 64 && value.find_first_not_of("0123456789abcdef") == std::string_view::npos;
 }
+std::int64_t checked_integer(const Json &source, std::int64_t minimum, std::int64_t maximum, const std::string &path)
+{
+	if (!source.is_number_integer())
+		throw std::runtime_error(path + ": expected integer");
+	if (source.is_number_unsigned() &&
+	    source.get<std::uint64_t>() > static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max()))
+		throw std::runtime_error(path + ": integer outside supported range");
+	const auto value = source.get<std::int64_t>();
+	if (value < minimum || value > maximum)
+		throw std::runtime_error(path + ": integer outside supported range");
+	return value;
+}
+std::uint64_t checked_unsigned(const Json &source, std::uint64_t minimum, std::uint64_t maximum,
+                               const std::string &path)
+{
+	if (!source.is_number_integer())
+		throw std::runtime_error(path + ": expected unsigned integer");
+	if (!source.is_number_unsigned() && source.get<std::int64_t>() < 0)
+		throw std::runtime_error(path + ": unsigned integer outside supported range");
+	const auto value = source.get<std::uint64_t>();
+	if (value < minimum || value > maximum)
+		throw std::runtime_error(path + ": unsigned integer outside supported range");
+	return value;
+}
 std::int64_t json_integer(const Json &source, const char *key, std::int64_t fallback, std::int64_t minimum,
                           std::int64_t maximum, const std::string &path)
 {
 	if (!source.contains(key))
 		return fallback;
-	if (!source.at(key).is_number_integer())
-		throw std::runtime_error(path + "." + key + ": expected integer");
-	const auto value = source.at(key).get<std::int64_t>();
-	if (value < minimum || value > maximum)
-		throw std::runtime_error(path + "." + key + ": outside supported finite range");
-	return value;
+	return checked_integer(source.at(key), minimum, maximum, path + "." + key);
 }
 bool json_boolean(const Json &source, const char *key, bool fallback, const std::string &path)
 {

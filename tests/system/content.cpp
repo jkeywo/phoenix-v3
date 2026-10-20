@@ -1,6 +1,7 @@
 #include "../support/assertions.hpp"
 #include "../support/fixtures.hpp"
 #include <iostream>
+#include <limits>
 #include <algorithm>
 #include <stdexcept>
 #include <cstdint>
@@ -25,6 +26,54 @@ int main()
 		auto loaded = read_pack(bytes);
 		require(loaded.hash() == sha256(bytes), "pack identity must be the SHA256 of transferred archive bytes");
 		auto catalog = resolve_packs({loaded});
+
+		// Signed coordinates must be checked before conversion from unsigned JSON storage.
+		const auto numeric_source = parse_json(base.files.at("definitions.json"), "numeric fixture");
+		const auto load_coordinate = [&](const Json &coordinate)
+		{
+			auto source = numeric_source;
+			source["maps"][0]["entities"][0]["x_mm"] = coordinate;
+			auto draft = base;
+			draft.files["definitions.json"] = json_bytes(source);
+			return resolve_packs({read_pack(write_pack(draft))});
+		};
+		for (const Json coordinate : {Json(-1000000000LL), Json(1000000000ULL), Json(0)})
+			load_coordinate(coordinate);
+		for (const Json coordinate : {Json(std::numeric_limits<std::uint64_t>::max()), Json(1000000001ULL),
+		                              Json(-1000000001LL), Json(true), Json(1.5), Json("12")})
+			rejected(
+			    [&]
+			    {
+				    load_coordinate(coordinate);
+			    },
+			    "x_mm");
+		require(checked_integer(Json(std::numeric_limits<std::int64_t>::min()),
+		                        std::numeric_limits<std::int64_t>::min(), 0,
+		                        "minimum") == std::numeric_limits<std::int64_t>::min() &&
+		            checked_unsigned(Json(std::numeric_limits<std::uint64_t>::max()), 0,
+		                             std::numeric_limits<std::uint64_t>::max(),
+		                             "maximum") == std::numeric_limits<std::uint64_t>::max(),
+		        "full-width integers remain representable");
+		rejected(
+		    [&]
+		    {
+			    checked_unsigned(Json(-1), 0, 100, "unsigned");
+		    },
+		    "unsigned");
+		require(json_integer(Json::object(), "optional", 7, 0, 10, "fixture") == 7,
+		        "missing optional integer retains its default");
+		{
+			auto source = numeric_source;
+			source["maps"][0]["entities"][0].erase("x_mm");
+			auto draft = base;
+			draft.files["definitions.json"] = json_bytes(source);
+			rejected(
+			    [&]
+			    {
+				    resolve_packs({read_pack(write_pack(draft))});
+			    },
+			    "x_mm");
+		}
 
 		// Migration is a compiler boundary: originals remain untouched and outputs use explicit contracts.
 		auto conversion_source = catalog;

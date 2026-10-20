@@ -25,12 +25,7 @@ void require(bool condition, const std::string &message)
 }
 std::uint64_t nonnegative(const Json &value)
 {
-	require(value.is_number_integer(), "expected a nonnegative integer");
-	if (value.is_number_unsigned())
-		return value.get<std::uint64_t>();
-	const auto result = value.get<std::int64_t>();
-	require(result >= 0, "expected a nonnegative integer");
-	return static_cast<std::uint64_t>(result);
+	return checked_unsigned(value, 0, std::numeric_limits<std::uint64_t>::max(), "knowledge");
 }
 } // namespace
 KnowledgeKey CompiledKnowledge::role(std::string_view name) const
@@ -116,12 +111,7 @@ void knowledge_require(bool condition, const std::string &reason)
 }
 KnowledgeId knowledge_unsigned(const Json &value)
 {
-	knowledge_require(value.is_number_integer(), "expected a nonnegative integral identity/tick");
-	if (value.is_number_unsigned())
-		return value.get<KnowledgeId>();
-	const auto number = value.get<std::int64_t>();
-	knowledge_require(number >= 0, "negative identity/tick");
-	return static_cast<KnowledgeId>(number);
+	return checked_unsigned(value, 0, std::numeric_limits<KnowledgeId>::max(), "gameplay knowledge: identity/tick");
 }
 bool knowledge_has(const std::vector<KnowledgeKey> &keys, KnowledgeKey key)
 {

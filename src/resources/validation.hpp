@@ -2,13 +2,7 @@
 inline ResourceAmount amount(const Json &object, const char *key, ResourceAmount fallback = 0,
                              ResourceAmount maximum = resource_limit)
 {
-	if (!object.contains(key))
-		return fallback;
-	const auto &value = object.at(key);
-	if (!value.is_number_integer() || value.is_boolean() || value < 0 || value > maximum)
-		throw std::runtime_error(std::string("resources.") + key +
-		                         ": expected finite nonnegative integer <= " + std::to_string(maximum));
-	return value.get<ResourceAmount>();
+	return json_integer(object, key, fallback, 0, maximum, "resources");
 }
 inline bool flag(const Json &object, const char *key, bool fallback = false)
 {

@@ -59,12 +59,9 @@ std::string text(const Json &object, const char *key, const std::string &path)
 std::int64_t integer(const Json &object, const char *key, const std::string &path, std::int64_t minimum,
                      std::int64_t maximum = 1000000000)
 {
-	if (!object.contains(key) || !object[key].is_number_integer())
+	if (!object.contains(key))
 		invalid(path + "." + key, "expected integer");
-	auto value = object[key].get<std::int64_t>();
-	if (value < minimum || value > maximum)
-		invalid(path + "." + key, "integer outside supported range");
-	return value;
+	return checked_integer(object.at(key), minimum, maximum, path + "." + key);
 }
 void transform(const Json &value, const std::string &path)
 {

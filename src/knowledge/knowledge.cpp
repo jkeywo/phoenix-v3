@@ -26,18 +26,7 @@ void require(bool condition, const std::string &message)
 }
 template <typename T> T read_unsigned(const Json &value)
 {
-	require(value.is_number_integer(), "expected a nonnegative integer");
-	std::uint64_t number = 0;
-	if (value.is_number_unsigned())
-		number = value.get<std::uint64_t>();
-	else
-	{
-		const auto signed_number = value.get<std::int64_t>();
-		require(signed_number >= 0, "negative identity/key/tick is forbidden");
-		number = static_cast<std::uint64_t>(signed_number);
-	}
-	require(number <= std::numeric_limits<T>::max(), "identity/key/tick exceeds its supported range");
-	return static_cast<T>(number);
+	return static_cast<T>(checked_unsigned(value, 0, std::numeric_limits<T>::max(), "knowledge: identity/key/tick"));
 }
 template <typename T> std::vector<T> read_unsigned_vector(const Json &value)
 {
@@ -66,10 +55,8 @@ KnowledgeValue decode_value(const Json &value)
 		return value.get<bool>();
 	if (value.is_number_integer())
 	{
-		if (value.is_number_unsigned())
-			require(value.get<std::uint64_t>() <= static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max()),
-			        "integer field exceeds signed range");
-		return value.get<std::int64_t>();
+		return checked_integer(value, std::numeric_limits<std::int64_t>::min(),
+		                       std::numeric_limits<std::int64_t>::max(), "knowledge: integer field");
 	}
 	if (value.is_string())
 		return value.get<std::string>();

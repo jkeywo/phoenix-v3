@@ -59,10 +59,8 @@ Value value_from(const Json &json)
 		return Value::boolean(json.get<bool>());
 	if (json.is_number_integer())
 	{
-		if (json.is_number_unsigned() &&
-		    json.get<std::uint64_t>() > static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max()))
-			fail("integer literal out of signed range");
-		return Value::integer(json.get<std::int64_t>());
+		return Value::integer(checked_integer(json, std::numeric_limits<std::int64_t>::min(),
+		                                      std::numeric_limits<std::int64_t>::max(), "state tree: literal"));
 	}
 	if (json.is_string())
 	{

@@ -27,12 +27,7 @@ namespace
 }
 std::uint64_t unsigned_number(const Json &json, std::uint64_t maximum, const std::string &field)
 {
-	if (!json.is_number_integer() || (!json.is_number_unsigned() && json.get<std::int64_t>() < 0))
-		fail("invalid saved unsigned field: " + field);
-	const auto value = json.get<std::uint64_t>();
-	if (value > maximum)
-		fail("saved field outside range: " + field);
-	return value;
+	return checked_unsigned(json, 0, maximum, "state tree: saved " + field);
 }
 Json value_json(const Value &value)
 {
@@ -41,11 +36,10 @@ Json value_json(const Value &value)
 Value saved_value(const Json &json)
 {
 	const auto type = unsigned_number(json.at("type"), static_cast<unsigned>(Type::Message), "value.type");
-	if (!json.at("number").is_number_integer() ||
-	    (json.at("number").is_number_unsigned() &&
-	     json.at("number").get<std::uint64_t>() > static_cast<std::uint64_t>(std::numeric_limits<std::int64_t>::max())))
-		fail("saved value outside signed range");
-	return {static_cast<Type>(type), json.at("number").get<std::int64_t>(), json.at("text").get<std::string>()};
+	return {static_cast<Type>(type),
+	        checked_integer(json.at("number"), std::numeric_limits<std::int64_t>::min(),
+	                        std::numeric_limits<std::int64_t>::max(), "state tree: saved value"),
+	        json.at("text").get<std::string>()};
 }
 struct Evaluation
 {

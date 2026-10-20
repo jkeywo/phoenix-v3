@@ -8,19 +8,12 @@ void require(bool valid, const std::string &message)
 }
 std::uint64_t unsigned_number(const Json &v, const char *description)
 {
-	require(v.is_number_integer() && !v.is_boolean() && v >= 0,
-	        std::string(description) + " must be an unsigned integer");
-	return v.get<std::uint64_t>();
+	return checked_unsigned(v, 0, std::numeric_limits<std::uint64_t>::max(), std::string("scenario: ") + description);
 }
 std::int64_t number(const Json &v, const char *field, std::int64_t fallback = 0,
                     std::int64_t minimum = -scenario_coordinate_limit, std::int64_t maximum = scenario_coordinate_limit)
 {
-	if (!v.contains(field))
-		return fallback;
-	const auto &n = v.at(field);
-	require(n.is_number_integer() && !n.is_boolean() && n >= minimum && n <= maximum,
-	        std::string(field) + " must be a bounded integer");
-	return n.get<std::int64_t>();
+	return json_integer(v, field, fallback, minimum, maximum, "scenario");
 }
 std::string text(const Json &v, const char *field, bool optional = false)
 {
