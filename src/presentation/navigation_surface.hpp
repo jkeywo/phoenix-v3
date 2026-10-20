@@ -285,6 +285,7 @@ void draw_navigation(float ox, float oy)
 	}
 	if (model_.observation())
 	{
+		draw_region_markers(model_.observation()->regions, point, navigation_camera_.scale);
 		const auto &own = model_.observation()->own;
 		draw_radar_icon(RadarIcon::ship, point(own.x, own.y), 9, static_cast<float>(own.heading), WHITE);
 	}

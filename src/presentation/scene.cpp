@@ -10,6 +10,8 @@ module;
 #include <memory>
 #include <nlohmann/json.hpp>
 #include <span>
+#include <set>
+#include <tuple>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -30,6 +32,7 @@ const std::string prefix = "#version 300 es\nprecision highp float;\nprecision h
 #else
 const std::string prefix = "#version 330\n";
 #endif
+#include "nebula_shader.hpp"
 const char *surface_functions = R"GLSL(
 uniform sampler2D texture0;
 uniform sampler2D depthMap;
@@ -47,12 +50,44 @@ uniform float depthScale;
 uniform float depthOffset;
 uniform int hasDepth;
 uniform int perspective;
-vec2 sampleUV(vec2 uv){return clamp((crop.xy+uv*crop.zw)/atlasSize,(crop.xy+.5)/atlasSize,(crop.xy+crop.zw-.5)/atlasSize);}
-float reliefAt(vec2 uv){return depthOffset+(hasDepth==1?texture(depthMap,sampleUV(uv)).r-.5:0.0)*depthScale;}
+uniform int instanced;
+uniform float simulationTime;
+uniform vec3 chunkOrigin;
+uniform sampler2D frameMetadata;
+#ifdef VERTEX_STAGE
+layout(location=8) in vec4 instancePosition;
+layout(location=9) in vec4 instanceSpin;
+layout(location=10) in vec4 instanceInfo;
+flat out vec4 fieldAnchor, fieldCrop, fieldPivotDepth, fieldSpin;
+vec4 meta(int n){return texelFetch(frameMetadata,ivec2(n%256,n/256),0);}
+void initInstance(){
+ if(instanced==0)return;
+ fieldAnchor=vec4(chunkOrigin+instancePosition.xyz,instancePosition.w);
+ int base=int(instanceInfo.x)*25;
+ int count=int(meta(base).x);int selected=0;float best=1000.0;
+ float angle=degrees(atan(-(cameraPosition.z-fieldAnchor.z),cameraPosition.x-fieldAnchor.x))-instanceInfo.y;
+ for(int i=0;i<8;i++){if(i>=count)break;float az=meta(base+3+i*3).x;float delta=abs(mod(angle-az+540.0,360.0)-180.0);if(delta<best){best=delta;selected=i;}}
+ fieldCrop=meta(base+1+selected*3);
+ fieldPivotDepth=meta(base+2+selected*3);
+ fieldSpin=instanceSpin;
+}
+#else
+flat in vec4 fieldAnchor, fieldCrop, fieldPivotDepth, fieldSpin;
+#endif
+vec4 activeCrop(){return instanced==1?fieldCrop:crop;}
+vec2 activeSize(){return instanced==1?fieldCrop.zw:frameSize;}
+vec2 activePivot(){return instanced==1?fieldPivotDepth.xy:pivot;}
+vec3 activeAnchor(){return instanced==1?fieldAnchor.xyz:anchor;}
+float activeHeight(){return instanced==1?fieldAnchor.w:height;}
+vec3 activeRight(){float a=instanced==1?fieldSpin.x+fieldSpin.y*simulationTime:0.0;return basisRight*cos(a)+basisUp*sin(a);}
+vec3 activeUp(){float a=instanced==1?fieldSpin.x+fieldSpin.y*simulationTime:0.0;return basisUp*cos(a)-basisRight*sin(a);}
+vec2 sampleUV(vec2 uv){vec4 c=activeCrop();return clamp((c.xy+uv*c.zw)/atlasSize,(c.xy+.5)/atlasSize,(c.xy+c.zw-.5)/atlasSize);}
+float reliefAt(vec2 uv){return (instanced==1?fieldPivotDepth.w:depthOffset)+(hasDepth==1?texture(depthMap,sampleUV(uv)).r-.5:0.0)*(instanced==1?fieldPivotDepth.z:depthScale);}
 vec3 surfaceAt(vec2 uv){
-  vec3 plane=anchor+basisRight*((uv.x*frameSize.x-pivot.x)*height/frameSize.y)
-                    -basisUp*((uv.y*frameSize.y-pivot.y)*height/frameSize.y);
-  float z=height*reliefAt(uv);
+  vec2 size=activeSize(), pv=activePivot();float h=activeHeight();
+  vec3 plane=activeAnchor()+activeRight()*((uv.x*size.x-pv.x)*h/size.y)
+                    -activeUp()*((uv.y*size.y-pv.y)*h/size.y);
+  float z=h*reliefAt(uv);
   if(perspective==1) {
     float distance=dot(cameraPosition-plane,basisNear);
     float denominator=(distance<0.0?-1.0:1.0)*max(.01,abs(distance));
@@ -66,7 +101,7 @@ in vec3 vertexPosition;
 in vec2 vertexTexCoord;
 uniform mat4 mvp;
 out vec2 uv;
-void main(){uv=vertexTexCoord;gl_Position=mvp*vec4(surfaceAt(uv),1.0);}
+void main(){initInstance();uv=vertexTexCoord;gl_Position=mvp*vec4(surfaceAt(uv),1.0);}
 )GLSL";
 const char *fragment_body = R"GLSL(
 in vec2 uv;
@@ -127,9 +162,9 @@ void main(){
   }
   vec4 base=texture(texture0,sampleUV(uv));if(base.a<.15)discard;
   if(shadowPass==1){finalColor=packDepth(pixelDepth);return;}
-  if(emissive==1||diagnostic==2){finalColor=base;return;}
+  if(emissive==1||diagnostic==2){finalColor=applyFog(base,cameraPosition,p);return;}
   vec3 n;
-  if(hasNormal==1){vec3 raw=texture(normalMap,sampleUV(uv)).rgb*2.0-1.0;n=normalize(basisRight*raw.x+basisUp*raw.y+basisNear*raw.z);}
+  if(hasNormal==1){vec3 raw=texture(normalMap,sampleUV(uv)).rgb*2.0-1.0;n=normalize(activeRight()*raw.x+activeUp()*raw.y+basisNear*raw.z);}
   else {n=normalize(cross(dFdx(p),dFdy(p)));if(dot(n,basisNear)<0.0)n=-n;}
   if(diagnostic==3){finalColor=vec4(n*.5+.5,1);return;}
   if(diagnostic==4){finalColor=vec4(vec3(clamp(reliefAt(uv)+.5,0.0,1.0)),1);return;}
@@ -146,7 +181,7 @@ void main(){
   }
   float dark=1.0-clamp(ambient+direct*.95+localPower,0.0,1.0);
   // Stable frame-local ink coordinates, independent of viewport resolution.
-  vec2 paper=uv*frameSize/paperLod;
+  vec2 paper=uv*activeSize()/paperLod;
   float hatch=max(stroke(paper,.74,spacing,.66,2.0)*smoothstep(.10,.38,dark),
       max(stroke(paper,-.78,spacing*1.12,.66,8.0)*smoothstep(.37,.68,dark),
           stroke(paper,1.52,spacing*.83,.62,4.0)*smoothstep(.66,.89,dark)));
@@ -158,7 +193,7 @@ void main(){
     lit*=mix(vec3(1),vec3(.012,.018,.012),hatch);
     lit+=pigment*localColor*1.6*(1.0-hatch);
   }
-  finalColor=vec4(pow(clamp(lit,0.0,1.0),vec3(1.0/2.2)),base.a);
+  finalColor=applyFog(vec4(pow(clamp(lit,0.0,1.0),vec3(1.0/2.2)),base.a),cameraPosition,p);
 }
 )GLSL";
 struct MaterialData
@@ -185,9 +220,10 @@ float bearing(Camera3D camera, Vector3 p, std::int64_t heading)
 	return std::fmod(
 	    std::atan2(-(camera.position.z - p.z), camera.position.x - p.x) * 180 / pi - heading / 1000.f + 720, 360.f);
 }
-const SpriteFrame &select_frame(const SpriteMaterial &material, float angle)
+const SpriteFrame &select_frame(const SpriteMaterial &material, float angle, std::uint32_t entry = 0)
 {
-	return *std::min_element(material.frames.begin(), material.frames.end(),
+	const auto &frames = material.entries.empty() ? material.frames : material.entries.at(entry).frames;
+	return *std::min_element(frames.begin(), frames.end(),
 	                         [&](const auto &a, const auto &b)
 	                         {
 		                         const auto difference = [&](float v)
@@ -209,11 +245,14 @@ float sample_depth(const MaterialData &data, const SpriteFrame &f, float x, floa
 } // namespace
 struct SceneRenderer::State
 {
+	double last_simulation_time = -1, simulation_received = 0;
 	NavigationEffects navigation;
 	std::map<std::string, MaterialData> materials;
 	std::map<std::pair<std::uint64_t, std::string>, float> directions;
 	TextureCache textures;
 	Shader shader{};
+	Shader fog_shader{};
+	Material fog_material{};
 	Material drawMaterial{};
 	Mesh grid{};
 	RenderTexture2D shadow{};
@@ -226,12 +265,14 @@ struct SceneRenderer::State
 	Vector3 rebase{};
 	std::vector<Item> items;
 	std::vector<LocalLight> lights;
+#include "asteroid_instances.hpp"
 	~State()
 	{
 		clear();
 	}
 	void clear()
 	{
+		clear_instances();
 		navigation.clear();
 		directions.clear();
 		for (auto &[id, data] : materials)
@@ -247,6 +288,12 @@ struct SceneRenderer::State
 		grid = {};
 		if (shader.id)
 			UnloadShader(shader);
+		if (fog_shader.id)
+			UnloadShader(fog_shader);
+		fog_shader = {};
+		if (fog_material.maps)
+			MemFree(fog_material.maps);
+		fog_material = {};
 		shader = {};
 		if (drawMaterial.maps)
 			MemFree(drawMaterial.maps);
@@ -282,7 +329,8 @@ struct SceneRenderer::State
 	{
 		if (shader.id)
 			return;
-		const auto vs = prefix + surface_functions + vertex_body, fs = prefix + surface_functions + fragment_body;
+		const auto vs = prefix + "#define VERTEX_STAGE\n" + surface_functions + vertex_body,
+		           fs = prefix + surface_functions + fog_functions + fragment_body;
 		shader = LoadShaderFromMemory(vs.c_str(), fs.c_str());
 		if (!shader.id || shader.id == rlGetShaderIdDefault())
 		{
@@ -291,6 +339,12 @@ struct SceneRenderer::State
 		}
 		drawMaterial = LoadMaterialDefault();
 		drawMaterial.shader = shader;
+		fog_shader = LoadShaderFromMemory((prefix + fog_background_vertex).c_str(),
+		                                  (prefix + fog_functions + fog_background_fragment).c_str());
+		if (!fog_shader.id || fog_shader.id == rlGetShaderIdDefault())
+			throw std::runtime_error("Nebula shader failed to compile");
+		fog_material = LoadMaterialDefault();
+		fog_material.shader = fog_shader;
 		shader.locs[SHADER_LOC_MAP_ALBEDO] = loc("texture0");
 		shader.locs[SHADER_LOC_MAP_METALNESS] = loc("depthMap");
 		shader.locs[SHADER_LOC_MAP_NORMAL] = loc("normalMap");
@@ -385,23 +439,59 @@ struct SceneRenderer::State
 		near = Vector3Normalize(cameraPosition);
 		right = Vector3Normalize(Vector3CrossProduct(camera.up, near));
 		up = Vector3CrossProduct(near, right);
+		prepare_instances(catalog, bodies);
 		for (const auto &body : bodies)
 		{
+			if (body.field_instance)
+				continue;
 			const auto &render = catalog.entities.at(body.definition).at("render");
 			Vector3 world = {body.x / 1000.f, 0, -body.y / 1000.f};
 			Vector3 p = Vector3Subtract(world, rebase);
 			if (Vector3Distance(p, cameraPosition) > rlGetCullDistanceFar() + render.at("scale").get<float>() * 20)
 				continue;
 			if (!render.contains("sprite"))
+			{
+				const auto count = render.at("images").size();
+				const auto angle = bearing(camera, world, body.heading);
+				int index = count == 8 ? static_cast<int>(std::floor((angle + 22.5f) / 45.f)) % 8 : 0;
+				if (count == 8)
+				{
+					auto [prev, added] = directions.try_emplace(std::pair{body.id, body.definition}, index * 45.f);
+					if (!added && retain_sprite_direction(angle, prev->second, index * 45.f))
+						index = static_cast<int>(prev->second / 45.f);
+					prev->second = index * 45.f;
+				}
+				for (std::size_t i = 0; i < count; ++i)
+				{
+					const auto key = body.definition + ":legacy:" + std::to_string(i);
+					if (materials.contains(key))
+						continue;
+					MaterialData d;
+					const auto asset = render.at("images").at(i).get<std::string>();
+					d.albedo = textures.load(asset, catalog.assets.at(asset));
+					d.normal = white;
+					d.depth = white;
+					SpriteFrame f;
+					f.rect = {0, 0, d.albedo.width, d.albedo.height};
+					f.pivot = {d.albedo.width * .5f, d.albedo.height * .5f};
+					d.sprite.emissive = true;
+					d.sprite.frames.push_back(f);
+					materials.emplace(key, std::move(d));
+				}
+				auto &d = materials.at(body.definition + ":legacy:" + std::to_string(index));
+				items.push_back({&d, &d.sprite.frames.front(), p, render.at("scale").get<float>()});
 				continue;
+			}
 			auto &data = load(body.definition, render.at("sprite"), catalog);
 			const float angle = bearing(camera, world, body.heading);
-			const auto *selected = &select_frame(data.sprite, angle);
-			if (data.sprite.frames.size() == 8)
+			const auto *selected = &select_frame(data.sprite, angle, body.sprite_entry);
+			const auto &frames =
+			    data.sprite.entries.empty() ? data.sprite.frames : data.sprite.entries.at(body.sprite_entry).frames;
+			if (frames.size() == 8)
 			{
 				auto [previous, added] = directions.try_emplace(std::pair{body.id, body.definition}, selected->azimuth);
 				if (!added && retain_sprite_direction(angle, previous->second, selected->azimuth))
-					selected = &select_frame(data.sprite, previous->second);
+					selected = &select_frame(data.sprite, previous->second, body.sprite_entry);
 				previous->second = selected->azimuth;
 			}
 			const auto &f = *selected;
@@ -416,6 +506,8 @@ struct SceneRenderer::State
 				                             {
 					                             return v.name == f.name;
 				                             });
+				if (ef == effect.sprite.frames.end())
+					throw std::runtime_error("Engine sprite has no matching entry frame");
 				const float thrust = std::clamp(body.forward_thrust / 1000.f, 0.f, 1.f);
 				const float heading = body.heading * pi / 180000;
 				Vector3 direction = {-std::cos(heading), 0, std::sin(heading)};
@@ -449,6 +541,7 @@ struct SceneRenderer::State
 	}
 	void draw_item(const Item &item, bool shadowPass)
 	{
+		integer("instanced", 0);
 		const auto &f = *item.frame;
 		auto &m = *item.material;
 		vec("anchor", item.anchor);
@@ -489,6 +582,27 @@ struct SceneRenderer::State
 		if (item.engine)
 			rlEnableDepthMask();
 	}
+	void fog_uniforms(Shader target, const Json &environment)
+	{
+		const auto volumes = environment.value("nebulae", Json::array());
+		const int count = static_cast<int>(volumes.size());
+		if (count > 32)
+			throw std::runtime_error("Too many nebula volumes");
+		std::array<Vector4, 32> bounds{}, extents{}, colours{};
+		for (int i = 0; i < count; ++i)
+		{
+			const auto &v = volumes[i];
+			bounds[i] = {v.at("x"), -v.at("y").get<float>(), v.at("radius"), v.at("inner_radius")};
+			extents[i] = {v.at("half_width"), v.at("half_height"), v.at("height"), v.at("shape").get<float>()};
+			colours[i] = {v.at("colour")[0], v.at("colour")[1], v.at("colour")[2], v.at("density")};
+		}
+		SetShaderValue(target, GetShaderLocation(target, "fogCount"), &count, SHADER_UNIFORM_INT);
+		SetShaderValueV(target, GetShaderLocation(target, "fogBounds[0]"), bounds.data(), SHADER_UNIFORM_VEC4, 32);
+		SetShaderValueV(target, GetShaderLocation(target, "fogExtents[0]"), extents.data(), SHADER_UNIFORM_VEC4, 32);
+		SetShaderValueV(target, GetShaderLocation(target, "fogColours[0]"), colours.data(), SHADER_UNIFORM_VEC4, 32);
+		const auto origin = Vector3Negate(rebase);
+		SetShaderValue(target, GetShaderLocation(target, "fogOrigin"), &origin, SHADER_UNIFORM_VEC3);
+	}
 };
 SceneRenderer::SceneRenderer() : state_(std::make_unique<State>())
 {
@@ -497,6 +611,12 @@ SceneRenderer::~SceneRenderer() = default;
 void SceneRenderer::clear()
 {
 	state_->clear();
+}
+Json SceneRenderer::instance_statistics() const
+{
+	return {{"uploads", state_->instance_uploads},
+	        {"records_uploaded", state_->instance_records_uploaded},
+	        {"batches", state_->instance_batches.size()}};
 }
 void SceneRenderer::explosion(const ExplosionEffect &effect)
 {
@@ -546,6 +666,12 @@ void SceneRenderer::draw(const Catalog &catalog, std::span<const SceneBody> bodi
 			radius =
 			    std::max(radius, Vector3Distance(item.anchor, centre) + item.height * (2 + item.frame->depth_scale));
 	}
+	for (const auto &[key, batch] : s.instance_batches)
+		for (const auto &[id, record] : batch.records)
+		{
+			const auto anchor = Vector3Subtract(Vector3Add(batch.origin, {record[0], record[1], record[2]}), s.rebase);
+			radius = std::max(radius, Vector3Distance(anchor, centre) + record[3] * 3);
+		}
 	const Vector3 lightEye = Vector3Add(centre, Vector3Scale(sun, radius * 3));
 	Camera3D lightCamera{lightEye, centre, std::abs(sun.y) > .95f ? Vector3{0, 0, 1} : Vector3{0, 1, 0}, radius * 2,
 	                     CAMERA_ORTHOGRAPHIC};
@@ -553,7 +679,16 @@ void SceneRenderer::draw(const Catalog &catalog, std::span<const SceneBody> bodi
 	           lightProj = MatrixOrtho(-radius, radius, -radius, radius, .1, radius * 6);
 	const auto lightVP = MatrixMultiply(lightView, lightProj);
 	const auto framebuffer = rlGetActiveFramebuffer();
-	const bool shadows = lighting.value("shadows", true) && !s.items.empty();
+	const bool shadows = lighting.value("shadows", true) && (!s.items.empty() || !s.instance_batches.empty());
+	const auto clock = lighting.value("environment", Json::object());
+	const double simulation = clock.value("simulation_time", time), step = clock.value("simulation_step", 0.0);
+	if (simulation != s.last_simulation_time)
+	{
+		s.simulation_received =
+		    (s.last_simulation_time < 0 || simulation < s.last_simulation_time) ? time - step : time;
+		s.last_simulation_time = simulation;
+	}
+	s.number("simulationTime", static_cast<float>(simulation - std::max(0.0, step - (time - s.simulation_received))));
 	if (shadows)
 	{
 		rlDrawRenderBatchActive();
@@ -572,6 +707,7 @@ void SceneRenderer::draw(const Catalog &catalog, std::span<const SceneBody> bodi
 		for (const auto &item : s.items)
 			if (!item.engine && !item.material->sprite.emissive)
 				s.draw_item(item, true);
+		s.draw_instances(true);
 		rlEnableColorBlend();
 		rlEnableBackfaceCulling();
 		EndMode3D();
@@ -599,6 +735,17 @@ void SceneRenderer::draw(const Catalog &catalog, std::span<const SceneBody> bodi
 	                      rlGetCullDistanceNear(), rlGetCullDistanceFar());
 	rlSetMatrixProjection(projection);
 	const auto vp = MatrixMultiply(MatrixLookAt(camera.position, camera.target, camera.up), projection);
+	const auto fog_environment = lighting.value("environment", Json::object());
+	s.fog_uniforms(s.shader, fog_environment);
+	if (!fog_environment.value("nebulae", Json::array()).empty())
+	{
+		s.fog_uniforms(s.fog_shader, fog_environment);
+		SetShaderValueMatrix(s.fog_shader, GetShaderLocation(s.fog_shader, "inverseViewProjection"), MatrixInvert(vp));
+		rlDisableDepthMask();
+		rlDisableBackfaceCulling();
+		DrawMesh(s.grid, s.fog_material, MatrixIdentity());
+		rlEnableDepthMask();
+	}
 	s.integer("shadowPass", 0);
 	s.integer("burstGraphic", 0);
 	s.integer("useShadows", shadows ? 1 : 0);
@@ -654,34 +801,7 @@ void SceneRenderer::draw(const Catalog &catalog, std::span<const SceneBody> bodi
 	rlDisableBackfaceCulling();
 	for (const auto &item : s.items)
 		s.draw_item(item, false);
-	// Legacy billboards use their original path and share the same depth buffer.
-	for (const auto &body : bodies)
-	{
-		const auto &render = catalog.entities.at(body.definition).at("render");
-		if (render.contains("sprite"))
-			continue;
-		const Vector3 p = Vector3Subtract({body.x / 1000.f, 0, -body.y / 1000.f}, s.rebase);
-		int frame = render.at("mode") == "eight"
-		                ? static_cast<int>(std::floor((bearing(camera, p, body.heading) + 22.5f) / 45.f)) % 8
-		                : 0;
-		if (render.at("mode") == "eight")
-		{
-			const float angle = bearing(camera, p, body.heading);
-			auto [previous, added] = s.directions.try_emplace(std::pair{body.id, body.definition}, frame * 45.f);
-			if (!added && retain_sprite_direction(angle, previous->second, frame * 45.f))
-				frame = static_cast<int>(previous->second / 45.f);
-			previous->second = frame * 45.f;
-			// Load every view together; changing direction must never decode a PNG mid-turn.
-			for (const auto &image : render.at("images"))
-			{
-				const auto asset = image.get<std::string>();
-				s.textures.load(asset, catalog.assets.at(asset));
-			}
-		}
-		const auto asset = render.at("images").at(frame).get<std::string>();
-		DrawBillboard(camera, s.textures.load(asset, catalog.assets.at(asset)), p, render.at("scale").get<float>(),
-		              WHITE);
-	}
+	s.draw_instances(false);
 	// The event interface is intentionally not wired to gameplay or a UI action.
 	for (const auto &e : s.effects)
 		if (time >= e.started)

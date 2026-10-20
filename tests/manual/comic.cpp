@@ -335,6 +335,104 @@ int main()
 		UnloadImage(nested_navigation);
 		UnloadRenderTexture(target);
 		std::cout << "PASS navigation grid, stationary/moving dust, reduced motion and clipped/nested regions\n";
+		renderer.clear();
+		assets["assets/atlas.png"] = png(RED, BLUE);
+		auto atlas = material("atlas.png");
+		atlas.erase("frames");
+		atlas["entries"] =
+		    Json::array({{{"name", "red"},
+		                  {"frames", Json::array({{{"name", "front"}, {"rect", {0, 0, 4, 8}}, {"pivot", {2, 4}}}})}},
+		                 {{"name", "blue"},
+		                  {"frames", Json::array({{{"name", "front"}, {"rect", {4, 0, 4, 8}}, {"pivot", {2, 4}}}})}}});
+		catalog = load(Json::array({entity("atlas", atlas, 4)}), assets);
+		objects = {body(100, "atlas", 0, 0)};
+		objects[0].field_instance = true;
+		objects[0].sprite_entry = 1;
+		objects[0].spin_mdeg_s = 90000;
+		auto field_capture = [&](double time, Json light, const char *path)
+		{
+			light["environment"]["simulation_time"] = time;
+			BeginDrawing();
+			ClearBackground(BLACK);
+			renderer.draw(catalog, objects, camera, region, light, time);
+			auto im = LoadImageFromScreen();
+			if (path)
+				ExportImage(im, path);
+			EndDrawing();
+			return im;
+		};
+		auto first = field_capture(0, {{"shadows", true}}, "field-instances-smoke.png");
+		require(GetImageColor(first, 320, 240).b > 150, "Instanced billboard did not select the blue atlas entry");
+		const auto uploads = renderer.instance_statistics().at("uploads");
+		auto turned = field_capture(1, {{"shadows", true}}, "field-spin-smoke.png");
+		require(renderer.instance_statistics().at("uploads") == uploads, "Shader spin rewrote instance buffers");
+		require(GetImageColor(first, 320, 150).b > GetImageColor(turned, 320, 150).b + 50,
+		        "Shader-driven billboard spin did not rotate the silhouette");
+		UnloadImage(first);
+		UnloadImage(turned);
+		const Json fog{{"shape", 0},      {"x", 0},           {"y", -5},     {"radius", 2},  {"inner_radius", 0},
+		               {"half_width", 0}, {"half_height", 0}, {"height", 5}, {"density", 1}, {"colour", {0, 1, 0}}};
+		auto obscured = field_capture(1, {{"shadows", true}, {"environment", {{"nebulae", Json::array({fog})}}}},
+		                              "field-nebula-smoke.png");
+		const auto green = GetImageColor(obscured, 320, 240);
+		require(green.g > green.b, "Intervening nebula failed to obscure an instanced sprite");
+		require(renderer.instance_statistics().at("uploads") == uploads, "Fog or time rewrote instance buffers");
+		UnloadImage(obscured);
+		objects.push_back(body(101, "atlas", 4000, 0));
+		objects.back().field_instance = true;
+		auto added = field_capture(1, {{"shadows", true}}, nullptr);
+		require(renderer.instance_statistics().at("uploads").get<std::uint64_t>() > uploads.get<std::uint64_t>(),
+		        "Spawn did not update the affected instance batch");
+		UnloadImage(added);
+		std::cout << "PASS atlas entries, persistent instance buffers, shader spin and intervening nebula\n";
+		{
+			RadarSweep sweep;
+			SystemView radar;
+			radar.kind = OperatingSystem::Radar;
+			radar.maximum = radar.effective_range = 100000;
+			radar.radial_ranges.assign(128, 50000);
+			Image sweep_capture{};
+			for (int frame = 0; frame <= 90; ++frame)
+			{
+				BeginDrawing();
+				ClearBackground(BLACK);
+				sweep.draw({320, 240}, 180, radar, {{"colour", {0, 1, 0, 1}}}, frame / 60.0);
+				if (frame == 90)
+				{
+					sweep_capture = LoadImageFromScreen();
+					ExportImage(sweep_capture, "radar-sweep-smoke.png");
+				}
+				EndDrawing();
+			}
+			require(sweep.statistics().at("sample_writes") == 91, "Radar did not write exactly one sample per frame");
+			std::size_t lit = 0, outside = 0;
+			for (int y = 0; y < 480; ++y)
+				for (int x = 0; x < 640; ++x)
+					if (GetImageColor(sweep_capture, x, y).g > 10)
+					{
+						++lit;
+						if ((x - 320) * (x - 320) + (y - 240) * (y - 240) > 92 * 92)
+							++outside;
+					}
+			require(lit > 100 && outside == 0,
+			        "Procedural radar sweep escaped its measured sensor boundary or failed to draw");
+			UnloadImage(sweep_capture);
+			BeginDrawing();
+			ClearBackground(BLACK);
+			sweep.draw({320, 240}, 180, radar, Json::object(), 1.5);
+			EndDrawing();
+			require(sweep.statistics().at("sample_writes") == 91, "Repeated draw in the same frame advanced the sweep");
+			for (int frame = 91; frame < 2056; ++frame)
+			{
+				BeginDrawing();
+				ClearBackground(BLACK);
+				sweep.draw({320, 240}, 180, radar, Json::object(), frame / 60.0);
+				EndDrawing();
+			}
+			require(sweep.statistics().at("sample_writes") == 2056 && sweep.statistics().at("next_index") == 8,
+			        "Radar circular sample buffer failed to wrap");
+			std::cout << "PASS procedural radar sweep, sensor truncation and one-sample GPU updates\n";
+		}
 
 		std::cout << "PASS production-loader graphical sprite depth, flat fallback, directional engines and internal "
 		             "explosion lighting\n";

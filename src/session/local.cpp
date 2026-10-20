@@ -304,7 +304,11 @@ public:
 	}
 	Json scene_lighting() const override
 	{
-		return running() ? catalog_.maps.at(setup_.mission).value("lighting", Json::object()) : Json::object();
+		if (!running())
+			return Json::object();
+		auto result = catalog_.maps.at(setup_.mission).value("lighting", Json::object());
+		result["environment"] = world_->scene_environment();
+		return result;
 	}
 	Json scene_presentation() const override
 	{

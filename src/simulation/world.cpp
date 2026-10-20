@@ -86,6 +86,10 @@ struct CompiledGameplay
 };
 struct CompiledDefinition
 {
+	std::vector<std::string> tags;
+	std::map<std::string, std::vector<std::string>> radar_shows;
+	std::vector<std::string> sprite_entries;
+	std::uint32_t sprite_entry = 0;
 	std::optional<ControllableLayout> layout;
 	std::vector<ConsoleControllerRuntime> controller_templates;
 	std::map<std::string, std::string> observation_owners;
@@ -188,6 +192,16 @@ struct World::Impl
 	bool instance_systems = false;
 	GameplayKnowledge knowledge;
 	std::optional<GameplayScenarioBridge> scenario;
+	std::vector<ScenarioRegion> regions;
+	std::map<EntityId, std::uint32_t> sprite_choices;
+	struct SensorEnvelope
+	{
+		fixed::Vec origin;
+		std::int64_t range = -1;
+		std::vector<std::int64_t> distances;
+	};
+	mutable std::map<std::pair<EntityId, std::string>, SensorEnvelope> sensor_envelopes;
+	std::uint64_t environment_tick = 0;
 	EntityId next_entity = 1;
 	std::map<EntityId, fixed::Vec> step_starts;
 	std::map<ConsoleAddress, GameplayKnowledgeProjection> brain_snapshots;
@@ -197,6 +211,7 @@ struct World::Impl
 	bool gameplay = false;
 	std::vector<std::pair<std::uint64_t, OperatingCommand>> meta_pending;
 	std::map<ConsoleAddress, bool> away; // Boundary control policy, never physical state.
+#include "asteroid_fields.hpp"
 
 	Impl()
 	{
@@ -467,8 +482,23 @@ struct World::Impl
 				result.publications.push_back(publication.at("id"));
 			for (const auto &message : definition.value("message_templates", Json::array()))
 				result.message_templates.push_back(message);
+			result.tags = definition.value("tags", std::vector<std::string>{"contact"});
+			for (const auto &spec : resolve_systems(content, name))
+				if (spec.kind == OperatingSystem::Radar)
+					result.radar_shows[spec.id] =
+					    definition.at("systems").at(spec.id).value("shows", std::vector<std::string>{"contact"});
 			result.radar_icon = render_radar_icon(definition.at("render"));
 			result.radar_sprite = render_radar_sprite(definition.at("render"), content);
+			if (definition.at("render").contains("sprite"))
+			{
+				const auto sprite = compile_sprite(definition.at("render").at("sprite"), content, name);
+				result.sprite_entry =
+				    sprite_entry_index(sprite, definition.at("render").value("sprite_entry", std::string{}));
+				for (const auto &entry : sprite.entries)
+					result.sprite_entries.push_back(entry.name);
+				if (result.sprite_entries.empty())
+					result.sprite_entries.push_back("default");
+			}
 			result.consoles = resolve_consoles(content, name);
 			if (result.layout)
 				for (const auto &fit : resolve_systems(content, name))
@@ -538,6 +568,16 @@ struct World::Impl
 	void create(EntityId id, const std::string &definition, const Json &transform)
 	{
 		const auto &data = definitions.at(definition);
+		auto choice = data.sprite_entry;
+		if (transform.contains("sprite_entry") && !transform.at("sprite_entry").get<std::string>().empty())
+		{
+			const auto name = transform.at("sprite_entry").get<std::string>();
+			const auto found = std::find(data.sprite_entries.begin(), data.sprite_entries.end(), name);
+			if (found == data.sprite_entries.end())
+				throw std::runtime_error("Unknown placement sprite entry " + name);
+			choice = static_cast<std::uint32_t>(found - data.sprite_entries.begin());
+		}
+		sprite_choices[id] = choice;
 		instance_systems |= data.fitted.has_value();
 		explicit_stations |= data.explicit_stations;
 		Pose pose{{transform.at("x_mm"), transform.at("y_mm")}, transform.at("heading_mdeg")};
@@ -939,6 +979,37 @@ struct World::Impl
 			range = range * power.grants[index].supply_permille / 1000;
 		}
 		return range;
+	}
+	const std::vector<std::int64_t> &sensor_envelope(EntityId ship, const std::string &name, std::int64_t range) const
+	{
+		const auto origin = entities.at(ship).get<Pose>().position;
+		auto &cached = sensor_envelopes[{ship, name}];
+		if (cached.range == range && cached.origin.x == origin.x && cached.origin.y == origin.y)
+			return cached.distances;
+		cached = {origin, range, {}};
+		if (range <= 0 || std::none_of(regions.begin(), regions.end(),
+		                               [](const auto &r)
+		                               {
+			                               return r.nebula && r.nebula->density && r.nebula->sensor_factor;
+		                               }))
+			return cached.distances;
+		for (int i = 0; i < 128; ++i)
+		{
+			const auto direction = fixed::direction(i * 360000LL / 128);
+			std::int64_t low = 0, high = range;
+			while (low < high)
+			{
+				const auto middle = low + (high - low + 1) / 2;
+				const auto p = origin + fixed::scale(direction, middle);
+				if (std::abs(p.x) <= scenario_coordinate_limit && std::abs(p.y) <= scenario_coordinate_limit &&
+				    scenario_sensor_visible(regions, {origin.x, origin.y}, {p.x, p.y}, range))
+					low = middle;
+				else
+					high = middle - 1;
+			}
+			cached.distances.push_back(low);
+		}
+		return cached.distances;
 	}
 	std::map<std::string, std::int64_t> telemetry(EntityId id, std::size_t index) const
 	{
@@ -1483,10 +1554,20 @@ void World::load(const Catalog &source, const std::string &map, const std::map<s
 	candidate->map = map;
 	candidate->ships = ships;
 	const auto &data = content.maps.at(map);
+	std::vector<std::string> entity_names;
+	for (const auto &[name, definition] : content.entities)
+		entity_names.push_back(name);
+	std::vector<std::string> slot_names;
+	for (const auto &slot : data.at("ship_slots"))
+		slot_names.push_back(slot.at("id"));
+	candidate->regions = compile_scenario(data, entity_names, slot_names).regions;
+	candidate->field_seed = asteroid_map_seed(map);
 	EntityId next = 1;
 	for (const auto &instance : data.at("entities"))
 	{
 		EntityId id = instance.at("id");
+		if (id >= Impl::field_identity_base)
+			throw std::runtime_error("Authored identity overlaps reserved asteroid range");
 		candidate->create(id, instance.at("definition"), instance);
 		next = std::max(next, id + 1);
 	}
@@ -1508,6 +1589,7 @@ void World::load(const Catalog &source, const std::string &map, const std::map<s
 		candidate->scenario.emplace();
 		candidate->scenario->load(content, map);
 	}
+	candidate->stream_fields();
 	candidate->index_contacts.run();
 	impl_ = std::move(candidate);
 }
@@ -1638,6 +1720,8 @@ void World::tick()
 		++impl_->ecs.get_mut<Clock>().tick;
 		return;
 	}
+	impl_->stream_fields();
+	impl_->index_contacts.run();
 	for (const auto &[claim, command] : impl_->meta_pending)
 		impl_->meta(claim, command, true);
 	impl_->meta_pending.clear();
@@ -1646,7 +1730,12 @@ void World::tick()
 	impl_->controller_pending.clear();
 	if (impl_->scenario)
 	{
-		const auto bodies = inspect();
+		auto bodies = inspect();
+		std::erase_if(bodies,
+		              [](const auto &body)
+		              {
+			              return body.id >= Impl::field_identity_base;
+		              });
 		impl_->scenario->begin_tick(ticks(), impl_->slot_entities, bodies);
 		std::vector<ScenarioKnowledgeSnapshot> snapshots;
 		for (const auto &reader : impl_->scenario->knowledge_readers())
@@ -1724,6 +1813,8 @@ void World::tick()
 		impl_->bodies.each(
 		    [&](const StableId &id, const Definition &, const Pose &pose, const Motion &)
 		    {
+			    if (id.id >= Impl::field_identity_base)
+				    return;
 			    const auto from = impl_->step_starts.at(id.id);
 			    motion.push_back({id.id, {from.x, from.y}, {pose.position.x, pose.position.y}});
 		    });
@@ -1731,6 +1822,7 @@ void World::tick()
 		impl_->scenario_publications();
 	}
 	++impl_->ecs.get_mut<Clock>().tick;
+	++impl_->environment_tick;
 	impl_->knowledge.tick(ticks());
 	impl_->observation_snapshots.clear();
 	impl_->command_snapshots.clear();
@@ -1764,6 +1856,14 @@ std::vector<SceneBody> World::scene() const
 	{
 		SceneBody item;
 		static_cast<BodyView &>(item) = body;
+		item.sprite_entry = impl_->sprite_choices.at(body.id);
+		if (auto found = impl_->field_rocks.find(body.id); found != impl_->field_rocks.end())
+		{
+			const auto &s = found->second.scene;
+			item.field_instance = true;
+			item.rotation_mdeg = s.rotation_mdeg;
+			item.spin_mdeg_s = s.spin_mdeg_s;
+		}
 		if (auto systems = fittings(impl_->entities.at(body.id)))
 			for (const auto &system : systems->values)
 				if (system.engine && system.engine->enabled)
@@ -1775,8 +1875,18 @@ std::vector<SceneBody> World::scene() const
 					    std::max(item.forward_thrust, std::max(0, system.flight->state.actual_longitudinal));
 		result.push_back(std::move(item));
 	}
+	for (const auto &[id, rock] : impl_->field_rocks)
+		if (rock.loaded && rock.decorative)
+			result.push_back(rock.scene);
 	return result;
 }
+Json World::scene_environment() const
+{
+	auto environment = region_environment(impl_->regions, impl_->environment_tick / static_cast<double>(rate));
+	environment["simulation_step"] = 1.0 / rate;
+	return environment;
+}
+
 Json World::public_board(EntityId entity) const
 {
 	return impl_->knowledge.public_board(entity);
@@ -2111,8 +2221,14 @@ Json World::save() const
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
 	Json result{{"schema", 7},           {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
+	if (!impl_->field_rocks.empty())
+		result["asteroid_fields"] = impl_->save_fields();
+	if (!impl_->regions.empty())
+		result["environment_tick"] = impl_->environment_tick;
 	for (const auto &[id, entity] : impl_->entities)
 	{
+		if (id >= Impl::field_identity_base)
+			continue;
 		SavedBody body{entity.get<Pose>(), entity.get<Motion>(), id, entity.get<Definition>().name};
 		result["bodies"].push_back({{"body", body}});
 		if (auto systems = fittings(entity))
@@ -2188,6 +2304,9 @@ void World::restore(const Catalog &content, const Json &saved)
 		throw std::runtime_error("Legacy authority fields are not Controller continuation");
 	World candidate;
 	candidate.load(content, saved.at("map"), saved.at("ships").get<std::map<std::string, std::string>>());
+	for (auto &[id, rock] : candidate.impl_->field_rocks)
+		candidate.impl_->unload_rock(rock);
+	candidate.impl_->field_rocks.clear();
 	if (saved.at("schema") >= 4 && candidate.impl_->scenario)
 	{
 		candidate.impl_->scenario->restore(content, saved.at("map"), saved.at("scenario"));
@@ -2352,6 +2471,11 @@ void World::restore(const Catalog &content, const Json &saved)
 	if (tick < 0)
 		throw std::runtime_error("Saved state invalid tick");
 	candidate.impl_->ecs.get_mut<Clock>().tick = static_cast<std::uint64_t>(tick);
+	candidate.impl_->environment_tick = saved.value("environment_tick", static_cast<std::uint64_t>(tick));
+	if (saved.contains("asteroid_fields"))
+		candidate.impl_->restore_fields(saved.at("asteroid_fields"));
+	else
+		candidate.impl_->stream_fields();
 	candidate.impl_->index_contacts.run();
 	impl_ = std::move(candidate.impl_);
 }

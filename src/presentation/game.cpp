@@ -25,6 +25,7 @@ import phoenix.console;
 import phoenix.files;
 import phoenix.session.api;
 #include "game.hpp"
+#include "region_markers.hpp"
 
 namespace phoenix
 {
@@ -57,6 +58,7 @@ struct GameScreen::State
 	std::string mission, slot, ship, seat, notice;
 	ConsoleModel console_model;
 	TextureCache textures;
+	std::map<std::string, std::unique_ptr<RadarSweep>> sweeps;
 	SceneRenderer scene;
 	Texture2D invitation{};
 	Texture2D viewscreen_frame{};
@@ -749,10 +751,38 @@ struct GameScreen::State
 					DrawLineV({centre.x - radius, centre.y}, {centre.x + radius, centre.y}, Color{45, 91, 111, 255});
 					DrawLineV({centre.x, centre.y - radius}, {centre.x, centre.y + radius}, Color{45, 91, 111, 255});
 					draw_radar_body(textures, app.session->catalog(), observation->own, centre, 9, WHITE);
+					const auto name = widget.value("system", std::string{});
+					const auto sensor =
+					    std::find_if(observation->systems.begin(), observation->systems.end(),
+					                 [&](const auto &s)
+					                 {
+						                 return s.kind == OperatingSystem::Radar && (name.empty() || s.id == name);
+					                 });
 					const double range =
-					    systems.contains("radar") ? systems.at("radar").at("range_mm").get<double>() : 1;
+					    sensor != observation->systems.end() ? std::max<std::int64_t>(1, sensor->maximum) : 1;
+					if (sensor != observation->systems.end())
+					{
+						auto &sweep = sweeps[widget.at("id").get<std::string>()];
+						if (!sweep)
+							sweep = std::make_unique<RadarSweep>();
+						sweep->draw(centre, radius, *sensor, widget.value("sweep", Json::object()), GetTime(),
+						            app.reduced_motion);
+						draw_region_markers(
+						    observation->regions,
+						    [&](double x, double y)
+						    {
+							    return Vector2{centre.x + static_cast<float>((x - observation->own.x) / range) * radius,
+							                   centre.y -
+							                       static_cast<float>((y - observation->own.y) / range) * radius};
+						    },
+						    range / radius, &*sensor, centre, radius);
+					}
 					for (const auto &contact : observation->contacts)
 					{
+						if (sensor == observation->systems.end() ||
+						    std::find(sensor->contact_ids.begin(), sensor->contact_ids.end(), contact.id) ==
+						        sensor->contact_ids.end())
+							continue;
 						Vector2 point{centre.x + static_cast<float>((contact.x - observation->own.x) / range) * radius,
 						              centre.y - static_cast<float>((contact.y - observation->own.y) / range) * radius};
 						draw_radar_body(textures, app.session->catalog(), contact, point, 7, SKYBLUE);

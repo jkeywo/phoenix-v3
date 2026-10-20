@@ -228,6 +228,31 @@ SpriteMaterial compile_sprite(const Json &sprite, const Catalog &catalog, const 
 {
 	if (!sprite.is_object() || !sprite.contains("albedo"))
 		bad(path, "expected sprite material with albedo");
+	if (sprite.contains("entries"))
+	{
+		const auto &entries = sprite.at("entries");
+		if (sprite.contains("frames") || !entries.is_array() || entries.empty() || entries.size() > 256)
+			bad(path + ".entries", "expected 1..256 entries instead of top-level frames");
+		SpriteMaterial result;
+		for (const auto &entry : entries)
+		{
+			const auto name = entry.at("name").get<std::string>();
+			if (!valid_identifier(name) || std::any_of(result.entries.begin(), result.entries.end(),
+			                                           [&](const auto &e)
+			                                           {
+				                                           return e.name == name;
+			                                           }))
+				bad(path + ".entries", "invalid or duplicate entry name");
+			auto source = sprite;
+			source.erase("entries");
+			source["frames"] = entry.at("frames");
+			auto compiled = compile_sprite(source, catalog, path + ".entries." + name);
+			if (result.entries.empty())
+				result = compiled;
+			result.entries.push_back({name, std::move(compiled.frames)});
+		}
+		return result;
+	}
 	SpriteMaterial material;
 	material.radar_icon = compile_radar_icon(sprite.value("radar_icon", Json("contact")), path + ".radar_icon");
 	material.radar_sprite = sprite.value("radar_sprite", std::string{});
@@ -306,6 +331,18 @@ SpriteMaterial compile_sprite(const Json &sprite, const Catalog &catalog, const 
 	}
 	return material;
 }
+std::uint32_t sprite_entry_index(const SpriteMaterial &sprite, const std::string &name)
+{
+	if (name.empty())
+		return 0;
+	if (sprite.entries.empty() && name == "default")
+		return 0;
+	for (std::size_t i = 0; i < sprite.entries.size(); ++i)
+		if (sprite.entries[i].name == name)
+			return static_cast<std::uint32_t>(i);
+	bad("sprite_entry", "unknown entry " + name);
+	return 0;
+}
 void verify_lighting(const Json &j, const std::string &path)
 {
 	if (!j.is_object())
@@ -363,6 +400,19 @@ Json import_sprite_sidecar(const Json &source, const std::map<std::string, std::
 	else if (source.contains("files") && source.at("files").contains("radar_icon"))
 		bad("sidecar.files.radar_icon", "import and select the radar PNG");
 	const auto sheet = source.value("sprite_sheet", Json());
+	if (sheet.is_object() && sheet.contains("entries"))
+	{
+		result.erase("frames");
+		result["entries"] = Json::array();
+		for (const auto &entry : sheet.at("entries"))
+		{
+			auto single = source;
+			single["sprite_sheet"] = {{"frames", entry.at("frames")}};
+			result["entries"].push_back(
+			    {{"name", entry.at("name")}, {"frames", import_sprite_sidecar(single, images).at("frames")}});
+		}
+		return result;
+	}
 	const auto frames = sheet.is_object()
 	                        ? sheet.at("frames")
 	                        : Json::array({{{"name", source.at("id")},
@@ -395,7 +445,8 @@ void apply_sprite_sidecar(Json &render, const Json &source, const std::map<std::
 	const auto converted = import_sprite_sidecar(source, images);
 	const auto material = compile_sprite(converted, catalog, "imported sprite");
 	const auto mode = source.value("billboard_mode", std::string(material.frames.size() == 8 ? "eight" : "camera"));
-	if ((mode != "camera" && mode != "eight") || material.frames.size() != (mode == "eight" ? 8u : 1u))
+	if ((mode != "camera" && mode != "eight") ||
+	    (material.entries.empty() && material.frames.size() != (mode == "eight" ? 8u : 1u)))
 		bad("sidecar.billboard_mode", "choose camera for one frame or eight for eight frames");
 	const auto scale = number(source.value("render_scale", Json(1)), "sidecar.render_scale", .001f, 1000000);
 	Json candidate = render;

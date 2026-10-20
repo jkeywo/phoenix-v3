@@ -22,39 +22,6 @@ namespace phoenix
 {
 #include "scenario_internal.hpp"
 
-bool scenario_contains(const ScenarioRegion &r, ScenarioPoint p)
-{
-	require(valid_point(p) && valid_point(r.centre), "position exceeds exact geometry range");
-	const auto dx = p.x - r.centre.x, dy = p.y - r.centre.y;
-	if (r.shape == ScenarioRegionShape::Rectangle)
-		return dx >= -r.half_width && dx <= r.half_width && dy >= -r.half_height && dy <= r.half_height;
-	return dx * dx + dy * dy <= r.radius * r.radius;
-}
-bool scenario_crosses(const ScenarioRegion &r, ScenarioPoint from, ScenarioPoint to)
-{
-	if (scenario_contains(r, from) || scenario_contains(r, to))
-		return true;
-	if (r.shape == ScenarioRegionShape::Rectangle)
-	{
-		const std::array corners{ScenarioPoint{r.centre.x - r.half_width, r.centre.y - r.half_height},
-		                         ScenarioPoint{r.centre.x + r.half_width, r.centre.y - r.half_height},
-		                         ScenarioPoint{r.centre.x + r.half_width, r.centre.y + r.half_height},
-		                         ScenarioPoint{r.centre.x - r.half_width, r.centre.y + r.half_height}};
-		for (std::size_t i = 0; i < 4; ++i)
-			if (intersect(from, to, corners[i], corners[(i + 1) % 4]))
-				return true;
-		return false;
-	}
-	const auto dx = to.x - from.x, dy = to.y - from.y;
-	const auto px = r.centre.x - from.x, py = r.centre.y - from.y;
-	const auto length = dx * dx + dy * dy, projection = px * dx + py * dy;
-	if (!length || projection <= 0 || projection >= length)
-		return false;
-	const auto signed_area = dx * py - dy * px;
-	const auto area = static_cast<std::uint64_t>(signed_area < 0 ? -signed_area : signed_area);
-	return less_equal(product(area, area),
-	                  product(static_cast<std::uint64_t>(r.radius * r.radius), static_cast<std::uint64_t>(length)));
-}
 bool ScenarioActionToken::operator<(const ScenarioActionToken &other) const
 {
 	return std::tie(instance, call_path, call_activations, activation, task) <

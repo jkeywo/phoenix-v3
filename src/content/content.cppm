@@ -266,7 +266,14 @@ struct SpriteMaterial
 	bool emissive = false;
 	RadarIcon radar_icon = RadarIcon::contact;
 	std::string radar_sprite;
+	struct Entry
+	{
+		std::string name;
+		std::vector<SpriteFrame> frames;
+	};
+	std::vector<Entry> entries;
 };
+std::uint32_t sprite_entry_index(const SpriteMaterial &sprite, const std::string &name);
 // Public PNG icon; content-addressed references travel with radar observations.
 std::string radar_sprite_reference(const Json &render);
 std::string radar_sprite_id(const Bytes &png);

@@ -68,9 +68,26 @@ public:
 	SceneRenderer &operator=(const SceneRenderer &) = delete;
 	void clear();
 	void explosion(const ExplosionEffect &effect);
+	Json instance_statistics() const;
 	void draw(const Catalog &catalog, std::span<const SceneBody> bodies, Camera3D camera, Rectangle region,
 	          const Json &lighting, double time, SceneDiagnostic diagnostic = SceneDiagnostic::comic,
 	          Vector2 surface_size = {}, const SceneEnvironment &environment = {});
+
+private:
+	struct State;
+	std::unique_ptr<State> state_;
+};
+// Each instance owns a wrapped GPU sample history for one radar widget.
+class RadarSweep
+{
+public:
+	RadarSweep();
+	~RadarSweep();
+	RadarSweep(const RadarSweep &) = delete;
+	RadarSweep &operator=(const RadarSweep &) = delete;
+	void draw(Vector2 centre, float radius, const SystemView &sensor, const Json &settings, double time,
+	          bool reduced_motion = false);
+	Json statistics() const;
 
 private:
 	struct State;

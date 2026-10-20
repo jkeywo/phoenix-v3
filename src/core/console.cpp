@@ -974,6 +974,30 @@ std::string ConsoleModel::contacts_text() const
 		return {};
 	std::ostringstream text;
 	text << "Radar: " << observation_->contacts.size() << " contacts.";
+	for (const auto &r : observation_->regions)
+		if (r.value("navigation", false) ||
+		    (r.value("radar", false) &&
+		     std::any_of(observation_->systems.begin(), observation_->systems.end(),
+		                 [&](const auto &sensor)
+		                 {
+			                 return sensor.kind == OperatingSystem::Radar &&
+			                        std::any_of(r.at("tags").begin(), r.at("tags").end(),
+			                                    [&](const auto &tag)
+			                                    {
+				                                    return std::find(sensor.shows.begin(), sensor.shows.end(),
+				                                                     tag.template get<std::string>()) !=
+				                                           sensor.shows.end();
+			                                    });
+		                 })))
+			text << " " << localise(r.at("name").get<std::string>()) << ", " << r.at("x").get<std::int64_t>() / 1000
+			     << ", " << r.at("y").get<std::int64_t>() / 1000 << " m.";
+	for (const auto &sensor : observation_->systems)
+		if (sensor.kind == OperatingSystem::Radar && !sensor.radial_ranges.empty())
+		{
+			const auto [low, high] = std::minmax_element(sensor.radial_ranges.begin(), sensor.radial_ranges.end());
+			text << " " << sensor.id << ": " << localise("Sensor reach") << " " << *low / 1000 << "–" << *high / 1000
+			     << " m.";
+		}
 	for (const auto &contact : observation_->contacts)
 	{
 		const double x = static_cast<double>(contact.x - observation_->own.x),

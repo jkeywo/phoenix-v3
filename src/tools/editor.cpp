@@ -12,6 +12,7 @@ module;
 #include <nlohmann/json.hpp>
 #include <optional>
 #include <span>
+#include <set>
 #include <string>
 #include <utility>
 #include <vector>
@@ -60,6 +61,8 @@ struct Editor
 	std::string preview_identity;
 	std::string preview_content;
 	std::optional<Catalog> preview_catalog;
+	std::vector<SceneBody> preview_fields;
+	bool preview_fields_ready = false;
 	DustConfig preview_dust;
 	float preview_speed = 0, preview_heading = 0;
 	float preview_x = 0, preview_y = 0;
@@ -93,6 +96,8 @@ struct Editor
 		preview_identity.clear();
 		preview_content.clear();
 		preview_catalog.reset();
+		preview_fields.clear();
+		preview_fields_ready = false;
 		if (scene_preview.id)
 			UnloadRenderTexture(scene_preview);
 		scene_preview = {};
@@ -245,6 +250,8 @@ void transform_fields(Json &value)
 	integer_field("X (mm)", value, "x_mm");
 	integer_field("Y (mm)", value, "y_mm");
 	integer_field("Heading (millidegrees)", value, "heading_mdeg");
+	if (value.contains("definition"))
+		string_field("Sprite entry override", value, "sprite_entry");
 }
 Json *selected_instance()
 {
@@ -470,8 +477,39 @@ void material_properties(Json &sprite, bool with_radar_icon = true)
 	bool emissive = sprite.value("emissive", false);
 	if (ImGui::Checkbox(tool_label("Emissive artwork").c_str(), &emissive))
 		sprite["emissive"] = emissive;
+	if (sprite.contains("entries"))
+	{
+		for (auto &entry : sprite["entries"])
+		{
+			ImGui::PushID(&entry);
+			string_field("Entry name", entry, "name");
+			auto nested = sprite;
+			nested.erase("entries");
+			nested["frames"] = entry.at("frames");
+			if (ImGui::TreeNode(tool_label("Entry frames").c_str()))
+			{
+				material_properties(nested, false);
+				entry["frames"] = nested.at("frames");
+				ImGui::TreePop();
+			}
+			ImGui::PopID();
+		}
+		if (ImGui::Button(tool_label("Duplicate sprite entry").c_str()) && !sprite["entries"].empty())
+		{
+			auto entry = sprite["entries"].back();
+			entry["name"] = "entry-" + std::to_string(sprite["entries"].size() + 1);
+			sprite["entries"].push_back(std::move(entry));
+		}
+		return;
+	}
 	if (!sprite.contains("frames"))
 		return;
+	if (ImGui::Button(tool_label("Use named sprite entries").c_str()))
+	{
+		sprite["entries"] = Json::array({{{"name", "default"}, {"frames", sprite.at("frames")}}});
+		sprite.erase("frames");
+		return;
+	}
 	for (std::size_t i = 0; i < sprite["frames"].size(); ++i)
 	{
 		auto &frame = sprite["frames"][i];
@@ -543,7 +581,7 @@ void sprite_import(Json &render)
 	ImGui::Checkbox(tool_label("Import as engine effect").c_str(), &editor.import_engines);
 	auto &sidecar = editor.pending_sidecar;
 	const auto sheet = sidecar.value("sprite_sheet", Json());
-	const bool inferred_eight = sheet.is_object() && sheet.at("frames").size() == 8;
+	const bool inferred_eight = sheet.is_object() && sheet.contains("frames") && sheet.at("frames").size() == 8;
 	bool eight = sidecar.value("billboard_mode", std::string(inferred_eight ? "eight" : "camera")) == "eight";
 	if (ImGui::Checkbox(tool_label("Imported eight-direction billboard").c_str(), &eight))
 		sidecar["billboard_mode"] = eight ? "eight" : "camera";
@@ -640,13 +678,15 @@ void lighting_preview()
 	                      ":" + std::to_string(editor.diagnostic) + ":" + std::to_string(editor.preview_speed) + ":" +
 	                      std::to_string(editor.preview_heading) + ":" + std::to_string(editor.preview_x) + ":" +
 	                      std::to_string(editor.preview_y);
-	if (identity != editor.preview_identity)
+	if (identity != editor.preview_identity || editor.preview_whole_map)
 		attempt(
 		    [&]
 		    {
 			    if (!editor.preview_catalog || editor.preview_content != content_identity)
 			    {
 				    editor.preview_catalog = editor.document.verify();
+				    editor.preview_fields.clear();
+				    editor.preview_fields_ready = false;
 				    editor.preview_dust =
 				        compile_dust(map.value("presentation", Json::object()).value("dust", Json::object()),
 				                     *editor.preview_catalog,
@@ -672,6 +712,11 @@ void lighting_preview()
 					    b.y = instance.at("y_mm");
 					    b.vx = b.vy = 0;
 					    b.heading = instance.at("heading_mdeg");
+					    const auto &render = catalog.entities.at(b.definition).at("render");
+					    if (render.contains("sprite"))
+						    b.sprite_entry = sprite_entry_index(
+						        compile_sprite(render.at("sprite"), catalog, b.definition),
+						        instance.value("sprite_entry", render.value("sprite_entry", std::string{})));
 					    b.forward_thrust = static_cast<int>(editor.preview_thrust * 1000);
 					    bodies.push_back(std::move(b));
 				    }
@@ -699,15 +744,70 @@ void lighting_preview()
 					    b.definition = defs[editor.definition].at("id");
 					    b.x = b.y = b.vx = b.vy = b.heading = 0;
 					    b.forward_thrust = static_cast<int>(editor.preview_thrust * 1000);
+					    const auto &render = catalog.entities.at(b.definition).at("render");
+					    if (render.contains("sprite"))
+						    b.sprite_entry =
+						        sprite_entry_index(compile_sprite(render.at("sprite"), catalog, b.definition),
+						                           render.value("sprite_entry", std::string{}));
 					    bodies.push_back(std::move(b));
 				    }
+			    }
+			    if (editor.preview_whole_map && catalog.scenarios.contains(map.at("id")))
+			    {
+				    const auto &regions = catalog.scenarios.at(map.at("id")).regions;
+				    if (!editor.preview_fields_ready)
+				    {
+					    std::set<std::pair<std::int64_t, std::int64_t>> cells;
+					    std::int64_t spacing = 0, radius = 0;
+					    for (const auto &r : regions)
+						    if (r.asteroids)
+						    {
+							    spacing = r.asteroids->spacing;
+							    radius = std::max(radius, r.asteroids->visual_distance);
+						    }
+					    if (spacing)
+					    {
+						    for (const auto &b : bodies)
+						    {
+							    const auto count = radius / spacing + 2;
+							    if (count > 256)
+								    throw std::runtime_error("Workshop field preview exceeds 512 cells");
+							    for (auto x = b.x / spacing - count; x <= b.x / spacing + count; ++x)
+								    for (auto y = b.y / spacing - count; y <= b.y / spacing + count; ++y)
+								    {
+									    cells.emplace(x, y);
+									    if (cells.size() > 65536)
+										    throw std::runtime_error("Workshop field preview exceeds 65536 cells");
+								    }
+						    }
+						    for (const auto &[x, y] : cells)
+							    for (auto generated : generate_asteroid_cell(
+							             regions, asteroid_map_seed(map.at("id").get<std::string>()), x, y))
+							    {
+								    auto &b = generated.scene;
+								    const auto &render = catalog.entities.at(b.definition).at("render");
+								    b.sprite_entry = sprite_entry_index(
+								        compile_sprite(render.at("sprite"), catalog, b.definition),
+								        generated.entry.empty() ? render.value("sprite_entry", std::string{})
+								                                : generated.entry);
+								    editor.preview_fields.push_back(std::move(b));
+							    }
+					    }
+					    editor.preview_fields_ready = true;
+				    }
+				    bodies.insert(bodies.end(), editor.preview_fields.begin(), editor.preview_fields.end());
 			    }
 			    SceneEnvironment environment;
 			    environment.dust = editor.preview_dust;
 			    // The selected preview hull is the sole local reference, never every map entity.
 			    if (!bodies.empty())
 			    {
-				    auto &own = bodies.back();
+				    auto reference = std::find_if(bodies.rbegin(), bodies.rend(),
+				                                  [](const auto &b)
+				                                  {
+					                                  return !b.field_instance;
+				                                  });
+				    auto &own = reference == bodies.rend() ? bodies.front() : *reference;
 				    const auto &render = catalog.entities.at(own.definition).at("render");
 				    if (render.contains("reference_grid"))
 					    environment.grid = compile_reference_grid(render.at("reference_grid"), "render.reference_grid");
@@ -743,9 +843,13 @@ void lighting_preview()
 			    ClearBackground({8, 12, 13, 255});
 			    try
 			    {
+				    auto scene_light = light;
+				    if (editor.preview_whole_map && catalog.scenarios.contains(map.at("id")))
+					    scene_light["environment"] =
+					        region_environment(catalog.scenarios.at(map.at("id")).regions, GetTime());
 				    editor.scene.draw(catalog, bodies, camera,
-				                      {0, 0, static_cast<float>(width), static_cast<float>(height)}, light, 0,
-				                      static_cast<SceneDiagnostic>(editor.diagnostic),
+				                      {0, 0, static_cast<float>(width), static_cast<float>(height)}, scene_light,
+				                      GetTime(), static_cast<SceneDiagnostic>(editor.diagnostic),
 				                      {static_cast<float>(width), static_cast<float>(height)}, environment);
 			    }
 			    catch (...)
@@ -816,6 +920,7 @@ void entity_properties(Json &entity)
 	else
 	{
 		real_field("Render scale", render, "scale", 1, .001f, 1000000);
+		string_field("Sprite entry", render, "sprite_entry");
 		material_properties(render["sprite"]);
 		if (render.contains("engines") && ImGui::TreeNode(tool_label("Engine effect").c_str()))
 		{
@@ -959,6 +1064,25 @@ void console_editor(Application &app, bool inspector)
 		           if (ImGui::TreeNode(widget.at("id").get_ref<const std::string &>().c_str()))
 		           {
 			           string_field("Semantic label", widget, "label");
+			           if (widget.at("kind") == "radar")
+			           {
+				           if (!widget.contains("sweep") && ImGui::Button(tool_label("Customize radar sweep").c_str()))
+					           widget["sweep"] = {{"enabled", true},
+					                              {"colour", {.1, .9, .65, .85}},
+					                              {"duration_seconds", 3.0},
+					                              {"speed_degrees_s", 60.0}};
+				           if (widget.contains("sweep"))
+				           {
+					           auto &s = widget["sweep"];
+					           edit_field("Sweep enabled", s, "enabled", true);
+					           real_field("Sweep duration (seconds)", s, "duration_seconds", 3, .1f, 30);
+					           real_field("Sweep speed (degrees/second)", s, "speed_degrees_s", 60, 1, 720);
+					           const auto tint = s.value("colour", Json::array({.1, .9, .65, .85}));
+					           float colour[4] = {tint[0], tint[1], tint[2], tint[3]};
+					           if (ImGui::ColorEdit4(tool_label("Sweep colour").c_str(), colour))
+						           s["colour"] = {colour[0], colour[1], colour[2], colour[3]};
+				           }
+			           }
 			           ImGui::TextWrapped("Binding: %s",
 			                              widget.value("binding", std::string("Controller command")).c_str());
 			           for (const char *key : {"x", "y", "width", "height"})
@@ -1120,6 +1244,26 @@ void map_view(Application &app)
 		draw->AddLine({x, origin.y}, {x, origin.y + size.y}, IM_COL32(32, 58, 70, 255));
 	for (float y = first_y; y < origin.y + size.y; y += grid)
 		draw->AddLine({origin.x, y}, {origin.x + size.x, y}, IM_COL32(32, 58, 70, 255));
+	for (const auto &region : editor.document.map().value("regions", Json::array()))
+	{
+		const ImVec2 p{centre.x + region.value("x_mm", 0.f) * editor.zoom,
+		               centre.y - region.value("y_mm", 0.f) * editor.zoom};
+		const auto colour = region.contains("nebula") ? IM_COL32(160, 120, 220, 180) : IM_COL32(180, 145, 95, 180);
+		const auto shape = region.value("shape", std::string("circle"));
+		if (shape == "rectangle")
+		{
+			const auto w = region.value("half_width_mm", 10000.f) * editor.zoom;
+			const auto h = region.value("half_height_mm", 10000.f) * editor.zoom;
+			draw->AddRect({p.x - w, p.y - h}, {p.x + w, p.y + h}, colour);
+		}
+		else
+		{
+			draw->AddCircle(p, region.value("radius_mm", 10000.f) * editor.zoom, colour, 64);
+			if (shape == "annulus")
+				draw->AddCircle(p, region.value("inner_radius_mm", 5000.f) * editor.zoom, colour, 64);
+		}
+		draw->AddText(p, colour, region.value("id", std::string("region")).c_str());
+	}
 	std::uint64_t nearest = 0;
 	float distance = 24;
 	auto &definitions = editor.document.definitions()["entities"];

@@ -61,24 +61,41 @@ Pack console_assets(const Catalog &catalog, const std::string &ship)
 			if (original.contains("radar_icon"))
 				material["radar_icon"] =
 				    std::string(radar_icon_name(compile_radar_icon(original.at("radar_icon"), "radar_icon")));
-			for (const auto &f : original.at("frames"))
+			auto copy_frames = [&](const Json &frames)
 			{
-				Json frame;
-				for (const char *field : {"name", "rect", "pivot", "azimuth", "depth_scale", "depth_offset"})
-					if (f.contains(field))
-						frame[field] = f.at(field);
-				frame["attachments"] = Json::object();
-				const auto attachments = f.value("attachments", Json::object());
-				for (auto it = attachments.begin(); it != attachments.end(); ++it)
-					for (const char *field : {"x", "y", "layer", "depth_offset"})
-						if (it.value().contains(field))
-							frame["attachments"][it.key()][field] = it.value().at(field);
-				material["frames"].push_back(std::move(frame));
+				Json copied = Json::array();
+				for (const auto &f : frames)
+				{
+					Json frame;
+					for (const char *field : {"name", "rect", "pivot", "azimuth", "depth_scale", "depth_offset"})
+						if (f.contains(field))
+							frame[field] = f.at(field);
+					frame["attachments"] = Json::object();
+					const auto attachments = f.value("attachments", Json::object());
+					for (auto it = attachments.begin(); it != attachments.end(); ++it)
+						for (const char *field : {"x", "y", "layer", "depth_offset"})
+							if (it.value().contains(field))
+								frame["attachments"][it.key()][field] = it.value().at(field);
+					copied.push_back(std::move(frame));
+				}
+				return copied;
+			};
+			if (original.contains("entries"))
+			{
+				material.erase("frames");
+				material["entries"] = Json::array();
+				for (const auto &entry : original.at("entries"))
+					material["entries"].push_back(
+					    {{"name", entry.at("name")}, {"frames", copy_frames(entry.at("frames"))}});
 			}
+			else
+				material["frames"] = copy_frames(original.at("frames"));
 			return material;
 		};
 		entity["render"].erase("images");
 		entity["render"]["sprite"] = copy_material(source.at("render").at("sprite"));
+		if (source.at("render").contains("sprite_entry"))
+			entity["render"]["sprite_entry"] = source.at("render").at("sprite_entry");
 		if (source.at("render").contains("engines"))
 		{
 			const auto &engines = source.at("render").at("engines");
@@ -100,7 +117,11 @@ Pack console_assets(const Catalog &catalog, const std::string &ship)
 		    system.kind == OperatingSystem::Boost || system.kind == OperatingSystem::Impulse)
 			copy["max_speed_mm_s"] = system.maximum;
 		else if (system.kind == OperatingSystem::Radar)
+		{
 			copy["range_mm"] = system.maximum;
+			if (systems.at(system.id).contains("shows"))
+				copy["shows"] = systems.at(system.id).at("shows");
+		}
 		else
 			copy["maximum"] = system.maximum;
 	}
@@ -140,6 +161,8 @@ Pack console_assets(const Catalog &catalog, const std::string &ship)
 					copy["binding"] = widget.at("binding");
 				if (widget.contains("system"))
 					copy["system"] = widget.at("system");
+				if (widget.contains("sweep"))
+					copy["sweep"] = widget.at("sweep");
 				for (const auto *field : {"controller", "channel"})
 					if (widget.contains(field))
 						copy[field] = widget.at(field);

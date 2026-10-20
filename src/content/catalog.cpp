@@ -353,6 +353,22 @@ void verify_prepared_catalog(const Catalog &catalog)
 	for (const auto &[id, entity] : catalog.entities)
 	{
 		auto path = "entities." + id;
+		auto tags = [&](const Json &v, const std::string &where)
+		{
+			if (!v.is_array() || v.size() > 32)
+				invalid(where, "expected at most 32 tags");
+			std::set<std::string> seen;
+			for (const auto &tag : v)
+				if (!tag.is_string() || tag.get<std::string>().empty() || tag.get<std::string>().size() > 128 ||
+				    !seen.insert(tag.get<std::string>()).second)
+					invalid(where, "tags must be unique non-empty strings of at most 128 characters");
+		};
+		if (entity.contains("tags"))
+			tags(entity.at("tags"), path + ".tags");
+		if (entity.contains("systems"))
+			for (const auto &[key, system] : entity.at("systems").items())
+				if (system.contains("shows"))
+					tags(system.at("shows"), path + ".systems." + key + ".shows");
 		if (catalog.presentation)
 			for (auto field = entity.begin(); field != entity.end(); ++field)
 				if (field.key() != "id" && field.key() != "render" && field.key() != "systems" &&
@@ -381,21 +397,30 @@ void verify_prepared_catalog(const Catalog &catalog)
 		if (render.contains("sprite"))
 		{
 			const auto material = compile_sprite(render.at("sprite"), catalog, path + ".render.sprite");
-			if (material.frames.size() != (mode == "eight" ? 8u : 1u))
+			sprite_entry_index(material, render.value("sprite_entry", std::string{}));
+			if (material.entries.empty() && material.frames.size() != (mode == "eight" ? 8u : 1u))
 				invalid(path + ".render.sprite.frames", "frame count does not match billboard mode");
 			if (render.contains("engines"))
 			{
 				const auto &engines = render.at("engines");
 				const auto effect = compile_sprite(engines.at("sprite"), catalog, path + ".render.engines.sprite");
-				if (effect.frames.size() != material.frames.size())
-					invalid(path + ".render.engines", "thrust views must match parent views");
-				for (const auto &frame : material.frames)
-					if (std::none_of(effect.frames.begin(), effect.frames.end(),
-					                 [&](const auto &f)
-					                 {
-						                 return f.name == frame.name;
-					                 }))
-						invalid(path + ".render.engines", "missing named thrust view");
+				auto check_frames = [&](const auto &frames)
+				{
+					if (effect.frames.size() != frames.size())
+						invalid(path + ".render.engines", "thrust views must match every parent entry");
+					for (const auto &frame : frames)
+						if (std::none_of(effect.frames.begin(), effect.frames.end(),
+						                 [&](const auto &f)
+						                 {
+							                 return f.name == frame.name;
+						                 }))
+							invalid(path + ".render.engines", "missing named thrust view");
+				};
+				if (material.entries.empty())
+					check_frames(material.frames);
+				else
+					for (const auto &entry : material.entries)
+						check_frames(entry.frames);
 				for (const char *key : {"scale", "power", "range"})
 				{
 					if (!engines.contains(key) || !engines.at(key).is_number())
@@ -524,6 +549,33 @@ void verify_prepared_catalog(const Catalog &catalog)
 			if (!widget_ids.insert(widget_id).second)
 				invalid(path + "." + widget_id, "duplicate widget id");
 			auto kind = text(widget, "kind", path + "." + widget_id);
+			if (widget.contains("sweep"))
+			{
+				const auto &sweep = widget.at("sweep");
+				if (kind != "radar" || !sweep.is_object())
+					invalid(path + "." + widget_id, "sweep settings require a radar widget");
+				if (sweep.contains("enabled") && !sweep.at("enabled").is_boolean())
+					invalid(path, "sweep enabled must be boolean");
+				for (const auto &[key, limits] : std::map<std::string, std::pair<double, double>>{
+				         {"duration_seconds", {.1, 30}}, {"speed_degrees_s", {1, 720}}})
+					if (sweep.contains(key))
+					{
+						if (!sweep.at(key).is_number())
+							invalid(path, "sweep " + key + " must be numeric");
+						const auto value = sweep.at(key).get<double>();
+						if (!std::isfinite(value) || value < limits.first || value > limits.second)
+							invalid(path, "sweep " + key + " outside supported range");
+					}
+				if (sweep.contains("colour"))
+				{
+					const auto &colour = sweep.at("colour");
+					if (!colour.is_array() || colour.size() != 4)
+						invalid(path, "sweep colour requires RGBA");
+					for (const auto &channel : colour)
+						if (!channel.is_number() || !std::isfinite(channel.get<double>()) || channel < 0 || channel > 1)
+							invalid(path, "sweep colour channels must be within 0..1");
+				}
+			}
 			auto binding = widget.contains("controller")
 			                   ? widget.value("binding", kind == "throttle" ? std::string("engine.desired_speed")
 			                                                                : std::string("steering.desired_heading"))
@@ -554,6 +606,27 @@ void verify_prepared_catalog(const Catalog &catalog)
 	}
 	for (const auto &[id, map] : catalog.maps)
 	{
+		if (catalog.scenarios.contains(id))
+		{
+			std::size_t fog_count = 0;
+			for (const auto &region : catalog.scenarios.at(id).regions)
+			{
+				fog_count += region.nebula.has_value();
+				if (fog_count > 32)
+					invalid("maps." + id, "at most 32 nebula volumes are supported");
+				if (!region.asteroids)
+					continue;
+				for (const auto *types : {&region.asteroids->types, &region.asteroids->decorative_types})
+					for (const auto &type : *types)
+					{
+						const auto &entity = catalog.entities.at(type.definition);
+						if (!entity.at("systems").empty() || !entity.at("render").contains("sprite"))
+							invalid("maps." + id, "asteroid types require sprite artwork and no fitted Systems");
+						sprite_entry_index(compile_sprite(entity.at("render").at("sprite"), catalog, type.definition),
+						                   type.entry);
+					}
+			}
+		}
 		if (map.contains("presentation"))
 		{
 			const auto &p = map.at("presentation");
@@ -580,6 +653,14 @@ void verify_prepared_catalog(const Catalog &catalog)
 			if (!catalog.entities.contains(definition))
 				invalid(path, "unknown entity definition '" + definition + "'");
 			transform(instance, path + ".entity." + std::to_string(entity_id));
+			if (instance.contains("sprite_entry"))
+			{
+				const auto &render = catalog.entities.at(definition).at("render");
+				if (!render.contains("sprite"))
+					invalid(path, "sprite_entry requires a sprite material");
+				sprite_entry_index(compile_sprite(render.at("sprite"), catalog, path),
+				                   instance.at("sprite_entry").get<std::string>());
+			}
 		}
 		for (const auto &instance : map["entities"])
 		{

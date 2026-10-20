@@ -38,6 +38,7 @@ public:
 	Json public_board(EntityId entity) const;
 	std::vector<BodyView> inspect() const;
 	std::vector<SceneBody> scene() const;
+	Json scene_environment() const;
 	Json save() const;
 	Json debug() const;
 	void restore(const Catalog &content, const Json &saved);

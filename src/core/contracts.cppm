@@ -265,6 +265,10 @@ struct BodyView
 struct SceneBody : BodyView
 {
 	int forward_thrust = 0; // actual applied forward acceleration, 0..1000
+	std::uint32_t sprite_entry = 0;
+	std::int64_t visual_height_mm = 0;
+	std::int64_t rotation_mdeg = 0, spin_mdeg_s = 0;
+	bool field_instance = false;
 };
 struct SystemView
 {
@@ -275,6 +279,10 @@ struct SystemView
 	bool controlled = false;
 	std::map<std::string, std::int64_t> telemetry;
 	std::string status;
+	std::int64_t effective_range = 0;
+	std::vector<std::int64_t> radial_ranges;
+	std::vector<std::string> shows;
+	std::vector<EntityId> contact_ids;
 	bool operator==(const SystemView &) const = default;
 };
 struct Observation
@@ -290,6 +298,7 @@ struct Observation
 	Json gameplay = Json::object();
 	std::uint64_t observed_tick = 0;
 	std::vector<Observation> additional_consoles;
+	Json regions = Json::array();
 };
 struct OperatingCommand
 {

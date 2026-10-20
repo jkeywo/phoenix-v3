@@ -33,6 +33,209 @@ Catalog load_fixture(const Json &data)
 	auto pack = phoenix::test::fixture_pack(json_bytes(data), "test-core");
 	return resolve_packs({read_pack(write_pack(pack))});
 }
+void nebula_paths()
+{
+	auto data = parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "fog fixture");
+	auto &map = data["maps"][0];
+	map["regions"] = Json::array({{{"id", "fog"},
+	                               {"shape", "annulus"},
+	                               {"x_mm", 5000},
+	                               {"y_mm", 0},
+	                               {"radius_mm", 3000},
+	                               {"inner_radius_mm", 1000},
+	                               {"nebula", {{"density", 3}, {"sensor_factor", 1}, {"colour", {.2, .3, .4}}}}}});
+	auto catalog = load_fixture(data);
+	World world;
+	world.load(catalog, "test.map", {{"test.slot", "test.ship"}});
+	check(world.claim(99, *world.ship_for_slot("test.slot")), "fog fixture claim failed");
+	check(world.observe(99)->contacts.empty(), "intervening fog failed to attenuate sensors outside the region");
+	const auto observed = *world.observe(99);
+	const auto radar = std::find_if(observed.systems.begin(), observed.systems.end(),
+	                                [](const auto &s)
+	                                {
+		                                return s.kind == OperatingSystem::Radar;
+	                                });
+	check(radar != observed.systems.end() && radar->radial_ranges.size() == 128,
+	      "Sensor did not publish a bounded directional reach envelope");
+	check(radar->radial_ranges[64] < radar->effective_range && radar->radial_ranges[0] == radar->effective_range,
+	      "Directional sensor reach failed to distinguish blocked and clear bearings");
+	const std::vector<std::string> names{"test.ship", "test.variant"};
+	const auto definition = compile_scenario(map, names);
+	const auto &r = definition.regions.front();
+	check(!scenario_contains(r, {5000, 0}) && scenario_contains(r, {7000, 0}), "annulus hole containment failed");
+	check(!scenario_crosses(r, {4500, 0}, {5500, 0}) && scenario_crosses(r, {0, 0}, {10000, 0}),
+	      "annulus swept crossing failed");
+	const auto path = scenario_path_length(r, {0, 0}, {10000, 0});
+	check(path >= 3998 && path <= 4002, "annulus path did not subtract the hole");
+	check(scenario_sensor_visible(definition.regions, {0, 0}, {10000, 0}, 140000) &&
+	          !scenario_sensor_visible(definition.regions, {0, 0}, {10000, 0}, 100000),
+	      "sensor optical-depth threshold is incorrect");
+	auto overlap = definition.regions;
+	overlap.push_back(r);
+	check(!scenario_sensor_visible(overlap, {0, 0}, {10000, 0}, 200000), "overlapping cloud depths did not add");
+	for (auto &cloud : overlap)
+		cloud.nebula->density = 0;
+	check(scenario_sensor_visible(overlap, {0, 0}, {10000, 0}, 10000), "zero-density cloud changed detection");
+	ScenarioRegion box;
+	box.shape = ScenarioRegionShape::Rectangle;
+	box.centre = {5000, 0};
+	box.half_width = 1000;
+	box.half_height = 2000;
+	check(scenario_path_length(box, {0, 0}, {10000, 0}) >= 1998 &&
+	          scenario_path_length(box, {0, 0}, {10000, 0}) <= 2002,
+	      "rectangle path clipping failed");
+	World resumed;
+	resumed.restore(catalog, world.save());
+	resumed.clear_claims();
+	check(resumed.claim(99, *resumed.ship_for_slot("test.slot")), "restored fog claim failed");
+	check(resumed.observe(99)->contacts.empty(), "restored fog lost sensor attenuation");
+	map["regions"][0]["nebula"]["sensor_factor"] = 0;
+	catalog = load_fixture(data);
+	world.load(catalog, "test.map", {{"test.slot", "test.ship"}});
+	check(world.claim(99, *world.ship_for_slot("test.slot")), "clear fixture claim failed");
+	check(world.observe(99)->contacts.size() == 1, "visual-only fog changed contacts");
+	map["regions"][0]["display"] = {
+	    {"navigation", true}, {"radar", true}, {"name", "Test ring"}, {"colour", {.1, .2, .3}}, {"tags", {"cloud"}}};
+	data["entities"][0]["tags"] = {"ship", "friendly"};
+	data["entities"][0]["systems"]["radar"]["shows"] = {"ship", "cloud"};
+	auto observe = [&]()
+	{
+		auto c = load_fixture(data);
+		world.load(c, "test.map", {{"test.slot", "test.ship"}});
+		check(world.claim(99, *world.ship_for_slot("test.slot")), "tag claim failed");
+		return *world.observe(99);
+	};
+	auto tagged = observe();
+	check(tagged.contacts.size() == 1 && tagged.regions.size() == 1 && tagged.regions[0]["name"] == "Test ring",
+	      "tag union or public region marker lost");
+	const auto selected = std::find_if(tagged.systems.begin(), tagged.systems.end(),
+	                                   [](const auto &v)
+	                                   {
+		                                   return v.kind == OperatingSystem::Radar;
+	                                   });
+	check(selected->contact_ids.size() == 1 && selected->shows.size() == 2, "per-radar contact selection lost");
+	data["entities"][0]["systems"]["radar"]["shows"] = Json::array();
+	check(observe().contacts.empty(), "empty radar shows matched a contact");
+	data["entities"][0]["systems"]["radar"]["shows"] = {"asteroid"};
+	check(observe().contacts.empty(), "unmatched radar tags exposed a contact");
+	data["entities"][0]["systems"]["radar"]["shows"] = {"ship"};
+	data["entities"][1]["tags"] = Json::array();
+	check(observe().contacts.empty(), "untagged entity matched radar");
+}
+void asteroid_streaming()
+{
+	auto data = parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "field fixture");
+	const Json frame{{"name", "front"}, {"rect", {0, 0, 1, 1}}, {"pivot", {.5, .5}}};
+	const Json sprite{{"albedo", "test-core:assets/pixel.png"},
+	                  {"entries", Json::array({{{"name", "first"}, {"frames", Json::array({frame})}},
+	                                           {{"name", "second"}, {"frames", Json::array({frame})}}})}};
+	data["entities"].push_back({{"id", "test.rock"},
+	                            {"render", {{"mode", "camera"}, {"scale", 2}, {"sprite", sprite}}},
+	                            {"systems", Json::object()},
+	                            {"collision", {{"shape", "circle"}, {"radius_mm", 500}, {"mass_grams", 0}}}});
+	auto &map = data["maps"][0];
+	map["regions"] = Json::array(
+	    {{{"id", "belt"},
+	      {"shape", "annulus"},
+	      {"x_mm", 0},
+	      {"y_mm", 0},
+	      {"radius_mm", 40000},
+	      {"inner_radius_mm", 20000},
+	      {"asteroids",
+	       {{"seed", 91},
+	        {"spacing_mm", 10000},
+	        {"jitter_mm", 0},
+	        {"density", .01},
+	        {"clustering_permille", 0},
+	        {"visual_distance_mm", 50000},
+	        {"decorative_fill_permille", 1000},
+	        {"types", Json::array({{{"definition", "test.rock"}, {"sprite_entry", "second"}}})},
+	        {"decorative_types", Json::array({{{"definition", "test.rock"}, {"sprite_entry", "first"}}})}}}}});
+	const auto catalog = load_fixture(data);
+	const auto compiled = compile_sprite(sprite, catalog, "test sprite");
+	check(sprite_entry_index(compiled, "second") == 1 && compiled.entries.size() == 2, "generic sprite entries lost");
+	World first, second;
+	for (auto *w : {&first, &second})
+		w->load(catalog, "test.map", {{"test.slot", "test.ship"}});
+	check(first.save() == second.save(), "field generation differs between identical worlds");
+	std::uint64_t fingerprint = 1469598103934665603ULL;
+	for (const unsigned char c : first.save().at("asteroid_fields").dump())
+		fingerprint = (fingerprint ^ c) * 1099511628211ULL;
+	std::cout << "Field deterministic fingerprint: " << fingerprint << '\n';
+	const auto scene = first.scene();
+	std::size_t physical = 0, decorative = 0;
+	for (const auto &b : scene)
+		if (b.field_instance)
+		{
+			check(b.rotation_mdeg >= 0 && b.rotation_mdeg < 360000 && std::abs(b.spin_mdeg_s) >= 1000,
+			      "field rotation parameters invalid");
+			check(b.x * b.x + b.y * b.y >= 20000LL * 20000, "rock generated in empty ring hole");
+			if (b.visual_height_mm)
+			{
+				++decorative;
+				check(b.sprite_entry == 0, "decorative entry selection lost");
+			}
+			else
+			{
+				++physical;
+				check(b.sprite_entry == 1, "physical entry selection lost");
+			}
+		}
+	check(physical > 0 && decorative == physical * 2, "field layers not generated");
+	check(first.inspect().size() == physical + 2, "decorative rock leaked into physical world");
+	for (int i = 0; i < 4; ++i)
+		first.tick();
+	second.restore(catalog, first.save());
+	for (int i = 0; i < 4; ++i)
+	{
+		first.tick();
+		second.tick();
+	}
+	check(first.save() == second.save(), "field recovery changed continuation");
+	const auto home = first.save();
+	auto away = home;
+	for (auto &b : away["bodies"])
+		b["body"]["position"]["x"] = b["body"]["position"]["x"].get<std::int64_t>() + 1000000;
+	first.restore(catalog, away);
+	first.tick();
+	auto unloaded = first.save();
+	check(std::none_of(unloaded["asteroid_fields"].begin(), unloaded["asteroid_fields"].end(),
+	                   [](const auto &v)
+	                   {
+		                   return v.at("loaded").template get<bool>();
+	                   }),
+	      "distant fields failed to unload");
+	for (auto &b : unloaded["bodies"])
+		b["body"]["position"]["x"] = b["body"]["position"]["x"].get<std::int64_t>() - 1000000;
+	first.restore(catalog, unloaded);
+	first.tick();
+	check(first.save()["asteroid_fields"] == home["asteroid_fields"],
+	      "unload and revisit changed stable asteroid state");
+	auto split = home;
+	split["bodies"][0]["body"]["position"]["x"] = 1000000;
+	first.restore(catalog, split);
+	first.tick();
+	check(first.scene().size() >= physical + decorative, "separated ships lost the other ship's field neighborhood");
+	auto overlap = data;
+	auto duplicate = overlap["maps"][0]["regions"][0];
+	duplicate["id"] = "overlap";
+	overlap["maps"][0]["regions"].push_back(duplicate);
+	auto overlapping = load_fixture(overlap);
+	first.load(overlapping, "test.map", {{"test.slot", "test.ship"}});
+	check(first.scene().size() == scene.size(), "overlapping fields duplicated rocks");
+	auto bad = data;
+	bad["maps"][0]["regions"][0]["asteroids"]["types"][0]["sprite_entry"] = "missing";
+	bool rejected = false;
+	try
+	{
+		load_fixture(bad);
+	}
+	catch (const std::exception &)
+	{
+		rejected = true;
+	}
+	check(rejected, "invalid field entry accepted");
+}
 void competition_resolution()
 {
 	Json map = {{"regions",
@@ -506,6 +709,8 @@ int main(int argc, char **argv)
 		check(original.save() == resumed.save(),
 		      "Later physical continuation diverged after restored scenario effects");
 		scenario_record_readers();
+		nebula_paths();
+		asteroid_streaming();
 		competition_resolution();
 		delayed_competition();
 		spawned_equipment_continuation();

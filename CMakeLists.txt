@@ -201,6 +201,7 @@ add_library(
 	src/resources/resource_definitions.cpp
 	src/knowledge/knowledge_definitions.cpp
 	src/scenario/scenario_definitions.cpp
+	src/scenario/fields.cpp
 	src/behavior/state_tree_definitions.cpp
 	src/behavior/gameplay_vocabulary.cpp
 	src/flight/flight_definitions.cpp
@@ -318,6 +319,7 @@ add_library(
 	src/presentation/menu.cpp
 	src/presentation/music.cpp
 	src/presentation/scene.cpp
+	src/presentation/radar_sweep.cpp
 	src/presentation/environment.cpp
 	src/presentation/icons.cpp
 )

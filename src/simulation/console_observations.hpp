@@ -6,6 +6,7 @@ Observation capture_console_observation(const ConsoleAddress &address) const
 	const auto &seat = *this->seat(address.ship, address.console);
 	Observation result{view(address.ship, entity.get<Definition>(), own, entity.get<Motion>()), {}};
 	result.console = seat.id;
+	result.regions = region_markers(regions);
 	result.observed_tick = ecs.get<Clock>().tick;
 	result.controls = seat.controls;
 	result.feeds = seat.feeds;
@@ -63,6 +64,12 @@ Observation capture_console_observation(const ConsoleAddress &address) const
 						if (std::find(command.consumers.begin(), command.consumers.end(), instance->ordinal) !=
 						    command.consumers.end())
 							state.controlled = true;
+		if (state.kind == OperatingSystem::Radar)
+		{
+			state.shows = definitions.at(entity.get<Definition>().name).radar_shows.at(id);
+			state.effective_range = sensor_range(address.ship, id);
+			state.radial_ranges = sensor_envelope(address.ship, id, state.effective_range);
+		}
 		result.systems.push_back(std::move(state));
 	}
 	if (entity.has<NamedEquipment>())
@@ -87,7 +94,25 @@ Observation capture_console_observation(const ConsoleAddress &address) const
 			    [&](std::size_t row)
 			    {
 				    const auto &contact = contact_rows[row];
-				    if (contact.id != address.ship && fixed::length(contact.position - own.position) <= range)
+				    if (contact.id == address.ship)
+					    return;
+				    const auto &tags = definitions.at(contact.entity.get<Definition>().name).tags;
+				    bool visible = false;
+				    for (auto &sensor : result.systems)
+					    if (sensor.kind == OperatingSystem::Radar && sensor.enabled &&
+					        std::any_of(tags.begin(), tags.end(),
+					                    [&](const auto &tag)
+					                    {
+						                    return std::find(sensor.shows.begin(), sensor.shows.end(), tag) !=
+						                           sensor.shows.end();
+					                    }) &&
+					        scenario_sensor_visible(regions, {own.position.x, own.position.y},
+					                                {contact.position.x, contact.position.y}, sensor.effective_range))
+					    {
+						    sensor.contact_ids.push_back(contact.id);
+						    visible = true;
+					    }
+				    if (visible)
 					    result.contacts.push_back(view(contact.id, contact.entity.get<Definition>(),
 					                                   contact.entity.get<Pose>(), contact.entity.get<Motion>()));
 			    });

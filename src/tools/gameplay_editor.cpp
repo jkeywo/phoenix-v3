@@ -501,7 +501,10 @@ struct GameplayEditor
 		if (kind == "engine" || kind == "steering")
 			integer(spec, "turn_mdeg_s");
 		if (kind == "radar")
+		{
 			integer(spec, "range_mm");
+			strings(spec, "shows");
+		}
 		if (kind == "engine")
 		{
 			integer(spec, "reverse_speed_mm_s");
@@ -556,6 +559,7 @@ struct GameplayEditor
 		if (!selected)
 			return;
 		auto &ship = *selected;
+		strings(ship, "tags");
 		choice(ship, "extends", document.definition_choices(WorkshopDefinitionKind::Entity), true);
 		if (system_entity != entity)
 		{
@@ -1507,15 +1511,111 @@ struct GameplayEditor
 		        [&](Json &region)
 		        {
 			        string(region, "id");
-			        choice(region, "shape", {"circle", "rectangle"});
+			        choice(region, "shape", {"circle", "rectangle", "annulus"});
 			        integer(region, "x_mm");
 			        integer(region, "y_mm");
-			        if (region.value("shape", std::string("circle")) == "circle")
+			        if (region.value("shape", std::string("circle")) != "rectangle")
 				        integer(region, "radius_mm", 10000);
 			        else
 			        {
 				        integer(region, "half_width_mm", 10000);
 				        integer(region, "half_height_mm", 10000);
+			        }
+			        if (region.value("shape", std::string("circle")) == "annulus")
+				        integer(region, "inner_radius_mm", 5000);
+			        bool display = region.contains("display");
+			        if (ImGui::Checkbox(label("Map marker").c_str(), &display))
+			        {
+				        if (display)
+					        region["display"] = {{"name", region.value("id", "Region")},
+					                             {"navigation", true},
+					                             {"radar", true},
+					                             {"colour", {.5, .7, .9}},
+					                             {"tags", {"contact"}}};
+				        else
+					        region.erase("display");
+			        }
+			        if (display)
+			        {
+				        auto &d = region["display"];
+				        string(d, "name");
+				        strings(d, "tags");
+				        for (const auto *key : {"navigation", "radar"})
+				        {
+					        bool visible = d.value(key, false);
+					        if (ImGui::Checkbox(label(key).c_str(), &visible))
+						        d[key] = visible;
+				        }
+				        auto c = d.value("colour", Json::array({.5, .7, .9}));
+				        float rgb[]{c[0], c[1], c[2]};
+				        if (ImGui::ColorEdit3(label("Map marker colour").c_str(), rgb))
+					        d["colour"] = {rgb[0], rgb[1], rgb[2]};
+			        }
+			        bool fog = region.contains("nebula");
+			        if (ImGui::Checkbox(label("Nebula").c_str(), &fog))
+			        {
+				        if (fog)
+					        region["nebula"] = {{"density", .01},
+					                            {"sensor_factor", 1.0},
+					                            {"half_height_mm", 100000},
+					                            {"colour", {.5, .3, .8}}};
+				        else
+					        region.erase("nebula");
+			        }
+			        if (fog)
+			        {
+				        auto &n = region["nebula"];
+				        for (const char *key : {"density", "sensor_factor"})
+				        {
+					        float value = n.value(key, 1.f);
+					        if (ImGui::InputFloat(label(key).c_str(), &value))
+						        n[key] = value;
+				        }
+				        integer(n, "half_height_mm", 100000);
+				        const auto c = n.value("colour", Json::array({.5, .3, .8}));
+				        float colour[3] = {c[0], c[1], c[2]};
+				        if (ImGui::ColorEdit3(label("Nebula colour").c_str(), colour))
+					        n["colour"] = {colour[0], colour[1], colour[2]};
+			        }
+			        bool asteroids = region.contains("asteroids");
+			        if (ImGui::Checkbox(label("Asteroid field").c_str(), &asteroids))
+			        {
+				        if (asteroids)
+					        region["asteroids"] = {
+					            {"seed", 1}, {"spacing_mm", 25000}, {"density", .0004}, {"types", Json::array()}};
+				        else
+					        region.erase("asteroids");
+			        }
+			        if (asteroids)
+			        {
+				        auto &a = region["asteroids"];
+				        for (const auto &[key, fallback] :
+				             std::vector<std::pair<const char *, std::int64_t>>{{"seed", 1},
+				                                                                {"spacing_mm", 25000},
+				                                                                {"weight", 1000},
+				                                                                {"jitter_mm", 8000},
+				                                                                {"clustering_permille", 500},
+				                                                                {"noise_cells", 8},
+				                                                                {"decorative_height_mm", 20000},
+				                                                                {"decorative_fill_permille", 250},
+				                                                                {"spin_min_mdeg_s", 1000},
+				                                                                {"spin_max_mdeg_s", 10000},
+				                                                                {"visual_distance_mm", 250000},
+				                                                                {"unload_margin_mm", 50000}})
+					        integer(a, key, fallback);
+				        float density = a.value("density", .0004f);
+				        if (ImGui::InputFloat(label("Density (rocks per square metre)").c_str(), &density, .0001f,
+				                              .001f, "%.6f"))
+					        a["density"] = density;
+				        for (const char *key : {"types", "decorative_types"})
+					        records(a, key, {{"definition", ""}, {"sprite_entry", ""}, {"weight", 1000}},
+					                [&](Json &type)
+					                {
+						                choice(type, "definition",
+						                       document.definition_choices(WorkshopDefinitionKind::Entity));
+						                string(type, "sprite_entry");
+						                integer(type, "weight", 1000);
+					                });
 			        }
 		        });
 		if (!map.contains("scenario"))

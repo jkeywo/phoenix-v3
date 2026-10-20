@@ -1,5 +1,6 @@
 #pragma once
 #include "navigation_camera.hpp"
+#include "region_markers.hpp"
 namespace phoenix
 {
 class ConsoleSurface final : public Rml::EventListener
@@ -17,6 +18,7 @@ class ConsoleSurface final : public Rml::EventListener
 	ConsoleModel model_;
 #include "navigation_surface.hpp"
 	TextureCache radar_textures_;
+	std::map<std::string, std::unique_ptr<RadarSweep>> radar_sweeps_;
 	Application *app_ = nullptr;
 	std::string signature_;
 	std::map<std::string, std::string> displayed_values_;
@@ -886,6 +888,7 @@ p {display:block;font-size:.85em;margin:4px 0;}
 			settings_open_ = false;
 			document_->SetClass("local-settings-open", false);
 			radar_textures_.clear();
+			radar_sweeps_.clear();
 			signature_.clear();
 			cancel_pointer();
 			document_->Focus();
@@ -1590,6 +1593,32 @@ p {display:block;font-size:.85em;margin:4px 0;}
 						if (selected == view->systems.end())
 							radar = select_system(view->systems, OperatingSystem::Radar, {}, false).value_or("");
 						const double range = std::max<std::int64_t>(1, model_.system_maximum(radar));
+						const auto sensor = std::find_if(view->systems.begin(), view->systems.end(),
+						                                 [&](const auto &s)
+						                                 {
+							                                 return s.id == radar;
+						                                 });
+						if (sensor != view->systems.end())
+						{
+							Json settings = Json::object();
+							if (const auto *layout = model_.layout())
+								for (const auto &w : layout->at("widgets"))
+									if (w.at("id") == key)
+										settings = w.value("sweep", Json::object());
+							auto &sweep = radar_sweeps_[key];
+							if (!sweep)
+								sweep = std::make_unique<RadarSweep>();
+							sweep->draw(centre, radius * .66f, *sensor, settings, GetTime(), app_->reduced_motion);
+							draw_region_markers(
+							    view->regions,
+							    [&](double x, double y)
+							    {
+								    return Vector2{
+								        centre.x + static_cast<float>((x - view->own.x) / range) * radius * .66f,
+								        centre.y - static_cast<float>((y - view->own.y) / range) * radius * .66f};
+							    },
+							    range / (radius * .66), &*sensor, centre, radius * .66f);
+						}
 						draw_radar_body(radar_textures_, app_->session->catalog(), view->own, centre, 9, WHITE);
 						for (const auto &contact : view->contacts)
 						{
@@ -1598,6 +1627,10 @@ p {display:block;font-size:.85em;margin:4px 0;}
 							                 {
 								                 return s.id == radar && s.enabled;
 							                 }))
+								continue;
+							if (sensor == view->systems.end() ||
+							    std::find(sensor->contact_ids.begin(), sensor->contact_ids.end(), contact.id) ==
+							        sensor->contact_ids.end())
 								continue;
 							const double dx = contact.x - view->own.x, dy = contact.y - view->own.y;
 							if (std::hypot(dx, dy) > range)

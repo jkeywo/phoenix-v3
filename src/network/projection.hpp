@@ -145,7 +145,11 @@ static inline Json observation_json(const Observation &observation)
 		                   {"enabled", system.enabled},
 		                   {"controlled", system.controlled},
 		                   {"telemetry", system.telemetry},
-		                   {"status", system.status}});
+		                   {"status", system.status},
+		                   {"effective_range", system.effective_range},
+		                   {"radial_ranges", system.radial_ranges},
+		                   {"shows", system.shows},
+		                   {"contact_ids", system.contact_ids}});
 	return {{"own", body_json(observation.own)},
 	        {"contacts", contacts},
 	        {"observed_tick", observation.observed_tick},
@@ -158,7 +162,8 @@ static inline Json observation_json(const Observation &observation)
 	        {"feeds", observation.feeds},
 	        {"systems", systems},
 	        {"gameplay", bounded_gameplay(observation.gameplay)},
-	        {"additional_consoles", additional}};
+	        {"additional_consoles", additional},
+	        {"regions", observation.regions}};
 }
 static inline Observation read_observation(const Json &value, const Catalog &catalog)
 {
@@ -240,6 +245,35 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 			throw std::runtime_error("Invalid projected System state");
 		state.telemetry = entry.value("telemetry", std::map<std::string, std::int64_t>{});
 		state.status = entry.value("status", std::string{});
+		state.effective_range =
+		    entry.value("effective_range", state.kind == OperatingSystem::Radar && state.enabled ? state.maximum : 0LL);
+		state.shows = entry.value("shows", std::vector<std::string>{"contact"});
+		state.contact_ids = entry.value("contact_ids", std::vector<EntityId>{});
+		if (!entry.contains("contact_ids"))
+			for (const auto &body : result.contacts)
+				state.contact_ids.push_back(body.id);
+		if (state.shows.size() > 32 || state.contact_ids.size() > result.contacts.size())
+			throw std::runtime_error("Invalid radar tag projection");
+		for (const auto &tag : state.shows)
+			if (tag.empty() || tag.size() > 128)
+				throw std::runtime_error("Invalid radar tag");
+		for (const auto id : state.contact_ids)
+			if (std::none_of(result.contacts.begin(), result.contacts.end(),
+			                 [&](const auto &b)
+			                 {
+				                 return b.id == id;
+			                 }))
+				throw std::runtime_error("Unknown radar contact");
+		state.radial_ranges = entry.value("radial_ranges", std::vector<std::int64_t>{});
+		if (state.effective_range < 0 || state.effective_range > state.maximum ||
+		    (!state.radial_ranges.empty() &&
+		     (state.kind != OperatingSystem::Radar || state.radial_ranges.size() != 128)) ||
+		    std::any_of(state.radial_ranges.begin(), state.radial_ranges.end(),
+		                [&](auto n)
+		                {
+			                return n < 0 || n > state.effective_range;
+		                }))
+			throw std::runtime_error("Invalid projected sensor envelope");
 		if (state.telemetry.size() > 128 || state.status.size() > 256)
 			throw std::runtime_error("Invalid projected telemetry bounds");
 		result.systems.push_back(std::move(state));
@@ -247,6 +281,29 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 	if (result.requested_speed < -1000000000 || result.requested_speed > 1000000000 || result.requested_heading < 0 ||
 	    result.requested_heading >= 360000)
 		throw std::runtime_error("Invalid projected operating request");
+	result.regions = value.value("regions", Json::array());
+	if (!result.regions.is_array() || result.regions.size() > 256)
+		throw std::runtime_error("Invalid region marker count");
+	for (const auto &r : result.regions)
+	{
+		if (!r.is_object() || r.at("name").get<std::string>().size() > 128 || !r.at("navigation").is_boolean() ||
+		    !r.at("radar").is_boolean() ||
+		    (r.at("shape") != "circle" && r.at("shape") != "rectangle" && r.at("shape") != "annulus"))
+			throw std::runtime_error("Invalid region marker");
+		for (const auto *key : {"x", "y", "radius", "inner_radius", "half_width", "half_height"})
+			if (!r.at(key).is_number_integer() || r.at(key) < -1000000000 || r.at(key) > 1000000000)
+				throw std::runtime_error("Invalid region marker dimensions");
+		if (!r.at("colour").is_array() || r.at("colour").size() != 3)
+			throw std::runtime_error("Invalid region colour");
+		for (const auto &c : r.at("colour"))
+			if (!c.is_number() || c < 0 || c > 1)
+				throw std::runtime_error("Invalid region colour");
+		if (!r.at("tags").is_array() || r.at("tags").size() > 32)
+			throw std::runtime_error("Invalid region tags");
+		for (const auto &tag : r.at("tags"))
+			if (!tag.is_string() || tag.get<std::string>().size() > 128)
+				throw std::runtime_error("Invalid region tag");
+	}
 	result.gameplay = value.value("gameplay", Json::object());
 	// StateSource/StateTransfer already authenticate and bound the complete
 	// snapshot to 4 MiB. Permitted records and history may exceed one packet;

@@ -478,6 +478,47 @@ int main()
 		    resolve_packs({read_pack(sprite_document.export_pack())}).entities.at("test.ship")["render"]["sprite"] ==
 		        sprite,
 		    "Workshop round trip must preserve sprite material");
+		{
+			WorkshopDocument entries;
+			entries.load_pack(sprite_archive);
+			WorkshopHistory history;
+			history.reset(entries);
+			auto &hull = entries.definitions()["entities"][0];
+			auto &material = hull["render"]["sprite"];
+			material["entries"] = Json::array({{{"name", "original"}, {"frames", material.at("frames")}},
+			                                   {{"name", "variant"}, {"frames", material.at("frames")}}});
+			material.erase("frames");
+			hull["render"]["sprite_entry"] = "variant";
+			hull["tags"] = {"ship", "friendly"};
+			hull["systems"]["radar"]["shows"] = {"ship", "cloud"};
+			entries.map()["regions"] =
+			    Json::array({{{"id", "cloud"},
+			                  {"shape", "annulus"},
+			                  {"x_mm", 0},
+			                  {"y_mm", 0},
+			                  {"radius_mm", 20000},
+			                  {"inner_radius_mm", 5000},
+			                  {"display",
+			                   {{"name", "Charted cloud"},
+			                    {"navigation", true},
+			                    {"radar", true},
+			                    {"tags", {"cloud"}},
+			                    {"colour", {.3, .4, .8}}}},
+			                  {"nebula", {{"density", .01}, {"sensor_factor", 2}, {"half_height_mm", 50000}}}}});
+			history.checkpoint(entries);
+			const auto exported = entries.export_pack();
+			WorkshopDocument reopened;
+			reopened.load_pack(exported);
+			require(reopened.definitions() == entries.definitions(),
+			        "Environment and entry authoring changed during verified export/reload");
+			const auto entry_catalog = resolve_packs({read_pack(exported)});
+			const auto projected = resolve_packs({console_assets(entry_catalog, "test.ship")});
+			require(projected.entities.at("test.ship")["render"]["sprite"]["entries"].size() == 2 &&
+			            projected.entities.at("test.ship")["systems"]["radar"]["shows"].size() == 2,
+			        "Sprite entries or radar filters lost in Console packaging");
+			require(history.undo(entries) && history.redo(entries) && entries.definitions() == reopened.definitions(),
+			        "Environment authoring failed undo/redo");
+		}
 		for (const auto &bad_rect : {Json({0, 0, 2, 1}), Json({0, 0, 1.5, 1})})
 		{
 			auto invalid_sprite = sprite;
