@@ -507,7 +507,7 @@ void verify_prepared_catalog(const Catalog &catalog)
 			}
 			else if (kind == "boost" || kind == "impulse")
 			{
-				if (!catalog.presentation)
+				if (!catalog.presentation && !system.contains("targets"))
 				{
 					integer(system, "max_speed_mm_s", field, 1);
 					integer(system, "acceleration_mm_s2", field, 1);

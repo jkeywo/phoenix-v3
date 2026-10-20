@@ -339,8 +339,13 @@ struct World::Impl
 				                             (a.time == b.time && std::pair{a.a, a.b} < std::pair{b.a, b.b});
 			                      });
 			            for (const auto &pair : swept)
-				            sweep_collide(collisions[pair.a].body, collisions[pair.b].body,
-				                          step_starts.at(collisions[pair.a].id), step_starts.at(collisions[pair.b].id));
+				            if (sweep_collide(collisions[pair.a].body, collisions[pair.b].body,
+				                              step_starts.at(collisions[pair.a].id),
+				                              step_starts.at(collisions[pair.b].id)))
+				            {
+					            cancel_ship_impulse(collisions[pair.a].id);
+					            cancel_ship_impulse(collisions[pair.b].id);
+				            }
 			            for (std::size_t i = 0; i < collisions.size(); ++i)
 				            collision_boxes[i] = collision_bounds(collisions[i].body);
 			            collision_index.rebuild(collision_boxes);
@@ -356,7 +361,17 @@ struct World::Impl
 						            auto b = collision_index.first(collision_bounds(collisions[a].body), begin);
 						            if (b == SpatialIndex::none)
 							            break;
+						            const auto before_a = collisions[a].body.position,
+						                       before_b = collisions[b].body.position;
 						            collide(collisions[a].body, collisions[b].body);
+						            if (before_a.x != collisions[a].body.position.x ||
+						                before_a.y != collisions[a].body.position.y ||
+						                before_b.x != collisions[b].body.position.x ||
+						                before_b.y != collisions[b].body.position.y)
+						            {
+							            cancel_ship_impulse(collisions[a].id);
+							            cancel_ship_impulse(collisions[b].id);
+						            }
 						            collision_index.update(a, collision_bounds(collisions[a].body));
 						            collision_index.update(b, collision_bounds(collisions[b].body));
 						            begin = b + 1;
@@ -568,6 +583,20 @@ struct World::Impl
 					}
 					result.gameplay->values.push_back(std::move(runtime));
 				}
+				std::vector<FlightDefinition> flights;
+				std::vector<std::string> names;
+				const auto fits = resolve_systems(content, name);
+				for (std::size_t i = 0; i < fits.size(); ++i)
+				{
+					FlightDefinition absent;
+					absent.kind = FlightKind::Lateral;
+					flights.push_back(result.gameplay->values[i].flight.value_or(absent));
+					names.push_back(fits[i].id);
+				}
+				resolve_flight_modifiers(flights, names);
+				for (std::size_t i = 0; i < fits.size(); ++i)
+					if (result.gameplay->values[i].flight)
+						result.gameplay->values[i].flight = std::move(flights[i]);
 			}
 			if (result.fitted)
 			{
@@ -887,6 +916,19 @@ struct World::Impl
 		if (system.flight)
 			if (auto kind = flight_action(output.action))
 			{
+				const auto &definition = system.flight->definition;
+				if (*kind == FlightCommandKind::Impulse && output.value &&
+				    system.flight->state.impulse == ImpulsePhase::Idle && definition.impulse_minimum_reserve)
+				{
+					const auto *resources = entity.try_get<ShipResources>();
+					if (!resources)
+						return false;
+					const auto store = resources->definition.systems[index].store;
+					if (store == no_resource || !resources->network.stores()[store].enabled ||
+					    resources->network.stores()[store].thermal_stop ||
+					    resources->network.stores()[store].energy < definition.impulse_minimum_reserve)
+						return false;
+				}
 				auto candidate = system.flight->state;
 				const auto result =
 				    apply_flight(system.flight->definition, candidate, {*kind, output.value, output.arguments},
@@ -1044,6 +1086,22 @@ struct World::Impl
 				values["impulse"] = f.impulse != ImpulsePhase::Idle;
 				values["impulse_phase"] = static_cast<unsigned>(f.impulse);
 				values["impulse_progress"] = f.charge_milliticks;
+				values["impulse_charge_spent"] = f.charge_spent;
+				values["impulse_charge_total"] = system.flight->definition.impulse_charge_ticks * 1000;
+				values["impulse_reason"] = f.impulse_reason;
+				values["effective_boost"] = f.effective_boost;
+				values["lateral_direction"] = system.flight->definition.lateral_direction;
+				values["lateral_acceleration"] = system.flight->definition.lateral_acceleration;
+				values["lateral_maximum_speed"] = system.flight->definition.lateral_speed;
+				values["impulse_ready"] = 0;
+				if (const auto *resources = entity.try_get<ShipResources>())
+				{
+					const auto store = resources->definition.systems[index].store;
+					values["impulse_ready"] =
+					    f.enabled && store != no_resource && resources->network.stores()[store].enabled &&
+					    !resources->network.stores()[store].thermal_stop &&
+					    resources->network.stores()[store].energy >= system.flight->definition.impulse_minimum_reserve;
+				}
 				values["match_speed"] = f.matching;
 				values["selected_contact"] = f.selected_contact;
 				values["matched_contact"] = f.matched_contact;
@@ -1066,7 +1124,7 @@ struct World::Impl
 				const auto &binding = p.definition.systems[fitted.entity.get<ResourceBinding>().slot];
 				const auto &g = p.grants[fitted.entity.get<ResourceBinding>().slot];
 				values["supply_permille"] = g.supply_permille;
-				values["used_power"] = g.paid * rate;
+				values["used_power"] = (g.paid + g.discrete) * rate;
 				values["reserved_power"] = g.requested * rate;
 				values["supply_limited"] = g.supply_permille < 1000;
 				if (binding.store != no_resource)
@@ -1173,6 +1231,16 @@ struct World::Impl
 		bool impulse = false;
 		int steering_limit = 1000;
 	};
+	void cancel_ship_impulse(EntityId id)
+	{
+		for (auto child : ordered_equipment(flight_query, id))
+		{
+			auto &state = child.get_mut<FlightRuntime>().state;
+			if (state.impulse != ImpulsePhase::Idle)
+				cancel_impulse(state, 5);
+			state.external_impulse = false;
+		}
+	}
 	FlightRestrictions flight_restrictions(EntityId id)
 	{
 		FlightRestrictions result;
@@ -1182,8 +1250,9 @@ struct World::Impl
 			if (flight.state.impulse != ImpulsePhase::Idle)
 			{
 				result.impulse = true;
-				result.steering_limit =
-				    std::min(result.steering_limit, static_cast<int>(flight.definition.impulse_steering_permille));
+				if (flight.state.impulse == ImpulsePhase::Active)
+					result.steering_limit =
+					    std::min(result.steering_limit, static_cast<int>(flight.definition.impulse_steering_permille));
 			}
 		}
 		return result;
@@ -1221,10 +1290,21 @@ struct World::Impl
 				requested.boost = false;
 			flight.demand = flight_demand(flight.definition, requested, pose, motion);
 			if (auto power = ship.try_get_mut<ShipResources>())
-				request_system_resource(*power, child.get<ResourceBinding>().slot, 0, false,
+			{
+				const bool charging =
+				    flight.state.impulse == ImpulsePhase::Charging && flight.definition.impulse_charge_energy;
+				const auto completed = flight.state.charge_milliticks / 1000;
+				const auto energy = charging ? (flight.definition.impulse_charge_energy * (completed + 1) +
+				                                flight.definition.impulse_charge_ticks - 1) /
+				                                       flight.definition.impulse_charge_ticks -
+				                                   flight.state.charge_spent
+				                             : 0;
+				request_system_resource(*power, child.get<ResourceBinding>().slot, 0, energy > 0,
 				                        (restrictions.impulse && flight.definition.kind == FlightKind::Boost)
 				                            ? 0
-				                            : flight.demand.power_rate);
+				                            : flight.demand.power_rate,
+				                        energy);
+			}
 		}
 		for (auto child : ordered_equipment(passive_resource_query, id))
 		{
@@ -1234,6 +1314,98 @@ struct World::Impl
 			                        fit.enabled && (!radar || radar->enabled) ? 1000 : 0);
 		}
 	}
+	void prepare_paid_modifiers(flecs::entity ship, FlightRestrictions restrictions)
+	{
+		const auto id = ship.get<StableId>().id;
+		const auto fittings = ordered_equipment(flight_query, id);
+		auto *power = ship.try_get_mut<ShipResources>();
+		// Reserve full target duty while a modifier is requested. The preview and
+		// committed allocation use identical requests, even if a paid bonus changes
+		// guidance effort. Only the committed tick debits energy or advances cooling.
+		for (auto source : fittings)
+		{
+			const auto &flight = source.get<FlightRuntime>();
+			if (!flight.state.enabled ||
+			    !(flight.state.impulse == ImpulsePhase::Active || (flight.state.boost && !restrictions.impulse)))
+				continue;
+			for (const auto &binding : flight.definition.targets)
+			{
+				auto target = ship.get<EquipmentIndex>().values.at(binding.index);
+				if (power && target.has<FlightRuntime>() && target.get<FlightRuntime>().state.enabled)
+				{
+					const auto slot = target.get<ResourceBinding>().slot;
+					auto &request = power->requests[slot];
+					request.extra_rate =
+					    std::max(request.extra_rate, target.get<FlightRuntime>().definition.power_rate);
+				}
+			}
+		}
+		std::optional<ShipResources> preview;
+		if (power)
+		{
+			preview = *power;
+			tick_ship_resources(*preview);
+		}
+		for (auto child : fittings)
+		{
+			auto &flight = child.get_mut<FlightRuntime>();
+			flight.state.external_impulse = false;
+			flight.state.effective_boost = 0;
+			if (flight.state.impulse == ImpulsePhase::Active)
+			{
+				if (!flight.state.enabled)
+					cancel_impulse(flight.state, 4);
+				else if (preview && preview->grants[child.get<ResourceBinding>().slot].supply_permille < 1000)
+					cancel_impulse(flight.state, preview->grants[child.get<ResourceBinding>().slot].blocked ? 4 : 3);
+				for (const auto &binding : flight.definition.targets)
+				{
+					const auto target = ship.get<EquipmentIndex>().values.at(binding.index);
+					if (!target.get<FlightRuntime>().state.enabled)
+						cancel_impulse(flight.state, 4);
+					else if (preview && preview->grants[target.get<ResourceBinding>().slot].supply_permille < 1000)
+						cancel_impulse(flight.state, 3);
+				}
+			}
+		}
+		restrictions = flight_restrictions(id);
+		for (auto target : fittings)
+		{
+			auto &flight = target.get_mut<FlightRuntime>();
+			auto definition = flight.definition;
+			std::int64_t speed = 1000, acceleration = 1000, turn = 1000;
+			for (auto source : fittings)
+			{
+				auto &modifier = source.get_mut<FlightRuntime>();
+				const bool impulse = modifier.state.impulse == ImpulsePhase::Active;
+				if (!modifier.state.enabled || !(impulse || (modifier.state.boost && !restrictions.impulse)))
+					continue;
+				const auto paid = preview ? preview->grants[source.get<ResourceBinding>().slot].supply_permille : 1000;
+				for (const auto &binding : modifier.definition.targets)
+					if (binding.index == target.get<Equipment>().ordinal)
+					{
+						const auto bonus = 1000 + (binding.multiplier - 1000) * paid / 1000;
+						auto &value = binding.property == FlightProperty::Speed          ? speed
+						              : binding.property == FlightProperty::Acceleration ? acceleration
+						                                                                 : turn;
+						value = std::max(value, bonus);
+						if (!impulse)
+							modifier.state.effective_boost = paid;
+						if (impulse && definition.kind == FlightKind::Engine)
+							flight.state.external_impulse = true;
+					}
+			}
+			definition.maximum_speed = definition.maximum_speed * speed / 1000;
+			definition.acceleration = definition.acceleration * acceleration / 1000;
+			definition.turn_rate = definition.turn_rate * turn / 1000;
+			auto state = flight.state;
+			state.steering_limit_permille = restrictions.steering_limit;
+			if (restrictions.impulse)
+				state.boost = false;
+			if (state.desired_speed == flight.definition.maximum_speed)
+				state.desired_speed = definition.maximum_speed;
+			flight.demand = flight_demand(definition, state, ship.get<Pose>(), ship.get<Motion>());
+		}
+	}
 	void actuate_flight(flecs::entity child, FlightRestrictions restrictions)
 	{
 		auto &flight = child.get_mut<FlightRuntime>();
@@ -1241,6 +1413,26 @@ struct World::Impl
 		auto power = ship.try_get_mut<ShipResources>();
 		const auto slot = power ? child.get<ResourceBinding>().slot : 0;
 		int paid = power ? power->grants[slot].supply_permille : 1000;
+		if (flight.state.impulse == ImpulsePhase::Charging && flight.definition.impulse_charge_energy)
+		{
+			const auto &grant = power->grants[slot];
+			const auto completed = flight.state.charge_milliticks / 1000;
+			const auto due = (flight.definition.impulse_charge_energy * (completed + 1) +
+			                  flight.definition.impulse_charge_ticks - 1) /
+			                     flight.definition.impulse_charge_ticks -
+			                 flight.state.charge_spent;
+			if ((!due || grant.discrete_paid) && !grant.blocked)
+			{
+				flight.state.charge_spent += due;
+				flight.state.charge_milliticks += 1000;
+				flight.state.impulse_reason = 0;
+				if (flight.state.charge_milliticks == flight.definition.impulse_charge_ticks * 1000)
+					flight.state.impulse = ImpulsePhase::Active;
+			}
+			else
+				flight.state.impulse_reason = 2;
+			paid = (!due || grant.discrete_paid) && !grant.blocked ? 1000 : 0;
+		}
 		if (restrictions.impulse && flight.definition.kind == FlightKind::Boost)
 			paid = 0;
 		const bool requested_boost = flight.state.boost;
@@ -1305,6 +1497,7 @@ struct World::Impl
 		{
 			const auto restrictions = flight_restrictions(id);
 			request_flight_resources(ship, restrictions);
+			prepare_paid_modifiers(ship, restrictions);
 			if (auto power = ship.try_get_mut<ShipResources>())
 				tick_ship_resources(*power);
 			run_equipment_actuation(id, restrictions);
@@ -2126,12 +2319,15 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 					if (!channel.choices.empty())
 						for (const auto &[value, label] : channel.choices)
 							values.insert(value);
+					else if (channel.action == OperatingAction::Lateral)
+						values = {-1000, 0, 1000};
 					else if (channel.type == KnowledgeType::Boolean)
 						values = {0, 1};
 					else
 						values = {std::clamp(state.value - step, channel.minimum, channel.maximum),
 						          std::clamp(state.value + step, channel.minimum, channel.maximum)};
-					if (channel.choices.empty() && channel.minimum <= 0 && channel.maximum >= 0)
+					if (channel.action != OperatingAction::Lateral && channel.choices.empty() && channel.minimum <= 0 &&
+					    channel.maximum >= 0)
 						values.insert(0);
 					for (const auto value : values)
 					{
@@ -2153,6 +2349,18 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 						descriptor["id"] =
 						    "controller." + controller.definition.id + "." + channel.id + "." + std::to_string(value);
 						descriptor["label"] = controller.definition.id + " " + channel.id + " " + std::to_string(value);
+						if (channel.action == OperatingAction::Lateral || channel.action == OperatingAction::Boost ||
+						    channel.action == OperatingAction::Impulse)
+						{
+							descriptor["label_key"] = channel.action == OperatingAction::Lateral
+							                              ? (value < 0   ? "Thrust port"
+							                                 : value > 0 ? "Thrust starboard"
+							                                             : "Release flight controls")
+							                          : channel.action == OperatingAction::Boost
+							                              ? (value ? "Hold boost" : "Release boost")
+							                              : (value ? "Start impulse" : "Cancel impulse");
+							descriptor["momentary"] = channel.action != OperatingAction::Impulse && value != 0;
+						}
 						if (channel.choices.contains(value))
 							descriptor["label_key"] = channel.choices.at(value);
 						else if (!channel.label_key.empty())

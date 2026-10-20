@@ -1,6 +1,7 @@
 module;
 #include <cstdint>
 #include <string>
+#include <vector>
 
 export module phoenix.flight;
 export import phoenix.data;
@@ -14,6 +15,19 @@ enum class FlightKind : std::uint8_t
 	Lateral,
 	Boost,
 	Impulse
+};
+enum class FlightProperty : std::uint8_t
+{
+	Speed,
+	Acceleration,
+	Turn
+};
+struct FlightModifierTarget
+{
+	std::string system;
+	FlightProperty property = FlightProperty::Speed;
+	std::int64_t multiplier = 1000;
+	std::size_t index = 0;
 };
 struct FlightDefinition
 {
@@ -29,6 +43,11 @@ struct FlightDefinition
 	             impulse_heat_rate = 0;
 	std::uint64_t match_stale_ticks = 100;
 	std::string signature;
+	// Negative is port, positive starboard; zero permits both directions.
+	int lateral_direction = 0;
+	std::int64_t impulse_charge_energy = 0, impulse_minimum_reserve = 0;
+	std::vector<FlightModifierTarget> targets;
 };
 FlightDefinition compile_flight(const Json &spec, const std::string &path = "flight");
+void resolve_flight_modifiers(std::vector<FlightDefinition> &, const std::vector<std::string> &);
 } // namespace phoenix

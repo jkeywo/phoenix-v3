@@ -20,6 +20,7 @@ struct SystemResourceRequest
 {
 	ResourceAmount duty_permille = 0, extra_rate = 0, rate_remainder = 0;
 	bool discrete = false;
+	ResourceAmount discrete_amount = 0;
 };
 struct SystemResourceGrant
 {
@@ -36,7 +37,7 @@ struct ShipResources
 	explicit ShipResources(ShipResourcesDefinition definition, std::uint64_t seed = 1);
 };
 void request_system_resource(ShipResources &ship, std::size_t system, ResourceAmount duty_permille,
-                             bool discrete = false, ResourceAmount extra_rate = 0);
+                             bool discrete = false, ResourceAmount extra_rate = 0, ResourceAmount discrete_amount = 0);
 bool can_control_resource(const ShipResources &ship, std::size_t system, ResourceControl control, ResourceAmount value);
 bool control_resource(ShipResources &ship, std::size_t system, ResourceControl control, ResourceAmount value);
 void tick_ship_resources(ShipResources &ship);

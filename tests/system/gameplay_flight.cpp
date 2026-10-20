@@ -219,6 +219,239 @@ void manual_and_conservation()
 	            !world.can_submit(101, {1, "speed_mm_s", -5001, "drive"}),
 	        "assisted reverse commands obey the fitted authored reverse-speed bound");
 }
+Json targeted_fixture()
+{
+	auto source = fixture();
+	auto &systems = source["entities"][0]["systems"];
+	systems["boost"]["targets"] = Json::parse(
+	    R"([{"system":"drive","property":"max_speed_mm_s","multiplier_permille":2000},{"system":"drive","property":"acceleration_mm_s2","multiplier_permille":2000},{"system":"turn","property":"turn_mdeg_s","multiplier_permille":2000}])");
+	systems["impulse"]["targets"] = Json::parse(
+	    R"([{"system":"drive","property":"max_speed_mm_s","multiplier_permille":5000},{"system":"drive","property":"acceleration_mm_s2","multiplier_permille":4000}])");
+	systems["impulse"]["charge_energy"] = 20;
+	systems["impulse"]["minimum_reserve"] = 100;
+	systems["side"]["lateral_direction"] = "port";
+	return source;
+}
+void targeted_modifiers()
+{
+	const auto catalog = load(targeted_fixture());
+	World boosted, ordinary;
+	boosted.load(catalog, "test.map");
+	ordinary.load(catalog, "test.map");
+	claim(boosted);
+	claim(ordinary);
+	for (auto *world : {&boosted, &ordinary})
+	{
+		command(*world, "assisted", 0, "drive");
+		command(*world, "assisted", 0, "turn");
+		world->tick();
+		command(*world, "longitudinal_thrust", 1000, "drive");
+		command(*world, "manual_steering", 1000, "turn");
+	}
+	command(boosted, "boost", 1, "boost");
+	const auto before = telemetry(boosted, "drive", "stored_energy");
+	boosted.tick();
+	ordinary.tick();
+	require(body(boosted).vx > body(ordinary).vx && body(boosted).heading > body(ordinary).heading &&
+	            telemetry(boosted, "boost", "actual_longitudinal") == 0 &&
+	            telemetry(boosted, "boost", "effective_boost") == 1000,
+	        "paid fitted modifiers change their targets rather than generating independent thrust");
+	require(before - telemetry(boosted, "drive", "stored_energy") == paid(boosted),
+	        "modifier previews cannot debit the resource network twice");
+	command(boosted, "longitudinal_thrust", 0, "drive");
+	command(boosted, "manual_steering", 0, "turn");
+	command(boosted, "boost", 0, "boost");
+	const auto coast = body(boosted);
+	boosted.tick();
+	require(body(boosted).vx == coast.vx && body(boosted).vy == coast.vy &&
+	            telemetry(boosted, "boost", "effective_boost") == 0,
+	        "releasing a targeted boost removes modifiers while preserving momentum");
+	command(boosted, "lateral_thrust", 1000, "side", 102);
+	boosted.tick();
+	require(telemetry(boosted, "side", "actual_lateral", 102) == 0,
+	        "port-only actuators cannot create starboard thrust");
+	command(boosted, "lateral_thrust", -1000, "side", 102);
+	boosted.tick();
+	require(telemetry(boosted, "side", "actual_lateral", 102) < 0,
+	        "directional actuators execute their supported direction");
+	command(boosted, "impulse", 1, "impulse");
+	command(boosted, "manual_steering", 1000, "turn");
+	const auto heading = body(boosted).heading;
+	boosted.tick();
+	require(telemetry(boosted, "impulse", "impulse_charge_spent") == 10 && body(boosted).heading != heading,
+	        "impulse pays charging slices and preserves normal steering while charging");
+	const auto saved = boosted.save();
+	World resumed;
+	resumed.restore(catalog, saved);
+	resumed.clear_claims();
+	claim(resumed);
+	command(resumed, "manual_steering", 1000, "turn");
+	command(resumed, "lateral_thrust", -1000, "side", 102);
+	boosted.tick();
+	resumed.tick();
+	require(telemetry(boosted, "impulse", "impulse_phase") == 2 &&
+	            telemetry(resumed, "impulse", "impulse_charge_spent") == 20,
+	        "exact paid charge expenditure survives recovery and completes once");
+	const auto velocity = body(boosted).vx;
+	boosted.tick();
+	resumed.tick();
+	require(body(boosted).vx > velocity && body(boosted).vx == body(resumed).vx,
+	        "bound impulse transit starts on the following tick and survives recovery");
+	for (const auto &bad : {std::string("missing"), std::string("boost")})
+	{
+		auto invalid = targeted_fixture();
+		invalid["entities"][0]["systems"]["boost"]["targets"][0]["system"] = bad;
+		bool refused = false;
+		try
+		{
+			(void)load(invalid);
+		}
+		catch (const std::exception &)
+		{
+			refused = true;
+		}
+		require(refused, "missing and recursive modifier targets must fail production loading");
+	}
+	auto invalid = targeted_fixture();
+	invalid["entities"][0]["systems"]["impulse"]["minimum_reserve"] = 100001;
+	bool refused = false;
+	try
+	{
+		(void)load(invalid);
+	}
+	catch (const std::exception &)
+	{
+		refused = true;
+	}
+	require(refused, "minimum starting reserve must fit the connected local battery");
+	// Both fittings spend their own energy; only the strongest paid effect wins.
+	auto stacked_source = targeted_fixture(), strongest_source = targeted_fixture();
+	for (auto &binding : strongest_source["entities"][0]["systems"]["boost"]["targets"])
+		binding["multiplier_permille"] = 3000;
+	stacked_source["entities"][0]["systems"]["boost2"] = strongest_source["entities"][0]["systems"]["boost"];
+	stacked_source["entities"][0]["stations"][0]["consoles"][0]["systems"].push_back("boost2");
+	World stacked, strongest;
+	stacked.load(load(stacked_source), "test.map");
+	strongest.load(load(strongest_source), "test.map");
+	claim(stacked);
+	claim(strongest);
+	for (auto *w : {&stacked, &strongest})
+	{
+		command(*w, "speed_mm_s", 10000, "drive");
+		command(*w, "boost", 1, "boost");
+	}
+	command(stacked, "boost", 1, "boost2");
+	stacked.tick();
+	strongest.tick();
+	require(body(stacked).vx == body(strongest).vx,
+	        "multiple paid boosts use the strongest property bonus without multiplying");
+	auto limited_source = targeted_fixture();
+	limited_source["entities"][0]["resources"]["stores"][0]["initial"] = 15;
+	World limited;
+	limited.load(load(limited_source), "test.map");
+	claim(limited);
+	command(limited, "speed_mm_s", 10000, "drive");
+	command(limited, "boost", 1, "boost");
+	limited.tick();
+	const auto fraction = telemetry(limited, "boost", "effective_boost");
+	require(fraction > 0 && fraction < 1000, "a partially funded boost exposes only its paid bonus fraction");
+	const auto limited_velocity = body(limited).vx;
+	limited.tick();
+	require(telemetry(limited, "boost", "effective_boost") == 0 && body(limited).vx == limited_velocity,
+	        "empty target and modifier batteries cannot produce additional acceleration");
+	auto empty_source = targeted_fixture();
+	empty_source["entities"][0]["systems"]["drive"]["power_store"] = "empty";
+	empty_source["entities"][0]["systems"]["drive"]["powerless_start"] = true;
+	empty_source["entities"][0]["resources"]["stores"].push_back(
+	    {{"id", "empty"}, {"capacity", 1000}, {"initial", 0}, {"charge_rate", 0}, {"discharge_rate", 1000}});
+	World empty;
+	empty.load(load(empty_source), "test.map");
+	claim(empty);
+	command(empty, "speed_mm_s", 10000, "drive");
+	command(empty, "boost", 1, "boost");
+	empty.tick();
+	require(body(empty).vx == 0 && telemetry(empty, "boost", "effective_boost") == 1000,
+	        "a fully paid modifier cannot bypass its target engine's missing operating power");
+	World charging;
+	charging.load(catalog, "test.map");
+	claim(charging);
+	command(charging, "impulse", 1, "impulse");
+	charging.tick();
+	command(charging, "discharge_limit", 0, "storage", 104);
+	charging.tick();
+	require(telemetry(charging, "impulse", "impulse_progress") == 1000 &&
+	            telemetry(charging, "impulse", "impulse_charge_spent") == 10,
+	        "unpaid charging pauses without progressing or spending a second slice");
+	command(charging, "impulse", 0, "impulse");
+	charging.tick();
+	require(telemetry(charging, "impulse", "impulse_progress") == 0 &&
+	            telemetry(charging, "drive", "stored_energy") == 49990,
+	        "charging cancellation discards progress without refunding spent energy");
+	auto low_source = targeted_fixture();
+	low_source["entities"][0]["resources"]["stores"][0]["initial"] = 99;
+	World low;
+	low.load(load(low_source), "test.map");
+	claim(low);
+	command(low, "impulse", 1, "impulse");
+	low.tick();
+	require(telemetry(low, "impulse", "impulse_phase") == 0 && telemetry(low, "impulse", "impulse_ready") == 0,
+	        "charging admission checks the local battery threshold");
+}
+void impulse_interruptions()
+{
+	auto source = targeted_fixture();
+	source["entities"].push_back({{"id", "test.obstacle"},
+	                              {"render", source["entities"][0]["render"]},
+	                              {"systems", Json::object()},
+	                              {"collision", {{"shape", "circle"}, {"radius_mm", 1000}, {"mass_grams", 0}}}});
+	source["maps"][0]["entities"][1]["definition"] = "test.obstacle";
+	source["maps"][0]["entities"][1]["x_mm"] = 20000;
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	claim(world);
+	command(world, "impulse", 1, "impulse");
+	world.tick();
+	world.tick();
+	require(telemetry(world, "impulse", "impulse_phase") == 2, "paid charge enters active transit");
+	const auto active = world.save();
+	for (int tick = 0; tick < 200 && telemetry(world, "impulse", "impulse_phase") != 0; ++tick)
+		world.tick();
+	require(telemetry(world, "impulse", "impulse_phase") == 0 && telemetry(world, "impulse", "impulse_reason") == 5,
+	        "swept physical collision cancels impulse through the real collision path");
+	command(world, "impulse", 1, "impulse");
+	world.tick();
+	require(telemetry(world, "impulse", "impulse_phase") == 1,
+	        "a fresh impulse request can restart charging after collision without toggling a stale setting off first");
+	world.restore(catalog, active);
+	world.clear_claims();
+	claim(world);
+	command(world, "discharge_limit", 0, "storage", 104);
+	world.tick();
+	require(telemetry(world, "impulse", "impulse_phase") == 0 && telemetry(world, "impulse", "impulse_reason") == 3,
+	        "insufficient ongoing operating power ends transit rather than granting free thrust");
+	world.restore(catalog, active);
+	world.clear_claims();
+	claim(world);
+	command(world, "engine_enabled", 0, "impulse");
+	world.tick();
+	require(telemetry(world, "impulse", "impulse_phase") == 0 && telemetry(world, "impulse", "impulse_reason") == 4,
+	        "disabling the impulse fitting cancels physical transit");
+	auto old = active;
+	for (auto &system : old["bodies"][0]["gameplay"])
+		if (system.contains("flight"))
+			system["flight"]["schema"] = 4;
+	bool refused = false;
+	try
+	{
+		world.restore(catalog, old);
+	}
+	catch (const std::exception &error)
+	{
+		refused = std::string(error.what()).find("version") != std::string::npos;
+	}
+	require(refused, "incompatible flight saves explain their version requirement");
+}
 void boost_and_impulse()
 {
 	const auto catalog = load(fixture());
@@ -1189,6 +1422,119 @@ void manual_console_controls()
 	        "manual input cannot bypass delegated Controller ownership");
 	model.release_controls();
 }
+void lateral_controls_and_delegation()
+{
+	auto source = fixture();
+	auto &ship = source["entities"][0];
+	ship["stations"][0]["consoles"][0]["systems"].push_back("side");
+	ship["stations"][0]["consoles"].erase(1);
+	ship["systems"]["side"]["lateral_acceleration_mm_s2"] = 5000;
+	auto session = make_local_session();
+	session->add_pack(archive(source));
+	session->start({"test.map", {{"test.slot", "test.ship"}}, "test.slot", "helm"});
+	ConsoleModel model;
+	model.refresh(session);
+	require(model.flight_button("lateral_thrust", -1000, true), "port button is a momentary admitted control");
+	session->tick();
+	model.refresh(session);
+	require(system(*model.observation(), "side").telemetry.at("actual_lateral") < 0,
+	        "held port button fires lateral equipment");
+	require(model.flight_button("lateral_thrust", 1000, true), "opposite button can be held concurrently");
+	session->tick();
+	model.refresh(session);
+	require(system(*model.observation(), "side").telemetry.at("actual_lateral") == 0,
+	        "both lateral buttons mean neutral");
+	require(model.flight_button("lateral_thrust", -1000, false), "one opposite button may be released independently");
+	session->tick();
+	model.refresh(session);
+	require(system(*model.observation(), "side").telemetry.at("actual_lateral") > 0,
+	        "remaining held button resumes its direction");
+	model.release_controls();
+	session->tick();
+	model.refresh(session);
+	require(system(*model.observation(), "side").telemetry.at("actual_lateral") == 0,
+	        "input loss neutralises lateral controls");
+	// Keep human forward/yaw commands while delegating only the lateral Controller.
+	source = explicit_fixture(source);
+	auto &layout = source["entities"][0]["control_layout"];
+	std::string lateral_owner;
+	for (auto &controller : layout["controllers"])
+		for (const auto &channel : controller["commands"])
+			if (channel["action"] == "lateral_thrust")
+			{
+				lateral_owner = controller.at("id").get<std::string>();
+				controller["tree"] = "test.lateral-ai";
+				controller.erase("fallback");
+			}
+	source["trees"].push_back(Json::parse(
+	    R"({"id":"test.lateral-ai","context":"controller","initial":"run","command_bindings":[{"channel":"lateral_thrust","type":"integer"}],"states":[{"id":"run","running":[{"action":"write.lateral_thrust","arguments":[{"observation":"navigation.lateral_thrust"}]}]}]})"));
+	for (auto &profile : layout["profiles"])
+	{
+		auto &console = profile["consoles"]["helm"];
+		if (console.contains("human"))
+		{
+			for (auto it = console["human"].begin(); it != console["human"].end();)
+				if (*it == lateral_owner)
+					it = console["human"].erase(it);
+				else
+					++it;
+		}
+		if (!console.contains("ai"))
+			console["ai"] = Json::array();
+		console["ai"].push_back(lateral_owner);
+	}
+	// A static, observable obstruction ahead leaves room for either side-step.
+	auto obstacle = source["entities"][0];
+	obstacle = {{"id", "test.obstacle"},
+	            {"render", obstacle["render"]},
+	            {"systems", Json::object()},
+	            {"collision", {{"shape", "circle"}, {"radius_mm", 1000}, {"mass_grams", 0}}}};
+	source["entities"].push_back(obstacle);
+	source["maps"][0]["entities"][1]["definition"] = "test.obstacle";
+	source["maps"][0]["entities"][1]["x_mm"] = 10000;
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	require(world.claim(101, 1, "helm"), "mixed-ownership Helm remains human claimable");
+	world.tick();
+	world.tick();
+	bool used_lateral = telemetry(world, "side", "actual_lateral") != 0;
+	for (int tick = 0; tick < 8; ++tick)
+	{
+		world.tick();
+		used_lateral |= telemetry(world, "side", "actual_lateral") != 0;
+	}
+	require(used_lateral && telemetry(world, "drive", "longitudinal_thrust") == 0,
+	        "AI-owned lateral Controller avoids observed obstructions on an otherwise human-owned Helm");
+	auto blind_source = source;
+	blind_source["entities"][0]["systems"]["radar"]["range_mm"] = 1;
+	World blind;
+	blind.load(load(blind_source), "test.map");
+	require(blind.claim(101, 1, "helm"), "blind mixed-ownership Helm remains claimable");
+	for (int tick = 0; tick < 4; ++tick)
+		blind.tick();
+	require(telemetry(blind, "side", "actual_lateral") == 0,
+	        "lateral AI cannot avoid an obstruction absent from its permitted navigation evidence");
+	for (auto &profile : source["entities"][0]["control_layout"]["profiles"])
+	{
+		auto &console = profile["consoles"]["helm"];
+		for (auto it = console["ai"].begin(); it != console["ai"].end();)
+			if (*it == lateral_owner)
+				it = console["ai"].erase(it);
+			else
+				++it;
+		if (!console.contains("human"))
+			console["human"] = Json::array();
+		console["human"].push_back(lateral_owner);
+	}
+	World human;
+	human.load(load(source), "test.map");
+	require(human.claim(101, 1, "helm"), "fully human-owned Helm remains claimable");
+	for (int tick = 0; tick < 4; ++tick)
+		human.tick();
+	require(telemetry(human, "side", "actual_lateral") == 0,
+	        "collision avoidance cannot override a human-owned lateral Controller");
+}
 void semantic_controls()
 {
 	auto source = fixture();
@@ -1292,6 +1638,8 @@ int main()
 		launch_curve_and_linear_braking();
 		manual_and_conservation();
 		boost_and_impulse();
+		targeted_modifiers();
+		impulse_interruptions();
 		paid_overdrive();
 		prepaid_low_rate_actuation();
 		unpaid_and_protected();
@@ -1305,6 +1653,7 @@ int main()
 		equipment_ordering_and_recovery();
 		manual_console_controls();
 		semantic_controls();
+		lateral_controls_and_delegation();
 		std::cout << "Paid flight integration passed: control, resources, impulse, observed matching and semantics\n";
 		return 0;
 	}

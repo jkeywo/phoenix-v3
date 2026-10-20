@@ -493,7 +493,7 @@ struct GameplayEditor
 			        text("Physical reporters emit measured facts under both human and AI operation.");
 		        });
 		const auto kind = spec.value("kind", fallback_kind);
-		if (kind == "engine" || kind == "boost" || kind == "impulse")
+		if (kind == "engine" || ((kind == "boost" || kind == "impulse") && !spec.contains("targets")))
 		{
 			integer(spec, "max_speed_mm_s");
 			integer(spec, "acceleration_mm_s2");
@@ -515,6 +515,7 @@ struct GameplayEditor
 			integer(spec, "lateral_speed_mm_s");
 			integer(spec, "lateral_acceleration_mm_s2");
 			boolean(spec, "assist_lateral");
+			choice(spec, "lateral_direction", {"both", "port", "starboard"});
 		}
 		if (kind == "engine" || kind == "steering" || kind == "lateral")
 		{
@@ -532,10 +533,39 @@ struct GameplayEditor
 				integer(definition, "charge_ticks", 20);
 				integer(definition, "steering_permille");
 				integer(definition, "charge_power_rate");
+				integer(definition, "charge_energy");
+				integer(definition, "minimum_reserve");
 			}
 		};
 		if (kind == "boost" || kind == "impulse")
-			mode(spec, kind == "impulse");
+		{
+			if (!spec.contains("targets"))
+				mode(spec, kind == "impulse");
+			else
+			{
+				integer(spec, "power_rate");
+				integer(spec, "heat_rate");
+				if (kind == "impulse")
+				{
+					integer(spec, "charge_ticks", 20);
+					integer(spec, "charge_energy");
+					integer(spec, "minimum_reserve");
+					integer(spec, "steering_permille");
+				}
+			}
+			if (ScopedTree section(label("Modifier targets").c_str()); section)
+			{
+				if (spec.contains("targets"))
+					structure(spec["targets"], true);
+				if (button("Add modifier target"))
+				{
+					if (!spec.contains("targets"))
+						spec["targets"] = Json::array();
+					spec["targets"].push_back(
+					    {{"system", ""}, {"property", "max_speed_mm_s"}, {"multiplier_permille", 1000}});
+				}
+			}
+		}
 		if (kind == "engine")
 			for (const char *name : {"boost", "impulse"})
 			{

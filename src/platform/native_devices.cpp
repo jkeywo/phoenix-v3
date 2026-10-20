@@ -189,6 +189,18 @@ std::vector<DeviceEvent> poll_devices()
 			const char *control = nullptr;
 			switch (event.gbutton.button)
 			{
+			case SDL_GAMEPAD_BUTTON_LEFT_SHOULDER:
+				control = "flight.port";
+				break;
+			case SDL_GAMEPAD_BUTTON_RIGHT_SHOULDER:
+				control = "flight.starboard";
+				break;
+			case SDL_GAMEPAD_BUTTON_WEST:
+				control = "flight.boost";
+				break;
+			case SDL_GAMEPAD_BUTTON_START:
+				control = "flight.impulse";
+				break;
 			case SDL_GAMEPAD_BUTTON_DPAD_UP:
 				control = "game.faster";
 				break;
@@ -201,7 +213,7 @@ std::vector<DeviceEvent> poll_devices()
 			case SDL_GAMEPAD_BUTTON_DPAD_RIGHT:
 				control = "game.right";
 				break;
-			case SDL_GAMEPAD_BUTTON_WEST:
+			case SDL_GAMEPAD_BUTTON_BACK:
 				control = "game.manual";
 				break;
 			case SDL_GAMEPAD_BUTTON_NORTH:
@@ -245,3 +257,8 @@ std::vector<DeviceEvent> poll_devices()
 			pending.push_back({DeviceEventKind::Gamepad, 0, 0, 0, std::to_string(id),
 			                   axis == SDL_GAMEPAD_AXIS_LEFTX ? "flight.yaw" : "flight.thrust", -value});
 		}
+	auto result = std::move(pending);
+	pending.clear();
+	return result;
+}
+} // namespace phoenix

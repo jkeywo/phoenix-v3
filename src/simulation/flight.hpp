@@ -53,6 +53,11 @@ struct FlightState
 	std::int64_t forward_remainder = 0, lateral_remainder = 0, turn_remainder = 0;
 	int actual_longitudinal = 0, actual_lateral = 0, actual_steering = 0;
 	int steering_limit_permille = 1000;
+	std::int64_t charge_spent = 0;
+	// Numeric reason codes are translated by presentation: 0 none, 1 reserve,
+	// 2 charging power, 3 operating power, 4 disabled, 5 collision, 6 manual.
+	int impulse_reason = 0, effective_boost = 0;
+	bool external_impulse = false;
 };
 struct FlightCommand
 {
@@ -73,6 +78,7 @@ struct FlightDemand
 	// Prepared against the tick snapshot; execution may clip but never re-plan.
 	std::int64_t target_speed = 0, acceleration = 0, target_lateral_speed = 0, lateral_acceleration = 0;
 	std::int64_t heading_basis = 0, desired_heading = 0;
+	std::int64_t turn_rate = 0;
 };
 struct FlightExecution
 {
@@ -93,6 +99,7 @@ FlightExecution step_flight(const FlightDefinition &, FlightState &, Pose &, Mot
                             int paid_permille, int output_permille = 1000, int heat_permille = 1000);
 // Handover/device loss clears held inputs without reverting settings or momentum.
 void release_flight_inputs(FlightState &);
+void cancel_impulse(FlightState &, int reason);
 Json save_flight(const FlightDefinition &, const FlightState &);
 FlightState load_flight(const FlightDefinition &, const Json &);
 } // namespace phoenix

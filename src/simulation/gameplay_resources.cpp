@@ -67,7 +67,7 @@ ShipResources::ShipResources(ShipResourcesDefinition compiled, std::uint64_t see
 }
 
 void request_system_resource(ShipResources &ship, std::size_t system, ResourceAmount duty, bool discrete,
-                             ResourceAmount extra)
+                             ResourceAmount extra, ResourceAmount discrete_amount)
 {
 	if (duty < 0 || duty > 1000 || extra < 0 || extra > resource_limit)
 		throw std::runtime_error("resources: invalid System operating request");
@@ -80,6 +80,9 @@ void request_system_resource(ShipResources &ship, std::size_t system, ResourceAm
 	r.duty_permille = duty;
 	r.discrete = discrete;
 	r.extra_rate = extra;
+	if (discrete_amount < 0 || discrete_amount > resource_limit || (discrete_amount && b.store == no_resource))
+		throw std::runtime_error("resources: invalid discrete operating request");
+	r.discrete_amount = discrete_amount;
 }
 
 bool can_control_resource(const ShipResources &ship, std::size_t system, ResourceControl control, ResourceAmount value)
@@ -192,10 +195,11 @@ void tick_ship_resources(ShipResources &ship)
 		store_rates[b.store] += rates[i];
 		// Shared local reserves admit discrete requests in stable System order. Each
 		// action remains atomic; a later action is not accidentally paid as a batch.
-		if (r.discrete && b.discrete_energy && discrete_owner[b.store] == ship.definition.systems.size())
+		const auto action_energy = r.discrete_amount ? r.discrete_amount : b.discrete_energy;
+		if (r.discrete && action_energy && discrete_owner[b.store] == ship.definition.systems.size())
 		{
 			discrete_owner[b.store] = i;
-			discrete[b.store] = b.discrete_energy;
+			discrete[b.store] = action_energy;
 		}
 	}
 	for (ResourceIndex i = 0; i < count; ++i)
@@ -347,6 +351,7 @@ Json save_ship_resources(const ShipResources &ship)
 		                        {"extra_rate", r.extra_rate},
 		                        {"rate_remainder", r.rate_remainder},
 		                        {"discrete", r.discrete},
+		                        {"discrete_amount", r.discrete_amount},
 		                        {"requested", g.requested},
 		                        {"paid", g.paid},
 		                        {"discrete_energy", g.discrete},
@@ -373,7 +378,7 @@ void restore_ship_resources(ShipResources &ship, const Json &j)
 		if (v.value("id", std::string{}) != next.definition.systems[i].id)
 			throw std::runtime_error(path + ": identity mismatch");
 		request_system_resource(next, i, adapter_amount(v, "duty_permille", path, 1000), v.at("discrete").get<bool>(),
-		                        adapter_amount(v, "extra_rate", path));
+		                        adapter_amount(v, "extra_rate", path), adapter_amount(v, "discrete_amount", path));
 		next.requests[i].rate_remainder = adapter_amount(v, "rate_remainder", path, 999);
 		auto &g = next.grants[i];
 		g.requested = adapter_amount(v, "requested", path);
@@ -387,7 +392,9 @@ void restore_ship_resources(ShipResources &ship, const Json &j)
 		g.discrete_paid = v.at("discrete_paid").get<bool>();
 		g.blocked = v.at("blocked").get<bool>();
 		if (g.paid > g.requested || g.overdrive_permille < 1000 || g.overdrive_heat_permille < 1000 ||
-		    (g.discrete_paid && g.discrete != next.definition.systems[i].discrete_energy))
+		    (g.discrete_paid &&
+		     g.discrete != (next.requests[i].discrete_amount ? next.requests[i].discrete_amount
+		                                                     : next.definition.systems[i].discrete_energy)))
 			throw std::runtime_error(path + ": invalid paid operation result");
 	}
 	ship = std::move(next);

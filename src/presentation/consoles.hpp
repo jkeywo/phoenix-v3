@@ -130,6 +130,7 @@ class ConsoleSurface final : public Rml::EventListener
 	std::optional<std::uint64_t> manual_pulse_tick_;
 	bool manual_was_active_ = false;
 	std::string manual_identity_, manual_markup_;
+	std::array<bool, 3> keyboard_flight_{};
 	std::uint64_t manual_sent_tick_ = ~std::uint64_t{0};
 	bool syncing_values_ = false;
 	bool settings_open_ = false;
@@ -872,10 +873,26 @@ button.on-screen-active .share-live {display:block;}
 	void cancel_gamepad(const std::string &device)
 	{
 		manual_input_.cancel_source("pad/" + device);
+		model_.release_controls();
 		flush_manual();
 	}
 	void gamepad(const std::string &device, const std::string &control, float value)
 	{
+		if (control == "flight.impulse")
+		{
+			if (value > 0 && !settings_open_)
+				model_.flight_button("impulse", -1, true);
+			return;
+		}
+		if (control == "flight.boost" || control == "flight.port" || control == "flight.starboard")
+		{
+			model_.flight_button(control == "flight.boost" ? "boost" : "lateral_thrust",
+			                     control == "flight.port"        ? -1000
+			                     : control == "flight.starboard" ? 1000
+			                                                     : 1,
+			                     value > 0 && !settings_open_);
+			return;
+		}
 		auto &axes = pad_axes_[device];
 		(control == "flight.yaw" ? axes.yaw : axes.thrust) = static_cast<int>(std::lround(value * 1000));
 		manual_input_.sample("pad/" + device, axes);
@@ -885,6 +902,21 @@ button.on-screen-active .share-live {display:block;}
 	}
 	void manual_frame(bool keyboard_selected, FlightAxes keyboard_axes, bool focused)
 	{
+		const auto *keyboard_focus = context_->GetFocusElement();
+		const bool keyboard_enabled = keyboard_selected && focused && !settings_open_ &&
+		                              (!keyboard_focus || keyboard_focus->GetTagName() != "input");
+		const std::array<int, 3> keys{KEY_Q, KEY_E, KEY_LEFT_SHIFT};
+		if (keyboard_enabled && IsKeyPressed(KEY_I))
+			model_.flight_button("impulse", -1, true);
+		for (std::size_t i = 0; i < keys.size(); ++i)
+		{
+			const bool pressed = keyboard_enabled && (keyboard_flight_[i] ? IsKeyDown(keys[i]) : IsKeyPressed(keys[i]));
+			if (pressed != keyboard_flight_[i])
+				model_.flight_button(i == 2 ? "boost" : "lateral_thrust", i == 0 ? -1000 : i == 1 ? 1000 : 1, pressed);
+			keyboard_flight_[i] = pressed;
+		}
+		if (!focused || settings_open_)
+			model_.release_controls();
 		manual_input_.sample("keyboard", keyboard_axes);
 		if (!keyboard_selected)
 			manual_input_.cancel_source("keyboard");
@@ -902,6 +934,8 @@ button.on-screen-active .share-live {display:block;}
 		const bool active = model_.manual_active();
 		if (identity != manual_identity_ || active != manual_was_active_ || !active || settings_open_ || !focused)
 		{
+			if (identity != manual_identity_ || !focused || settings_open_)
+				model_.release_controls();
 			manual_input_.cancel();
 			if (manual_was_active_ || manual_sent_ != FlightAxes{})
 				model_.release_controls();
@@ -940,6 +974,10 @@ button.on-screen-active .share-live {display:block;}
 		std::string markup = "<button class=\"flight-mode\" id=\"" + id("manual-mode") + "\">" +
 		                     Rml::StringUtilities::EncodeRml(localise(active ? "Manual flight" : "Assisted flight")) +
 		                     "</button>";
+		markup += "<p>" +
+		          Rml::StringUtilities::EncodeRml(
+		              localise("Q/E lateral thrust; Shift boost. Gamepad shoulders: lateral; west button: boost.")) +
+		          "</p>";
 		if (active)
 		{
 			markup += "<div id=\"manual-stick\"><div id=\"manual-knob\"/></div><p id=\"manual-values\"/><p>" +

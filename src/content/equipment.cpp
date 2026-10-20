@@ -242,7 +242,7 @@ void validate_equipment_spec(const Catalog &catalog, const Json &spec, const std
 		    spec.at(field) > maximum)
 			composition_error(path + "." + field, "expected positive integer within capability limit");
 	};
-	if (kind == "engine" || kind == "boost" || kind == "impulse")
+	if (kind == "engine" || ((kind == "boost" || kind == "impulse") && !spec.contains("targets")))
 	{
 		required_positive("max_speed_mm_s", 1000000000);
 		required_positive("acceleration_mm_s2", 1000000000);

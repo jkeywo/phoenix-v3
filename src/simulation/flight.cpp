@@ -74,14 +74,24 @@ FlightTargets flight_targets(const FlightDefinition &def, const FlightState &sta
 	if (!state.enabled)
 		return result;
 	const bool primary = def.kind == FlightKind::Engine;
-	const bool impulse = state.impulse == ImpulsePhase::Active;
+	const bool impulse = state.impulse == ImpulsePhase::Active || state.external_impulse;
 	const bool boost = state.boost && state.impulse == ImpulsePhase::Idle;
+	if (!def.targets.empty())
+	{
+		result.charging = state.impulse == ImpulsePhase::Charging;
+		result.power = boost ? def.boost_power_rate : impulse ? def.impulse_power_rate : 0;
+		result.heat = boost ? def.boost_heat_rate : (impulse || result.charging) ? def.impulse_heat_rate : 0;
+		// New impulse charging uses exact per-tick energy slices in the resource owner.
+		if (result.charging && !def.impulse_charge_energy)
+			result.power = def.impulse_charge_power_rate;
+		return result;
+	}
 	const auto current = forward_speed(pose, motion);
 	if (primary || def.kind == FlightKind::Boost || def.kind == FlightKind::Impulse)
 	{
 		result.acceleration = def.acceleration;
 		std::int64_t cap = def.maximum_speed;
-		if (impulse)
+		if (impulse && !state.external_impulse)
 		{
 			cap = cap * def.impulse_speed_multiplier / 1000;
 			result.acceleration = result.acceleration * def.impulse_acceleration_multiplier / 1000;
@@ -119,7 +129,7 @@ FlightTargets flight_targets(const FlightDefinition &def, const FlightState &sta
 	{
 		result.lateral_acceleration = def.lateral_acceleration;
 		const auto current_lateral = lateral_speed(pose, motion);
-		if (state.assisted && def.assist_lateral)
+		if (state.assisted && def.assist_lateral && !state.lateral)
 		{
 			result.lateral_speed = 0;
 			result.lateral = correction(-current_lateral, result.lateral_acceleration);
@@ -132,13 +142,15 @@ FlightTargets flight_targets(const FlightDefinition &def, const FlightState &sta
 			    (result.lateral < 0 && current_lateral <= -def.lateral_speed))
 				result.lateral = 0;
 		}
+		if (def.lateral_direction && result.lateral * def.lateral_direction < 0)
+			result.lateral = 0;
 	}
 	if (def.kind == FlightKind::Steering || (primary && def.turn_rate > 0))
 	{
 		result.steering = state.assisted
 		                      ? correction(heading_difference(state.desired_heading, pose.heading), def.turn_rate)
 		                      : state.steering;
-		if (impulse)
+		if (state.impulse == ImpulsePhase::Active)
 			result.steering = result.steering * static_cast<int>(def.impulse_steering_permille) / 1000;
 		result.steering = result.steering * state.steering_limit_permille / 1000;
 	}
@@ -265,7 +277,10 @@ FlightCommandResult apply_flight(const FlightDefinition &def, FlightState &state
 			return {false, "flight.invalid-boolean"};
 		candidate.enabled = command.value != 0;
 		if (!candidate.enabled)
+		{
 			release_flight_inputs(candidate);
+			cancel_impulse(candidate, 4);
+		}
 		break;
 	case FlightCommandKind::Assisted:
 		if (!flag)
@@ -307,13 +322,11 @@ FlightCommandResult apply_flight(const FlightDefinition &def, FlightState &state
 		candidate.boost = command.value != 0;
 		break;
 	case FlightCommandKind::Impulse:
-		if (!flag || !def.impulse_available)
+		if (!flag || !def.impulse_available || (command.value && !candidate.enabled))
 			return {false, "flight.impulse-unavailable"};
 		if (!command.value)
 		{
-			candidate.impulse = ImpulsePhase::Idle;
-			candidate.charge_milliticks = 0;
-			candidate.charge_remainder = 0;
+			cancel_impulse(candidate, 6);
 		}
 		else if (candidate.impulse == ImpulsePhase::Idle)
 		{
@@ -321,6 +334,8 @@ FlightCommandResult apply_flight(const FlightDefinition &def, FlightState &state
 			candidate.charge_milliticks = 0;
 			candidate.charge_remainder = 0;
 			candidate.boost = false;
+			candidate.charge_spent = 0;
+			candidate.impulse_reason = 0;
 		}
 		break;
 	case FlightCommandKind::MatchSpeed:
@@ -359,6 +374,13 @@ void release_flight_inputs(FlightState &state)
 	state.boost = false;
 	state.actual_longitudinal = state.actual_lateral = state.actual_steering = 0;
 }
+void cancel_impulse(FlightState &state, int reason)
+{
+	state.impulse = ImpulsePhase::Idle;
+	state.charge_milliticks = state.charge_remainder = state.charge_spent = 0;
+	state.impulse_reason = reason;
+	state.external_impulse = false;
+}
 void observe_flight(const FlightDefinition &def, FlightState &state, std::uint64_t tick,
                     const std::optional<FlightContactObservation> &observation)
 {
@@ -386,10 +408,12 @@ FlightDemand flight_demand(const FlightDefinition &def, const FlightState &state
 {
 	validate_motion(pose, motion);
 	const auto target = flight_targets(def, state, pose, motion);
-	return {
+	auto demand = FlightDemand{
 	    target.power,    target.heat,          target.forward,      target.lateral,       target.steering,
 	    target.charging, target.speed,         target.acceleration, target.lateral_speed, target.lateral_acceleration,
 	    pose.heading,    state.desired_heading};
+	demand.turn_rate = def.turn_rate;
+	return demand;
 }
 FlightExecution step_flight(const FlightDefinition &def, FlightState &state, Pose &pose, Motion &motion,
                             const FlightDemand &demand, int paid_permille, int output_permille, int heat_permille)
@@ -435,14 +459,14 @@ FlightExecution step_flight(const FlightDefinition &def, FlightState &state, Pos
 	if (target.steering)
 	{
 		auto change =
-		    tick_delta(def.turn_rate, target.steering, paid_permille, output_permille, candidate.turn_remainder);
+		    tick_delta(demand.turn_rate, target.steering, paid_permille, output_permille, candidate.turn_remainder);
 		if (candidate.assisted)
 			change = cap_delta(change, heading_difference(demand.desired_heading, pose.heading));
 		new_pose.heading = (pose.heading + change + 360000) % 360000;
 	}
 	new_motion.velocity.x = std::clamp(new_motion.velocity.x, -maximum_velocity, maximum_velocity);
 	new_motion.velocity.y = std::clamp(new_motion.velocity.y, -maximum_velocity, maximum_velocity);
-	if (target.charging && paid_permille > 0)
+	if (target.charging && paid_permille > 0 && !def.impulse_charge_energy)
 	{
 		const auto progress = std::int64_t{paid_permille} * output_permille + candidate.charge_remainder;
 		candidate.charge_remainder = progress % 1000;
@@ -564,7 +588,7 @@ void guide_follow(const FlightDefinition &def, FlightState &state, const Pose &p
 }
 Json save_flight(const FlightDefinition &def, const FlightState &state)
 {
-	return {{"schema", 4},
+	return {{"schema", 5},
 	        {"definition", def.signature},
 	        {"enabled", state.enabled},
 	        {"assisted", state.assisted},
@@ -585,6 +609,8 @@ Json save_flight(const FlightDefinition &def, const FlightState &state)
 	        {"impulse", static_cast<unsigned>(state.impulse)},
 	        {"charge_milliticks", state.charge_milliticks},
 	        {"charge_remainder", state.charge_remainder},
+	        {"charge_spent", state.charge_spent},
+	        {"impulse_reason", state.impulse_reason},
 	        {"selected_contact", state.selected_contact},
 	        {"matched_contact", state.matched_contact},
 	        {"matched_speed", state.matched_speed},
@@ -602,10 +628,10 @@ Json save_flight(const FlightDefinition &def, const FlightState &state)
 }
 FlightState load_flight(const FlightDefinition &def, const Json &saved)
 {
-	if (!saved.is_object() ||
-	    (saved.value("schema", 0) != 2 && saved.value("schema", 0) != 3 && saved.value("schema", 0) != 4) ||
+	if (!saved.is_object() || saved.value("schema", 0) != 5 ||
 	    saved.value("definition", std::string{}) != def.signature)
-		throw std::runtime_error("flight save: incompatible definition or schema");
+		throw std::runtime_error(
+		    "flight save: incompatible definition or version; flight schema 5 required; start a new session");
 	FlightState result;
 	const auto number = [&](const char *key, std::int64_t minimum, std::int64_t maximum)
 	{
@@ -637,6 +663,16 @@ FlightState load_flight(const FlightDefinition &def, const Json &saved)
 	result.steering = static_cast<int>(number("steering", -1000, 1000));
 	result.impulse = static_cast<ImpulsePhase>(number("impulse", 0, 2));
 	result.charge_milliticks = number("charge_milliticks", 0, def.impulse_charge_ticks * 1000);
+	result.charge_spent = number("charge_spent", 0, def.impulse_charge_energy);
+	result.impulse_reason = static_cast<int>(number("impulse_reason", 0, 6));
+	if (def.impulse_charge_energy)
+	{
+		const auto completed = result.charge_milliticks / 1000;
+		const auto expected =
+		    (def.impulse_charge_energy * completed + def.impulse_charge_ticks - 1) / def.impulse_charge_ticks;
+		if (result.charge_milliticks % 1000 || result.charge_spent != expected)
+			throw std::runtime_error("flight save: charging progress disagrees with paid expenditure");
+	}
 	const bool legacy_remainders = saved.at("schema") == 2;
 	result.charge_remainder = legacy_remainders ? 0 : number("charge_remainder", 0, 999);
 	result.selected_contact =

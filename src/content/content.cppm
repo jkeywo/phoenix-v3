@@ -93,6 +93,8 @@ enum class ControllerOwnField
 	Heading,
 	Blocked,
 	LeftHeading,
+	LateralAvoidance,
+	LateralSafe,
 	Count
 };
 enum class ControllerRecordField

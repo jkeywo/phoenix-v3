@@ -458,7 +458,7 @@
 		{
 			"id": "base.courier-engineering",
 			"extends": "training.survey",
-			"name": "Courier — Engineering fit",
+			"name": "Courier \u2014 Engineering fit",
 			"controller": null,
 			"console": null,
 			"systems": {
@@ -590,7 +590,8 @@
 				"base.message.supply-restored",
 				"base.message.thermal-stop",
 				"base.message.navigation-advisory",
-				"base.message.engineering-request"
+				"base.message.engineering-request",
+				"base.message.lateral-avoidance"
 			],
 			"publications": [
 				{
@@ -1126,6 +1127,7 @@
 							{
 								"id": "impulse",
 								"action": "impulse",
+								"semantics": "request",
 								"initial": 0,
 								"consumers": ["drive.impulse"]
 							},
@@ -1208,7 +1210,7 @@
 					{
 						"id": "drive.lateral",
 						"console": "helm",
-						"tree": "base.ai.standby",
+						"tree": "base.ai.lateral-avoidance",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -1567,8 +1569,8 @@
 								]
 							},
 							"helm": {
-								"human": ["drive.engine", "drive.lateral", "drive.steering", "sensors.radar"],
-								"ai": ["drive.boost", "drive.impulse"]
+								"human": ["drive.engine", "drive.steering", "sensors.radar"],
+								"ai": ["drive.boost", "drive.impulse", "drive.lateral"]
 							}
 						}
 					},
@@ -1745,7 +1747,7 @@
 		{
 			"id": "base.cruiser",
 			"extends": "base.courier-engineering",
-			"name": "Cruiser — Six-station fit",
+			"name": "Cruiser \u2014 Six-station fit",
 			"render": {
 				"scale": 18
 			},
@@ -2851,6 +2853,7 @@
 							{
 								"id": "impulse",
 								"action": "impulse",
+								"semantics": "request",
 								"initial": 0,
 								"consumers": ["drive.impulse"]
 							},
@@ -2933,43 +2936,43 @@
 					{
 						"id": "drive.lateral",
 						"console": "helm",
-						"tree": "base.ai.standby",
+						"tree": "base.ai.lateral-avoidance",
 						"commands": [
 							{
 								"id": "system_enabled",
 								"action": "system_enabled",
 								"initial": 1,
-								"consumers": ["drive.lateral"]
+								"consumers": ["drive.lateral", "wing.lateral"]
 							},
 							{
 								"id": "assisted",
 								"action": "assisted",
 								"initial": 1,
-								"consumers": ["drive.lateral"]
+								"consumers": ["drive.lateral", "wing.lateral"]
 							},
 							{
 								"id": "selected_contact",
 								"action": "selected_contact",
 								"initial": 0,
-								"consumers": ["drive.lateral"]
+								"consumers": ["drive.lateral", "wing.lateral"]
 							},
 							{
 								"id": "lateral_thrust",
 								"action": "lateral_thrust",
 								"initial": 0,
-								"consumers": ["drive.lateral"]
+								"consumers": ["drive.lateral", "wing.lateral"]
 							},
 							{
 								"id": "overdrive",
 								"action": "overdrive",
 								"initial": 0,
-								"consumers": ["drive.lateral"]
+								"consumers": ["drive.lateral", "wing.lateral"]
 							},
 							{
 								"id": "thermal_override",
 								"action": "thermal_override",
 								"initial": 0,
-								"consumers": ["drive.lateral"]
+								"consumers": ["drive.lateral", "wing.lateral"]
 							}
 						]
 					},
@@ -3623,6 +3626,7 @@
 							{
 								"id": "impulse",
 								"action": "impulse",
+								"semantics": "request",
 								"initial": 0,
 								"consumers": ["wing.impulse"]
 							},
@@ -3699,49 +3703,6 @@
 								"action": "group_allocation",
 								"initial": 1500,
 								"consumers": ["wing.impulse-supply"]
-							}
-						]
-					},
-					{
-						"id": "wing.lateral",
-						"console": "helm",
-						"tree": "base.ai.standby",
-						"commands": [
-							{
-								"id": "system_enabled",
-								"action": "system_enabled",
-								"initial": 1,
-								"consumers": ["wing.lateral"]
-							},
-							{
-								"id": "assisted",
-								"action": "assisted",
-								"initial": 1,
-								"consumers": ["wing.lateral"]
-							},
-							{
-								"id": "selected_contact",
-								"action": "selected_contact",
-								"initial": 0,
-								"consumers": ["wing.lateral"]
-							},
-							{
-								"id": "lateral_thrust",
-								"action": "lateral_thrust",
-								"initial": 0,
-								"consumers": ["wing.lateral"]
-							},
-							{
-								"id": "overdrive",
-								"action": "overdrive",
-								"initial": 0,
-								"consumers": ["wing.lateral"]
-							},
-							{
-								"id": "thermal_override",
-								"action": "thermal_override",
-								"initial": 0,
-								"consumers": ["wing.lateral"]
 							}
 						]
 					},
@@ -4019,15 +3980,8 @@
 								]
 							},
 							"helm": {
-								"human": [
-									"drive.engine",
-									"drive.lateral",
-									"drive.steering",
-									"wing.engine",
-									"wing.lateral",
-									"wing.steering"
-								],
-								"ai": ["drive.boost", "drive.impulse", "wing.boost", "wing.impulse"]
+								"human": ["drive.engine", "drive.steering", "wing.engine", "wing.steering"],
+								"ai": ["drive.boost", "drive.impulse", "wing.boost", "wing.impulse", "drive.lateral"]
 							},
 							"science": {
 								"human": ["sensors.radar"],
@@ -4134,7 +4088,6 @@
 									"wing.boost",
 									"wing.engine",
 									"wing.impulse",
-									"wing.lateral",
 									"wing.steering"
 								],
 								"ai": []
@@ -4244,7 +4197,6 @@
 									"wing.boost",
 									"wing.engine",
 									"wing.impulse",
-									"wing.lateral",
 									"wing.steering"
 								],
 								"ai": []
@@ -4272,7 +4224,6 @@
 									"wing.boost",
 									"wing.engine",
 									"wing.impulse",
-									"wing.lateral",
 									"wing.steering"
 								]
 							},
@@ -4840,6 +4791,7 @@
 							{
 								"id": "impulse",
 								"action": "impulse",
+								"semantics": "request",
 								"initial": 0,
 								"consumers": ["drive.impulse"]
 							},
@@ -4922,7 +4874,7 @@
 					{
 						"id": "drive.lateral",
 						"console": "helm",
-						"tree": "base.ai.standby",
+						"tree": "base.ai.lateral-avoidance",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -5281,8 +5233,8 @@
 								]
 							},
 							"helm": {
-								"human": ["drive.engine", "drive.lateral", "drive.steering", "sensors.radar"],
-								"ai": ["drive.boost", "drive.impulse"]
+								"human": ["drive.engine", "drive.steering", "sensors.radar"],
+								"ai": ["drive.boost", "drive.impulse", "drive.lateral"]
 							}
 						}
 					},
@@ -5978,6 +5930,7 @@
 							{
 								"id": "impulse",
 								"action": "impulse",
+								"semantics": "request",
 								"initial": 0,
 								"consumers": ["drive.impulse"]
 							},
@@ -6060,7 +6013,7 @@
 					{
 						"id": "drive.lateral",
 						"console": "helm",
-						"tree": "base.ai.standby",
+						"tree": "base.ai.lateral-avoidance",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -6433,8 +6386,8 @@
 								]
 							},
 							"helm": {
-								"human": ["drive.engine", "drive.lateral", "drive.steering", "sensors.radar"],
-								"ai": ["drive.boost", "drive.impulse"]
+								"human": ["drive.engine", "drive.steering", "sensors.radar"],
+								"ai": ["drive.boost", "drive.impulse", "drive.lateral"]
 							},
 							"navigation": {
 								"human": ["navigation.orders"]
@@ -7049,7 +7002,7 @@
 				}
 			],
 			"name": "Ship Operations",
-			"description": "Set the ship’s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew."
+			"description": "Set the ship\u2019s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew."
 		},
 		{
 			"id": "base.console.helm",
@@ -7238,6 +7191,92 @@
 		}
 	],
 	"trees": [
+		{
+			"id": "base.ai.lateral-avoidance",
+			"context": "controller",
+			"initial": "operate",
+			"command_bindings": [
+				{
+					"channel": "lateral_thrust",
+					"type": "integer"
+				}
+			],
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.lateral_thrust",
+							"arguments": [
+								{
+									"observation": "navigation.lateral_thrust"
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "avoiding",
+							"conditions": [
+								{
+									"left": {
+										"observation": "navigation.lateral_safe"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "avoiding",
+					"entry": [
+						{
+							"action": "send.base.message.lateral-avoidance",
+							"arguments": [
+								{
+									"observation": "navigation.lateral_thrust"
+								},
+								true,
+								"Lateral avoidance engaged"
+							]
+						}
+					],
+					"running": [
+						{
+							"action": "write.lateral_thrust",
+							"arguments": [
+								{
+									"observation": "navigation.lateral_thrust"
+								}
+							]
+						}
+					],
+					"exit": [
+						{
+							"action": "send.base.message.lateral-avoidance",
+							"arguments": [0, false, "Lateral avoidance released"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "operate",
+							"conditions": [
+								{
+									"left": {
+										"observation": "navigation.lateral_safe"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						}
+					]
+				}
+			],
+			"message_templates": ["base.message.lateral-avoidance"]
+		},
 		{
 			"context": "scenario",
 			"id": "base.scenario.courier-patrol",
@@ -11236,6 +11275,13 @@
 									},
 									"op": "eq",
 									"right": true
+								},
+								{
+									"left": {
+										"observation": "navigation.lateral_safe"
+									},
+									"op": "eq",
+									"right": false
 								}
 							]
 						},
@@ -11309,6 +11355,13 @@
 									},
 									"op": "eq",
 									"right": true
+								},
+								{
+									"left": {
+										"observation": "navigation.lateral_safe"
+									},
+									"op": "eq",
+									"right": false
 								}
 							]
 						},
@@ -11387,6 +11440,13 @@
 									},
 									"op": "eq",
 									"right": true
+								},
+								{
+									"left": {
+										"observation": "navigation.lateral_safe"
+									},
+									"op": "eq",
+									"right": false
 								}
 							]
 						},
@@ -11561,6 +11621,13 @@
 									},
 									"op": "eq",
 									"right": true
+								},
+								{
+									"left": {
+										"observation": "navigation.lateral_safe"
+									},
+									"op": "eq",
+									"right": false
 								}
 							]
 						},
@@ -11630,6 +11697,13 @@
 									},
 									"op": "eq",
 									"right": true
+								},
+								{
+									"left": {
+										"observation": "navigation.lateral_safe"
+									},
+									"op": "eq",
+									"right": false
 								}
 							]
 						},
@@ -11716,6 +11790,13 @@
 									},
 									"op": "eq",
 									"right": true
+								},
+								{
+									"left": {
+										"observation": "navigation.lateral_safe"
+									},
+									"op": "eq",
+									"right": false
 								}
 							]
 						},
@@ -11930,7 +12011,8 @@
 			"acceleration_mm_s2": 1000,
 			"lateral_speed_mm_s": 5000,
 			"lateral_acceleration_mm_s2": 1000,
-			"assist_lateral": true,
+			"assist_lateral": false,
+			"lateral_direction": "both",
 			"energy_per_second": 600,
 			"power_store": "lateral-cell",
 			"records": [
@@ -11949,10 +12031,23 @@
 		{
 			"id": "base.equipment.boost",
 			"kind": "boost",
-			"max_speed_mm_s": 14000,
-			"acceleration_mm_s2": 2200,
-			"speed_multiplier_permille": 1600,
-			"acceleration_multiplier_permille": 2200,
+			"targets": [
+				{
+					"system": "engine",
+					"property": "max_speed_mm_s",
+					"multiplier_permille": 1600
+				},
+				{
+					"system": "engine",
+					"property": "acceleration_mm_s2",
+					"multiplier_permille": 2200
+				},
+				{
+					"system": "steering",
+					"property": "turn_mdeg_s",
+					"multiplier_permille": 1500
+				}
+			],
 			"power_rate": 4800,
 			"energy_per_second": 4800,
 			"power_store": "boost-cell",
@@ -11972,13 +12067,22 @@
 		{
 			"id": "base.equipment.impulse",
 			"kind": "impulse",
-			"max_speed_mm_s": 14000,
-			"acceleration_mm_s2": 2200,
+			"targets": [
+				{
+					"system": "engine",
+					"property": "max_speed_mm_s",
+					"multiplier_permille": 8000
+				},
+				{
+					"system": "engine",
+					"property": "acceleration_mm_s2",
+					"multiplier_permille": 5000
+				}
+			],
 			"charge_ticks": 60,
-			"speed_multiplier_permille": 8000,
-			"acceleration_multiplier_permille": 5000,
 			"steering_permille": 100,
-			"charge_power_rate": 4000,
+			"charge_energy": 12000,
+			"minimum_reserve": 20000,
 			"power_rate": 8000,
 			"energy_per_second": 8000,
 			"power_store": "impulse-cell",
@@ -12922,6 +13026,33 @@
 				"amount": 8000,
 				"flag": true,
 				"detail": "Review the requested operation and available power/cooling."
+			},
+			"parameters": {}
+		},
+		{
+			"id": "base.message.lateral-avoidance",
+			"schema": "base.coordination",
+			"destination": {
+				"kind": "ship",
+				"id": "self"
+			},
+			"title_key": "Lateral avoidance",
+			"body_key": "Lateral collision avoidance changed state.",
+			"delay_ticks": 1,
+			"expires_after_ticks": 40,
+			"urgency": 1,
+			"automatic": true,
+			"request_key": "base.message.lateral-avoidance",
+			"fields": {
+				"amount": {
+					"argument": "amount"
+				},
+				"flag": {
+					"argument": "flag"
+				},
+				"detail": {
+					"argument": "detail"
+				}
 			},
 			"parameters": {}
 		}

@@ -48,9 +48,9 @@ std::optional<FlightDefinition> adapter_flight(const Json &spec, const std::stri
 }
 bool adapter_flight_costs(const std::optional<FlightDefinition> &flight)
 {
-	return flight &&
-	       (flight->power_rate || flight->boost_power_rate || flight->impulse_charge_power_rate ||
-	        flight->impulse_power_rate || flight->heat_rate || flight->boost_heat_rate || flight->impulse_heat_rate);
+	return flight && (flight->impulse_charge_energy || flight->impulse_minimum_reserve || flight->power_rate ||
+	                  flight->boost_power_rate || flight->impulse_charge_power_rate || flight->impulse_power_rate ||
+	                  flight->heat_rate || flight->boost_heat_rate || flight->impulse_heat_rate);
 }
 } // namespace
 std::optional<ShipResourcesDefinition> compile_ship_resources(const Catalog &catalog, const std::string &entity_id)
@@ -59,6 +59,17 @@ std::optional<ShipResourcesDefinition> compile_ship_resources(const Catalog &cat
 	const auto cached = catalog.resource_definitions.find(entity_id);
 	const auto fitted = resolve_systems(catalog, entity_id);
 	const bool advanced = uses_advanced_machinery(catalog, entity_id);
+	std::vector<FlightDefinition> flights;
+	std::vector<std::string> names;
+	for (const auto &fit : fitted)
+	{
+		auto flight = adapter_flight(entity.at("systems").at(fit.id), fit.id, "entities." + entity_id + "." + fit.id);
+		FlightDefinition absent;
+		absent.kind = FlightKind::Lateral;
+		flights.push_back(flight ? *flight : absent);
+		names.push_back(fit.id);
+	}
+	resolve_flight_modifiers(flights, names);
 	if (cached == catalog.resource_definitions.end() && !entity.contains("resources"))
 	{
 		for (auto it = entity.at("systems").begin(); it != entity.at("systems").end(); ++it)
@@ -94,6 +105,10 @@ std::optional<ShipResourcesDefinition> compile_ship_resources(const Catalog &cat
 		b.cooling = adapter_reference(spec, "cooling_link", compiled.network.cooling_link_ids, path);
 		b.energy_per_second = adapter_amount(spec, "energy_per_second", path);
 		b.discrete_energy = adapter_amount(spec, "discrete_energy", path);
+		const auto &flight = flights.at(compiled.systems.size());
+		if (flight.impulse_charge_energy || flight.impulse_minimum_reserve)
+			if (b.store == no_resource || flight.impulse_minimum_reserve > compiled.network.stores[b.store].capacity)
+				throw std::runtime_error(path + ".minimum_reserve: requires a local battery with sufficient capacity");
 		if ((b.energy_per_second || b.discrete_energy || adapter_flight_costs(adapter_flight(spec, it.key(), path))) &&
 		    b.store == no_resource)
 			throw std::runtime_error(path +
@@ -165,6 +180,14 @@ std::map<std::string, SystemObservationSchema> compile_system_observations(const
 			     "impulse",
 			     "impulse_phase",
 			     "impulse_progress",
+			     "impulse_charge_spent",
+			     "impulse_charge_total",
+			     "impulse_reason",
+			     "impulse_ready",
+			     "effective_boost",
+			     "lateral_direction",
+			     "lateral_acceleration",
+			     "lateral_maximum_speed",
 			     "match_speed",
 			     "selected_contact",
 			     "matched_contact",

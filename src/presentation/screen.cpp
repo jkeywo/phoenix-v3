@@ -1172,7 +1172,7 @@ void draw_screen(Application &app)
 		if (console_mode && console_surfaces.contains(event.console))
 		{
 			auto &surface = *console_surfaces.at(event.console);
-			if (event.control == "flight.yaw" || event.control == "flight.thrust")
+			if (event.control.starts_with("flight."))
 			{
 				if (event.cancelled)
 					surface.cancel_gamepad(event.device);

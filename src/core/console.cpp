@@ -1,5 +1,6 @@
 module;
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <memory>
@@ -512,6 +513,8 @@ bool ConsoleModel::act(const std::string &id)
 				}
 		if (!selected)
 			return false;
+		if (selected->value("momentary", false))
+			return held_controls_.contains(id) ? release_control(id) : hold_control(id);
 		if (!console_string(*selected, "controller").empty())
 			return submit(decode_operating_command(*selected));
 		return command(console_string(*selected, "action"), *console_integer(selected->at("value")),
@@ -856,6 +859,28 @@ bool ConsoleModel::set_manual_axes(int yaw, int thrust)
 	}
 	return true;
 }
+bool ConsoleModel::flight_button(const std::string &action, std::int64_t value, bool pressed)
+{
+	if (!observation_ || !observation_->gameplay.is_object())
+		return false;
+	bool accepted = false;
+	if (action == "impulse" && value == -1)
+		value = std::any_of(observation_->systems.begin(), observation_->systems.end(),
+		                    [](const auto &system)
+		                    {
+			                    return system.telemetry.contains("impulse_phase") &&
+			                           system.telemetry.at("impulse_phase") != 0;
+		                    })
+		            ? 0
+		            : 1;
+	for (const auto &descriptor : observation_->gameplay.value("controls", Json::array()))
+		if (descriptor.value("action", "") == action && descriptor.value("value", std::int64_t{0}) == value)
+		{
+			const auto id = "game.control/" + console_encoded(descriptor.at("id").get<std::string>());
+			accepted |= action == "impulse" ? (pressed && act(id)) : pressed ? hold_control(id) : release_control(id);
+		}
+	return accepted;
+}
 bool ConsoleModel::hold_control(const std::string &id)
 {
 	auto session = owner_.lock();
@@ -880,7 +905,8 @@ bool ConsoleModel::hold_control(const std::string &id)
 	if (!selected)
 		return false;
 	const auto action = console_string(*selected, "action");
-	if (action != "longitudinal_thrust" && action != "lateral_thrust" && action != "manual_steering")
+	if (action != "longitudinal_thrust" && action != "lateral_thrust" && action != "manual_steering" &&
+	    action != "boost")
 		return false;
 	const auto value = *console_integer(selected->at("value"));
 	if (!value)
@@ -895,15 +921,22 @@ bool ConsoleModel::hold_control(const std::string &id)
 			return false;
 		request.system = *selected_system;
 	}
+	const auto previous = held_controls_;
+	held_controls_[id] = request;
+	if (action == "lateral_thrust")
+	{
+		request.value = 0;
+		for (const auto &[key, held] : held_controls_)
+			if (held.action == action && held.system == request.system && held.controller == request.controller &&
+			    held.channel == request.channel)
+				request.value += held.value;
+		request.value = std::clamp<std::int64_t>(request.value, -1000, 1000);
+	}
 	if (!submit(request))
+	{
+		held_controls_ = previous;
 		return false;
-	std::erase_if(held_controls_,
-	              [&](const auto &held)
-	              {
-		              return held.second.action == request.action && held.second.system == request.system &&
-		                     held.second.controller == request.controller && held.second.channel == request.channel;
-	              });
-	held_controls_[id] = std::move(request);
+	}
 	return true;
 }
 bool ConsoleModel::release_control(const std::string &id)
@@ -914,6 +947,12 @@ bool ConsoleModel::release_control(const std::string &id)
 	auto request = found->second;
 	request.value = 0;
 	held_controls_.erase(found);
+	for (const auto &[key, held] : held_controls_)
+		if (held.action == request.action && held.system == request.system && held.controller == request.controller &&
+		    held.channel == request.channel)
+			request.value = request.action == "lateral_thrust"
+			                    ? std::clamp<std::int64_t>(request.value + held.value, -1000, 1000)
+			                    : held.value;
 	return submit(std::move(request));
 }
 void ConsoleModel::release_controls()
@@ -1029,15 +1068,20 @@ bool ConsoleModel::submit(OperatingCommand command)
 				}
 	}
 	if (!command.controller.empty() && command.system.empty() && !command.request_id && command.arguments.empty() &&
-	    (command.action == "longitudinal_thrust" || command.action == "manual_steering"))
+	    (command.action == "longitudinal_thrust" || command.action == "manual_steering" ||
+	     command.action == "lateral_thrust" || command.action == "boost"))
 	{
 		const auto binding = "controller/" + command.controller + "/" + command.channel;
 		const auto section = controller_section(binding), channel = controller_channel(binding);
 		if (section && channel && section->value("human", false) && section->at("generation") == command.generation &&
 		    channel->value("action", "") == command.action && channel->value("semantics", "") == "setting" &&
 		    command.value >= channel->at("minimum") && command.value <= channel->at("maximum"))
+		{
+			if (command.action == "lateral_thrust" || command.action == "boost")
+				projected = true;
 			for (const auto *anchor : {"speed_mm_s", "heading_mdeg"})
 				projected |= manual_binding(command.action, anchor) == binding;
+		}
 	}
 	if ((!spec || !command.controller.empty()) && !projected)
 		return false;
@@ -1105,6 +1149,10 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 	{
 		if (!console_descriptor(descriptor))
 			continue;
+		// Keep neutral in the admitted projection for remote clients; the two
+		// visible direction buttons provide its press/release interaction.
+		if (descriptor.value("action", "") == "lateral_thrust" && descriptor.value("value", std::int64_t{0}) == 0)
+			continue;
 		const auto id = console_string(descriptor, "id");
 		if (occurrences[id] != 1)
 			continue;
@@ -1132,6 +1180,28 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 			continue;
 		std::string text = system.id + ": " + console_label(system.status);
 		text += "; " + localise("Requested") + " " + std::to_string(system.requested);
+		if (system.kind == OperatingSystem::Impulse && system.telemetry.contains("impulse_phase"))
+		{
+			const auto &t = system.telemetry;
+			const auto phase = t.at("impulse_phase");
+			text += "; " + localise(phase == 1 ? "Charging" : phase == 2 ? "Transit" : "Idle");
+			text += "; " + localise("Charge progress") + " " + std::to_string(t.at("impulse_progress")) + "/" +
+			        std::to_string(t.at("impulse_charge_total"));
+			text += "; " + localise("Charge energy spent") + " " + std::to_string(t.at("impulse_charge_spent"));
+			static const std::array<const char *, 7> reasons{"",
+			                                                 "Impulse battery reserve insufficient",
+			                                                 "Impulse charging paused: insufficient energy",
+			                                                 "Impulse cancelled: insufficient operating power",
+			                                                 "Impulse cancelled: equipment disabled",
+			                                                 "Impulse cancelled: collision",
+			                                                 "Impulse cancelled manually"};
+			const auto reason = t.at("impulse_reason");
+			if (reason > 0 && reason < static_cast<std::int64_t>(reasons.size()))
+				text += "; " + localise(reasons[reason]);
+			if (!phase)
+				text +=
+				    "; " + localise(t.at("impulse_ready") ? "Impulse ready" : "Impulse battery reserve insufficient");
+		}
 		for (const auto &[key, value] : system.telemetry)
 			text += "; " + console_label(key) + " " + std::to_string(value);
 		if (system.telemetry.contains("depletion_ticks") || system.telemetry.contains("coolant_depletion_ticks"))

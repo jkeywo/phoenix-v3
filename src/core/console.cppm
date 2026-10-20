@@ -27,6 +27,7 @@ public:
 	bool set_manual(bool enabled);
 	bool set_manual_axes(int yaw, int thrust);
 	bool hold_control(const std::string &action);
+	bool flight_button(const std::string &action, std::int64_t value, bool pressed);
 	bool release_control(const std::string &action);
 	void release_controls();
 	bool set_speed_fraction(double fraction, const std::string &system = {});

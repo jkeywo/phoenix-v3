@@ -643,6 +643,8 @@ Catalog convert_controller_content(const Catalog &source)
 					             {"minimum", bounds.first},
 					             {"maximum", bounds.second},
 					             {"consumers", Json::array({fit.id})}};
+					if (action == OperatingAction::Impulse)
+						command["semantics"] = "request";
 					std::int64_t initial = 0;
 					if (action == OperatingAction::Assisted)
 						initial = 1;
