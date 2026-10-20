@@ -1346,7 +1346,7 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
     #native-menu .menu-dialog { background:transparent; border:0px; padding:30px; top:5%; max-height:90%; }
     #native-menu .lobby-board { position:absolute; left:0; top:0; width:100%; height:100%; }
     #native-menu .lobby-heading { position:absolute; left:28px; top:22px; width:46%; }
-    #native-menu .lobby-heading h2 { font-size:25px; margin:0 0 6px; }
+    #native-menu .lobby-heading h2 { color:#fff0d4; font-family:UnifrakturCook; font-weight:bold; font-size:40px; line-height:40px; letter-spacing:0; margin:0 0 6px; }
     #native-menu .lobby-heading p { font-size:18px; margin:0; }
     #native-menu .lobby-code { position:absolute; top:20px; right:28px; width:42%; height:88px; display:flex; justify-content:flex-end; align-items:center; }
     #native-menu .lobby-code #menu-join-qr { width:88px; height:88px; flex-shrink:0; margin-right:14px; }

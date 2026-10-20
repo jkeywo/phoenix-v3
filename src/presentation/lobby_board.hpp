@@ -68,8 +68,11 @@ std::string lobby_board(Application &app, Add &add, Heading &heading, Paragraph 
 			if (app.session->catalog().entities.contains(slot.ship))
 				ship_name = app.session->catalog().entities.at(slot.ship).value("name", slot.ship);
 		}
-	std::string html = "<div id=\"lobby-board\" class=\"lobby-board\"><div class=\"lobby-heading\">" +
-	                   heading(lobby.scenario.empty() ? "Lobby" : lobby.scenario) +
+	const auto mission_name = lobby.scenario_name.empty() ? "Lobby" : lobby.scenario_name;
+	app.screen_readouts.emplace_back("menu.lobby-mission", localise(mission_name));
+	std::string html = "<div id=\"lobby-board\" class=\"lobby-board\"><div class=\"lobby-heading\">"
+	                   "<h2 id=\"menu.lobby-mission\">" +
+	                   Rml::StringUtilities::EncodeRml(localise(mission_name)) + "</h2>" +
 	                   readout("menu.lobby-ship", ship_name) + "</div>";
 	if (!lobby.code.empty())
 	{

@@ -110,6 +110,7 @@ int main(int argc, char **argv)
 			profile["consoles"]["navigation"] = {{"human", {"planner"}}};
 		defs["consoles"][0]["name"] = "Synthetic Helm";
 		defs["consoles"][0]["description"] = "Steer and set speed.";
+		defs["maps"][0]["name"] = "Synthetic Mission";
 		pack.files["definitions.json"] = json_bytes(defs);
 		pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
 		{
@@ -373,6 +374,8 @@ int main(int argc, char **argv)
 		    "World contains its authored entity, two claimed ships and mandatory AI, with the optional slot absent");
 		require(!host->observation(), "Readying an AI-only host must not claim a human Console");
 		const auto crew_lobby = crew->lobby();
+		require(crew_lobby.scenario == "test.map" && crew_lobby.scenario_name == "Synthetic Mission",
+		        "Remote lobbies receive the mission display title while preserving its setup ID");
 		require(std::any_of(crew_lobby.consoles.begin(), crew_lobby.consoles.end(),
 		                    [](const auto &seat)
 		                    {

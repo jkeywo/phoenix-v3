@@ -169,6 +169,8 @@ class GameLobby final : public SessionPort
 		    {"slots", Json::array()},
 		    {"members", Json::array()},
 		    {"consoles", Json::object()}};
+		if (source_ && source_->catalog().maps.contains(selection_.mission))
+			data["scenario_name"] = source_->catalog().maps.at(selection_.mission).value("name", selection_.mission);
 		data["console_names"] = Json::object();
 		data["console_profiles"] = Json::object();
 		for (const auto &slot : slots())
@@ -1153,6 +1155,7 @@ public:
 		result.status = error_;
 		const auto data = coordinator_ ? snapshot() : received_;
 		result.scenario = data.value("scenario", std::string{});
+		result.scenario_name = data.value("scenario_name", result.scenario);
 		result.countdown_ms = data.value("countdown", -1);
 		for (const auto &s : data.value("slots", Json::array()))
 			result.slots.push_back({s.at("id"), s.at("ship"), s.at("host"), s.at("mandatory"),

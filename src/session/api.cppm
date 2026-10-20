@@ -51,6 +51,7 @@ struct LobbyProjection
 {
 	bool active = false, coordinator = false, launched = false;
 	std::string self, scenario, code, status;
+	std::string scenario_name;
 	int countdown_ms = -1;
 	std::vector<LobbySlot> slots;
 	std::vector<LobbyMember> members;

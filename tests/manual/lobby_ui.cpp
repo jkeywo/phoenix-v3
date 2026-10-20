@@ -91,6 +91,13 @@ int main(int argc, char **argv)
 		// Graphics preparation also runs again when a lobby claim changes the setup.
 		wait_for_board();
 		const auto lobby = app.session->lobby();
+		require(std::any_of(app.screen_readouts.begin(), app.screen_readouts.end(),
+		                    [&](const auto &readout)
+		                    {
+			                    return readout.first == "menu.lobby-mission" &&
+			                           readout.second == localise(lobby.scenario_name);
+		                    }),
+		        "The lobby exposes its mission title instead of game branding");
 		require(lobby.consoles.size() == 6, "Cruiser smoke renders its six authored consoles");
 		const auto first = lobby.consoles.front();
 		require(std::none_of(app.screen_controls.begin(), app.screen_controls.end(),
