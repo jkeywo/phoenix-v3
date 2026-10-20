@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { Worker } from "node:worker_threads";
+import { fileURLToPath } from "node:url";
+import { startSessionPump } from "../../web/session-pump.mjs";
+import { acquireSessionProfile } from "../../web/session-profile.mjs";
 import { deflateRawSync } from "node:zlib";
 import {
 	viewportLayout,
@@ -15,6 +19,106 @@ import {
 	togglePack,
 } from "../../web/launcher.mjs";
 const route = (query) => launchOptions(new URLSearchParams(query), "https://example.test/phoenix-v3/");
+test("concurrent default-profile tabs and duplicated tabs keep separate durable identities", async () => {
+	const profile = "test-" + crypto.randomUUID();
+	const store = (values = new Map()) => ({
+		values,
+		getItem: (key) => values.get(key),
+		setItem: (key, value) => values.set(key, value),
+	});
+	const tabs = [store(), store()];
+	const acquire = (storage) =>
+		acquireSessionProfile(profile, { locks: navigator.locks, storage, randomUUID: () => crypto.randomUUID() });
+	const leases = [];
+	try {
+		const initial = await Promise.all(tabs.map(acquire));
+		leases.push(...initial);
+		assert.equal(new Set(initial.map((lease) => lease.profile)).size, 2);
+		assert.ok(initial.some((lease) => lease.profile === profile));
+		const duplicate = await acquire(store(new Map(tabs[0].values)));
+		leases.push(duplicate);
+		assert.ok(initial.every((lease) => lease.profile !== duplicate.profile));
+		const reconnect = initial[1].profile;
+		initial[1].release();
+		// Wait for the lock manager to complete the release before simulating reload.
+		await new Promise((resolve) => setTimeout(resolve, 0));
+		const reloaded = await acquire(tabs[1]);
+		leases.push(reloaded);
+		assert.equal(reloaded.profile, reconnect);
+	} finally {
+		for (const lease of leases) lease.release();
+	}
+	await new Promise((resolve) => setTimeout(resolve, 0));
+	const restarted = await acquire(store());
+	assert.equal(restarted.profile, profile);
+	restarted.release();
+});
+function sessionWorker() {
+	// Run the shipped browser worker with Node's message-port adapter.
+	const worker = new Worker(
+		`
+		const { parentPort, workerData } = require("node:worker_threads");
+		global.self = { postMessage: value => parentPort.postMessage(value) };
+		require(workerData);
+		parentPort.on("message", data => self.onmessage({ data }));
+	`,
+		{ eval: true, workerData: fileURLToPath(new URL("../../web/session-clock.js", import.meta.url)) },
+	);
+	const adapter = {
+		postMessage: (value) => worker.postMessage(value),
+		terminate: () => worker.terminate(),
+	};
+	worker.on("message", (data) => adapter.onmessage?.({ data }));
+	return adapter;
+}
+test("independent session pumps progress without animation frames and stop cleanly", async () => {
+	const counts = [0, 0];
+	const stops = [];
+	try {
+		await Promise.all(
+			counts.map(
+				(_, index) =>
+					new Promise((resolve, reject) => {
+						const timeout = setTimeout(() => reject(Error("Session pump stopped without rendering")), 5000);
+						stops.push(
+							startSessionPump(() => {
+								if (++counts[index] === 4) {
+									clearTimeout(timeout);
+									resolve();
+								}
+							}, sessionWorker),
+						);
+					}),
+			),
+		);
+	} finally {
+		for (const stop of stops) stop();
+	}
+	assert.ok(counts.every((count) => count >= 4));
+	const stopped = [...counts];
+	await new Promise((resolve) => setTimeout(resolve, 80));
+	assert.deepEqual(counts, stopped);
+});
+test("session clock does not queue ticks while a page cannot service them", async () => {
+	const worker = sessionWorker();
+	const messages = [];
+	try {
+		await new Promise((resolve, reject) => {
+			const timeout = setTimeout(() => reject(Error("Clock did not start")), 5000);
+			worker.onmessage = ({ data }) => {
+				messages.push(data);
+				clearTimeout(timeout);
+				resolve();
+			};
+			worker.postMessage("next");
+			worker.postMessage("next");
+		});
+		await new Promise((resolve) => setTimeout(resolve, 100));
+		assert.deepEqual(messages, ["tick"]);
+	} finally {
+		worker.terminate();
+	}
+});
 test("new deployments refresh shipped packs while retaining edits and disabled selections", () => {
 	const published = { id: "test-base", hash: "new" };
 	const library = { packs: [{ id: "test-base", hash: "old", enabled: false, url: "base.zip" }] };

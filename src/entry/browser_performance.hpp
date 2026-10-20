@@ -37,7 +37,7 @@ struct BrowserFrameProfile
 	std::vector<double> intervals;
 	std::map<std::string, double> totals;
 
-	void record(double started, double polled, double drawn, double ended, const phoenix::Application &app)
+	void record(double started, double drawn, double ended, double session_work, const phoenix::Application &app)
 	{
 		if (!enabled)
 			return;
@@ -50,8 +50,8 @@ struct BrowserFrameProfile
 		intervals.push_back((started - previous) * 1000);
 		previous = started;
 		++frames;
-		totals["poll_tick"] += (polled - started) * 1000;
-		totals["draw"] += (drawn - polled) * 1000;
+		totals["poll_tick"] += session_work * 1000;
+		totals["draw"] += (drawn - started) * 1000;
 		totals["end"] += (ended - drawn) * 1000;
 		for (const auto &[name, seconds] : app.frame_metrics)
 			totals["presentation." + name] += seconds * 1000;

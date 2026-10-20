@@ -25,15 +25,18 @@ import phoenix.tools;
 #include "browser_performance.hpp"
 
 phoenix::Application app;
+double session_work_seconds = 0;
 // Browser storage and page navigation belong to the shell; sessions remain in C++.
 // clang-format off: embedded JavaScript must retain its operators.
 EM_JS(void, persist_menu, (), { Module.phoenixPersistMenu?.().catch(() => {}); });
 EM_JS(void, return_to_menu, (), { Module.phoenixReturnToMenu?.(); });
 // clang-format on
-void frame()
+extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_session_pump()
 {
-	static BrowserFrameProfile profile;
-	const double started = GetTime();
+	const double now = GetTime();
+	static double previous = now;
+	const double elapsed = std::clamp(now - previous, 0.0, 0.25);
+	previous = now;
 	static double last_persist = 0;
 	if (GetTime() - last_persist > 1)
 	{
@@ -46,7 +49,7 @@ void frame()
 		app.session->poll();
 #ifdef PHOENIX_SERVER
 	static double accumulated = 0;
-	accumulated += std::min(static_cast<double>(GetFrameTime()), 0.25);
+	accumulated += elapsed;
 	while (accumulated >= 1.0 / 20)
 	{
 		if (app.session)
@@ -54,7 +57,12 @@ void frame()
 		accumulated -= 1.0 / 20;
 	}
 #endif
-	const double polled = GetTime();
+	session_work_seconds += GetTime() - now;
+}
+void frame()
+{
+	static BrowserFrameProfile profile;
+	const double started = GetTime();
 	if (profile.enabled)
 		app.frame_metrics.clear();
 	BeginDrawing();
@@ -66,7 +74,7 @@ void frame()
 #endif
 	const double drawn = GetTime();
 	EndDrawing();
-	profile.record(started, polled, drawn, GetTime(), app);
+	profile.record(started, drawn, GetTime(), std::exchange(session_work_seconds, 0.0), app);
 }
 int main(int argc, char **argv)
 {
@@ -213,5 +221,6 @@ int main(int argc, char **argv)
 #if defined(PHOENIX_WORKSHOP) || defined(PHOENIX_SERVER)
 	phoenix::begin_tools();
 #endif
+	EM_ASM({ Module.phoenixStartSessionPump(); });
 	emscripten_set_main_loop(frame, 0, true);
 }

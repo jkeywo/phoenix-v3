@@ -694,6 +694,42 @@ int main(int argc, char **argv)
 			require(mixed->console_seats().empty() && !joined->console_seats().empty(),
 			        "Mixed GM fleet preserves exclusive ship ownership");
 		}
+		{
+			auto same = options;
+			same.link.room = "same-machine-" + random_token();
+			same.link.self = "organiser";
+			auto shared_host = make_game_lobby(same);
+			shared_host->add_pack(write_pack(pack));
+			shared_host->prepare_lobby({"test.map", {{"test.slot", "test.ship"}}, "test.slot"});
+			same.server = "organiser";
+			same.link.self.clear();
+			same.profile = "default";
+			auto first = join_client_lobby(same, JoinRole::player);
+			auto second = join_client_lobby(same, JoinRole::player);
+			nodes = {shared_host, first, second};
+			pump(
+			    [&]
+			    {
+				    return shared_host->lobby().members.size() == 3;
+			    });
+			const auto first_id = first->lobby().self, second_id = second->lobby().self;
+			require(!first_id.empty() && !second_id.empty() && first_id != second_id,
+			        "Two clients on one machine with the same default profile receive independent identities");
+			require(shared_host->lobby_command({LobbyAction::approve, first_id}) &&
+			            shared_host->lobby_command({LobbyAction::approve, second_id}),
+			        "Both same-profile clients can be approved together");
+			pump(
+			    [&]
+			    {
+				    const auto members = shared_host->lobby().members;
+				    return first->lobby().members.size() == 3 && second->lobby().members.size() == 3 &&
+				           std::count_if(members.begin(), members.end(),
+				                         [](const auto &member)
+				                         {
+					                         return member.connected && member.approved;
+				                         }) == 3;
+			    });
+		}
 		std::cout << "PASS authenticated slot arbitration, automatic setup transfer, per-player readiness, "
 		             "cancellation, durable activation, AI-only slots and portable recovery\n";
 	}

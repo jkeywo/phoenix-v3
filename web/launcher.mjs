@@ -1,3 +1,5 @@
+import { startSessionPump } from "./session-pump.mjs";
+import { acquireSessionProfile } from "./session-profile.mjs";
 // The HTML shell gathers launch hints. C++ verifies content, setup and admission.
 // Keep one landscape coordinate space for rendering, touch and semantic controls.
 export function viewportLayout(width, height, runtime = false) {
@@ -1183,6 +1185,7 @@ async function boot() {
 		}
 	}
 	async function start(o, direct = false) {
+		let profileLease;
 		if (started || busy) return;
 		busy = true;
 		render();
@@ -1205,6 +1208,18 @@ async function boot() {
 			if (o.action === "host" || o.action === "host-gm" || o.action === "legacy" || o.action === "workshop")
 				await ensurePacks(o.action === "workshop");
 			await remember();
+			let tabStorage;
+			try {
+				tabStorage = window.sessionStorage;
+			} catch {}
+			profileLease = await acquireSessionProfile(o.profile, {
+				locks: navigator.locks,
+				storage: tabStorage,
+				randomUUID: () => crypto.randomUUID(),
+			});
+			window.addEventListener("pagehide", (event) => {
+				if (!event.persisted) profileLease.release();
+			});
 			// No generated JS, WASM or .data is requested before this point.
 			started = true;
 			if (!direct) {
@@ -1232,7 +1247,10 @@ async function boot() {
 						x,
 						y,
 					),
-				arguments: launchArguments(o, location.origin + location.pathname),
+				arguments: launchArguments(
+					{ ...o, profile: profileLease.profile },
+					location.origin + location.pathname,
+				),
 				print: console.log,
 				printErr: console.error,
 				phoenixMigrateBundled: migration.size > 0,
@@ -1264,6 +1282,14 @@ async function boot() {
 					return snapshotRuntime();
 				},
 				phoenixReturnToMenu: returnMenu,
+				phoenixStartSessionPump: () => {
+					const pump = () => window.Module.ccall("phoenix_session_pump", null, [], []);
+					let stop = startSessionPump(pump);
+					window.addEventListener("pagehide", () => stop());
+					window.addEventListener("pageshow", (event) => {
+						if (event.persisted) stop = startSessionPump(pump);
+					});
+				},
 				phoenixLaunchError: launchError,
 			};
 			const script = document.createElement("script");
@@ -1271,6 +1297,7 @@ async function boot() {
 			script.onerror = () => launchError("Build files unavailable. Build and serve the web output first.");
 			document.body.append(script);
 		} catch (error) {
+			profileLease?.release();
 			busy = false;
 			started = false;
 			document.documentElement.classList.remove("direct-launch");
