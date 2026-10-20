@@ -141,6 +141,8 @@ static inline Json observation_json(const Observation &observation)
 		contacts.push_back(body_json(contact));
 	Json systems = Json::array();
 	for (const auto &system : observation.systems)
+	{
+		const auto profile = sensor_reach_json(system);
 		systems.push_back({{"id", system.id},
 		                   {"kind", std::string(operating_system_name(system.kind))},
 		                   {"requested", system.requested},
@@ -151,8 +153,12 @@ static inline Json observation_json(const Observation &observation)
 		                   {"status", system.status},
 		                   {"effective_range", system.effective_range},
 		                   {"radial_ranges", system.radial_ranges},
+		                   {"reach_profile", profile},
+		                   {"reach_uncertainty_mm", system.reach_uncertainty_mm},
+		                   {"reach_limited", system.reach_limited},
 		                   {"shows", system.shows},
 		                   {"contact_ids", system.contact_ids}});
+	}
 	return {{"own", body_json(observation.own)},
 	        {"contacts", contacts},
 	        {"observed_tick", observation.observed_tick},
@@ -268,6 +274,11 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 			                 }))
 				throw std::runtime_error("Unknown radar contact");
 		state.radial_ranges = entry.value("radial_ranges", std::vector<std::int64_t>{});
+		read_sensor_reach(state, entry.value("reach_profile", Json::array()));
+		state.reach_uncertainty_mm = entry.value("reach_uncertainty_mm", 0LL);
+		state.reach_limited = entry.value("reach_limited", false);
+		if (state.reach_uncertainty_mm < 0 || state.reach_uncertainty_mm > state.effective_range)
+			throw std::runtime_error("Invalid sensor uncertainty");
 		if (state.effective_range < 0 || state.effective_range > state.maximum ||
 		    (!state.radial_ranges.empty() &&
 		     (state.kind != OperatingSystem::Radar || state.radial_ranges.size() != 128)) ||

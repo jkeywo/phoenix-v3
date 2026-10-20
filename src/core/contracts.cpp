@@ -8,6 +8,33 @@ module;
 module phoenix.contracts;
 namespace phoenix
 {
+Json sensor_reach_json(const SystemView &sensor)
+{
+	Json out = Json::array();
+	for (const auto &v : sensor.reach_profile)
+		out.push_back(Json::array({v.end_mdeg, v.range_mm}));
+	return out;
+}
+void read_sensor_reach(SystemView &sensor, const Json &profile)
+{
+	if (!profile.is_array() || profile.size() > 1024 || (sensor.kind != OperatingSystem::Radar && !profile.empty()))
+		throw std::runtime_error("Invalid projected sensor profile");
+	sensor.reach_profile.clear();
+	std::int64_t previous = 0;
+	for (const auto &interval : profile)
+	{
+		if (!interval.is_array() || interval.size() != 2 || !interval[0].is_number_integer() ||
+		    !interval[1].is_number_integer())
+			throw std::runtime_error("Invalid sensor interval");
+		SensorReachInterval v{interval[0], interval[1]};
+		if (v.end_mdeg <= previous || v.end_mdeg > 360000 || v.range_mm < 0 || v.range_mm > sensor.effective_range)
+			throw std::runtime_error("Invalid sensor interval bounds");
+		previous = v.end_mdeg;
+		sensor.reach_profile.push_back(v);
+	}
+	if (!profile.empty() && previous != 360000)
+		throw std::runtime_error("Incomplete sensor profile");
+}
 Json encode_operating_command(const OperatingCommand &command)
 {
 	return {{"target", command.target},         {"action", command.action},         {"value", command.value},

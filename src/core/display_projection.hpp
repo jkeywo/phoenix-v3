@@ -55,6 +55,7 @@ inline Json radar_json(const SystemView &s)
 	        {"enabled", s.enabled},
 	        {"effective_range", s.effective_range},
 	        {"radial_ranges", s.radial_ranges},
+	        {"reach_profile", sensor_reach_json(s)},
 	        {"shows", s.shows}};
 }
 inline SystemView read_radar(const Json &v)
@@ -65,6 +66,7 @@ inline SystemView read_radar(const Json &v)
 	s.maximum = number(v.at("maximum"), 0);
 	s.effective_range = number(v.at("effective_range"), 0, s.maximum);
 	s.enabled = v.at("enabled").get<bool>();
+	read_sensor_reach(s, v.value("reach_profile", Json::array()));
 	if (!v.at("radial_ranges").is_array() || (!v.at("radial_ranges").empty() && v.at("radial_ranges").size() != 128) ||
 	    !v.at("shows").is_array() || v.at("shows").size() > 256)
 		throw std::runtime_error("Invalid shared radar envelope");

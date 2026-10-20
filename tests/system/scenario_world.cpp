@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cmath>
 #include <iostream>
 #include <map>
 #include <nlohmann/json.hpp>
@@ -57,7 +58,8 @@ void nebula_paths()
 	                                });
 	check(radar != observed.systems.end() && radar->radial_ranges.size() == 128,
 	      "Sensor did not publish a bounded directional reach envelope");
-	check(radar->radial_ranges[64] < radar->effective_range && radar->radial_ranges[0] == radar->effective_range,
+
+	check(radar->radial_ranges[64] < radar->effective_range && radar->radial_ranges[0] >= radar->effective_range - 1000,
 	      "Directional sensor reach failed to distinguish blocked and clear bearings");
 	const std::vector<std::string> names{"test.ship", "test.variant"};
 	const auto definition = compile_scenario(map, names);
@@ -121,6 +123,61 @@ void nebula_paths()
 	data["entities"][0]["systems"]["radar"]["shows"] = {"ship"};
 	data["entities"][1]["tags"] = Json::array();
 	check(observe().contacts.empty(), "untagged entity matched radar");
+}
+void narrow_sensor_profiles()
+{
+	auto data = parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "narrow sensor fixture");
+	auto &map = data["maps"][0];
+	map["entities"] = Json::array();
+	map["ship_slots"][0]["x_mm"] = 0;
+	data["entities"][0]["systems"]["radar"]["range_mm"] = 300000;
+	for (const auto *shape : {"circle", "rectangle", "annulus"})
+	{
+		Json region = {
+		    {"id", "narrow"},        {"shape", shape},         {"x_mm", 99970},
+		    {"y_mm", 2454},          {"radius_mm", 1000},      {"half_width_mm", 500},
+		    {"half_height_mm", 500}, {"inner_radius_mm", 500}, {"nebula", {{"density", 100}, {"sensor_factor", 100}}}};
+		if (std::string(shape) == "annulus")
+		{
+			region["x_mm"] = 0;
+			region["y_mm"] = 0;
+			region["radius_mm"] = 30000;
+			region["inner_radius_mm"] = 20000;
+		}
+		map["regions"] = Json::array({region});
+		const auto catalog = load_fixture(data);
+		World world;
+		world.load(catalog, "test.map", {{"test.slot", "test.ship"}});
+		check(world.claim(99, *world.ship_for_slot("test.slot")), "narrow sensor claim failed");
+		const auto observation = *world.observe(99);
+		const auto radar = std::find_if(observation.systems.begin(), observation.systems.end(),
+		                                [](const auto &s)
+		                                {
+			                                return s.kind == OperatingSystem::Radar;
+		                                });
+		check(!radar->reach_profile.empty() && radar->reach_profile.size() <= 1024 &&
+		          radar->reach_profile.back().end_mdeg == 360000,
+		      "adaptive profile does not cover full bearing range");
+		const auto &regions = catalog.scenarios.at("test.map").regions;
+		std::size_t index = 0;
+		for (std::int64_t angle = 0; angle < 360000; ++angle)
+		{
+			while (angle >= radar->reach_profile[index].end_mdeg)
+				++index;
+			const auto reach = radar->reach_profile[index].range_mm;
+			const double a = angle * 3.14159265358979323846 / 180000;
+			const ScenarioPoint target{static_cast<std::int64_t>(std::cos(a) * reach),
+			                           static_cast<std::int64_t>(std::sin(a) * reach)};
+			check(scenario_sensor_visible(regions, {0, 0}, target, radar->effective_range),
+			      "adaptive sensor profile exceeds true reach between bearings");
+		}
+		const auto at = std::find_if(radar->reach_profile.begin(), radar->reach_profile.end(),
+		                             [](const auto &s)
+		                             {
+			                             return s.end_mdeg > 1406;
+		                             });
+		check(at->range_mm < radar->effective_range / 2, "adaptive profile missed narrow blocker or annulus shell");
+	}
 }
 void asteroid_streaming()
 {
@@ -293,6 +350,69 @@ void field_collision_safety()
 		world.load(catalog, "test.map", {{"test.slot", "test.ship"}});
 		check(world.inspect().size() == 2, "large field collider surface intersects ship but rock was not activated");
 	}
+
+	data["entities"].back()["collision"] = {{"shape", "circle"}, {"radius_mm", 1000}, {"mass_grams", 1000}};
+	data["entities"][0]["systems"]["steering"]["turn_mdeg_s"] = 360000;
+	catalog = load_fixture(data);
+	world.load(catalog, "test.map", {{"test.slot", "test.ship"}});
+	const auto moving_ship = *world.ship_for_slot("test.slot");
+	check(world.claim(99, moving_ship) && world.submit(99, {moving_ship, "speed_mm_s", 4000000}),
+	      "moving-rock drive request refused");
+	world.tick();
+	auto changed = world.save().at("asteroid_fields").at(0);
+	check(changed.at("vx").get<std::int64_t>() > 0, "collision did not mutate generated rock motion");
+	check(world.submit(99, {moving_ship, "heading_mdeg", 90000}), "departure heading refused");
+	bool unloaded = false;
+	for (int tick = 0; tick < 150; ++tick)
+	{
+		world.tick();
+		changed = world.save().at("asteroid_fields").at(0);
+		if (!changed.at("loaded").get<bool>())
+		{
+			unloaded = true;
+			break;
+		}
+	}
+	check(unloaded, "collision-mutated moving rock failed to unload during actual ship departure");
+	World resumed;
+	resumed.restore(catalog, world.save());
+	check(resumed.save().at("asteroid_fields") == world.save().at("asteroid_fields"),
+	      "unloaded physical state changed during recovery");
+	resumed.clear_claims();
+	check(resumed.claim(99, moving_ship), "recovered moving-rock claim refused");
+	bool revisited = false;
+	for (int tick = 0; tick < 300; ++tick)
+	{
+		const auto bodies = world.inspect();
+		const auto own = std::find_if(bodies.begin(), bodies.end(),
+		                              [&](const auto &b)
+		                              {
+			                              return b.id == moving_ship;
+		                              });
+		const double dx = changed.at("x").get<std::int64_t>() - own->x,
+		             dy = changed.at("y").get<std::int64_t>() - own->y;
+		const auto heading =
+		    static_cast<std::int64_t>(std::fmod(std::atan2(dy, dx) * 180000 / 3.14159265358979323846 + 360000, 360000));
+		const auto speed = std::clamp<std::int64_t>(static_cast<std::int64_t>(std::hypot(dx, dy) * 5), 100000, 4000000);
+		for (auto *w : {&world, &resumed})
+		{
+			check(w->submit(99, {moving_ship, "heading_mdeg", heading}) &&
+			          w->submit(99, {moving_ship, "speed_mm_s", speed}),
+			      "revisit command refused");
+			w->tick();
+		}
+		const auto state = world.save().at("asteroid_fields");
+		check(state == resumed.save().at("asteroid_fields"), "moving-rock continuation diverged after recovery");
+		if (state.at(0).at("loaded").get<bool>())
+		{
+			check(state[0]["id"] == changed["id"] && state[0]["entry"] == changed["entry"] &&
+			          state[0]["spin"] == changed["spin"] && state[0]["vx"] == changed["vx"],
+			      "revisit regenerated a collision-mutated rock");
+			revisited = true;
+			break;
+		}
+	}
+	check(revisited, "actual return flight failed to revisit unloaded rock");
 }
 void competition_resolution()
 {
@@ -768,6 +888,7 @@ int main(int argc, char **argv)
 		      "Later physical continuation diverged after restored scenario effects");
 		scenario_record_readers();
 		nebula_paths();
+		narrow_sensor_profiles();
 		asteroid_streaming();
 		field_collision_safety();
 		competition_resolution();

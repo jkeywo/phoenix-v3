@@ -270,6 +270,11 @@ struct SceneBody : BodyView
 	std::int64_t rotation_mdeg = 0, spin_mdeg_s = 0;
 	bool field_instance = false;
 };
+struct SensorReachInterval
+{
+	std::int64_t end_mdeg = 0, range_mm = 0;
+	bool operator==(const SensorReachInterval &) const = default;
+};
 struct SystemView
 {
 	std::string id;
@@ -281,10 +286,15 @@ struct SystemView
 	std::string status;
 	std::int64_t effective_range = 0;
 	std::vector<std::int64_t> radial_ranges;
+	std::vector<SensorReachInterval> reach_profile;
+	std::int64_t reach_uncertainty_mm = 0;
+	bool reach_limited = false;
 	std::vector<std::string> shows;
 	std::vector<EntityId> contact_ids;
 	bool operator==(const SystemView &) const = default;
 };
+Json sensor_reach_json(const SystemView &sensor);
+void read_sensor_reach(SystemView &sensor, const Json &profile);
 struct Observation
 {
 	BodyView own;

@@ -68,7 +68,11 @@ Observation capture_console_observation(const ConsoleAddress &address) const
 		{
 			state.shows = definitions.at(entity.get<Definition>().name).radar_shows.at(id);
 			state.effective_range = sensor_range(address.ship, id);
-			state.radial_ranges = sensor_envelope(address.ship, id, state.effective_range);
+			const auto &envelope = sensor_envelope(address.ship, id, state.effective_range);
+			state.radial_ranges = envelope.distances;
+			state.reach_profile = envelope.profile;
+			state.reach_uncertainty_mm = envelope.uncertainty;
+			state.reach_limited = envelope.limited;
 		}
 		result.systems.push_back(std::move(state));
 	}

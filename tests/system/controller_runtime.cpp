@@ -111,6 +111,12 @@ int main()
 				                                         {"x_mm", id == 2 ? 10000 : 150000},
 				                                         {"y_mm", 0},
 				                                         {"heading_mdeg", 0}});
+			source["maps"][0]["regions"] = Json::array({{{"id", "hidden-cloud"},
+			                                             {"shape", "circle"},
+			                                             {"x_mm", -25000},
+			                                             {"y_mm", 0},
+			                                             {"radius_mm", 1000},
+			                                             {"nebula", {{"density", .01}, {"sensor_factor", 1}}}}});
 			const auto catalog = load(source);
 			World world;
 			world.load(catalog, "test.map");
@@ -135,6 +141,10 @@ int main()
 			require(radar_view.at("kind") == "radar" && radar_view.at("contacts").size() == 1 &&
 			            radar_view.at("contacts")[0].at("id") == 2 && !world.public_board(2).contains("display"),
 			        "shared radar exposes only its selected sensor contacts and stays on its ship");
+			require(!radar_view.at("radar").at("reach_profile").empty() &&
+			            radar_view.dump().find("hidden-cloud") == std::string::npos &&
+			            !radar_view.at("radar").contains("nebula"),
+			        "Shared Viewscreen lost adaptive boundary or leaked hidden region geometry");
 			auto dirty = world.public_board(1);
 			dirty["display"]["controls"] = {"secret"};
 			dirty["display"]["own"]["private"] = "secret";
@@ -540,7 +550,8 @@ int main()
 		 {"id":"enabled","action":"intent_boolean","type":"boolean","initial":1,"consumers":[]}]})json"));
 		preference_layout["profiles"][0]["consoles"]["drive"] = {{"human", {"preference"}}, {"ai", {"propulsion"}}};
 		preference_layout["profiles"][1]["consoles"]["drive"] = {{"ai", {"preference", "propulsion"}}};
-		preference_source["trees"] = Json::parse(R"json([{"id":"test.preference","context":"controller","initial":"run",
+		preference_source["trees"] =
+		    Json::parse(R"json([{"id":"test.preference","context":"controller","initial":"run",
 		 "command_bindings":[{"channel":"speed"},{"channel":"enabled","type":"boolean"}],
 		 "command_reads":[{"name":"cruise","controller":"preference","channel":"cruise"},
 		  {"name":"enabled","controller":"preference","channel":"enabled","type":"boolean"}],

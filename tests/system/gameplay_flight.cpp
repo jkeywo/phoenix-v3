@@ -783,6 +783,105 @@ void paid_sensor_startup()
 		require(world.observe(101)->contacts.empty(), "exhausted sensor credit cannot reveal fresh contacts");
 	}
 }
+void nebula_sensor_memory_and_power()
+{
+	for (const int supply : {0, 500, 1000})
+	{
+		auto source = fixture();
+		auto &ship = source["entities"][0];
+		ship["systems"]["radar"]["energy_per_second"] = 40;
+		ship["systems"]["radar"]["power_store"] = "sensor-cell";
+		ship["systems"]["radar"]["powerless_start"] = true;
+		ship["resources"]["stores"].push_back({{"id", "sensor-cell"},
+		                                       {"capacity", 10000},
+		                                       {"initial", supply ? 10000 : 0},
+		                                       {"charge_rate", 40},
+		                                       {"discharge_rate", supply == 500 ? 20 : 40}});
+		source["maps"][0]["entities"][1]["x_mm"] = 45000;
+		source["maps"][0]["regions"] = Json::array({{{"id", "cloud"},
+		                                             {"shape", "circle"},
+		                                             {"x_mm", 25000},
+		                                             {"y_mm", 0},
+		                                             {"radius_mm", 5000},
+		                                             {"nebula", {{"density", .02}, {"sensor_factor", 1}}}}});
+		for (const bool attenuation : {false, true})
+		{
+			source["maps"][0]["regions"][0]["nebula"]["sensor_factor"] = attenuation ? 1 : 0;
+			World world;
+			world.load(load(source), "test.map");
+			claim(world);
+			world.tick();
+			const auto sensor = system(*world.observe(101), "radar");
+			require(sensor.effective_range == 100000LL * supply / 1000,
+			        "nebula sensor range bypassed paid power grant");
+			const bool expected = supply == 1000 || (supply == 500 && !attenuation);
+			require(!world.observe(101)->contacts.empty() == expected,
+			        "nebula attenuation did not combine with partial sensor power");
+		}
+	}
+	auto source = fixture();
+	auto target = source["entities"][0];
+	target["id"] = "test.target";
+	target["systems"]["drive"]["acceleration_mm_s2"] = 200000;
+	source["entities"][0]["systems"]["drive"]["acceleration_mm_s2"] = 1;
+	source["entities"].push_back(target);
+	auto &map = source["maps"][0];
+	map["entities"][1]["definition"] = "test.target";
+	map["entities"][1]["x_mm"] = 10000;
+	map["regions"] = Json::array({{{"id", "cloud"},
+	                               {"shape", "circle"},
+	                               {"x_mm", 20000},
+	                               {"y_mm", 0},
+	                               {"radius_mm", 3000},
+	                               {"nebula", {{"density", 100}, {"sensor_factor", 100}}}}});
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	claim(world);
+	require(world.claim(201, 2, "helm"), "nebula target claim refused");
+	command(world, "speed_mm_s", 10000, "drive", 201, 2);
+	command(world, "selected_contact", 2, "drive");
+	world.tick();
+	command(world, "match_speed", 1, "drive");
+	world.tick();
+	require(telemetry(world, "drive", "match_stale") == 0, "visible target was not acquired before entering cloud");
+	bool stale = false;
+	for (int tick = 0; tick < 40; ++tick)
+	{
+		world.tick();
+		if (telemetry(world, "drive", "match_stale"))
+		{
+			stale = true;
+			break;
+		}
+	}
+	require(stale && world.observe(101)->contacts.empty(), "cloud crossing failed to age lost contact evidence");
+	const auto remembered = telemetry(world, "drive", "matched_speed");
+	command(world, "speed_mm_s", -5000, "drive", 201, 2);
+	world.tick();
+	require(telemetry(world, "drive", "matched_speed") == remembered, "hidden target velocity leaked through nebula");
+	World resumed;
+	resumed.restore(catalog, world.save());
+	resumed.clear_claims();
+	claim(resumed);
+	require(resumed.claim(201, 2, "helm"), "resumed nebula target claim refused");
+	bool fresh = false;
+	for (int tick = 0; tick < 70; ++tick)
+	{
+		world.tick();
+		resumed.tick();
+		require(telemetry(world, "drive", "matched_speed") == telemetry(resumed, "drive", "matched_speed") &&
+		            telemetry(world, "drive", "match_stale") == telemetry(resumed, "drive", "match_stale"),
+		        "nebula evidence continuation diverged");
+		if (!telemetry(world, "drive", "match_stale"))
+		{
+			fresh = true;
+			break;
+		}
+	}
+	require(fresh && !world.observe(101)->contacts.empty() && telemetry(world, "drive", "matched_speed") != remembered,
+	        "target returning from cloud failed reacquisition");
+}
 void disabled_cooling()
 {
 	auto source = fixture();
@@ -1123,6 +1222,7 @@ int main()
 		match_speed();
 		immutable_flight_demands();
 		paid_sensor_startup();
+		nebula_sensor_memory_and_power();
 		disabled_cooling();
 		invalid_controller_actions();
 		equipment_ordering_and_recovery();

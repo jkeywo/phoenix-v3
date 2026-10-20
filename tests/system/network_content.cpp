@@ -30,6 +30,12 @@ void bounded_gameplay_projection(const Catalog &catalog, const std::string &key)
 	for (const auto &spec : resolve_systems(catalog, "test.ship"))
 		view.systems.push_back(
 		    {spec.id, spec.kind, 0, spec.kind == OperatingSystem::Steering ? 359999 : spec.maximum, true, true});
+	for (auto &sensor : view.systems)
+		if (sensor.kind == OperatingSystem::Radar)
+		{
+			sensor.effective_range = sensor.maximum;
+			sensor.reach_profile = {{500, sensor.maximum}, {1500, sensor.maximum / 4}, {360000, sensor.maximum}};
+		}
 	view.gameplay = {{"console", view.console},   {"ship", 1},
 	                 {"controls", Json::array()}, {"notifications", Json::array()},
 	                 {"records", Json::array()},  {"shared", Json::array()},
@@ -49,6 +55,28 @@ void bounded_gameplay_projection(const Catalog &catalog, const std::string &key)
 	const auto &gameplay = projected.at("gameplay");
 	const auto restored_view = phoenix::network::read_observation(projected, catalog);
 	require(restored_view.observed_tick == 4, "remote observation preserves producer sample tick");
+	for (std::size_t i = 0; i < view.systems.size(); ++i)
+		require(view.systems[i].reach_profile == restored_view.systems[i].reach_profile,
+		        "remote projection lost adaptive reach intervals");
+	const auto radar = std::find_if(projected.at("systems").begin(), projected.at("systems").end(),
+	                                [](const auto &s)
+	                                {
+		                                return s.at("kind") == "radar";
+	                                });
+	if (radar != projected.at("systems").end())
+		for (const auto &bad :
+		     {Json::array({{2000, 0}, {1000, 0}, {360000, 0}}), Json::array({{1000, 0}}), Json::array({{360000, -1}})})
+		{
+			auto invalid = projected;
+			invalid["systems"][static_cast<std::size_t>(radar - projected.at("systems").begin())]["reach_profile"] =
+			    bad;
+			phoenix::test::rejects(
+			    [&]
+			    {
+				    (void)phoenix::network::read_observation(invalid, catalog);
+			    },
+			    "malformed reach profile must not cross network boundary");
+		}
 	auto invalid_sample_tick = projected;
 	invalid_sample_tick["observed_tick"] = -1;
 	phoenix::test::rejects(

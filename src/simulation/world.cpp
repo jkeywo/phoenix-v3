@@ -210,6 +210,9 @@ struct World::Impl
 		fixed::Vec origin;
 		std::int64_t range = -1;
 		std::vector<std::int64_t> distances;
+		std::vector<SensorReachInterval> profile;
+		std::int64_t uncertainty = 0;
+		bool limited = false;
 	};
 	mutable std::map<std::pair<EntityId, std::string>, SensorEnvelope> sensor_envelopes;
 	std::uint64_t environment_tick = 0;
@@ -992,37 +995,8 @@ struct World::Impl
 		}
 		return range;
 	}
-	const std::vector<std::int64_t> &sensor_envelope(EntityId ship, const std::string &name, std::int64_t range) const
-	{
-		const auto origin = entities.at(ship).get<Pose>().position;
-		auto &cached = sensor_envelopes[{ship, name}];
-		if (cached.range == range && cached.origin.x == origin.x && cached.origin.y == origin.y)
-			return cached.distances;
-		cached = {origin, range, {}};
-		if (range <= 0 || std::none_of(regions.begin(), regions.end(),
-		                               [](const auto &r)
-		                               {
-			                               return r.nebula && r.nebula->density && r.nebula->sensor_factor;
-		                               }))
-			return cached.distances;
-		for (int i = 0; i < 128; ++i)
-		{
-			const auto direction = fixed::direction(i * 360000LL / 128);
-			std::int64_t low = 0, high = range;
-			while (low < high)
-			{
-				const auto middle = low + (high - low + 1) / 2;
-				const auto p = origin + fixed::scale(direction, middle);
-				if (std::abs(p.x) <= scenario_coordinate_limit && std::abs(p.y) <= scenario_coordinate_limit &&
-				    scenario_sensor_visible(regions, {origin.x, origin.y}, {p.x, p.y}, range))
-					low = middle;
-				else
-					high = middle - 1;
-			}
-			cached.distances.push_back(low);
-		}
-		return cached.distances;
-	}
+#include "sensor_profile.hpp"
+
 	std::map<std::string, std::int64_t> telemetry(EntityId id, std::size_t index) const
 	{
 		auto entity = entities.at(id);
