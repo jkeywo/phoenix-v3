@@ -39,6 +39,7 @@ class UiRenderer final : public Rml::RenderInterface
 		Rml::Span<const int> indices;
 	};
 	bool scissor_ = false;
+	std::optional<Rml::Matrix4f> transform_;
 	Rml::Rectanglei region_{};
 	Vector2 origin_{};
 	Rectangle viewport_{0, 0, 100000, 100000};
@@ -56,6 +57,7 @@ public:
 	void viewport(Rectangle area)
 	{
 		origin_ = {area.x, area.y};
+		transform_.reset();
 		viewport_ = area;
 		scissor_ = false;
 		BeginBlendMode(BLEND_ALPHA_PREMULTIPLY);
@@ -76,6 +78,13 @@ public:
 	{
 		delete reinterpret_cast<Geometry *>(handle);
 	}
+	void SetTransform(const Rml::Matrix4f *transform) override
+	{
+		if (transform)
+			transform_ = *transform;
+		else
+			transform_.reset();
+	}
 	void RenderGeometry(Rml::CompiledGeometryHandle handle, Rml::Vector2f offset, Rml::TextureHandle texture) override
 	{
 		const auto &geometry = *reinterpret_cast<Geometry *>(handle);
@@ -86,7 +95,11 @@ public:
 			const auto &v = geometry.vertices[index];
 			rlColor4ub(v.colour.red, v.colour.green, v.colour.blue, v.colour.alpha);
 			rlTexCoord2f(v.tex_coord.x, v.tex_coord.y);
-			rlVertex2f(v.position.x + offset.x + origin_.x, v.position.y + offset.y + origin_.y);
+			auto point = Rml::Vector4f(v.position.x + offset.x, v.position.y + offset.y, 0, 1);
+			if (transform_)
+				point = *transform_ * point;
+			const float w = point.w != 0 ? point.w : 1.f;
+			rlVertex2f(point.x / w + origin_.x, point.y / w + origin_.y);
 		}
 		rlEnd();
 		rlSetTexture(0);

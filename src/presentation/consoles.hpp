@@ -215,6 +215,18 @@ class ConsoleSurface final : public Rml::EventListener
 	std::map<std::string, double> heading_sent_at_;
 	std::map<std::pair<std::string, std::string>, std::int64_t> engineering_probe_requests_;
 	std::map<std::string, std::array<float, 3>> heading_dials_;
+	std::map<std::string, std::array<float, 3>> sharing_dials_;
+	std::map<std::uint64_t, std::string> sharing_contacts_;
+	bool sharing_hit(const std::string &key, float x, float y) const
+	{
+		const auto found = sharing_dials_.find(key);
+		if (found == sharing_dials_.end())
+			return false;
+		const auto [cx, cy, r] = found->second;
+		const float dx = x - cx, dy = y - cy, distance = std::hypot(dx, dy);
+		const float angle = std::atan2(dy, dx) * 180 / 3.141592653589793f;
+		return distance >= r * .65f && distance <= r * .78f && angle >= 24 && angle <= 66;
+	}
 	std::map<std::string, std::string> dial_systems_;
 	std::string asset_path(const std::string &name) const
 	{
@@ -363,6 +375,11 @@ p {display:block;font-size:.85em;margin:4px 0;}
 .helm .radar-widget button,.helm .heading-value {opacity:0;}
 .helm .radar-widget button:focus,.helm .heading-value:focus {opacity:1;}
 .helm .radar-widget button.on-screen {opacity:1;position:absolute;bottom:auto;right:auto;min-width:0;z-index:4;}
+.helm .radar-widget button.on-screen,.helm .radar-widget button.on-screen:hover,.helm .radar-widget button.on-screen:focus {background:transparent;border:0px;margin:0;padding:0;min-height:0;border-radius:0px;pointer-events:none;}
+.helm .radar-widget button.on-screen span {display:none;}
+.helm .radar-widget button.on-screen .share-label {display:block;left:0;right:0;top:50%;margin-top:-10px;height:20px;line-height:20px;font-size:13px;text-align:center;transform:rotate(-45deg);color:#161b17;}
+.helm .radar-widget button.on-screen-active .share-label {color:#101b13;}
+
 button.on-screen {position:relative;box-sizing:border-box;width:180px;height:66px;min-height:66px;margin:4px;padding:0;border:3px #535b59;border-top-color:#9b8770;border-left-color:#8c735a;border-bottom-color:#141a1c;border-right-color:#202728;background:#242e30;color:#efdfbd;border-radius:7px;vertical-align:middle;}
 button.on-screen span {pointer-events:none;}
 button.on-screen:hover {background:#303c3e;border-top-color:#d1a26d;}
@@ -974,9 +991,29 @@ button.on-screen-active .share-live {display:block;}
 		if (!app_ || !game_active(*app_) || owner_.lock() != app_->session ||
 		    generation_ != app_->session->generation())
 			return false;
+		if (const auto held = sharing_contacts_.find(contact); held != sharing_contacts_.end())
+		{
+			const auto key = held->second;
+			if (kind == DeviceEventKind::Up || kind == DeviceEventKind::Cancel)
+			{
+				sharing_contacts_.erase(held);
+				if (kind == DeviceEventKind::Up && sharing_hit(key, x, y))
+					action(id("on-screen/" + key));
+			}
+			return true;
+		}
+		if (kind == DeviceEventKind::Down)
+			for (const auto &[key, dial] : sharing_dials_)
+				if (sharing_hit(key, x, y))
+				{
+					sharing_contacts_[contact] = key;
+					if (auto *b = document_->GetElementById(id("on-screen/" + key)))
+						b->Focus();
+					return true;
+				}
 		if (kind == DeviceEventKind::Down && model_.layout())
 			for (const auto &w : model_.layout()->at("widgets"))
-				if (w.at("kind") == "radar")
+				if (w.at("kind") == "radar" && !sharing_dials_.contains(w.at("id").get<std::string>()))
 					if (auto *b = document_->GetElementById(id("on-screen/" + w.at("id").get<std::string>())))
 					{
 						const auto at = b->GetAbsoluteOffset(Rml::BoxArea::Border);
@@ -1091,6 +1128,7 @@ button.on-screen-active .share-live {display:block;}
 		navigation_contacts_.clear();
 		navigation_starts_.clear();
 		heading_contacts_.clear();
+		sharing_contacts_.clear();
 		throttle_contacts_.clear();
 		model_.release_controls();
 		held_clicks_.clear();
@@ -1162,8 +1200,15 @@ button.on-screen-active .share-live {display:block;}
 		const auto at = control->GetAbsoluteOffset(Rml::BoxArea::Border);
 		const float x = at.x + control->GetOffsetWidth() / 2, y = at.y + control->GetOffsetHeight() / 2;
 		// Exercise the same custom-dial interception and RmlUi hit testing as a pointer click.
-		if (pointer(999999, x, y, DeviceEventKind::Down))
-			return false;
+		if (sharing_dials_.contains(widget))
+		{
+			if (pointer(999998, at.x + 1, at.y + 1, DeviceEventKind::Down))
+				return false;
+			if (!pointer(999999, x, y, DeviceEventKind::Down) ||
+			    !pointer(999999, at.x + 1, at.y + 1, DeviceEventKind::Up))
+				return false;
+			return pointer(999999, x, y, DeviceEventKind::Down) && pointer(999999, x, y, DeviceEventKind::Up);
+		}
 		context_->ProcessMouseMove(static_cast<int>(x), static_cast<int>(y), 0);
 		context_->ProcessMouseButtonDown(0, 0);
 		if (pointer(999999, x, y, DeviceEventKind::Up))
@@ -2146,6 +2191,7 @@ button.on-screen-active .share-live {display:block;}
 					displayed_values_["value/" + key] = value;
 				}
 			}
+		sharing_dials_.clear();
 		if (helm && !pregame && layout)
 			for (const auto &w : layout->at("widgets"))
 				if (w.at("kind") == "radar")
@@ -2157,13 +2203,13 @@ button.on-screen-active .share-live {display:block;}
 						continue;
 					const auto at = dial->GetAbsoluteOffset(Rml::BoxArea::Border);
 					const auto parent = widget_offset(key);
-					const float radius = std::min(dial->GetOffsetWidth(), dial->GetOffsetHeight()) * .5f;
-					const float width = std::clamp(radius * .70f, 160.f, 210.f);
-					property(control, "left",
-					         std::to_string(at.x - parent.x + dial->GetOffsetWidth() / 2 + radius - width) + "px");
-					property(control, "top",
-					         std::to_string(at.y - parent.y + dial->GetOffsetHeight() / 2 + radius * .70f) + "px");
-					property(control, "width", std::to_string(width) + "px");
+					const float r = std::min(dial->GetOffsetWidth(), dial->GetOffsetHeight()) * .5f;
+					const float cx = at.x + dial->GetOffsetWidth() / 2, cy = at.y + dial->GetOffsetHeight() / 2;
+					sharing_dials_[key] = {cx, cy, r};
+					property(control, "left", std::to_string(cx - parent.x + r * .265f) + "px");
+					property(control, "top", std::to_string(cy - parent.y + r * .265f) + "px");
+					property(control, "width", std::to_string(r * .45f) + "px");
+					property(control, "height", std::to_string(r * .45f) + "px");
 				}
 		{
 			const auto update_started = GetTime();
@@ -2327,6 +2373,27 @@ button.on-screen-active .share-live {display:block;}
 							}
 					}
 					image(hud("helm-radar-ring"), {centre.x - radius, centre.y - radius, radius * 2, radius * 2});
+					if (sharing_dials_.contains(key))
+					{
+						const bool active = model_.is_on_screen(key);
+						const bool focused =
+						    context_->GetFocusElement() == document_->GetElementById(id("on-screen/" + key));
+						// An inset sector replaces this part of the ivory trim; it adds no external housing.
+						DrawRing(centre, radius * .665f, radius * .735f, 25, 65, 32, {217, 205, 176, 255});
+						DrawRingLines(centre, radius * .665f, radius * .735f, 25, 65, 32,
+						              focused ? Color{235, 144, 50, 255} : Color{38, 36, 29, 255});
+						DrawRing(centre, radius * .666f, radius * .671f, 26, 64, 32, {244, 231, 203, 255});
+						constexpr float lamp_angle = 61.f * 3.141592653589793f / 180;
+						const Vector2 lamp{centre.x + std::cos(lamp_angle) * radius * .705f,
+						                   centre.y + std::sin(lamp_angle) * radius * .705f};
+						const float lens = std::clamp(radius * .018f, 4.f, 7.f);
+						DrawCircleV(lamp, lens + 3, {8, 11, 9, 255});
+						DrawCircleLinesV(lamp, lens + 3, {159, 146, 113, 255});
+						DrawCircleV(lamp, lens, active ? Color{107, 252, 130, 255} : Color{42, 65, 43, 255});
+						if (active)
+							DrawCircleV({lamp.x - lens * .25f, lamp.y - lens * .25f}, lens * .25f,
+							            {220, 255, 221, 255});
+					}
 					if (!model_.manual_active() && dial_systems_.contains(key))
 					{
 						const auto heading = model_.system_request(dial_systems_.at(key), "heading_mdeg");
