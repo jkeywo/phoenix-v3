@@ -88,6 +88,11 @@ int main(int argc, char **argv)
 		{
 			menu_smoke.enabled = menu_smoke.assign_displays = menu_smoke.virtual_displays = true;
 		}
+		if (argument == "--display-transition-smoke")
+		{
+			menu_smoke.enabled = menu_smoke.assign_displays = menu_smoke.virtual_displays =
+			    menu_smoke.display_transition_only = true;
+		}
 		if (argument == "--lobby-displays-smoke")
 		{
 			menu_smoke.enabled = true;

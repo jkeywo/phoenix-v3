@@ -161,11 +161,13 @@ bool show_loading(Application &app)
 			{ /* Keep the bootstrap background; the resource loader reports the failure. */
 			}
 	}
+	const auto host = app.viewscreen_region.value_or(
+	    ConsoleRegion{1, 0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())});
+	const Rectangle loading_area{host.x, host.y, host.width, host.height};
 	if (backdrop.id)
 		DrawTexturePro(backdrop, {0, 0, static_cast<float>(backdrop.width), static_cast<float>(backdrop.height)},
-		               {0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())}, {0, 0}, 0,
-		               WHITE);
-	DrawRectangle(0, 0, GetScreenWidth(), GetScreenHeight(), {0, 0, 0, 150});
+		               loading_area, {0, 0}, 0, WHITE);
+	DrawRectangleRec(loading_area, {0, 0, 0, 150});
 	if (!loading_document)
 		loading_document = context->LoadDocumentFromMemory(R"(<rml><head><style>
 		body {width:100%;height:100%;font-family:LatoLatin;font-size:24px;color:#fff0d4;}
@@ -188,7 +190,7 @@ bool show_loading(Application &app)
 		loading_markup = markup;
 	}
 	loading_document->Show();
-	context->SetDimensions({GetScreenWidth(), GetScreenHeight()});
+	context->SetDimensions({static_cast<int>(host.width), static_cast<int>(host.height)});
 	context->Update();
 	app.console_surface_active = false;
 	app.screen_controls = {{"loading.cancel", "Cancel loading"}};
@@ -218,7 +220,7 @@ bool show_loading(Application &app)
 	{
 		auto *button = buttons.front();
 		const auto at = button->GetAbsoluteOffset(Rml::BoxArea::Border);
-		const Rectangle area{at.x, at.y, button->GetOffsetWidth(), button->GetOffsetHeight()};
+		const Rectangle area{host.x + at.x, host.y + at.y, button->GetOffsetWidth(), button->GetOffsetHeight()};
 		app.control_placements["loading.cancel"] = {area.x, area.y, area.width, area.height, true, true};
 		if (IsKeyPressed(KEY_ESCAPE) || IsKeyPressed(KEY_ENTER) ||
 		    (IsMouseButtonReleased(MOUSE_BUTTON_LEFT) && CheckCollisionPointRec(GetMousePosition(), area)))
@@ -226,7 +228,7 @@ bool show_loading(Application &app)
 	}
 	publish_semantics(app);
 	drain_semantic_actions(app);
-	renderer.viewport({0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())});
+	renderer.viewport(loading_area);
 	// Render this document only; other contexts remain hidden behind the loading view.
 	context->Render();
 	renderer.finish();
@@ -918,11 +920,15 @@ void draw_screen(Application &app)
 	{
 		Application &app;
 		decltype(app.viewscreen_region) original;
+		decltype(app.viewscreen_region) temporary;
 		~RestoreViewscreen()
 		{
-			app.viewscreen_region = original;
+			// Only undo our sidebar crop. Lobby actions can assign/reset displays
+			// during this frame, and those changes must survive the draw call.
+			if (temporary && app.viewscreen_region == temporary)
+				app.viewscreen_region = original;
 		}
-	} restore_viewscreen{app, original_viewscreen};
+	} restore_viewscreen{app, original_viewscreen, {}};
 	std::optional<ConsoleRegion> sidebar_region;
 	Json sidebar_choices = Json::array();
 	const bool sidebar_host = app.can_host && app.session && app.session->running() &&
@@ -964,6 +970,7 @@ void draw_screen(Application &app)
 			sidebar_region = ConsoleRegion{31, area.x + area.width * .75f, area.y, area.width * .25f, area.height};
 			area.width *= .75f;
 			app.viewscreen_region = area;
+			restore_viewscreen.temporary = area;
 		}
 	}
 	const bool show_consoles = sidebar_region.has_value() || lobby_consoles || app.screen == Screen::console ||

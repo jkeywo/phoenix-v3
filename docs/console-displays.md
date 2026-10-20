@@ -1,5 +1,7 @@
 # Console displays and devices
 
+Display transition fix, 20 October 2026: loading uses the host monitor's region, including its desktop offset, for artwork, progress and Cancel hit/semantic bounds. Sidebar cleanup only restores its temporary crop; it no longer discards display assignments made during a draw frame. Native build and `system.input-and-semantics` passed. The explicitly invoked `--local-only --display-transition-smoke --data <isolated-directory>` journey passed with two virtual regions, host on the right; the captured running frame shows both the Console and host scene/sidebar. A separate five-frame loading capture confirmed the loading panel stays inside the offset host region. These are rendered virtual-region checks, not physical-monitor or touch acceptance.
+
 The native window accepts `--display-layout path/to/layout.json`. Window coordinates are desktop pixels; region coordinates are relative to that window. Up to six non-overlapping regions can each claim an authored Console. Layout configuration does not create ships, Stations or Systems.
 
 Alternatively, `--span-displays` creates one region per detected monitor, up to six, using the desktop arrangement. A supplied `--display-layout` takes precedence. The window is borderless and renders uncapped by default; use `--frame-limit N` or `--vsync` for explicit pacing. The workload target is six 1080p displays at 60 Hz; measured evidence is in [bridge smoke](smoke/bridge.md).

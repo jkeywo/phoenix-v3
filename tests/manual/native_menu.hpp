@@ -5,10 +5,13 @@ struct NativeMenuSmoke
 	bool enabled = false;
 	bool assign_displays = false;
 	bool virtual_displays = false;
+	bool display_transition_only = false;
 	void configure_displays(phoenix::Application &app)
 	{
 		if (!virtual_displays)
 			return;
+		if (display_transition_only)
+			stage = 4; // Start at Host Game; unrelated settings/pack journeys have their own smoke.
 		app.native_displays = {{0, "Test host region"}, {1, "Test Console region"}};
 		app.host_display = 0;
 		app.apply_displays = [&app]()
@@ -19,10 +22,10 @@ struct NativeMenuSmoke
 				return;
 			}
 			SetWindowSize(1600, 900);
-			app.viewscreen_region = phoenix::ConsoleRegion{2, 0, 0, 800, 900};
+			app.viewscreen_region = phoenix::ConsoleRegion{2, 800, 0, 800, 900};
 			app.console_regions.clear();
 			if (app.display_consoles.contains(1))
-				app.console_regions.push_back({3, 800, 0, 800, 900});
+				app.console_regions.push_back({3, 0, 0, 800, 900});
 		};
 		app.reset_displays = [&app]()
 		{
@@ -54,6 +57,10 @@ struct NativeMenuSmoke
 	bool frame(phoenix::Application &app)
 	{
 		if (!enabled || GetTime() - changed < .4)
+			return false;
+		if (display_transition_only &&
+		    std::any_of(app.screen_controls.begin(), app.screen_controls.end(),
+		                [](const auto &control) { return control.first == "loading.cancel"; }))
 			return false;
 		auto capture = [](const char *name)
 		{
@@ -275,6 +282,18 @@ struct NativeMenuSmoke
 			{
 				if (app.console_regions.size() != 1 || !app.viewscreen_region)
 					throw std::runtime_error("Assigned Console was not placed before launch");
+				if (display_transition_only)
+				{
+					capture("assigned-console");
+					for (const auto &seat : lobby.consoles)
+						if (seat.local_screen)
+						{
+							phoenix::LobbyCommand ready{phoenix::LobbyAction::ready};
+							ready.screen = seat.local_screen;
+							app.session->lobby_command(ready);
+						}
+					break;
+				}
 				const auto route = app.console_regions.front().console;
 				const auto prefix = "console/" + std::to_string(route) + "/";
 				if (profile_step == 0)
@@ -415,6 +434,11 @@ struct NativeMenuSmoke
 					throw std::runtime_error("Assigned display roles were not applied");
 				if (!app.session->console_observation(app.console_regions.front().console))
 					return false;
+				if (display_transition_only)
+				{
+					std::cout << "PASS assigned Console and host Viewscreen survive lobby launch (manual smoke)\n";
+					return true;
+				}
 				const auto route = app.console_regions.front().console;
 				if (console_frames == 3 && !phoenix::probe_console_helm(app, route))
 					throw std::runtime_error("Routed throttle drag or radar ring input failed");
