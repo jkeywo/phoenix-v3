@@ -14,6 +14,8 @@ A Console may author `stances`, each with an `id`, localised `label` and optiona
 
 Command defaults in shipped content to `human_seeking: true`. `hide_without_ai: true` hides its supplemental presentation when no eligible stance targets remain. Command itself and Consoles without stance choices are excluded. Helm's Follow orders and Hold position stances demonstrate tree-driven behaviour: delegated propulsion can follow objectives or cancel destination guidance and request a stop. Human-owned propulsion remains under its operator's control.
 
+Engineering supplies Normal generation and Reduced generation stances. Reduced generation requests a lower authored generator output from the AI while retaining the mechanism's thermal protection. Stance values do not directly alter machinery.
+
 ## Viewscreen placement
 
 Human-seeking Consoles opt in with `viewscreen: true` and a `compact.widgets` layout. The host selects one eligible Console beside the Viewscreen; it occupies the right quarter and the scene and shared map use the remaining width. The sidebar has a separate routed Console context and an exclusive claim. Another human's Console cannot be silently taken.
@@ -27,3 +29,11 @@ The sidebar uses the host-only reserved runtime route 31; it does not add a lobb
 Workshop exposes ship condition lists, initial condition, alert owner and default sidebar, plus Console stances, Command visibility and compact HUD authoring. Definition loading checks choices, colours, audio references and Console placement. Synthetic Controller integration covers alert and stance admission, shared AI reads, handover refusal, ship isolation and checkpoint continuation. Audio transition tests use the same revision consumer as playback.
 
 Rendered layout, audible output, actual screen-reader operation, physical touch/gamepad devices and six-display performance require separately invoked smoke checks; a successful build or synthetic test does not establish those results.
+
+### Verification — 20 October 2026
+
+Implementation commit `22be094` passed the final native build and all 22 native system cases. The production verifier accepted Base and Training together: 12 entity definitions, 8 maps and 9 Consoles. Formatting verification passed. The synthetic cases include host-only committed sidebar leasing, target-authority generations, auto-hide/reappearance, touch capture and controller neutralisation.
+
+The complete WASM check passed, including the browser launcher, input/semantics, content, Controller runtime and save/recovery integrations, and comparison with the native continuation trace.
+
+The network gate passed seven of eight cases on its initial run. The remaining live-session case timed out waiting for GM approval; its focused rerun passed. The copied siren's SHA-256 matches the V2 original. No rendered, audible or physical-device smoke run was performed for this change.
