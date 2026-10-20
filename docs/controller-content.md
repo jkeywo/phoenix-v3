@@ -1,6 +1,6 @@
 # Authoring Console Controllers
 
-This describes the implemented explicit-layout contract. See [the architecture](controller-architecture.md) for the target and [the refactor plan](controller-refactor-plan.md) for migration status. Maintained controllable craft use explicit layouts. Legacy definitions are converted at the compiler boundary only when their ownership and timed outputs have an unambiguous mapping; System-context policies and summary-intent presets require explicit migration.
+This describes the implemented explicit-layout contract. See [the architecture](controller-architecture.md) for the target and [the refactor plan](controller-refactor-plan.md) for migration status. Maintained controllable craft use explicit layouts. Legacy definitions are converted at the compiler boundary only when their ownership has an unambiguous mapping; System-context policies and summary-intent presets require explicit migration.
 
 ## Layout and commands
 
@@ -137,7 +137,7 @@ Controller trees expose command, System observation, peer-command and message bi
 
 Isolated Test feedback identifies each Controller by entity, Console and Controller ID, with its effective operator, generation, active states, transition reason, diagnostics and bounded command receipts. This debugging view is separate from player observations and does not export private tree memory.
 
-World and portable session saves use schema 6 with Console Controller continuation and knowledge binding metadata. Schemas 1-5 and obsolete entity/System authority fields are refused transactionally; there is no implicit continuation migration. Command transport uses wire envelope schema 5 and carries Controller, channel, operator generation and request identity, plus bounded command arguments. Old peers are refused before play. Flight mechanism continuation retains its own schema 4. All live command decisions use the common Controller runtime, including converted definitions.
+World and portable session saves use schema 7 with Console Controller continuation and knowledge binding metadata. Schemas 1-6 and obsolete entity/System authority fields are refused transactionally; there is no implicit continuation migration. Command transport uses wire envelope schema 5 and carries Controller, channel, operator generation and request identity, plus bounded command arguments. Old peers are refused before play. Flight mechanism continuation retains its own schema 4. All live command decisions use the common Controller runtime, including converted definitions.
 
 Preference channels (`intent_integer` and `intent_boolean`) may declare `choices: [{"value":1000,"label_key":"Cruise policy"},{"value":3000,"label_key":"Fast policy"}]`. Choices are unique, in range, limited to 64 entries and include the initial value. Both human and AI admission enforce the list. Labels use ordinary localisation; Workshop can edit them. Omit choices for a continuous bounded setting. An optional channel `label_key` labels its generated controls.
 
@@ -162,3 +162,9 @@ Run the Workshop journey with:
 ```
 
 This explicit test-only probe edits the initial command, verifies/exports/reopens the draft, and activates the rendered Test controls' production Start/Pause/Step/Restart handlers. It checks consumed output and exact single-step advancement, then captures `workshop-smoke.png`. It is an app-driven workflow probe, not simulated mouse editing. Inspect fresh screenshots for all graphical runs. These supplement integration checks; they do not establish physical touch/gamepad, screen-reader or six-display performance acceptance.
+
+## Cyclic policies
+
+All Controller decisions use the hierarchical evaluator. The former object-keyed timed tree format is rejected. For a cycle, author states with `running` actions marked `once: true` and transitions comparing `{"elapsed": true}` against the duration using `ge`. Running actions execute on the first tick in each state; the next state's outputs start the following tick, including for one-tick states. Use explicit owned `command_bindings` and `write.<channel>` actions. Human-to-AI handover restarts at the initial state while normal Controller command preservation applies.
+
+World and portable saves from schema 6 or earlier require a new session. Existing save files are preserved; no continuation conversion is attempted.

@@ -132,10 +132,49 @@ int main(int argc, char **)
 			                     {"definition", "test.empty"},
 			                     {"systems", Json::array()},
 			                     {"feeds", {"radar"}}}})}}});
-			stations["trees"] =
-			    Json::array({{{"id", "test.autopilot"},
-			                  {"initial", "run"},
-			                  {"states", {{"run", {{"speed_mm_s", 3000}, {"ticks", 10}, {"next", "run"}}}}}}});
+			stations["trees"] = Json::parse(R"json([
+  {
+    "id": "test.autopilot",
+    "context": "controller",
+    "initial": "run",
+    "command_bindings": [
+      {
+        "channel": "speed_mm_s",
+        "type": "integer",
+        "semantics": "setting"
+      }
+    ],
+    "states": [
+      {
+        "id": "run",
+        "running": [
+          {
+            "action": "write.speed_mm_s",
+            "arguments": [
+              3000
+            ],
+            "once": true
+          }
+        ],
+        "transitions": [
+          {
+            "target": "run",
+            "conditions": [
+              {
+                "left": {
+                  "elapsed": true
+                },
+                "op": "ge",
+                "right": 10
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+])json");
+			ship["motion_model"] = "vector";
 			ship["controllers"] = {{"engine", "test.autopilot"}};
 			auto content = load(stations);
 			World world;
@@ -167,7 +206,7 @@ int main(int argc, char **)
 			require(world.claim(1, 1, "helm") && world.observe(1)->requested_speed == 3000,
 			        "released System controller resumes independently");
 			auto saved = world.save();
-			require(saved["schema"] == 6, "explicit Stations use versioned save state");
+			require(saved["schema"] == 7, "explicit Stations use versioned save state");
 			World resumed;
 			resumed.restore(content, saved);
 			require(resumed.save() == saved, "Console claims and independent controllers survive round-trip");
@@ -208,10 +247,49 @@ int main(int argc, char **)
 			             {"definition", "test.empty"},
 			             {"systems", Json::array()},
 			             {"feeds", {"port"}}}})}}});
-			instances["trees"] =
-			    Json::array({{{"id", "test.drive"},
-			                  {"initial", "run"},
-			                  {"states", {{"run", {{"speed_mm_s", 3000}, {"ticks", 10}, {"next", "run"}}}}}}});
+			instances["trees"] = Json::parse(R"json([
+  {
+    "id": "test.drive",
+    "context": "controller",
+    "initial": "run",
+    "command_bindings": [
+      {
+        "channel": "speed_mm_s",
+        "type": "integer",
+        "semantics": "setting"
+      }
+    ],
+    "states": [
+      {
+        "id": "run",
+        "running": [
+          {
+            "action": "write.speed_mm_s",
+            "arguments": [
+              3000
+            ],
+            "once": true
+          }
+        ],
+        "transitions": [
+          {
+            "target": "run",
+            "conditions": [
+              {
+                "left": {
+                  "elapsed": true
+                },
+                "op": "ge",
+                "right": 10
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+])json");
+			ship["motion_model"] = "vector";
 			ship["controllers"] = {{"starboard", "test.drive"}};
 			const auto data = load(instances);
 			const auto public_data = resolve_packs({console_assets(data, "test.ship")});
@@ -236,7 +314,7 @@ int main(int argc, char **)
 			require(world.observe(3)->systems[0].requested == 1000,
 			        "the sibling's ordinary controller cannot write the human's instance");
 			auto saved = world.save();
-			require(saved["schema"] == 6 && saved["bodies"][0]["systems"]["starboard"]["speed"] == 3000,
+			require(saved["schema"] == 7 && saved["bodies"][0]["systems"]["starboard"]["speed"] == 3000,
 			        "instance save records preserve independently controlled machinery");
 			World resumed;
 			resumed.restore(data, saved);
@@ -371,22 +449,113 @@ int main(int argc, char **)
 			        "oriented box normals must deflect both circles and boxes while static geometry stays anchored");
 		}
 		auto ai_data = fixture;
-		ai_data["entities"][0]["controller"] = "test.patrol";
-		ai_data["trees"] = Json::array({{{"id", "test.patrol"},
-		                                 {"initial", "advance"},
-		                                 {"states",
-		                                  {{"advance",
-		                                    {{"ticks", 9},
-		                                     {"next", "turn"},
-		                                     {"speed_mm_s", 4000},
-		                                     {"heading_mdeg", 45000},
-		                                     {"radar_enabled", true}}},
-		                                   {"turn",
-		                                    {{"ticks", 7},
-		                                     {"next", "advance"},
-		                                     {"speed_mm_s", 1000},
-		                                     {"heading_mdeg", 135000},
-		                                     {"radar_enabled", false}}}}}}});
+		phoenix::test::navigation_policy(ai_data["entities"][0], "test.patrol");
+		ai_data["trees"] = Json::parse(R"json([
+  {
+    "id": "test.patrol",
+    "context": "controller",
+    "initial": "advance",
+    "command_bindings": [
+      {
+        "channel": "heading_mdeg",
+        "type": "integer",
+        "semantics": "setting"
+      },
+      {
+        "channel": "radar_enabled",
+        "type": "boolean",
+        "semantics": "setting"
+      },
+      {
+        "channel": "speed_mm_s",
+        "type": "integer",
+        "semantics": "setting"
+      }
+    ],
+    "states": [
+      {
+        "id": "advance",
+        "running": [
+          {
+            "action": "write.heading_mdeg",
+            "arguments": [
+              45000
+            ],
+            "once": true
+          },
+          {
+            "action": "write.radar_enabled",
+            "arguments": [
+              true
+            ],
+            "once": true
+          },
+          {
+            "action": "write.speed_mm_s",
+            "arguments": [
+              4000
+            ],
+            "once": true
+          }
+        ],
+        "transitions": [
+          {
+            "target": "turn",
+            "conditions": [
+              {
+                "left": {
+                  "elapsed": true
+                },
+                "op": "ge",
+                "right": 9
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "turn",
+        "running": [
+          {
+            "action": "write.heading_mdeg",
+            "arguments": [
+              135000
+            ],
+            "once": true
+          },
+          {
+            "action": "write.radar_enabled",
+            "arguments": [
+              false
+            ],
+            "once": true
+          },
+          {
+            "action": "write.speed_mm_s",
+            "arguments": [
+              1000
+            ],
+            "once": true
+          }
+        ],
+        "transitions": [
+          {
+            "target": "advance",
+            "conditions": [
+              {
+                "left": {
+                  "elapsed": true
+                },
+                "op": "ge",
+                "right": 7
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+])json");
 		auto ai_content = load(ai_data);
 		for (int boundary : {0, 9, 16})
 		{
@@ -455,7 +624,7 @@ int main(int argc, char **)
 			{
 				definition["collision"] = {
 				    {"shape", "box"}, {"half_width_mm", 800}, {"half_length_mm", 1200}, {"mass_grams", 0}};
-				definition["controller"] = "test.patrol";
+				phoenix::test::navigation_policy(definition, "test.patrol");
 			}
 			mixed["entities"].push_back(definition);
 		}
@@ -497,7 +666,7 @@ int main(int argc, char **)
 			trace.push_back(ordered.save().at("bodies"));
 		}
 
-		for (int schema = 1; schema < 6; ++schema)
+		for (int schema = 1; schema < 7; ++schema)
 		{
 			auto legacy = ordered.save();
 			legacy["schema"] = schema;

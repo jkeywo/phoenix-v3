@@ -8,7 +8,7 @@ Flecs owns physical entities with stable identity, pose, motion and collider com
 
 Console-owned Controllers hold command sections, operator generations, AI trees/private memory and effect receipts. They do not mutate physical components. Human and AI commands pass the same admission and tick-boundary commit, then physical subscribers consume changed settings or single-executor requests. Resource networks remain entity-owned typed arrays. Physical Systems and reporters continue operating regardless of human or AI control.
 
-`World::load` compiles verified definitions into typed layouts and programs. Legacy definitions convert once when ownership is unambiguous; unsupported System-context policies and ambiguous timed outputs require explicit migration. There is no legacy live AI dispatch. Names/JSON belong at compilation, transport and persistence boundaries. A Console's profile and operator availability decide who writes each Controller section; no ship-wide player/AI mode selects a separate simulation.
+`World::load` compiles verified definitions into typed layouts and programs. Legacy definitions convert once when ownership is unambiguous; System-context policies and retired timed trees require explicit migration. There is no legacy live AI dispatch. Names/JSON belong at compilation, transport and persistence boundaries. A Console's profile and operator availability decide who writes each Controller section; no ship-wide player/AI mode selects a separate simulation.
 
 ## Fixed-tick data flow
 
@@ -40,7 +40,7 @@ Claims address an entity and Console; command envelopes add Controller, channel,
 
 Vector engines accelerate/brake toward requested speed and preserve inertia when disabled. Paid-flight mechanisms retain resource quotation, funding and thermal execution. Destination, follow and Match Speed use the same addressed commands as ordinary controls. Radar exposes only permitted in-range contacts; this does not implement the GDD's full future sensor estimation design. Collision and spatial behavior remain independent of Controller operation.
 
-World and portable session saves use schema 6. They capture physical state, Controller command sections/continuations, profiles, scoped knowledge, reporters and scenario state at a tick boundary. Queued commands must execute before saving. Restore prepares and validates a replacement before touching the live world, rebuilds Flecs children/indexes and verifies effective operator allocation. Old authority save schemas/fields are refused; content conversion does not imply continuation conversion. Wire envelope schema 5 refuses incompatible peers before play. Portable recovery discards live device claims and requires fresh admission.
+World and portable session saves use schema 7. They capture physical state, Controller command sections/continuations, profiles, scoped knowledge, reporters and scenario state at a tick boundary. Queued commands must execute before saving. Restore prepares and validates a replacement before touching the live world, rebuilds Flecs children/indexes and verifies effective operator allocation. Old authority save schemas/fields are refused; content conversion does not imply continuation conversion. Wire envelope schema 5 refuses incompatible peers before play. Portable recovery discards live device claims and requires fresh admission.
 
 ## Verification
 

@@ -293,7 +293,7 @@ void verify_gameplay_fitting(const Catalog &catalog, const std::string &entity_i
 			if (!catalog.trees.contains(system.controller))
 				fitting_error(at + ".controller", "unresolved ordinary controller");
 			const auto program = catalog.tree_programs.find(system.controller);
-			if (program != catalog.tree_programs.end() && program->second.context != state_tree::Context::System)
+			if (program != catalog.tree_programs.end() && program->second.context == state_tree::Context::Scenario)
 				fitting_error(at + ".controller", "scenario trees cannot operate machinery");
 		}
 	}

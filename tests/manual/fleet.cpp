@@ -124,11 +124,61 @@ int main(int argc, char **argv)
 		options.journal = data + "/" + options.roster.self + ".journal";
 		auto definitions =
 		    parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "synthetic fleet fixture");
-		definitions["entities"][0]["controller"] = "test.patrol";
-		definitions["trees"] = Json::array(
-		    {{{"id", "test.patrol"},
-		      {"initial", "run"},
-		      {"states", {{"run", {{"ticks", 9}, {"next", "run"}, {"speed_mm_s", 2000}, {"heading_mdeg", 45000}}}}}}});
+		phoenix::test::navigation_policy(definitions["entities"][0], "test.patrol");
+		definitions["trees"] = Json::parse(R"json([
+  {
+    "id": "test.patrol",
+    "context": "controller",
+    "initial": "run",
+    "command_bindings": [
+      {
+        "channel": "heading_mdeg",
+        "type": "integer",
+        "semantics": "setting"
+      },
+      {
+        "channel": "speed_mm_s",
+        "type": "integer",
+        "semantics": "setting"
+      }
+    ],
+    "states": [
+      {
+        "id": "run",
+        "running": [
+          {
+            "action": "write.heading_mdeg",
+            "arguments": [
+              45000
+            ],
+            "once": true
+          },
+          {
+            "action": "write.speed_mm_s",
+            "arguments": [
+              2000
+            ],
+            "once": true
+          }
+        ],
+        "transitions": [
+          {
+            "target": "run",
+            "conditions": [
+              {
+                "left": {
+                  "elapsed": true
+                },
+                "op": "ge",
+                "right": 9
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+])json");
 		definitions["maps"][0]["entities"] = Json::array();
 		definitions["maps"][0]["ship_slots"] = Json::array();
 		std::map<std::string, std::string> ships;

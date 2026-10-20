@@ -94,33 +94,138 @@
 	"trees": [
 		{
 			"id": "training.patrol",
+			"context": "controller",
 			"initial": "north",
-			"states": {
-				"north": {
-					"ticks": 200,
-					"next": "east",
-					"speed_mm_s": 3000,
-					"heading_mdeg": 90000
+			"command_bindings": [
+				{
+					"channel": "heading_mdeg",
+					"type": "integer",
+					"semantics": "setting"
 				},
-				"east": {
-					"ticks": 200,
-					"next": "south",
-					"speed_mm_s": 3000,
-					"heading_mdeg": 0
-				},
-				"south": {
-					"ticks": 200,
-					"next": "west",
-					"speed_mm_s": 3000,
-					"heading_mdeg": 270000
-				},
-				"west": {
-					"ticks": 200,
-					"next": "north",
-					"speed_mm_s": 3000,
-					"heading_mdeg": 180000
+				{
+					"channel": "speed_mm_s",
+					"type": "integer",
+					"semantics": "setting"
 				}
-			}
+			],
+			"states": [
+				{
+					"id": "north",
+					"running": [
+						{
+							"action": "write.heading_mdeg",
+							"arguments": [90000],
+							"once": true
+						},
+						{
+							"action": "write.speed_mm_s",
+							"arguments": [3000],
+							"once": true
+						}
+					],
+					"transitions": [
+						{
+							"target": "east",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 200
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "east",
+					"running": [
+						{
+							"action": "write.heading_mdeg",
+							"arguments": [0],
+							"once": true
+						},
+						{
+							"action": "write.speed_mm_s",
+							"arguments": [3000],
+							"once": true
+						}
+					],
+					"transitions": [
+						{
+							"target": "south",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 200
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "south",
+					"running": [
+						{
+							"action": "write.heading_mdeg",
+							"arguments": [270000],
+							"once": true
+						},
+						{
+							"action": "write.speed_mm_s",
+							"arguments": [3000],
+							"once": true
+						}
+					],
+					"transitions": [
+						{
+							"target": "west",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 200
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "west",
+					"running": [
+						{
+							"action": "write.heading_mdeg",
+							"arguments": [180000],
+							"once": true
+						},
+						{
+							"action": "write.speed_mm_s",
+							"arguments": [3000],
+							"once": true
+						}
+					],
+					"transitions": [
+						{
+							"target": "north",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 200
+								}
+							]
+						}
+					]
+				}
+			]
 		},
 		{
 			"id": "training.power-route-tree",
@@ -977,7 +1082,7 @@
 		},
 		{
 			"id": "training.powered-navigation-offset",
-			"name": "Powered navigation — offset regions",
+			"name": "Powered navigation \u00e2\u20ac\u201d offset regions",
 			"entities": [
 				{
 					"id": 1,

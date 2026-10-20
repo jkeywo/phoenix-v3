@@ -555,7 +555,7 @@ int fleet_journey(NetworkOptions options)
 	auto initial = read_fleet_setup(bundle);
 	const auto checkpoint = parse_json(read_pack(portable).files().at("session.json"), "fleet checkpoint").at("state");
 	const auto recovered_state = recovered.world->authoritative_world().save();
-	require(checkpoint.at("schema") == 6 && recovered_state.at("schema") == 6 &&
+	require(checkpoint.at("schema") == 7 && recovered_state.at("schema") == 7 &&
 	            checkpoint.at("scenario") == recovered_state.at("scenario") &&
 	            checkpoint.at("scenario").at("runtime").at("objectives").size() == 1,
 	        "Portable fleet envelope lost schema-6 scenario continuation or replayed its one-shot objective");

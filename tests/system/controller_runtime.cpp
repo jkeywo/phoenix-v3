@@ -259,10 +259,48 @@ int main()
 			auto &timed_owner = timed_vector["entities"][0]["control_layout"]["controllers"][0];
 			timed_owner.erase("fallback");
 			timed_owner["tree"] = "test.vector.timed";
-			timed_vector["trees"] =
-			    Json::array({{{"id", "test.vector.timed"},
-			                  {"initial", "run"},
-			                  {"states", {{"run", {{"speed_mm_s", 5000}, {"ticks", 10}, {"next", "run"}}}}}}});
+			timed_vector["trees"] = Json::parse(R"json([
+  {
+    "id": "test.vector.timed",
+    "context": "controller",
+    "initial": "run",
+    "command_bindings": [
+      {
+        "channel": "speed",
+        "type": "integer",
+        "semantics": "setting"
+      }
+    ],
+    "states": [
+      {
+        "id": "run",
+        "running": [
+          {
+            "action": "write.speed",
+            "arguments": [
+              5000
+            ],
+            "once": true
+          }
+        ],
+        "transitions": [
+          {
+            "target": "run",
+            "conditions": [
+              {
+                "left": {
+                  "elapsed": true
+                },
+                "op": "ge",
+                "right": 10
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+])json");
 			const auto timed_catalog = load(timed_vector);
 			World timed_ai, timed_human;
 			timed_ai.load(timed_catalog, "test.map");
@@ -797,7 +835,7 @@ int main()
 		world.tick();
 
 		const auto saved = world.save();
-		require(saved.at("schema") == 6, "Controller continuation has an explicit new save schema");
+		require(saved.at("schema") == 7, "Controller continuation has an explicit new save schema");
 		World resumed;
 		resumed.restore(content, saved);
 		for (int tick = 0; tick < 12; ++tick)
@@ -939,10 +977,48 @@ int main()
 		// An autonomous generic entity uses a real decision program and the same command board as a human.
 		World automatic, human;
 		auto ai_source = controller_fixture();
-		ai_source["trees"] =
-		    Json::array({{{"id", "test.propulsion"},
-		                  {"initial", "run"},
-		                  {"states", {{"run", {{"speed_mm_s", 5000}, {"ticks", 10}, {"next", "run"}}}}}}});
+		ai_source["trees"] = Json::parse(R"json([
+  {
+    "id": "test.propulsion",
+    "context": "controller",
+    "initial": "run",
+    "command_bindings": [
+      {
+        "channel": "speed",
+        "type": "integer",
+        "semantics": "setting"
+      }
+    ],
+    "states": [
+      {
+        "id": "run",
+        "running": [
+          {
+            "action": "write.speed",
+            "arguments": [
+              5000
+            ],
+            "once": true
+          }
+        ],
+        "transitions": [
+          {
+            "target": "run",
+            "conditions": [
+              {
+                "left": {
+                  "elapsed": true
+                },
+                "op": "ge",
+                "right": 10
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+])json");
 		auto &ai_controller = ai_source["entities"][0]["control_layout"]["controllers"][0];
 		ai_controller.erase("fallback");
 		ai_controller["tree"] = "test.propulsion";
@@ -970,6 +1046,51 @@ int main()
 			std::cerr << Json::diff(automatic.save(), ai_resumed.save()).dump(2) << '\n';
 		require(automatic.save() == ai_resumed.save(),
 		        "Controller decision continuation resumes independently of equipment");
+
+		{
+			auto cyclic = ai_source;
+			cyclic["entities"][0]["motion_model"] = "vector";
+			cyclic["trees"][0]["initial"] = "short";
+			cyclic["trees"][0]["states"] = Json::parse(R"json([
+			 {"id":"short","running":[{"action":"write.speed","arguments":[1000],"once":true}],
+			  "transitions":[{"target":"long","conditions":[{"left":{"elapsed":true},"op":"ge","right":1}]}]},
+			 {"id":"long","running":[{"action":"write.speed","arguments":[3000],"once":true}],
+			  "transitions":[{"target":"short","conditions":[{"left":{"elapsed":true},"op":"ge","right":3}]}]}
+			])json");
+			const auto cyclic_content = load(cyclic);
+			World cycle;
+			cycle.load(cyclic_content, "test.map");
+			for (const auto expected : {1000, 3000, 3000, 3000, 1000, 3000})
+			{
+				World resumed;
+				resumed.restore(cyclic_content, cycle.save());
+				cycle.tick();
+				resumed.tick();
+				require(cycle.save().at("bodies")[0].at("systems").at("port").at("speed").get<std::int64_t>() ==
+				            expected,
+				        "cycle emits on the next tick, including one-tick states");
+				require(cycle.save() == resumed.save(), "cycle resumes exactly at every transition boundary");
+			}
+			const auto saved = cycle.save();
+			auto retired = saved;
+			retired["schema"] = 6;
+			phoenix::test::rejected(
+			    [&]
+			    {
+				    cycle.restore(cyclic_content, retired);
+			    },
+			    "start a new session");
+			require(cycle.save() == saved, "retired saves cannot replace a live world");
+			require(cycle.claim(101, 1, "drive") && cycle.submit(101, speed(cycle, 101, "propulsion", 5000)),
+			        "human interrupts cyclic Controller");
+			cycle.tick();
+			require(cycle.save().at("bodies")[0].at("systems").at("port").at("speed").get<std::int64_t>() == 5000 &&
+			            cycle.release(101),
+			        "human owns accepted setting until release");
+			cycle.tick();
+			require(cycle.save().at("bodies")[0].at("systems").at("port").at("speed").get<std::int64_t>() == 1000,
+			        "handover restarts the ordinary tree at its initial state");
+		}
 
 		auto contextual_source = controller_fixture();
 		contextual_source["trees"] = Json::parse(R"json([

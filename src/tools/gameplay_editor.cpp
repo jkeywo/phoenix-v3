@@ -1324,28 +1324,7 @@ struct GameplayEditor
 				string(definition, "id");
 				tree = definition.at("id").get<std::string>();
 				Json resolved = document.preview_tree(definition);
-				if (!resolved.contains("context"))
-				{
-					text("Legacy timed controller. State identities are object keys and remain stable.");
-					choice(definition, "initial", ids(resolved.at("states")));
-					if (definition.contains("states"))
-						for (auto it = definition["states"].begin(); it != definition["states"].end(); ++it)
-						{
-							ScopedId identity(it.key().c_str());
-							ImGui::TextUnformatted(it.key().c_str());
-							integer(it.value(), "ticks", 1);
-							choice(it.value(), "next", ids(resolved.at("states")));
-							for (auto field = it.value().begin(); field != it.value().end(); ++field)
-								if (field.key() != "ticks")
-								{
-									if (field.value().is_number_integer())
-										integer(it.value(), field.key().c_str());
-									else if (field.value().is_boolean())
-										boolean(it.value(), field.key().c_str());
-								}
-						}
-					return;
-				}
+
 				choice(definition, "extends", document.definition_choices(WorkshopDefinitionKind::Tree), true);
 				if (definition.contains("extends"))
 				{

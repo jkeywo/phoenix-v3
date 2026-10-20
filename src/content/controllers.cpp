@@ -248,27 +248,8 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 					    command_spec(fit, operating_action(OperatingAction::SystemEnabled), i));
 				result.controllers.push_back(std::move(controller));
 			}
-		if (entity.contains("controller") && !result.controllers.empty())
-		{
-			// A legacy whole-entity program executes once; never copy it onto every actuator.
-			ConsoleControllerSpec combined{"legacy", result.controllers.front().console,
-			                               entity.at("controller").get<std::string>()};
-			for (const auto &part : result.controllers)
-				for (auto command : part.commands)
-				{
-					command.id = part.id + "." + command.id;
-					combined.commands.push_back(std::move(command));
-				}
-			const auto program = compile_tree(catalog.trees.at(combined.tree));
-			for (const auto &output : program.outputs)
-				control_require(std::count_if(combined.commands.begin(), combined.commands.end(),
-				                              [&](const auto &c)
-				                              {
-					                              return c.action == output.action;
-				                              }) == 1,
-				                path, "ambiguous legacy entity policy output");
-			result.controllers = {std::move(combined)};
-		}
+		control_require(!entity.contains("controller"), path,
+		                "whole-entity timed policies retired; author explicit Console Controllers");
 		for (const auto &preset : entity.value("presets", Json::array()))
 		{
 			ConsoleComplexitySpec profile{preset.at("id").get<std::string>(),
@@ -317,9 +298,9 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 		{
 			controller.tree = control_name(row, "tree", where);
 			control_require(catalog.trees.contains(controller.tree), where, "unknown Controller tree");
-			if (catalog.tree_programs.contains(controller.tree))
-				control_require(catalog.tree_programs.at(controller.tree).context == state_tree::Context::Controller,
-				                where, "Controller requires a controller-context tree");
+			control_require(catalog.tree_programs.contains(controller.tree), where, "Controller tree is not compiled");
+			control_require(catalog.tree_programs.at(controller.tree).context == state_tree::Context::Controller, where,
+			                "Controller requires a controller-context tree");
 		}
 		else
 			control_require(row.value("fallback", std::string{}) == "hold", where,
@@ -633,8 +614,10 @@ Catalog convert_controller_content(const Catalog &source)
 		for (const auto &controller : layout.controllers)
 		{
 			control_require(
-			    controller.tree.empty() || !source.tree_programs.contains(controller.tree), path,
-			    "legacy System decision trees require an explicit controller-context tree and owned channels");
+			    controller.tree.empty() ||
+			        (source.tree_programs.contains(controller.tree) &&
+			         source.tree_programs.at(controller.tree).context == state_tree::Context::Controller),
+			    path, "legacy System decision trees require an explicit controller-context tree and owned channels");
 			Json row{{"id", controller.id}, {"console", controller.console}, {"commands", Json::array()}};
 			if (controller.tree.empty())
 				row["fallback"] = "hold";
@@ -723,22 +706,7 @@ Catalog convert_controller_content(const Catalog &source)
 		for (auto &system : entity.at("systems"))
 			system.erase("controller");
 		// Validate the generated definition through the same explicit-layout compiler.
-		const auto validated = compile_controllable_layout(result, id);
-		for (const auto &controller : validated.controllers)
-			if (!controller.tree.empty())
-				for (const auto &output : compile_tree(result.trees.at(controller.tree)).outputs)
-					control_require(std::count_if(controller.commands.begin(), controller.commands.end(),
-					                              [&](const auto &command)
-					                              {
-						                              return command.action == output.action &&
-						                                     output.value >= command.minimum &&
-						                                     output.value <= command.maximum &&
-						                                     operating_arguments_valid(command.action, output.value,
-						                                                               output.arguments);
-					                              }) == 1,
-					                path,
-					                "legacy timed output requires exactly one compatible Controller channel; author an "
-					                "explicit layout");
+		(void)compile_controllable_layout(result, id);
 	}
 	return result;
 }

@@ -107,11 +107,49 @@ int main()
 		ai_slot["mandatory"] = true;
 		ai_slot["x_mm"] = 100000;
 		definitions["maps"][0]["ship_slots"].push_back(ai_slot);
-		definitions["entities"][0]["controller"] = "test.patrol";
-		definitions["trees"] =
-		    Json::array({{{"id", "test.patrol"},
-		                  {"initial", "run"},
-		                  {"states", {{"run", {{"speed_mm_s", 1000}, {"ticks", 10}, {"next", "run"}}}}}}});
+		phoenix::test::navigation_policy(definitions["entities"][0], "test.patrol");
+		definitions["trees"] = Json::parse(R"json([
+  {
+    "id": "test.patrol",
+    "context": "controller",
+    "initial": "run",
+    "command_bindings": [
+      {
+        "channel": "speed_mm_s",
+        "type": "integer",
+        "semantics": "setting"
+      }
+    ],
+    "states": [
+      {
+        "id": "run",
+        "running": [
+          {
+            "action": "write.speed_mm_s",
+            "arguments": [
+              1000
+            ],
+            "once": true
+          }
+        ],
+        "transitions": [
+          {
+            "target": "run",
+            "conditions": [
+              {
+                "left": {
+                  "elapsed": true
+                },
+                "op": "ge",
+                "right": 10
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+])json");
 		pack.files["definitions.json"] = json_bytes(definitions);
 		auto lobby_source = make_host_world();
 		lobby_source->add_pack(write_pack(pack));

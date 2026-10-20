@@ -33,11 +33,10 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Vec, x, y)
 }
 namespace phoenix
 {
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(TreeState, state, elapsed, entered)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ConsoleAddress, ship, console)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SavedBody, id, definition, position, velocity, remainder, heading)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SavedOperation, speed, heading, acceleration_remainder, turn_remainder,
-                                   engine_enabled, radar_enabled, tree)
+                                   engine_enabled, radar_enabled)
 namespace
 {
 constexpr std::int64_t rate = World::ticks_per_second;
@@ -130,29 +129,29 @@ BodyView view(EntityId id, const Definition &definition, const Pose &pose, const
 	        definition.radar_icon,
 	        definition.radar_sprite};
 }
-bool admissible(TreeOutput output, const Engine *engine, const Steering *steering, const Radar *radar)
+bool admissible(OperatingRequest output, const Engine *engine, const Steering *steering, const Radar *radar)
 {
 	return operating_permitted(
 	    output.action, output.value,
 	    {engine ? std::optional{engine->max_speed} : std::nullopt, steering != nullptr, radar != nullptr});
 }
-void apply(TreeOutput output, Engine *engine, Steering *steering, Radar *radar)
+void apply(OperatingRequest output, Engine *engine, Steering *steering, Radar *radar)
 {
 	// Both controllers and admitted external commands use this capability gate.
 	if (!admissible(output, engine, steering, radar))
 		return;
 	switch (output.action)
 	{
-	case TreeAction::Speed:
+	case OperatingAction::Speed:
 		engine->speed = output.value;
 		break;
-	case TreeAction::Heading:
+	case OperatingAction::Heading:
 		steering->heading = output.value;
 		break;
-	case TreeAction::EngineEnabled:
+	case OperatingAction::EngineEnabled:
 		engine->enabled = output.value != 0;
 		break;
-	case TreeAction::RadarEnabled:
+	case OperatingAction::RadarEnabled:
 		radar->enabled = output.value != 0;
 		break;
 	default:
@@ -166,7 +165,6 @@ struct World::Impl
 	flecs::world ecs;
 	std::vector<std::pair<std::string, std::string>> packs;
 	std::map<std::string, CompiledDefinition> definitions;
-	std::vector<TreeProgram> programs;
 	std::string map;
 	std::map<std::string, std::string> ships;
 	std::map<std::string, EntityId> slot_entities;
@@ -368,14 +366,6 @@ struct World::Impl
 		packs = content.ordered_packs;
 		knowledge.configure(content);
 		gameplay = true;
-		std::map<std::string, std::size_t> tree_ids;
-		for (const auto &[name, tree] : content.trees)
-		{
-			if (content.tree_programs.contains(name))
-				continue;
-			tree_ids.emplace(name, programs.size());
-			programs.push_back(compile_tree(tree));
-		}
 		for (const auto &[name, definition] : content.entities)
 		{
 			CompiledDefinition result;
@@ -468,21 +458,6 @@ struct World::Impl
 								controller.brain->reads.push_back(read);
 							}
 						}
-						else
-							controller.timed = Controller{tree_ids.at(spec.tree), {}};
-						if (controller.timed)
-							for (const auto &output : programs.at(controller.timed->program).outputs)
-								if (std::count_if(spec.commands.begin(), spec.commands.end(),
-								                  [&](const auto &command)
-								                  {
-									                  return command.action == output.action &&
-									                         output.value >= command.minimum &&
-									                         output.value <= command.maximum &&
-									                         operating_arguments_valid(command.action, output.value,
-									                                                   output.arguments);
-								                  }) != 1)
-									throw std::runtime_error(
-									    "Controller timed output requires exactly one compatible owned channel");
 					}
 					result.controller_templates.push_back(std::move(controller));
 				}
@@ -798,7 +773,7 @@ struct World::Impl
 			return {};
 		}
 	}
-	bool operate(flecs::entity entity, const std::string &name, TreeOutput output, bool execute)
+	bool operate(flecs::entity entity, const std::string &name, OperatingRequest output, bool execute)
 	{
 		auto fitted = fittings(entity);
 		auto systems = gameplay_systems(entity);
@@ -2134,7 +2109,7 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 6},           {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 7},           {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
 	for (const auto &[id, entity] : impl_->entities)
 	{
@@ -2206,8 +2181,9 @@ void World::restore(const Catalog &content, const Json &saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 6 || saved.at("packs") != Json(content.ordered_packs))
-		throw std::runtime_error("Saved state schema/content identity mismatch; Controller runtime requires schema 6");
+	if (saved.at("schema") != 7 || saved.at("packs") != Json(content.ordered_packs))
+		throw std::runtime_error(
+		    "Saved state schema/content identity mismatch; Controller runtime requires schema 7; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))
 		throw std::runtime_error("Legacy authority fields are not Controller continuation");
 	World candidate;
@@ -2250,8 +2226,8 @@ void World::restore(const Catalog &content, const Json &saved)
 		auto entity = candidate.impl_->entities.at(restored.id);
 		if (entity.has<EntityControls>())
 		{
-			if (saved.at("schema") != 6)
-				throw std::runtime_error("Controller state requires schema 6");
+			if (saved.at("schema") != 7)
+				throw std::runtime_error("Controller state requires schema 7; start a new session");
 			candidate.impl_->restore_controllers(entity, value.at("console_controllers"));
 		}
 		else if (value.contains("console_controllers"))
@@ -2310,8 +2286,6 @@ void World::restore(const Catalog &content, const Json &saved)
 				}
 				if (system.radar)
 					system.radar->enabled = state.radar_enabled;
-				if (!state.tree.state.empty() || state.tree.elapsed || state.tree.entered)
-					throw std::runtime_error("Unfitted controller continuation");
 			}
 		}
 		if (auto systems = gameplay_systems(entity))

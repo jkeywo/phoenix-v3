@@ -78,9 +78,6 @@ int main()
 		// Migration is a compiler boundary: originals remain untouched and outputs use explicit contracts.
 		auto conversion_source = catalog;
 		conversion_source.entities.at("test.ship")["systems"]["engine"]["enabled"] = false;
-		conversion_source.entities.at("test.ship")["controller"] = "test.convert-timed";
-		conversion_source.trees["test.convert-timed"] = Json::parse(
-		    R"json({"id":"test.convert-timed","initial":"run","states":{"run":{"ticks":3,"next":"run","speed_mm_s":5000,"heading_mdeg":90000}}})json");
 		const auto original_conversion = conversion_source.entities;
 		const auto converted = convert_controller_content(conversion_source);
 		require(conversion_source.entities == original_conversion &&
@@ -88,14 +85,8 @@ int main()
 		        "migration leaves source Catalog authored definitions unchanged");
 		require(converted.entities.at("test.ship").at("motion_model") == "vector" &&
 		            !converted.entities.at("test.ship").contains("controller"),
-		        "basic timed migration selects vector mechanism and removes old owner");
+		        "basic conversion selects vector mechanism and removes old owner");
 		const auto converted_layout = compile_controllable_layout(converted, "test.ship");
-		require(std::count_if(converted_layout.controllers.begin(), converted_layout.controllers.end(),
-		                      [](const auto &owner)
-		                      {
-			                      return owner.tree == "test.convert-timed";
-		                      }) == 1,
-		        "whole entity timed tree has exactly one decision owner");
 		bool disabled_default = false, pose_heading = false;
 		for (const auto &owner : converted_layout.controllers)
 			for (const auto &command : owner.commands)
@@ -107,26 +98,19 @@ int main()
 			}
 		require(disabled_default && pose_heading,
 		        "converted physical defaults preserve disabled equipment and spawn heading");
-		auto ambiguous_conversion = conversion_source;
-		for (auto &[id, console] : ambiguous_conversion.consoles)
-			console["widgets"] = Json::array();
-		ambiguous_conversion.entities.at("test.ship")["systems"]["spare"] =
-		    ambiguous_conversion.entities.at("test.ship")["systems"]["engine"];
-		ambiguous_conversion.entities.at("test.ship")["systems"]["spare"]["kind"] = "engine";
-		rejected(
-		    [&]
-		    {
-			    convert_controller_content(ambiguous_conversion);
-		    },
-		    "ambiguous legacy entity policy output");
-		auto oversized_conversion = conversion_source;
-		oversized_conversion.trees.at("test.convert-timed")["states"]["run"]["speed_mm_s"] = 999999;
-		rejected(
-		    [&]
-		    {
-			    convert_controller_content(oversized_conversion);
-		    },
-		    "legacy timed output requires exactly one compatible Controller channel");
+		{
+			auto retired = numeric_source;
+			retired["trees"] = Json::parse(
+			    R"json([{"id":"old","initial":"run","states":{"run":{"ticks":3,"next":"run","speed_mm_s":5000}}}])json");
+			auto draft = base;
+			draft.files["definitions.json"] = json_bytes(retired);
+			rejected(
+			    [&]
+			    {
+				    resolve_packs({read_pack(write_pack(draft))});
+			    },
+			    "timed tree format retired");
+		}
 		auto system_conversion = conversion_source;
 		system_conversion.entities.at("test.ship").erase("controller");
 		system_conversion.entities.at("test.ship")["controllers"] = {{"engine", "test.system"}};

@@ -502,51 +502,9 @@ void verify_prepared_catalog(const Catalog &catalog)
 				if (!entity["systems"].contains(it.key()) || !it.value().is_string() ||
 				    !catalog.trees.contains(it.value().get<std::string>()))
 					invalid(path + ".controllers." + it.key(), "unresolved System or tree");
-				const auto &tree = catalog.trees.at(it.value().get<std::string>());
-				if (auto context = contextual_tree(catalog.trees, it.value().get<std::string>()))
-				{
-					if (*context != state_tree::Context::System)
-						invalid(path + ".controllers." + it.key(), "expected System tree context");
-					continue;
-				}
-				for (const auto &state : catalog.trees.at(it.value().get<std::string>()).at("states"))
-					for (const auto &spec : operating_actions)
-						if (state.contains(std::string(spec.name)))
-						{
-							if (operating_system_name(spec.system) !=
-							    entity["systems"][it.key()].value("kind", it.key()))
-								invalid(path + ".controllers." + it.key(), "tree writes another System");
-							if (spec.action == OperatingAction::Speed &&
-							    state.at(std::string(spec.name)).get<std::int64_t>() >
-							        entity["systems"][it.key()]["max_speed_mm_s"].get<std::int64_t>())
-								invalid(path + ".controllers." + it.key(), "speed output exceeds engine capability");
-						}
-			}
-		}
-		if (entity.contains("controller") &&
-		    !catalog.trees.at(entity.at("controller").get<std::string>()).contains("context"))
-		{
-			const auto &systems = entity.at("systems");
-			OperatingCapabilities capabilities;
-			if (systems.contains("engine"))
-				capabilities.engine_max_speed = systems.at("engine").at("max_speed_mm_s").get<std::int64_t>();
-			capabilities.steering = systems.contains("steering");
-			capabilities.radar = systems.contains("radar");
-			for (const auto &state : catalog.trees.at(entity["controller"].get<std::string>()).at("states"))
-			{
-				for (const auto &output : operating_actions)
-				{
-					const std::string name(output.name);
-					if (!state.contains(name))
-						continue;
-					if (!capabilities.contains(output.system))
-						invalid(path + ".controller",
-						        name + " output requires " + std::string(operating_system_name(output.system)));
-					const auto value = output.boolean ? static_cast<std::int64_t>(state[name].get<bool>())
-					                                  : state[name].get<std::int64_t>();
-					if (!operating_permitted(output.action, value, capabilities))
-						invalid(path + ".controller", "speed output exceeds the engine capability");
-				}
+				if (const auto context = contextual_tree(catalog.trees, it.value().get<std::string>());
+				    !context || *context != state_tree::Context::Controller)
+					invalid(path + ".controllers." + it.key(), "expected Controller tree context");
 			}
 		}
 	}
@@ -623,7 +581,8 @@ void verify_prepared_catalog(const Catalog &catalog)
 		{
 			for (const auto &system : resolve_systems(catalog, instance.at("definition").get<std::string>()))
 			{
-				if (!catalog.tree_programs.contains(system.controller))
+				if (!catalog.tree_programs.contains(system.controller) ||
+				    catalog.tree_programs.at(system.controller).context != state_tree::Context::System)
 					continue;
 				std::function<void(const state_tree::Program &)> check_follow = [&](const state_tree::Program &program)
 				{
@@ -707,7 +666,7 @@ void prepare_catalog(Catalog &catalog)
 				    id, state_tree::compile(tree, gameplay_registry(tree, catalog, *context), catalog.trees));
 		}
 		else
-			verify_tree(tree, "trees." + id);
+			invalid("trees." + id, "timed tree format retired; author a controller-context state tree");
 	for (const auto &[id, map] : catalog.maps)
 		verify_scenario_authoring(catalog, map);
 	verify_prepared_catalog(catalog);

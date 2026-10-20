@@ -550,19 +550,6 @@ void run_console_controllers(flecs::entity entity)
 			for (const auto &output : result.outputs)
 				controller_output(id, i, output, observations);
 		}
-		if (controller.timed)
-			for (const auto &output : step_tree(programs[controller.timed->program], controller.timed->cursor))
-				for (std::size_t j = 0; j < controller.definition.commands.size(); ++j)
-					if (controller.definition.commands[j].action == output.action)
-						commit_controller({{id, controller.definition.console, controller.definition.id},
-						                   i,
-						                   j,
-						                   output.value,
-						                   controller.generation,
-						                   controller.definition.commands[j].semantics == CommandSemantics::Request
-						                       ? controller.commands[j].request_id + 1
-						                       : 0,
-						                   false});
 	}
 	consume_controller_commands(entity);
 }
@@ -679,8 +666,6 @@ Json save_controllers(flecs::entity entity) const
 			                           {"consumed", command.consumed},
 			                           {"request_id", command.request_id},
 			                           {"accepted", command.accepted}});
-		if (controller.timed)
-			row["timed"] = save_tree(programs[controller.timed->program], controller.timed->cursor);
 		if (controller.brain)
 			row["brain"] = state_tree::save(controller.brain->program, controller.brain->continuation);
 
@@ -746,10 +731,7 @@ void restore_controllers(flecs::entity entity, const Json &saved)
 			fail(value.at("accepted").is_boolean());
 			state.accepted = value.at("accepted").get<bool>();
 		}
-		fail(row.contains("timed") == controller.timed.has_value() &&
-		     row.contains("brain") == controller.brain.has_value());
-		if (controller.timed)
-			controller.timed->cursor = load_tree(programs[controller.timed->program], row.at("timed").get<TreeState>());
+		fail(!row.contains("timed") && row.contains("brain") == controller.brain.has_value());
 		if (controller.brain)
 			controller.brain->continuation = state_tree::load(controller.brain->program, row.at("brain"));
 

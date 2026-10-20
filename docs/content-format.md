@@ -6,7 +6,7 @@ This is schema 1 for the foundation vocabulary, not the complete GDD equipment s
 
 Definitions schema 2 also supports explicit Stations. Each entity's `stations` array contains `{id, consoles:[...]}`; each Console contains `{id, definition, systems:[...], feeds:[...]}`. `definition` resolves a Console layout. In legacy definitions without `control_layout`, `systems` assigns exclusive ownership of fitted `engine`, `steering` and/or `radar`; `feeds` adds read access. Ownership also grants its own feed and supplies the conversion boundary's command owner. Read-only Consoles may have empty `systems`. Station and Console identities are stable strings, unique within their entity, with at most 32 of each. Explicit layouts instead declare Controller command subscriptions separately from observation ownership.
 
-An explicit Station entity cannot also use legacy `console` or `controller`. Legacy `controllers` maps fitted System names to timed tree definitions; each tree may output only to that System. At load, unambiguous ownership and timed policies convert to Console-owned Controllers and explicit physical subscriptions. A legacy single Console normalizes to `main`. System-context decision trees, summary-intent presets and ambiguous ownership require explicit migration and are refused with diagnostics. There is no separate legacy or NPC runtime.
+An explicit Station entity cannot also use legacy `console` or `controller`. Legacy `controllers` may map fitted System names to Controller-context trees using the generated owned channels. At load, unambiguous ownership converts to Console-owned Controllers and explicit physical subscriptions. Timed object-state trees and whole-entity `controller` policies are retired; author explicit Controller layouts and hierarchical trees. A legacy single Console normalizes to `main`. System-context decision trees, summary-intent presets and ambiguous ownership require explicit migration and are refused with diagnostics. There is no separate legacy or NPC runtime.
 
 Manifest example:
 
@@ -50,7 +50,7 @@ hints, not the instance command boundary.
 
 Restricted crew packs retain only public instance kind/bounds and verified
 Console/widget bindings and public Controller channel/profile metadata, without private
-tree programs or other machinery definitions. World/session saves use schema 6 with
+tree programs or other machinery definitions. World/session saves use schema 7 with
 Controller continuation; old authority formats are refused. Packet schema 5 refuses
 older peers before interpreting commands or projections.
 

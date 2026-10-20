@@ -56,11 +56,6 @@ struct Radar
 	std::int64_t range = 0;
 	bool enabled = true;
 };
-struct Controller
-{
-	std::size_t program = 0;
-	TreeCursor cursor;
-};
 struct CompiledEquipment
 {
 	std::string id;
@@ -97,6 +92,5 @@ struct SavedOperation
 {
 	std::int64_t speed = 0, heading = 0, acceleration_remainder = 0, turn_remainder = 0;
 	bool engine_enabled = true, radar_enabled = true;
-	TreeState tree;
 };
 } // namespace phoenix
