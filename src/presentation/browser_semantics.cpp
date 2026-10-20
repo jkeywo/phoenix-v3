@@ -37,7 +37,7 @@ EM_JS(void, begin_semantics, (), {
     const root = document.getElementById('semantics');
     for (const child of root.querySelectorAll('[data-action]')) child.dataset.stale = 'true';
 });
-EM_JS(void, append_semantic_button, (const char* id, const char* label, float x, float y, float width, float height, bool focused, bool enabled, bool editable, const char* value, bool percentage, bool read_only, bool tab, bool selected), {
+EM_JS(void, append_semantic_button, (const char* id, const char* label, float x, float y, float width, float height, bool focused, bool enabled, bool editable, const char* value, bool percentage, bool read_only, bool tab, bool selected, bool toggle, bool pressed), {
     const action = UTF8ToString(id);
     const root = document.getElementById('semantics');
     let button = Array.from(root.querySelectorAll('[data-action]')).find(child => child.dataset.action === action);
@@ -65,6 +65,7 @@ EM_JS(void, append_semantic_button, (const char* id, const char* label, float x,
     if(editable) { button.setAttribute('aria-label',text); if(document.activeElement!==button)button.value=UTF8ToString(value); }
     else if(button.textContent!==text)button.textContent=text;
     if(tab) { button.setAttribute('role','tab'); button.setAttribute('aria-selected',String(!!selected)); button.tabIndex=selected?0:-1; }
+    if(toggle) button.setAttribute('aria-pressed',String(!!pressed)); else button.removeAttribute('aria-pressed');
     delete button.dataset.stale;
     button.disabled = !enabled;
     const canvas = Module.canvas, sx=canvas.clientWidth/canvas.width, sy=canvas.clientHeight/canvas.height;
@@ -103,7 +104,7 @@ void publish_semantics(const Application &app)
 		append_semantic_button(control.id.c_str(), control.label.c_str(), control.placement.x, control.placement.y,
 		                       control.placement.width, control.placement.height, control.placement.focused,
 		                       control.placement.enabled, control.editable, control.value.c_str(), control.percentage,
-		                       control.read_only, control.tab, control.selected);
+		                       control.read_only, control.tab, control.selected, control.toggle, control.pressed);
 	end_semantics(localise("Settings").c_str());
 }
 void drain_semantic_actions(Application &app)

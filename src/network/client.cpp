@@ -453,11 +453,21 @@ public:
 		if (options_.inspector || !observation_ || !quorum_ || !profile_durable_ ||
 		    command.target != observation_->own.id)
 			return false;
+		const Observation *view = &*observation_;
+		if (!command.console.empty() && command.console != view->console)
+		{
+			view = nullptr;
+			for (const auto &extra : observation_->additional_consoles)
+				if (extra.console == command.console)
+					view = &extra;
+			if (!view)
+				return false;
+		}
 		// Semantic/meta commands are authored by the server and carry no public
 		// free-form command language. Admit only an exact current descriptor.
 		bool projected = false;
-		const auto controls = observation_->gameplay.find("controls");
-		if (controls != observation_->gameplay.end() && controls->is_array())
+		const auto controls = view->gameplay.find("controls");
+		if (controls != view->gameplay.end() && controls->is_array())
 			for (const auto &descriptor : *controls)
 				if (descriptor.is_object() && descriptor.contains("id") && descriptor.at("id").is_string() &&
 				    !descriptor.at("id").get_ref<const std::string &>().empty() &&
@@ -478,10 +488,10 @@ public:
 		    !command.request_id && command.arguments.empty() &&
 		    (command.action == "speed_mm_s" || command.action == "heading_mdeg"))
 		{
-			const auto sections = observation_->gameplay.value("controllers", Json::array());
+			const auto sections = view->gameplay.value("controllers", Json::array());
 			for (const auto &section : sections)
 				if (section.value("id", std::string{}) == command.controller && section.value("human", false) &&
-				    section.value("console", std::string{}) == observation_->console &&
+				    section.value("console", std::string{}) == view->console &&
 				    section.value("generation", std::uint64_t{0}) == command.generation &&
 				    section.at("commands").contains(command.channel))
 				{
@@ -491,8 +501,8 @@ public:
 					    command.value < channel.at("minimum").get<std::int64_t>() ||
 					    command.value > channel.at("maximum").get<std::int64_t>())
 						continue;
-					for (const auto &console : resolve_consoles(catalog(), observation_->own.definition))
-						if (console.id == observation_->console && catalog().consoles.contains(console.definition))
+					for (const auto &console : resolve_consoles(catalog(), view->own.definition))
+						if (console.id == view->console && catalog().consoles.contains(console.definition))
 							for (const auto &widget : catalog().consoles.at(console.definition).at("widgets"))
 								if (widget.value("controller", std::string{}) == command.controller &&
 								    widget.value("channel", std::string{}) == command.channel &&
@@ -500,6 +510,28 @@ public:
 								        (command.action == "speed_mm_s" ? "throttle" : "heading"))
 									projected = true;
 				}
+		}
+		if ((command.action == "display.toggle" || command.action == "display.update") && command.value == 0 &&
+		    command.controller.empty() && command.channel.empty() && !command.request_id &&
+		    command.arguments.size() == 3 && command.arguments[2] > 0 &&
+		    std::all_of(command.arguments.begin(), command.arguments.end(),
+		                [](auto n)
+		                {
+			                return n >= -1000000000 && n <= 1000000000;
+		                }))
+		{
+			bool source = false;
+			for (const auto &console : resolve_consoles(catalog(), view->own.definition))
+				if (console.id == view->console && catalog().consoles.contains(console.definition))
+					for (const auto &w : catalog().consoles.at(console.definition).at("widgets"))
+						if (w.at("id") == command.system && (w.at("kind") == "radar" || w.at("kind") == "navigation"))
+							source = true;
+			const auto d = public_board_.value("display", Json(nullptr));
+			projected =
+			    source && (command.action == "display.toggle"
+			                   ? command.generation == 0
+			                   : d.is_object() && d.at("console") == view->console &&
+			                         d.at("widget") == command.system && d.at("revision") == command.generation);
 		}
 		const auto *spec = operating_action(command.action);
 		if (((!spec || !command.controller.empty()) && !projected) ||
@@ -510,12 +542,12 @@ public:
 		{
 			if (system.empty())
 			{
-				const auto selected = select_system(observation_->systems, spec->system);
+				const auto selected = select_system(view->systems, spec->system);
 				if (!selected)
 					return false;
 				system = *selected;
 			}
-			else if (!projected && std::none_of(observation_->systems.begin(), observation_->systems.end(),
+			else if (!projected && std::none_of(view->systems.begin(), view->systems.end(),
 			                                    [&](const SystemView &value)
 			                                    {
 				                                    return value.id == system && value.controlled;
@@ -524,7 +556,8 @@ public:
 		}
 		// The authoritative World still validates capability, dynamic conditions,
 		// ownership and the lease when this ordinary request is committed.
-		return send("command", {{"target", command.target},
+		return send("command", {{"console", view->console},
+		                        {"target", command.target},
 		                        {"action", command.action},
 		                        {"system", system},
 		                        {"value", command.value},

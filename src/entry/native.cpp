@@ -52,6 +52,7 @@ int main(int argc, char **argv)
 	bool helm_smoke = false, readout_smoke = false, controller_report_smoke = false;
 	bool engineering_smoke = false;
 	bool navigation_smoke = false;
+	bool on_screen_smoke = false;
 	std::uint64_t helm_smoke_tick = 0;
 	bool workshop_smoke = false, controller_workshop_smoke = false;
 	std::string workshop_pack;
@@ -147,6 +148,11 @@ int main(int argc, char **argv)
 		{
 			engineering_smoke = true;
 			smoke_frames = 90;
+		}
+		if (argument == "--on-screen-smoke")
+		{
+			on_screen_smoke = true;
+			smoke_frames = 150;
 		}
 		if (argument == "--navigation-smoke")
 		{
@@ -759,6 +765,44 @@ int main(int argc, char **argv)
 			    (smoke_frames == 50 && !phoenix::probe_console_engineering(1, 1)) ||
 			    (smoke_frames == 20 && !phoenix::probe_console_engineering(1, 2)))
 				throw std::runtime_error("Engineering telemetry/control probe failed");
+		}
+		if (on_screen_smoke)
+		{
+			const auto press = [&](const std::string &action)
+			{
+				if (!phoenix::invoke_navigation(app, "console/1/" + action))
+					throw std::runtime_error("On screen smoke action refused: " + action);
+			};
+			if (smoke_frames == 130 || smoke_frames == 80 || smoke_frames == 30)
+			{
+				std::string action;
+				for (const auto &[id, label] : app.screen_controls)
+					if (id.starts_with("console/1/on-screen/"))
+					{
+						action = id.substr(10);
+						break;
+					}
+				if (action.empty())
+					throw std::runtime_error("On screen button absent from source Console");
+				press(action);
+			}
+			if (smoke_frames == 90)
+				press("game.console/navigation");
+			if (smoke_frames == 60)
+				press("nav.in");
+			if (smoke_frames == 50)
+				press("nav.right");
+			if (smoke_frames == 100 || smoke_frames == 40 || smoke_frames == 10)
+			{
+				const auto board = app.session->public_board();
+				const std::string kind =
+				    board.contains("display") ? board.at("display").at("kind").get<std::string>() : "normal";
+				const auto expected = smoke_frames == 100 ? "radar" : smoke_frames == 40 ? "navigation" : "normal";
+				if (kind != expected)
+					throw std::runtime_error("On screen smoke unexpected display: " + kind);
+				TakeScreenshot(("build/on-screen-" + kind + ".png").c_str());
+				std::cout << "On screen smoke: " << kind << "\n";
+			}
 		}
 		if (navigation_smoke)
 		{

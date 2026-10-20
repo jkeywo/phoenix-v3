@@ -26,6 +26,7 @@ import phoenix.gameplay_scenario;
 #include "flight.hpp"
 #include "equipment.hpp"
 #include "controllers.hpp"
+#include "../core/display_projection.hpp"
 
 namespace phoenix::fixed
 {
@@ -169,12 +170,22 @@ struct World::Impl
 	flecs::world ecs;
 	std::vector<std::pair<std::string, std::string>> packs;
 	std::map<std::string, CompiledDefinition> definitions;
+	std::map<std::string, Json> console_layouts;
 	std::string map;
 	std::map<std::string, std::string> ships;
 	std::map<std::string, EntityId> slot_entities;
 	// This is a boundary lookup index, never the tick's iteration source.
 	std::map<EntityId, flecs::entity> entities;
 	std::map<std::uint64_t, ConsoleAddress> claims;
+	struct DisplayPublication
+	{
+		std::uint64_t claimant = 0, revision = 0;
+		ConsoleAddress address;
+		std::string widget;
+		std::vector<std::int64_t> camera;
+	};
+	std::map<EntityId, DisplayPublication> displays;
+	std::uint64_t display_revision = 0;
 	bool explicit_stations = false;
 	std::vector<ControllerProposal> controller_pending;
 	std::vector<CollisionEntry> collisions;
@@ -378,6 +389,7 @@ struct World::Impl
 	void compile(const Catalog &source)
 	{
 		const auto content = convert_controller_content(source);
+		console_layouts = content.consoles;
 		packs = content.ordered_packs;
 		knowledge.configure(content);
 		gameplay = true;
@@ -1436,6 +1448,71 @@ struct World::Impl
 	{
 		refresh_controllers(ship, !transitions);
 	}
+	void prune_displays()
+	{
+		std::erase_if(displays,
+		              [&](const auto &entry)
+		              {
+			              const auto &d = entry.second;
+			              return !claims.contains(d.claimant) ||
+			                     (claims.at(d.claimant) != d.address && console_operator(d.address) != d.claimant);
+		              });
+	}
+	const Json *display_widget(const ConsoleAddress &address, const std::string &id) const
+	{
+		const auto spec = seat(address.ship, address.console);
+		if (!spec || !console_layouts.contains(spec->definition))
+			return nullptr;
+		for (const auto &w : console_layouts.at(spec->definition).at("widgets"))
+			if (w.at("id") == id && (w.at("kind") == "radar" || w.at("kind") == "navigation"))
+				return &w;
+		return nullptr;
+	}
+	bool display_command(std::uint64_t claimant, const OperatingCommand &command, bool execute)
+	{
+		if (command.action != "display.toggle" && command.action != "display.update")
+			return false;
+		const auto address = command_address(claimant, command);
+		if (!claims.contains(claimant) || command.target != claims.at(claimant).ship ||
+		    (address != claims.at(claimant) && console_operator(address) != claimant) || !command.controller.empty() ||
+		    !command.channel.empty() || command.request_id || command.value ||
+		    !display_widget(address, command.system) || command.arguments.size() != 3 || command.arguments[2] < 1)
+			return false;
+		const auto widget = display_widget(address, command.system);
+		if (widget->at("kind") == "radar")
+		{
+			const auto view = capture_console_observation(address);
+			if (!select_system(view.systems, OperatingSystem::Radar, widget->value("system", std::string{}), false))
+				return false;
+		}
+		for (auto arg : command.arguments)
+			if (arg < -1000000000 || arg > 1000000000)
+				return false;
+		const auto found = displays.find(address.ship);
+		const bool same = found != displays.end() && found->second.claimant == claimant &&
+		                  found->second.address == address && found->second.widget == command.system;
+		if (command.action == "display.update")
+		{
+			if (!same || command.generation != found->second.revision)
+				return false;
+			if (execute)
+				found->second.camera = command.arguments;
+		}
+		else
+		{
+			if (command.generation || display_revision >= 9007199254740991ULL)
+				return false;
+			if (execute)
+			{
+				++display_revision;
+				if (same)
+					displays.erase(address.ship);
+				else
+					displays[address.ship] = {claimant, display_revision, address, command.system, command.arguments};
+			}
+		}
+		return true;
+	}
 	bool meta(std::uint64_t claimant, const OperatingCommand &command, bool execute)
 	{
 		if (!claims.contains(claimant) || command.target != claims.at(claimant).ship)
@@ -1445,6 +1522,8 @@ struct World::Impl
 			return false;
 		const auto &console = *seat(address.ship, address.console);
 		const auto &spec = definition(address.ship);
+		if (command.action.starts_with("display."))
+			return display_command(claimant, command, execute);
 		if (entities.at(address.ship).has<EntityControls>() && !command.action.starts_with("message.") &&
 		    !command.action.starts_with("publish."))
 			return controller_meta(address, command, execute);
@@ -1642,6 +1721,7 @@ bool World::claim(std::uint64_t console, EntityId ship, const std::string &name)
 	impl_->claims[console] = {ship, seat.id};
 	auto entity = impl_->entities.at(ship);
 	impl_->refresh_control(ship);
+	impl_->prune_displays();
 	return true;
 }
 std::optional<EntityId> World::ship_for_slot(const std::string &slot) const
@@ -1663,9 +1743,15 @@ bool World::release(std::uint64_t console)
 		              return entry.first == console;
 	              });
 	const auto released_ship = found->second.ship;
+	std::erase_if(impl_->displays,
+	              [console](const auto &entry)
+	              {
+		              return entry.second.claimant == console;
+	              });
 	impl_->claims.erase(found);
 	if (entity.has<EntityControls>())
 		impl_->refresh_controllers(released_ship);
+	impl_->prune_displays();
 	return true;
 }
 bool World::can_submit(std::uint64_t console, const OperatingCommand &command) const
@@ -1676,7 +1762,7 @@ bool World::can_submit(std::uint64_t console, const OperatingCommand &command) c
 	const auto address = impl_->command_address(console, command);
 	if (address != claim->second && impl_->console_operator(address) != console)
 		return false;
-	if (command.arguments.empty() && impl_->meta(console, command, false))
+	if ((command.arguments.empty() || command.action.starts_with("display.")) && impl_->meta(console, command, false))
 		return impl_->meta_pending.size() < 4096;
 	if (impl_->entities.at(command.target).has<EntityControls>())
 		return impl_->controller_proposal(address, command, true).has_value() &&
@@ -1703,6 +1789,7 @@ bool World::submit(std::uint64_t console, const OperatingCommand &command)
 void World::clear_claims()
 {
 	impl_->claims.clear();
+	impl_->displays.clear();
 	impl_->meta_pending.clear();
 	impl_->controller_pending.clear();
 	for (const auto &[id, entity] : impl_->entities)
@@ -1725,6 +1812,7 @@ void World::tick()
 	for (const auto &[claim, command] : impl_->meta_pending)
 		impl_->meta(claim, command, true);
 	impl_->meta_pending.clear();
+	impl_->prune_displays();
 	for (const auto &proposal : impl_->controller_pending)
 		impl_->commit_controller(proposal);
 	impl_->controller_pending.clear();
@@ -1889,7 +1977,71 @@ Json World::scene_environment() const
 
 Json World::public_board(EntityId entity) const
 {
-	return impl_->knowledge.public_board(entity);
+	auto board = impl_->knowledge.public_board(entity);
+	const auto found = impl_->displays.find(entity);
+	if (found == impl_->displays.end())
+		return board;
+	const auto &publication = found->second;
+	if (!impl_->claims.contains(publication.claimant) ||
+	    (impl_->claims.at(publication.claimant) != publication.address &&
+	     impl_->console_operator(publication.address) != publication.claimant))
+		return board;
+	const auto widget = impl_->display_widget(publication.address, publication.widget);
+	if (!widget)
+		return board;
+	const auto view = impl_->capture_console_observation(publication.address);
+	const bool radar = widget->at("kind") == "radar";
+	Json value{{"revision", publication.revision}, {"console", publication.address.console},
+	           {"widget", publication.widget},     {"kind", widget->at("kind")},
+	           {"camera", publication.camera},     {"own", display::body_json(view.own)},
+	           {"contacts", Json::array()},        {"regions", Json::array()},
+	           {"waypoint", Json::object()},       {"objectives", Json::array()}};
+	const SystemView *sensor = nullptr;
+	if (radar)
+	{
+		const auto selected =
+		    select_system(view.systems, OperatingSystem::Radar, widget->value("system", std::string{}), false);
+		for (const auto &system : view.systems)
+			if (selected && system.id == *selected)
+				sensor = &system;
+		if (!sensor)
+			return board;
+		value["radar"] = display::radar_json(*sensor);
+		value["sweep"] = widget->value("sweep", Json::object());
+		if (sensor->enabled)
+			for (const auto &contact : view.contacts)
+				if (std::find(sensor->contact_ids.begin(), sensor->contact_ids.end(), contact.id) !=
+				    sensor->contact_ids.end())
+					value["contacts"].push_back(display::body_json(contact));
+	}
+	for (const auto &region : view.regions)
+		if (region.value(radar ? "radar" : "navigation", false) &&
+		    (!radar || std::any_of(region.at("tags").begin(), region.at("tags").end(),
+		                           [&](const auto &tag)
+		                           {
+			                           return std::find(sensor->shows.begin(), sensor->shows.end(),
+			                                            tag.template get<std::string>()) != sensor->shows.end();
+		                           })))
+		{
+			Json marker = region;
+			marker["tags"] = Json::array();
+			if (radar)
+				for (const auto &tag : region.at("tags"))
+					if (std::find(sensor->shows.begin(), sensor->shows.end(), tag.get<std::string>()) !=
+					    sensor->shows.end())
+						marker["tags"].push_back(tag);
+			value["regions"].push_back(std::move(marker));
+		}
+	std::map<std::uint64_t, Json> objectives;
+	for (const auto &record : board.value("shared", Json::array()))
+		if (record.value("schema", "") == "phoenix.waypoint")
+			value["waypoint"] = record.at("fields");
+		else if (!radar && record.value("schema", "") == "phoenix.objective")
+			objectives[record.at("fields").at("id").get<std::uint64_t>()] = record.at("fields");
+	for (const auto &[id, fields] : objectives)
+		value["objectives"].push_back(fields);
+	board["display"] = display::sanitise(value);
+	return board;
 }
 std::optional<Observation> World::observe(std::uint64_t console) const
 {
@@ -2221,6 +2373,17 @@ Json World::save() const
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
 	Json result{{"schema", 7},           {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
+	if (impl_->display_revision)
+	{
+		result["display_revision"] = impl_->display_revision;
+		result["displays"] = Json::array();
+		for (const auto &[ship, d] : impl_->displays)
+			result["displays"].push_back({{"claimant", d.claimant},
+			                              {"revision", d.revision},
+			                              {"address", d.address},
+			                              {"widget", d.widget},
+			                              {"camera", d.camera}});
+	}
 	if (!impl_->field_rocks.empty())
 		result["asteroid_fields"] = impl_->save_fields();
 	if (!impl_->regions.empty())
@@ -2462,6 +2625,23 @@ void World::restore(const Catalog &content, const Json &saved)
 		if (!candidate.can_claim(console, address.ship, address.console))
 			throw std::runtime_error("Saved state invalid claim");
 		candidate.impl_->claims.emplace(console, address);
+	}
+
+	candidate.impl_->display_revision =
+	    static_cast<std::uint64_t>(display::number(saved.value("display_revision", Json(0)), 0, 9007199254740991LL));
+	for (const auto &d : saved.value("displays", Json::array()))
+	{
+		const auto claimant = d.at("claimant").get<std::uint64_t>();
+		const auto address = d.at("address").get<ConsoleAddress>();
+		OperatingCommand command{address.ship, "display.toggle", 0, d.at("widget")};
+		command.console = address.console;
+		command.arguments = d.at("camera").get<std::vector<std::int64_t>>();
+		if (!candidate.impl_->display_command(claimant, command, false) ||
+		    candidate.impl_->displays.contains(address.ship))
+			throw std::runtime_error("Invalid saved display source");
+		const auto revision = display::number(d.at("revision"), 1, candidate.impl_->display_revision);
+		candidate.impl_->displays[address.ship] = {claimant, static_cast<std::uint64_t>(revision), address,
+		                                           command.system, command.arguments};
 	}
 
 	if (saved.at("schema") >= 4)

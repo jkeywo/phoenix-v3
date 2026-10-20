@@ -205,6 +205,15 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 		                                                                                 {"down", "Pan down"},
 		                                                                                 {"clear", "Clear waypoint"}})
 			markup += button("nav." + key, label);
+		if (const auto *layout = model_.layout())
+			for (const auto &w : layout->at("widgets"))
+				if (w.at("kind") == "navigation")
+				{
+					const auto key = w.at("id").get<std::string>();
+					const bool active = model_.is_on_screen(key);
+					markup += button("on-screen/" + key, "On screen");
+					actions.back().second = localise("On screen") + ": " + localise(active ? "On" : "Off");
+				}
 		for (const auto &[key, label] : model_.gameplay_controls())
 			if (key.starts_with("game.console/"))
 				markup += button(key, label);
@@ -237,6 +246,15 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 		else if (auto *previous = document_->GetElementById(focus))
 			previous->Focus();
 	}
+	for (const auto &[key, label] : actions)
+		if (key.starts_with("on-screen/"))
+			if (auto *b = document_->GetElementById(id(key)))
+			{
+				const bool active = model_.is_on_screen(key.substr(10));
+				app.screen_toggles[id(key)] = active;
+				b->SetClass("on-screen-active", active);
+				b->SetAttribute("aria-pressed", active ? "true" : "false");
+			}
 	context_->Update();
 	navigation_buttons_.clear();
 	for (const auto &[key, label] : actions)
@@ -259,43 +277,10 @@ void draw_navigation(float ox, float oy)
 {
 	if (!navigation_visible_ || !mission_outcome_.empty() || settings_open_)
 		return;
-	const auto area = navigation_area_;
-	BeginScissorMode(static_cast<int>(ox + area.x), static_cast<int>(oy + area.y), static_cast<int>(area.width),
-	                 static_cast<int>(area.height));
-	DrawRectangleRec({ox + area.x, oy + area.y, area.width, area.height}, {8, 23, 25, 255});
-	auto point = [&](double x, double y)
-	{
-		return Vector2{
-		    ox + area.x + area.width / 2 + static_cast<float>((x - navigation_camera_.x) / navigation_camera_.scale),
-		    oy + area.y + area.height / 2 - static_cast<float>((y - navigation_camera_.y) / navigation_camera_.scale)};
-	};
-	const double grid = std::pow(10.0, std::ceil(std::log10(navigation_camera_.scale * 60)));
-	const auto lower =
-	    point(std::floor((navigation_camera_.x - area.width * navigation_camera_.scale / 2) / grid) * grid,
-	          std::floor((navigation_camera_.y - area.height * navigation_camera_.scale / 2) / grid) * grid);
-	for (float x = lower.x; x < ox + area.width; x += static_cast<float>(grid / navigation_camera_.scale))
-		DrawLineV({x, oy + area.y}, {x, oy + area.y + area.height}, {35, 65, 70, 255});
-	for (float y = lower.y; y > oy + area.y; y -= static_cast<float>(grid / navigation_camera_.scale))
-		DrawLineV({ox, y}, {ox + area.width, y}, {35, 65, 70, 255});
-	for (const auto &o : model_.objectives())
-	{
-		const auto p = point(o.at("destination_x"), o.at("destination_y"));
-		DrawCircleLinesV(p, std::max(8.f, static_cast<float>(o.value("radius", 0.0) / navigation_camera_.scale)), GOLD);
-		DrawCircleV(p, 4, GOLD);
-	}
-	if (model_.observation())
-	{
-		draw_region_markers(model_.observation()->regions, point, navigation_camera_.scale);
-		const auto &own = model_.observation()->own;
-		draw_radar_icon(RadarIcon::ship, point(own.x, own.y), 9, static_cast<float>(own.heading), WHITE);
-	}
-	const auto w = model_.waypoint();
-	if (w.value("active", false))
-	{
-		const auto p = point(w.at("x"), w.at("y"));
-		DrawCircleLinesV(p, 10, SKYBLUE);
-		DrawLineV({p.x - 14, p.y}, {p.x + 14, p.y}, SKYBLUE);
-		DrawLineV({p.x, p.y - 14}, {p.x, p.y + 14}, SKYBLUE);
-	}
-	EndScissorMode();
+	if (!model_.observation())
+		return;
+	const auto &view = *model_.observation();
+	draw_navigation_plot(
+	    view.own, view.regions, model_.objectives(), model_.waypoint(), navigation_camera_,
+	    {ox + navigation_area_.x, oy + navigation_area_.y, navigation_area_.width, navigation_area_.height});
 }

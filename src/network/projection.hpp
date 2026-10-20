@@ -1,4 +1,5 @@
 #pragma once
+#include "../core/display_projection.hpp"
 namespace phoenix::network
 {
 static inline Json body_json(const BodyView &body)
@@ -114,6 +115,8 @@ static inline Json public_board_json(const Json &source)
 			selected[key].push_back(std::move(row));
 		}
 	}
+	if (source.contains("display"))
+		selected["display"] = display::sanitise(source.at("display"));
 	auto result = bounded_gameplay(selected);
 	const auto omissions = source.value("omitted", Json::object());
 	if (!omissions.is_object())

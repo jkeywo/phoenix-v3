@@ -10,6 +10,8 @@
 import phoenix.simulation;
 import phoenix.console;
 import phoenix.session.execution;
+import phoenix.navigation;
+#include "../../src/network/projection.hpp"
 
 using namespace phoenix;
 using namespace phoenix::test;
@@ -64,6 +66,166 @@ int main()
 			camera.fit(0, 0, 1000000, 1000000, 1000, 500);
 			require(camera.scale > scale, "reset refits current level extents");
 		}
+		{
+			auto source = controller_fixture();
+			auto &entity = source["entities"][0];
+			entity["systems"]["radar"] = {{"kind", "radar"}, {"range_mm", 100000}};
+			entity["systems"]["wide"] = {{"kind", "radar"}, {"range_mm", 200000}};
+			entity["stations"][0]["consoles"][0]["feeds"].push_back("radar");
+			entity["stations"][0]["consoles"][0]["feeds"].push_back("wide");
+			entity["stations"][0]["consoles"][1]["definition"] = "test.nav";
+			source["consoles"][0]["widgets"] = Json::array({{{"id", "scope"},
+			                                                 {"kind", "radar"},
+			                                                 {"label", "Radar"},
+			                                                 {"binding", "radar.contacts"},
+			                                                 {"system", "radar"},
+			                                                 {"x", 0},
+			                                                 {"y", 0},
+			                                                 {"width", 1000},
+			                                                 {"height", 1000}}});
+			source["consoles"].push_back({{"id", "test.nav"},
+			                              {"widgets", Json::array({{{"id", "map"},
+			                                                        {"kind", "navigation"},
+			                                                        {"label", "Navigation"},
+			                                                        {"binding", "ship.navigation"},
+			                                                        {"controller", "planner"},
+			                                                        {"channel", "point"},
+			                                                        {"x", 0},
+			                                                        {"y", 0},
+			                                                        {"width", 1000},
+			                                                        {"height", 1000}}})}});
+			entity["control_layout"]["controllers"].push_back(
+			    {{"id", "planner"},
+			     {"console", "observer"},
+			     {"fallback", "hold"},
+			     {"commands", Json::array({{{"id", "point"},
+			                                {"action", "waypoint"},
+			                                {"initial", 0},
+			                                {"arguments", {0, 0}},
+			                                {"consumers", Json::array()}}})}});
+			for (auto &profile : entity["control_layout"]["profiles"])
+				profile["consoles"]["observer"] = {{"human", {"planner"}}};
+			for (int id = 2; id <= 3; ++id)
+				source["maps"][0]["entities"].push_back({{"id", id},
+				                                         {"definition", "test.controllable"},
+				                                         {"x_mm", id == 2 ? 10000 : 150000},
+				                                         {"y_mm", 0},
+				                                         {"heading_mdeg", 0}});
+			const auto catalog = load(source);
+			World world;
+			world.load(catalog, "test.map");
+			require(world.claim(101, 1, "drive") && world.claim(102, 1, "observer") && world.claim(103, 2, "drive"),
+			        "independent shared-display operators claim synthetic consoles");
+			OperatingCommand radar{1, "display.toggle", 0, "scope"};
+			radar.console = "drive";
+			radar.arguments = {0, 0, 1};
+			OperatingCommand nav{1, "display.toggle", 0, "map"};
+			nav.console = "observer";
+			nav.arguments = {50000, 0, 200000};
+			auto invalid = radar;
+			invalid.system = "missing";
+			require(!world.submit(101, invalid) && !world.submit(102, radar),
+			        "unavailable or foreign display source refuses");
+			invalid = radar;
+			invalid.arguments = {0, 0, 0};
+			require(!world.submit(101, invalid), "shared camera rejects zero extent");
+			require(world.submit(101, radar), "radar sharing admitted through ordinary command path");
+			world.tick();
+			const auto radar_view = world.public_board(1).at("display");
+			require(radar_view.at("kind") == "radar" && radar_view.at("contacts").size() == 1 &&
+			            radar_view.at("contacts")[0].at("id") == 2 && !world.public_board(2).contains("display"),
+			        "shared radar exposes only its selected sensor contacts and stays on its ship");
+			auto dirty = world.public_board(1);
+			dirty["display"]["controls"] = {"secret"};
+			dirty["display"]["own"]["private"] = "secret";
+			const auto transported = network::public_board_json(dirty);
+			require(transported.at("display") == radar_view && transported.dump().find("secret") == std::string::npos,
+			        "remote shared-display codec reconstructs only visual fields");
+			auto crowded = radar_view;
+			crowded["contacts"] = Json::array();
+			for (int i = 0; i < 4096; ++i)
+			{
+				auto contact = radar_view.at("contacts")[0];
+				contact["id"] = i + 10;
+				contact["definition"] = std::string(256, 'x');
+				crowded["contacts"].push_back(std::move(contact));
+			}
+			const auto bounded = display::sanitise(crowded);
+			require(bounded.at("contacts").size() < 4096 &&
+			            bounded.at("contacts").size() + bounded.at("omitted_contacts").get<std::size_t>() == 4096 &&
+			            display::sanitise(bounded) == bounded,
+			        "crowded valid radar projection stays bounded and reports omitted contacts without failure");
+			auto stale = radar;
+			stale.action = "display.update";
+			stale.generation = radar_view.at("revision");
+			stale.arguments = {9, 9, 100};
+			require(world.submit(102, nav) && world.submit(101, stale),
+			        "replacement and earlier publisher update can be queued in one tick");
+			world.tick();
+			require(world.public_board(1).at("display").at("kind") == "navigation" &&
+			            world.public_board(1).at("display").at("camera") == Json(nav.arguments) &&
+			            !world.submit(101, stale),
+			        "last display command wins and stale live updates cannot reclaim the screen");
+			auto moved = nav;
+			moved.action = "display.update";
+			moved.generation = world.public_board(1).at("display").at("revision");
+			moved.arguments = {80000, 20000, 100000};
+			require(world.submit(102, moved), "current source pans and zooms live");
+			world.tick();
+			require(world.public_board(1).at("display").at("camera") == Json(moved.arguments),
+			        "shared navigation follows current browsing");
+			World resumed;
+			resumed.restore(catalog, world.save());
+			require(resumed.public_board(1) == world.public_board(1),
+			        "replica checkpoint preserves current shared view");
+			resumed.clear_claims();
+			require(!resumed.public_board(1).contains("display"), "user recovery clears transient sharing with claims");
+			require(world.submit(102, nav), "current source toggles back");
+			world.tick();
+			require(!world.public_board(1).contains("display"),
+			        "off restores normal view without resurrecting old radar");
+			require(world.submit(101, radar) && world.submit(102, nav) && world.submit(101, radar),
+			        "competing explicit source changes queue in arrival order");
+			world.tick();
+			require(world.public_board(1).at("display").at("kind") == "radar",
+			        "last explicit source replaces every earlier source in the tick");
+			require(world.release(101) && !world.public_board(1).contains("display"), "publisher release ends sharing");
+			auto session_source = source;
+			session_source["entities"][0]["systems"]["steering"] = {{"kind", "steering"}, {"turn_mdeg_s", 90000}};
+			session_source["entities"][0]["stations"][0]["consoles"][0]["feeds"].push_back("steering");
+			session_source["entities"][0]["control_layout"]["controllers"][0]["commands"].push_back(
+			    {{"id", "heading"}, {"action", "heading_mdeg"}, {"consumers", {"steering"}}});
+			session_source["maps"][0]["ship_slots"] = Json::array({{{"id", "test.slot"},
+			                                                        {"x_mm", 300000},
+			                                                        {"y_mm", 0},
+			                                                        {"heading_mdeg", 0},
+			                                                        {"allowed_ships", {"test.controllable"}}}});
+			auto session = make_local_session();
+			session->add_pack(archive(session_source));
+			session->start({"test.map", {{"test.slot", "test.controllable"}}, "test.slot", "drive"});
+			ConsoleModel model;
+			model.refresh(session);
+			require(model.on_screen("scope", {0, 0, 1}), "ConsoleModel publishes verified radar widget");
+			session->tick();
+			require(model.is_on_screen("scope"), "source reads shared active state");
+			Application app;
+			app.session = session;
+			app.screen_controls = {{"console/1/on-screen/scope", "On screen"}};
+			app.screen_toggles = {{"console/1/on-screen/scope", model.is_on_screen("scope")}};
+			const auto semantics = navigation_controls(app);
+			require(std::any_of(semantics.begin(), semantics.end(),
+			                    [](const auto &c)
+			                    {
+				                    return c.id == "console/1/on-screen/scope" && c.toggle && c.pressed;
+			                    }),
+			        "semantic controls expose the source's pressed state");
+			auto recovered = make_local_session();
+			recovered->restore(session->save());
+			recovered->resume_local();
+			require(!recovered->public_board().contains("display"),
+			        "portable session resume starts on normal viewscreen");
+		}
+
 		for (const bool visible : {false, true})
 		{
 			auto source = controller_fixture();
@@ -378,8 +540,7 @@ int main()
 		 {"id":"enabled","action":"intent_boolean","type":"boolean","initial":1,"consumers":[]}]})json"));
 		preference_layout["profiles"][0]["consoles"]["drive"] = {{"human", {"preference"}}, {"ai", {"propulsion"}}};
 		preference_layout["profiles"][1]["consoles"]["drive"] = {{"ai", {"preference", "propulsion"}}};
-		preference_source["trees"] =
-		    Json::parse(R"json([{"id":"test.preference","context":"controller","initial":"run",
+		preference_source["trees"] = Json::parse(R"json([{"id":"test.preference","context":"controller","initial":"run",
 		 "command_bindings":[{"channel":"speed"},{"channel":"enabled","type":"boolean"}],
 		 "command_reads":[{"name":"cruise","controller":"preference","channel":"cruise"},
 		  {"name":"enabled","controller":"preference","channel":"enabled","type":"boolean"}],

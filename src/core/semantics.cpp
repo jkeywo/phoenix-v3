@@ -182,6 +182,11 @@ std::vector<SemanticControl> navigation_controls(const Application &app)
 		    {input.id, translate(input.label, app.pseudo_locale), {}, true, input.value, input.percentage});
 	for (auto &control : controls)
 	{
+		if (const auto found = app.screen_toggles.find(control.id); found != app.screen_toggles.end())
+		{
+			control.toggle = true;
+			control.pressed = found->second;
+		}
 		if (control.id.starts_with("settings.tab/"))
 		{
 			control.tab = true;

@@ -413,9 +413,12 @@ void prepare_public_board(Application &app, bool visible)
 	std::string markup;
 	for (const auto &[id, text] : rows)
 	{
+		app.screen_readouts.emplace_back(id, text);
+		if (id.starts_with("viewscreen.readout/contact/") || id.starts_with("viewscreen.readout/region/") ||
+		    id.starts_with("viewscreen.readout/objective/") || id == "viewscreen.readout/waypoint")
+			continue;
 		markup +=
 		    "<p id=\"" + Rml::StringUtilities::EncodeRml(id) + "\">" + Rml::StringUtilities::EncodeRml(text) + "</p>";
-		app.screen_readouts.emplace_back(id, text);
 	}
 	// Avoid resetting scroll position on unchanged ticks.
 	if (previous_markup != markup)
@@ -710,6 +713,7 @@ void draw_screen(Application &app)
 	app.console_surface_active = console_mode && !lobby_consoles;
 	app.control_placements.clear();
 	app.screen_inputs.clear();
+	app.screen_toggles.clear();
 	app.screen_readouts.clear();
 	app.set_control_value = {};
 	std::vector<ConsoleRegion> regions =
@@ -1179,6 +1183,7 @@ Texture2D draw_console_preview(const Json &layout, int width, int height, Vector
 	preview_session->layout(layout);
 	preview_app.pseudo_locale = pseudo;
 	preview_app.screen_controls.clear();
+	preview_app.screen_toggles.clear();
 	preview_app.control_placements.clear();
 	ConsoleRegion region{1, 0, 0, static_cast<float>(width), static_cast<float>(height)};
 	preview_surface->prepare(preview_app, region, {});

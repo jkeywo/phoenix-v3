@@ -346,7 +346,13 @@
 			"Customize radar sweep": "Customize radar sweep",
 			"Sweep speed (degrees/s)": "Sweep speed (degrees/s)",
 			"Sweep duration (seconds)": "Sweep duration (seconds)",
-			"Sweep colour": "Sweep colour"
+			"Sweep colour": "Sweep colour",
+			"On screen": "On screen",
+			"On": "On",
+			"Off": "Off",
+			"Normal viewscreen": "Normal viewscreen",
+			"Viewscreen request sent": "Viewscreen request sent",
+			"Additional radar contacts omitted": "Additional radar contacts omitted"
 		}
 	}
 }

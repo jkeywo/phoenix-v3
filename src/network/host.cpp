@@ -362,7 +362,8 @@ class NetworkHost final : public SessionPort
 			             {"channel", command.channel},
 			             {"generation", command.generation},
 			             {"request_id", command.request_id},
-			             {"arguments", command.arguments}}))
+			             {"arguments", command.arguments},
+			             {"console", command.console}}))
 				send(sender, "command-result",
 				     {{"ok", false},
 				      {"reason", "Command refused: Console lease, sequence, quorum or System permission mismatch"}});
@@ -774,7 +775,8 @@ public:
 		               {"channel", command.channel},
 		               {"generation", command.generation},
 		               {"request_id", command.request_id},
-		               {"arguments", command.arguments}});
+		               {"arguments", command.arguments},
+		               {"console", command.console}});
 	}
 	std::optional<Observation> console_observation(std::uint64_t route) const override
 	{

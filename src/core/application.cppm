@@ -86,6 +86,7 @@ struct Application
 	std::map<std::string, double> frame_metrics;
 	std::shared_ptr<SessionPort> session;
 	std::vector<std::pair<std::string, std::string>> screen_controls;
+	std::map<std::string, bool> screen_toggles;
 	std::vector<std::pair<std::string, std::string>> screen_readouts;
 	struct TextControl
 	{

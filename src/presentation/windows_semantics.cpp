@@ -80,7 +80,8 @@ class Provider final : public IRawElementProviderSimple,
                        public IInvokeProvider,
                        public IValueProvider,
                        public IRangeValueProvider,
-                       public ISelectionItemProvider
+                       public ISelectionItemProvider,
+                       public IToggleProvider
 {
 	std::atomic<ULONG> refs_{1};
 	std::shared_ptr<Shared> state_;
@@ -119,6 +120,8 @@ public:
 			*object = static_cast<IRawElementProviderFragment *>(this);
 		else if (iid == __uuidof(IRawElementProviderFragmentRoot) && index_ == -1)
 			*object = static_cast<IRawElementProviderFragmentRoot *>(this);
+		else if (iid == __uuidof(IToggleProvider) && index_ >= 0)
+			*object = static_cast<IToggleProvider *>(this);
 		else if (iid == __uuidof(IInvokeProvider) && index_ >= 0)
 			*object = static_cast<IInvokeProvider *>(this);
 		else if (iid == __uuidof(IValueProvider) && index_ >= 0)
@@ -157,6 +160,17 @@ public:
 		if (!result)
 			return E_POINTER;
 		*result = nullptr;
+		if (index_ >= 0 && id == UIA_TogglePatternId)
+		{
+			std::lock_guard lock(state_->mutex);
+			if (!valid())
+				return UIA_E_ELEMENTNOTAVAILABLE;
+			if (state_->controls[index_].toggle)
+			{
+				*result = static_cast<IToggleProvider *>(this);
+				AddRef();
+			}
+		}
 		if (index_ >= 0 && id == UIA_SelectionItemPatternId)
 		{
 			std::lock_guard lock(state_->mutex);
@@ -220,6 +234,11 @@ public:
 			               : state_->controls[index_].percentage ? UIA_SliderControlTypeId
 			               : state_->controls[index_].editable   ? UIA_EditControlTypeId
 			                                                     : UIA_ButtonControlTypeId;
+		}
+		else if (id == UIA_ToggleToggleStatePropertyId && index_ >= 0 && state_->controls[index_].toggle)
+		{
+			result->vt = VT_I4;
+			result->lVal = state_->controls[index_].pressed ? ToggleState_On : ToggleState_Off;
 		}
 		else if (id == UIA_SelectionItemIsSelectedPropertyId && index_ >= 0 && state_->controls[index_].tab)
 		{
@@ -460,6 +479,20 @@ public:
 			return E_POINTER;
 		std::lock_guard lock(state_->mutex);
 		*result = make(state_->focus);
+		return S_OK;
+	}
+	HRESULT STDMETHODCALLTYPE Toggle() override
+	{
+		return Invoke();
+	}
+	HRESULT STDMETHODCALLTYPE get_ToggleState(ToggleState *result) override
+	{
+		if (!result)
+			return E_POINTER;
+		std::lock_guard lock(state_->mutex);
+		if (!valid() || index_ < 0)
+			return UIA_E_ELEMENTNOTAVAILABLE;
+		*result = state_->controls[index_].pressed ? ToggleState_On : ToggleState_Off;
 		return S_OK;
 	}
 	HRESULT STDMETHODCALLTYPE Select() override

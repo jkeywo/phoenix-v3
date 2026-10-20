@@ -317,6 +317,31 @@ std::vector<std::pair<std::string, std::string>> public_board_readouts(const Jso
 	auto rows = board_readouts(selected, now);
 	for (auto &[id, text] : rows)
 		id.replace(0, std::string("game.readout/").size(), "viewscreen.readout/");
+	if (const auto d = board.value("display", Json(nullptr)); d.is_object())
+	{
+		rows.emplace_back("viewscreen.readout/display", localise("On screen") + ": " + localise(d.at("kind")) + " / " +
+		                                                    d.at("console").get<std::string>());
+		if (d.value("omitted_contacts", 0) > 0)
+			rows.emplace_back("viewscreen.readout/omitted-contacts",
+			                  localise("Additional radar contacts omitted") + ": " +
+			                      std::to_string(d.at("omitted_contacts").get<int>()));
+		for (const auto &contact : d.at("contacts"))
+			rows.emplace_back("viewscreen.readout/contact/" + std::to_string(contact.at("id").get<EntityId>()),
+			                  localise("Contact") + " " + std::to_string(contact.at("id").get<EntityId>()) + "; X " +
+			                      std::to_string(contact.at("x").get<std::int64_t>()) + "; Y " +
+			                      std::to_string(contact.at("y").get<std::int64_t>()));
+		for (const auto &r : d.at("regions"))
+			rows.emplace_back("viewscreen.readout/region/" + r.at("name").get<std::string>(), localise(r.at("name")));
+		for (const auto &o : d.at("objectives"))
+			rows.emplace_back("viewscreen.readout/objective/" + std::to_string(o.at("id").get<std::uint64_t>()),
+			                  localise(o.at("title")) + "; X " +
+			                      std::to_string(o.at("destination_x").get<std::int64_t>()) + "; Y " +
+			                      std::to_string(o.at("destination_y").get<std::int64_t>()));
+		if (const auto w = d.at("waypoint"); w.value("active", false))
+			rows.emplace_back("viewscreen.readout/waypoint",
+			                  localise("Waypoint") + "; X " + std::to_string(w.at("x").get<std::int64_t>()) + "; Y " +
+			                      std::to_string(w.at("y").get<std::int64_t>()));
+	}
 	return rows;
 }
 void ConsoleModel::reset()
@@ -617,6 +642,39 @@ bool ConsoleModel::set_speed_fraction(double fraction, const std::string &system
 	return observation_ &&
 	       submit({observation_->own.id, "speed_mm_s",
 	               static_cast<std::int64_t>(std::llround(minimum + (maximum - minimum) * fraction)), binding});
+}
+bool ConsoleModel::is_on_screen(const std::string &widget) const
+{
+	const auto session = owner_.lock();
+	if (!session || !observation_)
+		return false;
+	const auto value = session->public_board().value("display", Json(nullptr));
+	return value.is_object() && value.value("console", "") == observation_->console &&
+	       value.value("widget", "") == widget && value.at("own").at("id") == observation_->own.id;
+}
+bool ConsoleModel::on_screen(const std::string &widget, const std::vector<std::int64_t> &camera, bool update)
+{
+	const auto session = owner_.lock();
+	if (!session)
+		return false;
+	refresh(session, route_);
+	if (!observation_ || layout_.is_null())
+		return false;
+	bool supported = false;
+	for (const auto &w : layout_.at("widgets"))
+		if (w.at("id") == widget && (w.at("kind") == "radar" || w.at("kind") == "navigation"))
+			supported = true;
+	if (!supported || (update && !is_on_screen(widget)))
+		return false;
+	OperatingCommand command{observation_->own.id, update ? "display.update" : "display.toggle", 0, widget};
+	command.console = observation_->console;
+	command.arguments = camera;
+	if (update)
+		command.generation = session->public_board().at("display").at("revision");
+	const bool accepted = session->console_command(route_, command);
+	if (!update)
+		announcement_ = localise(accepted ? "Viewscreen request sent" : "The server refused that control request");
+	return accepted;
 }
 bool ConsoleModel::set_waypoint(std::int64_t x, std::int64_t y, bool active)
 {

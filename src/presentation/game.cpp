@@ -26,6 +26,9 @@ import phoenix.files;
 import phoenix.session.api;
 #include "game.hpp"
 #include "region_markers.hpp"
+#include "navigation_camera.hpp"
+#include "map_plots.hpp"
+#include "../core/display_projection.hpp"
 
 namespace phoenix
 {
@@ -704,6 +707,42 @@ struct GameScreen::State
 			scene.draw(app.session->catalog(), bodies, camera, area(), app.session->scene_lighting(), GetTime(),
 			           SceneDiagnostic::comic, {}, environment);
 			scene_metrics["scene_render"] = GetTime() - stage;
+			const auto shared = app.session->public_board().value("display", Json(nullptr));
+			if (shared.is_object())
+			{
+				const auto rect = area();
+				DrawRectangleRec(rect, {0, 0, 0, 166});
+				const Rectangle plot{rect.x + rect.width * .04f, rect.y + rect.height * .08f, rect.width * .92f,
+				                     rect.height * .84f};
+				const auto own = display::read_body(shared.at("own"));
+				if (shared.at("kind") == "navigation")
+				{
+					NavigationCamera camera;
+					camera.x = shared.at("camera")[0];
+					camera.y = shared.at("camera")[1];
+					camera.scale = shared.at("camera")[2].get<double>() * 100 / plot.width;
+					draw_navigation_plot(own, shared.at("regions"), shared.at("objectives"), shared.at("waypoint"),
+					                     camera, plot, true);
+				}
+				else
+				{
+					Observation view{own, {}};
+					view.regions = shared.at("regions");
+					auto sensor = display::read_radar(shared.at("radar"));
+					for (const auto &contact : shared.at("contacts"))
+					{
+						view.contacts.push_back(display::read_body(contact));
+						sensor.contact_ids.push_back(view.contacts.back().id);
+					}
+					auto &sweep = sweeps["shared/" + shared.at("console").get<std::string>() + "/" +
+					                     shared.at("widget").get<std::string>()];
+					if (!sweep)
+						sweep = std::make_unique<RadarSweep>();
+					draw_radar_plot(textures, app.session->catalog(), view, sensor, shared.at("waypoint"), *sweep,
+					                shared.at("sweep"), {plot.x + plot.width / 2, plot.y + plot.height / 2},
+					                std::min(plot.width, plot.height) * .48f, GetTime(), app.reduced_motion);
+				}
+			}
 			if (!viewscreen_frame.id)
 			{
 #ifdef __EMSCRIPTEN__

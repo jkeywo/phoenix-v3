@@ -83,6 +83,31 @@ int main(int argc, char **argv)
 			slot["mandatory"] = id == std::string("mandatory");
 			defs["maps"][0]["ship_slots"].push_back(slot);
 		}
+		defs["consoles"].push_back({{"id", "test.navigation"},
+		                            {"human_seeking", true},
+		                            {"widgets", Json::array({{{"id", "map"},
+		                                                      {"kind", "navigation"},
+		                                                      {"label", "Navigation"},
+		                                                      {"binding", "ship.navigation"},
+		                                                      {"controller", "planner"},
+		                                                      {"channel", "point"},
+		                                                      {"x", 0},
+		                                                      {"y", 0},
+		                                                      {"width", 1000},
+		                                                      {"height", 1000}}})}});
+		public_ship["stations"][0]["consoles"].push_back(
+		    {{"id", "navigation"}, {"definition", "test.navigation"}, {"systems", Json::array()}});
+		public_ship["control_layout"]["controllers"].push_back(
+		    {{"id", "planner"},
+		     {"console", "navigation"},
+		     {"fallback", "hold"},
+		     {"commands", Json::array({{{"id", "point"},
+		                                {"action", "waypoint"},
+		                                {"initial", 0},
+		                                {"arguments", {0, 0}},
+		                                {"consumers", Json::array()}}})}});
+		for (auto &profile : public_ship["control_layout"]["profiles"])
+			profile["consoles"]["navigation"] = {{"human", {"planner"}}};
 		pack.files["definitions.json"] = json_bytes(defs);
 		pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
 		host->add_pack(write_pack(pack));
@@ -464,7 +489,12 @@ int main(int argc, char **argv)
 			    return !direct->public_board().value("shared", Json::array()).empty();
 		    });
 		require(!direct->observation(), "approved remote Viewscreen receives public board without Console authority");
-		require(direct->public_board().at("shared")[0].at("schema") == "test.public" &&
+		const auto unclaimed_board = direct->public_board();
+		require(std::any_of(unclaimed_board.at("shared").begin(), unclaimed_board.at("shared").end(),
+		                    [](const auto &row)
+		                    {
+			                    return row.at("schema") == "test.public";
+		                    }) &&
 		            !direct->public_board().contains("records") && !direct->public_board().contains("controls"),
 		        "unclaimed remote public projection carries only published evidence");
 		require(direct->session_action("network.claim"),
@@ -476,6 +506,41 @@ int main(int argc, char **argv)
 		    });
 		ConsoleModel remote_model;
 		remote_model.refresh(direct);
+		require(remote_model.on_screen("radar", {0, 0, 1}), "remote source admits On screen through verified widget");
+		pump(
+		    [&]
+		    {
+			    return direct->public_board().contains("display");
+		    });
+		require(guarded->public_board().at("display").at("kind") == "radar" &&
+		            direct->public_board().at("display").at("revision") ==
+		                guarded->public_board().at("display").at("revision"),
+		        "remote command reaches host and live read-only display returns to viewer");
+		require(remote_model.act("game.console/navigation") && remote_model.on_screen("map", {50000, 0, 2000}),
+		        "remote supplemental navigation publishes with its selected Console address");
+		pump(
+		    [&]
+		    {
+			    return direct->public_board().contains("display") &&
+			           direct->public_board().at("display").at("kind") == "navigation";
+		    });
+		require(guarded->public_board().at("display").at("console") == "navigation",
+		        "host consensus frame retains supplemental Console identity");
+		require(remote_model.on_screen("map", {70000, 0, 1000}, true),
+		        "remote active navigation admits live pan and zoom");
+		pump(
+		    [&]
+		    {
+			    return direct->public_board().at("display").at("camera") == Json::array({70000, 0, 1000});
+		    });
+		require(remote_model.on_screen("map", {70000, 0, 1000}), "remote source admits second press");
+
+		pump(
+		    [&]
+		    {
+			    return !direct->public_board().contains("display");
+		    });
+		require(remote_model.act("game.console/main"), "remote operator returns to primary Console");
 		const auto remote_throttle = remote_model.widget_system("engine");
 		require(remote_model.set_speed_fraction(0.333, remote_throttle),
 		        "remote authored widget admits an arbitrary value outside generated step buttons");

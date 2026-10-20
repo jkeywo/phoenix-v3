@@ -1,6 +1,7 @@
 #pragma once
 #include "navigation_camera.hpp"
 #include "region_markers.hpp"
+#include "map_plots.hpp"
 namespace phoenix
 {
 class ConsoleSurface final : public Rml::EventListener
@@ -8,6 +9,19 @@ class ConsoleSurface final : public Rml::EventListener
 	ConsoleId route_;
 	std::string context_name_;
 	bool toolbar_enabled_ = true;
+	std::uint64_t display_update_tick_ = ~std::uint64_t{0};
+	std::string display_announcement_;
+	std::vector<std::int64_t> display_camera(const std::string &widget) const
+	{
+		if (const auto *layout = model_.layout())
+			for (const auto &w : layout->at("widgets"))
+				if (w.at("id") == widget && w.at("kind") == "navigation")
+					return {static_cast<std::int64_t>(std::clamp(navigation_camera_.x, -1e9, 1e9)),
+					        static_cast<std::int64_t>(std::clamp(navigation_camera_.y, -1e9, 1e9)),
+					        static_cast<std::int64_t>(
+					            std::clamp(navigation_camera_.scale * navigation_area_.width / 100, 1.0, 1e9))};
+		return {0, 0, 1};
+	}
 	bool profile_open_ = false;
 	std::string profile_name_;
 	Bytes profile_avatar_;
@@ -271,6 +285,7 @@ button:hover,button:focus {background:#455458;border-color:#ec9c52;}
 p {display:block;font-size:.85em;margin:4px 0;}
 .dial {position:absolute;left:12px;right:12px;top:48px;bottom:72px;}
 .widget button {position:absolute;bottom:8px;left:8px;}
+.radar-widget button.on-screen {left:auto;right:8px;}
 .readout {position:absolute;bottom:12px;left:16px;right:16px;height:44px;text-align:center;color:#cbe9c8;}
 .heading-value {display:inline-block;vertical-align:middle;margin:0 8px;width:145px;height:36px;background:#0a1719;color:#cbe9c8;border:1px #988b71;font-size:1.3em;}
 .throttle {position:absolute;background:transparent;border:0px;}
@@ -293,6 +308,8 @@ p {display:block;font-size:.85em;margin:4px 0;}
 .helm .dial {left:0;right:0;top:0;bottom:0;}
 .helm .radar-widget button,.helm .heading-value {opacity:0;}
 .helm .radar-widget button:focus,.helm .heading-value:focus {opacity:1;}
+.helm .radar-widget button.on-screen {opacity:1;position:absolute;bottom:0;right:0;min-width:120px;}
+button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 .helm #gameplay {background:transparent;border:0px;padding:0px;}
 .profile-tv span {position:absolute;left:20%;top:69%;width:55%;text-align:center;pointer-events:none;}
 #local-settings {display:none;position:absolute;left:0;top:0;width:100%;height:100%;background:#080d0fee;z-index:20;}
@@ -359,6 +376,8 @@ p {display:block;font-size:.85em;margin:4px 0;}
 		     app_->screen != Screen::server_lobby && app_->screen != Screen::settings) ||
 		    owner_.lock() != app_->session || (app_->session && generation_ != app_->session->generation()))
 			return false;
+		if (action.starts_with("on-screen/"))
+			return !settings_open_ && model_.on_screen(action.substr(10), display_camera(action.substr(10)));
 #ifndef __EMSCRIPTEN__
 		if (action == "settings" || action == "local-settings.close")
 		{
@@ -1040,7 +1059,8 @@ p {display:block;font-size:.85em;margin:4px 0;}
 					}
 					if (kind == "radar")
 						widgets += "<div class=\"dial\" id=\"dial/" + Rml::StringUtilities::EncodeRml(key) + "\"/>" +
-						           button("game.contacts/" + key, "Read radar contacts");
+						           button("game.contacts/" + key, "Read radar contacts") +
+						           button("on-screen/" + key, "On screen");
 					widgets += "<p class=\"" + std::string(kind == "throttle" ? "readout" : "heading-actual") +
 					           "\" id=\"value/" + Rml::StringUtilities::EncodeRml(key) + "\"/></div>";
 				}
@@ -1504,7 +1524,21 @@ p {display:block;font-size:.85em;margin:4px 0;}
 		}
 		for (const auto &[name, label] : controls_)
 		{
-			app.screen_controls.emplace_back(name, label);
+			if (name.starts_with(id("on-screen/")))
+			{
+				const auto widget = name.substr(id("on-screen/").size());
+				const bool active = model_.is_on_screen(widget);
+				app.screen_toggles[name] = active;
+				if (auto *b = document_->GetElementById(name))
+				{
+					b->SetClass("on-screen", true);
+					b->SetClass("on-screen-active", active);
+					b->SetAttribute("aria-pressed", active ? "true" : "false");
+				}
+				app.screen_controls.emplace_back(name, localise("On screen") + ": " + localise(active ? "On" : "Off"));
+			}
+			else
+				app.screen_controls.emplace_back(name, label);
 			place(app, region, name);
 		}
 		for (const auto &[name, label] : gameplay_controls)
@@ -1522,6 +1556,29 @@ p {display:block;font-size:.85em;margin:4px 0;}
 		if (pregame)
 			place(app, region, id("lobby-title"));
 		prepare_navigation(app, region, pregame);
+		if (!pregame && model_.observation())
+		{
+			const auto publication = app.session->public_board().value("display", Json(nullptr));
+			const auto source = publication.is_object()
+			                        ? publication.value("console", "") + "/" + publication.value("widget", "")
+			                        : std::string{};
+			if (source != display_announcement_)
+			{
+				display_announcement_ = source;
+				app.accessible_status =
+				    source.empty() ? localise("Normal viewscreen") : localise("On screen") + ": " + source;
+			}
+			if (publication.is_object() && publication.at("kind") == "navigation" &&
+			    model_.is_on_screen(publication.at("widget")) && display_update_tick_ != app.session->ticks())
+			{
+				const auto camera = display_camera(publication.at("widget"));
+				if (Json(camera) != publication.at("camera"))
+				{
+					model_.on_screen(publication.at("widget"), camera, true);
+					display_update_tick_ = app.session->ticks();
+				}
+			}
+		}
 		app.frame_metrics["console/" + std::to_string(route_) + "/layout"] = GetTime() - layout_started;
 	}
 	void draw_profile(const ConsoleRegion &region)
@@ -1575,88 +1632,25 @@ p {display:block;font-size:.85em;margin:4px 0;}
 					const float radius = std::min(dial->GetOffsetWidth(), dial->GetOffsetHeight()) * .5f;
 					const Vector2 centre{ox + at.x + dial->GetOffsetWidth() / 2,
 					                     oy + at.y + dial->GetOffsetHeight() / 2};
-					DrawCircleV(centre, radius * .69f, {8, 23, 25, 255});
-					for (int ring = 1; ring <= 4; ++ring)
-						DrawCircleLinesV(centre, radius * .68f * ring / 4, {37, 77, 78, 255});
-					DrawLineV({centre.x - radius * .68f, centre.y}, {centre.x + radius * .68f, centre.y},
-					          {37, 77, 78, 255});
-					DrawLineV({centre.x, centre.y - radius * .68f}, {centre.x, centre.y + radius * .68f},
-					          {37, 77, 78, 255});
 					if (view && view->feeds & system_bit(OperatingSystem::Radar))
 					{
-						auto radar = model_.widget_system(key);
-						const auto selected = std::find_if(view->systems.begin(), view->systems.end(),
-						                                   [&](const auto &s)
-						                                   {
-							                                   return s.id == radar && s.kind == OperatingSystem::Radar;
-						                                   });
-						if (selected == view->systems.end())
-							radar = select_system(view->systems, OperatingSystem::Radar, {}, false).value_or("");
-						const double range = std::max<std::int64_t>(1, model_.system_maximum(radar));
-						const auto sensor = std::find_if(view->systems.begin(), view->systems.end(),
-						                                 [&](const auto &s)
-						                                 {
-							                                 return s.id == radar;
-						                                 });
-						if (sensor != view->systems.end())
-						{
-							Json settings = Json::object();
-							if (const auto *layout = model_.layout())
-								for (const auto &w : layout->at("widgets"))
-									if (w.at("id") == key)
-										settings = w.value("sweep", Json::object());
-							auto &sweep = radar_sweeps_[key];
-							if (!sweep)
-								sweep = std::make_unique<RadarSweep>();
-							sweep->draw(centre, radius * .66f, *sensor, settings, GetTime(), app_->reduced_motion);
-							draw_region_markers(
-							    view->regions,
-							    [&](double x, double y)
-							    {
-								    return Vector2{
-								        centre.x + static_cast<float>((x - view->own.x) / range) * radius * .66f,
-								        centre.y - static_cast<float>((y - view->own.y) / range) * radius * .66f};
-							    },
-							    range / (radius * .66), &*sensor, centre, radius * .66f);
-						}
-						draw_radar_body(radar_textures_, app_->session->catalog(), view->own, centre, 9, WHITE);
-						for (const auto &contact : view->contacts)
-						{
-							if (!std::any_of(view->systems.begin(), view->systems.end(),
-							                 [&](const auto &s)
-							                 {
-								                 return s.id == radar && s.enabled;
-							                 }))
-								continue;
-							if (sensor == view->systems.end() ||
-							    std::find(sensor->contact_ids.begin(), sensor->contact_ids.end(), contact.id) ==
-							        sensor->contact_ids.end())
-								continue;
-							const double dx = contact.x - view->own.x, dy = contact.y - view->own.y;
-							if (std::hypot(dx, dy) > range)
-								continue;
-							const Vector2 point{centre.x + static_cast<float>(dx / range) * radius * .66f,
-							                    centre.y - static_cast<float>(dy / range) * radius * .66f};
-							draw_radar_body(radar_textures_, app_->session->catalog(), contact, point, 7, SKYBLUE);
-						}
-						const auto waypoint = model_.waypoint();
-						if (waypoint.value("active", false))
-						{
-							const double dx = waypoint.value("x", 0.0) - view->own.x,
-							             dy = waypoint.value("y", 0.0) - view->own.y;
-							const double distance = std::hypot(dx, dy), divisor = std::max(range, distance);
-							const Vector2 point{centre.x + static_cast<float>(dx / divisor) * radius * .66f,
-							                    centre.y - static_cast<float>(dy / divisor) * radius * .66f};
-							if (distance <= range)
-								DrawCircleLinesV(point, 8, GOLD);
-							else
+						const auto radar =
+						    select_system(view->systems, OperatingSystem::Radar, model_.widget_system(key), false);
+						for (const auto &sensor : view->systems)
+							if (radar && sensor.id == *radar)
 							{
-								const float ux = static_cast<float>(dx / distance),
-								            uy = static_cast<float>(-dy / distance);
-								DrawLineEx(point, {point.x - ux * 15 - uy * 7, point.y - uy * 15 + ux * 7}, 3, GOLD);
-								DrawLineEx(point, {point.x - ux * 15 + uy * 7, point.y - uy * 15 - ux * 7}, 3, GOLD);
+								Json settings = Json::object();
+								if (const auto *layout = model_.layout())
+									for (const auto &w : layout->at("widgets"))
+										if (w.at("id") == key)
+											settings = w.value("sweep", Json::object());
+								auto &sweep = radar_sweeps_[key];
+								if (!sweep)
+									sweep = std::make_unique<RadarSweep>();
+								draw_radar_plot(radar_textures_, app_->session->catalog(), *view, sensor,
+								                model_.waypoint(), *sweep, settings, centre, radius * .66f, GetTime(),
+								                app_->reduced_motion);
 							}
-						}
 					}
 					image(hud("helm-radar-ring"), {centre.x - radius, centre.y - radius, radius * 2, radius * 2});
 					if (dial_systems_.contains(key))

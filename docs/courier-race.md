@@ -18,7 +18,7 @@ The selected player receives additional permitted Console projections and can sw
 
 The `navigation` widget binds to `ship.navigation` and a Controller's `waypoint` channel. It displays a north-up grid, own ship, objective areas and waypoint. Initial fitting and Reset view include the current ship, published objective areas and active waypoint. Manual pan/zoom suspends automatic fitting until Reset view.
 
-Drag to pan, use the wheel or pinch to zoom, or use the labelled controls. Click/tap to set a waypoint; select its marker or Clear waypoint to remove it. Objective buttons and coordinate inputs provide equivalent non-pointer actions. Map view state is local presentation state.
+Drag to pan, use the wheel or pinch to zoom, or use the labelled controls. Click/tap to set a waypoint; select its marker or Clear waypoint to remove it. Objective buttons and coordinate inputs provide equivalent non-pointer actions. Map view state is local presentation state. **On screen** publishes its live pan/zoom to the ship’s Viewscreen as a read-only overlay; radar has the same toggle. The latest source replaces the previous one, and the displayed source’s next press restores the normal view. See [Viewscreen sharing](viewscreen-sharing.md).
 
 The waypoint channel is a consumer-free setting with a boolean value and two integer millimetre arguments. Each ship has at most one such channel. Accepted intent is published as `phoenix.waypoint` with coordinates, validity, revision and arrival state. `arrival_radius_mm` defaults to 5000 and is authored on the channel. Physical entry marks that revision reached without removing the marker. Helm draws an in-range blip or an edge arrow and exposes distance/bearing text.
 

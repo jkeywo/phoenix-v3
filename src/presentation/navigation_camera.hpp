@@ -7,7 +7,7 @@ struct NavigationCamera
 {
 	double x = 0, y = 0, scale = 1000;
 	bool automatic = true;
-	void fit(double left, double bottom, double right, double top, double width, double height)
+	inline void fit(double left, double bottom, double right, double top, double width, double height)
 	{
 		if (!automatic)
 			return;
@@ -18,13 +18,13 @@ struct NavigationCamera
 		                       1.25,
 		                   1.0, 10000000.0);
 	}
-	void pan(double dx, double dy)
+	inline void pan(double dx, double dy)
 	{
 		automatic = false;
 		x -= dx * scale;
 		y += dy * scale;
 	}
-	void zoom(double factor, double px = 0, double py = 0)
+	inline void zoom(double factor, double px = 0, double py = 0)
 	{
 		automatic = false;
 		const auto old = scale;
