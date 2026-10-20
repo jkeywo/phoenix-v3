@@ -700,7 +700,7 @@ bool GameplayKnowledge::stale(const KnowledgeRecord &record, KnowledgeTick now) 
 {
 	return runtime_.stale(record, now);
 }
-GameplayKnowledgeProjection GameplayKnowledge::project(const ConsoleAddress &address) const
+GameplayKnowledgeProjection GameplayKnowledge::project(const ConsoleAddress &address, bool public_only) const
 {
 	const auto id = console_id(address);
 	auto shared = runtime_.read_ship(id);
@@ -714,12 +714,13 @@ GameplayKnowledgeProjection GameplayKnowledge::project(const ConsoleAddress &add
 		              return record.id != camera &&
 		                     compiled_.schemas.at(record.value.schema - 1).name == "phoenix.camera";
 	              });
-	return {id, runtime_.read_console(id), std::move(shared), runtime_.message_history(id),
-	        notifications_.contains(id) ? notifications_.at(id) : std::vector<CoordinationDelivery>{}};
+	return {id, public_only ? std::vector<KnowledgeRecord>{} : runtime_.read_console(id), std::move(shared),
+	        runtime_.message_history(id),
+	        !public_only && notifications_.contains(id) ? notifications_.at(id) : std::vector<CoordinationDelivery>{}};
 }
-Json GameplayKnowledge::project_json(const ConsoleAddress &address) const
+Json GameplayKnowledge::project_json(const ConsoleAddress &address, bool public_only) const
 {
-	const auto projection = project(address);
+	const auto projection = project(address, public_only);
 	Json result{{"console", address.console}, {"ship", address.ship},      {"records", Json::array()},
 	            {"shared", Json::array()},    {"messages", Json::array()}, {"notifications", Json::array()}};
 	for (const auto &record : projection.records)
@@ -728,6 +729,8 @@ Json GameplayKnowledge::project_json(const ConsoleAddress &address) const
 		result["shared"].push_back(knowledge_record_json(compiled_, record));
 	for (const auto &delivery : projection.messages)
 	{
+		if (public_only && !delivery.public_copy)
+			continue;
 		const auto &message = delivery.message;
 		const auto &p = message.value.presentation;
 		const auto &actors = ships_.at(address.ship).controllers;
@@ -778,7 +781,10 @@ Json GameplayKnowledge::public_board(EntityId entity) const
 	std::map<KnowledgeId, Json> records, messages;
 	for (const auto &[name, id] : ships_.at(entity).consoles)
 	{
-		const auto projection = project_json({entity, name});
+		// The board only consumes shared records and public message copies.
+		// Private console telemetry histories can be large; do not copy and
+		// serialize them just to discard them below.
+		const auto projection = project_json({entity, name}, true);
 		for (const auto &record : projection.at("shared"))
 			records.emplace(record.at("id").get<KnowledgeId>(), record);
 		for (auto message : projection.at("messages"))

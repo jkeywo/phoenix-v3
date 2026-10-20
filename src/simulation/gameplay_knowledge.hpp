@@ -80,8 +80,8 @@ public:
 	                   KnowledgeTick debounce, KnowledgeTick recovery_hysteresis, KnowledgeTick minimum_gap = 0,
 	                   bool report_initial = true);
 	bool stale(const KnowledgeRecord &record, KnowledgeTick now) const;
-	GameplayKnowledgeProjection project(const ConsoleAddress &address) const;
-	Json project_json(const ConsoleAddress &address) const;
+	GameplayKnowledgeProjection project(const ConsoleAddress &address, bool public_only = false) const;
+	Json project_json(const ConsoleAddress &address, bool public_only = false) const;
 	Json public_board(EntityId entity) const;
 	Json save() const;
 	// Call configure first. Rebuilds named identities, verifies authored ownership,

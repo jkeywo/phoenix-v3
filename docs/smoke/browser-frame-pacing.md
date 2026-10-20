@@ -46,3 +46,13 @@ With only that cache change added to the diagnostic build, the Cruiser lobby mea
 Validation: all three WASM application targets rebuilt; the native synthetic lobby integration case passed against a private signalling fixture (42.6 seconds, no skips). The regression extension reloads the same ship ID with changed profile choices/default, checks the fresh projection, changes the selected profile, and rejects the removed profile. Existing admission, readiness, deterministic AI slots and launch checks also passed. Changed C++ formatting and diff whitespace checks passed. No production ship tuning or wall-clock performance threshold was added to CI.
 
 These fixes remain local until published; the observed deployed session was not modified. Actual desktop/mobile Chrome retesting after deployment remains necessary.
+
+## Follow-up: sustained Cruiser flight
+
+Longer observation after the lobby fix exposed a second cost. The stationary Cruiser Viewscreen settled at 16.3 FPS as telemetry history filled: approximately 57.6 ms drawing, including 18.9 ms in the semantics/public-board stage, and 3.3 ms polling/ticking. Closing the deployed test tab did not remove that cost.
+
+`GameplayKnowledge::public_board()` built each Console's full JSON projection before selecting shared records and public messages. This unnecessarily copied and serialized private telemetry histories and notifications on every public-board request. Public-board projection now omits those private sections and skips private message serialization. Normal Console projection, shared camera selection, message deduplication, public read-only flags and history bounds retain their existing behavior.
+
+Existing synthetic gameplay knowledge, Controller runtime and camera integration executables passed, including publication privacy, public-message deduplication/actionability, unclaimed Viewscreen access, restore and camera projection checks. All three WASM role targets built successfully (only the server required relinking for this simulation-only change).
+
+The rebuilt Cruiser completed Ready/countdown and remained at approximately 120 FPS through tick 1161 (about 58 seconds of simulation). The final five-second sample had 10.6 ms p95 frame interval, 0.98 ms mean drawing, 0.23 ms semantics/public-board work and 1.59 ms polling/ticking. This is the same stationary, empty Free Flight Viewscreen at 1280 × 720; it does not establish combat or occupied-console performance. The one-time launch stall remains separate from these steady-state results.
