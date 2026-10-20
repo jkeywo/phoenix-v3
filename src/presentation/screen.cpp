@@ -572,7 +572,13 @@ void open_window()
 	server_music = std::make_unique<ServerMusic>();
 	SetConfigFlags(FLAG_WINDOW_RESIZABLE);
 	InitWindow(1280, 720, "Phoenix V3");
+#ifdef __EMSCRIPTEN__
+	// requestAnimationFrame owns browser pacing. raylib's limiter otherwise
+	// busy-waits on the main thread before the browser can present the frame.
+	SetTargetFPS(0);
+#else
 	SetTargetFPS(60);
+#endif
 	SetExitKey(KEY_NULL);
 	install_native_accessibility(GetWindowHandle());
 	open_devices(GetWindowHandle());

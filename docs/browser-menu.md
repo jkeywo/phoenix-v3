@@ -39,3 +39,11 @@ Settings persist separate Master, Music and SFX levels, installed English, pseud
 Build native content tooling/training first, then web. `scripts/build.ps1 -Target web` copies both verified native ZIPs/catalogues when available. CMake packages the HTML/CSS/module and standalone menu assets; Pages stages them alongside the three role bundles. `scripts/check.ps1` runs synthetic routing/preview checks with the native/WASM and real-transport gates. See [graphical evidence](smoke/browser-menu.md).
 
 Click the profile TV to set a name and choose from twelve crew portraits. A fresh profile picks a random portrait and uses `<username>` as the name placeholder. Join forms reuse the saved profile. Mod packs use inline checkbox, name, reorder and removal controls.
+
+## Browser frame diagnostics
+
+The browser's animation loop owns WASM frame pacing; raylib's native frame limiter is disabled on web builds so it cannot sleep/busy-wait on the browser main thread.
+
+For a manually triggered performance capture, enter the lobby, append `&perf=1` to its runtime URL and reload. After five seconds, an overlay shows measured FPS, frame-interval p95, average poll/tick, draw and end-of-frame times, framebuffer dimensions and page visibility. The browser console also records `Phoenix frame profile` JSON every five seconds, including the maximum frame interval and presentation-stage averages. Remove the parameter and reload to disable it. The flag applies to direct runtime URLs; ordinary HTML menu navigation reconstructs the launch URL.
+
+These are CPU wall-clock measurements. Frame intervals include browser scheduling; GPU time is not measured separately. Record the deployed `revision.txt`, browser/device, scenario, viewport and whether the page was visible alongside the capture. Compare steady-state samples after asset loading. A good result on one browser does not establish performance on another device.

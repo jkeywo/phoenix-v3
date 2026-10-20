@@ -22,6 +22,7 @@ import phoenix.network.lobby.protocol;
 #if defined(PHOENIX_WORKSHOP) || defined(PHOENIX_SERVER)
 import phoenix.tools;
 #endif
+#include "browser_performance.hpp"
 
 phoenix::Application app;
 // Browser storage and page navigation belong to the shell; sessions remain in C++.
@@ -31,6 +32,8 @@ EM_JS(void, return_to_menu, (), { Module.phoenixReturnToMenu?.(); });
 // clang-format on
 void frame()
 {
+	static BrowserFrameProfile profile;
+	const double started = GetTime();
 	static double last_persist = 0;
 	if (GetTime() - last_persist > 1)
 	{
@@ -51,6 +54,9 @@ void frame()
 		accumulated -= 1.0 / 20;
 	}
 #endif
+	const double polled = GetTime();
+	if (profile.enabled)
+		app.frame_metrics.clear();
 	BeginDrawing();
 	phoenix::draw_screen(app);
 #if defined(PHOENIX_WORKSHOP) || defined(PHOENIX_SERVER)
@@ -58,7 +64,9 @@ void frame()
 	if (app.screen == phoenix::Screen::workshop || app.screen == phoenix::Screen::gm)
 		phoenix::draw_workshop(app);
 #endif
+	const double drawn = GetTime();
 	EndDrawing();
+	profile.record(started, polled, drawn, GetTime(), app);
 }
 int main(int argc, char **argv)
 {
