@@ -18,7 +18,7 @@ The [gameplay phase](docs/gameplay-implementation.md) records the original fitte
 
 The [Workshop](docs/workshop.md) authors maps, entities and Consoles, previews live widgets, and exports verified mod packs with dependencies and explicit overrides. [Network play](docs/network-play.md) supports native/browser fleet members, approved crew and read-only GM inspection, bounded content/projection transfers, and portable recovery. See [MVP status and evidence](docs/mvp-status.md) for completed behavior and the remaining physical-device, reader and public-network acceptance checks.
 
-The native [main menu and pre-game lobby](docs/native-menu.md) provide cascading setup, ship/player/GM join forms, installed pack management, persistent settings and managed saves. Approved crews ready individually before a five-second launch countdown.
+The native [main menu and pre-game lobby](docs/native-menu.md) provide cascading setup, ship/player/GM join forms, installed pack management, persistent settings and managed saves. Join-code invitations admit crews automatically; players claim Consoles and ready individually before a five-second launch countdown.
 
 [Courier Race and Navigation](docs/courier-race.md) adds two playable Couriers, shipwide race objectives, a shared waypoint and a navigation map with pan, zoom and reset. Human-seeking consoles follow available crew, and each ship receives its own race result.
 

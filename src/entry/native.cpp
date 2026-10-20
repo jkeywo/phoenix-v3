@@ -663,7 +663,9 @@ int main(int argc, char **argv)
 		phoenix::draw_screen(app);
 		if (app.screen == phoenix::Screen::workshop || app.screen == phoenix::Screen::gm)
 			phoenix::draw_workshop(app);
-		else if ((app.screen == phoenix::Screen::console || app.screen == phoenix::Screen::viewscreen) && app.gm_region)
+		else if ((app.screen == phoenix::Screen::console || app.screen == phoenix::Screen::viewscreen ||
+		          app.screen == phoenix::Screen::server_lobby) &&
+		         app.gm_region)
 			phoenix::draw_gm_region(app);
 		const auto drawing_finished = GetTime();
 		EndDrawing();

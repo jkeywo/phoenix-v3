@@ -260,9 +260,7 @@ struct NativeMenuSmoke
 							                 return control.first == id;
 						                 }))
 						{
-							action(app, "menu.lobby-tab/consoles");
-							changed = GetTime();
-							return false;
+							throw std::runtime_error("Console screen claim must be visible without a tab");
 						}
 						action(app,
 						       "menu.console-screen/" + lobby.consoles.front().id + "/" + std::to_string(display.id));
