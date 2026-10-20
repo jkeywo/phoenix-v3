@@ -215,17 +215,17 @@ class ConsoleSurface final : public Rml::EventListener
 	std::map<std::string, double> heading_sent_at_;
 	std::map<std::pair<std::string, std::string>, std::int64_t> engineering_probe_requests_;
 	std::map<std::string, std::array<float, 3>> heading_dials_;
-	std::map<std::string, std::array<float, 3>> sharing_dials_;
+	std::map<std::string, Rectangle> sharing_pods_;
 	std::map<std::uint64_t, std::string> sharing_contacts_;
 	bool sharing_hit(const std::string &key, float x, float y) const
 	{
-		const auto found = sharing_dials_.find(key);
-		if (found == sharing_dials_.end())
+		const auto found = sharing_pods_.find(key);
+		if (found == sharing_pods_.end())
 			return false;
-		const auto [cx, cy, r] = found->second;
-		const float dx = x - cx, dy = y - cy, distance = std::hypot(dx, dy);
-		const float angle = std::atan2(dy, dx) * 180 / 3.141592653589793f;
-		return distance >= r * .65f && distance <= r * .78f && angle >= 24 && angle <= 66;
+		const auto &pod = found->second;
+		const float dx = x - pod.x, dy = y - pod.y;
+		return CheckCollisionPointRec({x, y}, pod) &&
+		       std::min(dx, pod.width - dx) + std::min(dy, pod.height - dy) >= 8.f;
 	}
 	std::map<std::string, std::string> dial_systems_;
 	std::string asset_path(const std::string &name) const
@@ -371,14 +371,18 @@ p {display:block;font-size:.85em;margin:4px 0;}
 .settings-cog img {position:absolute;left:4px;top:4px;width:54px;height:54px;pointer-events:none;}
 .helm #toolbar {right:auto;height:64px;}
 .helm #toolbar h1,.helm #connection-status,.helm .radar-widget h2,.helm .heading-widget h2,.helm .heading-widget label,.helm .heading-widget p {display:none;}
+.helm .radar-widget {overflow:visible;}
 .helm .dial {left:0;right:0;top:0;bottom:0;}
 .helm .radar-widget button,.helm .heading-value {opacity:0;}
 .helm .radar-widget button:focus,.helm .heading-value:focus {opacity:1;}
 .helm .radar-widget button.on-screen {opacity:1;position:absolute;bottom:auto;right:auto;min-width:0;z-index:4;}
 .helm .radar-widget button.on-screen,.helm .radar-widget button.on-screen:hover,.helm .radar-widget button.on-screen:focus {background:transparent;border:0px;margin:0;padding:0;min-height:0;border-radius:0px;pointer-events:none;}
 .helm .radar-widget button.on-screen span {display:none;}
-.helm .radar-widget button.on-screen .share-label {display:block;left:0;right:0;top:50%;margin-top:-10px;height:20px;line-height:20px;font-size:13px;text-align:center;transform:rotate(-45deg);color:#161b17;}
-.helm .radar-widget button.on-screen-active .share-label {color:#101b13;}
+.helm .radar-widget button.on-screen .share-label {display:block;left:20px;right:44px;top:9px;height:30px;line-height:30px;font-size:22px;text-align:left;color:#f0dfbf;}
+.helm .radar-widget button.on-screen .share-caption {display:block;left:21px;bottom:10px;font-size:14px;}
+.helm .radar-widget button.on-screen .share-live {display:none;}
+.helm .radar-widget button.on-screen-active .share-live {display:block;}
+.helm .radar-widget button.on-screen-active .share-idle {display:none;}
 
 button.on-screen {position:relative;box-sizing:border-box;width:180px;height:66px;min-height:66px;margin:4px;padding:0;border:3px #535b59;border-top-color:#9b8770;border-left-color:#8c735a;border-bottom-color:#141a1c;border-right-color:#202728;background:#242e30;color:#efdfbd;border-radius:7px;vertical-align:middle;}
 button.on-screen span {pointer-events:none;}
@@ -1003,7 +1007,7 @@ button.on-screen-active .share-live {display:block;}
 			return true;
 		}
 		if (kind == DeviceEventKind::Down)
-			for (const auto &[key, dial] : sharing_dials_)
+			for (const auto &[key, dial] : sharing_pods_)
 				if (sharing_hit(key, x, y))
 				{
 					sharing_contacts_[contact] = key;
@@ -1013,7 +1017,7 @@ button.on-screen-active .share-live {display:block;}
 				}
 		if (kind == DeviceEventKind::Down && model_.layout())
 			for (const auto &w : model_.layout()->at("widgets"))
-				if (w.at("kind") == "radar" && !sharing_dials_.contains(w.at("id").get<std::string>()))
+				if (w.at("kind") == "radar" && !sharing_pods_.contains(w.at("id").get<std::string>()))
 					if (auto *b = document_->GetElementById(id("on-screen/" + w.at("id").get<std::string>())))
 					{
 						const auto at = b->GetAbsoluteOffset(Rml::BoxArea::Border);
@@ -1200,8 +1204,18 @@ button.on-screen-active .share-live {display:block;}
 		const auto at = control->GetAbsoluteOffset(Rml::BoxArea::Border);
 		const float x = at.x + control->GetOffsetWidth() / 2, y = at.y + control->GetOffsetHeight() / 2;
 		// Exercise the same custom-dial interception and RmlUi hit testing as a pointer click.
-		if (sharing_dials_.contains(widget))
+		if (sharing_pods_.contains(widget))
 		{
+			if (heading_dials_.contains(widget))
+			{
+				const auto [cx, cy, radius] = heading_dials_.at(widget);
+				for (int degrees = 0; degrees < 360; ++degrees)
+				{
+					const float angle = degrees * 3.141592653589793f / 180;
+					if (sharing_hit(widget, cx + std::cos(angle) * radius * .97f, cy + std::sin(angle) * radius * .97f))
+						return false;
+				}
+			}
 			if (pointer(999998, at.x + 1, at.y + 1, DeviceEventKind::Down))
 				return false;
 			if (!pointer(999999, x, y, DeviceEventKind::Down) ||
@@ -2191,7 +2205,7 @@ button.on-screen-active .share-live {display:block;}
 					displayed_values_["value/" + key] = value;
 				}
 			}
-		sharing_dials_.clear();
+		sharing_pods_.clear();
 		if (helm && !pregame && layout)
 			for (const auto &w : layout->at("widgets"))
 				if (w.at("kind") == "radar")
@@ -2205,11 +2219,12 @@ button.on-screen-active .share-live {display:block;}
 					const auto parent = widget_offset(key);
 					const float r = std::min(dial->GetOffsetWidth(), dial->GetOffsetHeight()) * .5f;
 					const float cx = at.x + dial->GetOffsetWidth() / 2, cy = at.y + dial->GetOffsetHeight() / 2;
-					sharing_dials_[key] = {cx, cy, r};
-					property(control, "left", std::to_string(cx - parent.x + r * .265f) + "px");
-					property(control, "top", std::to_string(cy - parent.y + r * .265f) + "px");
-					property(control, "width", std::to_string(r * .45f) + "px");
-					property(control, "height", std::to_string(r * .45f) + "px");
+					const Rectangle pod{cx + r * .34f, cy + r * 1.02f, std::clamp(r * .70f, 196.f, 240.f), 76.f};
+					sharing_pods_[key] = pod;
+					property(control, "left", std::to_string(pod.x - parent.x) + "px");
+					property(control, "top", std::to_string(pod.y - parent.y) + "px");
+					property(control, "width", std::to_string(pod.width) + "px");
+					property(control, "height", std::to_string(pod.height) + "px");
 				}
 		{
 			const auto update_started = GetTime();
@@ -2372,27 +2387,65 @@ button.on-screen-active .share-live {display:block;}
 								                app_->reduced_motion);
 							}
 					}
+					if (sharing_pods_.contains(key))
+					{
+						auto pod = sharing_pods_.at(key);
+						pod.x += ox;
+						pod.y += oy;
+						// Two mounting arms join the external pod to the casing, with their roots tucked behind its outer rim.
+						for (const auto &[angle, end_x] : std::array<std::pair<float, float>, 2>{
+						         {{65.f, pod.x + 25}, {48.f, pod.x + pod.width - 25}}})
+						{
+							const float radians = angle * 3.141592653589793f / 180;
+							const Vector2 start{centre.x + std::cos(radians) * radius * .90f,
+							                    centre.y + std::sin(radians) * radius * .90f};
+							const Vector2 end{end_x, pod.y + 9};
+							DrawLineEx(start, end, 18, {7, 9, 9, 255});
+							DrawLineEx(start, end, 12, {116, 111, 96, 255});
+							DrawLineEx(start, end, 5, {207, 192, 158, 255});
+						}
+					}
 					image(hud("helm-radar-ring"), {centre.x - radius, centre.y - radius, radius * 2, radius * 2});
-					if (sharing_dials_.contains(key))
+					if (sharing_pods_.contains(key))
 					{
 						const bool active = model_.is_on_screen(key);
 						const bool focused =
 						    context_->GetFocusElement() == document_->GetElementById(id("on-screen/" + key));
-						// An inset sector replaces this part of the ivory trim; it adds no external housing.
-						DrawRing(centre, radius * .665f, radius * .735f, 25, 65, 32, {217, 205, 176, 255});
-						DrawRingLines(centre, radius * .665f, radius * .735f, 25, 65, 32,
-						              focused ? Color{235, 144, 50, 255} : Color{38, 36, 29, 255});
-						DrawRing(centre, radius * .666f, radius * .671f, 26, 64, 32, {244, 231, 203, 255});
-						constexpr float lamp_angle = 61.f * 3.141592653589793f / 180;
-						const Vector2 lamp{centre.x + std::cos(lamp_angle) * radius * .705f,
-						                   centre.y + std::sin(lamp_angle) * radius * .705f};
-						const float lens = std::clamp(radius * .018f, 4.f, 7.f);
-						DrawCircleV(lamp, lens + 3, {8, 11, 9, 255});
-						DrawCircleLinesV(lamp, lens + 3, {159, 146, 113, 255});
-						DrawCircleV(lamp, lens, active ? Color{107, 252, 130, 255} : Color{42, 65, 43, 255});
+						auto pod = sharing_pods_.at(key);
+						pod.x += ox;
+						pod.y += oy;
+						const auto plate = [](Rectangle box, float cut, Color colour)
+						{
+							const std::array<Vector2, 8> corners{{{box.x + cut, box.y},
+							                                      {box.x + box.width - cut, box.y},
+							                                      {box.x + box.width, box.y + cut},
+							                                      {box.x + box.width, box.y + box.height - cut},
+							                                      {box.x + box.width - cut, box.y + box.height},
+							                                      {box.x + cut, box.y + box.height},
+							                                      {box.x, box.y + box.height - cut},
+							                                      {box.x, box.y + cut}}};
+							const Vector2 middle{box.x + box.width / 2, box.y + box.height / 2};
+							for (std::size_t i = 0; i < corners.size(); ++i)
+								DrawTriangle(middle, corners[(i + 1) % corners.size()], corners[i], colour);
+						};
+						plate({pod.x + 3, pod.y + 5, pod.width, pod.height}, 10, {4, 7, 8, 255});
+						plate(pod, 8, focused ? Color{239, 153, 65, 255} : Color{191, 178, 148, 255});
+						plate({pod.x + 3, pod.y + 3, pod.width - 6, pod.height - 6}, 7, {62, 64, 59, 255});
+						plate({pod.x + 7, pod.y + 7, pod.width - 14, pod.height - 14}, 5, {17, 25, 26, 255});
+						DrawRectangleRec({pod.x + 3, pod.y + 15, 4, pod.height - 30}, {213, 93, 24, 255});
+						DrawRectangleRec({pod.x + pod.width - 7, pod.y + 15, 4, pod.height - 30}, {213, 93, 24, 255});
+						for (const auto screw : std::array<Vector2, 2>{
+						         {{pod.x + 13, pod.y + 6}, {pod.x + pod.width - 13, pod.y + pod.height - 6}}})
+						{
+							DrawCircleV(screw, 3, {10, 13, 13, 255});
+							DrawLineEx({screw.x - 2, screw.y}, {screw.x + 2, screw.y}, 1, {160, 153, 131, 255});
+						}
+						const Vector2 lamp{pod.x + pod.width - 26, pod.y + pod.height / 2};
+						DrawCircleV(lamp, 12, {7, 12, 10, 255});
+						DrawCircleLinesV(lamp, 12, {133, 131, 109, 255});
+						DrawCircleV(lamp, 8, active ? Color{107, 252, 130, 255} : Color{42, 65, 43, 255});
 						if (active)
-							DrawCircleV({lamp.x - lens * .25f, lamp.y - lens * .25f}, lens * .25f,
-							            {220, 255, 221, 255});
+							DrawCircleV({lamp.x - 2, lamp.y - 2}, 2, {220, 255, 221, 255});
 					}
 					if (!model_.manual_active() && dial_systems_.contains(key))
 					{
