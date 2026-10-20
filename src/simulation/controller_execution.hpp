@@ -412,7 +412,8 @@ bool commit_controller(const ControllerProposal &proposal)
 {
 	if (!entities.contains(proposal.address.entity))
 		return false;
-	auto &controls = entities.at(proposal.address.entity).get_mut<EntityControls>();
+	auto entity = entities.at(proposal.address.entity);
+	auto &controls = entity.get_mut<EntityControls>();
 	if (proposal.controller >= controls.controllers.size())
 		return false;
 	auto &controller = controls.controllers[proposal.controller];
@@ -435,7 +436,21 @@ bool commit_controller(const ControllerProposal &proposal)
 			return proposal.value == state.value && proposal.arguments == state.arguments;
 	}
 	else if (state.value == proposal.value && state.arguments == proposal.arguments && state.accepted)
-		return true;
+	{
+		// Navigation can change assistance as a physical side effect. Reasserting
+		// the owned mode setting must still take control back from that guidance.
+		bool same_effect = true;
+		if (spec.action == OperatingAction::Assisted)
+			for (const auto consumer : spec.consumers)
+			{
+				const auto child = entity.get<EquipmentIndex>().values.at(consumer);
+				if (const auto *flight = child.try_get<FlightRuntime>();
+				    flight && flight->state.assisted != (proposal.value != 0))
+					same_effect = false;
+			}
+		if (same_effect)
+			return true;
+	}
 	if (state.revision == std::numeric_limits<std::uint64_t>::max())
 		throw std::runtime_error("Controller command revision exhausted");
 	state.value = proposal.value;

@@ -84,6 +84,49 @@ std::optional<PointerInput> InputRouter::pointer_up(std::uint64_t contact, float
 {
 	return pointer(contact, x, y, true);
 }
+void ManualFlightInput::sample(const std::string &source, FlightAxes axes)
+{
+	axes.yaw = std::clamp(axes.yaw, -1000, 1000);
+	axes.thrust = std::clamp(axes.thrust, -1000, 1000);
+	auto &state = sources_[source];
+	state.axes = axes;
+	if (axes == FlightAxes{})
+	{
+		state.blocked = false;
+		if (owner_ == source)
+		{
+			owner_.clear();
+			axes_ = {};
+		}
+		return;
+	}
+	if (state.blocked)
+		return;
+	if (!owner_.empty() && owner_ != source)
+	{
+		state.blocked = true;
+		return;
+	}
+	owner_ = source;
+	axes_ = axes;
+}
+void ManualFlightInput::cancel_source(const std::string &source)
+{
+	auto &state = sources_[source];
+	state.blocked = state.axes != FlightAxes{};
+	if (owner_ == source)
+	{
+		owner_.clear();
+		axes_ = {};
+	}
+}
+void ManualFlightInput::cancel()
+{
+	for (auto &[name, source] : sources_)
+		source.blocked = source.axes != FlightAxes{};
+	owner_.clear();
+	axes_ = {};
+}
 void InputRouter::neutralise(const std::string &device)
 {
 	auto assigned = gamepads_.find(device);
@@ -91,7 +134,7 @@ void InputRouter::neutralise(const std::string &device)
 		return;
 	for (const auto &[control, value] : held_[device])
 		if (value != 0)
-			pending_.push_back({assigned->second, control, 0});
+			pending_.push_back({assigned->second, control, 0, device, true});
 	held_.erase(device);
 }
 void InputRouter::assign_gamepad(const std::string &device, std::optional<ConsoleId> console)
@@ -102,6 +145,8 @@ void InputRouter::assign_gamepad(const std::string &device, std::optional<Consol
 	if (old != gamepads_.end() && console && old->second == *console)
 		return;
 	neutralise(device);
+	flight_start_.erase(device);
+	flight_ready_.erase(device);
 	if (console)
 		gamepads_[device] = *console;
 	else
@@ -113,12 +158,25 @@ void InputRouter::gamepad(const std::string &device, const std::string &control,
 	if (found == gamepads_.end() || !std::isfinite(value))
 		return;
 	value = std::clamp(value, -1.0f, 1.0f);
-	if (std::abs(value) < 0.15f)
+	if ((control == "flight.yaw" || control == "flight.thrust") && !flight_ready_[device])
+	{
+		auto &start = flight_start_[device];
+		start[control] = value;
+		if (start.size() < 2 || std::abs(start["flight.yaw"]) > .15f || std::abs(start["flight.thrust"]) > .15f)
+			return;
+		flight_ready_[device] = true;
+		pending_.push_back({found->second, "flight.yaw", 0, device});
+		pending_.push_back({found->second, "flight.thrust", 0, device});
+	}
+
+	if (control == "flight.yaw" || control == "flight.thrust")
+		value = std::abs(value) <= .15f ? 0.f : std::copysign((std::abs(value) - .15f) / .85f, value);
+	else if (std::abs(value) < .15f)
 		value = 0;
 	if (held_[device][control] == value)
 		return;
 	held_[device][control] = value;
-	pending_.push_back({found->second, control, value});
+	pending_.push_back({found->second, control, value, device});
 }
 void InputRouter::disconnect_gamepad(const std::string &device)
 {

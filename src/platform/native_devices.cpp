@@ -236,8 +236,12 @@ std::vector<DeviceEvent> poll_devices()
 		pending.push_back({kind, static_cast<std::uint64_t>(finger.fingerID), finger.x * width, finger.y * height});
 	}
 #endif
-	auto result = std::move(pending);
-	pending.clear();
-	return result;
-}
-} // namespace phoenix
+	// Sample each frame so assignment/focus recovery can require a real centred stick.
+	for (const auto &[id, pad] : pads)
+		for (const auto axis : {SDL_GAMEPAD_AXIS_LEFTX, SDL_GAMEPAD_AXIS_LEFTY})
+		{
+			const auto raw = SDL_GetGamepadAxis(pad, axis);
+			const float value = raw < 0 ? raw / 32768.f : raw / 32767.f;
+			pending.push_back({DeviceEventKind::Gamepad, 0, 0, 0, std::to_string(id),
+			                   axis == SDL_GAMEPAD_AXIS_LEFTX ? "flight.yaw" : "flight.thrust", -value});
+		}

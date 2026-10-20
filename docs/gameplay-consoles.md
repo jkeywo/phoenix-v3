@@ -110,3 +110,17 @@ Helm's radar also includes one **Manual** toggle on its lower-left rim. Green/ro
 ## Shared camera widgets
 
 `camera_mode` and `camera_direction` widgets change the shared ship camera through exact projected commands and the normal Console admission path. Their bindings are `ship.camera.mode` and `ship.camera.direction`; neither requires a physical System or Controller channel. Their selection follows the accepted `phoenix.camera` ship-blackboard record. Workshop supports placement and isolated preview on any Console, and shipped Helm layouts include both. See [camera behavior, input and persistence](ship-camera.md).
+
+## Manual Helm control
+
+Helm offers an **Assisted flight / Manual flight** toggle when its authored speed and heading widgets bind human-owned inertial flight Controllers with compatible manual axes. The Courier's movement console uses the same control. Assisted flight remains the default. The mode only displays Manual after both propulsion and steering mode commands have been consumed and accepted.
+
+Manual flight uses **W/S** for forward/reverse thrust and **A/D** for left/right yaw. The explicitly selected Console receives keyboard input; text entry and settings suspend it. The assigned gamepad's left stick and the on-screen spring-centred joystick use horizontal yaw and vertical forward/reverse thrust. Each gamepad axis has a 15% dead zone, rescaled over the remaining travel. Both axes can reach full effort simultaneously. Reverse follows fitted engine capability.
+
+Hold input to actuate; release to coast. Turning changes attitude without rotating existing velocity. Existing power, thermal, damage and propulsion limits apply. Returning to assistance captures current forward speed and attitude. Entering manual clears active navigation through the existing flight mode path. Lateral fittings retain their existing controls.
+
+One input source owns manual flight until neutral. Changed axis pairs are submitted at most once per simulation tick, with immediate neutral releases. Another held source must return to neutral before taking over. Focus loss, settings, pointer cancellation, reassignment, device removal and authority changes release held input. Gamepads must centre both axes after assignment or focus recovery. Keyboard input must be released before resuming after an interruption. Held controls are transient and are never restored from UI state.
+
+The toggle, mode and axis readout share native/browser semantics. Labelled yaw/thrust pulse buttons provide discrete keyboard and screen-reader actions; each pulse releases after the next simulation tick. **Release flight controls** clears current held input. UI requests use the normal Console admission path and its current Controller generation; no presentation control writes physical state directly.
+
+See [manual Helm verification](smoke/manual-helm.md) for automated checks and separately invoked graphical/device evidence.

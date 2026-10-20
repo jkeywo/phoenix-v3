@@ -111,6 +111,7 @@ void draw_radar_body(TextureCache &textures, const Catalog &catalog, const BodyV
                      Color colour);
 bool probe_menu_keyboard(Application &app);
 bool probe_console_helm(Application &app, ConsoleId route, bool verify = false);
+bool probe_console_manual(ConsoleId route, unsigned stage);
 bool probe_console_report(ConsoleId route);
 bool probe_console_readouts(ConsoleId route);
 bool probe_console_engineering(ConsoleId route, unsigned stage);

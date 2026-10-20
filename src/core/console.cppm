@@ -22,6 +22,10 @@ public:
 	void reset();
 	bool act(const std::string &action);
 	bool command(const std::string &action, std::int64_t value, const std::string &system = {});
+	bool manual_available() const;
+	bool manual_active() const;
+	bool set_manual(bool enabled);
+	bool set_manual_axes(int yaw, int thrust);
 	bool hold_control(const std::string &action);
 	bool release_control(const std::string &action);
 	void release_controls();
@@ -70,6 +74,7 @@ private:
 	std::vector<std::pair<std::string, std::string>> available_consoles_;
 	const Json *controller_section(const std::string &binding) const;
 	const Json *controller_channel(const std::string &binding) const;
+	std::string manual_binding(const std::string &action, const std::string &widget_action) const;
 	std::string default_binding(const std::string &action) const;
 	bool submit(OperatingCommand command);
 	std::weak_ptr<SessionPort> owner_;

@@ -1112,6 +1112,83 @@ void equipment_ordering_and_recovery()
 	require(refused && resumed.save() == live,
 	        "runtime normalization must not admit formerly unsupported legacy delegation state on restore");
 }
+void manual_console_controls()
+{
+	auto source = explicit_fixture(fixture());
+	auto console = source["consoles"][0];
+	console["id"] = "test.manual-console";
+	source["consoles"].push_back(console);
+	source["entities"][0]["stations"][0]["consoles"][0]["definition"] = "test.manual-console";
+	for (const auto &[kind, action, consumer, binding] :
+	     std::vector<std::array<std::string, 4>>{{"throttle", "speed_mm_s", "drive", "engine.desired_speed"},
+	                                             {"heading", "heading_mdeg", "turn", "steering.desired_heading"}})
+		for (const auto &controller : source["entities"][0]["control_layout"]["controllers"])
+			for (const auto &channel : controller["commands"])
+				if (channel["action"] == action && channel["consumers"] == Json::array({consumer}))
+					source["consoles"][1]["widgets"].push_back({{"id", kind},
+					                                            {"kind", kind},
+					                                            {"binding", binding},
+					                                            {"label", kind},
+					                                            {"x", 0},
+					                                            {"y", 0},
+					                                            {"width", 200},
+					                                            {"height", 200},
+					                                            {"controller", controller["id"]},
+					                                            {"channel", channel["id"]}});
+	auto session = make_local_session();
+	session->add_pack(archive(source));
+	session->start({"test.map", {{"test.slot", "test.ship"}}, "test.slot", "helm"});
+	ConsoleModel model;
+	model.refresh(session);
+	require(model.manual_available() && !model.manual_active(),
+	        "bound Helm exposes combined manual mode with assistance as default");
+	require(!model.set_manual_axes(500, 500), "axes are refused until both mode channels confirm manual operation");
+	require(model.set_manual(true) && !model.manual_active(),
+	        "requesting manual must not optimistically display confirmation");
+	session->tick();
+	model.refresh(session);
+	require(model.manual_active() && model.set_manual_axes(375, 625),
+	        "arbitrary proportional signed axes use owned Controller channels");
+	session->tick();
+	model.refresh(session);
+	require(system(*model.observation(), "drive").telemetry.at("longitudinal_thrust") == 625 &&
+	            system(*model.observation(), "turn").telemetry.at("manual_steering") == 375,
+	        "different engine and steering Controllers receive the same manual input sample");
+	model.release_controls();
+	session->tick();
+	model.refresh(session);
+	require(system(*model.observation(), "drive").telemetry.at("actual_longitudinal") == 0 &&
+	            model.observation()->own.vx > 0,
+	        "manual release removes actuation while retaining paid momentum");
+	require(model.act(control_id(model, "destination", 1)), "authorised navigation can explicitly resume assistance");
+	session->tick();
+	model.refresh(session);
+	require(!model.manual_active(),
+	        "the mode indicator must follow physical assistance when another navigation command resumes it");
+	require(model.set_manual(true), "manual can take over from active navigation");
+	session->tick();
+	model.refresh(session);
+	require(model.manual_active() && system(*model.observation(), "drive").telemetry.at("navigating") == 0,
+	        "manual takeover cancels existing navigation through the real physical path");
+	require(model.set_manual_axes(-500, -700), "manual yaw and reverse thrust both accept negative effort");
+	session->tick();
+	model.refresh(session);
+	require(model.set_manual(false), "returning to assistance uses normal admitted mode requests");
+	session->tick();
+	model.refresh(session);
+	require(!model.manual_active() && system(*model.observation(), "drive").telemetry.at("longitudinal_thrust") == 0,
+	        "assistance clears manual axes");
+	require(model.set_manual(true), "manual can be selected again");
+	session->tick();
+	model.refresh(session);
+	require(model.set_manual_axes(500, 500), "held axes can precede handover");
+	require(model.act(control_id(model, "away", 1)), "handover uses the ordinary Console authority path");
+	session->tick();
+	model.refresh(session);
+	require(!model.manual_available() && !model.set_manual_axes(500, 500),
+	        "manual input cannot bypass delegated Controller ownership");
+	model.release_controls();
+}
 void semantic_controls()
 {
 	auto source = fixture();
@@ -1226,6 +1303,7 @@ int main()
 		disabled_cooling();
 		invalid_controller_actions();
 		equipment_ordering_and_recovery();
+		manual_console_controls();
 		semantic_controls();
 		std::cout << "Paid flight integration passed: control, resources, impulse, observed matching and semantics\n";
 		return 0;

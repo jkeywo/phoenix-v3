@@ -553,6 +553,10 @@ bool probe_console_helm(Application &, ConsoleId route, bool verify)
 {
 	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_helm(verify);
 }
+bool probe_console_manual(ConsoleId route, unsigned stage)
+{
+	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_manual(stage);
+}
 bool probe_console_report(ConsoleId route)
 {
 	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_report();
@@ -1016,9 +1020,19 @@ void draw_screen(Application &app)
 		}
 	}
 	for (const auto &event : input.drain_gamepad_inputs())
-		if (console_mode && event.value > 0 && console_surfaces.contains(event.console))
-			console_surfaces.at(event.console)
-			    ->action("console/" + std::to_string(event.console) + "/" + event.control);
+		if (console_mode && console_surfaces.contains(event.console))
+		{
+			auto &surface = *console_surfaces.at(event.console);
+			if (event.control == "flight.yaw" || event.control == "flight.thrust")
+			{
+				if (event.cancelled)
+					surface.cancel_gamepad(event.device);
+				else
+					surface.gamepad(event.device, event.control, event.value);
+			}
+			else if (event.value > 0)
+				surface.action("console/" + std::to_string(event.console) + "/" + event.control);
+		}
 	if (app.screen == Screen::workshop || app.screen == Screen::gm)
 	{
 		publish_semantics(app);
@@ -1102,6 +1116,11 @@ void draw_screen(Application &app)
 		for (int character; (character = GetCharPressed()) != 0;)
 			if (keyboard && keyboard_context)
 				keyboard_context->ProcessTextInput(static_cast<Rml::Character>(character));
+	for (auto &[route, surface] : console_surfaces)
+		surface->manual_frame(
+		    console_mode && keyboard && input.keyboard_console() == route,
+		    {(IsKeyDown(KEY_A) - IsKeyDown(KEY_D)) * 1000, (IsKeyDown(KEY_W) - IsKeyDown(KEY_S)) * 1000},
+		    window_focused() && console_mode && !tool_keyboard);
 	if (console_mode)
 	{
 		const auto scene_started = GetTime();

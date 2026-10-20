@@ -9,6 +9,7 @@ module;
 #include <sstream>
 #include <string>
 #include <utility>
+#include <tuple>
 #include <vector>
 #include <nlohmann/json.hpp>
 
@@ -517,6 +518,9 @@ bool ConsoleModel::act(const std::string &id)
 		               console_string(*selected, "system"));
 	}
 	const auto control = id.substr(0, id.find('/'));
+	if (manual_active() &&
+	    (control == "game.faster" || control == "game.slower" || control == "game.left" || control == "game.right"))
+		return false;
 	if (control == "game.contacts")
 	{
 		if (!(observation_->feeds & system_bit(OperatingSystem::Radar)))
@@ -745,6 +749,113 @@ bool ConsoleModel::command(const std::string &action, std::int64_t value, const 
 	refresh(session, route_);
 	return observation_ && submit({observation_->own.id, action, value, system});
 }
+// Resolve sibling commands by their physical consumers, never by channel names.
+std::string ConsoleModel::manual_binding(const std::string &action, const std::string &widget_action) const
+{
+	const auto anchor = default_binding(widget_action);
+	const auto section = controller_section(anchor), channel = controller_channel(anchor);
+	if (!section || !channel || !section->value("human", false))
+		return {};
+	std::string result;
+	for (auto it = section->at("commands").begin(); it != section->at("commands").end(); ++it)
+		if (it.value().value("action", "") == action && it.value().value("semantics", "") == "setting")
+		{
+			bool overlaps = false;
+			for (const auto &consumer : channel->at("consumers"))
+				for (const auto &target : it.value().at("consumers"))
+					overlaps |= consumer == target;
+			if (!overlaps)
+				continue;
+			if (!result.empty())
+				return {};
+			result = anchor.substr(0, anchor.find('/', 11) + 1) + it.key();
+		}
+	return result;
+}
+bool ConsoleModel::manual_available() const
+{
+	return !manual_binding("longitudinal_thrust", "speed_mm_s").empty() &&
+	       !manual_binding("manual_steering", "heading_mdeg").empty() &&
+	       !manual_binding("assisted", "speed_mm_s").empty() && !manual_binding("assisted", "heading_mdeg").empty();
+}
+bool ConsoleModel::manual_active() const
+{
+	if (!manual_available())
+		return false;
+	for (const auto *anchor : {"speed_mm_s", "heading_mdeg"})
+	{
+		const auto channel = controller_channel(manual_binding("assisted", anchor));
+		if (!channel || channel->value("value", 1) || channel->value("pending", true) ||
+		    !channel->value("accepted", false))
+			return false;
+		// Navigation requests can re-enable physical assistance without rewriting the mode channel.
+		for (const auto &consumer : channel->at("consumers"))
+			for (const auto &system : observation_->systems)
+				if (system.id == consumer.get<std::string>() && system.telemetry.contains("assisted") &&
+				    system.telemetry.at("assisted"))
+					return false;
+	}
+	return true;
+}
+bool ConsoleModel::set_manual(bool enabled)
+{
+	auto session = owner_.lock();
+	if (!session)
+		return false;
+	refresh(session, route_);
+	if (!manual_available())
+	{
+		announcement_ = localise("Manual flight control unavailable");
+		return false;
+	}
+	release_controls();
+	std::vector<std::string> sent;
+	for (const auto *anchor : {"speed_mm_s", "heading_mdeg"})
+	{
+		const auto binding = manual_binding("assisted", anchor);
+		if (std::find(sent.begin(), sent.end(), binding) != sent.end())
+			continue;
+		if (!command("assisted", enabled ? 0 : 1, binding))
+		{
+			for (const auto &previous : sent)
+				command("assisted", 1, previous);
+			announcement_ = localise("Manual flight mode request refused");
+			return false;
+		}
+		sent.push_back(binding);
+	}
+	return true;
+}
+bool ConsoleModel::set_manual_axes(int yaw, int thrust)
+{
+	auto session = owner_.lock();
+	if (!session || yaw < -1000 || yaw > 1000 || thrust < -1000 || thrust > 1000)
+		return false;
+	refresh(session, route_);
+	if (!manual_active())
+		return false;
+	for (const auto &[action, anchor, value] : std::vector<std::tuple<std::string, std::string, int>>{
+	         {"longitudinal_thrust", "speed_mm_s", thrust}, {"manual_steering", "heading_mdeg", yaw}})
+	{
+		const auto binding = manual_binding(action, anchor);
+		OperatingCommand request{observation_->own.id, action, value, binding};
+		if (!submit(request))
+		{
+			release_controls();
+			return false;
+		}
+		const auto section = controller_section(binding);
+		request.controller = section->at("id");
+		request.channel = binding.substr(binding.find('/', 11) + 1);
+		request.generation = section->at("generation");
+		request.system.clear();
+		if (value)
+			held_controls_["manual/" + action] = request;
+		else
+			held_controls_.erase("manual/" + action);
+	}
+	return true;
+}
 bool ConsoleModel::hold_control(const std::string &id)
 {
 	auto session = owner_.lock();
@@ -884,6 +995,10 @@ bool ConsoleModel::submit(OperatingCommand command)
 				    ((widget.at("kind") == "throttle" && command.action == "speed_mm_s") ||
 				     (widget.at("kind") == "heading" && command.action == "heading_mdeg")))
 					projected = true;
+		if (command.action == "assisted" || command.action == "longitudinal_thrust" ||
+		    command.action == "manual_steering")
+			for (const auto *anchor : {"speed_mm_s", "heading_mdeg"})
+				projected |= manual_binding(command.action, anchor) == input_binding;
 		if (!projected)
 			return false;
 		command.controller = section->at("id");
@@ -912,6 +1027,17 @@ bool ConsoleModel::submit(OperatingCommand command)
 					if (descriptor.value("label_value", Json(false)) == true)
 						projected_label += " " + std::to_string(command.value);
 				}
+	}
+	if (!command.controller.empty() && command.system.empty() && !command.request_id && command.arguments.empty() &&
+	    (command.action == "longitudinal_thrust" || command.action == "manual_steering"))
+	{
+		const auto binding = "controller/" + command.controller + "/" + command.channel;
+		const auto section = controller_section(binding), channel = controller_channel(binding);
+		if (section && channel && section->value("human", false) && section->at("generation") == command.generation &&
+		    channel->value("action", "") == command.action && channel->value("semantics", "") == "setting" &&
+		    command.value >= channel->at("minimum") && command.value <= channel->at("maximum"))
+			for (const auto *anchor : {"speed_mm_s", "heading_mdeg"})
+				projected |= manual_binding(command.action, anchor) == binding;
 	}
 	if ((!spec || !command.controller.empty()) && !projected)
 		return false;

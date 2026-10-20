@@ -868,6 +868,41 @@ else()
 	add_test(NAME system.ship-camera COMMAND phoenix_camera_tests)
 endif()
 
+add_executable(phoenix_manual_flight_smoke EXCLUDE_FROM_ALL tests/manual/manual_flight_ui.cpp)
+target_link_libraries(phoenix_manual_flight_smoke PRIVATE phoenix_session phoenix_presentation)
+if(EMSCRIPTEN)
+	set_target_properties(phoenix_manual_flight_smoke PROPERTIES SUFFIX ".html")
+	target_link_options(
+		phoenix_manual_flight_smoke
+		PRIVATE
+			"-O1"
+			"-sEXPORTED_RUNTIME_METHODS=['ccall']"
+			"-sALLOW_MEMORY_GROWTH=1"
+			"-sSTACK_SIZE=1048576"
+			"-sSTACK_OVERFLOW_CHECK=2"
+			"--preload-file"
+			"${CMAKE_CURRENT_BINARY_DIR}/assets@/assets"
+			"SHELL:--preload-file \"${CMAKE_CURRENT_BINARY_DIR}/base.zip@/assets/base.zip\""
+			"--shell-file"
+			"${CMAKE_CURRENT_SOURCE_DIR}/tests/manual/manual_flight_ui.html"
+	)
+	set_property(
+		TARGET phoenix_manual_flight_smoke
+		APPEND
+		PROPERTY
+			LINK_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/base.zip" "${CMAKE_CURRENT_SOURCE_DIR}/tests/manual/manual_flight_ui.html"
+	)
+else()
+	add_dependencies(phoenix_manual_flight_smoke base_pack)
+	add_custom_command(
+		TARGET phoenix_manual_flight_smoke
+		POST_BUILD
+		COMMAND
+			${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/assets"
+			"$<TARGET_FILE_DIR:phoenix_manual_flight_smoke>/assets"
+	)
+endif()
+
 include(cmake/Modules.cmake)
 include(cmake/BuildPerformance.cmake)
 foreach(

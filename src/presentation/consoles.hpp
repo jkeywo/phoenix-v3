@@ -121,6 +121,15 @@ class ConsoleSurface final : public Rml::EventListener
 	std::map<std::uint64_t, std::string> heading_contacts_;
 	std::map<std::uint64_t, std::string> throttle_contacts_;
 	std::map<std::string, Rectangle> throttle_tracks_;
+	ManualFlightInput manual_input_;
+	std::map<std::string, FlightAxes> pad_axes_;
+	FlightAxes manual_sent_;
+	std::optional<std::uint64_t> joystick_contact_;
+	Rectangle joystick_area_{};
+	std::optional<std::uint64_t> manual_pulse_tick_;
+	bool manual_was_active_ = false;
+	std::string manual_identity_, manual_markup_;
+	std::uint64_t manual_sent_tick_ = ~std::uint64_t{0};
 	bool syncing_values_ = false;
 	bool settings_open_ = false;
 	std::string local_settings_tab_ = "display", local_settings_markup_;
@@ -349,6 +358,14 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 .helm .radar-widget button.manual-toggle:disabled {opacity:.5;}
 
 .profile-tv span {position:absolute;left:20%;top:69%;width:55%;text-align:center;pointer-events:none;}
+#manual-flight {position:absolute;right:2%;top:76px;width:22%;min-width:180px;max-width:280px;max-height:80%;overflow:auto;z-index:8;background:#08171bee;padding:8px;box-sizing:border-box;}
+#manual-flight button {width:46%;min-height:44px;margin:2px;padding:6px;font-size:16px;box-sizing:border-box;}
+#manual-flight button.flight-mode {width:96%;}
+#manual-stick {display:block;position:relative;width:160px;height:160px;margin:8px auto;border:2px #98cbb8;border-radius:80px;background:#10292a;}
+#manual-knob {display:block;position:absolute;width:32px;height:32px;margin-left:-16px;margin-top:-16px;left:50%;top:50%;border-radius:16px;background:#bce8ad;pointer-events:none;}
+#manual-flight p {font-size:14px;}
+.manual-flight .throttle-widget,.manual-flight .heading-widget {visibility:hidden;}
+.local-settings-open #manual-flight {visibility:hidden;}
 #local-settings {display:none;position:absolute;left:0;top:0;width:100%;height:100%;background:#080d0fee;z-index:20;}
 .local-settings-open #local-settings {display:block;}
 .local-settings-open #toolbar,.local-settings-open #widgets,.local-settings-open #gameplay {visibility:hidden;}
@@ -387,7 +404,7 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 .mission-copy button:hover,.mission-copy button:focus {background:#bce8ad;color:#102014;border-color:#d1f9be;}
 #navigation-layer {position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;}
 #navigation-layer button,#navigation-layer input,#navigation-canvas {pointer-events:auto;}
-</style></head><body><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="engineering-cards"></div><div id="gameplay-controls"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div><div id="navigation-layer"></div><div id="local-settings"></div></body></rml>)");
+</style></head><body><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="engineering-cards"></div><div id="gameplay-controls"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div><div id="navigation-layer"></div><div id="manual-flight"></div><div id="local-settings"></div></body></rml>)");
 		if (!document_)
 			throw std::runtime_error("Cannot create Console document");
 		document_->AddEventListener("click", this);
@@ -427,6 +444,35 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 		     app_->screen != Screen::server_lobby && app_->screen != Screen::settings) ||
 		    owner_.lock() != app_->session || (app_->session && generation_ != app_->session->generation()))
 			return false;
+		if (action == "manual-mode")
+		{
+			if (settings_open_ || app_->screen == Screen::settings)
+				return false;
+			cancel_pointer();
+			const bool accepted = model_.set_manual(!model_.manual_active());
+			app_->accessible_status = model_.announcement();
+			return accepted;
+		}
+		if (action == "manual-left" || action == "manual-right" || action == "manual-forward" ||
+		    action == "manual-reverse")
+		{
+			if (!model_.manual_active() || settings_open_ || app_->screen == Screen::settings)
+				return false;
+			manual_input_.sample("accessible", {action == "manual-left"    ? 1000
+			                                    : action == "manual-right" ? -1000
+			                                                               : 0,
+			                                    action == "manual-forward"   ? 1000
+			                                    : action == "manual-reverse" ? -1000
+			                                                                 : 0});
+			manual_pulse_tick_ = app_->session->ticks();
+			flush_manual();
+			return true;
+		}
+		if (action == "manual-neutral")
+		{
+			cancel_pointer();
+			return true;
+		}
 		if (action.starts_with("on-screen/"))
 			return !settings_open_ && model_.on_screen(action.substr(10), display_camera(action.substr(10)));
 #ifndef __EMSCRIPTEN__
@@ -735,6 +781,8 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 		if (parsed.ec != std::errc{} || parsed.ptr != text.data() + text.size() || !std::isfinite(value))
 			return false;
 		const auto action = name.substr(id("").size());
+		if (model_.manual_active() && (action.starts_with("speed/") || action.starts_with("heading/")))
+			return false;
 		bool accepted = false;
 		if (action.starts_with("speed/"))
 			accepted = model_.set_speed_fraction(value / 100.0, model_.widget_system(action.substr(6)));
@@ -750,6 +798,139 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 		}
 		return accepted;
 	}
+	void flush_manual()
+	{
+		if (!app_ || !app_->session || !model_.manual_active() || settings_open_)
+			return;
+		const auto axes = manual_input_.axes();
+		if (axes == manual_sent_)
+			return;
+		const auto tick = app_->session->ticks();
+		const bool releasing =
+		    (axes.yaw == 0 && manual_sent_.yaw != 0) || (axes.thrust == 0 && manual_sent_.thrust != 0);
+		if (!releasing && axes != FlightAxes{} && manual_sent_tick_ == tick)
+			return;
+		if (model_.set_manual_axes(axes.yaw, axes.thrust))
+		{
+			manual_sent_ = axes;
+			manual_sent_tick_ = tick;
+		}
+	}
+	void cancel_gamepad(const std::string &device)
+	{
+		manual_input_.cancel_source("pad/" + device);
+		flush_manual();
+	}
+	void gamepad(const std::string &device, const std::string &control, float value)
+	{
+		auto &axes = pad_axes_[device];
+		(control == "flight.yaw" ? axes.yaw : axes.thrust) = static_cast<int>(std::lround(value * 1000));
+		manual_input_.sample("pad/" + device, axes);
+		if (!model_.manual_active() || settings_open_)
+			manual_input_.cancel();
+		// Both stick axes are sampled before the frame submits their combined value.
+	}
+	void manual_frame(bool keyboard_selected, FlightAxes keyboard_axes, bool focused)
+	{
+		manual_input_.sample("keyboard", keyboard_axes);
+		if (!keyboard_selected)
+			manual_input_.cancel_source("keyboard");
+		const auto *focus = context_->GetFocusElement();
+		if (focus && focus->GetTagName() == "input")
+			manual_input_.cancel_source("keyboard");
+		std::string identity;
+		if (model_.observation())
+		{
+			identity = std::to_string(model_.observation()->own.id) + "/" + model_.observation()->console;
+			for (const auto &controller : model_.observation()->gameplay.value("controllers", Json::array()))
+				identity += controller.at("id").get<std::string>() + "/" + controller.at("generation").dump() +
+				            controller.at("human").dump();
+		}
+		const bool active = model_.manual_active();
+		if (identity != manual_identity_ || active != manual_was_active_ || !active || settings_open_ || !focused)
+		{
+			manual_input_.cancel();
+			if (manual_was_active_ || manual_sent_ != FlightAxes{})
+				model_.release_controls();
+			manual_sent_ = {};
+			joystick_contact_.reset();
+			manual_pulse_tick_.reset();
+		}
+		manual_identity_ = identity;
+		manual_was_active_ = active;
+		if (manual_pulse_tick_ && app_->session->ticks() > *manual_pulse_tick_)
+		{
+			manual_input_.sample("accessible", {});
+			manual_pulse_tick_.reset();
+			flush_manual();
+		}
+		flush_manual();
+	}
+	void prepare_manual(Application &app, const ConsoleRegion &region, bool pregame)
+	{
+		auto *panel = document_->GetElementById("manual-flight");
+		const bool available = !pregame && model_.manual_available();
+		property(panel, "display", available ? "block" : "none");
+		const bool active = available && model_.manual_active();
+		document_->SetClass("manual-flight", active);
+		if (!available)
+			return;
+		std::vector<std::pair<std::string, std::string>> actions{{"manual-mode", "Manual flight"}};
+		if (active)
+			for (const auto &[name, label] :
+			     std::vector<std::pair<std::string, std::string>>{{"manual-left", "Yaw left (pulse)"},
+			                                                      {"manual-right", "Yaw right (pulse)"},
+			                                                      {"manual-forward", "Forward thrust (pulse)"},
+			                                                      {"manual-reverse", "Reverse thrust (pulse)"},
+			                                                      {"manual-neutral", "Release flight controls"}})
+				actions.emplace_back(name, label);
+		std::string markup = "<button class=\"flight-mode\" id=\"" + id("manual-mode") + "\">" +
+		                     Rml::StringUtilities::EncodeRml(localise(active ? "Manual flight" : "Assisted flight")) +
+		                     "</button>";
+		if (active)
+		{
+			markup += "<div id=\"manual-stick\"><div id=\"manual-knob\"/></div><p id=\"manual-values\"/><p>" +
+			          Rml::StringUtilities::EncodeRml(
+			              localise("W/S thrust; A/D yaw. Left stick: yaw and thrust. Release to coast.")) +
+			          "</p>";
+			for (std::size_t i = 1; i < actions.size(); ++i)
+				markup += "<button id=\"" + id(actions[i].first) + "\">" +
+				          Rml::StringUtilities::EncodeRml(localise(actions[i].second)) + "</button>";
+		}
+
+		if (manual_markup_ != markup)
+		{
+			const auto focused = context_->GetFocusElement() ? context_->GetFocusElement()->GetId() : std::string{};
+			properties_.clear();
+			panel->SetInnerRML(markup);
+			manual_markup_ = markup;
+			if (auto *previous = document_->GetElementById(focused))
+				previous->Focus();
+		}
+		context_->Update();
+		for (const auto &[name, label] : actions)
+		{
+			app.screen_controls.emplace_back(id(name), localise(label));
+			place(app, region, id(name));
+		}
+		app.screen_toggles[id("manual-mode")] = active;
+		document_->GetElementById(id("manual-mode"))->SetAttribute("aria-pressed", active ? "true" : "false");
+		joystick_area_ = {};
+		if (active)
+		{
+			auto *stick = document_->GetElementById("manual-stick");
+			const auto at = stick->GetAbsoluteOffset(Rml::BoxArea::Border);
+			joystick_area_ = {at.x, at.y, stick->GetOffsetWidth(), stick->GetOffsetHeight()};
+			const auto axes = manual_input_.axes();
+			auto *knob = document_->GetElementById("manual-knob");
+			property(knob, "left", std::to_string(50 - axes.yaw * .04f) + "%");
+			property(knob, "top", std::to_string(50 - axes.thrust * .04f) + "%");
+			const auto text = localise("Yaw") + " " + std::to_string(axes.yaw / 10) + "%; " + localise("Thrust") + " " +
+			                  std::to_string(axes.thrust / 10) + "%";
+			document_->GetElementById("manual-values")->SetInnerRML(Rml::StringUtilities::EncodeRml(text));
+			app.screen_readouts.emplace_back(id("manual-values"), text);
+		}
+	}
 	bool pointer(std::uint64_t contact, float x, float y, DeviceEventKind kind)
 	{
 		if (settings_open_)
@@ -759,6 +940,34 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 			return false;
 		if (navigation_pointer(contact, x, y, kind))
 			return true;
+		if (model_.manual_active())
+		{
+			if (kind == DeviceEventKind::Down && !joystick_contact_ && CheckCollisionPointRec({x, y}, joystick_area_))
+				joystick_contact_ = contact;
+			if (joystick_contact_ == contact)
+			{
+				if (kind == DeviceEventKind::Up || kind == DeviceEventKind::Cancel)
+				{
+					manual_input_.sample("joystick", {});
+					joystick_contact_.reset();
+					flush_manual();
+				}
+				else
+				{
+					const auto axis = [](float value)
+					{
+						return static_cast<int>(std::lround(std::clamp(value, -1.f, 1.f) * 1000));
+					};
+					manual_input_.sample(
+					    "joystick",
+					    {axis((joystick_area_.x + joystick_area_.width / 2 - x) / (joystick_area_.width / 2)),
+					     axis((joystick_area_.y + joystick_area_.height / 2 - y) / (joystick_area_.height / 2))});
+					flush_manual();
+				}
+				return true;
+			}
+			return false;
+		}
 		if (kind == DeviceEventKind::Down)
 			for (const auto &[key, track] : throttle_tracks_)
 				if (CheckCollisionPointRec({x, y}, {track.x - track.width * .2f, track.y - track.width * .2f,
@@ -830,6 +1039,10 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 	}
 	void cancel_pointer()
 	{
+		manual_input_.cancel();
+		manual_sent_ = {};
+		joystick_contact_.reset();
+		manual_pulse_tick_.reset();
 		navigation_contacts_.clear();
 		navigation_starts_.clear();
 		heading_contacts_.clear();
@@ -949,6 +1162,75 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 		const auto [x, y, r] = *heading_dial_;
 		return throttle && pointer(999, x, y - r * .85f, DeviceEventKind::Down) &&
 		       pointer(999, x, y - r * .85f, DeviceEventKind::Up) && model_.requested_heading() == 90000;
+	}
+	bool probe_manual(unsigned stage)
+	{
+		if (!model_.manual_available())
+			return false;
+		const auto requested = [&](const std::string &field, int expected)
+		{
+			for (const auto &system : model_.observation()->systems)
+				if (system.telemetry.contains(field) && system.telemetry.at(field) == expected)
+					return true;
+			std::cout << "Manual probe missing " << field << "=" << expected << "; input " << manual_input_.axes().yaw
+			          << "," << manual_input_.axes().thrust << std::endl;
+			for (const auto &system : model_.observation()->systems)
+				if (system.telemetry.contains(field))
+					std::cout << system.id << " actual request " << system.telemetry.at(field) << std::endl;
+			return false;
+		};
+		const auto cx = joystick_area_.x + joystick_area_.width / 2;
+		const auto cy = joystick_area_.y + joystick_area_.height / 2;
+		if (stage == 0)
+			return action(id("manual-mode"));
+		if (!model_.manual_active() || joystick_area_.width <= 0)
+			return false;
+		if (stage == 1)
+		{
+			if (!pointer(9001, cx - joystick_area_.width / 4, cy - joystick_area_.height / 4, DeviceEventKind::Down) ||
+			    !pointer(9001, cx - joystick_area_.width * .375f, cy - joystick_area_.height * .375f,
+			             DeviceEventKind::Move))
+				return false;
+			manual_frame(false, {}, true);
+			if (manual_sent_ != FlightAxes{500, 500})
+				return false;
+			return pointer(9001, cx - joystick_area_.width / 4, cy - joystick_area_.height / 4, DeviceEventKind::Move);
+		}
+		if (stage == 2)
+			return requested("longitudinal_thrust", 500) && requested("manual_steering", 500) &&
+			       pointer(9001, -100, -100, DeviceEventKind::Up);
+		if (stage == 3)
+		{
+			if (!requested("longitudinal_thrust", 0) || !requested("manual_steering", 0) ||
+			    !model_.observation()->own.vx)
+				return false;
+			manual_frame(true, {-1000, -1000}, true);
+			return true;
+		}
+		if (stage == 4)
+		{
+			if (!requested("longitudinal_thrust", -1000) || !requested("manual_steering", -1000))
+				return false;
+			manual_frame(false, {}, true);
+			return true;
+		}
+		if (stage == 5)
+		{
+			gamepad("smoke-pad", "flight.yaw", .2f);
+			gamepad("smoke-pad", "flight.thrust", .6f);
+			manual_frame(false, {}, true);
+			return true;
+		}
+		if (stage == 6)
+		{
+			if (!requested("longitudinal_thrust", 600) || !requested("manual_steering", 200))
+				return false;
+			gamepad("smoke-pad", "flight.yaw", 0);
+			gamepad("smoke-pad", "flight.thrust", 0);
+			manual_frame(false, {}, true);
+			return true;
+		}
+		return requested("longitudinal_thrust", 0) && requested("manual_steering", 0);
 	}
 	bool probe_engineering(unsigned stage)
 	{
@@ -1336,6 +1618,23 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 		const auto readouts_started = GetTime();
 		auto gameplay_controls =
 		    pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_controls();
+		if (model_.manual_available())
+		{
+			std::set<std::string> hidden;
+			for (const auto &d : model_.observation()->gameplay.value("controls", Json::array()))
+			{
+				const auto a = d.value("action", "");
+				if (a == "assisted" || a == "manual_steering" || a == "longitudinal_thrust" ||
+				    (model_.manual_active() && (a == "speed_mm_s" || a == "heading_mdeg" || a == "destination" ||
+				                                a == "follow_contact" || a == "match_speed")))
+					hidden.insert(descriptor_action(d.at("id")));
+			}
+			std::erase_if(gameplay_controls,
+			              [&](const auto &c)
+			              {
+				              return hidden.contains(c.first);
+			              });
+		}
 		std::erase_if(gameplay_controls,
 		              [](const auto &control)
 		              {
@@ -1592,7 +1891,8 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 		if (gameplay_signature_ != gameplay_signature)
 		{
 			elements_.clear();
-			model_.release_controls();
+			for (const auto &held : held_clicks_)
+				model_.release_control(held.substr(id("").size()));
 			held_clicks_.clear();
 			std::string markup;
 			for (const auto &[name, label] : gameplay_controls)
@@ -1704,11 +2004,11 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 					slider->GetElementsByTagName(bars, "sliderbar");
 					for (auto *bar : bars)
 						property(bar, "height", std::to_string(track.width * .4f) + "px");
-					if (!pregame)
+					if (!pregame && !model_.manual_active())
 						app.screen_inputs.push_back(
 						    {id("speed/" + key), "Desired speed (%)", std::to_string(percent), true});
 				}
-				if (kind == "heading" && !pregame)
+				if (kind == "heading" && !pregame && !model_.manual_active())
 				{
 					auto *field =
 					    dynamic_cast<Rml::ElementFormControl *>(document_->GetElementById(id("heading/" + key)));
@@ -1848,6 +2148,7 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 		if (pregame)
 			place(app, region, id("lobby-title"));
 		prepare_navigation(app, region, pregame);
+		prepare_manual(app, region, pregame);
 		if (!pregame && model_.observation())
 		{
 			const auto publication = app.session->public_board().value("display", Json(nullptr));
@@ -1945,7 +2246,7 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 							}
 					}
 					image(hud("helm-radar-ring"), {centre.x - radius, centre.y - radius, radius * 2, radius * 2});
-					if (dial_systems_.contains(key))
+					if (!model_.manual_active() && dial_systems_.contains(key))
 					{
 						const auto heading = model_.system_request(dial_systems_.at(key), "heading_mdeg");
 						const float angle = heading * 3.141592653589793f / 180000;
@@ -1958,7 +2259,7 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 						    {marker.x, marker.y, size, size}, {size / 2, size / 2}, 90 - heading / 1000.f, WHITE);
 					}
 				}
-				if (document_->GetElementById(id("speed/" + key)))
+				if (!model_.manual_active() && document_->GetElementById(id("speed/" + key)))
 				{
 					auto track = throttle_rect(key);
 					track.x += ox;

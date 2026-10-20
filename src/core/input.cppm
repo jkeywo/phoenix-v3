@@ -21,6 +21,8 @@ struct ConsoleInput
 	ConsoleId console;
 	std::string control;
 	float value;
+	std::string device;
+	bool cancelled = false;
 };
 struct PointerInput
 {
@@ -28,6 +30,33 @@ struct PointerInput
 	std::uint64_t contact;
 	float x, y;
 	bool released;
+};
+struct FlightAxes
+{
+	int yaw = 0, thrust = 0;
+	bool operator==(const FlightAxes &) const = default;
+};
+// A held source cannot inherit control after interruption or another source's release.
+class ManualFlightInput
+{
+public:
+	void sample(const std::string &source, FlightAxes axes);
+	void cancel();
+	void cancel_source(const std::string &source);
+	FlightAxes axes() const
+	{
+		return axes_;
+	}
+
+private:
+	struct Source
+	{
+		FlightAxes axes;
+		bool blocked = false;
+	};
+	std::map<std::string, Source> sources_;
+	std::string owner_;
+	FlightAxes axes_;
 };
 class InputRouter
 {
@@ -55,6 +84,8 @@ private:
 	std::vector<ConsoleRegion> regions_;
 	std::map<std::uint64_t, ConsoleId> captures_;
 	std::map<std::string, ConsoleId> gamepads_;
+	std::map<std::string, std::map<std::string, float>> flight_start_;
+	std::map<std::string, bool> flight_ready_;
 	std::map<std::string, std::map<std::string, float>> held_;
 	std::optional<ConsoleId> keyboard_;
 	std::vector<ConsoleInput> pending_;

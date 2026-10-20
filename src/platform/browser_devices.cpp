@@ -48,6 +48,10 @@ EM_JS(void, read_gamepads, (), {
     for(const pad of navigator.getGamepads?.() || []) if(pad?.connected) {
         const id=String(pad.index); seen.add(id);
         let held=state.pads.get(id); if(!held) { held=new Map(); state.pads.set(id,held); state.send(5,0,0,0,id); }
+        for(const [index,control] of [[0,'flight.yaw'],[1,'flight.thrust']]) {
+            const value=document.hasFocus() ? -(pad.axes[index] || 0) : 0;
+            state.send(4,0,0,0,id,control,value);
+        }
         for(const [index,control] of controls) { const value=document.hasFocus() && pad.buttons[index]?.pressed ? 1 : 0; if((held.get(control)||0)!==value) {state.send(4,0,0,0,id,control,value);held.set(control,value);} }
     }
     for(const [id] of state.pads) if(!seen.has(id)) {state.send(6,0,0,0,id);state.pads.delete(id);}

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>Manual Helm smoke</title>
+	</head>
+	<body>
+		<div id="semantics" aria-label="Player console" style="position: absolute; opacity: 0; pointer-events: none">
+			<p id="player-status" role="status" aria-live="polite"></p>
+		</div>
+		<canvas id="canvas" width="1280" height="720"></canvas>
+		<pre id="result">Running manual Helm smoke…</pre>
+		<script>
+			var Module = {
+				arguments: new URLSearchParams(location.search).has("portrait") ? ["/assets", "portrait"] : ["/assets"],
+				canvas: document.getElementById("canvas"),
+				print(text) {
+					console.log(text);
+					if (text.startsWith("PASS ")) {
+						document.getElementById("result").textContent = text;
+					}
+				},
+				printErr(text) {
+					console.error(text);
+					if (text.startsWith("FAIL ")) {
+						document.getElementById("result").textContent = text;
+					}
+				},
+			};
+		</script>
+		{{{ SCRIPT }}}
+	</body>
+</html>
