@@ -378,8 +378,9 @@ p {display:block;font-size:.85em;margin:4px 0;}
 .helm .radar-widget button.on-screen {opacity:1;position:absolute;bottom:auto;right:auto;min-width:0;z-index:4;}
 .helm .radar-widget button.on-screen,.helm .radar-widget button.on-screen:hover,.helm .radar-widget button.on-screen:focus {background:transparent;border:0px;margin:0;padding:0;min-height:0;border-radius:0px;pointer-events:none;}
 .helm .radar-widget button.on-screen span {display:none;}
-.helm .radar-widget button.on-screen .share-label {display:block;left:20px;right:44px;top:9px;height:30px;line-height:30px;font-size:22px;text-align:left;color:#f0dfbf;}
-.helm .radar-widget button.on-screen .share-caption {display:block;left:21px;bottom:10px;font-size:14px;}
+.helm .radar-widget button.on-screen .share-label {display:block;left:24px;right:50px;top:12px;height:28px;line-height:28px;font-size:22px;text-align:left;color:#f0dfbf;}
+.helm .radar-widget button.on-screen .share-caption {display:block;left:25px;bottom:14px;height:16px;line-height:16px;font-size:13px;}
+.helm .radar-widget button.on-screen:focus .share-label {text-decoration:underline;color:#ffd49b;}
 .helm .radar-widget button.on-screen .share-live {display:none;}
 .helm .radar-widget button.on-screen-active .share-live {display:block;}
 .helm .radar-widget button.on-screen-active .share-idle {display:none;}
@@ -2400,47 +2401,24 @@ button.on-screen-active .share-live {display:block;}
 							const Vector2 start{centre.x + std::cos(radians) * radius * .90f,
 							                    centre.y + std::sin(radians) * radius * .90f};
 							const Vector2 end{end_x, pod.y + 9};
-							DrawLineEx(start, end, 18, {7, 9, 9, 255});
-							DrawLineEx(start, end, 12, {116, 111, 96, 255});
-							DrawLineEx(start, end, 5, {207, 192, 158, 255});
+							const float length = std::hypot(end.x - start.x, end.y - start.y);
+							const float rotation =
+							    std::atan2(end.y - start.y, end.x - start.x) * 180 / 3.141592653589793f;
+							// Reuse the readout's inked ivory rail, including its chipped paint and halftone.
+							DrawTexturePro(hud("readout-panel"), {500, 119, 220, 52}, {start.x, start.y, length, 16},
+							               {0, 8}, rotation, WHITE);
 						}
 					}
 					image(hud("helm-radar-ring"), {centre.x - radius, centre.y - radius, radius * 2, radius * 2});
 					if (sharing_pods_.contains(key))
 					{
 						const bool active = model_.is_on_screen(key);
-						const bool focused =
-						    context_->GetFocusElement() == document_->GetElementById(id("on-screen/" + key));
 						auto pod = sharing_pods_.at(key);
 						pod.x += ox;
 						pod.y += oy;
-						const auto plate = [](Rectangle box, float cut, Color colour)
-						{
-							const std::array<Vector2, 8> corners{{{box.x + cut, box.y},
-							                                      {box.x + box.width - cut, box.y},
-							                                      {box.x + box.width, box.y + cut},
-							                                      {box.x + box.width, box.y + box.height - cut},
-							                                      {box.x + box.width - cut, box.y + box.height},
-							                                      {box.x + cut, box.y + box.height},
-							                                      {box.x, box.y + box.height - cut},
-							                                      {box.x, box.y + cut}}};
-							const Vector2 middle{box.x + box.width / 2, box.y + box.height / 2};
-							for (std::size_t i = 0; i < corners.size(); ++i)
-								DrawTriangle(middle, corners[(i + 1) % corners.size()], corners[i], colour);
-						};
-						plate({pod.x + 3, pod.y + 5, pod.width, pod.height}, 10, {4, 7, 8, 255});
-						plate(pod, 8, focused ? Color{239, 153, 65, 255} : Color{191, 178, 148, 255});
-						plate({pod.x + 3, pod.y + 3, pod.width - 6, pod.height - 6}, 7, {62, 64, 59, 255});
-						plate({pod.x + 7, pod.y + 7, pod.width - 14, pod.height - 14}, 5, {17, 25, 26, 255});
-						DrawRectangleRec({pod.x + 3, pod.y + 15, 4, pod.height - 30}, {213, 93, 24, 255});
-						DrawRectangleRec({pod.x + pod.width - 7, pod.y + 15, 4, pod.height - 30}, {213, 93, 24, 255});
-						for (const auto screw : std::array<Vector2, 2>{
-						         {{pod.x + 13, pod.y + 6}, {pod.x + pod.width - 13, pod.y + pod.height - 6}}})
-						{
-							DrawCircleV(screw, 3, {10, 13, 13, 255});
-							DrawLineEx({screw.x - 2, screw.y}, {screw.x + 2, screw.y}, 1, {160, 153, 131, 255});
-						}
-						const Vector2 lamp{pod.x + pod.width - 26, pod.y + pod.height / 2};
+						// Use the same illustrated casing as the other live instrument readouts.
+						DrawTexturePro(hud("readout-panel"), {24, 80, 2124, 555}, pod, {0, 0}, 0, WHITE);
+						const Vector2 lamp{pod.x + pod.width - 31, pod.y + pod.height / 2};
 						DrawCircleV(lamp, 12, {7, 12, 10, 255});
 						DrawCircleLinesV(lamp, 12, {133, 131, 109, 255});
 						DrawCircleV(lamp, 8, active ? Color{107, 252, 130, 255} : Color{42, 65, 43, 255});
