@@ -194,6 +194,22 @@ Pack console_assets(const Catalog &catalog, const std::string &ship, const std::
 			consoles.push_back(std::move(layout));
 		}
 	}
+	// A restricted Console bundle contains only admitted Stations. Preferences
+	// resolved against the full ship may point at seats absent from this projection.
+	std::set<std::string> projected_stations;
+	for (const auto &station : stations)
+		projected_stations.insert(station.at("id").get<std::string>());
+	for (auto &station : stations)
+		for (auto &console : station["consoles"])
+		{
+			auto preferences = console["human_preferences"].get<std::vector<std::string>>();
+			std::erase_if(preferences,
+			              [&](const std::string &id)
+			              {
+				              return !projected_stations.contains(id);
+			              });
+			console["human_preferences"] = std::move(preferences);
+		}
 	entity["stations"] = stations;
 	if (!console_ids.empty())
 	{

@@ -18,6 +18,7 @@ namespace phoenix
 {
 namespace
 {
+#include "nebula_shader.hpp"
 #ifdef __EMSCRIPTEN__
 const std::string prefix = "#version 300 es\nprecision highp float;\nprecision highp int;\n";
 #else
@@ -45,6 +46,7 @@ out vec4 finalColor;
 uniform sampler2D texture0;
 uniform mat4 inverseViewProjection;
 uniform int cubeStrip;
+uniform int hasSkybox;
 vec2 cubeUV(vec3 d){
  vec3 a=abs(d);vec2 q;float face;
  if(a.x>=a.y && a.x>=a.z){
@@ -72,7 +74,8 @@ void main(){
   float pole=.5/float(textureSize(texture0,0).y);
   skyUV.y=clamp(skyUV.y,pole,1.0-pole);
  }
- finalColor=vec4(texture(texture0,skyUV).rgb,1);
+ vec4 fog=fogAlong(a.xyz/a.w,b.xyz/b.w);
+ finalColor=hasSkybox==1?vec4(mix(texture(texture0,skyUV).rgb,fog.rgb,fog.a),1):fog;
 }
 )GLSL";
 const char *dust_fragment = R"GLSL(
@@ -159,6 +162,27 @@ double wrap(double value, double half)
 	return value - std::floor((value + half) / period) * period;
 }
 } // namespace
+void set_scene_fog(Shader target, const Json &environment, Vector3 rebase)
+{
+	const auto volumes = environment.value("nebulae", Json::array());
+	const int count = static_cast<int>(volumes.size());
+	if (count > 32)
+		throw std::runtime_error("Too many nebula volumes");
+	std::array<Vector4, 32> bounds{}, extents{}, colours{};
+	for (int i = 0; i < count; ++i)
+	{
+		const auto &v = volumes[i];
+		bounds[i] = {v.at("x"), -v.at("y").get<float>(), v.at("radius"), v.at("inner_radius")};
+		extents[i] = {v.at("half_width"), v.at("half_height"), v.at("height"), v.at("shape").get<float>()};
+		colours[i] = {v.at("colour")[0], v.at("colour")[1], v.at("colour")[2], v.at("density")};
+	}
+	SetShaderValue(target, GetShaderLocation(target, "fogCount"), &count, SHADER_UNIFORM_INT);
+	SetShaderValueV(target, GetShaderLocation(target, "fogBounds[0]"), bounds.data(), SHADER_UNIFORM_VEC4, 32);
+	SetShaderValueV(target, GetShaderLocation(target, "fogExtents[0]"), extents.data(), SHADER_UNIFORM_VEC4, 32);
+	SetShaderValueV(target, GetShaderLocation(target, "fogColours[0]"), colours.data(), SHADER_UNIFORM_VEC4, 32);
+	const auto origin = Vector3Negate(rebase);
+	SetShaderValue(target, GetShaderLocation(target, "fogOrigin"), &origin, SHADER_UNIFORM_VEC3);
+}
 NavigationEffects::~NavigationEffects()
 {
 	clear();
@@ -180,19 +204,25 @@ void NavigationEffects::clear()
 		UnloadShader(sky_shader_);
 	dust_shader_ = grid_shader_ = sky_shader_ = {};
 }
-void NavigationEffects::background(const Catalog &catalog, const SceneEnvironment &environment, Camera3D camera)
+void NavigationEffects::background(const Catalog &catalog, const SceneEnvironment &environment, Camera3D camera,
+                                   const Json &fog, Vector3 rebase)
 {
-	if (environment.skybox.empty())
+	if (environment.skybox.empty() && fog.value("nebulae", Json::array()).empty())
 		return;
 	if (!sky_shader_.id)
 	{
-		const auto vs = prefix + sky_vertex, fs = prefix + sky_fragment;
+		const auto vs = prefix + sky_vertex, fs = prefix + fog_functions + sky_fragment;
 		sky_shader_ = LoadShaderFromMemory(vs.c_str(), fs.c_str());
 		if (!sky_shader_.id || sky_shader_.id == rlGetShaderIdDefault())
 			throw std::runtime_error("Skybox shader failed to compile");
 	}
-	auto texture = textures_.load(environment.skybox, catalog.assets.at(environment.skybox));
+	Texture2D texture{rlGetTextureIdDefault(), 1, 1, 1, PIXELFORMAT_UNCOMPRESSED_R8G8B8A8};
+	const int has_skybox = !environment.skybox.empty();
+	if (has_skybox)
+		texture = textures_.load(environment.skybox, catalog.assets.at(environment.skybox));
 	SetTextureFilter(texture, TEXTURE_FILTER_BILINEAR);
+	uniform(sky_shader_, "hasSkybox", &has_skybox, SHADER_UNIFORM_INT);
+	set_scene_fog(sky_shader_, fog, rebase);
 	const int strip = texture.height == texture.width * 6;
 	SetTextureWrap(texture, strip ? TEXTURE_WRAP_CLAMP : TEXTURE_WRAP_REPEAT);
 	uniform(sky_shader_, "cubeStrip", &strip, SHADER_UNIFORM_INT);

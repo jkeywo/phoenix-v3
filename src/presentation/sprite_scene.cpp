@@ -584,24 +584,7 @@ struct SpriteScene::State
 	}
 	void fog_uniforms(Shader target, const Json &environment)
 	{
-		const auto volumes = environment.value("nebulae", Json::array());
-		const int count = static_cast<int>(volumes.size());
-		if (count > 32)
-			throw std::runtime_error("Too many nebula volumes");
-		std::array<Vector4, 32> bounds{}, extents{}, colours{};
-		for (int i = 0; i < count; ++i)
-		{
-			const auto &v = volumes[i];
-			bounds[i] = {v.at("x"), -v.at("y").get<float>(), v.at("radius"), v.at("inner_radius")};
-			extents[i] = {v.at("half_width"), v.at("half_height"), v.at("height"), v.at("shape").get<float>()};
-			colours[i] = {v.at("colour")[0], v.at("colour")[1], v.at("colour")[2], v.at("density")};
-		}
-		SetShaderValue(target, GetShaderLocation(target, "fogCount"), &count, SHADER_UNIFORM_INT);
-		SetShaderValueV(target, GetShaderLocation(target, "fogBounds[0]"), bounds.data(), SHADER_UNIFORM_VEC4, 32);
-		SetShaderValueV(target, GetShaderLocation(target, "fogExtents[0]"), extents.data(), SHADER_UNIFORM_VEC4, 32);
-		SetShaderValueV(target, GetShaderLocation(target, "fogColours[0]"), colours.data(), SHADER_UNIFORM_VEC4, 32);
-		const auto origin = Vector3Negate(rebase);
-		SetShaderValue(target, GetShaderLocation(target, "fogOrigin"), &origin, SHADER_UNIFORM_VEC3);
+		set_scene_fog(target, environment, rebase);
 	}
 };
 SpriteScene::SpriteScene() : state_(std::make_unique<State>())

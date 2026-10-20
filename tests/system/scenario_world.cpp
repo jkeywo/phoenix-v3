@@ -1,4 +1,5 @@
 #include "../support/fixtures.hpp"
+#include "../support/model_fixture.hpp"
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
@@ -512,7 +513,7 @@ void delayed_competition()
 	check(objectives.size() == 2 && objectives[0].at("created") == 100 && objectives[1].at("created") == 100,
 	      "both race objectives must activate at five seconds");
 }
-Catalog fixture(bool fitted = false)
+Catalog fixture(bool fitted = false, bool models = false)
 {
 	auto data =
 	    parse_json(read_file(std::string(PHOENIX_FIXTURE_DIR) + "/definitions.json"), "synthetic World scenario");
@@ -573,6 +574,19 @@ Catalog fixture(bool fitted = false)
 	              Json::array({action(
 	                  "spawn_entity",
 	                  Json::array({"test.variant", "", 50000, {{"parameter", "spawn_y"}}, 0, "traffic"}))})}}})}}});
+	if (models)
+	{
+		for (auto &entity : data["entities"])
+			entity["render"] = {
+			    {"scale", 1},
+			    {"radar_icon", "ship"},
+			    {"model", {{"asset", "test-core:assets/triangle.glb"}}},
+			    {"attachments", {{"engine_test", {{"position", {0, 0, 0}}, {"direction", {0, 0, 1}}}}}}};
+		auto pack = phoenix::test::fixture_pack(json_bytes(data), "test-core");
+		pack.manifest["base"] = {{"render_mode", "models"}};
+		pack.files["assets/triangle.glb"] = phoenix::test::model_fixture();
+		return resolve_packs({read_pack(write_pack(pack))});
+	}
 	return load_fixture(data);
 }
 Json reader_fixture()
@@ -636,9 +650,9 @@ Json reader_fixture()
 	data["trees"][0]["states"][0]["running"] = Json::array({{{"call", "test.read-signal"}}});
 	return data;
 }
-void spawned_equipment_continuation()
+void spawned_equipment_continuation(bool models = false)
 {
-	const auto catalog = fixture(true);
+	const auto catalog = fixture(true, models);
 	World world;
 	world.load(catalog, "test.map", {{"test.slot", "test.ship"}});
 	world.tick();
@@ -658,6 +672,17 @@ void spawned_equipment_continuation()
 		      "Dynamically created equipment refused an ordinary command");
 	}
 	world.tick();
+	if (models)
+	{
+		const auto scene = world.scene();
+		check(std::any_of(scene.begin(), scene.end(),
+		                  [&](const auto &body)
+		                  {
+			                  return std::find(spawned.begin(), spawned.end(), body.id) != spawned.end() &&
+			                         body.forward_thrust > 0;
+		                  }),
+		      "Dynamically spawned models expose actual paid engine thrust to presentation");
+	}
 	const auto saved = world.save();
 	World resumed;
 	resumed.restore(catalog, saved);
@@ -894,6 +919,7 @@ int main(int argc, char **argv)
 		competition_resolution();
 		delayed_competition();
 		spawned_equipment_continuation();
+		spawned_equipment_continuation(true);
 		std::cout << "World scenario spawn/objective/recovery integration passed\n";
 		return 0;
 	}

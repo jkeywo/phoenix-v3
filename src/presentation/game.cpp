@@ -404,6 +404,31 @@ struct GameScreen::State
 	{
 		return console_model.layout();
 	}
+	std::string telemetry_description(const Application &app, const std::optional<BodyView> &body) const
+	{
+		auto description = "Tick " + std::to_string(app.session->ticks());
+		if (body)
+			description += " / position " + std::to_string(body->x / 1000) + ", " + std::to_string(body->y / 1000) +
+			               " m / speed " +
+			               std::to_string(static_cast<int>(
+			                   std::hypot(static_cast<double>(body->vx), static_cast<double>(body->vy)) / 1000)) +
+			               " m/s / heading " + std::to_string(body->heading / 1000) + " degrees.";
+		return description;
+	}
+	void refresh_status(Application &app) const
+	{
+		if (!app.session || !app.session->running() ||
+		    (app.screen != Screen::viewscreen && app.screen != Screen::console))
+			return;
+		auto description = telemetry_description(app, app.session->focus_body());
+		if (app.session->networked())
+			description += " " + app.session->connection_status();
+		if (!notice.empty())
+			description += " " + notice;
+		if (!app.status.empty())
+			description += " " + app.status;
+		app.accessible_status = std::move(description);
+	}
 	void prepare(Application &app, Rml::ElementDocument &document)
 	{
 		bind_session(app);
@@ -546,13 +571,7 @@ struct GameScreen::State
 			}
 			else if ((app.screen == Screen::viewscreen || app.screen == Screen::console) && app.session->running())
 			{
-				description = "Tick " + std::to_string(app.session->ticks());
-				if (auto own = focus_body)
-					description += " / position " + std::to_string(own->x / 1000) + ", " +
-					               std::to_string(own->y / 1000) + " m / speed " +
-					               std::to_string(static_cast<int>(
-					                   std::hypot(static_cast<double>(own->vx), static_cast<double>(own->vy)) / 1000)) +
-					               " m/s / heading " + std::to_string(own->heading / 1000) + " degrees.";
+				description = telemetry_description(app, focus_body);
 				if (app.screen == Screen::console)
 					if (const auto *console = console_definition(app))
 					{
@@ -843,6 +862,22 @@ struct GameScreen::State
 			if (viewscreen_frame.id)
 			{
 				const auto rect = area();
+				if (!app.session->public_board().value("alert", Json::object()).empty())
+				{
+					// A raised section of the bottom rail: no independent lower or left
+					// border. The main frame is drawn over these structural joints.
+					const float w = std::min(300.f, rect.width - 48.f);
+					const float y = rect.y + rect.height - 112.f;
+					DrawRectangleRec({rect.x + 24.f, y + 12.f, w - 24.f, 88.f}, {8, 13, 15, 255});
+					const float fw = static_cast<float>(viewscreen_frame.width);
+					const float fh = static_cast<float>(viewscreen_frame.height);
+					DrawTexturePro(viewscreen_frame, {112, 0, fw - 224, 40}, {rect.x + 24, y, w - 80, 20}, {0, 0}, 0,
+					               WHITE);
+					DrawTexturePro(viewscreen_frame, {fw - 112, 0, 112, 112}, {rect.x + w - 56, y, 56, 56}, {0, 0}, 0,
+					               WHITE);
+					DrawTexturePro(viewscreen_frame, {fw - 40, 112, 40, fh - 224}, {rect.x + w - 20, y + 56, 20, 36},
+					               {0, 0}, 0, WHITE);
+				}
 				// Nine-slice without filling the live view: keep corner size modest on large displays.
 				DrawTextureNPatch(
 				    viewscreen_frame,
@@ -1054,6 +1089,10 @@ GameScreen::Loading GameScreen::preload(Application &app)
 		        title,
 		        s.preload_error};
 	}
+}
+void GameScreen::refresh_status(Application &app)
+{
+	state_->refresh_status(app);
 }
 void GameScreen::prepare(Application &app, Rml::ElementDocument &document)
 {

@@ -1600,7 +1600,7 @@ void semantic_controls()
 	        "explicit authored human report must use its current admitted descriptor");
 	session->tick();
 	model.refresh(session);
-	require(model.announcement() == "Notice: Supply 7",
+	require(model.announcement() == "Helm: Notice: Supply 7",
 	        "fresh eligible notification must translate its template and substitute parameters once");
 	ConsoleModel reopened;
 	reopened.refresh(session);
@@ -1615,7 +1615,7 @@ void semantic_controls()
 	        "a later explicit report remains independently sendable");
 	session->tick();
 	model.refresh(session);
-	require(model.announcement() == "Notice: Supply 7",
+	require(model.announcement() == "Helm: Notice: Supply 7",
 	        "a newer delivery sequence must announce even when its translated text matches an older report");
 	require(model.command("longitudinal_thrust", positive, "drive"),
 	        "a manual axis can remain active before an explicit authority handover");

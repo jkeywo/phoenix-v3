@@ -76,6 +76,12 @@ int main(int argc, char **argv)
 		for (int loading = 0; loading < 300 && !app.screen_toggles.contains("console/1/manual"); ++loading)
 			frame();
 		require(app.screen_toggles.contains("console/1/manual"), "Console finishes graphics preparation");
+		const auto previous_status = app.accessible_status;
+		app.session->tick();
+		frame();
+		require(app.accessible_status.starts_with("Tick " + std::to_string(app.session->ticks())) &&
+		            app.accessible_status != previous_status,
+		        "Console mode publishes current committed telemetry without full GameScreen preparation");
 		const auto action = [&](const std::string &name)
 		{
 			require(app.screen_action && app.screen_action("console/1/" + name), "camera widget action is admitted");

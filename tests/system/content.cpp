@@ -1,6 +1,8 @@
 #include "../support/assertions.hpp"
 #include "../support/fixtures.hpp"
+#include "../support/model_fixture.hpp"
 #include <iostream>
+#include <array>
 #include <filesystem>
 #include <limits>
 #include <algorithm>
@@ -100,6 +102,59 @@ int main()
 				    resolve_packs({read_pack(write_pack(sky)), read_pack(write_pack(draft))});
 			    },
 			    "presentation.skybox");
+		}
+		{
+			const auto geometry = phoenix::test::model_fixture();
+			const auto model = compile_model(geometry);
+			require(model.parts.size() == 1 &&
+			            model.parts[0].positions == std::vector<float>({1, 2, 3, 3, 2, 3, 1, 3, 3}),
+			        "Default-scene hierarchy applies node transforms without instancing inactive scene nodes");
+			require(model.parts[0].normals == std::vector<float>({0, 0, 1, 0, 0, 1, 0, 0, 1}),
+			        "Missing GLB normals generate face normals for directional and thrust lighting");
+			const auto luminous = compile_model(phoenix::test::model_fixture(
+			    {{"extensionsUsed", {"KHR_materials_emissive_strength"}},
+			     {"extensionsRequired", {"KHR_materials_emissive_strength"}},
+			     {"materials",
+			      Json::array({{{"emissiveFactor", {.25, .5, 1}},
+			                    {"extensions", {{"KHR_materials_emissive_strength", {{"emissiveStrength", 2}}}}}}})},
+			     {"meshes",
+			      Json::array(
+			          {{{"primitives",
+			             Json::array({{{"attributes", {{"POSITION", 0}}}, {"material", 0}, {"mode", 4}}})}}})}}));
+			require(luminous.parts[0].emission == std::array<float, 3>{.5, 1, 2},
+			        "Supported required emissive-strength materials retain their authored emission");
+			for (const auto &patch : {Json{{"extensionsRequired", {"unsupported.feature"}}},
+			                          Json{{"buffers", Json::array({{{"byteLength", 36}, {"uri", "outside.bin"}}})}},
+			                          Json{{"animations", Json::array({Json::object()})}}})
+				rejected(
+				    [&]
+				    {
+					    compile_model(phoenix::test::model_fixture(patch));
+				    },
+				    "model:");
+			auto source = base;
+			source.manifest["base"] = {{"render_mode", "models"}};
+			auto definitions = parse_json(source.files.at("definitions.json"), "model fixture");
+			for (auto &entity : definitions["entities"])
+				entity["render"] = {
+				    {"scale", 2},
+				    {"model", {{"asset", "test-core:assets/triangle.glb"}}},
+				    {"radar_icon", "ship"},
+				    {"attachments", {{"engine_test", {{"position", {0, 0, 0}}, {"direction", {0, 0, 1}}}}}}};
+			source.files["definitions.json"] = json_bytes(definitions);
+			source.files["assets/triangle.glb"] = geometry;
+			for (const auto encoding : {PackEncoding::Zip, PackEncoding::Dat})
+			{
+				const auto archive = write_pack(source, encoding);
+				const auto resolved = resolve_packs({read_pack(archive)});
+				require(resolved.base.render_mode == "models" &&
+				            resolved.assets.at("test-core:assets/triangle.glb") == geometry,
+				        "Model pack round trips retain exact verified geometry and family");
+				WorkshopDocument workshop;
+				workshop.load_pack(archive);
+				require(resolve_packs({read_pack(workshop.export_pack(encoding))}).entities == resolved.entities,
+				        "Workshop model export preserves representation and attachment definitions");
+			}
 		}
 		const auto dat = write_pack(base, PackEncoding::Dat);
 		const auto compiled_pack = read_pack(dat);
@@ -345,6 +400,22 @@ int main()
 		require(resolve_consoles(one_console, "test.ship").size() == 1 &&
 		            resolve_consoles(console_set, "test.ship").size() == 2,
 		        "restricted bundles include exactly the assigned Console set, including additional profile Consoles");
+		{
+			auto multi_station = control_source;
+			auto &stations = multi_station["entities"][0]["stations"];
+			const auto support = stations[0]["consoles"][1];
+			stations[0]["consoles"].erase(1);
+			stations.push_back({{"id", "engineering"}, {"consoles", Json::array({support})}});
+			stations[0]["consoles"][0]["human_preferences"] = {"engineering", "watch"};
+			const auto full = load_controls(multi_station);
+			const auto restricted = resolve_packs({console_assets(full, "test.ship", "helm")});
+			const auto seats = resolve_consoles(restricted, "test.ship");
+			require(
+			    seats.size() == 1 && seats[0].human_preferences == std::vector<std::string>{"watch"} &&
+			        resolve_consoles(full, "test.ship")[0].human_preferences ==
+			            std::vector<std::string>{"engineering", "watch"},
+			    "restricted remote Console bundles omit unavailable Station preferences without changing the source");
+		}
 		auto layout = compile_controllable_layout(control_catalog, "test.variant");
 		require(!layout.converted && layout.controllers.size() == 2 &&
 		            layout.controllers[0].commands[0].consumers.size() == 2,

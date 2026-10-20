@@ -135,6 +135,7 @@ module;
 #include <cgltf.h>
 #include <algorithm>
 #include <cmath>
+#include <set>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -156,8 +157,11 @@ StaticModel compile_model(std::span<const std::uint8_t> bytes)
 		fail();
 	std::unique_ptr<cgltf_data, decltype(&cgltf_free)> data(raw, cgltf_free);
 	if (data->file_type != cgltf_file_type_glb || data->nodes_count > 1024 || data->animations_count ||
-	    data->skins_count || data->extensions_required_count)
+	    data->skins_count)
 		fail();
+	for (size_t i = 0; i < data->extensions_required_count; ++i)
+		if (std::string(data->extensions_required[i]) != "KHR_materials_emissive_strength")
+			fail();
 	for (size_t i = 0; i < data->buffers_count; ++i)
 		if (data->buffers[i].uri)
 			fail();
@@ -182,12 +186,39 @@ StaticModel compile_model(std::span<const std::uint8_t> bytes)
 		decode_asset_image(out);
 		return out;
 	};
+	// Respect the authored default scene: inactive scene/template nodes are not instances.
+	std::set<const cgltf_node *> active;
+	std::vector<const cgltf_node *> pending;
+	for (size_t i = 0; i < data->nodes_count; ++i)
+	{
+		size_t depth = 0;
+		for (auto *p = &data->nodes[i]; p; p = p->parent)
+			if (++depth > data->nodes_count)
+				fail();
+	}
+	const auto *scene = data->scene ? data->scene : (data->scenes_count ? &data->scenes[0] : nullptr);
+	if (scene)
+		for (size_t i = 0; i < scene->nodes_count; ++i)
+			pending.push_back(scene->nodes[i]);
+	else
+		for (size_t i = 0; i < data->nodes_count; ++i)
+			if (!data->nodes[i].parent)
+				pending.push_back(&data->nodes[i]);
+	while (!pending.empty())
+	{
+		const auto *node = pending.back();
+		pending.pop_back();
+		if (!active.insert(node).second)
+			continue;
+		for (size_t i = 0; i < node->children_count; ++i)
+			pending.push_back(node->children[i]);
+	}
 	StaticModel result;
-	size_t total = 0;
+	size_t total = 0, texture_pixels = 0, texture_bytes = 0;
 	for (size_t ni = 0; ni < data->nodes_count; ++ni)
 	{
 		auto &node = data->nodes[ni];
-		if (!node.mesh)
+		if (!active.contains(&node) || !node.mesh)
 			continue;
 		if (node.skin || node.mesh->weights_count)
 			fail();
@@ -237,12 +268,24 @@ StaticModel compile_model(std::span<const std::uint8_t> bytes)
 					fail();
 				for (int i = 0; i < 4; ++i)
 					part.tint[i] = m.pbr_metallic_roughness.base_color_factor[i];
+				if (m.pbr_metallic_roughness.base_color_texture.texcoord || m.emissive_texture.texcoord)
+					fail();
 				part.albedo = image(m.pbr_metallic_roughness.base_color_texture.texture);
 				part.emissive = image(m.emissive_texture.texture);
 				for (int i = 0; i < 3; ++i)
 					part.emission[i] =
 					    m.emissive_factor[i] * (m.has_emissive_strength ? m.emissive_strength.emissive_strength : 1.f);
 			}
+			// GPU allocations follow primitives, including shared textures, so bound decoded cost too.
+			for (const auto *encoded : {&part.albedo, &part.emissive})
+				if (!encoded->empty())
+				{
+					const auto decoded = decode_asset_image(*encoded);
+					texture_pixels += decoded.rgba.size();
+					texture_bytes += encoded->size();
+					if (texture_pixels > 64 * 1024 * 1024 || texture_bytes > 32 * 1024 * 1024)
+						fail();
+				}
 			for (float value : part.tint)
 				if (!std::isfinite(value) || value < 0 || value > 1)
 					fail();
@@ -281,6 +324,11 @@ StaticModel compile_model(std::span<const std::uint8_t> bytes)
 						fail();
 					part.positions.push_back(x);
 				}
+				const auto normal_length = std::hypot(normal[0], normal[1], normal[2]);
+				if (!std::isfinite(normal_length) || normal_length < 1e-12f)
+					fail();
+				for (auto &value : normal)
+					value /= normal_length;
 				for (float x : normal)
 				{
 					if (!std::isfinite(x))
@@ -294,6 +342,26 @@ StaticModel compile_model(std::span<const std::uint8_t> bytes)
 					part.texcoords.push_back(x);
 				}
 			}
+			if (!norm)
+				for (size_t i = 0; i < count; i += 3)
+				{
+					const auto offset = i * 3;
+					const auto &v = part.positions;
+					const float ax = v[offset + 3] - v[offset], ay = v[offset + 4] - v[offset + 1],
+					            az = v[offset + 5] - v[offset + 2];
+					const float bx = v[offset + 6] - v[offset], by = v[offset + 7] - v[offset + 1],
+					            bz = v[offset + 8] - v[offset + 2];
+					const float nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx;
+					const float length = std::sqrt(nx * nx + ny * ny + nz * nz);
+					if (!std::isfinite(length) || length < 1e-12f)
+						fail();
+					for (size_t corner = 0; corner < 3; ++corner)
+					{
+						part.normals[offset + corner * 3] = nx / length;
+						part.normals[offset + corner * 3 + 1] = ny / length;
+						part.normals[offset + corner * 3 + 2] = nz / length;
+					}
+				}
 			result.parts.push_back(std::move(part));
 		}
 	}

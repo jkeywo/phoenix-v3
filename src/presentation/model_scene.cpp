@@ -19,6 +19,7 @@ namespace phoenix
 {
 namespace
 {
+#include "nebula_shader.hpp"
 #ifdef __EMSCRIPTEN__
 const std::string model_prefix = "#version 300 es\nprecision highp float;\nprecision highp int;\n";
 #else
@@ -36,6 +37,7 @@ uniform sampler2D texture0;uniform sampler2D emissionMap;uniform sampler2D shado
 uniform vec4 colDiffuse;uniform vec3 emission;uniform vec3 sun;uniform vec3 sunColour;uniform float ambient;uniform float sunIntensity;
 uniform mat4 lightVP;uniform int shadowPass;uniform int shadows;uniform int effect;
 uniform int lightCount;uniform vec4 lights[16];uniform vec4 cones[16];uniform float time;
+uniform vec3 cameraPosition;
 uniform vec3 surfaceColour;uniform vec3 hotColour;uniform vec3 cellColour;uniform vec3 haloColour;
 vec4 packDepth(float d){vec4 v=fract(d*vec4(16777216.,65536.,256.,1.));v-=v.xxyz*vec4(0.,1./256.,1./256.,1./256.);return v;}
 float unpackDepth(vec4 v){return dot(v,vec4(1./16777216.,1./65536.,1./256.,1.));}
@@ -46,12 +48,13 @@ float fbm(vec3 p){float v=0.,a=.5;for(int i=0;i<4;i++){v+=a*stellarNoise(p);p*=2
 void main(){
  vec4 base=texture(texture0,uv)*colDiffuse;if(base.a<.15)discard;
  if(shadowPass==1){finalColor=packDepth(gl_FragCoord.z);return;}
- if(effect==1){vec3 n=normalize(localPosition);float cells=fbm(n*4.2+vec3(0,time*.055,time*.035));float shimmer=fbm(n*18.+vec3(time*.12,-time*.08,time*.06));vec3 c=mix(surfaceColour,cellColour,smoothstep(.25,.72,1.-cells)*.55);c=mix(c,hotColour,smoothstep(.62,.92,cells+shimmer*.18));finalColor=vec4(c*(1.15+shimmer*.18),1);return;}
- if(effect==2){float d=length(uv*2.-1.);if(d>1.)discard;float corona=pow(max(1.-d,0.),1.7);float core=1.-smoothstep(.08,1.,d);finalColor=vec4(haloColour*(1.+corona*1.2),.55*(.92+.08*sin(time*1.2))*max(core*.32,corona));return;}
- if(effect==3){finalColor=vec4(1.,.45,.12,.75);return;}
+ if(effect==1){vec3 n=normalize(localPosition);float cells=fbm(n*4.2+vec3(0,time*.055,time*.035));float shimmer=fbm(n*18.+vec3(time*.12,-time*.08,time*.06));vec3 c=mix(surfaceColour,cellColour,smoothstep(.25,.72,1.-cells)*.55);c=mix(c,hotColour,smoothstep(.62,.92,cells+shimmer*.18));finalColor=applyFog(vec4(c*(1.15+shimmer*.18),1),cameraPosition,world);return;}
+ if(effect==2){float d=length(uv*2.-1.);if(d>1.)discard;float corona=pow(max(1.-d,0.),1.7);float core=1.-smoothstep(.08,1.,d);finalColor=vec4(haloColour*(1.+corona*1.2),.55*(.92+.08*sin(time*1.2))*max(core*.32,corona));finalColor=applyFog(finalColor,cameraPosition,world);return;}
+ if(effect==3){finalColor=applyFog(vec4(1.,.45,.12,.75),cameraPosition,world);return;}
  vec3 n=normalize(normal);vec3 light=vec3(ambient)+sunColour*max(dot(n,sun),0.)*sunIntensity*visibility();
  for(int i=0;i<16;i++){if(i>=lightCount)break;vec3 delta=lights[i].xyz-world;float d=length(delta);vec3 toward=delta/max(.001,d);float cone=smoothstep(.5,.82,dot(-toward,cones[i].xyz));float power=cone*max(dot(n,toward),0.)*cones[i].w/(1.+d*d/(lights[i].w*lights[i].w));light+=vec3(1.,.23,.035)*power;}
  finalColor=vec4(pow(clamp(pow(base.rgb,vec3(2.2))*light+texture(emissionMap,uv).rgb*emission,0.,1.),vec3(1./2.2)),base.a);
+ finalColor=applyFog(finalColor,cameraPosition,world);
 }
 )GLSL";
 struct GpuPart
@@ -77,6 +80,11 @@ Matrix local_matrix(const Json &render)
 		const auto &x = j.at(key);
 		return Vector3{x[0], x[1], x[2]};
 	};
+	if (render.contains("star"))
+	{
+		const float radius = render.at("scale").get<float>() * .5f;
+		return MatrixScale(radius, radius, radius);
+	}
 	const auto m = render.value("model", Json::object());
 	const auto s = v(m, "scale", {1, 1, 1}), r = v(m, "rotation", {}), o = v(m, "offset", {});
 	const float height = render.at("scale");
@@ -151,8 +159,9 @@ struct ModelScene::State
 		if (shader.id)
 			return;
 		const auto framebuffer = rlGetActiveFramebuffer();
-		shader = LoadShaderFromMemory((model_prefix + model_vertex).c_str(), (model_prefix + model_fragment).c_str());
-		if (!IsShaderValid(shader))
+		shader = LoadShaderFromMemory((model_prefix + model_vertex).c_str(),
+		                              (model_prefix + fog_functions + model_fragment).c_str());
+		if (!IsShaderValid(shader) || shader.id == rlGetShaderIdDefault())
 			throw std::runtime_error("Model shader unavailable");
 		shader.locs[SHADER_LOC_MAP_ALBEDO] = loc("texture0");
 		shader.locs[SHADER_LOC_MAP_EMISSION] = loc("emissionMap");
@@ -312,7 +321,7 @@ void ModelScene::draw(const Catalog &catalog, std::span<const SceneBody> bodies,
 		const auto heading = MatrixRotateY(body.heading * DEG2RAD / 1000.f - PI / 2);
 		const auto world = MatrixMultiply(heading, MatrixTranslate(pos.x, pos.y, pos.z));
 		const float scale = r.at("scale");
-		auto local = r.contains("star") ? MatrixScale(scale * .5f, scale * .5f, scale * .5f) : local_matrix(r);
+		auto local = local_matrix(r);
 		auto transform = MatrixMultiply(local, world);
 		items.push_back({body.definition, transform, &r, &body});
 		radius = std::max(radius, Vector3Length(pos) + scale * 2);
@@ -385,7 +394,10 @@ void ModelScene::draw(const Catalog &catalog, std::span<const SceneBody> bodies,
 	        ? MatrixPerspective(camera.fovy * DEG2RAD, aspect, rlGetCullDistanceNear(), rlGetCullDistanceFar())
 	        : MatrixOrtho(-camera.fovy * aspect * .5, camera.fovy * aspect * .5, -camera.fovy * .5, camera.fovy * .5,
 	                      rlGetCullDistanceNear(), rlGetCullDistanceFar()));
-	s.navigation.background(catalog, environment, camera);
+	const auto fog = lighting.value("environment", Json::object());
+	s.navigation.background(catalog, environment, camera, fog, rebase);
+	set_scene_fog(s.shader, fog, rebase);
+	s.vec("cameraPosition", camera.position);
 	s.shadow_pass = false;
 	s.integer("shadowPass", 0);
 	s.integer("shadows", shadows ? 1 : 0);
