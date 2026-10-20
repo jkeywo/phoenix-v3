@@ -43,15 +43,15 @@ std::array<int, 2> image(const Catalog &catalog, const Json &reference, const st
 	if (!reference.is_string() || !catalog.assets.contains(reference.get<std::string>()))
 		bad(path, "unresolved PNG reference");
 	const auto &bytes = catalog.assets.at(reference.get<std::string>());
-	int w = 0, h = 0, channels = 0;
-	if (!stbi_info_from_memory(bytes.data(), static_cast<int>(bytes.size()), &w, &h, &channels) || w <= 0 || h <= 0 ||
-	    w > 8192 || h > 8192 || static_cast<std::int64_t>(w) * h > 16777216)
-		bad(path, "invalid or oversized PNG dimensions");
-	auto *pixels = stbi_load_from_memory(bytes.data(), static_cast<int>(bytes.size()), &w, &h, &channels, 4);
-	if (!pixels)
-		bad(path, "PNG cannot decode");
-	stbi_image_free(pixels);
-	return {w, h};
+	try
+	{
+		const auto decoded = decode_asset_image(bytes);
+		return {decoded.width, decoded.height};
+	}
+	catch (const std::exception &error)
+	{
+		bad(path, error.what());
+	}
 }
 } // namespace
 Json dust_defaults()

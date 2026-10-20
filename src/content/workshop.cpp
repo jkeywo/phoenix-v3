@@ -388,14 +388,43 @@ Catalog WorkshopDocument::verify() const
 	draft.files["definitions.json"] = json_bytes(definitions_);
 	return resolve_draft(libraries_, draft);
 }
-Bytes WorkshopDocument::export_pack() const
+Bytes WorkshopDocument::export_pack(PackEncoding encoding, bool scenario_only) const
 {
 	PackDraft draft;
 	draft.manifest = pack_.manifest;
 	draft.files = pack_.files;
 	draft.files["definitions.json"] = json_bytes(definitions_);
-	draft.files["launcher.json"] = json_bytes(launcher_catalog(resolve_draft(libraries_, draft)));
-	return write_pack(draft);
+	const auto catalog = resolve_draft(libraries_, draft);
+	auto dependencies = libraries_;
+	if (scenario_only)
+	{
+		// The editable pack supplies shared definitions/assets. The scenario is a
+		// small dependent overlay, so it can be installed alongside that game pack.
+		dependencies.push_back(read_pack(write_pack(draft)));
+		const auto map_id = map().at("id").get<std::string>();
+		const auto parent = draft.manifest.at("id").get<std::string>();
+		const auto scenario_id = parent.substr(0, 100) + ".scenario-" + sha256(json_bytes(map_id)).substr(0, 16);
+		const auto required = draft.manifest.value("dependencies", Json::array());
+		draft = {};
+		draft.manifest = {{"schema", 1},
+		                  {"id", scenario_id},
+		                  {"dependencies", required},
+		                  {"overrides", Json::array({map_id})},
+		                  {"scenario", map_id}};
+		draft.manifest["dependencies"].push_back(parent);
+		draft.files["definitions.json"] = json_bytes(Json{{"schema", 3}, {"maps", Json::array({map()})}});
+		const auto assets = scenario_assets(catalog, map_id);
+		(void)assets; // Validate future-spawn dependencies before packaging.
+	}
+	auto preview = launcher_catalog(resolve_draft(dependencies, draft));
+	if (scenario_only)
+		std::erase_if(preview["scenarios"].get_ref<Json::array_t &>(),
+		              [&](const Json &entry)
+		              {
+			              return entry.at("id") != map().at("id");
+		              });
+	draft.files["launcher.json"] = json_bytes(preview);
+	return write_pack(draft, encoding);
 }
 void WorkshopDocument::load_map(std::span<const std::uint8_t> bytes)
 {

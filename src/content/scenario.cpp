@@ -374,4 +374,81 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map)
 		}
 	require(initial_names.size() <= definition.maximum_instances, "initial situations exceed instance limit");
 }
+namespace
+{
+struct LoadClosure
+{
+	std::set<std::string> definitions, assets;
+};
+LoadClosure load_closure(const Catalog &catalog, const std::string &map)
+{
+	LoadClosure result;
+	std::function<void(const Json &)> visit;
+	std::function<void(const std::string &)> reference = [&](const std::string &id)
+	{
+		if (catalog.assets.contains(id))
+		{
+			result.assets.insert(id);
+			return;
+		}
+		for (const auto *table : {&catalog.maps, &catalog.entities, &catalog.consoles, &catalog.trees,
+		                          &catalog.equipment, &catalog.assemblies, &catalog.messages})
+			if (const auto found = table->find(id); found != table->end())
+			{
+				if (result.definitions.insert(id).second)
+					visit(found->second);
+				return;
+			}
+	};
+	visit = [&](const Json &value)
+	{
+		if (value.is_string())
+			reference(value.get<std::string>());
+		else if (value.is_structured())
+			for (const auto &child : value)
+				visit(child);
+	};
+	if (!catalog.maps.contains(map))
+		throw std::runtime_error("preload: unknown scenario " + map);
+	reference(map);
+	if (!catalog.loading_background.empty())
+		reference(catalog.loading_background);
+	const auto &source = catalog.maps.at(map);
+	if (source.contains("preload"))
+	{
+		if (!source.at("preload").is_array())
+			throw std::runtime_error("maps." + map + ".preload: expected reference array");
+		for (const auto &value : source.at("preload"))
+		{
+			if (!value.is_string())
+				throw std::runtime_error("maps." + map + ".preload: expected reference");
+			const auto id = value.get<std::string>();
+			if (!result.definitions.contains(id) && !result.assets.contains(id))
+				throw std::runtime_error("maps." + map + ".preload: unresolved reference " + id);
+		}
+	}
+	for (const auto &id : result.definitions)
+		if (const auto program = catalog.tree_programs.find(id); program != catalog.tree_programs.end())
+			for (const auto &state : program->second.states)
+				for (const auto *tasks : {&state.entry, &state.running, &state.exit})
+					for (const auto &task : *tasks)
+						if (task.kind == state_tree::TaskKind::Action &&
+						    static_cast<GameplayTreeAction>(task.target) == GameplayTreeAction::SpawnEntity &&
+						    !task.arguments.empty() && task.arguments.front().source != state_tree::Source::Literal &&
+						    (!source.contains("preload") || source.at("preload").empty()))
+							throw std::runtime_error("maps." + map +
+							                         ".preload: dynamic spawn needs explicit preload references");
+	return result;
+}
+} // namespace
+std::vector<std::string> scenario_definitions(const Catalog &catalog, const std::string &map)
+{
+	const auto closure = load_closure(catalog, map);
+	return {closure.definitions.begin(), closure.definitions.end()};
+}
+std::vector<std::string> scenario_assets(const Catalog &catalog, const std::string &map)
+{
+	const auto closure = load_closure(catalog, map);
+	return {closure.assets.begin(), closure.assets.end()};
+}
 } // namespace phoenix

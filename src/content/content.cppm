@@ -218,7 +218,8 @@ struct Catalog
 	std::map<std::string, ControllerTreeBindings> controller_bindings;
 	std::map<std::string, Bytes> assets;
 	std::vector<std::pair<std::string, std::string>> ordered_packs;
-	bool presentation = false;
+	bool presentation = false, selection = false;
+	std::string loading_background;
 };
 ControllerTreeBindings compile_controller_bindings(const Json &, const Catalog &);
 void verify_scenario_authoring(const Catalog &catalog, const Json &map);
@@ -296,10 +297,29 @@ void apply_sprite_sidecar(Json &render, const Json &sidecar, const std::map<std:
 // extracted to caller-controlled paths on disk.
 Pack read_pack(std::span<const std::uint8_t> bytes);
 Pack read_pack(Bytes &&bytes);
-Bytes write_pack(const PackDraft &pack);
+enum class PackEncoding
+{
+	Zip,
+	Dat
+};
+Bytes write_pack(const PackDraft &pack, PackEncoding encoding = PackEncoding::Zip);
+Pack read_pack_path(const std::string &path);
+struct AssetImage
+{
+	int width = 0, height = 0;
+	Bytes rgba;
+};
+bool compiled_image(std::span<const std::uint8_t> bytes);
+AssetImage decode_asset_image(std::span<const std::uint8_t> bytes);
+Bytes compile_asset_image(std::span<const std::uint8_t> bytes);
+Bytes source_asset_image(std::span<const std::uint8_t> bytes);
 void verify_pack_draft(const PackDraft &pack);
 Catalog resolve_packs(const std::vector<Pack> &ordered);
-Pack console_assets(const Catalog &catalog, const std::string &ship);
+Pack console_assets(const Catalog &catalog, const std::string &ship, const std::string &console = {},
+                    const std::string &background = {});
+// Resolved references, including future spawn content; no production-content assumptions.
+std::vector<std::string> scenario_definitions(const Catalog &catalog, const std::string &map);
+std::vector<std::string> scenario_assets(const Catalog &catalog, const std::string &map);
 // Authoring preview only: the final draft is deliberately absent from archive identities.
 Catalog resolve_draft(const std::vector<Pack> &libraries, const PackDraft &draft);
 Catalog prepared_catalog(const Catalog &catalog);
@@ -424,7 +444,7 @@ public:
 	void load_pack(std::span<const std::uint8_t> archive);
 	void load_dependency(std::span<const std::uint8_t> archive);
 	void rename_pack(const std::string &id);
-	Bytes export_pack() const;
+	Bytes export_pack(PackEncoding encoding = PackEncoding::Zip, bool scenario_only = false) const;
 	void load_map(std::span<const std::uint8_t> bytes);
 	Bytes save_map() const;
 	void new_map(const std::string &id);

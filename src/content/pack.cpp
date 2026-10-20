@@ -1,5 +1,15 @@
 module;
 #include <miniz.h>
+#include <algorithm>
+#include <filesystem>
+#define STB_IMAGE_STATIC
+#define STB_IMAGE_IMPLEMENTATION
+#define STBI_ONLY_PNG
+#define STBI_NO_STDIO
+#include <stb_image.h>
+#define STB_IMAGE_WRITE_STATIC
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include <stb_image_write.h>
 #include <memory>
 #include <stdexcept>
 #include <set>
@@ -19,6 +29,19 @@ namespace
 constexpr std::size_t max_archive = 32 * 1024 * 1024;
 constexpr std::size_t max_file = 16 * 1024 * 1024;
 constexpr std::size_t max_total = 64 * 1024 * 1024;
+constexpr std::size_t max_compiled_total = 256 * 1024 * 1024;
+constexpr std::string_view dat_magic = "PHXDAT1\n", json_magic = "PHXCBR1\n", image_magic = "PHXRGBA1";
+bool signature(std::span<const std::uint8_t> bytes, std::string_view magic)
+{
+	return bytes.size() >= magic.size() && std::equal(magic.begin(), magic.end(), bytes.begin());
+}
+Bytes binary_json(const Json &json)
+{
+	Bytes result(json_magic.begin(), json_magic.end());
+	const auto payload = Json::to_cbor(json);
+	result.insert(result.end(), payload.begin(), payload.end());
+	return result;
+}
 void path_check(const std::string &path)
 {
 	if (path.size() >= MZ_ZIP_MAX_ARCHIVE_FILENAME_SIZE)
@@ -93,7 +116,15 @@ std::shared_ptr<const Bytes> Pack::archive_owner() const
 }
 PackDraft Pack::draft() const
 {
-	return storage_->content;
+	auto result = storage_->content;
+	for (auto &[path, bytes] : result.files)
+	{
+		if (signature(bytes, json_magic))
+			bytes = json_bytes(parse_json(bytes, path));
+		else if (compiled_image(bytes))
+			bytes = source_asset_image(bytes);
+	}
+	return result;
 }
 Bytes json_bytes(const Json &json)
 {
@@ -104,6 +135,8 @@ Json parse_json(std::span<const std::uint8_t> bytes, const std::string &source)
 {
 	try
 	{
+		if (signature(bytes, json_magic))
+			return Json::from_cbor(bytes.begin() + json_magic.size(), bytes.end());
 		return Json::parse(bytes.begin(), bytes.end());
 	}
 	catch (const std::exception &error)
@@ -119,7 +152,16 @@ Pack read_pack(std::span<const std::uint8_t> bytes)
 }
 Pack read_pack(Bytes &&archive)
 {
-	const std::span<const std::uint8_t> bytes(archive);
+	if (archive.size() > max_archive)
+		throw std::runtime_error("pack: archive exceeds 32 MiB limit");
+	std::span<const std::uint8_t> bytes(archive);
+	const bool compiled = signature(bytes, dat_magic);
+	if (!compiled && signature(bytes, "PHXDAT"))
+		throw std::runtime_error("pack: unsupported DAT version");
+	if (compiled)
+		bytes = bytes.subspan(dat_magic.size());
+	const auto entry_limit = compiled ? 64 * 1024 * 1024 + 16 : max_file;
+	const auto total_limit = compiled ? max_compiled_total : max_total;
 	if (bytes.size() > max_archive)
 		throw std::runtime_error("pack: archive exceeds 32 MiB limit");
 	mz_zip_archive zip{};
@@ -135,7 +177,7 @@ Pack read_pack(Bytes &&archive)
 	} end{&zip};
 	auto storage = std::make_shared<Pack::Storage>();
 	auto &result = storage->content;
-	storage->hash = sha256(bytes);
+	storage->hash = sha256(archive);
 	auto count = mz_zip_reader_get_num_files(&zip);
 	if (count > 1024)
 		throw std::runtime_error("pack: more than 1024 entries");
@@ -151,7 +193,7 @@ Pack read_pack(Bytes &&archive)
 			continue;
 		std::string path = stat.m_filename;
 		path_check(path);
-		if (stat.m_is_encrypted || stat.m_uncomp_size > max_file || stat.m_uncomp_size > max_total - total)
+		if (stat.m_is_encrypted || stat.m_uncomp_size > entry_limit || stat.m_uncomp_size > total_limit - total)
 			throw std::runtime_error(path + ": encrypted or oversized pack entry");
 		if (result.files.contains(path))
 			throw std::runtime_error(path + ": duplicate ZIP entry");
@@ -188,9 +230,32 @@ void verify_pack_draft(const PackDraft &pack)
 		total += bytes.size();
 	}
 }
-Bytes write_pack(const PackDraft &pack)
+Bytes write_pack(const PackDraft &source, PackEncoding encoding)
 {
+	PackDraft pack = source;
+	// Re-exporting compiled input to ZIP restores editable JSON and PNG sources.
+	for (auto &[path, bytes] : pack.files)
+	{
+		if (signature(bytes, json_magic))
+			bytes = json_bytes(parse_json(bytes, path));
+		else if (compiled_image(bytes))
+			bytes = source_asset_image(bytes);
+	}
 	verify_pack_draft(pack);
+	if (encoding == PackEncoding::Dat)
+	{
+		std::size_t total = 0;
+		for (auto &[path, bytes] : pack.files)
+		{
+			if (path == "definitions.json")
+				bytes = binary_json(parse_json(bytes, path));
+			else if (bytes.size() >= 4 && bytes[0] == 137 && bytes[1] == 80 && bytes[2] == 78 && bytes[3] == 71)
+				bytes = compile_asset_image(bytes);
+			if (bytes.size() > max_compiled_total - total)
+				throw std::runtime_error("pack: compiled images exceed 256 MiB");
+			total += bytes.size();
+		}
+	}
 	mz_zip_archive zip{};
 	if (!mz_zip_writer_init_heap(&zip, 0, 0))
 		throw std::runtime_error("pack: cannot initialise ZIP writer");
@@ -230,6 +295,107 @@ Bytes write_pack(const PackDraft &pack)
 	if (size > max_archive)
 		throw std::runtime_error("pack: archive exceeds 32 MiB limit");
 	auto *begin = static_cast<std::uint8_t *>(output);
-	return Bytes(begin, begin + size);
+	Bytes result;
+	if (encoding == PackEncoding::Dat)
+		result.assign(dat_magic.begin(), dat_magic.end());
+	result.insert(result.end(), begin, begin + size);
+	if (result.size() > max_archive)
+		throw std::runtime_error("pack: archive exceeds 32 MiB limit");
+	return result;
+}
+bool compiled_image(std::span<const std::uint8_t> bytes)
+{
+	return signature(bytes, image_magic);
+}
+AssetImage decode_asset_image(std::span<const std::uint8_t> bytes)
+{
+	AssetImage result;
+	if (compiled_image(bytes))
+	{
+		if (bytes.size() < 16)
+			throw std::runtime_error("image: truncated compiled pixels");
+		auto integer = [&](std::size_t at)
+		{
+			std::uint32_t value = 0;
+			for (unsigned i = 0; i < 4; ++i)
+				value |= std::uint32_t(bytes[at + i]) << (i * 8);
+			return value;
+		};
+		const auto w = integer(8), h = integer(12);
+		if (!w || !h || w > 8192 || h > 8192 || std::uint64_t(w) * h > 16777216 ||
+		    bytes.size() != 16 + std::uint64_t(w) * h * 4)
+			throw std::runtime_error("image: invalid or oversized compiled dimensions");
+		result.width = static_cast<int>(w);
+		result.height = static_cast<int>(h);
+		result.rgba.assign(bytes.begin() + 16, bytes.end());
+		return result;
+	}
+	int channels = 0;
+	if (bytes.size() > max_file ||
+	    !stbi_info_from_memory(bytes.data(), static_cast<int>(bytes.size()), &result.width, &result.height,
+	                           &channels) ||
+	    result.width <= 0 || result.height <= 0 || result.width > 8192 || result.height > 8192 ||
+	    std::int64_t(result.width) * result.height > 16777216)
+		throw std::runtime_error("image: invalid or oversized PNG dimensions");
+	auto *pixels = stbi_load_from_memory(bytes.data(), static_cast<int>(bytes.size()), &result.width, &result.height,
+	                                     &channels, 4);
+	if (!pixels)
+		throw std::runtime_error("image: PNG cannot decode");
+	result.rgba.assign(pixels, pixels + std::size_t(result.width) * result.height * 4);
+	stbi_image_free(pixels);
+	return result;
+}
+Bytes compile_asset_image(std::span<const std::uint8_t> bytes)
+{
+	const auto image = decode_asset_image(bytes);
+	Bytes result(image_magic.begin(), image_magic.end());
+	for (const auto dimension : {image.width, image.height})
+		for (unsigned i = 0; i < 4; ++i)
+			result.push_back(static_cast<std::uint8_t>((dimension >> (i * 8)) & 255));
+	result.insert(result.end(), image.rgba.begin(), image.rgba.end());
+	return result;
+}
+Bytes source_asset_image(std::span<const std::uint8_t> bytes)
+{
+	if (!compiled_image(bytes))
+		return Bytes(bytes.begin(), bytes.end());
+	const auto image = decode_asset_image(bytes);
+	Bytes result;
+	if (!stbi_write_png_to_func(
+	        [](void *context, void *data, int size)
+	        {
+		        auto &output = *static_cast<Bytes *>(context);
+		        const auto *begin = static_cast<const std::uint8_t *>(data);
+		        output.insert(output.end(), begin, begin + size);
+	        },
+	        &result, image.width, image.height, 4, image.rgba.data(), image.width * 4))
+		throw std::runtime_error("image: PNG encoding failed");
+	return result;
+}
+Pack read_pack_path(const std::string &path)
+{
+	const auto root = std::filesystem::u8path(path);
+	if (!std::filesystem::is_directory(root))
+		return read_pack(read_file(path));
+	PackDraft draft;
+	for (const auto &entry : std::filesystem::recursive_directory_iterator(root))
+	{
+		if (entry.is_symlink())
+			throw std::runtime_error("pack: source symlinks are not supported");
+		if (!entry.is_regular_file())
+			continue;
+		if (entry.file_size() > max_file || draft.files.size() >= 1024)
+			throw std::runtime_error("pack: source limits exceeded");
+		const auto name = std::filesystem::relative(entry.path(), root).generic_string();
+		const auto encoded = entry.path().u8string();
+		draft.files[name] = read_file(std::string(encoded.begin(), encoded.end()));
+		std::size_t total = 0;
+		for (const auto &[key, data] : draft.files)
+			total += data.size();
+		if (total > max_total)
+			throw std::runtime_error("pack: source exceeds 64 MiB");
+	}
+	draft.manifest = parse_json(draft.files.at("manifest.json"), "manifest.json");
+	return read_pack(write_pack(draft));
 }
 } // namespace phoenix

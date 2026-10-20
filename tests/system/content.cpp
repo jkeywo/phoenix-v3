@@ -1,6 +1,7 @@
 #include "../support/assertions.hpp"
 #include "../support/fixtures.hpp"
 #include <iostream>
+#include <filesystem>
 #include <limits>
 #include <algorithm>
 #include <stdexcept>
@@ -26,6 +27,88 @@ int main()
 		auto loaded = read_pack(bytes);
 		require(loaded.hash() == sha256(bytes), "pack identity must be the SHA256 of transferred archive bytes");
 		auto catalog = resolve_packs({loaded});
+		const auto dat = write_pack(base, PackEncoding::Dat);
+		const auto compiled_pack = read_pack(dat);
+		const auto compiled_catalog = resolve_packs({compiled_pack});
+		require(compiled_pack.hash() == sha256(dat) && compiled_catalog.entities == catalog.entities &&
+		            compiled_catalog.maps == catalog.maps,
+		        "ZIP/DAT share the production catalogue and exact byte identity");
+		require(compiled_image(compiled_pack.files().at("assets/pixel.png")), "DAT stores predecoded pixels");
+		require(decode_asset_image(compiled_pack.files().at("assets/pixel.png")).rgba ==
+		            decode_asset_image(base.files.at("assets/pixel.png")).rgba,
+		        "compiled pixels preserve source image");
+		require(!compiled_image(compiled_pack.draft().files.at("assets/pixel.png")) &&
+		            parse_json(compiled_pack.draft().files.at("definitions.json"), "editable") ==
+		                parse_json(base.files.at("definitions.json"), "source"),
+		        "compiled imports restore editable sources");
+		resolve_packs({read_pack(write_pack(compiled_pack.draft()))});
+		auto corrupt_dat = dat;
+		corrupt_dat[6] = '9';
+		rejected(
+		    [&]
+		    {
+			    read_pack(corrupt_dat);
+		    },
+		    "version");
+		corrupt_dat = dat;
+		corrupt_dat.resize(20);
+		rejected(
+		    [&]
+		    {
+			    read_pack(corrupt_dat);
+		    },
+		    "ZIP");
+		auto invalid_pixels = compiled_pack.files().at("assets/pixel.png");
+		invalid_pixels[8] = 0;
+		invalid_pixels[9] = 0;
+		invalid_pixels[10] = 0;
+		invalid_pixels[11] = 0;
+		rejected(
+		    [&]
+		    {
+			    decode_asset_image(invalid_pixels);
+		    },
+		    "dimensions");
+		{
+			const auto directory = std::filesystem::temp_directory_path() / "phoenix-content-source-loading-fixture";
+			std::filesystem::create_directories(directory / "assets");
+			write_file((directory / "manifest.json").generic_string(), json_bytes(base.manifest));
+			for (const auto &[path, payload] : base.files)
+				write_file((directory / path).generic_string(), payload);
+			require(resolve_packs({read_pack_path(directory.generic_string())}).entities == catalog.entities,
+			        "source directories load through the production pack reader");
+		}
+		const auto map_id = catalog.maps.begin()->first;
+		const auto required_images = scenario_assets(catalog, map_id);
+		require(!required_images.empty(), "scenario closure includes initial and allowed-ship sprites");
+		WorkshopDocument packaging;
+		packaging.load_pack(bytes);
+		packaging.map()["loading_background"] = "test-core:assets/pixel.png";
+		const auto extra_image = packaging.import_image("later.png", base.files.at("assets/pixel.png"));
+		auto later = packaging.definitions().at("entities").front();
+		later["id"] = "test.later";
+		later["render"]["images"] = Json::array({extra_image});
+		packaging.definitions()["entities"].push_back(later);
+		const auto unused = scenario_assets(packaging.verify(), map_id);
+		require(std::find(unused.begin(), unused.end(), extra_image) == unused.end(),
+		        "unrelated content is not preloaded");
+		packaging.map()["preload"] = Json::array({"test.later"});
+		const auto future = scenario_assets(packaging.verify(), map_id);
+		require(std::find(future.begin(), future.end(), extra_image) != future.end(),
+		        "future dynamic entities preload their complete material dependencies");
+		const auto scenario_dat = packaging.export_pack(PackEncoding::Dat, true);
+		const auto scenario_catalog = resolve_packs({read_pack(packaging.export_pack()), read_pack(scenario_dat)});
+		require(scenario_catalog.maps.size() == 1 &&
+		            scenario_catalog.maps.contains(packaging.map().at("id").get<std::string>()),
+		        "Workshop packages the selected scenario through the production loader");
+		const auto seat = resolve_consoles(catalog, "test.ship").front().id;
+		const auto client_pack = console_assets(catalog, "test.ship", seat);
+		const auto client_catalog = resolve_packs({client_pack});
+		require(client_catalog.maps.empty() && client_catalog.trees.empty() &&
+		            resolve_consoles(client_catalog, "test.ship").size() == 1,
+		        "assigned Console package excludes scenarios, private trees and unassigned Consoles");
+		require(resolve_packs({console_assets(catalog, "test.ship", "__selection__")}).entities.empty(),
+		        "selection bootstrap needs no ship or Console definitions");
 
 		// Signed coordinates must be checked before conversion from unsigned JSON storage.
 		const auto numeric_source = parse_json(base.files.at("definitions.json"), "numeric fixture");

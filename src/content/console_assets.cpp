@@ -13,12 +13,19 @@ module;
 module phoenix.content;
 namespace phoenix
 {
-Pack console_assets(const Catalog &catalog, const std::string &ship)
+Pack console_assets(const Catalog &catalog, const std::string &ship, const std::string &console,
+                    const std::string &background)
 {
 	const auto &source = catalog.entities.at(ship);
 	PackDraft draft;
 	const std::string pack_id = "console-assets";
 	draft.manifest = {{"schema", 1}, {"id", pack_id}, {"format", "phoenix-console-assets"}};
+	if (console == "__selection__")
+	{
+		draft.manifest["format"] = "phoenix-console-selection";
+		draft.files["definitions.json"] = json_bytes(Json{{"schema", 3}});
+		return read_pack(write_pack(draft, PackEncoding::Dat));
+	}
 	Json entity{{"id", ship}, {"systems", Json::object()}};
 	entity["render"] = {{"mode", source.at("render").at("mode")},
 	                    {"scale", source.at("render").at("scale")},
@@ -129,6 +136,8 @@ Pack console_assets(const Catalog &catalog, const std::string &ship)
 	std::set<std::string> included;
 	for (const auto &seat : resolve_consoles(catalog, ship))
 	{
+		if (!console.empty() && seat.id != console)
+			continue;
 		Json controls = seat.controlled_systems, feeds = seat.feed_systems;
 		// Copy the public fields, never arbitrary authored metadata.
 		auto station = std::find_if(stations.begin(), stations.end(),
@@ -172,9 +181,32 @@ Pack console_assets(const Catalog &catalog, const std::string &ship)
 		}
 	}
 	entity["stations"] = stations;
+	if (!console.empty())
+	{
+		// A Console needs public radar icons, not the ship's detailed hull material.
+		entity["render"] = {{"mode", "camera"}, {"scale", 1}, {"images", Json::array()}};
+		const Bytes pixel = {'P', 'H', 'X', 'R', 'G', 'B', 'A', '1', 1, 0, 0, 0, 1, 0, 0, 0, 255, 255, 255, 255};
+		if (!own_icon.empty())
+			entity["render"]["radar_sprite"] = own_icon;
+		entity["render"]["radar_icon"] = std::string(radar_icon_name(render_radar_icon(source.at("render"))));
+		draft.files["assets/contact.png"] = source_asset_image(pixel);
+		entity["render"]["images"].push_back(pack_id + ":assets/contact.png");
+		std::erase_if(draft.files,
+		              [](const auto &entry)
+		              {
+			              return entry.first.starts_with("assets/") && entry.first != "assets/contact.png" &&
+			                     !entry.first.starts_with("assets/radar/");
+		              });
+	}
+	const auto loading = background.empty() ? catalog.loading_background : background;
+	if (!loading.empty())
+	{
+		draft.files["assets/loading.png"] = catalog.assets.at(loading);
+		draft.manifest["loading_background"] = pack_id + ":assets/loading.png";
+	}
 	draft.files["definitions.json"] =
 	    json_bytes(Json{{"schema", 3}, {"entities", Json::array({entity})}, {"consoles", consoles}});
-	auto pack = read_pack(write_pack(draft));
+	auto pack = read_pack(write_pack(draft, console.empty() ? PackEncoding::Zip : PackEncoding::Dat));
 	resolve_packs({pack});
 	return pack;
 }

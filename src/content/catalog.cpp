@@ -147,11 +147,12 @@ Catalog resolve(const std::vector<PackView> &ordered)
 	for (const auto &pack : ordered)
 	{
 		const auto format = pack.manifest.value("format", std::string{});
-		if (format == "phoenix-console-assets")
+		if (format == "phoenix-console-assets" || format == "phoenix-console-selection")
 		{
 			if (ordered.size() != 1)
 				invalid("pack", "Console assets cannot be mixed with gameplay packs");
 			result.presentation = true;
+			result.selection = format == "phoenix-console-selection";
 		}
 		if (format == "phoenix-runtime-save" || format == "phoenix-fleet-setup")
 			invalid("pack", "session/setup containers are not gameplay packs; use their dedicated loader");
@@ -163,6 +164,8 @@ Catalog resolve(const std::vector<PackView> &ordered)
 			if (!dependency.is_string() || dependency == id || !loaded.contains(dependency.get<std::string>()))
 				invalid(id + ".dependencies", "dependency must appear earlier in the selected pack order");
 		}
+		if (pack.manifest.contains("loading_background"))
+			result.loading_background = pack.manifest.at("loading_background").get<std::string>();
 		auto definitions = parse_json(pack.files.at("definitions.json"), id + "/definitions.json");
 		if (!definitions.is_object() || definitions.value("schema", 0) < 1 || definitions.value("schema", 0) > 4)
 			invalid(id + "/definitions.json", "expected schema 1..4 object");
@@ -358,10 +361,18 @@ void verify_prepared_catalog(const Catalog &catalog)
 {
 	if (catalog.presentation &&
 	    (!catalog.maps.empty() || !catalog.trees.empty() || !catalog.equipment.empty() || !catalog.assemblies.empty() ||
-	     !catalog.messages.empty() || !catalog.knowledge.empty() || catalog.entities.size() != 1))
+	     !catalog.messages.empty() || !catalog.knowledge.empty() ||
+	     (catalog.selection ? (!catalog.entities.empty() || !catalog.consoles.empty() || !catalog.assets.empty())
+	                        : catalog.entities.size() != 1)))
 		invalid("presentation", "expected one own-ship definition without maps or controllers");
 	if (!catalog.presentation)
 		(void)compile_gameplay_knowledge(catalog);
+	if (!catalog.loading_background.empty())
+	{
+		if (!catalog.assets.contains(catalog.loading_background))
+			invalid("loading_background", "unresolved image");
+		decode_asset_image(catalog.assets.at(catalog.loading_background));
+	}
 	std::set<std::string> verified_images;
 	for (const auto &[id, entity] : catalog.entities)
 	{
@@ -456,19 +467,7 @@ void verify_prepared_catalog(const Catalog &catalog)
 				if (!verified_images.insert(asset.get<std::string>()).second)
 					continue;
 				const auto &bytes = catalog.assets.at(asset.get<std::string>());
-				static const std::uint8_t signature[] = {137, 80, 78, 71, 13, 10, 26, 10};
-				if (bytes.size() < 24 || !std::equal(std::begin(signature), std::end(signature), bytes.begin()))
-					invalid(path + ".render.images", "expected PNG asset");
-				int width = 0, height = 0, channels = 0;
-				if (!stbi_info_from_memory(bytes.data(), static_cast<int>(bytes.size()), &width, &height, &channels) ||
-				    width <= 0 || height <= 0 || width > 8192 || height > 8192 ||
-				    static_cast<std::int64_t>(width) * height > 16777216)
-					invalid(path + ".render.images", "invalid or oversized PNG dimensions");
-				auto *decoded =
-				    stbi_load_from_memory(bytes.data(), static_cast<int>(bytes.size()), &width, &height, &channels, 4);
-				if (!decoded)
-					invalid(path + ".render.images", "PNG cannot decode");
-				stbi_image_free(decoded);
+				decode_asset_image(bytes);
 			}
 		}
 		if (!entity.contains("systems") || !entity["systems"].is_object())
@@ -655,6 +654,14 @@ void verify_prepared_catalog(const Catalog &catalog)
 		if (map.contains("lighting"))
 			verify_lighting(map.at("lighting"), "maps." + id + ".lighting");
 		auto path = "maps." + id;
+		(void)scenario_assets(catalog, id);
+		if (map.contains("loading_background"))
+		{
+			const auto reference = map.at("loading_background").get<std::string>();
+			if (!catalog.assets.contains(reference))
+				invalid(path + ".loading_background", "unresolved image");
+			decode_asset_image(catalog.assets.at(reference));
+		}
 		if (!map.contains("entities") || !map["entities"].is_array() || !map.contains("ship_slots") ||
 		    !map["ship_slots"].is_array())
 			invalid(path, "entities and ship_slots arrays required");

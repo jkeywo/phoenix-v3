@@ -16,7 +16,8 @@ int main(int argc, char **argv)
 	{
 		if (argc < 3)
 		{
-			std::cerr << "Usage: phoenix_pack source-directory output.zip [ordered-dependency.zip ...]\n";
+			std::cerr
+			    << "Usage: phoenix_pack source-directory output.zip|output.dat [ordered-dependency.zip|.dat ...]\n";
 			return 2;
 		}
 		const auto root = std::filesystem::canonical(std::filesystem::u8path(argv[1]));
@@ -53,7 +54,10 @@ int main(int argc, char **argv)
 		preview["name"] = pack.manifest.value("name", pack.manifest.at("id").get<std::string>());
 		preview["dependencies"] = pack.manifest.value("dependencies", phoenix::Json::array());
 		pack.files["launcher.json"] = phoenix::json_bytes(preview);
-		auto archive = phoenix::write_pack(pack);
+		auto archive = phoenix::write_pack(pack, std::string(argv[2]).ends_with(".dat") ? phoenix::PackEncoding::Dat
+		                                                                                : phoenix::PackEncoding::Zip);
+		ordered.push_back(phoenix::read_pack(archive));
+		(void)phoenix::resolve_packs(ordered);
 		phoenix::write_file(argv[2], archive);
 		preview["id"] = pack.manifest.at("id");
 		preview["hash"] = phoenix::sha256(archive);
