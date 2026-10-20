@@ -2344,9 +2344,12 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	if (entity.has<EntityControls>())
 	{
 		const auto &controls = entity.get<EntityControls>();
-		result.gameplay["profile"] = controls.layout.profiles.at(controls.profiles.at(seat.id)).id;
-		for (std::size_t i = 0; i < controls.layout.profiles.size(); ++i)
-			button("profile." + controls.layout.profiles[i].id, controls.layout.profiles[i].id, "preset", {}, i);
+		if (!impl_->definition(address.ship).console_bridge.at(seat.id).command)
+		{
+			result.gameplay["profile"] = controls.layout.profiles.at(controls.profiles.at(seat.id)).id;
+			for (std::size_t i = 0; i < controls.layout.profiles.size(); ++i)
+				button("profile." + controls.layout.profiles[i].id, controls.layout.profiles[i].id, "preset", {}, i);
+		}
 		for (const auto &controller : controls.controllers)
 			if (controller.definition.console == seat.id && controller.human)
 				for (std::size_t i = 0; i < controller.commands.size(); ++i)

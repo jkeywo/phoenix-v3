@@ -117,6 +117,15 @@ int main()
 			        "Command becomes available when an AI target returns");
 			OperatingCommand delayed_stance{1, "stance.set", 1, "drive"};
 			const auto command_view = world.observe(31);
+			require(!command_view->gameplay.contains("profile") &&
+			            std::none_of(command_view->gameplay.at("controls").begin(),
+			                         command_view->gameplay.at("controls").end(),
+			                         [](const auto &control)
+			                         {
+				                         return control.at("action") == "preset";
+			                         }),
+			        "Command exposes stance controls without artificial complexity profiles");
+
 			for (const auto &control : command_view->gameplay.at("controls"))
 				if (control.at("action") == "stance.set" && control.at("system") == "drive")
 					delayed_stance.generation = control.at("generation");

@@ -143,6 +143,22 @@ class ConsoleSurface final : public Rml::EventListener
 		local_settings_controls_.emplace_back(id(name), label);
 		return "<button id=\"" + id(name) + "\">" + Rml::StringUtilities::EncodeRml(localise(label)) + "</button>";
 	}
+	bool select_lobby_complexity(const std::string &profile)
+	{
+		const auto lobby = app_->session->lobby();
+		if (!lobby.active || lobby.launched)
+			return false;
+		for (const auto &seat : lobby.consoles)
+			if (seat.local_screen == route_)
+			{
+				LobbyCommand command{LobbyAction::select_profile};
+				command.slot = seat.slot;
+				command.console = seat.id;
+				command.profile = profile;
+				return app_->session->lobby_command(command);
+			}
+		return false;
+	}
 	void prepare_local_settings(Application &app, const ConsoleRegion &region)
 	{
 		local_settings_controls_.clear();
@@ -172,6 +188,14 @@ class ConsoleSurface final : public Rml::EventListener
 				markup += settings_button("local-settings.audio/" + channel + "/down", label + " -");
 				markup += settings_button("local-settings.audio/" + channel + "/up", label + " +");
 			}
+		}
+		else if (app.session->lobby().active && !app.session->lobby().launched)
+		{
+			if (!model_.layout() || !model_.layout()->value("command", false))
+				for (const auto &seat : app.session->lobby().consoles)
+					if (seat.local_screen == route_)
+						for (const auto &choice : seat.profiles)
+							markup += settings_button("complexity/" + choice, "Complexity: " + choice);
 		}
 		else if (model_.observation())
 		{
@@ -308,6 +332,32 @@ class ConsoleSurface final : public Rml::EventListener
 		       "</button>";
 	}
 
+	std::string console_markup(std::string markup) const
+	{
+		std::string sheets;
+		for (const auto &[token, file] : std::vector<std::pair<std::string, std::string>>{
+		         {"CARD_SPRITE", "helm-background-9slice"}, {"BUTTON_SPRITE", "button-generic-9slice"}})
+		{
+			const auto data = parse_json(read_file(asset_path("../menu/" + file + ".sprite.json"), 65536), file);
+			const auto &slice = data.at("nine_slice");
+			const int w = data.at("image_size")[0], h = data.at("image_size")[1];
+			const int top = slice.at("top"), right = slice.at("right"), bottom = slice.at("bottom"),
+			          left = slice.at("left");
+			auto px = [](int n)
+			{
+				return std::to_string(n) + "px ";
+			};
+			sheets += "@spritesheet " + token + " { src: \"" + asset_path("../menu/" + file + ".png") +
+			          "\"; resolution: 1x; " + token + "-outer: 0px 0px " + px(w) + px(h) + "; " + token +
+			          "-inner: " + px(left) + px(top) + px(w - left - right) + px(h - top - bottom) + "; }\n";
+			const auto needle = "image(" + token + ")";
+			markup.replace(markup.find(needle), needle.size(),
+			               "ninepatch(" + token + "-outer, " + token + "-inner, 14px 18px 14px 18px) border-box");
+		}
+		markup.insert(markup.find("<style>") + 7, sheets);
+		return markup;
+	}
+
 public:
 	explicit ConsoleSurface(ConsoleId route, const std::string &prefix = "console-", bool toolbar = true)
 	    : route_(route), context_name_(prefix + std::to_string(route)), toolbar_enabled_(toolbar)
@@ -321,8 +371,22 @@ public:
 		context_ = Rml::CreateContext(context_name_, {1280, 720});
 		if (!context_)
 			throw std::runtime_error("Cannot create independent Console context");
-		document_ = context_->LoadDocumentFromMemory(R"(<rml><head><style>
+		document_ = context_->LoadDocumentFromMemory(console_markup(R"(<rml><head><style>
 body {width:100%;height:100%;font-family:LatoLatin;font-size:20px;color:#e5e4ca;}
+
+.command-console #widgets,.command-console #connection-status {display:none;}
+.command-console #gameplay {background:transparent;border:0px;padding:0;}
+.embedded-console #toolbar h1 {margin-left:0;}
+.command-card {display:block;max-width:480px;box-sizing:border-box;width:100%;padding:18px 20px;margin:0 0 12px;background:#101b1c;decorator:image(CARD_SPRITE);}
+.stance-row {display:block;}
+.command-console #toolbar h1 {background:#101b1cee;padding:8px 14px;}
+.narrow-command #gameplay-controls .stance-button {width:96%;max-width:none;}
+.stance-state {pointer-events:none;display:block;font-size:12px;margin-top:8px;color:#ffd082;}
+.stance-button:focus .stance-state {background:#fff3d9;color:#101b1c;}
+.command-card h2 {margin:0 8px 10px;color:#ffbd76;}
+#gameplay-controls .stance-button {vertical-align:top;width:46%;max-width:144px;min-width:72px;min-height:100px;margin:2px;padding:14px 6px;font-size:.75em;background:#20292b;decorator:image(BUTTON_SPRITE);border:2px transparent;}
+#gameplay-controls .stance-button.selected {image-color:#ffb668;border-color:#efb66b;color:#ffe2a5;}
+#gameplay-controls .stance-button:hover,#gameplay-controls .stance-button:focus {image-color:#ffe1b8;border-color:#fff3d9;color:#ffffff;}
 h1 {font-size:1.3em;display:inline-block;margin:0 18px 8px 0;}
 h2 {font-size:1em;display:block;margin:4px 0;}
 button {display:inline-block;padding:10px;margin:4px;border:1px #9c8b68;background:#222b2b;color:#f0e3c2;}
@@ -428,7 +492,7 @@ button.on-screen-active .share-live {display:block;}
 .local-settings-open #manual-flight {visibility:hidden;}
 #local-settings {display:none;position:absolute;left:0;top:0;width:100%;height:100%;background:#080d0fee;z-index:20;}
 .local-settings-open #local-settings {display:block;}
-.local-settings-open #toolbar,.local-settings-open #widgets,.local-settings-open #gameplay {visibility:hidden;}
+.local-settings-open #toolbar,.local-settings-open #widgets,.local-settings-open #gameplay,.local-settings-open #lobby {visibility:hidden;}
 .local-settings-card {position:absolute;left:8%;top:8%;width:84%;max-height:84%;overflow:auto;box-sizing:border-box;padding:24px;background:#0b1719;border:2px #988b71;}
 .local-settings-card h1 {display:block;}
 .local-settings-card button {width:190px;min-height:48px;box-sizing:border-box;}
@@ -464,7 +528,7 @@ button.on-screen-active .share-live {display:block;}
 .mission-copy button:hover,.mission-copy button:focus {background:#bce8ad;color:#102014;border-color:#d1f9be;}
 #navigation-layer {position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;}
 #navigation-layer button,#navigation-layer input,#navigation-canvas {pointer-events:auto;}
-</style></head><body><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="engineering-cards"></div><div id="gameplay-controls"></div><div id="gameplay-messages"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div><div id="navigation-layer"></div><div id="manual-flight"></div><div id="local-settings"></div></body></rml>)");
+</style></head><body><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="engineering-cards"></div><div id="gameplay-controls"></div><div id="gameplay-messages"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div><div id="navigation-layer"></div><div id="manual-flight"></div><div id="local-settings"></div></body></rml>)"));
 		if (!document_)
 			throw std::runtime_error("Cannot create Console document");
 		document_->AddEventListener("click", this);
@@ -533,10 +597,14 @@ button.on-screen-active .share-live {display:block;}
 		}
 		if (action.starts_with("on-screen/"))
 			return !settings_open_ && model_.on_screen(action.substr(10), display_camera(action.substr(10)));
-#ifndef __EMSCRIPTEN__
+		if (action == "settings" && route_ == 31)
+		{
+			app_->settings_console = route_;
+			return invoke_navigation(*app_, "settings");
+		}
 		if (action == "settings" || action == "local-settings.close")
 		{
-			if (!game_active(*app_))
+			if (!app_->session)
 				return false;
 			settings_open_ = action == "settings" && !settings_open_;
 			cancel_pointer();
@@ -578,11 +646,12 @@ button.on-screen-active .share-live {display:block;}
 				value = std::clamp(value + (action.ends_with("/up") ? 5 : -5), 0, 100);
 				remember_preferences(*app_);
 			}
-			else
+			else if (!action.starts_with("complexity/"))
 				return model_.act(action);
+			else
+				return select_lobby_complexity(action.substr(11));
 			return true;
 		}
-#endif
 		if (action == "profile" || action == "profile-save" || action.starts_with("avatar/"))
 		{
 			if (!app_->session->lobby().active || app_->session->lobby().launched)
@@ -606,22 +675,6 @@ button.on-screen-active .share-live {display:block;}
 			}
 			signature_.clear();
 			return true;
-		}
-		if (action.starts_with("complexity/"))
-		{
-			const auto lobby = app_->session->lobby();
-			if (!lobby.active || lobby.launched)
-				return false;
-			for (const auto &seat : lobby.consoles)
-				if (seat.local_screen == route_)
-				{
-					LobbyCommand command{LobbyAction::select_profile};
-					command.slot = seat.slot;
-					command.console = seat.id;
-					command.profile = action.substr(11);
-					return app_->session->lobby_command(command);
-				}
-			return false;
 		}
 		if (action == "ready")
 		{
@@ -752,6 +805,10 @@ button.on-screen-active .share-live {display:block;}
 			app_->gamepad_assignments[action.substr(4)] = route_;
 			return true;
 		}
+		if (model_.observation())
+			for (const auto &control : model_.observation()->gameplay.value("controls", Json::array()))
+				if (control.value("action", "") == "preset" && descriptor_action(control.at("id")) == action)
+					return false;
 		const bool accepted = model_.act(action);
 		app_->accessible_status = model_.announcement();
 		return accepted;
@@ -1420,7 +1477,13 @@ button.on-screen-active .share-live {display:block;}
 			for (const auto &d : descriptors)
 				if (d.value("id", "") == "profile.detailed")
 				{
+					action(id("settings"));
+					local_settings_tab_ = "session";
+					const auto size = context_->GetDimensions();
+					prepare_local_settings(*app_,
+					                       {route_, 0, 0, static_cast<float>(size.x), static_cast<float>(size.y)});
 					profile_selected = action(id(descriptor_action(d.at("id"))));
+					action(id("local-settings.close"));
 					std::cout << "Engineering detailed profile admission: " << profile_selected << "; "
 					          << model_.announcement() << std::endl;
 				}
@@ -1475,6 +1538,11 @@ button.on-screen-active .share-live {display:block;}
 		model_.refresh(app.session, route_);
 		app.frame_metrics["console/" + std::to_string(route_) + "/projection"] = GetTime() - preparation_started;
 		const auto layout_started = GetTime();
+		if (app.screen == Screen::settings)
+		{
+			cancel_pointer();
+			return;
+		}
 		if (model_.announcement() != previous_announcement && !model_.announcement().empty())
 			app.accessible_status = model_.announcement();
 		if (owner_.lock() != app.session || (app.session && generation_ != app.session->generation()))
@@ -1505,7 +1573,6 @@ button.on-screen-active .share-live {display:block;}
 				manual_profile_ = "profile." + profile;
 		}
 		context_->SetDimensions({static_cast<int>(region.width), static_cast<int>(region.height)});
-#ifndef __EMSCRIPTEN__
 		select_language(local_language_, app.pseudo_locale);
 		struct RestoreLanguage
 		{
@@ -1516,14 +1583,17 @@ button.on-screen-active .share-live {display:block;}
 			}
 		} restore_language{app};
 		property(document_, "font-size", std::to_string(text_scale_ * .2f) + "px");
-		if (settings_open_ && game_active(app))
+		if (settings_open_)
 		{
 			prepare_local_settings(app, region);
 			return;
 		}
-#endif
 		const bool pregame = app.session && app.session->lobby().active && !app.session->lobby().launched;
 		const Json *layout = model_.layout();
+		const bool command_console = layout && layout->value("command", false);
+		document_->SetClass("command-console", command_console);
+		document_->SetClass("narrow-command", command_console && region.width < 310.f);
+		document_->SetClass("embedded-console", route_ == 31);
 		const bool helm = layout && std::any_of(layout->at("widgets").begin(), layout->at("widgets").end(),
 		                                        [](const auto &widget)
 		                                        {
@@ -1612,7 +1682,7 @@ button.on-screen-active .share-live {display:block;}
 			controls_.clear();
 			heading_contacts_.clear();
 			std::string toolbar = "<h1>" + Rml::StringUtilities::EncodeRml(localise(title)) + "</h1>";
-			if (toolbar_enabled_ && !pregame)
+			if (toolbar_enabled_ && route_ != 31 && !pregame)
 			{
 				button("settings", "Settings");
 				toolbar += "<button class=\"settings-cog\" id=\"" + id("settings") + "\"><img src=\"" +
@@ -1711,14 +1781,7 @@ button.on-screen-active .share-live {display:block;}
 				        "</p>" + button("ready", ready ? "Not Ready" : "Ready") + "<p id=\"countdown\"/></div>";
 			if (pregame)
 			{
-				if (!complexity_choices.empty())
-				{
-					lobby += "<div class=\"ready-card\"><p>" + localise("Complexity") + ": " +
-					         Rml::StringUtilities::EncodeRml(complexity) + "</p>";
-					for (const auto &choice : complexity_choices)
-						lobby += button("complexity/" + choice, choice);
-					lobby += "</div>";
-				}
+				lobby += button("settings", "Settings");
 				button("profile", "Edit profile");
 				const float tw = terminal_.value("display_width", 264.f), sw = terminal_.at("size").at(0),
 				            sh = terminal_.at("size").at(1);
@@ -1837,7 +1900,7 @@ button.on-screen-active .share-live {display:block;}
 				              return dial_controls.contains(control.first);
 			              });
 		}
-		if (manual_toggle_)
+		if (model_.observation())
 		{
 			std::set<std::string> presets;
 			for (const auto &d : model_.observation()->gameplay.value("controls", Json::array()))
@@ -1862,6 +1925,12 @@ button.on-screen-active .share-live {display:block;}
 			              });
 		}
 		readout_values_ = pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_readouts();
+		if (route_ == 31)
+			std::erase_if(readout_values_,
+			              [](const auto &row)
+			              {
+				              return row.first == "alert";
+			              });
 		if (engineering)
 			std::erase_if(readout_values_,
 			              [](const auto &readout)
@@ -1964,7 +2033,7 @@ button.on-screen-active .share-live {display:block;}
 					}
 				}
 			}
-			if (has_gameplay && !placed_gameplay && layout && !layout->at("widgets").empty())
+			if (has_gameplay && !command_console && !placed_gameplay && layout && !layout->at("widgets").empty())
 			{
 				if (region.width >= 900)
 				{
@@ -2043,30 +2112,70 @@ button.on-screen-active .share-live {display:block;}
 				gameplay->RemoveProperty("right");
 				gameplay->RemoveProperty("bottom");
 			}
+			if (command_console)
+			{
+				const float left = route_ == 31 ? 16.f : 48.f;
+				gameplay->SetProperty("left", std::to_string(left) + "px");
+				gameplay->SetProperty("top", "112px");
+				gameplay->SetProperty("width", std::to_string(region.width - left - 48.f) + "px");
+				gameplay->SetProperty("height", std::to_string(std::max(80.f, region.height - 224.f)) + "px");
+				gameplay->RemoveProperty("right");
+				gameplay->RemoveProperty("bottom");
+			}
 		}
 		Json gameplay_identity = Json::array();
 		for (const auto &[name, label] : gameplay_controls)
 			if (!engineering_controls.contains(name))
 				gameplay_identity.push_back(name);
-		const auto gameplay_signature = gameplay_identity.dump();
+		std::string command_markup;
+		std::set<std::string> stance_controls;
+		if (command_console && model_.observation())
+		{
+			std::map<std::string, std::string> groups, titles;
+			for (const auto &seat : resolve_consoles(app.session->catalog(), model_.observation()->own.definition))
+				titles[seat.id] = app.session->catalog().consoles.at(seat.definition).value("name", seat.id);
+			for (const auto &d : model_.observation()->gameplay.value("controls", Json::array()))
+				if (d.value("action", "") == "stance.set")
+				{
+					const auto target = d.at("system").get<std::string>();
+					stance_controls.insert(descriptor_action(d.at("id")));
+					groups[target] +=
+					    "<button class=\"stance-button " + std::string(d.value("selected", false) ? "selected" : "") +
+					    "\" id=\"" + id(descriptor_action(d.at("id"))) + "\">" +
+					    Rml::StringUtilities::EncodeRml(localise(d.at("label"))) + "<span class=\"stance-state\">" +
+					    (d.value("selected", false) ? Rml::StringUtilities::EncodeRml(localise("Selected"))
+					                                : std::string("&nbsp;")) +
+					    "</span></button>";
+				}
+			for (const auto &[target, buttons] : groups)
+				command_markup +=
+				    "<div class=\"command-card\"><h2>" +
+				    Rml::StringUtilities::EncodeRml(localise(titles.contains(target) ? titles.at(target) : target)) +
+				    "</h2><div class=\"stance-row\">" + buttons + "</div></div>";
+		}
+		const auto gameplay_signature = gameplay_identity.dump() + command_markup;
 		if (gameplay_signature_ != gameplay_signature)
 		{
+			const auto focused = context_->GetFocusElement() ? context_->GetFocusElement()->GetId() : std::string{};
 			elements_.clear();
 			for (const auto &held : held_clicks_)
 				model_.release_control(held.substr(id("").size()));
 			held_clicks_.clear();
-			std::string markup;
+			std::string markup = command_markup;
 			for (const auto &[name, label] : gameplay_controls)
-				if (!engineering_controls.contains(name))
+				if (!stance_controls.contains(name) && !engineering_controls.contains(name))
 					markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(id(name)) + "\">" +
 					          Rml::StringUtilities::EncodeRml(label) + "</button>";
 			document_->GetElementById("gameplay-controls")->SetInnerRML(markup);
+			if (auto *previous = document_->GetElementById(focused))
+				previous->Focus();
 			gameplay_signature_ = gameplay_signature;
 			for (const auto &[name, label] : gameplay_controls)
 				displayed_values_.erase("control/" + name);
 		}
 		for (const auto &[name, label] : gameplay_controls)
-			if (!engineering_controls.contains(name) && displayed_values_["control/" + name] != label)
+			if (!stance_controls.contains(name) && !engineering_controls.contains(name) &&
+			    displayed_values_["control/" + name] != label)
 			{
 				if (auto *element = this->element(id(name)))
 					element->SetInnerRML(Rml::StringUtilities::EncodeRml(label));
@@ -2319,6 +2428,12 @@ button.on-screen-active .share-live {display:block;}
 		for (const auto &[name, label] : gameplay_controls)
 		{
 			app.screen_controls.emplace_back(id(name), label);
+			if (stance_controls.contains(name))
+			{
+				auto *choice = document_->GetElementById(id(name));
+				app.screen_toggles[id(name)] = choice->IsClassSet("selected");
+				choice->SetAttribute("aria-pressed", choice->IsClassSet("selected") ? "true" : "false");
+			}
 			place(app, region, id(name));
 		}
 		for (const auto &[name, text] : gameplay_readouts)
@@ -2359,7 +2474,7 @@ button.on-screen-active .share-live {display:block;}
 	}
 	void draw_profile(const ConsoleRegion &region)
 	{
-		if (app_->session->lobby().active && !app_->session->lobby().launched && !profile_open_ &&
+		if (!settings_open_ && app_->session->lobby().active && !app_->session->lobby().launched && !profile_open_ &&
 		    !profile_avatar_.empty())
 		{
 			const auto key = sha256(profile_avatar_);
@@ -2384,16 +2499,35 @@ button.on-screen-active .share-live {display:block;}
 		BeginScissorMode(static_cast<int>(region.x), static_cast<int>(region.y), static_cast<int>(region.width),
 		                 static_cast<int>(region.height));
 		DrawRectangleRec(entire, {8, 13, 15, 255});
-		const auto background = hud("helm-background-9slice");
-		const auto &slices = hud_metadata_.at("helm-background-9slice").at("nine_slice");
-		DrawTextureNPatch(background,
-		                  {{0, 0, static_cast<float>(background.width), static_cast<float>(background.height)},
-		                   slices.at("left").get<int>(),
-		                   slices.at("top").get<int>(),
-		                   slices.at("right").get<int>(),
-		                   slices.at("bottom").get<int>(),
-		                   NPATCH_NINE_PATCH},
-		                  entire, {0, 0}, 0, WHITE);
+		const bool command = model_.layout() && model_.layout()->value("command", false);
+		if (command || route_ == 31)
+		{
+			const auto frame = hud("viewscreen-frame");
+			// The embedded console shares the viewscreen's left bulkhead. Its top and
+			// bottom rails continue behind that joint instead of adding a second border.
+			const float overlap = route_ == 31 ? 112.f : 0.f;
+			DrawTextureNPatch(frame,
+			                  {{0, 0, static_cast<float>(frame.width), static_cast<float>(frame.height)},
+			                   112,
+			                   112,
+			                   112,
+			                   112,
+			                   NPATCH_NINE_PATCH},
+			                  {entire.x - overlap, entire.y, entire.width + overlap, entire.height}, {0, 0}, 0, WHITE);
+		}
+		else
+		{
+			const auto background = hud("helm-background-9slice");
+			const auto &slices = hud_metadata_.at("helm-background-9slice").at("nine_slice");
+			DrawTextureNPatch(background,
+			                  {{0, 0, static_cast<float>(background.width), static_cast<float>(background.height)},
+			                   slices.at("left").get<int>(),
+			                   slices.at("top").get<int>(),
+			                   slices.at("right").get<int>(),
+			                   slices.at("bottom").get<int>(),
+			                   NPATCH_NINE_PATCH},
+			                  entire, {0, 0}, 0, WHITE);
+		}
 
 		const auto &view = model_.observation();
 		const float ox = region.x, oy = region.y;

@@ -22,6 +22,12 @@ Human-seeking Consoles opt in with `viewscreen: true` and a `compact.widgets` la
 
 `bridge.sidebar_default` reserves a supplemental Console for the Viewscreen host instead of assigning it implicitly to a station. Both Couriers default to Command. Auto-hiding releases the claim and restores the scene's full width; an automatically hidden default can return when AI targets return. Explicitly closing or choosing another Console suppresses automatic default selection for that session. Navigation also has an authored compact layout.
 
+Sidebar selection and **Close sidebar** live in the Viewscreen's **Settings → Session** menu. The sidebar shares the Viewscreen settings entry; it does not display a second cog. Settings retain the sidebar lease and route Console-specific controls to it. Closing explicitly releases that lease; selecting a Console in settings can reopen it.
+
+The Viewscreen displays its authored condition label in an opaque industrial readout panel at the lower-left frame. It retains the shipwide edge glow and accessible condition text, without a duplicate sidebar readout.
+
+Command groups eligible AI-operated Consoles into named, sprite-framed cards. Each card presents wrapping rows of compact stance buttons with selected and keyboard-focus states. These use the existing industrial nine-slice artwork. Command has no user-facing complexity profile; internal operator defaults remain compatible. Other Consoles expose complexity under **Settings → Session**, including before launch, while dedicated operational controls such as Helm's manual switch remain on the Console.
+
 The sidebar uses the host-only reserved runtime route 31; it does not add a lobby seat or a physical display. Existing “On screen” publication remains independent. Private sidebar data does not enter the public Viewscreen projection.
 
 ## Authoring and verification
@@ -39,3 +45,15 @@ The complete WASM check passed, including the browser launcher, input/semantics,
 The network gate passed seven of eight cases on its initial run. The remaining live-session case timed out waiting for GM approval; its focused rerun passed. The copied siren's SHA-256 matches the V2 original. No rendered, audible or physical-device smoke run was performed for this change.
 
 Integration into main retained the newer skybox and sprite-mirroring work. Additive conflicts retained both the skybox translations/delivery notes and the map-gesture/sidebar tests. The combined `scripts/check.ps1 -Target all` passed all 22 native cases, all 8 network cases and the WASM checks. Production content verification again accepted 12 entity definitions, 8 maps and 9 Consoles; formatting verification passed. This integration did not run additional graphical, audible or physical-device smoke checks.
+
+### Explicit UI smoke
+
+Run the native executable with normal local mission arguments plus --bridge-ui-smoke 1285 725 (also check 1920 1080 and 960 720). Use a Courier with Command as its default sidebar and an AI-operated stance target. The probe captures the Viewscreen, shared settings and selected stance under build/bridge-WIDTHxHEIGHT-*.png; it checks hidden toolbar/complexity controls, shared routing, close/reopen leases and stance invocation. This remains a manually invoked graphical smoke, not an automatic system gate or a substitute for actual reader/device testing.
+
+### Layout cleanup verification — 20 October 2026
+
+Native and browser server/client builds passed. The synthetic Controller integration passed on native and WASM, including Command's absent complexity controls; the native input/semantics, local-session and fleet-setup cases also passed. The production base verifier accepted 9 entities, 3 maps and 9 Consoles.
+
+Explicit graphical probes passed at 1285×725, 1920×1080 and 960×720. Captures checked the framed condition, grouped stance buttons, selected state, shared settings, sidebar close/reopen and expanded localisation labels. No physical touch/gamepad or actual screen-reader run is claimed.
+
+The condition housing is a raised extension of the bottom rail, assembled from the viewscreen frame sprite and joined beneath its outer rail. Embedded consoles continue the same top and bottom rails and share one divider. Command cards use fixed frame clearance; narrow consoles wrap stance buttons to the available card width.

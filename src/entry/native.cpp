@@ -27,6 +27,7 @@ import phoenix.workshop_test;
 #include "performance.hpp"
 #include "../../tests/manual/native_menu.hpp"
 #include "../../tests/manual/controller_ui.hpp"
+#include "../../tests/manual/bridge_ui.hpp"
 
 int main(int argc, char **argv)
 {
@@ -53,6 +54,7 @@ int main(int argc, char **argv)
 	bool engineering_smoke = false;
 	bool navigation_smoke = false;
 	bool on_screen_smoke = false;
+	int bridge_smoke_width = 0, bridge_smoke_height = 0;
 	std::uint64_t helm_smoke_tick = 0;
 	bool workshop_smoke = false, controller_workshop_smoke = false;
 	std::string workshop_pack;
@@ -102,6 +104,12 @@ int main(int argc, char **argv)
 		{
 			menu_smoke.enabled = true;
 			menu_smoke.assign_displays = true;
+		}
+		if (argument == "--bridge-ui-smoke" && i + 2 < argc)
+		{
+			bridge_smoke_width = std::clamp(std::stoi(argv[++i]), 640, 3840);
+			bridge_smoke_height = std::clamp(std::stoi(argv[++i]), 480, 2160);
+			smoke_frames = 150;
 		}
 		if (argument == "--capture-frames" && i + 1 < argc)
 			smoke_frames = std::clamp(std::stoi(argv[++i]), 1, 3600);
@@ -679,6 +687,8 @@ int main(int argc, char **argv)
 	const auto smoke_started = GetTime();
 	menu_smoke.changed = smoke_started;
 	double previous_frame = smoke_started;
+	if (bridge_smoke_width)
+		SetWindowSize(bridge_smoke_width, bridge_smoke_height);
 	while (!app.exit_requested && !phoenix::close_requested())
 	{
 		const auto frame_started = GetTime();
@@ -893,6 +903,20 @@ int main(int argc, char **argv)
 			                                         : "";
 			if (*action && !phoenix::invoke_navigation(app, std::string("console/1/") + action))
 				throw std::runtime_error(std::string("Navigation smoke action failed: ") + action);
+		}
+		if (bridge_smoke_width)
+		{
+			try
+			{
+				probe_bridge_ui(app, smoke_frames, bridge_smoke_width, bridge_smoke_height);
+			}
+			catch (const std::exception &error)
+			{
+				std::cerr << "Bridge smoke: " << error.what() << std::endl;
+				phoenix::end_tools();
+				phoenix::close_window();
+				return 1;
+			}
 		}
 		if (smoke_frames && --smoke_frames == 0)
 		{

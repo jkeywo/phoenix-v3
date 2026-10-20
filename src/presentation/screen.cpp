@@ -574,6 +574,33 @@ void prepare_public_board(Application &app, bool visible)
 		created->SetProperty("font-size", "18px");
 		panel = document->AppendChild(std::move(created));
 	}
+	auto *condition = document->GetElementById("viewscreen.readout/alert");
+	if (!condition)
+	{
+		auto created = document->CreateElement("div");
+		created->SetId("viewscreen.readout/alert");
+		created->SetProperty("position", "absolute");
+		created->SetProperty("background", "transparent");
+		created->SetProperty("padding", "12px 8px");
+		created->SetProperty("text-align", "center");
+		created->SetProperty("font-size", "24px");
+		created->SetProperty("box-sizing", "border-box");
+
+		condition = document->AppendChild(std::move(created));
+	}
+	const auto alert = visible ? app.session->public_board().value("alert", Json::object()) : Json::object();
+	condition->SetProperty("display", alert.empty() ? "none" : "block");
+	if (!alert.empty())
+	{
+		const auto area = app.viewscreen_region.value_or(
+		    ConsoleRegion{30, 0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())});
+		condition->SetProperty("left", std::to_string(area.x + 48.f) + "px");
+		condition->SetProperty("top", std::to_string(area.y + area.height - 100.f) + "px");
+		condition->SetProperty("width", std::to_string(std::min(230.f, area.width - 96.f)) + "px");
+		condition->SetProperty("min-height", "64px");
+		condition->SetProperty("color", alert.value("colour", "#e8f4ff"));
+		condition->SetInnerRML(Rml::StringUtilities::EncodeRml(localise(alert.at("label"))));
+	}
 	const auto rows = visible ? public_board_readouts(app.session->public_board(), app.session->ticks())
 	                          : std::vector<std::pair<std::string, std::string>>{};
 	const auto messages =
@@ -593,12 +620,14 @@ void prepare_public_board(Application &app, bool visible)
 	for (const auto &[id, text] : rows)
 	{
 		app.screen_readouts.emplace_back(id, text);
-		if (id.starts_with("viewscreen.readout/contact/") || id.starts_with("viewscreen.readout/region/") ||
-		    id.starts_with("viewscreen.readout/objective/") || id == "viewscreen.readout/waypoint")
+		if (id == "viewscreen.readout/alert" || id.starts_with("viewscreen.readout/contact/") ||
+		    id.starts_with("viewscreen.readout/region/") || id.starts_with("viewscreen.readout/objective/") ||
+		    id == "viewscreen.readout/waypoint")
 			continue;
 		markup +=
 		    "<p id=\"" + Rml::StringUtilities::EncodeRml(id) + "\">" + Rml::StringUtilities::EncodeRml(text) + "</p>";
 	}
+	panel->SetProperty("display", markup.empty() && messages.empty() ? "none" : "block");
 	// Avoid resetting scroll position on unchanged ticks.
 	if (previous_markup != markup)
 	{
@@ -932,7 +961,9 @@ void draw_screen(Application &app)
 	std::optional<ConsoleRegion> sidebar_region;
 	Json sidebar_choices = Json::array();
 	const bool sidebar_host = app.can_host && app.session && app.session->running() &&
-	                          app.screen == Screen::viewscreen && app.session->focus_body().has_value();
+	                          (app.screen == Screen::viewscreen ||
+	                           (app.screen == Screen::settings && app.settings_return == Screen::viewscreen)) &&
+	                          app.session->focus_body().has_value();
 	if (sidebar_host)
 	{
 		if (sidebar_session.lock() != app.session || sidebar_generation != app.session->generation())
@@ -969,15 +1000,19 @@ void draw_screen(Application &app)
 			    ConsoleRegion{30, 0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())});
 			sidebar_region = ConsoleRegion{31, area.x + area.width * .75f, area.y, area.width * .25f, area.height};
 			area.width *= .75f;
-			app.viewscreen_region = area;
-			restore_viewscreen.temporary = area;
+			if (app.screen != Screen::settings)
+			{
+				app.viewscreen_region = area;
+				restore_viewscreen.temporary = area;
+			}
 		}
 	}
-	const bool show_consoles = sidebar_region.has_value() || lobby_consoles || app.screen == Screen::console ||
-	                           (app.can_host &&
-	                            (app.screen == Screen::viewscreen ||
-	                             (app.screen == Screen::settings && app.settings_return == Screen::viewscreen)) &&
-	                            !app.console_regions.empty());
+	const bool show_consoles = app.screen != Screen::settings &&
+	                           (sidebar_region.has_value() || lobby_consoles || app.screen == Screen::console ||
+	                            (app.can_host &&
+	                             (app.screen == Screen::viewscreen ||
+	                              (app.screen == Screen::settings && app.settings_return == Screen::viewscreen)) &&
+	                             !app.console_regions.empty()));
 	if (show_consoles != console_mode)
 	{
 		cancel_captures();
@@ -1042,8 +1077,12 @@ void draw_screen(Application &app)
 	else
 	{
 		update_document(app);
+		if (sidebar_host)
+			app.settings_console = 31;
 		if (!native_menu->prepare(app, *document))
 		{
+			if (sidebar_region && (app.screen == Screen::viewscreen || app.settings_return == Screen::viewscreen))
+				app.settings_console = 31;
 			prepare_settings(app);
 			if (app.screen != Screen::settings)
 				game_screen->prepare(app, *document);
@@ -1173,35 +1212,54 @@ void draw_screen(Application &app)
 	{
 		auto created = document->CreateElement("div");
 		created->SetId("sidebar-selector");
-		created->SetProperty("position", "absolute");
-		created->SetProperty("left", "100px");
-		created->SetProperty("top", "18px");
-		created->SetProperty("max-width", "60%");
-		sidebar_selector = document->AppendChild(std::move(created));
+		created->SetProperty("display", "block");
+		created->SetProperty("width", "100%");
+		auto *parent = document->GetElementById("native-sidebar-settings");
+		if (!parent)
+			parent = document->GetElementById("settings-session");
+		sidebar_selector = parent->AppendChild(std::move(created));
 	}
-	sidebar_selector->SetProperty("display", sidebar_host && !sidebar_choices.empty() ? "block" : "none");
-	if (sidebar_host && !sidebar_choices.empty())
+	auto *sidebar_parent = document->GetElementById("native-sidebar-settings");
+	if (!sidebar_parent)
+		sidebar_parent = document->GetElementById("settings-session");
+	if (sidebar_selector->GetParentNode() != sidebar_parent)
+		sidebar_parent->AppendChild(sidebar_selector->GetParentNode()->RemoveChild(sidebar_selector));
+	const bool sidebar_settings = sidebar_host && app.screen == Screen::settings && app.settings_tab == "session";
+	sidebar_selector->SetProperty("display", sidebar_settings ? "block" : "none");
+	if (sidebar_settings)
 	{
 		std::string markup;
+		auto settings_button = [&](const std::string &id, const std::string &label)
+		{
+			return "<button id=\"" + Rml::StringUtilities::EncodeRml(id) + "\"" +
+			       (app.native_menu ? " class=\"menu-skinned\"" : "") + ">" +
+			       (app.native_menu ? "<span class=\"menu-button-label\">" : "") +
+			       Rml::StringUtilities::EncodeRml(label) + (app.native_menu ? "</span>" : "") + "</button>";
+		};
 		for (const auto &choice : sidebar_choices)
 			if (choice.value("visible", false) &&
 			    (choice.value("available", false) || choice.at("id") == sidebar_selection))
 			{
 				const auto id = "sidebar/" + choice.at("id").get<std::string>();
 				const auto label = localise(choice.at("label").get<std::string>());
-				markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(id) + "\">" +
-				          Rml::StringUtilities::EncodeRml(label) + "</button>";
+				markup += settings_button(id, label);
 				app.screen_controls.emplace_back(id, label);
 			}
-		markup += "<button id=\"sidebar/close\">" + localise("Close sidebar") + "</button>";
+		markup += settings_button("sidebar/close", localise("Close sidebar"));
 		app.screen_controls.emplace_back("sidebar/close", localise("Close sidebar"));
 		if (sidebar_selector->GetInnerRML() != markup)
 			sidebar_selector->SetInnerRML(markup);
 		const auto prior = app.screen_action;
-		app.screen_action = [prior](const std::string &id)
+		app.screen_action = [prior, &app](const std::string &id)
 		{
 			if (!id.starts_with("sidebar/"))
 				return prior ? prior(id) : false;
+			if (std::none_of(app.screen_controls.begin(), app.screen_controls.end(),
+			                 [&](const auto &control)
+			                 {
+				                 return control.first == id;
+			                 }))
+				return false;
 			sidebar_user_selected = true;
 			sidebar_selection = id == "sidebar/close" ? "" : id.substr(8);
 			return true;
@@ -1450,7 +1508,8 @@ void draw_screen(Application &app)
 			}
 		}
 		const auto consoles_started = GetTime();
-		for (const auto &region : active_console_regions)
+		for (const auto &region :
+		     app.screen == Screen::settings ? std::vector<ConsoleRegion>{} : active_console_regions)
 		{
 			auto &surface = *console_surfaces.at(region.console);
 			surface.update_view();

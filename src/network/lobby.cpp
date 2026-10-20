@@ -188,6 +188,8 @@ class GameLobby final : public SessionPort
 					const auto &layout = controller_layout(slot.ship);
 					for (const auto &seat : resolve_consoles(source_->catalog(), slot.ship))
 					{
+						if (source_->catalog().consoles.at(seat.definition).value("command", false))
+							continue;
 						Json choices = Json::array();
 						for (const auto &profile : layout.profiles)
 							choices.push_back(profile.id);

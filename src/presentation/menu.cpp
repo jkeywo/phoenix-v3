@@ -1105,6 +1105,8 @@ struct NativeMenuScreen::State
 								              export_save = true;
 							              });
 						}
+						if (app.settings_return == Screen::viewscreen)
+							markup += "<div id=\"native-sidebar-settings\"/>";
 						markup += add("settings.quit", "Quit to Main Menu",
 						              [&]
 						              {
