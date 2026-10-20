@@ -3,6 +3,7 @@
 #include <raylib.h>
 #include <rlgl.h>
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <stdexcept>
 #include <cstdint>
@@ -76,6 +77,7 @@ int main()
 	try
 	{
 		InitWindow(640, 480, "Comic renderer: synthetic depth and light smoke");
+		require(IsWindowReady(), "Native graphics context unavailable");
 		SceneRenderer renderer;
 		Camera3D camera{{0, 0, 10}, {0, 0, 0}, {0, 1, 0}, 50, CAMERA_PERSPECTIVE};
 		const Rectangle region{0, 0, 640, 480};
@@ -384,13 +386,105 @@ int main()
 		require(renderer.instance_statistics().at("uploads").get<std::uint64_t>() > uploads.get<std::uint64_t>(),
 		        "Spawn did not update the affected instance batch");
 		UnloadImage(added);
+		const auto records_before = renderer.instance_statistics().at("records_uploaded").get<std::uint64_t>();
+		const auto allocations_before = renderer.instance_statistics().at("allocations");
+		objects[0].x += 10;
+		auto moved = field_capture(1, {{"shadows", true}}, nullptr);
+		UnloadImage(moved);
+		require(renderer.instance_statistics().at("records_uploaded").get<std::uint64_t>() == records_before + 1 &&
+		            renderer.instance_statistics().at("allocations") == allocations_before,
+		        "Changing one instance reuploaded unchanged records or reallocated its buffer");
+		const auto shadow_before = renderer.instance_statistics().at("shadow_coverage").get<float>();
+		objects.push_back(body(102, "atlas", 100000000, 0));
+		objects.back().field_instance = true;
+		auto distant_batch = field_capture(1, {{"shadows", true}}, "field-distant-batch-smoke.png");
+		UnloadImage(distant_batch);
+		require(renderer.instance_statistics().at("visible_batches") == 1 &&
+		            std::abs(renderer.instance_statistics().at("shadow_coverage").get<float>() - shadow_before) < .01f,
+		        "Distant streamed neighborhood changed local shadows or escaped culling");
+		const auto uploads_before_camera = renderer.instance_statistics().at("uploads");
+		camera.position.x += 10000;
+		camera.target.x += 10000;
+		auto away = field_capture(2, {{"shadows", true}}, nullptr);
+		UnloadImage(away);
+		require(renderer.instance_statistics().at("uploads") == uploads_before_camera &&
+		            renderer.instance_statistics().at("visible_batches") == 0,
+		        "Camera culling rewrote buffers or retained distant batches");
+		camera.position.x -= 10000;
+		camera.target.x -= 10000;
+		const auto records_before_crossing = renderer.instance_statistics().at("records_uploaded").get<std::uint64_t>();
+		objects[0].x = 256001;
+		auto crossed = field_capture(2, {{"shadows", true}}, nullptr);
+		UnloadImage(crossed);
+		require(renderer.instance_statistics().at("records_uploaded").get<std::uint64_t>() <=
+		            records_before_crossing + 2,
+		        "Chunk crossing rewrote unrelated batches");
+		std::cout
+		    << "PASS partial GPU ranges, geometric capacity, chunk crossings, view culling and local shadow bounds\n";
 		std::cout << "PASS atlas entries, persistent instance buffers, shader spin and intervening nebula\n";
+		{
+			renderer.clear();
+			assets["assets/spin-normal.png"] = png({255, 128, 128, 255}, {255, 128, 128, 255});
+			auto lit = material("atlas.png", "spin-normal.png", false);
+			lit["depth"] = "comic-test:assets/depth.png";
+			lit["frames"][0]["depth_scale"] = .5;
+			catalog = load(
+			    Json::array({entity("lit", lit, 4), entity("receiver", material("white.png", "", false), 12)}), assets);
+			objects = {body(200, "lit", 0, 0)};
+			objects[0].field_instance = true;
+			objects[0].spin_mdeg_s = 90000;
+			auto diagnose = [&](double time, SceneDiagnostic diagnostic, const char *file)
+			{
+				BeginDrawing();
+				ClearBackground(BLACK);
+				renderer.draw(catalog, objects, camera, region,
+				              {{"sun_direction", {1, .7, 1}}, {"environment", {{"simulation_time", time}}}}, time,
+				              diagnostic);
+				auto im = LoadImageFromScreen();
+				ExportImage(im, file);
+				EndDrawing();
+				return im;
+			};
+			auto n0 = diagnose(0, SceneDiagnostic::normals, "field-normal-initial-smoke.png");
+			const auto spin_uploads = renderer.instance_statistics().at("uploads");
+			auto n1 = diagnose(1, SceneDiagnostic::normals, "field-normal-rotated-smoke.png");
+			const auto initial = GetImageColor(n0, 320, 240), rotated = GetImageColor(n1, 320, 240);
+			require(initial.r > 230 && initial.g < 150 && rotated.g > 230 && rotated.r < 150,
+			        "Shader spin did not rotate tangent normals with the billboard");
+			require(renderer.instance_statistics().at("uploads") == spin_uploads,
+			        "Normal rotation uploaded instance records");
+			UnloadImage(n0);
+			UnloadImage(n1);
+			objects.push_back(body(201, "receiver", 0, 2000));
+			auto sh0 = diagnose(0, SceneDiagnostic::shadows, "field-shadow-initial-smoke.png");
+			UnloadImage(sh0);
+			auto sh1 = diagnose(1, SceneDiagnostic::shadows, "field-shadow-rotated-smoke.png");
+			UnloadImage(sh1);
+			std::cout << "PASS rotating tangent normals; captured rotating relief shadow alignment\n";
+		}
+
+		{
+			renderer.clear();
+			auto calibrated = material("white.png", "", false);
+			calibrated["frames"][0]["rect"] = {0, 0, 8, 1};
+			calibrated["frames"][0]["pivot"] = {0, 0};
+			calibrated["frames"][0]["depth_offset"] = 8;
+			catalog = load(Json::array({entity("calibrated", calibrated, 4)}), assets);
+			objects = {body(250, "calibrated", 0, 0)};
+			auto calibrated_capture = field_capture(0, {{"shadows", true}}, "calibrated-shadow-bounds-smoke.png");
+			UnloadImage(calibrated_capture);
+			require(renderer.instance_statistics().at("shadow_coverage").get<float>() > 120,
+			        "Wide, offset ordinary sprite escaped its calibrated shadow receiver bounds");
+			std::cout << "PASS calibrated ordinary sprite culling and shadow receiver bounds\n";
+		}
+
 		{
 			RadarSweep sweep;
 			SystemView radar;
 			radar.kind = OperatingSystem::Radar;
 			radar.maximum = radar.effective_range = 100000;
-			radar.radial_ranges.assign(128, 50000);
+			radar.radial_ranges.assign(128, 100000);
+			radar.reach_profile = {{360000, 50000}};
 			Image sweep_capture{};
 			for (int frame = 0; frame <= 90; ++frame)
 			{
@@ -431,6 +525,28 @@ int main()
 			}
 			require(sweep.statistics().at("sample_writes") == 2056 && sweep.statistics().at("next_index") == 8,
 			        "Radar circular sample buffer failed to wrap");
+			require(sweep.statistics().at("profile_uploads") == 1, "Unchanged sensor profile rewrote reach metadata");
+			radar.reach_profile = {{500, 100000}, {1500, 20000}, {360000, 100000}};
+			for (int frame = 0; frame < 5; ++frame)
+			{
+				BeginDrawing();
+				ClearBackground(BLACK);
+				sweep.draw({320, 240}, 180, radar, {{"speed_degrees_s", 60}}, 100 + frame / 60.0);
+				if (frame == 4)
+				{
+					sweep_capture = LoadImageFromScreen();
+					ExportImage(sweep_capture, "radar-narrow-blocker-smoke.png");
+				}
+				EndDrawing();
+			}
+			// 1 degree is within the thin blocked sector: neighboring long samples must not bridge it.
+			for (int x = 400; x < 490; ++x)
+			{
+				const int y = static_cast<int>(std::floor(240 - (x + .5 - 320) * .017455));
+				require(GetImageColor(sweep_capture, x, y).g < 10,
+				        "Sweep triangles bridged a narrow blocking interval");
+			}
+			UnloadImage(sweep_capture);
 			std::cout << "PASS procedural radar sweep, sensor truncation and one-sample GPU updates\n";
 		}
 

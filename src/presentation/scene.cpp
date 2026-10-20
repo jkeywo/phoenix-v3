@@ -210,6 +210,7 @@ struct Item
 	float height;
 	bool engine = false;
 	int layer = 0;
+	bool colour_visible = true, shadow_visible = true;
 };
 struct LocalLight
 {
@@ -222,16 +223,7 @@ float bearing(Camera3D camera, Vector3 p, std::int64_t heading)
 }
 const SpriteFrame &select_frame(const SpriteMaterial &material, float angle, std::uint32_t entry = 0)
 {
-	const auto &frames = material.entries.empty() ? material.frames : material.entries.at(entry).frames;
-	return *std::min_element(frames.begin(), frames.end(),
-	                         [&](const auto &a, const auto &b)
-	                         {
-		                         const auto difference = [&](float v)
-		                         {
-			                         return std::abs(std::remainder(v - angle, 360.f));
-		                         };
-		                         return difference(a.azimuth) < difference(b.azimuth);
-	                         });
+	return sprite_frame(material, entry, angle);
 }
 float sample_depth(const MaterialData &data, const SpriteFrame &f, float x, float y)
 {
@@ -616,6 +608,14 @@ Json SceneRenderer::instance_statistics() const
 {
 	return {{"uploads", state_->instance_uploads},
 	        {"records_uploaded", state_->instance_records_uploaded},
+	        {"bytes_uploaded", state_->instance_records_uploaded * 12 * sizeof(float)},
+	        {"allocations", state_->instance_allocations},
+	        {"visible_batches", std::count_if(state_->instance_batches.begin(), state_->instance_batches.end(),
+	                                          [](const auto &b)
+	                                          {
+		                                          return b.second.colour_visible;
+	                                          })},
+	        {"shadow_coverage", state_->shadow_coverage},
 	        {"batches", state_->instance_batches.size()}};
 }
 void SceneRenderer::explosion(const ExplosionEffect &effect)
@@ -643,6 +643,7 @@ void SceneRenderer::draw(const Catalog &catalog, std::span<const SceneBody> bodi
 	// caller's preview target on the first draw as well as subsequent draws.
 	rlEnableFramebuffer(destination);
 	s.prepare(catalog, bodies, camera);
+	s.cull_instances(camera, region);
 	const auto get = [&](const char *key, float fallback)
 	{
 		return lighting.value(key, fallback);
@@ -660,23 +661,59 @@ void SceneRenderer::draw(const Catalog &catalog, std::span<const SceneBody> bodi
 	if (!s.items.empty())
 	{
 		for (const auto &item : s.items)
-			centre = Vector3Add(centre, item.anchor);
-		centre = Vector3Scale(centre, 1.f / s.items.size());
+			if (item.colour_visible)
+				centre = Vector3Add(centre, item.anchor);
+		const auto receivers = std::count_if(s.items.begin(), s.items.end(),
+		                                     [](const auto &item)
+		                                     {
+			                                     return item.colour_visible;
+		                                     });
+		if (receivers)
+			centre = Vector3Scale(centre, 1.f / receivers);
 		for (const auto &item : s.items)
-			radius =
-			    std::max(radius, Vector3Distance(item.anchor, centre) + item.height * (2 + item.frame->depth_scale));
+			if (item.colour_visible)
+				radius = std::max(radius, Vector3Distance(item.anchor, centre) + s.item_extent(item));
 	}
 	for (const auto &[key, batch] : s.instance_batches)
-		for (const auto &[id, record] : batch.records)
+		if (batch.colour_visible)
 		{
-			const auto anchor = Vector3Subtract(Vector3Add(batch.origin, {record[0], record[1], record[2]}), s.rebase);
-			radius = std::max(radius, Vector3Distance(anchor, centre) + record[3] * 3);
+			const auto origin = Vector3Subtract(batch.origin, s.rebase);
+			const auto mid = Vector3Add(origin, Vector3Scale(Vector3Add(batch.minimum, batch.maximum), .5f));
+			radius =
+			    std::max(radius, Vector3Distance(mid, centre) + Vector3Distance(batch.minimum, batch.maximum) * .5f);
 		}
-	const Vector3 lightEye = Vector3Add(centre, Vector3Scale(sun, radius * 3));
-	Camera3D lightCamera{lightEye, centre, std::abs(sun.y) > .95f ? Vector3{0, 0, 1} : Vector3{0, 1, 0}, radius * 2,
-	                     CAMERA_ORTHOGRAPHIC};
+	s.shadow_coverage = radius * 2;
+	const float horizon = static_cast<float>(rlGetCullDistanceFar());
+	const auto lightUp = std::abs(sun.y) > .95f ? Vector3{0, 0, 1} : Vector3{0, 1, 0};
+	const auto lightRight = Vector3Normalize(Vector3CrossProduct(lightUp, sun)),
+	           lightVertical = Vector3CrossProduct(sun, lightRight);
+	float along_min = -radius, along_max = radius;
+	auto caster = [&](Vector3 midpoint, float extent)
+	{
+		const auto delta = Vector3Subtract(midpoint, centre);
+		if (Vector3Distance(midpoint, s.cameraPosition) > horizon + extent ||
+		    std::abs(Vector3DotProduct(delta, lightRight)) > radius + extent ||
+		    std::abs(Vector3DotProduct(delta, lightVertical)) > radius + extent)
+			return false;
+		const auto along = Vector3DotProduct(delta, sun);
+		along_min = std::min(along_min, along - extent);
+		along_max = std::max(along_max, along + extent);
+		return true;
+	};
+	for (auto &item : s.items)
+		item.shadow_visible = caster(item.anchor, s.item_extent(item));
+	for (auto &[key, batch] : s.instance_batches)
+	{
+		const auto mid = Vector3Add(Vector3Subtract(batch.origin, s.rebase),
+		                            Vector3Scale(Vector3Add(batch.minimum, batch.maximum), .5f));
+		batch.shadow_visible = caster(mid, Vector3Distance(batch.minimum, batch.maximum) * .5f);
+	}
+	const float depth_span = along_max - along_min, padding = std::max(1.f, depth_span * .05f),
+	            shadow_depth = depth_span + padding * 2;
+	const Vector3 lightEye = Vector3Add(centre, Vector3Scale(sun, along_max + padding));
+	Camera3D lightCamera{lightEye, centre, lightUp, radius * 2, CAMERA_ORTHOGRAPHIC};
 	const auto lightView = MatrixLookAt(lightEye, centre, lightCamera.up),
-	           lightProj = MatrixOrtho(-radius, radius, -radius, radius, .1, radius * 6);
+	           lightProj = MatrixOrtho(-radius, radius, -radius, radius, .1, shadow_depth);
 	const auto lightVP = MatrixMultiply(lightView, lightProj);
 	const auto framebuffer = rlGetActiveFramebuffer();
 	const bool shadows = lighting.value("shadows", true) && (!s.items.empty() || !s.instance_batches.empty());
@@ -705,7 +742,7 @@ void SceneRenderer::draw(const Catalog &catalog, std::span<const SceneBody> bodi
 		rlDisableBackfaceCulling();
 		rlDisableColorBlend();
 		for (const auto &item : s.items)
-			if (!item.engine && !item.material->sprite.emissive)
+			if (item.shadow_visible && !item.engine && !item.material->sprite.emissive)
 				s.draw_item(item, true);
 		s.draw_instances(true);
 		rlEnableColorBlend();
@@ -758,7 +795,7 @@ void SceneRenderer::draw(const Catalog &catalog, std::span<const SceneBody> bodi
 	s.number("spacing", get("hatch_spacing", 6));
 	s.number("thickness", get("hatch_thickness", 2));
 	s.number("ink", get("ink_strength", .9f));
-	s.number("shadowBias", get("shadow_bias", .001f));
+	s.number("shadowBias", get("shadow_bias", .001f) * radius * 6 / shadow_depth);
 	s.number("shadowSoftness", get("shadow_softness", 1));
 	s.perspective_draw = camera.projection == CAMERA_PERSPECTIVE;
 	s.focal_pixels = region.height * sy / (s.perspective_draw ? 2 * std::tan(camera.fovy * pi / 360) : camera.fovy);
@@ -800,7 +837,8 @@ void SceneRenderer::draw(const Catalog &catalog, std::span<const SceneBody> bodi
 	SetShaderValueV(s.shader, s.loc("lightColors[0]"), colors.data(), SHADER_UNIFORM_VEC4, 16);
 	rlDisableBackfaceCulling();
 	for (const auto &item : s.items)
-		s.draw_item(item, false);
+		if (item.colour_visible)
+			s.draw_item(item, false);
 	s.draw_instances(false);
 	// The event interface is intentionally not wired to gameplay or a UI action.
 	for (const auto &e : s.effects)
