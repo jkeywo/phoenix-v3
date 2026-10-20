@@ -40,6 +40,17 @@ class GameLobby final : public SessionPort
 	std::string self_, target_, epoch_ = random_token(), nonce_ = random_token(), key_, error_;
 	LobbyServices services_;
 	std::shared_ptr<SessionPort> source_;
+	// Controller layouts describe immutable authored content. Compiling them
+	// for every projection made large-ship lobbies spend most of each frame
+	// validating the same machinery and trees.
+	mutable std::map<std::string, ControllableLayout> controller_layouts_;
+	const ControllableLayout &controller_layout(const std::string &ship) const
+	{
+		auto found = controller_layouts_.find(ship);
+		if (found == controller_layouts_.end())
+			found = controller_layouts_.emplace(ship, compile_controllable_layout(source_->catalog(), ship)).first;
+		return found->second;
+	}
 	Catalog empty_catalog_;
 	std::shared_ptr<SessionPort> backend_;
 	std::unique_ptr<PeerTransport> transport_;
@@ -172,7 +183,7 @@ class GameLobby final : public SessionPort
 				const auto &entity = source_->catalog().entities.at(slot.ship);
 				if (entity.contains("control_layout") && !recovery_)
 				{
-					const auto layout = compile_controllable_layout(source_->catalog(), slot.ship);
+					const auto &layout = controller_layout(slot.ship);
 					for (const auto &seat : resolve_consoles(source_->catalog(), slot.ship))
 					{
 						Json choices = Json::array();
@@ -425,7 +436,7 @@ class GameLobby final : public SessionPort
 				                 return !seat.human_seeking && seat.id == cmd.console;
 			                 }))
 				return false;
-			const auto layout = compile_controllable_layout(source_->catalog(), ship);
+			const auto &layout = controller_layout(ship);
 			if (std::none_of(layout.profiles.begin(), layout.profiles.end(),
 			                 [&](const auto &profile)
 			                 {
@@ -808,8 +819,11 @@ class GameLobby final : public SessionPort
 		{
 			packs_transfer_->accept(body);
 			if (packs_transfer_->ready())
+			{
+				controller_layouts_.clear();
 				for (const auto &pack : packs_transfer_->packs())
 					services_.add_pack(*source_, pack);
+			}
 		}
 		else if (packet->type == "setup-offer" && role_ == JoinRole::ship_server)
 		{
@@ -884,12 +898,14 @@ public:
 	{
 		if (active_)
 			throw std::runtime_error("Leave the lobby before changing packs");
+		controller_layouts_.clear();
 		source_->add_pack(archive);
 	}
 	void replace_packs(const std::vector<Bytes> &archives) override
 	{
 		if (active_)
 			throw std::runtime_error("Leave the lobby before changing packs");
+		controller_layouts_.clear();
 		source_->replace_packs(archives);
 		++generation_;
 	}
@@ -898,6 +914,7 @@ public:
 		backend_.reset();
 		active_ = launched_ = recovery_ = false;
 		countdown_.reset();
+		controller_layouts_.clear();
 		if (source_)
 			source_->clear_packs();
 		selection_ = {};
@@ -980,6 +997,7 @@ public:
 		}
 		auto setup = services_.setup(*candidate);
 		backend_.reset();
+		controller_layouts_.clear();
 		source_ = std::move(candidate);
 		selection_ = std::move(setup);
 		recovery_slots_ = std::move(required);

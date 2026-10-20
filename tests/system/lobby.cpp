@@ -110,6 +110,42 @@ int main(int argc, char **argv)
 			profile["consoles"]["navigation"] = {{"human", {"planner"}}};
 		pack.files["definitions.json"] = json_bytes(defs);
 		pack.files["assets/pixel.png"] = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+		{
+			// A new content selection may reuse ship IDs with different authored
+			// profiles. Retained lobby metadata must follow the new content.
+			auto content_lobby = make_game_lobby(options, true);
+			const GameSetup setup{"test.map", {{"test.slot", "test.ship"}}, "test.slot"};
+			content_lobby->add_pack(write_pack(pack));
+			content_lobby->prepare_lobby(setup);
+			const auto main_seat = [](const LobbyProjection &projection)
+			{
+				for (const auto &seat : projection.consoles)
+					if (seat.slot == "test.slot" && seat.id == "main")
+						return seat;
+				throw std::runtime_error("Synthetic lobby main Console is missing");
+			};
+			require(main_seat(content_lobby->lobby()).profile == "direct",
+			        "Lobby exposes the original authored default profile");
+			content_lobby->clear_packs();
+			auto revised = defs;
+			auto &layout = revised["entities"][0]["control_layout"];
+			layout["profiles"][0]["id"] = "revised";
+			layout["default_profile"] = "revised";
+			auto replacement = pack;
+			replacement.files["definitions.json"] = json_bytes(revised);
+			content_lobby->replace_packs({write_pack(replacement)});
+			content_lobby->prepare_lobby(setup);
+			const auto seat = main_seat(content_lobby->lobby());
+			require(seat.profile == "revised" &&
+			            std::find(seat.profiles.begin(), seat.profiles.end(), "direct") == seat.profiles.end(),
+			        "Reusing a ship ID after content replacement exposes current profile choices and default");
+			LobbyCommand select{LobbyAction::select_profile, "", "test.slot", "", "main"};
+			select.profile = "automatic";
+			require(content_lobby->lobby_command(select) && main_seat(content_lobby->lobby()).profile == "automatic",
+			        "Retained authored metadata does not freeze the selected lobby profile");
+			select.profile = "direct";
+			require(!content_lobby->lobby_command(select), "A removed authored profile cannot be selected");
+		}
 		host->add_pack(write_pack(pack));
 		host->prepare_lobby({"test.map", {{"test.slot", "test.ship"}}, "test.slot"});
 		std::vector<std::shared_ptr<SessionPort>> nodes{host};
