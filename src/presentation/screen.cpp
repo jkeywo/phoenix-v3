@@ -549,6 +549,10 @@ bool probe_menu_keyboard(Application &app)
 	}
 	return true;
 }
+bool probe_console_on_screen(ConsoleId route, const std::string &widget)
+{
+	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_on_screen(widget);
+}
 bool probe_console_helm(Application &, ConsoleId route, bool verify)
 {
 	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_helm(verify);

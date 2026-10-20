@@ -110,6 +110,7 @@ private:
 void draw_radar_body(TextureCache &textures, const Catalog &catalog, const BodyView &body, Vector2 centre, float radius,
                      Color colour);
 bool probe_menu_keyboard(Application &app);
+bool probe_console_on_screen(ConsoleId route, const std::string &widget);
 bool probe_console_helm(Application &app, ConsoleId route, bool verify = false);
 bool probe_console_manual(ConsoleId route, unsigned stage);
 bool probe_console_report(ConsoleId route);

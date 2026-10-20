@@ -784,7 +784,8 @@ int main(int argc, char **argv)
 					}
 				if (action.empty())
 					throw std::runtime_error("On screen button absent from source Console");
-				press(action);
+				if (!phoenix::probe_console_on_screen(1, action.substr(10)))
+					throw std::runtime_error("On screen pointer hit test failed");
 			}
 			if (smoke_frames == 90)
 				press("game.console/navigation");

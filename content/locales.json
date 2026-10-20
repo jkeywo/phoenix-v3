@@ -379,7 +379,9 @@
 			"Rear-left": "Rear-left",
 			"Left": "Left",
 			"Forward-left": "Forward-left",
-			"Selected": "Selected"
+			"Selected": "Selected",
+			"Standby": "Standby",
+			"Live": "Live"
 		}
 	}
 }

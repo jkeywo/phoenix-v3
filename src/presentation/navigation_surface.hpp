@@ -163,6 +163,8 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 	auto button = [&](std::string key, std::string label)
 	{
 		actions.emplace_back(key, localise(label));
+		if (key.starts_with("on-screen/"))
+			return on_screen_markup(key);
 		return "<button id=\"" + id(key) + "\">" + Rml::StringUtilities::EncodeRml(localise(label)) + "</button>";
 	};
 	std::string markup;

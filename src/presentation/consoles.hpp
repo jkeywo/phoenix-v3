@@ -271,9 +271,26 @@ class ConsoleSurface final : public Rml::EventListener
 	{
 		return "console/" + std::to_string(route_) + "/" + action;
 	}
+<<<<<<< HEAD
 	std::string button(const std::string &action, const std::string &label, const std::string &visual = "")
+=======
+	std::string on_screen_markup(const std::string &action) const
+	{
+		return "<button class=\"on-screen\" id=\"" + Rml::StringUtilities::EncodeRml(id(action)) +
+		       "\"><span class=\"share-screw share-screw-left\"/><span class=\"share-screw share-screw-right\"/>"
+		       "<span class=\"share-monitor\"><span/></span><span class=\"share-label\">" +
+		       Rml::StringUtilities::EncodeRml(localise("On screen")) +
+		       "</span><span class=\"share-caption share-idle\">" +
+		       Rml::StringUtilities::EncodeRml(localise("Standby")) +
+		       "</span><span class=\"share-caption share-live\">" + Rml::StringUtilities::EncodeRml(localise("Live")) +
+		       "</span><span class=\"share-lamp-housing\"><span class=\"share-lamp\"/></span></button>";
+	}
+	std::string button(const std::string &action, const std::string &label)
+>>>>>>> 70549d2 (Style On screen controls with live lamps and radar bezel mounting)
 	{
 		controls_.emplace_back(id(action), label);
+		if (action.starts_with("on-screen/"))
+			return on_screen_markup(action);
 		return "<button id=\"" + Rml::StringUtilities::EncodeRml(id(action)) + "\">" +
 		       (visual.empty() ? Rml::StringUtilities::EncodeRml(translate(label, app_->pseudo_locale))
 		                       : "<span class=\"camera-icon\">" + Rml::StringUtilities::EncodeRml(visual) + "</span>") +
@@ -322,7 +339,7 @@ button:hover,button:focus {background:#455458;border-color:#ec9c52;}
 p {display:block;font-size:.85em;margin:4px 0;}
 .dial {position:absolute;left:12px;right:12px;top:48px;bottom:72px;}
 .widget button {position:absolute;bottom:8px;left:8px;}
-.radar-widget button.on-screen {left:auto;right:8px;}
+.radar-widget button.on-screen {position:absolute;left:auto;right:8px;}
 .readout {position:absolute;bottom:12px;left:16px;right:16px;height:44px;text-align:center;color:#cbe9c8;}
 .heading-value {display:inline-block;vertical-align:middle;margin:0 8px;width:145px;height:36px;background:#0a1719;color:#cbe9c8;border:1px #988b71;font-size:1.3em;}
 .throttle {position:absolute;background:transparent;border:0px;}
@@ -345,8 +362,27 @@ p {display:block;font-size:.85em;margin:4px 0;}
 .helm .dial {left:0;right:0;top:0;bottom:0;}
 .helm .radar-widget button,.helm .heading-value {opacity:0;}
 .helm .radar-widget button:focus,.helm .heading-value:focus {opacity:1;}
-.helm .radar-widget button.on-screen {opacity:1;position:absolute;bottom:0;right:0;min-width:120px;}
-button.on-screen-active {background:#285e60;border-color:#d5ffff;}
+.helm .radar-widget button.on-screen {opacity:1;position:absolute;bottom:auto;right:auto;min-width:0;z-index:4;}
+button.on-screen {position:relative;box-sizing:border-box;width:180px;height:66px;min-height:66px;margin:4px;padding:0;border:3px #535b59;border-top-color:#9b8770;border-left-color:#8c735a;border-bottom-color:#141a1c;border-right-color:#202728;background:#242e30;color:#efdfbd;border-radius:7px;vertical-align:middle;}
+button.on-screen span {pointer-events:none;}
+button.on-screen:hover {background:#303c3e;border-top-color:#d1a26d;}
+button.on-screen:focus {border-color:#ffd09a;}
+button.on-screen .share-monitor {position:absolute;left:12px;top:18px;width:25px;height:17px;border:2px #a7906d;border-radius:2px;background:#081315;pointer-events:none;}
+button.on-screen .share-monitor span {position:absolute;left:8px;top:19px;width:10px;height:3px;background:#a7906d;}
+button.on-screen .share-label {position:absolute;left:48px;right:30px;top:9px;font-size:16px;color:#f0dfbf;pointer-events:none;}
+button.on-screen .share-caption {position:absolute;left:49px;bottom:9px;font-size:11px;color:#a3aaa1;pointer-events:none;}
+button.on-screen .share-live {display:none;color:#a9f5b8;}
+button.on-screen .share-lamp-housing {position:absolute;right:9px;top:15px;width:20px;height:20px;border:1px #11191a;border-top-color:#758078;border-radius:11px;background:#17231d;pointer-events:none;}
+button.on-screen .share-lamp {position:absolute;left:4px;top:4px;width:10px;height:10px;border-radius:6px;background:#34493b;border:1px #172a1c;}
+button.on-screen .share-screw {position:absolute;top:3px;width:5px;height:3px;background:#11191a;border-top:1px #9b9c86;pointer-events:none;}
+button.on-screen .share-screw-left {left:4px;}
+button.on-screen .share-screw-right {right:4px;}
+button.on-screen-active {background:#26342e;border-top-color:#a18f6e;}
+button.on-screen-active .share-lamp-housing {background:#225331;}
+button.on-screen-active .share-lamp {background:#8aff9a;border-color:#bfffbb;}
+button.on-screen-active .share-monitor {border-color:#b2d2b5;}
+button.on-screen-active .share-idle {display:none;}
+button.on-screen-active .share-live {display:block;}
 .helm #gameplay {background:transparent;border:0px;padding:0px;}
 .helm .radar-widget button.manual-toggle {display:block;opacity:1;left:5%;bottom:4%;width:220px;height:82px;padding:0;margin:0;background:transparent;border:2px transparent;tab-index:auto;}
 .manual-toggle .manual-art {position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;}
@@ -938,6 +974,15 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 		if (!app_ || !game_active(*app_) || owner_.lock() != app_->session ||
 		    generation_ != app_->session->generation())
 			return false;
+		if (kind == DeviceEventKind::Down && model_.layout())
+			for (const auto &w : model_.layout()->at("widgets"))
+				if (w.at("kind") == "radar")
+					if (auto *b = document_->GetElementById(id("on-screen/" + w.at("id").get<std::string>())))
+					{
+						const auto at = b->GetAbsoluteOffset(Rml::BoxArea::Border);
+						if (CheckCollisionPointRec({x, y}, {at.x, at.y, b->GetOffsetWidth(), b->GetOffsetHeight()}))
+							return false;
+					}
 		if (navigation_pointer(contact, x, y, kind))
 			return true;
 		if (model_.manual_active())
@@ -1108,6 +1153,23 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 				return true;
 			}
 		return false;
+	}
+	bool probe_on_screen(const std::string &widget)
+	{
+		auto *control = document_->GetElementById(id("on-screen/" + widget));
+		if (!control)
+			return false;
+		const auto at = control->GetAbsoluteOffset(Rml::BoxArea::Border);
+		const float x = at.x + control->GetOffsetWidth() / 2, y = at.y + control->GetOffsetHeight() / 2;
+		// Exercise the same custom-dial interception and RmlUi hit testing as a pointer click.
+		if (pointer(999999, x, y, DeviceEventKind::Down))
+			return false;
+		context_->ProcessMouseMove(static_cast<int>(x), static_cast<int>(y), 0);
+		context_->ProcessMouseButtonDown(0, 0);
+		if (pointer(999999, x, y, DeviceEventKind::Up))
+			return false;
+		context_->ProcessMouseButtonUp(0, 0);
+		return true;
 	}
 	bool probe_helm(bool verify = false)
 	{
@@ -2084,6 +2146,25 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 					displayed_values_["value/" + key] = value;
 				}
 			}
+		if (helm && !pregame && layout)
+			for (const auto &w : layout->at("widgets"))
+				if (w.at("kind") == "radar")
+				{
+					const auto key = w.at("id").get<std::string>();
+					auto *dial = document_->GetElementById("dial/" + key);
+					auto *control = document_->GetElementById(id("on-screen/" + key));
+					if (!dial || !control)
+						continue;
+					const auto at = dial->GetAbsoluteOffset(Rml::BoxArea::Border);
+					const auto parent = widget_offset(key);
+					const float radius = std::min(dial->GetOffsetWidth(), dial->GetOffsetHeight()) * .5f;
+					const float width = std::clamp(radius * .70f, 160.f, 210.f);
+					property(control, "left",
+					         std::to_string(at.x - parent.x + dial->GetOffsetWidth() / 2 + radius - width) + "px");
+					property(control, "top",
+					         std::to_string(at.y - parent.y + dial->GetOffsetHeight() / 2 + radius * .70f) + "px");
+					property(control, "width", std::to_string(width) + "px");
+				}
 		{
 			const auto update_started = GetTime();
 			context_->Update();
