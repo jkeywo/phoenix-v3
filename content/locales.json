@@ -2,6 +2,7 @@
 	"schema": 1,
 	"languages": {
 		"en": {
+			"Message unavailable": "Message unavailable",
 			"Skybox": "Skybox",
 			"Normal generation": "Normal generation",
 			"Automated generation follows ordinary orders.": "Automated generation follows ordinary orders.",

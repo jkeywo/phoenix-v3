@@ -1916,13 +1916,11 @@ int main()
 			                                           return row.first.starts_with("viewscreen.readout/");
 		                                           }),
 		        "Viewscreen exposes dedicated read-only semantic identities");
-		require(std::any_of(board_rows.begin(), board_rows.end(),
-		                    [](const auto &row)
-		                    {
-			                    return row.second.find("Intent") != std::string::npos &&
-			                           row.second.find("6000") != std::string::npos;
-		                    }),
-		        "Viewscreen readouts retain message evidence kind and payload");
+		const auto board_messages = console_messages(board, true);
+		require(board_messages.size() == 1 && !board_messages[0].sender.empty() &&
+		            board_messages[0].accessible_text().find("sender_system") == std::string::npos,
+		        "Viewscreen messages have a named speaker and prose-only semantics");
+
 		auto crowded_board = board;
 		crowded_board["shared"] = Json::array();
 		crowded_board["records"] =
@@ -1936,13 +1934,15 @@ int main()
 			crowded_board["messages"].push_back(row);
 		}
 		const auto crowded_rows = public_board_readouts(crowded_board, 100);
-		require(crowded_rows.size() == 9 && std::none_of(crowded_rows.begin(), crowded_rows.end(),
-		                                                 [](const auto &row)
-		                                                 {
-			                                                 return row.second.find("DO-NOT-DISPLAY") !=
-			                                                        std::string::npos;
-		                                                 }),
-		        "bounded public readouts include omission notice and exclude Console-private records");
+		const auto crowded_messages = console_messages(crowded_board, true);
+		require(crowded_rows.empty() && crowded_messages.size() == 10 &&
+		            std::none_of(crowded_messages.begin(), crowded_messages.end(),
+		                         [](const auto &row)
+		                         {
+			                         return row.text.find("DO-NOT-DISPLAY") != std::string::npos;
+		                         }),
+		        "scrollable public messages exclude Console-private records without an eight-row cut-off");
+
 		auto public_session_source = public_source;
 		public_session_source["entities"][0]["control_layout"]["default_profile"] = "automatic";
 		public_session_source["entities"][0]["systems"]["steering"] = {{"kind", "steering"}, {"turn_mdeg_s", 90000}};

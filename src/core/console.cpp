@@ -99,6 +99,9 @@ std::string console_message(const Json &message)
 	const auto substitute = [&](const std::string &key)
 	{
 		const auto text = localise(key);
+		if (translate(key, false) == key && key.find(' ') == std::string::npos &&
+		    key.find_first_of("._/") != std::string::npos)
+			return std::string{};
 		const Json parameters = message.value("parameters", Json::object());
 		std::string result;
 		for (std::size_t at = 0; at < text.size();)
@@ -119,6 +122,8 @@ std::string console_message(const Json &message)
 			}
 			result += text[at++];
 		}
+		if (result.find_first_of("{}") != std::string::npos)
+			return std::string{};
 		return result;
 	};
 	std::string result = substitute(console_string(message, "title_key"));
@@ -129,7 +134,7 @@ std::string console_message(const Json &message)
 			result += ": ";
 		result += body;
 	}
-	return result;
+	return result.empty() ? localise("Message unavailable") : result;
 }
 bool console_descriptor(const Json &descriptor)
 {
@@ -257,65 +262,91 @@ std::vector<std::pair<std::string, std::string>> board_readouts(const Json &boar
 			text += "; " + console_evidence(objective, now);
 			result.emplace_back("game.readout/objective-" + console_encoded(id), std::move(text));
 		}
-	const auto messages = board.value("messages", Json::array());
-	if (messages.is_array())
-		for (const auto &message : messages)
-		{
-			if (!message.is_object())
-				continue;
-			const auto id = message.contains("sequence") ? console_scalar(message.at("sequence"))
-			                                             : console_scalar(message.value("id", Json{}));
-			std::string text = console_message(message);
-			if (message.value("offer_only", false) && !message.value("public", false))
-				text = localise("Work offer") + ": " + text;
-			for (const auto *key : {"sender_system", "sender_console", "destination", "delivered_tick", "urgency"})
-				if (message.contains(key))
-					text += "; " + console_label(key) + " " + console_scalar(message.at(key));
-			text += "; " + localise(message.value("actionable", false) ? "Actionable" : "Historical");
-			if (message.contains("payload") && message.at("payload").is_object())
-			{
-				const auto &payload = message.at("payload");
-				const auto fields = payload.value("fields", Json::object());
-				if (fields.is_object())
-					for (auto field = fields.begin(); field != fields.end(); ++field)
-						text += "; " + console_label(field.key()) + " " + console_scalar(field.value());
-				text += "; " + console_evidence(payload, now);
-			}
-			result.emplace_back("game.readout/message-" + console_encoded(id), std::move(text));
-		}
+
 	return result;
 }
 } // namespace
+
+std::vector<ConsoleMessageView> console_messages(const Json &board, bool public_only)
+{
+	std::vector<ConsoleMessageView> result;
+	if (!board.is_object())
+		return result;
+	const auto rows = board.value("messages", Json::array());
+	if (!rows.is_array())
+		return result;
+	for (const auto &message : rows)
+	{
+		if (!message.is_object() || (public_only && !message.value("public", false)))
+			continue;
+		ConsoleMessageView view;
+		view.id = std::string(public_only ? "viewscreen.message/" : "game.message/") +
+		          console_encoded(console_scalar(message.value("sequence", message.value("id", Json{}))));
+		const auto console = message.value("sender_console_key", std::string{});
+		const auto label = message.value("sender_console_label", console);
+		view.sender = localise(label);
+		if (view.sender.empty())
+			view.sender = localise("Ship");
+		// Authored display names are preferred; legacy/custom identifiers get readable words.
+		if (view.sender == label)
+		{
+			for (auto &c : view.sender)
+				if (c == '_' || c == '-' || c == '.')
+					c = ' ';
+			if (!view.sender.empty() && view.sender[0] >= 'a' && view.sender[0] <= 'z')
+				view.sender[0] -= 'a' - 'A';
+		}
+		const std::map<std::string, unsigned> portraits{{"helm", 1},       {"engineering", 2},    {"science", 3},
+		                                                {"comms", 4},      {"communications", 4}, {"weapons", 5},
+		                                                {"tactical", 5},   {"captain", 6},        {"command", 6},
+		                                                {"operations", 3}, {"support", 4},        {"mission", 4}};
+		unsigned portrait = 2166136261u;
+		for (unsigned char c : console)
+			portrait = (portrait ^ c) * 16777619u;
+		portrait = portraits.contains(console) ? portraits.at(console) : portrait % 6 + 1;
+		view.portrait = "messages/console-" + std::to_string(portrait) + ".png";
+		const auto name = message.value("speaker_name", std::string{});
+		if (!name.empty())
+		{
+			view.sender = name;
+			const auto bytes = message.value("speaker_avatar", Json::array());
+			if (bytes.is_array() && bytes.size() <= 12288)
+			{
+				try
+				{
+					view.avatar = bytes.get<Bytes>();
+					verify_player_avatar(view.avatar);
+				}
+				catch (...)
+				{
+					view.avatar.clear();
+				}
+			}
+		}
+		view.text = console_message(message);
+		result.push_back(std::move(view));
+	}
+	return result;
+}
+std::vector<ConsoleMessageView> ConsoleModel::messages() const
+{
+	return observation_ ? console_messages(observation_->gameplay) : std::vector<ConsoleMessageView>{};
+}
 std::vector<std::pair<std::string, std::string>> public_board_readouts(const Json &board, std::uint64_t now)
 {
 	Json selected{{"shared", Json::array()}, {"messages", Json::array()}, {"omitted", Json::object()}};
 	if (!board.is_object())
 		return {};
-	for (const auto *key : {"shared", "messages"})
+	const auto shared = board.value("shared", Json::array());
+	if (shared.is_array())
 	{
-		auto rows = board.value(key, Json::array());
-		if (!rows.is_array())
-			continue;
-		if (std::string(key) == "messages")
-		{
-			auto &items = rows.get_ref<Json::array_t &>();
-			std::erase_if(items,
-			              [](const auto &row)
-			              {
-				              return !row.is_object() || !row.value("public", false);
-			              });
-		}
-		if (std::string(key) == "messages")
-			for (auto &row : rows)
-				if (row.is_object())
-					row["actionable"] = false;
-		const auto skip = rows.size() > 8 ? rows.size() - 8 : 0;
-		for (std::size_t i = skip; i < rows.size(); ++i)
-			if (std::string(key) != "messages" || (rows[i].is_object() && rows[i].value("public", false)))
-				selected[key].push_back(rows[i]);
-		const auto omissions = board.value("omitted", Json::object());
-		selected["omitted"][key] = skip + (omissions.is_object() ? omissions.value(key, std::size_t{0}) : 0);
+		const auto skip = shared.size() > 8 ? shared.size() - 8 : 0;
+		for (std::size_t i = skip; i < shared.size(); ++i)
+			selected["shared"].push_back(shared[i]);
+		const auto omitted = board.value("omitted", Json::object());
+		selected["omitted"]["shared"] = skip + (omitted.is_object() ? omitted.value("shared", std::size_t{0}) : 0);
 	}
+
 	auto rows = board_readouts(selected, now);
 	const auto alert = board.value("alert", Json::object());
 	if (!alert.empty())
@@ -467,7 +498,9 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 					{
 						if (!notification.empty())
 							notification += " ";
-						notification += console_message(message);
+						const auto views = console_messages(Json{{"messages", Json::array({message})}});
+						if (!views.empty())
+							notification += views.front().accessible_text();
 					}
 					notification_sequence_ = *sequence;
 				}

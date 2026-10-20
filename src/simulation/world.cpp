@@ -1828,7 +1828,8 @@ struct World::Impl
 				// Only actual commands need a transactional copy.
 				auto candidate = knowledge;
 				candidate.admit_template(address, sender, name, payload, ControlOrigin::Human, ecs.get<Clock>().tick,
-				                         bound.parameters, true, controller_sender);
+				                         bound.parameters, true, controller_sender, command.speaker_name,
+				                         command.speaker_avatar);
 				if (execute)
 					knowledge = std::move(candidate);
 				return true;

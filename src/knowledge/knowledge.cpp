@@ -132,6 +132,8 @@ Json encode_message(const CoordinationMessage &message)
 	        {"parameters", v.presentation.parameters},
 	        {"urgency", v.presentation.urgency},
 	        {"automatic", v.presentation.automatic},
+	        {"speaker_name", v.presentation.speaker_name},
+	        {"speaker_avatar", v.presentation.speaker_avatar},
 	        {"delay", v.delay},
 	        {"expires", v.expires_tick},
 	        {"request", v.request_key},
@@ -154,6 +156,10 @@ CoordinationMessage decode_message(const Json &j)
 	m.value.presentation = {j.at("title").get<std::string>(), j.at("body").get<std::string>(),
 	                        j.at("parameters").get<std::map<std::string, std::string>>(),
 	                        read_unsigned<std::uint8_t>(j.at("urgency")), j.at("automatic").get<bool>()};
+	m.value.presentation.speaker_name = j.value("speaker_name", std::string{});
+	m.value.presentation.speaker_avatar = j.value("speaker_avatar", Bytes{});
+	require(m.value.presentation.speaker_name.size() <= 64 && m.value.presentation.speaker_avatar.size() <= 12288,
+	        "message speaker profile exceeds limit");
 	m.value.delay = read_unsigned<KnowledgeTick>(j.at("delay"));
 	m.value.expires_tick = read_unsigned<KnowledgeTick>(j.at("expires"));
 	m.value.request_key = read_unsigned<KnowledgeId>(j.at("request"));

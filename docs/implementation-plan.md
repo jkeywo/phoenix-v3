@@ -134,3 +134,7 @@ Latest verification, 18 October 2026: all eleven native integration checks, the 
 Workshop packages game packs and dependent scenario overlays as editable ZIP or compiled DAT. Native/browser loaders accept both, and native explicit pack paths also accept source directories. Scenario references drive graphics preparation; explicit preload declarations bound dynamic spawns. Player clients receive their assigned Console set, including profile-provided additional Consoles, behind a background/progress screen. The browser client excludes gameplay archives from its runtime data and launcher preload. See [packaging and loading](asset-loading.md) and the [validation receipt](smoke/asset-loading.md).
 
 All 22 native system cases, the WASM suite/continuation comparison, and the targeted real-transport client/admission journeys pass. Native loading and DAT gameplay captures were inspected. A full transport invocation still reports the separate lateral-thrust neutral-release failure described in the receipt; it is not recorded as a clean full-gate pass.
+
+## Comic messages — 20 October 2026
+
+Console and shared Viewscreen messages now use named portraits, Comic Neue speech bubbles and prose-only accessible text. Human sender profiles survive delayed delivery, handover and saved history; private/public routing is unchanged. See [message presentation](messages.md) and [validation evidence](smoke/comic-messages.md).

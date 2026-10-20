@@ -13,6 +13,16 @@ export import phoenix.session.api;
 
 export namespace phoenix
 {
+struct ConsoleMessageView
+{
+	std::string id, sender, text, portrait;
+	Bytes avatar;
+	std::string accessible_text() const
+	{
+		return sender + ": " + text;
+	}
+};
+std::vector<ConsoleMessageView> console_messages(const Json &board, bool public_only = false);
 std::vector<std::pair<std::string, std::string>> public_board_readouts(const Json &, std::uint64_t now);
 // One instance per routed Console. No renderer, device or authoritative world.
 class ConsoleModel
@@ -69,6 +79,7 @@ public:
 	std::string contacts_text() const;
 	std::vector<std::pair<std::string, std::string>> gameplay_controls() const;
 	std::vector<std::pair<std::string, std::string>> gameplay_readouts() const;
+	std::vector<ConsoleMessageView> messages() const;
 
 private:
 	std::string selected_console_;

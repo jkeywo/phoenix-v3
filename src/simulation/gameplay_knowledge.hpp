@@ -70,7 +70,8 @@ public:
 	KnowledgeId admit_template(const ConsoleAddress &source, const std::string &sender_system,
 	                           const std::string &message, KnowledgeRecordInput payload, ControlOrigin origin,
 	                           KnowledgeTick tick, std::map<std::string, std::string> parameters = {},
-	                           bool execute = true, bool controller = false);
+	                           bool execute = true, bool controller = false, const std::string &speaker_name = {},
+	                           const Bytes &speaker_avatar = {});
 	KnowledgeId publish_scenario_message(const ConsoleAddress &source, CoordinationInput value, KnowledgeTick tick);
 	bool withdraw_request(const ConsoleAddress &source, const std::string &sender_system, KnowledgeId request_key,
 	                      ControlOrigin origin, bool controller = false);
@@ -89,6 +90,7 @@ public:
 	void restore(const Json &state);
 
 private:
+	std::map<std::pair<std::string, std::string>, std::string> console_labels_;
 	CompiledKnowledge compiled_;
 	KnowledgeRuntime runtime_;
 	std::map<std::string, GameplayKnowledgeShipDefinition> definitions_;

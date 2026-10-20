@@ -579,6 +579,8 @@ public:
 		                        {"generation", command.generation},
 		                        {"request_id", command.request_id},
 		                        {"arguments", command.arguments},
+		                        {"speaker_name", command.speaker_name},
+		                        {"speaker_avatar", command.speaker_avatar},
 		                        {"lease", lease_},
 		                        {"sequence", ++sequence_}});
 	}

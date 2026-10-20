@@ -561,6 +561,14 @@ foreach(avatar RANGE 1 12)
 		COPYONLY
 	)
 endforeach()
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/assets/messages")
+foreach(portrait RANGE 1 6)
+	configure_file(
+		"content/ui/messages/console-${portrait}.png"
+		"${CMAKE_CURRENT_BINARY_DIR}/assets/messages/console-${portrait}.png"
+		COPYONLY
+	)
+endforeach()
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/server-audio")
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/assets/audio")
 foreach(audio_file IN ITEMS ui_click.ogg CREDITS.txt)
@@ -570,7 +578,15 @@ foreach(audio_file IN ITEMS menu.ogg ambient.ogg CREDITS.txt)
 	configure_file("content/audio/${audio_file}" "${CMAKE_CURRENT_BINARY_DIR}/server-audio/${audio_file}" COPYONLY)
 endforeach()
 configure_file("content/locales.json" "${CMAKE_CURRENT_BINARY_DIR}/assets/locales.json" COPYONLY)
-foreach(title_font_asset UnifrakturCook-Bold.ttf UnifrakturCook-OFL.txt SpaceMono-Regular.ttf SpaceMono-OFL.txt)
+foreach(
+	title_font_asset
+	UnifrakturCook-Bold.ttf
+	UnifrakturCook-OFL.txt
+	SpaceMono-Regular.ttf
+	SpaceMono-OFL.txt
+	ComicNeue-Regular.ttf
+	ComicNeue-OFL.txt
+)
 	configure_file("content/fonts/${title_font_asset}" "${CMAKE_CURRENT_BINARY_DIR}/assets/${title_font_asset}" COPYONLY)
 endforeach()
 foreach(font Cairo-Regular.ttf Poppins-Regular.ttf LICENSE.txt)
@@ -916,6 +932,29 @@ else()
 		COMMAND
 			${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/assets"
 			"$<TARGET_FILE_DIR:phoenix_manual_flight_smoke>/assets"
+	)
+endif()
+
+# Explicit visual evidence only; never registered as an automatic test.
+add_executable(phoenix_messages_smoke EXCLUDE_FROM_ALL tests/manual/messages_ui.cpp)
+target_link_libraries(phoenix_messages_smoke PRIVATE phoenix_presentation)
+if(EMSCRIPTEN)
+	set_target_properties(phoenix_messages_smoke PROPERTIES SUFFIX ".html")
+	target_link_options(
+		phoenix_messages_smoke
+		PRIVATE
+			"-sALLOW_MEMORY_GROWTH=1"
+			"-sSTACK_SIZE=1048576"
+			"--preload-file"
+			"${CMAKE_CURRENT_BINARY_DIR}/assets@/assets"
+	)
+else()
+	add_custom_command(
+		TARGET phoenix_messages_smoke
+		POST_BUILD
+		COMMAND
+			${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_BINARY_DIR}/assets"
+			"$<TARGET_FILE_DIR:phoenix_messages_smoke>/assets"
 	)
 endif()
 

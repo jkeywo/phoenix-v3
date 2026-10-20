@@ -54,10 +54,18 @@ ShipCameraState ship_camera_state(const Json &board)
 }
 Json encode_operating_command(const OperatingCommand &command)
 {
-	return {{"target", command.target},         {"action", command.action},         {"value", command.value},
-	        {"system", command.system},         {"controller", command.controller}, {"channel", command.channel},
-	        {"generation", command.generation}, {"request_id", command.request_id}, {"arguments", command.arguments},
-	        {"console", command.console}};
+	return {{"target", command.target},
+	        {"action", command.action},
+	        {"value", command.value},
+	        {"system", command.system},
+	        {"controller", command.controller},
+	        {"channel", command.channel},
+	        {"generation", command.generation},
+	        {"request_id", command.request_id},
+	        {"arguments", command.arguments},
+	        {"console", command.console},
+	        {"speaker_name", command.speaker_name},
+	        {"speaker_avatar", command.speaker_avatar}};
 }
 OperatingCommand decode_operating_command(const Json &value)
 {
@@ -94,6 +102,22 @@ OperatingCommand decode_operating_command(const Json &value)
 		}
 	}
 	result.console = value.value("console", std::string{});
+	result.speaker_name = value.value("speaker_name", std::string{});
+	const auto avatar = value.value("speaker_avatar", Json::array());
+	if (result.speaker_name.size() > 64 ||
+	    std::any_of(result.speaker_name.begin(), result.speaker_name.end(),
+	                [](unsigned char c)
+	                {
+		                return c < 32 || c == 127;
+	                }) ||
+	    !avatar.is_array() || avatar.size() > 12288)
+		throw std::runtime_error("Invalid message speaker profile");
+	for (const auto &byte : avatar)
+	{
+		if (!byte.is_number_integer() || byte < 0 || byte > 255)
+			throw std::runtime_error("Invalid speaker avatar byte");
+		result.speaker_avatar.push_back(byte.get<std::uint8_t>());
+	}
 	for (const auto *text : {&result.action, &result.system, &result.controller, &result.channel, &result.console})
 		if (text->size() > 256)
 			throw std::runtime_error("Command identifier exceeds limit");

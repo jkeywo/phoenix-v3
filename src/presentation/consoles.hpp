@@ -332,6 +332,9 @@ button:hover,button:focus {background:#455458;border-color:#ec9c52;}
 #connection-status {font-size:.75em;}
 #widgets {position:absolute;left:4%;right:4%;top:125px;bottom:4%;}
 #gameplay {position:absolute;left:60%;right:4%;top:125px;bottom:4%;overflow-x:hidden;overflow-y:auto;clip:always;box-sizing:border-box;background:#0b1719ee;border:1px #988b71;padding:8px;display:none;}
+#gameplay scrollbarvertical {width:14px;background:#263638;}
+#gameplay scrollbarvertical sliderbar {min-height:32px;background:#ccc2af;}
+#gameplay scrollbarvertical slidertrack {width:14px;}
 #gameplay-controls button {width:210px;min-height:48px;box-sizing:border-box;}
 .engineering #widgets {display:block;pointer-events:none;z-index:4;}
 .engineering #widgets .widget {display:none;}
@@ -461,7 +464,7 @@ button.on-screen-active .share-live {display:block;}
 .mission-copy button:hover,.mission-copy button:focus {background:#bce8ad;color:#102014;border-color:#d1f9be;}
 #navigation-layer {position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;}
 #navigation-layer button,#navigation-layer input,#navigation-canvas {pointer-events:auto;}
-</style></head><body><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="engineering-cards"></div><div id="gameplay-controls"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div><div id="navigation-layer"></div><div id="manual-flight"></div><div id="local-settings"></div></body></rml>)");
+</style></head><body><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="engineering-cards"></div><div id="gameplay-controls"></div><div id="gameplay-messages"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div><div id="navigation-layer"></div><div id="manual-flight"></div><div id="local-settings"></div></body></rml>)");
 		if (!document_)
 			throw std::runtime_error("Cannot create Console document");
 		document_->AddEventListener("click", this);
@@ -1919,7 +1922,8 @@ button.on-screen-active .share-live {display:block;}
 		app.frame_metrics["console/" + std::to_string(route_) + "/readouts"] = GetTime() - readouts_started;
 		auto *gameplay = document_->GetElementById("gameplay");
 		auto *widgets = document_->GetElementById("widgets");
-		const bool has_gameplay = !gameplay_controls.empty() || !gameplay_readouts.empty();
+		const auto messages = pregame ? std::vector<ConsoleMessageView>{} : model_.messages();
+		const bool has_gameplay = !gameplay_controls.empty() || !gameplay_readouts.empty() || !messages.empty();
 		const auto placement = signature_ + "/" + std::to_string(region.width) + "/" + std::to_string(region.height) +
 		                       (has_gameplay ? "/gameplay" : "/empty");
 		const bool placement_changed = placement_signature_ != placement;
@@ -2084,6 +2088,7 @@ button.on-screen-active .share-live {display:block;}
 			document_->GetElementById("gameplay-readouts")->SetInnerRML(markup);
 			gameplay_readout_signature_ = readout_signature;
 		}
+		message_ui::refresh(*document_, *document_->GetElementById("gameplay-messages"), messages, app, id(""));
 		for (const auto &[name, text] : gameplay_readouts)
 		{
 			update_readout(name, text, placement_changed);

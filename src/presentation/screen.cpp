@@ -41,6 +41,7 @@ import phoenix.devices;
 #include "game.hpp"
 #include "menu.hpp"
 #include "engineering.hpp"
+#include "messages.hpp"
 #include "consoles.hpp"
 #include "settings.hpp"
 #include "music.hpp"
@@ -573,8 +574,10 @@ void prepare_public_board(Application &app, bool visible)
 	}
 	const auto rows = visible ? public_board_readouts(app.session->public_board(), app.session->ticks())
 	                          : std::vector<std::pair<std::string, std::string>>{};
-	panel->SetProperty("display", rows.empty() ? "none" : "block");
-	if (rows.empty())
+	const auto messages =
+	    visible ? console_messages(app.session->public_board(), true) : std::vector<ConsoleMessageView>{};
+	panel->SetProperty("display", rows.empty() && messages.empty() ? "none" : "block");
+	if (rows.empty() && messages.empty())
 		return;
 	const auto area = app.viewscreen_region ? *app.viewscreen_region
 	                                        : ConsoleRegion{1, 0, 0, static_cast<float>(GetScreenWidth()),
@@ -597,9 +600,24 @@ void prepare_public_board(Application &app, bool visible)
 	// Avoid resetting scroll position on unchanged ticks.
 	if (previous_markup != markup)
 	{
-		panel->SetInnerRML(markup);
+		auto *readouts = document->GetElementById("viewscreen-board-readouts");
+		if (!readouts)
+		{
+			auto created = document->CreateElement("div");
+			created->SetId("viewscreen-board-readouts");
+			readouts = panel->AppendChild(std::move(created));
+		}
+		readouts->SetInnerRML(markup);
 		previous_markup = markup;
 	}
+	auto *history = document->GetElementById("viewscreen-messages");
+	if (!history)
+	{
+		auto created = document->CreateElement("div");
+		created->SetId("viewscreen-messages");
+		history = panel->AppendChild(std::move(created));
+	}
+	message_ui::refresh(*document, *history, messages, app);
 }
 void prepare_runtime_chrome(Application &app)
 {
@@ -754,6 +772,8 @@ void open_window()
 	if (!Rml::LoadFontFace(font))
 		throw std::runtime_error("Could not load player UI font: " + font);
 	const auto font_directory = std::filesystem::path(font).parent_path();
+	if (!Rml::LoadFontFace((font_directory / "ComicNeue-Regular.ttf").generic_string()))
+		throw std::runtime_error("Cannot load Comic Neue message font");
 	if (!Rml::LoadFontFace((font_directory / "SpaceMono-Regular.ttf").generic_string()))
 		throw std::runtime_error("Could not load mission terminal font");
 	if (!Rml::LoadFontFace((font_directory / "UnifrakturCook-Bold.ttf").generic_string()))
@@ -806,6 +826,9 @@ void open_window()
     #native-menu p { word-break:break-word; }
     #native-menu scrollbarhorizontal { height:14px; background:#102535; }
     #native-menu scrollbarhorizontal sliderbar { min-width:24px; background:#76c9e8; }
+    #viewscreen-board scrollbarvertical {width:14px;background:#263638;}
+    #viewscreen-board scrollbarvertical sliderbar {min-height:32px;background:#ccc2af;}
+    #viewscreen-board scrollbarvertical slidertrack {width:14px;}
     #native-menu scrollbarvertical { width:14px; background:#102535; }
     #native-menu scrollbarvertical sliderbar { min-height:24px; background:#76c9e8; }
     #native-menu button:disabled { color:#617785; background:#10202b; border-color:#243b49; }

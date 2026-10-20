@@ -1063,7 +1063,7 @@ public:
 	}
 	bool command(const OperatingCommand &value) override
 	{
-		return backend_ && backend_->command(value);
+		return console_command(1, value);
 	}
 	std::optional<Observation> observation() const override
 	{
@@ -1106,7 +1106,24 @@ public:
 	}
 	bool console_command(std::uint64_t route, const OperatingCommand &v) override
 	{
-		return backend_ && backend_->console_command(route, v);
+		auto value = v;
+		value.speaker_name.clear();
+		value.speaker_avatar.clear();
+		if (value.action.starts_with("message."))
+		{
+			const auto local = local_consoles_.find(route);
+			if (local != local_consoles_.end())
+			{
+				value.speaker_name = local->second.name;
+				value.speaker_avatar = local->second.avatar;
+			}
+			else
+			{
+				value.speaker_name = options_.player_name;
+				value.speaker_avatar = options_.avatar;
+			}
+		}
+		return backend_ && backend_->console_command(route, value);
 	}
 	std::optional<Observation> console_observation(std::uint64_t route) const override
 	{

@@ -15,6 +15,7 @@
 #include <vector>
 
 import phoenix.simulation;
+import phoenix.console;
 
 using namespace phoenix;
 namespace
@@ -783,6 +784,59 @@ void delayed_human_seeking()
 	require(latest_field(projection(recovered, 102), "records", "support-private", "enabled") == true,
 	        "human observer offers never become later AI inbox work after handover");
 }
+void comic_message_presentation()
+{
+	auto definitions = fixture();
+	definitions["consoles"][0]["name"] = "Helm";
+	definitions["messages"][0]["title_key"] = "Power request";
+	definitions["messages"][0]["body_key"] = "Please supply more power.";
+	const auto catalog = load(definitions);
+	World world;
+	world.load(catalog, "test.map");
+	claim_all(world);
+	OperatingCommand spoken{1, "message.test.request", 0, "engine"};
+	spoken.speaker_name = "Morgan";
+	spoken.speaker_avatar = read_file(std::string(PHOENIX_FIXTURE_DIR) + "/pixel.png");
+	require(submit(world, 101, decode_operating_command(encode_operating_command(spoken))),
+	        "profile snapshot uses ordinary command admission");
+	world.tick();
+	World restored;
+	restored.restore(catalog, world.save());
+	restored.release(101);
+	require(restored.claim(104, 1, "helm"), "another operator takes the sending Console before delivery");
+	for (int i = 0; i < 3; ++i)
+		restored.tick();
+	const auto board = projection(restored, 102);
+	const auto views = console_messages(board);
+	require(views.size() == 1 && views[0].sender == "Morgan" && views[0].avatar == spoken.speaker_avatar &&
+	            views[0].text == "Power request: Please supply more power." &&
+	            views[0].accessible_text() == "Morgan: Power request: Please supply more power.",
+	        "delayed human message retains original speaker after restore and handover, with prose-only semantics");
+	require(console_messages(restored.public_board(1), true).empty() && console_messages(board, true).empty(),
+	        "private messages cannot appear on the shared Viewscreen");
+	auto public_copy = board;
+	public_copy["messages"][0]["public"] = true;
+	public_copy["messages"][0]["speaker_name"] = "";
+	auto ai = console_messages(public_copy, true);
+	require(ai.size() == 1 && ai[0].sender == "Helm" && ai[0].portrait == "messages/console-1.png",
+	        "Console identity resolves to a stable portrait and readable authored name");
+	public_copy["messages"][0]["title_key"] = "missing.translation.key";
+	public_copy["messages"][0]["body_key"] = "Please supply {missing}.";
+	require(console_messages(public_copy)[0].text == "Message unavailable",
+	        "missing translation and unresolved interpolation never expose internal keys");
+	public_copy["messages"][0]["speaker_name"] = "Morgan";
+	public_copy["messages"][0]["speaker_avatar"] = {1, 2, 3};
+	require(console_messages(public_copy)[0].avatar.empty(),
+	        "invalid portraits have a readable sender and bundled fallback");
+	for (int i = 1; i < 12; ++i)
+	{
+		auto message = public_copy["messages"][0];
+		message["sequence"] = i + 1;
+		public_copy["messages"].push_back(message);
+	}
+	require(console_messages(public_copy, true).size() == 12,
+	        "message history has no extra eight-row presentation cut-off");
+}
 void authorized_message_producers()
 {
 	auto human_definitions = fixture();
@@ -1037,6 +1091,7 @@ int main()
 		message_capture_budget();
 		station_recipient_set();
 		delayed_human_seeking();
+		comic_message_presentation();
 		authorized_message_producers();
 		current_record_streams();
 		continuation_roster_validation(catalog);

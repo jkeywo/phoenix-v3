@@ -330,6 +330,9 @@ struct OperatingCommand
 	std::uint64_t generation = 0, request_id = 0;
 	std::vector<std::int64_t> arguments;
 	std::string console;
+	// Display-only snapshot from the sending player's profile; never command authority.
+	std::string speaker_name;
+	Bytes speaker_avatar;
 };
 Json encode_operating_command(const OperatingCommand &command);
 OperatingCommand decode_operating_command(const Json &value);

@@ -123,6 +123,9 @@ bool probe_console_report(ConsoleId route);
 bool probe_console_readouts(ConsoleId route);
 bool probe_console_engineering(ConsoleId route, unsigned stage);
 void open_window();
+// Shared memory-image registry for runtime surfaces and standalone visual probes.
+std::string register_menu_image(const Bytes &png);
+const Bytes *menu_image_data(const std::string &source);
 bool close_requested();
 bool graphics_has_keyboard_focus();
 void draw_screen(Application &app);

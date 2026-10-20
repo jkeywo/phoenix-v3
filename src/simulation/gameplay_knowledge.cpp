@@ -87,6 +87,11 @@ void GameplayKnowledge::configure(const Catalog &catalog)
 	configured.runtime_ = KnowledgeRuntime(configured.compiled_);
 	configured.definitions_ = std::move(definitions.ships);
 	configured.messages_ = std::move(definitions.messages);
+	for (const auto &[name, entity] : catalog.entities)
+		for (const auto &seat : resolve_consoles(catalog, name))
+			configured.console_labels_[{name, seat.id}] =
+			    catalog.consoles.contains(seat.definition) ? catalog.consoles.at(seat.definition).value("name", seat.id)
+			                                               : seat.id;
 	configured.request_keys_ = std::move(definitions.request_keys);
 	configured.telemetry_names_ = std::move(definitions.telemetry_names);
 	configured.telemetry_indices_ = std::move(definitions.telemetry_indices);
@@ -594,7 +599,8 @@ KnowledgeId GameplayKnowledge::admit_template(const ConsoleAddress &source, cons
                                               const std::string &name, KnowledgeRecordInput payload,
                                               ControlOrigin origin, KnowledgeTick tick,
                                               std::map<std::string, std::string> parameters, bool execute,
-                                              bool controller)
+                                              bool controller, const std::string &speaker_name,
+                                              const Bytes &speaker_avatar)
 {
 	const auto &definition = message_definition(name);
 	knowledge_require(payload.schema == definition.schema, "payload does not match message template");
@@ -632,6 +638,12 @@ KnowledgeId GameplayKnowledge::admit_template(const ConsoleAddress &source, cons
 		break;
 	}
 	value.presentation = definition.presentation;
+	if (origin == ControlOrigin::Human)
+	{
+		knowledge_require(speaker_name.size() <= 64 && speaker_avatar.size() <= 12288, "speaker profile exceeds limit");
+		value.presentation.speaker_name = speaker_name;
+		value.presentation.speaker_avatar = speaker_avatar;
+	}
 	for (auto &[key, parameter] : parameters)
 		value.presentation.parameters[key] = std::move(parameter);
 	value.delay = definition.delay;
@@ -733,7 +745,9 @@ Json GameplayKnowledge::project_json(const ConsoleAddress &address, bool public_
 			continue;
 		const auto &message = delivery.message;
 		const auto &p = message.value.presentation;
-		const auto &actors = ships_.at(address.ship).controllers;
+		const auto source = this->address(message.sender_console);
+		const auto label = console_labels_.find({ships_.at(source.ship).definition, source.console});
+		const auto &actors = ships_.at(source.ship).controllers;
 		const bool controller_source = std::any_of(actors.begin(), actors.end(),
 		                                           [&](const auto &actor)
 		                                           {
@@ -746,6 +760,10 @@ Json GameplayKnowledge::project_json(const ConsoleAddress &address, bool public_
 		     {"sender_actor", message.value.sender_system},
 		     {"sender_kind", controller_source ? "controller" : "system"},
 		     {"sender_console", message.sender_console},
+		     {"sender_console_key", source.console},
+		     {"sender_console_label", label == console_labels_.end() ? source.console : label->second},
+		     {"speaker_name", p.speaker_name},
+		     {"speaker_avatar", p.speaker_avatar},
 		     {"origin", static_cast<unsigned>(message.value.origin)},
 		     {"destination_kind", static_cast<unsigned>(message.value.destination.kind)},
 		     {"destination", message.value.destination.id},
@@ -764,12 +782,12 @@ Json GameplayKnowledge::project_json(const ConsoleAddress &address, bool public_
 	}
 	for (const auto &delivery : projection.notifications)
 	{
-		const auto &p = delivery.message.value.presentation;
-		result["notifications"].push_back({{"sequence", delivery.sequence},
-		                                   {"title_key", p.title_key},
-		                                   {"body_key", p.body_key},
-		                                   {"parameters", p.parameters},
-		                                   {"urgency", p.urgency}});
+		for (const auto &message : result["messages"])
+			if (message.at("sequence") == delivery.sequence)
+			{
+				result["notifications"].push_back(message);
+				break;
+			}
 	}
 	return result;
 }
@@ -853,6 +871,7 @@ void GameplayKnowledge::restore(const Json &state)
 	restored.runtime_ = KnowledgeRuntime(compiled_);
 	restored.definitions_ = definitions_;
 	restored.messages_ = messages_;
+	restored.console_labels_ = console_labels_;
 	restored.request_keys_ = request_keys_;
 	restored.telemetry_names_ = telemetry_names_;
 	restored.telemetry_indices_ = telemetry_indices_;
