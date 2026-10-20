@@ -37,17 +37,27 @@ int main(int argc, char **argv)
 	try
 	{
 		if (argc < 2)
-			throw std::runtime_error("Usage: phoenix_camera_smoke pack-directory [portrait]");
+			throw std::runtime_error("Usage: phoenix_camera_smoke pack-directory [portrait] [courier]");
 		app.can_host = app.can_edit = app.native_menu = true;
 		app.session = make_local_session();
 		app.session->add_pack(read_file(std::string(argv[1]) + "/base.zip"));
 		app.session->add_pack(read_file(std::string(argv[1]) + "/training.zip"));
-		app.session->start(
-		    {"training.navigation", {{"training.player", "training.survey"}}, "training.player", "main"});
+		bool portrait = false, courier = false;
+		for (int i = 2; i < argc; ++i)
+		{
+			portrait |= std::string(argv[i]) == "portrait";
+			courier |= std::string(argv[i]) == "courier";
+		}
+		if (courier)
+			app.session->start(
+			    {"base.free-flight", {{"base.player", "base.courier-engineering"}}, "base.player", "helm"});
+		else
+			app.session->start(
+			    {"training.navigation", {{"training.player", "training.survey"}}, "training.player", "main"});
 		app.screen = Screen::console;
 		open_window();
 		opened = true;
-		if (argc > 2)
+		if (portrait)
 			SetWindowSize(1080, 1920);
 		const auto frame = [&]
 		{
@@ -62,6 +72,37 @@ int main(int argc, char **argv)
 		{
 			require(app.screen_action && app.screen_action("console/1/" + name), "camera widget action is admitted");
 		};
+		const auto initial_profile = app.session->observation()->gameplay.at("profile");
+		require(app.screen_toggles.at("console/1/manual"), "manual toggle reflects the admitted manual profile");
+		require(std::count_if(app.screen_controls.begin(), app.screen_controls.end(),
+		                      [](const auto &control)
+		                      {
+			                      return control.first == "console/1/manual";
+		                      }) == 1,
+		        "one manual toggle replaces separate profile buttons");
+		require(std::none_of(app.screen_controls.begin(), app.screen_controls.end(),
+		                     [](const auto &control)
+		                     {
+			                     return control.second == "direct" || control.second == "automatic";
+		                     }),
+		        "profile buttons are removed from the Helm HUD");
+		action("game.manual");
+		action("game.contacts");
+		action("game.camera-back");
+		frame();
+		require(app.screen_toggles.at("console/1/manual"), "manual toggle waits for accepted state");
+		app.session->tick();
+		frame();
+		require(!app.screen_toggles.at("console/1/manual") &&
+		            app.session->observation()->gameplay.at("profile") == "automatic",
+		        "one toggle hands over to automatic control");
+		capture("manual-automatic.png");
+		action("manual");
+		app.session->tick();
+		frame();
+		require(app.screen_toggles.at("console/1/manual") &&
+		            app.session->observation()->gameplay.at("profile") == initial_profile,
+		        "manual toggle restores the previous complexity profile");
 		action("game.camera");
 		action("game.right");
 		action("game.contacts");
@@ -113,13 +154,14 @@ int main(int argc, char **argv)
 		frame();
 		action("settings");
 		frame();
+		require(!app.screen_action("console/1/manual"), "manual toggle cannot bypass a modal");
 		require(!app.screen_action("console/1/camera/camera-mode/0"), "hidden camera controls cannot bypass a modal");
 #ifndef __EMSCRIPTEN__
 		action("local-settings.close");
 #endif
 		close_window();
 		opened = false;
-		std::cout << "PASS camera widgets, gamepad navigation, modal admission and 16 camera renders\n";
+		std::cout << "PASS camera widgets, manual toggle, gamepad navigation, modal admission and 16 camera renders\n";
 	}
 	catch (const std::exception &error)
 	{

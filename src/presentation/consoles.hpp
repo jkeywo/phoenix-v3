@@ -30,6 +30,30 @@ class ConsoleSurface final : public Rml::EventListener
 	Rml::Context *context_ = nullptr;
 	Rml::ElementDocument *document_ = nullptr;
 	ConsoleModel model_;
+	std::string manual_profile_, manual_console_;
+	bool manual_toggle_ = false;
+	std::optional<std::string> manual_preset(bool automatic) const
+	{
+		if (!model_.observation())
+			return {};
+		std::optional<std::string> fallback;
+		for (const auto &d : model_.observation()->gameplay.value("controls", Json::array()))
+			if (d.value("action", "") == "preset" && d.value("enabled", true))
+			{
+				const auto name = d.value("id", "");
+				if (automatic && name == "profile.automatic")
+					return name;
+				if (!automatic && name.starts_with("profile.") && name != "profile.automatic")
+				{
+					if (name == manual_profile_)
+						return name;
+					if (!fallback)
+						fallback = name;
+				}
+			}
+		return fallback;
+	}
+
 #include "navigation_surface.hpp"
 	TextureCache radar_textures_;
 	std::map<std::string, std::unique_ptr<RadarSweep>> radar_sweeps_;
@@ -315,6 +339,15 @@ p {display:block;font-size:.85em;margin:4px 0;}
 .helm .radar-widget button.on-screen {opacity:1;position:absolute;bottom:0;right:0;min-width:120px;}
 button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 .helm #gameplay {background:transparent;border:0px;padding:0px;}
+.helm .radar-widget button.manual-toggle {display:block;opacity:1;left:5%;bottom:4%;width:220px;height:82px;padding:0;margin:0;background:transparent;border:2px transparent;tab-index:auto;}
+.manual-toggle .manual-art {position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;}
+.manual-toggle .manual-label {position:absolute;left:17%;top:50%;margin-top:-12px;height:24px;font-size:18px;color:#f3e6c9;pointer-events:none;}
+.manual-toggle .manual-lamp {position:absolute;left:55%;top:50%;margin-top:-11px;width:22px;height:22px;box-sizing:border-box;border:3px #ff625f;background:#410e10;color:#ffc4ba;font-family:Space Mono;font-size:17px;line-height:16px;text-align:center;pointer-events:none;}
+.manual-toggle.manual-on .manual-lamp {border-radius:11px;background:#4fd791;border-color:#a5ffcb;color:#09261b;}
+.manual-toggle .manual-state {position:absolute;left:70%;top:50%;margin-top:-10px;height:20px;font-family:Space Mono;font-size:13px;line-height:20px;color:#f3e6c9;pointer-events:none;}
+.helm .radar-widget button.manual-toggle:hover,.helm .radar-widget button.manual-toggle:focus {border-color:#ffe4b0;}
+.helm .radar-widget button.manual-toggle:disabled {opacity:.5;}
+
 .profile-tv span {position:absolute;left:20%;top:69%;width:55%;text-align:center;pointer-events:none;}
 #local-settings {display:none;position:absolute;left:0;top:0;width:100%;height:100%;background:#080d0fee;z-index:20;}
 .local-settings-open #local-settings {display:block;}
@@ -500,9 +533,30 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 			return false;
 		}
 
+		if (action == "manual")
+		{
+			if (!manual_toggle_ || !game_active(*app_) || app_->screen == Screen::settings || !model_.observation())
+				return false;
+			const bool manual = model_.observation()->gameplay.value("profile", "") != "automatic";
+			const auto preset = manual_preset(manual);
+			if (!preset)
+				return false;
+			const bool accepted = model_.act(descriptor_action(*preset));
+			app_->accessible_status = model_.announcement();
+			return accepted;
+		}
+
 		if ((action.starts_with("camera/") || action == "game.camera" || action == "game.camera-back") &&
 		    (!game_active(*app_) || app_->screen == Screen::settings))
 			return false;
+		if (action == "game.manual")
+		{
+			if (!manual_toggle_ || !game_active(*app_) || app_->screen == Screen::settings)
+				return false;
+			if (auto *toggle = element(id("manual")))
+				return toggle->Focus();
+			return false;
+		}
 		if (action == "game.camera")
 		{
 			for (const auto &[name, label] : controls_)
@@ -515,7 +569,7 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 			return false;
 		}
 		if (auto *focused = context_->GetFocusElement();
-		    focused && focused->GetId().find("/camera/") != std::string::npos)
+		    focused && (focused->GetId().find("/camera/") != std::string::npos || focused->GetId() == id("manual")))
 		{
 			if (action == "game.camera-back")
 			{
@@ -532,7 +586,7 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 			{
 				std::vector<std::string> choices;
 				for (const auto &[name, label] : controls_)
-					if (name.find("/camera/") != std::string::npos)
+					if (name.find("/camera/") != std::string::npos || name == id("manual"))
 						choices.push_back(name);
 				const auto current = std::find(choices.begin(), choices.end(), focused->GetId());
 				if (current == choices.end() || choices.empty())
@@ -984,6 +1038,8 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 		if (owner_.lock() != app.session || (app.session && generation_ != app.session->generation()))
 		{
 			owner_ = app.session;
+			manual_profile_.clear();
+			manual_console_.clear();
 			local_language_ = app.language;
 			generation_ = app.session ? app.session->generation() : 0;
 			settings_open_ = false;
@@ -993,6 +1049,18 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 			signature_.clear();
 			cancel_pointer();
 			document_->Focus();
+		}
+		if (model_.observation())
+		{
+			const auto scope = std::to_string(model_.observation()->own.id) + "/" + model_.observation()->console;
+			if (scope != manual_console_)
+			{
+				manual_console_ = scope;
+				manual_profile_.clear();
+			}
+			const auto profile = model_.observation()->gameplay.value("profile", "");
+			if (!profile.empty() && profile != "automatic")
+				manual_profile_ = "profile." + profile;
 		}
 		context_->SetDimensions({static_cast<int>(region.width), static_cast<int>(region.height)});
 #ifndef __EMSCRIPTEN__
@@ -1019,6 +1087,13 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 		                                        {
 			                                        return widget.at("kind") == "throttle";
 		                                        });
+
+		manual_toggle_ = !pregame && helm && layout && manual_preset(true) && manual_preset(false) &&
+		                 std::any_of(layout->at("widgets").begin(), layout->at("widgets").end(),
+		                             [](const auto &w)
+		                             {
+			                             return w.at("kind") == "radar";
+		                             });
 		const bool has_camera = layout && std::any_of(layout->at("widgets").begin(), layout->at("widgets").end(),
 		                                              [](const auto &widget)
 		                                              {
@@ -1074,7 +1149,8 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 		// Authored widgets still determine controls, placement and authority.
 		std::string signature = (layout ? layout->dump() : "vacant") + (app.pseudo_locale ? "pseudo" : "normal") +
 		                        (pregame ? ready ? "ready" : "waiting" : "running") + (profile_open_ ? "profile" : "") +
-		                        (profile_open_ ? "" : profile_name_) + "/complexity/" + complexity;
+		                        (profile_open_ ? "" : profile_name_) + "/complexity/" + complexity +
+		                        (manual_toggle_ ? "/manual" : "");
 		for (const auto &choice : complexity_choices)
 			signature += "/" + choice;
 		if (model_.observation())
@@ -1106,6 +1182,7 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 			document_->GetElementById("toolbar")->SetInnerRML(toolbar);
 			std::string widgets;
 			bool has_radar = false;
+			bool has_manual_toggle = false;
 			int heading_count = 0;
 			if (layout && !pregame)
 				for (const auto &widget : layout->at("widgets"))
@@ -1166,6 +1243,17 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 						widgets += "<div class=\"dial\" id=\"dial/" + Rml::StringUtilities::EncodeRml(key) + "\"/>" +
 						           button("game.contacts/" + key, "Read radar contacts") +
 						           button("on-screen/" + key, "On screen");
+					if (kind == "radar" && manual_toggle_ && !has_manual_toggle)
+					{
+						has_manual_toggle = true;
+						controls_.emplace_back(id("manual"), "Manual");
+						widgets += "<button class=\"manual-toggle\" id=\"" + id("manual") +
+						           "\"><img class=\"manual-art\" src=\"" + asset_path("manual-toggle.png") +
+						           "\"/><span class=\"manual-label\">" +
+						           Rml::StringUtilities::EncodeRml(localise("Manual")) +
+						           "</span><span class=\"manual-lamp\" id=\"" + id("manual.lamp") +
+						           "\"/><span class=\"manual-state\" id=\"" + id("manual.state") + "\"/></button>";
+					}
 					widgets += "<p class=\"" + std::string(kind == "throttle" ? "readout" : "heading-actual") +
 					           "\" id=\"value/" + Rml::StringUtilities::EncodeRml(key) + "\"/></div>";
 				}
@@ -1288,6 +1376,18 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 			              [&](const auto &control)
 			              {
 				              return dial_controls.contains(control.first);
+			              });
+		}
+		if (manual_toggle_)
+		{
+			std::set<std::string> presets;
+			for (const auto &d : model_.observation()->gameplay.value("controls", Json::array()))
+				if (d.value("action", "") == "preset")
+					presets.insert(descriptor_action(d.at("id")));
+			std::erase_if(gameplay_controls,
+			              [&](const auto &control)
+			              {
+				              return presets.contains(control.first);
 			              });
 		}
 		if (engineering && model_.observation())
@@ -1691,7 +1791,24 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 		}
 		for (const auto &[name, label] : controls_)
 		{
-			if (name.starts_with(id("on-screen/")))
+			if (name == id("manual"))
+			{
+				const bool manual = model_.observation()->gameplay.value("profile", "") != "automatic";
+				app.screen_toggles[name] = manual;
+				if (auto *toggle = element(name))
+				{
+					toggle->SetClass("manual-on", manual);
+					toggle->SetAttribute("aria-pressed", manual ? "true" : "false");
+					// Keep the single switch inside the radar bezel at smaller viewport sizes.
+					const float width = std::clamp(toggle->GetParentNode()->GetOffsetWidth() * .34f, 160.f, 220.f);
+					property(toggle, "width", std::to_string(width) + "px");
+					property(toggle, "height", std::to_string(width / 2.68f) + "px");
+				}
+				update_readout("manual.lamp", manual ? "+" : "-", true);
+				update_readout("manual.state", localise(manual ? "On" : "Off"), true);
+				app.screen_controls.emplace_back(name, localise("Manual") + ": " + localise(manual ? "On" : "Off"));
+			}
+			else if (name.starts_with(id("on-screen/")))
 			{
 				const auto widget = name.substr(id("on-screen/").size());
 				const bool active = model_.is_on_screen(widget);
@@ -1712,6 +1829,8 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 				app.screen_controls.emplace_back(name, selected ? localise(label) + ". " + localise("Selected")
 				                                                : localise(label));
 			}
+			if (name == id("manual"))
+				context_->Update();
 			place(app, region, name);
 		}
 		for (const auto &[name, label] : gameplay_controls)

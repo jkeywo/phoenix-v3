@@ -103,6 +103,10 @@ This presentation work supplies ordinary graphical and semantic information. It
 does not establish audible screen-reader, physical touch/controller or six-screen
 performance acceptance without the corresponding manually triggered smoke runs.
 
+## Manual control
+
+Helm's radar also includes one **Manual** toggle on its lower-left rim. Green/round/plus/On means manual control; red/outlined square/minus/Off means the automatic profile. It uses the Console's accepted profile projection and the normal admitted preset command, so pending requests do not change the indicator. Turning manual control back on restores the last observed manual complexity at that Console during the current session; a session starting in automatic mode uses the first admitted manual profile. Consoles without an authored `automatic` profile retain their profile controls. Settings still exposes the detailed complexity choices. Pointer/touch and keyboard Enter activate the whole switch; gamepad West/X focuses it, South/A activates it and East/B leaves focus. Its semantic toggle exposes Manual On/Off.
+
 ## Shared camera widgets
 
 `camera_mode` and `camera_direction` widgets change the shared ship camera through exact projected commands and the normal Console admission path. Their bindings are `ship.camera.mode` and `ship.camera.direction`; neither requires a physical System or Controller channel. Their selection follows the accepted `phoenix.camera` ship-blackboard record. Workshop supports placement and isolated preview on any Console, and shipped Helm layouts include both. See [camera behavior, input and persistence](ship-camera.md).

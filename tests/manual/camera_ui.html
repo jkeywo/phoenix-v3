@@ -12,7 +12,10 @@
 		<pre id="result">Running camera smoke…</pre>
 		<script>
 			var Module = {
-				arguments: new URLSearchParams(location.search).has("portrait") ? ["/assets", "portrait"] : ["/assets"],
+				arguments: [
+					"/assets",
+					...["portrait", "courier"].filter((flag) => new URLSearchParams(location.search).has(flag)),
+				],
 				canvas: document.getElementById("canvas"),
 				print(text) {
 					console.log(text);
