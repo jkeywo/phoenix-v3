@@ -1,0 +1,24 @@
+{
+	"mode": "built-in image_gen",
+	"selector": {
+		"file": "camera-direction.png",
+		"prompt": "Create ONE production-ready transparent PNG game GUI asset: an eight-direction camera selector faceplate. Match the supplied game's weathered space-industrial comic-book Helm hardware exactly: chipped ivory enamel, hazard orange accents, charcoal iron, dense black hand-inked outlines, halftone wear, bolts. Strict orthographic front view, square canvas. A compact octagonal instrument bezel fills 94% of the canvas centered. Inside it exactly EIGHT broad separate dark charcoal key pads arranged evenly at N, NE, E, SE, S, SW, W, NW around a small circular central hub. Key pads are restrained flat nearly black blank surfaces with subtle inset edges, orange dividers, enough open space for live arrows drawn by the game. Pads all inactive and identical. The central hub has a tiny ivory stylized spaceship silhouette pointing UP. High contrast silhouette, beautiful tactile manufactured hardware, clean readable at 200px. Symmetric and precisely aligned to a radial compass. No letters, no numbers, no words, no baked direction arrows, no active selection, no extra widgets, no scene, no external shadow, no perspective. Transparent background outside the bezel. This replaces a text-grid camera control."
+	},
+	"toggle": {
+		"file": "camera-mode.png",
+		"prompt": "Create ONE transparent PNG game GUI asset: a two-position camera mode rocker switch housing, horizontal 2.5:1 wide aspect ratio. Match supplied weathered industrial spaceship comic Helm hardware: chipped ivory enamel corner armor, hazard-orange painted narrow rails and dividers, charcoal metal, black hand-inked contour, halftone stippling and scratches, exposed small bolts. Strict face-on orthographic view, zero perspective. Centered clean rectangular chamfered housing fills 94% width. Inside are exactly TWO broad dark charcoal recessed rectangular push-button faces side by side, left and right equal halves, separated by a thin orange vertical spine. Blank nearly-black key surfaces occupying the central 72% width and 55% height, unobstructed for runtime labels '1P' and '3P' that will be drawn by the game; do NOT draw text yourself. Both inactive, symmetric states, no active glow. Small orange indicator notches at top edges. Heavy tactile hardware, clear readable at 200px wide, designed as a real game UI sprite. Transparent outside object, no text, no letters, no numerals, no arrows, no scene, no other controls, no exterior cast shadow. Visual companion to an eight-way octagonal selector."
+	},
+	"runtime": {
+		"direction_centers": [
+			[0.5, 0.19],
+			[0.73, 0.27],
+			[0.81, 0.5],
+			[0.73, 0.73],
+			[0.5, 0.81],
+			[0.27, 0.73],
+			[0.19, 0.5],
+			[0.27, 0.27]
+		],
+		"note": "Artwork only; arrows, 1P/3P labels, highlights, focus and hit regions are live RmlUi controls."
+	}
+}

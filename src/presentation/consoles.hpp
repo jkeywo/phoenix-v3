@@ -238,11 +238,13 @@ class ConsoleSurface final : public Rml::EventListener
 	{
 		return "console/" + std::to_string(route_) + "/" + action;
 	}
-	std::string button(const std::string &action, const std::string &label)
+	std::string button(const std::string &action, const std::string &label, const std::string &visual = "")
 	{
 		controls_.emplace_back(id(action), label);
 		return "<button id=\"" + Rml::StringUtilities::EncodeRml(id(action)) + "\">" +
-		       Rml::StringUtilities::EncodeRml(translate(label, app_->pseudo_locale)) + "</button>";
+		       (visual.empty() ? Rml::StringUtilities::EncodeRml(translate(label, app_->pseudo_locale))
+		                       : "<span class=\"camera-icon\">" + Rml::StringUtilities::EncodeRml(visual) + "</span>") +
+		       "</button>";
 	}
 
 public:
@@ -331,13 +333,17 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 .navigation-objectives {position:absolute;left:12px;top:115px;max-width:320px;background:#08171bdd;padding:8px;}
 .mission-result {position:absolute;left:0;top:0;width:100%;height:100%;background:#070c09;z-index:15;color:#bce8ad;pointer-events:auto;}
 .mission-art {position:absolute;left:0;top:0;width:100%;height:100%;}
-.camera-choices {display:flex;flex-wrap:wrap;}
-.camera-choices button {position:relative;left:auto;bottom:auto;box-sizing:border-box;min-width:0;min-height:56px;font-size:14px;padding:3px;margin:0;flex-shrink:0;white-space:normal;word-break:break-word;text-align:center;tab-index:auto;}
-.camera_mode-widget .camera-choices button {width:50%;}
-.camera_direction-widget .camera-choices button,.camera-gap {width:33.333%;}
-.camera-gap {display:block;min-height:56px;flex-shrink:0;}
-.camera-choices button.selected {background:#82c6a0;color:#081719;}
-.camera_mode-widget h2,.camera_direction-widget h2 {font-size:16px;margin:0;}
+.camera-choices {position:absolute;top:28px;left:8px;width:100px;height:100px;}
+.camera-art {position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;}
+.camera-choices button {display:block;position:absolute;bottom:auto;box-sizing:border-box;min-width:0;min-height:0;font-family:Space Mono;font-size:28px;line-height:1;padding:0;margin:0;tab-index:auto;text-align:center;background:transparent;border:2px transparent;color:#e9dec4;}
+.camera-icon {position:absolute;display:block;left:0;right:0;top:50%;margin-top:-14px;height:28px;pointer-events:none;}
+.camera_mode-widget .camera-choices button {font-size:24px;}
+.camera_mode-widget .camera-icon {margin-top:-12px;height:24px;}
+.camera-choices button:hover {background:#ffc07a22;border-color:#e9dec488;}
+.camera-choices button.selected {background:#fca65133;border-color:#ffc078;color:#ffc078;}
+.camera-choices button:focus {border-color:#fff3d9;background:#fff3d933;}
+.camera_mode-widget h2,.camera_direction-widget h2 {font-size:14px;margin:0;color:#e9dec4;background:#071012bb;padding:2px 4px;}
+.camera-status {position:absolute;left:0;right:0;text-align:center;font-size:14px;color:#f1ddaf;pointer-events:none;}
 .mission-copy {position:absolute;left:20%;top:21%;width:60%;height:51%;overflow:auto;font-family:Space Mono;}
 .mission-copy h1 {font-size:18px;letter-spacing:3px;color:#81af79;margin:0 0 22px 0;}
 .mission-copy h2 {font-size:44px;letter-spacing:2px;color:#d1f9be;margin:0 0 20px 0;}
@@ -1123,21 +1129,20 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 					           "\"><h2>" + Rml::StringUtilities::EncodeRml(localise(widget.at("label"))) + "</h2>";
 					if (kind == "camera_mode" || kind == "camera_direction")
 					{
-						widgets += "<div class=\"camera-choices\">";
-						const int positions[] = {7, 0, 1, 6, -1, 2, 5, 4, 3};
-						for (int i = 0; i < (kind == "camera_mode" ? 2 : 9); ++i)
+						widgets += "<div class=\"camera-choices\" id=\"camera-panel/" +
+						           Rml::StringUtilities::EncodeRml(key) + "\"><img class=\"camera-art\" src=\"" +
+						           asset_path(kind == "camera_mode" ? "camera-mode.png" : "camera-direction.png") +
+						           "\"/>";
+						static constexpr const char *arrows[] = {"↑", "↗", "→", "↘", "↓", "↙", "←", "↖"};
+						for (int value = 0; value < (kind == "camera_mode" ? 2 : 8); ++value)
 						{
-							const int value = kind == "camera_mode" ? i : positions[i];
-							if (value < 0)
-							{
-								widgets += "<span class=\"camera-gap\"/>";
-								continue;
-							}
 							widgets += button("camera/" + key + "/" + std::to_string(value),
 							                  kind == "camera_mode" ? (value ? "Third person" : "First person")
-							                                        : camera_directions[value]);
+							                                        : camera_directions[value],
+							                  kind == "camera_mode" ? (value ? "3P" : "1P") : arrows[value]);
 						}
-						widgets += "</div>";
+						widgets += "</div><p class=\"camera-status\" id=\"" +
+						           Rml::StringUtilities::EncodeRml(id("camera-status/" + key)) + "\"/>";
 					}
 					if (kind == "throttle")
 						widgets += "<input class=\"throttle\" id=\"" + id("speed/" + key) +
@@ -1450,9 +1455,9 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 					else if (kind == "camera_mode" || kind == "camera_direction")
 					{
 						element->SetProperty("left", "0%");
-						element->SetProperty("top", kind == "camera_mode" ? "10%" : "28%");
-						element->SetProperty("width", "18%");
-						element->SetProperty("height", kind == "camera_mode" ? "16%" : "40%");
+						element->SetProperty("top", kind == "camera_mode" ? "8%" : "30%");
+						element->SetProperty("width", "22%");
+						element->SetProperty("height", kind == "camera_mode" ? "22%" : "45%");
 					}
 					else if (kind == "heading")
 					{
@@ -1463,9 +1468,9 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 					}
 				}
 				gameplay->SetProperty("left", "4%");
-				gameplay->SetProperty("top", has_camera ? "70%" : "18%");
-				gameplay->SetProperty("width", "12%");
-				gameplay->SetProperty("height", has_camera ? "12%" : "60%");
+				gameplay->SetProperty("top", has_camera ? "74%" : "18%");
+				gameplay->SetProperty("width", has_camera ? "22%" : "12%");
+				gameplay->SetProperty("height", has_camera ? "16%" : "60%");
 				gameplay->RemoveProperty("right");
 				gameplay->RemoveProperty("bottom");
 			}
@@ -1625,9 +1630,41 @@ button.on-screen-active {background:#285e60;border-color:#d5ffff;}
 				{
 					const auto camera = model_.camera();
 					const auto selected = kind == "camera_mode" ? camera.mode : camera.direction;
+					auto *housing = document_->GetElementById("widget/" + key);
+					const float aspect = kind == "camera_mode" ? 2.5f : 1.f;
+					const float width = std::max(
+					    1.f, std::min(housing->GetOffsetWidth() - 16, (housing->GetOffsetHeight() - 50) * aspect));
+					const float height = width / aspect;
+					if (auto *panel = document_->GetElementById("camera-panel/" + key))
+					{
+						property(panel, "left", std::to_string((housing->GetOffsetWidth() - width) / 2) + "px");
+						property(panel, "width", std::to_string(width) + "px");
+						property(panel, "height", std::to_string(height) + "px");
+					}
+					if (auto *status = document_->GetElementById(id("camera-status/" + key)))
+					{
+						property(status, "top", std::to_string(height + 30) + "px");
+						update_readout("camera-status/" + key,
+						               localise(kind == "camera_mode" ? (selected ? "Third person" : "First person")
+						                                              : camera_directions[selected]),
+						               true);
+					}
+					static constexpr float centers[8][2] = {{.5f, .19f}, {.73f, .27f}, {.81f, .5f}, {.73f, .73f},
+					                                        {.5f, .81f}, {.27f, .73f}, {.19f, .5f}, {.27f, .27f}};
 					for (int i = 0; i < (kind == "camera_mode" ? 2 : 8); ++i)
 						if (auto *choice = document_->GetElementById(id("camera/" + key + "/" + std::to_string(i))))
+						{
 							choice->SetClass("selected", i == selected);
+							property(choice, "left",
+							         std::to_string(kind == "camera_mode" ? (i ? 51.f : 16.f)
+							                                              : (centers[i][0] - .11f) * 100) +
+							             "%");
+							property(choice, "top",
+							         kind == "camera_mode" ? "25%"
+							                               : std::to_string((centers[i][1] - .11f) * 100) + "%");
+							property(choice, "width", kind == "camera_mode" ? "32%" : "22%");
+							property(choice, "height", kind == "camera_mode" ? "50%" : "22%");
+						}
 				}
 				std::string value =
 				    kind == "throttle" ? "Requested " +

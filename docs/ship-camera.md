@@ -27,6 +27,8 @@ Use the same structure with kind `camera_direction`, binding `ship.camera.direct
 
 Select choices with pointer/touch or keyboard focus and Enter. On an assigned gamepad, North/Y enters camera focus, the D-pad moves between camera choices, South/A activates the focused choice, and East/B exits camera focus. Ordinary Helm gamepad commands retain their behavior outside camera focus. Selected choices are highlighted and identified in the semantic labels.
 
+The widgets use generated weathered ivory/orange hardware matching the Helm. Direction arrows sit on the eight pads around the selector's ship silhouette; the mode rocker displays live `1P` and `3P` labels. Localized captions show the accepted selection, with amber selected-state highlights and a separate ivory keyboard-focus border. The artwork scales without changing the hit regions' bindings or semantic names.
+
 ## Authority and persistence
 
 The reserved `phoenix.camera` ship record has integer `mode` (0 first-person, 1 third-person) and `direction` (0 through 7 in the order above). Its producer is the trusted ship runtime. The normal committed command path accepts `camera_mode` or `camera_direction` only from an admitted operator whose Console contains that widget. These settings require no engine/steering capability and do not override a physical Controller. Forged physical bindings, unsupported values and cross-ship requests are refused.
