@@ -267,6 +267,20 @@ int main(int argc, char **argv)
 		}
 		{
 			auto setup = fixture();
+			setup["entities"][0]["systems"]["gun"]["bearing_mdeg"] = 30000;
+			setup["entities"][0]["systems"]["gun"]["y_mm"] = 5000;
+			setup["entities"][0]["systems"]["gun"]["arc_mdeg"] = 2000;
+			const auto c = load(setup);
+			World w;
+			w.load(c, map);
+			claim(w);
+			submit(w, 101, "gun", "target", 2);
+			advance(w, 30);
+			require(state(w).at("systems").at("gun").at("shots").get<int>() >= 2,
+			        "turret compensates for hosted gun bearing and sustains automatic fire");
+		}
+		{
+			auto setup = fixture();
 			setup["entities"][0]["systems"]["mag"]["reload"]["strategy"] = "none";
 			const auto c = load(setup);
 			World w;
@@ -280,6 +294,17 @@ int main(int argc, char **argv)
 		}
 		{
 			auto setup = fixture();
+			auto &ship = setup["entities"][0];
+			ship["resources"] = {{"stores", Json::array({{{"id", "cell"},
+			                                              {"capacity", 1000},
+			                                              {"initial", 1000},
+			                                              {"charge_rate", 1000},
+			                                              {"discharge_rate", 1000}}})}};
+			ship["systems"]["gun"]["power_store"] = "cell";
+			ship["systems"]["gun"]["discrete_energy"] = 1;
+			ship["systems"]["mag"]["power_store"] = "cell";
+			ship["systems"]["mag"]["reload"] = {
+			    {"strategy", "energy"}, {"ticks", 1000}, {"amount", 2}, {"energy_per_second", 20}};
 			auto &rooms = setup["entities"][0]["combat"]["decks"][0]["compartments"];
 			setup["maps"][0]["combat_duel"] = true;
 			setup["maps"][0]["entities"].erase(2);
@@ -313,6 +338,11 @@ int main(int argc, char **argv)
 			advance(w, 10);
 			advance(restored, 10);
 			require(w.save() == restored.save(), "destruction continuation survives restoration");
+			require(w.save().at("bodies")[0].at("resources").at("network").at("stores")[0].at("energy") ==
+			            snapshot.at("bodies")[0].at("resources").at("network").at("stores")[0].at("energy"),
+			        "ended duel stops weapon and reload energy costs while session continues");
+			require(!state(w).at("systems").at("gun").at("ready").get<bool>(),
+			        "ended duel clears stale weapon readiness");
 		}
 		{
 			auto long_source = fixture();
@@ -379,6 +409,17 @@ int main(int argc, char **argv)
 		}
 		{
 			auto invalid = fixture();
+			invalid["entities"][0]["combat"]["connections"].push_back(
+			    {{"from", "aft"}, {"to", "fore"}, {"travel_ticks", 5}});
+			rejects(
+			    [&]
+			    {
+				    load(invalid);
+			    },
+			    "duplicate undirected repair edges are refused");
+		}
+		{
+			auto invalid = fixture();
 			invalid["entities"][0]["systems"]["gun"]["magazine"] = "mount";
 			bool refused = false;
 			try
@@ -403,6 +444,42 @@ int main(int argc, char **argv)
 			submit(w, 101, "gun", "target", 2);
 			advance(w, 30);
 			require(hp(w) == 200, "solid cover intercepts physical projectile before the target");
+		}
+		{
+			auto setup = fixture();
+			setup["entities"][1]["collision"] = {{"shape", "circle"}, {"radius_mm", 1000}, {"mass_grams", 0}};
+			setup["entities"][1]["render"]["sprite"] = setup["entities"][0]["render"]["sprite"];
+			setup["entities"][1]["render"]["images"] = Json::array();
+			setup["maps"][0]["regions"] =
+			    Json::array({{{"id", "remote-cover"},
+			                  {"shape", "circle"},
+			                  {"x_mm", 605000},
+			                  {"y_mm", 5000},
+			                  {"radius_mm", 2000},
+			                  {"asteroids",
+			                   {{"spacing_mm", 10000},
+			                    {"jitter_mm", 0},
+			                    {"density", .01},
+			                    {"clustering_permille", 0},
+			                    {"visual_distance_mm", 1000},
+			                    {"decorative_fill_permille", 0},
+			                    {"types", Json::array({{{"definition", "test.visual"}}})}}}}});
+			const auto c = load(setup);
+			World w;
+			w.load(c, map);
+			claim(w);
+			submit(w, 101, "gun", "target", 2);
+			w.tick();
+			auto saved = w.save();
+			require(saved.value("asteroid_fields", Json::array()).empty() && saved.at("projectiles").size() == 1,
+			        "remote physical cover starts outside all ship streaming windows");
+			// Resume an in-flight shot near the remote field, independently of ships.
+			saved["projectiles"][0]["position"] = {{"x", 600000}, {"y", 5000}};
+			saved["projectiles"][0]["velocity"] = {{"x", 100000}, {"y", 0}};
+			w.restore(c, saved);
+			w.tick();
+			require(w.save().at("projectiles").empty() && !w.save().at("asteroid_fields").empty(),
+			        "projectile sweep loads and collides with distant solid asteroid cover");
 		}
 		{
 			auto wide = fixture();

@@ -84,11 +84,17 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 	}
 	if (d.compartments.empty() || d.compartments.size() > 256)
 		fail("expected 1..256 compartments");
+	std::set<std::pair<std::size_t, std::size_t>> routes;
 	for (const auto &v : c.value("connections", Json::array()))
 	{
 		const std::string a = v.at("from"), b = v.at("to");
 		if (!d.compartment_ids.contains(a) || !d.compartment_ids.contains(b) || a == b)
 			fail("invalid route endpoints");
+		if (!routes
+		         .emplace(std::min(d.compartment_ids.at(a), d.compartment_ids.at(b)),
+		                  std::max(d.compartment_ids.at(a), d.compartment_ids.at(b)))
+		         .second)
+			fail("duplicate undirected repair connection");
 		d.connections.push_back(
 		    {d.compartment_ids.at(a), d.compartment_ids.at(b), amount(v, "travel_ticks", 20, 1, 1000000)});
 	}

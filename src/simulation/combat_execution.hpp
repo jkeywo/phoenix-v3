@@ -172,7 +172,7 @@ void apply_structural_disablement()
 }
 void prepare_combat(flecs::entity ship)
 {
-	if (!ship.has<CombatStructure>() || duel_ended())
+	if (!ship.has<CombatStructure>())
 		return;
 	const auto id = ship.get<StableId>().id;
 	const auto &pose = ship.get<Pose>();
@@ -183,6 +183,8 @@ void prepare_combat(flecs::entity ship)
 			if (m->cooldown > 0)
 				--m->cooldown;
 		}
+	if (duel_ended())
+		return;
 	// Turret steering is a separate mechanism, shared by any hosted weapons.
 	for (auto child : ship.get<EquipmentIndex>().values)
 		if (auto *m = child.try_get_mut<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Turret)
@@ -200,9 +202,13 @@ void prepare_combat(flecs::entity ship)
 			if (target == observed.contacts.end())
 				continue;
 			std::int64_t speed = 100000;
+			const CombatSystemDefinition *aiming_weapon = nullptr;
 			for (auto weapon : ship.get<EquipmentIndex>().values)
-				if (const auto *w = weapon.try_get<CombatMechanism>(); w && w->definition.turret == d.id && w->target)
+				if (const auto *w = weapon.try_get<CombatMechanism>(); w && w->definition.turret == d.id && w->target &&
+				                                                       weapon.get<Equipment>().enabled &&
+				                                                       !structurally_disabled(ship, w->definition.id))
 				{
+					aiming_weapon = &w->definition;
 					speed = w->definition.projectile.speed;
 					break;
 				}
@@ -213,7 +219,19 @@ void prepare_combat(flecs::entity ship)
 			                       target->y + (target->vy - ship.get<Motion>().velocity.y) * travel / 1000};
 			lead.x = std::clamp(lead.x, -fixed::unit, fixed::unit);
 			lead.y = std::clamp(lead.y, -fixed::unit, fixed::unit);
-			const auto wanted = combat_delta(combat_bearing(lead - origin), pose.heading);
+			auto aim = combat_bearing(lead - origin);
+			if (aiming_weapon)
+			{
+				// Align the hosted gun's bore, including its lateral muzzle offset.
+				const auto axis = fixed::direction(aiming_weapon->bearing);
+				const auto lateral = (axis.x * aiming_weapon->y - axis.y * aiming_weapon->x) / fixed::unit;
+				const auto offset_squared = lateral * lateral;
+				const auto distance_squared = fixed::dot(lead - origin, lead - origin);
+				const auto forward = static_cast<std::int64_t>(fixed::sqrt(
+				    static_cast<std::uint64_t>(std::max<std::int64_t>(0, distance_squared - offset_squared))));
+				aim -= aiming_weapon->bearing + combat_bearing({forward, lateral});
+			}
+			const auto wanted = combat_delta(aim, pose.heading);
 			const auto offset = std::clamp(combat_delta(wanted, d.bearing), -d.arc / 2, d.arc / 2);
 			const auto desired = combat_angle(d.bearing + offset);
 			m->turn_remainder += d.traverse;
@@ -283,7 +301,7 @@ void request_combat_resources(flecs::entity ship)
 		if (const auto *m = child.try_get<CombatMechanism>())
 		{
 			const auto &d = m->definition;
-			const bool enabled = child.get<Equipment>().enabled && !structurally_disabled(ship, d.id);
+			const bool enabled = !duel_ended() && child.get<Equipment>().enabled && !structurally_disabled(ship, d.id);
 			const auto index = child.get<ResourceBinding>().slot;
 			if (d.kind == OperatingSystem::Magazine)
 				request_system_resource(*power, index, 0, false,

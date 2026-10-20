@@ -24,3 +24,9 @@ A separately invoked in-app browser journey hosted Asteroid duel, selected Armed
 ## Acceptance limits
 
 These runs do not establish balance, actual screen-reader or physical-device operation, audible quality, six-display performance, or a remote browser crew journey. Later combat features listed in the implementation contract remain deferred.
+
+## Original-plan review corrections, 21 October 2026
+
+An independent agent compared the implementation with the original combat requirements and inspected production paths and authored content. Four confirmed mechanism gaps were corrected: turret aiming now compensates for the selected gun's local bearing and lateral muzzle offset; ended duels clear readiness and zero shot/reload resource requests; duplicate undirected repair edges are rejected; and projectile sweeps stream physical asteroid cover beyond ship windows. The agent reviewed the corrections and found no further blocker.
+
+A new synthetic offset-gun case reproduced the aiming failure before correction. Additional integration cases exercise continued firing after traversal settles, zero combat energy costs after a duel outcome, reversed duplicate-edge rejection, and an in-flight shot encountering a previously unstreamed remote field. These use the real content, command, continuation and physics paths. All 23 native CTest cases, native build-check, the complete WASM gate and native/WASM combat continuation comparison pass after these corrections. Formatting and patch-whitespace checks pass. Local logs use the `build/combat-review-` prefix.

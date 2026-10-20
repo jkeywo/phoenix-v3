@@ -95,6 +95,14 @@ void stream_fields()
 			          (d.box ? d.half_width + d.half_length : d.radius) + rock_extent + rock_travel + spacing * 2;
 			foci.push_back({entity.get<Pose>().position, radius});
 		}
+	// Shots remain physical beyond their source ship's sensor/visual window.
+	// Include the complete next-tick sweep before integrating either body.
+	for (auto particle : projectile_rows())
+	{
+		const auto &p = particle.get<Projectile>();
+		const fixed::Vec travel{(p.remainder.x + p.velocity.x) / rate, (p.remainder.y + p.velocity.y) / rate};
+		foci.push_back({p.position, fixed::length(travel) + rock_extent + rock_travel + spacing * 2 + 1});
+	}
 	std::set<std::pair<std::int64_t, std::int64_t>> cells;
 	for (const auto &focus : foci)
 	{

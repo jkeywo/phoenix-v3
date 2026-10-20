@@ -4,7 +4,7 @@
 
 ## Playing
 
-Select a contact on Tactical, then activate individual weapons. Changing selection leaves existing assignments alone. Cancel stops the selected weapon. A turret shares one target: assigning a hosted weapon retargets the turret and its active weapons; inactive weapons remain inactive. Fixed guns retain separate assignments. Aiming and lead are automatic and use permitted observations.
+Select a contact on Tactical, then activate individual weapons. Changing selection leaves existing assignments alone. Cancel stops the selected weapon. A turret shares one target: assigning a hosted weapon retargets the turret and its active weapons; inactive weapons remain inactive. Fixed guns retain separate assignments. Aiming and lead are automatic and use permitted observations. Turrets compensate for the selected hosted gun's local bearing and muzzle offset.
 
 Helm's optional fire-arc overlay shows dashed turret traversal envelopes and solid current weapon arcs. `fire_arcs: true` enables the radar visibility toggle; other radars default to no overlay. Accessible readouts give arc and bearing without exposing enemy equipment.
 
@@ -12,7 +12,7 @@ Support selects a compartment on the deck map and assigns teams. Buttons and equ
 
 ## Authoring
 
-A ship's `combat` object supplies weighted `decks` with rectangular `compartments`, `connections`, `repair_console`, collision tuning and `destruction`. Compartments have stable IDs, local millimetre geometry, `hp`, optional `initial_hp`, `resistance_per_m` and `recovery_hp`. Same-deck interiors cannot overlap. Undirected connections name compartments and `travel_ticks`; cross-deck links use the same contract.
+A ship's `combat` object supplies weighted `decks` with rectangular `compartments`, `connections`, `repair_console`, collision tuning and `destruction`. Compartments have stable IDs, local millimetre geometry, `hp`, optional `initial_hp`, `resistance_per_m` and `recovery_hp`. Same-deck interiors cannot overlap. Undirected connections name compartments and `travel_ticks`; each pair occurs once, including reverse ordering. Cross-deck links use the same contract.
 
 Every System on a combat ship specifies its physical `compartment`, independently of Console ownership.
 
@@ -33,7 +33,7 @@ Workshop exposes combat Systems, deck geometry and a diagram, connections, destr
 
 ## Physical rules
 
-Projectiles are Flecs entities with captured launch payloads and deterministic 20 Hz motion. Swept spatial queries find moving ships and solid asteroids. Decorative asteroids have no physical effect. Ship impacts select a weighted deck independently of visual height and trace the incoming line through its compartments. Material distance consumes penetration, with resistance declining as structure is damaged.
+Projectiles are Flecs entities with captured launch payloads and deterministic 20 Hz motion. Swept spatial queries find moving ships and solid asteroids. Projectile sweeps keep solid field asteroids loaded even outside ship sensor and visual windows. Decorative asteroids have no physical effect. Ship impacts select a weighted deck independently of visual height and trace the incoming line through its compartments. Material distance consumes penetration, with resistance declining as structure is damaged.
 
 Damage deposition spends the payload once. An exiting shot retains unused payload; a stopped shot deposits its remainder at the stopping compartment. A line parallel to a shared compartment boundary is not counted twice. The Courier's forward cannon is tuned for high penetration and low damage: a typical transverse crossing deposits roughly half its payload, whereas a longer longitudinal crossing is more likely to deposit it all. Shipped tuning is not frozen by tests.
 
