@@ -389,7 +389,10 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	                                 {"navigation.blocked", Type::Boolean, 4, {}},
 	                                 {"navigation.left_heading", Type::Integer, 4, {}},
 	                                 {"navigation.lateral_thrust", Type::Integer, 4, {}},
-	                                 {"navigation.lateral_safe", Type::Boolean, 4, {}}};
+	                                 {"navigation.lateral_safe", Type::Boolean, 4, {}},
+	                                 {"alert.id", Type::Text, 4, {}},
+	                                 {"alert.severity", Type::Integer, 4, {}},
+	                                 {"console.stance", Type::Text, 4, {}}};
 	for (std::size_t i = 0; i < own.size(); ++i)
 		result.own.values.at(i) = add(own[i]);
 	const auto resolved = resolve_tree_definition(tree, catalog);

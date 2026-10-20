@@ -95,6 +95,9 @@ enum class ControllerOwnField
 	LeftHeading,
 	LateralAvoidance,
 	LateralSafe,
+	AlertId,
+	AlertSeverity,
+	Stance,
 	Count
 };
 enum class ControllerRecordField
@@ -339,6 +342,30 @@ struct ConsoleSpec
 	bool human_seeking = false;
 	std::vector<std::string> human_preferences;
 };
+struct BridgeChoice
+{
+	std::string id, label, description;
+};
+struct AlertCondition : BridgeChoice
+{
+	std::string colour = "#000000", siren, music;
+	bool glow = false;
+};
+struct BridgeDefinition
+{
+	std::vector<AlertCondition> conditions;
+	std::size_t initial = 0;
+	std::string alert_console, sidebar_default;
+};
+struct ConsoleBridgeDefinition
+{
+	std::vector<BridgeChoice> stances;
+	std::size_t initial = 0;
+	bool command = false, auto_hide = false, viewscreen = false;
+	Json compact;
+};
+BridgeDefinition compile_bridge(const Catalog &, const std::string &entity);
+ConsoleBridgeDefinition compile_console_bridge(const Json &, const std::string &path);
 struct FittedSystemSpec
 {
 	std::string id;

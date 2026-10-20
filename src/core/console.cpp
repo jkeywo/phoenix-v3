@@ -317,6 +317,9 @@ std::vector<std::pair<std::string, std::string>> public_board_readouts(const Jso
 		selected["omitted"][key] = skip + (omissions.is_object() ? omissions.value(key, std::size_t{0}) : 0);
 	}
 	auto rows = board_readouts(selected, now);
+	const auto alert = board.value("alert", Json::object());
+	if (!alert.empty())
+		rows.emplace_back("game.readout/alert", localise("Alert condition") + ": " + localise(alert.at("label")));
 	for (auto &[id, text] : rows)
 		id.replace(0, std::string("game.readout/").size(), "viewscreen.readout/");
 	if (const auto d = board.value("display", Json(nullptr)); d.is_object())
@@ -420,7 +423,11 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 				if (seat.id == next->console || next->console.empty())
 				{
 					if (catalog.consoles.contains(seat.definition))
+					{
 						layout_ = catalog.consoles.at(seat.definition);
+						if (route == 31 && layout_.contains("compact"))
+							layout_["widgets"] = layout_.at("compact").at("widgets");
+					}
 					break;
 				}
 			std::string binding;
@@ -434,7 +441,14 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 						maximum_ = system.maximum;
 		}
 	}
+	const auto previous_alert = observation_ ? observation_->gameplay.value("alert", Json::object()) : Json::object();
 	observation_ = std::move(next);
+	if (observation_)
+	{
+		const auto alert = observation_->gameplay.value("alert", Json::object());
+		if (!previous_alert.empty() && !alert.empty() && previous_alert.at("revision") != alert.at("revision"))
+			announcement_ = localise("Alert condition") + ": " + localise(alert.at("label"));
+	}
 	if (observation_ && observation_->gameplay.is_object())
 	{
 		const auto notifications = observation_->gameplay.value("notifications", Json::array());
@@ -517,6 +531,13 @@ bool ConsoleModel::act(const std::string &id)
 			return held_controls_.contains(id) ? release_control(id) : hold_control(id);
 		if (!console_string(*selected, "controller").empty())
 			return submit(decode_operating_command(*selected));
+		if (console_string(*selected, "action") == "stance.set")
+		{
+			OperatingCommand intent{observation_->own.id, "stance.set", selected->at("value"),
+			                        console_string(*selected, "system")};
+			intent.generation = selected->value("generation", std::uint64_t{0});
+			return submit(std::move(intent));
+		}
 		return command(console_string(*selected, "action"), *console_integer(selected->at("value")),
 		               console_string(*selected, "system"));
 	}
@@ -1161,6 +1182,9 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 			label = console_label(console_string(descriptor, "label"));
 		if (descriptor.value("label_value", Json(false)) == true)
 			label += " " + std::to_string(*console_integer(descriptor.at("value")));
+		label = descriptor.value("label_prefix", std::string{}) + label;
+		if (descriptor.value("selected", false))
+			label += " (" + localise("Selected") + ")";
 		if (label.empty())
 			continue;
 		result.emplace_back("game.control/" + console_encoded(id), std::move(label));
@@ -1172,6 +1196,13 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 	std::vector<std::pair<std::string, std::string>> result;
 	if (!observation_)
 		return result;
+	for (const auto *key : {"alert", "stance"})
+	{
+		const auto state = observation_->gameplay.value(key, Json::object());
+		if (!state.empty())
+			result.emplace_back(key, localise(key == std::string("alert") ? "Alert condition" : "Stance") + ": " +
+			                             localise(state.at("label")));
+	}
 	const auto session = owner_.lock();
 	const auto now = session ? session->ticks() : 0;
 	for (const auto &system : observation_->systems)

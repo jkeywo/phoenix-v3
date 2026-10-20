@@ -198,6 +198,7 @@ public:
 		if (const auto view = observation(); view && view->gameplay.is_object())
 		{
 			result["shared"] = view->gameplay.value("shared", Json::array());
+			result["alert"] = view->gameplay.value("alert", Json::object());
 			for (auto message : view->gameplay.value("messages", Json::array()))
 				if (message.is_object() && message.value("public", false))
 				{

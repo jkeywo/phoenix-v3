@@ -165,6 +165,7 @@ class ConsoleSurface final : public Rml::EventListener
 			for (const auto &[channel, label, value] :
 			     std::vector<std::tuple<std::string, std::string, int>>{{"master", "Master volume", app.master_volume},
 			                                                            {"music", "Music volume", app.music_volume},
+			                                                            {"siren", "Siren volume", app.siren_volume},
 			                                                            {"sfx", "SFX volume", app.sfx_volume}})
 			{
 				markup += "<p>" + localise(label) + ": " + std::to_string(value) + "%</p>";
@@ -569,6 +570,7 @@ button.on-screen-active .share-live {display:block;}
 				const auto channel = action.substr(21, action.find('/', 21) - 21);
 				auto &value = channel == "master"  ? app_->master_volume
 				              : channel == "music" ? app_->music_volume
+				              : channel == "siren" ? app_->siren_volume
 				                                   : app_->sfx_volume;
 				value = std::clamp(value + (action.ends_with("/up") ? 5 : -5), 0, 100);
 				remember_preferences(*app_);

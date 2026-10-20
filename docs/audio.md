@@ -1,5 +1,7 @@
 # Server music
 
+Authored alert conditions can select a looping mission track and a once-on-entry siren. The ship server plays these once per ship presentation, independent of the number of Console regions. Siren volume is separate from music and interface SFX. Initial snapshots and save recovery do not replay old sirens. See [Bridge Command](bridge-command.md) for authoring and blackboard behaviour.
+
 The ship server plays the menu track while preparing a session and the ambient track once a mission is running, including recovery and local Console/GM views. Remote Console/GM clients and Workshop editing do not play music. The browser server bundles the recordings; browser clients and Workshop do not download them.
 
 Open **Settings** from the server navigation, or press **Escape** from a server screen (including a local Console). The labelled music slider applies immediately from 0% (mute) to 100%, starting at 50% on first native launch and each browser launch. Native Settings remembers volume and localisation preferences beneath the configured data directory. **Back** or Escape returns to the previous screen without resetting playback or volume. Settings do not pause the simulation. Browser audio starts after the first click/touch allowed by the browser's audio policy.

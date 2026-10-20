@@ -59,6 +59,12 @@ bool GameExecution::can_claim(const std::string &server, const std::string &owne
                               const ConsoleAddress &address, bool replace) const
 {
 	auto seat = lease(address);
+	if (seat)
+		for (const auto &spec : world_->authoritative_world().consoles(address.ship))
+			if (spec.id == address.console && spec.human_seeking &&
+			    (owner != "local-console" || route != 31 ||
+			     !world_->authoritative_world().can_claim(next_claimant_, address.ship, address.console, true)))
+				return false;
 	return seat && seat->server == server && !seat->active && !owner.empty() && route && route <= 32 &&
 	       !owned(server, owner, route) && (seat->owner.empty() || seat->owner == owner || replace);
 }
@@ -94,7 +100,8 @@ bool GameExecution::apply(const std::string &server, const Json &frame)
 		for (auto &seat : leases_)
 			if (seat.address == address)
 			{
-				if (!world.claim(next_claimant_, address.ship, address.console))
+				if (!world.claim(next_claimant_, address.ship, address.console,
+				                 owner == "local-console" && route == 31))
 					return false;
 				seat.owner = owner;
 				seat.token = token;

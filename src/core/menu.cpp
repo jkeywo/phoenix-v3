@@ -68,6 +68,9 @@ void MenuLibrary::load()
 	MenuPreferences prefs;
 	prefs.volume = data.at("volume");
 	prefs.sfx_volume = data.value("sfx_volume", 50);
+	prefs.siren_volume = data.value("siren_volume", 50);
+	if (prefs.siren_volume < 0 || prefs.siren_volume > 100)
+		throw std::runtime_error("Invalid siren volume");
 	prefs.master_volume = data.value("master_volume", 50);
 	prefs.language = data.at("language");
 	prefs.pseudo = data.value("pseudo", false);
@@ -122,6 +125,7 @@ void MenuLibrary::remember()
 	Json data{{"schema", 1},
 	          {"volume", preferences.volume},
 	          {"sfx_volume", preferences.sfx_volume},
+	          {"siren_volume", preferences.siren_volume},
 	          {"master_volume", preferences.master_volume},
 	          {"language", preferences.language},
 	          {"pseudo", preferences.pseudo},

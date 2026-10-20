@@ -458,7 +458,7 @@
 		{
 			"id": "base.courier-engineering",
 			"extends": "training.survey",
-			"name": "Courier \u2014 Engineering fit",
+			"name": "Courier — Engineering fit",
 			"controller": null,
 			"console": null,
 			"systems": {
@@ -662,6 +662,11 @@
 							"id": "engineering",
 							"knowledge_producers": ["base.machinery"],
 							"knowledge_roles": ["base.crew", "base.engineering"],
+							"systems": []
+						},
+						{
+							"id": "command",
+							"definition": "base.console.command",
 							"systems": []
 						}
 					],
@@ -1742,12 +1747,50 @@
 				],
 				"default_profile": "middle"
 			},
-			"motion_model": "inertial"
+			"motion_model": "inertial",
+			"bridge": {
+				"conditions": [
+					{
+						"id": "condition-5",
+						"label": "Condition 5",
+						"colour": "#3399cc",
+						"glow": false
+					},
+					{
+						"id": "condition-4",
+						"label": "Condition 4",
+						"colour": "#33bb77",
+						"glow": true
+					},
+					{
+						"id": "condition-3",
+						"label": "Condition 3",
+						"colour": "#e5c340",
+						"glow": true
+					},
+					{
+						"id": "condition-2",
+						"label": "Condition 2",
+						"colour": "#ed8534",
+						"glow": true
+					},
+					{
+						"id": "condition-1",
+						"label": "Condition 1",
+						"colour": "#e73535",
+						"glow": true,
+						"siren": "phoenix-base:assets/audio/red_alert_siren.ogg"
+					}
+				],
+				"initial": "condition-5",
+				"alert_console": "engineering",
+				"sidebar_default": "command"
+			}
 		},
 		{
 			"id": "base.cruiser",
 			"extends": "base.courier-engineering",
-			"name": "Cruiser \u2014 Six-station fit",
+			"name": "Cruiser — Six-station fit",
 			"render": {
 				"scale": 18
 			},
@@ -2188,6 +2231,11 @@
 							"id": "captain",
 							"knowledge_producers": ["base.machinery"],
 							"knowledge_roles": ["base.crew", "base.captain"],
+							"systems": []
+						},
+						{
+							"id": "command",
+							"definition": "base.console.command",
 							"systems": []
 						}
 					],
@@ -4315,6 +4363,43 @@
 					}
 				],
 				"default_profile": "middle"
+			},
+			"bridge": {
+				"conditions": [
+					{
+						"id": "condition-5",
+						"label": "Condition 5",
+						"colour": "#3399cc",
+						"glow": false
+					},
+					{
+						"id": "condition-4",
+						"label": "Condition 4",
+						"colour": "#33bb77",
+						"glow": true
+					},
+					{
+						"id": "condition-3",
+						"label": "Condition 3",
+						"colour": "#e5c340",
+						"glow": true
+					},
+					{
+						"id": "condition-2",
+						"label": "Condition 2",
+						"colour": "#ed8534",
+						"glow": true
+					},
+					{
+						"id": "condition-1",
+						"label": "Condition 1",
+						"colour": "#e73535",
+						"glow": true,
+						"siren": "phoenix-base:assets/audio/red_alert_siren.ogg"
+					}
+				],
+				"initial": "condition-5",
+				"alert_console": "captain"
 			}
 		},
 		{
@@ -5468,6 +5553,11 @@
 							"feeds": [],
 							"knowledge_roles": ["base.crew"],
 							"human_preferences": ["engineering", "helm"]
+						},
+						{
+							"id": "command",
+							"definition": "base.console.command",
+							"systems": []
 						}
 					],
 					"id": "engineering"
@@ -6570,6 +6660,44 @@
 					}
 				],
 				"default_profile": "middle"
+			},
+			"bridge": {
+				"conditions": [
+					{
+						"id": "condition-5",
+						"label": "Condition 5",
+						"colour": "#3399cc",
+						"glow": false
+					},
+					{
+						"id": "condition-4",
+						"label": "Condition 4",
+						"colour": "#33bb77",
+						"glow": true
+					},
+					{
+						"id": "condition-3",
+						"label": "Condition 3",
+						"colour": "#e5c340",
+						"glow": true
+					},
+					{
+						"id": "condition-2",
+						"label": "Condition 2",
+						"colour": "#ed8534",
+						"glow": true
+					},
+					{
+						"id": "condition-1",
+						"label": "Condition 1",
+						"colour": "#e73535",
+						"glow": true,
+						"siren": "phoenix-base:assets/audio/red_alert_siren.ogg"
+					}
+				],
+				"initial": "condition-5",
+				"alert_console": "engineering",
+				"sidebar_default": "command"
 			}
 		}
 	],
@@ -7005,7 +7133,7 @@
 				}
 			],
 			"name": "Ship Operations",
-			"description": "Set the ship\u2019s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew."
+			"description": "Set the ship’s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew."
 		},
 		{
 			"id": "base.console.helm",
@@ -7068,7 +7196,20 @@
 					"width": 180,
 					"height": 400
 				}
-			]
+			],
+			"stances": [
+				{
+					"id": "routine",
+					"label": "Follow orders",
+					"description": "Follow assigned navigation objectives."
+				},
+				{
+					"id": "hold",
+					"label": "Hold position",
+					"description": "Automated propulsion stops and cancels destination guidance."
+				}
+			],
+			"default_stance": "routine"
 		},
 		{
 			"id": "base.console.engineering",
@@ -7086,7 +7227,20 @@
 					"width": 1000,
 					"height": 1000
 				}
-			]
+			],
+			"stances": [
+				{
+					"id": "routine",
+					"label": "Normal generation",
+					"description": "Automated generation follows ordinary orders."
+				},
+				{
+					"id": "reserve",
+					"label": "Reduced generation",
+					"description": "Request reduced generator output while retaining physical thermal protection."
+				}
+			],
+			"default_stance": "routine"
 		},
 		{
 			"id": "base.console.science",
@@ -7190,7 +7344,58 @@
 					"width": 300,
 					"height": 200
 				}
-			]
+			],
+			"viewscreen": true,
+			"compact": {
+				"widgets": [
+					{
+						"id": "map",
+						"kind": "navigation",
+						"binding": "ship.navigation",
+						"label": "Navigation map",
+						"controller": "navigation.orders",
+						"channel": "waypoint",
+						"x": 0,
+						"y": 240,
+						"width": 1000,
+						"height": 760
+					},
+					{
+						"id": "objectives",
+						"kind": "objectives",
+						"binding": "ship.objectives",
+						"label": "Ship objectives",
+						"x": 0,
+						"y": 0,
+						"width": 1000,
+						"height": 220
+					}
+				]
+			}
+		},
+		{
+			"id": "base.console.command",
+			"name": "Command",
+			"description": "Set stances for AI-operated Consoles.",
+			"human_seeking": true,
+			"command": true,
+			"hide_without_ai": true,
+			"viewscreen": true,
+			"widgets": [
+				{
+					"id": "status",
+					"kind": "status",
+					"binding": "ship.status",
+					"label": "AI Console stances",
+					"x": 0,
+					"y": 0,
+					"width": 1000,
+					"height": 1000
+				}
+			],
+			"compact": {
+				"widgets": []
+			}
 		}
 	],
 	"trees": [
@@ -7537,6 +7742,19 @@
 							],
 							"reason": "requested",
 							"target": "requested"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "stance-reserve",
+							"reason": "Reduced generation stance"
 						}
 					]
 				},
@@ -7566,6 +7784,19 @@
 							],
 							"reason": "hot",
 							"target": "hot"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "stance-reserve",
+							"reason": "Reduced generation stance"
 						}
 					]
 				},
@@ -7604,6 +7835,19 @@
 							],
 							"reason": "hot",
 							"target": "hot"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "stance-reserve",
+							"reason": "Reduced generation stance"
 						}
 					]
 				},
@@ -7655,6 +7899,44 @@
 							],
 							"reason": "routine",
 							"target": "routine"
+						}
+					]
+				},
+				{
+					"id": "stance-reserve",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.generator_output",
+							"arguments": [6500]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "thermal.stopped"
+									},
+									"op": "eq",
+									"right": true
+								}
+							],
+							"target": "hot",
+							"reason": "Thermal protection"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "reserve"
+								}
+							],
+							"target": "routine",
+							"reason": "Resume normal generation"
 						}
 					]
 				}
@@ -8048,6 +8330,21 @@
 						{
 							"call": "base.ai.messages"
 						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "hold"
+								}
+							],
+							"target": "stance-hold",
+							"reason": "Hold position stance"
+						}
 					]
 				},
 				{
@@ -8219,6 +8516,34 @@
 							],
 							"reason": "navigate",
 							"target": "navigate"
+						}
+					]
+				},
+				{
+					"id": "stance-hold",
+					"running": [
+						{
+							"action": "write.destination",
+							"arguments": [false, 0, 0]
+						},
+						{
+							"action": "write.speed_mm_s",
+							"arguments": [0]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "hold"
+								}
+							],
+							"target": "waiting",
+							"reason": "Resume orders stance"
 						}
 					]
 				}
@@ -9639,6 +9964,19 @@
 							],
 							"reason": "requested",
 							"target": "requested"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "stance-reserve",
+							"reason": "Reduced generation stance"
 						}
 					]
 				},
@@ -9668,6 +10006,19 @@
 							],
 							"reason": "hot",
 							"target": "hot"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "stance-reserve",
+							"reason": "Reduced generation stance"
 						}
 					]
 				},
@@ -9706,6 +10057,19 @@
 							],
 							"reason": "hot",
 							"target": "hot"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "reserve"
+								}
+							],
+							"target": "stance-reserve",
+							"reason": "Reduced generation stance"
 						}
 					]
 				},
@@ -9757,6 +10121,44 @@
 							],
 							"reason": "routine",
 							"target": "routine"
+						}
+					]
+				},
+				{
+					"id": "stance-reserve",
+					"parent": "service",
+					"running": [
+						{
+							"action": "write.generator_output",
+							"arguments": [9750]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "thermal.stopped"
+									},
+									"op": "eq",
+									"right": true
+								}
+							],
+							"target": "hot",
+							"reason": "Thermal protection"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "reserve"
+								}
+							],
+							"target": "routine",
+							"reason": "Resume normal generation"
 						}
 					]
 				}
@@ -10234,6 +10636,21 @@
 						{
 							"call": "base.ai.messages"
 						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "eq",
+									"right": "hold"
+								}
+							],
+							"target": "stance-hold",
+							"reason": "Hold position stance"
+						}
 					]
 				},
 				{
@@ -10405,6 +10822,34 @@
 							],
 							"reason": "navigate",
 							"target": "navigate"
+						}
+					]
+				},
+				{
+					"id": "stance-hold",
+					"running": [
+						{
+							"action": "write.destination",
+							"arguments": [false, 0, 0]
+						},
+						{
+							"action": "write.speed_mm_s",
+							"arguments": [0]
+						}
+					],
+					"transitions": [
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stance"
+									},
+									"op": "ne",
+									"right": "hold"
+								}
+							],
+							"target": "waiting",
+							"reason": "Resume orders stance"
 						}
 					]
 				}

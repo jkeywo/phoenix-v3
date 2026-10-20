@@ -56,6 +56,26 @@ int main()
 		send(P::move, 3, 50, 50);
 		require(gesture.contacts.empty() && pan_x == prior_pan + 10,
 		        "Touches beginning outside the map never capture it");
+		{
+			InputRouter sidebar;
+			require(sidebar.set_regions({{30, 0, 0, 1440, 1080}, {31, 1440, 0, 480, 1080}}),
+			        "Viewscreen and right-quarter sidebar have distinct non-overlapping routes");
+			require(sidebar.select_keyboard(30), "Viewscreen retains explicit keyboard selection");
+			const auto touch = sidebar.pointer_down(7, 1500, 200);
+			require(touch && touch->console == 31 && touch->x == 60 && sidebar.keyboard_console() == 30,
+			        "sidebar touch is local and does not take Viewscreen keyboard focus");
+			const auto drag = sidebar.pointer_move(7, 100, 200);
+			require(drag && drag->console == 31, "sidebar keeps captured touch across the scene boundary");
+			sidebar.pointer_up(7, 100, 200);
+			sidebar.assign_gamepad("sidebar-pad", 31);
+			sidebar.gamepad("sidebar-pad", "throttle", .5f);
+			sidebar.drain_gamepad_inputs();
+			sidebar.assign_gamepad("sidebar-pad", {});
+			const auto releases = sidebar.drain_gamepad_inputs();
+			require(releases.size() == 1 && releases.front().console == 31 && releases.front().value == 0,
+			        "hiding sidebar neutralises its routed controller");
+			require(sidebar.set_regions({{30, 0, 0, 1920, 1080}}), "closing sidebar restores full Viewscreen routing");
+		}
 		ManualFlightInput flight;
 		flight.sample("keyboard", {1000, 1000});
 		require(flight.axes() == FlightAxes{1000, 1000}, "yaw and thrust remain independent at full diagonal input");

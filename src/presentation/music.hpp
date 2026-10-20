@@ -1,4 +1,5 @@
 #pragma once
+#include "alert_audio.hpp"
 namespace phoenix
 {
 // Local presentation only: no audio state is replicated to other crew clients.
@@ -12,6 +13,12 @@ public:
 private:
 	Music stream_{};
 	int track_ = 0;
+	std::string track_asset_, siren_asset_;
+	Bytes track_bytes_;
+	Sound siren_{};
+	const void *alert_session_ = nullptr;
+	std::uint64_t alert_generation_ = 0;
+	AlertAudioTransition alert_transition_;
 	bool attempted_device_ = false, owns_device_ = false;
 	Sound click_{};
 	Sound voices_[8]{};

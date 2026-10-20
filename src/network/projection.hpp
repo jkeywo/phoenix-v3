@@ -2,6 +2,26 @@
 #include "../core/display_projection.hpp"
 namespace phoenix::network
 {
+static inline Json alert_json(const Json &source)
+{
+	if (source.is_object() && source.empty())
+		return Json::object();
+	if (!source.is_object())
+		throw std::runtime_error("Invalid alert blackboard");
+	Json result;
+	for (const auto *field : {"id", "label", "colour", "siren", "music"})
+	{
+		if (!source.at(field).is_string() || source.at(field).get_ref<const std::string &>().size() > 512)
+			throw std::runtime_error("Invalid alert presentation field");
+		result[field] = source.at(field);
+	}
+	result["severity"] = display::number(source.at("severity"), 0, 63);
+	result["revision"] = display::number(source.at("revision"), 0, 9007199254740991LL);
+	if (!source.at("glow").is_boolean())
+		throw std::runtime_error("Invalid alert glow flag");
+	result["glow"] = source.at("glow");
+	return result;
+}
 static inline Json body_json(const BodyView &body)
 {
 	return {{"id", body.id},
@@ -44,6 +64,8 @@ static inline Json bounded_gameplay(const Json &source)
 	const char *categories[] = {"controls", "notifications", "controllers", "objectives",
 	                            "shared",   "records",       "messages"};
 	Json result = source;
+	if (source.contains("alert"))
+		result["alert"] = alert_json(source.at("alert"));
 	Json omitted = Json::object();
 	for (const auto *category : categories)
 	{
@@ -126,6 +148,8 @@ static inline Json public_board_json(const Json &source)
 	}
 	if (source.contains("display"))
 		selected["display"] = display::sanitise(source.at("display"));
+	if (source.contains("alert") && !source.at("alert").empty())
+		selected["alert"] = alert_json(source.at("alert"));
 	auto result = bounded_gameplay(selected);
 	const auto omissions = source.value("omitted", Json::object());
 	if (!omissions.is_object())

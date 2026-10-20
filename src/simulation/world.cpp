@@ -87,6 +87,8 @@ struct CompiledGameplay
 };
 struct CompiledDefinition
 {
+	BridgeDefinition bridge;
+	std::map<std::string, ConsoleBridgeDefinition> console_bridge;
 	std::vector<std::string> tags;
 	std::map<std::string, std::vector<std::string>> radar_shows;
 	std::vector<std::string> sprite_entries;
@@ -425,6 +427,12 @@ struct World::Impl
 		for (const auto &[name, definition] : content.entities)
 		{
 			CompiledDefinition result;
+			result.bridge = compile_bridge(content, name);
+			for (const auto &console : resolve_consoles(content, name))
+				if (!console.definition.empty())
+					result.console_bridge.emplace(
+					    console.id,
+					    compile_console_bridge(content.consoles.at(console.definition), console.definition));
 			if (definition.contains("control_layout"))
 			{
 				result.layout = compile_controllable_layout(content, name);
@@ -716,6 +724,15 @@ struct World::Impl
 			throw std::runtime_error("duplicate entity identity");
 		construction.registry = &entities;
 		construction.id = id;
+		BridgeBlackboard board;
+		board.condition = data.bridge.initial;
+		for (const auto &[console, spec] : data.console_bridge)
+			if (!spec.stances.empty())
+			{
+				board.stances.emplace(console, spec.initial);
+				board.epochs.emplace(console, 0);
+			}
+		entity.set<BridgeBlackboard>(std::move(board));
 		if (data.layout)
 		{
 			EntityControls controls;
@@ -784,6 +801,10 @@ struct World::Impl
 		for (const auto &[claimant, claim] : claims)
 			if (claim == address)
 				return claimant;
+		// An authored default Viewscreen placement reserves the supplemental
+		// Console for the host rather than implicitly assigning it to a station.
+		if (definition(address.ship).bridge.sidebar_default == address.console)
+			return 0;
 		if (spec->human_seeking)
 			for (const auto &station : spec->human_preferences)
 				for (const auto &[claimant, claim] : claims)
@@ -1693,6 +1714,7 @@ struct World::Impl
 		}
 		return true;
 	}
+#include "bridge.hpp"
 	bool meta(std::uint64_t claimant, const OperatingCommand &command, bool execute)
 	{
 		if (!claims.contains(claimant) || command.target != claims.at(claimant).ship)
@@ -1702,6 +1724,8 @@ struct World::Impl
 			return false;
 		const auto &console = *seat(address.ship, address.console);
 		const auto &spec = definition(address.ship);
+		if (command.action == "alert.set" || command.action == "stance.set")
+			return bridge_command(address, command, execute);
 		if (command.action.starts_with("display."))
 			return display_command(claimant, command, execute);
 		if (command.action == "camera_mode" || command.action == "camera_direction")
@@ -1876,12 +1900,15 @@ std::vector<ConsoleSpec> World::consoles(EntityId ship) const
 {
 	return impl_->entities.contains(ship) ? impl_->definition(ship).consoles : std::vector<ConsoleSpec>{};
 }
-bool World::can_claim(std::uint64_t console, EntityId ship, const std::string &name) const
+bool World::can_claim(std::uint64_t console, EntityId ship, const std::string &name, bool sidebar) const
 {
 	if (!console || impl_->claims.contains(console) || !impl_->entities.contains(ship))
 		return false;
 	auto seat = impl_->seat(ship, name);
-	if (!seat || seat->human_seeking)
+	if (!seat || (seat->human_seeking && !sidebar))
+		return false;
+	if (sidebar && (!seat->human_seeking || !impl_->definition(ship).console_bridge.at(seat->id).viewscreen ||
+	                impl_->console_operator({ship, seat->id})))
 		return false;
 	for (const auto &[owner, address] : impl_->claims)
 		if (address.ship == ship && address.console == seat->id)
@@ -1913,9 +1940,9 @@ bool World::prepare_console_profile(const ConsoleAddress &address, const std::st
 		}
 	return false;
 }
-bool World::claim(std::uint64_t console, EntityId ship, const std::string &name)
+bool World::claim(std::uint64_t console, EntityId ship, const std::string &name, bool sidebar)
 {
-	if (!can_claim(console, ship, name))
+	if (!can_claim(console, ship, name, sidebar))
 		return false;
 	const auto &seat = *impl_->seat(ship, name);
 	impl_->claims[console] = {ship, seat.id};
@@ -2190,6 +2217,16 @@ Json World::scene_environment() const
 Json World::public_board(EntityId entity) const
 {
 	auto board = impl_->knowledge.public_board(entity);
+	board["alert"] = impl_->alert_board(entity);
+	board["sidebar"] = Json::array();
+	const auto &bridge_data = impl_->definition(entity);
+	for (const auto &seat : bridge_data.consoles)
+		if (bridge_data.console_bridge.contains(seat.id) && bridge_data.console_bridge.at(seat.id).viewscreen)
+			board["sidebar"].push_back({{"id", seat.id},
+			                            {"label", impl_->console_layouts.at(seat.definition).value("name", seat.id)},
+			                            {"default", bridge_data.bridge.sidebar_default == seat.id},
+			                            {"visible", impl_->bridge_visible({entity, seat.id})},
+			                            {"available", can_claim(UINT64_MAX, entity, seat.id, true)}});
 	const auto found = impl_->displays.find(entity);
 	if (found == impl_->displays.end())
 		return board;
@@ -2264,7 +2301,8 @@ std::optional<Observation> World::observe(std::uint64_t console) const
 	for (const auto &seat : impl_->definition(found->second.ship).consoles)
 	{
 		const ConsoleAddress address{found->second.ship, seat.id};
-		if (address != found->second && seat.human_seeking && impl_->console_operator(address) == console)
+		if (address != found->second && seat.human_seeking && impl_->console_operator(address) == console &&
+		    impl_->bridge_visible(address))
 			result.additional_consoles.push_back(observe_at(console, address));
 	}
 	return result;
@@ -2275,6 +2313,8 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	const auto &seat = *impl_->seat(address.ship, address.console);
 	Observation result = impl_->capture_console_observation(address);
 	result.gameplay = impl_->knowledge.project_json(address);
+	result.gameplay["alert"] = impl_->alert_board(address.ship);
+	result.gameplay["stance"] = impl_->stance_board(address);
 	if (entity.has<EntityControls>())
 		result.gameplay["controllers"] = impl_->project_controllers(address);
 
@@ -2298,6 +2338,7 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 				       kind, {}, value);
 	}
 	const bool away = impl_->away.contains(address) && impl_->away.at(address);
+	impl_->bridge_controls(address, buttons);
 	button("away", away ? "Resume control" : "Away", "away", {}, away ? 0 : 1);
 	if (entity.has<EntityControls>())
 	{
@@ -2677,6 +2718,11 @@ Json World::save() const
 		}
 		if (entity.has<EntityControls>())
 			result["bodies"].back()["console_controllers"] = impl_->save_controllers(entity);
+		if (const auto *bridge = entity.try_get<BridgeBlackboard>())
+			result["bodies"].back()["bridge"] = {{"condition", bridge->condition},
+			                                     {"revision", bridge->revision},
+			                                     {"stances", bridge->stances},
+			                                     {"epochs", bridge->epochs}};
 	}
 	if (impl_->gameplay)
 	{
@@ -2741,6 +2787,8 @@ void World::restore(const Catalog &content, const Json &saved)
 		if (!seen.insert(restored.id).second || !candidate.impl_->entities.contains(restored.id))
 			throw std::runtime_error("Saved state duplicate/unknown entity");
 		auto entity = candidate.impl_->entities.at(restored.id);
+		if (value.contains("bridge"))
+			candidate.impl_->restore_bridge(restored.id, value.at("bridge"));
 		if (entity.has<EntityControls>())
 		{
 			if (saved.at("schema") != 7)
@@ -2857,7 +2905,10 @@ void World::restore(const Catalog &content, const Json &saved)
 	}
 	for (const auto &[console, address] : saved.at("claims").get<std::map<std::uint64_t, ConsoleAddress>>())
 	{
-		if (!candidate.can_claim(console, address.ship, address.console))
+		const auto *seat = candidate.impl_->entities.contains(address.ship)
+		                       ? candidate.impl_->seat(address.ship, address.console)
+		                       : nullptr;
+		if (!seat || !candidate.can_claim(console, address.ship, address.console, seat->human_seeking))
 			throw std::runtime_error("Saved state invalid claim");
 		candidate.impl_->claims.emplace(console, address);
 	}

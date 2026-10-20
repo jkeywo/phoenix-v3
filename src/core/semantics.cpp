@@ -108,6 +108,7 @@ void remember_preferences(Application &app)
 		app.library->preferences = {app.music_volume, app.language,       app.pseudo_locale, app.reduced_motion,
 		                            app.dust_motes,   app.reference_grid, app.player_name,   app.avatar};
 		app.library->preferences.sfx_volume = app.sfx_volume;
+		app.library->preferences.siren_volume = app.siren_volume;
 		app.library->preferences.master_volume = app.master_volume;
 		app.library->remember();
 #ifdef __EMSCRIPTEN__
@@ -306,6 +307,7 @@ bool set_audio_volume(Application &app, const std::string &channel, const std::s
 	    app.settings_tab != "audio")
 		return false;
 	int *volume = channel == "music"    ? &app.music_volume
+	              : channel == "siren"  ? &app.siren_volume
 	              : channel == "sfx"    ? &app.sfx_volume
 	              : channel == "master" ? &app.master_volume
 	                                    : nullptr;

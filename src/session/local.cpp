@@ -340,7 +340,7 @@ public:
 	}
 	bool claim_console(std::uint64_t route, const ConsoleAddress &seat) override
 	{
-		return running() && world_->claim(route, seat.ship, seat.console);
+		return running() && world_->claim(route, seat.ship, seat.console, route == 31);
 	}
 	bool release_console(std::uint64_t route) override
 	{

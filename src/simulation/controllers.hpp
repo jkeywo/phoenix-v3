@@ -70,6 +70,14 @@ struct EntityControls
 	std::vector<ConsoleControllerRuntime> controllers;
 	std::map<std::string, std::size_t> profiles;
 };
+// Accepted ship/Console intent blackboards; never physical actuator state.
+struct BridgeBlackboard
+{
+	std::size_t condition = 0;
+	std::uint64_t revision = 0;
+	std::map<std::string, std::size_t> stances;
+	std::map<std::string, std::uint64_t> epochs;
+};
 struct ControllerProposal
 {
 	ControllerAddress address;

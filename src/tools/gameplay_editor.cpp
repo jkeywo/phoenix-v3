@@ -589,6 +589,33 @@ struct GameplayEditor
 		if (!selected)
 			return;
 		auto &ship = *selected;
+		{
+			ScopedTree panel("Alert conditions and Viewscreen");
+			if (panel)
+			{
+				if (!ship.contains("bridge") && button("Add bridge configuration"))
+					ship["bridge"] = {{"conditions", Json::array()}};
+				if (ship.contains("bridge"))
+				{
+					auto &bridge = ship["bridge"];
+					optional_string(bridge, "alert_console");
+					optional_string(bridge, "sidebar_default");
+					optional_string(bridge, "initial");
+					records(bridge, "conditions",
+					        {{"id", "condition"}, {"label", "Condition"}, {"colour", "#e73535"}, {"glow", false}},
+					        [&](Json &condition)
+					        {
+						        string(condition, "id");
+						        string(condition, "label");
+						        optional_string(condition, "description");
+						        string(condition, "colour");
+						        boolean(condition, "glow", false);
+						        optional_string(condition, "siren");
+						        optional_string(condition, "music");
+					        });
+				}
+			}
+		}
 		strings(ship, "tags");
 		choice(ship, "extends", document.definition_choices(WorkshopDefinitionKind::Entity), true);
 		if (system_entity != entity)
@@ -2305,6 +2332,26 @@ struct GameplayEditor
 	void console_properties(WorkshopDocument &document, Application &app, Json &console)
 	{
 		pseudo = app.pseudo_locale;
+		boolean(console, "human_seeking", false);
+		boolean(console, "command", false);
+		boolean(console, "hide_without_ai", false);
+		boolean(console, "viewscreen", false);
+		optional_string(console, "default_stance");
+		records(console, "stances", {{"id", "stance"}, {"label", "Stance"}},
+		        [&](Json &stance)
+		        {
+			        string(stance, "id");
+			        string(stance, "label");
+			        optional_string(stance, "description");
+		        });
+		if (console.value("viewscreen", false))
+		{
+			if (!console.contains("compact"))
+				console["compact"] = {{"widgets", console.value("widgets", Json::array())}};
+			ScopedTree compact("Compact Viewscreen HUD");
+			if (compact)
+				structure(console["compact"], true);
+		}
 		gameplay_panel(console);
 		const auto known = document.preview_knowledge();
 		std::vector<std::string> roles;

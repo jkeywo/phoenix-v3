@@ -9,6 +9,17 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 	values[brain.own[ControllerOwnField::Entity]] = Value::reference(Type::Entity, id);
 	values[brain.own[ControllerOwnField::Console]] = Value::reference(Type::Console, knowledge.console_id(address));
 	values[brain.own[ControllerOwnField::Tick]] = Value::integer(ecs.get<Clock>().tick);
+	const auto &bridge = entities.at(id).get<BridgeBlackboard>();
+	const auto &bridge_spec = definition(id);
+	if (!bridge_spec.bridge.conditions.empty())
+	{
+		values[brain.own[ControllerOwnField::AlertId]] =
+		    Value::string(bridge_spec.bridge.conditions.at(bridge.condition).id);
+		values[brain.own[ControllerOwnField::AlertSeverity]] = Value::integer(bridge.condition);
+	}
+	if (bridge.stances.contains(address.console))
+		values[brain.own[ControllerOwnField::Stance]] = Value::string(
+		    bridge_spec.console_bridge.at(address.console).stances.at(bridge.stances.at(address.console)).id);
 	const auto observation = observation_snapshots.contains(address) ? observation_snapshots.at(address)
 	                                                                 : capture_console_observation(address);
 	values[brain.own[ControllerOwnField::X]] = Value::integer(observation.own.x);
@@ -596,6 +607,14 @@ void refresh_controllers(EntityId id, bool validate = false)
 		if (controller.generation == std::numeric_limits<std::uint64_t>::max())
 			throw std::runtime_error("Controller operator generation exhausted");
 		++controller.generation;
+		auto &bridge = entity.get_mut<BridgeBlackboard>();
+		if (bridge.epochs.contains(address.console))
+		{
+			auto &epoch = bridge.epochs.at(address.console);
+			if (epoch >= 9007199254740991ULL)
+				throw std::runtime_error("Console stance authority generation exhausted");
+			++epoch;
+		}
 		controller.human = human;
 		controller.operator_claimant = claimant;
 		knowledge.set_controller_control({id, address.console, controller.definition.id}, present, human);

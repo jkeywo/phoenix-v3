@@ -44,6 +44,7 @@ import phoenix.devices;
 #include "consoles.hpp"
 #include "settings.hpp"
 #include "music.hpp"
+#include "alert_glow.hpp"
 
 namespace phoenix
 {
@@ -84,6 +85,10 @@ Application *current_app = nullptr;
 std::unique_ptr<GameScreen> game_screen;
 std::unique_ptr<NativeMenuScreen> native_menu;
 std::unique_ptr<ServerMusic> server_music;
+std::string sidebar_selection;
+std::weak_ptr<SessionPort> sidebar_session;
+std::uint64_t sidebar_generation = 0;
+bool sidebar_user_selected = false;
 Rml::ElementDocument *loading_document = nullptr;
 Texture2D loading_background{};
 TextureCache loading_images;
@@ -885,7 +890,60 @@ void draw_screen(Application &app)
 			                      : "settings");
 	}
 	const bool lobby_consoles = app.can_host && app.screen == Screen::server_lobby && !app.console_regions.empty();
-	const bool show_consoles = lobby_consoles || app.screen == Screen::console ||
+	const auto original_viewscreen = app.viewscreen_region;
+	struct RestoreViewscreen
+	{
+		Application &app;
+		decltype(app.viewscreen_region) original;
+		~RestoreViewscreen()
+		{
+			app.viewscreen_region = original;
+		}
+	} restore_viewscreen{app, original_viewscreen};
+	std::optional<ConsoleRegion> sidebar_region;
+	Json sidebar_choices = Json::array();
+	const bool sidebar_host = app.can_host && app.session && app.session->running() &&
+	                          app.screen == Screen::viewscreen && app.session->focus_body().has_value();
+	if (sidebar_host)
+	{
+		if (sidebar_session.lock() != app.session || sidebar_generation != app.session->generation())
+		{
+			sidebar_session = app.session;
+			sidebar_generation = app.session->generation();
+			sidebar_selection.clear();
+			sidebar_user_selected = false;
+		}
+		sidebar_choices = app.session->public_board().value("sidebar", Json::array());
+		if (!sidebar_user_selected && sidebar_selection.empty())
+			for (const auto &choice : sidebar_choices)
+				if (choice.value("default", false))
+					sidebar_selection = choice.at("id");
+		bool visible = false, available = false;
+		for (const auto &choice : sidebar_choices)
+			if (choice.at("id") == sidebar_selection)
+			{
+				visible = choice.at("visible");
+				available = choice.at("available");
+			}
+		auto owned = app.session->console_observation(31);
+		if (owned && (owned->console != sidebar_selection || !visible))
+		{
+			app.session->release_console(31);
+			owned.reset();
+		}
+		if (!owned && visible && available)
+			app.session->claim_console(31, {app.session->focus_body()->id, sidebar_selection});
+		owned = app.session->console_observation(31);
+		if (visible && owned && owned->console == sidebar_selection && app.console_regions.size() < 6)
+		{
+			auto area = original_viewscreen.value_or(
+			    ConsoleRegion{30, 0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())});
+			sidebar_region = ConsoleRegion{31, area.x + area.width * .75f, area.y, area.width * .25f, area.height};
+			area.width *= .75f;
+			app.viewscreen_region = area;
+		}
+	}
+	const bool show_consoles = sidebar_region.has_value() || lobby_consoles || app.screen == Screen::console ||
 	                           (app.can_host &&
 	                            (app.screen == Screen::viewscreen ||
 	                             (app.screen == Screen::settings && app.settings_return == Screen::viewscreen)) &&
@@ -906,6 +964,11 @@ void draw_screen(Application &app)
 	        ? app.console_regions
 	        : std::vector<ConsoleRegion>{
 	              {1, 0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())}};
+	if (sidebar_region)
+	{
+		regions = app.console_regions;
+		regions.push_back(*sidebar_region);
+	}
 	const auto active_console_regions = console_mode ? regions : std::vector<ConsoleRegion>{};
 	if (console_mode && app.screen != Screen::console && app.viewscreen_region)
 		regions.push_back(*app.viewscreen_region);
@@ -1070,6 +1133,45 @@ void draw_screen(Application &app)
 		};
 		for (const auto &region : active_console_regions)
 			console_surfaces.at(region.console)->prepare(app, region, gamepads);
+	}
+	auto *sidebar_selector = document->GetElementById("sidebar-selector");
+	if (!sidebar_selector)
+	{
+		auto created = document->CreateElement("div");
+		created->SetId("sidebar-selector");
+		created->SetProperty("position", "absolute");
+		created->SetProperty("left", "100px");
+		created->SetProperty("top", "18px");
+		created->SetProperty("max-width", "60%");
+		sidebar_selector = document->AppendChild(std::move(created));
+	}
+	sidebar_selector->SetProperty("display", sidebar_host && !sidebar_choices.empty() ? "block" : "none");
+	if (sidebar_host && !sidebar_choices.empty())
+	{
+		std::string markup;
+		for (const auto &choice : sidebar_choices)
+			if (choice.value("visible", false) &&
+			    (choice.value("available", false) || choice.at("id") == sidebar_selection))
+			{
+				const auto id = "sidebar/" + choice.at("id").get<std::string>();
+				const auto label = localise(choice.at("label").get<std::string>());
+				markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(id) + "\">" +
+				          Rml::StringUtilities::EncodeRml(label) + "</button>";
+				app.screen_controls.emplace_back(id, label);
+			}
+		markup += "<button id=\"sidebar/close\">" + localise("Close sidebar") + "</button>";
+		app.screen_controls.emplace_back("sidebar/close", localise("Close sidebar"));
+		if (sidebar_selector->GetInnerRML() != markup)
+			sidebar_selector->SetInnerRML(markup);
+		const auto prior = app.screen_action;
+		app.screen_action = [prior](const std::string &id)
+		{
+			if (!id.starts_with("sidebar/"))
+				return prior ? prior(id) : false;
+			sidebar_user_selected = true;
+			sidebar_selection = id == "sidebar/close" ? "" : id.substr(8);
+			return true;
+		};
 	}
 	app.frame_metrics["preparation"] = GetTime() - preparation_started;
 	server_music->update(app);
@@ -1323,6 +1425,9 @@ void draw_screen(Application &app)
 			surface.context().Render();
 			renderer.finish();
 			surface.draw_profile(region);
+			if (const auto view = app.session->console_observation(region.console))
+				draw_alert_glow(view->gameplay.value("alert", Json::object()),
+				                {region.x, region.y, region.width, region.height});
 		}
 		app.frame_metrics["consoles"] = GetTime() - consoles_started;
 		for (auto &[name, placement] : app.control_placements)
@@ -1350,6 +1455,12 @@ void draw_screen(Application &app)
 				                                      context->GetFocusElement() == element,
 				                                      true};
 			}
+	}
+	if (app.session && app.session->running() && app.screen == Screen::viewscreen)
+	{
+		const auto r = app.viewscreen_region.value_or(
+		    ConsoleRegion{30, 0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())});
+		draw_alert_glow(app.session->public_board().value("alert", Json::object()), {r.x, r.y, r.width, r.height});
 	}
 	publish_semantics(app);
 }

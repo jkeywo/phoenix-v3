@@ -133,6 +133,10 @@ These are design candidates requiring workload validation, especially Science's 
 
 ### 3.3 Join, handover and loss of participation
 
+Ships author an ordered alert-condition list, normally five levels, with labels, colours, optional screen-edge glow, an entry siren and condition-specific music. Accepted alert state belongs to the entity blackboard and is readable by all Consoles and Controller trees. Alert controls are placed independently of Command: Courier Support owns them, while the reference Cruiser places them with the Captain.
+
+Consoles author named stances that guide their AI Controllers. Command can select stances for fully AI-operated Consoles; a Console's own human can select the stance used by its delegated Controllers. Command is normally human-seeking and may automatically hide when no eligible targets remain. Human-seeking Consoles may supply a special compact HUD for an interactive right-quarter Viewscreen sidebar. The host selects one eligible Console under exclusive authority. Couriers place Command there by default.
+
 The ordinary journey is select a scenario/ship, join through the browser route, claim an eligible seat, choose depth, ready and enter play. Missing seats use ordinary AI. Individual practice and short shared exercises are optional; completing a tutorial is not a condition of joining live play.
 
 Human-seeking controls offer supported work to eligible people without silently taking another Controller's authority. Their attention belongs in the receiving player's workload budget. A vacant, disconnected or explicitly Away Console operates all Controllers with ordinary AI; inactivity alone does not imply an automatic AFK detector. The selected complexity profile is retained separately from operator availability. Handover atomically changes effective operators, rejects obsolete queued writes and safely releases held inputs while preserving accepted settings and ongoing physical work. Returning humans regain their selected profile allocation, not a stale copy of earlier machinery settings. There is no separate temporary-fill AI or inference of unspoken human intent.

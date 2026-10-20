@@ -557,9 +557,12 @@ void verify_prepared_catalog(const Catalog &catalog)
 			}
 		}
 	}
+	for (const auto &[id, entity] : catalog.entities)
+		(void)compile_bridge(catalog, id);
 	for (const auto &[id, console] : catalog.consoles)
 	{
 		auto path = "consoles." + id;
+		(void)compile_console_bridge(console, path);
 		if (!console.contains("widgets") || !console["widgets"].is_array())
 			invalid(path + ".widgets", "expected array");
 		std::set<std::string> widget_ids;

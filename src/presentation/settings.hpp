@@ -20,6 +20,7 @@ struct Audio
 };
 inline constexpr Audio audio[] = {{"master", "menu-master", "Master volume", &Application::master_volume},
                                   {"music", "menu-volume", "Music volume", &Application::music_volume},
+                                  {"siren", "menu-siren", "Siren volume", &Application::siren_volume},
                                   {"sfx", "menu-sfx", "SFX volume", &Application::sfx_volume}};
 inline const char *audio_channel(const std::string &id)
 {

@@ -103,7 +103,9 @@ std::vector<ConsoleSpec> resolve_consoles(const Catalog &catalog, const std::str
 		ConsoleSpec seat{"main", "main", entity.value("console", std::string{}), fitted, fitted};
 		if (!seat.definition.empty() && catalog.consoles.contains(seat.definition))
 		{
-			seat.human_seeking = catalog.consoles.at(seat.definition).value("human_seeking", false);
+			seat.human_seeking =
+			    catalog.consoles.at(seat.definition)
+			        .value("human_seeking", catalog.consoles.at(seat.definition).value("command", false));
 			seat.human_preferences = {"main"};
 		}
 		for (const auto &system : instances)
@@ -189,7 +191,9 @@ std::vector<ConsoleSpec> resolve_consoles(const Catalog &catalog, const std::str
 				fail("Console identities must be unique within 32 seats per ship");
 			if (!catalog.consoles.contains(spec.definition))
 				fail("unresolved Console definition");
-			spec.human_seeking = catalog.consoles.at(spec.definition).value("human_seeking", false);
+			spec.human_seeking =
+			    catalog.consoles.at(spec.definition)
+			        .value("human_seeking", catalog.consoles.at(spec.definition).value("command", false));
 			spec.human_preferences = console.value("human_preferences", std::vector<std::string>{});
 			spec.controls = mask(console.value("systems", Json::array()), spec.controlled_systems);
 			spec.feeds = spec.controls | mask(console.value("feeds", Json::array()), spec.feed_systems);

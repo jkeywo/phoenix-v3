@@ -12,6 +12,7 @@ import phoenix.console;
 import phoenix.session.execution;
 import phoenix.navigation;
 #include "../../src/network/projection.hpp"
+#include "../../src/presentation/alert_audio.hpp"
 
 using namespace phoenix;
 using namespace phoenix::test;
@@ -50,6 +51,153 @@ int main()
 {
 	try
 	{
+		{
+			auto source = controller_fixture();
+			auto &ship = source["entities"][0];
+			source["consoles"][0]["stances"] =
+			    Json::array({{{"id", "routine"}, {"label", "Routine"}}, {{"id", "hold"}, {"label", "Hold"}}});
+			source["consoles"].push_back({{"id", "test.command"},
+			                              {"human_seeking", true},
+			                              {"command", true},
+			                              {"hide_without_ai", true},
+			                              {"viewscreen", true},
+			                              {"compact", {{"widgets", Json::array()}}},
+			                              {"widgets", Json::array()}});
+			ship["stations"][0]["consoles"].push_back(
+			    {{"id", "command"}, {"definition", "test.command"}, {"systems", Json::array()}});
+			ship["bridge"] = {
+			    {"initial", "routine"},
+			    {"alert_console", "observer"},
+			    {"sidebar_default", "command"},
+			    {"conditions",
+			     Json::array({{{"id", "routine"}, {"label", "Routine"}, {"colour", "#001122"}},
+			                  {{"id", "danger"}, {"label", "Danger"}, {"colour", "#ff0000"}, {"glow", true}},
+			                  {{"id", "evacuate"}, {"label", "Evacuate"}}})}};
+			source["trees"].push_back(Json::parse(R"({
+				"id":"test.bridge-ai","context":"controller","initial":"routine",
+				"command_bindings":[{"channel":"speed"}],
+				"states":[
+					{"id":"routine","running":[{"action":"write.speed","arguments":[1000]}],
+					 "transitions":[{"target":"danger","conditions":[{"left":{"observation":"alert.id"},"op":"eq","right":"danger"},{"left":{"observation":"alert.severity"},"op":"eq","right":1}]}]},
+					{"id":"danger","running":[{"action":"write.speed","arguments":[2000]}],
+					 "transitions":[{"target":"hold","conditions":[{"left":{"observation":"console.stance"},"op":"eq","right":"hold"}]}]},
+					{"id":"hold","running":[{"action":"write.speed","arguments":[0]}]}
+				]})"));
+			ship["control_layout"]["controllers"][0]["tree"] = "test.bridge-ai";
+			source["maps"][0]["entities"].push_back(
+			    {{"id", 2}, {"definition", "test.controllable"}, {"x_mm", 100000}, {"y_mm", 0}, {"heading_mdeg", 0}});
+			const auto catalog = load(source);
+			World world;
+			world.load(catalog, "test.map");
+			require(world.claim(102, 1, "observer"), "alert owner claims its Console");
+			require(!world.claim(31, 1, "command") && world.claim(31, 1, "command", true),
+			        "supplemental Command requires explicit host sidebar admission");
+			require(!world.submit(31, {1, "alert.set", 1, {}}), "Command does not inherit alert authority");
+			require(world.submit(102, {1, "alert.set", 1, {}}), "owner selects authored alert");
+			world.tick();
+			require(world.public_board(1).at("alert").at("id") == "danger" &&
+			            world.public_board(2).at("alert").at("id") == "routine",
+			        "alert state is ship-local");
+			world.tick();
+			require(world.observe(31)->gameplay.at("alert").at("severity") == 1, "all Consoles see accepted condition");
+			require(world.submit(31, {1, "stance.set", 1, "drive"}), "Command may select fully AI Console stance");
+			world.tick();
+			world.tick();
+			require(world.claim(101, 1, "drive"), "human takes over drive");
+			require(!world.public_board(1).at("sidebar")[0].at("visible").get<bool>(),
+			        "Command auto-hides when no eligible AI target remains");
+			require(world.observe(101)->gameplay.at("stance").at("id") == "hold", "stance survives takeover");
+			require(controller(world, 101, "propulsion").at("commands").at("speed").at("value") == 0,
+			        "AI tree reads alert identity, severity and Console stance");
+			require(!world.submit(31, {1, "stance.set", 0, "drive"}), "Command refuses human Console");
+			require(world.submit(101, {1, "stance.set", 0, {}}), "own operator may select stance");
+			world.tick();
+			require(world.release(101), "drive returns to AI");
+			require(world.public_board(1).at("sidebar")[0].at("visible").get<bool>(),
+			        "Command becomes available when an AI target returns");
+			OperatingCommand delayed_stance{1, "stance.set", 1, "drive"};
+			const auto command_view = world.observe(31);
+			for (const auto &control : command_view->gameplay.at("controls"))
+				if (control.at("action") == "stance.set" && control.at("system") == "drive")
+					delayed_stance.generation = control.at("generation");
+			require(world.submit(31, delayed_stance) && world.claim(101, 1, "drive"),
+			        "queue stance before human takeover");
+			world.tick();
+			require(world.observe(101)->gameplay.at("stance").at("id") == "routine",
+			        "execution rejects stale Command authority");
+			const auto revision = world.public_board(1).at("alert").at("revision");
+			AlertAudioTransition audio;
+			auto sound = world.public_board(1).at("alert");
+			require(!audio.observe(&world, 1, sound, true), "joining active condition is silent");
+			sound["revision"] = revision.get<std::uint64_t>() + 1;
+			require(audio.observe(&world, 1, sound, true) && !audio.observe(&world, 1, sound, true),
+			        "live entry sounds once across repeated frames");
+			require(!audio.observe(&world, 2, sound, true), "save restoration does not replay siren");
+			require(!audio.observe(&world, 2, sound, false), "remote clients do not sound ship siren");
+			require(condition_music(sound).empty(), "missing condition track uses mission music fallback");
+			sound["music"] = "test:music.ogg";
+			require(condition_music(sound) == "test:music.ogg", "audio reads authored condition track");
+			require(world.submit(102, {1, "alert.set", 1, {}}), "reselect current condition");
+			world.tick();
+			require(world.public_board(1).at("alert").at("revision") == revision,
+			        "same condition has no new siren transition");
+			World restored;
+			restored.restore(catalog, world.save());
+			require(restored.public_board(1).at("alert") == world.public_board(1).at("alert") &&
+			            restored.observe(101)->gameplay.at("stance") == world.observe(101)->gameplay.at("stance"),
+			        "checkpoint preserves accepted alert and stance");
+			const auto public_data = network::public_board_json(world.public_board(1));
+			require(public_data.contains("alert") && !public_data.contains("stance") &&
+			            !public_data.contains("controllers"),
+			        "public alert projection preserves private Console boundaries");
+			auto invalid = source;
+			invalid["entities"][0]["bridge"]["initial"] = "missing";
+			bool refused = false;
+			try
+			{
+				(void)load(invalid);
+			}
+			catch (const std::exception &)
+			{
+				refused = true;
+			}
+			require(refused, "loader rejects unresolved default condition");
+			auto session_source = source;
+			session_source["entities"][0]["systems"]["steering"] = {{"kind", "steering"}, {"turn_mdeg_s", 90000}};
+			session_source["maps"][0]["entities"] = Json::array();
+			session_source["maps"][0]["ship_slots"] = Json::array({{{"id", "test.slot"},
+			                                                        {"x_mm", 0},
+			                                                        {"y_mm", 0},
+			                                                        {"heading_mdeg", 0},
+			                                                        {"allowed_ships", {"test.controllable"}}}});
+			auto host = make_host_world();
+			host->add_pack(archive(session_source));
+			host->start_server({"test.map", {{"test.slot", "test.controllable"}}, "test.slot", "observer"});
+			GameExecution execution(host, {{"server", "test.slot"}});
+			const auto host_ship = *host->authoritative_world().ship_for_slot("test.slot");
+			const ConsoleAddress command_address{host_ship, "command"};
+			require(!execution.can_claim("server", "remote", 31, command_address, false) &&
+			            !execution.can_claim("other-server", "local-console", 31, command_address, false),
+			        "sidebar lease is local-host-only and ship-scoped");
+			require(execution.apply("server", {{"kind", "station-claim"},
+			                                   {"owner", "local-console"},
+			                                   {"route", 31},
+			                                   {"ship", host_ship},
+			                                   {"seat", "command"},
+			                                   {"lease", std::string(64, 'a')}}),
+			        "host sidebar claim uses committed lease execution");
+			const auto sidebar = execution.observe("server", "local-console", 31);
+			require(sidebar && sidebar->console == "command" && sidebar->gameplay.at("controls").size() > 1,
+			        "leased Command receives interactive permitted controls");
+			require(!execution.can_claim("server", "another", 31, command_address, true),
+			        "sidebar cannot be silently replaced");
+			require(execution.apply("server", {{"kind", "station-release"},
+			                                   {"owner", "local-console"},
+			                                   {"route", 31},
+			                                   {"lease", std::string(64, 'a')},
+			                                   {"forget", true}}),
+			        "closing sidebar releases authority through committed execution");
+		}
 		{
 			NavigationCamera camera;
 			camera.fit(-10000, -20000, 90000, 20000, 1000, 500);

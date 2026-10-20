@@ -287,6 +287,7 @@ int main(int argc, char **argv)
 		const auto &prefs = app.library->preferences;
 		app.music_volume = prefs.volume;
 		app.sfx_volume = prefs.sfx_volume;
+		app.siren_volume = prefs.siren_volume;
 		app.master_volume = prefs.master_volume;
 		app.language = prefs.language;
 		app.pseudo_locale = prefs.pseudo;
