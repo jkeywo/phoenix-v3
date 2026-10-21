@@ -20,7 +20,7 @@
 				},
 				"muzzle": {
 					"x": 266,
-					"y": 146,
+					"y": 140,
 					"layer": 1,
 					"depth_offset": 0
 				}
@@ -43,7 +43,7 @@
 				},
 				"muzzle": {
 					"x": 43,
-					"y": 75,
+					"y": 88,
 					"layer": 1,
 					"depth_offset": 0
 				}
@@ -66,7 +66,7 @@
 				},
 				"muzzle": {
 					"x": 30,
-					"y": 102,
+					"y": 90,
 					"layer": 1,
 					"depth_offset": 0
 				}
@@ -89,7 +89,7 @@
 				},
 				"muzzle": {
 					"x": 33,
-					"y": 71,
+					"y": 85,
 					"layer": 1,
 					"depth_offset": 0
 				}
@@ -113,7 +113,7 @@
 				"muzzle": {
 					"x": 255,
 					"y": 50,
-					"layer": 1,
+					"layer": -1,
 					"depth_offset": 0
 				}
 			}
@@ -135,7 +135,7 @@
 				},
 				"muzzle": {
 					"x": 33,
-					"y": 71,
+					"y": 85,
 					"layer": 1,
 					"depth_offset": 0
 				}
@@ -158,7 +158,7 @@
 				},
 				"muzzle": {
 					"x": 30,
-					"y": 102,
+					"y": 90,
 					"layer": 1,
 					"depth_offset": 0
 				}
@@ -181,7 +181,7 @@
 				},
 				"muzzle": {
 					"x": 43,
-					"y": 75,
+					"y": 88,
 					"layer": 1,
 					"depth_offset": 0
 				}

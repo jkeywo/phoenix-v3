@@ -29,7 +29,21 @@ def prepare(stem, draft_path):
     nozzles = [[(183, 168), (303, 168)], [(698, 88), (719, 132)],
                [(874, 157), (874, 160)], [(440, 202), (550, 192)],
                [(183, 157), (354, 157)]]
-    muzzles = [(266, 146), (43, 75), (30, 102), (33, 71), (255, 50)]
+    muzzles = [(266, 140), (43, 88), (30, 90), (33, 85), (255, 50)]
+    pdc_points = [
+        [(435, 240), (420, 260), (405, 270), (390, 280)],
+        [(120, 280), (300, 255), (475, 220), (620, 180)],
+        [(100, 210), (350, 215), (585, 212), (780, 210)],
+        [(100, 110), (205, 165), (315, 220), (430, 280)],
+        [(100, 90), (80, 130), (65, 170), (45, 220)],
+    ]
+    bank_points = [
+        [(412, 148), (72, 148), (460, 160), (440, 130), (24, 160), (44, 130)],
+        [(30, 190), (75, 140), (300, 186), (610, 120), (270, 140), (585, 78)],
+        [(20, 145), (20, 145), (200, 155), (645, 155), (200, 145), (645, 145)],
+        [(30, 80), (45, 60), (70, 105), (235, 160), (90, 75), (260, 125)],
+        [(410, 90), (115, 90), (435, 130), (465, 170), (90, 130), (60, 170)],
+    ]
     for i, f in enumerate(source["sprite_sheet"]["frames"]):
         angle = f["camera_azimuth_degrees"]
         unique = i if i < 5 else 8 - i
@@ -70,7 +84,7 @@ def prepare(stem, draft_path):
             frame["attachments"][key] = dict(x=v[0], y=v[1], layer=v[2], depth_offset=0)
         if stem == "turret":
             mx, my = muzzles[unique]
-            frame["attachments"]["muzzle"] = dict(x=mx, y=my, layer=1, depth_offset=0)
+            frame["attachments"]["muzzle"] = dict(x=mx, y=my, layer=-1 if unique == 4 else 1, depth_offset=0)
         else:
             for side, (mx, my) in zip(("port", "starboard"), nozzles[unique]):
                 frame["attachments"]["engine_"+side] = dict(x=mx, y=my,
@@ -88,18 +102,44 @@ def prepare(stem, draft_path):
             for side, port in (("port", 60), ("starboard", -60)):
                 for n, forward in enumerate((105, 35, -35, -105), 1):
                     socket(f"pdc_{side}_{n}", forward, port)
+                    point = pdc_points[unique][n-1]
+                    if side == "starboard":
+                        point = (w-point[0], point[1]) if unique in (0, 4) else (point[0], point[1]-22)
+                    marker = frame["attachments"][f"pdc_{side}_{n}"]
+                    marker.update(x=point[0], y=point[1], layer=1 if side == "port" and unique in (1,2,3) else -1)
                 socket(f"bay_{side}", -35, port, -10)
-            for bank, forward, port in (("bow_port",140,38),("bow_starboard",140,-38),
+            for bank_index, (bank, forward, port) in enumerate((("bow_port",140,38),("bow_starboard",140,-38),
                     ("port_fore",85,62),("port_aft",-85,62),
-                    ("starboard_fore",85,-62),("starboard_aft",-85,-62)):
+                    ("starboard_fore",85,-62),("starboard_aft",-85,-62))):
                 for tube in range(4):
                     socket(f"missile_{bank}_{tube+1}",forward+(tube%2)*3,port, (tube//2)*3)
+                    marker = frame["attachments"][f"missile_{bank}_{tube+1}"]
+                    bx, by = bank_points[unique][bank_index]
+                    marker.update(x=bx+(tube%2-.5)*10, y=by+(tube//2-.5)*10)
+                    sampled = (depth.getpixel((x+int(marker["x"]),y+int(marker["y"])))/255-.5)*span
+                    marker["depth_offset"] = round((forward*math.cos(ua)+port*math.sin(ua))/90-sampled,5)
             # Engine offsets keep inferred far-side exhaust behind the calibrated volume.
             for key, marker in frame["attachments"].items():
                 ix, iy = min(w-1,int(marker["x"])), min(h-1,int(marker["y"]))
                 sampled = (depth.getpixel((x+ix,y+iy))/255-.5)*span
                 if key.startswith("engine_"):
                     marker["depth_offset"] = round(-1.55*math.cos(ua)-sampled,5)
+                elif key.startswith("turret_"):
+                    forward = 85 if "fore" in key else -85 if "aft" in key else 0
+                    marker["depth_offset"] = round(forward*math.cos(ua)/90-sampled,5)
+                elif key.startswith("bay_"):
+                    port = 60 if key == "bay_port" else -60
+                    marker["depth_offset"] = round((-35*math.cos(ua)+port*math.sin(ua))/90-sampled,5)
+                elif key.startswith("pdc_"):
+                    port = 65 if "starboard" not in key else -65
+                    forward = (105,35,-35,-105)[int(key[-1])-1]
+                    marker["depth_offset"] = round((forward*math.cos(ua)+port*math.sin(ua))/90-sampled,5)
+        if frame["mirror_x"]:
+            # The mirrored port-side drawing depicts the physical starboard side.
+            # Swap lateral identities, retaining unreflected source coordinates.
+            frame["attachments"] = {
+                name.replace("starboard", "@side@").replace("port", "starboard").replace("@side@", "port"): marker
+                for name, marker in frame["attachments"].items()}
         frames.append(frame)
     OUT.mkdir(parents=True, exist_ok=True)
     # Palette packaging keeps the production base below its bounded archive size.

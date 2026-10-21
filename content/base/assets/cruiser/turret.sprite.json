@@ -39,7 +39,7 @@
 				"depth_offset": 0,
 				"markers": {
 					"mount": [265, 240, 0],
-					"muzzle": [266, 146, 1]
+					"muzzle": [266, 140, 1]
 				},
 				"attachment_depth_offsets": {
 					"mount": 0,
@@ -56,7 +56,7 @@
 				"depth_offset": 0,
 				"markers": {
 					"mount": [475, 200, 0],
-					"muzzle": [43, 75, 1]
+					"muzzle": [43, 88, 1]
 				},
 				"attachment_depth_offsets": {
 					"mount": 0,
@@ -73,7 +73,7 @@
 				"depth_offset": 0,
 				"markers": {
 					"mount": [655, 225, 0],
-					"muzzle": [30, 102, 1]
+					"muzzle": [30, 90, 1]
 				},
 				"attachment_depth_offsets": {
 					"mount": 0,
@@ -90,7 +90,7 @@
 				"depth_offset": 0,
 				"markers": {
 					"mount": [365, 225, 0],
-					"muzzle": [33, 71, 1]
+					"muzzle": [33, 85, 1]
 				},
 				"attachment_depth_offsets": {
 					"mount": 0,
@@ -107,7 +107,7 @@
 				"depth_offset": 0,
 				"markers": {
 					"mount": [255, 255, 0],
-					"muzzle": [255, 50, 1]
+					"muzzle": [255, 50, -1]
 				},
 				"attachment_depth_offsets": {
 					"mount": 0,
@@ -124,7 +124,7 @@
 				"depth_offset": 0,
 				"markers": {
 					"mount": [365, 225, 0],
-					"muzzle": [33, 71, 1]
+					"muzzle": [33, 85, 1]
 				},
 				"attachment_depth_offsets": {
 					"mount": 0,
@@ -141,7 +141,7 @@
 				"depth_offset": 0,
 				"markers": {
 					"mount": [655, 225, 0],
-					"muzzle": [30, 102, 1]
+					"muzzle": [30, 90, 1]
 				},
 				"attachment_depth_offsets": {
 					"mount": 0,
@@ -158,7 +158,7 @@
 				"depth_offset": 0,
 				"markers": {
 					"mount": [475, 200, 0],
-					"muzzle": [43, 75, 1]
+					"muzzle": [43, 88, 1]
 				},
 				"attachment_depth_offsets": {
 					"mount": 0,

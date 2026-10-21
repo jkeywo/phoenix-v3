@@ -16,31 +16,31 @@
 					"x": 243,
 					"y": 78,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": -0.3432
 				},
 				"turret_fore_ventral": {
 					"x": 243,
 					"y": 282,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 1.44268
 				},
 				"turret_aft_dorsal": {
 					"x": 243,
 					"y": 35,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.39444
 				},
 				"turret_aft_ventral": {
 					"x": 243,
 					"y": 300,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.52033
 				},
 				"turret_mid_dorsal": {
 					"x": 243,
 					"y": 46,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": 0.74412
 				},
 				"engine_port": {
 					"x": 183,
@@ -55,208 +55,208 @@
 					"depth_offset": -2.74706
 				},
 				"pdc_port_1": {
-					"x": 335.73,
-					"y": 123.0,
-					"layer": 1,
-					"depth_offset": 0
+					"x": 435,
+					"y": 240,
+					"layer": -1,
+					"depth_offset": 2.68725
 				},
 				"pdc_port_2": {
-					"x": 335.73,
-					"y": 151.0,
-					"layer": 1,
-					"depth_offset": 0
+					"x": 420,
+					"y": 260,
+					"layer": -1,
+					"depth_offset": 1.90948
 				},
 				"pdc_port_3": {
-					"x": 335.73,
-					"y": 179.0,
+					"x": 405,
+					"y": 270,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": 1.1317
 				},
 				"pdc_port_4": {
-					"x": 335.73,
-					"y": 207.0,
+					"x": 390,
+					"y": 280,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": 0.35392
 				},
 				"bay_port": {
 					"x": 335.73,
 					"y": 216.78,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.8483
 				},
 				"pdc_starboard_1": {
-					"x": 150.27,
-					"y": 123.0,
-					"layer": 1,
-					"depth_offset": 0
+					"x": 75,
+					"y": 240,
+					"layer": -1,
+					"depth_offset": 2.68725
 				},
 				"pdc_starboard_2": {
-					"x": 150.27,
-					"y": 151.0,
-					"layer": 1,
-					"depth_offset": 0
+					"x": 90,
+					"y": 260,
+					"layer": -1,
+					"depth_offset": 1.90948
 				},
 				"pdc_starboard_3": {
-					"x": 150.27,
-					"y": 179.0,
+					"x": 105,
+					"y": 270,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": 1.1317
 				},
 				"pdc_starboard_4": {
-					"x": 150.27,
-					"y": 207.0,
+					"x": 120,
+					"y": 280,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": 0.35392
 				},
 				"bay_starboard": {
 					"x": 150.27,
 					"y": 216.78,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.02948
 				},
 				"missile_bow_port_1": {
-					"x": 301.73,
-					"y": 109.0,
+					"x": 407.0,
+					"y": 143.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 2.49379
 				},
 				"missile_bow_port_2": {
-					"x": 301.73,
-					"y": 107.8,
+					"x": 417.0,
+					"y": 143.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 2.44203
 				},
 				"missile_bow_port_3": {
-					"x": 301.73,
-					"y": 97.67,
+					"x": 407.0,
+					"y": 153.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 1.00556
 				},
 				"missile_bow_port_4": {
-					"x": 301.73,
-					"y": 96.47,
+					"x": 417.0,
+					"y": 153.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.77261
 				},
 				"missile_bow_starboard_1": {
-					"x": 184.27,
-					"y": 109.0,
+					"x": 67.0,
+					"y": 143.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 2.42908
 				},
 				"missile_bow_starboard_2": {
-					"x": 184.27,
-					"y": 107.8,
+					"x": 77.0,
+					"y": 143.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 2.42908
 				},
 				"missile_bow_starboard_3": {
-					"x": 184.27,
-					"y": 97.67,
+					"x": 67.0,
+					"y": 153.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.99261
 				},
 				"missile_bow_starboard_4": {
-					"x": 184.27,
-					"y": 96.47,
+					"x": 77.0,
+					"y": 153.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.81144
 				},
 				"missile_port_fore_1": {
-					"x": 338.82,
-					"y": 131.0,
+					"x": 455.0,
+					"y": 155.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 2.46503
 				},
 				"missile_port_fore_2": {
-					"x": 338.82,
-					"y": 129.8,
+					"x": 465.0,
+					"y": 155.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 2.46503
 				},
 				"missile_port_fore_3": {
-					"x": 338.82,
-					"y": 119.67,
+					"x": 455.0,
+					"y": 165.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 2.46503
 				},
 				"missile_port_fore_4": {
-					"x": 338.82,
-					"y": 118.47,
+					"x": 465.0,
+					"y": 165.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 2.46503
 				},
 				"missile_port_aft_1": {
-					"x": 338.82,
-					"y": 199.0,
+					"x": 435.0,
+					"y": 125.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.8568
 				},
 				"missile_port_aft_2": {
-					"x": 338.82,
-					"y": 197.8,
+					"x": 445.0,
+					"y": 125.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.54621
 				},
 				"missile_port_aft_3": {
-					"x": 338.82,
-					"y": 187.67,
+					"x": 435.0,
+					"y": 135.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.79209
 				},
 				"missile_port_aft_4": {
-					"x": 338.82,
-					"y": 186.47,
+					"x": 445.0,
+					"y": 135.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.17092
 				},
 				"missile_starboard_fore_1": {
-					"x": 147.18,
-					"y": 131.0,
+					"x": 19.0,
+					"y": 155.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 2.46503
 				},
 				"missile_starboard_fore_2": {
-					"x": 147.18,
-					"y": 129.8,
+					"x": 29.0,
+					"y": 155.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 2.46503
 				},
 				"missile_starboard_fore_3": {
-					"x": 147.18,
-					"y": 119.67,
+					"x": 19.0,
+					"y": 165.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 2.46503
 				},
 				"missile_starboard_fore_4": {
-					"x": 147.18,
-					"y": 118.47,
+					"x": 29.0,
+					"y": 165.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 2.46503
 				},
 				"missile_starboard_aft_1": {
-					"x": 147.18,
-					"y": 199.0,
+					"x": 39.0,
+					"y": 125.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": 0.48556
 				},
 				"missile_starboard_aft_2": {
-					"x": 147.18,
-					"y": 197.8,
+					"x": 49.0,
+					"y": 125.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.42974
 				},
 				"missile_starboard_aft_3": {
-					"x": 147.18,
-					"y": 187.67,
+					"x": 39.0,
+					"y": 135.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": 0.38203
 				},
 				"missile_starboard_aft_4": {
-					"x": 147.18,
-					"y": 186.47,
+					"x": 49.0,
+					"y": 135.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.83444
 				}
 			}
 		},
@@ -273,31 +273,31 @@
 					"x": 237,
 					"y": 131,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.86383
 				},
 				"turret_fore_ventral": {
 					"x": 255,
 					"y": 312,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.78342
 				},
 				"turret_aft_dorsal": {
 					"x": 595,
 					"y": 50,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": -0.18031
 				},
 				"turret_aft_ventral": {
 					"x": 615,
 					"y": 232,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": 0.51326
 				},
 				"turret_mid_dorsal": {
 					"x": 420,
 					"y": 87,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.6986
 				},
 				"engine_port": {
 					"x": 698,
@@ -312,208 +312,208 @@
 					"depth_offset": -0.75928
 				},
 				"pdc_port_1": {
-					"x": 325.18,
-					"y": 136.27,
+					"x": 120,
+					"y": 280,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.87829
 				},
 				"pdc_port_2": {
-					"x": 441.57,
-					"y": 156.94,
+					"x": 300,
+					"y": 255,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.74044
 				},
 				"pdc_port_3": {
-					"x": 557.96,
-					"y": 177.62,
+					"x": 475,
+					"y": 220,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.81368
 				},
 				"pdc_port_4": {
-					"x": 674.36,
-					"y": 198.29,
-					"layer": -1,
-					"depth_offset": 0
+					"x": 620,
+					"y": 180,
+					"layer": 1,
+					"depth_offset": 0.63562
 				},
 				"bay_port": {
 					"x": 557.96,
 					"y": 217.06,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.34217
 				},
 				"pdc_starboard_1": {
-					"x": 125.64,
-					"y": 171.71,
-					"layer": 1,
-					"depth_offset": 0
+					"x": 120,
+					"y": 258,
+					"layer": -1,
+					"depth_offset": -0.69593
 				},
 				"pdc_starboard_2": {
-					"x": 242.04,
-					"y": 192.38,
+					"x": 300,
+					"y": 233,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.04974
 				},
 				"pdc_starboard_3": {
-					"x": 358.43,
-					"y": 213.06,
+					"x": 475,
+					"y": 198,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.89122
 				},
 				"pdc_starboard_4": {
-					"x": 474.82,
-					"y": 233.73,
+					"x": 620,
+					"y": 158,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.27031
 				},
 				"bay_starboard": {
 					"x": 358.43,
 					"y": 252.5,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.42976
 				},
 				"missile_bow_port_1": {
-					"x": 230.4,
-					"y": 132.43,
+					"x": 25.0,
+					"y": 185.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 2.57958
 				},
 				"missile_bow_port_2": {
-					"x": 225.41,
-					"y": 131.55,
+					"x": 35.0,
+					"y": 185.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 2.57958
 				},
 				"missile_bow_port_3": {
-					"x": 230.4,
-					"y": 120.6,
+					"x": 25.0,
+					"y": 195.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 2.57958
 				},
 				"missile_bow_port_4": {
-					"x": 225.41,
-					"y": 119.71,
+					"x": 35.0,
+					"y": 195.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 2.57958
 				},
 				"missile_bow_starboard_1": {
-					"x": 104.03,
-					"y": 154.88,
+					"x": 70.0,
+					"y": 135.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 1.98247
 				},
 				"missile_bow_starboard_2": {
-					"x": 99.04,
-					"y": 153.99,
+					"x": 80.0,
+					"y": 135.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 1.98247
 				},
 				"missile_bow_starboard_3": {
-					"x": 104.03,
-					"y": 143.04,
+					"x": 70.0,
+					"y": 145.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 1.98247
 				},
 				"missile_bow_starboard_4": {
-					"x": 99.04,
-					"y": 142.16,
+					"x": 80.0,
+					"y": 145.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 1.98247
 				},
 				"missile_port_fore_1": {
-					"x": 361.76,
-					"y": 141.59,
+					"x": 295.0,
+					"y": 181.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.05427
 				},
 				"missile_port_fore_2": {
-					"x": 356.77,
-					"y": 140.7,
+					"x": 305.0,
+					"y": 181.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.10453
 				},
 				"missile_port_fore_3": {
-					"x": 361.76,
-					"y": 129.75,
+					"x": 295.0,
+					"y": 191.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.09448
 				},
 				"missile_port_fore_4": {
-					"x": 356.77,
-					"y": 128.87,
+					"x": 305.0,
+					"y": 191.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.22515
 				},
 				"missile_port_aft_1": {
-					"x": 644.43,
-					"y": 191.79,
+					"x": 605.0,
+					"y": 115.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.5677
 				},
 				"missile_port_aft_2": {
-					"x": 639.44,
-					"y": 190.91,
+					"x": 615.0,
+					"y": 115.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.51744
 				},
 				"missile_port_aft_3": {
-					"x": 644.43,
-					"y": 179.96,
+					"x": 605.0,
+					"y": 125.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.11537
 				},
 				"missile_port_aft_4": {
-					"x": 639.44,
-					"y": 179.07,
+					"x": 615.0,
+					"y": 125.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": 0.40732
 				},
 				"missile_starboard_fore_1": {
-					"x": 155.57,
-					"y": 178.21,
+					"x": 265.0,
+					"y": 135.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": -0.63851
 				},
 				"missile_starboard_fore_2": {
-					"x": 150.58,
-					"y": 177.32,
+					"x": 275.0,
+					"y": 135.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": -0.2465
 				},
 				"missile_starboard_fore_3": {
-					"x": 155.57,
-					"y": 166.37,
+					"x": 265.0,
+					"y": 145.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.21589
 				},
 				"missile_starboard_fore_4": {
-					"x": 150.58,
-					"y": 165.49,
+					"x": 275.0,
+					"y": 145.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.5677
 				},
 				"missile_starboard_aft_1": {
-					"x": 438.24,
-					"y": 228.41,
+					"x": 580.0,
+					"y": 73.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.66743
 				},
 				"missile_starboard_aft_2": {
-					"x": 433.26,
-					"y": 227.53,
+					"x": 590.0,
+					"y": 73.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.52671
 				},
 				"missile_starboard_aft_3": {
-					"x": 438.24,
-					"y": 216.58,
+					"x": 580.0,
+					"y": 83.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.12981
 				},
 				"missile_starboard_aft_4": {
-					"x": 433.26,
-					"y": 215.69,
+					"x": 590.0,
+					"y": 83.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.00919
 				}
 			}
 		},
@@ -530,31 +530,31 @@
 					"x": 200,
 					"y": 89,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": -0.53235
 				},
 				"turret_fore_ventral": {
 					"x": 232,
 					"y": 244,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": -0.39706
 				},
 				"turret_aft_dorsal": {
 					"x": 724,
 					"y": 85,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": -0.16176
 				},
 				"turret_aft_ventral": {
 					"x": 715,
 					"y": 243,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": -0.32059
 				},
 				"turret_mid_dorsal": {
 					"x": 471,
 					"y": 84,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": -0.61471
 				},
 				"engine_port": {
 					"x": 874,
@@ -569,208 +569,208 @@
 					"depth_offset": -0.12059
 				},
 				"pdc_port_1": {
-					"x": 175.68,
-					"y": 140.24,
+					"x": 100,
+					"y": 210,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.56046
 				},
 				"pdc_port_2": {
-					"x": 371.89,
-					"y": 140.24,
+					"x": 350,
+					"y": 215,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 1.08987
 				},
 				"pdc_port_3": {
-					"x": 568.11,
-					"y": 140.24,
+					"x": 585,
+					"y": 212,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.6781
 				},
 				"pdc_port_4": {
-					"x": 764.32,
-					"y": 140.24,
+					"x": 780,
+					"y": 210,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.72516
 				},
 				"bay_port": {
 					"x": 568.11,
 					"y": 171.35,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.46373
 				},
 				"pdc_starboard_1": {
-					"x": 175.68,
-					"y": 179.76,
+					"x": 100,
+					"y": 188,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.20752
 				},
 				"pdc_starboard_2": {
-					"x": 371.89,
-					"y": 179.76,
+					"x": 350,
+					"y": 193,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.83105
 				},
 				"pdc_starboard_3": {
-					"x": 568.11,
-					"y": 179.76,
+					"x": 585,
+					"y": 190,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.9134
 				},
 				"pdc_starboard_4": {
-					"x": 764.32,
-					"y": 179.76,
+					"x": 780,
+					"y": 188,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.38399
 				},
 				"bay_starboard": {
 					"x": 568.11,
 					"y": 210.88,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.37549
 				},
 				"missile_bow_port_1": {
-					"x": 77.58,
-					"y": 147.48,
+					"x": 15.0,
+					"y": 140.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.29575
 				},
 				"missile_bow_port_2": {
-					"x": 69.17,
-					"y": 147.48,
+					"x": 25.0,
+					"y": 140.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.02516
 				},
 				"missile_bow_port_3": {
-					"x": 77.58,
-					"y": 138.15,
+					"x": 15.0,
+					"y": 150.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.04869
 				},
 				"missile_bow_port_4": {
-					"x": 69.17,
-					"y": 138.15,
+					"x": 25.0,
+					"y": 150.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": -0.01013
 				},
 				"missile_bow_starboard_1": {
-					"x": 77.58,
-					"y": 172.52,
+					"x": 15.0,
+					"y": 140.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.54869
 				},
 				"missile_bow_starboard_2": {
-					"x": 69.17,
-					"y": 172.52,
+					"x": 25.0,
+					"y": 140.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.81928
 				},
 				"missile_bow_starboard_3": {
-					"x": 77.58,
-					"y": 163.18,
+					"x": 15.0,
+					"y": 150.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.79575
 				},
 				"missile_bow_starboard_4": {
-					"x": 69.17,
-					"y": 163.18,
+					"x": 25.0,
+					"y": 150.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.85458
 				},
 				"missile_port_fore_1": {
-					"x": 231.74,
-					"y": 139.58,
+					"x": 195.0,
+					"y": 150.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.68595
 				},
 				"missile_port_fore_2": {
-					"x": 223.33,
-					"y": 139.58,
+					"x": 205.0,
+					"y": 150.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 1.11536
 				},
 				"missile_port_fore_3": {
-					"x": 231.74,
-					"y": 130.24,
+					"x": 195.0,
+					"y": 160.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.43889
 				},
 				"missile_port_fore_4": {
-					"x": 223.33,
-					"y": 130.24,
+					"x": 205.0,
+					"y": 160.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.90948
 				},
 				"missile_port_aft_1": {
-					"x": 708.26,
-					"y": 139.58,
+					"x": 640.0,
+					"y": 150.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 1.24477
 				},
 				"missile_port_aft_2": {
-					"x": 699.85,
-					"y": 139.58,
+					"x": 650.0,
+					"y": 150.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.50948
 				},
 				"missile_port_aft_3": {
-					"x": 708.26,
-					"y": 130.24,
+					"x": 640.0,
+					"y": 160.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.98595
 				},
 				"missile_port_aft_4": {
-					"x": 699.85,
-					"y": 130.24,
+					"x": 650.0,
+					"y": 160.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.38595
 				},
 				"missile_starboard_fore_1": {
-					"x": 231.74,
-					"y": 180.42,
+					"x": 195.0,
+					"y": 140.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.69183
 				},
 				"missile_starboard_fore_2": {
-					"x": 223.33,
-					"y": 180.42,
+					"x": 205.0,
+					"y": 140.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.28595
 				},
 				"missile_starboard_fore_3": {
-					"x": 231.74,
-					"y": 171.09,
+					"x": 195.0,
+					"y": 150.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.69183
 				},
 				"missile_starboard_fore_4": {
-					"x": 223.33,
-					"y": 171.09,
+					"x": 205.0,
+					"y": 150.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.26242
 				},
 				"missile_starboard_aft_1": {
-					"x": 708.26,
-					"y": 180.42,
+					"x": 640.0,
+					"y": 140.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.24477
 				},
 				"missile_starboard_aft_2": {
-					"x": 699.85,
-					"y": 180.42,
+					"x": 650.0,
+					"y": 140.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.88007
 				},
 				"missile_starboard_aft_3": {
-					"x": 708.26,
-					"y": 171.09,
+					"x": 640.0,
+					"y": 150.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.13301
 				},
 				"missile_starboard_aft_4": {
-					"x": 699.85,
-					"y": 171.09,
+					"x": 650.0,
+					"y": 150.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.8683
 				}
 			}
 		},
@@ -787,31 +787,31 @@
 					"x": 117,
 					"y": 34,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": 0.1514
 				},
 				"turret_fore_ventral": {
 					"x": 130,
 					"y": 151,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.15533
 				},
 				"turret_aft_dorsal": {
 					"x": 410,
 					"y": 130,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.90404
 				},
 				"turret_aft_ventral": {
 					"x": 415,
 					"y": 294,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.52207
 				},
 				"turret_mid_dorsal": {
 					"x": 257,
 					"y": 83,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.74886
 				},
 				"engine_port": {
 					"x": 440,
@@ -826,208 +826,208 @@
 					"depth_offset": 2.05596
 				},
 				"pdc_port_1": {
-					"x": 93.98,
-					"y": 188.1,
-					"layer": -1,
-					"depth_offset": 0
+					"x": 100,
+					"y": 110,
+					"layer": 1,
+					"depth_offset": -0.21878
 				},
 				"pdc_port_2": {
-					"x": 185.62,
-					"y": 167.72,
+					"x": 205,
+					"y": 165,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.36135
 				},
 				"pdc_port_3": {
-					"x": 277.27,
-					"y": 147.34,
+					"x": 315,
+					"y": 220,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.38863
 				},
 				"pdc_port_4": {
-					"x": 368.91,
-					"y": 126.96,
+					"x": 430,
+					"y": 280,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.58679
 				},
 				"bay_port": {
 					"x": 277.27,
 					"y": 186.23,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": -0.12309
 				},
 				"pdc_starboard_1": {
-					"x": 251.09,
-					"y": 223.04,
+					"x": 100,
+					"y": 88,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.97393
 				},
 				"pdc_starboard_2": {
-					"x": 342.73,
-					"y": 202.66,
+					"x": 205,
+					"y": 143,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.46417
 				},
 				"pdc_starboard_3": {
-					"x": 434.38,
-					"y": 182.28,
+					"x": 315,
+					"y": 198,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.63275
 				},
 				"pdc_starboard_4": {
-					"x": 526.02,
-					"y": 161.9,
-					"layer": 1,
-					"depth_offset": 0
+					"x": 430,
+					"y": 258,
+					"layer": -1,
+					"depth_offset": 0.9023
 				},
 				"bay_starboard": {
 					"x": 434.38,
 					"y": 221.17,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": 0.93441
 				},
 				"missile_bow_port_1": {
-					"x": 76.96,
-					"y": 204.7,
+					"x": 25.0,
+					"y": 75.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.19843
 				},
 				"missile_bow_port_2": {
-					"x": 73.03,
-					"y": 205.57,
+					"x": 35.0,
+					"y": 75.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.12807
 				},
 				"missile_bow_port_3": {
-					"x": 76.96,
-					"y": 193.03,
+					"x": 25.0,
+					"y": 85.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.17833
 				},
 				"missile_bow_port_4": {
-					"x": 73.03,
-					"y": 193.91,
+					"x": 35.0,
+					"y": 85.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.02755
 				},
 				"missile_bow_starboard_1": {
-					"x": 176.46,
-					"y": 226.83,
+					"x": 40.0,
+					"y": 55.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.86591
 				},
 				"missile_bow_starboard_2": {
-					"x": 172.53,
-					"y": 227.7,
+					"x": 50.0,
+					"y": 55.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.72518
 				},
 				"missile_bow_starboard_3": {
-					"x": 176.46,
-					"y": 215.16,
+					"x": 40.0,
+					"y": 65.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -2.23782
 				},
 				"missile_bow_starboard_4": {
-					"x": 172.53,
-					"y": 216.03,
+					"x": 50.0,
+					"y": 65.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -2.1172
 				},
 				"missile_port_fore_1": {
-					"x": 117.54,
-					"y": 181.7,
+					"x": 65.0,
+					"y": 100.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.51744
 				},
 				"missile_port_fore_2": {
-					"x": 113.62,
-					"y": 182.57,
+					"x": 75.0,
+					"y": 100.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": 0.2666
 				},
 				"missile_port_fore_3": {
-					"x": 117.54,
-					"y": 170.03,
+					"x": 65.0,
+					"y": 110.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.46718
 				},
 				"missile_port_fore_4": {
-					"x": 113.62,
-					"y": 170.9,
+					"x": 75.0,
+					"y": 110.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": 0.20629
 				},
 				"missile_port_aft_1": {
-					"x": 340.11,
-					"y": 132.2,
+					"x": 230.0,
+					"y": 155.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.38598
 				},
 				"missile_port_aft_2": {
-					"x": 336.18,
-					"y": 133.07,
+					"x": 240.0,
+					"y": 155.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.27541
 				},
 				"missile_port_aft_3": {
-					"x": 340.11,
-					"y": 120.53,
+					"x": 230.0,
+					"y": 165.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 1.41126
 				},
 				"missile_port_aft_4": {
-					"x": 336.18,
-					"y": 121.41,
+					"x": 240.0,
+					"y": 165.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.51665
 				},
 				"missile_starboard_fore_1": {
-					"x": 279.89,
-					"y": 217.8,
+					"x": 85.0,
+					"y": 70.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.6123
 				},
 				"missile_starboard_fore_2": {
-					"x": 275.96,
-					"y": 218.67,
+					"x": 95.0,
+					"y": 70.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.20017
 				},
 				"missile_starboard_fore_3": {
-					"x": 279.89,
-					"y": 206.13,
+					"x": 85.0,
+					"y": 80.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.77312
 				},
 				"missile_starboard_fore_4": {
-					"x": 275.96,
-					"y": 207.01,
+					"x": 95.0,
+					"y": 80.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.76307
 				},
 				"missile_starboard_aft_1": {
-					"x": 502.46,
-					"y": 168.3,
+					"x": 255.0,
+					"y": 120.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": -0.10577
 				},
 				"missile_starboard_aft_2": {
-					"x": 498.53,
-					"y": 169.18,
+					"x": 265.0,
+					"y": 120.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": -0.22639
 				},
 				"missile_starboard_aft_3": {
-					"x": 502.46,
-					"y": 156.64,
+					"x": 255.0,
+					"y": 130.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.2762
 				},
 				"missile_starboard_aft_4": {
-					"x": 498.53,
-					"y": 157.51,
+					"x": 265.0,
+					"y": 130.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.40687
 				}
 			}
 		},
@@ -1044,31 +1044,31 @@
 					"x": 263,
 					"y": 35,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.42974
 				},
 				"turret_fore_ventral": {
 					"x": 263,
 					"y": 228,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.34268
 				},
 				"turret_aft_dorsal": {
 					"x": 263,
 					"y": 65,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.95092
 				},
 				"turret_aft_ventral": {
 					"x": 263,
 					"y": 249,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.03209
 				},
 				"turret_mid_dorsal": {
 					"x": 263,
 					"y": 39,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.41706
 				},
 				"engine_port": {
 					"x": 183,
@@ -1083,208 +1083,208 @@
 					"depth_offset": 3.07059
 				},
 				"pdc_port_1": {
-					"x": 166.64,
-					"y": 195.7,
+					"x": 100,
+					"y": 90,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.93667
 				},
 				"pdc_port_2": {
-					"x": 166.64,
-					"y": 171.9,
+					"x": 80,
+					"y": 130,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.48242
 				},
 				"pdc_port_3": {
-					"x": 166.64,
-					"y": 148.1,
-					"layer": 1,
-					"depth_offset": 0
+					"x": 65,
+					"y": 170,
+					"layer": -1,
+					"depth_offset": -0.04464
 				},
 				"pdc_port_4": {
-					"x": 166.64,
-					"y": 124.3,
-					"layer": 1,
-					"depth_offset": 0
+					"x": 45,
+					"y": 220,
+					"layer": -1,
+					"depth_offset": 2.68725
 				},
 				"bay_port": {
 					"x": 166.64,
 					"y": 180.21,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 1.05536
 				},
 				"pdc_starboard_1": {
-					"x": 359.36,
-					"y": 195.7,
+					"x": 430,
+					"y": 90,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.83314
 				},
 				"pdc_starboard_2": {
-					"x": 359.36,
-					"y": 171.9,
+					"x": 450,
+					"y": 130,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.46948
 				},
 				"pdc_starboard_3": {
-					"x": 359.36,
-					"y": 148.1,
-					"layer": 1,
-					"depth_offset": 0
+					"x": 465,
+					"y": 170,
+					"layer": -1,
+					"depth_offset": -0.0317
 				},
 				"pdc_starboard_4": {
-					"x": 359.36,
-					"y": 124.3,
-					"layer": 1,
-					"depth_offset": 0
+					"x": 485,
+					"y": 220,
+					"layer": -1,
+					"depth_offset": 2.68725
 				},
 				"bay_starboard": {
 					"x": 359.36,
 					"y": 180.21,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 1.0683
 				},
 				"missile_bow_port_1": {
-					"x": 201.97,
-					"y": 207.6,
+					"x": 405.0,
+					"y": 85.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.41967
 				},
 				"missile_bow_port_2": {
-					"x": 201.97,
-					"y": 208.62,
+					"x": 415.0,
+					"y": 85.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.5232
 				},
 				"missile_bow_port_3": {
-					"x": 201.97,
-					"y": 197.97,
+					"x": 405.0,
+					"y": 95.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.53614
 				},
 				"missile_bow_port_4": {
-					"x": 201.97,
-					"y": 198.99,
+					"x": 415.0,
+					"y": 95.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.4585
 				},
 				"missile_bow_starboard_1": {
-					"x": 324.03,
-					"y": 207.6,
+					"x": 110.0,
+					"y": 85.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.92791
 				},
 				"missile_bow_starboard_2": {
-					"x": 324.03,
-					"y": 208.62,
+					"x": 120.0,
+					"y": 85.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.7432
 				},
 				"missile_bow_starboard_3": {
-					"x": 324.03,
-					"y": 197.97,
+					"x": 110.0,
+					"y": 95.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.22556
 				},
 				"missile_bow_starboard_4": {
-					"x": 324.03,
-					"y": 198.99,
+					"x": 120.0,
+					"y": 95.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.96673
 				},
 				"missile_port_fore_1": {
-					"x": 163.42,
-					"y": 188.9,
+					"x": 430.0,
+					"y": 125.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.26503
 				},
 				"missile_port_fore_2": {
-					"x": 163.42,
-					"y": 189.92,
+					"x": 440.0,
+					"y": 125.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.80856
 				},
 				"missile_port_fore_3": {
-					"x": 163.42,
-					"y": 179.27,
+					"x": 430.0,
+					"y": 135.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.29092
 				},
 				"missile_port_fore_4": {
-					"x": 163.42,
-					"y": 180.29,
+					"x": 440.0,
+					"y": 135.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.66621
 				},
 				"missile_port_aft_1": {
-					"x": 163.42,
-					"y": 131.1,
+					"x": 460.0,
+					"y": 165.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.03209
 				},
 				"missile_port_aft_2": {
-					"x": 163.42,
-					"y": 132.12,
+					"x": 470.0,
+					"y": 165.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.08386
 				},
 				"missile_port_aft_3": {
-					"x": 163.42,
-					"y": 121.47,
+					"x": 460.0,
+					"y": 175.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.64033
 				},
 				"missile_port_aft_4": {
-					"x": 163.42,
-					"y": 122.49,
+					"x": 470.0,
+					"y": 175.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.64033
 				},
 				"missile_starboard_fore_1": {
-					"x": 362.58,
-					"y": 188.9,
+					"x": 85.0,
+					"y": 125.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.55915
 				},
 				"missile_starboard_fore_2": {
-					"x": 362.58,
-					"y": 189.92,
+					"x": 95.0,
+					"y": 125.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.48503
 				},
 				"missile_starboard_fore_3": {
-					"x": 362.58,
-					"y": 179.27,
+					"x": 85.0,
+					"y": 135.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.55915
 				},
 				"missile_starboard_fore_4": {
-					"x": 362.58,
-					"y": 180.29,
+					"x": 95.0,
+					"y": 135.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.44621
 				},
 				"missile_starboard_aft_1": {
-					"x": 362.58,
-					"y": 131.1,
+					"x": 55.0,
+					"y": 165.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.05797
 				},
 				"missile_starboard_aft_2": {
-					"x": 362.58,
-					"y": 132.12,
+					"x": 65.0,
+					"y": 165.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.04503
 				},
 				"missile_starboard_aft_3": {
-					"x": 362.58,
-					"y": 121.47,
+					"x": 55.0,
+					"y": 175.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.5368
 				},
 				"missile_starboard_aft_4": {
-					"x": 362.58,
-					"y": 122.49,
+					"x": 65.0,
+					"y": 175.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.6015
 				}
 			}
 		},
@@ -1301,247 +1301,247 @@
 					"x": 117,
 					"y": 34,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": 0.1514
 				},
 				"turret_fore_ventral": {
 					"x": 130,
 					"y": 151,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.15533
 				},
 				"turret_aft_dorsal": {
 					"x": 410,
 					"y": 130,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.90404
 				},
 				"turret_aft_ventral": {
 					"x": 415,
 					"y": 294,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.52207
 				},
 				"turret_mid_dorsal": {
 					"x": 257,
 					"y": 83,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.74886
 				},
-				"engine_port": {
+				"engine_starboard": {
 					"x": 440,
 					"y": 202,
 					"layer": 1,
 					"depth_offset": 2.05596
 				},
-				"engine_starboard": {
+				"engine_port": {
 					"x": 550,
 					"y": 192,
 					"layer": 1,
 					"depth_offset": 2.05596
 				},
-				"pdc_port_1": {
-					"x": 93.98,
-					"y": 188.1,
-					"layer": -1,
-					"depth_offset": 0
-				},
-				"pdc_port_2": {
-					"x": 185.62,
-					"y": 167.72,
+				"pdc_starboard_1": {
+					"x": 100,
+					"y": 110,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": -0.21878
 				},
-				"pdc_port_3": {
-					"x": 277.27,
-					"y": 147.34,
+				"pdc_starboard_2": {
+					"x": 205,
+					"y": 165,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.36135
 				},
-				"pdc_port_4": {
-					"x": 368.91,
-					"y": 126.96,
+				"pdc_starboard_3": {
+					"x": 315,
+					"y": 220,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.38863
 				},
-				"bay_port": {
+				"pdc_starboard_4": {
+					"x": 430,
+					"y": 280,
+					"layer": 1,
+					"depth_offset": 0.58679
+				},
+				"bay_starboard": {
 					"x": 277.27,
 					"y": 186.23,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": -0.12309
 				},
-				"pdc_starboard_1": {
-					"x": 251.09,
-					"y": 223.04,
+				"pdc_port_1": {
+					"x": 100,
+					"y": 88,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.97393
 				},
-				"pdc_starboard_2": {
-					"x": 342.73,
-					"y": 202.66,
+				"pdc_port_2": {
+					"x": 205,
+					"y": 143,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.46417
 				},
-				"pdc_starboard_3": {
-					"x": 434.38,
-					"y": 182.28,
+				"pdc_port_3": {
+					"x": 315,
+					"y": 198,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.63275
 				},
-				"pdc_starboard_4": {
-					"x": 526.02,
-					"y": 161.9,
-					"layer": 1,
-					"depth_offset": 0
+				"pdc_port_4": {
+					"x": 430,
+					"y": 258,
+					"layer": -1,
+					"depth_offset": 0.9023
 				},
-				"bay_starboard": {
+				"bay_port": {
 					"x": 434.38,
 					"y": 221.17,
 					"layer": -1,
-					"depth_offset": 0
-				},
-				"missile_bow_port_1": {
-					"x": 76.96,
-					"y": 204.7,
-					"layer": -1,
-					"depth_offset": 0
-				},
-				"missile_bow_port_2": {
-					"x": 73.03,
-					"y": 205.57,
-					"layer": -1,
-					"depth_offset": 0
-				},
-				"missile_bow_port_3": {
-					"x": 76.96,
-					"y": 193.03,
-					"layer": -1,
-					"depth_offset": 0
-				},
-				"missile_bow_port_4": {
-					"x": 73.03,
-					"y": 193.91,
-					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": 0.93441
 				},
 				"missile_bow_starboard_1": {
-					"x": 176.46,
-					"y": 226.83,
+					"x": 25.0,
+					"y": 75.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.19843
 				},
 				"missile_bow_starboard_2": {
-					"x": 172.53,
-					"y": 227.7,
+					"x": 35.0,
+					"y": 75.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.12807
 				},
 				"missile_bow_starboard_3": {
-					"x": 176.46,
-					"y": 215.16,
+					"x": 25.0,
+					"y": 85.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.17833
 				},
 				"missile_bow_starboard_4": {
-					"x": 172.53,
-					"y": 216.03,
+					"x": 35.0,
+					"y": 85.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.02755
 				},
-				"missile_port_fore_1": {
-					"x": 117.54,
-					"y": 181.7,
+				"missile_bow_port_1": {
+					"x": 40.0,
+					"y": 55.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.86591
 				},
-				"missile_port_fore_2": {
-					"x": 113.62,
-					"y": 182.57,
+				"missile_bow_port_2": {
+					"x": 50.0,
+					"y": 55.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -1.72518
 				},
-				"missile_port_fore_3": {
-					"x": 117.54,
-					"y": 170.03,
+				"missile_bow_port_3": {
+					"x": 40.0,
+					"y": 65.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -2.23782
 				},
-				"missile_port_fore_4": {
-					"x": 113.62,
-					"y": 170.9,
+				"missile_bow_port_4": {
+					"x": 50.0,
+					"y": 65.0,
 					"layer": -1,
-					"depth_offset": 0
-				},
-				"missile_port_aft_1": {
-					"x": 340.11,
-					"y": 132.2,
-					"layer": 1,
-					"depth_offset": 0
-				},
-				"missile_port_aft_2": {
-					"x": 336.18,
-					"y": 133.07,
-					"layer": 1,
-					"depth_offset": 0
-				},
-				"missile_port_aft_3": {
-					"x": 340.11,
-					"y": 120.53,
-					"layer": 1,
-					"depth_offset": 0
-				},
-				"missile_port_aft_4": {
-					"x": 336.18,
-					"y": 121.41,
-					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": -2.1172
 				},
 				"missile_starboard_fore_1": {
-					"x": 279.89,
-					"y": 217.8,
+					"x": 65.0,
+					"y": 100.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.51744
 				},
 				"missile_starboard_fore_2": {
-					"x": 275.96,
-					"y": 218.67,
+					"x": 75.0,
+					"y": 100.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": 0.2666
 				},
 				"missile_starboard_fore_3": {
-					"x": 279.89,
-					"y": 206.13,
+					"x": 65.0,
+					"y": 110.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.46718
 				},
 				"missile_starboard_fore_4": {
-					"x": 275.96,
-					"y": 207.01,
+					"x": 75.0,
+					"y": 110.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": 0.20629
 				},
 				"missile_starboard_aft_1": {
-					"x": 502.46,
-					"y": 168.3,
+					"x": 230.0,
+					"y": 155.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.38598
 				},
 				"missile_starboard_aft_2": {
-					"x": 498.53,
-					"y": 169.18,
+					"x": 240.0,
+					"y": 155.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.27541
 				},
 				"missile_starboard_aft_3": {
-					"x": 502.46,
-					"y": 156.64,
+					"x": 230.0,
+					"y": 165.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 1.41126
 				},
 				"missile_starboard_aft_4": {
-					"x": 498.53,
-					"y": 157.51,
+					"x": 240.0,
+					"y": 165.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.51665
+				},
+				"missile_port_fore_1": {
+					"x": 85.0,
+					"y": 70.0,
+					"layer": -1,
+					"depth_offset": -1.6123
+				},
+				"missile_port_fore_2": {
+					"x": 95.0,
+					"y": 70.0,
+					"layer": -1,
+					"depth_offset": -1.20017
+				},
+				"missile_port_fore_3": {
+					"x": 85.0,
+					"y": 80.0,
+					"layer": -1,
+					"depth_offset": -1.77312
+				},
+				"missile_port_fore_4": {
+					"x": 95.0,
+					"y": 80.0,
+					"layer": -1,
+					"depth_offset": -1.76307
+				},
+				"missile_port_aft_1": {
+					"x": 255.0,
+					"y": 120.0,
+					"layer": 1,
+					"depth_offset": -0.10577
+				},
+				"missile_port_aft_2": {
+					"x": 265.0,
+					"y": 120.0,
+					"layer": 1,
+					"depth_offset": -0.22639
+				},
+				"missile_port_aft_3": {
+					"x": 255.0,
+					"y": 130.0,
+					"layer": 1,
+					"depth_offset": 0.2762
+				},
+				"missile_port_aft_4": {
+					"x": 265.0,
+					"y": 130.0,
+					"layer": 1,
+					"depth_offset": 0.40687
 				}
 			}
 		},
@@ -1558,247 +1558,247 @@
 					"x": 200,
 					"y": 89,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": -0.53235
 				},
 				"turret_fore_ventral": {
 					"x": 232,
 					"y": 244,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": -0.39706
 				},
 				"turret_aft_dorsal": {
 					"x": 724,
 					"y": 85,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": -0.16176
 				},
 				"turret_aft_ventral": {
 					"x": 715,
 					"y": 243,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": -0.32059
 				},
 				"turret_mid_dorsal": {
 					"x": 471,
 					"y": 84,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": -0.61471
 				},
-				"engine_port": {
+				"engine_starboard": {
 					"x": 874,
 					"y": 157,
 					"layer": -1,
 					"depth_offset": -0.13235
 				},
-				"engine_starboard": {
+				"engine_port": {
 					"x": 874,
 					"y": 160,
 					"layer": -1,
 					"depth_offset": -0.12059
 				},
-				"pdc_port_1": {
-					"x": 175.68,
-					"y": 140.24,
-					"layer": 1,
-					"depth_offset": 0
-				},
-				"pdc_port_2": {
-					"x": 371.89,
-					"y": 140.24,
-					"layer": 1,
-					"depth_offset": 0
-				},
-				"pdc_port_3": {
-					"x": 568.11,
-					"y": 140.24,
-					"layer": 1,
-					"depth_offset": 0
-				},
-				"pdc_port_4": {
-					"x": 764.32,
-					"y": 140.24,
-					"layer": 1,
-					"depth_offset": 0
-				},
-				"bay_port": {
-					"x": 568.11,
-					"y": 171.35,
-					"layer": 1,
-					"depth_offset": 0
-				},
 				"pdc_starboard_1": {
-					"x": 175.68,
-					"y": 179.76,
-					"layer": -1,
-					"depth_offset": 0
+					"x": 100,
+					"y": 210,
+					"layer": 1,
+					"depth_offset": 0.56046
 				},
 				"pdc_starboard_2": {
-					"x": 371.89,
-					"y": 179.76,
-					"layer": -1,
-					"depth_offset": 0
+					"x": 350,
+					"y": 215,
+					"layer": 1,
+					"depth_offset": 1.08987
 				},
 				"pdc_starboard_3": {
-					"x": 568.11,
-					"y": 179.76,
-					"layer": -1,
-					"depth_offset": 0
+					"x": 585,
+					"y": 212,
+					"layer": 1,
+					"depth_offset": 0.6781
 				},
 				"pdc_starboard_4": {
-					"x": 764.32,
-					"y": 179.76,
-					"layer": -1,
-					"depth_offset": 0
+					"x": 780,
+					"y": 210,
+					"layer": 1,
+					"depth_offset": 0.72516
 				},
 				"bay_starboard": {
 					"x": 568.11,
+					"y": 171.35,
+					"layer": 1,
+					"depth_offset": 0.46373
+				},
+				"pdc_port_1": {
+					"x": 100,
+					"y": 188,
+					"layer": -1,
+					"depth_offset": -1.20752
+				},
+				"pdc_port_2": {
+					"x": 350,
+					"y": 193,
+					"layer": -1,
+					"depth_offset": -0.83105
+				},
+				"pdc_port_3": {
+					"x": 585,
+					"y": 190,
+					"layer": -1,
+					"depth_offset": -0.9134
+				},
+				"pdc_port_4": {
+					"x": 780,
+					"y": 188,
+					"layer": -1,
+					"depth_offset": -0.38399
+				},
+				"bay_port": {
+					"x": 568.11,
 					"y": 210.88,
 					"layer": -1,
-					"depth_offset": 0
-				},
-				"missile_bow_port_1": {
-					"x": 77.58,
-					"y": 147.48,
-					"layer": 1,
-					"depth_offset": 0
-				},
-				"missile_bow_port_2": {
-					"x": 69.17,
-					"y": 147.48,
-					"layer": 1,
-					"depth_offset": 0
-				},
-				"missile_bow_port_3": {
-					"x": 77.58,
-					"y": 138.15,
-					"layer": 1,
-					"depth_offset": 0
-				},
-				"missile_bow_port_4": {
-					"x": 69.17,
-					"y": 138.15,
-					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": -0.37549
 				},
 				"missile_bow_starboard_1": {
-					"x": 77.58,
-					"y": 172.52,
-					"layer": -1,
-					"depth_offset": 0
+					"x": 15.0,
+					"y": 140.0,
+					"layer": 1,
+					"depth_offset": 0.29575
 				},
 				"missile_bow_starboard_2": {
-					"x": 69.17,
-					"y": 172.52,
-					"layer": -1,
-					"depth_offset": 0
+					"x": 25.0,
+					"y": 140.0,
+					"layer": 1,
+					"depth_offset": 0.02516
 				},
 				"missile_bow_starboard_3": {
-					"x": 77.58,
-					"y": 163.18,
-					"layer": -1,
-					"depth_offset": 0
+					"x": 15.0,
+					"y": 150.0,
+					"layer": 1,
+					"depth_offset": 0.04869
 				},
 				"missile_bow_starboard_4": {
-					"x": 69.17,
-					"y": 163.18,
+					"x": 25.0,
+					"y": 150.0,
+					"layer": 1,
+					"depth_offset": -0.01013
+				},
+				"missile_bow_port_1": {
+					"x": 15.0,
+					"y": 140.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.54869
 				},
-				"missile_port_fore_1": {
-					"x": 231.74,
-					"y": 139.58,
-					"layer": 1,
-					"depth_offset": 0
+				"missile_bow_port_2": {
+					"x": 25.0,
+					"y": 140.0,
+					"layer": -1,
+					"depth_offset": -0.81928
 				},
-				"missile_port_fore_2": {
-					"x": 223.33,
-					"y": 139.58,
-					"layer": 1,
-					"depth_offset": 0
+				"missile_bow_port_3": {
+					"x": 15.0,
+					"y": 150.0,
+					"layer": -1,
+					"depth_offset": -0.79575
 				},
-				"missile_port_fore_3": {
-					"x": 231.74,
-					"y": 130.24,
-					"layer": 1,
-					"depth_offset": 0
-				},
-				"missile_port_fore_4": {
-					"x": 223.33,
-					"y": 130.24,
-					"layer": 1,
-					"depth_offset": 0
-				},
-				"missile_port_aft_1": {
-					"x": 708.26,
-					"y": 139.58,
-					"layer": 1,
-					"depth_offset": 0
-				},
-				"missile_port_aft_2": {
-					"x": 699.85,
-					"y": 139.58,
-					"layer": 1,
-					"depth_offset": 0
-				},
-				"missile_port_aft_3": {
-					"x": 708.26,
-					"y": 130.24,
-					"layer": 1,
-					"depth_offset": 0
-				},
-				"missile_port_aft_4": {
-					"x": 699.85,
-					"y": 130.24,
-					"layer": 1,
-					"depth_offset": 0
+				"missile_bow_port_4": {
+					"x": 25.0,
+					"y": 150.0,
+					"layer": -1,
+					"depth_offset": -0.85458
 				},
 				"missile_starboard_fore_1": {
-					"x": 231.74,
-					"y": 180.42,
-					"layer": -1,
-					"depth_offset": 0
+					"x": 195.0,
+					"y": 150.0,
+					"layer": 1,
+					"depth_offset": 0.68595
 				},
 				"missile_starboard_fore_2": {
-					"x": 223.33,
-					"y": 180.42,
-					"layer": -1,
-					"depth_offset": 0
+					"x": 205.0,
+					"y": 150.0,
+					"layer": 1,
+					"depth_offset": 1.11536
 				},
 				"missile_starboard_fore_3": {
-					"x": 231.74,
-					"y": 171.09,
-					"layer": -1,
-					"depth_offset": 0
+					"x": 195.0,
+					"y": 160.0,
+					"layer": 1,
+					"depth_offset": 0.43889
 				},
 				"missile_starboard_fore_4": {
-					"x": 223.33,
-					"y": 171.09,
-					"layer": -1,
-					"depth_offset": 0
+					"x": 205.0,
+					"y": 160.0,
+					"layer": 1,
+					"depth_offset": 0.90948
 				},
 				"missile_starboard_aft_1": {
-					"x": 708.26,
-					"y": 180.42,
-					"layer": -1,
-					"depth_offset": 0
+					"x": 640.0,
+					"y": 150.0,
+					"layer": 1,
+					"depth_offset": 1.24477
 				},
 				"missile_starboard_aft_2": {
-					"x": 699.85,
-					"y": 180.42,
-					"layer": -1,
-					"depth_offset": 0
+					"x": 650.0,
+					"y": 150.0,
+					"layer": 1,
+					"depth_offset": 0.50948
 				},
 				"missile_starboard_aft_3": {
-					"x": 708.26,
-					"y": 171.09,
-					"layer": -1,
-					"depth_offset": 0
+					"x": 640.0,
+					"y": 160.0,
+					"layer": 1,
+					"depth_offset": 0.98595
 				},
 				"missile_starboard_aft_4": {
-					"x": 699.85,
-					"y": 171.09,
+					"x": 650.0,
+					"y": 160.0,
+					"layer": 1,
+					"depth_offset": 0.38595
+				},
+				"missile_port_fore_1": {
+					"x": 195.0,
+					"y": 140.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.69183
+				},
+				"missile_port_fore_2": {
+					"x": 205.0,
+					"y": 140.0,
+					"layer": -1,
+					"depth_offset": -0.28595
+				},
+				"missile_port_fore_3": {
+					"x": 195.0,
+					"y": 150.0,
+					"layer": -1,
+					"depth_offset": -0.69183
+				},
+				"missile_port_fore_4": {
+					"x": 205.0,
+					"y": 150.0,
+					"layer": -1,
+					"depth_offset": -0.26242
+				},
+				"missile_port_aft_1": {
+					"x": 640.0,
+					"y": 140.0,
+					"layer": -1,
+					"depth_offset": -0.24477
+				},
+				"missile_port_aft_2": {
+					"x": 650.0,
+					"y": 140.0,
+					"layer": -1,
+					"depth_offset": -0.88007
+				},
+				"missile_port_aft_3": {
+					"x": 640.0,
+					"y": 150.0,
+					"layer": -1,
+					"depth_offset": -0.13301
+				},
+				"missile_port_aft_4": {
+					"x": 650.0,
+					"y": 150.0,
+					"layer": -1,
+					"depth_offset": -0.8683
 				}
 			}
 		},
@@ -1815,247 +1815,247 @@
 					"x": 237,
 					"y": 131,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.86383
 				},
 				"turret_fore_ventral": {
 					"x": 255,
 					"y": 312,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.78342
 				},
 				"turret_aft_dorsal": {
 					"x": 595,
 					"y": 50,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": -0.18031
 				},
 				"turret_aft_ventral": {
 					"x": 615,
 					"y": 232,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": 0.51326
 				},
 				"turret_mid_dorsal": {
 					"x": 420,
 					"y": 87,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.6986
 				},
-				"engine_port": {
+				"engine_starboard": {
 					"x": 698,
 					"y": 88,
 					"layer": -1,
 					"depth_offset": -0.63866
 				},
-				"engine_starboard": {
+				"engine_port": {
 					"x": 719,
 					"y": 132,
 					"layer": -1,
 					"depth_offset": -0.75928
 				},
-				"pdc_port_1": {
-					"x": 325.18,
-					"y": 136.27,
+				"pdc_starboard_1": {
+					"x": 120,
+					"y": 280,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.87829
 				},
-				"pdc_port_2": {
-					"x": 441.57,
-					"y": 156.94,
+				"pdc_starboard_2": {
+					"x": 300,
+					"y": 255,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.74044
 				},
-				"pdc_port_3": {
-					"x": 557.96,
-					"y": 177.62,
+				"pdc_starboard_3": {
+					"x": 475,
+					"y": 220,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.81368
 				},
-				"pdc_port_4": {
-					"x": 674.36,
-					"y": 198.29,
-					"layer": -1,
-					"depth_offset": 0
+				"pdc_starboard_4": {
+					"x": 620,
+					"y": 180,
+					"layer": 1,
+					"depth_offset": 0.63562
 				},
-				"bay_port": {
+				"bay_starboard": {
 					"x": 557.96,
 					"y": 217.06,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.34217
 				},
-				"pdc_starboard_1": {
-					"x": 125.64,
-					"y": 171.71,
-					"layer": 1,
-					"depth_offset": 0
-				},
-				"pdc_starboard_2": {
-					"x": 242.04,
-					"y": 192.38,
+				"pdc_port_1": {
+					"x": 120,
+					"y": 258,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.69593
 				},
-				"pdc_starboard_3": {
-					"x": 358.43,
-					"y": 213.06,
+				"pdc_port_2": {
+					"x": 300,
+					"y": 233,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.04974
 				},
-				"pdc_starboard_4": {
-					"x": 474.82,
-					"y": 233.73,
+				"pdc_port_3": {
+					"x": 475,
+					"y": 198,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.89122
 				},
-				"bay_starboard": {
+				"pdc_port_4": {
+					"x": 620,
+					"y": 158,
+					"layer": -1,
+					"depth_offset": -1.27031
+				},
+				"bay_port": {
 					"x": 358.43,
 					"y": 252.5,
 					"layer": -1,
-					"depth_offset": 0
-				},
-				"missile_bow_port_1": {
-					"x": 230.4,
-					"y": 132.43,
-					"layer": 1,
-					"depth_offset": 0
-				},
-				"missile_bow_port_2": {
-					"x": 225.41,
-					"y": 131.55,
-					"layer": 1,
-					"depth_offset": 0
-				},
-				"missile_bow_port_3": {
-					"x": 230.4,
-					"y": 120.6,
-					"layer": 1,
-					"depth_offset": 0
-				},
-				"missile_bow_port_4": {
-					"x": 225.41,
-					"y": 119.71,
-					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": -0.42976
 				},
 				"missile_bow_starboard_1": {
-					"x": 104.03,
-					"y": 154.88,
+					"x": 25.0,
+					"y": 185.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 2.57958
 				},
 				"missile_bow_starboard_2": {
-					"x": 99.04,
-					"y": 153.99,
+					"x": 35.0,
+					"y": 185.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 2.57958
 				},
 				"missile_bow_starboard_3": {
-					"x": 104.03,
-					"y": 143.04,
+					"x": 25.0,
+					"y": 195.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 2.57958
 				},
 				"missile_bow_starboard_4": {
-					"x": 99.04,
-					"y": 142.16,
+					"x": 35.0,
+					"y": 195.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 2.57958
 				},
-				"missile_port_fore_1": {
-					"x": 361.76,
-					"y": 141.59,
+				"missile_bow_port_1": {
+					"x": 70.0,
+					"y": 135.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 1.98247
 				},
-				"missile_port_fore_2": {
-					"x": 356.77,
-					"y": 140.7,
+				"missile_bow_port_2": {
+					"x": 80.0,
+					"y": 135.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 1.98247
 				},
-				"missile_port_fore_3": {
-					"x": 361.76,
-					"y": 129.75,
+				"missile_bow_port_3": {
+					"x": 70.0,
+					"y": 145.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 1.98247
 				},
-				"missile_port_fore_4": {
-					"x": 356.77,
-					"y": 128.87,
+				"missile_bow_port_4": {
+					"x": 80.0,
+					"y": 145.0,
 					"layer": 1,
-					"depth_offset": 0
-				},
-				"missile_port_aft_1": {
-					"x": 644.43,
-					"y": 191.79,
-					"layer": -1,
-					"depth_offset": 0
-				},
-				"missile_port_aft_2": {
-					"x": 639.44,
-					"y": 190.91,
-					"layer": -1,
-					"depth_offset": 0
-				},
-				"missile_port_aft_3": {
-					"x": 644.43,
-					"y": 179.96,
-					"layer": -1,
-					"depth_offset": 0
-				},
-				"missile_port_aft_4": {
-					"x": 639.44,
-					"y": 179.07,
-					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": 1.98247
 				},
 				"missile_starboard_fore_1": {
-					"x": 155.57,
-					"y": 178.21,
+					"x": 295.0,
+					"y": 181.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.05427
 				},
 				"missile_starboard_fore_2": {
-					"x": 150.58,
-					"y": 177.32,
+					"x": 305.0,
+					"y": 181.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.10453
 				},
 				"missile_starboard_fore_3": {
-					"x": 155.57,
-					"y": 166.37,
+					"x": 295.0,
+					"y": 191.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.09448
 				},
 				"missile_starboard_fore_4": {
-					"x": 150.58,
-					"y": 165.49,
+					"x": 305.0,
+					"y": 191.0,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.22515
 				},
 				"missile_starboard_aft_1": {
-					"x": 438.24,
-					"y": 228.41,
+					"x": 605.0,
+					"y": 115.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.5677
 				},
 				"missile_starboard_aft_2": {
-					"x": 433.26,
-					"y": 227.53,
+					"x": 615.0,
+					"y": 115.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.51744
 				},
 				"missile_starboard_aft_3": {
-					"x": 438.24,
-					"y": 216.58,
+					"x": 605.0,
+					"y": 125.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": -0.11537
 				},
 				"missile_starboard_aft_4": {
-					"x": 433.26,
-					"y": 215.69,
+					"x": 615.0,
+					"y": 125.0,
 					"layer": -1,
-					"depth_offset": 0
+					"depth_offset": 0.40732
+				},
+				"missile_port_fore_1": {
+					"x": 265.0,
+					"y": 135.0,
+					"layer": 1,
+					"depth_offset": -0.63851
+				},
+				"missile_port_fore_2": {
+					"x": 275.0,
+					"y": 135.0,
+					"layer": 1,
+					"depth_offset": -0.2465
+				},
+				"missile_port_fore_3": {
+					"x": 265.0,
+					"y": 145.0,
+					"layer": 1,
+					"depth_offset": 0.21589
+				},
+				"missile_port_fore_4": {
+					"x": 275.0,
+					"y": 145.0,
+					"layer": 1,
+					"depth_offset": 0.5677
+				},
+				"missile_port_aft_1": {
+					"x": 580.0,
+					"y": 73.0,
+					"layer": -1,
+					"depth_offset": -0.66743
+				},
+				"missile_port_aft_2": {
+					"x": 590.0,
+					"y": 73.0,
+					"layer": -1,
+					"depth_offset": -0.52671
+				},
+				"missile_port_aft_3": {
+					"x": 580.0,
+					"y": 83.0,
+					"layer": -1,
+					"depth_offset": -1.12981
+				},
+				"missile_port_aft_4": {
+					"x": 590.0,
+					"y": 83.0,
+					"layer": -1,
+					"depth_offset": -1.00919
 				}
 			}
 		}
