@@ -13038,7 +13038,7 @@
             "base.bomber",
             "base.bomber"
           ],
-          "transfer_ticks": 60,
+          "transfer_ticks": 100,
           "docking_range_mm": 190000,
           "docking_speed_mm_s": 6000,
           "power_store": "services-cell",
@@ -31844,6 +31844,14 @@
                 "steering",
                 "radar",
                 "radio"
+              ],
+              "knowledge_roles": [
+                "base.crew",
+                "base.helm",
+                "base.tactical"
+              ],
+              "knowledge_producers": [
+                "base.machinery"
               ]
             }
           ]
@@ -31857,6 +31865,13 @@
               "systems": [],
               "feeds": [
                 "radar"
+              ],
+              "knowledge_roles": [
+                "base.crew",
+                "base.engineering"
+              ],
+              "knowledge_producers": [
+                "base.machinery"
               ]
             }
           ]
@@ -32082,7 +32097,7 @@
         "role": "shuttle",
         "vertical_speed_mm_s": 8000,
         "vertical_acceleration_mm_s2": 6000,
-        "cruise_altitude_mm": 100000,
+        "cruise_altitude_mm": 12000,
         "engagement_range_mm": 350000,
         "return_reserve_permille": 200
       },
@@ -32309,7 +32324,17 @@
                 "engine",
                 "steering",
                 "radar",
-                "radio"
+                "radio",
+                "intercept-mag",
+                "weapon"
+              ],
+              "knowledge_roles": [
+                "base.crew",
+                "base.helm",
+                "base.tactical"
+              ],
+              "knowledge_producers": [
+                "base.machinery"
               ]
             }
           ]
@@ -32323,6 +32348,13 @@
               "systems": [],
               "feeds": [
                 "radar"
+              ],
+              "knowledge_roles": [
+                "base.crew",
+                "base.engineering"
+              ],
+              "knowledge_producers": [
+                "base.machinery"
               ]
             }
           ]
@@ -32549,7 +32581,7 @@
         "vertical_speed_mm_s": 8000,
         "vertical_acceleration_mm_s2": 6000,
         "cruise_altitude_mm": 100000,
-        "engagement_range_mm": 150000,
+        "engagement_range_mm": 1200000,
         "return_reserve_permille": 200
       },
       "transport": {
@@ -32819,7 +32851,17 @@
                 "engine",
                 "steering",
                 "radar",
-                "radio"
+                "radio",
+                "bomb-mag",
+                "weapon"
+              ],
+              "knowledge_roles": [
+                "base.crew",
+                "base.helm",
+                "base.tactical"
+              ],
+              "knowledge_producers": [
+                "base.machinery"
               ]
             }
           ]
@@ -32833,6 +32875,13 @@
               "systems": [],
               "feeds": [
                 "radar"
+              ],
+              "knowledge_roles": [
+                "base.crew",
+                "base.engineering"
+              ],
+              "knowledge_producers": [
+                "base.machinery"
               ]
             }
           ]

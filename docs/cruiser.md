@@ -17,7 +17,7 @@ The auxiliary Navigator Console remains attached to Science and controls FTL mis
 
 Five main turrets share one material. Fore/aft dorsal and ventral mounts traverse 270 degrees; the central dorsal mount traverses 360 degrees. Main-gun and PDC ammunition is finite. Each four-tube missile bank selects between its own finite homing and havok magazines. Main weapons and PDC standby draw actual local power; there is no between-wave ammunition refill.
 
-Two utility shuttles occupy the utility bay. Four interceptors and two bombers occupy the combat bay. These are production entities using the carried-craft runtime, with separate identities, saved condition, orders, charging and finite replenishment. Tactical owns both bays; Engineering owns the carrier supply magazines. Bay launch/recovery remains serial per bay and launches vertically above the hull. Sprite bay markers are registration references rather than a new launch-geometry contract.
+Two utility shuttles occupy the utility bay. Four interceptors and two bombers occupy the combat bay. These are production entities using the carried-craft runtime, with separate identities, saved condition, orders, charging and finite replenishment. Tactical owns both bays; Engineering owns the carrier supply magazines. Bay launch/recovery remains serial per bay, using the existing forward clearance point above the hull. Returns brake above the carrier before docking. Sprite bay markers are registration references rather than a new launch-geometry contract.
 
 The connected interior binds equipment and duties to engines, engineering, hangar, magazines, passage, sensors, bridge and weapons spaces. A Medical compartment is reserved, but Medical facilities, officers, teams, injuries and treatment are deliberately excluded pending that separate implementation. Local jumps, psychic operations and security encounters are also deferred.
 
@@ -42,8 +42,10 @@ The explicit `phoenix_cruiser_smoke` target loads production content, can render
 ./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --gallery 0
 ./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --headless 12000
 ./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --transport
+./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --withdrawal 0
+./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --frame 0
 ```
 
-The transport exercise reuses the rescue operation with the Cruiser selected and the casualty placed 350 metres away for hull clearance. It checks separate shuttle and displacement deployment/recovery through the four owning watches. The browser build of the explicit target provides `phoenix_cruiser_smoke.html` for the eight-bearing material gallery.
+The transport exercise reuses the rescue operation with the Cruiser selected and the casualty placed 350 metres away for hull clearance. It checks separate shuttle and displacement deployment/recovery through the four owning watches. Withdrawal and frame capture restore the combat run's `build/cruiser-midwave.json`, requiring the same exact pack. Frame capture also requests a short powered Helm manoeuvre to expose the engine effects. The combat journey launches six combat craft after the first wave arrives, then recalls them at sixty seconds through Tactical. The browser build of the explicit target provides `phoenix_cruiser_smoke.html` for the eight-bearing material gallery.
 
 Record actual execution results separately; successful loading or a screenshot does not establish a completed three-wave journey, screen-reader usability or physical six-display performance.
