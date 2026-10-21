@@ -186,3 +186,12 @@ See [setup and contracts](controller-models.md) and [hardware evidence and remai
 acceptance](smoke/controller-models.md). Six-way AnyJev demand works through the
 real transport but exceeds the two-second revisit target; gameplay competence,
 9B comparison and six-display performance are not established.
+
+### Live AnyJev follow-up — 21 October 2026
+
+Independent scoped queries now share one batched GPU job. The experimental 0.6B
+cuDNN profile achieved six-Controller accepted-choice gaps below two seconds in
+a 30-second live confirmation, after correcting tree takeover and scheduling.
+The 4B comparison remained slower than the request deadline. Steering judgement,
+longer-run stability and six-display frame times remain unaccepted; an earlier
+75-second attempt timed out. See [measurements and limitations](smoke/controller-model-live.md).

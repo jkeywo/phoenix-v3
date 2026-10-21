@@ -146,8 +146,7 @@ internal reports when standing orders/objectives are active. Internal communicat
 uses existing localised templates; generated prose and external Comms are deferred.
 
 Hosts reconsider every two simulation seconds, coalescing material changes to at
-most twice per wall-clock second. A bridge handles one request at a time, fairly
-rotating Controllers. Requests expire after five seconds. Valid current work
+most twice per wall-clock second. A bridge handles one GPU job at a time, fairly rotating Controllers. A job can contain up to six independent queries. Requests expire after five seconds. Valid current work
 continues while waiting. Failure returns policy control to the authored tree;
 recovery retries use 2, 4, 8, 16 and then 30 simulation seconds. A fresh validated
 decision automatically resumes the selected provider.
@@ -186,3 +185,84 @@ captures with and without inference using the native performance capture options
 These are explicitly triggered smoke evidence, not CI timing thresholds. A
 successful build does not establish model competence, six-display performance or
 screen-reader usability.
+
+## Batched local queries and an experimental fast profile
+
+The host can now gather up to six Controller queries into one bridge job. Each
+query keeps its own scoped snapshot, candidate set and admission check; Console
+observations are never concatenated into a shared officer prompt. AnyJev prepares
+queries concurrently and coalesces their scoring into one GPU call on the worker
+thread. Compatible questions share the public `decide_batch` path. Different
+candidate counts still use independent Deciders and are batched at the HF scoring
+boundary. One model instance remains resident; GPU execution is serialised.
+
+Up to six individually bounded snapshots travel as authenticated 48 KB parts,
+within the existing 64 KiB packet limit. The bridge assembles only one bounded job.
+Its output queue holds the newest waiting job, so a slow worker cannot block
+transport heartbeats. Five-second request expiry, stale-reply rejection and tree
+fallback still apply to every Controller. Legacy single-query bridges work too.
+
+The default Qwen3-4B profile retains a small GPU batch and two-second request
+interval. `config.fast.example.json` is an **experimental** Qwen3-0.6B profile at
+revision `c1899de289a04d12100db370d81485cdf75e47ca`, BF16, batch size 12, two L0
+rotations and explicit cuDNN attention. It is a speed/quality experiment, not a
+validated replacement for authored officer policies. See the [live measurements
+and behaviour limits](smoke/controller-model-live.md) before choosing it.
+
+```powershell
+$env:HF_HOME = Join-Path (Get-Location) "build/inference-cache"
+$env:HF_HUB_DISABLE_XET = "1"
+./build/inference-venv/Scripts/python.exe tools/inference/bridge.py `
+  --native build/native/Release/phoenix_inference_bridge.exe `
+  --config tools/inference/config.fast.example.json --pair <token> `
+  --decision-interval-ms 500
+```
+
+The optional interval is bounded to 500–2,000 ms and defaults to 2,000 ms. Its
+accepted simulation interval is committed with the decision. Reconsideration is
+measured from the snapshot time, so inference latency is not added again. No
+Controller may have more than one outstanding query, even with the shorter
+interval. `--max-batch 1` selects serial requests for comparison; the normal maximum
+is derived from the configured GPU batch and is capped at six.
+
+The pinned Windows PyTorch wheel on the measured laptop reported no Flash
+Attention kernel. The fast profile explicitly requests its working cuDNN path;
+unsupported hardware fails rather than silently choosing a different kernel.
+`attention: "auto"` retains framework dispatch. These are backend settings, not
+simulation permissions.
+
+Prompts retain standing orders, commitments, scoped values and uncertainty while
+factoring repeated provenance. Repeated factual revisions retain the newest value
+and its provenance plus an earlier retained sample; conflicting claims and other
+sources remain separate. Omission counts are explicit. The authoritative snapshot
+and prepared action bundles are unchanged. Only the model-facing representation
+is compacted.
+
+An adapting fallback tree may change its current activity while a query runs. A
+concrete takeover is accepted only after its prepared action is revalidated, with
+operator/provider authority, orders and commitments unchanged. `continue` and
+cancellation still require the original activity. Explicit model deferral displays
+`provider_deferred`, rather than looking like a transport or model failure.
+
+## Reproduce the officer journeys
+
+These are explicit manual smoke commands through maintained content, the real
+host scheduler, authenticated bridge, admission and physical simulation:
+
+```powershell
+./build/native/Release/phoenix_inference_probe.exe --officer-snapshots `
+  build/native/base.zip > build/officer-snapshots.json
+./build/inference-venv/Scripts/python.exe tools/inference/benchmark.py `
+  --config tools/inference/config.fast.example.json `
+  --snapshots build/officer-snapshots.json --serial
+./build/native/Release/phoenix_inference_probe.exe --officers `
+  build/native/base.zip <token> <service-url> 75 six-solo
+```
+
+Use `helm`, `engineering` or `six` for the competitive race. Add `-solo` to hold the
+other ship's Helm through an ordinary human claim, removing race-result ambiguity.
+`tree-solo` is the authored-policy comparison. The six selected Controllers are
+engine, steering, core generation, core distribution, reactor cooling and engine
+power supply. Reports include all admission/refusal events, physical position
+samples, resource continuation, scoped final snapshots and the visible objective
+outcome. A journey process exiting successfully does not certify officer competence.
