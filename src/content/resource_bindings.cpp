@@ -9,6 +9,7 @@ module;
 #include <utility>
 #include <vector>
 #include <initializer_list>
+#include <span>
 
 module phoenix.content;
 namespace phoenix
@@ -152,10 +153,16 @@ std::optional<ShipResourcesDefinition> compile_ship_resources(const Catalog &cat
 std::map<std::string, SystemObservationSchema> compile_system_observations(const Catalog &catalog,
                                                                            const std::string &entity)
 {
-	std::map<std::string, SystemObservationSchema> result;
 	const auto fitted = resolve_systems(catalog, entity);
 	const auto resources = compile_ship_resources(catalog, entity);
-	const bool advanced = uses_advanced_machinery(catalog, entity);
+	return compile_system_observations(fitted, resources ? &*resources : nullptr,
+	                                   uses_advanced_machinery(catalog, entity));
+}
+std::map<std::string, SystemObservationSchema> compile_system_observations(std::span<const FittedSystemSpec> fitted,
+                                                                           const ShipResourcesDefinition *resources,
+                                                                           bool advanced)
+{
+	std::map<std::string, SystemObservationSchema> result;
 	for (std::size_t i = 0; i < fitted.size(); ++i)
 	{
 		auto &schema = result[fitted[i].id];

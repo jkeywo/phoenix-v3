@@ -414,6 +414,9 @@ struct ShipResourcesDefinition
 std::optional<ShipResourcesDefinition> compile_ship_resources(const Catalog &catalog, const std::string &entity);
 using SystemObservationSchema = std::map<std::string, state_tree::Type>;
 std::map<std::string, SystemObservationSchema> compile_system_observations(const Catalog &, const std::string &entity);
+// Reuse already compiled ship metadata when validating several Controller trees.
+std::map<std::string, SystemObservationSchema>
+compile_system_observations(std::span<const FittedSystemSpec>, const ShipResourcesDefinition *, bool advanced);
 struct ControllerCommandSpec
 {
 	std::string id;

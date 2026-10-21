@@ -7,6 +7,8 @@ module;
 #include <string>
 #include <vector>
 #include <nlohmann/json.hpp>
+#include <optional>
+#include <span>
 
 module phoenix.content;
 
@@ -269,11 +271,12 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 		return result;
 	}
 	const auto resources = compile_ship_resources(catalog, entity_id);
+	const bool advanced = uses_advanced_machinery(catalog, entity_id);
+	std::optional<std::map<std::string, SystemObservationSchema>> observation_schemas;
 	std::vector<CommandBounds> capabilities;
 	for (std::size_t i = 0; i < systems.size(); ++i)
 		capabilities.push_back(fitted_commands(systems[i], entity.at("systems").at(systems[i].id),
-		                                       resources ? &*resources : nullptr, i,
-		                                       uses_advanced_machinery(catalog, entity_id)));
+		                                       resources ? &*resources : nullptr, i, advanced));
 	const auto &layout = entity.at("control_layout");
 	control_require(layout.is_object() && layout.value("schema", 0) == 1, path,
 	                "unsupported layout schema (expected 1)");
@@ -417,7 +420,9 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			                               {
 				                               return console.id == controller.console;
 			                               });
-			const auto observations = compile_system_observations(catalog, entity_id);
+			if (!observation_schemas)
+				observation_schemas = compile_system_observations(systems, resources ? &*resources : nullptr, advanced);
+			const auto &observations = *observation_schemas;
 			for (const auto &binding : controller_telemetry_bindings(catalog.trees.at(controller.tree), catalog))
 			{
 				control_require(std::find(seat->feed_systems.begin(), seat->feed_systems.end(), binding.system) !=
