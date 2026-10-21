@@ -428,28 +428,39 @@ std::pair<std::int64_t, std::int64_t> repair_route(const CombatStructure &s, std
 			return {first[to], edge.ticks};
 	return {-1, 0};
 }
-std::int64_t repair_score(const CombatStructure &s, std::size_t compartment, const std::string &equipment = {}) const
+using RepairFault = std::pair<std::string, std::size_t>;
+struct RepairCandidate
 {
+	std::int64_t score = 0;
+	std::optional<RepairFault> fault;
+};
+RepairCandidate repair_candidate(flecs::entity ship, std::size_t compartment, const std::string &equipment = {},
+                                 const std::set<RepairFault> &claimed = {}) const
+{
+	const auto &s = ship.get<CombatStructure>();
 	const auto &c = s.compartments[compartment];
 	const auto &d = s.definition.compartments[compartment];
-	auto score = equipment.empty() && c.hp < d.maximum ? (c.disabled ? 10000 : (d.maximum - c.hp) * 1000 / d.maximum)
-	                                                   : std::int64_t{0};
+	RepairCandidate best;
+	if ((equipment.empty() || !equipment_destroyed(ship, equipment)) && c.hp < d.maximum)
+		best.score = c.disabled ? 10000 : (d.maximum - c.hp) * 1000 / d.maximum;
 	for (const auto &[id, defs] : s.definition.faults)
 	{
-		bool destroyed = false;
-		for (std::size_t i = 0; i < defs.size(); ++i)
-			destroyed |= s.faults.at(id)[i].active && defs[i].destroys;
-		if (destroyed || (!equipment.empty() && equipment != id) ||
+		if (equipment_destroyed(ship, id) || (!equipment.empty() && equipment != id) ||
 		    s.definition.compartment_ids.at(s.definition.equipment_compartments.at(id)) != compartment)
 			continue;
 		for (std::size_t i = 0; i < defs.size(); ++i)
-			if (s.faults.at(id)[i].active && !defs[i].destroys)
-				score = std::max(
-				    score, (defs[i].effect == "disabled" || defs[i].effect == "feed" || !defs[i].effectiveness ? 10000
-				                                                                                               : 1000) +
-				               defs[i].severity);
+		{
+			const RepairFault key{id, i};
+			if (!s.faults.at(id)[i].active || defs[i].destroys || claimed.contains(key))
+				continue;
+			const auto score =
+			    (defs[i].effect == "disabled" || defs[i].effect == "feed" || !defs[i].effectiveness ? 10000 : 1000) +
+			    defs[i].severity;
+			if (score > best.score)
+				best = {score, key};
+		}
 	}
-	return score;
+	return best;
 }
 void step_repairs()
 {
@@ -493,7 +504,7 @@ void step_repairs()
 						const auto route = repair_route(s, m->location, i, &travel_cost);
 						if (i != static_cast<std::size_t>(m->location) && route.first < 0)
 							continue;
-						const auto score = repair_score(s, i);
+						const auto score = repair_candidate(ship, i, {}, claimed).score;
 						if (!score)
 							continue;
 						const auto key = std::tuple{score, -travel_cost, -static_cast<std::int64_t>(i)};
@@ -522,36 +533,8 @@ void step_repairs()
 					priority = at->first;
 				}
 				const auto index = static_cast<std::size_t>(m->location);
-				const auto &compartment = s.compartments[index];
-				const auto &definition = s.definition.compartments[index];
-				auto best =
-				    (priority.empty() || !equipment_destroyed(ship, priority)) && compartment.hp < definition.maximum
-				        ? (compartment.disabled ? std::int64_t{10000}
-				                                : (definition.maximum - compartment.hp) * 1000 / definition.maximum)
-				        : std::int64_t{0};
-				std::optional<std::pair<std::string, std::size_t>> task;
-				for (const auto &[equipment, defs] : s.definition.faults)
-				{
-					if (equipment_destroyed(ship, equipment) || (!priority.empty() && equipment != priority) ||
-					    s.definition.compartment_ids.at(s.definition.equipment_compartments.at(equipment)) != index)
-						continue;
-					for (std::size_t f = 0; f < defs.size(); ++f)
-					{
-						const auto key = std::pair{equipment, f};
-						const auto &state = s.faults.at(equipment)[f];
-						const auto &d = defs[f];
-						if (!state.active || d.destroys || claimed.contains(key))
-							continue;
-						const auto score =
-						    (d.effect == "disabled" || d.effect == "feed" || !d.effectiveness ? 10000 : 1000) +
-						    d.severity;
-						if (score > best)
-						{
-							best = score;
-							task = key;
-						}
-					}
-				}
+				const auto candidate = repair_candidate(ship, index, priority, claimed);
+				const auto &task = candidate.fault;
 				if (task)
 				{
 					claimed.insert(*task);
@@ -564,8 +547,7 @@ void step_repairs()
 						f.work = 0;
 					}
 				}
-				else if ((priority.empty() || !equipment_destroyed(ship, priority)) &&
-				         compartment.hp < definition.maximum)
+				else if (candidate.score > 0)
 					structural_workers[index].push_back(child);
 			}
 		for (auto &[index, teams] : structural_workers)
