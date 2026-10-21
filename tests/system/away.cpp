@@ -182,6 +182,11 @@ int main(int argc, char **argv)
 		effect.task = 1;
 		effect.call_path = {2};
 		effect.call_activations = {1};
+		require(admit_effect(receipts, effect), "policy effect admitted");
+		require(admit_effect(receipts, effect, "action/1/"), "action effect is independent of policy effect");
+		require(!admit_effect(receipts, effect, "action/1/"), "same action effect is not replayed");
+		require(admit_effect(receipts, effect, "action/2/"), "new action instance can repeat its effect");
+		receipts.clear();
 		for (std::size_t i = 1; i <= effect_receipt_limit; ++i)
 		{
 			effect.activation = i;

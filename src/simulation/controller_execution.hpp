@@ -263,19 +263,10 @@ void controller_output(EntityId id, std::size_t index, const state_tree::Output 
 		controller.action.reason = output.arguments.at(0).text;
 		return;
 	}
-	if (action.effect)
-	{
-		std::string receipt = std::to_string(output.activation) + "/" + std::to_string(output.task);
-		if (execution)
-			receipt = "action/" + std::to_string(controller.action.serial) + "/" + receipt;
-		for (std::size_t i = 0; i < output.call_path.size(); ++i)
-			receipt += "/" + std::to_string(output.call_path[i]) + ":" + std::to_string(output.call_activations.at(i));
-		if (controller.effects.contains(receipt))
-			return;
-		if (controller.effects.size() >= 65536)
-			throw std::runtime_error("Controller effect journal exhausted");
-		controller.effects.insert(receipt);
-	}
+	if (action.effect &&
+	    !admit_effect(controller.effects, output,
+	                  execution ? "action/" + std::to_string(controller.action.serial) + "/" : std::string{}))
+		return;
 	if (!action.name.starts_with("write."))
 	{
 		controller.result = {};
