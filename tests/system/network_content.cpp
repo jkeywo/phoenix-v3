@@ -23,6 +23,8 @@ void bounded_gameplay_projection(const Catalog &catalog, const std::string &key)
 {
 	Observation view{{1, "test.ship", 0, 0, 0, 0, 0}, {}};
 	view.observed_tick = 4;
+	view.own.radar_icon = RadarIcon::ship;
+	view.own.radar_sprite = "console-assets:assets/radar/" + std::string(64, 'a') + ".png";
 	const auto seat = resolve_consoles(catalog, "test.ship").front();
 	view.console = seat.id;
 	view.controls = seat.controls;
@@ -55,6 +57,36 @@ void bounded_gameplay_projection(const Catalog &catalog, const std::string &key)
 	const auto &gameplay = projected.at("gameplay");
 	const auto restored_view = phoenix::network::read_observation(projected, catalog);
 	require(restored_view.observed_tick == 4, "remote observation preserves producer sample tick");
+	require(restored_view.own.radar_icon == view.own.radar_icon &&
+	            restored_view.own.radar_sprite == view.own.radar_sprite &&
+	            display::body_json(display::read_body(projected.at("own"))) == projected.at("own"),
+	        "Console snapshots and shared displays preserve the same body appearance");
+	auto legacy = projected;
+	legacy["own"].erase("radar_icon");
+	legacy["own"].erase("radar_sprite");
+	const auto legacy_body = phoenix::network::read_observation(legacy, catalog).own;
+	require(legacy_body.radar_icon == RadarIcon::contact && legacy_body.radar_sprite.empty(),
+	        "legacy Console snapshots retain their optional appearance defaults");
+	phoenix::test::rejects(
+	    [&]
+	    {
+		    display::read_body(legacy.at("own"));
+	    },
+	    "public displays require their complete body allowlist");
+	auto invalid_body = projected;
+	invalid_body["own"]["radar_sprite"] = "private:assets/ship.png";
+	phoenix::test::rejects(
+	    [&]
+	    {
+		    phoenix::network::read_observation(invalid_body, catalog);
+	    },
+	    "Console snapshots reject a nonpublic radar sprite reference");
+	phoenix::test::rejects(
+	    [&]
+	    {
+		    display::read_body(invalid_body.at("own"));
+	    },
+	    "public displays apply the same radar sprite restriction");
 	for (std::size_t i = 0; i < view.systems.size(); ++i)
 		require(view.systems[i].reach_profile == restored_view.systems[i].reach_profile,
 		        "remote projection lost adaptive reach intervals");

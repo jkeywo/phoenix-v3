@@ -1,52 +1,14 @@
 #pragma once
+#include "body_projection.hpp"
 // Shared visual projection only: no Console controls, telemetry, inbox or private records.
 namespace phoenix::display
 {
-inline Json body_json(const BodyView &b)
-{
-	return {{"id", b.id},
-	        {"definition", b.definition},
-	        {"x", b.x},
-	        {"y", b.y},
-	        {"vx", b.vx},
-	        {"vy", b.vy},
-	        {"heading", b.heading},
-	        {"radar_icon", std::string(radar_icon_name(b.radar_icon))},
-	        {"radar_sprite", b.radar_sprite}};
-}
-inline std::int64_t number(const Json &v, std::int64_t lo = -1000000000, std::int64_t hi = 1000000000)
-{
-	if (!v.is_number_integer() || v < lo || v > hi)
-		throw std::runtime_error("Invalid shared display number");
-	return v.get<std::int64_t>();
-}
-inline std::string text(const Json &v, std::size_t limit = 256)
-{
-	if (!v.is_string() || v.get_ref<const std::string &>().size() > limit)
-		throw std::runtime_error("Invalid shared display text");
-	return v.get<std::string>();
-}
+using projection::body_json;
+using projection::number;
+using projection::text;
 inline BodyView read_body(const Json &v)
 {
-	BodyView b{static_cast<EntityId>(number(v.at("id"), 1, 9007199254740991LL)),
-	           text(v.at("definition")),
-	           number(v.at("x")),
-	           number(v.at("y")),
-	           number(v.at("vx")),
-	           number(v.at("vy")),
-	           number(v.at("heading"), 0, 359999)};
-	const auto icon = radar_icon_named(text(v.at("radar_icon")));
-	if (!icon)
-		throw std::runtime_error("Invalid shared display icon");
-	b.radar_icon = *icon;
-	b.radar_sprite = text(v.at("radar_sprite"));
-	const std::string prefix = "console-assets:assets/radar/";
-	if (!b.radar_sprite.empty() &&
-	    (!b.radar_sprite.starts_with(prefix) || !b.radar_sprite.ends_with(".png") ||
-	     b.radar_sprite.size() != prefix.size() + 68 ||
-	     b.radar_sprite.substr(prefix.size(), 64).find_first_not_of("0123456789abcdef") != std::string::npos))
-		throw std::runtime_error("Invalid shared display sprite");
-	return b;
+	return projection::read_body(v, projection::BodyReadPolicy::SharedDisplay);
 }
 inline Json radar_json(const SystemView &s)
 {
