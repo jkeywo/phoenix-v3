@@ -75,8 +75,8 @@ bool craft_link(EntityId craft) const
 	if (!entities.contains(s.home) || departed(s.home) || combat_dead(entities.at(s.home)))
 		return false;
 	const auto a = conversations.endpoints.find(craft), b = conversations.endpoints.find(s.home);
-	return a != conversations.endpoints.end() && b != conversations.endpoints.end() && a->second.working &&
-	       b->second.working && distance_3d(craft, s.home) <= std::min(a->second.range, b->second.range);
+	return a != conversations.endpoints.end() && b != conversations.endpoints.end() &&
+	       comms_endpoints_linked(a->second, b->second);
 }
 void set_craft_active(flecs::entity e, bool active)
 {
@@ -197,39 +197,7 @@ void complete_craft_recovery(EntityId craft)
 		auto &m = away_missions[i];
 		if (away_definitions[i].id != s.mission || away_ship(away_definitions[i]) != s.home || !m.aboard_craft)
 			continue;
-		const auto location = away_origin(s.home, m.transport);
-		for (const auto &[slot, asset] : m.assignments)
-			if (asset.starts_with("team:"))
-			{
-				auto &r = away_equipment(s.home, asset.substr(5)).get_mut<CombatMechanism>().get<RepairState>();
-				r.location = location;
-				r.destination = r.edge_to = -1;
-				r.travel = r.edge_total = 0;
-				r.repair_auto = false;
-			}
-		auto &p = entities.at(s.home).get_mut<PersonnelState>();
-		const auto &d = definition(s.home).personnel;
-		for (std::size_t o = 0; o < d.officers.size(); ++o)
-			if (std::find(m.accompanying.begin(), m.accompanying.end(), d.officers[o].id) != m.accompanying.end() ||
-			    std::any_of(m.assignments.begin(), m.assignments.end(),
-			                [&](const auto &a)
-			                {
-				                return a.second == "officer:" + d.officers[o].id;
-			                }))
-			{
-				p.officers[o].location = location;
-				p.officers[o].remaining = 0;
-				p.officers[o].edge_to = -1;
-			}
-		++p.revision;
-		m.aboard_craft = false;
-		m.phase = AwayPhase::Recovered;
-		m.recovered = true;
-		m.transport_released = false;
-		m.transfer = 0;
-		m.assignments.clear();
-		m.accompanying.clear();
-		++m.revision;
+		finish_away_recovery(s.home, m);
 	}
 	s.mission.clear();
 }
@@ -292,22 +260,16 @@ void advance_craft_transport(std::size_t index, EntityId craft)
 	if (++m.transfer < d.deployment_ticks)
 		return;
 	m.transfer = 0;
-	++m.revision;
 	if (collecting)
 	{
 		m.aboard_craft = true;
+		++m.revision;
 		craft_return(e);
 	}
 	else
 	{
 		m.aboard_craft = false;
-		m.phase = AwayPhase::Deployed;
-		m.recovered = false;
-		m.ever_deployed = true;
-		for (const auto &[slot, asset] : m.assignments)
-			m.participants.insert(asset);
-		for (const auto &o : m.accompanying)
-			m.participants.insert("officer:" + o);
+		mark_away_deployed(m);
 		s.order = "hold";
 		++s.revision;
 	}
@@ -536,22 +498,6 @@ void prepare_craft()
 				s.target_altitude = contact.altitude;
 			}
 		}
-		if (const auto *p = e.try_get<ShipResources>(); p && s.order != "return" && s.order != "pickup")
-		{
-			std::int64_t energy = 0, capacity = 0;
-			for (std::size_t i = 0; i < p->network.stores().size(); ++i)
-			{
-				energy += p->network.stores()[i].energy;
-				capacity += p->definition.network.stores[i].capacity;
-			}
-			if (capacity && energy * 1000 <= capacity * d.return_reserve)
-			{
-				if (s.mission.empty())
-					craft_return(e);
-				else
-					request_craft_pickup(id);
-			}
-		}
 		CraftGuidance g;
 		g.destination = e.get<Pose>().position;
 		g.altitude = e.get<VerticalMotion>().altitude;
@@ -564,73 +510,8 @@ void prepare_craft()
 		else if (s.order == "transport" || s.order == "pickup")
 			destination = s.target;
 		else if (s.order == "bomb" || s.order == "escort" || s.order == "defend")
-		{
-			const auto &contacts = observed_contacts;
-			if (s.order == "bomb")
-			{
-				bool armed = false;
-				for (auto child : e.get<EquipmentIndex>().values)
-					if (const auto *m = child.try_get<CombatMechanism>();
-					    m && m->definition.kind == OperatingSystem::Weapon && child.get<Equipment>().enabled &&
-					    !structurally_disabled(e, m->definition.id) && weapon_payload(e, *m).durability > 0)
-					{
-						armed |= m->get<WeaponState>().loaded_magazine >= 0;
-						for (const auto &mag : m->definition.get<WeaponDefinition>().magazines)
-							armed |= away_equipment(id, mag).get<CombatMechanism>().get<MagazineState>().ammo > 0;
-					}
-				const auto target = std::find_if(contacts.begin(), contacts.end(),
-				                                 [&](const auto &c)
-				                                 {
-					                                 return c.id == s.target && c.disposition == "hostile";
-				                                 });
-				if (!armed || target == contacts.end())
-				{
-					craft_return(e);
-					destination = s.home;
-				}
-				else
-				{
-					destination = s.target;
-					g.target = s.target;
-				}
-			}
-			else
-			{
-				destination = s.target;
-				if (!entities.contains(destination) || combat_dead(entities.at(destination)) || departed(destination))
-				{
-					craft_return(e);
-					destination = s.home;
-				}
-				g.weapon_mode = 1;
-				for (const auto &c : contacts)
-					if (c.id < 1000000000ULL && c.disposition == "hostile" && entities.contains(destination) &&
-					    fixed::length(fixed::Vec{c.x, c.y} - entities.at(destination).get<Pose>().position) <=
-					        d.engagement_range)
-					{
-						g.target = c.id;
-						g.weapon_mode = 2;
-						break;
-					}
-				// Keep missile interception on the normal point-defence path.
-				for (const auto &c : contacts)
-					if (c.id >= 7000000000000000ULL)
-					{
-						for (auto missile : projectile_rows())
-							if (7000000000000000ULL + missile.get<Projectile>().id == c.id &&
-							    entities.contains(missile.get<Projectile>().source) &&
-							    factions.relationship(
-							        entities.at(missile.get<Projectile>().source).get<FactionMembership>().id,
-							        e.get<FactionMembership>().id) == "hostile")
-							{
-								g.target = 0;
-								g.weapon_mode = 1;
-							}
-					}
-				if (g.target)
-					destination = g.target;
-			}
-		}
+			destination = s.target;
+		g.target = s.target;
 		if (destination)
 		{
 			g.navigate = true;
@@ -663,16 +544,10 @@ void prepare_craft()
 			// Aim a velocity correction, so inertial drift does not become an endless orbit.
 			const auto relative_speed = std::min(g.speed, std::max<std::int64_t>(0, distance - separation) / 2);
 			auto desired_velocity = target_velocity + fixed::scale(fixed::normal(delta), relative_speed);
-			const auto desired_magnitude = fixed::length(desired_velocity);
-			if (desired_magnitude > maximum && maximum)
-				desired_velocity = fixed::scale(fixed::normal(desired_velocity), maximum);
-			const auto velocity = e.get<Motion>().velocity;
-			const fixed::Vec correction{desired_velocity.x * 3 - velocity.x * 2,
-			                            desired_velocity.y * 3 - velocity.y * 2};
-			if (fixed::length(correction) > 100)
-				g.heading = combat_bearing(correction);
-			g.speed = std::clamp(fixed::dot(desired_velocity, fixed::direction(e.get<Pose>().heading)) / fixed::unit,
-			                     std::int64_t{0}, maximum);
+			const auto guidance =
+			    pursuit_guidance(e.get<Pose>(), e.get<Motion>(), desired_velocity, maximum, g.heading);
+			g.heading = guidance.heading;
+			g.speed = guidance.speed;
 			if (distance < bay.docking_range && s.order == "return")
 			{
 				if (s.phase == CraftPhase::Flying && bay_working(s.home, s.bay) &&

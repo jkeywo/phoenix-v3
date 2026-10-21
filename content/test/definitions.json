@@ -7116,7 +7116,7 @@
 							"id": "helm",
 							"definition": "test.carrier.automation",
 							"systems": [],
-							"feeds": ["engine", "steering", "radar", "radio"]
+							"feeds": ["engine", "steering", "radar", "radio", "intercept-mag", "weapon"]
 						}
 					]
 				},
@@ -7332,7 +7332,7 @@
 							"id": "helm",
 							"definition": "test.carrier.automation",
 							"systems": [],
-							"feeds": ["engine", "steering", "radar", "radio"]
+							"feeds": ["engine", "steering", "radar", "radio", "bomb-mag", "weapon"]
 						}
 					]
 				},
@@ -16854,180 +16854,6 @@
 			}
 		},
 		{
-			"id": "test.carrier.shuttle-flight",
-			"context": "controller",
-			"command_bindings": [
-				{
-					"channel": "speed"
-				},
-				{
-					"channel": "heading"
-				},
-				{
-					"channel": "height"
-				}
-			],
-			"initial": "operate",
-			"states": [
-				{
-					"id": "operate",
-					"running": [
-						{
-							"action": "write.speed",
-							"arguments": [
-								{
-									"observation": "craft.speed"
-								}
-							]
-						},
-						{
-							"action": "write.heading",
-							"arguments": [
-								{
-									"observation": "craft.heading"
-								}
-							]
-						},
-						{
-							"action": "write.height",
-							"arguments": [
-								{
-									"observation": "craft.altitude"
-								}
-							]
-						}
-					]
-				}
-			]
-		},
-		{
-			"id": "test.carrier.interceptor-flight",
-			"context": "controller",
-			"command_bindings": [
-				{
-					"channel": "speed"
-				},
-				{
-					"channel": "heading"
-				},
-				{
-					"channel": "height"
-				},
-				{
-					"channel": "target"
-				},
-				{
-					"channel": "mode"
-				}
-			],
-			"initial": "operate",
-			"states": [
-				{
-					"id": "operate",
-					"running": [
-						{
-							"action": "write.speed",
-							"arguments": [
-								{
-									"observation": "craft.speed"
-								}
-							]
-						},
-						{
-							"action": "write.heading",
-							"arguments": [
-								{
-									"observation": "craft.heading"
-								}
-							]
-						},
-						{
-							"action": "write.height",
-							"arguments": [
-								{
-									"observation": "craft.altitude"
-								}
-							]
-						},
-						{
-							"action": "write.target",
-							"arguments": [
-								{
-									"observation": "craft.target"
-								}
-							]
-						},
-						{
-							"action": "write.mode",
-							"arguments": [
-								{
-									"observation": "craft.weapon_mode"
-								}
-							]
-						}
-					]
-				}
-			]
-		},
-		{
-			"id": "test.carrier.bomber-flight",
-			"context": "controller",
-			"command_bindings": [
-				{
-					"channel": "speed"
-				},
-				{
-					"channel": "heading"
-				},
-				{
-					"channel": "height"
-				},
-				{
-					"channel": "target"
-				}
-			],
-			"initial": "operate",
-			"states": [
-				{
-					"id": "operate",
-					"running": [
-						{
-							"action": "write.speed",
-							"arguments": [
-								{
-									"observation": "craft.speed"
-								}
-							]
-						},
-						{
-							"action": "write.heading",
-							"arguments": [
-								{
-									"observation": "craft.heading"
-								}
-							]
-						},
-						{
-							"action": "write.height",
-							"arguments": [
-								{
-									"observation": "craft.altitude"
-								}
-							]
-						},
-						{
-							"action": "write.target",
-							"arguments": [
-								{
-									"observation": "craft.target"
-								}
-							]
-						}
-					]
-				}
-			]
-		},
-		{
 			"id": "test.carrier.enemy-fire",
 			"context": "controller",
 			"command_bindings": [
@@ -17177,6 +17003,1396 @@
 							"arguments": ["services_restored"]
 						}
 					]
+				}
+			]
+		},
+		{
+			"id": "test.carrier.shuttle-flight.execute",
+			"context": "controller",
+			"controller_action": {
+				"label": "Craft automation",
+				"inputs": []
+			},
+			"command_bindings": [
+				{
+					"channel": "speed"
+				},
+				{
+					"channel": "heading"
+				},
+				{
+					"channel": "height"
+				}
+			],
+			"parameters": {
+				"acquire_ticks": {
+					"type": "integer",
+					"default": 20
+				}
+			},
+			"initial": "operate",
+			"memory": [
+				{
+					"name": "mode",
+					"type": "text",
+					"initial": "navigate"
+				}
+			],
+			"states": [
+				{
+					"id": "operate",
+					"initial": "navigate",
+					"transitions": [
+						{
+							"target": "recall",
+							"conditions": [
+								{
+									"left": {
+										"observation": "craft.reserve_low"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "craft.order"
+									},
+									"op": "ne",
+									"right": "return"
+								},
+								{
+									"left": {
+										"observation": "craft.order"
+									},
+									"op": "ne",
+									"right": "pickup"
+								},
+								{
+									"left": {
+										"memory": "mode"
+									},
+									"op": "ne",
+									"right": "recall"
+								}
+							]
+						},
+						{
+							"target": "recall",
+							"conditions": [
+								{
+									"left": {
+										"observation": "craft.order"
+									},
+									"op": "eq",
+									"right": "bomb"
+								},
+								{
+									"left": {
+										"observation": "craft.armed"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": {
+										"parameter": "acquire_ticks"
+									}
+								},
+								{
+									"left": {
+										"memory": "mode"
+									},
+									"op": "ne",
+									"right": "recall"
+								}
+							]
+						},
+						{
+							"target": "recall",
+							"conditions": [
+								{
+									"left": {
+										"observation": "craft.order"
+									},
+									"op": "eq",
+									"right": "bomb"
+								},
+								{
+									"left": {
+										"observation": "craft.target_present"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": {
+										"parameter": "acquire_ticks"
+									}
+								},
+								{
+									"left": {
+										"memory": "mode"
+									},
+									"op": "ne",
+									"right": "recall"
+								}
+							]
+						},
+						{
+							"target": "returning",
+							"conditions": [
+								{
+									"left": {
+										"observation": "craft.order"
+									},
+									"op": "eq",
+									"right": "return"
+								},
+								{
+									"left": {
+										"memory": "mode"
+									},
+									"op": "ne",
+									"right": "returning"
+								}
+							]
+						},
+						{
+							"target": "returning",
+							"conditions": [
+								{
+									"left": {
+										"observation": "craft.order"
+									},
+									"op": "eq",
+									"right": "pickup"
+								},
+								{
+									"left": {
+										"memory": "mode"
+									},
+									"op": "ne",
+									"right": "returning"
+								}
+							]
+						},
+						{
+							"target": "bomb",
+							"conditions": [
+								{
+									"left": {
+										"observation": "craft.order"
+									},
+									"op": "eq",
+									"right": "bomb"
+								},
+								{
+									"left": {
+										"observation": "craft.armed"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "craft.target_present"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "craft.reserve_low"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"memory": "mode"
+									},
+									"op": "ne",
+									"right": "bomb"
+								}
+							]
+						},
+						{
+							"target": "intercept",
+							"conditions": [
+								{
+									"left": {
+										"observation": "craft.order"
+									},
+									"op": "eq",
+									"right": "escort"
+								},
+								{
+									"left": {
+										"observation": "craft.reserve_low"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "tactical.intercept_target"
+									},
+									"op": "gt",
+									"right": 0
+								},
+								{
+									"left": {
+										"memory": "mode"
+									},
+									"op": "ne",
+									"right": "intercept"
+								}
+							]
+						},
+						{
+							"target": "attack",
+							"conditions": [
+								{
+									"left": {
+										"observation": "craft.order"
+									},
+									"op": "eq",
+									"right": "escort"
+								},
+								{
+									"left": {
+										"observation": "craft.reserve_low"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "tactical.intercept_target"
+									},
+									"op": "eq",
+									"right": 0
+								},
+								{
+									"left": {
+										"observation": "tactical.ship_target"
+									},
+									"op": "gt",
+									"right": 0
+								},
+								{
+									"left": {
+										"memory": "mode"
+									},
+									"op": "ne",
+									"right": "attack"
+								}
+							]
+						},
+						{
+							"target": "guard",
+							"conditions": [
+								{
+									"left": {
+										"observation": "craft.order"
+									},
+									"op": "eq",
+									"right": "escort"
+								},
+								{
+									"left": {
+										"observation": "craft.reserve_low"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "tactical.intercept_target"
+									},
+									"op": "eq",
+									"right": 0
+								},
+								{
+									"left": {
+										"observation": "tactical.ship_target"
+									},
+									"op": "eq",
+									"right": 0
+								},
+								{
+									"left": {
+										"memory": "mode"
+									},
+									"op": "ne",
+									"right": "guard"
+								}
+							]
+						},
+						{
+							"target": "intercept",
+							"conditions": [
+								{
+									"left": {
+										"observation": "craft.order"
+									},
+									"op": "eq",
+									"right": "defend"
+								},
+								{
+									"left": {
+										"observation": "craft.reserve_low"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "tactical.intercept_target"
+									},
+									"op": "gt",
+									"right": 0
+								},
+								{
+									"left": {
+										"memory": "mode"
+									},
+									"op": "ne",
+									"right": "intercept"
+								}
+							]
+						},
+						{
+							"target": "attack",
+							"conditions": [
+								{
+									"left": {
+										"observation": "craft.order"
+									},
+									"op": "eq",
+									"right": "defend"
+								},
+								{
+									"left": {
+										"observation": "craft.reserve_low"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "tactical.intercept_target"
+									},
+									"op": "eq",
+									"right": 0
+								},
+								{
+									"left": {
+										"observation": "tactical.ship_target"
+									},
+									"op": "gt",
+									"right": 0
+								},
+								{
+									"left": {
+										"memory": "mode"
+									},
+									"op": "ne",
+									"right": "attack"
+								}
+							]
+						},
+						{
+							"target": "guard",
+							"conditions": [
+								{
+									"left": {
+										"observation": "craft.order"
+									},
+									"op": "eq",
+									"right": "defend"
+								},
+								{
+									"left": {
+										"observation": "craft.reserve_low"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "tactical.intercept_target"
+									},
+									"op": "eq",
+									"right": 0
+								},
+								{
+									"left": {
+										"observation": "tactical.ship_target"
+									},
+									"op": "eq",
+									"right": 0
+								},
+								{
+									"left": {
+										"memory": "mode"
+									},
+									"op": "ne",
+									"right": "guard"
+								}
+							]
+						},
+						{
+							"target": "navigate",
+							"conditions": [
+								{
+									"left": {
+										"observation": "craft.reserve_low"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"observation": "craft.order"
+									},
+									"op": "ne",
+									"right": "bomb"
+								},
+								{
+									"left": {
+										"observation": "craft.order"
+									},
+									"op": "ne",
+									"right": "return"
+								},
+								{
+									"left": {
+										"observation": "craft.order"
+									},
+									"op": "ne",
+									"right": "pickup"
+								},
+								{
+									"left": {
+										"observation": "craft.order"
+									},
+									"op": "ne",
+									"right": "escort"
+								},
+								{
+									"left": {
+										"observation": "craft.order"
+									},
+									"op": "ne",
+									"right": "defend"
+								},
+								{
+									"left": {
+										"memory": "mode"
+									},
+									"op": "ne",
+									"right": "navigate"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "navigate",
+					"parent": "operate",
+					"running": [
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "craft.speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "craft.heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "craft.altitude"
+								}
+							]
+						}
+					],
+					"entry": [
+						{
+							"memory": "mode",
+							"value": "navigate"
+						}
+					]
+				},
+				{
+					"id": "recall",
+					"parent": "operate",
+					"running": [
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "craft.speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "craft.heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "craft.altitude"
+								}
+							]
+						}
+					],
+					"entry": [
+						{
+							"memory": "mode",
+							"value": "recall"
+						},
+						{
+							"action": "craft.return_home"
+						}
+					]
+				},
+				{
+					"id": "returning",
+					"parent": "operate",
+					"running": [
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "craft.speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "craft.heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "craft.altitude"
+								}
+							]
+						}
+					],
+					"entry": [
+						{
+							"memory": "mode",
+							"value": "returning"
+						}
+					]
+				},
+				{
+					"id": "bomb",
+					"parent": "operate",
+					"running": [
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "craft.speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "craft.heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "craft.altitude"
+								}
+							]
+						}
+					],
+					"entry": [
+						{
+							"memory": "mode",
+							"value": "bomb"
+						}
+					]
+				},
+				{
+					"id": "guard",
+					"parent": "operate",
+					"running": [
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "craft.speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "craft.heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "craft.altitude"
+								}
+							]
+						}
+					],
+					"entry": [
+						{
+							"memory": "mode",
+							"value": "guard"
+						}
+					]
+				},
+				{
+					"id": "intercept",
+					"parent": "operate",
+					"running": [
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "craft.speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "craft.heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "craft.altitude"
+								}
+							]
+						}
+					],
+					"entry": [
+						{
+							"memory": "mode",
+							"value": "intercept"
+						}
+					]
+				},
+				{
+					"id": "attack",
+					"parent": "operate",
+					"running": [
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "tactical.pursuit_speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "tactical.pursuit_heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "tactical.pursuit_altitude"
+								}
+							]
+						}
+					],
+					"entry": [
+						{
+							"memory": "mode",
+							"value": "attack"
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "test.carrier.shuttle-flight",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "speed"
+				},
+				{
+					"channel": "heading"
+				},
+				{
+					"channel": "height"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "sortie",
+					"tree": "test.carrier.shuttle-flight.execute"
+				}
+			],
+			"initial": "orders",
+			"states": [
+				{
+					"id": "orders",
+					"running": [
+						{
+							"action": "select.sortie",
+							"arguments": ["assigned-order"]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "test.carrier.interceptor-flight.execute",
+			"extends": "test.carrier.shuttle-flight.execute",
+			"command_bindings": [
+				{
+					"channel": "speed"
+				},
+				{
+					"channel": "heading"
+				},
+				{
+					"channel": "height"
+				},
+				{
+					"channel": "target"
+				},
+				{
+					"channel": "mode"
+				}
+			],
+			"overrides": [
+				{
+					"state": "navigate",
+					"running": [
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "craft.speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "craft.heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "craft.altitude"
+								}
+							]
+						},
+						{
+							"action": "write.target",
+							"arguments": [0]
+						},
+						{
+							"action": "write.mode",
+							"arguments": [0]
+						}
+					]
+				},
+				{
+					"state": "recall",
+					"running": [
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "craft.speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "craft.heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "craft.altitude"
+								}
+							]
+						},
+						{
+							"action": "write.target",
+							"arguments": [0]
+						},
+						{
+							"action": "write.mode",
+							"arguments": [0]
+						}
+					]
+				},
+				{
+					"state": "returning",
+					"running": [
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "craft.speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "craft.heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "craft.altitude"
+								}
+							]
+						},
+						{
+							"action": "write.target",
+							"arguments": [0]
+						},
+						{
+							"action": "write.mode",
+							"arguments": [0]
+						}
+					]
+				},
+				{
+					"state": "bomb",
+					"running": [
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "craft.speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "craft.heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "craft.altitude"
+								}
+							]
+						},
+						{
+							"action": "write.target",
+							"arguments": [
+								{
+									"observation": "craft.target"
+								}
+							]
+						},
+						{
+							"action": "write.mode",
+							"arguments": [0]
+						}
+					]
+				},
+				{
+					"state": "guard",
+					"running": [
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "craft.speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "craft.heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "craft.altitude"
+								}
+							]
+						},
+						{
+							"action": "write.target",
+							"arguments": [0]
+						},
+						{
+							"action": "write.mode",
+							"arguments": [1]
+						}
+					]
+				},
+				{
+					"state": "intercept",
+					"running": [
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "craft.speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "craft.heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "craft.altitude"
+								}
+							]
+						},
+						{
+							"action": "write.target",
+							"arguments": [0]
+						},
+						{
+							"action": "write.mode",
+							"arguments": [1]
+						}
+					]
+				},
+				{
+					"state": "attack",
+					"running": [
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "tactical.pursuit_speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "tactical.pursuit_heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "tactical.pursuit_altitude"
+								}
+							]
+						},
+						{
+							"action": "write.target",
+							"arguments": [
+								{
+									"observation": "tactical.ship_target"
+								}
+							]
+						},
+						{
+							"action": "write.mode",
+							"arguments": [2]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "test.carrier.interceptor-flight",
+			"extends": "test.carrier.shuttle-flight",
+			"command_bindings": [
+				{
+					"channel": "speed"
+				},
+				{
+					"channel": "heading"
+				},
+				{
+					"channel": "height"
+				},
+				{
+					"channel": "target"
+				},
+				{
+					"channel": "mode"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "sortie",
+					"tree": "test.carrier.interceptor-flight.execute"
+				}
+			]
+		},
+		{
+			"id": "test.carrier.bomber-flight.execute",
+			"extends": "test.carrier.shuttle-flight.execute",
+			"command_bindings": [
+				{
+					"channel": "speed"
+				},
+				{
+					"channel": "heading"
+				},
+				{
+					"channel": "height"
+				},
+				{
+					"channel": "target"
+				}
+			],
+			"overrides": [
+				{
+					"state": "navigate",
+					"running": [
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "craft.speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "craft.heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "craft.altitude"
+								}
+							]
+						},
+						{
+							"action": "write.target",
+							"arguments": [0]
+						}
+					]
+				},
+				{
+					"state": "recall",
+					"running": [
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "craft.speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "craft.heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "craft.altitude"
+								}
+							]
+						},
+						{
+							"action": "write.target",
+							"arguments": [0]
+						}
+					]
+				},
+				{
+					"state": "returning",
+					"running": [
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "craft.speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "craft.heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "craft.altitude"
+								}
+							]
+						},
+						{
+							"action": "write.target",
+							"arguments": [0]
+						}
+					]
+				},
+				{
+					"state": "bomb",
+					"running": [
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "craft.speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "craft.heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "craft.altitude"
+								}
+							]
+						},
+						{
+							"action": "write.target",
+							"arguments": [
+								{
+									"observation": "craft.target"
+								}
+							]
+						}
+					]
+				},
+				{
+					"state": "guard",
+					"running": [
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "craft.speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "craft.heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "craft.altitude"
+								}
+							]
+						},
+						{
+							"action": "write.target",
+							"arguments": [0]
+						}
+					]
+				},
+				{
+					"state": "intercept",
+					"running": [
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "craft.speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "craft.heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "craft.altitude"
+								}
+							]
+						},
+						{
+							"action": "write.target",
+							"arguments": [0]
+						}
+					]
+				},
+				{
+					"state": "attack",
+					"running": [
+						{
+							"action": "write.speed",
+							"arguments": [
+								{
+									"observation": "tactical.pursuit_speed"
+								}
+							]
+						},
+						{
+							"action": "write.heading",
+							"arguments": [
+								{
+									"observation": "tactical.pursuit_heading"
+								}
+							]
+						},
+						{
+							"action": "write.height",
+							"arguments": [
+								{
+									"observation": "tactical.pursuit_altitude"
+								}
+							]
+						},
+						{
+							"action": "write.target",
+							"arguments": [
+								{
+									"observation": "tactical.ship_target"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "test.carrier.bomber-flight",
+			"extends": "test.carrier.shuttle-flight",
+			"command_bindings": [
+				{
+					"channel": "speed"
+				},
+				{
+					"channel": "heading"
+				},
+				{
+					"channel": "height"
+				},
+				{
+					"channel": "target"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "sortie",
+					"tree": "test.carrier.bomber-flight.execute"
 				}
 			]
 		}

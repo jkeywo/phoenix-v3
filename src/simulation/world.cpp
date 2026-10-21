@@ -44,10 +44,9 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Vec, x, y)
 namespace phoenix
 {
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(CraftState, home, target, bay, order, pending_order, pending_target, mission, slot,
-                                   phase, revision, progress, energy_remainder, ammunition_remainders, ftl_recalled,
-                                   report, rendezvous, rendezvous_velocity, target_position, target_velocity,
-                                   rendezvous_altitude, target_altitude, pending_position, pending_velocity,
-                                   pending_altitude)
+                                   phase, revision, progress, ftl_recalled, report, rendezvous, rendezvous_velocity,
+                                   target_position, target_velocity, rendezvous_altitude, target_altitude,
+                                   pending_position, pending_velocity, pending_altitude)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(DestructionDefinition, visual, sound, chance, damage, radius,
                                                 shield_bypass, growth_ticks, fade_ticks, size, affects_missiles)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ProjectileDefinition, visual, speed, lifetime, penetration, damage,

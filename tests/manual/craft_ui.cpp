@@ -214,18 +214,28 @@ int main(int argc, char **argv)
 		advance(40);
 		capture("interceptor");
 		action("console/1/craft/escort/" + interceptor + "/" + std::to_string(ship));
+		std::int64_t bomber_rounds = 0;
+		for (const auto &c : crafts())
+			if (c.at("id") == bomber)
+				bomber_rounds = c.at("ammunition");
 		action("console/1/craft/bomb/" + bomber + "/2");
 		advance(10);
 		capture("sorties");
+		bool bomber_fired = false;
 		until(
 		    [&]
 		    {
 			    for (const auto &c : crafts())
 				    if (c.at("id") == bomber)
+				    {
+					    bomber_fired |= c.at("ammunition").get<std::int64_t>() < bomber_rounds;
 					    return c.at("phase") == "docked";
+				    }
 			    return false;
 		    },
 		    "bomber return");
+		if (!bomber_fired)
+			throw std::runtime_error("Bomber returned without expending its missile salvo");
 		action("console/1/craft/recall/" + interceptor + "/");
 		until(
 		    [&]

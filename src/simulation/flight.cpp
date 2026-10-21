@@ -500,6 +500,40 @@ FlightExecution step_flight(const FlightDefinition &def, FlightState &state, Pos
 	motion = new_motion;
 	return result;
 }
+PursuitGuidance pursuit_guidance(const Pose &pose, const Motion &motion, fixed::Vec desired, std::int64_t speed_limit,
+                                 std::int64_t fallback_heading)
+{
+	PursuitGuidance result;
+	const auto magnitude = fixed::length(desired);
+	if (magnitude > speed_limit)
+		desired = {desired.x * speed_limit / magnitude, desired.y * speed_limit / magnitude};
+	const fixed::Vec correction_direction{desired.x * 3 - motion.velocity.x * 2, desired.y * 3 - motion.velocity.y * 2};
+	result.heading = fallback_heading;
+	if (fixed::length(correction_direction) > 100)
+	{
+		auto direction = correction_direction;
+		std::int64_t offset = 0;
+		if (direction.y < 0)
+		{
+			direction = -direction;
+			offset = 180000;
+		}
+		std::int64_t low = 0, high = 180000;
+		while (high - low > 1)
+		{
+			const auto middle = (low + high) / 2;
+			const auto forward = fixed::direction(middle);
+			if (forward.x * direction.y - forward.y * direction.x > 0)
+				low = middle;
+			else
+				high = middle;
+		}
+		result.heading = (low + offset) % 360000;
+	}
+	result.speed =
+	    std::clamp(fixed::dot(desired, fixed::direction(pose.heading)) / fixed::unit, std::int64_t{0}, speed_limit);
+	return result;
+}
 void guide_follow(const FlightDefinition &def, FlightState &state, const Pose &pose, const Motion &motion,
                   const std::optional<FlightContactObservation> &observed)
 {
@@ -545,37 +579,11 @@ void guide_follow(const FlightDefinition &def, FlightState &state, const Pose &p
 	// A velocity target damps pursuit rather than accelerating at a moving point.
 	// Project it onto the current hull heading: turning must not create extra speed.
 	fixed::Vec desired{target.velocity.x + delta.x / 5, target.velocity.y + delta.y / 5};
-	const auto magnitude = fixed::length(desired);
-	if (magnitude > state.follow_speed_limit)
-		desired = {desired.x * state.follow_speed_limit / magnitude, desired.y * state.follow_speed_limit / magnitude};
-	const fixed::Vec correction_direction{desired.x * 3 - motion.velocity.x * 2, desired.y * 3 - motion.velocity.y * 2};
-	state.desired_heading = target.heading;
-	if (fixed::length(correction_direction) > 100)
-	{
-		auto direction = correction_direction;
-		std::int64_t offset = 0;
-		if (direction.y < 0)
-		{
-			direction = -direction;
-			offset = 180000;
-		}
-		std::int64_t low = 0, high = 180000;
-		while (high - low > 1)
-		{
-			const auto middle = (low + high) / 2;
-			const auto forward = fixed::direction(middle);
-			if (forward.x * direction.y - forward.y * direction.x > 0)
-				low = middle;
-			else
-				high = middle;
-		}
-		state.desired_heading = (low + offset) % 360000;
-	}
+	const auto guidance = pursuit_guidance(pose, motion, desired, state.follow_speed_limit, target.heading);
+	state.desired_heading = guidance.heading;
 	if (def.kind != FlightKind::Engine)
 		return;
-	const auto cap = std::min(def.maximum_speed, state.follow_speed_limit);
-	state.desired_speed =
-	    std::clamp(fixed::dot(desired, fixed::direction(pose.heading)) / fixed::unit, std::int64_t{0}, cap);
+	state.desired_speed = std::min(def.maximum_speed, guidance.speed);
 	// Relative velocity along the contact line includes crossing/opposing traffic.
 	const auto relative = motion.velocity - target.velocity;
 	const auto to_target = target.position - pose.position;

@@ -2,7 +2,7 @@
 void controller_decision_facts(const ConsoleControllerRuntime &controller, const Observation &observed,
                                std::vector<state_tree::Value> &values) const
 {
-	std::array<std::int64_t, 13> facts{};
+	std::array<std::int64_t, 18> facts{};
 	facts[2] = observed.own.heading;
 	facts[6] = facts[7] = 1000;
 	EntityId current = 0;
@@ -23,9 +23,19 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 		}
 	}
 	const BodyView *target = nullptr;
+	const auto entity = entities.at(observed.own.id);
+	const auto *craft = entity.try_get<CraftState>();
+	const auto eligible_threat = [&](const BodyView &contact)
+	{
+		if (!craft || (craft->order != "defend" && craft->order != "escort"))
+			return true;
+		const auto anchor = craft->target == craft->home ? craft->rendezvous : craft->target_position;
+		return fixed::length(fixed::Vec{contact.x, contact.y} - anchor) <=
+		       definition(observed.own.id).craft->engagement_range;
+	};
 	std::int64_t nearest = std::numeric_limits<std::int64_t>::max();
 	for (const auto &contact : observed.contacts)
-		if (contact.radar_icon == RadarIcon::ship && contact.disposition == "hostile")
+		if (contact.radar_icon == RadarIcon::ship && contact.disposition == "hostile" && eligible_threat(contact))
 		{
 			const auto distance = fixed::length({contact.x - observed.own.x, contact.y - observed.own.y});
 			if (!target || contact.id == current ||
@@ -41,6 +51,48 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 		facts[1] = nearest;
 		facts[2] = combat_bearing({target->x - observed.own.x, target->y - observed.own.y});
 	}
+	if (target)
+	{
+		facts[13] = target->id;
+		std::int64_t maximum = 0, acceleration = 1;
+		for (const auto &command : controller.definition.commands)
+			if (command.action == OperatingAction::Speed)
+			{
+				maximum = std::max(maximum, command.maximum);
+				for (auto consumer : command.consumers)
+				{
+					const auto child = entity.get<EquipmentIndex>().values.at(consumer);
+					if (const auto *f = child.try_get<FlightRuntime>())
+						acceleration = std::max(acceleration, f->definition.acceleration);
+				}
+			}
+		const fixed::Vec delta{target->x - observed.own.x, target->y - observed.own.y};
+		const auto remaining = std::max<std::int64_t>(0, fixed::length(delta) - 10000);
+		const auto approach = std::min(
+		    {maximum, remaining / 2,
+		     static_cast<std::int64_t>(fixed::sqrt(static_cast<std::uint64_t>(2 * acceleration * remaining)))});
+		Pose own_pose;
+		own_pose.position = {observed.own.x, observed.own.y};
+		own_pose.heading = observed.own.heading;
+		Motion own_motion;
+		own_motion.velocity = {observed.own.vx, observed.own.vy};
+		const auto guidance = pursuit_guidance(
+		    own_pose, own_motion, fixed::Vec{target->vx, target->vy} + fixed::scale(fixed::normal(delta), approach),
+		    maximum, observed.own.heading);
+		facts[15] = guidance.heading;
+		facts[16] = guidance.speed;
+		facts[17] = target->altitude +
+		            (definition(observed.own.id).craft ? definition(observed.own.id).craft->cruise_altitude : 0);
+	}
+	for (auto child : entity.get<EquipmentIndex>().values)
+		if (const auto *m = child.try_get<CombatMechanism>();
+		    m && m->definition.kind == OperatingSystem::Weapon && m->definition.get<WeaponDefinition>().point_defence &&
+		    child.get<Equipment>().enabled &&
+		    system_owner(observed.own.id, m->definition.id) ==
+		        ConsoleAddress{observed.own.id, controller.definition.console} &&
+		    !structurally_disabled(entity, m->definition.id))
+			facts[14] =
+			    std::max<std::int64_t>(facts[14], point_defence_target(entity, m->definition, observed.contacts));
 	const auto combat = observed.gameplay.value("combat", Json::object());
 	// Equipment indices are static fitting metadata. Candidate damage and duties
 	// come only from this Console's permitted snapshot and its accepted requests.

@@ -223,6 +223,54 @@ bool away_staged(EntityId ship, const AwayMission &m) const
 	}
 	return true;
 }
+void mark_away_deployed(AwayMission &m)
+{
+	m.phase = AwayPhase::Deployed;
+	m.recovered = false;
+	m.ever_deployed = true;
+	m.transfer = 0;
+	for (const auto &[slot, asset] : m.assignments)
+		m.participants.insert(asset);
+	for (const auto &officer : m.accompanying)
+		m.participants.insert("officer:" + officer);
+	++m.revision;
+}
+void finish_away_recovery(EntityId ship, AwayMission &m)
+{
+	const auto location = away_origin(ship, m.transport);
+	for (const auto &[slot, asset] : m.assignments)
+		if (asset.starts_with("team:"))
+		{
+			auto &r = away_equipment(ship, asset.substr(5)).get_mut<CombatMechanism>().get<RepairState>();
+			r.location = location;
+			r.destination = r.edge_to = -1;
+			r.travel = r.edge_total = 0;
+			r.repair_auto = false;
+		}
+	auto &p = entities.at(ship).get_mut<PersonnelState>();
+	const auto &d = definition(ship).personnel;
+	for (std::size_t o = 0; o < d.officers.size(); ++o)
+		if (std::find(m.accompanying.begin(), m.accompanying.end(), d.officers[o].id) != m.accompanying.end() ||
+		    std::any_of(m.assignments.begin(), m.assignments.end(),
+		                [&](const auto &a)
+		                {
+			                return a.second == "officer:" + d.officers[o].id;
+		                }))
+		{
+			p.officers[o].location = location;
+			p.officers[o].remaining = 0;
+			p.officers[o].edge_to = -1;
+		}
+	++p.revision;
+	m.aboard_craft = false;
+	m.phase = AwayPhase::Recovered;
+	m.recovered = true;
+	m.transport_released = false;
+	m.transfer = 0;
+	m.assignments.clear();
+	m.accompanying.clear();
+	++m.revision;
+}
 std::string away_blocker(std::size_t index, bool power = true) const
 {
 	const auto &d = away_definitions[index];

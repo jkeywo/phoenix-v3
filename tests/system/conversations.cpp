@@ -51,6 +51,27 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		for (const auto y : {0, 1})
+		{
+			auto boundary = fixture();
+			boundary["maps"][0]["entities"].back()["x_mm"] = 100000;
+			boundary["maps"][0]["entities"].back()["y_mm"] = y;
+			World radio;
+			radio.load(load(boundary), "test.map");
+			require(radio.claim(1, 1, "drive"), "boundary radio claim");
+			for (int i = 0; i < 5; ++i)
+				radio.tick();
+			bool found = false;
+			const auto directory = radio.observe(1)->gameplay.at("conversations").at("directory");
+			for (const auto &p : directory)
+				if (p.at("host") == 2)
+				{
+					found = true;
+					require(p.at("available") == (y == 0),
+					        "radio reach uses the exact range sphere, without square-root rounding");
+				}
+			require(found, "boundary contact remains observable");
+		}
 		{
 			auto source = fixture();
 			source["entities"].push_back(

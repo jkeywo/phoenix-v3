@@ -35,9 +35,45 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 		values[brain.own[ControllerOwnField::CraftAltitude]] = Value::integer(g->altitude);
 		values[brain.own[ControllerOwnField::CraftSpeed]] = Value::integer(g->speed);
 		values[brain.own[ControllerOwnField::CraftTarget]] = Value::integer(g->target);
-		values[brain.own[ControllerOwnField::CraftWeaponMode]] = Value::integer(g->weapon_mode);
 		values[brain.own[ControllerOwnField::CraftNavigate]] = Value::boolean(g->navigate);
 		values[brain.own[ControllerOwnField::CraftHeading]] = Value::integer(g->heading);
+	}
+	values[brain.own[ControllerOwnField::CraftOrder]] = Value::string("");
+	values[brain.own[ControllerOwnField::CraftReserveLow]] = Value::boolean(false);
+	values[brain.own[ControllerOwnField::CraftArmed]] = Value::boolean(false);
+	values[brain.own[ControllerOwnField::CraftTargetPresent]] = Value::boolean(false);
+	if (const auto *s = entities.at(id).try_get<CraftState>())
+	{
+		values[brain.own[ControllerOwnField::CraftOrder]] = Value::string(s->order);
+		values[brain.own[ControllerOwnField::CraftTargetPresent]] = Value::boolean(
+		    std::any_of(observation.contacts.begin(), observation.contacts.end(),
+		                [&](const auto &c)
+		                {
+			                return c.id == s->target && (s->order != "bomb" || c.disposition == "hostile");
+		                }));
+		if (const auto *p = entities.at(id).try_get<ShipResources>())
+		{
+			std::int64_t energy = 0, capacity = 0;
+			for (std::size_t i = 0; i < p->network.stores().size(); ++i)
+			{
+				energy += p->network.stores()[i].energy;
+				capacity += p->definition.network.stores[i].capacity;
+			}
+			values[brain.own[ControllerOwnField::CraftReserveLow]] =
+			    Value::boolean(capacity && energy * 1000 <= capacity * definition(id).craft->return_reserve);
+		}
+		bool armed = false;
+		for (const auto &weapon : observation.gameplay.value("combat", Json::object()).value("weapons", Json::array()))
+		{
+			const auto child = away_equipment(id, weapon.at("id"));
+			const auto &m = child.get<CombatMechanism>();
+			if (!child.get<Equipment>().enabled || structurally_disabled(entities.at(id), m.definition.id) ||
+			    weapon_payload(entities.at(id), m).durability <= 0)
+				continue;
+			for (const auto &option : weapon.at("ammunition_options"))
+				armed |= option.at("available").get<bool>();
+		}
+		values[brain.own[ControllerOwnField::CraftArmed]] = Value::boolean(armed);
 	}
 	if (brain.own[ControllerOwnField::FtlReady])
 	{
@@ -333,6 +369,25 @@ void controller_output(EntityId id, std::size_t index, const state_tree::Output 
 				command.controller = controller.definition.id;
 				command.generation = controller.generation;
 				team_command(source, command, true, true);
+}
+			else if (action.name == "craft.return_home")
+			{
+				if (controller.human || !entities.at(id).has<CraftState>() ||
+				    std::none_of(controller.definition.commands.begin(), controller.definition.commands.end(),
+				                 [](const auto &command)
+				                 {
+					                 return command.action == OperatingAction::Speed;
+				                 }))
+					throw std::runtime_error("Craft return requires its flight Controller");
+				auto e = entities.at(id);
+				const auto &s = e.get<CraftState>();
+				if (s.order != "return" && s.order != "pickup")
+				{
+					if (s.mission.empty())
+						craft_return(e);
+					else
+						request_craft_pickup(id);
+				}
 			}
 			else if (action.name.starts_with("away.") || action.name.starts_with("craft."))
 			{

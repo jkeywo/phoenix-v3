@@ -403,9 +403,12 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	result.own[ControllerOwnField::CraftAltitude] = add({"craft.altitude", Type::Integer, 4, {}});
 	result.own[ControllerOwnField::CraftSpeed] = add({"craft.speed", Type::Integer, 4, {}});
 	result.own[ControllerOwnField::CraftTarget] = add({"craft.target", Type::Integer, 4, {}});
-	result.own[ControllerOwnField::CraftWeaponMode] = add({"craft.weapon_mode", Type::Integer, 4, {}});
 	result.own[ControllerOwnField::CraftNavigate] = add({"craft.navigate", Type::Boolean, 4, {}});
 	result.own[ControllerOwnField::CraftHeading] = add({"craft.heading", Type::Integer, 4, {}});
+	result.own[ControllerOwnField::CraftOrder] = add({"craft.order", Type::Text, 4, {}});
+	result.own[ControllerOwnField::CraftReserveLow] = add({"craft.reserve_low", Type::Boolean, 4, {}});
+	result.own[ControllerOwnField::CraftArmed] = add({"craft.armed", Type::Boolean, 4, {}});
+	result.own[ControllerOwnField::CraftTargetPresent] = add({"craft.target_present", Type::Boolean, 4, {}});
 	const auto resolved = resolve_tree_definition(tree, catalog);
 	if (resolved.contains("ftl_system"))
 	{
@@ -482,6 +485,7 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		registry.actions.push_back({std::string("away.") + name, 4, {Type::Text, Type::Text, Type::Integer}, true});
 	for (const auto &name : {"defend", "escort", "bomb", "recall"})
 		registry.actions.push_back({std::string("craft.") + name, 4, {Type::Text, Type::Text, Type::Integer}, true});
+	registry.actions.push_back({"craft.return_home", 4, {}, true});
 	if (resolved.contains("ftl_system"))
 	{
 		binding_require(resolved.at("ftl_system").is_string() &&
@@ -605,10 +609,11 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	add({"action.actual_speed", Type::Integer, 4, {}});
 	add({"action.contact_available", Type::Boolean, 4, {}});
 	result.decision_base = registry.observations.size();
-	for (const auto *name :
-	     {"tactical.target", "tactical.range", "tactical.bearing", "tactical.magazine", "repair.compartment",
-	      "repair.system", "shield.fraction", "shield.lowest", "shield.difference", "drive.cruise_speed",
-	      "drive.approach_speed", "support.power", "support.cooling"})
+	for (const auto *name : {"tactical.target", "tactical.range", "tactical.bearing", "tactical.magazine",
+	                         "repair.compartment", "repair.system", "shield.fraction", "shield.lowest",
+	                         "shield.difference", "drive.cruise_speed", "drive.approach_speed", "support.power",
+	                         "support.cooling", "tactical.ship_target", "tactical.intercept_target",
+	                         "tactical.pursuit_heading", "tactical.pursuit_speed", "tactical.pursuit_altitude"})
 		add({name, Type::Integer, 4, {}});
 	add({"tactical.point_defence", Type::Boolean, 4, {}});
 	result.coordination_base = registry.observations.size();

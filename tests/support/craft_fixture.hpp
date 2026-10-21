@@ -1,5 +1,6 @@
 #pragma once
 #include "away_fixture.hpp"
+#include "craft_policy.hpp"
 namespace phoenix::test
 {
 inline Json craft_fixture()
@@ -60,10 +61,11 @@ inline Json craft_fixture()
 	                 {{"action", "write.heading"}, {"arguments", Json::array({{{"observation", "craft.heading"}}})}},
 	                 {{"action", "write.height"},
 	                  {"arguments", Json::array({{{"observation", "craft.altitude"}}})}}})}}})}};
-	source["trees"].push_back(tree);
-	auto &bindings = source["trees"].back()["command_bindings"] = Json::array();
+	auto &bindings = tree["command_bindings"] = Json::array();
 	for (const auto &c : commands)
 		bindings.push_back({{"channel", c.at("id")}, {"action", c.at("action")}});
+	for (const auto &definition : craft_test_policy(tree))
+		source["trees"].push_back(definition);
 	craft["control_layout"]["controllers"][0]["commands"].push_back(
 	    {{"id", "radio"}, {"action", "system_enabled"}, {"initial", 1}, {"consumers", {"radio"}}});
 	source["entities"].push_back(craft);
@@ -140,6 +142,8 @@ inline Json armed_craft_fixture()
 		    {"penetration", 1},         {"damage_per_m", 1},   {"durability", 5},       {"guidance", "homing"}};
 		craft["systems"]["weapon"] = {{"kind", "weapon"}, {"magazine", "magazine"}, {"projectile", payload},
 		                              {"fire_ticks", 2},  {"range_mm", 100000},     {"compartment", "bridge"}};
+		craft["stations"][0]["consoles"][0]["feeds"].push_back("weapon");
+		craft["stations"][0]["consoles"][0]["feeds"].push_back("magazine");
 		if (std::string(role) == "interceptor")
 		{
 			craft["systems"]["weapon"]["point_defence"] = true;
@@ -162,11 +166,10 @@ inline Json armed_craft_fixture()
 		{
 			commands.push_back({{"id", "mode"}, {"action", "weapon_mode"}, {"initial", 1}, {"consumers", {"weapon"}}});
 			tree["command_bindings"].push_back({{"channel", "mode"}});
-			tree["states"][0]["running"].push_back(
-			    {{"action", "write.mode"}, {"arguments", Json::array({{{"observation", "craft.weapon_mode"}}})}});
 		}
 		craft["control_layout"]["controllers"][0]["tree"] = tree["id"];
-		source["trees"].push_back(tree);
+		for (const auto &definition : craft_test_policy(tree))
+			source["trees"].push_back(definition);
 		source["entities"].push_back(craft);
 	}
 	auto &map = source["maps"][0];

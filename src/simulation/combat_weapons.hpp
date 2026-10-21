@@ -96,6 +96,42 @@ fixed::Vec weapon_lead(flecs::entity ship, const CombatMechanism &m, const Weapo
 	        std::clamp(target.body.y + (target.body.vy - ship.get<Motion>().velocity.y) * travel / 1000, -fixed::unit,
 	                   fixed::unit)};
 }
+std::uint64_t point_defence_target(flecs::entity ship, const CombatSystemDefinition &d,
+                                   const std::vector<BodyView> &contacts) const
+{
+	const auto id = ship.get<StableId>().id;
+	const auto &pose = ship.get<Pose>();
+	std::pair<std::int64_t, std::uint64_t> best{std::numeric_limits<std::int64_t>::max(), 0};
+	for (auto missile : projectile_rows())
+	{
+		const auto &p = missile.get<Projectile>();
+		if (!p.definition.durability || missile.get<Destructible>().durability <= 0 || p.source == id ||
+		    d.get<WeaponDefinition>().intercept_classes.empty())
+			continue;
+		if (ship.has<CraftState>() &&
+		    (!entities.contains(p.source) ||
+		     factions.relationship(ship.get<FactionMembership>().id,
+		                           entities.at(p.source).get<FactionMembership>().id) != "hostile"))
+			continue;
+		if (std::none_of(contacts.begin(), contacts.end(),
+		                 [&](const auto &c)
+		                 {
+			                 return c.id == 7000000000000000ULL + p.id;
+		                 }))
+			continue;
+		const auto offset = p.position - pose.position;
+		const auto distance = fixed::length(offset) + std::abs(p.altitude - altitude(id));
+		if (distance > d.get<WeaponDefinition>().range)
+			continue;
+		const auto closing = std::max<std::int64_t>(
+		    1, -fixed::dot(p.velocity - ship.get<Motion>().velocity, fixed::normal(offset)) / fixed::unit);
+		const auto time = p.target == id ? distance * 1000 / closing : 1000000000 + distance;
+		const auto score = std::pair{time, p.id};
+		if (score < best)
+			best = score;
+	}
+	return best.second;
+}
 void prepare_weapons(flecs::entity ship)
 {
 	ConsoleContacts contacts_by_console;
@@ -112,37 +148,8 @@ void prepare_weapons(flecs::entity ship)
 			    structurally_disabled(ship, d.id))
 				continue;
 			if (d.get<WeaponDefinition>().point_defence && m->get<WeaponState>().mode == 1)
-			{
-				m->get<WeaponState>().intercept = 0;
-				const auto &contacts = console_contacts(system_owner(id, m->definition.id), contacts_by_console);
-				std::pair<std::int64_t, std::uint64_t> best{std::numeric_limits<std::int64_t>::max(), 0};
-				for (auto missile : projectile_rows())
-				{
-					const auto &p = missile.get<Projectile>();
-					if (!p.definition.durability || missile.get<Destructible>().durability <= 0 || p.source == id ||
-					    d.get<WeaponDefinition>().intercept_classes.empty())
-						continue;
-					if (std::none_of(contacts.begin(), contacts.end(),
-					                 [&](const auto &c)
-					                 {
-						                 return c.id == 7000000000000000ULL + p.id;
-					                 }))
-						continue;
-					const auto offset = p.position - pose.position;
-					const auto distance = fixed::length(offset) + std::abs(p.altitude - altitude(id));
-					if (distance > d.get<WeaponDefinition>().range)
-						continue;
-					const auto closing = std::max<std::int64_t>(
-					    1, -fixed::dot(p.velocity - ship.get<Motion>().velocity, fixed::normal(offset)) / fixed::unit);
-					const auto time = p.target == id ? distance * 1000 / closing : 1000000000 + distance;
-					const auto score = std::pair{time, p.id};
-					if (score < best)
-					{
-						best = score;
-						m->get<WeaponState>().intercept = p.id;
-					}
-				}
-			}
+				m->get<WeaponState>().intercept = point_defence_target(
+				    ship, d, console_contacts(system_owner(id, m->definition.id), contacts_by_console));
 			if (m->get<WeaponState>().unloading)
 			{
 				if (--m->get<WeaponState>().unloading == 0)

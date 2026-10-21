@@ -26,14 +26,8 @@ void ConversationRuntime::disclose(EntityId viewer, const std::string &id)
 	require(participants.contains(id), "unknown disclosed participant");
 	known[viewer].insert(id);
 }
-bool ConversationRuntime::linked(const std::string &a, const std::string &b) const
+bool comms_endpoints_linked(const CommsEndpoint &x, const CommsEndpoint &y)
 {
-	if (!participants.contains(a) || !participants.contains(b))
-		return false;
-	const auto ah = participants.at(a).host, bh = participants.at(b).host;
-	if (!endpoints.contains(ah) || !endpoints.contains(bh))
-		return false;
-	const auto &x = endpoints.at(ah), &y = endpoints.at(bh);
 	if (!x.working || !y.working)
 		return false;
 	const auto dx = x.x - y.x, dy = x.y - y.y, r = std::min(x.range, y.range);
@@ -41,6 +35,14 @@ bool ConversationRuntime::linked(const std::string &a, const std::string &b) con
 	// World coordinates are bounded to +/-1e9, so the sum fits signed 64 bits.
 	return r >= 0 && std::abs(dx) <= r && std::abs(dy) <= r && std::abs(dz) <= r &&
 	       dx * dx + dy * dy + dz * dz <= r * r;
+}
+bool ConversationRuntime::linked(const std::string &a, const std::string &b) const
+{
+	if (!participants.contains(a) || !participants.contains(b))
+		return false;
+	const auto ah = participants.at(a).host, bh = participants.at(b).host;
+	return endpoints.contains(ah) && endpoints.contains(bh) &&
+	       comms_endpoints_linked(endpoints.at(ah), endpoints.at(bh));
 }
 ConversationId ConversationRuntime::open(const std::string &program, std::map<std::string, std::string> bindings,
                                          const std::vector<std::string> &members, const std::string &title)

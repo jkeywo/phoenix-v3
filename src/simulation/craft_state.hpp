@@ -32,8 +32,7 @@ struct CraftState
 	std::size_t slot = 0;
 	CraftPhase phase = CraftPhase::Docked;
 	std::uint64_t revision = 1;
-	std::int64_t progress = 0, energy_remainder = 0;
-	std::vector<std::int64_t> ammunition_remainders;
+	std::int64_t progress = 0;
 	bool ftl_recalled = false;
 	CraftReport report;
 	fixed::Vec rendezvous, rendezvous_velocity, target_position, target_velocity;
@@ -44,7 +43,7 @@ struct CraftState
 struct CraftGuidance
 {
 	fixed::Vec destination;
-	std::int64_t altitude = 0, speed = 0, weapon_mode = 0, heading = 0;
+	std::int64_t altitude = 0, speed = 0, heading = 0;
 	EntityId target = 0;
 	bool navigate = false;
 };

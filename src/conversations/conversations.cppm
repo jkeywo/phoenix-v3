@@ -24,6 +24,7 @@ struct CommsEndpoint
 	bool working = false, human = false;
 	std::int64_t altitude = 0;
 };
+bool comms_endpoints_linked(const CommsEndpoint &, const CommsEndpoint &);
 struct ConversationLine
 {
 	std::string speaker, text;

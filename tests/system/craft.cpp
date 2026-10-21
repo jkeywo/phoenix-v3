@@ -81,7 +81,13 @@ int main(int argc, char **argv)
 		ticks(w, 1);
 		require(!w.submit(101, send), "stale manifest cannot launch twice");
 		World resumed;
-		resumed.restore(catalog, w.save());
+		auto legacy = w.save();
+		for (auto &row : legacy["craft"]["entities"])
+		{
+			row["state"]["energy_remainder"] = 7;
+			row["state"]["ammunition_remainders"] = {3};
+		}
+		resumed.restore(catalog, legacy);
 		require(resumed.save() == w.save(), "launch continuation restores exactly");
 		for (int i = 0; i < 300 && missions(w)[0].at("phase") != "deployed"; ++i)
 		{
@@ -282,6 +288,9 @@ int main(int argc, char **argv)
 				if (returned)
 					break;
 			}
+			if (!fired || !returned)
+				std::cerr << "bomber fired=" << fired << " returned=" << returned << " "
+				          << flight.save().at("craft").dump() << '\n';
 			require(fired && returned, "bomber fires finite salvo then returns without relaunch");
 			require(intercepting, "interceptor prioritises actual nearby hostile missiles");
 			require(flight.save() == continuation.save(), "combat sortie and servicing continuation parity");
@@ -290,6 +299,22 @@ int main(int argc, char **argv)
 			                                   std::to_string(*flight.ship_for_slot("crew")))),
 			        "retask interceptor to selected escort");
 			ticks(flight, 1);
+			{
+				auto separated = flight.save();
+				const auto home = *flight.ship_for_slot("crew");
+				for (auto &body : separated["bodies"])
+					if (body.at("body").at("id") == home)
+						body["body"]["position"]["x"] = 5000000;
+				World unlinked;
+				unlinked.restore(armed, separated);
+				ticks(unlinked, 20);
+				const auto guarded = unlinked.save();
+				for (const auto &craft : guarded.at("craft").at("entities"))
+					if (craft.at("id") == std::stoull(interceptor))
+						require(craft.at("state").at("order") == "escort" &&
+						            craft.at("state").at("rendezvous").at("x") != 5000000,
+						        "escort retains accepted work and last reported anchor during observation loss");
+			}
 			require(flight.submit(101, command(flight, "craft", "recall", interceptor)), "combat recall");
 			ticks(flight, 1);
 		}
@@ -376,6 +401,37 @@ int main(int argc, char **argv)
 				}
 			require(flying && docked, "deployed craft remain in world while docked craft depart safely");
 			trace.push_back(abandoned);
+		}
+		{
+			auto authored = armed_craft_fixture();
+			for (auto &tree : authored["trees"])
+				if (tree.at("id") == "test.bomber-flight.execute")
+					tree["states"][0]["transitions"].insert(
+					    tree["states"][0]["transitions"].begin(),
+					    Json{{"target", "recall"},
+					         {"conditions",
+					          Json::array(
+					              {{{"left", {{"observation", "craft.order"}}}, {"op", "eq"}, {"right", "bomb"}}})}});
+			World custom;
+			custom.load(load(authored), "test.map", {{"crew", "test.away"}});
+			require(custom.claim(101, *custom.ship_for_slot("crew"), "drive"), "custom sortie policy claim");
+			ticks(custom, 10);
+			std::string bomber;
+			const auto initial_craft = custom.observe(101)->gameplay.at("craft");
+			for (const auto &c : initial_craft)
+				if (c.at("role") == "bomber")
+					bomber = c.at("id");
+			require(custom.submit(101, command(custom, "craft", "bomb", bomber, "1")), "custom bomber order");
+			ticks(custom, 120);
+			const auto custom_state = custom.save();
+			for (const auto &body : custom_state.at("bodies"))
+				if (body.at("body").at("id") == std::stoull(bomber))
+					require(body.at("combat").at("systems").at("weapon").at("shots") == 0,
+					        "authored Controller action changes sortie sequencing without a runtime policy branch");
+			const auto recovered_craft = custom.observe(101)->gameplay.at("craft");
+			for (const auto &c : recovered_craft)
+				if (c.at("id") == bomber)
+					require(c.at("phase") == "docked", "authored recall returns a loaded bomber");
 		}
 		if (argc > 1 && std::string(argv[1]) == "--trace")
 		{

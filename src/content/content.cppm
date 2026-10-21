@@ -134,9 +134,12 @@ enum class ControllerOwnField
 	CraftAltitude,
 	CraftSpeed,
 	CraftTarget,
-	CraftWeaponMode,
 	CraftNavigate,
 	CraftHeading,
+	CraftOrder,
+	CraftReserveLow,
+	CraftArmed,
+	CraftTargetPresent,
 	Count
 };
 enum class ControllerRecordField

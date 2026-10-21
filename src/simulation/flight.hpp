@@ -94,6 +94,13 @@ void observe_flight(const FlightDefinition &, FlightState &, std::uint64_t tick,
                     const std::optional<FlightContactObservation> &);
 void guide_follow(const FlightDefinition &, FlightState &, const Pose &, const Motion &,
                   const std::optional<FlightContactObservation> &);
+struct PursuitGuidance
+{
+	std::int64_t heading = 0, speed = 0;
+};
+// Shared velocity tracking; callers supply their positional policy and speed limit.
+PursuitGuidance pursuit_guidance(const Pose &, const Motion &, fixed::Vec desired_velocity, std::int64_t speed_limit,
+                                 std::int64_t fallback_heading);
 FlightDemand flight_demand(const FlightDefinition &, const FlightState &, const Pose &, const Motion &);
 FlightExecution step_flight(const FlightDefinition &, FlightState &, Pose &, Motion &, const FlightDemand &,
                             int paid_permille, int output_permille = 1000, int heat_permille = 1000);
