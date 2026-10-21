@@ -482,7 +482,8 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 				if (action.name.starts_with("select.") || action.name.starts_with("replace.") ||
 				    action.name.starts_with("action.") || action.name.starts_with("coordination."))
 					continue;
-				if (action.name.starts_with("away.") || action.name.starts_with("craft.") || action.name.starts_with("team."))
+				if (action.name.starts_with("away.") || action.name.starts_with("craft.") ||
+				    action.name.starts_with("team."))
 					continue;
 				if (action.name == "acknowledge_message" || action.name == "stop_publication" ||
 				    action.name == "withdraw_request")

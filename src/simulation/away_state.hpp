@@ -91,7 +91,8 @@ struct AwayMission
 	std::set<std::string> participants;
 	bool deployed() const
 	{
-		return (phase == AwayPhase::Deployed || phase == AwayPhase::Inbound) && !aboard_craft && !returning_without_delivery;
+		return (phase == AwayPhase::Deployed || phase == AwayPhase::Inbound) && !aboard_craft &&
+		       !returning_without_delivery;
 	}
 	bool absent() const
 	{

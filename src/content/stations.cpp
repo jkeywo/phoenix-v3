@@ -31,12 +31,13 @@ std::vector<FittedSystemSpec> resolve_systems(const Catalog &catalog, const std:
 		if (kind == "repair_team")
 			kind = "team";
 		std::optional<OperatingSystem> type;
-		for (auto candidate :
-		     {OperatingSystem::Engine, OperatingSystem::Steering, OperatingSystem::Radar, OperatingSystem::Generator,
-		      OperatingSystem::Storage, OperatingSystem::Distribution, OperatingSystem::Coolant,
-		      OperatingSystem::Lateral, OperatingSystem::Boost, OperatingSystem::Impulse, OperatingSystem::Weapon,
-		      OperatingSystem::Turret, OperatingSystem::Magazine, OperatingSystem::Team, OperatingSystem::Shield,
-		      OperatingSystem::Comms, OperatingSystem::Displacement, OperatingSystem::Dispatch, OperatingSystem::Ftl, OperatingSystem::ShuttleBay})
+		for (auto candidate : {OperatingSystem::Engine,    OperatingSystem::Steering,     OperatingSystem::Radar,
+		                       OperatingSystem::Generator, OperatingSystem::Storage,      OperatingSystem::Distribution,
+		                       OperatingSystem::Coolant,   OperatingSystem::Lateral,      OperatingSystem::Boost,
+		                       OperatingSystem::Impulse,   OperatingSystem::Weapon,       OperatingSystem::Turret,
+		                       OperatingSystem::Magazine,  OperatingSystem::Team,         OperatingSystem::Shield,
+		                       OperatingSystem::Comms,     OperatingSystem::Displacement, OperatingSystem::Dispatch,
+		                       OperatingSystem::Ftl,       OperatingSystem::ShuttleBay})
 			if (kind == operating_system_name(candidate) ||
 			    (kind == "transport" && candidate == OperatingSystem::Displacement))
 				type = candidate;

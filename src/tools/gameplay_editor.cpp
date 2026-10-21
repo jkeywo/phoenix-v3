@@ -1062,6 +1062,8 @@ struct GameplayEditor
 					            });
 					    structured_field(m, "objectives");
 				    });
+		}
+		{
 			ScopedTree panel("Craft and transport");
 			if (panel)
 			{
@@ -1928,7 +1930,7 @@ struct GameplayEditor
 					definition["context"] = context.at("context");
 				if (context.at("context") == "away")
 					boolean(definition, "boarding", false);
-					strings(definition, "transport_capabilities");
+				strings(definition, "transport_capabilities");
 				if (context.at("context") == "conversation")
 				{
 					optional_string(definition, "title_key");
@@ -3320,7 +3322,7 @@ void set_gameplay_authoring_vocabulary(const Json &vocabulary)
 		    {{"id", f.name}, {"type", f.type == state_tree::Type::Boolean ? "boolean" : "integer"}});
 	for (const auto &a : teams.actions)
 		contexts["team"]["actions"].push_back({{"id", a.name}, {"arguments", Json::array()}});
-	const auto away = away_registry(true);
+	const auto away = away_registry(Json{{"boarding", true}});
 	contexts["away"] = {{"observations", Json::array()}, {"actions", Json::array()}};
 	for (const auto &f : away.observations)
 		contexts["away"]["observations"].push_back({{"id", f.name},

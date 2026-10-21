@@ -198,6 +198,20 @@ int main(int argc, char **argv)
 		require(w.submit(101, send), "launch shuttle transport");
 		ticks(w, 1);
 		require(!w.submit(101, send), "stale manifest cannot launch twice");
+		{
+			auto old_bay_save = w.save();
+			for (auto &mission : old_bay_save["away_missions"])
+			{
+				mission["schema"] = 4;
+				for (const auto *field : {"care", "boarding", "craft", "returning_without_delivery"})
+					mission.erase(field);
+			}
+			require(old_bay_save["away_missions"][0]["aboard_craft"] == true,
+			        "legacy bay fixture has passengers aboard");
+			World migrated_bay;
+			migrated_bay.restore(catalog, old_bay_save);
+			require(migrated_bay.save() == w.save(), "legacy bay passengers survive combined away schema migration");
+		}
 		World resumed;
 		auto legacy = w.save();
 		for (auto &row : legacy["craft"]["entities"])

@@ -369,7 +369,7 @@ void controller_output(EntityId id, std::size_t index, const state_tree::Output 
 				command.controller = controller.definition.id;
 				command.generation = controller.generation;
 				team_command(source, command, true, true);
-}
+			}
 			else if (action.name == "craft.return_home")
 			{
 				if (controller.human || !entities.at(id).has<CraftState>() ||

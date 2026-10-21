@@ -48,7 +48,7 @@ Workshop exposes target templates, slot filters, encounters, objectives, craft f
 
 ## Persistence and verification
 
-Away save schema 7 preserves physical craft commitments and return state, boarding routes, assessments, encounter receipts, secured objectives, and capture. Schemas 1–5 retain their prior migrations; schema 6 adds a default empty craft commitment. The enclosing World schema stays 13, with optional capture receipts and a finite craft roster. Older content without boarding/craft remains supported. New team conditions and detention fields default compatibly on older saves.
+Away save schema 8 preserves physical craft commitments and return state, boarding routes, assessments, encounter receipts, secured objectives, capture and individual-bay passenger state. Schemas 1–7 retain their prior migrations; missing bay passenger fields default to false. The enclosing World schema is 14, with optional capture receipts and a finite craft roster. Older content without boarding/craft remains supported. New team conditions and detention fields default compatibly on older saves.
 
 The synthetic `security` integration case covers generic team treatment, permanent loss, target-authored capture, optional Medical, deterministic continuation, shuttle damage gating, physical delivery/return, and disposable torpedoes. The CI gate runs the same source natively and in WASM and compares continuation traces. These checks establish behavior, not production encounter balance. Native/browser UI smoke evidence and physical-device accessibility acceptance are recorded separately.
 

@@ -1,8 +1,6 @@
 # Away missions and displacement
 
-Away missions use compiled state trees and real ship personnel. Dispatch coordinates a manifest; each contributing Station keeps authority over its own officers, repair teams and transport. Physical shuttles, disposable boarding torpedoes and target-authored security encounters extend these same manifests and trees; see [Security and boarding](security-boarding.md). Evacuation cargo and a general investigation system remain later work.
-
-Away missions use compiled state trees and real ship personnel. Dispatch coordinates a manifest; each contributing Station keeps authority over its own officers, repair teams and transport. The original increment implements displacement and repair work. [Carried craft](carried-craft.md) extends transport with individual shuttles and the crew's manually flown ship. Security encounters, evacuation cargo and a general investigation system remain later work.
+Away missions use compiled state trees and real ship personnel. Dispatch coordinates a manifest; each contributing Station keeps authority over its own officers, teams and transport. [Carried craft](carried-craft.md) supports individual shuttles and the crew's manually flown ship. Physical shuttles, disposable boarding torpedoes and target-authored security encounters also use these manifests and trees; see [Security and boarding](security-boarding.md). Evacuation cargo and a general investigation system remain later work.
 
 ## Playing the rescue
 

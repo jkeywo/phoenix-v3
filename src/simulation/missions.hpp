@@ -202,7 +202,8 @@ void resolve_lost_parties()
 		const bool lost_transport =
 		    m.aboard_craft && transport &&
 		    (combat_dead(entities.at(transport)) || entities.at(transport).get<CraftState>().phase == CraftPhase::Lost);
-		if (!ship || m.phase == AwayPhase::Lost || craft_passengers_extracted(m) || (!truly_destroyed(d.target) && !lost_transport))
+		if (!ship || m.phase == AwayPhase::Lost || craft_passengers_extracted(m) ||
+		    (!truly_destroyed(d.target) && !lost_transport))
 			continue;
 		if ((m.deployed() && truly_destroyed(d.target)) || lost_transport)
 		{
@@ -243,6 +244,11 @@ void resolve_lost_parties()
 		}
 		else if (m.phase == AwayPhase::Outbound)
 		{
+			if (m.aboard_craft && transport)
+			{
+				request_craft_pickup(transport);
+				continue;
+			}
 			if (m.craft)
 			{
 				cancel_craft_transfer(i);
