@@ -538,7 +538,7 @@ test(
 			assert.equal(first.code, 0, first.output);
 			assert.match(first.output, /PASS remote verified content/);
 			const gm = await run(["--gm", "--self", "gm"], "gm").result;
-			assert.equal(gm.code, 0, gm.output);
+			assert.equal(gm.code, 0, `${gm.output}\nHost output:\n${host.output}`);
 			assert.match(gm.output, /PASS host-approved read-only GM/);
 			// Expiry uses the application's heartbeat timeout, independently of discovery.
 			await new Promise((resolve) => setTimeout(resolve, 3200));

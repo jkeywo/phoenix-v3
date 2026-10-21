@@ -47,10 +47,16 @@ std::int64_t requested(const World &world, const std::string &id)
 }
 } // namespace
 
-int main()
+int main(int argc, char **argv)
 {
 	try
 	{
+		Json continuation_trace = Json::array();
+		auto record = [&](Json saved)
+		{
+			saved.erase("packs");
+			continuation_trace.push_back(std::move(saved));
+		};
 
 		{
 			auto source = controller_fixture();
@@ -88,6 +94,7 @@ int main()
 			for (int i = 0; i < 20; ++i)
 				world.tick();
 			const auto saved = world.save();
+			record(saved);
 			const auto &rows = saved.at("bodies")[0].at("console_controllers").at("controllers");
 			require(rows[1].at("commands")[0].at("value") == 450,
 			        "accepted supply request changes ordinary generator command");
@@ -101,6 +108,7 @@ int main()
 				resumed.tick();
 			}
 			require(world.save() == resumed.save(), "commitment and correlated replies resume exactly");
+			record(resumed.save());
 			const auto ended = world.save().at("bodies")[0].at("console_controllers").at("controllers");
 			require(ended[1].at("coordination")[0][0].at("status") == 5, "withdrawal ends recipient commitment");
 
@@ -208,6 +216,7 @@ int main()
 			world.load(catalog, "test.map");
 			world.tick();
 			const auto midway = world.save();
+			record(midway);
 			World restored;
 			restored.restore(catalog, midway);
 			for (int i = 0; i < 6; ++i)
@@ -216,6 +225,7 @@ int main()
 				restored.tick();
 			}
 			require(world.save() == restored.save(), "shared action continuation resumes exactly");
+			record(restored.save());
 			const auto action =
 			    world.save().at("bodies")[0].at("console_controllers").at("controllers")[0].at("action");
 			require(action.at("status") == "succeeded" && action.at("serial") == 1,
@@ -248,6 +258,7 @@ int main()
 			for (int i = 0; i < 8; ++i)
 				changing.tick();
 			const auto ended = changing.save().at("bodies")[0].at("console_controllers").at("controllers")[0];
+			record(changing.save());
 			require(ended.at("action").at("serial") == 2 && ended.at("action").at("status") == "cancelled" &&
 			            ended.at("commands")[0].at("value") == 0,
 			        "replacement and cancellation run ordinary-command cleanup");
@@ -2831,7 +2842,10 @@ int main()
 		execution.absent("server");
 		frame["sequence"] = 2;
 		require(!execution.apply("server", frame), "server absence cannot revive a stale Controller lease");
-		std::cout << "PASS Controller sections, physical subscriptions, operator generations and continuation\n";
+		if (argc > 1 && std::string(argv[1]) == "--trace")
+			std::cout << sha256(json_bytes(continuation_trace)) << '\n';
+		else
+			std::cout << "PASS Controller sections, physical subscriptions, operator generations and continuation\n";
 		return 0;
 	}
 	catch (const std::exception &error)

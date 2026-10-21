@@ -57,6 +57,12 @@ try
 		}
 		Set-Content -LiteralPath "$repo/build/native/away-continuation.trace" -Value $awayNativeTrace -Encoding utf8
 		& "$PSScriptRoot/check-network-service.ps1"
+		$controllerNativeTrace = & "$repo/build/native/Release/phoenix_controller_runtime_tests.exe" --trace
+		if ($LASTEXITCODE)
+		{
+			throw 'Native Controller action continuation trace failed'
+		}
+		Set-Content -LiteralPath "$repo/build/native/controller-continuation.trace" -Value $controllerNativeTrace -Encoding utf8
 	}
 	if ($Target -ne 'native')
 	{
@@ -145,6 +151,13 @@ try
 				throw 'Native/WASM combat continuation differs'
 			}
 			Write-Output 'PASS native/WASM combat projectile, refill and team-travel continuation'
+			$controllerNativeTrace = Get-Content -LiteralPath "$repo/build/native/controller-continuation.trace"
+			$controllerWebTrace = & $node phoenix_controller_runtime_tests.js --trace
+			if ($LASTEXITCODE -or ($controllerNativeTrace -join "`n").Trim() -ne ($controllerWebTrace -join "`n").Trim())
+			{
+				throw 'Native/WASM Controller action continuation differs'
+			}
+			Write-Output 'PASS native/WASM Controller action and coordination continuation'
 			$commsNativeTrace = Get-Content -LiteralPath "$repo/build/native/conversation-continuation.trace"
 			$commsWebTrace = & $node phoenix_conversation_tests.js --trace
 			if ($LASTEXITCODE -or ($commsNativeTrace -join "`n").Trim() -ne ($commsWebTrace -join "`n").Trim())

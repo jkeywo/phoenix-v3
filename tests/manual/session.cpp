@@ -700,8 +700,10 @@ int main(int argc, char **argv)
 			definitions["maps"][0]["entities"].push_back(
 			    {{"id", 2}, {"definition", "test.variant"}, {"x_mm", 200000}, {"y_mm", 0}, {"heading_mdeg", 0}});
 			// A real GM inspection must cross the transport envelope bound while
-			// ordinary crew still receive only their in-range observation.
-			for (unsigned i = 10; i < 230; ++i)
+			// ordinary crew still receive only their in-range observation. Keep the
+			// synthetic world within the separate 4 MiB inspection-state bound;
+			// the 64 remote bodies still require a multi-chunk transfer.
+			for (unsigned i = 10; i < 74; ++i)
 				definitions["maps"][0]["entities"].push_back({{"id", i},
 				                                              {"definition", "test.variant"},
 				                                              {"x_mm", 1000000 + i * 5000},
@@ -746,8 +748,9 @@ int main(int argc, char **argv)
 				if (!session->inspection().is_null())
 				{
 					if (!saw_unapproved || session->command({3, "speed_mm_s", 1000}) ||
-					    session->inspection().at("bodies").size() != 223 ||
-					    json_bytes(session->inspection()).size() <= 65536)
+					    session->inspection().at("bodies").size() != 67 ||
+					    json_bytes(session->inspection()).size() <= 65536 ||
+					    json_bytes(session->inspection()).size() > 4 * 1024 * 1024)
 						throw std::runtime_error("GM approval/read-only/full-world boundary failed");
 					std::cout << "PASS host-approved read-only GM inspection" << std::endl;
 					return 0;

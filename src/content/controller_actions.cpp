@@ -345,6 +345,15 @@ void expand_officer_policies(Catalog &catalog)
 			Json refuse{{"target", "failed"}, {"conditions", Json::array({condition("feasible", "eq", false)})}};
 			Json new_request{{"target", "assist"},
 			                 {"conditions", Json::array({condition("status", "eq", "requested")})}};
+			Json changed_limit{{"target", "assist"},
+			                   {"conditions", Json::array({condition("limit", "ne", obs("amount"))})}};
+			Json action_failed{
+			    {"target", "failed"},
+			    {"conditions",
+			     Json::array(
+			         {Json{{"left", {{"observation", "action.status"}}}, {"op", "eq"}, {"right", "failed"}},
+			          Json{{"left", {{"observation", "action.id"}}}, {"op", "eq"}, {"right", "officer_support"}},
+			          Json{{"left", {{"elapsed", true}}}, {"op", "ge"}, {"right", 1}}})}};
 			Json blocked{{"target", "failed"}, {"conditions", Json::array({condition("blocked", "eq", true)})}};
 			Json enter{
 			    {"target", "assist"},
@@ -359,13 +368,13 @@ void expand_officer_policies(Catalog &catalog)
 			     {{"id", "assist"},
 			      {"entry", Json::array({response("accepted", "support_committed")})},
 			      {"running", Json::array({select})},
-			      {"transitions", Json::array({leave, refuse, blocked, new_request,
+			      {"transitions", Json::array({leave, refuse, blocked, action_failed, new_request, changed_limit,
 			                                   Json{{"target", "done"},
 			                                        {"conditions", Json::array({condition("done", "eq", true)})}}})}},
 			     {{"id", "done"},
 			      {"entry", Json::array({response("completed", "observed_outcome")})},
 			      {"running", operation == "repair" ? Json::array() : Json::array({select})},
-			      {"transitions", Json::array({leave, refuse, blocked, new_request})}},
+			      {"transitions", Json::array({leave, refuse, blocked, action_failed, new_request, changed_limit})}},
 			     {{"id", "refuse"},
 			      {"entry", Json::array({response("refused", "orders_or_capacity"),
 			                             Json{{"action", "action.cancel"}, {"arguments", {"request_refused"}}}})},

@@ -811,8 +811,10 @@ Json save_controllers(flecs::entity entity) const
 		                 {"message", controller.result.message},
 		                 {"reason", controller.result.reason}};
 		row["effects"] = controller.effects;
-		row["action"] = save_controller_action(controller);
-		row["coordination"] = save_controller_coordination(controller);
+		if (!controller.action.id.empty())
+			row["action"] = save_controller_action(controller);
+		if (!controller.incoming_requests.empty() || !controller.outgoing_requests.empty())
+			row["coordination"] = save_controller_coordination(controller);
 		result["controllers"].push_back(std::move(row));
 	}
 	return result;
@@ -871,8 +873,17 @@ void restore_controllers(flecs::entity entity, const Json &saved)
 		fail(!row.contains("timed") && row.contains("brain") == controller.brain.has_value());
 		if (controller.brain)
 			controller.brain->continuation = state_tree::load(controller.brain->program, row.at("brain"));
-		restore_controller_action(controller, row.at("action"));
-		restore_controller_coordination(entity.get<StableId>().id, controller, row.at("coordination"));
+		if (row.contains("action"))
+			restore_controller_action(controller, row.at("action"));
+		else
+			controller.action = {};
+		if (row.contains("coordination"))
+			restore_controller_coordination(entity.get<StableId>().id, controller, row.at("coordination"));
+		else
+		{
+			controller.incoming_requests.clear();
+			controller.outgoing_requests.clear();
+		}
 
 		const auto &result = row.at("result");
 		fail(result.at("available").is_boolean() && result.at("success").is_boolean() &&

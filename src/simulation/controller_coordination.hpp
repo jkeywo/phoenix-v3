@@ -234,7 +234,8 @@ void controller_coordination_facts(const ConsoleControllerRuntime &controller, c
 						          (t.contains("thermal_stopped") && t.at("thermal_stopped"));
 						const auto field =
 						    r->operation == OfficerOperation::Power ? "actual_output" : "actual_coolant_used";
-						done = t.contains(field) && t.at(field) >= limit;
+						done = t.contains(field) &&
+						       (r->operation == OfficerOperation::Power ? t.at(field) == limit : t.at(field) >= limit);
 					}
 		}
 		if (r->operation == OfficerOperation::Manoeuvre &&
@@ -264,6 +265,17 @@ void controller_coordination_facts(const ConsoleControllerRuntime &controller, c
 					done = compartment.at("hp") >= compartment.at("maximum");
 				}
 	}
+	if (r->operation == OfficerOperation::Repair || r->operation == OfficerOperation::Manoeuvre)
+		for (const auto &command : controller.definition.commands)
+			if ((r->operation == OfficerOperation::Repair && command.action == OperatingAction::RepairCompartment) ||
+			    (r->operation == OfficerOperation::Manoeuvre &&
+			     (command.action == OperatingAction::FollowContact || command.action == OperatingAction::Speed ||
+			      command.action == OperatingAction::Heading)))
+				for (const auto consumer : command.consumers)
+					for (const auto &system : observed.systems)
+						if (system.id == (*fittings(entity)).values[consumer].id &&
+						    system.telemetry.contains("enabled") && !system.telemetry.at("enabled"))
+							blocked = true;
 	if (r->operation == OfficerOperation::Repair)
 		for (const auto &fault : observed.gameplay.value("combat", Json::object()).value("faults", Json::array()))
 			if (fault.value("compartment_index", std::int64_t{0}) == r->target)
