@@ -43,6 +43,9 @@ std::string personnel_markup(Application &app)
 						if (d.at("id") == o.at("duty"))
 							label += ": " + localise(d.at("label"));
 				label += " / " + o.at("location").get<std::string>();
+				if (o.value("condition", std::string{"healthy"}) != "healthy")
+					label += " / " + localise(o.at("condition")) +
+					         (o.value("stabilised", false) ? " / " + localise("Stabilised") : "");
 				if (o.at("remaining").get<std::int64_t>() > 0)
 					label += " -> " + o.at("destination").get<std::string>();
 				html += "<div class=\"personnel-row\"><img src=\"" + esc(portrait) + "\"/>" +
@@ -73,7 +76,8 @@ std::string personnel_markup(Application &app)
 				for (const auto &effect : d.at("effects"))
 					html += paragraph(effect.at("system").get<std::string>() + ": " + localise(effect.at("slot")) +
 					                  " " + std::to_string(effect.at("multiplier").get<std::int64_t>() / 10) + "%");
-				if (selected && selected->at("duty") != d.at("id"))
+				if (selected && (selected->at("condition") == "healthy" || selected->at("condition") == "minor") &&
+				    selected->at("duty") != d.at("id"))
 				{
 					std::string applicable;
 					for (const auto &t : selected->at("traits"))

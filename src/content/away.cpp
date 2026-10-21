@@ -124,6 +124,11 @@ std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map
 			                std::string::npos &&
 			            slots.insert(v.id).second && (v.kind == "team" || v.kind == "officer"),
 			        "invalid slot");
+			v.team_type = s.value("team_type", std::string{});
+			v.capability = s.value("capability", std::string{});
+			require(v.team_type.size() <= 64 && v.capability.size() <= 64 &&
+			            (v.kind == "team" || (v.team_type.empty() && v.capability.empty())),
+			        "invalid team slot filter");
 			d.slots.push_back(v);
 		}
 		require(!d.slots.empty() && d.slots.size() <= 16, "expected 1..16 slots");

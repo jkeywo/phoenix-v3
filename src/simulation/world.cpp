@@ -54,8 +54,9 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(WeaponState, target, cooldown, shots, ready, 
                                    intercept)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(TurretState, target, heading, turn_remainder)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MagazineState, ammo, refill, reserved_return)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RepairState, location, destination, edge_to, travel, edge_total, repair_system,
-                                   repair_auto)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(TeamState, location, destination, edge_to, travel, edge_total,
+                                                repair_system, repair_auto, revision, order, activity, patient,
+                                                work_done)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ShieldState, strength, warmup, recharge_remainder, discharge_remainder,
                                    discharge_credit, discharge)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Destructible, definition, durability, destroyed_tick, processed)
@@ -835,8 +836,8 @@ struct World::Impl
 				case OperatingSystem::Shield:
 					mechanism.state = ShieldState{mechanism.definition.reserve().initial};
 					break;
-				case OperatingSystem::RepairTeam:
-					mechanism.state = RepairState{
+				case OperatingSystem::Team:
+					mechanism.state = TeamState{
 					    static_cast<std::int64_t>(data.combat->compartment_ids.at(mechanism.definition.compartment))};
 					break;
 				default:
@@ -1949,6 +1950,7 @@ struct World::Impl
 		return true;
 	}
 #include "personnel.hpp"
+#include "teams.hpp"
 #include "bridge.hpp"
 #include "conversations.hpp"
 #include "away.hpp"
@@ -1970,6 +1972,8 @@ struct World::Impl
 			return ftl_command(address, command, execute);
 		if (command.action.starts_with("away."))
 			return away_command(address, command, execute);
+		if (command.action.starts_with("team."))
+			return team_command(address, command, execute);
 		if (command.action.starts_with("personnel."))
 			return personnel_command(address, command, execute);
 		if (command.action == "alert.set" || command.action == "stance.set")
@@ -2428,7 +2432,9 @@ void World::tick()
 	impl_->step_ordnance();
 	impl_->resolve_destructions();
 	impl_->resolve_lost_parties();
+	impl_->step_teams();
 	impl_->step_repairs();
+	impl_->step_medical_facilities();
 	impl_->index_contacts.run();
 	impl_->waypoint_arrivals();
 	if (impl_->scenario)
@@ -2751,6 +2757,7 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	result.gameplay["navigation"] = impl_->navigation_board(address.ship);
 	result.gameplay["stance"] = impl_->stance_board(address);
 	result.gameplay["personnel"] = impl_->personnel_board(address);
+	result.gameplay["teams"] = impl_->team_board(address);
 	result.gameplay["away_missions"] = impl_->away_board(address);
 	result.gameplay["ftl"] = impl_->ftl_board(address);
 	result.gameplay["mission_report"] =
@@ -3586,6 +3593,7 @@ void World::restore(const Catalog &content, const Json &saved)
 		}
 	candidate.impl_->index_contacts.run();
 	candidate.impl_->validate_mission_ledger();
+	candidate.impl_->validate_medical_state();
 	impl_ = std::move(candidate.impl_);
 }
 } // namespace phoenix

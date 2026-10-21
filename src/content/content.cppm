@@ -1,4 +1,5 @@
 module;
+#include <set>
 #include <cstdint>
 #include <array>
 #include <map>
@@ -394,10 +395,18 @@ struct ConsoleSpec
 	std::vector<std::string> human_preferences;
 };
 // Authored personnel is compiled once; runtime assignments never alter these records.
+state_tree::Registry team_registry();
+struct TeamOrderDefinition
+{
+	std::string id, label, icon, target, capability;
+	std::set<std::string> patient_states{"minor", "severe", "stabilised"};
+	state_tree::Program program;
+};
 struct AwaySlot
 {
 	std::string id, kind, trait;
 	bool required = true;
+	std::string team_type, capability;
 };
 struct SensorDefinition
 {
@@ -441,11 +450,25 @@ struct PersonnelDuty
 struct OfficerDefinition
 {
 	std::string id, name, portrait, department, duty, compartment;
+	std::string condition = "healthy";
 	std::vector<std::string> traits;
 	std::map<std::string, std::int64_t> bonuses;
 };
+struct MedicalFacility
+{
+	std::string id, compartment;
+	std::int64_t capacity = 1, recovery_ticks = 1200;
+};
+struct CasualtyPolicy
+{
+	std::int64_t significant_damage = 20, heavy_below_permille = 300, lethal_damage = 80;
+	std::int64_t stun = 150, minor = 100, severe = 30, killed = 10;
+	bool lethal = false;
+};
 struct PersonnelDefinition
 {
+	std::vector<MedicalFacility> facilities;
+	CasualtyPolicy casualties;
 	std::vector<PersonnelDepartment> departments;
 	std::map<std::string, OfficerTrait> traits;
 	std::vector<PersonnelDuty> duties;
@@ -549,9 +572,12 @@ struct MagazineDefinition
 	std::string reload = "none";
 	std::int64_t refill_ticks = 1, refill_amount = 0, reload_energy = 0;
 };
-struct RepairDefinition
+struct TeamDefinition
 {
-	std::int64_t repair_rate = 0, stack_penalty = 500;
+	std::int64_t repair_rate = 0, stack_penalty = 500, treatment_ticks = 400, stabilise_ticks = 200;
+	std::string type = "engineering";
+	std::set<std::string> capabilities{"repair"};
+	std::vector<TeamOrderDefinition> orders;
 };
 struct ShieldDefinition
 {
@@ -564,7 +590,7 @@ struct CombatSystemDefinition
 	std::string id, compartment;
 	OperatingSystem kind = OperatingSystem::Weapon;
 	std::int64_t x = 0, y = 0, bearing = 0, arc = 360000;
-	std::variant<WeaponDefinition, TurretDefinition, MagazineDefinition, RepairDefinition, ShieldDefinition> details;
+	std::variant<WeaponDefinition, TurretDefinition, MagazineDefinition, TeamDefinition, ShieldDefinition> details;
 	explicit CombatSystemDefinition(OperatingSystem type = OperatingSystem::Weapon) : kind(type)
 	{
 		switch (type)
@@ -578,8 +604,8 @@ struct CombatSystemDefinition
 		case OperatingSystem::Magazine:
 			details = MagazineDefinition{};
 			break;
-		case OperatingSystem::RepairTeam:
-			details = RepairDefinition{};
+		case OperatingSystem::Team:
+			details = TeamDefinition{};
 			break;
 		case OperatingSystem::Shield:
 			details = ShieldDefinition{};

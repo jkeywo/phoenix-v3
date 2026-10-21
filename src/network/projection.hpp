@@ -2,6 +2,7 @@
 #include "../core/display_projection.hpp"
 #include "../core/personnel_projection.hpp"
 #include "../core/away_projection.hpp"
+#include "../core/team_projection.hpp"
 #include "../core/sensor_projection.hpp"
 #include "../core/ftl_projection.hpp"
 namespace phoenix::network
@@ -52,6 +53,8 @@ static inline Json bounded_gameplay(const Json &source)
 		result["away_missions"] = away_projection::board(source.at("away_missions"));
 	if (source.contains("personnel"))
 		result["personnel"] = personnel_projection::board(source.at("personnel"));
+	if (source.contains("teams"))
+		result["teams"] = team_projection::board(source.at("teams"));
 	if (source.contains("conversations"))
 		result["conversations"] = conversation_projection::board(source.at("conversations"));
 	if (source.contains("alert"))
@@ -373,6 +376,8 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 		result.gameplay["away_missions"] = away_projection::board(result.gameplay.at("away_missions"));
 	if (result.gameplay.contains("personnel"))
 		result.gameplay["personnel"] = personnel_projection::board(result.gameplay.at("personnel"));
+	if (result.gameplay.contains("teams"))
+		result.gameplay["teams"] = team_projection::board(result.gameplay.at("teams"));
 	if (result.gameplay.contains("conversations"))
 		result.gameplay["conversations"] = conversation_projection::board(result.gameplay.at("conversations"));
 	// StateSource/StateTransfer already authenticate and bound the complete

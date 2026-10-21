@@ -225,6 +225,7 @@ void resolve_lost_parties()
 				}
 			++personnel.revision;
 			refresh_personnel_bonuses(personnel, p);
+			m.care.clear();
 			m.assignments.clear();
 			m.accompanying.clear();
 			m.phase = AwayPhase::Lost;
@@ -408,7 +409,7 @@ void validate_mission_ledger() const
 			{
 				auto team = away_equipment(ship, a.substr(5));
 				valid = team.is_valid() && team.has<CombatMechanism>() &&
-				        std::holds_alternative<RepairState>(team.get<CombatMechanism>().state);
+				        std::holds_alternative<TeamState>(team.get<CombatMechanism>().state);
 			}
 			else if (a.starts_with("officer:"))
 				for (const auto &o : definition(ship).personnel.officers)

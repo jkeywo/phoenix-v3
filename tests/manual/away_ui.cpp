@@ -11,16 +11,22 @@ import phoenix.console;
 using namespace phoenix;
 int main(int argc, char **argv)
 {
+	Application app;
 	bool opened = false;
 	try
 	{
 		if (argc < 2)
 			throw std::runtime_error("Usage: phoenix_away_smoke pack-directory");
-		Application app;
 		app.can_host = true;
 		app.native_menu = false;
 		app.session = make_local_session();
-		app.session->add_pack(read_file(std::string(argv[1]) + "/base.zip"));
+		auto draft = read_pack(read_file(std::string(argv[1]) + "/base.zip")).draft();
+		auto definitions = parse_json(draft.files.at("definitions.json"), "clinical UI fixture");
+		for (auto &entity : definitions["entities"])
+			if (entity["id"] == "base.rescue-courier")
+				entity["personnel"]["officers"][0]["condition"] = "minor";
+		draft.files["definitions.json"] = json_bytes(definitions);
+		app.session->add_pack(write_pack(draft));
 		app.session->start({"base.rescue-under-threat", {{"courier", "base.rescue-courier"}}, "courier", "helm"});
 		const auto ship = app.session->observation()->own.id;
 		if (!app.session->claim_console(2, {ship, "support"}))
@@ -37,14 +43,25 @@ int main(int argc, char **argv)
 			draw_screen(app);
 			EndDrawing();
 		};
-		for (int i = 0; i < 200; ++i)
+		bool ready = false;
+		for (int i = 0; i < 600 && !ready; ++i)
+		{
 			frame();
+			ready = std::any_of(app.screen_controls.begin(), app.screen_controls.end(),
+			                    [](const auto &c)
+			                    {
+				                    return c.first == "console/2/personnel";
+			                    });
+		}
+		if (!ready)
+			throw std::runtime_error("Console assets did not finish loading");
 		auto advance = [&](int n)
 		{
 			for (int i = 0; i < n; ++i)
 			{
 				app.session->tick();
-				frame();
+				if (i % 20 == 0 || i == n - 1)
+					frame();
 			}
 		};
 		auto action = [&](const std::string &id)
@@ -56,10 +73,34 @@ int main(int argc, char **argv)
 					if (app.screen_action(copy))
 						return;
 				}
+			std::cerr << "Clinical teams: " << app.session->console_observation(2)->gameplay.at("teams").dump() << "\n";
+			for (const auto &c : app.screen_controls)
+				if (c.first.starts_with("console/2/"))
+					std::cerr << c.first << "\n";
 			std::cerr << app.session->console_observation(1)->gameplay.at("away_missions").dump() << '\n';
 			throw std::runtime_error("Missing/refused UI action: " + id);
 		};
 		advance(35);
+		action("console/2/game.teams");
+		advance(1);
+		action("console/2/game.team-order/medical-team/treat");
+		advance(1);
+		TakeScreenshot("away-medical-map.png");
+		ConsoleModel clinical;
+		clinical.refresh(app.session, 2);
+		const auto statuses = clinical.system_statuses();
+		if (std::none_of(statuses.begin(), statuses.end(),
+		                 [](const auto &s)
+		                 {
+			                 return s.semantic_label.find("Officer injured") != std::string::npos;
+		                 }))
+			throw std::runtime_error("Injured duty officer lacks medical status overlay");
+		for (const auto &compartment : clinical.team_map())
+			if (compartment["id"] == "stern-port")
+				action("console/2/game.compartment/" + std::to_string(compartment.at("index").get<int>()));
+		advance(2);
+		action("console/2/game.team-cancel/medical-team");
+		advance(1);
 		action("console/1/personnel");
 		advance(2);
 		TakeScreenshot("away-navigator.png");
@@ -73,6 +114,8 @@ int main(int argc, char **argv)
 		advance(2);
 		TakeScreenshot("away-assignments.png");
 		action("console/2/away/assign/repairs/repair-team/team:team-1");
+		advance(1);
+		action("console/2/away/assign/repairs/medical-team/team:medical-team");
 		advance(2);
 		action("console/1/away/transport/repairs/displacement");
 		advance(2);
@@ -134,9 +177,32 @@ int main(int argc, char **argv)
 		action("console/2/away");
 		advance(2);
 		action("console/2/away/assign/repairs/repair-team/team:team-1");
+		advance(1);
+		action("console/2/away/assign/repairs/medical-team/team:medical-team");
 		advance(4);
 		action("console/1/away/send/repairs/");
-		advance(1400);
+		action("console/2/local-settings.close");
+		advance(1);
+		action("console/2/game.console/comms");
+		advance(3);
+		// Wait for the authored work and reports rather than fixing shipped tuning.
+		auto work_reported = [&]
+		{
+			const auto view = app.session->console_observation(2);
+			const Observation *comms = &*view;
+			for (const auto &extra : view->additional_consoles)
+				if (extra.console == "comms")
+					comms = &extra;
+			for (const auto &thread : comms->gameplay.at("conversations").at("threads"))
+				for (const auto &message : thread.at("messages"))
+					if (message.at("text") == "Repairs complete. The team is ready for recovery.")
+						return true;
+			return false;
+		};
+		for (int i = 0; i < 600 && !work_reported(); ++i)
+			advance(10);
+		if (!work_reported())
+			throw std::runtime_error("Resumed work did not report completion");
 		action("console/1/away/recall/repairs/");
 		advance(65);
 		const auto completed = app.session->console_observation(1)->gameplay.at("away_missions")[0];
@@ -145,13 +211,14 @@ int main(int argc, char **argv)
 		TakeScreenshot("away-complete.png");
 		close_window();
 		opened = false;
-		std::cout << "PASS rescue assignment, deployment, Comms decision, recovery, resume and completion UI smoke\n";
+		std::cout << "PASS Medical dispatch map, officer indicator, optional clinical deployment, Comms, recovery and "
+		             "completion UI smoke\n";
 	}
 	catch (const std::exception &e)
 	{
+		std::cerr << e.what() << '\n';
 		if (opened)
 			close_window();
-		std::cerr << e.what() << '\n';
 		return 1;
 	}
 }

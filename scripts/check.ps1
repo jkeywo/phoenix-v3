@@ -62,6 +62,12 @@ try
 			throw 'Native sensor continuation failed'
 		}
 		Set-Content -LiteralPath "$repo/build/native/sensor-continuation.trace" -Value $sensorNativeTrace -Encoding utf8
+		$medicalNativeTrace = & "$repo/build/native/Release/phoenix_medical_tests.exe" --trace
+		if ($LASTEXITCODE)
+		{
+			throw 'Native Medical continuation failed'
+		}
+		Set-Content -LiteralPath "$repo/build/native/medical-continuation.trace" -Value $medicalNativeTrace -Encoding utf8
 		$awayNativeTrace = & "$repo/build/native/Release/phoenix_away_tests.exe" --trace
 		if ($LASTEXITCODE)
 		{
@@ -149,6 +155,7 @@ try
 					'phoenix_swept_collision_tests.js',
 					'phoenix_workshop_test_tests.js',
 					'phoenix_personnel_tests.js',
+					'phoenix_medical_tests.js',
 					'phoenix_away_tests.js',
 					'phoenix_ftl_tests.js',
 					'phoenix_missions_tests.js',
@@ -193,6 +200,13 @@ try
 				throw 'Native/WASM sensor continuation differs'
 			}
 			Write-Output 'PASS native/WASM sensor traversal and partial acquisition continuation'
+			$medicalNativeTrace = Get-Content -LiteralPath "$repo/build/native/medical-continuation.trace"
+			$medicalWebTrace = & $node phoenix_medical_tests.js --trace
+			if ($LASTEXITCODE -or ($medicalNativeTrace -join "`n").Trim() -ne ($medicalWebTrace -join "`n").Trim())
+			{
+				throw 'Native/WASM Medical continuation differs'
+			}
+			Write-Output 'PASS native/WASM Medical continuation'
 			$awayNativeTrace = Get-Content -LiteralPath "$repo/build/native/away-continuation.trace"
 			$awayWebTrace = & $node phoenix_away_tests.js --trace
 			if ($LASTEXITCODE -or ($awayNativeTrace -join "`n").Trim() -ne ($awayWebTrace -join "`n").Trim())

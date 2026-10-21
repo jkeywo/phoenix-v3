@@ -190,6 +190,20 @@ bool ConversationRuntime::answer(EntityId source, ConversationId id, Conversatio
 		resolve(c, who, choice);
 	return true;
 }
+bool ConversationRuntime::report(ConversationId id, const std::string &line)
+{
+	auto found = conversations.find(id);
+	if (found == conversations.end())
+		return false;
+	auto &c = found->second;
+	const auto &p = programs.at(c.program);
+	const auto at = p.lines.find(line);
+	if (at == p.lines.end() || !c.bindings.contains(at->second.speaker))
+		return false;
+	const auto &l = at->second;
+	message(c, c.bindings.at(l.speaker), l.text, l.delay, l.incoming, l.expiry);
+	return true;
+}
 void ConversationRuntime::event(ConversationId id, const std::string &name)
 {
 	require(conversations.contains(id) && conversations.at(id).events.size() < 256,

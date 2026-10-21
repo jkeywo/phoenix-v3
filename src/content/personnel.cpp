@@ -9,6 +9,17 @@ module;
 module phoenix.content;
 namespace phoenix
 {
+state_tree::Registry team_registry()
+{
+	using namespace state_tree;
+	Registry r;
+	for (const auto *name : {"arrived", "work_done", "eligible"})
+		r.observations.push_back({name, Type::Boolean, 32, {}});
+	r.observations.push_back({"tick", Type::Integer, 32, {}});
+	for (const auto *name : {"move", "diagnose", "repair", "treat", "stabilise", "recover", "complete"})
+		r.actions.push_back({name, 32, {}, false});
+	return r;
+}
 PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string &entity)
 {
 	PersonnelDefinition out;
@@ -93,7 +104,8 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 	    {"propulsion", OperatingSystem::Engine}, {"sensors", OperatingSystem::Radar},
 	    {"cycling", OperatingSystem::Weapon},    {"traverse", OperatingSystem::Turret},
 	    {"reload", OperatingSystem::Magazine},   {"recharge", OperatingSystem::Shield},
-	    {"repair", OperatingSystem::RepairTeam}, {"comms", OperatingSystem::Comms}};
+	    {"medical", OperatingSystem::Team},      {"repair", OperatingSystem::Team},
+	    {"comms", OperatingSystem::Comms}};
 	for (const auto &v : data.at("traits"))
 	{
 		OfficerTrait t{identifier(v.at("id")), text(v.at("label")), {}};
@@ -156,8 +168,7 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 			     "Controller department belongs to another Station");
 		}
 		else
-			fail(kinds.contains(d.team) && kinds.at(d.team) == OperatingSystem::RepairTeam &&
-			         teams.insert(d.team).second,
+			fail(kinds.contains(d.team) && kinds.at(d.team) == OperatingSystem::Team && teams.insert(d.team).second,
 			     "unknown or duplicate team duty");
 		if (!d.team.empty())
 		{
@@ -181,6 +192,11 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 				auto key = slot.get<std::string>();
 				fail(slots.contains(key) && slots.at(key) == kinds.at(system) && unique.insert(key).second,
 				     "incompatible or duplicate effect slot");
+				if (kinds.at(system) == OperatingSystem::Team)
+				{
+					const auto &team = combat->systems.at(combat->system_ids.at(system)).get<TeamDefinition>();
+					fail(team.capabilities.contains(key), "officer effect requires matching team capability");
+				}
 				d.effects[system].push_back(key);
 			}
 		}
@@ -190,7 +206,7 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 	fail(out.duties.size() <= 128 && controllers.size() == layout.controllers.size(),
 	     "every Controller requires one duty (maximum 128)");
 	for (const auto &[id, kind] : kinds)
-		if (kind == OperatingSystem::RepairTeam)
+		if (kind == OperatingSystem::Team)
 			fail(teams.contains(id), "every team requires a duty");
 	for (const auto &v : data.at("officers"))
 	{
@@ -201,6 +217,9 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 		o.department = identifier(v.at("department"));
 		o.duty = v.value("duty", std::string{});
 		o.compartment = identifier(v.at("compartment"));
+		o.condition = v.value("condition", std::string{"healthy"});
+		fail(o.condition == "healthy" || o.condition == "minor" || o.condition == "severe",
+		     "invalid starting condition");
 		o.portrait = v.value("portrait", std::string{});
 		fail(officers.insert(o.id).second && departments.contains(o.department) &&
 		         std::find(out.compartments.begin(), out.compartments.end(), o.compartment) != out.compartments.end(),
@@ -261,6 +280,36 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 									qualified = true;
 			fail(qualified, "displacement requires a qualified Navigator duty");
 		}
+	const auto &policy = data.value("casualties", Json::object());
+	auto bounded = [&](const Json &v, const char *key, std::int64_t fallback, std::int64_t low, std::int64_t high)
+	{
+		fail(!v.contains(key) || v.at(key).is_number_integer(), std::string("expected integer ") + key);
+		auto n = v.value(key, fallback);
+		fail(n >= low && n <= high, std::string("invalid ") + key);
+		return n;
+	};
+	auto &c = out.casualties;
+	c.significant_damage = bounded(policy, "significant_damage", 20, 1, 1000000);
+	c.heavy_below_permille = bounded(policy, "heavy_below_permille", 300, 1, 999);
+	c.lethal_damage = bounded(policy, "lethal_damage", 80, c.significant_damage, 1000000);
+	c.lethal = policy.value("lethal", false);
+	c.stun = bounded(policy, "stun_permille", 150, 0, 1000);
+	c.minor = bounded(policy, "minor_permille", 100, 0, 1000);
+	c.severe = bounded(policy, "severe_permille", 30, 0, 1000);
+	c.killed = bounded(policy, "killed_permille", 10, 0, 1000);
+	fail(c.stun + c.minor + c.severe + c.killed <= 1000, "casualty probabilities exceed 1000");
+	std::set<std::string> facility_ids;
+	for (const auto &v : data.value("facilities", Json::array()))
+	{
+		MedicalFacility f{identifier(v.at("id")), identifier(v.at("compartment"))};
+		f.capacity = bounded(v, "capacity", 1, 1, 128);
+		f.recovery_ticks = bounded(v, "recovery_ticks", 1200, 1, 1728000);
+		fail(facility_ids.insert(f.id).second &&
+		         std::find(out.compartments.begin(), out.compartments.end(), f.compartment) != out.compartments.end(),
+		     "invalid facility");
+		out.facilities.push_back(f);
+	}
+	fail(out.facilities.size() <= 32, "too many facilities");
 	// All authored duties/reserves must be mutually reachable.
 	std::set<std::size_t> reached{0};
 	for (std::size_t n = 0; n < out.compartments.size(); ++n)

@@ -58,3 +58,5 @@ Every push to `main` builds, verifies and deploys the browser apps through [GitH
 - [Shared Settled Dark world](references/settled-dark/shared-world/world.md) and [chronology](references/settled-dark/shared-world/chronology/eras.md).
 
 References are historical snapshots. They retain their original wording, including V2 commands, instructions, authority statements and links to files that may only exist in the original repository. They do not automatically become V3 requirements. The [source manifest](references/source-manifest.json) records original paths and SHA-256 hashes.
+
+[Teams and Medical](docs/medical-teams.md) adds authored generic team orders, clinical teams, officer conditions, facility recovery and optional away treatment.

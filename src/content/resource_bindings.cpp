@@ -212,10 +212,12 @@ std::map<std::string, SystemObservationSchema> compile_system_observations(std::
 			for (const auto *field : fields)
 				schema.emplace(field, system_observation_type(field));
 		};
-		add({"enabled", "requested", "structural_disabled", "damaged", "destroyed", "overheated"});
+		add({"enabled", "requested", "structural_disabled", "damaged", "destroyed", "overheated", "officer_condition"});
 		if (fitted[i].kind >= OperatingSystem::Weapon && fitted[i].kind <= OperatingSystem::Shield)
 			add({"target", "ready", "heading_mdeg", "ammo", "capacity", "reload_progress", "reload_ticks", "shots",
 			     "team_location", "team_destination", "travel_remaining"});
+		if (fitted[i].kind == OperatingSystem::Team)
+			add({"team_revision"});
 		const auto kind = fitted[i].kind;
 		if (advanced &&
 		    (kind == OperatingSystem::Engine || kind == OperatingSystem::Steering || kind == OperatingSystem::Lateral ||

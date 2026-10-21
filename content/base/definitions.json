@@ -644,7 +644,17 @@
 						"to": "engineering",
 						"ticks": 60
 					}
-				]
+				],
+				"casualties": {
+					"significant_damage": 20,
+					"heavy_below_permille": 300,
+					"lethal": true,
+					"lethal_damage": 80,
+					"stun_permille": 150,
+					"minor_permille": 100,
+					"severe_permille": 30,
+					"killed_permille": 10
+				}
 			},
 			"assemblies": [
 				{
@@ -2706,7 +2716,17 @@
 						"to": "engineering",
 						"ticks": 60
 					}
-				]
+				],
+				"casualties": {
+					"significant_damage": 20,
+					"heavy_below_permille": 300,
+					"lethal": true,
+					"lethal_damage": 80,
+					"stun_permille": 150,
+					"minor_permille": 100,
+					"severe_permille": 30,
+					"killed_permille": 10
+				}
 			}
 		},
 		{
@@ -6322,7 +6342,17 @@
 						"to": "engineering",
 						"ticks": 60
 					}
-				]
+				],
+				"casualties": {
+					"significant_damage": 20,
+					"heavy_below_permille": 300,
+					"lethal": true,
+					"lethal_damage": 80,
+					"stun_permille": 150,
+					"minor_permille": 100,
+					"severe_permille": 30,
+					"killed_permille": 10
+				}
 			},
 			"message_templates": [
 				"base.message.power-request",
@@ -7851,7 +7881,17 @@
 						"to": "engineering",
 						"ticks": 60
 					}
-				]
+				],
+				"casualties": {
+					"significant_damage": 20,
+					"heavy_below_permille": 300,
+					"lethal": true,
+					"lethal_damage": 80,
+					"stun_permille": 150,
+					"minor_permille": 100,
+					"severe_permille": 30,
+					"killed_permille": 10
+				}
 			}
 		},
 		{
@@ -9596,7 +9636,17 @@
 						"to": "engineering",
 						"ticks": 60
 					}
-				]
+				],
+				"casualties": {
+					"significant_damage": 20,
+					"heavy_below_permille": 300,
+					"lethal": true,
+					"lethal_damage": 80,
+					"stun_permille": 150,
+					"minor_permille": 100,
+					"severe_permille": 30,
+					"killed_permille": 10
+				}
 			},
 			"assemblies": [
 				{
@@ -12328,7 +12378,17 @@
 						"compartment": "bow-port",
 						"traits": ["comms"]
 					}
-				]
+				],
+				"casualties": {
+					"significant_damage": 20,
+					"heavy_below_permille": 300,
+					"lethal": true,
+					"lethal_damage": 80,
+					"stun_permille": 150,
+					"minor_permille": 100,
+					"severe_permille": 30,
+					"killed_permille": 10
+				}
 			},
 			"class_key": "Courier"
 		},
@@ -13990,7 +14050,17 @@
 						"compartment": "mid-port",
 						"traits": ["recharge"]
 					}
-				]
+				],
+				"casualties": {
+					"significant_damage": 20,
+					"heavy_below_permille": 300,
+					"lethal": true,
+					"lethal_damage": 80,
+					"stun_permille": 150,
+					"minor_permille": 100,
+					"severe_permille": 30,
+					"killed_permille": 10
+				}
 			}
 		},
 		{
@@ -16069,7 +16139,17 @@
 						"to": "engineering",
 						"ticks": 60
 					}
-				]
+				],
+				"casualties": {
+					"significant_damage": 20,
+					"heavy_below_permille": 300,
+					"lethal": true,
+					"lethal_damage": 80,
+					"stun_permille": 150,
+					"minor_permille": 100,
+					"severe_permille": 30,
+					"killed_permille": 10
+				}
 			}
 		},
 		{
@@ -16882,6 +16962,34 @@
 						"compartment_condition": 400,
 						"findings": 0
 					}
+				},
+				"medical-team": {
+					"kind": "team",
+					"type": "medical",
+					"capabilities": ["medical"],
+					"compartment": "stern-starboard",
+					"treatment_ticks": 400,
+					"stabilise_ticks": 200,
+					"orders": [
+						{
+							"id": "treat",
+							"label": "Treat casualties",
+							"icon": "medical",
+							"target": "patients",
+							"capability": "medical",
+							"tree": "base.team.treat",
+							"patient_states": ["minor", "severe"]
+						},
+						{
+							"id": "recover",
+							"label": "Transfer to medical facility",
+							"icon": "medical",
+							"target": "patients",
+							"capability": "medical",
+							"tree": "base.team.recover",
+							"patient_states": ["stabilised"]
+						}
+					]
 				}
 			},
 			"stations": [
@@ -16982,7 +17090,8 @@
 								"pdc-mag",
 								"pdc",
 								"ftl.supply",
-								"ftl.cooling"
+								"ftl.cooling",
+								"medical-team"
 							]
 						},
 						{
@@ -17515,6 +17624,19 @@
 								"label_key": "FTL cooling"
 							}
 						]
+					},
+					{
+						"id": "medical-team",
+						"console": "support",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["medical-team"]
+							}
+						]
 					}
 				],
 				"default_profile": "direct",
@@ -17555,7 +17677,8 @@
 									"shield-fore",
 									"shield-aft",
 									"ftl.supply",
-									"ftl.cooling"
+									"ftl.cooling",
+									"medical-team"
 								]
 							},
 							"comms": {
@@ -17600,7 +17723,8 @@
 									"weapon-cell",
 									"shield-cell",
 									"shield-fore",
-									"shield-aft"
+									"shield-aft",
+									"medical-team"
 								],
 								"human": ["ftl.supply", "ftl.cooling"]
 							},
@@ -17863,6 +17987,11 @@
 						"id": "passage",
 						"label": "Guild passage",
 						"station": "support"
+					},
+					{
+						"id": "medical",
+						"label": "Medical",
+						"station": "support"
 					}
 				],
 				"traits": [
@@ -17926,6 +18055,13 @@
 						"id": "navigator",
 						"label": "Guild navigator",
 						"bonuses": {}
+					},
+					{
+						"id": "medical",
+						"label": "Clinical specialist",
+						"bonuses": {
+							"medical": 250
+						}
 					}
 				],
 				"duties": [
@@ -18244,6 +18380,25 @@
 						"controller": "ftl.cooling",
 						"compartment": "stern-port",
 						"effects": {}
+					},
+					{
+						"id": "medical-controller",
+						"label": "Medical coordination",
+						"department": "medical",
+						"controller": "medical-team",
+						"console": "support",
+						"compartment": "stern-starboard",
+						"effects": {}
+					},
+					{
+						"id": "team.medical",
+						"label": "Medical team",
+						"department": "medical",
+						"team": "medical-team",
+						"compartment": "stern-starboard",
+						"effects": {
+							"medical-team": ["medical"]
+						}
 					}
 				],
 				"officers": [
@@ -18336,6 +18491,33 @@
 						"duty": "navigator",
 						"compartment": "bow-port",
 						"traits": ["navigator"]
+					},
+					{
+						"id": "medic",
+						"name": "Edda Vale",
+						"department": "medical",
+						"duty": "team.medical",
+						"compartment": "stern-starboard",
+						"portrait": "phoenix-base:assets/personnel/officer-10.png",
+						"traits": ["medical"]
+					}
+				],
+				"casualties": {
+					"significant_damage": 20,
+					"heavy_below_permille": 300,
+					"lethal": true,
+					"lethal_damage": 80,
+					"stun_permille": 150,
+					"minor_permille": 100,
+					"severe_permille": 30,
+					"killed_permille": 10
+				},
+				"facilities": [
+					{
+						"id": "sickbay",
+						"compartment": "stern-starboard",
+						"capacity": 2,
+						"recovery_ticks": 1200
 					}
 				]
 			},
@@ -20341,7 +20523,8 @@
 						"department": "sailing",
 						"duty": "drive",
 						"compartment": "stern-port",
-						"traits": ["propulsion"]
+						"traits": ["propulsion"],
+						"condition": "minor"
 					},
 					{
 						"id": "officer-2",
@@ -20368,7 +20551,8 @@
 						"department": "tactical",
 						"duty": "top-mag",
 						"compartment": "mid-port",
-						"traits": ["reload"]
+						"traits": ["reload"],
+						"condition": "severe"
 					},
 					{
 						"id": "officer-5",
@@ -20414,6 +20598,24 @@
 						"duty": "external-comms",
 						"compartment": "bow-port",
 						"traits": ["comms"]
+					}
+				],
+				"casualties": {
+					"significant_damage": 20,
+					"heavy_below_permille": 300,
+					"lethal": true,
+					"lethal_damage": 80,
+					"stun_permille": 150,
+					"minor_permille": 100,
+					"severe_permille": 30,
+					"killed_permille": 10
+				},
+				"facilities": [
+					{
+						"id": "sickbay",
+						"compartment": "stern-starboard",
+						"capacity": 1,
+						"recovery_ticks": 1200
 					}
 				]
 			},
@@ -20928,7 +21130,7 @@
 		{
 			"id": "base.rescue-under-threat",
 			"name": "Rescue under threat",
-			"description": "Helm opens Dispatch and binds displacement. Engineering assigns a repair team; lower shields before Send. Use Comms for the team decision, then recall.",
+			"description": "Helm opens Dispatch and binds displacement. Engineering assigns a repair team; lower shields before Send. Use Comms for the team decision, then recall. An optional medical team can heal injured officers and stabilise severe casualties aboard the stranded ship.",
 			"presentation": {
 				"skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png"
 			},
@@ -20982,13 +21184,20 @@
 						{
 							"id": "repair-team",
 							"kind": "team",
-							"required": true
+							"required": true,
+							"capability": "repair"
 						},
 						{
 							"id": "specialist",
 							"kind": "officer",
 							"required": false,
 							"trait": "repair"
+						},
+						{
+							"id": "medical-team",
+							"kind": "team",
+							"required": false,
+							"capability": "medical"
 						}
 					]
 				}
@@ -29481,6 +29690,11 @@
 					"speaker": "engineer",
 					"text_key": "Our FTL reserve is ready. We will depart as soon as all visiting personnel and transfers are clear.",
 					"incoming_ticks": 20
+				},
+				"medical": {
+					"speaker": "engineer",
+					"text_key": "Medical reports treatment completed: injured officers can resume duty; severe casualties have been stabilised.",
+					"incoming_ticks": 20
 				}
 			},
 			"prompts": {
@@ -32028,6 +32242,117 @@
 					]
 				}
 			]
+		},
+		{
+			"id": "base.team.repair",
+			"context": "team",
+			"initial": "work",
+			"states": [
+				{
+					"id": "work",
+					"running": [
+						{
+							"action": "repair"
+						}
+					],
+					"transitions": [
+						{
+							"target": "done",
+							"conditions": [
+								{
+									"left": {
+										"observation": "work_done"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "done",
+					"entry": [
+						{
+							"action": "complete"
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.team.treat",
+			"context": "team",
+			"initial": "work",
+			"states": [
+				{
+					"id": "work",
+					"running": [
+						{
+							"action": "treat"
+						}
+					],
+					"transitions": [
+						{
+							"target": "done",
+							"conditions": [
+								{
+									"left": {
+										"observation": "work_done"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "done",
+					"entry": [
+						{
+							"action": "complete"
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.team.recover",
+			"context": "team",
+			"initial": "work",
+			"states": [
+				{
+					"id": "work",
+					"running": [
+						{
+							"action": "recover"
+						}
+					],
+					"transitions": [
+						{
+							"target": "done",
+							"conditions": [
+								{
+									"left": {
+										"observation": "work_done"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "done",
+					"entry": [
+						{
+							"action": "complete"
+						}
+					]
+				}
+			]
 		}
 	],
 	"equipment": [
@@ -32359,11 +32684,23 @@
 		},
 		{
 			"id": "base.equipment.combat-team-1",
-			"kind": "repair_team",
+			"kind": "team",
 			"compartment": "stern-starboard",
 			"hp_per_second": 8,
 			"stack_penalty_permille": 500,
-			"observation_console": "support"
+			"observation_console": "support",
+			"type": "engineering",
+			"capabilities": ["repair"],
+			"orders": [
+				{
+					"id": "repair",
+					"label": "Repair compartment",
+					"icon": "repair",
+					"target": "damage",
+					"capability": "repair",
+					"tree": "base.team.repair"
+				}
+			]
 		},
 		{
 			"id": "base.equipment.combat-reactor",

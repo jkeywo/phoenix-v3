@@ -144,9 +144,10 @@ std::optional<state_tree::Context> contextual_tree(const std::map<std::string, J
 		{
 			const auto context = tree.at("context").get<std::string>();
 			if (context != "system" && context != "scenario" && context != "controller" && context != "conversation" &&
-			    context != "away")
+			    context != "away" && context != "team")
 				invalid("trees." + id, "unsupported tree context");
-			return context == "away"           ? state_tree::Context::Away
+			return context == "team"           ? state_tree::Context::Team
+			       : context == "away"         ? state_tree::Context::Away
 			       : context == "conversation" ? state_tree::Context::Conversation
 			       : context == "controller"   ? state_tree::Context::Controller
 			       : context == "scenario"     ? state_tree::Context::Scenario
@@ -652,7 +653,7 @@ void verify_prepared_catalog(const Catalog &catalog)
 			}
 			else if (kind != "generator" && kind != "storage" && kind != "distribution" && kind != "coolant" &&
 			         kind != "weapon" && kind != "turret" && kind != "magazine" && kind != "repair_team" &&
-			         kind != "shield" && kind != "ftl")
+			         kind != "team" && kind != "shield" && kind != "ftl")
 				invalid(field, "unsupported System capability");
 		}
 		if (!catalog.presentation)
@@ -965,6 +966,8 @@ void prepare_catalog(Catalog &catalog)
 				catalog.tree_programs.emplace(id, program.tree);
 				catalog.conversation_programs.emplace(id, std::move(program));
 			}
+			else if (*context == state_tree::Context::Team)
+				catalog.tree_programs.emplace(id, state_tree::compile(tree, team_registry(), catalog.trees));
 			else if (*context == state_tree::Context::Away)
 				catalog.tree_programs.emplace(id, state_tree::compile(tree, away_registry(), catalog.trees));
 			else if (*context == state_tree::Context::Controller)

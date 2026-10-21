@@ -47,4 +47,4 @@ Verified 21 October 2026:
 
 Physical screen-reader interaction, touch/gamepad operation and six-display performance have not been established by this increment.
 
-Injuries, deaths, recruitment, away deployment and trait-gated dialogue are outside this increment.
+The original increment excluded injuries and deaths; [Teams and Medical](medical-teams.md) now adds conditions, treatment and permanent casualties. [Away missions](away-missions.md) adds physical deployment. Recruitment and trait-gated dialogue remain outside these increments.

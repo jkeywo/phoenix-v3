@@ -15,7 +15,7 @@ OfficerState personnel_destination(EntityId id, const PersonnelDuty &duty) const
 		for (auto child : entities.at(id).get<EquipmentIndex>().values)
 			if (child.get<Equipment>().id == duty.team)
 			{
-				const auto &r = child.get<CombatMechanism>().get<RepairState>();
+				const auto &r = child.get<CombatMechanism>().get<TeamState>();
 				out.location = r.location;
 				out.edge_to = r.edge_to;
 				out.remaining = r.travel;
@@ -39,6 +39,23 @@ void advance_personnel(EntityId id)
 	bool arrived = false;
 	for (auto &o : state.officers)
 	{
+		if (o.condition == "stunned" && o.stun_until <= static_cast<std::int64_t>(ecs.get<Clock>().tick))
+		{
+			o.condition = "healthy";
+			o.stun_until = 0;
+			arrived = true;
+			++state.revision;
+		}
+		if (o.condition == "stunned" && o.present)
+			if (const auto *duty = personnel_duty(id, o.duty); duty && !duty->team.empty())
+			{
+				const auto at = personnel_destination(id, *duty);
+				o.location = at.location;
+				o.edge_to = at.edge_to;
+				o.remaining = at.remaining;
+			}
+		if (!officer_mobile(o) || !o.escort.empty() || !o.facility.empty())
+			continue;
 		const auto *duty = personnel_duty(id, o.duty);
 		if (o.present && duty)
 		{
@@ -96,7 +113,7 @@ std::pair<std::string, std::string> officer_speaker(EntityId id, const std::stri
 	const auto &d = definition(id).personnel;
 	const auto &state = entities.at(id).get<PersonnelState>();
 	for (std::size_t i = 0; i < state.officers.size(); ++i)
-		if (state.officers[i].present)
+		if (state.officers[i].present && officer_healthy(state.officers[i]))
 		{
 			const auto *duty = personnel_duty(id, state.officers[i].duty);
 			if (duty && duty->controller == controller && duty->console == console)
@@ -121,7 +138,10 @@ bool personnel_command(const ConsoleAddress &address, const OperatingCommand &co
 	if (it == d.officers.end() || !personnel_owns(address, it->department))
 		return false;
 	const auto i = static_cast<std::size_t>(it - d.officers.begin());
-	if (away_reserved(address.ship, "officer:" + it->id))
+	if (state.officers[i].condition == "dead" ||
+	    (!officer_mobile(state.officers[i]) && command.action != "personnel.relieve") ||
+	    (!state.officers[i].facility.empty() && command.action != "personnel.relieve") ||
+	    !state.officers[i].escort.empty() || away_reserved(address.ship, "officer:" + it->id))
 		return false;
 	const auto *duty = personnel_duty(address.ship, command.text);
 	if (command.action == "personnel.relieve")
@@ -144,6 +164,9 @@ bool personnel_command(const ConsoleAddress &address, const OperatingCommand &co
 		for (std::size_t j = 0; j < state.officers.size(); ++j)
 			if (state.officers[j].duty == duty->id)
 				occupied = j;
+	if (command.action == "personnel.swap" && occupied < state.officers.size() &&
+	    !officer_mobile(state.officers[occupied]))
+		return false;
 	if (occupied == i)
 		return false;
 	if (command.action == "personnel.swap" && (occupied == state.officers.size() || state.officers[i].duty.empty()))
@@ -195,7 +218,7 @@ PersonnelState personnel_snapshot(EntityId id) const
 {
 	auto snapshot = entities.at(id).get<PersonnelState>();
 	for (auto &o : snapshot.officers)
-		if (o.present)
+		if (o.present && o.condition != "severe" && o.condition != "dead" && o.escort.empty())
 			if (const auto *duty = personnel_duty(id, o.duty))
 			{
 				const auto at = personnel_destination(id, *duty);
@@ -249,6 +272,11 @@ Json personnel_board(const ConsoleAddress &address) const
 			                           {"department", o.department},
 			                           {"duty", r.duty},
 			                           {"present", r.present},
+			                           {"condition", r.condition},
+			                           {"stabilised", r.stabilised},
+			                           {"stun_until", r.stun_until},
+			                           {"facility", r.facility},
+			                           {"treatment", r.treatment},
 			                           {"location", away_officer_location(address.ship, o.id).empty()
 			                                            ? d.compartments.at(r.location)
 			                                            : away_officer_location(address.ship, o.id)},
@@ -261,6 +289,18 @@ Json personnel_board(const ConsoleAddress &address) const
 void restore_personnel(EntityId id, const Json &saved)
 {
 	auto state = saved.get<PersonnelState>();
+	for (std::size_t i = 0; i < state.officers.size(); ++i)
+	{
+		const auto &row = saved.at("officers").at(i);
+		const Json canonical = state.officers[i];
+		for (const auto &[key, value] : row.items())
+			if (!canonical.contains(key) || canonical.at(key) != value)
+				throw std::runtime_error("Unexpected officer state fields");
+		for (const auto *key :
+		     {"location", "edge_to", "remaining", "stun_until", "treatment", "recovery", "casualty_tick"})
+			if (row.contains(key) && !row.at(key).is_number_integer())
+				throw std::runtime_error("Officer continuation requires integers");
+	}
 	const auto &d = definition(id).personnel;
 	if (state.officers.size() != d.officers.size() || !state.revision || state.revision > 9007199254740991ULL)
 		throw std::runtime_error("Invalid personnel save");
@@ -269,6 +309,27 @@ void restore_personnel(EntityId id, const Json &saved)
 	{
 		const auto &o = state.officers[i];
 		const auto *duty = personnel_duty(id, o.duty);
+		if ((o.condition != "healthy" && o.condition != "stunned" && o.condition != "minor" &&
+		     o.condition != "severe" && o.condition != "dead") ||
+		    o.stun_until < 0 || o.treatment < 0 || o.treatment > 1728000000000LL || o.recovery < 0 ||
+		    o.recovery > 1728000000000LL || o.casualty_tick < -1 || (o.stabilised && o.condition != "severe") ||
+		    (o.condition != "stunned" && o.stun_until != 0) || (o.condition == "stunned" && o.stun_until == 0) ||
+		    (o.condition == "dead" &&
+		     (o.present || !o.duty.empty() || o.remaining || !o.facility.empty() || !o.escort.empty())) ||
+		    (o.condition == "severe" && o.present))
+			throw std::runtime_error("Invalid saved officer condition");
+		if (!o.facility.empty())
+		{
+			const auto f = std::find_if(d.facilities.begin(), d.facilities.end(),
+			                            [&](const auto &f)
+			                            {
+				                            return f.id == o.facility;
+			                            });
+			if (f == d.facilities.end() || o.condition != "severe" || !o.stabilised || o.remaining ||
+			    d.compartments.at(o.location) != f->compartment || !o.escort.empty() ||
+			    o.recovery >= f->recovery_ticks * 1000)
+				throw std::runtime_error("Invalid saved facility patient");
+		}
 		if (duty && !duty->required_trait.empty() &&
 		    std::find(d.officers[i].traits.begin(), d.officers[i].traits.end(), duty->required_trait) ==
 		        d.officers[i].traits.end())
@@ -293,6 +354,13 @@ void restore_personnel(EntityId id, const Json &saved)
 		if (o.present && duty->team.empty() && (o.remaining || d.compartments.at(o.location) != duty->compartment))
 			throw std::runtime_error("Officer present outside duty compartment");
 	}
+	for (const auto &f : d.facilities)
+		if (std::count_if(state.officers.begin(), state.officers.end(),
+		                  [&](const auto &o)
+		                  {
+			                  return o.facility == f.id;
+		                  }) > f.capacity)
+			throw std::runtime_error("Facility over capacity");
 	refresh_personnel_bonuses(state, d);
 	entities.at(id).set<PersonnelState>(state);
 }

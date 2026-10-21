@@ -300,10 +300,75 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 			    (s.get<MagazineDefinition>().reload_energy == 0 || !v.contains("power_store")))
 				fail("energy reload requires power_store and positive energy_per_second");
 		}
-		if (s.kind == OperatingSystem::RepairTeam)
+		if (s.kind == OperatingSystem::Team)
 		{
-			s.get<RepairDefinition>().repair_rate = amount(v, "hp_per_second", 10, 1, 1000000);
-			s.get<RepairDefinition>().stack_penalty = amount(v, "stack_penalty_permille", 500, 1, 10000);
+			s.get<TeamDefinition>().repair_rate = amount(v, "hp_per_second", 10, 1, 1000000);
+			s.get<TeamDefinition>().stack_penalty = amount(v, "stack_penalty_permille", 500, 1, 10000);
+			auto &team = s.get<TeamDefinition>();
+			team.type = v.value("type", std::string{"engineering"});
+			if (team.type.empty() || team.type.size() > 64)
+				fail("invalid team type");
+			team.capabilities = v.value("capabilities", std::set<std::string>{"repair"});
+			if (team.capabilities.size() > 32)
+				fail("too many team capabilities");
+			for (const auto &c : team.capabilities)
+				if (c.empty() || c.size() > 64)
+					fail("invalid team capability");
+			team.treatment_ticks = amount(v, "treatment_ticks", 400, 1, 1728000);
+			team.stabilise_ticks = amount(v, "stabilise_ticks", 200, 1, 1728000);
+			std::set<std::string> orders;
+			for (const auto &o : v.value("orders", Json::array()))
+			{
+				TeamOrderDefinition order;
+				order.id = o.at("id");
+				order.label = o.at("label");
+				order.icon = o.value("icon", std::string{"team"});
+				order.target = o.value("target", std::string{"compartments"});
+				order.capability = o.value("capability", std::string{});
+				if (order.id.empty() || order.id.size() > 64 ||
+				    order.id.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") !=
+				        std::string::npos ||
+				    !orders.insert(order.id).second || order.label.empty() || order.label.size() > 128 ||
+				    order.icon.size() > 64)
+					fail("invalid team order");
+				if (order.target != "compartments" && order.target != "damage" && order.target != "patients")
+					fail("invalid team target filter");
+				if (!order.capability.empty() && !team.capabilities.contains(order.capability))
+					fail("order requires absent team capability");
+				const auto key = o.at("tree").get<std::string>();
+				if (!catalog.tree_programs.contains(key) ||
+				    catalog.tree_programs.at(key).context != state_tree::Context::Team)
+					fail("order requires team tree");
+				order.patient_states =
+				    o.value("patient_states", std::set<std::string>{"minor", "severe", "stabilised"});
+				if (order.patient_states.size() > 3)
+					fail("invalid patient filter");
+				for (const auto &state : order.patient_states)
+					if (state != "minor" && state != "severe" && state != "stabilised")
+						fail("invalid patient condition filter");
+				order.program = catalog.tree_programs.at(key);
+				const auto validate = [&](const auto &self, const state_tree::Program &p) -> void
+				{
+					for (const auto &state : p.states)
+						for (const auto *tasks : {&state.entry, &state.running, &state.exit})
+							for (const auto &task : *tasks)
+								if (task.kind == state_tree::TaskKind::Action)
+								{
+									const auto &a = p.registry.actions.at(task.target).name;
+									if (a == "repair" && !team.capabilities.contains("repair"))
+										fail("repair order requires capability");
+									if ((a == "treat" || a == "stabilise" || a == "recover") &&
+									    !team.capabilities.contains("medical"))
+										fail("medical order requires capability");
+								}
+					for (const auto &ref : p.references)
+						self(self, ref);
+				};
+				validate(validate, order.program);
+				team.orders.push_back(std::move(order));
+			}
+			if (team.orders.size() > 32)
+				fail("too many team orders");
 		}
 		d.system_ids.emplace(s.id, d.systems.size());
 		d.systems.push_back(s);

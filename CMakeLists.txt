@@ -372,6 +372,7 @@ foreach(
 		swept_collision
 		workshop_test
 		personnel
+		medical
 		away
 		ftl
 		sensors
@@ -1064,10 +1065,11 @@ endif()
 # Explicit graphical Comms evidence; not an automatic acceptance test.
 if(NOT EMSCRIPTEN)
 	add_executable(phoenix_away_smoke EXCLUDE_FROM_ALL tests/manual/away_ui.cpp)
+	set_property(TARGET phoenix_away_smoke PROPERTY CXX_SCAN_FOR_MODULES ON)
 	add_executable(phoenix_ftl_smoke EXCLUDE_FROM_ALL tests/manual/ftl_ui.cpp)
 	target_link_libraries(phoenix_ftl_smoke PRIVATE phoenix_session phoenix_presentation)
 	add_dependencies(phoenix_ftl_smoke base_pack)
-	target_link_libraries(phoenix_away_smoke PRIVATE phoenix_session phoenix_presentation)
+	target_link_libraries(phoenix_away_smoke PRIVATE phoenix_session phoenix_presentation phoenix_core)
 	add_dependencies(phoenix_away_smoke base_pack)
 	add_executable(phoenix_comms_smoke EXCLUDE_FROM_ALL tests/manual/comms_ui.cpp)
 	target_link_libraries(phoenix_comms_smoke PRIVATE phoenix_session phoenix_presentation)

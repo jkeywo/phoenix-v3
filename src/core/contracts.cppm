@@ -79,7 +79,7 @@ enum class OperatingSystem
 	Weapon,
 	Turret,
 	Magazine,
-	RepairTeam,
+	Team,
 	Shield,
 	Comms,
 	Displacement,
@@ -163,11 +163,10 @@ inline constexpr std::array operating_actions{
     OperatingActionSpec{OperatingAction::IntentBoolean, "intent_boolean", OperatingSystem::Engine, true, 1},
     OperatingActionSpec{OperatingAction::Waypoint, "waypoint", OperatingSystem::Engine, true, 1},
     OperatingActionSpec{OperatingAction::WeaponTarget, "weapon_target", OperatingSystem::Weapon, false, 1000000000},
-    OperatingActionSpec{OperatingAction::RepairCompartment, "repair_compartment", OperatingSystem::RepairTeam, false,
-                        256},
+    OperatingActionSpec{OperatingAction::RepairCompartment, "repair_compartment", OperatingSystem::Team, false, 256},
     OperatingActionSpec{OperatingAction::MagazineSelect, "magazine_select", OperatingSystem::Weapon, false, 256},
     OperatingActionSpec{OperatingAction::WeaponMode, "weapon_mode", OperatingSystem::Weapon, false, 2},
-    OperatingActionSpec{OperatingAction::RepairSystem, "repair_system", OperatingSystem::RepairTeam, false, 256},
+    OperatingActionSpec{OperatingAction::RepairSystem, "repair_system", OperatingSystem::Team, false, 256},
     OperatingActionSpec{OperatingAction::ShieldDischarge, "shield_discharge", OperatingSystem::Shield, true, 1},
     OperatingActionSpec{OperatingAction::SensorTarget, "sensor_target", OperatingSystem::Radar, false, 1000000000}};
 constexpr const OperatingActionSpec *operating_action(std::string_view name)
@@ -250,8 +249,8 @@ constexpr std::string_view operating_system_name(OperatingSystem system)
 		return "comms";
 	case OperatingSystem::Shield:
 		return "shield";
-	case OperatingSystem::RepairTeam:
-		return "repair_team";
+	case OperatingSystem::Team:
+		return "team";
 	}
 	return {};
 }

@@ -63,6 +63,7 @@ jobs:
             build/native/away-continuation.trace
             build/native/ftl-continuation.trace
             build/native/mission-continuation.trace
+            build/native/medical-continuation.trace
   linux:
     runs-on: ubuntu-24.04
     timeout-minutes: 30

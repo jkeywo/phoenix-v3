@@ -164,7 +164,9 @@ bool knowledge_telemetry_source(const std::string &name)
 	                                             "shots",
 	                                             "team_location",
 	                                             "team_destination",
-	                                             "travel_remaining"};
+	                                             "travel_remaining",
+	                                             "team_revision",
+	                                             "officer_condition"};
 	return supported.contains(name);
 }
 GameplayKnowledgeMessageBinding knowledge_dynamic_binding(const Json &value, const std::string &path,

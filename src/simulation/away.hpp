@@ -77,7 +77,7 @@ bool away_qualified(EntityId ship, const std::string &system) const
 	for (const auto &d : pd.duties)
 		if (d.console == owner.console && !d.required_trait.empty())
 			for (std::size_t i = 0; i < pd.officers.size(); ++i)
-				if (ps.officers[i].duty == d.id && ps.officers[i].present &&
+				if (ps.officers[i].duty == d.id && ps.officers[i].present && officer_healthy(ps.officers[i]) &&
 				    std::find(pd.officers[i].traits.begin(), pd.officers[i].traits.end(), d.required_trait) !=
 				        pd.officers[i].traits.end())
 					for (const auto &c : definition(ship).layout->controllers)
@@ -114,12 +114,38 @@ bool away_asset_owned(const ConsoleAddress &a, const std::string &asset) const
 		       system_owner(a.ship, asset.substr(10)) == a;
 	return false;
 }
+bool away_asset_healthy(EntityId ship, const std::string &asset) const
+{
+	const auto &pd = definition(ship).personnel;
+	const auto &ps = entities.at(ship).get<PersonnelState>();
+	if (asset.starts_with("team:"))
+		for (const auto &o : ps.officers)
+			if (o.escort == asset.substr(5))
+				return false;
+	for (std::size_t i = 0; i < pd.officers.size(); ++i)
+	{
+		if (asset == "officer:" + pd.officers[i].id && !officer_healthy(ps.officers[i]))
+			return false;
+		if (asset.starts_with("team:"))
+			if (const auto *duty = away_team_duty(ship, asset.substr(5));
+			    duty && ps.officers[i].duty == duty->id && !officer_healthy(ps.officers[i]))
+				return false;
+	}
+	return true;
+}
 bool away_slot_accepts(EntityId ship, const AwaySlot &s, const std::string &asset) const
 {
 	if (!asset.starts_with(s.kind + ":"))
 		return false;
 	if (s.kind == "team")
-		return away_team_duty(ship, asset.substr(5)) != nullptr && s.trait.empty();
+	{
+		const auto team = away_equipment(ship, asset.substr(5));
+		if (!team || !away_team_duty(ship, asset.substr(5)) || !s.trait.empty())
+			return false;
+		const auto &d = team.get<CombatMechanism>().definition.get<TeamDefinition>();
+		return (s.team_type.empty() || s.team_type == d.type) &&
+		       (s.capability.empty() || d.capabilities.contains(s.capability));
+	}
 	for (const auto &o : definition(ship).personnel.officers)
 		if (o.id == asset.substr(8))
 			return s.trait.empty() || std::find(o.traits.begin(), o.traits.end(), s.trait) != o.traits.end();
@@ -140,7 +166,7 @@ bool away_staged(EntityId ship, const AwayMission &m) const
 	for (const auto &[slot, asset] : m.assignments)
 		if (asset.starts_with("team:"))
 		{
-			const auto &r = away_equipment(ship, asset.substr(5)).get<CombatMechanism>().get<RepairState>();
+			const auto &r = away_equipment(ship, asset.substr(5)).get<CombatMechanism>().get<TeamState>();
 			if (r.location != static_cast<std::int64_t>(location) || r.travel)
 				return false;
 		}
@@ -150,7 +176,8 @@ bool away_staged(EntityId ship, const AwayMission &m) const
 			const auto &ps = entities.at(ship).get<PersonnelState>();
 			for (std::size_t i = 0; i < pd.officers.size(); ++i)
 				if (pd.officers[i].id == asset.substr(8) &&
-				    (ps.officers[i].location != location || ps.officers[i].remaining))
+				    (!officer_healthy(ps.officers[i]) || ps.officers[i].location != location ||
+				     ps.officers[i].remaining))
 					return false;
 		}
 	for (const auto &key : m.accompanying)
@@ -158,7 +185,8 @@ bool away_staged(EntityId ship, const AwayMission &m) const
 		const auto &pd = definition(ship).personnel;
 		const auto &ps = entities.at(ship).get<PersonnelState>();
 		for (std::size_t i = 0; i < pd.officers.size(); ++i)
-			if (pd.officers[i].id == key && (!ps.officers[i].present || ps.officers[i].remaining))
+			if (pd.officers[i].id == key &&
+			    (!officer_healthy(ps.officers[i]) || !ps.officers[i].present || ps.officers[i].remaining))
 				return false;
 	}
 	return true;
@@ -351,7 +379,7 @@ bool away_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 			                            return s.id == slot;
 		                            });
 		if (s == d.slots.end() || m.assignments.contains(slot) || !away_asset_owned(a, asset) ||
-		    away_reserved(a.ship, asset) || !away_slot_accepts(a.ship, *s, asset))
+		    away_reserved(a.ship, asset) || !away_asset_healthy(a.ship, asset) || !away_slot_accepts(a.ship, *s, asset))
 			return false;
 		std::vector<std::string> attached;
 		const auto &pd = definition(a.ship).personnel;
@@ -418,7 +446,11 @@ void stage_away(EntityId ship, AwayMission &m)
 		if (asset.starts_with("team:"))
 		{
 			const auto team = away_equipment(ship, asset.substr(5));
-			auto &r = team.get_mut<CombatMechanism>().get<RepairState>();
+			auto &r = team.get_mut<CombatMechanism>().get<TeamState>();
+			r.order.clear();
+			r.activity.clear();
+			r.patient.clear();
+			r.continuation = {};
 			r.repair_auto = false;
 			r.repair_system = -1;
 			r.destination = -1;
@@ -431,6 +463,8 @@ void stage_away(EntityId ship, AwayMission &m)
 			for (std::size_t i = 0; i < pd.officers.size(); ++i)
 				if (pd.officers[i].id == asset.substr(8))
 				{
+					if (!officer_healthy(ps.officers[i]))
+						continue;
 					auto &o = ps.officers[i];
 					if (o.remaining == 0 && o.location != target)
 					{
@@ -494,6 +528,7 @@ void advance_away()
 					if (!m.recovered)
 					{
 						m.ever_deployed = true;
+						m.care.clear();
 						for (const auto &[slot, a] : m.assignments)
 							m.participants.insert(a);
 						for (const auto &o : m.accompanying)
@@ -508,19 +543,26 @@ void advance_away()
 							if (asset.starts_with("team:"))
 							{
 								auto &r =
-								    away_equipment(ship, asset.substr(5)).get_mut<CombatMechanism>().get<RepairState>();
+								    away_equipment(ship, asset.substr(5)).get_mut<CombatMechanism>().get<TeamState>();
 								r.location = location;
 								r.destination = -1;
 								r.edge_to = -1;
 								r.travel = r.edge_total = 0;
+								r.order.clear();
+								r.activity.clear();
+								r.patient.clear();
+								r.continuation = {};
 								r.repair_auto = false;
 							}
+						m.care.clear();
 						m.assignments.clear();
 						m.accompanying.clear();
 						++entities.at(ship).get_mut<PersonnelState>().revision;
 					}
 				}
 			}
+		if (m.phase == AwayPhase::Deployed)
+			advance_away_medical(i);
 		if (m.outcome.empty())
 		{
 			if (m.deployed() && m.work > 0)
@@ -529,10 +571,17 @@ void advance_away()
 				std::int64_t specialist_bonus = 0, officer_work = 0;
 				for (const auto &[slot, asset] : m.assignments)
 					if (asset.starts_with("team:"))
-						teams.push_back(away_equipment(ship, asset.substr(5)));
+					{
+						const auto team = away_equipment(ship, asset.substr(5));
+						if (team.get<CombatMechanism>().definition.get<TeamDefinition>().capabilities.contains(
+						        "repair"))
+							teams.push_back(team);
+					}
 					else
 						for (const auto &officer : definition(ship).personnel.officers)
-							if (asset == "officer:" + officer.id)
+							if (asset == "officer:" + officer.id &&
+							    officer_healthy(entities.at(ship).get<PersonnelState>().officers.at(
+							        &officer - definition(ship).personnel.officers.data())))
 							{
 								const auto bonus =
 								    officer.bonuses.contains("repair") ? officer.bonuses.at("repair") : 0;
@@ -669,8 +718,9 @@ Json away_board(const ConsoleAddress &a) const
 					if (!duty.team.empty())
 					{
 						const auto asset = "team:" + duty.team;
-						if (system_owner(a.ship, duty.team) == a && away_asset_owned(a, asset) &&
-						    !away_reserved(a.ship, asset) && away_slot_accepts(a.ship, s, asset))
+						if (team_owner(a.ship, duty.team) == a && away_asset_owned(a, asset) &&
+						    !away_reserved(a.ship, asset) && away_asset_healthy(a.ship, asset) &&
+						    away_slot_accepts(a.ship, s, asset))
 							r["choices"].push_back(asset);
 					}
 				for (const auto &o : definition(a.ship).personnel.officers)
@@ -707,9 +757,17 @@ Json save_away() const
 	for (std::size_t i = 0; i < away_missions.size(); ++i)
 	{
 		Json row = away_missions[i];
-		row["schema"] = 3;
+		row["schema"] = 4;
 		row["id"] = away_definitions[i].id;
 		row["continuation"] = state_tree::save(away_definitions[i].program, away_missions[i].continuation);
+		for (const auto &[team, care] : away_missions[i].care)
+		{
+			const auto equipment = away_equipment(away_ship(away_definitions[i]), team);
+			const auto *order = team_order_definition(equipment.get<CombatMechanism>(), care.order);
+			if (!order)
+				throw std::runtime_error("Missing away medical order");
+			row["care"][team]["continuation"] = state_tree::save(order->program, care.continuation);
+		}
 		out.push_back(row);
 	}
 	return out;
@@ -723,12 +781,12 @@ void restore_away(const Json &rows)
 	{
 		const auto &d = away_definitions[i];
 		const auto schema = rows[i].at("schema");
-		if ((schema != 1 && schema != 2 && schema != 3) || rows[i].at("id") != d.id)
+		if ((schema != 1 && schema != 2 && schema != 3 && schema != 4) || rows[i].at("id") != d.id)
 			throw std::runtime_error("Away mission identity mismatch");
 		auto record = rows[i];
 		if (schema == 1)
 			record["repair_compartment"] = record.value("repair_compartment", std::string{});
-		if (schema != 3)
+		if (schema < 3)
 		{
 			record["ever_deployed"] =
 			    record.value("recovered", false) || record.at("phase") == "deployed" || record.at("phase") == "inbound";
@@ -741,6 +799,13 @@ void restore_away(const Json &rows)
 					record["participants"].push_back("officer:" + o.get<std::string>());
 			}
 		}
+		if (schema < 4)
+			record["care"] = Json::object();
+		auto care_record = record.at("care");
+		if (!care_record.is_object() || care_record.size() > 16)
+			throw std::runtime_error("Invalid away care roster");
+		for (auto &[key, value] : record["care"].items())
+			value.erase("continuation");
 		auto m = record.get<AwayMission>();
 		if ((schema == 1 && rows[i].at("deployed").get<bool>() != m.deployed()) ||
 		    (schema >= 2 && rows[i].contains("deployed")))
@@ -817,6 +882,34 @@ void restore_away(const Json &rows)
 					if (asset == "officer:" + pd.officers[j].id && !ps.officers[j].duty.empty())
 						throw std::runtime_error("Deployed officer still assigned aboard");
 				}
+		}
+		for (auto &[team, care] : m.care)
+		{
+			bool assigned = false;
+			for (const auto &[slot, asset] : m.assignments)
+				if (asset == "team:" + team)
+					assigned = true;
+			const auto equipment = away_equipment(ship, team);
+			if (!assigned || !equipment)
+				throw std::runtime_error("Orphaned away care");
+			const auto *order = team_order_definition(equipment.get<CombatMechanism>(), care.order);
+			const auto &pd = definition(d.target).personnel;
+			if (!order || order->target != "patients" || care.location < 0 ||
+			    care.location >= static_cast<std::int64_t>(pd.compartments.size()) || care.travel < 0 ||
+			    (care.travel > 0) != (care.edge_to >= 0))
+				throw std::runtime_error("Invalid away care location/order");
+			if (care.travel)
+			{
+				bool link = false;
+				for (const auto &l : pd.links)
+					if (((l.from == care.location && l.to == care.edge_to) ||
+					     (l.to == care.location && l.from == care.edge_to)) &&
+					    care.travel <= l.ticks)
+						link = true;
+				if (!link)
+					throw std::runtime_error("Invalid away care route");
+			}
+			care.continuation = state_tree::load(order->program, care_record.at(team).at("continuation"));
 		}
 		m.continuation = state_tree::load(d.program, rows[i].at("continuation"));
 		away_sequence = std::max(away_sequence, m.sequence);

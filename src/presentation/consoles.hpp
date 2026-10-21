@@ -461,6 +461,8 @@ button:hover,button:focus {background:#455458;border-color:#ec9c52;}
 .engineering #connection-status {display:none;}
 .engineering #gameplay {background:transparent;border:0px;}
 #engineering-cards {display:block;width:100%;}
+.team-dispatch #engineering-cards,.team-dispatch #widgets {display:none;}
+.team-dispatch #gameplay {background:#0b1719ee;border:1px #988b71;}
 .engineering-card {display:inline-block;vertical-align:top;box-sizing:border-box;margin:0 12px 14px 0;padding:16px;background:#0b1719ee;border:1px #988b71;}
 .resource-meter {display:block;width:100%;height:12px;margin:5px 0;background:#263534;}
 .resource-fill {display:block;height:100%;background:#88c6a2;}
@@ -1740,6 +1742,9 @@ button.on-screen-active .share-live {display:block;}
 			prepare_local_settings(app, region);
 			return;
 		}
+		const auto dispatch_map = model_.team_map();
+		const bool team_dispatch = !dispatch_map.empty() && dispatch_map[0].value("dispatch", false);
+		document_->SetClass("team-dispatch", team_dispatch);
 		const bool pregame = app.session && app.session->lobby().active && !app.session->lobby().launched;
 		const Json *layout = model_.layout();
 		const bool command_console = layout && layout->value("command", false);
@@ -1844,7 +1849,11 @@ button.on-screen-active .share-live {display:block;}
 			if (toolbar_enabled_ && route_ != 31 && !pregame)
 			{
 				button("settings", "Settings");
-				toolbar += "<div style=\"position:absolute;right:0;top:0;\">" + button("personnel", "Personnel") +
+				bool teams = false;
+				for (const auto &t : model_.observation()->gameplay.value("teams", Json::array()))
+					teams |= !t.at("orders").empty();
+				toolbar += "<div style=\"position:absolute;right:0;top:0;\">" +
+				           (teams ? button("game.teams", "Teams") : std::string{}) + button("personnel", "Personnel") +
 				           "<span class=\"" + std::string(away_attention() ? "away-attention" : "") + "\">" +
 				           button("away", away_attention() ? "Away missions: assignment needed" : "Away missions") +
 				           "</span>" + "</div>";
@@ -2336,6 +2345,15 @@ button.on-screen-active .share-live {display:block;}
 				gameplay->RemoveProperty("right");
 				gameplay->RemoveProperty("bottom");
 			}
+			if (team_dispatch)
+			{
+				gameplay->SetProperty("left", "4%");
+				gameplay->SetProperty("top", "100dp");
+				gameplay->SetProperty("width", std::to_string(region.width * .92f) + "dp");
+				gameplay->SetProperty("height", std::to_string(std::max(80.f, region.height - 140.f)) + "dp");
+				gameplay->RemoveProperty("right");
+				gameplay->RemoveProperty("bottom");
+			}
 			if (command_console)
 			{
 				const float left = route_ == 31 ? 16.f : 48.f;
@@ -2383,10 +2401,17 @@ button.on-screen-active .share-live {display:block;}
 				model_.release_control(held.substr(id("").size()));
 			held_clicks_.clear();
 			std::string markup = command_markup_;
+			if (team_dispatch)
+			{
+				markup += "<h2>" + Rml::StringUtilities::EncodeRml(localise("Team dispatch")) + "</h2>";
+				for (const auto &[name, label] : gameplay_controls)
+					if (name.starts_with("game.team-order/") || name == "game.teams-close")
+						markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(id(name)) + "\">" +
+						          Rml::StringUtilities::EncodeRml(label) + "</button>";
+			}
 			if (model_.observation())
 			{
-				const auto compartments =
-				    model_.observation()->gameplay.value("combat", Json::object()).value("compartments", Json::array());
+				const auto compartments = model_.team_map();
 				std::set<std::string> decks;
 				for (const auto &c : compartments)
 					decks.insert(c.at("deck").get<std::string>());
@@ -2439,6 +2464,7 @@ button.on-screen-active .share-live {display:block;}
 			for (const auto &[name, label] : gameplay_controls)
 				if (!stance_controls.contains(name) && !engineering_controls.contains(name) &&
 				    !name.starts_with("game.compartment/") && name != "game.status-close" &&
+				    !(team_dispatch && (name.starts_with("game.team-order/") || name == "game.teams-close")) &&
 				    !sensor_controls.contains(name))
 				{
 					const bool status = status_controls.contains(name);
@@ -2467,8 +2493,7 @@ button.on-screen-active .share-live {display:block;}
 			if (auto *light = element(id(name)))
 				property(light, "border-left", status.attention() ? "10dp #f08060" : "10dp #83be90");
 		if (model_.observation())
-			for (const auto &c :
-			     model_.observation()->gameplay.value("combat", Json::object()).value("compartments", Json::array()))
+			for (const auto &c : model_.team_map())
 			{
 				if (auto *compartment =
 				        element(id("game.compartment/" + std::to_string(c.at("index").get<std::int64_t>()))))

@@ -27,13 +27,15 @@ std::vector<FittedSystemSpec> resolve_systems(const Catalog &catalog, const std:
 		    it.key().find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") !=
 		        std::string::npos)
 			throw std::runtime_error(path + ": invalid System identity/definition");
-		const auto kind = it.value().value("kind", it.key());
+		auto kind = it.value().value("kind", it.key());
+		if (kind == "repair_team")
+			kind = "team";
 		std::optional<OperatingSystem> type;
 		for (auto candidate :
 		     {OperatingSystem::Engine, OperatingSystem::Steering, OperatingSystem::Radar, OperatingSystem::Generator,
 		      OperatingSystem::Storage, OperatingSystem::Distribution, OperatingSystem::Coolant,
 		      OperatingSystem::Lateral, OperatingSystem::Boost, OperatingSystem::Impulse, OperatingSystem::Weapon,
-		      OperatingSystem::Turret, OperatingSystem::Magazine, OperatingSystem::RepairTeam, OperatingSystem::Shield,
+		      OperatingSystem::Turret, OperatingSystem::Magazine, OperatingSystem::Team, OperatingSystem::Shield,
 		      OperatingSystem::Comms, OperatingSystem::Displacement, OperatingSystem::Dispatch, OperatingSystem::Ftl})
 			if (kind == operating_system_name(candidate))
 				type = candidate;

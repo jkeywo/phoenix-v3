@@ -393,6 +393,9 @@ void ConsoleModel::reset()
 {
 	combat_target_ = 0;
 	selected_compartment_ = 0;
+	selected_team_.clear();
+	selected_team_order_.clear();
+	selected_patient_.clear();
 	fire_arcs_ = true;
 	owner_.reset();
 	packs_.clear();
@@ -577,9 +580,64 @@ bool ConsoleModel::act(const std::string &id)
 		combat_target_ = std::stoll(id.substr(19));
 		return true;
 	}
+	if (id == "game.teams-close")
+	{
+		selected_team_.clear();
+		selected_team_order_.clear();
+		selected_patient_.clear();
+		return true;
+	}
+	if (id == "game.teams")
+	{
+		if (!observation_)
+			return false;
+		for (const auto &t : observation_->gameplay.value("teams", Json::array()))
+			if (!t.at("reserved").get<bool>() && !t.at("orders").empty())
+			{
+				selected_team_ = t.at("id");
+				selected_team_order_ = t.at("orders")[0].at("id");
+				selected_patient_.clear();
+				return true;
+			}
+		return false;
+	}
+	if (id.starts_with("game.team-order/"))
+	{
+		const auto choice = id.substr(16);
+		const auto slash = choice.find('/');
+		if (slash == std::string::npos)
+			return false;
+		selected_team_ = choice.substr(0, slash);
+		selected_team_order_ = choice.substr(slash + 1);
+		selected_patient_.clear();
+		return true;
+	}
+	if (id.starts_with("game.team-cancel/"))
+	{
+		const auto team = id.substr(17);
+		const bool accepted = team_action("cancel", team, {});
+		if (accepted && team == selected_team_)
+		{
+			selected_team_.clear();
+			selected_team_order_.clear();
+			selected_patient_.clear();
+		}
+		return accepted;
+	}
+	if (id.starts_with("game.team-patient/"))
+	{
+		selected_patient_ = selected_patient_ == id.substr(18) ? std::string{} : id.substr(18);
+		return true;
+	}
 	if (id.starts_with("game.compartment/"))
 	{
 		selected_compartment_ = std::stoll(id.substr(17));
+		if (!selected_team_.empty() && !selected_team_order_.empty())
+			for (const auto &c : team_map())
+				if (c.at("index") == selected_compartment_ && c.value("eligible", false))
+					return team_action("order", selected_team_,
+					                   selected_team_order_ + "/" + c.at("id").get<std::string>() +
+					                       (selected_patient_.empty() ? std::string{} : "/" + selected_patient_));
 		return true;
 	}
 	if (id.starts_with("game.console/"))
@@ -1121,6 +1179,52 @@ bool ConsoleModel::away_action(const std::string &action, const std::string &mis
 				}
 	return false;
 }
+bool ConsoleModel::team_action(const std::string &action, const std::string &team, const std::string &text)
+{
+	if (!observation_)
+		return false;
+	for (const auto &t : observation_->gameplay.value("teams", Json::array()))
+		if (t.at("id") == team && !t.at("reserved").get<bool>())
+			for (const auto &ctrl : observation_->gameplay.value("controllers", Json::array()))
+				if (ctrl.value("human", false))
+				{
+					OperatingCommand command{observation_->own.id, "team." + action, t.at("revision"), team};
+					command.text = text;
+					command.console = observation_->console;
+					command.controller = ctrl.at("id");
+					command.generation = ctrl.at("generation");
+					if (auto session = owner_.lock(); session && session->console_command(route_, command))
+						return true;
+				}
+	return false;
+}
+Json ConsoleModel::team_map() const
+{
+	if (!observation_)
+		return Json::array();
+	auto compartments = observation_->gameplay.value("combat", Json::object()).value("compartments", Json::array());
+	for (auto &c : compartments)
+	{
+		c["dispatch"] = !selected_team_.empty();
+		c["eligible"] = selected_team_.empty();
+		c["marker"] = "";
+	}
+	for (const auto &team : observation_->gameplay.value("teams", Json::array()))
+		if (team.at("id") == selected_team_)
+			for (const auto &order : team.at("orders"))
+				if (order.at("id") == selected_team_order_)
+					for (auto &c : compartments)
+					{
+						const bool eligible = std::find(order.at("targets").begin(), order.at("targets").end(),
+						                                c.at("index")) != order.at("targets").end();
+						c["eligible"] = eligible;
+						if (eligible)
+							c["marker"] = order.at("target") == "patients" ? "+ " + localise("Medical")
+							              : order.at("target") == "damage" ? "! " + localise("Damage")
+							                                               : order.at("icon").get<std::string>();
+					}
+	return compartments;
+}
 Json ConsoleModel::personnel() const
 {
 	return observation_ ? observation_->gameplay.value("personnel", Json::object()) : Json::object();
@@ -1240,6 +1344,16 @@ std::vector<ConsoleSystemStatus> ConsoleModel::system_statuses() const
 		result.push_back({system.id, system.id + ": " + localise(label),
 		                  std::string(condition == SystemCondition::Operational ? "[+] " : "[!] ") + system.id,
 		                  condition});
+		if (system.telemetry.contains("officer_condition") && system.telemetry.at("officer_condition") > 0)
+		{
+			const auto medical = system.telemetry.at("officer_condition");
+			const auto label = medical == 1   ? "Officer stunned"
+			                   : medical == 2 ? "Officer injured"
+			                   : medical == 3 ? "Officer severely injured"
+			                                  : "Officer killed";
+			result.back().semantic_label += "; " + localise(label);
+			result.back().compact_label = "+ " + result.back().compact_label;
+		}
 	}
 	return result;
 }
@@ -1284,9 +1398,31 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 				        localise(contact.faction_label.empty() ? "Unaffiliated" : contact.faction_label) + ", " +
 				        localise(contact.disposition) +
 				        (combat_target_ == static_cast<std::int64_t>(contact.id) ? " [*]" : ""));
-	for (const auto &c : combat.value("compartments", Json::array()))
+	if (!selected_team_.empty())
+		result.emplace_back("game.teams-close", localise("Close team dispatch"));
+	for (const auto &team : observation_->gameplay.value("teams", Json::array()))
+	{
+		if (team.at("reserved").get<bool>())
+			continue;
+		for (const auto &order : team.at("orders"))
+			result.emplace_back(
+			    "game.team-order/" + team.at("id").get<std::string>() + "/" + order.at("id").get<std::string>(),
+			    team.at("id").get<std::string>() + ": " + localise(order.at("label")) +
+			        (team.at("id") == selected_team_ && order.at("id") == selected_team_order_ ? " [*]" : ""));
+		if (team.at("order") != "")
+			result.emplace_back("game.team-cancel/" + team.at("id").get<std::string>(),
+			                    localise("Cancel team order") + " " + team.at("id").get<std::string>());
+		if (team.at("id") == selected_team_)
+			for (const auto &p : team.at("patients"))
+				if (p.at("condition") == "minor" || p.at("condition") == "severe")
+					result.emplace_back("game.team-patient/" + p.at("id").get<std::string>(),
+					                    localise("Prioritise patient") + " " + p.at("name").get<std::string>() + ": " +
+					                        localise(p.at("condition")));
+	}
+	for (const auto &c : team_map())
 		result.emplace_back("game.compartment/" + std::to_string(c.at("index").get<std::int64_t>()),
-		                    c.at("id").get<std::string>() + " " + std::to_string(c.at("hp").get<std::int64_t>()) + "/" +
+		                    c.value("marker", std::string{}) + " " + c.at("id").get<std::string>() + " " +
+		                        std::to_string(c.at("hp").get<std::int64_t>()) + "/" +
 		                        std::to_string(c.at("maximum").get<std::int64_t>()) +
 		                        (selected_compartment_ == c.at("index").get<std::int64_t>() ? " [*]" : ""));
 	if (layout_.is_object())
@@ -1326,6 +1462,21 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 		// visible direction buttons provide its press/release interaction.
 		if (descriptor.value("action", "") == "lateral_thrust" && descriptor.value("value", std::int64_t{0}) == 0)
 			continue;
+		if (descriptor.value("action", std::string{}) == "repair_compartment" ||
+		    descriptor.value("action", std::string{}) == "repair_system")
+		{
+			bool authored = false;
+			for (const auto &controller : observation_->gameplay.value("controllers", Json::array()))
+				if (controller.at("id") == descriptor.value("controller", std::string{}))
+					for (const auto &[key, channel] : controller.at("commands").items())
+						if (key == descriptor.value("channel", std::string{}))
+							for (const auto &consumer : channel.at("consumers"))
+								for (const auto &team : observation_->gameplay.value("teams", Json::array()))
+									if (team.at("id") == consumer && !team.at("orders").empty())
+										authored = true;
+			if (authored)
+				continue;
+		}
 		if (descriptor.contains("combat_choice"))
 		{
 			const auto value = descriptor.at("value").get<std::int64_t>();

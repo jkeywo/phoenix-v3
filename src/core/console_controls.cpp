@@ -74,6 +74,132 @@ bool conversation_allowed(const Observation &view, const OperatingCommand &comma
 		}
 	return false;
 }
+bool consumes(const Json &owner, const std::string &system)
+{
+	for (const auto &[key, channel] : owner.at("commands").items())
+		for (const auto &consumer : channel.at("consumers"))
+			if (consumer == system)
+				return true;
+	return false;
+}
+bool personnel_allowed(const Observation &view, const OperatingCommand &c)
+{
+	if (!c.controller.empty() || !c.channel.empty() || c.value || c.request_id || !c.arguments.empty() ||
+	    !c.speaker_name.empty() || !c.speaker_avatar.empty())
+		return false;
+	const auto p = view.gameplay.value("personnel", Json::object());
+	if (p.empty() || p.at("revision") != c.generation)
+		return false;
+	for (const auto &o : p.at("officers"))
+		if (o.at("id") == c.system)
+		{
+			if (o.at("condition") == "dead")
+				return false;
+			if (c.action == "personnel.relieve")
+				return c.text.empty();
+			if (c.action != "personnel.assign" && c.action != "personnel.swap")
+				return false;
+			if (o.at("condition") != "healthy" && o.at("condition") != "minor")
+				return false;
+			for (const auto &d : p.at("duties"))
+				if (d.at("id") == c.text && d.at("department") == o.at("department"))
+					return true;
+		}
+	return false;
+}
+bool team_allowed(const Observation &view, const OperatingCommand &c)
+{
+	if (!c.channel.empty() || c.request_id || !c.arguments.empty() || !c.speaker_name.empty() ||
+	    !c.speaker_avatar.empty())
+		return false;
+	const auto *owner = section(view, c.controller);
+	if (!owner || !owner->at("human").get<bool>() || owner->at("generation") != c.generation ||
+	    !consumes(*owner, c.system))
+		return false;
+	for (const auto &t : view.gameplay.value("teams", Json::array()))
+		if (t.at("id") == c.system && !t.at("reserved").get<bool>() && t.at("revision") == c.value)
+		{
+			if (c.action == "team.cancel")
+				return c.text.empty();
+			if (c.action != "team.order")
+				return false;
+			const auto slash = c.text.find('/');
+			if (slash == std::string::npos)
+				return false;
+			const auto next = c.text.find('/', slash + 1);
+			if (next != std::string::npos && c.text.find('/', next + 1) != std::string::npos)
+				return false;
+			const auto compartment =
+			    c.text.substr(slash + 1, next == std::string::npos ? std::string::npos : next - slash - 1);
+			for (const auto &order : t.at("orders"))
+				if (order.at("id") == c.text.substr(0, slash))
+					for (const auto &room :
+					     view.gameplay.value("combat", Json::object()).value("compartments", Json::array()))
+						if (room.at("id") == compartment &&
+						    std::find(order.at("targets").begin(), order.at("targets").end(), room.at("index")) !=
+						        order.at("targets").end())
+						{
+							if (next == std::string::npos)
+								return true;
+							for (const auto &patient : t.at("patients"))
+								if (patient.at("id") == c.text.substr(next + 1) &&
+								    patient.at("location").get<std::int64_t>() + 1 ==
+								        room.at("index").get<std::int64_t>() &&
+								    (patient.at("condition") == "minor" || patient.at("condition") == "severe"))
+									return true;
+						}
+		}
+	return false;
+}
+bool away_allowed(const Observation &view, const OperatingCommand &c)
+{
+	if (!c.channel.empty() || c.request_id || !c.arguments.empty() || !c.speaker_name.empty() ||
+	    !c.speaker_avatar.empty())
+		return false;
+	const auto *owner = section(view, c.controller);
+	if (!owner || !owner->at("human").get<bool>() || owner->at("generation") != c.generation)
+		return false;
+	for (const auto &m : view.gameplay.value("away_missions", Json::array()))
+		if (m.at("id") == c.system && m.at("revision") == c.value)
+		{
+			if (c.action == "away.transport")
+				return consumes(*owner, c.text) && std::find(m.at("transports").begin(), m.at("transports").end(),
+				                                             c.text) != m.at("transports").end();
+			if (c.action == "away.assign")
+			{
+				const auto slash = c.text.find('/');
+				if (slash == std::string::npos)
+					return false;
+				const auto asset = c.text.substr(slash + 1);
+				if (asset.starts_with("team:") && !consumes(*owner, asset.substr(5)))
+					return false;
+				for (const auto &slot : m.at("slots"))
+					if (slot.at("id") == c.text.substr(0, slash))
+						return std::find(slot.at("choices").begin(), slot.at("choices").end(), asset) !=
+						       slot.at("choices").end();
+				return false;
+			}
+			if (c.action == "away.withdraw")
+			{
+				for (const auto &slot : m.at("slots"))
+					if (slot.at("id") == c.text && slot.at("owned").get<bool>())
+					{
+						const auto asset = slot.at("assigned").get<std::string>();
+						return !asset.starts_with("team:") || consumes(*owner, asset.substr(5));
+					}
+				return false;
+			}
+			if (!c.text.empty() || !m.at("dispatch").get<bool>() ||
+			    (c.action != "away.open" && c.action != "away.send" && c.action != "away.recall" &&
+			     c.action != "away.cancel"))
+				return false;
+			for (const auto &system : view.systems)
+				if (system.kind == OperatingSystem::Dispatch &&
+				    (system.id == c.controller || consumes(*owner, system.id)))
+					return true;
+		}
+	return false;
+}
 std::string manual_binding(const Observation &view, const Json &layout, const std::string &action,
                            const std::string &anchor_action)
 {
@@ -127,6 +253,12 @@ std::optional<EligibleConsoleCommand> resolve(const Observation &view, const Jso
 		command.generation = s->at("generation");
 		command.system.clear();
 	}
+	if (command.action.starts_with("team."))
+		return team_allowed(view, command) ? std::optional<EligibleConsoleCommand>{{command, {}}} : std::nullopt;
+	if (command.action.starts_with("personnel."))
+		return personnel_allowed(view, command) ? std::optional<EligibleConsoleCommand>{{command, {}}} : std::nullopt;
+	if (command.action.starts_with("away."))
+		return away_allowed(view, command) ? std::optional<EligibleConsoleCommand>{{command, {}}} : std::nullopt;
 	Json matched;
 	bool projected = false;
 	for (const auto &descriptor : view.gameplay.value("controls", Json::array()))

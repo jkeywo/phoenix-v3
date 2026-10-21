@@ -97,6 +97,7 @@ public:
 	bool answer(EntityId source, ConversationId conversation, ConversationId prompt, const std::string &choice,
 	            bool execute = true);
 	void event(ConversationId conversation, const std::string &event);
+	bool report(ConversationId conversation, const std::string &line);
 	void advance(std::uint64_t now);
 	Json project(EntityId viewer) const;
 	Json save() const;

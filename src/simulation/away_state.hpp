@@ -42,8 +42,17 @@ inline void from_json(const Json &json, AwayPhase &phase)
 		}
 	throw std::runtime_error("Invalid saved away phase");
 }
+struct AwayCare
+{
+	std::int64_t location = 0, edge_to = -1, travel = 0;
+	std::string order;
+	bool done = false;
+	state_tree::Instance continuation;
+};
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(AwayCare, location, edge_to, travel, order, done)
 struct AwayMission
 {
+	std::map<std::string, AwayCare> care;
 	AwayPhase phase = AwayPhase::Hidden;
 	std::string transport, checkpoint, outcome, work_key, repair_compartment;
 	std::map<std::string, std::string> assignments;
@@ -63,5 +72,5 @@ struct AwayMission
 };
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(AwayMission, phase, transport, checkpoint, outcome, work_key, repair_compartment,
                                    assignments, accompanying, revision, sequence, transfer, work, progress, recovered,
-                                   effects, ever_deployed, participants)
+                                   effects, ever_deployed, participants, care)
 } // namespace phoenix

@@ -49,7 +49,7 @@ bool accepts(const FittedSystemSpec &fit, const Json &spec, OperatingAction acti
 		return kind == OperatingSystem::Shield;
 	case OperatingAction::RepairSystem:
 	case OperatingAction::RepairCompartment:
-		return kind == OperatingSystem::RepairTeam;
+		return kind == OperatingSystem::Team;
 	case OperatingAction::IntentInteger:
 	case OperatingAction::IntentBoolean:
 	case OperatingAction::Waypoint:
@@ -108,7 +108,7 @@ CommandBounds fitted_commands(const FittedSystemSpec &fit, Json spec, const Ship
 	};
 	const auto kind = fit.kind;
 	if (kind == OperatingSystem::Weapon || kind == OperatingSystem::Turret || kind == OperatingSystem::Magazine ||
-	    kind == OperatingSystem::RepairTeam || kind == OperatingSystem::Shield || kind == OperatingSystem::Comms ||
+	    kind == OperatingSystem::Team || kind == OperatingSystem::Shield || kind == OperatingSystem::Comms ||
 	    kind == OperatingSystem::Displacement || kind == OperatingSystem::Dispatch || kind == OperatingSystem::Ftl)
 	{
 		add(OperatingAction::SystemEnabled);
@@ -120,7 +120,8 @@ CommandBounds fitted_commands(const FittedSystemSpec &fit, Json spec, const Ship
 		}
 		if (kind == OperatingSystem::Shield)
 			add(OperatingAction::ShieldDischarge);
-		if (kind == OperatingSystem::RepairTeam)
+		if (kind == OperatingSystem::Team &&
+		    (spec.value("capabilities", std::set<std::string>{"repair"})).contains("repair"))
 		{
 			add(OperatingAction::RepairCompartment);
 			add(OperatingAction::RepairSystem);
@@ -476,7 +477,7 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 				if (action.name.starts_with("select.") || action.name.starts_with("replace.") ||
 				    action.name.starts_with("action.") || action.name.starts_with("coordination."))
 					continue;
-				if (action.name.starts_with("away."))
+				if (action.name.starts_with("away.") || action.name.starts_with("team."))
 					continue;
 				if (action.name == "acknowledge_message" || action.name == "stop_publication" ||
 				    action.name == "withdraw_request")

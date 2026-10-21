@@ -52,11 +52,15 @@ struct MagazineState
 {
 	std::int64_t ammo = 0, refill = 0, reserved_return = 0;
 };
-struct RepairState
+struct TeamState
 {
 	// Route endpoints retain a physical position when assignment changes mid-edge.
 	std::int64_t location = 0, destination = -1, edge_to = -1, travel = 0, edge_total = 0, repair_system = -1;
 	bool repair_auto = true;
+	std::uint64_t revision = 1;
+	std::string order, activity, patient;
+	bool work_done = false;
+	state_tree::Instance continuation;
 };
 struct ShieldState
 {
@@ -66,7 +70,7 @@ struct ShieldState
 struct CombatMechanism
 {
 	CombatSystemDefinition definition;
-	std::variant<WeaponState, TurretState, MagazineState, RepairState, ShieldState> state;
+	std::variant<WeaponState, TurretState, MagazineState, TeamState, ShieldState> state;
 	template <class T> T &get()
 	{
 		return std::get<T>(state);

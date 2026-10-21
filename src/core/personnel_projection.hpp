@@ -49,6 +49,15 @@ inline Json board(const Json &source)
 					if (!portrait.empty() && !portrait.starts_with("console-assets:assets/comms/"))
 						throw std::runtime_error("Invalid officer portrait");
 					r["present"] = row.at("present").get<bool>();
+					r["condition"] = text(row.at("condition"), 16);
+					r["stabilised"] = row.at("stabilised").get<bool>();
+					const auto condition = r.at("condition").get<std::string>();
+					if (condition != "healthy" && condition != "stunned" && condition != "minor" &&
+					    condition != "severe" && condition != "dead")
+						throw std::runtime_error("Invalid officer condition projection");
+					r["stun_until"] = number(row.at("stun_until"), 0, 9007199254740991LL);
+					r["facility"] = text(row.at("facility"), 64);
+					r["treatment"] = number(row.at("treatment"), 0, 1728000000000LL);
 					auto n = number(row.at("remaining"), 0, 36000);
 					r["remaining"] = n;
 					r["traits"] = Json::array();

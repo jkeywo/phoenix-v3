@@ -127,6 +127,7 @@ public:
 	std::vector<ConsoleMessageView> messages() const;
 	std::string system_details() const;
 	std::vector<ConsoleSystemStatus> system_statuses() const;
+	Json team_map() const;
 	const std::string &status_system() const
 	{
 		return status_system_;
@@ -135,6 +136,8 @@ public:
 private:
 	std::string selected_console_, status_system_;
 	std::int64_t combat_target_ = 0, selected_compartment_ = 0;
+	std::string selected_team_, selected_team_order_, selected_patient_;
+	bool team_action(const std::string &, const std::string &, const std::string &);
 	bool fire_arcs_ = true;
 	bool contact_arcs_ = true;
 	std::int64_t sensor_contact_ = 0;

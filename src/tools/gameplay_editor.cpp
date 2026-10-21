@@ -643,10 +643,27 @@ struct GameplayEditor
 			integer(r, "amount", 1);
 			integer(r, "energy_per_second");
 		}
-		if (kind == "repair_team")
+		if (kind == "repair_team" || kind == "team")
 		{
 			integer(spec, "hp_per_second", 10);
 			integer(spec, "stack_penalty_permille", 500);
+			optional_string(spec, "type");
+			strings(spec, "capabilities");
+			integer(spec, "treatment_ticks", 400);
+			integer(spec, "stabilise_ticks", 200);
+			records(
+			    spec, "orders",
+			    {{"id", "order"}, {"label", "Team order"}, {"icon", "team"}, {"target", "compartments"}, {"tree", ""}},
+			    [&](Json &o)
+			    {
+				    string(o, "id");
+				    string(o, "label");
+				    string(o, "icon");
+				    choice(o, "target", {"compartments", "damage", "patients"});
+				    optional_string(o, "capability");
+				    strings(o, "patient_states");
+				    string(o, "tree");
+			    });
 		}
 
 		if (kind == "engine" || ((kind == "boost" || kind == "impulse") && !spec.contains("targets")))
@@ -845,6 +862,31 @@ struct GameplayEditor
 		if (!ship.contains("personnel"))
 			return;
 		auto &p = ship["personnel"];
+		if (!p.contains("casualties"))
+			p["casualties"] = Json::object();
+		{
+			ScopedTree policy("Casualty policy");
+			if (policy)
+			{
+				auto &c = p["casualties"];
+				integer(c, "significant_damage", 20);
+				integer(c, "heavy_below_permille", 300);
+				boolean(c, "lethal", false);
+				integer(c, "lethal_damage", 80);
+				integer(c, "stun_permille", 150);
+				integer(c, "minor_permille", 100);
+				integer(c, "severe_permille", 30);
+				integer(c, "killed_permille", 10);
+			}
+		}
+		records(p, "facilities", {{"id", "sickbay"}, {"compartment", ""}, {"capacity", 1}, {"recovery_ticks", 1200}},
+		        [&](Json &f)
+		        {
+			        string(f, "id");
+			        string(f, "compartment");
+			        integer(f, "capacity", 1);
+			        integer(f, "recovery_ticks", 1200);
+		        });
 		records(p, "departments", {{"id", "department"}, {"label", "Department"}, {"station", ""}},
 		        [&](Json &d)
 		        {
@@ -929,6 +971,7 @@ struct GameplayEditor
 			        choice(o, "duty", ids(p["duties"]), true);
 			        string(o, "compartment");
 			        strings(o, "traits");
+			        choice(o, "condition", {"healthy", "minor", "severe"});
 		        });
 	}
 	void fitted(WorkshopDocument &document)
@@ -1023,9 +1066,9 @@ struct GameplayEditor
 				ImGui::TextUnformatted(selected_system.c_str());
 				choice(spec, "template", document.definition_choices(WorkshopDefinitionKind::Equipment), true);
 				choice(spec, "kind",
-				       {"engine", "steering", "radar", "generator", "distribution", "coolant", "storage", "lateral",
-				        "boost", "impulse", "weapon", "turret", "magazine", "repair_team", "shield", "comms",
-				        "displacement", "dispatch", "ftl"},
+				       {"engine",      "steering", "radar",   "generator",    "distribution", "coolant",  "storage",
+				        "lateral",     "boost",    "impulse", "weapon",       "turret",       "magazine", "team",
+				        "repair_team", "shield",   "comms",   "displacement", "dispatch",     "ftl"},
 				       true);
 				auto kind = equipment_kind(document, spec);
 				if (kind.empty())
@@ -1767,7 +1810,7 @@ struct GameplayEditor
 					ImGui::TextUnformatted(definition.at("extends").get<std::string>().c_str());
 				}
 				Json context{{"context", resolved.at("context")}};
-				if (choice(context, "context", {"controller", "scenario", "conversation", "away"}))
+				if (choice(context, "context", {"controller", "scenario", "conversation", "away", "team"}))
 					definition["context"] = context.at("context");
 				if (context.at("context") == "conversation")
 				{
@@ -2011,6 +2054,8 @@ struct GameplayEditor
 				                string(s, "id");
 				                choice(s, "kind", {"team", "officer"});
 				                optional_string(s, "trait");
+				                optional_string(s, "team_type");
+				                optional_string(s, "capability");
 				                boolean(s, "required", true);
 			                });
 		        });
@@ -3126,6 +3171,13 @@ void set_gameplay_authoring_vocabulary(const Json &vocabulary)
 		     {"name", a.name},
 		     {"arguments", Json::array({{{"name", "definition"}, {"type", "text"}}})},
 		     {"effect", true}});
+	const auto teams = team_registry();
+	contexts["team"] = {{"observations", Json::array()}, {"actions", Json::array()}};
+	for (const auto &f : teams.observations)
+		contexts["team"]["observations"].push_back(
+		    {{"id", f.name}, {"type", f.type == state_tree::Type::Boolean ? "boolean" : "integer"}});
+	for (const auto &a : teams.actions)
+		contexts["team"]["actions"].push_back({{"id", a.name}, {"arguments", Json::array()}});
 	const auto away = away_registry();
 	contexts["away"] = {{"observations", Json::array()}, {"actions", Json::array()}};
 	for (const auto &f : away.observations)

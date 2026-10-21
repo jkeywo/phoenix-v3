@@ -53,7 +53,7 @@ bool structurally_disabled(flecs::entity ship, const std::string &equipment) con
 	const auto *s = ship.try_get<CombatStructure>();
 	if (!s)
 		return false;
-	if (auto fit = instance(ship, equipment); fit && fit->kind == OperatingSystem::RepairTeam)
+	if (auto fit = instance(ship, equipment); fit && fit->kind == OperatingSystem::Team)
 		return combat_dead(ship);
 	if (combat_dead(ship))
 		return true;
@@ -68,6 +68,7 @@ void combat_damage(flecs::entity ship, std::size_t compartment, std::int64_t amo
 	auto &s = ship.get_mut<CombatStructure>();
 	if (combat_dead(ship) || amount <= 0)
 		return;
+	personnel_casualties(ship, compartment, amount);
 	damage_faults(ship, compartment, amount);
 	auto &c = s.compartments.at(compartment);
 	c.hp = std::max<std::int64_t>(0, c.hp - amount);
@@ -86,8 +87,10 @@ void combat_damage(flecs::entity ship, std::size_t compartment, std::int64_t amo
 bool operate_combat(flecs::entity ship, flecs::entity child, OperatingRequest output, bool execute)
 {
 	auto &m = child.get_mut<CombatMechanism>();
-	if (m.definition.kind == OperatingSystem::RepairTeam &&
-	    away_reserved(ship.get<StableId>().id, "team:" + m.definition.id))
+	if (m.definition.kind == OperatingSystem::Team && away_reserved(ship.get<StableId>().id, "team:" + m.definition.id))
+		return false;
+	if (m.definition.kind == OperatingSystem::Team && !m.get<TeamState>().order.empty() &&
+	    output.action != OperatingAction::SystemEnabled)
 		return false;
 	if (!output.arguments.empty())
 		return false;
@@ -134,22 +137,23 @@ bool operate_combat(flecs::entity ship, flecs::entity child, OperatingRequest ou
 			m.get<ShieldState>().discharge = output.value != 0;
 		return true;
 	}
-	if (output.action == OperatingAction::RepairSystem && m.definition.kind == OperatingSystem::RepairTeam)
+	if (output.action == OperatingAction::RepairSystem && m.definition.kind == OperatingSystem::Team &&
+	    m.definition.get<TeamDefinition>().capabilities.contains("repair"))
 	{
 		const auto &s = ship.get<CombatStructure>();
 		if (output.value < 0 || output.value > static_cast<std::int64_t>(s.definition.equipment_compartments.size()))
 			return false;
 		if (execute)
 		{
-			m.get<RepairState>().repair_system = output.value - 1;
-			m.get<RepairState>().repair_auto = output.value == 0;
+			m.get<TeamState>().repair_system = output.value - 1;
+			m.get<TeamState>().repair_auto = output.value == 0;
 			if (!output.value)
-				m.get<RepairState>().destination = -1;
+				m.get<TeamState>().destination = -1;
 			if (output.value)
 			{
 				auto it = s.definition.equipment_compartments.begin();
-				std::advance(it, m.get<RepairState>().repair_system);
-				m.get<RepairState>().destination = s.definition.compartment_ids.at(it->second);
+				std::advance(it, m.get<TeamState>().repair_system);
+				m.get<TeamState>().destination = s.definition.compartment_ids.at(it->second);
 			}
 		}
 		return true;
@@ -190,16 +194,17 @@ bool operate_combat(flecs::entity ship, flecs::entity child, OperatingRequest ou
 		}
 		return true;
 	}
-	if (output.action == OperatingAction::RepairCompartment && m.definition.kind == OperatingSystem::RepairTeam)
+	if (output.action == OperatingAction::RepairCompartment && m.definition.kind == OperatingSystem::Team &&
+	    m.definition.get<TeamDefinition>().capabilities.contains("repair"))
 	{
 		const auto count = static_cast<std::int64_t>(ship.get<CombatStructure>().compartments.size());
 		if (output.value < 0 || output.value > count)
 			return false;
 		if (execute)
 		{
-			m.get<RepairState>().destination = output.value - 1;
-			m.get<RepairState>().repair_auto = output.value == 0;
-			m.get<RepairState>().repair_system = -1;
+			m.get<TeamState>().destination = output.value - 1;
+			m.get<TeamState>().repair_auto = output.value == 0;
+			m.get<TeamState>().repair_system = -1;
 		}
 		return true;
 	}
@@ -215,6 +220,17 @@ void combat_telemetry(flecs::entity ship, flecs::entity child, std::map<std::str
 	v["structural_disabled"] =
 	    structure && compartment != structure->definition.equipment_compartments.end() &&
 	    structure->compartments.at(structure->definition.compartment_ids.at(compartment->second)).disabled;
+	v["officer_condition"] = 0;
+	const auto id = ship.get<StableId>().id;
+	const auto &pd = definition(id).personnel;
+	const auto &ps = ship.get<PersonnelState>();
+	for (std::size_t i = 0; i < ps.officers.size(); ++i)
+		if (const auto *duty = personnel_duty(id, ps.officers[i].duty); duty && duty_affects_system(id, *duty, fit.id))
+		{
+			const auto &condition = ps.officers[i].condition;
+			const auto severity = condition == "stunned" ? 1 : condition == "minor" ? 2 : condition == "severe" ? 3 : 0;
+			v["officer_condition"] = std::max(v["officer_condition"], static_cast<std::int64_t>(severity));
+		}
 	v["damaged"] = fault_effectiveness(ship, fit.id) < 1000;
 	v["destroyed"] = 0;
 	v["overheated"] = 0;
@@ -260,11 +276,12 @@ void combat_telemetry(flecs::entity ship, flecs::entity child, std::map<std::str
 			v["reload_progress"] = m->get<MagazineState>().refill;
 			v["reload_ticks"] = m->definition.get<MagazineDefinition>().refill_ticks;
 			break;
-		case OperatingSystem::RepairTeam:
-			v["requested"] = m->get<RepairState>().destination + 1;
-			v["team_location"] = m->get<RepairState>().location;
-			v["team_destination"] = m->get<RepairState>().destination;
-			v["travel_remaining"] = m->get<RepairState>().travel;
+		case OperatingSystem::Team:
+			v["team_revision"] = m->get<TeamState>().revision;
+			v["requested"] = m->get<TeamState>().destination + 1;
+			v["team_location"] = m->get<TeamState>().location;
+			v["team_destination"] = m->get<TeamState>().destination;
+			v["travel_remaining"] = m->get<TeamState>().travel;
 			break;
 		case OperatingSystem::Shield:
 			v["capacity"] = m->definition.reserve().capacity;
@@ -475,7 +492,7 @@ bool advance_repair_team(flecs::entity ship, flecs::entity child)
 	auto &m = child.get_mut<CombatMechanism>();
 	if (combat_dead(ship) || !child.get<Equipment>().enabled || !fault_effectiveness(ship, m.definition.id))
 		return false;
-	auto &r = m.get<RepairState>();
+	auto &r = m.get<TeamState>();
 	if (r.travel > 0)
 	{
 		if (--r.travel > 0)
@@ -484,15 +501,16 @@ bool advance_repair_team(flecs::entity ship, flecs::entity child)
 		r.edge_to = -1;
 		r.edge_total = 0;
 	}
-	for (auto &[equipment, states] : s.faults)
-		if (s.definition.compartment_ids.at(s.definition.equipment_compartments.at(equipment)) ==
-		    static_cast<std::size_t>(r.location))
-			for (auto &state : states)
-				if (state.active)
-					state.diagnosed = true;
+	if (m.definition.get<TeamDefinition>().capabilities.contains("repair"))
+		for (auto &[equipment, states] : s.faults)
+			if (s.definition.compartment_ids.at(s.definition.equipment_compartments.at(equipment)) ==
+			    static_cast<std::size_t>(r.location))
+				for (auto &state : states)
+					if (state.active)
+						state.diagnosed = true;
 	return true;
 }
-void route_repair_team(flecs::entity ship, RepairState &r, std::size_t target)
+void route_repair_team(flecs::entity ship, TeamState &r, std::size_t target)
 {
 	const auto route = repair_route(ship.get<CombatStructure>(), r.location, target);
 	r.edge_to = route.first;
@@ -508,23 +526,25 @@ std::int64_t structural_repair_work(flecs::entity ship, std::vector<flecs::entit
 		              return !team.template get<Equipment>().enabled ||
 		                     !fault_effectiveness(ship, team.template get<Equipment>().id);
 	              });
-	std::sort(
-	    teams.begin(), teams.end(),
-	    [](auto a, auto b)
-	    {
-		    const auto &x = a.template get<CombatMechanism>().definition;
-		    const auto &y = b.template get<CombatMechanism>().definition;
-		    return x.template get<RepairDefinition>().repair_rate != y.template get<RepairDefinition>().repair_rate
-		               ? x.template get<RepairDefinition>().repair_rate > y.template get<RepairDefinition>().repair_rate
-		               : x.id < y.id;
-	    });
+	std::sort(teams.begin(), teams.end(),
+	          [](auto a, auto b)
+	          {
+		          const auto &x = a.template get<CombatMechanism>().definition;
+		          const auto &y = b.template get<CombatMechanism>().definition;
+		          return x.template get<TeamDefinition>().repair_rate != y.template get<TeamDefinition>().repair_rate
+		                     ? x.template get<TeamDefinition>().repair_rate >
+		                           y.template get<TeamDefinition>().repair_rate
+		                     : x.id < y.id;
+	          });
 	std::int64_t work = 0;
 	for (std::size_t rank = 0; rank < teams.size(); ++rank)
 	{
 		const auto &d = teams[rank].get<CombatMechanism>().definition;
-		work += personnel_scale(d.get<RepairDefinition>().repair_rate * 1000000,
+		if (!d.get<TeamDefinition>().capabilities.contains("repair"))
+			continue;
+		work += personnel_scale(d.get<TeamDefinition>().repair_rate * 1000000,
 		                        officer_bonus(ship.get<StableId>().id, d.id, "repair") + specialist_bonus) /
-		        (1000 + d.get<RepairDefinition>().stack_penalty * static_cast<std::int64_t>(rank)) *
+		        (1000 + d.get<TeamDefinition>().stack_penalty * static_cast<std::int64_t>(rank)) *
 		        fault_effectiveness(ship, d.id) / 1000;
 	}
 	return work;
@@ -550,22 +570,25 @@ void step_repairs()
 		std::map<std::size_t, std::vector<flecs::entity>> structural_workers;
 		std::set<std::pair<std::string, std::size_t>> claimed;
 		for (auto child : ship.get<EquipmentIndex>().values)
-			if (auto *m = child.try_get_mut<CombatMechanism>(); m && m->definition.kind == OperatingSystem::RepairTeam)
+			if (auto *m = child.try_get_mut<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Team)
 			{
-				if (away_reserved(id, "team:" + m->definition.id))
+				if (!m->definition.get<TeamDefinition>().capabilities.contains("repair") ||
+				    (!m->get<TeamState>().order.empty() && m->get<TeamState>().activity != "repair") ||
+				    away_reserved(id, "team:" + m->definition.id))
 					continue;
-				if (!advance_repair_team(ship, child))
+				if (m->get<TeamState>().order.empty() ? !advance_repair_team(ship, child)
+				                                      : m->get<TeamState>().travel > 0)
 					continue;
-				if (m->get<RepairState>().repair_auto)
+				if (m->get<TeamState>().repair_auto)
 				{
 					std::tuple<std::int64_t, std::int64_t, std::int64_t> best{
 					    0, std::numeric_limits<std::int64_t>::min(), 0};
-					m->get<RepairState>().destination = -1;
+					m->get<TeamState>().destination = -1;
 					for (std::size_t i = 0; i < s.compartments.size(); ++i)
 					{
 						std::int64_t travel_cost = 0;
-						const auto route = repair_route(s, m->get<RepairState>().location, i, &travel_cost);
-						if (i != static_cast<std::size_t>(m->get<RepairState>().location) && route.first < 0)
+						const auto route = repair_route(s, m->get<TeamState>().location, i, &travel_cost);
+						if (i != static_cast<std::size_t>(m->get<TeamState>().location) && route.first < 0)
 							continue;
 						const auto score = repair_candidate(ship, i, {}, claimed).score;
 						if (!score)
@@ -574,25 +597,25 @@ void step_repairs()
 						if (key > best)
 						{
 							best = key;
-							m->get<RepairState>().destination = i;
+							m->get<TeamState>().destination = i;
 						}
 					}
 				}
-				if (m->get<RepairState>().destination < 0)
+				if (m->get<TeamState>().destination < 0)
 					continue;
-				if (m->get<RepairState>().destination != m->get<RepairState>().location)
+				if (m->get<TeamState>().destination != m->get<TeamState>().location)
 				{
-					route_repair_team(ship, m->get<RepairState>(), m->get<RepairState>().destination);
+					route_repair_team(ship, m->get<TeamState>(), m->get<TeamState>().destination);
 					continue;
 				}
 				std::string priority;
-				if (m->get<RepairState>().repair_system >= 0)
+				if (m->get<TeamState>().repair_system >= 0)
 				{
 					auto at = s.definition.equipment_compartments.begin();
-					std::advance(at, m->get<RepairState>().repair_system);
+					std::advance(at, m->get<TeamState>().repair_system);
 					priority = at->first;
 				}
-				const auto index = static_cast<std::size_t>(m->get<RepairState>().location);
+				const auto index = static_cast<std::size_t>(m->get<TeamState>().location);
 				const auto candidate = repair_candidate(ship, index, priority, claimed);
 				const auto &task = candidate.fault;
 				if (task)
@@ -601,7 +624,7 @@ void step_repairs()
 					auto &f = s.faults.at(task->first)[task->second];
 					const auto &d = s.definition.faults.at(task->first)[task->second];
 					f.work += officer_value(ship.get<StableId>().id, m->definition.id, "repair",
-					                        m->definition.get<RepairDefinition>().repair_rate * 1000) *
+					                        m->definition.get<TeamDefinition>().repair_rate * 1000) *
 					          fault_effectiveness(ship, m->definition.id) / 1000;
 					if (f.work >= d.repair_work * rate * 1000)
 					{
@@ -664,7 +687,7 @@ void project_combat(const ConsoleAddress &address, Observation &result) const
 	               {"teams", Json::array()},
 	               {"arcs", Json::array()}};
 	for (std::size_t i = 0; i < s->compartments.size(); ++i)
-		if (address.console == s->definition.repair_console)
+		if (address.console == s->definition.repair_console || team_map_allowed(address))
 		{
 			const auto &d = s->definition.compartments[i];
 			const auto &c = s->compartments[i];
@@ -684,13 +707,13 @@ void project_combat(const ConsoleAddress &address, Observation &result) const
 		if (const auto *m = child.try_get<CombatMechanism>())
 		{
 			const auto &d = m->definition;
-			if (d.kind == OperatingSystem::RepairTeam && address.console == s->definition.repair_console)
+			if (d.kind == OperatingSystem::Team && address.console == s->definition.repair_console)
 				output["teams"].push_back({{"id", d.id},
-				                           {"location", m->get<RepairState>().location},
-				                           {"destination", m->get<RepairState>().destination},
-				                           {"travel", m->get<RepairState>().travel},
-				                           {"edge_to", m->get<RepairState>().edge_to},
-				                           {"edge_total", m->get<RepairState>().edge_total}});
+				                           {"location", m->get<TeamState>().location},
+				                           {"destination", m->get<TeamState>().destination},
+				                           {"travel", m->get<TeamState>().travel},
+				                           {"edge_to", m->get<TeamState>().edge_to},
+				                           {"edge_total", m->get<TeamState>().edge_total}});
 			if (std::find(feeds.begin(), feeds.end(), d.id) == feeds.end())
 				continue;
 			if ((d.kind == OperatingSystem::Weapon || d.kind == OperatingSystem::Turret) &&
@@ -826,6 +849,11 @@ Json save_combat(flecs::entity ship) const
 				    return Json(state);
 			    },
 			    m->state);
+	for (auto child : ship.get<EquipmentIndex>().values)
+		if (const auto *m = child.try_get<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Team)
+			if (const auto *order = team_order_definition(*m, m->get<TeamState>().order))
+				j["systems"][m->definition.id]["order_continuation"] =
+				    state_tree::save(order->program, m->get<TeamState>().continuation);
 	return j;
 }
 void restore_combat(flecs::entity ship, const Json &j)
@@ -867,7 +895,15 @@ void restore_combat(flecs::entity ship, const Json &j)
 			    {
 				    using State = std::decay_t<decltype(state)>;
 				    state = v.get<State>();
-				    if (Json(state) != v)
+				    Json expected = Json(state), actual = v;
+				    if constexpr (std::is_same_v<State, TeamState>)
+				    {
+					    actual.erase("order_continuation");
+					    for (const auto *key : {"revision", "order", "activity", "patient", "work_done"})
+						    if (!actual.contains(key))
+							    actual[key] = expected.at(key);
+				    }
+				    if (expected != actual)
 					    throw std::runtime_error("Unexpected combat state fields");
 			    },
 			    m->state);
@@ -922,9 +958,27 @@ void restore_combat(flecs::entity ship, const Json &j)
 					throw std::runtime_error("Invalid magazine reservation");
 				break;
 			}
-			case OperatingSystem::RepairTeam:
+			case OperatingSystem::Team:
 			{
-				const auto &r = m->get<RepairState>();
+				auto &r = m->get<TeamState>();
+				if (!r.revision || r.revision > 9007199254740991ULL || r.patient.size() > 64)
+					throw std::runtime_error("Invalid team revision/patient");
+				if (!r.order.empty())
+				{
+					const auto *order = team_order_definition(*m, r.order);
+					if (!order || !v.contains("order_continuation") || r.repair_auto || r.destination < 0)
+						throw std::runtime_error("Invalid saved team order");
+					if (!r.activity.empty() &&
+					    std::none_of(order->program.registry.actions.begin(), order->program.registry.actions.end(),
+					                 [&](const auto &a)
+					                 {
+						                 return a.name == r.activity;
+					                 }))
+						throw std::runtime_error("Invalid team activity");
+					r.continuation = state_tree::load(order->program, v.at("order_continuation"));
+				}
+				else if (!r.activity.empty() || !r.patient.empty() || v.contains("order_continuation"))
+					throw std::runtime_error("Orphaned team continuation");
 				bounded("location", 0, n - 1);
 				bounded("destination", -1, n - 1);
 				bounded("edge_to", -1, n - 1);

@@ -303,6 +303,14 @@ void controller_output(EntityId id, std::size_t index, const state_tree::Output 
 				if (!ftl_command(source, command, true, true))
 					throw std::runtime_error("FTL departure refused");
 			}
+			else if (action.name.starts_with("team."))
+			{
+				OperatingCommand command{id, action.name, output.arguments.at(2).number, output.arguments.at(0).text};
+				command.text = output.arguments.at(1).text;
+				command.controller = controller.definition.id;
+				command.generation = controller.generation;
+				team_command(source, command, true, true);
+			}
 			else if (action.name.starts_with("away."))
 			{
 				OperatingCommand command{id, action.name, output.arguments.at(2).number, output.arguments.at(0).text};
