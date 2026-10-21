@@ -24,6 +24,7 @@ A fitted `shuttle_bay` declares:
 
 - `compartment`, `slots` and `initial`, an array of craft entity definitions. Repeated definitions create separate craft. Nested carried bays are unsupported.
 - `transfer_ticks`, `docking_range_mm` and `docking_speed_mm_s`. Launch and recovery share a serial bay operation. Deployed craft retain their home slots; recovery requires physical proximity and acceptable relative velocity.
+- Optional `flight_spacing_mm` (default zero) separates the bay's stable slots into altitude bands, with lower slot indices higher. Ordinary navigation and tactical pursuit share those bands. Recovery keeps separated approaches above the carrier, bounded by its docking envelope. Configure spacing and range for the fitted craft dimensions; zero preserves existing content's flight altitudes.
 - Optional `power_store` and `charge_per_second`. Charging transfers actual carrier energy subject to source discharge and receiving-store limits.
 - Optional `ammunition` connections with `source`, `destination` and `rounds_per_second`. Carrier/craft magazines must share a nonempty `ammunition_type`. Transfers consume finite stock and respect capacity and loaded-round return reservations. Connections skip craft without that destination magazine. Bay throughput is shared in stable craft identity order.
 

@@ -82,7 +82,9 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 		facts[15] = guidance.heading;
 		facts[16] = guidance.speed;
 		facts[17] = target->altitude +
-		            (definition(observed.own.id).craft ? definition(observed.own.id).craft->cruise_altitude : 0);
+		            (definition(observed.own.id).craft
+		                 ? definition(observed.own.id).craft->cruise_altitude + craft_flight_band(observed.own.id)
+		                 : 0);
 	}
 	for (auto child : entity.get<EquipmentIndex>().values)
 		if (const auto *m = child.try_get<CombatMechanism>();

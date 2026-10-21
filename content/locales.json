@@ -1160,7 +1160,8 @@
       "power.demand": "power.demand",
       "power.limited": "power.limited",
       "summary.level": "summary.level",
-      "thermal.stopped": "thermal.stopped"
+      "thermal.stopped": "thermal.stopped",
+      "flight_spacing_mm": "Flight altitude spacing (mm)"
     }
   }
 }

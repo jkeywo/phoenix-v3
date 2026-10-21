@@ -502,6 +502,7 @@ struct CraftBayDefinition
 {
 	std::string compartment, power_store;
 	std::int64_t slots = 0, transfer_ticks = 20, docking_range = 10000, docking_speed = 5000;
+	std::int64_t flight_spacing = 0;
 	std::int64_t charge_rate = 0;
 	std::vector<std::string> initial;
 	std::vector<CraftSupplyDefinition> ammunition;

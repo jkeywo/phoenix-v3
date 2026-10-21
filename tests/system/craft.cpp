@@ -109,8 +109,11 @@ int main(int argc, char **argv)
 		}
 		{
 			auto approach = craft_fixture();
-			approach["entities"][0]["systems"]["bay"]["slots"] = 1;
-			approach["entities"][0]["systems"]["bay"]["initial"] = Json::array({"test.shuttle"});
+			approach["entities"][0]["systems"]["bay"]["slots"] = 4;
+			approach["entities"][0]["systems"]["bay"]["initial"] =
+			    Json::array({"test.shuttle", "test.shuttle", "test.shuttle", "test.shuttle"});
+			approach["entities"][0]["systems"]["bay"]["transfer_ticks"] = 60;
+			approach["entities"][0]["systems"]["bay"]["flight_spacing_mm"] = 4000;
 			approach["entities"][0]["systems"]["bay"]["docking_range_mm"] = 190000;
 			approach["entities"][0]["systems"]["bay"]["docking_speed_mm_s"] = 6000;
 			approach["entities"][0]["combat"]["half_height_mm"] = 45000;
@@ -118,25 +121,63 @@ int main(int argc, char **argv)
 			approach["maps"][0].erase("away_missions");
 			approach["maps"][0].erase("conversations");
 			for (auto &craft : approach["entities"])
+			{
+				if (craft.contains("systems") && craft["systems"].contains("radio"))
+					craft["systems"]["radio"]["range_mm"] = 500000;
 				if (craft.contains("craft"))
 				{
 					craft["craft"]["cruise_altitude_mm"] = 100000;
 					craft["craft"]["role"] = "interceptor";
 				}
+			}
 			const auto content = load(approach);
 			World returning;
 			returning.load(content, "test.map", {{"crew", "test.away"}});
 			require(returning.claim(101, *returning.ship_for_slot("crew"), "drive"), "recovery bay claim");
 			ticks(returning, 4);
-			const auto craft = returning.observe(101)->gameplay.at("craft")[0].at("id").get<std::string>();
-			require(returning.submit(101, command(returning, "craft", "defend", craft)), "launch recovery fixture");
-			ticks(returning, 100);
-			require(returning.submit(101, command(returning, "craft", "recall", craft)), "recall over large hull");
-			for (int i = 0; i < 1000 && returning.observe(101)->gameplay.at("craft")[0].at("phase") != "docked"; ++i)
+			const auto initial = returning.observe(101)->gameplay.at("craft");
+			for (const auto &craft : initial)
+				require(returning.submit(101, command(returning, "craft", "defend", craft.at("id"))),
+				        "launch recovery fixture");
+			ticks(returning, 350);
+			const auto flying = returning.observe(101)->gameplay.at("craft");
+			for (const auto &craft : flying)
+				require(returning.submit(101, command(returning, "craft", "recall", craft.at("id"))),
+				        "recall formation over large hull");
+			returning.tick();
+			World resumed_approach;
+			resumed_approach.restore(content, returning.save());
+			for (int i = 0; i < 20; ++i)
+			{
 				returning.tick();
-			const auto recovered = returning.observe(101)->gameplay.at("craft")[0];
-			require(recovered.at("phase") == "docked" && recovered.at("condition") == recovered.at("maximum_condition"),
-			        "recovery brakes above the carrier without striking its hull");
+				resumed_approach.tick();
+			}
+			require(resumed_approach.save() == returning.save(), "slot flight bands continue exactly after recovery");
+			const auto docked = [&]()
+			{
+				const auto rows = returning.observe(101)->gameplay.at("craft");
+				return std::all_of(rows.begin(), rows.end(),
+				                   [](const auto &row)
+				                   {
+					                   return row.at("phase") == "docked";
+				                   });
+			};
+			for (int i = 0; i < 1000 && !docked(); ++i)
+				returning.tick();
+			if (!docked())
+			{
+				const auto state = returning.save();
+				Json positions = Json::array();
+				for (const auto &body : state.at("bodies"))
+					positions.push_back({{"body", body.at("body")}, {"vertical", body.value("vertical", Json())}});
+				std::cerr << "spaced recovery " << positions.dump() << ' '
+				          << returning.observe(101)->gameplay.at("craft").dump() << '\n';
+			}
+			require(docked(), "spaced formation recovers through the serial bay");
+			const auto recovered = returning.observe(101)->gameplay.at("craft");
+			for (const auto &craft : recovered)
+				require(craft.at("condition") == craft.at("maximum_condition"),
+				        "recovery bands avoid carrier and craft collisions");
 		}
 		World w;
 		w.load(catalog, "test.map", {{"crew", "test.away"}});

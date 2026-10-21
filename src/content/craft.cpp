@@ -117,6 +117,7 @@ std::map<std::string, CraftBayDefinition> compile_craft_bays(const Catalog &cata
 		d.transfer_ticks = craft_number(j, "transfer_ticks", 20, 1, 36000);
 		d.docking_range = craft_number(j, "docking_range_mm", 10000, 1, 1000000);
 		d.docking_speed = craft_number(j, "docking_speed_mm_s", 5000, 1, 1000000);
+		d.flight_spacing = craft_number(j, "flight_spacing_mm", 0, 0, 1000000);
 		d.charge_rate = craft_number(j, "charge_per_second", 0, 0, 1000000000);
 		d.power_store = j.value("power_store", std::string{});
 		const auto initial = j.value("initial", Json::array());

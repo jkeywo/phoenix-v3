@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>Cruiser assembled bearings</title>
+		<style>
+			canvas {
+				width: 100%;
+				height: auto;
+			}
+		</style>
+	</head>
+	<body style="margin: 0; background: #0a1018; color: white">
+		<canvas id="canvas" width="1600" height="900" aria-label="Eight assembled Cruiser bearings"></canvas>
+		<pre id="result" role="status">Loading the production Cruiser gallery…</pre>
+		<script>
+			var Module = {
+				arguments: ["/assets/base.zip", "--gallery", "0"],
+				canvas: document.getElementById("canvas"),
+				print(text) {
+					document.getElementById("result").textContent = text;
+				},
+				printErr(text) {
+					document.getElementById("result").textContent = text;
+				},
+			};
+		</script>
+		{{{ SCRIPT }}}
+	</body>
+</html>

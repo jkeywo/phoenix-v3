@@ -15,7 +15,7 @@
 
 The auxiliary Navigator Console remains attached to Science and controls FTL mission departure. Each station keeps its ordinary complexity profiles, Controller authority, permitted observations and department-scoped duty officers. Simple delegates shields and routine repairs; deeper profiles expose their controls. Vacant stations use their ordinary Controller policies.
 
-Five main turrets share one material. Fore/aft dorsal and ventral mounts traverse 270 degrees; the central dorsal mount traverses 360 degrees. Main-gun and PDC ammunition is finite. Each four-tube missile bank selects between its own finite homing and havok magazines. Main weapons and PDC standby draw actual local power; there is no between-wave ammunition refill.
+Five main turrets share one material. Fore/aft dorsal and ventral mounts traverse 270 degrees; the central dorsal mount traverses 360 degrees. Main-gun and PDC ammunition is finite. Each four-tube missile bank selects between its own finite homing and havok magazines. Main weapons and PDC standby draw actual local power. The encounter injects no ammunition or resources between waves; ordinary finite onboard servicing continues.
 
 Two utility shuttles occupy the utility bay. Four interceptors and two bombers occupy the combat bay. These are production entities using the carried-craft runtime, with separate identities, saved condition, orders, charging and finite replenishment. Tactical owns both bays; Engineering owns the carrier supply magazines. Bay launch/recovery remains serial per bay, using the existing forward clearance point above the hull. Returns brake above the carrier before docking. Sprite bay markers are registration references rather than a new launch-geometry contract.
 

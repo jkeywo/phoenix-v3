@@ -44,6 +44,19 @@ def prepare(stem, draft_path):
         [(30, 80), (45, 60), (70, 105), (235, 160), (90, 75), (260, 125)],
         [(410, 90), (115, 90), (435, 130), (465, 170), (90, 130), (60, 170)],
     ]
+    # Bore centres in source pixels, lower pair followed by upper pair. Other
+    # banks retain inferred registration behind the hull, never visible origins.
+    visible_bores = {
+        (0, 0): [(403.6,162.8),(423.5,162.7),(403,139.8),(423.3,139.5)],
+        (0, 1): [(70.2,163.8),(90.3,164),(70.2,140.1),(90.2,139.8)],
+        (1, 0): [(36.6,243.1),(34,243.1),(36.8,220),(34,220)],
+        (1, 2): [(307.8,227.4),(331.4,221.9),(307.6,207),(331.3,201.2)],
+        (1, 3): [(592,157),(614,150),(592,137),(614,130)],
+        (2, 2): [(202.8,166.1),(226.6,165.8),(201.7,143.8),(226.9,144.5)],
+        (2, 3): [(638.7,167.1),(661.7,166.9),(640.4,144.9),(662.1,143.9)],
+        (3, 2): [(76,104),(97,116),(76,82),(97,94)],
+        (3, 3): [(212.4,184.3),(230.1,192.1),(212.1,162.9),(230.3,171.3)],
+    }
     for i, f in enumerate(source["sprite_sheet"]["frames"]):
         angle = f["camera_azimuth_degrees"]
         unique = i if i < 5 else 8 - i
@@ -114,8 +127,14 @@ def prepare(stem, draft_path):
                 for tube in range(4):
                     socket(f"missile_{bank}_{tube+1}",forward+(tube%2)*3,port, (tube//2)*3)
                     marker = frame["attachments"][f"missile_{bank}_{tube+1}"]
-                    bx, by = bank_points[unique][bank_index]
-                    marker.update(x=bx+(tube%2-.5)*10, y=by+(tube//2-.5)*10)
+                    bores = visible_bores.get((unique, bank_index))
+                    if bores:
+                        bx, by = bores[tube]
+                        visible = not (unique == 1 and bank_index == 0 and tube % 2 == 1)
+                        marker.update(x=bx, y=by, layer=1 if visible else -1)
+                    else:
+                        bx, by = bank_points[unique][bank_index]
+                        marker.update(x=bx+(tube%2-.5)*10, y=by+(tube//2-.5)*10, layer=-1)
                     sampled = (depth.getpixel((x+int(marker["x"]),y+int(marker["y"])))/255-.5)*span
                     marker["depth_offset"] = round((forward*math.cos(ua)+port*math.sin(ua))/90-sampled,5)
             # Engine offsets keep inferred far-side exhaust behind the calibrated volume.
@@ -142,10 +161,12 @@ def prepare(stem, draft_path):
                 for name, marker in frame["attachments"].items()}
         frames.append(frame)
     OUT.mkdir(parents=True, exist_ok=True)
-    # Palette packaging keeps the production base below its bounded archive size.
+    # Quantize colour while retaining every original alpha value and silhouette pixel.
     # Source registration and original RGBA drawings remain untouched in raw/.
-    albedo.quantize(colors=256, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE).save(
-        OUT / f"{stem}-albedo.png", optimize=True)
+    packaged = albedo.quantize(colors=256, method=Image.Quantize.FASTOCTREE,
+                              dither=Image.Dither.NONE).convert("RGBA")
+    packaged.putalpha(albedo.getchannel("A"))
+    packaged.save(OUT / f"{stem}-albedo.png", optimize=True)
     depth.save(OUT / f"{stem}-depth.png", optimize=True)
     normal.save(OUT / f"{stem}-normal.png", optimize=True)
     sources = ROOT / "art/cruiser"

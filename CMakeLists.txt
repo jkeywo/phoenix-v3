@@ -1153,3 +1153,5 @@ if(NOT EMSCRIPTEN)
 	target_link_libraries(phoenix_comms_smoke PRIVATE phoenix_session phoenix_presentation)
 	add_dependencies(phoenix_comms_smoke base_pack)
 endif()
+
+include(cmake/cruiser-smoke.cmake)

@@ -4,6 +4,15 @@ std::int64_t altitude(EntityId id) const
 	const auto *v = entities.at(id).try_get<VerticalMotion>();
 	return v ? v->altitude : 0;
 }
+std::int64_t craft_flight_band(EntityId id) const
+{
+	const auto *state = entities.at(id).try_get<CraftState>();
+	if (!state)
+		return 0;
+	const auto &bay = definition(state->home).craft_bays.at(state->bay);
+	// Lower slot indices use higher bands for the bay's stable serial launch order.
+	return bay.flight_spacing * (bay.slots - state->slot);
+}
 std::int64_t distance_3d(EntityId a, EntityId b) const
 {
 	const auto xy = entities.at(a).get<Pose>().position - entities.at(b).get<Pose>().position;
@@ -523,13 +532,14 @@ void prepare_craft()
 			g.navigate = true;
 			g.destination = destination == s.home ? s.rendezvous : s.target_position;
 			g.altitude = (destination == s.home ? s.rendezvous_altitude : s.target_altitude) +
-			             (s.order == "return" ? 0 : d.cruise_altitude);
+			             (s.order == "return" ? 0 : d.cruise_altitude + craft_flight_band(id));
 			fixed::Vec target_velocity = destination == s.home ? s.rendezvous_velocity : s.target_velocity;
 			for (const auto &contact : observed_contacts)
 				if (contact.id == destination)
 				{
 					g.destination = {contact.x, contact.y};
-					g.altitude = contact.altitude + (s.order == "return" ? 0 : d.cruise_altitude);
+					g.altitude =
+					    contact.altitude + (s.order == "return" ? 0 : d.cruise_altitude + craft_flight_band(id));
 					target_velocity = {contact.vx, contact.vy};
 				}
 			if (s.order == "return")
@@ -539,7 +549,9 @@ void prepare_craft()
 				const auto outward = e.get<Pose>().position - g.destination;
 				const auto offset = std::min(fixed::length(outward), bay.docking_range * 3 / 4);
 				g.destination = g.destination + fixed::scale(fixed::normal(outward), offset);
-				g.altitude += definition(s.home).half_height + definition(id).half_height + 1000;
+				const auto clearance = definition(s.home).half_height + definition(id).half_height + 1000;
+				const auto band_room = std::max<std::int64_t>(0, bay.docking_range / 2 - clearance);
+				g.altitude += clearance + std::min(craft_flight_band(id), band_room);
 			}
 			const auto delta = g.destination - e.get<Pose>().position;
 			const auto distance = fixed::length(delta);

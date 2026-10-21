@@ -560,6 +560,7 @@ struct GameplayEditor
 			integer(spec, "transfer_ticks", 20);
 			integer(spec, "docking_range_mm", 10000);
 			integer(spec, "docking_speed_mm_s", 5000);
+			integer(spec, "flight_spacing_mm", 0);
 			integer(spec, "charge_per_second", 0);
 			strings(spec, "initial");
 			records(spec, "ammunition", {{"source", ""}, {"destination", ""}, {"rounds_per_second", 1}},
