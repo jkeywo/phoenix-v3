@@ -51,4 +51,4 @@ The pirate's top turret traverses 270 degrees centred forward; the bottom traver
 
 `system.combat` uses independent synthetic packs through real loaders, command admission, Flecs, projections and save/restore. It checks firing/cancellation, turret target sharing, magazine/cost rules, damage conservation, repair work, destruction and continuation. Platform results and graphical smoke evidence are recorded in [combat verification](smoke/combat-stage-one.md).
 
-Component faults, material deliveries, finite repair supplies, fires, atmosphere, casualties, missiles and shields remain later work. Balance, actual screen-reader operation, physical devices and six-display performance require separate evidence.
+The follow-on [combat MVP](combat-mvp.md) implements component faults, missiles, point defence, beams and shields. Material deliveries, finite repair supplies, fires, atmosphere and casualties remain later work. Balance, actual screen-reader operation, physical devices and six-display performance require separate evidence.

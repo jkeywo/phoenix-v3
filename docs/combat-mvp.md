@@ -35,15 +35,15 @@ Deferred: finite repair supplies/parts, full component simulation and patches, s
 
 ## Current evidence
 
-The native synthetic combat case passes the existing contracts plus arbitrary magazine counts, unload/reload conservation, loaded continuation, constant paid beams and solid cover, layered shield bypass, off-state recharge, battery-mediated discharge, warm-up and team diagnosis. Full platform, ordnance, authoring and graphical acceptance remains in progress.
+The runtime, Workshop fields, Console controls and expanded duel are implemented. An independent agent reviewed the implementation against this contract; confirmed gaps were corrected and re-reviewed. The [verification receipt](smoke/combat-mvp.md) records exact platform gates, graphical journeys and acceptance limits.
 
 ## Runtime and authoring interface
 
-Weapons accept `family: "beam"` with `damage_per_second`, `range_mm`, `energy_per_second` and `power_store`, or the default projectile family. `magazines` is an ordered compatible-ID array; legacy `magazine` and weapon-level `projectile` remain valid. A magazine can own its `projectile`, `load_ticks` and `fire_ticks` to select an ammunition type and cadence. Missile magazines in the duel have finite stock; replenishment policies remain the first-stage choices.
+Weapons accept `family: "beam"` with `damage_per_second`, `range_mm`, `energy_per_second` and `power_store`, or the default projectile family. `magazines` is an ordered compatible-ID array; legacy `magazine` and weapon-level `projectile` remain valid. A magazine can own its `projectile`, `load_ticks` and `fire_ticks` to select an ammunition type and cadence. Switching a loaded weapon consumes the old magazine's load duration to unload, returns its reserved round, then begins the selected magazine's timed load. Disablement pauses the unload; reselecting cannot cancel the commitment. Missile magazines in the duel have finite stock; replenishment policies remain the first-stage choices.
 
 Projectile data adds `guidance` (`none`, `homing`, `chaotic`), seeker/turn/arc/chaos parameters, `durability`, volume radius/resistance, `shield_bypass_permille`, blast/fuse radii, optional `tracer`, and `trail: "smoke"`. `destruction` is the shared chance/visual/audio/damage profile accepted on entities and ordnance. Missile destruction profiles must exclude missiles and set zero shield bypass. Blast distance is measured to exposed collider surfaces; weapon payloads and destruction payloads remain separate.
 
-`kind: "shield"` adds arc/bearing/layer, capacity/initial reserve, warm-up, sustaining energy, raised/off recharge, energy per strength and discharge rate/efficiency, bound to a real power store. Covering layers use `(layer, stable ID)` order. Sustaining power has priority within each shield's paid grant; recharge uses the remainder. Discharge respects the battery's remaining charge allowance and headroom, including conversion losses.
+`kind: "shield"` adds arc/bearing/layer, capacity/initial reserve, warm-up, sustaining energy, raised/off recharge, energy per strength and discharge rate/efficiency, bound to a real power store. Covering layers use `(layer, stable ID)` order. Sustaining power has priority within each shield's paid grant; recharge uses the remainder. Discharge respects the battery's remaining charge allowance and headroom, including conversion losses. Fractional conversion credit and sub-energy rate budgets persist across saves; blocked batteries cannot bank discharge rate for a later burst.
 
 Controllers add `magazine_select` (zero-based compatible magazine), `weapon_mode` (0 Off, 1 Auto, 2 Manual), `repair_system` (zero for automatic, otherwise the one-based sorted physical equipment roster), and `shield_discharge` (boolean). Existing `system_enabled`, weapon targets and compartment assignments retain their admitted authority paths. Target zero returns a manual PDC to Auto.
 
@@ -53,6 +53,6 @@ Sprite frames optionally supply a nonzero two-dimensional `forward` axis. Missil
 
 Save schema **9** records ammunition return reservations, missile/random state, shields, continuous damage remainders, faults, diagnosis, repairs and destruction commitments. Earlier saves are refused explicitly.
 
-## Implementation checkpoint
+## Original-plan review
 
-The runtime, Workshop fields, Console controls/popups and expanded duel are implemented. Native synthetic combat checks include elevated cover/interception, seeded flight, Auto energy and modes, shared destruction probability/collateral, missile blast exclusion, fractional bypass and continuation. The native graphical MVP journey opens/closes the system popup and exercises Auto PDC and magazine switching; captures remain under the ignored build directory. Full final platform gates and the independent plan review remain in progress.
+The independent review identified fractional shield conversion loss, immediate unloading, targeted repairs ignoring structural disablement, audio-only destruction omission, partial faults ignored by basic motion, and degenerate missile projection losing its orientation. These are corrected with persisted progress and focused synthetic regression cases. Re-review found no remaining confirmed defects. A subsequent WASM compiler warning exposed an incorrectly associated `else` in generated weapon/repair choices; braces and a Console-model regression correct that issue too, and the reviewer checked the correction.
