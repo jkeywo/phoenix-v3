@@ -168,3 +168,7 @@ Maintained navigation, engineering and combat policies select typed reusable exe
 ## Native launch regression — 21 October 2026
 
 Lobby launch now restores World-owned scenario event sources and streamed asteroid contacts safely, limits Console button activation to click events, and presents loading phases before session preparation and activation. All 28 native system cases and the explicit two-region Ready/Helm/Viewscreen journey pass. See [the regression receipt](smoke/native-menu.md#native-launch-ready-and-loading-regression--21-october-2026) for scope and evidence; this does not establish physical-display or screen-reader acceptance.
+
+## Mission objectives and authoritative debriefs — 21 October 2026
+
+Condition objectives now verify compiled typed world facts, with persisted transitions, explicit lifecycle distinctions and latched accomplishments. Human and AI departures share a deterministic batch, and authored report rules freeze objective, restoration and personnel facts at departure. The rescue authors its four objectives, casualty escape policy and success/partial/failure grades in content. Lost visiting parties remain unavailable after manifest cleanup. Workshop exposes the corresponding conditions, bindings and report rules. See the [authoring contract](mission-objectives.md) and [verification receipt](smoke/mission-objectives.md) for scope, checks and remaining physical-device acceptance.

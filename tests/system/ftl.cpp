@@ -97,6 +97,8 @@ void displacement_departure()
 	w.tick();
 	const auto report = w.observe(101)->gameplay.at("mission_report");
 	require(!report.at("left_behind").empty(), "report records personnel left behind");
+	require(!w.observe(101)->gameplay.at("combat").at("destroyed").get<bool>(),
+	        "departure is not projected as destruction");
 	ticks(w, 10);
 	require(w.save().at("away_missions").at(0).at("phase") == "deployed", "departure never teleports party aboard");
 	World restored;

@@ -191,6 +191,8 @@ void commit_departures()
 			accepted.emplace_back(a, c);
 			seen.insert(a.ship);
 		}
+	if (accepted.empty())
+		return;
 	for (const auto &[a, c] : accepted)
 	{
 		auto ship = entities.at(a.ship);

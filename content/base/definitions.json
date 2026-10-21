@@ -19725,7 +19725,8 @@
 							{
 								"id": "output",
 								"action": "generator_output",
-								"consumers": ["reactor"]
+								"consumers": ["reactor"],
+								"initial": 1600
 							}
 						]
 					},
@@ -21505,7 +21506,7 @@
 						}
 					},
 					"members": ["ship", "engineer"],
-					"events": ["rescue.work-completed", "rescue.party-recovered"]
+					"events": ["rescue.work-completed", "rescue.party-recovered", "rescue.casualty-ready"]
 				}
 			],
 			"away_missions": [
@@ -32598,7 +32599,7 @@
 					],
 					"transitions": [
 						{
-							"target": "depart",
+							"target": "ready",
 							"conditions": [
 								{
 									"left": {
@@ -32606,13 +32607,48 @@
 									},
 									"op": "eq",
 									"right": true
-								},
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "ready",
+					"running": [
+						{
+							"action": "write.enabled",
+							"arguments": [true]
+						}
+					],
+					"transitions": [
+						{
+							"target": "charging",
+							"conditions": [
+								{
+									"left": {
+										"observation": "ftl.ready"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"target": "depart",
+							"conditions": [
 								{
 									"left": {
 										"observation": "local.visitors"
 									},
 									"op": "eq",
 									"right": 0
+								},
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 60
 								}
 							]
 						}

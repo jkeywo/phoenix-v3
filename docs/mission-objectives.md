@@ -51,12 +51,12 @@ Controller trees opt into local FTL observations/actions with `ftl_system`, nami
 
 ## Rescue content
 
-The rescue authors propulsion restoration, optional service restoration, party recovery and casualty escape as four condition objectives. The casualty carries a real FTL assembly. Its policy starts charging after the visiting operation completes, waits for visitors/transfers to clear and requests departure. Comms explains its charging/waiting state through stable operation events.
+The rescue authors propulsion restoration, optional service restoration, party recovery and casualty escape as four condition objectives. The casualty carries a real FTL assembly. Its policy starts charging after the visiting operation completes, waits for visitors/transfers to clear and requests departure. Comms explains its charging/waiting state through stable operation and physical FTL-readiness events. Its reactor output is authored through the normal Controller channel, and the escape policy allows the readiness announcement to arrive before departure.
 
 The departure report grades full rescue, partial withdrawal or failure through authored rules. It includes actual restoration and casualty/personnel disposition. No rescue identity, dialogue or grade rule is embedded in the runtime.
 
 ## Continuation and validation
 
-World remains schema 13. Scenario continuation version 2 accepts preceding version 1 with the same content identity; away version 3 accepts versions 1/2 with derived available deployment history and empty unavailable history. New ledgers start empty when absent. Versionless frozen departure reports remain unchanged. Existing required objective geometry fields can be read against the new optional geometry contract without accepting unrelated schema changes.
+World remains schema 13. Scenario continuation version 2 accepts preceding version 1 with the same content identity; away version 4 accepts versions 1/2/3, with derived available deployment history and empty unavailable history for records predating mission history. New ledgers start empty when absent. Versionless frozen departure reports remain unchanged. Existing required objective geometry fields can be read against the new optional geometry contract without accepting unrelated schema changes.
 
 `system.missions` uses independent synthetic loader fixtures for typed conditions, Missing negation, failure precedence, latched completion, report privacy and freezing, loss during transport phases, save continuation, AI charging/power refusal and simultaneous departures. `scripts/check.ps1` runs the native/WASM mission trace comparison. The explicit `phoenix_mission_smoke` target exercises shipped success, partial and loss branches graphically; it is excluded from CTest. Execution receipts are recorded separately from these contracts.

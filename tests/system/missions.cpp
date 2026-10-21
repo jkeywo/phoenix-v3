@@ -196,6 +196,40 @@ void loss_cases()
 		}
 	}
 }
+void physical_boundary()
+{
+	auto source = away_fixture();
+	auto target = source["entities"][0];
+	target["id"] = "test.disabled-target";
+	for (auto &deck : target["combat"]["decks"])
+		for (auto &c : deck["compartments"])
+			c["initial_hp"] = 0;
+	source["entities"].push_back(target);
+	source["maps"][0]["entities"][0]["definition"] = "test.disabled-target";
+	source["trees"].push_back(Json::parse(
+	    R"json({"id":"test.boundary","context":"scenario","initial":"start","states":[{"id":"start","entry":[{"action":"add_objective","arguments":["boundary",{"observation":"self.entity"},"boundary"]}]}]})json"));
+	source["maps"][0]["scenario"] = {
+	    {"tree", "test.boundary"},
+	    {"bindings", {{"actor", {{"slot", "crew"}}}}},
+	    {"fact_bindings",
+	     Json::array({{{"id", "life"}, {"kind", "entity"}, {"subject", {{"entity", 1}}}, {"field", "lifecycle"}}})},
+	    {"objectives", Json::array({{{"id", "boundary"},
+	                                 {"type", "condition"},
+	                                 {"title_key", "Boundary"},
+	                                 {"actor", {{"slot", "crew"}}},
+	                                 {"recipients", {{"ship", {{"slot", "crew"}}}}},
+	                                 {"complete_when", leaf("life", "active")},
+	                                 {"fail_when", leaf("life", "destroyed")}}})}};
+	World w;
+	w.load(load(source), "test.map", {{"crew", "test.away"}});
+	for (const auto &b : w.save().at("bodies"))
+		if (b.at("body").at("id") == 1)
+			require(b.at("destructible").at("destroyed_tick") == -1, "destruction is committed by physical simulation");
+	w.tick();
+	require(status(w, "boundary") == 3,
+	        "new objectives evaluate after physical changes, without an empty departure boundary");
+	checkpoint(w);
+}
 void departure_batch()
 {
 	auto source = fixture();
@@ -375,6 +409,7 @@ int main(int argc, char **argv)
 			    load(malformed);
 		    },
 		    "typed conditions reject mismatched literal");
+		physical_boundary();
 		loss_cases();
 		departure_batch();
 		ai_departure();

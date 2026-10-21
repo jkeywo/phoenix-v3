@@ -919,6 +919,45 @@ if(EMSCRIPTEN)
 	)
 endif()
 
+add_executable(phoenix_mission_smoke EXCLUDE_FROM_ALL tests/manual/mission_ui.cpp)
+target_link_libraries(phoenix_mission_smoke PRIVATE phoenix_session phoenix_presentation)
+if(NOT EMSCRIPTEN)
+	add_dependencies(phoenix_mission_smoke base_pack)
+	add_custom_command(
+		TARGET phoenix_mission_smoke
+		POST_BUILD
+		COMMAND
+			${CMAKE_COMMAND} -E copy_directory_if_different "${CMAKE_CURRENT_BINARY_DIR}/assets"
+			"$<TARGET_FILE_DIR:phoenix_mission_smoke>/assets"
+		COMMAND
+			${CMAKE_COMMAND} -E copy_directory_if_different "${CMAKE_CURRENT_BINARY_DIR}/server-audio"
+			"$<TARGET_FILE_DIR:phoenix_mission_smoke>/assets/audio"
+	)
+endif()
+if(EMSCRIPTEN)
+	set_target_properties(phoenix_mission_smoke PROPERTIES SUFFIX ".html")
+	target_link_options(
+		phoenix_mission_smoke
+		PRIVATE
+			"-O2"
+			"-sASYNCIFY=1"
+			"-sASYNCIFY_STACK_SIZE=65536"
+			"-sALLOW_MEMORY_GROWTH=1"
+			"-sSTACK_SIZE=1048576"
+			"-sSTACK_OVERFLOW_CHECK=2"
+			"--preload-file"
+			"${CMAKE_CURRENT_BINARY_DIR}/assets@/assets"
+			"SHELL:--preload-file \"${CMAKE_CURRENT_BINARY_DIR}/base.zip@/assets/base.zip\""
+			"--shell-file"
+			"${CMAKE_CURRENT_SOURCE_DIR}/tests/manual/mission_ui.html"
+	)
+	set_target_properties(
+		phoenix_mission_smoke
+		PROPERTIES
+			LINK_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/base.zip;${CMAKE_CURRENT_SOURCE_DIR}/tests/manual/mission_ui.html"
+	)
+endif()
+
 add_executable(phoenix_camera_smoke EXCLUDE_FROM_ALL tests/manual/camera_ui.cpp)
 target_link_libraries(phoenix_camera_smoke PRIVATE phoenix_session phoenix_presentation)
 if(EMSCRIPTEN)

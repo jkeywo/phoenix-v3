@@ -189,8 +189,12 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 			              return input.id.starts_with(id(""));
 		              });
 		markup =
-		    "<div class=\"mission-result\"><img class=\"mission-art\" src=\"" + asset_path("mission-terminal.png") +
-		    "\"/><div class=\"mission-copy\"><h1>" +
+		    "<div class=\"mission-result\" style=\"width:" + std::to_string(region.width) +
+		    "px;height:" + std::to_string(region.height) + "px;\"><img class=\"mission-art\" src=\"" +
+		    asset_path("mission-terminal.png") +
+		    "\"/><div class=\"mission-copy\" style=\"left:" + std::to_string(region.width * .2f) +
+		    "px;top:" + std::to_string(region.height * .21f) + "px;width:" + std::to_string(region.width * .6f) +
+		    "px;height:" + std::to_string(region.height * .51f) + "px;\"><h1>" +
 		    localise(!report.is_null() && report.value("version", 1) == 2 ? report.at("title").get<std::string>()
 		                                                                  : "MISSION REPORT // FINAL") +
 		    "</h1><h2>" +
@@ -321,6 +325,32 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 	{
 		const auto focus = context_->GetFocusElement() ? context_->GetFocusElement()->GetId() : std::string{};
 		document_->GetElementById("navigation-layer")->SetInnerRML(markup);
+		// Size the report after insertion; this layer has no intrinsic layout width.
+		if (!mission_outcome_.empty())
+			if (auto *copy = document_->QuerySelector(".mission-copy"))
+			{
+				auto *layer = document_->GetElementById("navigation-layer");
+				layer->SetProperty("display", "block");
+				layer->SetProperty("width", std::to_string(region.width) + "px");
+				layer->SetProperty("height", std::to_string(region.height) + "px");
+				auto *pane = copy->GetParentNode();
+				pane->SetProperty("display", "block");
+				pane->SetProperty("width", std::to_string(region.width) + "px");
+				pane->SetProperty("height", std::to_string(region.height) + "px");
+				copy->SetProperty("display", "block");
+				copy->SetProperty("position", "absolute");
+				copy->SetProperty("left", std::to_string(region.width * .2f) + "px");
+				copy->SetProperty("top", std::to_string(region.height * .21f) + "px");
+				copy->SetProperty("width", std::to_string(region.width * .6f) + "px");
+				copy->SetProperty("height", std::to_string(region.height * .51f) + "px");
+				for (int child = 0; child < copy->GetNumChildren(); ++child)
+				{
+					auto *line = copy->GetChild(child);
+					if (line->GetTagName() == "h1" || line->GetTagName() == "h2" || line->GetTagName() == "p")
+						line->SetProperty("width", std::to_string(region.width * .6f) + "px");
+				}
+			}
+
 		navigation_markup_ = markup;
 		elements_.clear();
 		if (!mission_outcome_.empty())
@@ -343,6 +373,7 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 				b->SetClass("on-screen-active", active);
 				b->SetAttribute("aria-pressed", active ? "true" : "false");
 			}
+
 	context_->Update();
 	navigation_buttons_.clear();
 	for (const auto &[key, label] : actions)

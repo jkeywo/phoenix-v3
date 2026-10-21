@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>Manual mission debrief smoke</title>
+	</head>
+	<body>
+		<div id="semantics" aria-label="Player console" style="position: absolute; opacity: 0; pointer-events: none">
+			<p id="player-status" role="status" aria-live="polite"></p>
+		</div>
+		<canvas id="canvas" width="1280" height="900"></canvas>
+		<pre id="result">Running manual mission debrief smoke…</pre>
+		<script>
+			var Module = {
+				arguments: ["/assets", new URLSearchParams(location.search).get("mode") || "success"],
+				canvas: document.getElementById("canvas"),
+				onAbort(reason) {
+					document.getElementById("result").textContent = "FAIL Browser runtime: " + reason;
+				},
+				print(text) {
+					console.log(text);
+					if (text.startsWith("PASS ")) {
+						document.getElementById("result").textContent = text;
+						for (const [name, data] of Object.entries(Module.missionCaptures || {})) {
+							const heading = document.createElement("h2");
+							heading.textContent = name;
+							const image = document.createElement("img");
+							image.src = data;
+							image.alt = name;
+							image.style.maxWidth = "100%";
+							document.body.append(heading, image);
+						}
+					}
+				},
+				printErr(text) {
+					console.error(text);
+					if (text.startsWith("FAIL ")) {
+						document.getElementById("result").textContent = text;
+					}
+				},
+			};
+		</script>
+		{{{ SCRIPT }}}
+	</body>
+</html>
