@@ -88,6 +88,7 @@ struct Projectile
 {
 	std::uint64_t id = 0;
 	EntityId source = 0;
+	std::string weapon;
 	fixed::Vec position, velocity, remainder;
 	std::int64_t heading = 0, life = 0, penetration = 0, damage = 0, deposit_remainder = 0, resistance_remainder = 0;
 	ProjectileDefinition definition;

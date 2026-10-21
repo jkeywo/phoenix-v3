@@ -308,6 +308,11 @@ struct SceneAttachment
 	float scale = 1;
 	bool flip_y = false;
 };
+struct SceneMuzzle
+{
+	std::string weapon, turret, marker;
+	std::int64_t x = 0, y = 0;
+};
 // Viewscreen-only visual output. Deliberately absent from radar observations.
 struct SceneBody : BodyView
 {
@@ -317,6 +322,10 @@ struct SceneBody : BodyView
 	std::int64_t rotation_mdeg = 0, spin_mdeg_s = 0;
 	bool field_instance = false;
 	std::vector<SceneAttachment> attachments;
+	std::vector<SceneMuzzle> muzzles;
+	EntityId attack_source = 0;
+	std::string attack_weapon;
+	float muzzle_blend = 0, muzzle_tail_blend = 0;
 	float visual_scale = 1, alpha = 1;
 	std::string sound;
 	std::uint64_t effect_tick = 0;

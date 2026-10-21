@@ -137,9 +137,10 @@ int main()
 				}
 				else
 				{
-					near(pose.position[0], 10);
-					near(pose.target[0], 10 + dx * 16);
-					near(pose.target[2], -20 + dz * 16);
+					near(pose.position[0], 10 - dx * 5);
+					near(pose.position[2], -20 - dz * 5);
+					near(pose.target[0], 10 + dx * 11);
+					near(pose.target[2], -20 + dz * 11);
 				}
 				const auto wrapped = ship_camera_pose(10000, 20000, -1000, 10, 2, mode, direction);
 				near(pose.position[0], wrapped.position[0]);

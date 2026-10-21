@@ -27,8 +27,9 @@ inline ShipCameraPose ship_camera_pose(double x, double y, double heading, doubl
 	if (!mode)
 	{
 		const double height = std::max(2.0, scale * .2), ahead = height * 8;
-		pose.position = {x, height, y};
-		pose.target = {x + forward_x * ahead, 0, y + forward_z * ahead};
+		const double setback = std::max(2.0, scale * .5);
+		pose.position = {x - forward_x * setback, height, y - forward_z * setback};
+		pose.target = {pose.position[0] + forward_x * ahead, 0, pose.position[2] + forward_z * ahead};
 	}
 	else
 	{

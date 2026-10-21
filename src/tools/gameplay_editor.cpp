@@ -565,6 +565,7 @@ struct GameplayEditor
 			optional_string(spec, "magazine");
 			strings(spec, "magazines");
 			optional_string(spec, "turret");
+			optional_string(spec, "muzzle_marker");
 			integer(spec, "fire_ticks", 20);
 			integer(spec, "ammo_use", 1);
 			integer(spec, "load_ticks");

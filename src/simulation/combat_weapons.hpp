@@ -334,6 +334,7 @@ void fire_weapons(flecs::entity ship)
 			p.definition = payload;
 			p.id = next_projectile++;
 			p.source = id;
+			p.weapon = d.id;
 			p.target = m->target();
 			p.position = origin;
 			p.heading = bearing;

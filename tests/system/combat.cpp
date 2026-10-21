@@ -850,6 +850,54 @@ int main(int argc, char **argv)
 		{
 			auto source = fixture();
 			auto &ship = source["entities"][0];
+			source["entities"][1]["render"] = ship["render"];
+			ship["systems"]["gun"]["muzzle_marker"] = "mount";
+			ship["systems"]["second"].erase("turret");
+			ship["systems"]["second"]["muzzle_marker"] = "mount";
+			ship["systems"]["second"]["x_mm"] = 3000;
+			const auto catalog = load(source);
+			World w;
+			w.load(catalog, "test.map");
+			claim(w);
+			submit(w, 101, "gun", "target", 2);
+			w.tick();
+			const auto scene = w.scene();
+			const auto own = std::find_if(scene.begin(), scene.end(),
+			                              [](const auto &b)
+			                              {
+				                              return b.id == 1;
+			                              });
+			require(own != scene.end() && own->muzzles.size() == 2,
+			        "hull and turret muzzle bindings reach the scene through production content");
+			require(std::any_of(scene.begin(), scene.end(),
+			                    [](const auto &b)
+			                    {
+				                    return b.attack_source == 1 && b.attack_weapon == "gun" && b.muzzle_blend > 0;
+			                    }),
+			        "new projectiles retain their source weapon for sprite muzzle placement");
+			World resumed;
+			resumed.restore(catalog, w.save());
+			require(resumed.save() == w.save(), "projectile muzzle identity survives save and restore");
+			ship["systems"]["gun"]["muzzle_marker"] = "missing";
+			rejects(
+			    [&]
+			    {
+				    load(source);
+			    },
+			    "missing turret muzzle marker is rejected");
+			ship["systems"]["gun"]["muzzle_marker"] = "mount";
+			ship["systems"]["second"]["muzzle_marker"] = "missing";
+			rejects(
+			    [&]
+			    {
+				    load(source);
+			    },
+			    "missing hull muzzle marker is rejected");
+		}
+
+		{
+			auto source = fixture();
+			auto &ship = source["entities"][0];
 			Json duties = Json::array();
 			for (const auto &c : ship["control_layout"]["controllers"])
 			{

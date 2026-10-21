@@ -78,3 +78,11 @@ The follow-up refactoring series uses save schema 10; previous continuation form
 8. Courier/Raider shared combat equipment uses twelve reusable templates for thirteen shared placements, plus one shared power assembly. Hulls, mounts and console layouts remain independently authored. Assembly placement namespaces resource IDs; equipment bindings follow those names. A one-off expansion comparison confirms unchanged authored values, and a synthetic real-loader case compares all five combat equipment kinds with equivalent inline definitions. Production base-pack verification and combat contracts pass.
 
 The final native/WASM gates, manually invoked rendered probes and independent review are recorded in [combat verification evidence](smoke/combat-mvp.md#combat-audit-cleanup-verification--21-october-2026).
+
+## Sprite firing origins
+
+Weapons may specify `muzzle_marker`, a named attachment present in every frame of their hull sprite, or their turret visual when `turret` is set. Workshop exposes this field beside the turret binding; content verification rejects missing markers. Use per-frame pixel coordinates at the barrel mouth, including the existing depth offset. Mirroring, turret rotation and underside flipping follow the rendered sprite.
+
+The physical firing origin remains the weapon's `x_mm`/`y_mm`, transformed through its turret and ship. Sprite markers supply the camera-dependent visual origin: sustained beams begin there, and projectile sprites/tracers blend from that origin to their physical path over four simulation ticks. Old content without a marker retains its physical visual origin. Projectile source-weapon identity survives save/restore; older saves use the physical fallback.
+
+The shipped combat hull artwork is scaled to the existing collision and compartment geometry (Courier scale 15, raider scale 13.2, with the raider collision half-length along its forward axis adjusted to 19.6 metres). The opaque side-view hull lengths are approximately 24.5 and 39.2 metres, making the raider about 60% larger. First-person cameras also sit back from the centre along the viewing axis. Combat line lists are rebuilt each frame, preventing expired beams and tracers from accumulating.

@@ -214,6 +214,7 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 			if (s.get<WeaponDefinition>().family == "projectile" && s.get<WeaponDefinition>().magazines.empty())
 				fail("projectile weapon requires magazines");
 			s.get<WeaponDefinition>().turret = v.value("turret", std::string{});
+			s.get<WeaponDefinition>().muzzle_marker = v.value("muzzle_marker", std::string{});
 			s.ammunition().interval = amount(v, "fire_ticks", 20, 1, 1000000);
 			s.get<WeaponDefinition>().ammo_use = amount(v, "ammo_use", 1, 1, 1000000);
 			s.ammunition().load_ticks = amount(v, "load_ticks", 0, 0, 1000000);
@@ -328,6 +329,27 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 			}
 			if (!s.get<WeaponDefinition>().turret.empty())
 				check(s.get<WeaponDefinition>().turret, OperatingSystem::Turret);
+			const auto &weapon = s.get<WeaponDefinition>();
+			if (!weapon.muzzle_marker.empty())
+			{
+				if (!valid_identifier(weapon.muzzle_marker))
+					fail("invalid muzzle marker");
+				const auto &visual =
+				    weapon.turret.empty()
+				        ? entity
+				        : catalog.entities.at(
+				              d.systems.at(d.system_ids.at(weapon.turret)).get<TurretDefinition>().visual);
+				const auto sprite = compile_sprite(visual.at("render").at("sprite"), catalog, path);
+				const auto verify = [&](const auto &frames)
+				{
+					for (const auto &frame : frames)
+						if (!frame.attachments.contains(weapon.muzzle_marker))
+							fail("missing muzzle marker " + weapon.muzzle_marker);
+				};
+				verify(sprite.frames);
+				for (const auto &entry : sprite.entries)
+					verify(entry.frames);
+			}
 		}
 	auto destruction = c.at("destruction");
 	// Preserve ship defaults while compiling a single shared destruction definition.

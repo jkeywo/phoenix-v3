@@ -9030,7 +9030,14 @@
 							"mirror_x": false,
 							"depth_scale": 0,
 							"depth_offset": 0,
-							"attachments": {}
+							"attachments": {
+								"muzzle": {
+									"x": 256,
+									"y": 244,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
 						},
 						{
 							"name": "bow_port",
@@ -9040,7 +9047,14 @@
 							"mirror_x": false,
 							"depth_scale": 0,
 							"depth_offset": 0,
-							"attachments": {}
+							"attachments": {
+								"muzzle": {
+									"x": 72,
+									"y": 250,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
 						},
 						{
 							"name": "port",
@@ -9050,7 +9064,14 @@
 							"mirror_x": false,
 							"depth_scale": 0,
 							"depth_offset": 0,
-							"attachments": {}
+							"attachments": {
+								"muzzle": {
+									"x": 22,
+									"y": 230,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
 						},
 						{
 							"name": "stern_port",
@@ -9060,7 +9081,14 @@
 							"mirror_x": false,
 							"depth_scale": 0,
 							"depth_offset": 0,
-							"attachments": {}
+							"attachments": {
+								"muzzle": {
+									"x": 68,
+									"y": 194,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
 						},
 						{
 							"name": "stern",
@@ -9070,7 +9098,14 @@
 							"mirror_x": false,
 							"depth_scale": 0,
 							"depth_offset": 0,
-							"attachments": {}
+							"attachments": {
+								"muzzle": {
+									"x": 259,
+									"y": 235,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
 						},
 						{
 							"name": "stern_starboard",
@@ -9080,7 +9115,14 @@
 							"mirror_x": true,
 							"depth_scale": 0,
 							"depth_offset": 0,
-							"attachments": {}
+							"attachments": {
+								"muzzle": {
+									"x": 68,
+									"y": 194,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
 						},
 						{
 							"name": "starboard",
@@ -9090,7 +9132,14 @@
 							"mirror_x": true,
 							"depth_scale": 0,
 							"depth_offset": 0,
-							"attachments": {}
+							"attachments": {
+								"muzzle": {
+									"x": 22,
+									"y": 230,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
 						},
 						{
 							"name": "bow_starboard",
@@ -9100,7 +9149,14 @@
 							"mirror_x": true,
 							"depth_scale": 0,
 							"depth_offset": 0,
-							"attachments": {}
+							"attachments": {
+								"muzzle": {
+									"x": 72,
+									"y": 250,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
 						}
 					]
 				}
@@ -9128,7 +9184,14 @@
 							"mirror_x": false,
 							"depth_scale": 0,
 							"depth_offset": 0,
-							"attachments": {}
+							"attachments": {
+								"muzzle": {
+									"x": 231,
+									"y": 350,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
 						},
 						{
 							"name": "bow_port",
@@ -9138,7 +9201,14 @@
 							"mirror_x": false,
 							"depth_scale": 0,
 							"depth_offset": 0,
-							"attachments": {}
+							"attachments": {
+								"muzzle": {
+									"x": 55,
+									"y": 256,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
 						},
 						{
 							"name": "port",
@@ -9148,7 +9218,14 @@
 							"mirror_x": false,
 							"depth_scale": 0,
 							"depth_offset": 0,
-							"attachments": {}
+							"attachments": {
+								"muzzle": {
+									"x": 28,
+									"y": 223,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
 						},
 						{
 							"name": "stern_port",
@@ -9158,7 +9235,14 @@
 							"mirror_x": false,
 							"depth_scale": 0,
 							"depth_offset": 0,
-							"attachments": {}
+							"attachments": {
+								"muzzle": {
+									"x": 6,
+									"y": 150,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
 						},
 						{
 							"name": "stern",
@@ -9168,7 +9252,14 @@
 							"mirror_x": false,
 							"depth_scale": 0,
 							"depth_offset": 0,
-							"attachments": {}
+							"attachments": {
+								"muzzle": {
+									"x": 229,
+									"y": 220,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
 						},
 						{
 							"name": "stern_starboard",
@@ -9178,7 +9269,14 @@
 							"mirror_x": true,
 							"depth_scale": 0,
 							"depth_offset": 0,
-							"attachments": {}
+							"attachments": {
+								"muzzle": {
+									"x": 6,
+									"y": 150,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
 						},
 						{
 							"name": "starboard",
@@ -9188,7 +9286,14 @@
 							"mirror_x": true,
 							"depth_scale": 0,
 							"depth_offset": 0,
-							"attachments": {}
+							"attachments": {
+								"muzzle": {
+									"x": 28,
+									"y": 223,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
 						},
 						{
 							"name": "bow_starboard",
@@ -9198,7 +9303,14 @@
 							"mirror_x": true,
 							"depth_scale": 0,
 							"depth_offset": 0,
-							"attachments": {}
+							"attachments": {
+								"muzzle": {
+									"x": 55,
+									"y": 256,
+									"layer": 1,
+									"depth_offset": 0
+								}
+							}
 						}
 					]
 				}
@@ -9217,7 +9329,7 @@
 			"motion_model": "inertial",
 			"render": {
 				"mode": "eight",
-				"scale": 24,
+				"scale": 15,
 				"sprite": {
 					"albedo": "phoenix-base:assets/combat/courier-hull.png",
 					"frames": [
@@ -9239,6 +9351,12 @@
 								"turret_bottom": {
 									"x": 769.37,
 									"y": 558.74,
+									"layer": 1,
+									"depth_offset": 0
+								},
+								"muzzle": {
+									"x": 769,
+									"y": 416,
 									"layer": 1,
 									"depth_offset": 0
 								}
@@ -9264,6 +9382,12 @@
 									"y": 560.41,
 									"layer": 1,
 									"depth_offset": 0
+								},
+								"muzzle": {
+									"x": 345,
+									"y": 414,
+									"layer": 1,
+									"depth_offset": 0
 								}
 							}
 						},
@@ -9285,6 +9409,12 @@
 								"turret_bottom": {
 									"x": 884.8,
 									"y": 555.13,
+									"layer": 1,
+									"depth_offset": 0
+								},
+								"muzzle": {
+									"x": 150,
+									"y": 385,
 									"layer": 1,
 									"depth_offset": 0
 								}
@@ -9309,6 +9439,12 @@
 									"x": 717.15,
 									"y": 515.82,
 									"layer": -1,
+									"depth_offset": 0
+								},
+								"muzzle": {
+									"x": 400,
+									"y": 280,
+									"layer": 1,
 									"depth_offset": 0
 								}
 							}
@@ -9333,6 +9469,12 @@
 									"y": 559.77,
 									"layer": 1,
 									"depth_offset": 0
+								},
+								"muzzle": {
+									"x": 768,
+									"y": 300,
+									"layer": 1,
+									"depth_offset": 0
 								}
 							}
 						},
@@ -9355,6 +9497,12 @@
 									"x": 717.15,
 									"y": 515.82,
 									"layer": -1,
+									"depth_offset": 0
+								},
+								"muzzle": {
+									"x": 400,
+									"y": 280,
+									"layer": 1,
 									"depth_offset": 0
 								}
 							}
@@ -9379,6 +9527,12 @@
 									"y": 555.13,
 									"layer": 1,
 									"depth_offset": 0
+								},
+								"muzzle": {
+									"x": 150,
+									"y": 385,
+									"layer": 1,
+									"depth_offset": 0
 								}
 							}
 						},
@@ -9400,6 +9554,12 @@
 								"turret_bottom": {
 									"x": 890.58,
 									"y": 560.41,
+									"layer": 1,
+									"depth_offset": 0
+								},
+								"muzzle": {
+									"x": 345,
+									"y": 414,
 									"layer": 1,
 									"depth_offset": 0
 								}
@@ -9561,7 +9721,8 @@
 							"severity": 1000,
 							"repair_work": 100
 						}
-					]
+					],
+					"muzzle_marker": "muzzle"
 				},
 				"bottom": {
 					"kind": "turret",
@@ -9642,7 +9803,8 @@
 							"severity": 1000,
 							"repair_work": 100
 						}
-					]
+					],
+					"muzzle_marker": "muzzle"
 				},
 				"forward-mag": {
 					"kind": "magazine",
@@ -9719,7 +9881,8 @@
 							"severity": 1000,
 							"repair_work": 100
 						}
-					]
+					],
+					"muzzle_marker": "muzzle"
 				},
 				"team-1": {
 					"template": "base.equipment.combat-team-1"
@@ -9770,7 +9933,8 @@
 							"severity": 1000,
 							"repair_work": 100
 						}
-					]
+					],
+					"muzzle_marker": "muzzle"
 				},
 				"shield-fore": {
 					"kind": "shield",
@@ -11106,7 +11270,7 @@
 			"motion_model": "inertial",
 			"render": {
 				"mode": "eight",
-				"scale": 38,
+				"scale": 13.2,
 				"sprite": {
 					"albedo": "phoenix-base:assets/combat/pirate-hull.png",
 					"frames": [
@@ -11302,7 +11466,7 @@
 			"collision": {
 				"shape": "box",
 				"mass_grams": 18000000,
-				"half_width_mm": 18000,
+				"half_width_mm": 19600,
 				"half_length_mm": 7500
 			},
 			"systems": {
@@ -11450,7 +11614,8 @@
 							"severity": 1000,
 							"repair_work": 100
 						}
-					]
+					],
+					"muzzle_marker": "muzzle"
 				},
 				"bottom": {
 					"kind": "turret",
@@ -11531,7 +11696,8 @@
 							"severity": 1000,
 							"repair_work": 100
 						}
-					]
+					],
+					"muzzle_marker": "muzzle"
 				},
 				"team-1": {
 					"template": "base.equipment.combat-team-1"
@@ -11582,7 +11748,8 @@
 							"severity": 1000,
 							"repair_work": 100
 						}
-					]
+					],
+					"muzzle_marker": "muzzle"
 				},
 				"shield-fore": {
 					"kind": "shield",

@@ -270,6 +270,7 @@ struct SpriteScene::State
 	bool perspective_draw = true;
 	Vector3 rebase{};
 	std::vector<Item> items;
+	std::map<std::pair<EntityId, std::string>, Vector3> muzzle_offsets;
 	std::vector<LocalLight> lights;
 	std::vector<SceneBody> combat_lines;
 	struct Smoke
@@ -475,7 +476,7 @@ struct SpriteScene::State
 		Vector3 p = Vector3Add(
 		    item.anchor,
 		    Vector3Add(Vector3Scale(right, (f.mirror_x ? -1.f : 1.f) * (x - f.pivot[0]) * item.height / f.rect[3]),
-		               Vector3Scale(up, -(y - f.pivot[1]) * item.height / f.rect[3])));
+		               Vector3Scale(up, (item.flip_y ? 1.f : -1.f) * (y - f.pivot[1]) * item.height / f.rect[3])));
 		const float z = item.height * (f.depth_offset + sample_depth(*item.material, f, x, y) * f.depth_scale + offset);
 		const float distance = Vector3DotProduct(Vector3Subtract(cameraPosition, p), near);
 		// Preserve the sign behind the eye; a positive-only denominator folds
@@ -507,12 +508,14 @@ struct SpriteScene::State
 			                                  });
 		              });
 		items.clear();
+		combat_lines.clear();
 		lights.clear();
 		rebase = camera.target;
 		cameraPosition = Vector3Subtract(camera.position, rebase);
 		near = Vector3Normalize(cameraPosition);
 		right = Vector3Normalize(Vector3CrossProduct(camera.up, near));
 		up = Vector3CrossProduct(near, right);
+		muzzle_offsets.clear();
 		prepare_instances(catalog, bodies);
 		for (const auto &body : bodies)
 		{
@@ -527,6 +530,9 @@ struct SpriteScene::State
 			const auto &render = catalog.entities.at(body.definition).at("render");
 			Vector3 world = {body.x / 1000.f, body.visual_height_mm / 1000.f, -body.y / 1000.f};
 			Vector3 p = Vector3Subtract(world, rebase);
+			if (const auto muzzle = muzzle_offsets.find({body.attack_source, body.attack_weapon});
+			    muzzle != muzzle_offsets.end())
+				p = Vector3Add(p, Vector3Scale(muzzle->second, body.muzzle_blend));
 			if (Vector3Distance(p, cameraPosition) > rlGetCullDistanceFar() + render.at("scale").get<float>() * 20)
 				continue;
 			if (!render.contains("sprite"))
@@ -593,6 +599,21 @@ struct SpriteScene::State
 				hull.shadow_visible = false;
 				hull.anchor = Vector3Add(hull.anchor, Vector3Scale(near, 1.f));
 			}
+			const auto record_muzzles = [&](const Item &item, const std::string &turret)
+			{
+				for (const auto &muzzle : body.muzzles)
+					if (muzzle.turret == turret)
+						if (const auto marker = item.frame->attachments.find(muzzle.marker);
+						    marker != item.frame->attachments.end())
+						{
+							const auto &point = marker->second;
+							const auto visual = surface(item, point.x, point.y, point.depth_offset);
+							const auto physical =
+							    Vector3Subtract(Vector3{muzzle.x / 1000.f, 0, -muzzle.y / 1000.f}, rebase);
+							muzzle_offsets[{body.id, muzzle.weapon}] = Vector3Subtract(visual, physical);
+						}
+			};
+			record_muzzles(hull, {});
 			std::vector<Item> behind, front;
 			if (body.forward_thrust > 0 && render.contains("engines"))
 			{
@@ -648,6 +669,7 @@ struct SpriteScene::State
 				             false,
 				             point.layer};
 				mounted.flip_y = attachment.flip_y;
+				record_muzzles(mounted, attachment.id);
 				(point.layer < 0 ? behind : front).push_back(mounted);
 			}
 			const auto order = [](const Item &a, const Item &b)
@@ -1034,10 +1056,16 @@ void SpriteScene::draw(const Catalog &catalog, std::span<const SceneBody> bodies
 	s.draw_instances(false);
 	for (const auto &line : s.combat_lines)
 	{
-		const auto start =
+		auto start =
 		    Vector3Subtract(Vector3{line.x / 1000.f, line.visual_height_mm / 1000.f, -line.y / 1000.f}, s.rebase);
-		const auto end = Vector3Subtract(
+		auto end = Vector3Subtract(
 		    Vector3{line.line_end_x / 1000.f, line.line_end_z / 1000.f, -line.line_end_y / 1000.f}, s.rebase);
+		if (const auto muzzle = s.muzzle_offsets.find({line.attack_source, line.attack_weapon});
+		    muzzle != s.muzzle_offsets.end())
+		{
+			start = Vector3Add(start, Vector3Scale(muzzle->second, line.muzzle_blend));
+			end = Vector3Add(end, Vector3Scale(muzzle->second, line.muzzle_tail_blend));
+		}
 		if (line.line_style == 3)
 		{
 			if (!environment.reduced_motion)

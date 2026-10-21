@@ -2,7 +2,7 @@
 
 Each ship owns one shared camera selection on its entity blackboard. Console GUIs control the ship's Viewscreen camera; they do not embed another camera image. Settings remain the only controls on the Viewscreen itself.
 
-The initial selection is **First person / Forward**. First-person mode retains the existing shallow forward camera position and hides the owning ship. Third-person mode frames the ship from above and behind the selected viewing bearing and includes the ship in the scene. Chase distance and height scale with the ship's rendered size and sprite aspect ratio; there is no free orbit or zoom control.
+The initial selection is **First person / Forward**. First-person mode hides the owning ship and uses a shallow view set back half the rendered ship scale (at least two metres) opposite the selected viewing bearing. This preserves clearance at close range in all eight directions. Third-person mode frames the ship from above and behind the selected viewing bearing and includes the ship in the scene. Chase distance and height scale with the ship's rendered size and sprite aspect ratio; there is no free orbit or zoom control.
 
 Directions are clockwise relative to the ship: Forward, Forward-right, Right, Rear-right, Rear, Rear-left, Left, Forward-left. Each step is 45 degrees. They rotate with the ship's actual heading, rather than the world compass. In third person, Forward is the usual rear chase view; Rear moves the camera ahead looking back at the ship. Switching modes preserves direction. Selections change immediately; Reduced Motion still disables acceleration shake.
 

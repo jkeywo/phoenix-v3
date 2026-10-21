@@ -478,7 +478,7 @@ struct ReserveDefinition
 struct WeaponDefinition
 {
 	AmmunitionDefinition ammunition;
-	std::string turret, family = "projectile";
+	std::string turret, muzzle_marker, family = "projectile";
 	std::int64_t ammo_use = 1, range = 0, beam_damage = 0, standby_energy = 0;
 	bool point_defence = false;
 	std::vector<std::string> magazines, intercept_classes;

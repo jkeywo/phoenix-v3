@@ -923,6 +923,7 @@ Json save_projectiles() const
 		const auto &p = particle.get<Projectile>();
 		out.push_back({{"id", p.id},
 		               {"source", p.source},
+		               {"weapon", p.weapon},
 		               {"position", p.position},
 		               {"velocity", p.velocity},
 		               {"remainder", p.remainder},
@@ -961,6 +962,7 @@ void restore_projectiles(const Json &saved)
 		Projectile p;
 		p.id = v.at("id");
 		p.source = v.at("source");
+		p.weapon = v.value("weapon", std::string{});
 		p.position = v.at("position").get<fixed::Vec>();
 		p.velocity = v.at("velocity").get<fixed::Vec>();
 		p.remainder = v.at("remainder").get<fixed::Vec>();

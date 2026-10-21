@@ -2460,6 +2460,16 @@ std::vector<SceneBody> World::scene() const
 					     d.get<TurretDefinition>().scale_permille / 1000.f, d.get<TurretDefinition>().flip_y});
 				}
 		}
+		if (entity.has<CombatStructure>())
+			for (auto child : entity.get<EquipmentIndex>().values)
+				if (const auto *m = child.try_get<CombatMechanism>();
+				    m && m->definition.kind == OperatingSystem::Weapon)
+				{
+					const auto &w = m->definition.get<WeaponDefinition>();
+					const auto [origin, heading] = impl_->weapon_mount(entity, *m);
+					if (heading >= 0 && !w.muzzle_marker.empty())
+						item.muzzles.push_back({m->definition.id, w.turret, w.muzzle_marker, origin.x, origin.y});
+				}
 		result.push_back(std::move(item));
 	}
 	for (const auto particle : impl_->projectile_rows())
@@ -2473,6 +2483,10 @@ std::vector<SceneBody> World::scene() const
 		shot.vx = p.velocity.x;
 		shot.vy = p.velocity.y;
 		shot.heading = p.heading;
+		shot.attack_source = p.source;
+		shot.attack_weapon = p.weapon;
+		shot.muzzle_blend = std::max(0.f, 1.f - p.age / 4.f);
+		shot.muzzle_tail_blend = std::max(0.f, 1.f - (p.age - 1) / 4.f);
 		shot.visual_height_mm = p.altitude;
 		shot.visual_vz = p.vz;
 		shot.velocity_rotation = p.definition.durability > 0;
@@ -2502,6 +2516,9 @@ std::vector<SceneBody> World::scene() const
 				beam.line_end_x = m->get<WeaponState>().beam_end.x;
 				beam.line_end_y = m->get<WeaponState>().beam_end.y;
 				beam.line_style = 1;
+				beam.attack_source = id;
+				beam.attack_weapon = m->definition.id;
+				beam.muzzle_blend = 1;
 				result.push_back(beam);
 			}
 	for (const auto &v : impl_->blast_visuals)
