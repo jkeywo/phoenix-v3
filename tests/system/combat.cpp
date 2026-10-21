@@ -511,6 +511,38 @@ void effects_contracts()
 void extended_contracts()
 {
 	{
+		auto inline_fit = powered_fixture();
+		add_fit(inline_fit, "shield",
+		        {{"kind", "shield"}, {"compartment", "fore"}, {"capacity", 100}, {"power_store", "cell"}},
+		        {{"discharge", "shield_discharge"}});
+		auto reusable_fit = inline_fit;
+		reusable_fit["equipment"] = Json::array();
+		for (auto &spec : reusable_fit["entities"][0]["systems"].items())
+		{
+			const auto kind = spec.value().at("kind").get<std::string>();
+			if (kind != "weapon" && kind != "turret" && kind != "magazine" && kind != "repair_team" && kind != "shield")
+				continue;
+			auto definition = spec.value();
+			const auto id = "test.equipment." + spec.key();
+			definition["id"] = id;
+			reusable_fit["equipment"].push_back(definition);
+			spec.value() = {{"template", id}};
+		}
+		const auto direct = load(inline_fit), reused = load(reusable_fit);
+		World a, b;
+		a.load(direct, inline_fit["maps"][0]["id"]);
+		b.load(reused, inline_fit["maps"][0]["id"]);
+		claim(a);
+		claim(b);
+		submit(a, 101, "gun", "target", 2);
+		submit(b, 101, "gun", "target", 2);
+		advance(a, 20);
+		advance(b, 20);
+		require(state(a) == state(b) && a.save()["projectiles"] == b.save()["projectiles"],
+		        "combat equipment templates retain inline mechanism behavior through real composition");
+	}
+
+	{
 		auto s = powered_fixture();
 		auto &ship = s["entities"][0];
 		auto payload = ship["systems"]["gun"]["projectile"];

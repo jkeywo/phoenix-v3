@@ -7220,35 +7220,7 @@
 					]
 				},
 				"radar": {
-					"kind": "radar",
-					"range_mm": 350000,
-					"shows": ["ship", "asteroid", "missile"],
-					"compartment": "bow-starboard",
-					"observation_console": "support",
-					"faults": [
-						{
-							"id": "damage",
-							"symptom": "Erratic equipment response",
-							"diagnosis": "Receiver damaged",
-							"effect": "output",
-							"effectiveness_permille": 500,
-							"chance_permille": 120,
-							"damage_threshold": 20,
-							"severity": 100,
-							"repair_work": 100
-						},
-						{
-							"id": "ruined",
-							"symptom": "Equipment unresponsive",
-							"diagnosis": "Receiver destroyed",
-							"effect": "disabled",
-							"destroyed": true,
-							"chance_permille": 15,
-							"damage_threshold": 80,
-							"severity": 1000,
-							"repair_work": 100
-						}
-					]
+					"template": "base.equipment.combat-radar"
 				},
 				"top": {
 					"kind": "turret",
@@ -7287,39 +7259,7 @@
 					]
 				},
 				"top-mag": {
-					"kind": "magazine",
-					"compartment": "mid-port",
-					"capacity": 6,
-					"reload": {
-						"strategy": "infinite",
-						"ticks": 80,
-						"amount": 6
-					},
-					"observation_console": "tactical",
-					"faults": [
-						{
-							"id": "damage",
-							"symptom": "Erratic equipment response",
-							"diagnosis": "Ammunition feeder jammed",
-							"effect": "disabled",
-							"effectiveness_permille": 500,
-							"chance_permille": 120,
-							"damage_threshold": 20,
-							"severity": 100,
-							"repair_work": 100
-						},
-						{
-							"id": "ruined",
-							"symptom": "Equipment unresponsive",
-							"diagnosis": "Ammunition feeder destroyed",
-							"effect": "disabled",
-							"destroyed": true,
-							"chance_permille": 15,
-							"damage_threshold": 80,
-							"severity": 1000,
-							"repair_work": 100
-						}
-					]
+					"template": "base.equipment.combat-top-mag"
 				},
 				"top-gun": {
 					"kind": "weapon",
@@ -7400,39 +7340,7 @@
 					]
 				},
 				"bottom-mag": {
-					"kind": "magazine",
-					"compartment": "mid-starboard",
-					"capacity": 6,
-					"reload": {
-						"strategy": "infinite",
-						"ticks": 80,
-						"amount": 6
-					},
-					"observation_console": "tactical",
-					"faults": [
-						{
-							"id": "damage",
-							"symptom": "Erratic equipment response",
-							"diagnosis": "Ammunition feeder jammed",
-							"effect": "disabled",
-							"effectiveness_permille": 500,
-							"chance_permille": 120,
-							"damage_threshold": 20,
-							"severity": 100,
-							"repair_work": 100
-						},
-						{
-							"id": "ruined",
-							"symptom": "Equipment unresponsive",
-							"diagnosis": "Ammunition feeder destroyed",
-							"effect": "disabled",
-							"destroyed": true,
-							"chance_permille": 15,
-							"damage_threshold": 80,
-							"severity": 1000,
-							"repair_work": 100
-						}
-					]
+					"template": "base.equipment.combat-bottom-mag"
 				},
 				"bottom-gun": {
 					"kind": "weapon",
@@ -7554,106 +7462,19 @@
 					]
 				},
 				"team-1": {
-					"kind": "repair_team",
-					"compartment": "stern-starboard",
-					"hp_per_second": 8,
-					"stack_penalty_permille": 500,
-					"observation_console": "support"
+					"template": "base.equipment.combat-team-1"
 				},
 				"team-2": {
-					"kind": "repair_team",
-					"compartment": "stern-starboard",
-					"hp_per_second": 8,
-					"stack_penalty_permille": 500,
-					"observation_console": "support"
+					"template": "base.equipment.combat-team-1"
 				},
 				"reactor": {
-					"kind": "generator",
-					"generator": "reactor",
-					"power_store": "main",
-					"compartment": "mid-port",
-					"faults": [
-						{
-							"id": "damage",
-							"symptom": "Erratic equipment response",
-							"diagnosis": "Generator regulator damaged",
-							"effect": "disabled",
-							"effectiveness_permille": 500,
-							"chance_permille": 120,
-							"damage_threshold": 20,
-							"severity": 100,
-							"repair_work": 100
-						},
-						{
-							"id": "ruined",
-							"symptom": "Equipment unresponsive",
-							"diagnosis": "Generator regulator destroyed",
-							"effect": "disabled",
-							"destroyed": true,
-							"chance_permille": 15,
-							"damage_threshold": 80,
-							"severity": 1000,
-							"repair_work": 100
-						}
-					]
+					"template": "base.equipment.combat-reactor"
 				},
 				"weapon-cell": {
-					"kind": "storage",
-					"power_store": "weapons",
-					"compartment": "mid-port",
-					"faults": [
-						{
-							"id": "damage",
-							"symptom": "Erratic equipment response",
-							"diagnosis": "Battery isolation relay jammed",
-							"effect": "disabled",
-							"effectiveness_permille": 500,
-							"chance_permille": 120,
-							"damage_threshold": 20,
-							"severity": 100,
-							"repair_work": 100
-						},
-						{
-							"id": "ruined",
-							"symptom": "Equipment unresponsive",
-							"diagnosis": "Battery isolation relay destroyed",
-							"effect": "disabled",
-							"destroyed": true,
-							"chance_permille": 15,
-							"damage_threshold": 80,
-							"severity": 1000,
-							"repair_work": 100
-						}
-					]
+					"template": "base.equipment.combat-weapon-cell"
 				},
 				"shield-cell": {
-					"kind": "storage",
-					"power_store": "shields",
-					"compartment": "mid-port",
-					"faults": [
-						{
-							"id": "damage",
-							"symptom": "Erratic equipment response",
-							"diagnosis": "Battery isolation relay jammed",
-							"effect": "disabled",
-							"effectiveness_permille": 500,
-							"chance_permille": 120,
-							"damage_threshold": 20,
-							"severity": 100,
-							"repair_work": 100
-						},
-						{
-							"id": "ruined",
-							"symptom": "Equipment unresponsive",
-							"diagnosis": "Battery isolation relay destroyed",
-							"effect": "disabled",
-							"destroyed": true,
-							"chance_permille": 15,
-							"damage_threshold": 80,
-							"severity": 1000,
-							"repair_work": 100
-						}
-					]
+					"template": "base.equipment.combat-shield-cell"
 				},
 				"beam": {
 					"kind": "weapon",
@@ -7664,7 +7485,7 @@
 					"damage_per_second": 65,
 					"penetration": 1000,
 					"energy_per_second": 360,
-					"power_store": "weapons",
+					"power_store": "combat-power.weapons",
 					"compartment": "mid-port",
 					"faults": [
 						{
@@ -7704,7 +7525,7 @@
 					"warmup_ticks": 40,
 					"discharge_per_second": 100,
 					"discharge_efficiency_permille": 900,
-					"power_store": "shields",
+					"power_store": "combat-power.shields",
 					"compartment": "mid-port",
 					"faults": [
 						{
@@ -7744,7 +7565,7 @@
 					"warmup_ticks": 40,
 					"discharge_per_second": 100,
 					"discharge_efficiency_permille": 900,
-					"power_store": "shields",
+					"power_store": "combat-power.shields",
 					"compartment": "mid-port",
 					"faults": [
 						{
@@ -7772,249 +7593,19 @@
 					]
 				},
 				"homing-mag": {
-					"kind": "magazine",
-					"capacity": 16,
-					"reload": {
-						"strategy": "none"
-					},
-					"fire_ticks": 35,
-					"load_ticks": 14,
-					"projectile": {
-						"visual": "base.combat-missile",
-						"speed_mm_s": 65000,
-						"lifetime_ticks": 240,
-						"penetration": 4000,
-						"damage": 350,
-						"damage_per_m": 20,
-						"guidance": "homing",
-						"shield_bypass_permille": 650,
-						"turn_mdeg_s": 70000,
-						"seeker_range_mm": 1000000,
-						"arc_height_mm": 35000,
-						"chaos_mdeg": 0,
-						"durability": 18,
-						"radius_mm": 700,
-						"resistance_per_m": 2,
-						"blast_radius_mm": 18000,
-						"fuse_radius_mm": 1500,
-						"trail": "smoke",
-						"destruction": {
-							"visual": "base.combat-explosion",
-							"chance_permille": 450,
-							"damage": 60,
-							"radius_mm": 8000,
-							"affects_missiles": false,
-							"growth_ticks": 2,
-							"fade_ticks": 10,
-							"size_mm": 10000
-						}
-					},
-					"compartment": "mid-port",
-					"faults": [
-						{
-							"id": "damage",
-							"symptom": "Erratic equipment response",
-							"diagnosis": "Ammunition feeder jammed",
-							"effect": "disabled",
-							"effectiveness_permille": 500,
-							"chance_permille": 120,
-							"damage_threshold": 20,
-							"severity": 100,
-							"repair_work": 100
-						},
-						{
-							"id": "ruined",
-							"symptom": "Equipment unresponsive",
-							"diagnosis": "Ammunition feeder destroyed",
-							"effect": "disabled",
-							"destroyed": true,
-							"chance_permille": 15,
-							"damage_threshold": 80,
-							"severity": 1000,
-							"repair_work": 100
-						}
-					]
+					"template": "base.equipment.combat-homing-mag"
 				},
 				"havok-mag": {
-					"kind": "magazine",
-					"capacity": 80,
-					"reload": {
-						"strategy": "none"
-					},
-					"fire_ticks": 3,
-					"load_ticks": 2,
-					"projectile": {
-						"visual": "base.combat-missile",
-						"speed_mm_s": 90000,
-						"lifetime_ticks": 35,
-						"penetration": 4000,
-						"damage": 45,
-						"damage_per_m": 20,
-						"guidance": "chaotic",
-						"shield_bypass_permille": 100,
-						"turn_mdeg_s": 250000,
-						"seeker_range_mm": 1000000,
-						"arc_height_mm": 6000,
-						"chaos_mdeg": 18000,
-						"durability": 10,
-						"radius_mm": 700,
-						"resistance_per_m": 2,
-						"blast_radius_mm": 5500,
-						"fuse_radius_mm": 1500,
-						"trail": "smoke",
-						"destruction": {
-							"visual": "base.combat-explosion",
-							"chance_permille": 450,
-							"damage": 18,
-							"radius_mm": 8000,
-							"affects_missiles": false,
-							"growth_ticks": 2,
-							"fade_ticks": 10,
-							"size_mm": 10000
-						}
-					},
-					"compartment": "mid-port",
-					"faults": [
-						{
-							"id": "damage",
-							"symptom": "Erratic equipment response",
-							"diagnosis": "Ammunition feeder jammed",
-							"effect": "disabled",
-							"effectiveness_permille": 500,
-							"chance_permille": 120,
-							"damage_threshold": 20,
-							"severity": 100,
-							"repair_work": 100
-						},
-						{
-							"id": "ruined",
-							"symptom": "Equipment unresponsive",
-							"diagnosis": "Ammunition feeder destroyed",
-							"effect": "disabled",
-							"destroyed": true,
-							"chance_permille": 15,
-							"damage_threshold": 80,
-							"severity": 1000,
-							"repair_work": 100
-						}
-					]
+					"template": "base.equipment.combat-havok-mag"
 				},
 				"missile-launcher": {
-					"kind": "weapon",
-					"magazines": ["homing-mag", "havok-mag"],
-					"load_ticks": 1,
-					"arc_mdeg": 30000,
-					"bearing_mdeg": 0,
-					"range_mm": 900000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
-					"power_store": "weapons",
-					"compartment": "mid-port",
-					"faults": [
-						{
-							"id": "damage",
-							"symptom": "Erratic equipment response",
-							"diagnosis": "Weapon feed damaged",
-							"effect": "output",
-							"effectiveness_permille": 500,
-							"chance_permille": 120,
-							"damage_threshold": 20,
-							"severity": 100,
-							"repair_work": 100
-						},
-						{
-							"id": "ruined",
-							"symptom": "Equipment unresponsive",
-							"diagnosis": "Weapon feed destroyed",
-							"effect": "disabled",
-							"destroyed": true,
-							"chance_permille": 15,
-							"damage_threshold": 80,
-							"severity": 1000,
-							"repair_work": 100
-						}
-					]
+					"template": "base.equipment.combat-missile-launcher"
 				},
 				"pdc-mag": {
-					"kind": "magazine",
-					"capacity": 300,
-					"reload": {
-						"strategy": "infinite",
-						"ticks": 80,
-						"amount": 100
-					},
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 500000,
-						"lifetime_ticks": 8,
-						"penetration": 1000,
-						"damage": 8,
-						"damage_per_m": 2,
-						"spread_mdeg": 1000,
-						"tracer": true
-					},
-					"compartment": "mid-port",
-					"faults": [
-						{
-							"id": "damage",
-							"symptom": "Erratic equipment response",
-							"diagnosis": "Ammunition feeder jammed",
-							"effect": "disabled",
-							"effectiveness_permille": 500,
-							"chance_permille": 120,
-							"damage_threshold": 20,
-							"severity": 100,
-							"repair_work": 100
-						},
-						{
-							"id": "ruined",
-							"symptom": "Equipment unresponsive",
-							"diagnosis": "Ammunition feeder destroyed",
-							"effect": "disabled",
-							"destroyed": true,
-							"chance_permille": 15,
-							"damage_threshold": 80,
-							"severity": 1000,
-							"repair_work": 100
-						}
-					]
+					"template": "base.equipment.combat-pdc-mag"
 				},
 				"pdc": {
-					"kind": "weapon",
-					"magazines": ["pdc-mag"],
-					"turret": "bottom",
-					"arc_mdeg": 18000,
-					"range_mm": 85000,
-					"fire_ticks": 1,
-					"point_defence": true,
-					"auto_energy_per_second": 180,
-					"discrete_energy": 2,
-					"power_store": "weapons",
-					"compartment": "mid-port",
-					"faults": [
-						{
-							"id": "damage",
-							"symptom": "Erratic equipment response",
-							"diagnosis": "Weapon feed damaged",
-							"effect": "output",
-							"effectiveness_permille": 500,
-							"chance_permille": 120,
-							"damage_threshold": 20,
-							"severity": 100,
-							"repair_work": 100
-						},
-						{
-							"id": "ruined",
-							"symptom": "Equipment unresponsive",
-							"diagnosis": "Weapon feed destroyed",
-							"effect": "disabled",
-							"destroyed": true,
-							"chance_permille": 15,
-							"damage_threshold": 80,
-							"severity": 1000,
-							"repair_work": 100
-						}
-					]
+					"template": "base.equipment.combat-pdc"
 				}
 			},
 			"stations": [
@@ -8753,66 +8344,12 @@
 				"collision_threshold_mm_s": 2000,
 				"half_height_mm": 4500
 			},
-			"resources": {
-				"stores": [
-					{
-						"id": "main",
-						"capacity": 30000,
-						"initial": 30000,
-						"charge_rate": 3000,
-						"discharge_rate": 3000,
-						"passive_cooling": 20,
-						"operation_heat_ppm": 150000,
-						"stop_heat": 5000,
-						"recover_heat": 1500
-					},
-					{
-						"id": "weapons",
-						"capacity": 12000,
-						"initial": 12000,
-						"charge_rate": 3000,
-						"discharge_rate": 3000,
-						"passive_cooling": 20,
-						"operation_heat_ppm": 150000,
-						"stop_heat": 5000,
-						"recover_heat": 1500
-					},
-					{
-						"id": "shields",
-						"capacity": 15000,
-						"initial": 15000,
-						"charge_rate": 3000,
-						"discharge_rate": 3000,
-						"passive_cooling": 20,
-						"operation_heat_ppm": 150000,
-						"stop_heat": 5000,
-						"recover_heat": 1500
-					}
-				],
-				"generators": [
-					{
-						"id": "reactor",
-						"store": "main",
-						"maximum_rate": 2400,
-						"initial_output": 1600,
-						"response_rate": 400
-					}
-				],
-				"links": [
-					{
-						"id": "weapon-feed",
-						"from": "main",
-						"to": "weapons",
-						"capacity_rate": 1400
-					},
-					{
-						"id": "shield-feed",
-						"from": "main",
-						"to": "shields",
-						"capacity_rate": 1500
-					}
-				]
-			}
+			"assemblies": [
+				{
+					"id": "combat-power",
+					"assembly": "base.assembly.combat-power"
+				}
+			]
 		},
 		{
 			"id": "base.pirate-raider",
@@ -9084,35 +8621,7 @@
 					]
 				},
 				"radar": {
-					"kind": "radar",
-					"range_mm": 350000,
-					"shows": ["ship", "asteroid", "missile"],
-					"compartment": "bow-starboard",
-					"observation_console": "support",
-					"faults": [
-						{
-							"id": "damage",
-							"symptom": "Erratic equipment response",
-							"diagnosis": "Receiver damaged",
-							"effect": "output",
-							"effectiveness_permille": 500,
-							"chance_permille": 120,
-							"damage_threshold": 20,
-							"severity": 100,
-							"repair_work": 100
-						},
-						{
-							"id": "ruined",
-							"symptom": "Equipment unresponsive",
-							"diagnosis": "Receiver destroyed",
-							"effect": "disabled",
-							"destroyed": true,
-							"chance_permille": 15,
-							"damage_threshold": 80,
-							"severity": 1000,
-							"repair_work": 100
-						}
-					]
+					"template": "base.equipment.combat-radar"
 				},
 				"top": {
 					"kind": "turret",
@@ -9151,39 +8660,7 @@
 					]
 				},
 				"top-mag": {
-					"kind": "magazine",
-					"compartment": "mid-port",
-					"capacity": 6,
-					"reload": {
-						"strategy": "infinite",
-						"ticks": 80,
-						"amount": 6
-					},
-					"observation_console": "tactical",
-					"faults": [
-						{
-							"id": "damage",
-							"symptom": "Erratic equipment response",
-							"diagnosis": "Ammunition feeder jammed",
-							"effect": "disabled",
-							"effectiveness_permille": 500,
-							"chance_permille": 120,
-							"damage_threshold": 20,
-							"severity": 100,
-							"repair_work": 100
-						},
-						{
-							"id": "ruined",
-							"symptom": "Equipment unresponsive",
-							"diagnosis": "Ammunition feeder destroyed",
-							"effect": "disabled",
-							"destroyed": true,
-							"chance_permille": 15,
-							"damage_threshold": 80,
-							"severity": 1000,
-							"repair_work": 100
-						}
-					]
+					"template": "base.equipment.combat-top-mag"
 				},
 				"top-gun": {
 					"kind": "weapon",
@@ -9264,39 +8741,7 @@
 					]
 				},
 				"bottom-mag": {
-					"kind": "magazine",
-					"compartment": "mid-starboard",
-					"capacity": 6,
-					"reload": {
-						"strategy": "infinite",
-						"ticks": 80,
-						"amount": 6
-					},
-					"observation_console": "tactical",
-					"faults": [
-						{
-							"id": "damage",
-							"symptom": "Erratic equipment response",
-							"diagnosis": "Ammunition feeder jammed",
-							"effect": "disabled",
-							"effectiveness_permille": 500,
-							"chance_permille": 120,
-							"damage_threshold": 20,
-							"severity": 100,
-							"repair_work": 100
-						},
-						{
-							"id": "ruined",
-							"symptom": "Equipment unresponsive",
-							"diagnosis": "Ammunition feeder destroyed",
-							"effect": "disabled",
-							"destroyed": true,
-							"chance_permille": 15,
-							"damage_threshold": 80,
-							"severity": 1000,
-							"repair_work": 100
-						}
-					]
+					"template": "base.equipment.combat-bottom-mag"
 				},
 				"bottom-gun": {
 					"kind": "weapon",
@@ -9341,106 +8786,19 @@
 					]
 				},
 				"team-1": {
-					"kind": "repair_team",
-					"compartment": "stern-starboard",
-					"hp_per_second": 8,
-					"stack_penalty_permille": 500,
-					"observation_console": "support"
+					"template": "base.equipment.combat-team-1"
 				},
 				"team-2": {
-					"kind": "repair_team",
-					"compartment": "stern-starboard",
-					"hp_per_second": 8,
-					"stack_penalty_permille": 500,
-					"observation_console": "support"
+					"template": "base.equipment.combat-team-1"
 				},
 				"reactor": {
-					"kind": "generator",
-					"generator": "reactor",
-					"power_store": "main",
-					"compartment": "mid-port",
-					"faults": [
-						{
-							"id": "damage",
-							"symptom": "Erratic equipment response",
-							"diagnosis": "Generator regulator damaged",
-							"effect": "disabled",
-							"effectiveness_permille": 500,
-							"chance_permille": 120,
-							"damage_threshold": 20,
-							"severity": 100,
-							"repair_work": 100
-						},
-						{
-							"id": "ruined",
-							"symptom": "Equipment unresponsive",
-							"diagnosis": "Generator regulator destroyed",
-							"effect": "disabled",
-							"destroyed": true,
-							"chance_permille": 15,
-							"damage_threshold": 80,
-							"severity": 1000,
-							"repair_work": 100
-						}
-					]
+					"template": "base.equipment.combat-reactor"
 				},
 				"weapon-cell": {
-					"kind": "storage",
-					"power_store": "weapons",
-					"compartment": "mid-port",
-					"faults": [
-						{
-							"id": "damage",
-							"symptom": "Erratic equipment response",
-							"diagnosis": "Battery isolation relay jammed",
-							"effect": "disabled",
-							"effectiveness_permille": 500,
-							"chance_permille": 120,
-							"damage_threshold": 20,
-							"severity": 100,
-							"repair_work": 100
-						},
-						{
-							"id": "ruined",
-							"symptom": "Equipment unresponsive",
-							"diagnosis": "Battery isolation relay destroyed",
-							"effect": "disabled",
-							"destroyed": true,
-							"chance_permille": 15,
-							"damage_threshold": 80,
-							"severity": 1000,
-							"repair_work": 100
-						}
-					]
+					"template": "base.equipment.combat-weapon-cell"
 				},
 				"shield-cell": {
-					"kind": "storage",
-					"power_store": "shields",
-					"compartment": "mid-port",
-					"faults": [
-						{
-							"id": "damage",
-							"symptom": "Erratic equipment response",
-							"diagnosis": "Battery isolation relay jammed",
-							"effect": "disabled",
-							"effectiveness_permille": 500,
-							"chance_permille": 120,
-							"damage_threshold": 20,
-							"severity": 100,
-							"repair_work": 100
-						},
-						{
-							"id": "ruined",
-							"symptom": "Equipment unresponsive",
-							"diagnosis": "Battery isolation relay destroyed",
-							"effect": "disabled",
-							"destroyed": true,
-							"chance_permille": 15,
-							"damage_threshold": 80,
-							"severity": 1000,
-							"repair_work": 100
-						}
-					]
+					"template": "base.equipment.combat-shield-cell"
 				},
 				"beam": {
 					"kind": "weapon",
@@ -9451,7 +8809,7 @@
 					"damage_per_second": 100,
 					"penetration": 1000,
 					"energy_per_second": 360,
-					"power_store": "weapons",
+					"power_store": "combat-power.weapons",
 					"compartment": "mid-port",
 					"faults": [
 						{
@@ -9491,7 +8849,7 @@
 					"warmup_ticks": 40,
 					"discharge_per_second": 100,
 					"discharge_efficiency_permille": 900,
-					"power_store": "shields",
+					"power_store": "combat-power.shields",
 					"compartment": "mid-port",
 					"faults": [
 						{
@@ -9531,7 +8889,7 @@
 					"warmup_ticks": 40,
 					"discharge_per_second": 100,
 					"discharge_efficiency_permille": 900,
-					"power_store": "shields",
+					"power_store": "combat-power.shields",
 					"compartment": "mid-port",
 					"faults": [
 						{
@@ -9559,249 +8917,19 @@
 					]
 				},
 				"homing-mag": {
-					"kind": "magazine",
-					"capacity": 16,
-					"reload": {
-						"strategy": "none"
-					},
-					"fire_ticks": 35,
-					"load_ticks": 14,
-					"projectile": {
-						"visual": "base.combat-missile",
-						"speed_mm_s": 65000,
-						"lifetime_ticks": 240,
-						"penetration": 4000,
-						"damage": 350,
-						"damage_per_m": 20,
-						"guidance": "homing",
-						"shield_bypass_permille": 650,
-						"turn_mdeg_s": 70000,
-						"seeker_range_mm": 1000000,
-						"arc_height_mm": 35000,
-						"chaos_mdeg": 0,
-						"durability": 18,
-						"radius_mm": 700,
-						"resistance_per_m": 2,
-						"blast_radius_mm": 18000,
-						"fuse_radius_mm": 1500,
-						"trail": "smoke",
-						"destruction": {
-							"visual": "base.combat-explosion",
-							"chance_permille": 450,
-							"damage": 60,
-							"radius_mm": 8000,
-							"affects_missiles": false,
-							"growth_ticks": 2,
-							"fade_ticks": 10,
-							"size_mm": 10000
-						}
-					},
-					"compartment": "mid-port",
-					"faults": [
-						{
-							"id": "damage",
-							"symptom": "Erratic equipment response",
-							"diagnosis": "Ammunition feeder jammed",
-							"effect": "disabled",
-							"effectiveness_permille": 500,
-							"chance_permille": 120,
-							"damage_threshold": 20,
-							"severity": 100,
-							"repair_work": 100
-						},
-						{
-							"id": "ruined",
-							"symptom": "Equipment unresponsive",
-							"diagnosis": "Ammunition feeder destroyed",
-							"effect": "disabled",
-							"destroyed": true,
-							"chance_permille": 15,
-							"damage_threshold": 80,
-							"severity": 1000,
-							"repair_work": 100
-						}
-					]
+					"template": "base.equipment.combat-homing-mag"
 				},
 				"havok-mag": {
-					"kind": "magazine",
-					"capacity": 80,
-					"reload": {
-						"strategy": "none"
-					},
-					"fire_ticks": 3,
-					"load_ticks": 2,
-					"projectile": {
-						"visual": "base.combat-missile",
-						"speed_mm_s": 90000,
-						"lifetime_ticks": 35,
-						"penetration": 4000,
-						"damage": 45,
-						"damage_per_m": 20,
-						"guidance": "chaotic",
-						"shield_bypass_permille": 100,
-						"turn_mdeg_s": 250000,
-						"seeker_range_mm": 1000000,
-						"arc_height_mm": 6000,
-						"chaos_mdeg": 18000,
-						"durability": 10,
-						"radius_mm": 700,
-						"resistance_per_m": 2,
-						"blast_radius_mm": 5500,
-						"fuse_radius_mm": 1500,
-						"trail": "smoke",
-						"destruction": {
-							"visual": "base.combat-explosion",
-							"chance_permille": 450,
-							"damage": 18,
-							"radius_mm": 8000,
-							"affects_missiles": false,
-							"growth_ticks": 2,
-							"fade_ticks": 10,
-							"size_mm": 10000
-						}
-					},
-					"compartment": "mid-port",
-					"faults": [
-						{
-							"id": "damage",
-							"symptom": "Erratic equipment response",
-							"diagnosis": "Ammunition feeder jammed",
-							"effect": "disabled",
-							"effectiveness_permille": 500,
-							"chance_permille": 120,
-							"damage_threshold": 20,
-							"severity": 100,
-							"repair_work": 100
-						},
-						{
-							"id": "ruined",
-							"symptom": "Equipment unresponsive",
-							"diagnosis": "Ammunition feeder destroyed",
-							"effect": "disabled",
-							"destroyed": true,
-							"chance_permille": 15,
-							"damage_threshold": 80,
-							"severity": 1000,
-							"repair_work": 100
-						}
-					]
+					"template": "base.equipment.combat-havok-mag"
 				},
 				"missile-launcher": {
-					"kind": "weapon",
-					"magazines": ["homing-mag", "havok-mag"],
-					"load_ticks": 1,
-					"arc_mdeg": 30000,
-					"bearing_mdeg": 0,
-					"range_mm": 900000,
-					"fire_ticks": 1,
-					"discrete_energy": 10,
-					"power_store": "weapons",
-					"compartment": "mid-port",
-					"faults": [
-						{
-							"id": "damage",
-							"symptom": "Erratic equipment response",
-							"diagnosis": "Weapon feed damaged",
-							"effect": "output",
-							"effectiveness_permille": 500,
-							"chance_permille": 120,
-							"damage_threshold": 20,
-							"severity": 100,
-							"repair_work": 100
-						},
-						{
-							"id": "ruined",
-							"symptom": "Equipment unresponsive",
-							"diagnosis": "Weapon feed destroyed",
-							"effect": "disabled",
-							"destroyed": true,
-							"chance_permille": 15,
-							"damage_threshold": 80,
-							"severity": 1000,
-							"repair_work": 100
-						}
-					]
+					"template": "base.equipment.combat-missile-launcher"
 				},
 				"pdc-mag": {
-					"kind": "magazine",
-					"capacity": 300,
-					"reload": {
-						"strategy": "infinite",
-						"ticks": 80,
-						"amount": 100
-					},
-					"projectile": {
-						"visual": "base.combat-projectile",
-						"speed_mm_s": 500000,
-						"lifetime_ticks": 8,
-						"penetration": 1000,
-						"damage": 8,
-						"damage_per_m": 2,
-						"spread_mdeg": 1000,
-						"tracer": true
-					},
-					"compartment": "mid-port",
-					"faults": [
-						{
-							"id": "damage",
-							"symptom": "Erratic equipment response",
-							"diagnosis": "Ammunition feeder jammed",
-							"effect": "disabled",
-							"effectiveness_permille": 500,
-							"chance_permille": 120,
-							"damage_threshold": 20,
-							"severity": 100,
-							"repair_work": 100
-						},
-						{
-							"id": "ruined",
-							"symptom": "Equipment unresponsive",
-							"diagnosis": "Ammunition feeder destroyed",
-							"effect": "disabled",
-							"destroyed": true,
-							"chance_permille": 15,
-							"damage_threshold": 80,
-							"severity": 1000,
-							"repair_work": 100
-						}
-					]
+					"template": "base.equipment.combat-pdc-mag"
 				},
 				"pdc": {
-					"kind": "weapon",
-					"magazines": ["pdc-mag"],
-					"turret": "bottom",
-					"arc_mdeg": 18000,
-					"range_mm": 85000,
-					"fire_ticks": 1,
-					"point_defence": true,
-					"auto_energy_per_second": 180,
-					"discrete_energy": 2,
-					"power_store": "weapons",
-					"compartment": "mid-port",
-					"faults": [
-						{
-							"id": "damage",
-							"symptom": "Erratic equipment response",
-							"diagnosis": "Weapon feed damaged",
-							"effect": "output",
-							"effectiveness_permille": 500,
-							"chance_permille": 120,
-							"damage_threshold": 20,
-							"severity": 100,
-							"repair_work": 100
-						},
-						{
-							"id": "ruined",
-							"symptom": "Equipment unresponsive",
-							"diagnosis": "Weapon feed destroyed",
-							"effect": "disabled",
-							"destroyed": true,
-							"chance_permille": 15,
-							"damage_threshold": 80,
-							"severity": 1000,
-							"repair_work": 100
-						}
-					]
+					"template": "base.equipment.combat-pdc"
 				}
 			},
 			"stations": [
@@ -10496,66 +9624,12 @@
 				"collision_threshold_mm_s": 2000,
 				"half_height_mm": 7000
 			},
-			"resources": {
-				"stores": [
-					{
-						"id": "main",
-						"capacity": 30000,
-						"initial": 30000,
-						"charge_rate": 3000,
-						"discharge_rate": 3000,
-						"passive_cooling": 20,
-						"operation_heat_ppm": 150000,
-						"stop_heat": 5000,
-						"recover_heat": 1500
-					},
-					{
-						"id": "weapons",
-						"capacity": 12000,
-						"initial": 12000,
-						"charge_rate": 3000,
-						"discharge_rate": 3000,
-						"passive_cooling": 20,
-						"operation_heat_ppm": 150000,
-						"stop_heat": 5000,
-						"recover_heat": 1500
-					},
-					{
-						"id": "shields",
-						"capacity": 15000,
-						"initial": 15000,
-						"charge_rate": 3000,
-						"discharge_rate": 3000,
-						"passive_cooling": 20,
-						"operation_heat_ppm": 150000,
-						"stop_heat": 5000,
-						"recover_heat": 1500
-					}
-				],
-				"generators": [
-					{
-						"id": "reactor",
-						"store": "main",
-						"maximum_rate": 2400,
-						"initial_output": 1600,
-						"response_rate": 400
-					}
-				],
-				"links": [
-					{
-						"id": "weapon-feed",
-						"from": "main",
-						"to": "weapons",
-						"capacity_rate": 1400
-					},
-					{
-						"id": "shield-feed",
-						"from": "main",
-						"to": "shields",
-						"capacity_rate": 1500
-					}
-				]
-			}
+			"assemblies": [
+				{
+					"id": "combat-power",
+					"assembly": "base.assembly.combat-power"
+				}
+			]
 		},
 		{
 			"id": "base.combat-missile",
@@ -18225,6 +17299,459 @@
 					}
 				}
 			]
+		},
+		{
+			"id": "base.equipment.combat-radar",
+			"kind": "radar",
+			"range_mm": 350000,
+			"shows": ["ship", "asteroid", "missile"],
+			"compartment": "bow-starboard",
+			"observation_console": "support",
+			"faults": [
+				{
+					"id": "damage",
+					"symptom": "Erratic equipment response",
+					"diagnosis": "Receiver damaged",
+					"effect": "output",
+					"effectiveness_permille": 500,
+					"chance_permille": 120,
+					"damage_threshold": 20,
+					"severity": 100,
+					"repair_work": 100
+				},
+				{
+					"id": "ruined",
+					"symptom": "Equipment unresponsive",
+					"diagnosis": "Receiver destroyed",
+					"effect": "disabled",
+					"destroyed": true,
+					"chance_permille": 15,
+					"damage_threshold": 80,
+					"severity": 1000,
+					"repair_work": 100
+				}
+			]
+		},
+		{
+			"id": "base.equipment.combat-top-mag",
+			"kind": "magazine",
+			"compartment": "mid-port",
+			"capacity": 6,
+			"reload": {
+				"strategy": "infinite",
+				"ticks": 80,
+				"amount": 6
+			},
+			"observation_console": "tactical",
+			"faults": [
+				{
+					"id": "damage",
+					"symptom": "Erratic equipment response",
+					"diagnosis": "Ammunition feeder jammed",
+					"effect": "disabled",
+					"effectiveness_permille": 500,
+					"chance_permille": 120,
+					"damage_threshold": 20,
+					"severity": 100,
+					"repair_work": 100
+				},
+				{
+					"id": "ruined",
+					"symptom": "Equipment unresponsive",
+					"diagnosis": "Ammunition feeder destroyed",
+					"effect": "disabled",
+					"destroyed": true,
+					"chance_permille": 15,
+					"damage_threshold": 80,
+					"severity": 1000,
+					"repair_work": 100
+				}
+			]
+		},
+		{
+			"id": "base.equipment.combat-bottom-mag",
+			"kind": "magazine",
+			"compartment": "mid-starboard",
+			"capacity": 6,
+			"reload": {
+				"strategy": "infinite",
+				"ticks": 80,
+				"amount": 6
+			},
+			"observation_console": "tactical",
+			"faults": [
+				{
+					"id": "damage",
+					"symptom": "Erratic equipment response",
+					"diagnosis": "Ammunition feeder jammed",
+					"effect": "disabled",
+					"effectiveness_permille": 500,
+					"chance_permille": 120,
+					"damage_threshold": 20,
+					"severity": 100,
+					"repair_work": 100
+				},
+				{
+					"id": "ruined",
+					"symptom": "Equipment unresponsive",
+					"diagnosis": "Ammunition feeder destroyed",
+					"effect": "disabled",
+					"destroyed": true,
+					"chance_permille": 15,
+					"damage_threshold": 80,
+					"severity": 1000,
+					"repair_work": 100
+				}
+			]
+		},
+		{
+			"id": "base.equipment.combat-team-1",
+			"kind": "repair_team",
+			"compartment": "stern-starboard",
+			"hp_per_second": 8,
+			"stack_penalty_permille": 500,
+			"observation_console": "support"
+		},
+		{
+			"id": "base.equipment.combat-reactor",
+			"kind": "generator",
+			"generator": "combat-power.reactor",
+			"power_store": "combat-power.main",
+			"compartment": "mid-port",
+			"faults": [
+				{
+					"id": "damage",
+					"symptom": "Erratic equipment response",
+					"diagnosis": "Generator regulator damaged",
+					"effect": "disabled",
+					"effectiveness_permille": 500,
+					"chance_permille": 120,
+					"damage_threshold": 20,
+					"severity": 100,
+					"repair_work": 100
+				},
+				{
+					"id": "ruined",
+					"symptom": "Equipment unresponsive",
+					"diagnosis": "Generator regulator destroyed",
+					"effect": "disabled",
+					"destroyed": true,
+					"chance_permille": 15,
+					"damage_threshold": 80,
+					"severity": 1000,
+					"repair_work": 100
+				}
+			]
+		},
+		{
+			"id": "base.equipment.combat-weapon-cell",
+			"kind": "storage",
+			"power_store": "combat-power.weapons",
+			"compartment": "mid-port",
+			"faults": [
+				{
+					"id": "damage",
+					"symptom": "Erratic equipment response",
+					"diagnosis": "Battery isolation relay jammed",
+					"effect": "disabled",
+					"effectiveness_permille": 500,
+					"chance_permille": 120,
+					"damage_threshold": 20,
+					"severity": 100,
+					"repair_work": 100
+				},
+				{
+					"id": "ruined",
+					"symptom": "Equipment unresponsive",
+					"diagnosis": "Battery isolation relay destroyed",
+					"effect": "disabled",
+					"destroyed": true,
+					"chance_permille": 15,
+					"damage_threshold": 80,
+					"severity": 1000,
+					"repair_work": 100
+				}
+			]
+		},
+		{
+			"id": "base.equipment.combat-shield-cell",
+			"kind": "storage",
+			"power_store": "combat-power.shields",
+			"compartment": "mid-port",
+			"faults": [
+				{
+					"id": "damage",
+					"symptom": "Erratic equipment response",
+					"diagnosis": "Battery isolation relay jammed",
+					"effect": "disabled",
+					"effectiveness_permille": 500,
+					"chance_permille": 120,
+					"damage_threshold": 20,
+					"severity": 100,
+					"repair_work": 100
+				},
+				{
+					"id": "ruined",
+					"symptom": "Equipment unresponsive",
+					"diagnosis": "Battery isolation relay destroyed",
+					"effect": "disabled",
+					"destroyed": true,
+					"chance_permille": 15,
+					"damage_threshold": 80,
+					"severity": 1000,
+					"repair_work": 100
+				}
+			]
+		},
+		{
+			"id": "base.equipment.combat-homing-mag",
+			"kind": "magazine",
+			"capacity": 16,
+			"reload": {
+				"strategy": "none"
+			},
+			"fire_ticks": 35,
+			"load_ticks": 14,
+			"projectile": {
+				"visual": "base.combat-missile",
+				"speed_mm_s": 65000,
+				"lifetime_ticks": 240,
+				"penetration": 4000,
+				"damage": 350,
+				"damage_per_m": 20,
+				"guidance": "homing",
+				"shield_bypass_permille": 650,
+				"turn_mdeg_s": 70000,
+				"seeker_range_mm": 1000000,
+				"arc_height_mm": 35000,
+				"chaos_mdeg": 0,
+				"durability": 18,
+				"radius_mm": 700,
+				"resistance_per_m": 2,
+				"blast_radius_mm": 18000,
+				"fuse_radius_mm": 1500,
+				"trail": "smoke",
+				"destruction": {
+					"visual": "base.combat-explosion",
+					"chance_permille": 450,
+					"damage": 60,
+					"radius_mm": 8000,
+					"affects_missiles": false,
+					"growth_ticks": 2,
+					"fade_ticks": 10,
+					"size_mm": 10000
+				}
+			},
+			"compartment": "mid-port",
+			"faults": [
+				{
+					"id": "damage",
+					"symptom": "Erratic equipment response",
+					"diagnosis": "Ammunition feeder jammed",
+					"effect": "disabled",
+					"effectiveness_permille": 500,
+					"chance_permille": 120,
+					"damage_threshold": 20,
+					"severity": 100,
+					"repair_work": 100
+				},
+				{
+					"id": "ruined",
+					"symptom": "Equipment unresponsive",
+					"diagnosis": "Ammunition feeder destroyed",
+					"effect": "disabled",
+					"destroyed": true,
+					"chance_permille": 15,
+					"damage_threshold": 80,
+					"severity": 1000,
+					"repair_work": 100
+				}
+			]
+		},
+		{
+			"id": "base.equipment.combat-havok-mag",
+			"kind": "magazine",
+			"capacity": 80,
+			"reload": {
+				"strategy": "none"
+			},
+			"fire_ticks": 3,
+			"load_ticks": 2,
+			"projectile": {
+				"visual": "base.combat-missile",
+				"speed_mm_s": 90000,
+				"lifetime_ticks": 35,
+				"penetration": 4000,
+				"damage": 45,
+				"damage_per_m": 20,
+				"guidance": "chaotic",
+				"shield_bypass_permille": 100,
+				"turn_mdeg_s": 250000,
+				"seeker_range_mm": 1000000,
+				"arc_height_mm": 6000,
+				"chaos_mdeg": 18000,
+				"durability": 10,
+				"radius_mm": 700,
+				"resistance_per_m": 2,
+				"blast_radius_mm": 5500,
+				"fuse_radius_mm": 1500,
+				"trail": "smoke",
+				"destruction": {
+					"visual": "base.combat-explosion",
+					"chance_permille": 450,
+					"damage": 18,
+					"radius_mm": 8000,
+					"affects_missiles": false,
+					"growth_ticks": 2,
+					"fade_ticks": 10,
+					"size_mm": 10000
+				}
+			},
+			"compartment": "mid-port",
+			"faults": [
+				{
+					"id": "damage",
+					"symptom": "Erratic equipment response",
+					"diagnosis": "Ammunition feeder jammed",
+					"effect": "disabled",
+					"effectiveness_permille": 500,
+					"chance_permille": 120,
+					"damage_threshold": 20,
+					"severity": 100,
+					"repair_work": 100
+				},
+				{
+					"id": "ruined",
+					"symptom": "Equipment unresponsive",
+					"diagnosis": "Ammunition feeder destroyed",
+					"effect": "disabled",
+					"destroyed": true,
+					"chance_permille": 15,
+					"damage_threshold": 80,
+					"severity": 1000,
+					"repair_work": 100
+				}
+			]
+		},
+		{
+			"id": "base.equipment.combat-missile-launcher",
+			"kind": "weapon",
+			"magazines": ["homing-mag", "havok-mag"],
+			"load_ticks": 1,
+			"arc_mdeg": 30000,
+			"bearing_mdeg": 0,
+			"range_mm": 900000,
+			"fire_ticks": 1,
+			"discrete_energy": 10,
+			"power_store": "combat-power.weapons",
+			"compartment": "mid-port",
+			"faults": [
+				{
+					"id": "damage",
+					"symptom": "Erratic equipment response",
+					"diagnosis": "Weapon feed damaged",
+					"effect": "output",
+					"effectiveness_permille": 500,
+					"chance_permille": 120,
+					"damage_threshold": 20,
+					"severity": 100,
+					"repair_work": 100
+				},
+				{
+					"id": "ruined",
+					"symptom": "Equipment unresponsive",
+					"diagnosis": "Weapon feed destroyed",
+					"effect": "disabled",
+					"destroyed": true,
+					"chance_permille": 15,
+					"damage_threshold": 80,
+					"severity": 1000,
+					"repair_work": 100
+				}
+			]
+		},
+		{
+			"id": "base.equipment.combat-pdc-mag",
+			"kind": "magazine",
+			"capacity": 300,
+			"reload": {
+				"strategy": "infinite",
+				"ticks": 80,
+				"amount": 100
+			},
+			"projectile": {
+				"visual": "base.combat-projectile",
+				"speed_mm_s": 500000,
+				"lifetime_ticks": 8,
+				"penetration": 1000,
+				"damage": 8,
+				"damage_per_m": 2,
+				"spread_mdeg": 1000,
+				"tracer": true
+			},
+			"compartment": "mid-port",
+			"faults": [
+				{
+					"id": "damage",
+					"symptom": "Erratic equipment response",
+					"diagnosis": "Ammunition feeder jammed",
+					"effect": "disabled",
+					"effectiveness_permille": 500,
+					"chance_permille": 120,
+					"damage_threshold": 20,
+					"severity": 100,
+					"repair_work": 100
+				},
+				{
+					"id": "ruined",
+					"symptom": "Equipment unresponsive",
+					"diagnosis": "Ammunition feeder destroyed",
+					"effect": "disabled",
+					"destroyed": true,
+					"chance_permille": 15,
+					"damage_threshold": 80,
+					"severity": 1000,
+					"repair_work": 100
+				}
+			]
+		},
+		{
+			"id": "base.equipment.combat-pdc",
+			"kind": "weapon",
+			"magazines": ["pdc-mag"],
+			"turret": "bottom",
+			"arc_mdeg": 18000,
+			"range_mm": 85000,
+			"fire_ticks": 1,
+			"point_defence": true,
+			"auto_energy_per_second": 180,
+			"discrete_energy": 2,
+			"power_store": "combat-power.weapons",
+			"compartment": "mid-port",
+			"faults": [
+				{
+					"id": "damage",
+					"symptom": "Erratic equipment response",
+					"diagnosis": "Weapon feed damaged",
+					"effect": "output",
+					"effectiveness_permille": 500,
+					"chance_permille": 120,
+					"damage_threshold": 20,
+					"severity": 100,
+					"repair_work": 100
+				},
+				{
+					"id": "ruined",
+					"symptom": "Equipment unresponsive",
+					"diagnosis": "Weapon feed destroyed",
+					"effect": "disabled",
+					"destroyed": true,
+					"chance_permille": 15,
+					"damage_threshold": 80,
+					"severity": 1000,
+					"repair_work": 100
+				}
+			]
 		}
 	],
 	"assemblies": [
@@ -18820,6 +18347,69 @@
 					"kind": "coolant",
 					"direction": "input"
 				}
+			}
+		},
+		{
+			"id": "base.assembly.combat-power",
+			"resources": {
+				"stores": [
+					{
+						"id": "main",
+						"capacity": 30000,
+						"initial": 30000,
+						"charge_rate": 3000,
+						"discharge_rate": 3000,
+						"passive_cooling": 20,
+						"operation_heat_ppm": 150000,
+						"stop_heat": 5000,
+						"recover_heat": 1500
+					},
+					{
+						"id": "weapons",
+						"capacity": 12000,
+						"initial": 12000,
+						"charge_rate": 3000,
+						"discharge_rate": 3000,
+						"passive_cooling": 20,
+						"operation_heat_ppm": 150000,
+						"stop_heat": 5000,
+						"recover_heat": 1500
+					},
+					{
+						"id": "shields",
+						"capacity": 15000,
+						"initial": 15000,
+						"charge_rate": 3000,
+						"discharge_rate": 3000,
+						"passive_cooling": 20,
+						"operation_heat_ppm": 150000,
+						"stop_heat": 5000,
+						"recover_heat": 1500
+					}
+				],
+				"generators": [
+					{
+						"id": "reactor",
+						"store": "main",
+						"maximum_rate": 2400,
+						"initial_output": 1600,
+						"response_rate": 400
+					}
+				],
+				"links": [
+					{
+						"id": "weapon-feed",
+						"from": "main",
+						"to": "weapons",
+						"capacity_rate": 1400
+					},
+					{
+						"id": "shield-feed",
+						"from": "main",
+						"to": "shields",
+						"capacity_rate": 1500
+					}
+				]
 			}
 		}
 	],

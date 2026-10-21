@@ -230,8 +230,9 @@ void validate_equipment_spec(const Catalog &catalog, const Json &spec, const std
 	if (!spec.is_object())
 		composition_error(path, "expected System object");
 	const auto kind = composition_text(spec, "kind", path);
-	static const std::set<std::string> kinds{"engine",       "steering", "radar",   "generator", "storage",
-	                                         "distribution", "coolant",  "lateral", "boost",     "impulse"};
+	static const std::set<std::string> kinds{"engine",       "steering", "radar",    "generator",   "storage",
+	                                         "distribution", "coolant",  "lateral",  "boost",       "impulse",
+	                                         "weapon",       "turret",   "magazine", "repair_team", "shield"};
 	if (!kinds.contains(kind))
 		composition_error(path + ".kind", "unsupported capability '" + kind + "'");
 	if ((kind == "engine" && !spec.contains("max_speed_mm_s")) || (kind == "radar" && !spec.contains("range_mm")))
