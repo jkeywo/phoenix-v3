@@ -1,5 +1,6 @@
 // Append contacts using only the permitted radar feeds supplied by the caller.
-void append_sensor_contacts(const ConsoleAddress &address, Observation &result) const
+void append_sensor_contacts(const ConsoleAddress &address, Observation &result,
+                            const std::map<EntityId, Json> &evidence) const
 {
 	const auto entity = entities.at(address.ship);
 	const auto &own = entity.get<Pose>();
@@ -61,22 +62,8 @@ void append_sensor_contacts(const ConsoleAddress &address, Observation &result) 
 		if (entities.contains(contact.id))
 		{
 			Json identity;
-			for (const auto &sensor : result.systems)
-				if (sensor.kind == OperatingSystem::Radar &&
-				    std::find(sensor.contact_ids.begin(), sensor.contact_ids.end(), contact.id) !=
-				        sensor.contact_ids.end())
-				{
-					const auto &d = sensor_definition(address.ship, sensor.id);
-					if (d.capabilities.contains("basic_identity"))
-					{
-						if (d.capabilities.at("basic_identity") == 0)
-							identity = sensor_data(address.ship, contact.id, "basic_identity");
-						const auto &tracks = instance(entity, sensor.id)->entity.get<SensorRuntime>().tracks;
-						if (tracks.contains(contact.id) && tracks.at(contact.id).samples.contains("basic_identity") &&
-						    !tracks.at(contact.id).samples.at("basic_identity").data.is_null() && identity.is_null())
-							identity = tracks.at(contact.id).samples.at("basic_identity").data;
-					}
-				}
+			if (evidence.contains(contact.id) && evidence.at(contact.id).at("findings").contains("basic_identity"))
+				identity = evidence.at(contact.id).at("findings").at("basic_identity").at("data");
 			const bool identified = !identity.is_null();
 			contact.definition = identified ? identity.at("class").get<std::string>() : "Unidentified contact";
 			if (!identified)
@@ -115,7 +102,7 @@ std::vector<BodyView> capture_weapon_contacts(const ConsoleAddress &address) con
 			sensor.shows = definitions.at(entity.get<Definition>().name).radar_shows.at(id);
 			result.systems.push_back(std::move(sensor));
 		}
-	append_sensor_contacts(address, result);
+	append_sensor_contacts(address, result, sensor_evidence(address));
 	return std::move(result.contacts);
 }
 // World::Impl observation producer. Human projection and decision snapshots share this boundary.
@@ -135,7 +122,8 @@ Observation capture_console_observation(const ConsoleAddress &address, Json game
 	result.feeds = seat.feeds;
 	result.gameplay = std::move(gameplay);
 	project_combat(address, result);
-	result.gameplay["sensors"] = sensor_projection(address);
+	const auto evidence = sensor_evidence(address);
+	result.gameplay["sensors"] = sensor_projection(address, evidence);
 	result.engine_enabled = false;
 	result.radar_enabled = false;
 	for (const auto &id : seat.feed_systems)
@@ -225,7 +213,7 @@ Observation capture_console_observation(const ConsoleAddress &address, Json game
 				range = std::max(range, sensor_range(address.ship, state.id));
 		}
 		result.radar_enabled = range > 0;
-		append_sensor_contacts(address, result);
+		append_sensor_contacts(address, result, evidence);
 		return result;
 	}
 	return result;

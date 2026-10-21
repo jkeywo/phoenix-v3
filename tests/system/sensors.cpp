@@ -158,6 +158,28 @@ int main(int argc, char **argv)
 			auto source = fixture();
 			auto &ship = source["entities"][0];
 			ship["resources"] = {{"stores", Json::array({{{"id", "cell"},
+			                                              {"capacity", 1000},
+			                                              {"initial", 1000},
+			                                              {"charge_rate", 200},
+			                                              {"discharge_rate", 200}}})}};
+			ship["systems"]["radar"]["powerless_start"] = true;
+			ship["systems"]["radar"]["energy_per_second"] = 400;
+			ship["systems"]["radar"]["power_store"] = "cell";
+			World partial;
+			partial.load(load(source), "test.map");
+			require(partial.claim(101, 1, "drive"), "claim partially powered radar");
+			ticks(partial, 1);
+			const auto observation = partial.observe(101);
+			require(!observation->contacts.empty() && observation->contacts[0].definition == "Unidentified contact",
+			        "partial power detects contacts without acquiring instantaneous identity");
+			for (const auto &contact : observation->gameplay.at("sensors").at("contacts"))
+				require(!contact.at("findings").contains("basic_identity"),
+				        "contact identity and detailed evidence obey the same acquisition power rule");
+		}
+		{
+			auto source = fixture();
+			auto &ship = source["entities"][0];
+			ship["resources"] = {{"stores", Json::array({{{"id", "cell"},
 			                                              {"capacity", 100},
 			                                              {"initial", 0},
 			                                              {"charge_rate", 100},
@@ -235,6 +257,30 @@ int main(int argc, char **argv)
 			require(discovery.at("data").at("text") == "Isolated conduit" && discovery.at("observed") == 6 &&
 			            !discovery.at("live").get<bool>(),
 			        "shared finding retains its acquisition timestamp instead of publication time");
+
+			ship["systems"]["radar"]["capabilities"] = Json::object();
+			ship["systems"]["scanner"]["capabilities"]["basic_identity"] = 4;
+			ship["stations"][0]["consoles"][1]["feeds"].push_back("radar");
+			ship["publications"][0]["schema"] = "phoenix.sensor.basic_identity";
+			World identity;
+			identity.load(load(source), "test.map");
+			require(identity.claim(101, 1, "drive") && identity.claim(102, 1, "observer"), "claim shared identity");
+			command(identity, "target", 2);
+			ticks(identity, 8);
+			require(identity.observe(102)->contacts[0].definition == "Unidentified contact",
+			        "anonymous detection alone does not identify a contact");
+			require(identity.submit(101, OperatingCommand{1, "publish.scan", 0, {}}), "publish acquired identity");
+			ticks(identity, 1);
+			const auto recipient = identity.observe(102);
+			require(recipient->contacts[0].definition == recipient->gameplay.at("sensors")
+			                                                 .at("contacts")[0]
+			                                                 .at("findings")
+			                                                 .at("basic_identity")
+			                                                 .at("data")
+			                                                 .at("class")
+			                                                 .get<std::string>() &&
+			            recipient->contacts[0].definition == "Test cruiser",
+			        "deliberately shared identity resolves identically on radar and in contact details");
 		}
 		{
 			auto source = fixture();

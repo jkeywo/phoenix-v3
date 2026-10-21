@@ -51,6 +51,10 @@ Event fields are optional and reference declared scenario events. Availability i
 
 Findings enter the existing knowledge system as `phoenix.sensor.<capability>` records, with the fitted scanner as provenance. Console equipment feeds determine direct access; authored knowledge feeds and deliberate publications can share the `payload` field. Detailed observations are never automatically shipwide. Network projections use an explicit finding-field allowlist, excluding equipment faults, ammunition and weapon readiness.
 
+Radar identity and detailed readouts use one permitted evidence resolver. It selects the newest observation across fitted scanner snapshots and received knowledge records, preferring a live direct observation on equal timestamps. Instantaneous capabilities use the same power and coverage qualification as timed acquisition, including at world initialisation without advancing acquisition time. Partial power can detect an anonymous contact without acquiring its identity. A received identity can identify a detected contact without granting scanner control.
+
+Per-scanner snapshots retain independent acquisition and physical aiming state. Knowledge records retain the scoped copies used by authored feeds and deliberate publications. Changed findings publish immediately; unchanged findings publish every 20 ticks. Direct snapshots retain their per-tick observation timestamps, and received copies retain the timestamps of the evidence actually published. Shared evidence is shown as last observed rather than a direct live return.
+
 Saved sensor state contains selected targets, independent partial exposure, last observed positions, findings and timestamps. Saves otherwise compatible with the current Controller save format but lacking sensor state start with empty scans. Sensor discovery deduplication also survives restoration.
 
 ## Verification

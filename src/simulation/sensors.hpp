@@ -157,7 +157,7 @@ void publish_sensor(EntityId ship, const std::string &system, EntityId target, c
 		if (std::find(console.feed_systems.begin(), console.feed_systems.end(), system) != console.feed_systems.end())
 			knowledge.publish_scenario_console({ship, console.id}, record, tick);
 }
-void advance_sensors()
+void advance_sensors(bool acquire_timed = true)
 {
 	if (entities.empty())
 		return;
@@ -171,78 +171,78 @@ void advance_sensors()
 		if (!sensor_powered(ship, id))
 			continue;
 		const auto origin = sensor_origin(ship, d);
-		contact_index.each(
-		    Bounds::around(origin, sensor_range(ship, id)),
-		    [&](std::size_t row)
-		    {
-			    const auto &contact = contact_rows[row];
-			    if (contact.id == ship || !sensor_covers(ship, id, contact.position))
-				    return;
-			    const auto &tags = definition(contact.id).tags;
-			    const auto &shows = definition(ship).radar_shows.at(id);
-			    if (std::none_of(tags.begin(), tags.end(),
-			                     [&](const auto &tag)
-			                     {
-				                     return std::find(shows.begin(), shows.end(), tag) != shows.end();
-			                     }))
-				    return;
-			    if (!state.tracks.contains(contact.id) && state.tracks.size() >= 256)
-				    return;
-			    auto &track = state.tracks[contact.id];
-			    track.x = contact.position.x;
-			    track.y = contact.position.y;
-			    track.seen = tick;
-			    for (const auto &[cap, duration] : d.capabilities)
-			    {
-				    if (cap == "own_arcs" || cap == "findings" || (duration > 0 && state.target != contact.id))
-					    continue;
-				    auto &sample = track.samples[cap];
-				    sample.exposure = std::min(duration, sample.exposure + 1);
-				    if (sample.exposure < duration)
-					    continue;
-				    const auto data = sensor_data(ship, contact.id, cap);
-				    const bool changed = sample.data != data;
-				    sample.data = data;
-				    sample.observed = tick;
-				    if (changed || tick % 20 == 0)
-					    publish_sensor(ship, id, contact.id, cap, data, tick);
-			    }
-			    bool finding_changed = false;
-			    if (state.target == contact.id && d.capabilities.contains("findings"))
-				    for (const auto &f : sensor_findings)
-					    if (f.target == contact.id && finding_available(f) &&
-					        std::all_of(f.capabilities.begin(), f.capabilities.end(),
-					                    [&](const auto &cap)
-					                    {
-						                    return d.capabilities.contains(cap);
-					                    }))
-					    {
-						    auto &sample = track.samples["finding:" + f.id];
-						    const auto duration = std::max(f.ticks, d.capabilities.at("findings"));
-						    sample.exposure = std::min(duration, sample.exposure + 1);
-						    if (sample.exposure < duration)
-							    continue;
-						    finding_changed |= sample.data.is_null();
-						    sample.data = Json{{"id", f.id}, {"text", f.text}};
-						    sample.observed = tick;
-						    if (sensor_discoveries.emplace(ship, contact.id, f.id).second && scenario &&
-						        !f.event.empty())
-							    scenario->runtime().emit({conversation_instance, ++conversation_event_sequence, 0},
-							                             f.event,
-							                             {{"ship", static_cast<std::int64_t>(ship)},
-							                              {"amount", static_cast<std::int64_t>(contact.id)},
-							                              {"flag", true},
-							                              {"detail", f.id}});
-					    }
-			    Json findings = Json::array();
-			    for (const auto &[key, sample] : track.samples)
-				    if (key.starts_with("finding:") && !sample.data.is_null())
-					    findings.push_back(Json{{"id", sample.data.at("id")},
-					                            {"text", sample.data.at("text")},
-					                            {"observed", sample.observed}});
-			    if (!findings.empty() && (finding_changed || tick % 20 == 0))
-				    publish_sensor(ship, id, contact.id, "findings", findings, tick);
-		    });
+		contact_index.each(Bounds::around(origin, sensor_range(ship, id)),
+		                   [&](std::size_t row)
+		                   {
+			                   const auto &contact = contact_rows[row];
+			                   if (contact.id == ship || !sensor_covers(ship, id, contact.position))
+				                   return;
+			                   const auto &tags = definition(contact.id).tags;
+			                   const auto &shows = definition(ship).radar_shows.at(id);
+			                   if (std::none_of(tags.begin(), tags.end(),
+			                                    [&](const auto &tag)
+			                                    {
+				                                    return std::find(shows.begin(), shows.end(), tag) != shows.end();
+			                                    }))
+				                   return;
+			                   if (!state.tracks.contains(contact.id) && state.tracks.size() >= 256)
+				                   return;
+			                   auto &track = state.tracks[contact.id];
+			                   track.x = contact.position.x;
+			                   track.y = contact.position.y;
+			                   track.seen = tick;
+			                   for (const auto &[cap, duration] : d.capabilities)
+			                   {
+				                   if (cap == "own_arcs" || cap == "findings" ||
+				                       (duration > 0 && (!acquire_timed || state.target != contact.id)))
+					                   continue;
+				                   auto &sample = track.samples[cap];
+				                   sample.exposure = std::min(duration, sample.exposure + 1);
+				                   if (sample.exposure < duration)
+					                   continue;
+				                   const auto data = sensor_data(ship, contact.id, cap);
+				                   const bool changed = sample.data != data;
+				                   sample.data = data;
+				                   sample.observed = tick;
+				                   if (changed || tick % 20 == 0)
+					                   publish_sensor(ship, id, contact.id, cap, data, tick);
+			                   }
+			                   bool finding_changed = false;
+			                   if (acquire_timed && state.target == contact.id && d.capabilities.contains("findings"))
+				                   for (const auto &f : sensor_findings)
+					                   if (f.target == contact.id && finding_available(f) &&
+					                       std::all_of(f.capabilities.begin(), f.capabilities.end(),
+					                                   [&](const auto &cap)
+					                                   {
+						                                   return d.capabilities.contains(cap);
+					                                   }))
+					                   {
+						                   auto &sample = track.samples["finding:" + f.id];
+						                   const auto duration = std::max(f.ticks, d.capabilities.at("findings"));
+						                   sample.exposure = std::min(duration, sample.exposure + 1);
+						                   if (sample.exposure < duration)
+							                   continue;
+						                   finding_changed |= sample.data.is_null();
+						                   sample.data = Json{{"id", f.id}, {"text", f.text}};
+						                   sample.observed = tick;
+						                   if (sensor_discoveries.emplace(ship, contact.id, f.id).second && scenario &&
+						                       !f.event.empty())
+							                   scenario->runtime().emit(
+							                       {conversation_instance, ++conversation_event_sequence, 0}, f.event,
+							                       {{"ship", static_cast<std::int64_t>(ship)},
+							                        {"amount", static_cast<std::int64_t>(contact.id)},
+							                        {"flag", true},
+							                        {"detail", f.id}});
+					                   }
+			                   Json findings = Json::array();
+			                   for (const auto &[key, sample] : track.samples)
+				                   if (key.starts_with("finding:") && !sample.data.is_null())
+					                   findings.push_back(Json{{"id", sample.data.at("id")},
+					                                           {"text", sample.data.at("text")},
+					                                           {"observed", sample.observed}});
+			                   if (!findings.empty() && (finding_changed || tick % 20 == 0))
+				                   publish_sensor(ship, id, contact.id, "findings", findings, tick);
+		                   });
 	}
 }
 // Sensor mounts use only current permitted returns or their last observation.
@@ -273,10 +273,70 @@ std::optional<fixed::Vec> sensor_aim(EntityId ship, const std::string &turret)
 		}
 	return {};
 }
-Json sensor_projection(const ConsoleAddress &address) const
+// One permitted evidence view supplies both radar identity and detailed readouts.
+std::map<EntityId, Json> sensor_evidence(const ConsoleAddress &address) const
+{
+	std::map<EntityId, Json> contacts;
+	std::map<EntityId, std::uint64_t> positions;
+	const auto tick = ecs.get<Clock>().tick;
+	auto contact = [&](EntityId target) -> Json &
+	{
+		auto &row = contacts[target];
+		if (row.is_null())
+			row = Json{{"id", target}, {"findings", Json::object()}};
+		return row;
+	};
+	auto finding = [&](EntityId target, const std::string &cap, const Json &data, std::uint64_t observed, bool live)
+	{
+		auto &value = contact(target)["findings"][cap];
+		if (value.is_null() || value.at("observed") < observed ||
+		    (value.at("observed") == observed && live && !value.at("live").get<bool>()))
+			value = Json{{"data", data}, {"observed", observed}, {"live", live}};
+	};
+	for (const auto &id : seat(address.ship, address.console)->feed_systems)
+		if (definition(address.ship).sensors.contains(id))
+			for (const auto &[target, track] :
+			     instance(entities.at(address.ship), id)->entity.get<SensorRuntime>().tracks)
+			{
+				auto &row = contact(target);
+				if (!positions.contains(target) || positions.at(target) < track.seen)
+				{
+					row["x"] = track.x;
+					row["y"] = track.y;
+					positions[target] = track.seen;
+				}
+				for (const auto &[cap, sample] : track.samples)
+					if (!sample.data.is_null())
+						finding(target, cap, sample.data, sample.observed, sample.observed == tick);
+			}
+	if (knowledge.contains_ship(address.ship))
+	{
+		const auto projection = knowledge.project(address);
+		const auto &kd = knowledge.definition();
+		for (const auto *records : {&projection.records, &projection.shared})
+			for (const auto &record : *records)
+			{
+				const auto &name = kd.schemas.at(record.value.schema - 1).name;
+				if (!name.starts_with("phoenix.sensor."))
+					continue;
+				const auto field = kd.field(record.value.schema, "payload");
+				if (!record.value.fields.contains(field))
+					continue;
+				const auto cap = name.substr(15);
+				const auto payload = Json::parse(std::get<std::string>(record.value.fields.at(field)));
+				if (cap == "findings")
+					for (const auto &entry : payload)
+						finding(record.value.subject, "finding:" + entry.at("id").get<std::string>(),
+						        Json{{"id", entry.at("id")}, {"text", entry.at("text")}}, entry.at("observed"), false);
+				else
+					finding(record.value.subject, cap, payload, record.value.provenance.observed_tick, false);
+			}
+	}
+	return contacts;
+}
+Json sensor_projection(const ConsoleAddress &address, const std::map<EntityId, Json> &evidence) const
 {
 	Json out{{"scanners", Json::array()}, {"contacts", Json::array()}};
-	std::map<EntityId, Json> contacts;
 	const auto tick = ecs.get<Clock>().tick;
 	for (const auto &id : seat(address.ship, address.console)->feed_systems)
 		if (definition(address.ship).sensors.contains(id))
@@ -298,9 +358,6 @@ Json sensor_projection(const ConsoleAddress &address) const
 				scanner["blocker"] = "Target outside scanner coverage";
 			for (const auto &[target, track] : s.tracks)
 			{
-				auto &row = contacts[target];
-				if (row.is_null())
-					row = Json{{"id", target}, {"x", track.x}, {"y", track.y}, {"findings", Json::object()}};
 				for (const auto &[cap, sample] : track.samples)
 				{
 					if (target == s.target && d.capabilities.contains(cap) && d.capabilities.at(cap) > 0)
@@ -327,12 +384,6 @@ Json sensor_projection(const ConsoleAddress &address) const
 									(*found)["required"] = found->at("required").get<std::int64_t>() + required;
 								}
 							}
-					if (sample.data.is_null())
-						continue;
-					auto &finding = row["findings"][cap];
-					if (finding.is_null() || finding.at("observed") < sample.observed)
-						finding = Json{
-						    {"data", sample.data}, {"observed", sample.observed}, {"live", sample.observed == tick}};
 				}
 			}
 			for (const auto &[cap, required] : d.capabilities)
@@ -345,45 +396,7 @@ Json sensor_projection(const ConsoleAddress &address) const
 					scanner["progress"].push_back({{"capability", cap}, {"ticks", 0}, {"required", required}});
 			out["scanners"].push_back(scanner);
 		}
-	// Deliberate knowledge publications retain their observation timestamps.
-	std::vector<KnowledgeRecord> shared;
-	if (knowledge.contains_ship(address.ship))
-	{
-		auto projection = knowledge.project({address.ship, seat(address.ship, address.console)->id});
-		shared = std::move(projection.shared);
-		shared.insert(shared.end(), projection.records.begin(), projection.records.end());
-	}
-	const auto &kd = knowledge.definition();
-	for (const auto &record : shared)
-	{
-		const auto &name = kd.schemas.at(record.value.schema - 1).name;
-		if (!name.starts_with("phoenix.sensor."))
-			continue;
-		const auto field = kd.field(record.value.schema, "payload");
-		if (!record.value.fields.contains(field))
-			continue;
-		const auto cap = name.substr(15);
-		auto &row = contacts[record.value.subject];
-		if (row.is_null())
-			row = Json{{"id", record.value.subject}, {"findings", Json::object()}};
-		const auto payload = Json::parse(std::get<std::string>(record.value.fields.at(field)));
-		if (cap == "findings")
-		{
-			for (const auto &entry : payload)
-			{
-				auto &finding = row["findings"]["finding:" + entry.at("id").get<std::string>()];
-				if (finding.is_null() || finding.at("observed") < entry.at("observed"))
-					finding = Json{{"data", {{"id", entry.at("id")}, {"text", entry.at("text")}}},
-					               {"observed", entry.at("observed")},
-					               {"live", false}};
-			}
-			continue;
-		}
-		auto &finding = row["findings"][cap];
-		if (finding.is_null() || finding.at("observed") < record.value.provenance.observed_tick)
-			finding = Json{{"data", payload}, {"observed", record.value.provenance.observed_tick}, {"live", false}};
-	}
-	for (auto &[target, row] : contacts)
+	for (const auto &[target, row] : evidence)
 		out["contacts"].push_back(row);
 	return out;
 }

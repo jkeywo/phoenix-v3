@@ -2167,6 +2167,9 @@ void World::load(const Catalog &source, const std::string &map, const std::map<s
 	candidate->refresh_comms();
 	candidate->stream_fields();
 	candidate->index_contacts.run();
+	// Instant capabilities are observations even before the first simulation step.
+	// Timed acquisition must not gain exposure while constructing the world.
+	candidate->advance_sensors(false);
 	impl_ = std::move(candidate);
 }
 std::vector<ConsoleSpec> World::consoles(EntityId ship) const
