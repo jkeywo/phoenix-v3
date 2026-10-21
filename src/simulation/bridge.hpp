@@ -1,3 +1,13 @@
+// Shipwide assessment exposes no private contacts, telemetry or machinery commands.
+Json navigation_board(EntityId ship) const
+{
+	const auto &evidence = entities.at(ship).get<BridgeBlackboard>().navigation;
+	return {{"observed_tick", evidence.observed_tick},
+	        {"blocked", evidence.blocked},
+	        {"left_heading", evidence.left_heading},
+	        {"lateral_thrust", evidence.lateral_thrust},
+	        {"lateral_safe", evidence.lateral_safe}};
+}
 // Included inside World::Impl. All reads use accepted intent, including AI reads.
 bool stance_target(EntityId ship, const std::string &console) const
 {
@@ -134,4 +144,13 @@ void restore_bridge(EntityId ship, const Json &saved)
 			epoch = display::number(saved.at("epochs").at(console), 0, 9007199254740991LL);
 	}
 	state = {condition, static_cast<std::uint64_t>(revision), stances, epochs};
+	if (saved.contains("navigation"))
+	{
+		const auto &value = saved.at("navigation");
+		state.navigation = {
+		    static_cast<std::uint64_t>(display::number(value.at("observed_tick"), 0, 9007199254740991LL)),
+		    value.at("blocked").get<bool>(), value.at("lateral_safe").get<bool>(),
+		    display::number(value.at("left_heading"), 0, 359999),
+		    display::number(value.at("lateral_thrust"), -1000, 1000)};
+	}
 }

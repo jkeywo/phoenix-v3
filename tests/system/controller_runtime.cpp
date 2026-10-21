@@ -424,8 +424,14 @@ int main()
 			for (int i = 0; i < 5; ++i)
 				world.tick();
 			world.claim(101, 1, "drive");
-			require(requested(world, "port") == (visible ? 0 : 1000),
-			        "clearance must use permitted contacts rather than hidden obstacles");
+			require(requested(world, "port") == 0,
+			        "ship lookout detects close obstacles independently of sensor range");
+			require(world.claim(102, 1, "observer"), "observer can read the ship blackboard");
+			const auto observer = world.observe(102);
+			require(observer->contacts.empty(), "ship assessment does not publish private contact lists");
+			require(observer->gameplay.at("navigation").at("blocked") == true &&
+			            observer->gameplay.at("navigation") == world.public_board(1).at("navigation"),
+			        "all Consoles read the same world-derived ship assessment");
 		}
 		{
 			auto source = controller_fixture();

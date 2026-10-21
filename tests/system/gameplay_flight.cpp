@@ -1513,8 +1513,8 @@ void lateral_controls_and_delegation()
 	require(blind.claim(101, 1, "helm"), "blind mixed-ownership Helm remains claimable");
 	for (int tick = 0; tick < 4; ++tick)
 		blind.tick();
-	require(telemetry(blind, "side", "actual_lateral") == 0,
-	        "lateral AI cannot avoid an obstruction absent from its permitted navigation evidence");
+	require(telemetry(blind, "side", "actual_lateral") != 0,
+	        "ship lookout avoids close obstacles independently of radar visibility");
 	for (auto &profile : source["entities"][0]["control_layout"]["profiles"])
 	{
 		auto &console = profile["consoles"]["helm"];

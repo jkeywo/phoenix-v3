@@ -168,3 +168,9 @@ This explicit test-only probe edits the initial command, verifies/exports/reopen
 All Controller decisions use the hierarchical evaluator. The former object-keyed timed tree format is rejected. For a cycle, author states with `running` actions marked `once: true` and transitions comparing `{"elapsed": true}` against the duration using `ge`. Running actions execute on the first tick in each state; the next state's outputs start the following tick, including for one-tick states. Use explicit owned `command_bindings` and `write.<channel>` actions. Human-to-AI handover restarts at the initial state while normal Controller command preservation applies.
 
 World and portable saves from schema 6 or earlier require a new session. Existing save files are preserved; no continuation conversion is attempted.
+
+## Ship navigation assessment
+
+The ship computes obstacle clearance and lateral-avoidance evidence once per fixed tick, before Controller trees run. This close-in lookout reads physical world geometry and motion directly, as a crew watching the Viewscreen would; radar range, fog and Console feeds do not limit it. The entity blackboard publishes `navigation` with `observed_tick`, `blocked`, `left_heading`, `lateral_thrust` and `lateral_safe`. Every Console and Controller on that ship can read this shared assessment without receiving another Console's private contact list or telemetry.
+
+Existing `navigation.blocked`, `navigation.left_heading`, `navigation.lateral_thrust` and `navigation.lateral_safe` tree observations read that blackboard. Assessment never writes machinery commands. Lateral recommendations consider AI-owned lateral machinery; human-owned channels remain under their operator's authority. Saves retain the latest blackboard assessment for consistent checkpoint presentation; older saves without it start with an empty assessment. The ship recomputes it before the next Controller step after load/resume.

@@ -1048,6 +1048,7 @@ struct World::Impl
 							publish_waypoint(id, state, true);
 					}
 	}
+#include "navigation_assessment.hpp"
 #include "controller_execution.hpp"
 	std::int64_t sensor_range(EntityId ship, const std::string &name) const
 	{
@@ -2096,6 +2097,9 @@ void World::tick()
 		}
 	for (const auto &[id, entity] : impl_->entities)
 		if (entity.has<EntityControls>())
+			impl_->refresh_navigation_blackboard(id);
+	for (const auto &[id, entity] : impl_->entities)
+		if (entity.has<EntityControls>())
 			for (const auto &controller : entity.get<EntityControls>().controllers)
 			{
 				const ConsoleAddress address{id, controller.definition.console};
@@ -2224,6 +2228,7 @@ Json World::public_board(EntityId entity) const
 {
 	auto board = impl_->knowledge.public_board(entity);
 	board["alert"] = impl_->alert_board(entity);
+	board["navigation"] = impl_->navigation_board(entity);
 	board["sidebar"] = Json::array();
 	const auto &bridge_data = impl_->definition(entity);
 	for (const auto &seat : bridge_data.consoles)
@@ -2320,6 +2325,7 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	Observation result = impl_->capture_console_observation(address);
 	result.gameplay = impl_->knowledge.project_json(address);
 	result.gameplay["alert"] = impl_->alert_board(address.ship);
+	result.gameplay["navigation"] = impl_->navigation_board(address.ship);
 	result.gameplay["stance"] = impl_->stance_board(address);
 	if (entity.has<EntityControls>())
 		result.gameplay["controllers"] = impl_->project_controllers(address);
@@ -2731,7 +2737,8 @@ Json World::save() const
 			result["bodies"].back()["bridge"] = {{"condition", bridge->condition},
 			                                     {"revision", bridge->revision},
 			                                     {"stances", bridge->stances},
-			                                     {"epochs", bridge->epochs}};
+			                                     {"epochs", bridge->epochs},
+			                                     {"navigation", impl_->navigation_board(id)}};
 	}
 	if (impl_->gameplay)
 	{

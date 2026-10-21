@@ -150,6 +150,16 @@ static inline Json public_board_json(const Json &source)
 		selected["display"] = display::sanitise(source.at("display"));
 	if (source.contains("alert") && !source.at("alert").empty())
 		selected["alert"] = alert_json(source.at("alert"));
+	if (source.contains("navigation"))
+	{
+		const auto &navigation = source.at("navigation");
+		selected["navigation"] = {
+		    {"observed_tick", display::number(navigation.at("observed_tick"), 0, 9007199254740991LL)},
+		    {"blocked", navigation.at("blocked").get<bool>()},
+		    {"left_heading", display::number(navigation.at("left_heading"), 0, 359999)},
+		    {"lateral_thrust", display::number(navigation.at("lateral_thrust"), -1000, 1000)},
+		    {"lateral_safe", navigation.at("lateral_safe").get<bool>()}};
+	}
 	auto result = bounded_gameplay(selected);
 	const auto omissions = source.value("omitted", Json::object());
 	if (!omissions.is_object())

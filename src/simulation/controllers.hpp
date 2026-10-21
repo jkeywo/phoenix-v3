@@ -71,12 +71,19 @@ struct EntityControls
 	std::map<std::string, std::size_t> profiles;
 };
 // Accepted ship/Console intent blackboards; never physical actuator state.
+struct NavigationEvidence
+{
+	std::uint64_t observed_tick = 0;
+	bool blocked = false, lateral_safe = false;
+	std::int64_t left_heading = 0, lateral_thrust = 0;
+};
 struct BridgeBlackboard
 {
 	std::size_t condition = 0;
 	std::uint64_t revision = 0;
 	std::map<std::string, std::size_t> stances;
 	std::map<std::string, std::uint64_t> epochs;
+	NavigationEvidence navigation;
 };
 struct ControllerProposal
 {
