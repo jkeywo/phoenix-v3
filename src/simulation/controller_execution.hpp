@@ -368,6 +368,8 @@ void controller_output(EntityId id, std::size_t index, const state_tree::Output 
 	                                               false,
 	                                               arguments});
 	controller.result.reason = controller.result.success ? "" : "Controller command refused";
+	if (execution && controller.result.success)
+		controller.action_writes.insert(field);
 	if (execution && !controller.result.success && controller.action.status == "running")
 	{
 		controller.action.status = "failed";
@@ -661,6 +663,7 @@ void consume_controller_commands(flecs::entity entity)
 {
 	auto &controls = entity.get_mut<EntityControls>();
 	std::set<std::size_t> destinations;
+	std::set<std::size_t> failed_actions;
 	// Consume changes, not repeated method calls: speed writes must not cancel Match Speed every tick.
 	for (auto &controller : controls.controllers)
 		for (std::size_t i = 0; i < controller.commands.size(); ++i)
@@ -693,7 +696,17 @@ void consume_controller_commands(flecs::entity entity)
 				destinations.insert(command.consumers.begin(), command.consumers.end());
 			value.accepted = admitted;
 			value.consumed = value.revision;
+			if (!admitted && controller.action.status == "running" && controller.action_writes.contains(i))
+				failed_actions.insert(static_cast<std::size_t>(&controller - controls.controllers.data()));
 		}
+	for (const auto index : failed_actions)
+	{
+		auto &controller = controls.controllers[index];
+		const auto observations = controller_observations(entity.get<StableId>().id, controller);
+		cancel_controller_action(entity.get<StableId>().id, index, "command_refused", observations);
+		controller.action.status = "failed";
+		controller.action.reason = "command_refused";
+	}
 	// A destination chooses guidance, while a bound cruise channel remains the
 	// persistent speed setting. Compose them after all changed modes are consumed,
 	// independent of Controller/channel order. Destination-only fittings retain
@@ -813,7 +826,8 @@ Json save_controllers(flecs::entity entity) const
 		row["effects"] = controller.effects;
 		if (!controller.action.id.empty())
 			row["action"] = save_controller_action(controller);
-		if (!controller.incoming_requests.empty() || !controller.outgoing_requests.empty())
+		if (!controller.incoming_requests.empty() || !controller.outgoing_requests.empty() ||
+		    !controller.coordination_receipts.empty())
 			row["coordination"] = save_controller_coordination(controller);
 		result["controllers"].push_back(std::move(row));
 	}
@@ -883,6 +897,7 @@ void restore_controllers(flecs::entity entity, const Json &saved)
 		{
 			controller.incoming_requests.clear();
 			controller.outgoing_requests.clear();
+			controller.coordination_receipts.clear();
 		}
 
 		const auto &result = row.at("result");

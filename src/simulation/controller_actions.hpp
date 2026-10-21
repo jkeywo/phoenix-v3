@@ -6,7 +6,7 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 	facts[2] = observed.own.heading;
 	facts[6] = facts[7] = 1000;
 	EntityId current = 0;
-	std::int64_t repair = 0;
+	std::int64_t repair = 0, repair_system = 0;
 	for (std::size_t i = 0; i < controller.commands.size(); ++i)
 	{
 		const auto &spec = controller.definition.commands[i];
@@ -14,6 +14,8 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 			current = controller.commands[i].value;
 		if (spec.action == OperatingAction::RepairCompartment)
 			repair = controller.commands[i].value;
+		if (spec.action == OperatingAction::RepairSystem)
+			repair_system = controller.commands[i].value;
 		if (spec.action == OperatingAction::Speed)
 		{
 			facts[9] = spec.maximum / 2;
@@ -40,14 +42,41 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 		facts[2] = combat_bearing({target->x - observed.own.x, target->y - observed.own.y});
 	}
 	const auto combat = observed.gameplay.value("combat", Json::object());
-	int best_priority = -1;
+	// Equipment indices are static fitting metadata. Candidate damage and duties
+	// come only from this Console's permitted snapshot and its accepted requests.
+	const auto &structure = definition(observed.own.id).combat;
+	std::set<std::int64_t> disabled_compartments;
+	for (const auto &compartment : combat.value("compartments", Json::array()))
+		if (compartment.at("disabled").get<bool>())
+			disabled_compartments.insert(compartment.at("index").get<std::int64_t>());
+	const auto needed = [&](std::int64_t compartment)
+	{
+		return std::any_of(controller.incoming_requests.begin(), controller.incoming_requests.end(),
+		                   [&](const auto &request)
+		                   {
+			                   return request.operation == OfficerOperation::Repair &&
+			                          request.status == OfficerStatus::Accepted && request.target == compartment &&
+			                          request.expires > ecs.get<Clock>().tick;
+		                   });
+	};
+	const auto priority_for = [&](std::int64_t compartment, bool disabled)
+	{
+		return disabled ? (needed(compartment) ? 3 : 2) : 1;
+	};
+	const auto better =
+	    [](int priority, int best_priority, std::int64_t candidate, std::int64_t best, std::int64_t current)
+	{
+		return priority > best_priority || (priority == best_priority &&
+		                                    (candidate == current || (best != current && (!best || candidate < best))));
+	};
+	int best_priority = -1, best_system_priority = -1;
 	for (const auto &compartment : combat.value("compartments", Json::array()))
 	{
 		if (compartment.at("hp") >= compartment.at("maximum"))
 			continue;
-		const auto priority = compartment.at("disabled").get<bool>() ? 2 : 1;
 		const auto candidate = compartment.at("index").get<std::int64_t>();
-		if (priority > best_priority || (priority == best_priority && candidate == repair))
+		const auto priority = priority_for(candidate, disabled_compartments.contains(candidate));
+		if (better(priority, best_priority, candidate, facts[4], repair))
 		{
 			best_priority = priority;
 			facts[4] = candidate;
@@ -60,15 +89,32 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 		const auto candidate = fault.value("compartment_index", std::int64_t{0});
 		if (!candidate)
 			continue;
-		int priority = 1;
+		const auto system_id = fault.at("system").get<std::string>();
+		bool disabled = disabled_compartments.contains(candidate);
 		for (const auto &system : observed.systems)
-			if (system.id == fault.at("system").get<std::string>() && system.telemetry.contains("enabled") &&
-			    !system.telemetry.at("enabled"))
-				priority = 2;
-		if (priority > best_priority || (priority == best_priority && candidate == repair))
+			if (system.id == system_id)
+				disabled =
+				    disabled || (system.telemetry.contains("enabled") && !system.telemetry.at("enabled")) ||
+				    (system.telemetry.contains("structural_disabled") && system.telemetry.at("structural_disabled"));
+		const auto priority = priority_for(candidate, disabled);
+		if (better(priority, best_priority, candidate, facts[4], repair))
 		{
 			best_priority = priority;
 			facts[4] = candidate;
+		}
+		if (structure)
+		{
+			const auto at = structure->equipment_compartments.find(system_id);
+			if (at != structure->equipment_compartments.end())
+			{
+				const auto system =
+				    static_cast<std::int64_t>(std::distance(structure->equipment_compartments.begin(), at)) + 1;
+				if (better(priority, best_system_priority, system, facts[5], repair_system))
+				{
+					best_system_priority = priority;
+					facts[5] = system;
+				}
+			}
 		}
 	}
 	bool point_defence = false;
@@ -222,6 +268,7 @@ bool select_controller_action(EntityId id, std::size_t index, const std::string 
 void run_controller_action(EntityId id, std::size_t index, std::span<const state_tree::Value> source)
 {
 	auto &controller = entities.at(id).get_mut<EntityControls>().controllers.at(index);
+	controller.action_writes.clear();
 	if (controller.action.status != "running")
 		return;
 	const auto &spec = controller_action_spec(controller);

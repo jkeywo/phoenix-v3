@@ -21190,8 +21190,8 @@
 					],
 					"entry": [
 						{
-							"action": "coordination.withdraw",
-							"arguments": ["power"]
+							"action": "coordination.withdraw_from",
+							"arguments": ["power", "engineering", "core.generator"]
 						},
 						{
 							"action": "action.cancel",
@@ -21262,21 +21262,19 @@
 					],
 					"entry": [
 						{
-							"action": "coordination.withdraw",
-							"arguments": ["power"]
+							"action": "coordination.withdraw_from",
+							"arguments": ["power", "engineering", "core.generator"]
 						}
 					]
 				},
 				{
-					"entry": [
-						{
-							"action": "coordination.request",
-							"arguments": ["power", "engineering", "core.generator", 0, 8000, 1, 600]
-						}
-					],
 					"id": "limited",
 					"parent": "orders",
 					"running": [
+						{
+							"action": "coordination.maintain",
+							"arguments": ["power", "engineering", "core.generator", 0, 8000, 1, 600, 40]
+						},
 						{
 							"action": "select.act_2cfba4c387d2",
 							"arguments": [
@@ -21447,8 +21445,8 @@
 							"arguments": ["base.action.2a9a60bf3ced", 0]
 						},
 						{
-							"action": "coordination.withdraw",
-							"arguments": ["power"]
+							"action": "coordination.withdraw_from",
+							"arguments": ["power", "engineering", "core.generator"]
 						}
 					],
 					"id": "arrived",
@@ -21494,8 +21492,8 @@
 					],
 					"entry": [
 						{
-							"action": "coordination.withdraw",
-							"arguments": ["power"]
+							"action": "coordination.withdraw_from",
+							"arguments": ["power", "engineering", "core.generator"]
 						}
 					]
 				},
@@ -24891,8 +24889,8 @@
 					],
 					"entry": [
 						{
-							"action": "coordination.withdraw",
-							"arguments": ["power"]
+							"action": "coordination.withdraw_from",
+							"arguments": ["power", "engineering", "core.generator"]
 						},
 						{
 							"action": "action.cancel",
@@ -24963,21 +24961,19 @@
 					],
 					"entry": [
 						{
-							"action": "coordination.withdraw",
-							"arguments": ["power"]
+							"action": "coordination.withdraw_from",
+							"arguments": ["power", "engineering", "core.generator"]
 						}
 					]
 				},
 				{
-					"entry": [
-						{
-							"action": "coordination.request",
-							"arguments": ["power", "engineering", "core.generator", 0, 8000, 1, 600]
-						}
-					],
 					"id": "limited",
 					"parent": "orders",
 					"running": [
+						{
+							"action": "coordination.maintain",
+							"arguments": ["power", "engineering", "core.generator", 0, 8000, 1, 600, 40]
+						},
 						{
 							"action": "select.act_2cfba4c387d2",
 							"arguments": [
@@ -25148,8 +25144,8 @@
 							"arguments": ["base.action.2a9a60bf3ced", 0]
 						},
 						{
-							"action": "coordination.withdraw",
-							"arguments": ["power"]
+							"action": "coordination.withdraw_from",
+							"arguments": ["power", "engineering", "core.generator"]
 						}
 					],
 					"id": "arrived",
@@ -25195,8 +25191,8 @@
 					],
 					"entry": [
 						{
-							"action": "coordination.withdraw",
-							"arguments": ["power"]
+							"action": "coordination.withdraw_from",
+							"arguments": ["power", "engineering", "core.generator"]
 						}
 					]
 				},
@@ -29051,26 +29047,10 @@
 				},
 				{
 					"id": "request",
-					"entry": [
-						{
-							"action": "coordination.request",
-							"arguments": [
-								"manoeuvre",
-								"helm",
-								"drive",
-								{
-									"observation": "tactical.target"
-								},
-								35000,
-								1,
-								1200
-							]
-						}
-					],
 					"exit": [
 						{
-							"action": "coordination.withdraw",
-							"arguments": ["manoeuvre"]
+							"action": "coordination.withdraw_from",
+							"arguments": ["manoeuvre", "helm", "drive"]
 						}
 					],
 					"transitions": [
@@ -29084,6 +29064,23 @@
 									"op": "eq",
 									"right": 0
 								}
+							]
+						}
+					],
+					"running": [
+						{
+							"action": "coordination.maintain",
+							"arguments": [
+								"manoeuvre",
+								"helm",
+								"drive",
+								{
+									"observation": "tactical.target"
+								},
+								35000,
+								1,
+								1200,
+								40
 							]
 						}
 					]
@@ -29114,26 +29111,10 @@
 				},
 				{
 					"id": "request",
-					"entry": [
-						{
-							"action": "coordination.request",
-							"arguments": [
-								"manoeuvre",
-								"helm",
-								"helm",
-								{
-									"observation": "tactical.target"
-								},
-								35000,
-								1,
-								1200
-							]
-						}
-					],
 					"exit": [
 						{
-							"action": "coordination.withdraw",
-							"arguments": ["manoeuvre"]
+							"action": "coordination.withdraw_from",
+							"arguments": ["manoeuvre", "helm", "helm"]
 						}
 					],
 					"transitions": [
@@ -29147,6 +29128,23 @@
 									"op": "eq",
 									"right": 0
 								}
+							]
+						}
+					],
+					"running": [
+						{
+							"action": "coordination.maintain",
+							"arguments": [
+								"manoeuvre",
+								"helm",
+								"helm",
+								{
+									"observation": "tactical.target"
+								},
+								35000,
+								1,
+								1200,
+								40
 							]
 						}
 					]
@@ -29177,26 +29175,10 @@
 				},
 				{
 					"id": "request",
-					"entry": [
-						{
-							"action": "coordination.request",
-							"arguments": [
-								"power",
-								"support",
-								"reactor",
-								0,
-								{
-									"observation": "support.power"
-								},
-								1,
-								1200
-							]
-						}
-					],
 					"exit": [
 						{
-							"action": "coordination.withdraw",
-							"arguments": ["power"]
+							"action": "coordination.withdraw_from",
+							"arguments": ["power", "support", "reactor"]
 						}
 					],
 					"transitions": [
@@ -29210,6 +29192,23 @@
 									"op": "eq",
 									"right": 0
 								}
+							]
+						}
+					],
+					"running": [
+						{
+							"action": "coordination.maintain",
+							"arguments": [
+								"power",
+								"support",
+								"reactor",
+								0,
+								{
+									"observation": "support.power"
+								},
+								1,
+								1200,
+								40
 							]
 						}
 					]
@@ -29240,26 +29239,10 @@
 				},
 				{
 					"id": "request",
-					"entry": [
-						{
-							"action": "coordination.request",
-							"arguments": [
-								"repair",
-								"support",
-								"team-1",
-								{
-									"observation": "repair.compartment"
-								},
-								1,
-								1,
-								1200
-							]
-						}
-					],
 					"exit": [
 						{
-							"action": "coordination.withdraw",
-							"arguments": ["repair"]
+							"action": "coordination.withdraw_from",
+							"arguments": ["repair", "support", "team-1"]
 						}
 					],
 					"transitions": [
@@ -29273,6 +29256,23 @@
 									"op": "eq",
 									"right": 0
 								}
+							]
+						}
+					],
+					"running": [
+						{
+							"action": "coordination.maintain",
+							"arguments": [
+								"repair",
+								"support",
+								"team-1",
+								{
+									"observation": "repair.compartment"
+								},
+								1,
+								1,
+								1200,
+								40
 							]
 						}
 					]

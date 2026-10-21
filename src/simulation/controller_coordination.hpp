@@ -9,6 +9,20 @@ static std::size_t officer_index(const std::array<const char *, N> &names, const
 			return i;
 	throw std::runtime_error("Unknown officer protocol value: " + name);
 }
+bool officer_supports(const ConsoleControllerRuntime &controller, OfficerOperation operation) const
+{
+	return std::any_of(
+	    controller.definition.commands.begin(), controller.definition.commands.end(),
+	    [&](const auto &command)
+	    {
+		    return (operation == OfficerOperation::Power && command.action == OperatingAction::GeneratorOutput) ||
+		           (operation == OfficerOperation::Cooling && command.action == OperatingAction::CoolingAllocation) ||
+		           (operation == OfficerOperation::Repair && command.action == OperatingAction::RepairCompartment) ||
+		           (operation == OfficerOperation::Manoeuvre &&
+		            (command.action == OperatingAction::FollowContact || command.action == OperatingAction::Heading ||
+		             command.action == OperatingAction::Speed));
+	    });
+}
 const OfficerRequest *officer_pending(const ConsoleControllerRuntime &controller) const
 {
 	const OfficerRequest *best = nullptr;
@@ -19,7 +33,7 @@ const OfficerRequest *officer_pending(const ConsoleControllerRuntime &controller
 	for (const auto &r : controller.incoming_requests)
 		if ((r.status == OfficerStatus::Requested || r.status == OfficerStatus::Accepted ||
 		     (r.status == OfficerStatus::Completed && r.operation != OfficerOperation::Repair)) &&
-		    r.expires > ecs.get<Clock>().tick)
+		    r.expires > ecs.get<Clock>().tick && officer_supports(controller, r.operation))
 			if (!best || r.priority > best->priority ||
 			    (r.priority == best->priority && committed(r) && !committed(*best)) ||
 			    (r.priority == best->priority && committed(r) == committed(*best) && r.id < best->id))
@@ -77,11 +91,33 @@ void process_controller_coordination(EntityId id, std::size_t index)
 	const auto schema = knowledge.definition().schema("phoenix.coordination");
 	const auto inbox =
 	    controller_inboxes.contains(address) ? controller_inboxes.at(address) : knowledge.peek_controller(address);
+	std::set<KnowledgeId> pending_protocol;
+	for (const auto &delivery : inbox)
+		if (delivery.message.value.payload.schema == schema)
+			pending_protocol.insert(delivery.message.id);
+	std::erase_if(controller.coordination_receipts,
+	              [&](const auto message)
+	              {
+		              return !pending_protocol.contains(message);
+	              });
+	bool protocol_prefix = true;
 	for (const auto &delivery : inbox)
 	{
 		const auto &m = delivery.message;
 		if (m.value.payload.schema != schema)
-			break;
+		{
+			protocol_prefix = false;
+			continue;
+		}
+		if (controller.coordination_receipts.contains(m.id))
+		{
+			if (protocol_prefix)
+			{
+				knowledge.acknowledge_controller(address, m.id);
+				controller.coordination_receipts.erase(m.id);
+			}
+			continue;
+		}
 		const auto &fields = m.value.payload.fields;
 		const auto value = [&](const char *name) -> const KnowledgeValue &
 		{
@@ -98,6 +134,8 @@ void process_controller_coordination(EntityId id, std::size_t index)
 			r.id = m.id;
 			r.target = std::get<std::int64_t>(value("target"));
 			r.amount = std::get<std::int64_t>(value("amount"));
+			r.requested_amount = r.amount;
+			r.reply_tick = ecs.get<Clock>().tick;
 			r.priority = std::get<std::int64_t>(value("priority"));
 			r.expires = std::get<std::int64_t>(value("expires"));
 			r.reason = std::get<std::string>(value("reason"));
@@ -105,7 +143,15 @@ void process_controller_coordination(EntityId id, std::size_t index)
 			if (!r.expires)
 				r.expires = m.value.expires_tick;
 			if (r.priority < 0 || r.priority > 2 || r.amount < 0 || r.amount > 1000000000 ||
-			    r.expires <= ecs.get<Clock>().tick)
+			    r.expires <= ecs.get<Clock>().tick || r.expires > ecs.get<Clock>().tick + 72000 ||
+			    m.value.payload.subject != id ||
+			    std::none_of(entities.at(id).get<EntityControls>().controllers.begin(),
+			                 entities.at(id).get<EntityControls>().controllers.end(),
+			                 [&](const auto &owner)
+			                 {
+				                 return knowledge.controller_id({id, owner.definition.console, owner.definition.id}) ==
+				                        r.peer;
+			                 }))
 				throw std::runtime_error("Invalid or expired request");
 			if (correlation == 0 && r.status == OfficerStatus::Requested)
 			{
@@ -115,7 +161,15 @@ void process_controller_coordination(EntityId id, std::size_t index)
 					                 return v.id == r.id;
 				                 }) &&
 				    controller.incoming_requests.size() < 128)
+				{
+					if (!officer_supports(controller, r.operation))
+					{
+						r.status = OfficerStatus::Refused;
+						r.reason = "unsupported_operation";
+						officer_message(id, controller, r, true);
+					}
 					controller.incoming_requests.push_back(r);
+				}
 			}
 			else
 			{
@@ -123,7 +177,7 @@ void process_controller_coordination(EntityId id, std::size_t index)
 				    r.status == OfficerStatus::Cancelled ? controller.incoming_requests : controller.outgoing_requests;
 				for (auto &original : requests)
 					if (original.id == static_cast<KnowledgeId>(correlation) && original.peer == r.peer &&
-					    original.operation == r.operation &&
+					    original.operation == r.operation && original.target == r.target &&
 					    (original.status == OfficerStatus::Requested || original.status == OfficerStatus::Accepted ||
 					     original.status == OfficerStatus::Completed))
 					{
@@ -132,13 +186,21 @@ void process_controller_coordination(EntityId id, std::size_t index)
 						      r.reason == "accept_requested_limit"))
 							original.amount = r.amount;
 						original.reason = r.reason;
+						original.reply_tick = ecs.get<Clock>().tick;
 					}
 			}
 		}
 		catch (const std::exception &)
 		{ /* Malformed protocol data is not a command. */
 		}
-		knowledge.acknowledge_controller(address, m.id);
+		if (protocol_prefix)
+			knowledge.acknowledge_controller(address, m.id);
+		else
+		{
+			if (controller.coordination_receipts.size() >= 65536)
+				throw std::runtime_error("Unbounded officer protocol receipts");
+			controller.coordination_receipts.insert(m.id);
+		}
 	}
 	for (auto *list : {&controller.incoming_requests, &controller.outgoing_requests})
 	{
@@ -149,11 +211,12 @@ void process_controller_coordination(EntityId id, std::size_t index)
 			{
 				r.status = OfficerStatus::Failed;
 				r.reason = "expired";
+				r.reply_tick = ecs.get<Clock>().tick;
 			}
 		std::erase_if(*list,
 		              [&](const auto &r)
 		              {
-			              return r.expires + 20 < ecs.get<Clock>().tick;
+			              return std::max(r.expires + 20, r.reply_tick + r.retry_ticks) < ecs.get<Clock>().tick;
 		              });
 	}
 	if (controller.action.id == "officer_support" && controller.action.status == "running")
@@ -209,13 +272,28 @@ void controller_coordination_facts(const ConsoleControllerRuntime &controller, c
 	for (std::size_t i = 0; i < numbers.size(); ++i)
 		values.at(at + 5 + i) = state_tree::Value::integer(numbers[i]);
 	bool feasible = false, done = false, blocked = false;
-	std::int64_t limit = r->amount, bearing = observed.own.heading, range = 0;
+	std::int64_t limit = r->requested_amount, bearing = observed.own.heading, range = 0;
 	if (r->operation == OfficerOperation::Power || r->operation == OfficerOperation::Cooling)
 		for (const auto &read : controller.brain->command_reads)
 			if (controller.brain->program.registry.observations.at(read.destination).name == "summary.level" &&
 			    values.at(read.destination).type == state_tree::Type::Integer)
 				limit = std::min(limit, values.at(read.destination).number);
 	const auto &entity = entities.at(observed.own.id);
+	const bool supply = r->operation == OfficerOperation::Power || r->operation == OfficerOperation::Cooling;
+	std::int64_t supply_minimum = 0, supply_maximum = 1000000000;
+	if (supply)
+	{
+		done = true;
+		for (const auto &command : controller.definition.commands)
+			if ((r->operation == OfficerOperation::Power && command.action == OperatingAction::GeneratorOutput) ||
+			    (r->operation == OfficerOperation::Cooling && command.action == OperatingAction::CoolingAllocation))
+			{
+				supply_minimum = std::max(supply_minimum, command.minimum);
+				supply_maximum = std::min(supply_maximum, command.maximum);
+			}
+		if (supply_minimum <= supply_maximum)
+			limit = std::clamp(limit, supply_minimum, supply_maximum);
+	}
 	for (const auto &command : controller.definition.commands)
 	{
 		const bool supports =
@@ -223,20 +301,28 @@ void controller_coordination_facts(const ConsoleControllerRuntime &controller, c
 		    (r->operation == OfficerOperation::Cooling && command.action == OperatingAction::CoolingAllocation);
 		if (supports)
 		{
-			limit = std::clamp(limit, command.minimum, command.maximum);
 			for (const auto consumer : command.consumers)
+			{
+				bool seen = false;
 				for (const auto &system : observed.systems)
 					if (system.id == (*fittings(entity)).values[consumer].id)
 					{
 						const auto &t = system.telemetry;
+						seen = true;
 						feasible = true;
-						blocked = (t.contains("enabled") && !t.at("enabled")) ||
+						blocked = blocked || (t.contains("enabled") && !t.at("enabled")) ||
 						          (t.contains("thermal_stopped") && t.at("thermal_stopped"));
 						const auto field =
 						    r->operation == OfficerOperation::Power ? "actual_output" : "actual_coolant_used";
-						done = t.contains(field) &&
+						done = done && t.contains(field) &&
 						       (r->operation == OfficerOperation::Power ? t.at(field) == limit : t.at(field) >= limit);
 					}
+				if (!seen)
+				{
+					blocked = true;
+					done = false;
+				}
+			}
 		}
 		if (r->operation == OfficerOperation::Manoeuvre &&
 		    (command.action == OperatingAction::FollowContact || command.action == OperatingAction::Heading ||
@@ -249,7 +335,7 @@ void controller_coordination_facts(const ConsoleControllerRuntime &controller, c
 					bearing = combat_bearing({contact.x - observed.own.x, contact.y - observed.own.y});
 					done = range <= r->amount;
 					const auto &bridge = entity.get<BridgeBlackboard>();
-					blocked = bridge.navigation.blocked;
+					blocked = blocked || bridge.navigation.blocked;
 					if (bridge.stances.contains(controller.definition.console))
 						blocked = blocked || definition(observed.own.id)
 						                             .console_bridge.at(controller.definition.console)
@@ -285,6 +371,12 @@ void controller_coordination_facts(const ConsoleControllerRuntime &controller, c
 					blocked = true;
 			}
 	const auto &stance = values.at(controller.brain->own[ControllerOwnField::Stance]);
+	if (supply && (supply_minimum > supply_maximum || r->requested_amount < supply_minimum))
+	{
+		feasible = false;
+		blocked = true;
+		done = false;
+	}
 	if (stance.type == state_tree::Type::Text && !stance.text.empty() &&
 	    stance.text != controller.brain->routine_stance)
 		blocked = true;
@@ -304,16 +396,20 @@ bool controller_coordination_action(EntityId id, std::size_t index, const std::s
                                     std::span<const state_tree::Value> args)
 {
 	auto &controller = entities.at(id).get_mut<EntityControls>().controllers.at(index);
-	if (name == "coordination.request")
+	if (name == "coordination.request" || name == "coordination.maintain")
 	{
+		const bool maintain = name == "coordination.maintain";
 		OfficerRequest r;
 		r.operation = static_cast<OfficerOperation>(officer_index(officer_operations, args[0].text));
 		r.peer = knowledge.controller_id({id, args[1].text, args[2].text});
 		r.target = args[3].number;
 		r.amount = args[4].number;
+		r.requested_amount = r.amount;
+		r.reply_tick = ecs.get<Clock>().tick;
+		r.retry_ticks = maintain ? args[7].number : 0;
 		r.priority = args[5].number;
 		if (r.amount < 0 || r.amount > 1000000000 || r.priority < 0 || r.priority > 2 || args[6].number < 1 ||
-		    args[6].number > 72000)
+		    args[6].number > 72000 || (maintain && (args[7].number < 1 || args[7].number > 72000)))
 			return false;
 		if (r.operation == OfficerOperation::Manoeuvre || r.operation == OfficerOperation::Repair)
 		{
@@ -343,28 +439,55 @@ bool controller_coordination_action(EntityId id, std::size_t index, const std::s
 				return false;
 		}
 		r.expires = ecs.get<Clock>().tick + args[6].number;
-		for (const auto &old : controller.outgoing_requests)
-			if (old.peer == r.peer && old.operation == r.operation && old.target == r.target &&
-			    old.expires > ecs.get<Clock>().tick &&
-			    (old.status == OfficerStatus::Requested || old.status == OfficerStatus::Accepted ||
-			     old.status == OfficerStatus::Completed))
-				return true;
+		bool replaced = false;
+		for (auto &old : controller.outgoing_requests)
+			if (old.peer == r.peer && old.operation == r.operation)
+			{
+				const bool same =
+				    old.target == r.target && old.requested_amount == r.requested_amount && old.priority == r.priority;
+				const bool active =
+				    old.expires > ecs.get<Clock>().tick &&
+				    (old.status == OfficerStatus::Requested || old.status == OfficerStatus::Accepted ||
+				     (old.status == OfficerStatus::Completed && old.operation != OfficerOperation::Repair));
+				if (same && active)
+					return true;
+				if (active)
+				{
+					replaced = true;
+					old.status = OfficerStatus::Cancelled;
+					old.reason = "request_replaced";
+					old.reply_tick = ecs.get<Clock>().tick;
+					officer_message(id, controller, old, true);
+				}
+			}
+		if (maintain && !replaced)
+			for (auto old = controller.outgoing_requests.rbegin(); old != controller.outgoing_requests.rend(); ++old)
+				if (old->peer == r.peer && old->operation == r.operation)
+				{
+					if (old->target == r.target && old->requested_amount == r.requested_amount &&
+					    old->priority == r.priority && ecs.get<Clock>().tick < old->reply_tick + args[7].number)
+						return true;
+					break;
+				}
 		if (controller.outgoing_requests.size() >= 128)
 			return false;
 		r.id = officer_message(id, controller, r, false);
 		controller.outgoing_requests.push_back(r);
 		return true;
 	}
-	if (name == "coordination.withdraw")
+	if (name == "coordination.withdraw" || name == "coordination.withdraw_from")
 	{
 		const auto op = static_cast<OfficerOperation>(officer_index(officer_operations, args[0].text));
+		const auto peer =
+		    name == "coordination.withdraw_from" ? knowledge.controller_id({id, args[1].text, args[2].text}) : 0;
 		for (auto &r : controller.outgoing_requests)
-			if (r.operation == op &&
+			if (r.operation == op && (!peer || r.peer == peer) &&
 			    (r.status == OfficerStatus::Requested || r.status == OfficerStatus::Accepted ||
 			     (r.status == OfficerStatus::Completed && r.operation != OfficerOperation::Repair)))
 			{
 				r.status = OfficerStatus::Cancelled;
 				r.reason = "no_longer_required";
+				r.reply_tick = ecs.get<Clock>().tick;
 				officer_message(id, controller, r, true);
 			}
 		return true;
@@ -385,6 +508,7 @@ bool controller_coordination_action(EntityId id, std::size_t index, const std::s
 			r.status = status;
 			r.amount = args[1].number;
 			r.reason = args[2].text;
+			r.reply_tick = ecs.get<Clock>().tick;
 			officer_message(id, controller, r, true);
 			return true;
 		}
@@ -403,16 +527,20 @@ Json save_controller_coordination(const ConsoleControllerRuntime &controller) co
 			                {"status", static_cast<int>(r.status)},
 			                {"target", r.target},
 			                {"amount", r.amount},
+			                {"requested_amount", r.requested_amount},
+			                {"reply_tick", r.reply_tick},
+			                {"retry_ticks", r.retry_ticks},
 			                {"priority", r.priority},
 			                {"expires", r.expires},
 			                {"reason", r.reason}});
 		result.push_back(rows);
 	}
+	result.push_back(controller.coordination_receipts);
 	return result;
 }
 void restore_controller_coordination(EntityId ship, ConsoleControllerRuntime &controller, const Json &saved)
 {
-	if (!saved.is_array() || saved.size() != 2)
+	if (!saved.is_array() || saved.size() != 3)
 		throw std::runtime_error("Invalid officer continuation");
 	std::size_t index = 0;
 	for (auto *list : {&controller.incoming_requests, &controller.outgoing_requests})
@@ -429,13 +557,17 @@ void restore_controller_coordination(EntityId ship, ConsoleControllerRuntime &co
 			r.peer = row.at("peer");
 			r.target = row.at("target");
 			r.amount = row.at("amount");
+			r.requested_amount = row.at("requested_amount");
+			r.reply_tick = row.at("reply_tick");
+			r.retry_ticks = row.at("retry_ticks");
 			r.priority = row.at("priority");
 			r.expires = row.at("expires");
 			r.reason = row.at("reason");
 			const int operation = row.at("operation"), status = row.at("status");
 			if (!r.id || !r.peer || !ids.insert(r.id).second || operation < 0 || operation >= 4 || status < 0 ||
-			    status >= 6 || r.amount < 0 || r.amount > 1000000000 || r.priority < 0 || r.priority > 2 ||
-			    r.expires < 0 || r.reason.size() > 4096)
+			    status >= 6 || r.amount < 0 || r.amount > 1000000000 || r.requested_amount < 0 ||
+			    r.requested_amount > 1000000000 || r.priority < 0 || r.priority > 2 || r.expires < 0 ||
+			    r.reply_tick < 0 || r.retry_ticks < 0 || r.retry_ticks > 72000 || r.reason.size() > 4096)
 				throw std::runtime_error("Invalid officer request");
 			const auto &owners = entities.at(ship).get<EntityControls>().controllers;
 			if (std::none_of(owners.begin(), owners.end(),
@@ -450,4 +582,12 @@ void restore_controller_coordination(EntityId ship, ConsoleControllerRuntime &co
 			list->push_back(r);
 		}
 	}
+	const auto &receipts = saved.at(2);
+	if (!receipts.is_array() || receipts.size() > 65536)
+		throw std::runtime_error("Unbounded officer protocol receipts");
+	controller.coordination_receipts.clear();
+	for (const auto &receipt : receipts)
+		if (!receipt.is_number_unsigned() || !receipt.get<KnowledgeId>() ||
+		    !controller.coordination_receipts.insert(receipt.get<KnowledgeId>()).second)
+			throw std::runtime_error("Invalid officer protocol receipt");
 }

@@ -180,11 +180,14 @@ void expand_combat_policies(Catalog &catalog)
 					                        ? request.at("amount")
 					                        : (operation == "power" ? observation(fact) : Json(1));
 					const Json send{
-					    {"action", "coordination.request"},
+					    {"action", "coordination.maintain"},
 					    {"arguments",
 					     Json::array({operation, request.at("console"), request.at("controller"), target, amount,
-					                  request.value("priority", 1), request.value("expiry_ticks", 1200)})}};
-					const Json withdraw{{"action", "coordination.withdraw"}, {"arguments", Json::array({operation})}};
+					                  request.value("priority", 1), request.value("expiry_ticks", 1200),
+					                  request.value("retry_ticks", 40)})}};
+					const Json withdraw{
+					    {"action", "coordination.withdraw_from"},
+					    {"arguments", Json::array({operation, request.at("console"), request.at("controller")})}};
 					Json helper{
 					    {"id", key},
 					    {"context", "controller"},
@@ -197,7 +200,7 @@ void expand_combat_policies(Catalog &catalog)
 					                                                                      {"op", "gt"},
 					                                                                      {"right", 0}}})}}})}},
 					          {{"id", "request"},
-					           {"entry", Json::array({send})},
+					           {"running", Json::array({send})},
 					           {"exit", Json::array({withdraw})},
 					           {"transitions", Json::array({{{"target", "idle"},
 					                                         {"conditions", Json::array({{{"left", observation(fact)},
@@ -227,27 +230,24 @@ void expand_officer_policies(Catalog &catalog)
 		{
 			if (controller.value("officer_protocol", false))
 				continue;
-			std::string operation;
-			Json command;
+			std::map<std::string, Json> supported;
 			for (const auto &action : {"generator_output", "cooling_allocation", "follow_contact", "repair_compartment",
 			                           "speed_mm_s", "heading_mdeg"})
 			{
 				for (const auto &c : controller.at("commands"))
 					if (c.at("action") == action)
 					{
-						command = c;
+						const std::string kind = action;
+						const std::string operation = kind == "generator_output"     ? "power"
+						                              : kind == "cooling_allocation" ? "cooling"
+						                              : kind == "repair_compartment" ? "repair"
+						                                                             : "manoeuvre";
+						supported.try_emplace(operation, c);
 						break;
 					}
-				if (!command.is_null())
-					break;
 			}
-			if (command.is_null())
+			if (supported.empty())
 				continue;
-			const auto kind = command.at("action").get<std::string>(), channel = command.at("id").get<std::string>();
-			operation = kind == "generator_output"     ? "power"
-			            : kind == "cooling_allocation" ? "cooling"
-			            : kind == "repair_compartment" ? "repair"
-			                                           : "manoeuvre";
 			const auto id = "phoenix.officer." + entity_id + "." + controller.at("console").get<std::string>() + "." +
 			                controller.at("id").get<std::string>();
 			Json policy =
@@ -266,16 +266,24 @@ void expand_officer_policies(Catalog &catalog)
 			auto &bindings = policy["command_bindings"];
 			if (bindings.is_null())
 				bindings = Json::array();
-			if (std::none_of(bindings.begin(), bindings.end(),
-			                 [&](const auto &b)
-			                 {
-				                 return b.at("channel") == channel;
-			                 }))
+			for (const auto &command : controller.at("commands"))
 			{
-				Json b{{"channel", channel}, {"action", kind}};
-				if (kind == "follow_contact")
-					b["type"] = "boolean";
-				bindings.push_back(b);
+				const auto kind = command.at("action").get<std::string>(),
+				           channel = command.at("id").get<std::string>();
+				if (kind != "generator_output" && kind != "cooling_allocation" && kind != "repair_compartment" &&
+				    kind != "follow_contact" && kind != "speed_mm_s" && kind != "heading_mdeg")
+					continue;
+				if (std::none_of(bindings.begin(), bindings.end(),
+				                 [&](const auto &b)
+				                 {
+					                 return b.at("channel") == channel;
+				                 }))
+				{
+					Json b{{"channel", channel}, {"action", kind}};
+					if (kind == "follow_contact")
+						b["type"] = "boolean";
+					bindings.push_back(b);
+				}
 			}
 			const auto obs = [](const char *n)
 			{
@@ -285,63 +293,111 @@ void expand_officer_policies(Catalog &catalog)
 			{
 				return Json{{"left", obs(n)}, {"op", op}, {"right", value}};
 			};
-			Json arguments = Json::array();
-			if (kind == "follow_contact")
-				arguments = {true, Json{{"observation", "input.officer_target"}},
-				             Json{{"observation", "input.officer_amount"}},
-				             Json{{"observation", "drive.cruise_speed"}}};
-			else if (kind == "heading_mdeg")
-				arguments = Json::array({obs("bearing")});
-			else if (kind == "speed_mm_s")
-				arguments = Json::array({Json{{"observation", "drive.approach_speed"}}});
-			else
-				arguments = Json::array({Json{
-				    {"observation", kind == "repair_compartment" ? "input.officer_target" : "input.officer_amount"}}});
 			Json action{{"id", id + ".support"},
 			            {"context", "controller"},
 			            {"command_bindings", bindings},
 			            {"controller_action",
 			             {{"label", "Respond to officer request"},
-			              {"inputs", Json::array({{{"name", "officer_target"}, {"type", "integer"}},
+			              {"inputs", Json::array({{{"name", "officer_operation"}, {"type", "text"}},
+			                                      {{"name", "officer_target"}, {"type", "integer"}},
 			                                      {{"name", "officer_amount"}, {"type", "integer"}}})}}},
-			            {"initial", "execute"}};
-			Json task{{"action", "write." + channel}, {"arguments", arguments}};
-			action["states"] = Json::array({{{"id", "execute"}, {"running", Json::array({task})}}});
-			if (kind == "speed_mm_s")
+			            {"initial", "choose"},
+			            {"states", Json::array({{{"id", "choose"}, {"transitions", Json::array()}}})}};
+			for (const auto &[operation, command] : supported)
 			{
-				const Json stop{{"action", "write." + channel}, {"arguments", {0}}};
-				action["states"][0]["transitions"] = Json::array(
-				    {{{"target", "hold"},
-				      {"conditions", Json::array({{{"left", obs("range")},
-				                                   {"op", "le"},
-				                                   {"right", Json{{"observation", "input.officer_amount"}}}}})}}});
-				action["states"].push_back(
-				    {{"id", "hold"},
-				     {"running", Json::array({stop})},
-				     {"transitions",
-				      Json::array({{{"target", "execute"},
-				                    {"conditions",
-				                     Json::array({{{"left", obs("range")},
-				                                   {"op", "gt"},
-				                                   {"right", Json{{"observation", "input.officer_amount"}}}}})}}})}});
-				for (auto &state : action["states"])
+				const auto kind = command.at("action").get<std::string>(),
+				           channel = command.at("id").get<std::string>();
+				Json arguments;
+				if (kind == "follow_contact")
+					arguments = {true, Json{{"observation", "input.officer_target"}},
+					             Json{{"observation", "input.officer_amount"}},
+					             Json{{"observation", "drive.cruise_speed"}}};
+				else if (kind == "heading_mdeg")
+					arguments = Json::array({obs("bearing")});
+				else if (kind == "speed_mm_s")
+					arguments = Json::array({Json{{"observation", "drive.approach_speed"}}});
+				else
+					arguments =
+					    Json::array({Json{{"observation", kind == "repair_compartment" ? "input.officer_target"
+					                                                                   : "input.officer_amount"}}});
+				action["states"][0]["transitions"].push_back(
+				    {{"target", operation},
+				     {"conditions", Json::array({{{"left", {{"observation", "input.officer_operation"}}},
+				                                  {"op", "eq"},
+				                                  {"right", operation}}})}});
+				Json state{{"id", operation},
+				           {"running", Json::array({{{"action", "write." + channel}, {"arguments", arguments}}})}};
+				if (operation == "power" || operation == "cooling")
+					for (const auto &other : controller.at("commands"))
+						if (other.at("action") == kind && other.at("id") != channel)
+							state["running"].push_back(
+							    {{"action", "write." + other.at("id").get<std::string>()}, {"arguments", arguments}});
+				if (kind == "speed_mm_s")
+					for (const auto &other : controller.at("commands"))
+						if (other.at("action") == "heading_mdeg")
+							state["running"].push_back({{"action", "write." + other.at("id").get<std::string>()},
+							                            {"arguments", Json::array({obs("bearing")})}});
+				if (kind == "speed_mm_s")
+				{
+					const Json stop{{"action", "write." + channel}, {"arguments", {0}}};
 					state["exit"] = Json::array({stop});
+					state["transitions"] = Json::array(
+					    {{{"target", "manoeuvre_hold"},
+					      {"conditions", Json::array({{{"left", obs("range")},
+					                                   {"op", "le"},
+					                                   {"right", {{"observation", "input.officer_amount"}}}}})}}});
+					action["states"].push_back(
+					    {{"id", "manoeuvre_hold"},
+					     {"running", Json::array({stop})},
+					     {"exit", Json::array({stop})},
+					     {"transitions",
+					      Json::array({{{"target", operation},
+					                    {"conditions",
+					                     Json::array({{{"left", obs("range")},
+					                                   {"op", "gt"},
+					                                   {"right", {{"observation", "input.officer_amount"}}}}})}}})}});
+				}
+				if (kind == "follow_contact")
+					state["exit"] = Json::array({{{"action", "write." + channel}, {"arguments", {false, 0, 1, 1}}}});
+				action["states"].push_back(std::move(state));
 			}
-			if (kind == "follow_contact")
-				action["states"][0]["exit"] =
-				    Json::array({{{"action", "write." + channel}, {"arguments", {false, 0, 1, 1}}}});
 			catalog.trees.emplace(id + ".support", action);
 			if (!policy.contains("action_bindings"))
 				policy["action_bindings"] = Json::array();
 			policy["action_bindings"].push_back({{"id", "officer_support"}, {"tree", id + ".support"}});
+			// Running tasks are evaluated before transitions. Keep the accepted request's
+			// identity and inputs immutable so a newly selected request cannot execute
+			// through the previous commitment before policy has accepted it.
+			auto &memory = policy["memory"];
+			if (memory.is_null())
+				memory = Json::array();
+			Json latch = Json::array();
+			for (const auto &[field, type] : std::vector<std::pair<std::string, std::string>>{{"request", "integer"},
+			                                                                                  {"invocation", "text"},
+			                                                                                  {"operation", "text"},
+			                                                                                  {"target", "integer"},
+			                                                                                  {"limit", "integer"}})
+			{
+				memory.push_back({{"name", "phoenix_officer_" + field},
+				                  {"type", type},
+				                  {"initial", type == "text" ? Json("") : Json(0)}});
+				latch.push_back({{"memory", "phoenix_officer_" + field}, {"value", obs(field.c_str())}});
+			}
 			Json select{{"action", "select.officer_support"},
-			            {"arguments", Json::array({obs("invocation"), obs("target"), obs("limit")})}};
+			            {"arguments", Json::array({{{"memory", "phoenix_officer_invocation"}},
+			                                       {{"memory", "phoenix_officer_operation"}},
+			                                       {{"memory", "phoenix_officer_target"}},
+			                                       {{"memory", "phoenix_officer_limit"}}})}};
 			const auto response = [&](const char *status, const char *reason)
 			{
 				return Json{{"action", "coordination.respond"},
 				            {"arguments", Json::array({status, obs("limit"), reason})}};
 			};
 			Json leave{{"target", "normal"}, {"conditions", Json::array({condition("pending", "eq", false)})}};
+			Json changed_request{{"target", "normal"},
+			                     {"conditions", Json::array({{{"left", {{"memory", "phoenix_officer_request"}}},
+			                                                  {"op", "ne"},
+			                                                  {"right", obs("request")}}})}};
 			Json refuse{{"target", "failed"}, {"conditions", Json::array({condition("feasible", "eq", false)})}};
 			Json new_request{{"target", "assist"},
 			                 {"conditions", Json::array({condition("status", "eq", "requested")})}};
@@ -355,30 +411,33 @@ void expand_officer_policies(Catalog &catalog)
 			          Json{{"left", {{"observation", "action.id"}}}, {"op", "eq"}, {"right", "officer_support"}},
 			          Json{{"left", {{"elapsed", true}}}, {"op", "ge"}, {"right", 1}}})}};
 			Json blocked{{"target", "failed"}, {"conditions", Json::array({condition("blocked", "eq", true)})}};
-			Json enter{
-			    {"target", "assist"},
-			    {"conditions", Json::array({condition("pending", "eq", true), condition("operation", "eq", operation),
-			                                condition("feasible", "eq", true), condition("blocked", "eq", false)})}};
+			Json enter{{"target", "assist"},
+			           {"conditions", Json::array({condition("pending", "eq", true), condition("feasible", "eq", true),
+			                                       condition("blocked", "eq", false)})}};
 			Json reject{{"target", "refuse"}, {"conditions", Json::array({condition("pending", "eq", true)})}};
+			latch.push_back(response("accepted", "support_committed"));
 			policy["initial"] = "normal";
 			policy["states"] = Json::array(
 			    {{{"id", "normal"},
-			      {"running", Json::array({{{"call", id + ".routine"}}})},
-			      {"transitions", Json::array({enter, reject})}},
+			      {"initial", "normal_work"},
+			      {"running", Json::array({{{"call", id + ".routine"}}})}},
+			     {{"id", "normal_work"}, {"parent", "normal"}, {"transitions", Json::array({enter, reject})}},
 			     {{"id", "assist"},
-			      {"entry", Json::array({response("accepted", "support_committed")})},
+			      {"entry", latch},
 			      {"running", Json::array({select})},
-			      {"transitions", Json::array({leave, refuse, blocked, action_failed, new_request, changed_limit,
-			                                   Json{{"target", "done"},
-			                                        {"conditions", Json::array({condition("done", "eq", true)})}}})}},
+			      {"transitions",
+			       Json::array(
+			           {leave, changed_request, refuse, blocked, action_failed, new_request, changed_limit,
+			            Json{{"target", "done"}, {"conditions", Json::array({condition("done", "eq", true)})}}})}},
 			     {{"id", "done"},
 			      {"entry", Json::array({response("completed", "observed_outcome")})},
-			      {"running", operation == "repair" ? Json::array() : Json::array({select})},
-			      {"transitions", Json::array({leave, refuse, blocked, action_failed, new_request, changed_limit})}},
+			      {"running", Json::array({select})},
+			      {"transitions",
+			       Json::array({leave, changed_request, refuse, blocked, action_failed, new_request, changed_limit})}},
 			     {{"id", "refuse"},
-			      {"entry", Json::array({response("refused", "orders_or_capacity"),
-			                             Json{{"action", "action.cancel"}, {"arguments", {"request_refused"}}}})},
-			      {"transitions", Json::array({{{"target", "normal"}}})}}});
+			      {"parent", "normal"},
+			      {"entry", Json::array({response("refused", "orders_or_capacity")})},
+			      {"transitions", Json::array({{{"target", "normal_work"}}})}}});
 			policy["states"].push_back(
 			    {{"id", "failed"},
 			     {"entry", Json::array({response("failed", "unable_to_continue"),

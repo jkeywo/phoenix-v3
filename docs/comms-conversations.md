@@ -38,7 +38,7 @@ Workshop exposes Comms equipment, character directories, map conversation config
 
 ## State and boundaries
 
-Save schema 12 preserves threads, participant membership, recipient-specific delivery/expiry, prompt resolutions, script continuation, selections, read markers and scenario-event cursors. Older runtime schemas are refused explicitly. Existing packs without Comms remain valid.
+Save schema 13 preserves threads, participant membership, recipient-specific delivery/expiry, prompt resolutions, script continuation, selections, read markers and scenario-event cursors. Older runtime schemas are refused explicitly. Existing packs without Comms remain valid.
 
 Player projections contain only disclosed identities, delivered text, permitted choices and incoming status. The public display strips reply controls and other conversations. Projection truncation reports omitted historical messages; it does not discard authoritative deliveries or pending choices. There is no bandwidth gameplay meter.
 

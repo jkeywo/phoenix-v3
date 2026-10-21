@@ -144,6 +144,34 @@ int main(int argc, char **argv)
 				                .at("value") == (priority == 1 ? 450 : 700),
 				        "coordination uses priority then stable arrival order");
 			}
+			for (const bool disabled : {false, true})
+			{
+				auto parallel = source;
+				auto &ship = parallel["entities"][0];
+				ship["systems"]["generator2"] = {{"kind", "generator"}, {"generator", "supply2"}};
+				ship["systems"]["generator"]["enabled"] = !disabled;
+				ship["stations"][0]["consoles"][0]["feeds"].push_back("generator2");
+				auto generator = ship["resources"]["generators"][0];
+				generator["id"] = "supply2";
+				generator["maximum_rate"] = 600;
+				ship["resources"]["generators"].push_back(generator);
+				ship["control_layout"]["controllers"][1]["commands"].push_back(
+				    {{"id", "second_output"}, {"action", "generator_output"}, {"consumers", {"generator2"}}});
+				parallel["trees"].back()["states"][0]["entry"][0]["arguments"][4] = 1700;
+				World supplies;
+				supplies.load(load(parallel), "test.map");
+				for (int i = 0; i < 20; ++i)
+					supplies.tick();
+				const auto rows = supplies.save().at("bodies")[0].at("console_controllers").at("controllers");
+				if (disabled)
+					require(rows[0].at("coordination")[1][0].at("status") == 2,
+					        "one disabled supply consumer cannot be hidden by a later healthy consumer");
+				else
+					require(rows[0].at("coordination")[1][0].at("status") == 3 &&
+					            rows[1].at("commands")[0].at("value") == 600 &&
+					            rows[1].at("commands")[1].at("value") == 600,
+					        "coordinated supply uses every owned channel within their common player command limits");
+			}
 			for (const bool expired : {false, true})
 			{
 				auto refused = source;
@@ -162,6 +190,151 @@ int main(int argc, char **argv)
 				                          .at("coordination")[1];
 				require(requests.size() == 1 && requests[0].at("status") == (expired ? 4 : 2),
 				        "expiry and refusal are explicit outcomes, without repeated requests");
+			}
+			{
+				auto ordered = source;
+				ordered["consoles"][0]["stances"] = Json::array({{{"id", "hold"}, {"label", "Hold"}}});
+				auto &engineer = ordered["entities"][0]["control_layout"]["controllers"][1];
+				engineer.erase("fallback");
+				engineer["tree"] = "test.engineering-order";
+				ordered["trees"].push_back(Json::parse(R"json({"id":"test.order-execution","context":"controller",
+"controller_action":{"label":"Maintain explicit order","inputs":[]},"command_bindings":[{"channel":"output"}],
+"initial":"work","states":[{"id":"work","running":[{"action":"write.output","arguments":[123]}],"exit":[{"action":"write.output","arguments":[0]}]}]})json"));
+				ordered["trees"].push_back(Json::parse(R"json({"id":"test.engineering-order","context":"controller",
+"command_bindings":[{"channel":"output"}],"action_bindings":[{"id":"ordered","tree":"test.order-execution"}],
+"initial":"work","states":[{"id":"work","running":[{"action":"select.ordered","arguments":["standing-order"]}]}]})json"));
+				World orders;
+				orders.load(load(ordered), "test.map");
+				for (int i = 0; i < 20; ++i)
+					orders.tick();
+				const auto rows = orders.save().at("bodies")[0].at("console_controllers").at("controllers");
+				require(rows[0].at("coordination")[1][0].at("status") == 2 &&
+				            rows[1].at("commands")[0].at("value") == 123 && rows[1].at("action").at("serial") == 1 &&
+				            rows[1].at("action").at("status") == "running",
+				        "refusal preserves the explicit order's action and continuation");
+			}
+			{
+				auto messages = source;
+				messages["knowledge"] = Json::parse(
+				    R"json({"roles":["crew"],"schemas":[{"id":"test.ordinary","producers":["crew"],"readers":["crew"],"fields":[{"id":"amount","type":"integer"}]}]})json");
+				messages["entities"][0]["stations"][0]["consoles"][0]["knowledge_roles"] = {"crew"};
+				messages["entities"][0]["message_templates"] = {"test.ordinary"};
+				messages["messages"] = Json::parse(
+				    R"json([{"id":"test.ordinary","schema":"test.ordinary","title_key":"Ordinary report","body_key":"Keep this report","destination":{"kind":"controller","console":"drive","id":"engineer"},"delay_ticks":1,"expires_after_ticks":200,"fields":{"amount":7},"parameters":{},"automatic":false}])json");
+				messages["trees"].back()["message_templates"] = {"test.ordinary"};
+				messages["trees"].back()["states"][0]["entry"].push_back(
+				    {{"action", "send.test.ordinary"}, {"arguments", {7, false, ""}}});
+				const auto catalog = load(messages);
+				World inbox;
+				inbox.load(catalog, "test.map");
+				for (int i = 0; i < 20; ++i)
+					inbox.tick();
+				World resumed;
+				resumed.restore(catalog, inbox.save());
+				for (int i = 0; i < 20; ++i)
+				{
+					inbox.tick();
+					resumed.tick();
+				}
+				const auto rows = inbox.save().at("bodies")[0].at("console_controllers").at("controllers");
+				require(
+				    rows[1].at("coordination")[0][0].at("status") == 5 && !rows[1].at("coordination")[2].empty(),
+				    "ordinary unread report does not block later withdrawal or get acknowledged by protocol handling");
+				require(inbox.save() == resumed.save(),
+				        "out-of-order protocol receipts survive save and resume without replay");
+				record(inbox.save());
+			}
+			{
+				auto unsupported = source;
+				auto &owners = unsupported["entities"][0]["control_layout"]["controllers"];
+				owners.push_back(
+				    {{"id", "second-requester"},
+				     {"console", "drive"},
+				     {"tree", "test.unsupported-request"},
+				     {"commands",
+				      Json::array({{{"id", "intent"}, {"action", "intent_integer"}, {"consumers", Json::array()}}})}});
+				for (const auto *mode : {"human", "ai"})
+					unsupported["entities"][0]["control_layout"]["profiles"][mode == std::string("human") ? 0 : 1]
+					           ["consoles"]["drive"][mode]
+					               .push_back("second-requester");
+				auto request = unsupported["trees"].back();
+				request["id"] = "test.unsupported-request";
+				request["states"][0]["entry"][0]["arguments"][0] = "cooling";
+				request["states"][0]["entry"][0]["arguments"][5] = 2;
+				unsupported["trees"].push_back(request);
+				World arbitration;
+				arbitration.load(load(unsupported), "test.map");
+				for (int i = 0; i < 20; ++i)
+					arbitration.tick();
+				const auto rows = arbitration.save().at("bodies")[0].at("console_controllers").at("controllers");
+				require(rows[1].at("commands")[0].at("value") == 450 &&
+				            rows[0].at("coordination")[1][0].at("status") == 3 &&
+				            rows[2].at("coordination")[1][0].at("status") == 2,
+				        "unsupported higher-priority request is refused without displacing supported work");
+			}
+			{
+				auto changing = source;
+				changing["trees"].back()["states"] = Json::parse(R"json([
+{"id":"request","running":[{"action":"coordination.maintain","arguments":["power","drive","engineer",0,450,1,200,40]}],
+ "transitions":[{"target":"changed","conditions":[{"left":{"elapsed":true},"op":"ge","right":10}]}]},
+{"id":"changed","running":[{"action":"coordination.maintain","arguments":["power","drive","engineer",0,1700,1,200,40]}]}
+])json");
+				const auto catalog = load(changing);
+				World changed;
+				changed.load(catalog, "test.map");
+				for (int i = 0; i < 25; ++i)
+					changed.tick();
+				const auto rows = changed.save().at("bodies")[0].at("console_controllers").at("controllers");
+				const auto requests = rows[0].at("coordination")[1];
+				require(requests.size() == 2 && requests[0].at("status") == 5 &&
+				            requests[1].at("requested_amount") == 1700 && requests[1].at("amount") == 1000 &&
+				            rows[1].at("commands")[0].at("value") == 1000,
+				        "changed demand replaces obsolete work and retains original demand after limited acceptance");
+				World resumed;
+				resumed.restore(catalog, changed.save());
+				for (int i = 0; i < 10; ++i)
+				{
+					changed.tick();
+					resumed.tick();
+				}
+				require(changed.save() == resumed.save(), "limited commitments and request replacement resume exactly");
+				record(changed.save());
+				auto returning = changing;
+				returning["trees"].back()["states"][1]["transitions"] = Json::parse(
+				    R"json([{"target":"return","conditions":[{"left":{"elapsed":true},"op":"ge","right":8}]}])json");
+				returning["trees"].back()["states"].push_back(Json::parse(
+				    R"json({"id":"return","running":[{"action":"coordination.maintain","arguments":["power","drive","engineer",0,450,1,200,40]}]})json"));
+				World returned;
+				returned.load(load(returning), "test.map");
+				for (int i = 0; i < 35; ++i)
+					returned.tick();
+				const auto returned_rows = returned.save().at("bodies")[0].at("console_controllers").at("controllers");
+				require(returned_rows[0].at("coordination")[1].size() == 3 &&
+				            returned_rows[1].at("commands")[0].at("value") == 450,
+				        "historical retry windows cannot suppress replacement of active obsolete work");
+				changing["entities"][0]["systems"]["generator"]["enabled"] = false;
+				changing["trees"].back()["states"].erase(1);
+				changing["trees"].back()["states"][0].erase("transitions");
+				World retry;
+				retry.load(load(changing), "test.map");
+				for (int i = 0; i < 30; ++i)
+					retry.tick();
+				require(retry.save()
+				                .at("bodies")[0]
+				                .at("console_controllers")
+				                .at("controllers")[0]
+				                .at("coordination")[1]
+				                .size() == 1,
+				        "refused maintained request respects authored retry delay");
+				for (int i = 0; i < 30; ++i)
+					retry.tick();
+				require(retry.save()
+				                .at("bodies")[0]
+				                .at("console_controllers")
+				                .at("controllers")[0]
+				                .at("coordination")[1]
+				                .size() == 2,
+				        "maintained request retries after refusal without per-tick messages");
 			}
 			auto cooling = source;
 			auto &coolship = cooling["entities"][0];
@@ -194,6 +367,27 @@ int main(int argc, char **argv)
 			require(cooling_rows[1].at("commands")[0].at("value") == 20 &&
 			            cooling_rows[0].at("coordination")[1][0].at("status") == 3,
 			        "cooling request produces observed coolant work and correlated completion");
+			coolship["control_layout"]["controllers"][1]["commands"].push_back(
+			    {{"id", "generation"}, {"action", "generator_output"}, {"consumers", {"generator"}}});
+			for (auto &tree : cooling["trees"])
+				if (tree.at("id") == "test.request-supply")
+				{
+					tree["states"] = Json::parse(R"json([
+{"id":"request","entry":[{"action":"coordination.request","arguments":["power","drive","engineer",0,450,1,200]}],
+ "transitions":[{"target":"cool","conditions":[{"left":{"elapsed":true},"op":"ge","right":10}]}]},
+{"id":"cool","entry":[{"action":"coordination.request","arguments":["cooling","drive","engineer",0,20,2,200]}]}
+])json");
+				}
+			World combined;
+			combined.load(load(cooling), "test.map");
+			for (int i = 0; i < 25; ++i)
+				combined.tick();
+			const auto combined_rows = combined.save().at("bodies")[0].at("console_controllers").at("controllers");
+			require(combined_rows[1].at("commands")[0].at("value") == 20 &&
+			            combined_rows[1].at("commands")[1].at("value") == 450 &&
+			            combined_rows[0].at("coordination")[1][1].at("status") == 3,
+			        "one Controller routes a replacement commitment through its correct owned operation");
+			record(combined.save());
 		}
 		{
 			auto source = controller_fixture();
@@ -278,6 +472,50 @@ int main(int argc, char **argv)
 				    load(invalid);
 			    },
 			    "action execution cannot gain an unowned command binding");
+		}
+		{
+			auto source = controller_fixture();
+			auto &map = source["maps"][0];
+			auto &owner = source["entities"][0]["control_layout"]["controllers"][0];
+			owner.erase("fallback");
+			owner["tree"] = "test.refused-policy";
+			owner["commands"] = Json::array(
+			    {{{"id", "follow"}, {"action", "follow_contact"}, {"arguments", {0, 1, 1}}, {"consumers", {"port"}}}});
+			source["trees"] = Json::parse(R"json([
+{"id":"test.refused-action","context":"controller","command_bindings":[{"channel":"follow","action":"follow_contact","type":"boolean"}],
+ "controller_action":{"label":"Follow selected contact","inputs":[]},"initial":"operate","states":[
+ {"id":"operate","running":[{"action":"write.follow","arguments":[true,1,1000,1000]}],
+ "exit":[{"action":"write.follow","arguments":[false,0,1,1]}]}]},
+{"id":"test.refused-policy","context":"controller","command_bindings":[{"channel":"follow","action":"follow_contact","type":"boolean"}],
+ "action_bindings":[{"id":"follow","tree":"test.refused-action"}],"initial":"operate",
+ "states":[{"id":"operate","running":[{"action":"select.follow","arguments":["self-is-not-a-contact"]}]}]}
+])json");
+			const auto catalog = load(source);
+			World ai;
+			ai.load(catalog, "test.map");
+			ai.tick();
+			const auto rejected = ai.save().at("bodies")[0].at("console_controllers").at("controllers")[0];
+			require(rejected.at("action").at("status") == "failed" &&
+			            rejected.at("action").at("reason") == "command_refused",
+			        "physical command rejection fails the owning action and runs cleanup");
+			World resumed;
+			resumed.restore(catalog, ai.save());
+			ai.tick();
+			resumed.tick();
+			require(ai.save() == resumed.save(), "failed physical work and pending cleanup resume exactly");
+			record(ai.save());
+			World human;
+			human.load(catalog, "test.map");
+			require(human.claim(101, 1, "drive"), "human claims equivalent follow controls");
+			OperatingCommand command{1, {}, 1, {}};
+			command.controller = "propulsion";
+			command.channel = "follow";
+			command.generation = controller(human, 101, "propulsion").at("generation");
+			command.arguments = {1, 1000, 1000};
+			require(human.submit(101, command), "ordinary follow command reaches physical admission");
+			human.tick();
+			require(!controller(human, 101, "propulsion").at("commands").at("follow").at("accepted").get<bool>(),
+			        "human and action follow commands respect the same physical target constraint");
 		}
 		{
 			auto source = controller_fixture();
@@ -1445,7 +1683,7 @@ int main(int argc, char **argv)
 		world.tick();
 
 		const auto saved = world.save();
-		require(saved.at("schema") == 12, "Controller continuation has an explicit new save schema");
+		require(saved.at("schema") == 13, "Controller continuation has an explicit new save schema");
 		World resumed;
 		resumed.restore(content, saved);
 		for (int tick = 0; tick < 12; ++tick)

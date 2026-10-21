@@ -86,7 +86,8 @@ struct OfficerRequest
 	OfficerOperation operation = OfficerOperation::Power;
 	OfficerStatus status = OfficerStatus::Requested;
 	std::int64_t target = 0, amount = 0, priority = 0;
-	KnowledgeTick expires = 0;
+	std::int64_t requested_amount = 0, retry_ticks = 0;
+	KnowledgeTick expires = 0, reply_tick = 0;
 	std::string reason;
 };
 struct ConsoleControllerRuntime
@@ -100,7 +101,12 @@ struct ConsoleControllerRuntime
 	ActionResult result;
 	std::set<std::string> effects;
 	ControllerActionInstance action;
+	// Transient: execution writes are consumed in this tick, before any save boundary.
+	std::set<std::size_t> action_writes;
 	std::vector<OfficerRequest> incoming_requests, outgoing_requests;
+	// Protocol deliveries processed behind unread ordinary messages cannot advance
+	// the cumulative inbox cursor. Keep receipts until those deliveries leave it.
+	std::set<KnowledgeId> coordination_receipts;
 };
 struct EntityControls
 {

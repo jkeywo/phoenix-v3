@@ -61,7 +61,7 @@ hints, not the instance command boundary.
 
 Restricted crew packs retain only public instance kind/bounds and verified
 Console/widget bindings and public Controller channel/profile metadata, without private
-tree programs or other machinery definitions. World/session saves use schema 12 with
+tree programs or other machinery definitions. World/session saves use schema 13 with
 Controller continuation; old authority formats are refused. Packet schema 5 refuses
 older peers before interpreting commands or projections.
 

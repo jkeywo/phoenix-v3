@@ -41,6 +41,8 @@ Executors finish with `action.succeed(reason)` or `action.fail(reason)`. Status 
 
 Completion must use observed results. A command admission receipt alone is not evidence that a destination was reached or equipment repaired. Execution observations include the same tick snapshot as policy observations. The navigation helpers `action.goal_distance`, `action.actual_speed` and `action.contact_available` use permitted position/contact evidence and the conventional `destination_x`, `destination_y` and `contact` inputs. Maintained destination actions finish on distance and speed conditions; follow actions fail safely when contact evidence disappears.
 
+Physical consumption can also refuse a submitted command. That refusal fails its owning action with `command_refused` and runs ordinary-command cleanup; the same mechanism decides whether an equivalent player command is usable.
+
 Console projections expose action identity, definition, input descriptors, availability and current status. Workshop's tree bindings editor edits action metadata and capability maps; its typed task palette includes invocation operations. Verify checks the resulting content, and isolated Test includes action and coordination state in existing Controller feedback. These are authoring/debug surfaces, not a new player action panel.
 
 ## Maintained policies
@@ -55,9 +57,15 @@ Older `policy: combat` content converts into shared policy/action trees during c
 
 `coordination.respond(status, amount, reason)` correlates a reply to the selected incoming request. Status distinguishes `accepted`, `refused`, `completed` and `failed`. `coordination.withdraw(operation)` withdraws obsolete outgoing work. Transport acknowledgement only advances message delivery; it does not accept a duty. Reply facts are exposed as `coordination.reply.<operation>.status` and `.amount`.
 
+`coordination.maintain(operation, console, controller, target, amount, priority, lifetime, retry_ticks)` maintains a changing duty. It deduplicates unchanged live requests, withdraws obsolete work for that recipient, and retries terminal outcomes only after the authored delay. `coordination.withdraw_from(operation, console, controller)` withdraws a specific recipient's work. Maintained policies use these operations so a target change does not leave a stale engagement request behind.
+
 Supported recipients use ordinary generation, coolant allocation, navigation or repair commands. Engineering bounds the accepted amount by its channel capacity and permitted operating limit. Navigation checks its evidence and existing orders; repair completion checks both compartment condition and remaining observed faults. Successful sustained supply/manoeuvre work remains a commitment until withdrawal, expiry or inability to continue.
 
+Original demand remains separate from the accepted limit, allowing Engineering to recover from temporary limits. A Controller with several supply channels uses their common permitted range and checks every consumer's observed result. Requests are checked against recipient capabilities before arbitration, and accepted request inputs are latched before execution. Refusal preserves an existing higher-priority routine action and its continuation.
+
 Arbitration respects machinery protection and explicit stances/orders before coordination, then routine work. Equal-priority requests retain an existing commitment before arrival order and stable identity. `officer_routine_stance` can name the stance in which coordination is allowed; the default is `routine`. Handover cancels AI execution and reports/withdraws its commitments. Expired and terminal records are bounded and pruned.
+
+Protocol handling can process a response or withdrawal behind an unread ordinary report. It acknowledges only the leading protocol prefix and persists separate receipts for later protocol deliveries, preserving ordinary inbox ownership without replaying coordination after restore.
 
 Requests preserve their original subject and evidence scope. A repair request can name a compartment associated with an observed fault without exposing another Console's complete repair board. Human recipients see the same request identity, target and amount in existing internal messages. Maintained supply-message templates allow explicit acceptance, refusal and completion reports using that request number, alongside ordinary machinery controls. Silence and acknowledgement never become agreement.
 
@@ -73,7 +81,7 @@ Detected contact projections carry faction ID, localisable label and viewer-rela
 
 Empty idle action/coordination records are omitted from saves and restored as defaults, keeping ordinary worlds compact without dropping active or terminal outcomes.
 
-World/session schema **12** persists action identity, inputs, continuation, outcome, effect receipts, officer commitments/replies and fixed faction membership. Incompatible runtime schemas/contracts are rejected transactionally; valid older content still uses defaults and boundary conversion. No external inference service or JEV adapter is included.
+World/session schema **13** persists action identity, inputs, continuation, outcome, effect receipts, officer commitments/replies and fixed faction membership. Incompatible runtime schemas/contracts are rejected transactionally; valid older content still uses defaults and boundary conversion. No external inference service or JEV adapter is included.
 
 Synthetic production-loader integrations exercise shared actions with different policy/channel bindings, runtime argument types, replacement, completion, cleanup, forbidden writes, factions, hostile selection, supply/cooling exchanges, manoeuvre, repair completion and exact save/resume. The normal native, WASM and network gates remain the integrated acceptance checks. Graphical smoke, physical-device operation and screen-reader acceptance require separate explicitly recorded evidence.
 
@@ -84,3 +92,9 @@ Synthetic production-loader integrations exercise shared actions with different 
 - WebAssembly gate: build, production launch preflight and system integrations passed. Native/WASM continuation comparisons passed for simulation, shared Controller actions and coordination, combat, conversations and away operations.
 - Repository formatting check and `git diff --check` passed.
 - No graphical smoke, physical-device or screen-reader acceptance was performed for this change.
+
+### Review corrections — 21 October 2026
+
+An independent agent review identified and helped correct physical command refusal leaving actions running, unsupported requests preempting useful work, mixed-operation Controllers using the wrong executor, refusal interrupting explicit orders, stale request subjects/demands, and ordinary inbox messages blocking coordination. Supply actions now obey every owned channel's common limits and observe all consumers. Repair helpers select permitted system targets and retain useful assignments, prioritising disabled capabilities named by accepted repair requests.
+
+Synthetic Controller regressions cover equivalent human/action physical rejection, cleanup and restore, unsupported higher-priority requests, preserved explicit orders, changed and returning demand, limited acceptance, authored retry delays, mixed operations, multiple supply channels, disabled consumers, and withdrawals behind unread ordinary messages. Schema 13 adds original demand, reply/retry timing and protocol receipts; schema 12 saves are explicitly rejected.

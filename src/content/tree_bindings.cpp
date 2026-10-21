@@ -601,6 +601,12 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	     true});
 	registry.actions.push_back({"coordination.respond", 4, {Type::Text, Type::Integer, Type::Text}, true});
 	registry.actions.push_back({"coordination.withdraw", 4, {Type::Text}, true});
+	registry.actions.push_back({"coordination.withdraw_from", 4, {Type::Text, Type::Text, Type::Text}, true});
+	registry.actions.push_back({"coordination.maintain",
+	                            4,
+	                            {Type::Text, Type::Text, Type::Text, Type::Integer, Type::Integer, Type::Integer,
+	                             Type::Integer, Type::Integer},
+	                            false});
 	return result;
 }
 state_tree::Registry gameplay_registry(const Json &tree, const Catalog &catalog, state_tree::Context context)

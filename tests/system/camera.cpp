@@ -95,7 +95,7 @@ int main()
 		world.clear_claims();
 		require(ship_camera_state(world.public_board(1)) == ShipCameraState{1, 7},
 		        "handover does not reset the ship camera");
-		// Runtime schema 12 rejects altered/retired knowledge contracts.
+		// Runtime schema 13 rejects altered/retired knowledge contracts.
 		auto legacy = saved;
 		auto &runtime = legacy["knowledge"]["runtime"];
 		const auto &schemas = runtime["contract"]["schemas"];
