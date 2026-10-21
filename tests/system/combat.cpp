@@ -744,6 +744,13 @@ void review_contracts()
 		World w;
 		w.load(c, source["maps"][0]["id"]);
 		claim(w);
+		bool repair_choice = false;
+		const auto support_view = w.observe(102);
+		for (const auto &control : support_view->gameplay["controls"])
+			if (control.value("combat_choice", std::string{}) == "repair" &&
+			    control.value("value", std::int64_t{0}) == 1)
+				repair_choice = true;
+		require(repair_choice, "repair compartment choices are exposed through the Console action model");
 		auto checkpoint = w.save();
 		checkpoint["bodies"][0]["combat"]["compartments"][0]["hp"] = 0;
 		checkpoint["bodies"][0]["combat"]["compartments"][0]["disabled"] = true;

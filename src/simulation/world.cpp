@@ -2685,12 +2685,14 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 					{
 						std::set<std::int64_t> choices{0};
 						if (channel.action == OperatingAction::WeaponTarget)
+						{
 							for (const auto &contact : result.contacts)
 								if (contact.id <= 1000000000ULL)
 									choices.insert(static_cast<std::int64_t>(contact.id));
-								else if (const auto *structure = entity.try_get<CombatStructure>())
-									for (std::size_t c = 0; c < structure->compartments.size(); ++c)
-										choices.insert(static_cast<std::int64_t>(c + 1));
+						}
+						else if (const auto *structure = entity.try_get<CombatStructure>())
+							for (std::size_t c = 0; c < structure->compartments.size(); ++c)
+								choices.insert(static_cast<std::int64_t>(c + 1));
 						for (const auto choice : choices)
 						{
 							OperatingCommand command{address.ship,
