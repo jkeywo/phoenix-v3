@@ -22,6 +22,8 @@ Simulation advances explicit **20 Hz ticks**, with no renderer or browser depend
 6. Integrate poses, resolve collisions and rebuild the radar index.
 7. Evaluate scenario motion/objectives, publish results, advance the clock and deliver knowledge/Coordination work.
 
+Paid resource execution prepares a single `ShipResourceAllocation` after all demands, including boost/impulse target reservations and FTL, are known. The resource module owns preview, unavailable-supply overrides and preservation of requested settings. Modifiers read candidate grants, then the world commits the same allocation before physical actuation. The solver advances once; neither preview nor a discarded candidate debits live stock. Allocation state is transient, while its committed quantities, grants and remainders use the existing continuation format.
+
 Shared-body writes remain serial and independent of Flecs table/allocation order. Request identities and effect receipts prevent replay. Accepted settings survive operator changes; held manual inputs release safely. Sensor/telemetry producers supply a common permitted observation boundary for human GUI and Controller decisions. AI decisions cannot read hidden components or fabricate producer facts. The close-in lookout is a ship-owned physical producer with direct world access; Controllers read only its shared blackboard assessment.
 
 ### Spatial indexes

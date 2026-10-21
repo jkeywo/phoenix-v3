@@ -5,6 +5,7 @@ module;
 #include <cstdint>
 #include <map>
 #include <optional>
+#include <span>
 #include <stdexcept>
 #include <string>
 #include <utility>
@@ -83,6 +84,65 @@ void request_system_resource(ShipResources &ship, std::size_t system, ResourceAm
 	if (discrete_amount < 0 || discrete_amount > resource_limit || (discrete_amount && b.store == no_resource))
 		throw std::runtime_error("resources: invalid discrete operating request");
 	r.discrete_amount = discrete_amount;
+}
+
+void reserve_system_resource_rate(ShipResources &ship, std::size_t system, ResourceAmount minimum)
+{
+	if (minimum < 0 || minimum > resource_limit)
+		throw std::runtime_error("resources: invalid minimum operating rate");
+	const auto &r = ship.requests.at(system);
+	request_system_resource(ship, system, r.duty_permille, r.discrete, std::max(r.extra_rate, minimum),
+	                        r.discrete_amount);
+}
+
+ShipResourceAllocation::ShipResourceAllocation(ShipResources &origin, std::span<const std::size_t> unavailable)
+    : candidate_(origin), origin_(&origin), origin_tick_(origin.network.ticks())
+{
+	struct Availability
+	{
+		ResourceControl control;
+		std::size_t slot;
+		ResourceAmount requested, unavailable;
+	};
+	std::vector<Availability> overrides;
+	// Capture all requested settings before applying any override, including
+	// when several fitted Systems refer to the same physical supply.
+	for (const auto slot : unavailable)
+	{
+		const auto &b = origin.definition.systems.at(slot);
+		if (b.kind == OperatingSystem::Generator && b.generator != no_resource)
+			overrides.push_back({ResourceControl::Enabled, slot, origin.network.generators()[b.generator].enabled, 0});
+		if (b.kind == OperatingSystem::Storage && b.store != no_resource)
+			overrides.push_back({ResourceControl::Enabled, slot, origin.network.stores()[b.store].enabled, 0});
+		if (b.kind == OperatingSystem::Distribution && b.conduit != no_resource)
+			overrides.push_back(
+			    {ResourceControl::ConduitIsolated, slot, origin.network.links()[b.conduit].isolated, 1});
+		if (b.kind == OperatingSystem::Coolant && b.cooling != no_resource)
+			overrides.push_back(
+			    {ResourceControl::CoolingIsolated, slot, origin.network.cooling_links()[b.cooling].isolated, 1});
+	}
+	for (const auto &override : overrides)
+		control_resource(candidate_, override.slot, override.control, override.unavailable);
+	tick_ship_resources(candidate_);
+	for (const auto &override : overrides)
+		control_resource(candidate_, override.slot, override.control, override.requested);
+}
+
+const std::vector<SystemResourceGrant> &ShipResourceAllocation::grants() const
+{
+	if (!origin_)
+		throw std::logic_error("resources: allocation already committed");
+	return candidate_.grants;
+}
+
+void ShipResourceAllocation::commit()
+{
+	if (!origin_ || origin_->network.ticks() != origin_tick_)
+		throw std::logic_error("resources: allocation already committed or superseded");
+	origin_->network = std::move(candidate_.network);
+	origin_->requests = std::move(candidate_.requests);
+	origin_->grants = std::move(candidate_.grants);
+	origin_ = nullptr;
 }
 
 bool can_control_resource(const ShipResources &ship, std::size_t system, ResourceControl control, ResourceAmount value)

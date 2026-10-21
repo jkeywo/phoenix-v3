@@ -25,6 +25,7 @@ import phoenix.console;
 import phoenix.console_controls;
 
 using namespace phoenix;
+extern "C" void resource_allocation_lifecycle(const Catalog &);
 namespace
 {
 using phoenix::test::require;
@@ -236,6 +237,7 @@ Json targeted_fixture()
 void targeted_modifiers()
 {
 	const auto catalog = load(targeted_fixture());
+	resource_allocation_lifecycle(catalog);
 	World boosted, ordinary;
 	boosted.load(catalog, "test.map");
 	ordinary.load(catalog, "test.map");
@@ -349,15 +351,21 @@ void targeted_modifiers()
 	auto limited_source = targeted_fixture();
 	limited_source["entities"][0]["resources"]["stores"][0]["initial"] = 15;
 	World limited;
-	limited.load(load(limited_source), "test.map");
+	const auto limited_catalog = load(limited_source);
+	limited.load(limited_catalog, "test.map");
 	claim(limited);
 	command(limited, "speed_mm_s", 10000, "drive");
 	command(limited, "boost", 1, "boost");
 	limited.tick();
 	const auto fraction = telemetry(limited, "boost", "effective_boost");
 	require(fraction > 0 && fraction < 1000, "a partially funded boost exposes only its paid bonus fraction");
+	World limited_resumed;
+	limited_resumed.restore(limited_catalog, limited.save());
 	const auto limited_velocity = body(limited).vx;
 	limited.tick();
+	limited_resumed.tick();
+	require(limited.save() == limited_resumed.save(),
+	        "partial shared-reserve allocation preserves fractional requests and grants across recovery");
 	require(telemetry(limited, "boost", "effective_boost") == 0 && body(limited).vx == limited_velocity,
 	        "empty target and modifier batteries cannot produce additional acceleration");
 	auto empty_source = targeted_fixture();

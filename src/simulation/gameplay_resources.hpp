@@ -36,8 +36,25 @@ struct ShipResources
 	std::vector<SystemResourceGrant> grants;
 	explicit ShipResources(ShipResourcesDefinition definition, std::uint64_t seed = 1);
 };
+// One frozen allocation for the originating ship. Inspect grants, then commit
+// before actuation. Destroying an uncommitted allocation leaves the ship intact.
+class ShipResourceAllocation
+{
+public:
+	ShipResourceAllocation(ShipResources &, std::span<const std::size_t> unavailable);
+	ShipResourceAllocation(const ShipResourceAllocation &) = delete;
+	ShipResourceAllocation &operator=(const ShipResourceAllocation &) = delete;
+	const std::vector<SystemResourceGrant> &grants() const;
+	void commit();
+
+private:
+	ShipResources candidate_;
+	ShipResources *origin_;
+	std::uint64_t origin_tick_;
+};
 void request_system_resource(ShipResources &ship, std::size_t system, ResourceAmount duty_permille,
                              bool discrete = false, ResourceAmount extra_rate = 0, ResourceAmount discrete_amount = 0);
+void reserve_system_resource_rate(ShipResources &ship, std::size_t system, ResourceAmount minimum_extra_rate);
 bool can_control_resource(const ShipResources &ship, std::size_t system, ResourceControl control, ResourceAmount value);
 bool control_resource(ShipResources &ship, std::size_t system, ResourceControl control, ResourceAmount value);
 void tick_ship_resources(ShipResources &ship);

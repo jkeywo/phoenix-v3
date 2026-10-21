@@ -1532,7 +1532,7 @@ struct World::Impl
 			        : 0);
 		}
 	}
-	void prepare_paid_modifiers(flecs::entity ship, FlightRestrictions restrictions)
+	void reserve_paid_modifiers(flecs::entity ship, FlightRestrictions restrictions)
 	{
 		const auto id = ship.get<StableId>().id;
 		const auto fittings = ordered_equipment(flight_query, id);
@@ -1552,18 +1552,16 @@ struct World::Impl
 				if (power && target.has<FlightRuntime>() && target.get<FlightRuntime>().state.enabled)
 				{
 					const auto slot = target.get<ResourceBinding>().slot;
-					auto &request = power->requests[slot];
-					request.extra_rate =
-					    std::max(request.extra_rate, target.get<FlightRuntime>().definition.power_rate);
+					reserve_system_resource_rate(*power, slot, target.get<FlightRuntime>().definition.power_rate);
 				}
 			}
 		}
-		std::optional<ShipResources> preview;
-		if (power)
-		{
-			preview = *power;
-			tick_ship_resources(*preview);
-		}
+	}
+	void prepare_paid_modifiers(flecs::entity ship, FlightRestrictions restrictions,
+	                            const ShipResourceAllocation *allocation)
+	{
+		const auto id = ship.get<StableId>().id;
+		const auto fittings = ordered_equipment(flight_query, id);
 		for (auto child : fittings)
 		{
 			auto &flight = child.get_mut<FlightRuntime>();
@@ -1573,14 +1571,16 @@ struct World::Impl
 			{
 				if (!flight.state.enabled)
 					cancel_impulse(flight.state, 4);
-				else if (preview && preview->grants[child.get<ResourceBinding>().slot].supply_permille < 1000)
-					cancel_impulse(flight.state, preview->grants[child.get<ResourceBinding>().slot].blocked ? 4 : 3);
+				else if (allocation && allocation->grants()[child.get<ResourceBinding>().slot].supply_permille < 1000)
+					cancel_impulse(flight.state,
+					               allocation->grants()[child.get<ResourceBinding>().slot].blocked ? 4 : 3);
 				for (const auto &binding : flight.definition.targets)
 				{
 					const auto target = ship.get<EquipmentIndex>().values.at(binding.index);
 					if (!target.get<FlightRuntime>().state.enabled)
 						cancel_impulse(flight.state, 4);
-					else if (preview && preview->grants[target.get<ResourceBinding>().slot].supply_permille < 1000)
+					else if (allocation &&
+					         allocation->grants()[target.get<ResourceBinding>().slot].supply_permille < 1000)
 						cancel_impulse(flight.state, 3);
 				}
 			}
@@ -1597,7 +1597,8 @@ struct World::Impl
 				const bool impulse = modifier.state.impulse == ImpulsePhase::Active;
 				if (!modifier.state.enabled || !(impulse || (modifier.state.boost && !restrictions.impulse)))
 					continue;
-				const auto paid = preview ? preview->grants[source.get<ResourceBinding>().slot].supply_permille : 1000;
+				const auto paid =
+				    allocation ? allocation->grants()[source.get<ResourceBinding>().slot].supply_permille : 1000;
 				for (const auto &binding : modifier.definition.targets)
 					if (binding.index == target.get<Equipment>().ordinal)
 					{
@@ -1730,53 +1731,19 @@ struct World::Impl
 			request_combat_resources(ship);
 			if (!definition(id).ftl.empty())
 				prepare_ftl(ship);
-			struct RestoreService
-			{
-				ResourceControl kind;
-				std::size_t slot;
-				std::int64_t value;
-			};
-			std::vector<RestoreService> restore_services;
+			reserve_paid_modifiers(ship, restrictions);
+			std::optional<ShipResourceAllocation> allocation;
 			if (auto *power = ship.try_get_mut<ShipResources>())
-				for (auto child : ship.get<EquipmentIndex>().values)
-				{
-					const auto &fit = child.get<Equipment>();
-					if (!structurally_disabled(ship, fit.id))
-						continue;
-					const auto slot = child.get<ResourceBinding>().slot;
-					const auto &binding = power->definition.systems.at(slot);
-					if (fit.kind == OperatingSystem::Generator && binding.generator != no_resource)
-					{
-						const bool enabled = power->network.generators()[binding.generator].enabled;
-						restore_services.push_back({ResourceControl::Enabled, slot, enabled ? 1 : 0});
-						control_resource(*power, slot, ResourceControl::Enabled, 0);
-					}
-					if (fit.kind == OperatingSystem::Storage && binding.store != no_resource)
-					{
-						const bool enabled = power->network.stores()[binding.store].enabled;
-						restore_services.push_back({ResourceControl::Enabled, slot, enabled ? 1 : 0});
-						control_resource(*power, slot, ResourceControl::Enabled, 0);
-					}
-					if (fit.kind == OperatingSystem::Distribution && binding.conduit != no_resource)
-					{
-						const bool isolated = power->network.links()[binding.conduit].isolated;
-						restore_services.push_back({ResourceControl::ConduitIsolated, slot, isolated ? 1 : 0});
-						control_resource(*power, slot, ResourceControl::ConduitIsolated, 1);
-					}
-					if (fit.kind == OperatingSystem::Coolant && binding.cooling != no_resource)
-					{
-						const bool isolated = power->network.cooling_links()[binding.cooling].isolated;
-						restore_services.push_back({ResourceControl::CoolingIsolated, slot, isolated ? 1 : 0});
-						control_resource(*power, slot, ResourceControl::CoolingIsolated, 1);
-					}
-				}
-			prepare_paid_modifiers(ship, restrictions);
-			if (auto power = ship.try_get_mut<ShipResources>())
 			{
-				tick_ship_resources(*power);
-				for (const auto &saved : restore_services)
-					control_resource(*power, saved.slot, saved.kind, saved.value);
+				std::vector<std::size_t> unavailable;
+				for (auto child : ship.get<EquipmentIndex>().values)
+					if (structurally_disabled(ship, child.get<Equipment>().id))
+						unavailable.push_back(child.get<ResourceBinding>().slot);
+				allocation.emplace(*power, unavailable);
 			}
+			prepare_paid_modifiers(ship, restrictions, allocation ? &*allocation : nullptr);
+			if (allocation)
+				allocation->commit();
 			actuate_combat(ship);
 			if (!definition(id).ftl.empty())
 				actuate_ftl(ship);

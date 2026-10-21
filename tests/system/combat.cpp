@@ -730,6 +730,76 @@ void review_contracts()
 		        "partial output faults reduce basic steering traverse");
 	}
 }
+void resource_availability_contracts()
+{
+	// Four physical supply kinds share the same allocation seam. All quantities
+	// belong to this synthetic experiment, independent of shipped equipment.
+	for (const std::string disabled : {"reactor", "bank", "feed", "cooler"})
+	{
+		auto source = powered_fixture();
+		auto &ship = source["entities"][0];
+		ship["resources"] = Json::parse(R"json({
+		 "stores":[
+		  {"id":"source","capacity":10000,"initial":5000,"charge_rate":1000,"discharge_rate":1000},
+		  {"id":"cell","capacity":10000,"initial":1000,"charge_rate":1000,"discharge_rate":1000,"initial_heat":200}],
+		 "generators":[{"id":"reactor","store":"source","maximum_rate":40,"initial_output":40,"response_rate":40}],
+		 "links":[{"id":"feed","from":"source","to":"cell","capacity_rate":40}],
+		 "coolant_sources":[{"id":"coolant","initial":100000,"removal_rate":40}],
+		 "cooling_links":[{"id":"cooler","source":"coolant","store":"cell","capacity_rate":40,"allocation_rate":40}]
+		})json");
+		add_fit(source, "drive",
+		        {{"kind", "engine"},
+		         {"compartment", "aft"},
+		         {"max_speed_mm_s", 10000},
+		         {"acceleration_mm_s2", 2000},
+		         {"power_rate", 200},
+		         {"power_store", "cell"}},
+		        {{"speed", "speed_mm_s"}});
+		add_fit(source, "reactor", {{"kind", "generator"}, {"generator", "reactor"}, {"compartment", "aft"}}, {});
+		add_fit(source, "bank", {{"kind", "storage"}, {"power_store", "source"}, {"compartment", "aft"}}, {});
+		add_fit(source, "feed", {{"kind", "distribution"}, {"conduit", "feed"}, {"compartment", "aft"}}, {});
+		ship["control_layout"]["controllers"].back()["commands"] =
+		    Json::array({{{"id", "isolate"}, {"action", "link_isolated"}, {"initial", 0}, {"consumers", {"feed"}}}});
+		add_fit(source, "cooler", {{"kind", "coolant"}, {"cooling_link", "cooler"}, {"compartment", "aft"}}, {});
+		ship["systems"][disabled]["compartment"] = "fore";
+		const auto catalog = load(source);
+		const std::string map = source["maps"][0]["id"];
+		const auto fore = compile_combat(catalog, "test.combat")->compartment_ids.at("fore");
+		const auto resources = *compile_ship_resources(catalog, "test.combat");
+		const auto cell = resources.network.store_ids.at("cell");
+		const auto supply = resources.network.store_ids.at("source");
+		World world;
+		world.load(catalog, map);
+		claim(world);
+		submit(world, 101, "drive", "speed", 10000);
+		world.tick();
+		auto checkpoint = world.save();
+		checkpoint["bodies"][0]["combat"]["compartments"][fore]["hp"] = 0;
+		checkpoint["bodies"][0]["combat"]["compartments"][fore]["disabled"] = true;
+		world.restore(catalog, checkpoint);
+		const auto before = checkpoint["bodies"][0]["resources"]["network"];
+		world.tick();
+		const auto after = world.save()["bodies"][0]["resources"]["network"];
+		require(after["ticks"].get<std::uint64_t>() == before["ticks"].get<std::uint64_t>() + 1 &&
+		            after["stores"][cell]["energy"] == before["stores"][cell]["energy"].get<int>() - 10 +
+		                                                   after["telemetry"][cell]["accepted_incoming"].get<int>(),
+		        "allocation preview commits one tick and debits operating work exactly once");
+		require(after["generators"][0]["enabled"] == true && after["stores"][supply]["enabled"] == true &&
+		            after["links"][0]["isolated"] == false && after["cooling_links"][0]["isolated"] == false,
+		        "physical supply unavailability preserves accepted enabled and isolation settings");
+		if (disabled == "reactor")
+			require(after["telemetry"][supply]["generated"] == 0, "disabled generator produces no energy");
+		if (disabled == "bank" || disabled == "feed")
+			require(after["telemetry"][cell]["accepted_incoming"] == 0, "disabled supply path transfers no energy");
+		if (disabled == "cooler")
+			require(after["coolant_sources"][0]["last_heat_removed"] == 0, "disabled cooling link removes no heat");
+		World resumed;
+		resumed.restore(catalog, world.save());
+		advance(world, 5);
+		advance(resumed, 5);
+		require(world.save() == resumed.save(), "unavailable supplies retain deterministic allocation continuation");
+	}
+}
 } // namespace
 int main(int argc, char **argv)
 {
@@ -1370,6 +1440,7 @@ int main(int argc, char **argv)
 				if (row.at("id") == "drive")
 					require(row.at("action").at("status") == "cancelled", "human handover cancels coordinated action");
 		}
+		resource_availability_contracts();
 		extended_contracts();
 		review_contracts();
 		ordnance_contracts();
