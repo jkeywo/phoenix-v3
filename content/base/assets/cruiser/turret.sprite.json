@@ -1,0 +1,174 @@
+{
+	"schema_version": 1,
+	"id": "cruiser-turret",
+	"description": "One shared comic cruiser main-gun turret for all five mounts. Five drawings, eight bearings via horizontal mirroring; corrected hull-level diagonal camera.",
+	"files": {
+		"sprite": "turret-albedo.png",
+		"depth": "turret-depth.png",
+		"normal": "turret-normal.png"
+	},
+	"image_size": [1536, 1024],
+	"coordinate_system": "frame_pixels_top_left_y_down",
+	"sprite_color_space": "srgb",
+	"normal_encoding": {
+		"space": "view",
+		"x": "right",
+		"y": "up",
+		"z": "toward_viewer",
+		"quality": "derived_from_calibrated_depth"
+	},
+	"depth_encoding": {
+		"channel": "r",
+		"color_space": "linear",
+		"white": "near",
+		"quality": "calibrated_draft"
+	},
+	"sprite_sheet": {
+		"kind": "directions",
+		"description": "Five irregular source rectangles; eight logical bearings. Rectangles are authoritative; rows/columns are nominal logical capacity, not a uniform slicing grid. Mirrored frames retain unreflected source coordinates.",
+		"columns": 3,
+		"rows": 3,
+		"frames": [
+			{
+				"name": "bow",
+				"rect": [150, 70, 550, 275],
+				"pivot": [265, 240],
+				"camera_azimuth_degrees": 0,
+				"mirror_x": false,
+				"depth_scale": 1.8,
+				"depth_offset": 0,
+				"markers": {
+					"mount": [265, 240, 0],
+					"muzzle": [266, 146, 1]
+				},
+				"attachment_depth_offsets": {
+					"mount": 0,
+					"muzzle": 0
+				}
+			},
+			{
+				"name": "bow_port",
+				"rect": [740, 120, 796, 225],
+				"pivot": [475, 200],
+				"camera_azimuth_degrees": 45,
+				"mirror_x": false,
+				"depth_scale": 1.8,
+				"depth_offset": 0,
+				"markers": {
+					"mount": [475, 200, 0],
+					"muzzle": [43, 75, 1]
+				},
+				"attachment_depth_offsets": {
+					"mount": 0,
+					"muzzle": 0
+				}
+			},
+			{
+				"name": "port",
+				"rect": [0, 400, 920, 270],
+				"pivot": [655, 225],
+				"camera_azimuth_degrees": 90,
+				"mirror_x": false,
+				"depth_scale": 1.8,
+				"depth_offset": 0,
+				"markers": {
+					"mount": [655, 225, 0],
+					"muzzle": [30, 102, 1]
+				},
+				"attachment_depth_offsets": {
+					"mount": 0,
+					"muzzle": 0
+				}
+			},
+			{
+				"name": "stern_port",
+				"rect": [920, 400, 616, 270],
+				"pivot": [365, 225],
+				"camera_azimuth_degrees": 135,
+				"mirror_x": false,
+				"depth_scale": 1.8,
+				"depth_offset": 0,
+				"markers": {
+					"mount": [365, 225, 0],
+					"muzzle": [33, 71, 1]
+				},
+				"attachment_depth_offsets": {
+					"mount": 0,
+					"muzzle": 0
+				}
+			},
+			{
+				"name": "stern",
+				"rect": [170, 690, 520, 290],
+				"pivot": [255, 255],
+				"camera_azimuth_degrees": 180,
+				"mirror_x": false,
+				"depth_scale": 1.8,
+				"depth_offset": 0,
+				"markers": {
+					"mount": [255, 255, 0],
+					"muzzle": [255, 50, 1]
+				},
+				"attachment_depth_offsets": {
+					"mount": 0,
+					"muzzle": 0
+				}
+			},
+			{
+				"name": "stern_starboard",
+				"rect": [920, 400, 616, 270],
+				"pivot": [365, 225],
+				"camera_azimuth_degrees": 225,
+				"mirror_x": true,
+				"depth_scale": 1.8,
+				"depth_offset": 0,
+				"markers": {
+					"mount": [365, 225, 0],
+					"muzzle": [33, 71, 1]
+				},
+				"attachment_depth_offsets": {
+					"mount": 0,
+					"muzzle": 0
+				}
+			},
+			{
+				"name": "starboard",
+				"rect": [0, 400, 920, 270],
+				"pivot": [655, 225],
+				"camera_azimuth_degrees": 270,
+				"mirror_x": true,
+				"depth_scale": 1.8,
+				"depth_offset": 0,
+				"markers": {
+					"mount": [655, 225, 0],
+					"muzzle": [30, 102, 1]
+				},
+				"attachment_depth_offsets": {
+					"mount": 0,
+					"muzzle": 0
+				}
+			},
+			{
+				"name": "bow_starboard",
+				"rect": [740, 120, 796, 225],
+				"pivot": [475, 200],
+				"camera_azimuth_degrees": 315,
+				"mirror_x": true,
+				"depth_scale": 1.8,
+				"depth_offset": 0,
+				"markers": {
+					"mount": [475, 200, 0],
+					"muzzle": [43, 75, 1]
+				},
+				"attachment_depth_offsets": {
+					"mount": 0,
+					"muzzle": 0
+				}
+			}
+		]
+	},
+	"pivot": null,
+	"markers": {},
+	"marker_notes": "Pivot/mount is the turntable contact centre. Use this same sprite set for every main turret. Flip ventral instances vertically about the pivot. Choose camera bearing relative to turret yaw, not hull yaw. No normal/depth maps.",
+	"billboard_mode": "eight"
+}

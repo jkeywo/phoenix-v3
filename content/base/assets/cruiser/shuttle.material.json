@@ -1,0 +1,141 @@
+{
+	"albedo": "phoenix-base:assets/cruiser/shuttle-albedo.png",
+	"frames": [
+		{
+			"name": "bow",
+			"rect": [80, 30, 590, 355],
+			"pivot": [288, 190],
+			"azimuth": 0,
+			"mirror_x": false,
+			"depth_scale": 0,
+			"depth_offset": 0,
+			"attachments": {
+				"muzzle": {
+					"x": 59,
+					"y": 185,
+					"layer": 1,
+					"depth_offset": 0
+				}
+			}
+		},
+		{
+			"name": "bow_port",
+			"rect": [770, 90, 755, 285],
+			"pivot": [380, 155],
+			"azimuth": 45,
+			"mirror_x": false,
+			"depth_scale": 0,
+			"depth_offset": 0,
+			"attachments": {
+				"muzzle": {
+					"x": 76,
+					"y": 148,
+					"layer": 1,
+					"depth_offset": 0
+				}
+			}
+		},
+		{
+			"name": "port",
+			"rect": [20, 410, 760, 280],
+			"pivot": [385, 140],
+			"azimuth": 90,
+			"mirror_x": false,
+			"depth_scale": 0,
+			"depth_offset": 0,
+			"attachments": {
+				"muzzle": {
+					"x": 76,
+					"y": 146,
+					"layer": 1,
+					"depth_offset": 0
+				}
+			}
+		},
+		{
+			"name": "stern_port",
+			"rect": [800, 420, 725, 280],
+			"pivot": [360, 145],
+			"azimuth": 135,
+			"mirror_x": false,
+			"depth_scale": 0,
+			"depth_offset": 0,
+			"attachments": {
+				"muzzle": {
+					"x": 72,
+					"y": 146,
+					"layer": 1,
+					"depth_offset": 0
+				}
+			}
+		},
+		{
+			"name": "stern",
+			"rect": [120, 695, 490, 305],
+			"pivot": [246, 160],
+			"azimuth": 180,
+			"mirror_x": false,
+			"depth_scale": 0,
+			"depth_offset": 0,
+			"attachments": {
+				"muzzle": {
+					"x": 49,
+					"y": 159,
+					"layer": 1,
+					"depth_offset": 0
+				}
+			}
+		},
+		{
+			"name": "stern_starboard",
+			"rect": [800, 420, 725, 280],
+			"pivot": [360, 145],
+			"azimuth": 225,
+			"mirror_x": true,
+			"depth_scale": 0,
+			"depth_offset": 0,
+			"attachments": {
+				"muzzle": {
+					"x": 72,
+					"y": 146,
+					"layer": 1,
+					"depth_offset": 0
+				}
+			}
+		},
+		{
+			"name": "starboard",
+			"rect": [20, 410, 760, 280],
+			"pivot": [385, 140],
+			"azimuth": 270,
+			"mirror_x": true,
+			"depth_scale": 0,
+			"depth_offset": 0,
+			"attachments": {
+				"muzzle": {
+					"x": 76,
+					"y": 146,
+					"layer": 1,
+					"depth_offset": 0
+				}
+			}
+		},
+		{
+			"name": "bow_starboard",
+			"rect": [770, 90, 755, 285],
+			"pivot": [380, 155],
+			"azimuth": 315,
+			"mirror_x": true,
+			"depth_scale": 0,
+			"depth_offset": 0,
+			"attachments": {
+				"muzzle": {
+					"x": 76,
+					"y": 148,
+					"layer": 1,
+					"depth_offset": 0
+				}
+			}
+		}
+	]
+}

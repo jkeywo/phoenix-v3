@@ -1,0 +1,15 @@
+{
+	"schema": 1,
+	"method": "Built-in image generation for hull depth draft; authored smooth geometric field for turret after two generation rejections; normals derived from calibrated depth.",
+	"hull_prompt": "Create a technical grayscale DEPTH MAP of the attached cruiser hull sprite atlas, registered PIXEL FOR PIXEL to the original 1536x1024 image. Edit target is the hull atlas. Preserve exactly all five ship silhouettes, positions, dimensions and camera views: bow upper left; bow-port upper right; port middle left; stern-port middle right; stern bottom left. Do not move, crop, enlarge or redesign any hull. Replace colors, ink, painted stripes, scratches and baked lighting with smooth geometric depth, linear grayscale white nearer the viewer and black farther. Background solid black. Depth is camera distance within each view, NOT elevation height: bow and stern central front planes near white and longitudinal hull surfaces recede along the ship; broadside hull side panels near mid-light gray, round engine cylinders and turrets sockets smoothly shaped. No lighting, shadows, metallic highlights, line art, text or labels. Retain all five empty turret sockets and missile banks as geometry. This is for registered real-time sprite depth occlusion, not an illustration.",
+	"turret_prompt": "Convert this fictional spacecraft game sprite sheet into a grayscale camera-depth texture for 3D lighting. Keep the five mechanical objects at exactly their current positions, scales and outlines in the 1536x1024 atlas. This is a technical geometry map: white is nearer the camera, dark gray farther. Replace all colors, painted stripes, ink and scratches with smooth surface distance gradients. Solid black background. Do not add objects, text, illumination, cast shadows or perspective changes. Preserve the protruding cylindrical geometry and rotating housings exactly. Depth is distance along the viewing direction, not surface brightness or height above the base.",
+	"turret_generation": "Unavailable: image service rejected input once and output once. Final turret depth is an authored geometric approximation, not generated output.",
+	"normal_convention": {
+		"space": "view",
+		"x": "right",
+		"y": "up",
+		"z": "toward_viewer"
+	},
+	"limitations": "Illustrated relief, not watertight geometry. Production albedo uses a 256-colour palette; original RGBA sheets remain unchanged in raw/cruiser.",
+	"hull_generated_file": "exec-2b120f73-66f6-4133-95ad-b7bfc3994f5d.png"
+}

@@ -1,0 +1,191 @@
+{
+	"albedo": "phoenix-base:assets/cruiser/turret-albedo.png",
+	"depth": "phoenix-base:assets/cruiser/turret-depth.png",
+	"normal": "phoenix-base:assets/cruiser/turret-normal.png",
+	"frames": [
+		{
+			"name": "bow",
+			"rect": [150, 70, 550, 275],
+			"pivot": [265, 240],
+			"azimuth": 0,
+			"mirror_x": false,
+			"depth_scale": 1.8,
+			"depth_offset": 0,
+			"attachments": {
+				"mount": {
+					"x": 265,
+					"y": 240,
+					"layer": 0,
+					"depth_offset": 0
+				},
+				"muzzle": {
+					"x": 266,
+					"y": 146,
+					"layer": 1,
+					"depth_offset": 0
+				}
+			}
+		},
+		{
+			"name": "bow_port",
+			"rect": [740, 120, 796, 225],
+			"pivot": [475, 200],
+			"azimuth": 45,
+			"mirror_x": false,
+			"depth_scale": 1.8,
+			"depth_offset": 0,
+			"attachments": {
+				"mount": {
+					"x": 475,
+					"y": 200,
+					"layer": 0,
+					"depth_offset": 0
+				},
+				"muzzle": {
+					"x": 43,
+					"y": 75,
+					"layer": 1,
+					"depth_offset": 0
+				}
+			}
+		},
+		{
+			"name": "port",
+			"rect": [0, 400, 920, 270],
+			"pivot": [655, 225],
+			"azimuth": 90,
+			"mirror_x": false,
+			"depth_scale": 1.8,
+			"depth_offset": 0,
+			"attachments": {
+				"mount": {
+					"x": 655,
+					"y": 225,
+					"layer": 0,
+					"depth_offset": 0
+				},
+				"muzzle": {
+					"x": 30,
+					"y": 102,
+					"layer": 1,
+					"depth_offset": 0
+				}
+			}
+		},
+		{
+			"name": "stern_port",
+			"rect": [920, 400, 616, 270],
+			"pivot": [365, 225],
+			"azimuth": 135,
+			"mirror_x": false,
+			"depth_scale": 1.8,
+			"depth_offset": 0,
+			"attachments": {
+				"mount": {
+					"x": 365,
+					"y": 225,
+					"layer": 0,
+					"depth_offset": 0
+				},
+				"muzzle": {
+					"x": 33,
+					"y": 71,
+					"layer": 1,
+					"depth_offset": 0
+				}
+			}
+		},
+		{
+			"name": "stern",
+			"rect": [170, 690, 520, 290],
+			"pivot": [255, 255],
+			"azimuth": 180,
+			"mirror_x": false,
+			"depth_scale": 1.8,
+			"depth_offset": 0,
+			"attachments": {
+				"mount": {
+					"x": 255,
+					"y": 255,
+					"layer": 0,
+					"depth_offset": 0
+				},
+				"muzzle": {
+					"x": 255,
+					"y": 50,
+					"layer": 1,
+					"depth_offset": 0
+				}
+			}
+		},
+		{
+			"name": "stern_starboard",
+			"rect": [920, 400, 616, 270],
+			"pivot": [365, 225],
+			"azimuth": 225,
+			"mirror_x": true,
+			"depth_scale": 1.8,
+			"depth_offset": 0,
+			"attachments": {
+				"mount": {
+					"x": 365,
+					"y": 225,
+					"layer": 0,
+					"depth_offset": 0
+				},
+				"muzzle": {
+					"x": 33,
+					"y": 71,
+					"layer": 1,
+					"depth_offset": 0
+				}
+			}
+		},
+		{
+			"name": "starboard",
+			"rect": [0, 400, 920, 270],
+			"pivot": [655, 225],
+			"azimuth": 270,
+			"mirror_x": true,
+			"depth_scale": 1.8,
+			"depth_offset": 0,
+			"attachments": {
+				"mount": {
+					"x": 655,
+					"y": 225,
+					"layer": 0,
+					"depth_offset": 0
+				},
+				"muzzle": {
+					"x": 30,
+					"y": 102,
+					"layer": 1,
+					"depth_offset": 0
+				}
+			}
+		},
+		{
+			"name": "bow_starboard",
+			"rect": [740, 120, 796, 225],
+			"pivot": [475, 200],
+			"azimuth": 315,
+			"mirror_x": true,
+			"depth_scale": 1.8,
+			"depth_offset": 0,
+			"attachments": {
+				"mount": {
+					"x": 475,
+					"y": 200,
+					"layer": 0,
+					"depth_offset": 0
+				},
+				"muzzle": {
+					"x": 43,
+					"y": 75,
+					"layer": 1,
+					"depth_offset": 0
+				}
+			}
+		}
+	]
+}
