@@ -118,6 +118,7 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 	    model_.observation() ? model_.observation()->gameplay.value("mission_report", Json(nullptr)) : Json(nullptr);
 	const auto ftl =
 	    model_.observation() && !pregame ? model_.observation()->gameplay.value("ftl", Json::array()) : Json::array();
+	const bool navigator_panel = !ftl.empty() && model_.layout() && model_.layout()->at("widgets").empty();
 	if (const auto *layout = model_.layout(); layout && !pregame)
 		for (const auto &widget : layout->at("widgets"))
 			if (widget.at("kind") == "objectives")
@@ -145,7 +146,7 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 	if (!mission_outcome_.empty())
 		navigation_visible_ = false;
 	document_->SetClass("navigation-console", navigation_visible_);
-	if (navigation_visible_ || !ftl.empty() || !mission_outcome_.empty())
+	if (navigation_visible_ || navigator_panel || !mission_outcome_.empty())
 		document_->GetElementById("gameplay")->SetProperty("display", "none");
 	navigation_area_ = {0, 110, region.width, std::max(50.f, region.height - 250)};
 	if (navigation_visible_ && model_.observation())
@@ -251,7 +252,7 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 		markup += button("mission.leave", "Return to menu") + "</div></div>";
 		app.screen_readouts.emplace_back(id("mission-result"), report_text);
 	}
-	else if (!ftl.empty())
+	else if (navigator_panel)
 	{
 		std::erase_if(app.screen_controls,
 		              [&](const auto &control)

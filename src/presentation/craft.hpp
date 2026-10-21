@@ -39,7 +39,8 @@ std::string craft_markup()
 		{
 			return settings_button("craft/" + action + "/" + craft + "/" + target, label);
 		};
-		html += button("recall", "", "Recall");
+		if (c.at("phase") != "docked" || !c.at("available").get<bool>())
+			html += button("recall", "", "Recall");
 		if (c.at("role") == "interceptor")
 		{
 			html += button("defend", "", "Defend carrier");
@@ -48,7 +49,7 @@ std::string craft_markup()
 		}
 		if (model_.observation())
 			for (const auto &target : model_.observation()->contacts)
-				if (target.id < 1000000000ULL)
+				if (target.id < 1000000000ULL && std::to_string(target.id) != craft)
 				{
 					const auto name = localise(target.definition) + " #" + std::to_string(target.id);
 					if (c.at("role") == "interceptor")

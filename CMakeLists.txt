@@ -958,6 +958,22 @@ if(EMSCRIPTEN)
 	)
 endif()
 
+add_executable(phoenix_craft_smoke EXCLUDE_FROM_ALL tests/manual/craft_ui.cpp)
+target_link_libraries(phoenix_craft_smoke PRIVATE phoenix_session phoenix_presentation)
+if(NOT EMSCRIPTEN)
+	add_dependencies(phoenix_craft_smoke development_packs)
+	add_custom_command(
+		TARGET phoenix_craft_smoke
+		POST_BUILD
+		COMMAND
+			${CMAKE_COMMAND} -E copy_directory_if_different "${CMAKE_CURRENT_BINARY_DIR}/assets"
+			"$<TARGET_FILE_DIR:phoenix_craft_smoke>/assets"
+		COMMAND
+			${CMAKE_COMMAND} -E copy_directory_if_different "${CMAKE_CURRENT_BINARY_DIR}/server-audio"
+			"$<TARGET_FILE_DIR:phoenix_craft_smoke>/assets/audio"
+	)
+endif()
+
 add_executable(phoenix_camera_smoke EXCLUDE_FROM_ALL tests/manual/camera_ui.cpp)
 target_link_libraries(phoenix_camera_smoke PRIVATE phoenix_session phoenix_presentation)
 if(EMSCRIPTEN)

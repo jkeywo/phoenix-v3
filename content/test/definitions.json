@@ -7481,13 +7481,15 @@
 				"team": {
 					"kind": "repair_team",
 					"hp_per_second": 15,
-					"compartment": "hull"
+					"compartment": "hull",
+					"observation_console": "support"
 				},
 				"reactor": {
 					"kind": "generator",
 					"generator": "reactor",
 					"power_store": "cell",
-					"compartment": "hull"
+					"compartment": "hull",
+					"observation_console": "support"
 				},
 				"interceptor-supply": {
 					"kind": "magazine",
@@ -7501,7 +7503,8 @@
 						"penetration": 100,
 						"damage_per_m": 10
 					},
-					"compartment": "hull"
+					"compartment": "hull",
+					"observation_console": "support"
 				},
 				"bomber-supply": {
 					"kind": "magazine",
@@ -7519,7 +7522,8 @@
 						"damage_per_m": 10,
 						"arc_height_mm": 12000
 					},
-					"compartment": "hull"
+					"compartment": "hull",
+					"observation_console": "support"
 				},
 				"bay": {
 					"kind": "shuttle_bay",
@@ -9531,9 +9535,9 @@
 					"kind": "radar",
 					"label": "Local space / north up",
 					"binding": "radar.contacts",
-					"x": 220,
+					"x": 0,
 					"y": 0,
-					"width": 780,
+					"width": 550,
 					"height": 700
 				},
 				{
@@ -9541,10 +9545,10 @@
 					"kind": "throttle",
 					"label": "Engine",
 					"binding": "engine.desired_speed",
-					"x": 0,
+					"x": 560,
 					"y": 0,
-					"width": 220,
-					"height": 1000,
+					"width": 90,
+					"height": 700,
 					"controller": "navigation",
 					"channel": "speed_mm_s"
 				},
@@ -9553,36 +9557,22 @@
 					"kind": "heading",
 					"label": "Steering / 0 east, 90 north",
 					"binding": "steering.desired_heading",
-					"x": 220,
+					"x": 0,
 					"y": 700,
-					"width": 780,
+					"width": 550,
 					"height": 300,
 					"controller": "navigation",
 					"channel": "heading_mdeg"
-				},
-				{
-					"id": "camera-mode",
-					"kind": "camera_mode",
-					"binding": "ship.camera.mode",
-					"label": "Camera mode",
-					"x": 0,
-					"y": 100,
-					"width": 180,
-					"height": 160
-				},
-				{
-					"id": "camera-direction",
-					"kind": "camera_direction",
-					"binding": "ship.camera.direction",
-					"label": "Camera direction",
-					"x": 0,
-					"y": 280,
-					"width": 180,
-					"height": 400
 				}
 			],
 			"name": "Carrier Helm",
-			"description": "Set the ship’s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew."
+			"description": "Fly the carrier manually, coordinate shuttle delivery and command combat sorties.",
+			"gameplay_panel": {
+				"x": 0.69,
+				"y": 0,
+				"width": 0.27,
+				"height": 0.95
+			}
 		},
 		{
 			"id": "test.carrier.support",

@@ -75,7 +75,8 @@ std::string away_markup()
 			if (phase == "outbound" || phase == "inbound")
 				html += button("cancel", "", "Cancel transfer");
 		}
-		if (phase == "open" || phase == "recovered" || phase == "deployed")
+		if ((phase == "open" || phase == "recovered" || phase == "deployed") &&
+		    (m.at("result") == "" || phase == "deployed"))
 			for (const auto &t : m.at("transports"))
 				html += button("transport", t, localise("Assign transport") + ": " + label(t.get<std::string>()));
 		for (const auto &s : m.at("slots"))

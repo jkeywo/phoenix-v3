@@ -255,11 +255,16 @@ class ConsoleSurface final : public Rml::EventListener
 		if (markup != local_settings_markup_)
 		{
 			const auto focus = context_->GetFocusElement() ? context_->GetFocusElement()->GetId() : std::string{};
+			auto *settings = document_->GetElementById("local-settings");
+			const auto scroll = settings->GetFirstChild() ? settings->GetFirstChild()->GetScrollTop() : 0.f;
 			elements_.clear();
-			document_->GetElementById("local-settings")->SetInnerRML(markup);
+			settings->SetInnerRML(markup);
 			local_settings_markup_ = markup;
 			if (auto *previous = document_->GetElementById(focus))
 				previous->Focus();
+			context_->Update();
+			if (auto *card = settings->GetFirstChild())
+				card->SetScrollTop(scroll);
 		}
 		context_->Update();
 		if (std::none_of(local_settings_controls_.begin(), local_settings_controls_.end(),
@@ -502,7 +507,7 @@ p {display:block;font-size:.85em;margin:4px 0;}
 .profile-tv img,.avatar-choice img {pointer-events:none;}
 .settings-cog {position:absolute;left:0;top:0;width:64px;height:64px;margin:0;padding:0px;background:transparent;border:2px transparent;}
 .settings-cog img {position:absolute;left:4px;top:4px;width:54px;height:54px;pointer-events:none;}
-.helm #toolbar {right:auto;height:64px;}
+.helm #toolbar {right:4%;height:64px;}
 .helm #toolbar h1,.helm #connection-status,.helm .radar-widget h2,.helm .heading-widget h2,.helm .heading-widget label,.helm .heading-widget p {display:none;}
 .helm .radar-widget {overflow:visible;}
 .helm .dial {left:0;right:0;top:0;bottom:0;}
@@ -560,14 +565,14 @@ button.on-screen-active .share-live {display:block;}
 #local-settings {display:none;position:absolute;left:0;top:0;width:100%;height:100%;background:#080d0fee;z-index:20;}
 .local-settings-open #local-settings {display:block;}
 .local-settings-open #comms-layer,.local-settings-open #toolbar,.local-settings-open #widgets,.local-settings-open #gameplay,.local-settings-open #lobby {visibility:hidden;}
-.local-settings-card {position:absolute;left:8%;top:8%;width:84%;max-height:84%;overflow:auto;box-sizing:border-box;padding:24px;background:#0b1719;border:2px #988b71;}
+.local-settings-card {position:absolute;left:8%;top:8%;width:84%;max-height:84%;overflow-x:hidden;overflow-y:auto;box-sizing:border-box;padding:24px;background:#0b1719;border:2px #988b71;}
 .local-settings-card h1 {display:block;}
 )"
 		                                                            R"(
 .local-settings-card {display:block;}
 .local-settings-card > div {display:block;width:100%;}
 .local-settings-card h1,.local-settings-card h2,.local-settings-card p {display:block;width:100%;box-sizing:border-box;}
-.personnel-row {display:block;width:100%;border-bottom:1px #526265;padding:8px;}
+.personnel-row {display:block;width:100%;box-sizing:border-box;border-bottom:1px #526265;padding:8px;}
 .away-attention button {background:#664e27;border:2px #f2d68a;}
 .personnel-row img {width:64px;height:64px;vertical-align:middle;}
 .personnel-row button {width:75%;}
@@ -974,7 +979,11 @@ button.on-screen-active .share-live {display:block;}
 	void focus(const std::string &name)
 	{
 		if (auto *element = this->element(name))
+		{
+			element->ScrollIntoView({Rml::ScrollAlignment::Nearest, Rml::ScrollAlignment::Nearest,
+			                         Rml::ScrollBehavior::Instant, Rml::ScrollParentage::Closest});
 			element->Focus(true);
+		}
 	}
 	bool set_value(const std::string &name, const std::string &text)
 	{
