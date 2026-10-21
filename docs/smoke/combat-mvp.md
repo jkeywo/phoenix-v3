@@ -32,3 +32,17 @@ An independent agent compared production implementation and tests against the [o
 ## Acceptance limits
 
 These runs establish implemented mechanisms and the exercised native/browser journeys. They do not establish weapon balance, actual screen-reader operation, physical touch/gamepads, audible quality, six-display performance or an off-machine browser crew journey. Finite repair supplies, shield retuning, post-launch retargeting and the new Cruiser encounter remain deferred by the accepted plan.
+
+## Combat audit cleanup verification — 21 October 2026
+
+All eight follow-up recommendations in `docs/combat-mvp.md` are implemented in separate ordered commits on `codex/combat-mvp`. An independent read-only review found no remaining actionable gaps or confirmed regressions. It also independently compared expanded Courier/Raider equipment with the previous fit after normalizing the new resource namespace; authored values match.
+
+The complete native build and all 23 native system cases pass. The complete WASM build and web system gate pass, including native/WASM continuation comparisons. Native production build-check, base-pack production verification and repository formatting checks pass. Clang exposed dependent-template syntax accepted by MSVC during the first web build; the correction was rebuilt and checked on both platforms.
+
+The explicitly invoked native `mvp`, `support` and `destruction` graphical journeys all pass on the final refactored build. The status popup capture was visually inspected; the probes exercise status popup close/focus, automatic PDC, ammunition selection, team assignment and physical destruction growth/removal/fade. Updated captures and probe logs remain under ignored `build/native`. The rebuilt worktree game was reopened after these probes.
+
+Current combat continuation uses schema 10. Schema 9 and earlier saves are explicitly refused; start a new session. This supersedes the original implementation's schema-9 format recorded above.
+
+The final quiet real-transport gate passes all eight journeys, including fleet recovery, GM approval/replacement, verified WSS and lobby readiness/countdown.
+
+Audit logs remain in ignored `build/`: `audit-final-native-build.log`, `audit-final-native-rebuild.log`, `audit-final-native-tests.log`, `audit-final-build-check.log`, `audit-final-web-build.log`, `audit-final-web-gate.log`, `audit-final-format.log` and `audit-final-network.log`.
