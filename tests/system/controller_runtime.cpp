@@ -65,6 +65,10 @@ int main(int argc, char **argv)
 			auto snapshot = world.controller_decision_snapshot(address);
 			require(snapshot.at("candidates").size() == 4 && snapshot.at("facts").contains("own.x"),
 			        "model gets permitted facts and prepared choices");
+			for (int elapsed = 0; elapsed < 3; ++elapsed)
+				world.tick();
+			require(!world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "continue"}}),
+			        "continue cannot apply to work changed by the fallback tree");
 			require(world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "faster"}}),
 			        "prepared choice enters common admission");
 			require(!world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "faster"}}),
@@ -82,6 +86,24 @@ int main(int argc, char **argv)
 				require(!world.submit_controller_decision({{"snapshot", altered}, {"candidate", "faster"}}) &&
 				            world.save() == before,
 				        "unoffered argument edits cannot cross the provider boundary");
+			}
+			{
+				const auto fresh = world.controller_decision_snapshot(address);
+				const auto before = world.save();
+				require(!world.submit_controller_decision(
+				            {{"snapshot", fresh}, {"candidate", "faster"}, {"interval_ticks", 1}}) &&
+				            world.save() == before,
+				        "provider cannot request a decision rate beyond the host's bounded cadence");
+			}
+			{
+				const auto fresh = world.controller_decision_snapshot(address);
+				for (int elapsed = 0; elapsed < 6; ++elapsed)
+					world.tick();
+				require(world.submit_controller_decision(
+				            {{"snapshot", fresh}, {"candidate", "faster"}, {"interval_ticks", 10}}),
+				        "a bounded low-latency decision is admitted after inference time elapses");
+				require(world.controller_ai(1)[0].at("next") == fresh.at("tick").get<std::uint64_t>() + 10,
+				        "reconsideration is measured from the snapshot rather than adding inference latency again");
 			}
 			for (int waiting = 0; waiting < 110; ++waiting)
 				world.tick();

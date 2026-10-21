@@ -3198,6 +3198,23 @@ bool World::submit_controller_decision(const Json &decision)
 		const auto &snapshot = decision.at("snapshot");
 		ControllerAddress address{snapshot.at("ship"), snapshot.at("console"), snapshot.at("controller")};
 		auto *c = impl_->model_controller(address);
+		const auto chosen = decision.value("candidate", std::string("defer_to_tree"));
+		bool cancels_activity = false;
+		for (const auto &candidate : snapshot.at("candidates"))
+			if (candidate.at("id") == chosen)
+				for (const auto &operation : candidate.value("operations", Json::array()))
+					cancels_activity = cancels_activity || operation.value("name", std::string{}) == "action.cancel";
+		auto basis = snapshot.at("basis");
+		auto current_basis = c ? impl_->model_basis(address.entity, *c) : Json();
+		if (c && c->effective_provider == "tree" && chosen != "continue" && chosen != "defer_to_tree" &&
+		    !cancels_activity)
+		{
+			// Tree adaptation must not permanently prevent a freshly revalidated concrete takeover.
+			basis.erase("action_serial");
+			basis.erase("action_status");
+			current_basis.erase("action_serial");
+			current_basis.erase("action_status");
+		}
 		if (!c || c->human || c->selected_provider == "tree" || snapshot.at("schema") != 1 ||
 		    snapshot.at("provider") != c->selected_provider || snapshot.at("tick") > ticks() ||
 		    (!decision.value("failed", false) && snapshot.at("expires") < ticks()) ||
@@ -3205,15 +3222,18 @@ bool World::submit_controller_decision(const Json &decision)
 		    snapshot.at("sequence") != c->decision_sequence + 1 ||
 		    snapshot.at("basis").at("generation") != c->generation ||
 		    snapshot.at("basis").at("provider_generation") != c->provider_generation ||
-		    (!decision.value("failed", false) && snapshot.at("basis") != impl_->model_basis(address.entity, *c)))
+		    (!decision.value("failed", false) && basis != current_basis))
 			return false;
+		const auto interval = checked_unsigned(decision.value("interval_ticks", Json(40)), 10, 40, "decision interval");
 		const auto index = static_cast<std::size_t>(
 		    c - impl_->entities.at(address.entity).get_mut<EntityControls>().controllers.data());
-		const auto chosen = decision.value("candidate", std::string("defer_to_tree"));
 		if (decision.value("failed", false) || chosen == "defer_to_tree")
 		{
 			++c->decision_sequence;
-			impl_->model_fallback(address.entity, index, decision.value("reason", std::string("provider_failed")));
+			impl_->model_fallback(address.entity, index,
+			                      !decision.value("failed", false) && chosen == "defer_to_tree"
+			                          ? "provider_deferred"
+			                          : decision.value("reason", std::string("provider_failed")));
 			return true;
 		}
 		const auto observed = impl_->controller_observations(address.entity, *c);
@@ -3241,7 +3261,7 @@ bool World::submit_controller_decision(const Json &decision)
 		c->effective_provider = c->selected_provider;
 		c->fallback_reason.clear();
 		c->retry_count = 0;
-		c->next_decision = ticks() + 40;
+		c->next_decision = std::max<std::uint64_t>(ticks(), snapshot.at("tick").get<std::uint64_t>() + interval);
 		c->last_decision_tick = ticks();
 		++c->decision_sequence;
 		bool accepted = true;

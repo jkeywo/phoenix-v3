@@ -19,6 +19,8 @@ public:
 	void reset_requests();
 	void poll();
 	bool busy() const;
+	std::size_t capacity() const;
+	bool request_batch(const Json &snapshots);
 	bool request(const Json &snapshot);
 	std::vector<Json> completed();
 

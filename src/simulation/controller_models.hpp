@@ -203,12 +203,11 @@ void model_deviation(const ControllerAddress &address, ConsoleControllerRuntime 
 			orders = true;
 	if (!orders)
 		return;
-	if (controller.decision_history.size() > 1 &&
-	    controller.decision_history[controller.decision_history.size() - 2].value("deviation", std::string{}) ==
-	        reason &&
-	    controller.decision_history[controller.decision_history.size() - 2].value("orders", Json::object()) ==
-	        controller.decision_history.back().value("orders", Json::object()))
-		return;
+	for (std::size_t i = 0; i + 1 < controller.decision_history.size(); ++i)
+		if (controller.decision_history[i].value("deviation", std::string{}) == reason &&
+		    controller.decision_history[i].value("orders", Json::object()) ==
+		        controller.decision_history.back().value("orders", Json::object()))
+			return;
 	const ConsoleAddress source{address.entity, address.console};
 	CoordinationInput message;
 	message.sender_system = knowledge.controller_id(address);

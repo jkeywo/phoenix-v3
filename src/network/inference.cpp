@@ -19,7 +19,9 @@ struct InferenceConnection::Impl
 	std::string request_id;
 	std::uint64_t latency_ms = 0;
 	std::chrono::steady_clock::time_point started = std::chrono::steady_clock::now(), seen{}, sent{}, hello{};
-	bool paired = false;
+	bool paired = false, batched = false;
+	std::size_t max_batch = 1;
+	std::uint64_t interval_ticks = 40;
 	void send(const std::string &type, Json body)
 	{
 		link->send("bridge", encode_packet({"inference", "host", "bridge", type, std::move(body)}, token));
@@ -47,6 +49,8 @@ Json InferenceConnection::status() const
 	        {"providers", impl_->providers},
 	        {"latency_ms", impl_->latency_ms},
 	        {"configured", !impl_->providers.empty()},
+	        {"max_batch", impl_->max_batch},
+	        {"decision_interval_ms", impl_->interval_ticks * 50},
 	        {"pair", impl_->token}};
 }
 void InferenceConnection::reset_requests()
@@ -80,6 +84,10 @@ void InferenceConnection::poll()
 							valid = valid && (p == "anyjev" || p == "llamacpp" || p == "jev");
 						if (valid)
 						{
+							s.max_batch = checked_unsigned(body.value("max_batch", Json(1)), 1, 6, "inference batch");
+							s.interval_ticks = checked_unsigned(body.value("decision_interval_ms", Json(2000)), 500,
+							                                    2000, "decision interval") /
+							                   50;
 							s.providers = providers;
 							s.paired = true;
 							s.seen = now;
@@ -90,15 +98,22 @@ void InferenceConnection::poll()
 					{
 						s.latency_ms =
 						    checked_unsigned(body.value("latency_ms", Json(0)), 0, 3600000, "inference latency");
-						bool offered = false;
-						for (const auto &candidate : s.pending.at("candidates"))
-							if (candidate.at("id") == body.value("candidate", std::string{}))
-								offered = true;
-						Json result{{"snapshot", s.pending},
-						            {"candidate", body.value("candidate", std::string("defer_to_tree"))},
-						            {"failed", body.contains("error") || !offered},
-						            {"reason", "provider_failed"}};
-						s.results.push_back(std::move(result));
+						const auto choices = s.batched ? body.value("candidates", Json::array())
+						                               : Json::array({body.value("candidate", Json())});
+						for (std::size_t i = 0; i < s.pending.size(); ++i)
+						{
+							const Json chosen =
+							    choices.is_array() && choices.size() == s.pending.size() ? choices[i] : Json();
+							bool offered = false;
+							for (const auto &candidate : s.pending[i].at("candidates"))
+								if (candidate.at("id") == chosen)
+									offered = true;
+							s.results.push_back({{"snapshot", s.pending[i]},
+							                     {"candidate", chosen.is_string() ? chosen : Json("defer_to_tree")},
+							                     {"interval_ticks", s.interval_ticks},
+							                     {"failed", body.contains("error") || !offered},
+							                     {"reason", "provider_failed"}});
+						}
 						s.pending = nullptr;
 						s.seen = now;
 					}
@@ -113,26 +128,56 @@ void InferenceConnection::poll()
 	}
 	if (!s.pending.is_null() && now - s.sent >= std::chrono::seconds(5))
 	{
-		s.results.push_back({{"snapshot", s.pending}, {"failed", true}, {"reason", "decision_timeout"}});
+		for (const auto &snapshot : s.pending)
+			s.results.push_back({{"snapshot", snapshot}, {"failed", true}, {"reason", "decision_timeout"}});
 		s.pending = nullptr;
 	}
 }
+std::size_t InferenceConnection::capacity() const
+{
+	return impl_->max_batch;
+}
 bool InferenceConnection::request(const Json &snapshot)
 {
+	return request_batch(Json::array({snapshot}));
+}
+bool InferenceConnection::request_batch(const Json &snapshots)
+{
 	auto &s = *impl_;
-	if (busy() || !s.online())
+	if (busy() || !s.online() || !snapshots.is_array() || snapshots.empty() || snapshots.size() > s.max_batch ||
+	    snapshots.dump().size() > 288000)
 		return false;
-	bool configured = false;
-	for (const auto &provider : s.providers)
-		if (provider == snapshot.at("provider"))
-			configured = true;
-	if (!configured || snapshot.dump().size() > 48000)
-		return false;
+	for (const auto &snapshot : snapshots)
+	{
+		if (snapshot.dump().size() > 48000)
+			return false;
+		bool configured = false;
+		for (const auto &provider : s.providers)
+			if (provider == snapshot.at("provider"))
+				configured = true;
+		if (!configured)
+			return false;
+	}
 	s.request_id = random_token();
-	s.pending = snapshot;
+	s.pending = snapshots;
+	s.batched = snapshots.size() > 1;
 	s.sent = std::chrono::steady_clock::now();
-	s.send("ai-request",
-	       {{"epoch", s.epoch}, {"id", s.request_id}, {"provider", snapshot.at("provider")}, {"snapshot", snapshot}});
+	Json body{{"epoch", s.epoch}, {"id", s.request_id}};
+	if (s.batched)
+	{
+		for (std::size_t i = 0; i < snapshots.size(); ++i)
+		{
+			auto part = body;
+			part.update({{"part", i}, {"count", snapshots.size()}, {"snapshot", snapshots[i]}});
+			s.send("ai-batch-part", std::move(part));
+		}
+	}
+	else
+	{
+		body["snapshot"] = snapshots[0];
+		body["provider"] = snapshots[0].at("provider");
+		s.send("ai-request", std::move(body));
+	}
 	return true;
 }
 std::vector<Json> InferenceConnection::completed()

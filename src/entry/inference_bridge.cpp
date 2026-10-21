@@ -1,4 +1,5 @@
 #include <chrono>
+#include <condition_variable>
 #include <deque>
 #include <iostream>
 #include <memory>
@@ -52,8 +53,43 @@ int main(int argc, char **argv)
 			    input->closed = true;
 		    })
 		    .detach();
+		struct Output
+		{
+			std::mutex mutex;
+			std::condition_variable ready;
+			std::string pending;
+		};
+		auto output = std::make_shared<Output>();
+		std::thread(
+		    [output]
+		    {
+			    for (;;)
+			    {
+				    std::string line;
+				    {
+					    std::unique_lock lock(output->mutex);
+					    output->ready.wait(lock,
+					                       [&]
+					                       {
+						                       return !output->pending.empty();
+					                       });
+					    line.swap(output->pending);
+				    }
+				    std::cout << line << std::endl;
+			    }
+		    })
+		    .detach();
+		auto emit = [output](const Json &request)
+		{
+			std::lock_guard lock(output->mutex);
+			output->pending = request.dump(); // Keep only the newest waiting job if the worker is busy.
+			output->ready.notify_one();
+		};
 		std::string epoch, last_id;
+		Json parts = Json::array();
+		bool submitted = false;
 		Json providers = Json::array();
+		std::uint64_t max_batch = 1, decision_interval_ms = 2000;
 		auto last_capabilities = std::chrono::steady_clock::now();
 		for (;;)
 		{
@@ -63,7 +99,12 @@ int main(int argc, char **argv)
 					break;
 				for (const auto &value : input->queue)
 					if (value.value("type", std::string{}) == "capabilities")
+					{
 						providers = value.at("providers");
+						max_batch = checked_unsigned(value.value("max_batch", Json(1)), 1, 6, "bridge batch");
+						decision_interval_ms = checked_unsigned(value.value("decision_interval_ms", Json(2000)), 500,
+						                                        2000, "decision interval");
+					}
 					else if (!epoch.empty() && value.value("id", std::string{}) == last_id)
 					{
 						auto result = value;
@@ -80,8 +121,41 @@ int main(int argc, char **argv)
 						{
 							const auto next = packet->body.at("epoch").get<std::string>();
 							if (next != epoch)
+							{
 								last_id.clear();
+								parts = Json::array();
+								submitted = false;
+							}
 							epoch = next;
+						}
+						else if (packet->type == "ai-batch-part" && packet->body.at("epoch") == epoch && !epoch.empty())
+						{
+							const auto &body = packet->body;
+							const auto count = checked_unsigned(body.at("count"), 2, 6, "batch parts");
+							const auto part = checked_unsigned(body.at("part"), 0, count - 1, "batch part");
+							const auto id = body.at("id").get<std::string>();
+							if (body.at("snapshot").dump().size() > 48000)
+								continue;
+							if (id != last_id)
+							{
+								last_id = id;
+								parts = Json::array();
+								for (unsigned i = 0; i < count; ++i)
+									parts.push_back(nullptr);
+								submitted = false;
+							}
+							if (submitted || parts.size() != count)
+								continue;
+							if (parts[part].is_null())
+								parts[part] = body.at("snapshot");
+							bool complete = true;
+							for (const auto &p : parts)
+								complete = complete && !p.is_null();
+							if (complete)
+							{
+								submitted = true;
+								emit(Json{{"id", id}, {"epoch", epoch}, {"snapshots", parts}});
+							}
 						}
 						else if (packet->type == "ai-request" && packet->body.at("epoch") == epoch && !epoch.empty())
 						{
@@ -89,7 +163,7 @@ int main(int argc, char **argv)
 							if (id != last_id)
 							{
 								last_id = id;
-								std::cout << packet->body.dump() << std::endl;
+								emit(packet->body);
 							}
 						}
 					}
@@ -100,7 +174,10 @@ int main(int argc, char **argv)
 				                                  "bridge",
 				                                  "host",
 				                                  "ai-capabilities",
-				                                  {{"epoch", epoch}, {"providers", providers}}},
+				                                  {{"epoch", epoch},
+				                                   {"providers", providers},
+				                                   {"max_batch", max_batch},
+				                                   {"decision_interval_ms", decision_interval_ms}}},
 				                                 token));
 				last_capabilities = now;
 			}

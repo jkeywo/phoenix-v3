@@ -15,57 +15,75 @@ const open = (url, options) =>
 		socket.once("error", reject);
 	});
 
-test(
-	"inference bridge supplies scoped choices without a crew lease",
-	{
-		skip: !process.env.PHOENIX_INFERENCE_PROBE || !process.env.PHOENIX_INFERENCE_BRIDGE,
-		timeout: 30000,
-	},
-	async () => {
-		const service = createSignallingServer({ port: 0 });
-		const address = await service.listen();
-		const url = `ws://127.0.0.1:${address.port}/phoenix`;
-		const token = randomBytes(32).toString("hex");
-		const probe = spawn(process.env.PHOENIX_INFERENCE_PROBE, [token, url, "10"]);
-		const bridge = spawn(process.env.PHOENIX_INFERENCE_BRIDGE, ["--pair", token, "--service", url]);
-		let output = "",
-			errors = "",
-			pending = "",
-			requests = 0;
-		probe.stdout.on("data", (bytes) => (output += bytes));
-		probe.stderr.on("data", (bytes) => (errors += bytes));
-		bridge.stdin.write(JSON.stringify({ type: "capabilities", providers: ["anyjev"] }) + "\n");
-		bridge.stdout.on("data", (bytes) => {
-			pending += bytes;
-			for (;;) {
-				const at = pending.indexOf("\n");
-				if (at < 0) break;
-				const request = JSON.parse(pending.slice(0, at));
-				pending = pending.slice(at + 1);
-				requests++;
-				const reply = { type: "result", id: request.id, candidate: "faster", latency_ms: 1 };
-				bridge.stdin.write(JSON.stringify(reply) + "\n");
-			}
-		});
-		try {
-			const code = await new Promise((resolve, reject) => {
-				probe.once("exit", resolve);
-				probe.once("error", reject);
+for (const maxBatch of [1, 6])
+	test(
+		`inference bridge supplies scoped choices without a crew lease (batch ${maxBatch})`,
+		{
+			skip: !process.env.PHOENIX_INFERENCE_PROBE || !process.env.PHOENIX_INFERENCE_BRIDGE,
+			timeout: 30000,
+		},
+		async () => {
+			const service = createSignallingServer({ port: 0 });
+			const address = await service.listen();
+			const url = `ws://127.0.0.1:${address.port}/phoenix`;
+			const token = randomBytes(32).toString("hex");
+			const probe = spawn(process.env.PHOENIX_INFERENCE_PROBE, [token, url, "10", "6"]);
+			const bridge = spawn(process.env.PHOENIX_INFERENCE_BRIDGE, ["--pair", token, "--service", url]);
+			let output = "",
+				errors = "",
+				pending = "",
+				requests = 0,
+				batches = 0,
+				closing = false;
+			probe.stdout.on("data", (bytes) => (output += bytes));
+			probe.stderr.on("data", (bytes) => (errors += bytes));
+			bridge.stdin.write(
+				JSON.stringify({
+					type: "capabilities",
+					providers: ["anyjev"],
+					max_batch: maxBatch,
+					decision_interval_ms: 500,
+				}) + "\n",
+			);
+			bridge.stdout.on("data", (bytes) => {
+				if (closing) return;
+				pending += bytes;
+				for (;;) {
+					const at = pending.indexOf("\n");
+					if (at < 0) break;
+					const request = JSON.parse(pending.slice(0, at));
+					pending = pending.slice(at + 1);
+					requests++;
+					if (request.snapshots) batches++;
+					const reply = { type: "result", id: request.id, candidate: "faster", latency_ms: 1 };
+					if (request.snapshots) reply.candidates = request.snapshots.map(() => "faster");
+					bridge.stdin.write(JSON.stringify(reply) + "\n");
+				}
 			});
-			assert.equal(code, 0, errors + output);
-			const state = JSON.parse(output.trim());
-			assert.ok(requests >= 2);
-			assert.equal(state.commands[0].value, 5500);
-			assert.equal(state.provider[0].effective, "anyjev");
-			assert.ok(state.history.every((item) => item.candidate === "faster" && item.accepted));
-		} finally {
-			probe.kill();
-			bridge.stdin.end();
-			bridge.kill();
-			await service.close();
-		}
-	},
-);
+			try {
+				const code = await new Promise((resolve, reject) => {
+					probe.once("exit", resolve);
+					probe.once("error", reject);
+				});
+				assert.equal(code, 0, errors + output);
+				const state = JSON.parse(output.trim());
+				assert.ok(requests >= 2);
+				assert.ok(maxBatch === 1 ? batches === 0 : batches >= 2);
+				assert.equal(state.provider.length, 6);
+				assert.ok(state.provider.every((row) => row.effective === "anyjev"));
+				assert.equal(state.commands[0].value, 5500);
+				assert.equal(state.provider[0].effective, "anyjev");
+				assert.ok(state.history.every((item) => item.candidate === "faster" && item.accepted));
+			} finally {
+				closing = true;
+				bridge.stdout.removeAllListeners("data");
+				probe.kill();
+				bridge.stdin.end();
+				bridge.kill();
+				await service.close();
+			}
+		},
+	);
 
 function receiver(socket) {
 	const pending = [],
