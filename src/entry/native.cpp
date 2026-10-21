@@ -91,6 +91,8 @@ int main(int argc, char **argv)
 			app.base_reference = argv[++i];
 		if (argument == "--menu-smoke")
 			menu_smoke.enabled = true;
+		if (argument == "--menu-smoke-large")
+			menu_smoke.enabled = menu_smoke.large = true;
 		if (argument == "--lobby-regions-smoke")
 		{
 			menu_smoke.enabled = menu_smoke.assign_displays = menu_smoke.virtual_displays = true;
@@ -684,6 +686,8 @@ int main(int argc, char **argv)
 	double accumulated = 0;
 	bool performance_released = false, performance_ready = false;
 	menu_smoke.configure_displays(app);
+	if (menu_smoke.large)
+		SetWindowSize(3800, 2160);
 	const auto smoke_started = GetTime();
 	menu_smoke.changed = smoke_started;
 	double previous_frame = smoke_started;

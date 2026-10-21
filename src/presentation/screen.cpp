@@ -850,36 +850,36 @@ void open_window()
     #settings-panel .audio-volume:focus sliderbar { background:#d9e9ef; border-color:#76c9e8; }
     #settings-panel .audio-volume sliderarrowdec, #settings-panel .audio-volume sliderarrowinc { display:none; }
     #native-menu { position:absolute; overflow:hidden; background:#080f19; padding:0; box-sizing:border-box; }
-    #native-menu h1 { position:absolute; top:30px; left:0; width:100%; text-align:center; font-size:34px; letter-spacing:3px; }
-    #native-menu h2 { font-size:22px; margin:16px 0 12px; }
-    #native-menu button { display:block; box-sizing:border-box; width:100%; min-height:48px; margin:0 0 12px; padding:12px; font-size:18px; }
-    #native-menu .menu-selected { background:#315a70; border:2px #d9e9ef; }
+    #native-menu h1 { position:absolute; top:30dp; left:0; width:100%; text-align:center; font-size:34dp; letter-spacing:3dp; }
+    #native-menu h2 { font-size:22dp; margin:16dp 0 12dp; }
+    #native-menu button { display:block; box-sizing:border-box; width:100%; min-height:48dp; margin:0 0 12dp; padding:12dp; font-size:18dp; }
+    #native-menu .menu-selected { background:#315a70; border:2dp #d9e9ef; }
     #native-menu p { word-break:break-word; }
-    #native-menu scrollbarhorizontal { height:14px; background:#102535; }
-    #native-menu scrollbarhorizontal sliderbar { min-width:24px; background:#76c9e8; }
+    #native-menu scrollbarhorizontal { height:14dp; background:#102535; }
+    #native-menu scrollbarhorizontal sliderbar { min-width:24dp; background:#76c9e8; }
     #viewscreen-board scrollbarvertical {width:14px;background:#263638;}
     #viewscreen-board scrollbarvertical sliderbar {min-height:32px;background:#ccc2af;}
     #viewscreen-board scrollbarvertical slidertrack {width:14px;}
-    #native-menu scrollbarvertical { width:14px; background:#102535; }
-    #native-menu scrollbarvertical sliderbar { min-height:24px; background:#76c9e8; }
+    #native-menu scrollbarvertical { width:14dp; background:#102535; }
+    #native-menu scrollbarvertical sliderbar { min-height:24dp; background:#76c9e8; }
     #native-menu button:disabled { color:#617785; background:#10202b; border-color:#243b49; }
-    .menu-top { position:absolute; top:18px; left:20px; width:140px; }
-    .menu-bottom { position:absolute; bottom:20px; left:20px; width:160px; }
-    .menu-back { position:absolute; bottom:20px; right:20px; width:140px; }
-    #menu-viewport { position:absolute; left:0; top:120px; right:0; bottom:100px; overflow:auto; }
+    .menu-top { position:absolute; top:18dp; left:20dp; width:140dp; }
+    .menu-bottom { position:absolute; bottom:20dp; left:20dp; width:160dp; }
+    .menu-back { position:absolute; bottom:20dp; right:20dp; width:140dp; }
+    #menu-viewport { position:absolute; left:0; top:120dp; right:0; bottom:100dp; overflow:auto; }
     #menu-columns { position:relative; display:flex; flex-direction:row; align-items:flex-start; height:100%; }
-    .menu-column { display:block; flex-shrink:0; padding-right:20px; box-sizing:border-box; max-height:100%; overflow:auto; }
-    .menu-column input { box-sizing:border-box; width:100%; height:44px; margin:8px 0 16px; }
+    .menu-column { display:block; flex-shrink:0; padding-right:20dp; box-sizing:border-box; max-height:100%; overflow:auto; }
+    .menu-column input { box-sizing:border-box; width:100%; height:44dp; margin:8dp 0 16dp; }
     #native-menu .connection { margin-top:0; }
-    .lobby-panel { position:absolute; top:110px; left:15%; width:70%; bottom:110px; overflow:auto; }
-    .lobby-panel button { max-width:500px; }
+    .lobby-panel { position:absolute; top:110dp; left:15%; width:70%; bottom:110dp; overflow:auto; }
+    .lobby-panel button { max-width:500dp; }
     .modal-shade { position:absolute; top:0; left:0; width:100%; height:100%; background:#080f19dd; }
-    .menu-dialog { position:absolute; top:12%; left:20%; width:60%; max-height:76%; padding:24px; box-sizing:border-box; background:#102535; border:2px #76c9e8; overflow:auto; }
-    #menu-status { position:absolute; left:200px; right:180px; bottom:14px; max-height:72px; overflow:auto; font-size:16px; }
-    #menu-error { position:absolute; z-index:20; left:10%; right:10%; top:25%; max-height:60%; overflow:auto; padding:24px; background:#201018; border:2px #ff8796; }
-    #native-menu .audio-volume { display:block; width:100%; height:44px; margin-top:14px; }
-    #native-menu .audio-volume slidertrack { height:8px; margin:18px 0; background:#315a70; }
-    #native-menu .audio-volume sliderbar { width:24px; height:44px; background:#76c9e8; border:2px #d9e9ef; }
+    .menu-dialog { position:absolute; top:12%; left:20%; width:60%; max-height:76%; padding:24dp; box-sizing:border-box; background:#102535; border:2dp #76c9e8; overflow:auto; }
+    #menu-status { position:absolute; left:200dp; right:180dp; bottom:14dp; max-height:72dp; overflow:auto; font-size:16dp; }
+    #menu-error { position:absolute; z-index:20; left:10%; right:10%; top:25%; max-height:60%; overflow:auto; padding:24dp; background:#201018; border:2dp #ff8796; }
+    #native-menu .audio-volume { display:block; width:100%; height:44dp; margin-top:14dp; }
+    #native-menu .audio-volume slidertrack { height:8dp; margin:18dp 0; background:#315a70; }
+    #native-menu .audio-volume sliderbar { width:24dp; height:44dp; background:#76c9e8; border:2dp #d9e9ef; }
     #native-menu .audio-volume sliderarrowdec, #native-menu .audio-volume sliderarrowinc { display:none; }
     )") + native_menu->style_sheet(font_directory.generic_string()) +
 	                                               R"(</style></head><body><h1 id="app-title">Against the Stars</h1>

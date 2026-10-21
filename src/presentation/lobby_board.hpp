@@ -400,10 +400,10 @@ void layout_lobby(const Application &app, Rml::ElementDocument &document, const 
 	const float width = std::max(1.f, region.width - sidebar - 3 * gap - 24);
 	auto box = [&](Rml::Element *element, float x, float y, float w, float h)
 	{
-		element->SetProperty("left", std::to_string(x) + "px");
-		element->SetProperty("top", std::to_string(y) + "px");
-		element->SetProperty("width", std::to_string(w) + "px");
-		element->SetProperty("height", std::to_string(h) + "px");
+		element->SetProperty("left", std::to_string(x) + "dp");
+		element->SetProperty("top", std::to_string(y) + "dp");
+		element->SetProperty("width", std::to_string(w) + "dp");
+		element->SetProperty("height", std::to_string(h) + "dp");
 	};
 	box(document.GetElementById("lobby-console-grid"), 24, 126, width, height);
 	Rml::ElementList cards;
@@ -423,7 +423,7 @@ void layout_lobby(const Application &app, Rml::ElementDocument &document, const 
 	if (auto *code = document.GetElementById("lobby-code"))
 		box(code, region.width - sidebar - 24, 20, sidebar, sidebar + 80);
 	if (auto *qr = document.GetElementById("menu.open-qr"))
-		qr->SetProperty("height", std::to_string(sidebar) + "px");
+		qr->SetProperty("height", std::to_string(sidebar) + "dp");
 	const float sidebar_height = std::max(410.f, region.height - sidebar_top - 84);
 	box(document.GetElementById("lobby-sidebar"), region.width - sidebar - 24, sidebar_top, sidebar,
 	    std::max(1.f, region.height - sidebar_top - 84));

@@ -25,6 +25,9 @@ int main()
 		const auto aligned = velocity_billboard_rotation(0, 1, 1, 0, 0);
 		require(std::abs(aligned - 1.5707963f) < .0001f && velocity_billboard_rotation(0, 0, 1, 0, aligned) == aligned,
 		        "Missile billboard preserves alignment when projected velocity degenerates");
+		require(menu_display_scale(1280, 720) == 1 && menu_display_scale(3840, 2160) == 3 &&
+		            menu_display_scale(1920, 1080) == 1.5f && menu_display_scale(800, 900) == 1,
+		        "Menu scale follows its own region and preserves compact-window minimum sizing");
 		// Synthetic sidecar: asymmetric borders catch uniform-scaling regressions.
 		nlohmann::json skin_source = {{"schema_version", 1},
 		                              {"coordinate_system", "frame_pixels_top_left_y_down"},

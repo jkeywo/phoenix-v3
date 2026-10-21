@@ -7,6 +7,11 @@
 #include <nlohmann/json.hpp>
 namespace phoenix
 {
+// Scale against one menu region, rather than the entire spanning window.
+inline float menu_display_scale(float width, float height)
+{
+	return std::max(1.f, std::min(width / 1280.f, height / 720.f));
+}
 // Source-pixel metadata stays authoritative. Display scale is a presentation choice.
 struct MenuSkin
 {

@@ -932,15 +932,19 @@ struct NativeMenuScreen::State
 				return false;
 			}
 		};
-		const auto region =
+		const auto physical_region =
 		    app.viewscreen_region ? *app.viewscreen_region
 		    : !app.console_regions.empty()
 		        ? app.console_regions.front()
 		        : ConsoleRegion{1, 0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())};
-		root->SetProperty("left", std::to_string(region.x) + "px");
-		root->SetProperty("top", std::to_string(region.y) + "px");
-		root->SetProperty("width", std::to_string(region.width) + "px");
-		root->SetProperty("height", std::to_string(region.height) + "px");
+		const auto scale = menu_display_scale(physical_region.width, physical_region.height);
+		document.GetContext()->SetDensityIndependentPixelRatio(scale);
+		const ConsoleRegion region{physical_region.console, 0, 0, physical_region.width / scale,
+		                           physical_region.height / scale};
+		root->SetProperty("left", std::to_string(physical_region.x) + "px");
+		root->SetProperty("top", std::to_string(physical_region.y) + "px");
+		root->SetProperty("width", std::to_string(physical_region.width) + "px");
+		root->SetProperty("height", std::to_string(physical_region.height) + "px");
 		std::string focused;
 		if (auto *element = document.GetContext()->GetFocusElement())
 			focused = element->GetId();
@@ -971,11 +975,11 @@ struct NativeMenuScreen::State
 				const float travel = static_cast<float>(progress) * (region.width + width);
 				const float bob =
 				    static_cast<float>(std::sin(ambient.scutter.age * (ambient.fast_crossing ? 16 : 6))) * 1.2f;
-				scutter->SetProperty("width", std::to_string(width) + "px");
-				scutter->SetProperty("height", std::to_string(height) + "px");
+				scutter->SetProperty("width", std::to_string(width) + "dp");
+				scutter->SetProperty("height", std::to_string(height) + "dp");
 				scutter->SetProperty("left",
-				                     std::to_string(ambient.rightward ? travel - width : region.width - travel) + "px");
-				scutter->SetProperty("top", std::to_string(region.height * .99f - height + bob) + "px");
+				                     std::to_string(ambient.rightward ? travel - width : region.width - travel) + "dp");
+				scutter->SetProperty("top", std::to_string(region.height * .99f - height + bob) + "dp");
 				scutter->SetProperty("transform", ambient.rightward ? "none" : "scaleX(-1)");
 			}
 		}
@@ -989,9 +993,9 @@ struct NativeMenuScreen::State
 		const float profile_width = terminal_width * (compact ? .533333f : 1.f);
 		if (auto *profile = document.GetElementById("menu-profile"))
 		{
-			profile->SetProperty("width", std::to_string(profile_width) + "px");
-			profile->SetProperty("height", std::to_string(profile_width * terminal_aspect) + "px");
-			profile->SetProperty("font-size", compact ? "11px" : "16px");
+			profile->SetProperty("width", std::to_string(profile_width) + "dp");
+			profile->SetProperty("height", std::to_string(profile_width * terminal_aspect) + "dp");
+			profile->SetProperty("font-size", compact ? "11dp" : "16dp");
 		}
 		if (auto *title = document.GetElementById("menu-title"))
 		{
@@ -1005,16 +1009,16 @@ struct NativeMenuScreen::State
 			const double left = app.reduced_motion ? target
 			                    : t < .8           ? region.width + (target - 18 - region.width) * ease(t / .8)
 			                                       : target - 18 + 18 * ease((t - .8) / .2);
-			title->SetProperty("top", "0px");
-			title->SetProperty("left", std::to_string(left) + "px");
-			title->SetProperty("width", std::to_string(logo_width) + "px");
-			title->SetProperty("height", std::to_string(logo_width * 2 / 3) + "px");
+			title->SetProperty("top", "0dp");
+			title->SetProperty("left", std::to_string(left) + "dp");
+			title->SetProperty("width", std::to_string(logo_width) + "dp");
+			title->SetProperty("height", std::to_string(logo_width * 2 / 3) + "dp");
 		}
 		const float reserved_right = 0.f;
 		if (auto *viewport = document.GetElementById("menu-viewport"))
 		{
-			viewport->SetProperty("right", std::to_string(reserved_right) + "px");
-			viewport->SetProperty("top", branch != Branch::root ? "200px" : "160px");
+			viewport->SetProperty("right", std::to_string(reserved_right) + "dp");
+			viewport->SetProperty("top", branch != Branch::root ? "200dp" : "160dp");
 		}
 		for (const auto &input : app.screen_inputs)
 			if (auto *field = dynamic_cast<Rml::ElementFormControl *>(document.GetElementById(input.id)))
@@ -1029,13 +1033,13 @@ struct NativeMenuScreen::State
 		column_offset += (target - column_offset) * (app.reduced_motion ? 1.f : std::min(1.f, GetFrameTime() * 18.f));
 		if (auto *columns_element = document.GetElementById("menu-columns"))
 		{
-			columns_element->SetProperty("left", std::to_string(column_offset) + "px");
-			columns_element->SetProperty("width", std::to_string(columns * column_width) + "px");
+			columns_element->SetProperty("left", std::to_string(column_offset) + "dp");
+			columns_element->SetProperty("width", std::to_string(columns * column_width) + "dp");
 		}
 		Rml::ElementList columns_list;
 		root->GetElementsByClassName(columns_list, "menu-column");
 		for (auto *element : columns_list)
-			element->SetProperty("width", std::to_string(column_width) + "px");
+			element->SetProperty("width", std::to_string(column_width) + "dp");
 		if (branch != shown_branch)
 		{
 			shown_branch = branch;
@@ -1324,7 +1328,8 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 	state_->terminal_width = terminal.value("display_width", 264.f);
 	std::string styles = state_->button_skin.sprite_sheet("menu-button") + panel.sprite_sheet("menu-panel") +
 	                     lobby_panel.sprite_sheet("lobby-card");
-	styles += "#native-menu { background:transparent; }\n";
+	const auto display_styles = styles.size();
+	styles += "#native-menu { background:transparent; font-size:20dp; }\n";
 	styles += "#native-menu #menu-frame { position:absolute; left:0; top:0; width:100%; height:100%; "
 	          "pointer-events:none; background:transparent; decorator:image(menu/" +
 	          scene.at("foreground").at("file").get<std::string>() + " cover); }\n";
@@ -1447,6 +1452,10 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
     .qr-terminal { position:absolute; left:0; width:440px; }
     #menu-join-qr { display:block; width:100%; height:85%; }
     )";
+	// Sprite-sheet rectangles above remain source pixels. Layout lengths below
+	// use RmlUi density units so drawing, hit testing and UIA share real bounds.
+	for (auto at = display_styles; (at = styles.find("px", at)) != std::string::npos; at += 2)
+		styles.replace(at, 2, "dp");
 	return styles;
 }
 void NativeMenuScreen::position_labels(Rml::ElementDocument &document)
@@ -1463,7 +1472,9 @@ void NativeMenuScreen::position_labels(Rml::ElementDocument &document)
 		    button->GetId().starts_with("menu.pack-"))
 			continue;
 		const float width = button->GetOffsetWidth(), height = button->GetOffsetHeight();
-		const auto anchor = state_->button_skin.label_position(width, height);
+		auto skin = state_->button_skin;
+		skin.scale *= document.GetContext()->GetDensityIndependentPixelRatio();
+		const auto anchor = skin.label_position(width, height);
 		label->SetProperty("left", std::to_string(anchor[0] - width * .5f) + "px");
 		label->SetProperty("top", std::to_string(anchor[1] - height * .5f) + "px");
 	}

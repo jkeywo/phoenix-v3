@@ -2,7 +2,7 @@
 // Explicitly invoked framebuffer/keyboard journey; never part of automatic CI.
 struct NativeMenuSmoke
 {
-	bool enabled = false;
+	bool enabled = false, large = false;
 	bool assign_displays = false;
 	bool virtual_displays = false;
 	bool display_transition_only = false;
@@ -58,11 +58,11 @@ struct NativeMenuSmoke
 	{
 		if (!enabled || GetTime() - changed < .4)
 			return false;
-		if (display_transition_only && std::any_of(app.screen_controls.begin(), app.screen_controls.end(),
-		                                           [](const auto &control)
-		                                           {
-			                                           return control.first == "loading.cancel";
-		                                           }))
+		if (std::any_of(app.screen_controls.begin(), app.screen_controls.end(),
+		                [](const auto &control)
+		                {
+			                return control.first == "loading.cancel";
+		                }))
 			return false;
 		auto capture = [](const char *name)
 		{
@@ -74,6 +74,12 @@ struct NativeMenuSmoke
 			if (!phoenix::probe_menu_keyboard(app))
 				throw std::runtime_error("Main-menu Tab traversal failed");
 			capture("home");
+			if (large)
+			{
+				action(app, "menu.host");
+				stage = 4;
+				break;
+			}
 			action(app, "menu.settings");
 			break;
 		case 1:
@@ -167,11 +173,16 @@ struct NativeMenuSmoke
 			action(app, "menu.packs");
 			break;
 		case 3:
-			if (!app.library->packs.empty() && pack_edits < 4)
+			if (auto editable = std::find_if(app.library->packs.begin(), app.library->packs.end(),
+			                                 [&](const auto &pack)
+			                                 {
+				                                 return pack.hash != app.library->base().hash;
+			                                 });
+			    editable != app.library->packs.end() && pack_edits < 4)
 			{
 				std::string id = "menu.apply-packs";
 				if (pack_edits < 2)
-					id = "menu.pack-toggle/" + app.library->packs.front().hash;
+					id = "menu.pack-toggle/" + editable->hash;
 				if (pack_edits == 2)
 					for (const auto &pack : app.library->packs)
 						if (pack.id == "test")
@@ -221,6 +232,8 @@ struct NativeMenuSmoke
 			if (app.screen == phoenix::Screen::server_lobby)
 				break;
 			capture("ships");
+			if (large)
+				load_error_step = 2;
 			const auto &slot = app.session->catalog().maps.at(app.selected_scenario).at("ship_slots").at(0);
 			const auto choice = "menu.ship/" + slot.at("id").get<std::string>() + "/" +
 			                    slot.at("allowed_ships").at(0).get<std::string>();
@@ -251,6 +264,8 @@ struct NativeMenuSmoke
 		}
 		case 8:
 		{
+			if (large)
+				complexity_step = 3;
 			const auto lobby = app.session->lobby();
 			if (assign_displays && !display_step)
 			{
@@ -420,6 +435,16 @@ struct NativeMenuSmoke
 			}
 			if (!phoenix::probe_native_accessibility(app))
 				throw std::runtime_error("Lobby UIA readouts failed");
+			if (large && !assign_displays)
+			{
+				const auto ready = app.control_placements.find("lobby.ready");
+				if (ready == app.control_placements.end())
+					throw std::runtime_error("High-resolution lobby lost Ready");
+				const auto &r = ready->second;
+				if (r.width < 200 || r.height < 90 || r.x < 0 || r.y < 0 || r.x + r.width > GetScreenWidth() + 1 ||
+				    r.y + r.height > GetScreenHeight() + 1)
+					throw std::runtime_error("High-resolution Ready is tiny or outside the window");
+			}
 			capture("lobby");
 			if (app.session->ticks() || app.session->running())
 				throw std::runtime_error("Menu selection advanced the game before readiness");
@@ -486,6 +511,11 @@ struct NativeMenuSmoke
 			    phoenix::invoke_navigation(app, "game.console") || phoenix::invoke_navigation(app, "game.follow") ||
 			    phoenix::invoke_navigation(app, "game.local-gm"))
 				throw std::runtime_error("Viewscreen exposed navigation outside Settings");
+			if (large)
+			{
+				std::cout << "PASS high-resolution menu, visible Ready bounds, countdown and launch\n";
+				return true;
+			}
 			action(app, "settings");
 			break;
 		}
