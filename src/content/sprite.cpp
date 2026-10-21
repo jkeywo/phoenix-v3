@@ -333,8 +333,8 @@ SpriteMaterial compile_sprite(const Json &sprite, const Catalog &catalog, const 
 		if (frame.depth_scale > 0 && material.depth.empty())
 			bad(path + ".frames.depth_scale", "requires depth texture");
 		const auto attachments = f.value("attachments", Json::object());
-		if (!attachments.is_object() || attachments.size() > 32)
-			bad(path + ".frames.attachments", "expected at most 32 named attachments");
+		if (!attachments.is_object() || attachments.size() > 64)
+			bad(path + ".frames.attachments", "expected at most 64 named attachments");
 		for (auto it = attachments.begin(); it != attachments.end(); ++it)
 		{
 			if (it.key().empty() || it.key().size() > 128)

@@ -633,6 +633,29 @@ int main()
 		auto sprite_archive = write_pack(sprite_draft);
 		auto sprite_catalog = resolve_packs({read_pack(sprite_archive)});
 		const auto compiled = compile_sprite(sprite, sprite_catalog, "test material");
+		{
+			auto sockets = sprite;
+			auto &points = sockets["frames"][0]["attachments"];
+			points = Json::object();
+			for (int i = 0; i < 64; ++i)
+				points["socket-" + std::to_string(i)] = {{"x", .5}, {"y", .5}, {"layer", 0}};
+			auto draft = sprite_draft;
+			auto definitions = sprite_defs;
+			definitions["entities"][0]["render"]["sprite"] = sockets;
+			draft.files["definitions.json"] = json_bytes(definitions);
+			const auto loaded_sockets = resolve_packs({read_pack(write_pack(draft))});
+			require(compile_sprite(sockets, loaded_sockets, "sockets").frames[0].attachments.size() == 64,
+			        "large modular sprites retain all bounded attachment sockets through the production loader");
+			points["overflow"] = {{"x", .5}, {"y", .5}, {"layer", 0}};
+			definitions["entities"][0]["render"]["sprite"] = sockets;
+			draft.files["definitions.json"] = json_bytes(definitions);
+			rejected(
+			    [&]
+			    {
+				    resolve_packs({read_pack(write_pack(draft))});
+			    },
+			    "64 named attachments");
+		}
 		// A complete sidecar configures a hull transactionally, including its
 		// public PNG icon and render size, through the real authoring/loader path.
 		auto complete_sidecar = Json{{"schema_version", 1},
