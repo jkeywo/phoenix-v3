@@ -59,6 +59,26 @@ class ConsoleSurface final : public Rml::EventListener
 	std::map<std::string, std::unique_ptr<RadarSweep>> radar_sweeps_;
 	Application *app_ = nullptr;
 	std::string signature_;
+	std::vector<std::pair<std::string, std::string>> content_packs_;
+	std::map<std::string, std::vector<ConsoleSpec>> resolved_consoles_;
+	const std::vector<ConsoleSpec> &console_specs(const Application &app, const std::string &ship)
+	{
+		const auto found = resolved_consoles_.find(ship);
+		if (found != resolved_consoles_.end())
+			return found->second;
+		return resolved_consoles_.emplace(ship, resolve_consoles(app.session->catalog(), ship)).first->second;
+	}
+	const Json *prepared_layout_ = nullptr;
+	std::uint64_t prepared_layout_revision_ = ~std::uint64_t{0}, layout_identity_ = 0;
+	struct StanceChoice
+	{
+		std::string action, target, label;
+		bool selected;
+		bool operator==(const StanceChoice &) const = default;
+	};
+	std::vector<StanceChoice> command_choices_;
+	std::string command_language_, command_markup_;
+
 	std::map<std::string, std::string> displayed_values_;
 	std::vector<std::pair<std::string, std::string>> readout_values_;
 	std::set<std::string> visible_readouts_;
@@ -1548,9 +1568,18 @@ button.on-screen-active .share-live {display:block;}
 		}
 		if (model_.announcement() != previous_announcement && !model_.announcement().empty())
 			app.accessible_status = model_.announcement();
-		if (owner_.lock() != app.session || (app.session && generation_ != app.session->generation()))
+		if (owner_.lock() != app.session || (app.session && (generation_ != app.session->generation() ||
+		                                                     content_packs_ != app.session->catalog().ordered_packs)))
 		{
 			owner_ = app.session;
+			content_packs_ =
+			    app.session ? app.session->catalog().ordered_packs : std::vector<std::pair<std::string, std::string>>{};
+			resolved_consoles_.clear();
+			prepared_layout_ = nullptr;
+			prepared_layout_revision_ = ~std::uint64_t{0};
+			command_choices_.clear();
+			command_language_.clear();
+			command_markup_.clear();
 			manual_profile_.clear();
 			manual_console_.clear();
 			local_language_ = app.language;
@@ -1649,7 +1678,7 @@ button.on-screen-active .share-live {display:block;}
 						}
 					for (const auto &slot : lobby.slots)
 						if (slot.id == seat.slot)
-							for (const auto &spec : resolve_consoles(app.session->catalog(), slot.ship))
+							for (const auto &spec : console_specs(app, slot.ship))
 								if (spec.id == seat.id)
 									layout = &app.session->catalog().consoles.at(spec.definition);
 				}
@@ -1662,7 +1691,13 @@ button.on-screen-active .share-live {display:block;}
 			                  std::string("Operate the fitted systems and monitor this Console's permitted contacts."));
 		}
 		// Authored widgets still determine controls, placement and authority.
-		std::string signature = (layout ? layout->dump() : "vacant") + (app.pseudo_locale ? "pseudo" : "normal") +
+		if (prepared_layout_ != layout || prepared_layout_revision_ != model_.layout_revision())
+		{
+			prepared_layout_ = layout;
+			prepared_layout_revision_ = model_.layout_revision();
+			++layout_identity_;
+		}
+		std::string signature = std::to_string(layout_identity_) + (app.pseudo_locale ? "pseudo" : "normal") +
 		                        (pregame ? ready ? "ready" : "waiting" : "running") + (profile_open_ ? "profile" : "") +
 		                        (profile_open_ ? "" : profile_name_) + "/complexity/" + complexity +
 		                        (manual_toggle_ ? "/manual" : "");
@@ -2138,34 +2173,40 @@ button.on-screen-active .share-live {display:block;}
 		for (const auto &[name, label] : gameplay_controls)
 			if (!engineering_controls.contains(name))
 				gameplay_identity.push_back(name);
-		std::string command_markup;
+		std::vector<StanceChoice> choices;
 		std::set<std::string> stance_controls;
 		if (command_console && model_.observation())
-		{
-			std::map<std::string, std::string> groups, titles;
-			for (const auto &seat : resolve_consoles(app.session->catalog(), model_.observation()->own.definition))
-				titles[seat.id] = app.session->catalog().consoles.at(seat.definition).value("name", seat.id);
 			for (const auto &d : model_.observation()->gameplay.value("controls", Json::array()))
 				if (d.value("action", "") == "stance.set")
 				{
-					const auto target = d.at("system").get<std::string>();
-					stance_controls.insert(descriptor_action(d.at("id")));
-					groups[target] +=
-					    "<button class=\"stance-button " + std::string(d.value("selected", false) ? "selected" : "") +
-					    "\" id=\"" + id(descriptor_action(d.at("id"))) + "\">" + "<span class=\"stance-label\">" +
-					    Rml::StringUtilities::EncodeRml(localise(d.at("label"))) +
-					    "</span><span class=\"stance-state\">" +
-					    (d.value("selected", false) ? Rml::StringUtilities::EncodeRml(localise("Selected"))
-					                                : std::string("&nbsp;")) +
-					    "</span></button>";
+					const auto action = descriptor_action(d.at("id"));
+					stance_controls.insert(action);
+					choices.push_back({action, d.at("system"), d.at("label"), d.value("selected", false)});
 				}
+		const auto command_language = local_language_ + (app.pseudo_locale ? "/pseudo" : "/normal");
+		if (choices != command_choices_ || command_language != command_language_)
+		{
+			std::map<std::string, std::string> groups, titles;
+			if (!choices.empty())
+				for (const auto &seat : console_specs(app, model_.observation()->own.definition))
+					titles[seat.id] = app.session->catalog().consoles.at(seat.definition).value("name", seat.id);
+			for (const auto &choice : choices)
+				groups[choice.target] +=
+				    "<button class=\"stance-button " + std::string(choice.selected ? "selected" : "") + "\" id=\"" +
+				    id(choice.action) + "\"><span class=\"stance-label\">" +
+				    Rml::StringUtilities::EncodeRml(localise(choice.label)) + "</span><span class=\"stance-state\">" +
+				    (choice.selected ? Rml::StringUtilities::EncodeRml(localise("Selected")) : std::string("&nbsp;")) +
+				    "</span></button>";
+			command_markup_.clear();
 			for (const auto &[target, buttons] : groups)
-				command_markup +=
+				command_markup_ +=
 				    "<div class=\"command-card\"><h2>" +
 				    Rml::StringUtilities::EncodeRml(localise(titles.contains(target) ? titles.at(target) : target)) +
 				    "</h2><div class=\"stance-row\">" + buttons + "</div></div>";
+			command_choices_ = std::move(choices);
+			command_language_ = command_language;
 		}
-		const auto gameplay_signature = gameplay_identity.dump() + command_markup;
+		const auto gameplay_signature = gameplay_identity.dump() + command_markup_;
 		if (gameplay_signature_ != gameplay_signature)
 		{
 			const auto focused = context_->GetFocusElement() ? context_->GetFocusElement()->GetId() : std::string{};
@@ -2173,7 +2214,7 @@ button.on-screen-active .share-live {display:block;}
 			for (const auto &held : held_clicks_)
 				model_.release_control(held.substr(id("").size()));
 			held_clicks_.clear();
-			std::string markup = command_markup;
+			std::string markup = command_markup_;
 			for (const auto &[name, label] : gameplay_controls)
 				if (!stance_controls.contains(name) && !engineering_controls.contains(name))
 					markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(id(name)) + "\">" +

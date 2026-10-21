@@ -59,6 +59,7 @@ int main()
 			ConsoleModel helm, sensors;
 			helm.refresh(multi, 1);
 			sensors.refresh(multi, 2);
+			const auto layout_revision = helm.layout_revision();
 			require(helm.layout() && sensors.layout() && helm.act("game.faster/widget") &&
 			            helm.act("game.faster/widget"),
 			        "headless model resolves authored layouts and accumulates same-tick actions");
@@ -83,6 +84,8 @@ int main()
 			helm.refresh(multi);
 			require(helm.requested_speed() == multi->observation()->requested_speed,
 			        "model reconciles pending requests with committed observations");
+			require(helm.layout_revision() == layout_revision,
+			        "committed operating values preserve the resolved layout identity");
 			auto recovered = make_local_session();
 			recovered->restore(multi->save());
 			require(recovered->recovery_pending() && !recovered->console_observation(2),
@@ -91,8 +94,11 @@ int main()
 			require(recovered->observation()->console == "helm" && recovered->claim_console(2, {ship, "sensors"}) &&
 			            !recovered->console_observation(2)->radar_enabled,
 			        "schema-2 recovery preserves selection and System state with fresh claims");
+			const auto previous_layout_revision = sensors.layout_revision();
 			sensors.refresh(recovered, 2);
 			require(sensors.announcement().empty(), "model clears old announcements when a session is replaced");
+			require(sensors.layout_revision() != previous_layout_revision,
+			        "replacement sessions invalidate cached Console layouts");
 			recovered->release_console(2);
 			sensors.refresh(recovered, 2);
 			require(!sensors.observation() && !sensors.layout() && !sensors.act("game.contacts"),

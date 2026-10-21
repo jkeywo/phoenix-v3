@@ -391,6 +391,8 @@ void ConsoleModel::reset()
 	notification_sequence_ = 0;
 	notifications_initialised_ = false;
 	speed_ = heading_ = maximum_ = 0;
+	if (!layout_.is_null())
+		++layout_revision_;
 	layout_ = nullptr;
 	announcement_.clear();
 }
@@ -440,6 +442,7 @@ void ConsoleModel::refresh(const std::shared_ptr<SessionPort> &session, std::uin
 	                       next->controls != observation_->controls || next->feeds != observation_->feeds));
 	if (changed)
 	{
+		++layout_revision_;
 		pending_at_.reset();
 		pending_requests_.clear();
 		held_controls_.clear();

@@ -64,6 +64,10 @@ public:
 	{
 		return layout_.is_null() ? nullptr : &layout_;
 	}
+	std::uint64_t layout_revision() const
+	{
+		return layout_revision_;
+	}
 	std::int64_t requested_speed() const
 	{
 		return speed_;
@@ -96,6 +100,7 @@ private:
 	std::optional<std::uint64_t> pending_at_;
 	std::int64_t speed_ = 0, heading_ = 0, maximum_ = 0;
 	Json layout_;
+	std::uint64_t layout_revision_ = 0;
 	std::string announcement_;
 	std::map<std::pair<std::string, std::string>, std::int64_t> pending_requests_;
 	std::map<std::string, OperatingCommand> held_controls_;
