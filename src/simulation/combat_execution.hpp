@@ -376,18 +376,8 @@ void penetrate(Projectile &p, flecs::entity ship, fixed::Vec start, fixed::Vec e
 			break;
 		const auto &d = s.definition.compartments[line.index];
 		auto &c = s.compartments[line.index];
-		auto distance = length * (line.to - line.from) / 1000000;
-		const auto resistance = std::max<std::int64_t>(1, d.resistance * c.hp / d.maximum);
-		const auto cost = (distance * resistance + p.resistance_remainder) / 1000;
-		const bool stops = cost >= p.penetration;
-		if (stops)
-			distance = std::min(distance, (p.penetration * 1000 + resistance - 1) / resistance);
-		const auto deposit =
-		    stops ? p.damage : std::min(p.damage, (distance * p.definition.deposition + p.deposit_remainder) / 1000);
-		p.deposit_remainder = (distance * p.definition.deposition + p.deposit_remainder) % 1000;
-		p.resistance_remainder = (distance * resistance + p.resistance_remainder) % 1000;
-		p.penetration = stops ? 0 : std::max<std::int64_t>(0, p.penetration - cost);
-		p.damage -= deposit;
+		const auto distance = length * (line.to - line.from) / 1000000;
+		const auto deposit = deposit_material(p, distance, d.resistance * c.hp / d.maximum);
 		combat_damage(ship, line.index, deposit);
 	}
 }

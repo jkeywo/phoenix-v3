@@ -451,15 +451,8 @@ void step_ordnance()
 				const auto path = static_cast<std::int64_t>(
 				    fixed::sqrt(static_cast<std::uint64_t>(fixed::dot(relative, relative) + dz * dz)));
 				const auto distance = path * std::max<std::int64_t>(0, exit - hit.time) / fixed::unit;
-				const auto resistance = std::max<std::int64_t>(1, distance * m.definition.resistance / 1000);
-				const auto deposited =
-				    p.penetration <= resistance
-				        ? p.damage
-				        : std::min(p.damage, (distance * p.definition.deposition + p.deposit_remainder) / 1000);
-				p.deposit_remainder = (distance * p.definition.deposition + p.deposit_remainder) % 1000;
+				const auto deposited = deposit_material(p, distance, m.definition.resistance);
 				m.durability = std::max<std::int64_t>(0, m.durability - deposited);
-				p.damage -= deposited;
-				p.penetration = std::max<std::int64_t>(0, p.penetration - resistance);
 			}
 			else if (hit.entity.has<CombatStructure>())
 			{

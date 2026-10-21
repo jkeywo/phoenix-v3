@@ -342,7 +342,12 @@ void ordnance_contracts()
 		mode.target = 2;
 		require(w.submit(201, mode), "activate defender automatic interception");
 		submit(w, 101, "launcher", "target", 2);
-		advance(w, 40);
+		advance(w, 10);
+		World resumed;
+		resumed.restore(c, w.save());
+		advance(w, 30);
+		advance(resumed, 30);
+		require(w.save() == resumed.save(), "interception material progress survives continuation");
 		require(state(w, 2)["systems"]["pdc"]["shots"].get<int>() > 1,
 		        "high-penetration low-deposition defence needs repeated hits");
 		require(w.save()["projectiles"].empty() && hp(w) == 20000,

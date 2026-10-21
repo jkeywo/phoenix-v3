@@ -67,6 +67,22 @@ struct Projectile
 	std::set<std::uint64_t> missile_hits;
 	std::map<EntityId, std::string> decks;
 };
+// Material cost is integrated in millimetres, preserving fractional work across crossings/ticks.
+inline std::int64_t deposit_material(Projectile &p, std::int64_t distance, std::int64_t resistance)
+{
+	resistance = std::max<std::int64_t>(1, resistance);
+	const auto cost = (distance * resistance + p.resistance_remainder) / 1000;
+	const bool stops = cost >= p.penetration;
+	if (stops)
+		distance = std::min(distance, (p.penetration * 1000 - p.resistance_remainder + resistance - 1) / resistance);
+	const auto deposit =
+	    stops ? p.damage : std::min(p.damage, (distance * p.definition.deposition + p.deposit_remainder) / 1000);
+	p.deposit_remainder = (distance * p.definition.deposition + p.deposit_remainder) % 1000;
+	p.resistance_remainder = (distance * resistance + p.resistance_remainder) % 1000;
+	p.penetration = stops ? 0 : p.penetration - cost;
+	p.damage -= deposit;
+	return deposit;
+}
 inline std::int64_t combat_angle(std::int64_t v)
 {
 	return (v % 360000 + 360000) % 360000;
