@@ -43,7 +43,6 @@ struct ControllerBrain
 	std::vector<RuntimeContactRead> contact_reads;
 	state_tree::Instance continuation;
 	state_tree::Debug debug;
-	std::vector<ControllerActionSpec> actions;
 };
 struct ControllerActionInstance
 {
@@ -101,6 +100,7 @@ struct ConsoleControllerRuntime
 	std::optional<ControllerBrain> brain;
 	ActionResult result;
 	std::set<std::string> effects;
+	std::vector<ControllerActionSpec> actions;
 	ControllerActionInstance action;
 	// Transient: execution writes are consumed in this tick, before any save boundary.
 	std::set<std::size_t> action_writes;

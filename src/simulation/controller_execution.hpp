@@ -268,8 +268,9 @@ void controller_output(EntityId id, std::size_t index, const state_tree::Output 
 			    "/" + std::to_string(output.call_path[i]) + ":" + std::to_string(output.call_activations.at(i));
 		controller.result.available = true;
 		controller.result.success =
-		    select_controller_action(id, index, action.name.substr(replace ? 8 : 7), invocation,
-		                             std::span(output.arguments).subspan(1), observations, controller.generation);
+		    admit_controller_decision({{id, controller.definition.console, controller.definition.id},
+		                                controller.generation, "select", action.name.substr(replace ? 8 : 7),
+		                                invocation, {output.arguments.begin() + 1, output.arguments.end()}}, observations);
 		controller.result.reason = controller.result.success ? "" : "action_unavailable";
 		return;
 	}
@@ -800,7 +801,7 @@ Json project_controllers(const ConsoleAddress &address)
 		    {"id", controller.action.id}, {"status", controller.action.status}, {"reason", controller.action.reason}};
 		auto &available = result.back()["actions"] = Json::array();
 		if (controller.brain)
-			for (const auto &action : controller.brain->actions)
+			for (const auto &action : controller.actions)
 			{
 				Json inputs = Json::array();
 				for (const auto index : action.inputs)

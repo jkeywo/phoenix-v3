@@ -14,6 +14,14 @@ export import phoenix.contracts;
 
 export namespace phoenix
 {
+// Policy-independent intent. Execution and command admission retain authority.
+struct ControllerDecisionProposal
+{
+	ControllerAddress address;
+	std::uint64_t generation = 0;
+	std::string operation = "select", action, invocation;
+	std::vector<state_tree::Value> inputs;
+};
 class World
 {
 public:

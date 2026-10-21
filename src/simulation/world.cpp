@@ -566,7 +566,7 @@ struct World::Impl
 						{
 							controller.brain = ControllerBrain{content.tree_programs.at(spec.tree), spec.tree};
 							auto &brain = *controller.brain;
-							brain.actions = compile_controller_actions(content.trees.at(spec.tree), content,
+							controller.actions = compile_controller_actions(content.trees.at(spec.tree), content,
 							                                           brain.program.registry);
 							const auto &bindings = content.controller_bindings.at(spec.tree);
 							brain.decision_base = bindings.decision_base;

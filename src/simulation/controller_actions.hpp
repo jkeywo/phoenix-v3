@@ -167,7 +167,7 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 }
 const ControllerActionSpec &controller_action_spec(const ConsoleControllerRuntime &controller) const
 {
-	for (const auto &spec : controller.brain->actions)
+	for (const auto &spec : controller.actions)
 		if (spec.id == controller.action.id)
 			return spec;
 	throw std::runtime_error("Unknown active Controller action");
@@ -236,12 +236,12 @@ bool select_controller_action(EntityId id, std::size_t index, const std::string 
 	if (controller.human || generation != controller.generation || !controller.brain || invocation.empty() ||
 	    invocation.size() > 1024)
 		return false;
-	const auto found = std::find_if(controller.brain->actions.begin(), controller.brain->actions.end(),
+	const auto found = std::find_if(controller.actions.begin(), controller.actions.end(),
 	                                [&](const auto &spec)
 	                                {
 		                                return spec.id == name;
 	                                });
-	if (found == controller.brain->actions.end() || inputs.size() != found->inputs.size())
+	if (found == controller.actions.end() || inputs.size() != found->inputs.size())
 		return false;
 	for (std::size_t i = 0; i < inputs.size(); ++i)
 		if (inputs[i].type != controller.brain->program.registry.observations.at(found->inputs[i]).type)
@@ -264,6 +264,31 @@ bool select_controller_action(EntityId id, std::size_t index, const std::string 
 	const auto serial = active.serial + 1;
 	active = {name, invocation, "running", {}, arguments, {}, serial};
 	return true;
+}
+bool admit_controller_decision(const ControllerDecisionProposal &proposal,
+                               std::span<const state_tree::Value> observations)
+{
+ auto entity = entities.find(proposal.address.entity);
+ if (entity == entities.end() || !entity->second.has<EntityControls>()) return false;
+ auto &controllers = entity->second.get_mut<EntityControls>().controllers;
+ for (std::size_t index = 0; index < controllers.size(); ++index)
+ {
+  auto &controller = controllers[index];
+  if (controller.definition.console != proposal.address.console || controller.definition.id != proposal.address.controller) continue;
+  if (controller.human || controller.generation != proposal.generation) return false;
+  if (proposal.operation == "select")
+   return select_controller_action(proposal.address.entity, index, proposal.action, proposal.invocation, proposal.inputs, observations, proposal.generation);
+  if (proposal.operation == "continue") return true;
+  if (proposal.operation == "cancel")
+  {
+   cancel_controller_action(proposal.address.entity, index, proposal.invocation, observations);
+   return true;
+  }
+  if (proposal.operation.starts_with("coordination."))
+   return controller_coordination_action(proposal.address.entity, index, proposal.operation, proposal.inputs);
+  return false;
+ }
+ return false;
 }
 void run_controller_action(EntityId id, std::size_t index, std::span<const state_tree::Value> source)
 {
@@ -339,3 +364,4 @@ void restore_controller_action(ConsoleControllerRuntime &controller, const Json 
 	}
 	a.continuation = state_tree::load(spec.program, saved.at("continuation"));
 }
+
