@@ -121,8 +121,10 @@ int main(int argc, char **argv)
 	}
 	try
 	{
-		deadline = std::chrono::steady_clock::now() + std::chrono::seconds(seconds);
 		transport = open_peer_transport(options);
+		// Platform setup can load the Windows trust store synchronously. Give the
+		// actual connection its full budget, including asynchronous TLS refusal.
+		deadline = std::chrono::steady_clock::now() + std::chrono::seconds(seconds);
 		report("Connecting C++ transport probe...");
 #ifdef __EMSCRIPTEN__
 		emscripten_set_main_loop(frame, 0, true);
