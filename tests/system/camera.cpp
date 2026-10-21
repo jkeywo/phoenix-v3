@@ -95,18 +95,30 @@ int main()
 		world.clear_claims();
 		require(ship_camera_state(world.public_board(1)) == ShipCameraState{1, 7},
 		        "handover does not reset the ship camera");
-		// Emulate the previous runtime contract, without weakening any other saved schema checks.
+		// Runtime schema 12 rejects altered/retired knowledge contracts.
 		auto legacy = saved;
 		auto &runtime = legacy["knowledge"]["runtime"];
-		const auto camera_schema = runtime["contract"]["schemas"].size();
+		const auto &schemas = runtime["contract"]["schemas"];
+		const auto camera_schema =
+		    static_cast<std::size_t>(std::find_if(schemas.begin(), schemas.end(),
+		                                          [](const auto &schema)
+		                                          {
+			                                          return schema.at("name") == "phoenix.camera";
+		                                          }) -
+		                             schemas.begin()) +
+		    1;
 		runtime["contract"]["schemas"].erase(camera_schema - 1);
 		std::erase_if(runtime["records"].get_ref<Json::array_t &>(),
 		              [&](const auto &row)
 		              {
 			              return row.at("value").at("schema") == camera_schema;
 		              });
-		resumed.restore(catalog, legacy);
-		require(ship_camera_state(resumed.public_board(1)) == ShipCameraState{}, "old saves gain default camera state");
+		rejects(
+		    [&]
+		    {
+			    resumed.restore(catalog, legacy);
+		    },
+		    "incompatible knowledge contracts require a new session");
 		auto invalid = saved;
 		for (auto &row : invalid["knowledge"]["runtime"]["records"])
 			if (row["value"]["schema"] == camera_schema)
@@ -117,7 +129,7 @@ int main()
 			    resumed.restore(catalog, invalid);
 		    },
 		    "malformed saved camera values fail validation");
-		require(ship_camera_state(resumed.public_board(1)) == ShipCameraState{}, "failed restore is transactional");
+		require(ship_camera_state(resumed.public_board(1)) == ShipCameraState{1, 7}, "failed restore is transactional");
 		// Network projection must retain the live camera even when reports exhaust the budget.
 		auto board = world.public_board(1);
 		for (int i = 0; i < 150; ++i)

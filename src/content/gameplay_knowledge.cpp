@@ -482,6 +482,9 @@ GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)
 				producer_defaults = knowledge_roles(compiled.knowledge, catalog.consoles.at(console.definition),
 				                                    "knowledge_producers", producer_defaults);
 			target.producers = knowledge_roles(compiled.knowledge, *config, "knowledge_producers", producer_defaults);
+			if (std::find(compiled.knowledge.roles.begin(), compiled.knowledge.roles.end(), "phoenix.officer") !=
+			    compiled.knowledge.roles.end())
+				target.producers.push_back(compiled.knowledge.role("phoenix.officer"));
 			for (const auto &system : console.controlled_systems)
 				knowledge_require(definition.owners.emplace(system, console.id).second,
 				                  name + ": duplicate controlling Console");

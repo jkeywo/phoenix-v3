@@ -345,7 +345,26 @@ Catalog resolve(const std::vector<PackView> &ordered)
 		     {"fields", Json::array({{{"id", "mode"}, {"type", "integer"}, {"publishable", true}},
 		                             {{"id", "direction"}, {"type", "integer"}, {"publishable", true}}})}});
 	if (!result.knowledge.empty())
+	{
+		if (!result.presentation)
+		{
+			result.knowledge["roles"].push_back("phoenix.officer");
+			Json fields = Json::array();
+			for (const auto *name : {"operation", "status", "reason"})
+				fields.push_back({{"id", name}, {"type", "text"}, {"publishable", true}});
+			for (const auto *name : {"request", "target", "amount", "priority", "expires"})
+				fields.push_back({{"id", name}, {"type", "integer"}, {"publishable", true}});
+			for (const auto &schema : result.knowledge["schemas"])
+				if (schema.at("id") == "phoenix.coordination")
+					invalid("knowledge", "reserved coordination schema");
+			result.knowledge["schemas"].push_back({{"id", "phoenix.coordination"},
+			                                       {"producers", {"phoenix.officer"}},
+			                                       {"readers", {"phoenix.crew"}},
+			                                       {"ship_publishable", true},
+			                                       {"fields", fields}});
+		}
 		result.knowledge_definition = compile_knowledge(result.knowledge);
+	}
 	for (const auto &[name, entity] : result.entities)
 		if (entity.contains("resources"))
 			result.resource_definitions.emplace(name, compile_resource_network(entity.at("resources")));
@@ -830,7 +849,8 @@ void verify_prepared_catalog(const Catalog &catalog)
 			auto definition = text(instance, "definition", path);
 			if (!catalog.entities.contains(definition))
 				invalid(path, "unknown entity definition '" + definition + "'");
-			factions.validate(instance.value("faction", catalog.entities.at(definition).value("faction", std::string{})));
+			factions.validate(
+			    instance.value("faction", catalog.entities.at(definition).value("faction", std::string{})));
 			transform(instance, path + ".entity." + std::to_string(entity_id));
 			if (instance.contains("sprite_entry"))
 			{
@@ -919,6 +939,8 @@ void verify_prepared_catalog(const Catalog &catalog)
 }
 void prepare_catalog(Catalog &catalog)
 {
+	expand_combat_policies(catalog);
+	expand_officer_policies(catalog);
 	catalog.tree_programs.clear();
 	catalog.conversation_programs.clear();
 	catalog.controller_bindings.clear();

@@ -1368,12 +1368,38 @@ int main(int argc, char **argv)
 			for (auto &controller : setup["entities"][0]["control_layout"]["controllers"])
 				if (controller.at("id") == "gun")
 					controller["policy"] = "combat";
+
+			setup["maps"][0]["factions"] =
+			    Json::array({{{"id", "blue"}, {"label", "Blue"}}, {{"id", "red"}, {"label", "Red"}}});
+			setup["maps"][0]["relationships"] = Json::array({{{"a", "blue"}, {"b", "red"}, {"relation", "hostile"}}});
+			setup["maps"][0]["entities"][0]["faction"] = "blue";
+			setup["maps"][0]["entities"][1]["faction"] = "red";
+			setup["maps"][0]["entities"][2]["faction"] = "red";
 			auto visible = load(setup);
 			World ai;
 			ai.load(visible, map);
 			advance(ai, 25);
 			require(state(ai).at("systems").at("gun").at("shots").get<int>() > 0,
 			        "unoccupied Tactical uses ordinary admitted combat policy against visible ship contacts");
+
+			require(state(ai).at("systems").at("gun").at("target") == 2,
+			        "equidistant hostile candidates use stable identity");
+			auto closer = ai.save();
+			closer["bodies"][2]["body"]["y"] = 30000;
+			ai.restore(visible, closer);
+			ai.tick();
+			require(state(ai).at("systems").at("gun").at("target") == 2,
+			        "a still-valid target survives a nearer alternative");
+			for (const auto *disposition : {"friendly", "neutral"})
+			{
+				auto peaceful = setup;
+				peaceful["maps"][0]["relationships"][0]["relation"] = disposition;
+				World passive;
+				passive.load(load(peaceful), map);
+				advance(passive, 25);
+				require(state(passive).at("systems").at("gun").at("shots") == 0,
+				        "autonomous combat excludes friendly and neutral contacts");
+			}
 			setup["entities"][0]["systems"]["radar"]["range_mm"] = 1000;
 			auto hidden = load(setup);
 			World blind;
@@ -1381,6 +1407,80 @@ int main(int argc, char **argv)
 			advance(blind, 25);
 			require(state(blind).at("systems").at("gun").at("shots") == 0,
 			        "combat AI cannot target ships absent from its permitted sensor feed");
+		}
+
+		{
+			auto source = fixture();
+			for (auto &owner : source["entities"][0]["control_layout"]["controllers"])
+				if (owner.at("id") == "team-b")
+				{
+					owner.erase("fallback");
+					owner["tree"] = "test.request-repair";
+					owner["commands"][0]["initial"] = 0;
+				}
+			source["trees"].push_back(Json::parse(
+			    R"json({"id":"test.request-repair","context":"controller","initial":"request","states":[{"id":"request","entry":[{"action":"coordination.request","arguments":["repair","observer","team-a",1,1,1,300]}]}]})json"));
+			const auto catalog = load(source);
+			World world;
+			world.load(catalog, map);
+			auto damaged = world.save();
+			damaged["bodies"][0]["combat"]["compartments"][0]["hp"] = 50;
+			world.restore(catalog, damaged);
+			advance(world, 12);
+			const auto midway = world.save();
+			for (const auto &row : midway.at("bodies")[0].at("console_controllers").at("controllers"))
+				if (row.at("id") == "team-a")
+					require(row.at("commands")[1].at("value") == 1,
+					        "accepted repair request assigns ordinary repair-team channel");
+			World resumed;
+			resumed.restore(catalog, midway);
+			advance(world, 100);
+			advance(resumed, 100);
+			require(world.save() == resumed.save(), "repair commitment resumes without repeating messages");
+			const auto repaired = world.save();
+			for (const auto &row : repaired.at("bodies")[0].at("console_controllers").at("controllers"))
+				if (row.at("id") == "team-b")
+					require(row.at("coordination")[1][0].at("status") == 3,
+					        "repair completion follows observed restored compartment");
+		}
+		{
+			auto source = fixture();
+			add_fit(
+			    source, "drive",
+			    {{"kind", "engine"}, {"compartment", "aft"}, {"max_speed_mm_s", 10000}, {"acceleration_mm_s2", 2000}},
+			    {{"speed", "speed_mm_s"}});
+			for (auto &owner : source["entities"][0]["control_layout"]["controllers"])
+				if (owner.at("id") == "gun")
+				{
+					owner.erase("fallback");
+					owner["tree"] = "test.request-range";
+				}
+			source["trees"].push_back(Json::parse(
+			    R"json({"id":"test.request-range","context":"controller","initial":"request","states":[{"id":"request","entry":[{"action":"coordination.request","arguments":["manoeuvre","drive","drive",2,40000,1,300]}]}]})json"));
+			source["maps"][0]["factions"] =
+			    Json::array({{{"id", "blue"}, {"label", "Blue"}}, {{"id", "red"}, {"label", "Red"}}});
+			source["maps"][0]["relationships"] = Json::array({{{"a", "blue"}, {"b", "red"}, {"relation", "hostile"}}});
+			source["maps"][0]["entities"][0]["faction"] = "blue";
+			source["maps"][0]["entities"][1]["faction"] = "red";
+			const auto catalog = load(source);
+			World world;
+			world.load(catalog, map);
+			advance(world, 20);
+			const auto saved = world.save();
+			for (const auto &row : saved.at("bodies")[0].at("console_controllers").at("controllers"))
+				if (row.at("id") == "drive")
+					require(row.at("commands")[1].at("value").get<int>() > 0,
+					        "accepted manoeuvre request drives ordinary propulsion");
+			World resumed;
+			resumed.restore(catalog, saved);
+			advance(world, 10);
+			advance(resumed, 10);
+			require(world.save() == resumed.save(), "manoeuvre commitment continuation is deterministic");
+			require(world.claim(101, 1, "drive"), "operator takes over manoeuvre recipient");
+			const auto handed = world.save();
+			for (const auto &row : handed.at("bodies")[0].at("console_controllers").at("controllers"))
+				if (row.at("id") == "drive")
+					require(row.at("action").at("status") == "cancelled", "human handover cancels coordinated action");
 		}
 		extended_contracts();
 		review_contracts();

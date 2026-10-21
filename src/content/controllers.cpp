@@ -469,7 +469,9 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			}
 			for (const auto &action : catalog.tree_programs.at(controller.tree).registry.actions)
 			{
-				if (action.name.starts_with("select.") || action.name.starts_with("action.")) continue;
+				if (action.name.starts_with("select.") || action.name.starts_with("replace.") ||
+				    action.name.starts_with("action.") || action.name.starts_with("coordination."))
+					continue;
 				if (action.name.starts_with("away."))
 					continue;
 				if (action.name == "acknowledge_message" || action.name == "stop_publication" ||

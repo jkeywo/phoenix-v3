@@ -56,7 +56,8 @@ void append_sensor_contacts(const ConsoleAddress &address, Observation &result) 
 			result.contacts.push_back(
 			    {contact_id, p.definition.visual, p.position.x, p.position.y, p.velocity.x, p.velocity.y, p.heading});
 	}
-	const auto &own_faction = entity.get<FactionMembership>().id;
+	const auto &own_faction =
+	    (entity.try_get<FactionMembership>() ? entity.get<FactionMembership>().id : std::string{});
 	for (auto &contact : result.contacts)
 		if (const auto found = entities.find(contact.id); found != entities.end())
 		{
@@ -95,7 +96,7 @@ Observation capture_console_observation(const ConsoleAddress &address, Json game
 	const auto &own = entity.get<Pose>();
 	const auto &seat = *this->seat(address.ship, address.console);
 	Observation result{view(address.ship, entity.get<Definition>(), own, entity.get<Motion>()), {}};
-	result.own.faction = entity.get<FactionMembership>().id;
+	result.own.faction = (entity.try_get<FactionMembership>() ? entity.get<FactionMembership>().id : std::string{});
 	result.own.faction_label = result.own.faction.empty() ? "Unaffiliated" : factions.labels.at(result.own.faction);
 	result.own.disposition = factions.relationship(result.own.faction, result.own.faction);
 	result.console = seat.id;

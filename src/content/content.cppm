@@ -39,7 +39,10 @@ struct ControllerActionSpec
 	std::vector<std::size_t> inputs;
 	state_tree::Program program, availability;
 };
-std::vector<ControllerActionSpec> compile_controller_actions(const Json &, const Catalog &, const state_tree::Registry &);
+std::vector<ControllerActionSpec> compile_controller_actions(const Json &, const Catalog &,
+                                                             const state_tree::Registry &);
+void expand_combat_policies(Catalog &);
+void expand_officer_policies(Catalog &);
 struct PackDraft
 {
 	Json manifest;
@@ -217,6 +220,7 @@ struct ControllerCommandBinding
 // entity-local indices by simulation setup, destinations are never reconstructed.
 struct ControllerTreeBindings
 {
+	std::size_t decision_base = 0, action_base = 0, coordination_base = 0;
 	state_tree::Registry registry;
 	ControllerDestinations<ControllerOwnField> own;
 	ControllerDestinations<ControllerInboxField> inbox;

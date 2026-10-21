@@ -605,7 +605,7 @@
 		{
 			"id": "base.courier-engineering",
 			"extends": "base.courier",
-			"name": "Courier — Engineering fit",
+			"name": "Courier \u00e2\u20ac\u201d Engineering fit",
 			"controller": null,
 			"console": null,
 			"systems": {
@@ -738,7 +738,10 @@
 				"base.message.thermal-stop",
 				"base.message.navigation-advisory",
 				"base.message.engineering-request",
-				"base.message.lateral-avoidance"
+				"base.message.lateral-avoidance",
+				"base.message.power-response.courier-engineering.drive.engine.accepted",
+				"base.message.power-response.courier-engineering.drive.engine.refused",
+				"base.message.power-response.courier-engineering.drive.engine.completed"
 			],
 			"publications": [
 				{
@@ -2357,7 +2360,7 @@
 		{
 			"id": "base.cruiser",
 			"extends": "base.courier-engineering",
-			"name": "Cruiser — Six-station fit",
+			"name": "Cruiser \u00e2\u20ac\u201d Six-station fit",
 			"render": {
 				"scale": 18
 			},
@@ -5803,7 +5806,26 @@
 						"ticks": 60
 					}
 				]
-			}
+			},
+			"message_templates": [
+				"base.message.power-request",
+				"base.message.cooling-request",
+				"base.message.supply-limited",
+				"base.message.supply-restored",
+				"base.message.thermal-stop",
+				"base.message.navigation-advisory",
+				"base.message.engineering-request",
+				"base.message.lateral-avoidance",
+				"base.message.power-response.courier-engineering.drive.engine.accepted",
+				"base.message.power-response.courier-engineering.drive.engine.refused",
+				"base.message.power-response.courier-engineering.drive.engine.completed",
+				"base.message.power-response.cruiser.drive.engine.accepted",
+				"base.message.power-response.cruiser.drive.engine.refused",
+				"base.message.power-response.cruiser.drive.engine.completed",
+				"base.message.power-response.cruiser.wing.engine.accepted",
+				"base.message.power-response.cruiser.wing.engine.refused",
+				"base.message.power-response.cruiser.wing.engine.completed"
+			]
 		},
 		{
 			"id": "base.courier-patrol-leader",
@@ -10151,8 +10173,6 @@
 					{
 						"id": "drive",
 						"console": "helm",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -10172,13 +10192,12 @@
 								"initial": 1,
 								"consumers": ["drive"]
 							}
-						]
+						],
+						"tree": "base.policy.combat-approach"
 					},
 					{
 						"id": "helm",
 						"console": "helm",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -10192,13 +10211,12 @@
 								"initial": 0,
 								"consumers": ["helm"]
 							}
-						]
+						],
+						"tree": "base.policy.face-contact"
 					},
 					{
 						"id": "radar",
 						"console": "support",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -10206,13 +10224,12 @@
 								"initial": 1,
 								"consumers": ["radar"]
 							}
-						]
+						],
+						"tree": "base.policy.hold-configuration"
 					},
 					{
 						"id": "top",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -10220,13 +10237,12 @@
 								"initial": 1,
 								"consumers": ["top"]
 							}
-						]
+						],
+						"tree": "base.policy.hold-configuration"
 					},
 					{
 						"id": "top-mag",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -10234,13 +10250,12 @@
 								"initial": 1,
 								"consumers": ["top-mag"]
 							}
-						]
+						],
+						"tree": "base.policy.hold-configuration"
 					},
 					{
 						"id": "top-gun",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -10254,13 +10269,12 @@
 								"initial": 0,
 								"consumers": ["top-gun"]
 							}
-						]
+						],
+						"tree": "base.policy.engage-hostile"
 					},
 					{
 						"id": "bottom",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -10268,13 +10282,12 @@
 								"initial": 1,
 								"consumers": ["bottom"]
 							}
-						]
+						],
+						"tree": "base.policy.hold-configuration"
 					},
 					{
 						"id": "bottom-mag",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -10282,13 +10295,12 @@
 								"initial": 1,
 								"consumers": ["bottom-mag"]
 							}
-						]
+						],
+						"tree": "base.policy.hold-configuration"
 					},
 					{
 						"id": "bottom-gun",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -10302,13 +10314,12 @@
 								"initial": 0,
 								"consumers": ["bottom-gun"]
 							}
-						]
+						],
+						"tree": "base.policy.engage-hostile"
 					},
 					{
 						"id": "forward-mag",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -10316,13 +10327,12 @@
 								"initial": 1,
 								"consumers": ["forward-mag"]
 							}
-						]
+						],
+						"tree": "base.policy.hold-configuration"
 					},
 					{
 						"id": "forward-gun",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -10336,13 +10346,12 @@
 								"initial": 0,
 								"consumers": ["forward-gun"]
 							}
-						]
+						],
+						"tree": "base.policy.engage-hostile"
 					},
 					{
 						"id": "team-1",
 						"console": "support",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -10361,13 +10370,12 @@
 								"action": "repair_system",
 								"consumers": ["team-1"]
 							}
-						]
+						],
+						"tree": "base.policy.repair-compartment"
 					},
 					{
 						"id": "team-2",
 						"console": "support",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -10386,13 +10394,12 @@
 								"action": "repair_system",
 								"consumers": ["team-2"]
 							}
-						]
+						],
+						"tree": "base.policy.repair-compartment"
 					},
 					{
 						"id": "reactor",
 						"console": "support",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "enabled",
@@ -10405,13 +10412,12 @@
 								"action": "generator_output",
 								"consumers": ["reactor"]
 							}
-						]
+						],
+						"tree": "base.policy.combat.reactor"
 					},
 					{
 						"id": "weapon-cell",
 						"console": "support",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "enabled",
@@ -10419,13 +10425,12 @@
 								"initial": 1,
 								"consumers": ["weapon-cell"]
 							}
-						]
+						],
+						"tree": "base.policy.hold-configuration"
 					},
 					{
 						"id": "shield-cell",
 						"console": "support",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "enabled",
@@ -10433,13 +10438,12 @@
 								"initial": 1,
 								"consumers": ["shield-cell"]
 							}
-						]
+						],
+						"tree": "base.policy.hold-configuration"
 					},
 					{
 						"id": "beam",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "enabled",
@@ -10452,13 +10456,12 @@
 								"action": "weapon_target",
 								"consumers": ["beam"]
 							}
-						]
+						],
+						"tree": "base.policy.engage-hostile.target"
 					},
 					{
 						"id": "shield-fore",
 						"console": "support",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "enabled",
@@ -10471,13 +10474,12 @@
 								"action": "shield_discharge",
 								"consumers": ["shield-fore"]
 							}
-						]
+						],
+						"tree": "base.policy.maintain-shield-distribution"
 					},
 					{
 						"id": "shield-aft",
 						"console": "support",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "enabled",
@@ -10490,13 +10492,12 @@
 								"action": "shield_discharge",
 								"consumers": ["shield-aft"]
 							}
-						]
+						],
+						"tree": "base.policy.maintain-shield-distribution"
 					},
 					{
 						"id": "homing-mag",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "enabled",
@@ -10504,13 +10505,12 @@
 								"initial": 1,
 								"consumers": ["homing-mag"]
 							}
-						]
+						],
+						"tree": "base.policy.hold-configuration"
 					},
 					{
 						"id": "havok-mag",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "enabled",
@@ -10518,13 +10518,12 @@
 								"initial": 1,
 								"consumers": ["havok-mag"]
 							}
-						]
+						],
+						"tree": "base.policy.hold-configuration"
 					},
 					{
 						"id": "missile-launcher",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "enabled",
@@ -10542,13 +10541,12 @@
 								"action": "magazine_select",
 								"consumers": ["missile-launcher"]
 							}
-						]
+						],
+						"tree": "base.policy.engage-hostile-ammunition"
 					},
 					{
 						"id": "pdc-mag",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "enabled",
@@ -10556,13 +10554,12 @@
 								"initial": 1,
 								"consumers": ["pdc-mag"]
 							}
-						]
+						],
+						"tree": "base.policy.hold-configuration"
 					},
 					{
 						"id": "pdc",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "enabled",
@@ -10580,7 +10577,8 @@
 								"action": "weapon_mode",
 								"consumers": ["pdc"]
 							}
-						]
+						],
+						"tree": "base.policy.point-defence"
 					},
 					{
 						"id": "external-comms",
@@ -11945,8 +11943,6 @@
 					{
 						"id": "drive",
 						"console": "helm",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -11966,13 +11962,12 @@
 								"initial": 1,
 								"consumers": ["drive"]
 							}
-						]
+						],
+						"tree": "base.policy.combat-approach"
 					},
 					{
 						"id": "helm",
 						"console": "helm",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -11986,13 +11981,12 @@
 								"initial": 0,
 								"consumers": ["helm"]
 							}
-						]
+						],
+						"tree": "base.policy.face-contact"
 					},
 					{
 						"id": "radar",
 						"console": "support",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -12000,13 +11994,12 @@
 								"initial": 1,
 								"consumers": ["radar"]
 							}
-						]
+						],
+						"tree": "base.policy.hold-configuration"
 					},
 					{
 						"id": "top",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -12014,13 +12007,12 @@
 								"initial": 1,
 								"consumers": ["top"]
 							}
-						]
+						],
+						"tree": "base.policy.hold-configuration"
 					},
 					{
 						"id": "top-mag",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -12028,13 +12020,12 @@
 								"initial": 1,
 								"consumers": ["top-mag"]
 							}
-						]
+						],
+						"tree": "base.policy.hold-configuration"
 					},
 					{
 						"id": "top-gun",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -12048,13 +12039,12 @@
 								"initial": 0,
 								"consumers": ["top-gun"]
 							}
-						]
+						],
+						"tree": "base.policy.engage-hostile"
 					},
 					{
 						"id": "bottom",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -12062,13 +12052,12 @@
 								"initial": 1,
 								"consumers": ["bottom"]
 							}
-						]
+						],
+						"tree": "base.policy.hold-configuration"
 					},
 					{
 						"id": "bottom-mag",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -12076,13 +12065,12 @@
 								"initial": 1,
 								"consumers": ["bottom-mag"]
 							}
-						]
+						],
+						"tree": "base.policy.hold-configuration"
 					},
 					{
 						"id": "bottom-gun",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -12096,13 +12084,12 @@
 								"initial": 0,
 								"consumers": ["bottom-gun"]
 							}
-						]
+						],
+						"tree": "base.policy.engage-hostile"
 					},
 					{
 						"id": "team-1",
 						"console": "support",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -12121,13 +12108,12 @@
 								"action": "repair_system",
 								"consumers": ["team-1"]
 							}
-						]
+						],
+						"tree": "base.policy.repair-compartment"
 					},
 					{
 						"id": "team-2",
 						"console": "support",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -12146,13 +12132,12 @@
 								"action": "repair_system",
 								"consumers": ["team-2"]
 							}
-						]
+						],
+						"tree": "base.policy.repair-compartment"
 					},
 					{
 						"id": "reactor",
 						"console": "support",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "enabled",
@@ -12165,13 +12150,12 @@
 								"action": "generator_output",
 								"consumers": ["reactor"]
 							}
-						]
+						],
+						"tree": "base.policy.combat.reactor"
 					},
 					{
 						"id": "weapon-cell",
 						"console": "support",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "enabled",
@@ -12179,13 +12163,12 @@
 								"initial": 1,
 								"consumers": ["weapon-cell"]
 							}
-						]
+						],
+						"tree": "base.policy.hold-configuration"
 					},
 					{
 						"id": "shield-cell",
 						"console": "support",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "enabled",
@@ -12193,13 +12176,12 @@
 								"initial": 1,
 								"consumers": ["shield-cell"]
 							}
-						]
+						],
+						"tree": "base.policy.hold-configuration"
 					},
 					{
 						"id": "beam",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "enabled",
@@ -12212,13 +12194,12 @@
 								"action": "weapon_target",
 								"consumers": ["beam"]
 							}
-						]
+						],
+						"tree": "base.policy.engage-hostile.target"
 					},
 					{
 						"id": "shield-fore",
 						"console": "support",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "enabled",
@@ -12231,13 +12212,12 @@
 								"action": "shield_discharge",
 								"consumers": ["shield-fore"]
 							}
-						]
+						],
+						"tree": "base.policy.maintain-shield-distribution"
 					},
 					{
 						"id": "shield-aft",
 						"console": "support",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "enabled",
@@ -12250,13 +12230,12 @@
 								"action": "shield_discharge",
 								"consumers": ["shield-aft"]
 							}
-						]
+						],
+						"tree": "base.policy.maintain-shield-distribution"
 					},
 					{
 						"id": "homing-mag",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "enabled",
@@ -12264,13 +12243,12 @@
 								"initial": 1,
 								"consumers": ["homing-mag"]
 							}
-						]
+						],
+						"tree": "base.policy.hold-configuration"
 					},
 					{
 						"id": "havok-mag",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "enabled",
@@ -12278,13 +12256,12 @@
 								"initial": 1,
 								"consumers": ["havok-mag"]
 							}
-						]
+						],
+						"tree": "base.policy.hold-configuration"
 					},
 					{
 						"id": "missile-launcher",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "enabled",
@@ -12302,13 +12279,12 @@
 								"action": "magazine_select",
 								"consumers": ["missile-launcher"]
 							}
-						]
+						],
+						"tree": "base.policy.engage-hostile-ammunition"
 					},
 					{
 						"id": "pdc-mag",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "enabled",
@@ -12316,13 +12292,12 @@
 								"initial": 1,
 								"consumers": ["pdc-mag"]
 							}
-						]
+						],
+						"tree": "base.policy.hold-configuration"
 					},
 					{
 						"id": "pdc",
 						"console": "tactical",
-						"fallback": "hold",
-						"policy": "combat",
 						"commands": [
 							{
 								"id": "enabled",
@@ -12340,7 +12315,8 @@
 								"action": "weapon_mode",
 								"consumers": ["pdc"]
 							}
-						]
+						],
+						"tree": "base.policy.point-defence"
 					}
 				],
 				"default_profile": "direct",
@@ -13039,7 +13015,7 @@
 		{
 			"id": "base.comms-courier",
 			"extends": "base.courier",
-			"name": "Courier — Communications fit",
+			"name": "Courier \u00e2\u20ac\u201d Communications fit",
 			"controller": null,
 			"console": null,
 			"systems": {
@@ -14863,7 +14839,7 @@
 		},
 		{
 			"id": "base.rescue-courier",
-			"name": "Courier — Rescue watch",
+			"name": "Courier \u00e2\u20ac\u201d Rescue watch",
 			"tags": ["ship"],
 			"motion_model": "inertial",
 			"render": {
@@ -19227,7 +19203,7 @@
 				"skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png"
 			},
 			"id": "base.comms-demonstration",
-			"name": "Comms — Local assistance",
+			"name": "Comms \u00e2\u20ac\u201d Local assistance",
 			"entities": [
 				{
 					"id": 1,
@@ -19419,7 +19395,7 @@
 				}
 			],
 			"name": "Ship Operations",
-			"description": "Set the ship’s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew."
+			"description": "Set the ship\u00e2\u20ac\u2122s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew."
 		},
 		{
 			"id": "base.console.helm",
@@ -20968,6 +20944,16 @@
 							"reason": "navigate",
 							"target": "navigate"
 						}
+					],
+					"entry": [
+						{
+							"action": "coordination.withdraw",
+							"arguments": ["power"]
+						},
+						{
+							"action": "action.cancel",
+							"arguments": ["destination_unavailable"]
+						}
 					]
 				},
 				{
@@ -20992,6 +20978,18 @@
 						}
 					],
 					"transitions": [
+						{
+							"target": "waiting",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.status.available"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
 						{
 							"conditions": [
 								{
@@ -21018,13 +21016,19 @@
 							"reason": "limited",
 							"target": "limited"
 						}
+					],
+					"entry": [
+						{
+							"action": "coordination.withdraw",
+							"arguments": ["power"]
+						}
 					]
 				},
 				{
 					"entry": [
 						{
-							"action": "send.base.message.power-request",
-							"arguments": [8000, true, "Propulsion supply is limiting the assigned transit."]
+							"action": "coordination.request",
+							"arguments": ["power", "engineering", "core.generator", 0, 8000, 1, 600]
 						}
 					],
 					"id": "limited",
@@ -21041,13 +21045,23 @@
 								{
 									"observation": "objective.y"
 								},
-								{
-									"parameter": "cruise_speed"
-								}
+								4500
 							]
 						}
 					],
 					"transitions": [
+						{
+							"target": "waiting",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.status.available"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
 						{
 							"conditions": [
 								{
@@ -21080,6 +21094,106 @@
 							],
 							"reason": "navigate",
 							"target": "navigate"
+						},
+						{
+							"target": "supported",
+							"conditions": [
+								{
+									"left": {
+										"observation": "coordination.reply.power.status"
+									},
+									"op": "eq",
+									"right": "accepted"
+								},
+								{
+									"left": {
+										"observation": "coordination.reply.power.amount"
+									},
+									"op": "ge",
+									"right": 8000
+								}
+							]
+						},
+						{
+							"target": "restricted",
+							"conditions": [
+								{
+									"left": {
+										"observation": "coordination.reply.power.status"
+									},
+									"op": "eq",
+									"right": "accepted"
+								},
+								{
+									"left": {
+										"observation": "coordination.reply.power.amount"
+									},
+									"op": "lt",
+									"right": 8000
+								}
+							]
+						},
+						{
+							"target": "supported",
+							"conditions": [
+								{
+									"left": {
+										"observation": "coordination.reply.power.status"
+									},
+									"op": "eq",
+									"right": "completed"
+								},
+								{
+									"left": {
+										"observation": "coordination.reply.power.amount"
+									},
+									"op": "ge",
+									"right": 8000
+								}
+							]
+						},
+						{
+							"target": "restricted",
+							"conditions": [
+								{
+									"left": {
+										"observation": "coordination.reply.power.status"
+									},
+									"op": "eq",
+									"right": "completed"
+								},
+								{
+									"left": {
+										"observation": "coordination.reply.power.amount"
+									},
+									"op": "lt",
+									"right": 8000
+								}
+							]
+						},
+						{
+							"target": "restricted",
+							"conditions": [
+								{
+									"left": {
+										"observation": "coordination.reply.power.status"
+									},
+									"op": "eq",
+									"right": "refused"
+								}
+							]
+						},
+						{
+							"target": "restricted",
+							"conditions": [
+								{
+									"left": {
+										"observation": "coordination.reply.power.status"
+									},
+									"op": "eq",
+									"right": "failed"
+								}
+							]
 						}
 					]
 				},
@@ -21088,6 +21202,10 @@
 						{
 							"action": "select.act_2a9a60bf3ced",
 							"arguments": ["base.action.2a9a60bf3ced", 0]
+						},
+						{
+							"action": "coordination.withdraw",
+							"arguments": ["power"]
 						}
 					],
 					"id": "arrived",
@@ -21129,6 +21247,146 @@
 							],
 							"target": "waiting",
 							"reason": "Resume orders stance"
+						}
+					],
+					"entry": [
+						{
+							"action": "coordination.withdraw",
+							"arguments": ["power"]
+						}
+					]
+				},
+				{
+					"id": "supported",
+					"parent": "orders",
+					"running": [
+						{
+							"action": "select.act_2cfba4c387d2",
+							"arguments": [
+								"base.action.2cfba4c387d2",
+								true,
+								{
+									"observation": "objective.x"
+								},
+								{
+									"observation": "objective.y"
+								},
+								9000
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "waiting",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.status.available"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.status"
+									},
+									"op": "eq",
+									"right": "completed"
+								}
+							],
+							"reason": "arrived",
+							"target": "arrived"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "power.limited"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 40
+								}
+							],
+							"reason": "navigate",
+							"target": "navigate"
+						}
+					]
+				},
+				{
+					"id": "restricted",
+					"parent": "orders",
+					"running": [
+						{
+							"action": "select.act_2cfba4c387d2",
+							"arguments": [
+								"base.action.2cfba4c387d2",
+								true,
+								{
+									"observation": "objective.x"
+								},
+								{
+									"observation": "objective.y"
+								},
+								2000
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "waiting",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.status.available"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.status"
+									},
+									"op": "eq",
+									"right": "completed"
+								}
+							],
+							"reason": "arrived",
+							"target": "arrived"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "power.limited"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 40
+								}
+							],
+							"reason": "navigate",
+							"target": "navigate"
 						}
 					]
 				}
@@ -24387,6 +24645,16 @@
 							"reason": "navigate",
 							"target": "navigate"
 						}
+					],
+					"entry": [
+						{
+							"action": "coordination.withdraw",
+							"arguments": ["power"]
+						},
+						{
+							"action": "action.cancel",
+							"arguments": ["destination_unavailable"]
+						}
 					]
 				},
 				{
@@ -24411,6 +24679,18 @@
 						}
 					],
 					"transitions": [
+						{
+							"target": "waiting",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.status.available"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
 						{
 							"conditions": [
 								{
@@ -24437,13 +24717,19 @@
 							"reason": "limited",
 							"target": "limited"
 						}
+					],
+					"entry": [
+						{
+							"action": "coordination.withdraw",
+							"arguments": ["power"]
+						}
 					]
 				},
 				{
 					"entry": [
 						{
-							"action": "send.base.message.power-request",
-							"arguments": [8000, true, "Propulsion supply is limiting the assigned transit."]
+							"action": "coordination.request",
+							"arguments": ["power", "engineering", "core.generator", 0, 8000, 1, 600]
 						}
 					],
 					"id": "limited",
@@ -24460,13 +24746,23 @@
 								{
 									"observation": "objective.y"
 								},
-								{
-									"parameter": "cruise_speed"
-								}
+								4500
 							]
 						}
 					],
 					"transitions": [
+						{
+							"target": "waiting",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.status.available"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
 						{
 							"conditions": [
 								{
@@ -24499,6 +24795,106 @@
 							],
 							"reason": "navigate",
 							"target": "navigate"
+						},
+						{
+							"target": "supported",
+							"conditions": [
+								{
+									"left": {
+										"observation": "coordination.reply.power.status"
+									},
+									"op": "eq",
+									"right": "accepted"
+								},
+								{
+									"left": {
+										"observation": "coordination.reply.power.amount"
+									},
+									"op": "ge",
+									"right": 8000
+								}
+							]
+						},
+						{
+							"target": "restricted",
+							"conditions": [
+								{
+									"left": {
+										"observation": "coordination.reply.power.status"
+									},
+									"op": "eq",
+									"right": "accepted"
+								},
+								{
+									"left": {
+										"observation": "coordination.reply.power.amount"
+									},
+									"op": "lt",
+									"right": 8000
+								}
+							]
+						},
+						{
+							"target": "supported",
+							"conditions": [
+								{
+									"left": {
+										"observation": "coordination.reply.power.status"
+									},
+									"op": "eq",
+									"right": "completed"
+								},
+								{
+									"left": {
+										"observation": "coordination.reply.power.amount"
+									},
+									"op": "ge",
+									"right": 8000
+								}
+							]
+						},
+						{
+							"target": "restricted",
+							"conditions": [
+								{
+									"left": {
+										"observation": "coordination.reply.power.status"
+									},
+									"op": "eq",
+									"right": "completed"
+								},
+								{
+									"left": {
+										"observation": "coordination.reply.power.amount"
+									},
+									"op": "lt",
+									"right": 8000
+								}
+							]
+						},
+						{
+							"target": "restricted",
+							"conditions": [
+								{
+									"left": {
+										"observation": "coordination.reply.power.status"
+									},
+									"op": "eq",
+									"right": "refused"
+								}
+							]
+						},
+						{
+							"target": "restricted",
+							"conditions": [
+								{
+									"left": {
+										"observation": "coordination.reply.power.status"
+									},
+									"op": "eq",
+									"right": "failed"
+								}
+							]
 						}
 					]
 				},
@@ -24507,6 +24903,10 @@
 						{
 							"action": "select.act_2a9a60bf3ced",
 							"arguments": ["base.action.2a9a60bf3ced", 0]
+						},
+						{
+							"action": "coordination.withdraw",
+							"arguments": ["power"]
 						}
 					],
 					"id": "arrived",
@@ -24548,6 +24948,146 @@
 							],
 							"target": "waiting",
 							"reason": "Resume orders stance"
+						}
+					],
+					"entry": [
+						{
+							"action": "coordination.withdraw",
+							"arguments": ["power"]
+						}
+					]
+				},
+				{
+					"id": "supported",
+					"parent": "orders",
+					"running": [
+						{
+							"action": "select.act_2cfba4c387d2",
+							"arguments": [
+								"base.action.2cfba4c387d2",
+								true,
+								{
+									"observation": "objective.x"
+								},
+								{
+									"observation": "objective.y"
+								},
+								9000
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "waiting",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.status.available"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.status"
+									},
+									"op": "eq",
+									"right": "completed"
+								}
+							],
+							"reason": "arrived",
+							"target": "arrived"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "power.limited"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 40
+								}
+							],
+							"reason": "navigate",
+							"target": "navigate"
+						}
+					]
+				},
+				{
+					"id": "restricted",
+					"parent": "orders",
+					"running": [
+						{
+							"action": "select.act_2cfba4c387d2",
+							"arguments": [
+								"base.action.2cfba4c387d2",
+								true,
+								{
+									"observation": "objective.x"
+								},
+								{
+									"observation": "objective.y"
+								},
+								2000
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "waiting",
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.status.available"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "objective.status"
+									},
+									"op": "eq",
+									"right": "completed"
+								}
+							],
+							"reason": "arrived",
+							"target": "arrived"
+						},
+						{
+							"conditions": [
+								{
+									"left": {
+										"observation": "power.limited"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 40
+								}
+							],
+							"reason": "navigate",
+							"target": "navigate"
 						}
 					]
 				}
@@ -27409,7 +27949,7 @@
 				"label": "Set lateral thrust",
 				"inputs": [
 					{
-						"name": "i0_0",
+						"name": "thrust",
 						"type": "integer"
 					}
 				]
@@ -27429,9 +27969,15 @@
 							"action": "write.lateral_thrust",
 							"arguments": [
 								{
-									"observation": "input.i0_0"
+									"observation": "input.thrust"
 								}
 							]
+						}
+					],
+					"exit": [
+						{
+							"action": "write.lateral_thrust",
+							"arguments": [0]
 						}
 					]
 				}
@@ -27444,7 +27990,7 @@
 				"label": "Allocate power",
 				"inputs": [
 					{
-						"name": "i0_0",
+						"name": "operating_limit",
 						"type": "integer"
 					}
 				]
@@ -27463,7 +28009,7 @@
 							"action": "write.group_allocation",
 							"arguments": [
 								{
-									"observation": "input.i0_0"
+									"observation": "input.operating_limit"
 								}
 							]
 						}
@@ -27478,7 +28024,7 @@
 				"label": "Set generator operating output",
 				"inputs": [
 					{
-						"name": "i0_0",
+						"name": "operating_limit",
 						"type": "integer"
 					}
 				]
@@ -27497,7 +28043,7 @@
 							"action": "write.generator_output",
 							"arguments": [
 								{
-									"observation": "input.i0_0"
+									"observation": "input.operating_limit"
 								}
 							]
 						}
@@ -27512,7 +28058,7 @@
 				"label": "Allocate cooling",
 				"inputs": [
 					{
-						"name": "i0_0",
+						"name": "operating_limit",
 						"type": "integer"
 					}
 				]
@@ -27531,7 +28077,7 @@
 							"action": "write.cooling_allocation",
 							"arguments": [
 								{
-									"observation": "input.i0_0"
+									"observation": "input.operating_limit"
 								}
 							]
 						}
@@ -27546,19 +28092,19 @@
 				"label": "Travel to destination",
 				"inputs": [
 					{
-						"name": "b0_0",
+						"name": "enabled",
 						"type": "boolean"
 					},
 					{
-						"name": "i0_1",
+						"name": "destination_x",
 						"type": "integer"
 					},
 					{
-						"name": "i0_2",
+						"name": "destination_y",
 						"type": "integer"
 					},
 					{
-						"name": "i1_0",
+						"name": "speed",
 						"type": "integer"
 					}
 				]
@@ -27582,13 +28128,13 @@
 							"action": "write.destination",
 							"arguments": [
 								{
-									"observation": "input.b0_0"
+									"observation": "input.enabled"
 								},
 								{
-									"observation": "input.i0_1"
+									"observation": "input.destination_x"
 								},
 								{
-									"observation": "input.i0_2"
+									"observation": "input.destination_y"
 								}
 							]
 						},
@@ -27596,9 +28142,56 @@
 							"action": "write.speed_mm_s",
 							"arguments": [
 								{
-									"observation": "input.i1_0"
+									"observation": "input.speed"
 								}
 							]
+						}
+					],
+					"exit": [
+						{
+							"action": "write.destination",
+							"arguments": [false, 0, 0]
+						},
+						{
+							"action": "write.speed_mm_s",
+							"arguments": [0]
+						}
+					],
+					"transitions": [
+						{
+							"target": "arrived",
+							"conditions": [
+								{
+									"left": {
+										"observation": "input.enabled"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "action.goal_distance"
+									},
+									"op": "le",
+									"right": 5000
+								},
+								{
+									"left": {
+										"observation": "action.actual_speed"
+									},
+									"op": "le",
+									"right": 500
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "arrived",
+					"entry": [
+						{
+							"action": "action.succeed",
+							"arguments": ["destination_reached"]
 						}
 					]
 				}
@@ -27611,7 +28204,7 @@
 				"label": "Maintain speed",
 				"inputs": [
 					{
-						"name": "i0_0",
+						"name": "speed",
 						"type": "integer"
 					}
 				]
@@ -27630,7 +28223,7 @@
 							"action": "write.speed_mm_s",
 							"arguments": [
 								{
-									"observation": "input.i0_0"
+									"observation": "input.speed"
 								}
 							]
 						}
@@ -27645,15 +28238,15 @@
 				"label": "Travel to destination",
 				"inputs": [
 					{
-						"name": "b0_0",
+						"name": "enabled",
 						"type": "boolean"
 					},
 					{
-						"name": "i0_1",
+						"name": "destination_x",
 						"type": "integer"
 					},
 					{
-						"name": "i0_2",
+						"name": "destination_y",
 						"type": "integer"
 					}
 				]
@@ -27674,15 +28267,21 @@
 							"action": "write.destination",
 							"arguments": [
 								{
-									"observation": "input.b0_0"
+									"observation": "input.enabled"
 								},
 								{
-									"observation": "input.i0_1"
+									"observation": "input.destination_x"
 								},
 								{
-									"observation": "input.i0_2"
+									"observation": "input.destination_y"
 								}
 							]
+						}
+					],
+					"exit": [
+						{
+							"action": "write.destination",
+							"arguments": [false, 0, 0]
 						}
 					]
 				}
@@ -27695,19 +28294,19 @@
 				"label": "Follow contact",
 				"inputs": [
 					{
-						"name": "b0_0",
+						"name": "enabled",
 						"type": "boolean"
 					},
 					{
-						"name": "i0_1",
+						"name": "contact",
 						"type": "integer"
 					},
 					{
-						"name": "i0_2",
+						"name": "range",
 						"type": "integer"
 					},
 					{
-						"name": "i0_3",
+						"name": "speed",
 						"type": "integer"
 					}
 				]
@@ -27728,18 +28327,54 @@
 							"action": "write.follow_contact",
 							"arguments": [
 								{
-									"observation": "input.b0_0"
+									"observation": "input.enabled"
 								},
 								{
-									"observation": "input.i0_1"
+									"observation": "input.contact"
 								},
 								{
-									"observation": "input.i0_2"
+									"observation": "input.range"
 								},
 								{
-									"observation": "input.i0_3"
+									"observation": "input.speed"
 								}
 							]
+						}
+					],
+					"exit": [
+						{
+							"action": "write.follow_contact",
+							"arguments": [false, 0, 1, 1]
+						}
+					],
+					"transitions": [
+						{
+							"target": "lost",
+							"conditions": [
+								{
+									"left": {
+										"observation": "input.enabled"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "action.contact_available"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "lost",
+					"entry": [
+						{
+							"action": "action.fail",
+							"arguments": ["contact_unavailable"]
 						}
 					]
 				}
@@ -27752,19 +28387,19 @@
 				"label": "Travel to destination",
 				"inputs": [
 					{
-						"name": "b0_0",
+						"name": "enabled",
 						"type": "boolean"
 					},
 					{
-						"name": "i0_1",
+						"name": "destination_x",
 						"type": "integer"
 					},
 					{
-						"name": "i0_2",
+						"name": "destination_y",
 						"type": "integer"
 					},
 					{
-						"name": "i1_0",
+						"name": "heading",
 						"type": "integer"
 					}
 				]
@@ -27788,13 +28423,13 @@
 							"action": "write.destination",
 							"arguments": [
 								{
-									"observation": "input.b0_0"
+									"observation": "input.enabled"
 								},
 								{
-									"observation": "input.i0_1"
+									"observation": "input.destination_x"
 								},
 								{
-									"observation": "input.i0_2"
+									"observation": "input.destination_y"
 								}
 							]
 						},
@@ -27802,7 +28437,1397 @@
 							"action": "write.heading_mdeg",
 							"arguments": [
 								{
-									"observation": "input.i1_0"
+									"observation": "input.heading"
+								}
+							]
+						}
+					],
+					"exit": [
+						{
+							"action": "write.destination",
+							"arguments": [false, 0, 0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.combat-approach",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "speed_mm_s"
+				}
+			],
+			"controller_action": {
+				"label": "Combat approach",
+				"inputs": [
+					{
+						"name": "speed",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.speed_mm_s",
+							"arguments": [
+								{
+									"observation": "input.speed"
+								}
+							]
+						}
+					],
+					"exit": [
+						{
+							"action": "write.speed_mm_s",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.combat-approach",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "speed_mm_s"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "duty",
+					"tree": "base.action.combat-approach"
+				}
+			],
+			"initial": "hold",
+			"states": [
+				{
+					"id": "hold",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", 0]
+						}
+					],
+					"transitions": [
+						{
+							"target": "approach",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tactical.range"
+									},
+									"op": "ge",
+									"right": 35000
+								},
+								{
+									"left": {
+										"observation": "tactical.range"
+									},
+									"op": "le",
+									"right": 80000
+								}
+							]
+						},
+						{
+							"target": "cruise",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tactical.range"
+									},
+									"op": "gt",
+									"right": 80000
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "approach",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": [
+								"standing-duty",
+								{
+									"observation": "drive.approach_speed"
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tactical.range"
+									},
+									"op": "lt",
+									"right": 35000
+								}
+							]
+						},
+						{
+							"target": "cruise",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tactical.range"
+									},
+									"op": "gt",
+									"right": 80000
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "cruise",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": [
+								"standing-duty",
+								{
+									"observation": "drive.cruise_speed"
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tactical.range"
+									},
+									"op": "lt",
+									"right": 35000
+								}
+							]
+						},
+						{
+							"target": "approach",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tactical.range"
+									},
+									"op": "ge",
+									"right": 35000
+								},
+								{
+									"left": {
+										"observation": "tactical.range"
+									},
+									"op": "le",
+									"right": 80000
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.face-contact",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "heading_mdeg"
+				}
+			],
+			"controller_action": {
+				"label": "Face contact",
+				"inputs": [
+					{
+						"name": "heading",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.heading_mdeg",
+							"arguments": [
+								{
+									"observation": "input.heading"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.face-contact",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "heading_mdeg"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "duty",
+					"tree": "base.action.face-contact"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": [
+								"standing-duty",
+								{
+									"observation": "tactical.bearing"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.hold-configuration",
+			"context": "controller",
+			"command_bindings": [],
+			"controller_action": {
+				"label": "Hold configuration",
+				"inputs": []
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": []
+				}
+			]
+		},
+		{
+			"id": "base.policy.hold-configuration",
+			"context": "controller",
+			"command_bindings": [],
+			"action_bindings": [
+				{
+					"id": "duty",
+					"tree": "base.action.hold-configuration"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty"]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.engage-hostile",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "weapon_target",
+					"action": "weapon_target"
+				}
+			],
+			"controller_action": {
+				"label": "Engage hostile",
+				"inputs": [
+					{
+						"name": "target",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.weapon_target",
+							"arguments": [
+								{
+									"observation": "input.target"
+								}
+							]
+						}
+					],
+					"exit": [
+						{
+							"action": "write.weapon_target",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.request.manoeuvre.drive",
+			"context": "controller",
+			"initial": "idle",
+			"states": [
+				{
+					"id": "idle",
+					"transitions": [
+						{
+							"target": "request",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tactical.target"
+									},
+									"op": "gt",
+									"right": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "request",
+					"entry": [
+						{
+							"action": "coordination.request",
+							"arguments": [
+								"manoeuvre",
+								"helm",
+								"drive",
+								{
+									"observation": "tactical.target"
+								},
+								35000,
+								1,
+								1200
+							]
+						}
+					],
+					"exit": [
+						{
+							"action": "coordination.withdraw",
+							"arguments": ["manoeuvre"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "idle",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tactical.target"
+									},
+									"op": "eq",
+									"right": 0
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.request.manoeuvre.helm",
+			"context": "controller",
+			"initial": "idle",
+			"states": [
+				{
+					"id": "idle",
+					"transitions": [
+						{
+							"target": "request",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tactical.target"
+									},
+									"op": "gt",
+									"right": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "request",
+					"entry": [
+						{
+							"action": "coordination.request",
+							"arguments": [
+								"manoeuvre",
+								"helm",
+								"helm",
+								{
+									"observation": "tactical.target"
+								},
+								35000,
+								1,
+								1200
+							]
+						}
+					],
+					"exit": [
+						{
+							"action": "coordination.withdraw",
+							"arguments": ["manoeuvre"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "idle",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tactical.target"
+									},
+									"op": "eq",
+									"right": 0
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.request.power.reactor",
+			"context": "controller",
+			"initial": "idle",
+			"states": [
+				{
+					"id": "idle",
+					"transitions": [
+						{
+							"target": "request",
+							"conditions": [
+								{
+									"left": {
+										"observation": "support.power"
+									},
+									"op": "gt",
+									"right": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "request",
+					"entry": [
+						{
+							"action": "coordination.request",
+							"arguments": [
+								"power",
+								"support",
+								"reactor",
+								0,
+								{
+									"observation": "support.power"
+								},
+								1,
+								1200
+							]
+						}
+					],
+					"exit": [
+						{
+							"action": "coordination.withdraw",
+							"arguments": ["power"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "idle",
+							"conditions": [
+								{
+									"left": {
+										"observation": "support.power"
+									},
+									"op": "eq",
+									"right": 0
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.request.repair.team-1",
+			"context": "controller",
+			"initial": "idle",
+			"states": [
+				{
+					"id": "idle",
+					"transitions": [
+						{
+							"target": "request",
+							"conditions": [
+								{
+									"left": {
+										"observation": "repair.compartment"
+									},
+									"op": "gt",
+									"right": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "request",
+					"entry": [
+						{
+							"action": "coordination.request",
+							"arguments": [
+								"repair",
+								"support",
+								"team-1",
+								{
+									"observation": "repair.compartment"
+								},
+								1,
+								1,
+								1200
+							]
+						}
+					],
+					"exit": [
+						{
+							"action": "coordination.withdraw",
+							"arguments": ["repair"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "idle",
+							"conditions": [
+								{
+									"left": {
+										"observation": "repair.compartment"
+									},
+									"op": "eq",
+									"right": 0
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.engage-hostile",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "weapon_target",
+					"action": "weapon_target"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "duty",
+					"tree": "base.action.engage-hostile"
+				}
+			],
+			"initial": "service",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": [
+								"standing-duty",
+								{
+									"observation": "tactical.target"
+								}
+							]
+						}
+					],
+					"parent": "service",
+					"transitions": [
+						{
+							"target": "conserve",
+							"conditions": [
+								{
+									"left": {
+										"observation": "coordination.reply.power.status"
+									},
+									"op": "eq",
+									"right": "refused"
+								}
+							]
+						},
+						{
+							"target": "conserve",
+							"conditions": [
+								{
+									"left": {
+										"observation": "coordination.reply.power.status"
+									},
+									"op": "eq",
+									"right": "failed"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "service",
+					"initial": "operate",
+					"running": [
+						{
+							"call": "base.policy.request.manoeuvre.drive"
+						},
+						{
+							"call": "base.policy.request.manoeuvre.helm"
+						},
+						{
+							"call": "base.policy.request.power.reactor"
+						},
+						{
+							"call": "base.policy.request.repair.team-1"
+						}
+					]
+				},
+				{
+					"id": "conserve",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", 0]
+						}
+					],
+					"parent": "service",
+					"transitions": [
+						{
+							"target": "operate",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 40
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.repair-compartment",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "repair_compartment"
+				}
+			],
+			"controller_action": {
+				"label": "Repair compartment",
+				"inputs": [
+					{
+						"name": "compartment",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.repair_compartment",
+							"arguments": [
+								{
+									"observation": "input.compartment"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.repair-compartment",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "repair_compartment"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "duty",
+					"tree": "base.action.repair-compartment"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": [
+								"standing-duty",
+								{
+									"observation": "repair.compartment"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.regulate-reactor",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "output"
+				}
+			],
+			"controller_action": {
+				"label": "Regulate reactor",
+				"inputs": [
+					{
+						"name": "operating_limit",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.output",
+							"arguments": [
+								{
+									"observation": "input.operating_limit"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.combat.reactor",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "output"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "duty",
+					"tree": "base.action.regulate-reactor"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": [
+								"standing-duty",
+								{
+									"observation": "power.demand"
+								}
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "recover",
+							"conditions": [
+								{
+									"left": {
+										"observation": "thermal.stopped"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "recover",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["thermal-recovery", 0]
+						}
+					],
+					"transitions": [
+						{
+							"target": "operate",
+							"conditions": [
+								{
+									"left": {
+										"observation": "thermal.stopped"
+									},
+									"op": "eq",
+									"right": false
+								},
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 40
+								}
+							]
+						}
+					]
+				}
+			],
+			"system_bindings": [
+				{
+					"name": "power.demand",
+					"system": "reactor",
+					"field": "demand_output",
+					"type": "integer"
+				},
+				{
+					"name": "thermal.stopped",
+					"system": "reactor",
+					"field": "thermal_stopped",
+					"type": "boolean"
+				}
+			]
+		},
+		{
+			"id": "base.action.maintain-shield-distribution",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "discharge",
+					"type": "boolean"
+				}
+			],
+			"controller_action": {
+				"label": "Maintain shield distribution",
+				"inputs": [
+					{
+						"name": "discharge",
+						"type": "boolean"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.discharge",
+							"arguments": [
+								{
+									"observation": "input.discharge"
+								}
+							]
+						}
+					],
+					"exit": [
+						{
+							"action": "write.discharge",
+							"arguments": [false]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.maintain-shield-distribution",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "discharge",
+					"type": "boolean"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "duty",
+					"tree": "base.action.maintain-shield-distribution"
+				}
+			],
+			"initial": "hold",
+			"states": [
+				{
+					"id": "hold",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", false]
+						}
+					],
+					"transitions": [
+						{
+							"target": "share",
+							"conditions": [
+								{
+									"left": {
+										"observation": "shield.lowest"
+									},
+									"op": "lt",
+									"right": 500
+								},
+								{
+									"left": {
+										"observation": "shield.difference"
+									},
+									"op": "gt",
+									"right": 250
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "share",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", true]
+						}
+					],
+					"transitions": [
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "shield.lowest"
+									},
+									"op": "ge",
+									"right": 650
+								}
+							]
+						},
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "shield.difference"
+									},
+									"op": "le",
+									"right": 100
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.engage-hostile-ammunition",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "target",
+					"action": "weapon_target"
+				},
+				{
+					"channel": "magazine",
+					"action": "magazine_select"
+				}
+			],
+			"controller_action": {
+				"label": "Engage hostile ammunition",
+				"inputs": [
+					{
+						"name": "target",
+						"type": "integer"
+					},
+					{
+						"name": "ammunition",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.target",
+							"arguments": [
+								{
+									"observation": "input.target"
+								}
+							]
+						},
+						{
+							"action": "write.magazine",
+							"arguments": [
+								{
+									"observation": "input.ammunition"
+								}
+							]
+						}
+					],
+					"exit": [
+						{
+							"action": "write.target",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.engage-hostile-ammunition",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "target",
+					"action": "weapon_target"
+				},
+				{
+					"channel": "magazine",
+					"action": "magazine_select"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "duty",
+					"tree": "base.action.engage-hostile-ammunition"
+				}
+			],
+			"initial": "service",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": [
+								"standing-duty",
+								{
+									"observation": "tactical.target"
+								},
+								{
+									"observation": "tactical.magazine"
+								}
+							]
+						}
+					],
+					"parent": "service",
+					"transitions": [
+						{
+							"target": "conserve",
+							"conditions": [
+								{
+									"left": {
+										"observation": "coordination.reply.power.status"
+									},
+									"op": "eq",
+									"right": "refused"
+								}
+							]
+						},
+						{
+							"target": "conserve",
+							"conditions": [
+								{
+									"left": {
+										"observation": "coordination.reply.power.status"
+									},
+									"op": "eq",
+									"right": "failed"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "service",
+					"initial": "operate",
+					"running": [
+						{
+							"call": "base.policy.request.manoeuvre.drive"
+						},
+						{
+							"call": "base.policy.request.manoeuvre.helm"
+						},
+						{
+							"call": "base.policy.request.power.reactor"
+						},
+						{
+							"call": "base.policy.request.repair.team-1"
+						}
+					]
+				},
+				{
+					"id": "conserve",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": [
+								"standing-duty",
+								0,
+								{
+									"observation": "tactical.magazine"
+								}
+							]
+						}
+					],
+					"parent": "service",
+					"transitions": [
+						{
+							"target": "operate",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 40
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.point-defence",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "target",
+					"action": "weapon_target"
+				},
+				{
+					"channel": "mode",
+					"action": "weapon_mode"
+				}
+			],
+			"controller_action": {
+				"label": "Point defence",
+				"inputs": [
+					{
+						"name": "target",
+						"type": "integer"
+					}
+				]
+			},
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.target",
+							"arguments": [
+								{
+									"observation": "input.target"
+								}
+							]
+						},
+						{
+							"action": "write.mode",
+							"arguments": [1]
+						}
+					],
+					"exit": [
+						{
+							"action": "write.target",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.point-defence",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "target",
+					"action": "weapon_target"
+				},
+				{
+					"channel": "mode",
+					"action": "weapon_mode"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "duty",
+					"tree": "base.action.point-defence"
+				}
+			],
+			"initial": "service",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": [
+								"standing-duty",
+								{
+									"observation": "tactical.target"
+								}
+							]
+						}
+					],
+					"parent": "service"
+				},
+				{
+					"id": "service",
+					"initial": "operate",
+					"running": [
+						{
+							"call": "base.policy.request.manoeuvre.drive"
+						},
+						{
+							"call": "base.policy.request.manoeuvre.helm"
+						},
+						{
+							"call": "base.policy.request.power.reactor"
+						},
+						{
+							"call": "base.policy.request.repair.team-1"
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.engage-hostile.target",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "target",
+					"action": "weapon_target"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "duty",
+					"tree": "base.action.engage-hostile",
+					"channels": {
+						"weapon_target": "target"
+					}
+				}
+			],
+			"initial": "service",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": [
+								"standing-duty",
+								{
+									"observation": "tactical.target"
+								}
+							]
+						}
+					],
+					"parent": "service",
+					"transitions": [
+						{
+							"target": "conserve",
+							"conditions": [
+								{
+									"left": {
+										"observation": "coordination.reply.power.status"
+									},
+									"op": "eq",
+									"right": "refused"
+								}
+							]
+						},
+						{
+							"target": "conserve",
+							"conditions": [
+								{
+									"left": {
+										"observation": "coordination.reply.power.status"
+									},
+									"op": "eq",
+									"right": "failed"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "service",
+					"initial": "operate",
+					"running": [
+						{
+							"call": "base.policy.request.manoeuvre.drive"
+						},
+						{
+							"call": "base.policy.request.manoeuvre.helm"
+						},
+						{
+							"call": "base.policy.request.power.reactor"
+						},
+						{
+							"call": "base.policy.request.repair.team-1"
+						}
+					]
+				},
+				{
+					"id": "conserve",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", 0]
+						}
+					],
+					"parent": "service",
+					"transitions": [
+						{
+							"target": "operate",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 40
 								}
 							]
 						}
@@ -29209,29 +31234,30 @@
 	"messages": [
 		{
 			"id": "base.message.power-request",
-			"schema": "base.coordination",
+			"schema": "phoenix.coordination",
 			"destination": {
 				"kind": "controller",
 				"console": "engineering",
 				"id": "core.generator"
 			},
 			"title_key": "Power request",
-			"body_key": "Propulsion requests additional power.",
+			"body_key": "Request Engineering power support at the entered operating limit.",
 			"delay_ticks": 2,
 			"expires_after_ticks": 600,
 			"urgency": 2,
 			"automatic": true,
 			"request_key": "base.message.power-request",
 			"fields": {
+				"operation": "power",
+				"status": "requested",
+				"reason": "operator_request",
+				"request": 0,
+				"target": 0,
 				"amount": {
 					"argument": "amount"
 				},
-				"flag": {
-					"argument": "flag"
-				},
-				"detail": {
-					"argument": "detail"
-				}
+				"priority": 1,
+				"expires": 0
 			},
 			"parameters": {}
 		},
@@ -29419,6 +31445,285 @@
 				}
 			},
 			"parameters": {}
+		},
+		{
+			"id": "base.message.power-response.courier-engineering.drive.engine.accepted",
+			"schema": "phoenix.coordination",
+			"destination": {
+				"kind": "controller",
+				"console": "helm",
+				"id": "drive.engine"
+			},
+			"title_key": "Accepted power request: drive.engine",
+			"body_key": "Power request {request}: accepted. Enter the request number shown in the message.",
+			"delay_ticks": 1,
+			"expires_after_ticks": 600,
+			"automatic": false,
+			"fields": {
+				"operation": "power",
+				"status": "accepted",
+				"reason": "accept_requested_limit",
+				"request": {
+					"argument": "amount"
+				},
+				"target": 0,
+				"amount": 0,
+				"priority": 1,
+				"expires": 0
+			},
+			"parameters": {
+				"request": {
+					"argument": "amount"
+				}
+			}
+		},
+		{
+			"id": "base.message.power-response.courier-engineering.drive.engine.refused",
+			"schema": "phoenix.coordination",
+			"destination": {
+				"kind": "controller",
+				"console": "helm",
+				"id": "drive.engine"
+			},
+			"title_key": "Refused power request: drive.engine",
+			"body_key": "Power request {request}: refused. Enter the request number shown in the message.",
+			"delay_ticks": 1,
+			"expires_after_ticks": 600,
+			"automatic": false,
+			"fields": {
+				"operation": "power",
+				"status": "refused",
+				"reason": "operator_report",
+				"request": {
+					"argument": "amount"
+				},
+				"target": 0,
+				"amount": 0,
+				"priority": 1,
+				"expires": 0
+			},
+			"parameters": {
+				"request": {
+					"argument": "amount"
+				}
+			}
+		},
+		{
+			"id": "base.message.power-response.courier-engineering.drive.engine.completed",
+			"schema": "phoenix.coordination",
+			"destination": {
+				"kind": "controller",
+				"console": "helm",
+				"id": "drive.engine"
+			},
+			"title_key": "Completed power request: drive.engine",
+			"body_key": "Power request {request}: completed. Enter the request number shown in the message.",
+			"delay_ticks": 1,
+			"expires_after_ticks": 600,
+			"automatic": false,
+			"fields": {
+				"operation": "power",
+				"status": "completed",
+				"reason": "operator_report",
+				"request": {
+					"argument": "amount"
+				},
+				"target": 0,
+				"amount": 0,
+				"priority": 1,
+				"expires": 0
+			},
+			"parameters": {
+				"request": {
+					"argument": "amount"
+				}
+			}
+		},
+		{
+			"id": "base.message.power-response.cruiser.drive.engine.accepted",
+			"schema": "phoenix.coordination",
+			"destination": {
+				"kind": "controller",
+				"console": "helm",
+				"id": "drive.engine"
+			},
+			"title_key": "Accepted power request: drive.engine",
+			"body_key": "Power request {request}: accepted. Enter the request number shown in the message.",
+			"delay_ticks": 1,
+			"expires_after_ticks": 600,
+			"automatic": false,
+			"fields": {
+				"operation": "power",
+				"status": "accepted",
+				"reason": "accept_requested_limit",
+				"request": {
+					"argument": "amount"
+				},
+				"target": 0,
+				"amount": 0,
+				"priority": 1,
+				"expires": 0
+			},
+			"parameters": {
+				"request": {
+					"argument": "amount"
+				}
+			}
+		},
+		{
+			"id": "base.message.power-response.cruiser.drive.engine.refused",
+			"schema": "phoenix.coordination",
+			"destination": {
+				"kind": "controller",
+				"console": "helm",
+				"id": "drive.engine"
+			},
+			"title_key": "Refused power request: drive.engine",
+			"body_key": "Power request {request}: refused. Enter the request number shown in the message.",
+			"delay_ticks": 1,
+			"expires_after_ticks": 600,
+			"automatic": false,
+			"fields": {
+				"operation": "power",
+				"status": "refused",
+				"reason": "operator_report",
+				"request": {
+					"argument": "amount"
+				},
+				"target": 0,
+				"amount": 0,
+				"priority": 1,
+				"expires": 0
+			},
+			"parameters": {
+				"request": {
+					"argument": "amount"
+				}
+			}
+		},
+		{
+			"id": "base.message.power-response.cruiser.drive.engine.completed",
+			"schema": "phoenix.coordination",
+			"destination": {
+				"kind": "controller",
+				"console": "helm",
+				"id": "drive.engine"
+			},
+			"title_key": "Completed power request: drive.engine",
+			"body_key": "Power request {request}: completed. Enter the request number shown in the message.",
+			"delay_ticks": 1,
+			"expires_after_ticks": 600,
+			"automatic": false,
+			"fields": {
+				"operation": "power",
+				"status": "completed",
+				"reason": "operator_report",
+				"request": {
+					"argument": "amount"
+				},
+				"target": 0,
+				"amount": 0,
+				"priority": 1,
+				"expires": 0
+			},
+			"parameters": {
+				"request": {
+					"argument": "amount"
+				}
+			}
+		},
+		{
+			"id": "base.message.power-response.cruiser.wing.engine.accepted",
+			"schema": "phoenix.coordination",
+			"destination": {
+				"kind": "controller",
+				"console": "helm",
+				"id": "wing.engine"
+			},
+			"title_key": "Accepted power request: wing.engine",
+			"body_key": "Power request {request}: accepted. Enter the request number shown in the message.",
+			"delay_ticks": 1,
+			"expires_after_ticks": 600,
+			"automatic": false,
+			"fields": {
+				"operation": "power",
+				"status": "accepted",
+				"reason": "accept_requested_limit",
+				"request": {
+					"argument": "amount"
+				},
+				"target": 0,
+				"amount": 0,
+				"priority": 1,
+				"expires": 0
+			},
+			"parameters": {
+				"request": {
+					"argument": "amount"
+				}
+			}
+		},
+		{
+			"id": "base.message.power-response.cruiser.wing.engine.refused",
+			"schema": "phoenix.coordination",
+			"destination": {
+				"kind": "controller",
+				"console": "helm",
+				"id": "wing.engine"
+			},
+			"title_key": "Refused power request: wing.engine",
+			"body_key": "Power request {request}: refused. Enter the request number shown in the message.",
+			"delay_ticks": 1,
+			"expires_after_ticks": 600,
+			"automatic": false,
+			"fields": {
+				"operation": "power",
+				"status": "refused",
+				"reason": "operator_report",
+				"request": {
+					"argument": "amount"
+				},
+				"target": 0,
+				"amount": 0,
+				"priority": 1,
+				"expires": 0
+			},
+			"parameters": {
+				"request": {
+					"argument": "amount"
+				}
+			}
+		},
+		{
+			"id": "base.message.power-response.cruiser.wing.engine.completed",
+			"schema": "phoenix.coordination",
+			"destination": {
+				"kind": "controller",
+				"console": "helm",
+				"id": "wing.engine"
+			},
+			"title_key": "Completed power request: wing.engine",
+			"body_key": "Power request {request}: completed. Enter the request number shown in the message.",
+			"delay_ticks": 1,
+			"expires_after_ticks": 600,
+			"automatic": false,
+			"fields": {
+				"operation": "power",
+				"status": "completed",
+				"reason": "operator_report",
+				"request": {
+					"argument": "amount"
+				},
+				"target": 0,
+				"amount": 0,
+				"priority": 1,
+				"expires": 0
+			},
+			"parameters": {
+				"request": {
+					"argument": "amount"
+				}
+			}
 		}
 	]
 }

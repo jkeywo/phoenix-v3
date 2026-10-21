@@ -524,36 +524,83 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 			const auto name = input.at("name").get<std::string>();
 			binding_require(valid_identifier(name), "Controller action", "invalid input name");
 			const auto type = input.at("type").get<std::string>();
-			binding_require(type == "integer" || type == "boolean" || type == "text", "Controller action", "invalid input type");
+			binding_require(type == "integer" || type == "boolean" || type == "text", "Controller action",
+			                "invalid input type");
 			const auto kind = type == "integer" ? Type::Integer : type == "boolean" ? Type::Boolean : Type::Text;
-			const auto found = std::find_if(registry.observations.begin(), registry.observations.end(), [&](const auto &f) { return f.name == "input." + name; });
-			if (found == registry.observations.end()) add({"input." + name, kind, 4, {}});
-			else binding_require(found->type == kind, "Controller action", "conflicting input types");
+			const auto found = std::find_if(registry.observations.begin(), registry.observations.end(),
+			                                [&](const auto &f)
+			                                {
+				                                return f.name == "input." + name;
+			                                });
+			if (found == registry.observations.end())
+				add({"input." + name, kind, 4, {}});
+			else
+				binding_require(found->type == kind, "Controller action", "conflicting input types");
 		}
 	};
-	if (resolved.contains("controller_action")) add_inputs(resolved.at("controller_action"));
+	if (resolved.contains("controller_action"))
+		add_inputs(resolved.at("controller_action"));
 	for (const auto &binding : resolved.value("action_bindings", Json::array()))
 	{
 		const auto name = binding.at("id").get<std::string>(), target = binding.at("tree").get<std::string>();
-		binding_require(valid_identifier(name) && catalog.trees.contains(target), "Controller action", "invalid action binding");
+		binding_require(valid_identifier(name) && catalog.trees.contains(target), "Controller action",
+		                "invalid action binding");
 		const auto definition = resolve_tree_definition(catalog.trees.at(target), catalog);
-		binding_require(definition.contains("controller_action") && !definition.contains("action_bindings"), "Controller action", "execution tree required; recursive selection forbidden");
+		binding_require(definition.contains("controller_action") && !definition.contains("action_bindings"),
+		                "Controller action", "execution tree required; recursive selection forbidden");
 		const auto &metadata = definition.at("controller_action");
 		add_inputs(metadata);
 		ActionSpec select{"select." + name, 4, {Type::Text}, false, 100000};
 		for (const auto &input : metadata.value("inputs", Json::array()))
 		{
 			const auto type = input.at("type").get<std::string>();
-			select.arguments.push_back(type == "integer" ? Type::Integer : type == "boolean" ? Type::Boolean : Type::Text);
+			select.arguments.push_back(type == "integer"   ? Type::Integer
+			                           : type == "boolean" ? Type::Boolean
+			                                               : Type::Text);
 		}
+		registry.actions.push_back(select);
+		select.name = "replace." + name;
 		registry.actions.push_back(std::move(select));
 	}
 	registry.actions.push_back({"action.cancel", 4, {Type::Text}, false, 100000});
 	registry.actions.push_back({"action.succeed", 4, {Type::Text}, true});
 	registry.actions.push_back({"action.fail", 4, {Type::Text}, true});
+	result.action_base = registry.observations.size();
 	add({"action.status", Type::Text, 4, {}});
 	add({"action.reason", Type::Text, 4, {}});
 	add({"action.id", Type::Text, 4, {}});
+	add({"action.goal_distance", Type::Integer, 4, {}});
+	add({"action.actual_speed", Type::Integer, 4, {}});
+	add({"action.contact_available", Type::Boolean, 4, {}});
+	result.decision_base = registry.observations.size();
+	for (const auto *name :
+	     {"tactical.target", "tactical.range", "tactical.bearing", "tactical.magazine", "repair.compartment",
+	      "repair.system", "shield.fraction", "shield.lowest", "shield.difference", "drive.cruise_speed",
+	      "drive.approach_speed", "support.power", "support.cooling"})
+		add({name, Type::Integer, 4, {}});
+	add({"tactical.point_defence", Type::Boolean, 4, {}});
+	result.coordination_base = registry.observations.size();
+	add({"coordination.pending", Type::Boolean, 4, {}});
+	for (const auto *name : {"operation", "status", "reason", "invocation"})
+		add({std::string("coordination.") + name, Type::Text, 4, {}});
+	for (const auto *name : {"request", "target", "amount", "priority", "expires"})
+		add({std::string("coordination.") + name, Type::Integer, 4, {}});
+	for (const auto *name : {"feasible", "done", "blocked"})
+		add({std::string("coordination.") + name, Type::Boolean, 4, {}});
+	for (const auto *name : {"bearing", "range", "limit"})
+		add({std::string("coordination.") + name, Type::Integer, 4, {}});
+	for (const auto *op : {"power", "cooling", "manoeuvre", "repair"})
+	{
+		add({std::string("coordination.reply.") + op + ".status", Type::Text, 4, {}});
+		add({std::string("coordination.reply.") + op + ".amount", Type::Integer, 4, {}});
+	}
+	registry.actions.push_back(
+	    {"coordination.request",
+	     4,
+	     {Type::Text, Type::Text, Type::Text, Type::Integer, Type::Integer, Type::Integer, Type::Integer},
+	     true});
+	registry.actions.push_back({"coordination.respond", 4, {Type::Text, Type::Integer, Type::Text}, true});
+	registry.actions.push_back({"coordination.withdraw", 4, {Type::Text}, true});
 	return result;
 }
 state_tree::Registry gameplay_registry(const Json &tree, const Catalog &catalog, state_tree::Context context)

@@ -13,7 +13,9 @@ inline Json body_json(const BodyView &b)
 	        {"heading", b.heading},
 	        {"radar_icon", std::string(radar_icon_name(b.radar_icon))},
 	        {"radar_sprite", b.radar_sprite},
-	        {"faction", b.faction}, {"faction_label", b.faction_label}, {"disposition", b.disposition}};
+	        {"faction", b.faction},
+	        {"faction_label", b.faction_label},
+	        {"disposition", b.disposition}};
 }
 inline std::int64_t number(const Json &v, std::int64_t lo = -1000000000, std::int64_t hi = 1000000000)
 {

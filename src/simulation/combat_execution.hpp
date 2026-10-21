@@ -732,14 +732,17 @@ void project_combat(const ConsoleAddress &address, Observation &result) const
 			const auto &d = defs[i];
 			if (!state.active)
 				continue;
-			output["faults"].push_back({{"system", equipment},
-			                            {"compartment", s->definition.equipment_compartments.at(equipment)},
-			                            {"symptom", d.symptom},
-			                            {"diagnosed", state.diagnosed},
-			                            {"diagnosis", state.diagnosed ? d.diagnosis : std::string{}},
-			                            {"destroyed", d.destroys},
-			                            {"work", state.work / (rate * 1000)},
-			                            {"required_work", d.repair_work}});
+			output["faults"].push_back(
+			    {{"system", equipment},
+			     {"compartment", s->definition.equipment_compartments.at(equipment)},
+			     {"compartment_index",
+			      s->definition.compartment_ids.at(s->definition.equipment_compartments.at(equipment)) + 1},
+			     {"symptom", d.symptom},
+			     {"diagnosed", state.diagnosed},
+			     {"diagnosis", state.diagnosed ? d.diagnosis : std::string{}},
+			     {"destroyed", d.destroys},
+			     {"work", state.work / (rate * 1000)},
+			     {"required_work", d.repair_work}});
 		}
 	}
 	for (auto child : ship.get<EquipmentIndex>().values)
@@ -760,6 +763,7 @@ void project_combat(const ConsoleAddress &address, Observation &result) const
 				                             {"layer", d.get<ShieldDefinition>().layer},
 				                             {"discharging", m->get<ShieldState>().discharge}});
 			if (d.kind == OperatingSystem::Weapon)
+			{
 				output["weapons"].push_back(
 				    {{"id", d.id},
 				     {"magazines", d.get<WeaponDefinition>().magazines},
@@ -774,6 +778,24 @@ void project_combat(const ConsoleAddress &address, Observation &result) const
 				     {"mode", m->get<WeaponState>().mode},
 				     {"point_defence", d.get<WeaponDefinition>().point_defence},
 				     {"intercept", m->get<WeaponState>().intercept}});
+				auto &options = output["weapons"].back()["ammunition_options"] = Json::array();
+				for (std::size_t i = 0; i < d.get<WeaponDefinition>().magazines.size(); ++i)
+				{
+					const auto &name = d.get<WeaponDefinition>().magazines[i];
+					if (std::find(feeds.begin(), feeds.end(), name) == feeds.end())
+						continue;
+					const auto &magazine = instance(ship, name)->entity.get<CombatMechanism>();
+					const auto &projectile = magazine.definition.ammunition().projectile.visual.empty()
+					                             ? d.ammunition().projectile
+					                             : magazine.definition.ammunition().projectile;
+					options.push_back(
+					    {{"index", i},
+					     {"id", name},
+					     {"range_mm", projectile.speed * projectile.lifetime / rate},
+					     {"available", magazine.get<MagazineState>().ammo >= d.get<WeaponDefinition>().ammo_use ||
+					                       m->get<WeaponState>().loaded_magazine == static_cast<std::int64_t>(i)}});
+				}
+			}
 		}
 	result.gameplay["combat"] = std::move(output);
 }
@@ -1039,122 +1061,5 @@ void restore_projectiles(const Json &saved)
 			                 }))
 				throw std::runtime_error("Invalid projectile deck selection");
 		ecs.entity().set<Projectile>(p).set<Destructible>({p.definition.destruction, durability});
-	}
-}
-
-void run_combat_controller(flecs::entity entity, std::size_t index)
-{
-	const auto id = entity.get<StableId>().id;
-	auto &controller = entity.get_mut<EntityControls>().controllers[index];
-	const ConsoleAddress address{id, controller.definition.console};
-	const auto frozen = observation_snapshots.find(address);
-	if (frozen == observation_snapshots.end())
-		return;
-	const auto &observed = frozen->second;
-	const BodyView *target = nullptr;
-	std::int64_t nearest = std::numeric_limits<std::int64_t>::max();
-	for (const auto &contact : observed.contacts)
-		if (contact.radar_icon == RadarIcon::ship)
-		{
-			const auto distance = fixed::length({contact.x - observed.own.x, contact.y - observed.own.y});
-			if (distance < nearest)
-			{
-				nearest = distance;
-				target = &contact;
-			}
-		}
-	const auto combat = observed.gameplay.value("combat", Json::object());
-	for (std::size_t field = 0; field < controller.commands.size(); ++field)
-	{
-		const auto &spec = controller.definition.commands[field];
-		const auto &state = controller.commands[field];
-		auto value = state.value;
-		auto args = state.arguments;
-		switch (spec.action)
-		{
-		case OperatingAction::WeaponTarget:
-			value = target ? static_cast<std::int64_t>(target->id) : 0;
-			if (!spec.consumers.empty())
-				if (const auto *m =
-				        entity.get<EquipmentIndex>().values.at(spec.consumers.front()).try_get<CombatMechanism>();
-				    m && m->definition.get<WeaponDefinition>().point_defence)
-					value = 0;
-			break;
-		case OperatingAction::Heading:
-			if (target)
-				value = combat_bearing({target->x - observed.own.x, target->y - observed.own.y});
-			break;
-		case OperatingAction::Speed:
-			if (target)
-				value = nearest > 80000 ? spec.maximum / 2 : nearest < 35000 ? 0 : spec.maximum / 5;
-			else
-				value = 0;
-			break;
-		case OperatingAction::RepairCompartment:
-		case OperatingAction::RepairSystem:
-			value = 0;
-			break;
-		case OperatingAction::WeaponMode:
-			value = 1;
-			break;
-		case OperatingAction::MagazineSelect:
-		{
-			if (spec.consumers.empty())
-				continue;
-			const auto *m = entity.get<EquipmentIndex>().values.at(spec.consumers.front()).try_get<CombatMechanism>();
-			if (!m)
-				continue;
-			std::int64_t best_range = std::numeric_limits<std::int64_t>::max();
-			for (std::size_t i = 0; i < m->definition.get<WeaponDefinition>().magazines.size(); ++i)
-			{
-				const auto &mag =
-				    instance(entity, m->definition.get<WeaponDefinition>().magazines[i])->entity.get<CombatMechanism>();
-				if (mag.get<MagazineState>().ammo < m->definition.get<WeaponDefinition>().ammo_use &&
-				    m->get<WeaponState>().loaded_magazine != static_cast<std::int64_t>(i))
-					continue;
-				const auto &p = mag.definition.ammunition().projectile.visual.empty()
-				                    ? m->definition.ammunition().projectile
-				                    : mag.definition.ammunition().projectile;
-				const auto reach = p.speed * p.lifetime / rate;
-				if (reach >= nearest && reach < best_range)
-				{
-					best_range = reach;
-					value = i;
-				}
-			}
-			break;
-		}
-		case OperatingAction::ShieldDischarge:
-		{
-			value = 0;
-			const auto shields = combat.value("shields", Json::array());
-			std::int64_t lowest = 1000, own = 0;
-			for (const auto &shield : shields)
-			{
-				const auto fraction =
-				    shield.at("strength").get<std::int64_t>() * 1000 / shield.at("capacity").get<std::int64_t>();
-				lowest = std::min(lowest, fraction);
-				if (shield.at("id") == controller.definition.id)
-					own = fraction;
-			}
-			if (lowest < 500 && own > lowest + 250)
-				value = 1;
-			break;
-		}
-		default:
-			continue;
-		}
-		if (value < spec.minimum || value > spec.maximum)
-			continue;
-		OperatingCommand command{id,
-		                         std::string(operating_action(spec.action).name),
-		                         value,
-		                         {},
-		                         controller.definition.id,
-		                         spec.id,
-		                         controller.generation};
-		command.arguments = args;
-		if (auto proposal = controller_proposal(address, command, false))
-			commit_controller(*proposal);
 	}
 }

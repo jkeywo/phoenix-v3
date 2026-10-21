@@ -107,7 +107,10 @@ struct CompiledGameplay
 	std::vector<CompiledGameplaySystem> values;
 	std::optional<ShipResourcesDefinition> power;
 };
-struct FactionMembership { std::string id; };
+struct FactionMembership
+{
+	std::string id;
+};
 struct CompiledDefinition
 {
 	std::string faction;
@@ -515,8 +518,14 @@ struct World::Impl
 						{
 							controller.brain = ControllerBrain{content.tree_programs.at(spec.tree), spec.tree};
 							auto &brain = *controller.brain;
-							brain.actions = compile_controller_actions(content.trees.at(spec.tree), content, brain.program.registry);
+							brain.actions = compile_controller_actions(content.trees.at(spec.tree), content,
+							                                           brain.program.registry);
 							const auto &bindings = content.controller_bindings.at(spec.tree);
+							brain.decision_base = bindings.decision_base;
+							brain.action_base = bindings.action_base;
+							brain.coordination_base = bindings.coordination_base;
+							brain.routine_stance =
+							    content.trees.at(spec.tree).value("officer_routine_stance", std::string("routine"));
 							brain.own = bindings.own;
 							brain.inbox = bindings.inbox;
 							brain.result = bindings.result;
@@ -1203,6 +1212,7 @@ struct World::Impl
 #include "navigation_assessment.hpp"
 #include "controller_execution.hpp"
 #include "controller_actions.hpp"
+#include "controller_coordination.hpp"
 	std::int64_t sensor_range(EntityId ship, const std::string &name) const
 	{
 		const auto entity = entities.at(ship);
@@ -2996,6 +3006,8 @@ Json World::debug() const
 				    {"transition_reason", ""},
 				    {"diagnostics", Json::array()},
 				    {"commands", Json::array()}};
+				row["action"] = impl_->save_controller_action(controller);
+				row["coordination"] = impl_->save_controller_coordination(controller);
 				if (controller.brain)
 				{
 					row["active_states"] = controller.brain->debug.active;
@@ -3125,7 +3137,7 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 11},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 12},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
 	if (impl_->display_revision)
 	{
@@ -3148,7 +3160,8 @@ Json World::save() const
 			continue;
 		SavedBody body{entity.get<Pose>(), entity.get<Motion>(), id, entity.get<Definition>().name};
 		result["bodies"].push_back({{"body", body}});
-		result["bodies"].back()["faction"] = entity.get<FactionMembership>().id;
+		result["bodies"].back()["faction"] =
+		    (entity.try_get<FactionMembership>() ? entity.get<FactionMembership>().id : std::string{});
 		if (auto systems = fittings(entity))
 		{
 			auto &saved = result["bodies"].back()["systems"] = Json::object();
@@ -3235,9 +3248,9 @@ void World::restore(const Catalog &content, const Json &saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 11 || saved.at("packs") != Json(content.ordered_packs))
+	if (saved.at("schema") != 12 || saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error(
-		    "Saved state schema/content identity mismatch; Controller runtime requires schema 11; start a new session");
+		    "Saved state schema/content identity mismatch; Controller runtime requires schema 12; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))
 		throw std::runtime_error("Legacy authority fields are not Controller continuation");
 	World candidate;
@@ -3281,7 +3294,8 @@ void World::restore(const Catalog &content, const Json &saved)
 		if (!seen.insert(restored.id).second || !candidate.impl_->entities.contains(restored.id))
 			throw std::runtime_error("Saved state duplicate/unknown entity");
 		auto entity = candidate.impl_->entities.at(restored.id);
-		if (value.value("faction", std::string{}) != entity.get<FactionMembership>().id)
+		if (value.value("faction", std::string{}) !=
+		    (entity.try_get<FactionMembership>() ? entity.get<FactionMembership>().id : std::string{}))
 			throw std::runtime_error("Saved faction differs from fixed map membership");
 		if (entity.has<Destructible>())
 		{
@@ -3303,8 +3317,8 @@ void World::restore(const Catalog &content, const Json &saved)
 			candidate.impl_->restore_bridge(restored.id, value.at("bridge"));
 		if (entity.has<EntityControls>())
 		{
-			if (saved.at("schema") != 11)
-				throw std::runtime_error("Controller state requires schema 11; start a new session");
+			if (saved.at("schema") != 12)
+				throw std::runtime_error("Controller state requires schema 12; start a new session");
 			candidate.impl_->restore_controllers(entity, value.at("console_controllers"));
 		}
 		else if (value.contains("console_controllers"))

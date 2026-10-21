@@ -781,6 +781,13 @@ Json GameplayKnowledge::project_json(const ConsoleAddress &address, bool public_
 		     {"urgency", p.urgency},
 		     {"payload", knowledge_record_json(compiled_, {message.id, projection.console, KnowledgeScope::Console,
 		                                                   message.value.payload, delivery.delivered_tick})}});
+		if (result["messages"].back().at("payload").value("schema", std::string{}) == "phoenix.coordination")
+		{
+			const auto field = compiled_.field(message.value.payload.schema, "request");
+			if (const auto found = message.value.payload.fields.find(field);
+			    found != message.value.payload.fields.end() && std::get<std::int64_t>(found->second) == 0)
+				result["messages"].back()["parameters"]["request"] = std::to_string(message.id);
+		}
 	}
 	for (const auto &delivery : projection.notifications)
 	{
@@ -896,14 +903,6 @@ void GameplayKnowledge::restore(const Json &state)
 	}
 	const auto expected = knowledge_registry_signature(restored.runtime_.save());
 	auto saved_runtime = state.at("runtime");
-	const auto current_contract = restored.runtime_.save().at("contract");
-	auto legacy_contract = current_contract;
-	if (!legacy_contract.at("schemas").empty() && legacy_contract.at("schemas").back().at("name") == "phoenix.camera")
-	{
-		legacy_contract["schemas"].erase(legacy_contract["schemas"].size() - 1);
-		if (saved_runtime.at("contract") == legacy_contract)
-			saved_runtime["contract"] = current_contract;
-	}
 	restored.runtime_.restore(saved_runtime);
 	knowledge_require(expected == knowledge_registry_signature(restored.runtime_.save()),
 	                  "saved runtime does not match authored Console/System/Controller bindings");

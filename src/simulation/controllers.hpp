@@ -30,6 +30,8 @@ struct ControllerBrain
 {
 	state_tree::Program program;
 	std::string tree;
+	std::string routine_stance = "routine";
+	std::size_t decision_base = 0, action_base = 0, coordination_base = 0;
 	ControllerDestinations<ControllerOwnField> own;
 	ControllerDestinations<ControllerInboxField> inbox;
 	ControllerDestinations<ControllerResultField> result;
@@ -62,6 +64,31 @@ struct ControllerChannelState
 	bool accepted = true;
 	std::vector<std::int64_t> arguments;
 };
+enum class OfficerOperation
+{
+	Power,
+	Cooling,
+	Manoeuvre,
+	Repair
+};
+enum class OfficerStatus
+{
+	Requested,
+	Accepted,
+	Refused,
+	Completed,
+	Failed,
+	Cancelled
+};
+struct OfficerRequest
+{
+	KnowledgeId id = 0, peer = 0;
+	OfficerOperation operation = OfficerOperation::Power;
+	OfficerStatus status = OfficerStatus::Requested;
+	std::int64_t target = 0, amount = 0, priority = 0;
+	KnowledgeTick expires = 0;
+	std::string reason;
+};
 struct ConsoleControllerRuntime
 {
 	ConsoleControllerSpec definition;
@@ -73,6 +100,7 @@ struct ConsoleControllerRuntime
 	ActionResult result;
 	std::set<std::string> effects;
 	ControllerActionInstance action;
+	std::vector<OfficerRequest> incoming_requests, outgoing_requests;
 };
 struct EntityControls
 {

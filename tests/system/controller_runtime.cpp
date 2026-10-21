@@ -51,10 +51,147 @@ int main()
 {
 	try
 	{
+
+		{
+			auto source = controller_fixture();
+			auto &ship = source["entities"][0];
+			ship["systems"]["generator"] = {{"kind", "generator"}, {"generator", "supply"}};
+			ship["resources"] = {{"stores", Json::array({{{"id", "cell"},
+			                                              {"capacity", 100000},
+			                                              {"initial", 0},
+			                                              {"charge_rate", 1000},
+			                                              {"discharge_rate", 1000}}})},
+			                     {"generators", Json::array({{{"id", "supply"},
+			                                                  {"store", "cell"},
+			                                                  {"maximum_rate", 1000},
+			                                                  {"response_rate", 1000},
+			                                                  {"initial_output", 0}}})}};
+			ship["stations"][0]["consoles"][0]["feeds"].push_back("generator");
+			auto &owners = ship["control_layout"]["controllers"];
+			owners[0].erase("fallback");
+			owners[0]["tree"] = "test.request-supply";
+			owners.push_back(
+			    {{"id", "engineer"},
+			     {"console", "drive"},
+			     {"fallback", "hold"},
+			     {"commands",
+			      Json::array({{{"id", "output"}, {"action", "generator_output"}, {"consumers", {"generator"}}}})}});
+			ship["control_layout"]["profiles"][0]["consoles"]["drive"]["human"].push_back("engineer");
+			ship["control_layout"]["profiles"][1]["consoles"]["drive"]["ai"].push_back("engineer");
+			source["trees"].push_back(
+			    Json::parse(R"json({"id":"test.request-supply","context":"controller","initial":"request","states":[
+{"id":"request","entry":[{"action":"coordination.request","arguments":["power","drive","engineer",0,450,1,200]}],"transitions":[{"target":"release","conditions":[{"left":{"elapsed":true},"op":"ge","right":30}]}],"exit":[{"action":"coordination.withdraw","arguments":["power"]}]},
+{"id":"release"}]})json"));
+			const auto catalog = load(source);
+			World world;
+			world.load(catalog, "test.map");
+			for (int i = 0; i < 20; ++i)
+				world.tick();
+			const auto saved = world.save();
+			const auto &rows = saved.at("bodies")[0].at("console_controllers").at("controllers");
+			require(rows[1].at("commands")[0].at("value") == 450,
+			        "accepted supply request changes ordinary generator command");
+			require(rows[0].at("coordination")[1].size() == 1 && rows[0].at("coordination")[1][0].at("status") == 3,
+			        "requester receives observed completion without per-tick request spam");
+			World resumed;
+			resumed.restore(catalog, saved);
+			for (int i = 0; i < 20; ++i)
+			{
+				world.tick();
+				resumed.tick();
+			}
+			require(world.save() == resumed.save(), "commitment and correlated replies resume exactly");
+			const auto ended = world.save().at("bodies")[0].at("console_controllers").at("controllers");
+			require(ended[1].at("coordination")[0][0].at("status") == 5, "withdrawal ends recipient commitment");
+
+			for (const auto priority : {1, 2})
+			{
+				auto competing = source;
+				auto &ship = competing["entities"][0];
+				ship["control_layout"]["controllers"].push_back(
+				    {{"id", "second-requester"},
+				     {"console", "drive"},
+				     {"tree", "test.second-request"},
+				     {"commands", Json::array({{{"id", "intent"},
+				                                {"action", "intent_integer"},
+				                                {"minimum", 0},
+				                                {"maximum", 2},
+				                                {"consumers", Json::array()}}})}});
+				ship["control_layout"]["profiles"][0]["consoles"]["drive"]["human"].push_back("second-requester");
+				ship["control_layout"]["profiles"][1]["consoles"]["drive"]["ai"].push_back("second-requester");
+				auto second = competing["trees"].back();
+				second["id"] = "test.second-request";
+				second["states"][0]["entry"][0]["arguments"][4] = 700;
+				second["states"][0]["entry"][0]["arguments"][5] = priority;
+				competing["trees"].push_back(second);
+				World arbitrated;
+				arbitrated.load(load(competing), "test.map");
+				for (int i = 0; i < 20; ++i)
+					arbitrated.tick();
+				require(arbitrated.save()
+				                .at("bodies")[0]
+				                .at("console_controllers")
+				                .at("controllers")[1]
+				                .at("commands")[0]
+				                .at("value") == (priority == 1 ? 450 : 700),
+				        "coordination uses priority then stable arrival order");
+			}
+			for (const bool expired : {false, true})
+			{
+				auto refused = source;
+				if (expired)
+					refused["trees"].back()["states"][0]["entry"][0]["arguments"][6] = 3;
+				else
+					refused["entities"][0]["systems"]["generator"]["enabled"] = false;
+				World unavailable;
+				unavailable.load(load(refused), "test.map");
+				for (int i = 0; i < 15; ++i)
+					unavailable.tick();
+				const auto requests = unavailable.save()
+				                          .at("bodies")[0]
+				                          .at("console_controllers")
+				                          .at("controllers")[0]
+				                          .at("coordination")[1];
+				require(requests.size() == 1 && requests[0].at("status") == (expired ? 4 : 2),
+				        "expiry and refusal are explicit outcomes, without repeated requests");
+			}
+			auto cooling = source;
+			auto &coolship = cooling["entities"][0];
+			coolship["systems"]["cooler"] = {{"kind", "coolant"}, {"cooling_link", "link"}};
+			coolship["stations"][0]["consoles"][0]["feeds"].push_back("cooler");
+			coolship["resources"]["stores"][0]["initial_heat"] = 1000;
+			coolship["resources"]["stores"][0]["stop_heat"] = 2000;
+			coolship["resources"]["stores"][0]["recover_heat"] = 500;
+			coolship["resources"]["coolant_sources"] = Json::array(
+			    {{{"id", "tank"}, {"initial", 10000}, {"removal_rate", 40}, {"coolant_per_heat_ppm", 1000000}}});
+			coolship["resources"]["cooling_links"] = Json::array({{{"id", "link"},
+			                                                       {"source", "tank"},
+			                                                       {"store", "cell"},
+			                                                       {"capacity_rate", 40},
+			                                                       {"allocation_rate", 0}}});
+			coolship["control_layout"]["controllers"][1]["commands"][0] = {
+			    {"id", "output"}, {"action", "cooling_allocation"}, {"consumers", {"cooler"}}};
+			for (auto &tree : cooling["trees"])
+				if (tree.at("id") == "test.request-supply")
+				{
+					tree["states"][0]["entry"][0]["arguments"][0] = "cooling";
+					tree["states"][0]["entry"][0]["arguments"][4] = 20;
+					tree["states"][0]["exit"][0]["arguments"][0] = "cooling";
+				}
+			World cooled;
+			cooled.load(load(cooling), "test.map");
+			for (int i = 0; i < 20; ++i)
+				cooled.tick();
+			const auto cooling_rows = cooled.save().at("bodies")[0].at("console_controllers").at("controllers");
+			require(cooling_rows[1].at("commands")[0].at("value") == 20 &&
+			            cooling_rows[0].at("coordination")[1][0].at("status") == 3,
+			        "cooling request produces observed coolant work and correlated completion");
+		}
 		{
 			auto source = controller_fixture();
 			auto &owner = source["entities"][0]["control_layout"]["controllers"][0];
-			owner.erase("fallback"); owner["tree"] = "test.policy";
+			owner.erase("fallback");
+			owner["tree"] = "test.policy";
 			source["trees"] = Json::parse(R"json([
 {"id":"test.action","context":"controller","command_bindings":[{"channel":"speed"}],
  "controller_action":{"label":"Set cruise speed","inputs":[{"name":"speed","type":"integer"}]},
@@ -67,15 +204,69 @@ int main()
  "states":[{"id":"operate","running":[{"action":"select.cruise","arguments":["order-1",4321]}]}]}
 ])json");
 			const auto catalog = load(source);
-			World world; world.load(catalog, "test.map");
+			World world;
+			world.load(catalog, "test.map");
 			world.tick();
 			const auto midway = world.save();
-			World restored; restored.restore(catalog, midway);
-			for (int i = 0; i < 6; ++i) { world.tick(); restored.tick(); }
+			World restored;
+			restored.restore(catalog, midway);
+			for (int i = 0; i < 6; ++i)
+			{
+				world.tick();
+				restored.tick();
+			}
 			require(world.save() == restored.save(), "shared action continuation resumes exactly");
-			const auto action = world.save().at("bodies")[0].at("console_controllers").at("controllers")[0].at("action");
-			require(action.at("status") == "succeeded" && action.at("serial") == 1, "repeated selection does not restart a completed action");
-			require(world.claim(101, 1, "drive") && requested(world, "port") == 4321, "action reaches ordinary physical command consumption");
+			const auto action =
+			    world.save().at("bodies")[0].at("console_controllers").at("controllers")[0].at("action");
+			require(action.at("status") == "succeeded" && action.at("serial") == 1,
+			        "repeated selection does not restart a completed action");
+			require(world.claim(101, 1, "drive") && requested(world, "port") == 4321,
+			        "action reaches ordinary physical command consumption");
+			// A second authored selector invokes the identical execution definition.
+			auto other = source;
+			other["trees"][1]["id"] = "test.other-policy";
+			other["entities"][0]["control_layout"]["controllers"][0]["tree"] = "test.other-policy";
+			other["entities"][0]["control_layout"]["controllers"][0]["commands"][0]["id"] = "throttle";
+			other["trees"][1]["command_bindings"][0]["channel"] = "throttle";
+			other["trees"][1]["action_bindings"][0]["channels"] = {{"speed", "throttle"}};
+			World equivalent;
+			equivalent.load(load(other), "test.map");
+			for (int i = 0; i < 7; ++i)
+				equivalent.tick();
+			require(equivalent.save().at("bodies")[0].at("console_controllers").at("controllers")[0].at("commands") ==
+			            world.save().at("bodies")[0].at("console_controllers").at("controllers")[0].at("commands"),
+			        "independent policy sources produce equivalent admitted action work");
+			auto lifecycle = source;
+			lifecycle["trees"][0]["states"][0].erase("transitions");
+			lifecycle["trees"][0]["states"][0]["exit"] = Json::array({{{"action", "write.speed"}, {"arguments", {0}}}});
+			lifecycle["trees"][1]["states"] = Json::parse(R"json([
+{"id":"operate","running":[{"action":"select.cruise","arguments":["order",1000]}],"transitions":[{"target":"change","conditions":[{"left":{"elapsed":true},"op":"ge","right":2}]}]},
+{"id":"change","running":[{"action":"select.cruise","arguments":["order",2000]}],"transitions":[{"target":"cancel","conditions":[{"left":{"elapsed":true},"op":"ge","right":2}]}]},
+{"id":"cancel","entry":[{"action":"action.cancel","arguments":["operator_cancelled"]}]}])json");
+			World changing;
+			changing.load(load(lifecycle), "test.map");
+			for (int i = 0; i < 8; ++i)
+				changing.tick();
+			const auto ended = changing.save().at("bodies")[0].at("console_controllers").at("controllers")[0];
+			require(ended.at("action").at("serial") == 2 && ended.at("action").at("status") == "cancelled" &&
+			            ended.at("commands")[0].at("value") == 0,
+			        "replacement and cancellation run ordinary-command cleanup");
+			auto invalid = source;
+			invalid["trees"][1]["states"][0]["running"][0]["arguments"][1] = true;
+			rejects(
+			    [&]
+			    {
+				    load(invalid);
+			    },
+			    "runtime action input types are checked at compilation");
+			invalid = source;
+			invalid["trees"][0]["states"][0]["running"][0]["action"] = "write.unowned";
+			rejects(
+			    [&]
+			    {
+				    load(invalid);
+			    },
+			    "action execution cannot gain an unowned command binding");
 		}
 		{
 			auto source = controller_fixture();
@@ -85,22 +276,43 @@ int main()
 			source["entities"][0]["systems"]["radar"] = {{"kind", "radar"}, {"range_mm", 10000}};
 			source["entities"][0]["stations"][0]["consoles"][0]["feeds"].push_back("radar");
 			map["entities"][0]["faction"] = "a";
-			map["entities"].push_back({{"id", 2}, {"definition", "test.controllable"}, {"faction", "b"}, {"x_mm", 5000}, {"y_mm", 0}, {"heading_mdeg", 0}});
-			map["entities"].push_back({{"id", 3}, {"definition", "test.controllable"}, {"faction", "b"}, {"x_mm", 50000}, {"y_mm", 0}, {"heading_mdeg", 0}});
+			map["entities"].push_back({{"id", 2},
+			                           {"definition", "test.controllable"},
+			                           {"faction", "b"},
+			                           {"x_mm", 5000},
+			                           {"y_mm", 0},
+			                           {"heading_mdeg", 0}});
+			map["entities"].push_back({{"id", 3},
+			                           {"definition", "test.controllable"},
+			                           {"faction", "b"},
+			                           {"x_mm", 50000},
+			                           {"y_mm", 0},
+			                           {"heading_mdeg", 0}});
 			const auto catalog = load(source);
 			World world;
 			world.load(catalog, "test.map");
 			require(world.claim(101, 1, "drive"), "faction observer claims Console");
 			const auto observed = world.observe(101).value();
-			require(observed.contacts.size() == 1 && observed.contacts[0].faction == "b" && observed.contacts[0].disposition == "hostile", "faction evidence is confined to detected contacts");
-			const auto transmitted = projection::read_body(projection::body_json(observed.contacts[0]), projection::BodyReadPolicy::NetworkCompatible);
-			require(transmitted.faction_label == "Opposition" && transmitted.disposition == "hostile", "network preserves permitted faction evidence");
+			require(observed.contacts.size() == 1 && observed.contacts[0].faction == "b" &&
+			            observed.contacts[0].disposition == "hostile",
+			        "faction evidence is confined to detected contacts");
+			const auto transmitted = projection::read_body(projection::body_json(observed.contacts[0]),
+			                                               projection::BodyReadPolicy::NetworkCompatible);
+			require(transmitted.faction_label == "Opposition" && transmitted.disposition == "hostile",
+			        "network preserves permitted faction evidence");
 			World restored;
 			restored.restore(catalog, world.save());
 			require(restored.save() == world.save(), "fixed faction membership survives restore");
 			map["relationships"].push_back({{"a", "b"}, {"b", "a"}, {"relation", "friendly"}});
 			bool rejected = false;
-			try { (void)load(source); } catch (const std::exception &) { rejected = true; }
+			try
+			{
+				(void)load(source);
+			}
+			catch (const std::exception &)
+			{
+				rejected = true;
+			}
 			require(rejected, "contradictory mutual relationships are rejected by production loader");
 		}
 		{
@@ -1222,7 +1434,7 @@ int main()
 		world.tick();
 
 		const auto saved = world.save();
-		require(saved.at("schema") == 11, "Controller continuation has an explicit new save schema");
+		require(saved.at("schema") == 12, "Controller continuation has an explicit new save schema");
 		World resumed;
 		resumed.restore(content, saved);
 		for (int tick = 0; tick < 12; ++tick)

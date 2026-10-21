@@ -33,7 +33,8 @@ FactionCatalog compile_factions(const Json &map)
 		const auto id = row.at("id").get<std::string>();
 		const auto label = row.at("label").get<std::string>();
 		if (id.empty() || id.size() > 128 || label.empty() || label.size() > 256 ||
-		    id.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") != std::string::npos ||
+		    id.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") !=
+		        std::string::npos ||
 		    !result.labels.emplace(id, label).second)
 			throw std::runtime_error("Invalid or duplicate map faction");
 	}
@@ -45,8 +46,7 @@ FactionCatalog compile_factions(const Json &map)
 		const auto a = row.at("a").get<std::string>(), b = row.at("b").get<std::string>();
 		const auto value = row.at("relation").get<std::string>();
 		if (!result.labels.contains(a) || !result.labels.contains(b) ||
-		    (value != "friendly" && value != "neutral" && value != "hostile") ||
-		    (a == b && value != "friendly"))
+		    (value != "friendly" && value != "neutral" && value != "hostile") || (a == b && value != "friendly"))
 			throw std::runtime_error("Invalid faction relationship");
 		const auto ordered = std::minmax(a, b);
 		const auto [entry, inserted] = result.relationships.emplace(std::pair{ordered.first, ordered.second}, value);
@@ -55,4 +55,4 @@ FactionCatalog compile_factions(const Json &map)
 	}
 	return result;
 }
-}
+} // namespace phoenix
