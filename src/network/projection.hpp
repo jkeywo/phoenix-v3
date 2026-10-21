@@ -3,6 +3,7 @@
 #include "../core/personnel_projection.hpp"
 #include "../core/away_projection.hpp"
 #include "../core/team_projection.hpp"
+#include "../core/craft_projection.hpp"
 #include "../core/sensor_projection.hpp"
 #include "../core/ftl_projection.hpp"
 namespace phoenix::network
@@ -51,6 +52,8 @@ static inline Json bounded_gameplay(const Json &source)
 		result["sensors"] = sensor_projection::board(source.at("sensors"));
 	if (source.contains("away_missions"))
 		result["away_missions"] = away_projection::board(source.at("away_missions"));
+	if (source.contains("craft"))
+		result["craft"] = craft_projection::board(source.at("craft"));
 	if (source.contains("personnel"))
 		result["personnel"] = personnel_projection::board(source.at("personnel"));
 	if (source.contains("teams"))
@@ -252,8 +255,8 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 	result.radar_enabled = value.at("radar_enabled");
 	result.console = value.value("console", std::string{"main"});
 	const auto controls = value.value("controls", 7), feeds = value.value("feeds", 7);
-	if (controls < 0 || controls > static_cast<std::int64_t>((system_bit(OperatingSystem::Ftl) << 1) - 1) ||
-	    feeds < 0 || feeds > static_cast<std::int64_t>((system_bit(OperatingSystem::Ftl) << 1) - 1) ||
+	if (controls < 0 || controls > static_cast<std::int64_t>((system_bit(OperatingSystem::ShuttleBay) << 1) - 1) ||
+	    feeds < 0 || feeds > static_cast<std::int64_t>((system_bit(OperatingSystem::ShuttleBay) << 1) - 1) ||
 	    (controls & feeds) != controls || result.console.size() > 128)
 		throw std::runtime_error("Invalid projected Console permissions");
 	result.controls = static_cast<SystemMask>(controls);
@@ -374,6 +377,8 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 		result.gameplay["sensors"] = sensor_projection::board(result.gameplay.at("sensors"));
 	if (result.gameplay.contains("away_missions"))
 		result.gameplay["away_missions"] = away_projection::board(result.gameplay.at("away_missions"));
+	if (result.gameplay.contains("craft"))
+		result.gameplay["craft"] = craft_projection::board(result.gameplay.at("craft"));
 	if (result.gameplay.contains("personnel"))
 		result.gameplay["personnel"] = personnel_projection::board(result.gameplay.at("personnel"));
 	if (result.gameplay.contains("teams"))

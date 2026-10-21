@@ -56,7 +56,10 @@ std::string away_markup()
 			for (const auto &[key, value] : c.at("factors").items())
 				html += line(localise(key) + ": " + percent(value.get<int>()));
 		}
-		html += line(localise("Transport") + ": " + m.at("transport").get<std::string>());
+		html += line(localise("Transport") + ": " + label(m.at("transport").get<std::string>()));
+		html += line(localise("Destination contact") + " #" + std::to_string(m.value("target", std::uint64_t{0})));
+		if (m.value("ship_transport_reason", std::string{}) != "")
+			html += line(localise(m.at("ship_transport_reason")));
 		auto button = [&](const std::string &action, const std::string &value, const std::string &label)
 		{
 			return settings_button("away/" + action + "/" + key + "/" + value, label);
@@ -74,7 +77,7 @@ std::string away_markup()
 		}
 		if (phase == "open" || phase == "recovered" || phase == "deployed")
 			for (const auto &t : m.at("transports"))
-				html += button("transport", t, localise("Assign transport") + ": " + t.get<std::string>());
+				html += button("transport", t, localise("Assign transport") + ": " + label(t.get<std::string>()));
 		for (const auto &s : m.at("slots"))
 		{
 			const auto slot = s.at("id").get<std::string>();

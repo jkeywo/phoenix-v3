@@ -28,6 +28,17 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 	values[brain.own[ControllerOwnField::Vx]] = Value::integer(observation.own.vx);
 	values[brain.own[ControllerOwnField::Vy]] = Value::integer(observation.own.vy);
 	values[brain.own[ControllerOwnField::Heading]] = Value::integer(observation.own.heading);
+	if (const auto *g = entities.at(id).try_get<CraftGuidance>())
+	{
+		values[brain.own[ControllerOwnField::CraftX]] = Value::integer(g->destination.x);
+		values[brain.own[ControllerOwnField::CraftY]] = Value::integer(g->destination.y);
+		values[brain.own[ControllerOwnField::CraftAltitude]] = Value::integer(g->altitude);
+		values[brain.own[ControllerOwnField::CraftSpeed]] = Value::integer(g->speed);
+		values[brain.own[ControllerOwnField::CraftTarget]] = Value::integer(g->target);
+		values[brain.own[ControllerOwnField::CraftWeaponMode]] = Value::integer(g->weapon_mode);
+		values[brain.own[ControllerOwnField::CraftNavigate]] = Value::boolean(g->navigate);
+		values[brain.own[ControllerOwnField::CraftHeading]] = Value::integer(g->heading);
+	}
 	if (brain.own[ControllerOwnField::FtlReady])
 	{
 		bool ready = false;
@@ -311,13 +322,14 @@ void controller_output(EntityId id, std::size_t index, const state_tree::Output 
 				command.generation = controller.generation;
 				team_command(source, command, true, true);
 			}
-			else if (action.name.starts_with("away."))
+			else if (action.name.starts_with("away.") || action.name.starts_with("craft."))
 			{
 				OperatingCommand command{id, action.name, output.arguments.at(2).number, output.arguments.at(0).text};
 				command.text = output.arguments.at(1).text;
 				command.controller = controller.definition.id;
 				command.generation = controller.generation;
-				if (!away_command(source, command, true, true))
+				if (!(action.name.starts_with("craft.") ? craft_command(source, command, true, true)
+				                                        : away_command(source, command, true, true)))
 					throw std::runtime_error("Away command refused");
 			}
 			else if (action.name.starts_with("publish."))

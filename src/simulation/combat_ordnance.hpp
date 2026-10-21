@@ -48,7 +48,7 @@ bool blast_occluded(fixed::Vec origin, std::int64_t z, fixed::Vec end, std::int6
 		    static_cast<Pose &>(b) = pose;
 		    static_cast<Collider &>(b) = e.get<Collider>();
 		    const auto extent = definitions.at(e.get<Definition>().name).half_height;
-		    if (const auto hit = volume_hit(origin, end, z, ez, b, pose.position, 0, 0, extent);
+		    if (const auto hit = volume_hit(origin, end, z, ez, b, pose.position, pose.altitude, pose.altitude, extent);
 		        hit && *hit > 0 && *hit < fixed::unit)
 			    blocked = true;
 	    });
@@ -75,7 +75,7 @@ BlastExposure blast_exposure(fixed::Vec origin, std::int64_t altitude, flecs::en
 	}
 	point = combat_world(point, pose);
 	const auto extent = definitions.at(target.get<Definition>().name).half_height;
-	const auto z = std::clamp(altitude, -extent, extent);
+	const auto z = std::clamp(altitude, pose.altitude - extent, pose.altitude + extent);
 	const auto delta = point - origin;
 	const auto dz = z - altitude;
 	return {point, z,
@@ -185,7 +185,7 @@ void resolve_destructions()
 				    (id * 7919ULL + static_cast<std::uint64_t>(d->destroyed_tick) * 6364136223846793005ULL) >> 16;
 				if (roll % 1000 < static_cast<std::uint64_t>(d->definition.chance))
 				{
-					emit_blast(e.get<Pose>().position, 0, d->definition, id);
+					emit_blast(e.get<Pose>().position, altitude(id), d->definition, id);
 				}
 			}
 		for (auto e : projectile_rows())
@@ -214,6 +214,13 @@ void fire_beam(flecs::entity ship, flecs::entity child, fixed::Vec origin, std::
 	const auto &d = m.definition;
 	m.get<WeaponState>().beam_tick = ecs.get<Clock>().tick;
 	m.get<WeaponState>().beam_end = origin + fixed::scale(fixed::direction(bearing), d.get<WeaponDefinition>().range);
+	ConsoleContacts permitted;
+	const auto aim = weapon_contact(ship, m, permitted);
+	const auto from_z = ship.get<Pose>().altitude;
+	const auto planar_distance =
+	    aim ? std::max<std::int64_t>(1, fixed::length(fixed::Vec{aim->body.x, aim->body.y} - origin)) : 1;
+	const auto end_z =
+	    aim ? from_z + (aim->altitude - from_z) * d.get<WeaponDefinition>().range / planar_distance : from_z;
 	std::int64_t nearest = fixed::unit + 1;
 	EntityId victim = 0;
 	bodies.each(
@@ -224,7 +231,8 @@ void fire_beam(flecs::entity ship, flecs::entity child, fixed::Vec origin, std::
 		    CollisionBody target;
 		    static_cast<Pose &>(target) = pose;
 		    static_cast<Collider &>(target) = e.get<Collider>();
-		    if (auto hit = volume_hit(origin, m.get<WeaponState>().beam_end, 0, 0, target, pose.position, 0, 0,
+		    if (auto hit = volume_hit(origin, m.get<WeaponState>().beam_end, from_z, end_z, target, pose.position,
+		                              pose.previous_altitude, pose.altitude,
 		                              definitions.at(e.get<Definition>().name).half_height);
 		        hit && std::pair{*hit, id.id} < std::pair{nearest, victim})
 		    {
@@ -271,7 +279,8 @@ void advance_ordnance(Projectile &p)
 		if (p.definition.guidance == "homing" && entities.contains(p.target) && !combat_dead(entities.at(p.target)))
 		{
 			const auto target = entities.at(p.target).get<Pose>().position;
-			if (fixed::length(target - p.position) + std::abs(p.altitude) <= p.definition.seeker_range)
+			if (fixed::length(target - p.position) + std::abs(p.altitude - altitude(p.target)) <=
+			    p.definition.seeker_range)
 				desired = combat_bearing(target - p.position);
 		}
 		if (p.definition.guidance == "chaotic")
@@ -288,7 +297,10 @@ void advance_ordnance(Projectile &p)
 		p.velocity = fixed::scale(fixed::direction(p.heading), p.definition.speed);
 		const auto progress = std::clamp<std::int64_t>(
 		    p.age * p.definition.speed * 1000 / (std::max<std::int64_t>(1, p.initial_distance) * rate), 0, 1000);
-		p.altitude = 4 * p.definition.arc_height * progress * (1000 - progress) / 1000000;
+		const auto launch_altitude = p.launch_altitude;
+		const auto target_altitude = entities.contains(p.target) ? altitude(p.target) : 0;
+		p.altitude = launch_altitude + (target_altitude - launch_altitude) * progress / 1000 +
+		             4 * p.definition.arc_height * progress * (1000 - progress) / 1000000;
 		p.vz = (p.altitude - old_z) * rate;
 	}
 	else
@@ -383,16 +395,16 @@ void step_ordnance()
 			const auto &t = targets[at];
 			if (t.id == p.source || combat_dead(t.entity))
 				continue;
-			if (auto hit = volume_hit(from.position, p.position, from.altitude, p.altitude, t.body, t.start, 0, 0,
-			                          t.half_height, p.definition.radius))
+			if (auto hit = volume_hit(from.position, p.position, from.altitude, p.altitude, t.body, t.start,
+			                          t.body.altitude, t.body.altitude, t.half_height, p.definition.radius))
 				hits.push_back({*hit, t.id, t.entity, false});
 			else if (p.definition.durability && t.id == p.target && p.definition.fuse_radius)
 			{
 				auto fuse = t.body;
 				fuse.box = false;
 				fuse.radius = p.definition.fuse_radius;
-				if (auto hit = volume_hit(from.position, p.position, from.altitude, p.altitude, fuse, t.start, 0, 0,
-				                          p.definition.fuse_radius))
+				if (auto hit = volume_hit(from.position, p.position, from.altitude, p.altitude, fuse, t.start,
+				                          t.body.altitude, t.body.altitude, p.definition.fuse_radius))
 					hits.push_back({*hit, t.id, t.entity, false});
 			}
 		}

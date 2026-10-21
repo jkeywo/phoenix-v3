@@ -398,6 +398,14 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	                                 {"console.stance", Type::Text, 4, {}}};
 	for (std::size_t i = 0; i < own.size(); ++i)
 		result.own.values.at(i) = add(own[i]);
+	result.own[ControllerOwnField::CraftX] = add({"craft.x", Type::Integer, 4, {}});
+	result.own[ControllerOwnField::CraftY] = add({"craft.y", Type::Integer, 4, {}});
+	result.own[ControllerOwnField::CraftAltitude] = add({"craft.altitude", Type::Integer, 4, {}});
+	result.own[ControllerOwnField::CraftSpeed] = add({"craft.speed", Type::Integer, 4, {}});
+	result.own[ControllerOwnField::CraftTarget] = add({"craft.target", Type::Integer, 4, {}});
+	result.own[ControllerOwnField::CraftWeaponMode] = add({"craft.weapon_mode", Type::Integer, 4, {}});
+	result.own[ControllerOwnField::CraftNavigate] = add({"craft.navigate", Type::Boolean, 4, {}});
+	result.own[ControllerOwnField::CraftHeading] = add({"craft.heading", Type::Integer, 4, {}});
 	const auto resolved = resolve_tree_definition(tree, catalog);
 	if (resolved.contains("ftl_system"))
 	{
@@ -472,6 +480,8 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	}
 	for (const auto &name : {"open", "assign", "withdraw", "transport", "send", "recall", "cancel"})
 		registry.actions.push_back({std::string("away.") + name, 4, {Type::Text, Type::Text, Type::Integer}, true});
+	for (const auto &name : {"defend", "escort", "bomb", "recall"})
+		registry.actions.push_back({std::string("craft.") + name, 4, {Type::Text, Type::Text, Type::Integer}, true});
 	if (resolved.contains("ftl_system"))
 	{
 		binding_require(resolved.at("ftl_system").is_string() &&

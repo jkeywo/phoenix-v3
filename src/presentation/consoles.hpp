@@ -182,6 +182,7 @@ class ConsoleSurface final : public Rml::EventListener
 	}
 #include "personnel.hpp"
 #include "away.hpp"
+#include "craft.hpp"
 	void prepare_local_settings(Application &app, const ConsoleRegion &region)
 	{
 		local_settings_controls_.clear();
@@ -190,6 +191,7 @@ class ConsoleSurface final : public Rml::EventListener
 		    "<div class=\"local-settings-card\"><div style=\"display:block;width:" + std::to_string(content_width) +
 		    "px;\"><h1>" + localise("Console settings") + "</h1><div>";
 		for (const auto &[tab, label] : std::vector<std::pair<std::string, std::string>>{{"away", "Away missions"},
+		                                                                                 {"craft", "Flight operations"},
 		                                                                                 {"personnel", "Personnel"},
 		                                                                                 {"display", "Display"},
 		                                                                                 {"language", "Language"},
@@ -199,6 +201,8 @@ class ConsoleSurface final : public Rml::EventListener
 		markup += "</div>";
 		if (local_settings_tab_ == "away")
 			markup += away_markup();
+		else if (local_settings_tab_ == "craft")
+			markup += craft_markup();
 		else if (local_settings_tab_ == "personnel")
 			markup += personnel_markup(app);
 		else if (local_settings_tab_ == "display")
@@ -274,6 +278,12 @@ class ConsoleSurface final : public Rml::EventListener
 			}
 		if (local_settings_tab_ == "away")
 			for (const auto &[key, text] : away_readouts_)
+			{
+				app.screen_readouts.emplace_back(key, text);
+				place(app, region, key);
+			}
+		if (local_settings_tab_ == "craft")
+			for (const auto &[key, text] : craft_readouts_)
 			{
 				app.screen_readouts.emplace_back(key, text);
 				place(app, region, key);
@@ -572,7 +582,7 @@ button.on-screen-active .share-live {display:block;}
 .navigation-controls button {min-height:42px;margin:3px;}
 .navigation-controls input {width:140px;}
 .navigation-objectives {position:absolute;left:12px;top:115px;max-width:320px;background:#08171bdd;padding:8px;}
-.mission-result {position:absolute;left:0;top:0;width:100%;height:100%;background:#070c09;z-index:15;color:#bce8ad;pointer-events:auto;}
+.mission-result {display:block;position:absolute;left:0;top:0;width:100%;height:100%;background:#070c09;z-index:15;color:#bce8ad;pointer-events:auto;}
 .mission-art {position:absolute;left:0;top:0;width:100%;height:100%;}
 .camera-choices {position:absolute;top:28px;left:8px;width:100px;height:100px;}
 .camera-art {position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;}
@@ -585,10 +595,11 @@ button.on-screen-active .share-live {display:block;}
 .camera-choices button:focus {border-color:#fff3d9;background:#fff3d933;}
 .camera_mode-widget h2,.camera_direction-widget h2 {font-size:14px;margin:0;color:#e9dec4;background:#071012bb;padding:2px 4px;}
 .camera-status {position:absolute;left:0;right:0;text-align:center;font-size:14px;color:#f1ddaf;pointer-events:none;}
-.mission-copy {position:absolute;left:20%;top:21%;width:60%;height:51%;overflow:auto;font-family:Space Mono;}
+.mission-copy {display:block;position:absolute;left:20%;top:21%;width:60%;height:51%;overflow:auto;font-family:Space Mono;}
 .mission-copy h1 {font-size:18px;letter-spacing:3px;color:#81af79;margin:0 0 22px 0;}
 .mission-copy h2 {font-size:44px;letter-spacing:2px;color:#d1f9be;margin:0 0 20px 0;}
 .mission-copy p {font-size:22px;margin:10px 0;}
+.mission-copy h1,.mission-copy h2,.mission-copy p {display:block;width:100%;box-sizing:border-box;}
 .mission-copy .terminal-rule {height:1px;background:#51744c;margin:18px 0;}
 .mission-copy .terminal-status {font-size:16px;letter-spacing:2px;color:#81af79;}
 .mission-copy button {margin:22px 0 0 0;padding:12px 20px;background:#122116;border:1px #87b77b;color:#d1f9be;}
@@ -644,6 +655,8 @@ button.on-screen-active .share-live {display:block;}
 			return false;
 		const auto action = name.substr(prefix.size());
 		if (app_ && app_->session && away_action(action))
+			return true;
+		if (app_ && app_->session && craft_action(action))
 			return true;
 		if (app_ && app_->session && personnel_action(action))
 			return true;

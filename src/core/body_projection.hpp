@@ -11,6 +11,8 @@ inline Json body_json(const BodyView &b)
 	        {"vx", b.vx},
 	        {"vy", b.vy},
 	        {"heading", b.heading},
+	        {"altitude", b.altitude},
+	        {"vz", b.vz},
 	        {"radar_icon", std::string(radar_icon_name(b.radar_icon))},
 	        {"radar_sprite", b.radar_sprite},
 	        {"faction", b.faction},
@@ -49,6 +51,8 @@ inline BodyView read_body(const Json &v, BodyReadPolicy policy)
 	    number(v.at("vy")), number(v.at("heading"), 0, 359999)};
 	const auto icon_value =
 	    policy == BodyReadPolicy::NetworkCompatible ? v.value("radar_icon", Json("contact")) : v.at("radar_icon");
+	body.altitude = number(v.value("altitude", Json(0)), -1000000, 1000000);
+	body.vz = number(v.value("vz", Json(0)), -1000000, 1000000);
 	const auto icon = radar_icon_named(text(icon_value));
 	if (!icon)
 		throw std::runtime_error("Invalid projected radar icon");

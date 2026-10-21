@@ -23,6 +23,8 @@ inline Json board(const Json &rows)
 			v["accompanying"].push_back(text(o, 64));
 		v["revision"] = revision;
 		v["dispatch"] = r.at("dispatch").get<bool>();
+		v["target"] = projection::number(r.value("target", Json(0)), 0, 1000000000);
+		v["ship_transport_reason"] = text(r.value("ship_transport_reason", Json("")), 256);
 		v["slots"] = Json::array();
 		v["transports"] = Json::array();
 		if (r.at("slots").size() > 16 || r.at("transports").size() > 128)

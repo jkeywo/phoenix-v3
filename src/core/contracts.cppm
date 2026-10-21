@@ -62,7 +62,8 @@ enum class OperatingAction
 	WeaponMode,
 	RepairSystem,
 	ShieldDischarge,
-	SensorTarget
+	SensorTarget,
+	Altitude
 };
 enum class OperatingSystem
 {
@@ -84,7 +85,8 @@ enum class OperatingSystem
 	Comms,
 	Displacement,
 	Dispatch,
-	Ftl
+	Ftl,
+	ShuttleBay
 };
 using SystemMask = std::uint32_t;
 constexpr SystemMask system_bit(OperatingSystem system)
@@ -168,7 +170,8 @@ inline constexpr std::array operating_actions{
     OperatingActionSpec{OperatingAction::WeaponMode, "weapon_mode", OperatingSystem::Weapon, false, 2},
     OperatingActionSpec{OperatingAction::RepairSystem, "repair_system", OperatingSystem::Team, false, 256},
     OperatingActionSpec{OperatingAction::ShieldDischarge, "shield_discharge", OperatingSystem::Shield, true, 1},
-    OperatingActionSpec{OperatingAction::SensorTarget, "sensor_target", OperatingSystem::Radar, false, 1000000000}};
+    OperatingActionSpec{OperatingAction::SensorTarget, "sensor_target", OperatingSystem::Radar, false, 1000000000},
+    OperatingActionSpec{OperatingAction::Altitude, "altitude_mm", OperatingSystem::Engine, false, 1000000, -1000000}};
 constexpr const OperatingActionSpec *operating_action(std::string_view name)
 {
 	for (const auto &spec : operating_actions)
@@ -245,6 +248,8 @@ constexpr std::string_view operating_system_name(OperatingSystem system)
 		return "dispatch";
 	case OperatingSystem::Ftl:
 		return "ftl";
+	case OperatingSystem::ShuttleBay:
+		return "shuttle_bay";
 	case OperatingSystem::Comms:
 		return "comms";
 	case OperatingSystem::Shield:
@@ -312,6 +317,7 @@ struct BodyView
 	std::string radar_sprite;
 	std::string faction, faction_label;
 	std::string disposition = "neutral";
+	std::int64_t altitude = 0, vz = 0;
 };
 struct SceneAttachment
 {

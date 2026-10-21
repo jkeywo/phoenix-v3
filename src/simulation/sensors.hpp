@@ -175,7 +175,8 @@ void advance_sensors(bool acquire_timed = true)
 		                   [&](std::size_t row)
 		                   {
 			                   const auto &contact = contact_rows[row];
-			                   if (contact.id == ship || !sensor_covers(ship, id, contact.position))
+			                   if (contact.id == ship || !sensor_covers(ship, id, contact.position) ||
+			                       distance_3d(ship, contact.id) > sensor_range(ship, id))
 				                   return;
 			                   const auto &tags = definition(contact.id).tags;
 			                   const auto &shows = definition(ship).radar_shows.at(id);

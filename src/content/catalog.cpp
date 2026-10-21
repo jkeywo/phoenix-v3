@@ -611,7 +611,7 @@ void verify_prepared_catalog(const Catalog &catalog)
 				if (!catalog.presentation)
 					integer(system, "turn_mdeg_s", field, 1, 360000);
 			}
-			else if (kind == "dispatch")
+			else if (kind == "dispatch" || kind == "shuttle_bay")
 			{
 			}
 			else if (kind == "displacement" || kind == "transport")
@@ -687,6 +687,9 @@ void verify_prepared_catalog(const Catalog &catalog)
 		resolve_consoles(catalog, id);
 		verify_gameplay_fitting(catalog, id);
 		(void)compile_ftl(catalog, id);
+		(void)compile_transport(catalog, id);
+		(void)compile_craft(catalog, id);
+		(void)compile_craft_bays(catalog, id);
 		(void)compile_combat(catalog, id);
 		if (entity.contains("destruction"))
 			(void)compile_destruction(entity.at("destruction"), catalog, path + ".destruction");
@@ -1010,8 +1013,7 @@ void prepare_catalog(Catalog &catalog)
 			else if (*context == state_tree::Context::Team)
 				catalog.tree_programs.emplace(id, state_tree::compile(tree, team_registry(), catalog.trees));
 			else if (*context == state_tree::Context::Away)
-				catalog.tree_programs.emplace(
-				    id, state_tree::compile(tree, away_registry(tree.value("boarding", false)), catalog.trees));
+				catalog.tree_programs.emplace(id, state_tree::compile(tree, away_registry(tree), catalog.trees));
 			else if (*context == state_tree::Context::Controller)
 			{
 				auto bindings = compile_controller_bindings(tree, catalog);

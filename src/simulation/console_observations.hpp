@@ -28,7 +28,8 @@ void append_sensor_contacts(const ConsoleAddress &address, Observation &result,
 					                                   return std::find(sensor.shows.begin(), sensor.shows.end(),
 					                                                    tag) != sensor.shows.end();
 				                                   }) &&
-				                       sensor_covers(address.ship, sensor.id, contact.position))
+				                       sensor_covers(address.ship, sensor.id, contact.position) &&
+				                       distance_3d(address.ship, contact.id) <= sensor.effective_range)
 				                   {
 					                   sensor.contact_ids.push_back(contact.id);
 					                   visible = true;
@@ -49,14 +50,19 @@ void append_sensor_contacts(const ConsoleAddress &address, Observation &result,
 			if (sensor.kind == OperatingSystem::Radar && sensor.enabled &&
 			    std::find(sensor.shows.begin(), sensor.shows.end(), "missile") != sensor.shows.end() &&
 			    sensor_covers(address.ship, sensor.id, p.position) &&
-			    fixed::length(p.position - own.position) + std::abs(p.altitude) <= sensor.effective_range)
+			    fixed::length(p.position - own.position) + std::abs(p.altitude - altitude(address.ship)) <=
+			        sensor.effective_range)
 			{
 				sensor.contact_ids.push_back(contact_id);
 				visible = true;
 			}
 		if (visible)
+		{
 			result.contacts.push_back(
 			    {contact_id, p.definition.visual, p.position.x, p.position.y, p.velocity.x, p.velocity.y, p.heading});
+			result.contacts.back().altitude = p.altitude;
+			result.contacts.back().vz = p.vz;
+		}
 	}
 	for (auto &contact : result.contacts)
 		if (entities.contains(contact.id))

@@ -39,6 +39,8 @@ bool accepts(const FittedSystemSpec &fit, const Json &spec, OperatingAction acti
 	                    kind == OperatingSystem::Impulse;
 	switch (action)
 	{
+	case OperatingAction::Altitude:
+		return kind == OperatingSystem::Engine;
 	case OperatingAction::SensorTarget:
 		return kind == OperatingSystem::Radar;
 	case OperatingAction::MagazineSelect:
@@ -109,7 +111,8 @@ CommandBounds fitted_commands(const FittedSystemSpec &fit, Json spec, const Ship
 	const auto kind = fit.kind;
 	if (kind == OperatingSystem::Weapon || kind == OperatingSystem::Turret || kind == OperatingSystem::Magazine ||
 	    kind == OperatingSystem::Team || kind == OperatingSystem::Shield || kind == OperatingSystem::Comms ||
-	    kind == OperatingSystem::Displacement || kind == OperatingSystem::Dispatch || kind == OperatingSystem::Ftl)
+	    kind == OperatingSystem::Displacement || kind == OperatingSystem::Dispatch || kind == OperatingSystem::Ftl ||
+	    kind == OperatingSystem::ShuttleBay)
 	{
 		add(OperatingAction::SystemEnabled);
 		if (kind == OperatingSystem::Weapon)
@@ -132,6 +135,7 @@ CommandBounds fitted_commands(const FittedSystemSpec &fit, Json spec, const Ship
 	{
 		if (kind == OperatingSystem::Engine)
 		{
+			add(OperatingAction::Altitude);
 			result[OperatingAction::Speed] = {0, fit.maximum};
 			add(OperatingAction::EngineEnabled);
 			add(OperatingAction::SystemEnabled);
@@ -161,6 +165,7 @@ CommandBounds fitted_commands(const FittedSystemSpec &fit, Json spec, const Ship
 		}
 		if (kind == OperatingSystem::Engine)
 		{
+			add(OperatingAction::Altitude);
 			add(OperatingAction::Longitudinal);
 			add(OperatingAction::MatchSpeed);
 			result[OperatingAction::Speed] = {-flight.reverse_speed, flight.maximum_speed};
@@ -477,7 +482,7 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 				if (action.name.starts_with("select.") || action.name.starts_with("replace.") ||
 				    action.name.starts_with("action.") || action.name.starts_with("coordination."))
 					continue;
-				if (action.name.starts_with("away.") || action.name.starts_with("team."))
+				if (action.name.starts_with("away.") || action.name.starts_with("craft.") || action.name.starts_with("team."))
 					continue;
 				if (action.name == "acknowledge_message" || action.name == "stop_publication" ||
 				    action.name == "withdraw_request")

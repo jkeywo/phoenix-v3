@@ -684,7 +684,8 @@ void project_combat(const ConsoleAddress &address, Observation &result) const
 	const auto *s = ship.try_get<CombatStructure>();
 	if (!s)
 		return;
-	Json output = {{"destroyed", combat_dead(ship)},
+	const auto *destruction = ship.try_get<Destructible>();
+	Json output = {{"destroyed", destruction && destruction->destroyed_tick >= 0},
 	               {"compartments", Json::array()},
 	               {"teams", Json::array()},
 	               {"arcs", Json::array()}};
@@ -1062,6 +1063,7 @@ Json save_projectiles() const
 		               {"definition", p.definition},
 		               {"target", p.target},
 		               {"altitude", p.altitude},
+		               {"launch_altitude", p.launch_altitude},
 		               {"vz", p.vz},
 		               {"z_remainder", p.z_remainder},
 		               {"durability", particle.get<Destructible>().durability},
@@ -1101,6 +1103,8 @@ void restore_projectiles(const Json &saved)
 		p.definition = v.at("definition").get<ProjectileDefinition>();
 		p.target = v.at("target").get<decltype(p.target)>();
 		p.altitude = v.at("altitude").get<decltype(p.altitude)>();
+		p.launch_altitude =
+		    checked_integer(v.value("launch_altitude", Json(0)), -1000000, 1000000, "projectile.launch_altitude");
 		p.vz = v.at("vz").get<decltype(p.vz)>();
 		p.z_remainder = v.at("z_remainder").get<decltype(p.z_remainder)>();
 		const auto durability =

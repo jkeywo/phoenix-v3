@@ -233,7 +233,7 @@ void validate_equipment_spec(const Catalog &catalog, const Json &spec, const std
 	static const std::set<std::string> kinds{
 	    "engine",  "steering", "radar",   "generator",    "storage",   "distribution", "coolant",
 	    "lateral", "boost",    "impulse", "weapon",       "turret",    "magazine",     "repair_team",
-	    "team",    "shield",   "comms",   "displacement", "transport", "dispatch",     "ftl"};
+	    "team",    "shield",   "comms",   "displacement", "transport", "dispatch",     "ftl", "shuttle_bay"};
 	if (!kinds.contains(kind))
 		composition_error(path + ".kind", "unsupported capability '" + kind + "'");
 	if ((kind == "engine" && !spec.contains("max_speed_mm_s")) || (kind == "radar" && !spec.contains("range_mm")))

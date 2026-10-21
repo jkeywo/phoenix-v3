@@ -87,10 +87,15 @@ struct AwayMission
 	// Remains true during a queued redeployment, until the next successful delivery.
 	bool recovered = false, returning_without_delivery = false;
 	bool ever_deployed = false;
+	bool aboard_craft = false, transport_released = false;
 	std::set<std::string> participants;
 	bool deployed() const
 	{
-		return phase == AwayPhase::Deployed || (phase == AwayPhase::Inbound && !returning_without_delivery);
+		return (phase == AwayPhase::Deployed || phase == AwayPhase::Inbound) && !aboard_craft && !returning_without_delivery;
+	}
+	bool absent() const
+	{
+		return deployed() || aboard_craft || (phase == AwayPhase::Outbound && craft);
 	}
 	state_tree::Instance continuation;
 	std::set<std::string> effects;
@@ -98,5 +103,5 @@ struct AwayMission
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(AwayMission, phase, transport, checkpoint, outcome, work_key, repair_compartment,
                                    assignments, accompanying, revision, sequence, transfer, work, progress, recovered,
                                    effects, ever_deployed, participants, care, boarding, craft,
-                                   returning_without_delivery)
+                                   returning_without_delivery, aboard_craft, transport_released)
 } // namespace phoenix

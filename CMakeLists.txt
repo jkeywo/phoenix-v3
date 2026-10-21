@@ -265,6 +265,7 @@ add_library(
 	src/content/controller_actions.cpp
 	src/content/personnel.cpp
 	src/content/away.cpp
+	src/content/craft.cpp
 	src/content/sensors.cpp
 	src/content/controllers.cpp
 	src/content/console_assets.cpp
@@ -375,6 +376,7 @@ foreach(
 		medical
 		security
 		away
+		craft
 		ftl
 		sensors
 		controller_runtime

@@ -1158,6 +1158,31 @@ Json ConsoleModel::away_missions() const
 {
 	return observation_ ? observation_->gameplay.value("away_missions", Json::array()) : Json::array();
 }
+Json ConsoleModel::craft() const
+{
+	return observation_ ? observation_->gameplay.value("craft", Json::array()) : Json::array();
+}
+bool ConsoleModel::craft_action(const std::string &action, const std::string &craft_id, const std::string &target)
+{
+	if (!observation_)
+		return false;
+	for (const auto &c : craft())
+		if (c.at("id") == craft_id)
+			for (const auto &ctrl : observation_->gameplay.value("controllers", Json::array()))
+				if (ctrl.value("human", false))
+				{
+					OperatingCommand command{observation_->own.id, "craft." + action,
+					                         c.at("revision").get<std::int64_t>(), craft_id};
+					command.console = observation_->console;
+					command.controller = ctrl.at("id");
+					command.generation = ctrl.at("generation");
+					command.text = target;
+					const auto session = owner_.lock();
+					if (session && session->console_command(route_, command))
+						return true;
+				}
+	return false;
+}
 bool ConsoleModel::away_action(const std::string &action, const std::string &mission, const std::string &text)
 {
 	if (!observation_)
@@ -1801,6 +1826,7 @@ std::string ConsoleModel::contacts_text() const
 		const auto bearing = std::fmod(std::atan2(y, x) * 180 / 3.14159265358979323846 + 360, 360.0);
 		text << " " << contact.definition << " #" << contact.id << ", " << static_cast<int>(std::hypot(x, y) / 1000)
 		     << " m, bearing " << static_cast<int>(bearing) << " degrees.";
+		text << " " << localise("Altitude") << " " << contact.altitude / 1000 << " m.";
 		text << " " << localise(contact.faction_label.empty() ? "Unaffiliated" : contact.faction_label) << ", "
 		     << localise(contact.disposition) << ".";
 	}

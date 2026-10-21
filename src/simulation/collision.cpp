@@ -120,6 +120,8 @@ void collide(CollisionBody &a, CollisionBody &b)
 {
 	if (!a.mass && !b.mass)
 		return;
+	if (std::abs(a.altitude - b.altitude) >= a.half_height + b.half_height)
+		return;
 	auto extent = [](const CollisionBody &body)
 	{
 		return body.box ? body.half_width + body.half_length : body.radius;
@@ -139,6 +141,28 @@ void collide(CollisionBody &a, CollisionBody &b)
 		auto first = total * b.mass / (a.mass + b.mass);
 		return std::pair{first, total - first};
 	};
+	const auto vertical_depth = a.half_height + b.half_height - std::abs(a.altitude - b.altitude);
+	if ((a.spatial || b.spatial) && vertical_depth < hit.depth)
+	{
+		const auto sign = b.altitude >= a.altitude ? 1 : -1;
+		const auto vertical_split = [&](std::int64_t amount)
+		{
+			return !a.spatial   ? std::pair<std::int64_t, std::int64_t>{0, amount}
+			       : !b.spatial ? std::pair<std::int64_t, std::int64_t>{amount, 0}
+			                    : split(amount);
+		};
+		const auto [za, zb] = vertical_split(vertical_depth + 1);
+		a.altitude -= sign * za;
+		b.altitude += sign * zb;
+		const auto closing = (a.vertical_velocity - b.vertical_velocity) * sign;
+		if (closing > 0)
+		{
+			const auto [va, vb] = vertical_split(closing);
+			a.vertical_velocity -= sign * va;
+			b.vertical_velocity += sign * vb;
+		}
+		return;
+	}
 	auto [ma, mb] = split(hit.depth + 1);
 	a.position = a.position - fixed::scale(hit.normal, ma);
 	b.position = b.position + fixed::scale(hit.normal, mb);
@@ -160,7 +184,8 @@ void collide(CollisionBody &a, CollisionBody &b)
 		body->velocity.y = std::clamp(body->velocity.y, -fixed::unit, fixed::unit);
 	}
 }
-std::optional<std::int64_t> sweep_contact_time(const CollisionBody &a, const CollisionBody &b, Vec start_a, Vec start_b)
+std::optional<std::int64_t> sweep_contact_time(const CollisionBody &a, const CollisionBody &b, Vec start_a, Vec start_b,
+                                               bool spatial)
 {
 	if (!a.mass && !b.mass)
 		return std::nullopt;
@@ -170,7 +195,12 @@ std::optional<std::int64_t> sweep_contact_time(const CollisionBody &a, const Col
 	{
 		sample_a.position = sweep_position(start_a, end_a, fraction);
 		sample_b.position = sweep_position(start_b, end_b, fraction);
-		return sweep_separation(sample_a, sample_b);
+		const auto planar = sweep_separation(sample_a, sample_b);
+		if (!spatial)
+			return planar;
+		const auto za = a.previous_altitude + (a.altitude - a.previous_altitude) * fraction / fixed::unit;
+		const auto zb = b.previous_altitude + (b.altitude - b.previous_altitude) * fraction / fixed::unit;
+		return std::max(planar, std::abs(za - zb) - a.half_height - b.half_height);
 	};
 	// For fixed orientation, squared circle/convex-box distance and the maximum
 	// box SAT gap are convex along relative translation. Search their minimum,
@@ -219,13 +249,18 @@ std::optional<std::int64_t> sweep_contact_time(const CollisionBody &a, const Col
 		}
 	return last;
 }
-bool sweep_collide(CollisionBody &a, CollisionBody &b, Vec start_a, Vec start_b)
+bool sweep_collide(CollisionBody &a, CollisionBody &b, Vec start_a, Vec start_b, bool spatial)
 {
-	const auto impact = sweep_contact_time(a, b, start_a, start_b);
+	const auto impact = sweep_contact_time(a, b, start_a, start_b, spatial);
 	if (!impact)
 		return false;
 	a.position = sweep_position(start_a, a.position, *impact);
 	b.position = sweep_position(start_b, b.position, *impact);
+	if (spatial)
+	{
+		a.altitude = a.previous_altitude + (a.altitude - a.previous_altitude) * *impact / fixed::unit;
+		b.altitude = b.previous_altitude + (b.altitude - b.previous_altitude) * *impact / fixed::unit;
+	}
 	collide(a, b);
 	return true;
 }

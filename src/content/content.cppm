@@ -122,6 +122,14 @@ enum class ControllerOwnField
 	FtlReady,
 	Visitors,
 	LocalWorkComplete,
+	CraftX,
+	CraftY,
+	CraftAltitude,
+	CraftSpeed,
+	CraftTarget,
+	CraftWeaponMode,
+	CraftNavigate,
+	CraftHeading,
 	Count
 };
 enum class ControllerRecordField
@@ -456,9 +464,41 @@ struct AwayDefinition
 	std::vector<AwaySlot> slots;
 	state_tree::Program program;
 	std::map<std::string, std::size_t> repair_compartments;
+	bool allow_ship_transport = true;
+	std::string ship_transport_reason;
+	std::int64_t deployment_range = 20000, deployment_ticks = 20;
 };
-state_tree::Registry away_registry(bool boarding = false);
+state_tree::Registry away_registry(const Json &tree = Json::object());
 std::vector<AwayDefinition> compile_away(const Catalog &, const Json &);
+struct TransportDefinition
+{
+	std::string compartment;
+	std::int64_t capacity = 64;
+	std::vector<std::string> capabilities;
+	std::map<std::string, std::vector<std::string>> capability_systems;
+};
+struct CraftDefinition
+{
+	std::string role;
+	std::int64_t vertical_speed = 10000, vertical_acceleration = 5000;
+	std::int64_t cruise_altitude = 15000, engagement_range = 200000, return_reserve = 200;
+};
+struct CraftSupplyDefinition
+{
+	std::string source, destination;
+	std::int64_t rate = 0;
+};
+struct CraftBayDefinition
+{
+	std::string compartment, power_store;
+	std::int64_t slots = 0, transfer_ticks = 20, docking_range = 10000, docking_speed = 5000;
+	std::int64_t charge_rate = 0;
+	std::vector<std::string> initial;
+	std::vector<CraftSupplyDefinition> ammunition;
+};
+TransportDefinition compile_transport(const Catalog &, const std::string &);
+std::optional<CraftDefinition> compile_craft(const Catalog &, const std::string &);
+std::map<std::string, CraftBayDefinition> compile_craft_bays(const Catalog &, const std::string &);
 struct OfficerTrait
 {
 	std::string id, label;

@@ -56,15 +56,7 @@ jobs:
             build/native/base.zip
             build/native/base.zip.menu.json
             build/native/continuation.trace
-            build/native/combat-continuation.trace
-            build/native/conversation-continuation.trace
-            build/native/controller-continuation.trace
-            build/native/sensor-continuation.trace
-            build/native/away-continuation.trace
-            build/native/ftl-continuation.trace
-            build/native/mission-continuation.trace
-            build/native/medical-continuation.trace
-            build/native/security-continuation.trace
+            build/native/*-continuation.trace
   linux:
     runs-on: ubuntu-24.04
     timeout-minutes: 30

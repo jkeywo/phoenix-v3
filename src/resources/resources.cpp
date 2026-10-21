@@ -350,6 +350,36 @@ void ResourceNetwork::add_heat(ResourceIndex i, ResourceAmount heat)
 	stores_[i].heat += heat;
 	telemetry_[i].heat_added += heat;
 }
+void ResourceNetwork::dormant_tick()
+{
+	std::vector<bool> enabled;
+	for (auto &g : generators_)
+	{
+		enabled.push_back(g.enabled);
+		g.enabled = false;
+		g.actual_rate = 0;
+	}
+	for (auto &s : stores_)
+		s.requested_rate = s.discrete_request = 0;
+	tick();
+	for (std::size_t i = 0; i < generators_.size(); ++i)
+		generators_[i].enabled = enabled[i];
+}
+ResourceAmount ResourceNetwork::transfer_external(ResourceNetwork &destination, ResourceIndex source,
+                                                  ResourceIndex target, ResourceAmount offered)
+{
+	if (&destination == this || offered < 0 || offered > resource_limit || source >= stores_.size() ||
+	    target >= destination.stores_.size())
+		throw std::runtime_error("Invalid external resource transfer");
+	if (!operational(source))
+		return 0;
+	const auto available = std::min({offered, discharge_left_[source], stores_[source].energy});
+	const auto received = destination.receive_external(target, available);
+	stores_[source].energy -= received;
+	discharge_left_[source] -= received;
+	telemetry_[source].outgoing += received;
+	return received;
+}
 ResourceAmount ResourceNetwork::receive_external(ResourceIndex i, ResourceAmount offered)
 {
 	if (i >= stores_.size() || offered < 0)

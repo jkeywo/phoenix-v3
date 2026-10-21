@@ -554,6 +554,24 @@ struct GameplayEditor
 				integer(spec, "cruise_speed_mm_s", 10000);
 			}
 		}
+		if (kind == "shuttle_bay")
+		{
+			integer(spec, "slots", 4);
+			integer(spec, "transfer_ticks", 20);
+			integer(spec, "docking_range_mm", 10000);
+			integer(spec, "docking_speed_mm_s", 5000);
+			integer(spec, "charge_per_second", 0);
+			strings(spec, "initial");
+			records(spec, "ammunition", {{"source", ""}, {"destination", ""}, {"rounds_per_second", 1}},
+			        [&](Json &v)
+			        {
+				        string(v, "source");
+				        string(v, "destination");
+				        integer(v, "rounds_per_second", 1);
+			        });
+		}
+		if (kind == "magazine")
+			optional_string(spec, "ammunition_type");
 		if (kind == "comms")
 			integer(spec, "range_mm", 1000000);
 		optional_string(spec, "compartment");
@@ -1043,6 +1061,38 @@ struct GameplayEditor
 					            });
 					    structured_field(m, "objectives");
 				    });
+			ScopedTree panel("Craft and transport");
+			if (panel)
+			{
+				if (!ship.contains("craft") && button("Add craft configuration"))
+					ship["craft"] = {{"role", "shuttle"}};
+				if (ship.contains("craft"))
+				{
+					auto &c = ship["craft"];
+					choice(c, "role", {"shuttle", "interceptor", "bomber"});
+					integer(c, "vertical_speed_mm_s", 10000);
+					integer(c, "vertical_acceleration_mm_s2", 5000);
+					integer(c, "cruise_altitude_mm", 15000);
+					integer(c, "engagement_range_mm", 200000);
+					integer(c, "return_reserve_permille", 200);
+				}
+				if (!ship.contains("transport") && button("Configure transport capabilities"))
+					ship["transport"] = {
+					    {"capacity", 64}, {"capabilities", Json::array()}, {"capability_systems", Json::object()}};
+				if (ship.contains("transport"))
+				{
+					auto &t = ship["transport"];
+					integer(t, "capacity", 64);
+					optional_string(t, "compartment");
+					strings(t, "capabilities");
+					for (const auto &tag : t.value("capabilities", Json::array()))
+					{
+						if (!t.contains("capability_systems"))
+							t["capability_systems"] = Json::object();
+						strings(t["capability_systems"], tag.get<std::string>().c_str());
+					}
+				}
+			}
 		}
 		{
 			ScopedTree panel("External Comms");
@@ -1877,6 +1927,7 @@ struct GameplayEditor
 					definition["context"] = context.at("context");
 				if (context.at("context") == "away")
 					boolean(definition, "boarding", false);
+					strings(definition, "transport_capabilities");
 				if (context.at("context") == "conversation")
 				{
 					optional_string(definition, "title_key");
@@ -2114,6 +2165,10 @@ struct GameplayEditor
 			        string(m, "reveal_event");
 			        boolean(m, "retain_craft", true);
 			        choice(m, "tree", document.definition_choices(WorkshopDefinitionKind::Tree));
+			        boolean(m, "allow_ship_transport", true);
+			        optional_string(m, "ship_transport_reason");
+			        integer(m, "deployment_range_mm", 20000);
+			        integer(m, "deployment_ticks", 20);
 			        records(m, "slots", {{"id", "repair"}, {"kind", "team"}, {"required", true}},
 			                [&](Json &s)
 			                {

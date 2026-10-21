@@ -9,7 +9,7 @@ module;
 module phoenix.content;
 namespace phoenix
 {
-state_tree::Registry away_registry(bool boarding)
+state_tree::Registry away_registry(const Json &tree)
 {
 	using namespace state_tree;
 	Registry r;
@@ -19,10 +19,25 @@ state_tree::Registry away_registry(bool boarding)
 		r.observations.push_back({name, Type::Integer, 16, {}});
 	for (const auto &name : {"answer", "checkpoint"})
 		r.observations.push_back({name, Type::Text, 16, {}});
-	for (const auto &name : {"report", "checkpoint", "emit", "complete", "fail", "restore_compartment"})
+	for (const auto &name : {"transport_present", "transport_available"})
+		r.observations.push_back({name, Type::Boolean, 16, {}});
+	std::set<std::string> capabilities;
+	for (const auto &tag : tree.value("transport_capabilities", Json::array()))
+	{
+		const auto key = tag.get<std::string>();
+		if (key.empty() || key.size() > 64 ||
+		    key.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") !=
+		        std::string::npos ||
+		    !capabilities.insert(key).second)
+			throw std::runtime_error("Invalid away transport capability");
+		r.observations.push_back({"transport.capability." + key, Type::Boolean, 16, {}});
+		r.observations.push_back({"transport.operational." + key, Type::Boolean, 16, {}});
+	}
+	for (const auto &name :
+	     {"report", "checkpoint", "emit", "complete", "fail", "restore_compartment", "release_transport"})
 		r.actions.push_back({name, 16, {Type::Text}, true});
 	r.actions.push_back({"work", 16, {Type::Integer}, true});
-	if (boarding)
+	if (tree.value("boarding", false))
 	{
 		for (const auto *name : {"arrived", "encounter_done", "encounter_success"})
 			r.observations.push_back({name, Type::Boolean, 16, {}});
@@ -54,6 +69,15 @@ std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map
 		d.conversation = j.at("conversation");
 		d.reveal_event = j.at("reveal_event");
 		d.tree = j.at("tree");
+		d.allow_ship_transport = j.value("allow_ship_transport", true);
+		d.ship_transport_reason = j.value("ship_transport_reason", std::string{});
+		for (const auto *key : {"deployment_range_mm", "deployment_ticks"})
+			if (j.contains(key))
+				require(j.at(key).is_number_integer() && j.at(key) > 0 &&
+				            j.at(key) <= (std::string(key) == "deployment_ticks" ? 36000 : 1000000000),
+				        "invalid deployment bounds");
+		d.deployment_range = j.value("deployment_range_mm", std::int64_t{20000});
+		d.deployment_ticks = j.value("deployment_ticks", std::int64_t{20});
 		require(!d.id.empty() && d.id.size() <= 64 &&
 		            d.id.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") ==
 		                std::string::npos &&

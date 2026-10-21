@@ -45,11 +45,15 @@ std::optional<WeaponAim> weapon_contact(flecs::entity ship, const CombatMechanis
 	for (const auto &contact : contacts)
 		if (contact.id == wanted)
 		{
-			WeaponAim aim{contact};
+			WeaponAim aim{contact, contact.altitude, contact.vz};
 			if (m.get<WeaponState>().intercept && m.get<WeaponState>().mode == 1)
 				for (auto missile : projectile_rows())
 				{
 					const auto &p = missile.get<Projectile>();
+					if (ship.has<CraftState>() && entities.contains(p.source) &&
+					    factions.relationship(ship.get<FactionMembership>().id,
+					                          entities.at(p.source).get<FactionMembership>().id) != "hostile")
+						continue;
 					if (p.id == m.get<WeaponState>().intercept && missile.get<Destructible>().durability > 0)
 					{
 						aim.altitude = p.altitude;
@@ -125,7 +129,7 @@ void prepare_weapons(flecs::entity ship)
 					                 }))
 						continue;
 					const auto offset = p.position - pose.position;
-					const auto distance = fixed::length(offset) + std::abs(p.altitude);
+					const auto distance = fixed::length(offset) + std::abs(p.altitude - altitude(id));
 					if (distance > d.get<WeaponDefinition>().range)
 						continue;
 					const auto closing = std::max<std::int64_t>(
@@ -240,7 +244,8 @@ void prepare_weapons(flecs::entity ship)
 			if (orientation < 0)
 				continue;
 			const auto lead = weapon_lead(ship, *m, *target, origin);
-			if (fixed::length(fixed::Vec{target->body.x, target->body.y} - origin) + std::abs(target->altitude) >
+			if (fixed::length(fixed::Vec{target->body.x, target->body.y} - origin) +
+			            std::abs(target->altitude - altitude(id)) >
 			        d.get<WeaponDefinition>().range ||
 			    std::abs(combat_delta(combat_bearing(lead - origin), orientation)) > d.arc / 2)
 				continue;
@@ -338,6 +343,8 @@ void fire_weapons(flecs::entity ship)
 			p.weapon = d.id;
 			p.target = m->target();
 			p.position = origin;
+			p.altitude = altitude(id);
+			p.launch_altitude = p.altitude;
 			p.heading = bearing;
 			p.base_heading = bearing;
 			p.velocity = fixed::scale(fixed::direction(bearing), payload.speed) + ship.get<Motion>().velocity;
@@ -347,9 +354,9 @@ void fire_weapons(flecs::entity ship)
 			p.random = s.random;
 			p.initial_distance =
 			    std::max<std::int64_t>(1, fixed::length(fixed::Vec{target->body.x, target->body.y} - origin));
-			if (m->get<WeaponState>().intercept && m->get<WeaponState>().mode == 1)
-				p.vz = (target->altitude + target->vz * p.initial_distance / std::max<std::int64_t>(1, payload.speed)) *
-				       payload.speed / p.initial_distance;
+			p.vz = (target->altitude - p.altitude +
+			        target->vz * p.initial_distance / std::max<std::int64_t>(1, payload.speed)) *
+			       payload.speed / p.initial_distance;
 			ecs.entity().set<Projectile>(p).set<Destructible>({payload.destruction, payload.durability});
 		}
 }

@@ -47,7 +47,7 @@ std::int64_t mission_personnel(EntityId ship, const std::string &which) const
 		if (away_ship(away_definitions[i]) == ship)
 		{
 			const auto &m = away_missions[i];
-			if (m.deployed() || (m.phase == AwayPhase::Outbound && m.craft))
+			if (m.absent())
 			{
 				for (const auto &[slot, a] : m.assignments)
 					deployed.insert(a);
@@ -205,9 +205,13 @@ void resolve_lost_parties()
 		auto &m = away_missions[i];
 		const auto &d = away_definitions[i];
 		auto ship = away_ship(d);
-		if (!ship || m.phase == AwayPhase::Lost || craft_passengers_extracted(m) || !truly_destroyed(d.target))
+		const auto transport = away_transport_entity(ship, m.transport);
+		const bool lost_transport =
+		    m.aboard_craft && transport &&
+		    (combat_dead(entities.at(transport)) || entities.at(transport).get<CraftState>().phase == CraftPhase::Lost);
+		if (!ship || m.phase == AwayPhase::Lost || craft_passengers_extracted(m) || (!truly_destroyed(d.target) && !lost_transport))
 			continue;
-		if (m.deployed())
+		if ((m.deployed() && truly_destroyed(d.target)) || lost_transport)
 		{
 			for (const auto &[slot, a] : m.assignments)
 			{
@@ -239,7 +243,8 @@ void resolve_lost_parties()
 			m.accompanying.clear();
 			m.phase = AwayPhase::Lost;
 			m.transfer = 0;
-			m.outcome = "fail:target_destroyed";
+			m.outcome = lost_transport ? "fail:transport_destroyed" : "fail:target_destroyed";
+			m.aboard_craft = false;
 			++m.revision;
 			mission_transition("personnel.lost", ship, d.target, d.id, "target_destroyed");
 		}
@@ -375,7 +380,7 @@ Json authoritative_report(EntityId ship, Json legacy) const
 			const auto lost = mission_ledger.lost.contains(ship) && mission_ledger.lost.at(ship).contains(a);
 			bool away = false;
 			for (std::size_t i = 0; i < away_missions.size(); ++i)
-				if (away_ship(away_definitions[i]) == ship && away_missions[i].deployed() &&
+				if (away_ship(away_definitions[i]) == ship && away_missions[i].absent() &&
 				    (std::any_of(away_missions[i].assignments.begin(), away_missions[i].assignments.end(),
 				                 [&](const auto &x)
 				                 {

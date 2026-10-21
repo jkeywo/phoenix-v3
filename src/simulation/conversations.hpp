@@ -47,6 +47,7 @@ void refresh_comms()
 			continue;
 		const auto &pos = entity.get<Pose>().position;
 		CommsEndpoint endpoint{id, pos.x, pos.y, 0, false, false};
+		endpoint.altitude = altitude(id);
 		if (entity.has<EntityControls>())
 			for (const auto &c : entity.get<EntityControls>().controllers)
 				if (c.definition.console == owner->console && comms_controller(id, c.definition) && c.human)
@@ -59,7 +60,8 @@ void refresh_comms()
 			const auto *power = entity.try_get<ShipResources>();
 			const bool funded = power && child.has<ResourceBinding>() &&
 			                    power->grants.at(child.get<ResourceBinding>().slot).supply_permille == 1000;
-			if (fit.enabled && funded && !structurally_disabled(entity, fit.id) && !combat_dead(entity))
+			if (!entity.has(flecs::Disabled) && fit.enabled && funded && !structurally_disabled(entity, fit.id) &&
+			    !combat_dead(entity))
 			{
 				endpoint.working = true;
 				endpoint.range = std::max(endpoint.range, officer_value(id, fit.id, "comms", fit.maximum) *

@@ -22,6 +22,7 @@ struct CommsEndpoint
 	EntityId entity = 0;
 	std::int64_t x = 0, y = 0, range = 0;
 	bool working = false, human = false;
+	std::int64_t altitude = 0;
 };
 struct ConversationLine
 {

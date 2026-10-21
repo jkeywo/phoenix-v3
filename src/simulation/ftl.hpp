@@ -28,7 +28,7 @@ std::vector<std::string> ftl_left_behind(EntityId id) const
 {
 	std::set<std::string> assets;
 	for (std::size_t i = 0; i < away_missions.size(); ++i)
-		if (away_ship(away_definitions[i]) == id && away_missions[i].deployed())
+		if (away_ship(away_definitions[i]) == id && away_missions[i].absent())
 		{
 			for (const auto &[slot, asset] : away_missions[i].assignments)
 				assets.insert(asset);
@@ -38,6 +38,9 @@ std::vector<std::string> ftl_left_behind(EntityId id) const
 	std::vector<std::string> names;
 	for (const auto &asset : assets)
 		names.push_back(away_asset_label(id, asset));
+	for (const auto &[craft, e] : craft_rows())
+		if (e.get<CraftState>().home == id && !craft_dormant(e))
+			names.push_back(e.get<Definition>().name + " #" + std::to_string(craft));
 	return names;
 }
 std::string ftl_blocker(EntityId id, flecs::entity child) const
@@ -58,6 +61,8 @@ std::string ftl_blocker(EntityId id, flecs::entity child) const
 		return "FTL drive unavailable";
 	for (std::size_t i = 0; i < away_missions.size(); ++i)
 		if ((away_ship(away_definitions[i]) == id || away_definitions[i].target == id) &&
+		    away_ship(away_definitions[i]) &&
+		    definition(away_ship(away_definitions[i])).displacements.contains(away_missions[i].transport) &&
 		    away_missions[i].transfer > 0 &&
 		    (away_missions[i].phase == AwayPhase::Outbound || away_missions[i].phase == AwayPhase::Inbound))
 			return "Displacement transfer active";
@@ -211,7 +216,8 @@ void commit_departures()
 					if (away_ship(away_definitions[i]) == a.ship)
 					{
 						auto &m = away_missions[i];
-						if (m.phase == AwayPhase::Outbound || m.phase == AwayPhase::Inbound)
+						if (!m.transport.starts_with("craft:") &&
+						    (m.phase == AwayPhase::Outbound || m.phase == AwayPhase::Inbound))
 						{
 							m.phase = m.phase == AwayPhase::Inbound ? AwayPhase::Deployed : AwayPhase::Open;
 							m.transfer = 0;

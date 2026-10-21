@@ -16,15 +16,24 @@ struct Pose
 {
 	fixed::Vec position;
 	std::int64_t heading = 0;
+	std::int64_t altitude = 0;
+	std::int64_t previous_altitude = 0;
 };
 struct Motion
 {
 	fixed::Vec velocity, remainder;
+	std::int64_t vertical_velocity = 0;
+};
+struct VerticalMotion
+{
+	std::int64_t altitude = 0, velocity = 0, remainder = 0, acceleration_remainder = 0, desired = 0;
 };
 struct Collider
 {
 	std::int64_t mass = 0, radius = 0, half_width = 0, half_length = 0;
 	bool box = false;
+	std::int64_t half_height = 5000;
+	bool spatial = false;
 };
 struct Movable
 {
@@ -80,8 +89,8 @@ void collide(CollisionBody &a, CollisionBody &b);
 // Sweep the actual circle/rotated-box shapes over relative translation. On a
 // hit, stop both at first contact and apply the ordinary collision response.
 std::optional<std::int64_t> sweep_contact_time(const CollisionBody &a, const CollisionBody &b, fixed::Vec start_a,
-                                               fixed::Vec start_b);
-bool sweep_collide(CollisionBody &a, CollisionBody &b, fixed::Vec start_a, fixed::Vec start_b);
+                                               fixed::Vec start_b, bool spatial = false);
+bool sweep_collide(CollisionBody &a, CollisionBody &b, fixed::Vec start_a, fixed::Vec start_b, bool spatial = false);
 // Schema-1 boundary records, never queried by simulation systems.
 struct SavedBody : Pose, Motion
 {

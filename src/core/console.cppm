@@ -83,6 +83,8 @@ public:
 	Json objectives() const;
 	Json personnel() const;
 	Json away_missions() const;
+	Json craft() const;
+	bool craft_action(const std::string &, const std::string &, const std::string & = {});
 	bool away_action(const std::string &, const std::string &, const std::string & = {});
 	bool personnel_action(const std::string &action, const std::string &officer, const std::string &duty = {});
 	Json conversations() const;
