@@ -129,7 +129,7 @@ struct MessagePresentation
 	std::map<std::string, std::string> parameters;
 	std::uint8_t urgency = 0;
 	bool automatic = true;
-	std::string speaker_name;
+	std::string speaker_name, speaker_portrait;
 	Bytes speaker_avatar;
 };
 struct CoordinationInput

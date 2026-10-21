@@ -305,6 +305,11 @@ std::vector<ConsoleMessageView> console_messages(const Json &board, bool public_
 			portrait = (portrait ^ c) * 16777619u;
 		portrait = portraits.contains(console) ? portraits.at(console) : portrait % 6 + 1;
 		view.portrait = "messages/console-" + std::to_string(portrait) + ".png";
+		const auto portrait_ref = message.value("speaker_portrait", std::string{});
+		if (portrait_ref == "generic-crew")
+			view.portrait = "messages/console-1.png";
+		if (portrait_ref.starts_with("console-assets:assets/comms/") && portrait_ref.size() < 128)
+			view.portrait = portrait_ref;
 		const auto name = message.value("speaker_name", std::string{});
 		if (!name.empty())
 		{
@@ -1095,6 +1100,21 @@ const Json *ConsoleModel::controller_channel(const std::string &binding) const
 	const auto channel = binding.substr(binding.find('/', 11) + 1);
 	const auto &commands = owner->at("commands");
 	return commands.contains(channel) ? &commands.at(channel) : nullptr;
+}
+Json ConsoleModel::personnel() const
+{
+	return observation_ ? observation_->gameplay.value("personnel", Json::object()) : Json::object();
+}
+bool ConsoleModel::personnel_action(const std::string &action, const std::string &officer, const std::string &duty)
+{
+	if (!observation_ || personnel().empty())
+		return false;
+	OperatingCommand command{observation_->own.id, "personnel." + action, 0, officer};
+	command.console = observation_->console;
+	command.text = duty;
+	command.generation = personnel().at("revision");
+	const auto session = owner_.lock();
+	return session && session->console_command(route_, command);
 }
 Json ConsoleModel::conversations() const
 {

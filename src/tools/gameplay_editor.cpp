@@ -812,12 +812,111 @@ struct GameplayEditor
 		integer(d, "fade_ticks", 20);
 		integer(d, "size_mm", 100000);
 	}
+
+	void personnel(Json &ship)
+	{
+		ScopedTree panel("Personnel and departments");
+		if (!panel)
+			return;
+		if (!ship.contains("personnel") && button("Add personnel roster"))
+			ship["personnel"] = {{"departments", Json::array()},  {"duties", Json::array()},
+			                     {"officers", Json::array()},     {"traits", Json::array()},
+			                     {"compartments", Json::array()}, {"connections", Json::array()}};
+		if (!ship.contains("personnel"))
+			return;
+		auto &p = ship["personnel"];
+		records(p, "departments", {{"id", "department"}, {"label", "Department"}, {"station", ""}},
+		        [&](Json &d)
+		        {
+			        string(d, "id");
+			        string(d, "label");
+			        string(d, "station");
+		        });
+		strings(p, "compartments");
+		records(p, "connections", {{"from", ""}, {"to", ""}, {"ticks", 40}},
+		        [&](Json &c)
+		        {
+			        string(c, "from");
+			        string(c, "to");
+			        integer(c, "ticks", 40);
+		        });
+		records(p, "traits", {{"id", "trait"}, {"label", "Expertise"}, {"bonuses", Json::object()}},
+		        [&](Json &t)
+		        {
+			        string(t, "id");
+			        string(t, "label");
+			        for (const auto *slot :
+			             {"propulsion", "sensors", "cycling", "traverse", "reload", "recharge", "repair", "comms"})
+				        integer(t["bonuses"], slot, 0);
+		        });
+		records(p, "duties",
+		        {{"id", "duty"},
+		         {"label", "Duty"},
+		         {"department", ""},
+		         {"controller", ""},
+		         {"compartment", ""},
+		         {"effects", Json::object()}},
+		        [&](Json &d)
+		        {
+			        string(d, "id");
+			        string(d, "label");
+			        choice(d, "department", ids(p["departments"]));
+			        optional_string(d, "controller");
+			        optional_string(d, "console");
+			        optional_string(d, "team");
+			        string(d, "compartment");
+			        auto &effects = d["effects"];
+			        if (effects.is_null())
+				        effects = Json::object();
+			        std::string old_target, new_target;
+			        for (auto it = effects.begin(); it != effects.end();)
+			        {
+				        ScopedId identity(it.key().c_str());
+				        auto target = it.key();
+				        if (edit_value(label("System target").c_str(), target))
+				        {
+					        old_target = it.key();
+					        new_target = target;
+				        }
+				        strings(effects, it.key().c_str());
+				        if (button("Remove effect target"))
+					        it = effects.erase(it);
+				        else
+					        ++it;
+			        }
+			        if (!old_target.empty() && !new_target.empty() && !effects.contains(new_target) &&
+			            effects.contains(old_target))
+			        {
+				        effects[new_target] = effects.at(old_target);
+				        effects.erase(old_target);
+			        }
+			        if (button("Add effect target"))
+				        effects[fresh(effects, "system")] = Json::array();
+		        });
+		records(p, "officers",
+		        {{"id", "officer"},
+		         {"name", "New officer"},
+		         {"department", ""},
+		         {"compartment", ""},
+		         {"traits", Json::array()}},
+		        [&](Json &o)
+		        {
+			        string(o, "id");
+			        string(o, "name");
+			        optional_string(o, "portrait");
+			        choice(o, "department", ids(p["departments"]));
+			        choice(o, "duty", ids(p["duties"]), true);
+			        string(o, "compartment");
+			        strings(o, "traits");
+		        });
+	}
 	void fitted(WorkshopDocument &document)
 	{
 		auto *selected = select_entity(document);
 		if (!selected)
 			return;
 		auto &ship = *selected;
+		personnel(ship);
 		{
 			ScopedTree panel("External Comms");
 			if (panel)

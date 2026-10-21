@@ -57,8 +57,9 @@ std::int64_t shield_rate(flecs::entity child) const
 	const auto &m = child.get<CombatMechanism>();
 	const auto &d = m.definition;
 	return std::min((d.reserve().capacity - m.get<ShieldState>().strength) * rate,
-	                child.get<Equipment>().enabled ? d.get<ShieldDefinition>().recharge_rate
-	                                               : d.get<ShieldDefinition>().off_recharge_rate);
+	                officer_value(child.parent().get<StableId>().id, d.id, "recharge",
+	                              child.get<Equipment>().enabled ? d.get<ShieldDefinition>().recharge_rate
+	                                                             : d.get<ShieldDefinition>().off_recharge_rate));
 }
 void request_shields(flecs::entity ship)
 {

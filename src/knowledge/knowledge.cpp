@@ -133,6 +133,7 @@ Json encode_message(const CoordinationMessage &message)
 	        {"urgency", v.presentation.urgency},
 	        {"automatic", v.presentation.automatic},
 	        {"speaker_name", v.presentation.speaker_name},
+	        {"speaker_portrait", v.presentation.speaker_portrait},
 	        {"speaker_avatar", v.presentation.speaker_avatar},
 	        {"delay", v.delay},
 	        {"expires", v.expires_tick},
@@ -156,6 +157,11 @@ CoordinationMessage decode_message(const Json &j)
 	m.value.presentation = {j.at("title").get<std::string>(), j.at("body").get<std::string>(),
 	                        j.at("parameters").get<std::map<std::string, std::string>>(),
 	                        read_unsigned<std::uint8_t>(j.at("urgency")), j.at("automatic").get<bool>()};
+	m.value.presentation.speaker_portrait = j.value("speaker_portrait", std::string{});
+	require(m.value.presentation.speaker_portrait.empty() || m.value.presentation.speaker_portrait == "generic-crew" ||
+	            (m.value.presentation.speaker_portrait.starts_with("console-assets:assets/comms/") &&
+	             m.value.presentation.speaker_portrait.size() < 128),
+	        "Invalid speaker portrait");
 	m.value.presentation.speaker_name = j.value("speaker_name", std::string{});
 	m.value.presentation.speaker_avatar = j.value("speaker_avatar", Bytes{});
 	require(m.value.presentation.speaker_name.size() <= 64 && m.value.presentation.speaker_avatar.size() <= 12288,

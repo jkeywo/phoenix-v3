@@ -370,6 +370,41 @@ struct ConsoleSpec
 	bool human_seeking = false;
 	std::vector<std::string> human_preferences;
 };
+// Authored personnel is compiled once; runtime assignments never alter these records.
+struct OfficerTrait
+{
+	std::string id, label;
+	std::map<std::string, std::int64_t> bonuses;
+};
+struct PersonnelDepartment
+{
+	std::string id, label, station;
+};
+struct PersonnelDuty
+{
+	std::string id, label, department, controller, team, compartment, console;
+	std::map<std::string, std::vector<std::string>> effects;
+};
+struct OfficerDefinition
+{
+	std::string id, name, portrait, department, duty, compartment;
+	std::vector<std::string> traits;
+};
+struct PersonnelDefinition
+{
+	std::vector<PersonnelDepartment> departments;
+	std::map<std::string, OfficerTrait> traits;
+	std::vector<PersonnelDuty> duties;
+	std::vector<OfficerDefinition> officers;
+	std::vector<std::string> compartments;
+	struct Link
+	{
+		std::size_t from, to;
+		std::int64_t ticks;
+	};
+	std::vector<Link> links;
+};
+PersonnelDefinition compile_personnel(const Catalog &, const std::string &entity);
 struct BridgeChoice
 {
 	std::string id, label, description;

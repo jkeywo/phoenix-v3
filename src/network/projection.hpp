@@ -1,5 +1,6 @@
 #pragma once
 #include "../core/display_projection.hpp"
+#include "../core/personnel_projection.hpp"
 namespace phoenix::network
 {
 static inline Json alert_json(const Json &source)
@@ -38,6 +39,8 @@ static inline Json bounded_gameplay(const Json &source)
 	const char *categories[] = {"controls", "notifications", "controllers", "objectives",
 	                            "shared",   "records",       "messages"};
 	Json result = source;
+	if (source.contains("personnel"))
+		result["personnel"] = personnel_projection::board(source.at("personnel"));
 	if (source.contains("conversations"))
 		result["conversations"] = conversation_projection::board(source.at("conversations"));
 	if (source.contains("alert"))
@@ -350,6 +353,8 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 				throw std::runtime_error("Invalid region tag");
 	}
 	result.gameplay = value.value("gameplay", Json::object());
+	if (result.gameplay.contains("personnel"))
+		result.gameplay["personnel"] = personnel_projection::board(result.gameplay.at("personnel"));
 	if (result.gameplay.contains("conversations"))
 		result.gameplay["conversations"] = conversation_projection::board(result.gameplay.at("conversations"));
 	// StateSource/StateTransfer already authenticate and bound the complete

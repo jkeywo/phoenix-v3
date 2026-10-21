@@ -212,7 +212,8 @@ void prepare_weapons(flecs::entity ship)
 			const auto offset = std::clamp(combat_delta(aim - pose.heading, d.bearing), -d.arc / 2, d.arc / 2);
 			const auto desired = combat_angle(d.bearing + offset);
 			m->get<TurretState>().turn_remainder +=
-			    d.get<TurretDefinition>().traverse * fault_effectiveness(ship, d.id) / 1000;
+			    officer_value(ship.get<StableId>().id, d.id, "traverse", d.get<TurretDefinition>().traverse) *
+			    fault_effectiveness(ship, d.id) / 1000;
 			const auto step = m->get<TurretState>().turn_remainder / rate;
 			m->get<TurretState>().turn_remainder %= rate;
 			const auto current = combat_delta(m->get<TurretState>().heading, d.bearing);
@@ -318,7 +319,8 @@ void fire_weapons(flecs::entity ship)
 			const auto interval =
 			    a.definition.ammunition().interval ? a.definition.ammunition().interval : d.ammunition().interval;
 			m->get<WeaponState>().cooldown =
-			    std::max<std::int64_t>(1, interval * 1000 / fault_effectiveness(ship, d.id));
+			    std::max<std::int64_t>(1, officer_value(ship.get<StableId>().id, d.id, "cycling", interval, true) *
+			                                  1000 / fault_effectiveness(ship, d.id));
 			++m->get<WeaponState>().shots;
 			auto &s = ship.get_mut<CombatStructure>();
 			s.random = s.random * 6364136223846793005ULL + 1;

@@ -380,7 +380,154 @@
 						}
 					]
 				}
-			]
+			],
+			"personnel": {
+				"departments": [
+					{
+						"id": "command",
+						"label": "Command",
+						"station": "main"
+					},
+					{
+						"id": "sailing",
+						"label": "Sailing",
+						"station": "main"
+					},
+					{
+						"id": "tactical",
+						"label": "Tactical",
+						"station": "main"
+					},
+					{
+						"id": "engineering",
+						"label": "Engineering",
+						"station": "main"
+					},
+					{
+						"id": "sciences",
+						"label": "Sciences",
+						"station": "main"
+					},
+					{
+						"id": "signals",
+						"label": "Signals",
+						"station": "main"
+					}
+				],
+				"traits": [
+					{
+						"id": "propulsion",
+						"label": "Drive specialist",
+						"bonuses": {
+							"propulsion": 200
+						}
+					},
+					{
+						"id": "sensors",
+						"label": "Keen observer",
+						"bonuses": {
+							"sensors": 200
+						}
+					},
+					{
+						"id": "cycling",
+						"label": "Gunnery drill",
+						"bonuses": {
+							"cycling": 150
+						}
+					},
+					{
+						"id": "traverse",
+						"label": "Steady tracking",
+						"bonuses": {
+							"traverse": 200
+						}
+					},
+					{
+						"id": "reload",
+						"label": "Magazine discipline",
+						"bonuses": {
+							"reload": 150
+						}
+					},
+					{
+						"id": "recharge",
+						"label": "Field specialist",
+						"bonuses": {
+							"recharge": 200
+						}
+					},
+					{
+						"id": "repair",
+						"label": "Damage control veteran",
+						"bonuses": {
+							"repair": 200
+						}
+					},
+					{
+						"id": "comms",
+						"label": "Signal clarity",
+						"bonuses": {
+							"comms": 200
+						}
+					}
+				],
+				"duties": [
+					{
+						"id": "navigation",
+						"label": "Navigation",
+						"department": "sailing",
+						"controller": "navigation",
+						"compartment": "bridge",
+						"effects": {
+							"engine": ["propulsion"]
+						}
+					},
+					{
+						"id": "sensors",
+						"label": "Sensors",
+						"department": "sciences",
+						"controller": "sensors",
+						"compartment": "bridge",
+						"effects": {
+							"radar": ["sensors"]
+						}
+					}
+				],
+				"officers": [
+					{
+						"id": "officer-1",
+						"name": "Mara Venn",
+						"portrait": "phoenix-base:assets/personnel/officer-1.png",
+						"department": "sailing",
+						"duty": "navigation",
+						"compartment": "bridge",
+						"traits": ["propulsion"]
+					},
+					{
+						"id": "officer-2",
+						"name": "Idris Holt",
+						"portrait": "phoenix-base:assets/personnel/officer-2.png",
+						"department": "sciences",
+						"duty": "sensors",
+						"compartment": "bridge",
+						"traits": ["sensors"]
+					}
+				],
+				"compartments": ["bridge", "engineering", "operations"],
+				"connections": [
+					{
+						"from": "bridge",
+						"to": "operations",
+						"ticks": 40
+					},
+					{
+						"from": "operations",
+						"to": "engineering",
+						"ticks": 60
+					}
+				]
+			}
 		},
 		{
 			"id": "base.beacon",
@@ -1785,6 +1932,484 @@
 				"initial": "condition-5",
 				"alert_console": "engineering",
 				"sidebar_default": "command"
+			},
+			"personnel": {
+				"departments": [
+					{
+						"id": "command",
+						"label": "Command",
+						"station": "engineering"
+					},
+					{
+						"id": "sailing",
+						"label": "Sailing",
+						"station": "helm"
+					},
+					{
+						"id": "tactical",
+						"label": "Tactical",
+						"station": "helm"
+					},
+					{
+						"id": "engineering",
+						"label": "Engineering",
+						"station": "engineering"
+					},
+					{
+						"id": "sciences",
+						"label": "Sciences",
+						"station": "helm"
+					},
+					{
+						"id": "signals",
+						"label": "Signals",
+						"station": "engineering"
+					}
+				],
+				"traits": [
+					{
+						"id": "propulsion",
+						"label": "Drive specialist",
+						"bonuses": {
+							"propulsion": 200
+						}
+					},
+					{
+						"id": "sensors",
+						"label": "Keen observer",
+						"bonuses": {
+							"sensors": 200
+						}
+					},
+					{
+						"id": "cycling",
+						"label": "Gunnery drill",
+						"bonuses": {
+							"cycling": 150
+						}
+					},
+					{
+						"id": "traverse",
+						"label": "Steady tracking",
+						"bonuses": {
+							"traverse": 200
+						}
+					},
+					{
+						"id": "reload",
+						"label": "Magazine discipline",
+						"bonuses": {
+							"reload": 150
+						}
+					},
+					{
+						"id": "recharge",
+						"label": "Field specialist",
+						"bonuses": {
+							"recharge": 200
+						}
+					},
+					{
+						"id": "repair",
+						"label": "Damage control veteran",
+						"bonuses": {
+							"repair": 200
+						}
+					},
+					{
+						"id": "comms",
+						"label": "Signal clarity",
+						"bonuses": {
+							"comms": 200
+						}
+					}
+				],
+				"duties": [
+					{
+						"id": "core.distribution.orders",
+						"label": "Core Distribution Orders",
+						"department": "engineering",
+						"controller": "core.distribution.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.distribution",
+						"label": "Core Distribution",
+						"department": "engineering",
+						"controller": "core.distribution",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.generator.orders",
+						"label": "Core Generator Orders",
+						"department": "engineering",
+						"controller": "core.generator.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.generator",
+						"label": "Core Generator",
+						"department": "engineering",
+						"controller": "core.generator",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.pump",
+						"label": "Core Pump",
+						"department": "engineering",
+						"controller": "core.pump",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.reactor-cooling.orders",
+						"label": "Core Reactor Cooling Orders",
+						"department": "engineering",
+						"controller": "core.reactor-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.reactor-cooling",
+						"label": "Core Reactor Cooling",
+						"department": "engineering",
+						"controller": "core.reactor-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.reserve",
+						"label": "Core Reserve",
+						"department": "engineering",
+						"controller": "core.reserve",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.boost",
+						"label": "Drive Boost",
+						"department": "sailing",
+						"controller": "drive.boost",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "drive.boost-cooling.orders",
+						"label": "Drive Boost Cooling Orders",
+						"department": "engineering",
+						"controller": "drive.boost-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.boost-cooling",
+						"label": "Drive Boost Cooling",
+						"department": "engineering",
+						"controller": "drive.boost-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.boost-supply.orders",
+						"label": "Drive Boost Supply Orders",
+						"department": "engineering",
+						"controller": "drive.boost-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.boost-supply",
+						"label": "Drive Boost Supply",
+						"department": "engineering",
+						"controller": "drive.boost-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.distribution.orders",
+						"label": "Drive Distribution Orders",
+						"department": "engineering",
+						"controller": "drive.distribution.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.distribution",
+						"label": "Drive Distribution",
+						"department": "engineering",
+						"controller": "drive.distribution",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.engine",
+						"label": "Drive Engine",
+						"department": "sailing",
+						"controller": "drive.engine",
+						"compartment": "bridge",
+						"effects": {
+							"drive.engine": ["propulsion"]
+						}
+					},
+					{
+						"id": "drive.engine-cooling.orders",
+						"label": "Drive Engine Cooling Orders",
+						"department": "engineering",
+						"controller": "drive.engine-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.engine-cooling",
+						"label": "Drive Engine Cooling",
+						"department": "engineering",
+						"controller": "drive.engine-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.engine-supply.orders",
+						"label": "Drive Engine Supply Orders",
+						"department": "engineering",
+						"controller": "drive.engine-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.engine-supply",
+						"label": "Drive Engine Supply",
+						"department": "engineering",
+						"controller": "drive.engine-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.impulse",
+						"label": "Drive Impulse",
+						"department": "sailing",
+						"controller": "drive.impulse",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "drive.impulse-cooling.orders",
+						"label": "Drive Impulse Cooling Orders",
+						"department": "engineering",
+						"controller": "drive.impulse-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.impulse-cooling",
+						"label": "Drive Impulse Cooling",
+						"department": "engineering",
+						"controller": "drive.impulse-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.impulse-supply.orders",
+						"label": "Drive Impulse Supply Orders",
+						"department": "engineering",
+						"controller": "drive.impulse-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.impulse-supply",
+						"label": "Drive Impulse Supply",
+						"department": "engineering",
+						"controller": "drive.impulse-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.lateral",
+						"label": "Drive Lateral",
+						"department": "sailing",
+						"controller": "drive.lateral",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "drive.lateral-cooling.orders",
+						"label": "Drive Lateral Cooling Orders",
+						"department": "engineering",
+						"controller": "drive.lateral-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.lateral-cooling",
+						"label": "Drive Lateral Cooling",
+						"department": "engineering",
+						"controller": "drive.lateral-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.lateral-supply.orders",
+						"label": "Drive Lateral Supply Orders",
+						"department": "engineering",
+						"controller": "drive.lateral-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.lateral-supply",
+						"label": "Drive Lateral Supply",
+						"department": "engineering",
+						"controller": "drive.lateral-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.steering",
+						"label": "Drive Steering",
+						"department": "sailing",
+						"controller": "drive.steering",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "drive.steering-cooling.orders",
+						"label": "Drive Steering Cooling Orders",
+						"department": "engineering",
+						"controller": "drive.steering-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.steering-cooling",
+						"label": "Drive Steering Cooling",
+						"department": "engineering",
+						"controller": "drive.steering-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.steering-supply.orders",
+						"label": "Drive Steering Supply Orders",
+						"department": "engineering",
+						"controller": "drive.steering-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.steering-supply",
+						"label": "Drive Steering Supply",
+						"department": "engineering",
+						"controller": "drive.steering-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "sensors.cooling.orders",
+						"label": "Sensors Cooling Orders",
+						"department": "engineering",
+						"controller": "sensors.cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "sensors.cooling",
+						"label": "Sensors Cooling",
+						"department": "engineering",
+						"controller": "sensors.cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "sensors.distribution.orders",
+						"label": "Sensors Distribution Orders",
+						"department": "engineering",
+						"controller": "sensors.distribution.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "sensors.distribution",
+						"label": "Sensors Distribution",
+						"department": "engineering",
+						"controller": "sensors.distribution",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "sensors.radar",
+						"label": "Sensors Radar",
+						"department": "sciences",
+						"controller": "sensors.radar",
+						"compartment": "bridge",
+						"effects": {
+							"sensors.radar": ["sensors"]
+						}
+					}
+				],
+				"officers": [
+					{
+						"id": "officer-1",
+						"name": "Mara Venn",
+						"portrait": "phoenix-base:assets/personnel/officer-1.png",
+						"department": "sailing",
+						"duty": "drive.engine",
+						"compartment": "bridge",
+						"traits": ["propulsion"]
+					},
+					{
+						"id": "officer-2",
+						"name": "Idris Holt",
+						"portrait": "phoenix-base:assets/personnel/officer-2.png",
+						"department": "sailing",
+						"duty": "drive.boost",
+						"compartment": "bridge",
+						"traits": ["propulsion"]
+					},
+					{
+						"id": "officer-3",
+						"name": "Sera Dain",
+						"portrait": "phoenix-base:assets/personnel/officer-3.png",
+						"department": "engineering",
+						"duty": "core.distribution.orders",
+						"compartment": "engineering",
+						"traits": ["repair"]
+					},
+					{
+						"id": "officer-4",
+						"name": "Tomas Rook",
+						"portrait": "phoenix-base:assets/personnel/officer-4.png",
+						"department": "engineering",
+						"duty": "core.distribution",
+						"compartment": "engineering",
+						"traits": ["repair"]
+					},
+					{
+						"id": "officer-5",
+						"name": "Nadia Keene",
+						"portrait": "phoenix-base:assets/personnel/officer-5.png",
+						"department": "sciences",
+						"duty": "sensors.radar",
+						"compartment": "bridge",
+						"traits": ["sensors"]
+					}
+				],
+				"compartments": ["bridge", "engineering", "operations"],
+				"connections": [
+					{
+						"from": "bridge",
+						"to": "operations",
+						"ticks": 40
+					},
+					{
+						"from": "operations",
+						"to": "engineering",
+						"ticks": 60
+					}
+				]
 			}
 		},
 		{
@@ -4438,6 +5063,862 @@
 						"public": false
 					}
 				]
+			},
+			"personnel": {
+				"departments": [
+					{
+						"id": "command",
+						"label": "Command",
+						"station": "captain"
+					},
+					{
+						"id": "sailing",
+						"label": "Sailing",
+						"station": "helm"
+					},
+					{
+						"id": "tactical",
+						"label": "Tactical",
+						"station": "tactical"
+					},
+					{
+						"id": "engineering",
+						"label": "Engineering",
+						"station": "engineering"
+					},
+					{
+						"id": "sciences",
+						"label": "Sciences",
+						"station": "science"
+					},
+					{
+						"id": "signals",
+						"label": "Signals",
+						"station": "comms"
+					}
+				],
+				"traits": [
+					{
+						"id": "propulsion",
+						"label": "Drive specialist",
+						"bonuses": {
+							"propulsion": 200
+						}
+					},
+					{
+						"id": "sensors",
+						"label": "Keen observer",
+						"bonuses": {
+							"sensors": 200
+						}
+					},
+					{
+						"id": "cycling",
+						"label": "Gunnery drill",
+						"bonuses": {
+							"cycling": 150
+						}
+					},
+					{
+						"id": "traverse",
+						"label": "Steady tracking",
+						"bonuses": {
+							"traverse": 200
+						}
+					},
+					{
+						"id": "reload",
+						"label": "Magazine discipline",
+						"bonuses": {
+							"reload": 150
+						}
+					},
+					{
+						"id": "recharge",
+						"label": "Field specialist",
+						"bonuses": {
+							"recharge": 200
+						}
+					},
+					{
+						"id": "repair",
+						"label": "Damage control veteran",
+						"bonuses": {
+							"repair": 200
+						}
+					},
+					{
+						"id": "comms",
+						"label": "Signal clarity",
+						"bonuses": {
+							"comms": 200
+						}
+					}
+				],
+				"duties": [
+					{
+						"id": "command.cooling.orders",
+						"label": "Command Cooling Orders",
+						"department": "engineering",
+						"controller": "command.cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "command.cooling",
+						"label": "Command Cooling",
+						"department": "engineering",
+						"controller": "command.cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "command.distribution.orders",
+						"label": "Command Distribution Orders",
+						"department": "engineering",
+						"controller": "command.distribution.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "command.distribution",
+						"label": "Command Distribution",
+						"department": "engineering",
+						"controller": "command.distribution",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "command.reserve",
+						"label": "Command Reserve",
+						"department": "command",
+						"controller": "command.reserve",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "communications.cooling.orders",
+						"label": "Communications Cooling Orders",
+						"department": "engineering",
+						"controller": "communications.cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "communications.cooling",
+						"label": "Communications Cooling",
+						"department": "engineering",
+						"controller": "communications.cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "communications.distribution.orders",
+						"label": "Communications Distribution Orders",
+						"department": "engineering",
+						"controller": "communications.distribution.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "communications.distribution",
+						"label": "Communications Distribution",
+						"department": "engineering",
+						"controller": "communications.distribution",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "communications.reserve",
+						"label": "Communications Reserve",
+						"department": "signals",
+						"controller": "communications.reserve",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "core.distribution.orders",
+						"label": "Core Distribution Orders",
+						"department": "engineering",
+						"controller": "core.distribution.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.distribution",
+						"label": "Core Distribution",
+						"department": "engineering",
+						"controller": "core.distribution",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.generator.orders",
+						"label": "Core Generator Orders",
+						"department": "engineering",
+						"controller": "core.generator.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.generator",
+						"label": "Core Generator",
+						"department": "engineering",
+						"controller": "core.generator",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.pump",
+						"label": "Core Pump",
+						"department": "engineering",
+						"controller": "core.pump",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.reactor-cooling.orders",
+						"label": "Core Reactor Cooling Orders",
+						"department": "engineering",
+						"controller": "core.reactor-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.reactor-cooling",
+						"label": "Core Reactor Cooling",
+						"department": "engineering",
+						"controller": "core.reactor-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.reserve",
+						"label": "Core Reserve",
+						"department": "engineering",
+						"controller": "core.reserve",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.boost",
+						"label": "Drive Boost",
+						"department": "sailing",
+						"controller": "drive.boost",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "drive.boost-cooling.orders",
+						"label": "Drive Boost Cooling Orders",
+						"department": "engineering",
+						"controller": "drive.boost-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.boost-cooling",
+						"label": "Drive Boost Cooling",
+						"department": "engineering",
+						"controller": "drive.boost-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.boost-supply.orders",
+						"label": "Drive Boost Supply Orders",
+						"department": "engineering",
+						"controller": "drive.boost-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.boost-supply",
+						"label": "Drive Boost Supply",
+						"department": "engineering",
+						"controller": "drive.boost-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.distribution.orders",
+						"label": "Drive Distribution Orders",
+						"department": "engineering",
+						"controller": "drive.distribution.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.distribution",
+						"label": "Drive Distribution",
+						"department": "engineering",
+						"controller": "drive.distribution",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.engine",
+						"label": "Drive Engine",
+						"department": "sailing",
+						"controller": "drive.engine",
+						"compartment": "bridge",
+						"effects": {
+							"drive.engine": ["propulsion"]
+						}
+					},
+					{
+						"id": "drive.engine-cooling.orders",
+						"label": "Drive Engine Cooling Orders",
+						"department": "engineering",
+						"controller": "drive.engine-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.engine-cooling",
+						"label": "Drive Engine Cooling",
+						"department": "engineering",
+						"controller": "drive.engine-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.engine-supply.orders",
+						"label": "Drive Engine Supply Orders",
+						"department": "engineering",
+						"controller": "drive.engine-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.engine-supply",
+						"label": "Drive Engine Supply",
+						"department": "engineering",
+						"controller": "drive.engine-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.impulse",
+						"label": "Drive Impulse",
+						"department": "sailing",
+						"controller": "drive.impulse",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "drive.impulse-cooling.orders",
+						"label": "Drive Impulse Cooling Orders",
+						"department": "engineering",
+						"controller": "drive.impulse-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.impulse-cooling",
+						"label": "Drive Impulse Cooling",
+						"department": "engineering",
+						"controller": "drive.impulse-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.impulse-supply.orders",
+						"label": "Drive Impulse Supply Orders",
+						"department": "engineering",
+						"controller": "drive.impulse-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.impulse-supply",
+						"label": "Drive Impulse Supply",
+						"department": "engineering",
+						"controller": "drive.impulse-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.lateral",
+						"label": "Drive Lateral",
+						"department": "sailing",
+						"controller": "drive.lateral",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "drive.lateral-cooling.orders",
+						"label": "Drive Lateral Cooling Orders",
+						"department": "engineering",
+						"controller": "drive.lateral-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.lateral-cooling",
+						"label": "Drive Lateral Cooling",
+						"department": "engineering",
+						"controller": "drive.lateral-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.lateral-supply.orders",
+						"label": "Drive Lateral Supply Orders",
+						"department": "engineering",
+						"controller": "drive.lateral-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.lateral-supply",
+						"label": "Drive Lateral Supply",
+						"department": "engineering",
+						"controller": "drive.lateral-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.steering",
+						"label": "Drive Steering",
+						"department": "sailing",
+						"controller": "drive.steering",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "drive.steering-cooling.orders",
+						"label": "Drive Steering Cooling Orders",
+						"department": "engineering",
+						"controller": "drive.steering-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.steering-cooling",
+						"label": "Drive Steering Cooling",
+						"department": "engineering",
+						"controller": "drive.steering-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.steering-supply.orders",
+						"label": "Drive Steering Supply Orders",
+						"department": "engineering",
+						"controller": "drive.steering-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.steering-supply",
+						"label": "Drive Steering Supply",
+						"department": "engineering",
+						"controller": "drive.steering-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "sensors.cooling.orders",
+						"label": "Sensors Cooling Orders",
+						"department": "engineering",
+						"controller": "sensors.cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "sensors.cooling",
+						"label": "Sensors Cooling",
+						"department": "engineering",
+						"controller": "sensors.cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "sensors.distribution.orders",
+						"label": "Sensors Distribution Orders",
+						"department": "engineering",
+						"controller": "sensors.distribution.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "sensors.distribution",
+						"label": "Sensors Distribution",
+						"department": "engineering",
+						"controller": "sensors.distribution",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "sensors.radar",
+						"label": "Sensors Radar",
+						"department": "sciences",
+						"controller": "sensors.radar",
+						"compartment": "bridge",
+						"effects": {
+							"sensors.radar": ["sensors"]
+						}
+					},
+					{
+						"id": "tactical.cooling.orders",
+						"label": "Tactical Cooling Orders",
+						"department": "engineering",
+						"controller": "tactical.cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "tactical.cooling",
+						"label": "Tactical Cooling",
+						"department": "engineering",
+						"controller": "tactical.cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "tactical.distribution.orders",
+						"label": "Tactical Distribution Orders",
+						"department": "engineering",
+						"controller": "tactical.distribution.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "tactical.distribution",
+						"label": "Tactical Distribution",
+						"department": "engineering",
+						"controller": "tactical.distribution",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "tactical.radar",
+						"label": "Tactical Radar",
+						"department": "tactical",
+						"controller": "tactical.radar",
+						"compartment": "bridge",
+						"effects": {
+							"tactical.radar": ["sensors"]
+						}
+					},
+					{
+						"id": "wing.boost",
+						"label": "Wing Boost",
+						"department": "sailing",
+						"controller": "wing.boost",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "wing.boost-cooling.orders",
+						"label": "Wing Boost Cooling Orders",
+						"department": "engineering",
+						"controller": "wing.boost-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "wing.boost-cooling",
+						"label": "Wing Boost Cooling",
+						"department": "engineering",
+						"controller": "wing.boost-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "wing.boost-supply.orders",
+						"label": "Wing Boost Supply Orders",
+						"department": "engineering",
+						"controller": "wing.boost-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "wing.boost-supply",
+						"label": "Wing Boost Supply",
+						"department": "engineering",
+						"controller": "wing.boost-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "wing.distribution.orders",
+						"label": "Wing Distribution Orders",
+						"department": "engineering",
+						"controller": "wing.distribution.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "wing.distribution",
+						"label": "Wing Distribution",
+						"department": "engineering",
+						"controller": "wing.distribution",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "wing.engine",
+						"label": "Wing Engine",
+						"department": "sailing",
+						"controller": "wing.engine",
+						"compartment": "bridge",
+						"effects": {
+							"wing.engine": ["propulsion"]
+						}
+					},
+					{
+						"id": "wing.engine-cooling.orders",
+						"label": "Wing Engine Cooling Orders",
+						"department": "engineering",
+						"controller": "wing.engine-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "wing.engine-cooling",
+						"label": "Wing Engine Cooling",
+						"department": "engineering",
+						"controller": "wing.engine-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "wing.engine-supply.orders",
+						"label": "Wing Engine Supply Orders",
+						"department": "engineering",
+						"controller": "wing.engine-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "wing.engine-supply",
+						"label": "Wing Engine Supply",
+						"department": "engineering",
+						"controller": "wing.engine-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "wing.impulse",
+						"label": "Wing Impulse",
+						"department": "sailing",
+						"controller": "wing.impulse",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "wing.impulse-cooling.orders",
+						"label": "Wing Impulse Cooling Orders",
+						"department": "engineering",
+						"controller": "wing.impulse-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "wing.impulse-cooling",
+						"label": "Wing Impulse Cooling",
+						"department": "engineering",
+						"controller": "wing.impulse-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "wing.impulse-supply.orders",
+						"label": "Wing Impulse Supply Orders",
+						"department": "engineering",
+						"controller": "wing.impulse-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "wing.impulse-supply",
+						"label": "Wing Impulse Supply",
+						"department": "engineering",
+						"controller": "wing.impulse-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "wing.lateral-cooling.orders",
+						"label": "Wing Lateral Cooling Orders",
+						"department": "engineering",
+						"controller": "wing.lateral-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "wing.lateral-cooling",
+						"label": "Wing Lateral Cooling",
+						"department": "engineering",
+						"controller": "wing.lateral-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "wing.lateral-supply.orders",
+						"label": "Wing Lateral Supply Orders",
+						"department": "engineering",
+						"controller": "wing.lateral-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "wing.lateral-supply",
+						"label": "Wing Lateral Supply",
+						"department": "engineering",
+						"controller": "wing.lateral-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "wing.steering",
+						"label": "Wing Steering",
+						"department": "sailing",
+						"controller": "wing.steering",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "wing.steering-cooling.orders",
+						"label": "Wing Steering Cooling Orders",
+						"department": "engineering",
+						"controller": "wing.steering-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "wing.steering-cooling",
+						"label": "Wing Steering Cooling",
+						"department": "engineering",
+						"controller": "wing.steering-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "wing.steering-supply.orders",
+						"label": "Wing Steering Supply Orders",
+						"department": "engineering",
+						"controller": "wing.steering-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "wing.steering-supply",
+						"label": "Wing Steering Supply",
+						"department": "engineering",
+						"controller": "wing.steering-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "external-comms",
+						"label": "External Comms",
+						"department": "signals",
+						"controller": "external-comms",
+						"compartment": "bridge",
+						"effects": {
+							"comms-radio": ["comms"]
+						}
+					}
+				],
+				"officers": [
+					{
+						"id": "officer-1",
+						"name": "Mara Venn",
+						"portrait": "phoenix-base:assets/personnel/officer-1.png",
+						"department": "command",
+						"duty": "command.reserve",
+						"compartment": "bridge",
+						"traits": ["sensors"]
+					},
+					{
+						"id": "officer-2",
+						"name": "Idris Holt",
+						"portrait": "phoenix-base:assets/personnel/officer-2.png",
+						"department": "sailing",
+						"duty": "drive.engine",
+						"compartment": "bridge",
+						"traits": ["propulsion"]
+					},
+					{
+						"id": "officer-3",
+						"name": "Sera Dain",
+						"portrait": "phoenix-base:assets/personnel/officer-3.png",
+						"department": "sailing",
+						"duty": "wing.engine",
+						"compartment": "bridge",
+						"traits": ["propulsion"]
+					},
+					{
+						"id": "officer-4",
+						"name": "Tomas Rook",
+						"portrait": "phoenix-base:assets/personnel/officer-4.png",
+						"department": "tactical",
+						"duty": "tactical.radar",
+						"compartment": "bridge",
+						"traits": ["sensors"]
+					},
+					{
+						"id": "officer-5",
+						"name": "Nadia Keene",
+						"portrait": "phoenix-base:assets/personnel/officer-5.png",
+						"department": "engineering",
+						"duty": "command.cooling.orders",
+						"compartment": "engineering",
+						"traits": ["repair"]
+					},
+					{
+						"id": "officer-6",
+						"name": "Jonas Pell",
+						"portrait": "phoenix-base:assets/personnel/officer-6.png",
+						"department": "engineering",
+						"duty": "command.cooling",
+						"compartment": "engineering",
+						"traits": ["repair"]
+					},
+					{
+						"id": "officer-7",
+						"name": "Elin Saye",
+						"portrait": "phoenix-base:assets/personnel/officer-7.png",
+						"department": "sciences",
+						"duty": "sensors.radar",
+						"compartment": "bridge",
+						"traits": ["sensors"]
+					},
+					{
+						"id": "officer-8",
+						"name": "Cassian Ward",
+						"portrait": "phoenix-base:assets/personnel/officer-8.png",
+						"department": "signals",
+						"duty": "external-comms",
+						"compartment": "bridge",
+						"traits": ["comms"]
+					},
+					{
+						"id": "officer-9",
+						"name": "Iona Marr",
+						"portrait": "phoenix-base:assets/personnel/officer-9.png",
+						"department": "signals",
+						"duty": "communications.reserve",
+						"compartment": "bridge",
+						"traits": ["comms"]
+					}
+				],
+				"compartments": ["bridge", "engineering", "operations"],
+				"connections": [
+					{
+						"from": "bridge",
+						"to": "operations",
+						"ticks": 40
+					},
+					{
+						"from": "operations",
+						"to": "engineering",
+						"ticks": 60
+					}
+				]
 			}
 		},
 		{
@@ -5528,6 +7009,484 @@
 					}
 				],
 				"default_profile": "middle"
+			},
+			"personnel": {
+				"departments": [
+					{
+						"id": "command",
+						"label": "Command",
+						"station": "engineering"
+					},
+					{
+						"id": "sailing",
+						"label": "Sailing",
+						"station": "helm"
+					},
+					{
+						"id": "tactical",
+						"label": "Tactical",
+						"station": "helm"
+					},
+					{
+						"id": "engineering",
+						"label": "Engineering",
+						"station": "engineering"
+					},
+					{
+						"id": "sciences",
+						"label": "Sciences",
+						"station": "helm"
+					},
+					{
+						"id": "signals",
+						"label": "Signals",
+						"station": "engineering"
+					}
+				],
+				"traits": [
+					{
+						"id": "propulsion",
+						"label": "Drive specialist",
+						"bonuses": {
+							"propulsion": 200
+						}
+					},
+					{
+						"id": "sensors",
+						"label": "Keen observer",
+						"bonuses": {
+							"sensors": 200
+						}
+					},
+					{
+						"id": "cycling",
+						"label": "Gunnery drill",
+						"bonuses": {
+							"cycling": 150
+						}
+					},
+					{
+						"id": "traverse",
+						"label": "Steady tracking",
+						"bonuses": {
+							"traverse": 200
+						}
+					},
+					{
+						"id": "reload",
+						"label": "Magazine discipline",
+						"bonuses": {
+							"reload": 150
+						}
+					},
+					{
+						"id": "recharge",
+						"label": "Field specialist",
+						"bonuses": {
+							"recharge": 200
+						}
+					},
+					{
+						"id": "repair",
+						"label": "Damage control veteran",
+						"bonuses": {
+							"repair": 200
+						}
+					},
+					{
+						"id": "comms",
+						"label": "Signal clarity",
+						"bonuses": {
+							"comms": 200
+						}
+					}
+				],
+				"duties": [
+					{
+						"id": "core.distribution.orders",
+						"label": "Core Distribution Orders",
+						"department": "engineering",
+						"controller": "core.distribution.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.distribution",
+						"label": "Core Distribution",
+						"department": "engineering",
+						"controller": "core.distribution",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.generator.orders",
+						"label": "Core Generator Orders",
+						"department": "engineering",
+						"controller": "core.generator.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.generator",
+						"label": "Core Generator",
+						"department": "engineering",
+						"controller": "core.generator",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.pump",
+						"label": "Core Pump",
+						"department": "engineering",
+						"controller": "core.pump",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.reactor-cooling.orders",
+						"label": "Core Reactor Cooling Orders",
+						"department": "engineering",
+						"controller": "core.reactor-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.reactor-cooling",
+						"label": "Core Reactor Cooling",
+						"department": "engineering",
+						"controller": "core.reactor-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.reserve",
+						"label": "Core Reserve",
+						"department": "engineering",
+						"controller": "core.reserve",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.boost",
+						"label": "Drive Boost",
+						"department": "sailing",
+						"controller": "drive.boost",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "drive.boost-cooling.orders",
+						"label": "Drive Boost Cooling Orders",
+						"department": "engineering",
+						"controller": "drive.boost-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.boost-cooling",
+						"label": "Drive Boost Cooling",
+						"department": "engineering",
+						"controller": "drive.boost-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.boost-supply.orders",
+						"label": "Drive Boost Supply Orders",
+						"department": "engineering",
+						"controller": "drive.boost-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.boost-supply",
+						"label": "Drive Boost Supply",
+						"department": "engineering",
+						"controller": "drive.boost-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.distribution.orders",
+						"label": "Drive Distribution Orders",
+						"department": "engineering",
+						"controller": "drive.distribution.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.distribution",
+						"label": "Drive Distribution",
+						"department": "engineering",
+						"controller": "drive.distribution",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.engine",
+						"label": "Drive Engine",
+						"department": "sailing",
+						"controller": "drive.engine",
+						"compartment": "bridge",
+						"effects": {
+							"drive.engine": ["propulsion"]
+						}
+					},
+					{
+						"id": "drive.engine-cooling.orders",
+						"label": "Drive Engine Cooling Orders",
+						"department": "engineering",
+						"controller": "drive.engine-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.engine-cooling",
+						"label": "Drive Engine Cooling",
+						"department": "engineering",
+						"controller": "drive.engine-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.engine-supply.orders",
+						"label": "Drive Engine Supply Orders",
+						"department": "engineering",
+						"controller": "drive.engine-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.engine-supply",
+						"label": "Drive Engine Supply",
+						"department": "engineering",
+						"controller": "drive.engine-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.impulse",
+						"label": "Drive Impulse",
+						"department": "sailing",
+						"controller": "drive.impulse",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "drive.impulse-cooling.orders",
+						"label": "Drive Impulse Cooling Orders",
+						"department": "engineering",
+						"controller": "drive.impulse-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.impulse-cooling",
+						"label": "Drive Impulse Cooling",
+						"department": "engineering",
+						"controller": "drive.impulse-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.impulse-supply.orders",
+						"label": "Drive Impulse Supply Orders",
+						"department": "engineering",
+						"controller": "drive.impulse-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.impulse-supply",
+						"label": "Drive Impulse Supply",
+						"department": "engineering",
+						"controller": "drive.impulse-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.lateral",
+						"label": "Drive Lateral",
+						"department": "sailing",
+						"controller": "drive.lateral",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "drive.lateral-cooling.orders",
+						"label": "Drive Lateral Cooling Orders",
+						"department": "engineering",
+						"controller": "drive.lateral-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.lateral-cooling",
+						"label": "Drive Lateral Cooling",
+						"department": "engineering",
+						"controller": "drive.lateral-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.lateral-supply.orders",
+						"label": "Drive Lateral Supply Orders",
+						"department": "engineering",
+						"controller": "drive.lateral-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.lateral-supply",
+						"label": "Drive Lateral Supply",
+						"department": "engineering",
+						"controller": "drive.lateral-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.steering",
+						"label": "Drive Steering",
+						"department": "sailing",
+						"controller": "drive.steering",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "drive.steering-cooling.orders",
+						"label": "Drive Steering Cooling Orders",
+						"department": "engineering",
+						"controller": "drive.steering-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.steering-cooling",
+						"label": "Drive Steering Cooling",
+						"department": "engineering",
+						"controller": "drive.steering-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.steering-supply.orders",
+						"label": "Drive Steering Supply Orders",
+						"department": "engineering",
+						"controller": "drive.steering-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.steering-supply",
+						"label": "Drive Steering Supply",
+						"department": "engineering",
+						"controller": "drive.steering-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "sensors.cooling.orders",
+						"label": "Sensors Cooling Orders",
+						"department": "engineering",
+						"controller": "sensors.cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "sensors.cooling",
+						"label": "Sensors Cooling",
+						"department": "engineering",
+						"controller": "sensors.cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "sensors.distribution.orders",
+						"label": "Sensors Distribution Orders",
+						"department": "engineering",
+						"controller": "sensors.distribution.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "sensors.distribution",
+						"label": "Sensors Distribution",
+						"department": "engineering",
+						"controller": "sensors.distribution",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "sensors.radar",
+						"label": "Sensors Radar",
+						"department": "sciences",
+						"controller": "sensors.radar",
+						"compartment": "bridge",
+						"effects": {
+							"sensors.radar": ["sensors"]
+						}
+					}
+				],
+				"officers": [
+					{
+						"id": "officer-1",
+						"name": "Mara Venn",
+						"portrait": "phoenix-base:assets/personnel/officer-1.png",
+						"department": "sailing",
+						"duty": "drive.engine",
+						"compartment": "bridge",
+						"traits": ["propulsion"]
+					},
+					{
+						"id": "officer-2",
+						"name": "Idris Holt",
+						"portrait": "phoenix-base:assets/personnel/officer-2.png",
+						"department": "sailing",
+						"duty": "drive.boost",
+						"compartment": "bridge",
+						"traits": ["propulsion"]
+					},
+					{
+						"id": "officer-3",
+						"name": "Sera Dain",
+						"portrait": "phoenix-base:assets/personnel/officer-3.png",
+						"department": "engineering",
+						"duty": "core.distribution.orders",
+						"compartment": "engineering",
+						"traits": ["repair"]
+					},
+					{
+						"id": "officer-4",
+						"name": "Tomas Rook",
+						"portrait": "phoenix-base:assets/personnel/officer-4.png",
+						"department": "engineering",
+						"duty": "core.distribution",
+						"compartment": "engineering",
+						"traits": ["repair"]
+					},
+					{
+						"id": "officer-5",
+						"name": "Nadia Keene",
+						"portrait": "phoenix-base:assets/personnel/officer-5.png",
+						"department": "sciences",
+						"duty": "sensors.radar",
+						"compartment": "bridge",
+						"traits": ["sensors"]
+					}
+				],
+				"compartments": ["bridge", "engineering", "operations"],
+				"connections": [
+					{
+						"from": "bridge",
+						"to": "operations",
+						"ticks": 40
+					},
+					{
+						"from": "operations",
+						"to": "engineering",
+						"ticks": 60
+					}
+				]
 			}
 		},
 		{
@@ -6736,6 +8695,501 @@
 				"initial": "condition-5",
 				"alert_console": "engineering",
 				"sidebar_default": "command"
+			},
+			"personnel": {
+				"departments": [
+					{
+						"id": "command",
+						"label": "Command",
+						"station": "engineering"
+					},
+					{
+						"id": "sailing",
+						"label": "Sailing",
+						"station": "helm"
+					},
+					{
+						"id": "tactical",
+						"label": "Tactical",
+						"station": "helm"
+					},
+					{
+						"id": "engineering",
+						"label": "Engineering",
+						"station": "engineering"
+					},
+					{
+						"id": "sciences",
+						"label": "Sciences",
+						"station": "helm"
+					},
+					{
+						"id": "signals",
+						"label": "Signals",
+						"station": "engineering"
+					}
+				],
+				"traits": [
+					{
+						"id": "propulsion",
+						"label": "Drive specialist",
+						"bonuses": {
+							"propulsion": 200
+						}
+					},
+					{
+						"id": "sensors",
+						"label": "Keen observer",
+						"bonuses": {
+							"sensors": 200
+						}
+					},
+					{
+						"id": "cycling",
+						"label": "Gunnery drill",
+						"bonuses": {
+							"cycling": 150
+						}
+					},
+					{
+						"id": "traverse",
+						"label": "Steady tracking",
+						"bonuses": {
+							"traverse": 200
+						}
+					},
+					{
+						"id": "reload",
+						"label": "Magazine discipline",
+						"bonuses": {
+							"reload": 150
+						}
+					},
+					{
+						"id": "recharge",
+						"label": "Field specialist",
+						"bonuses": {
+							"recharge": 200
+						}
+					},
+					{
+						"id": "repair",
+						"label": "Damage control veteran",
+						"bonuses": {
+							"repair": 200
+						}
+					},
+					{
+						"id": "comms",
+						"label": "Signal clarity",
+						"bonuses": {
+							"comms": 200
+						}
+					}
+				],
+				"duties": [
+					{
+						"id": "core.distribution.orders",
+						"label": "Core Distribution Orders",
+						"department": "engineering",
+						"controller": "core.distribution.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.distribution",
+						"label": "Core Distribution",
+						"department": "engineering",
+						"controller": "core.distribution",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.generator.orders",
+						"label": "Core Generator Orders",
+						"department": "engineering",
+						"controller": "core.generator.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.generator",
+						"label": "Core Generator",
+						"department": "engineering",
+						"controller": "core.generator",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.pump",
+						"label": "Core Pump",
+						"department": "engineering",
+						"controller": "core.pump",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.reactor-cooling.orders",
+						"label": "Core Reactor Cooling Orders",
+						"department": "engineering",
+						"controller": "core.reactor-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.reactor-cooling",
+						"label": "Core Reactor Cooling",
+						"department": "engineering",
+						"controller": "core.reactor-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.reserve",
+						"label": "Core Reserve",
+						"department": "engineering",
+						"controller": "core.reserve",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.boost",
+						"label": "Drive Boost",
+						"department": "sailing",
+						"controller": "drive.boost",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "drive.boost-cooling.orders",
+						"label": "Drive Boost Cooling Orders",
+						"department": "engineering",
+						"controller": "drive.boost-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.boost-cooling",
+						"label": "Drive Boost Cooling",
+						"department": "engineering",
+						"controller": "drive.boost-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.boost-supply.orders",
+						"label": "Drive Boost Supply Orders",
+						"department": "engineering",
+						"controller": "drive.boost-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.boost-supply",
+						"label": "Drive Boost Supply",
+						"department": "engineering",
+						"controller": "drive.boost-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.distribution.orders",
+						"label": "Drive Distribution Orders",
+						"department": "engineering",
+						"controller": "drive.distribution.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.distribution",
+						"label": "Drive Distribution",
+						"department": "engineering",
+						"controller": "drive.distribution",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.engine",
+						"label": "Drive Engine",
+						"department": "sailing",
+						"controller": "drive.engine",
+						"compartment": "bridge",
+						"effects": {
+							"drive.engine": ["propulsion"]
+						}
+					},
+					{
+						"id": "drive.engine-cooling.orders",
+						"label": "Drive Engine Cooling Orders",
+						"department": "engineering",
+						"controller": "drive.engine-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.engine-cooling",
+						"label": "Drive Engine Cooling",
+						"department": "engineering",
+						"controller": "drive.engine-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.engine-supply.orders",
+						"label": "Drive Engine Supply Orders",
+						"department": "engineering",
+						"controller": "drive.engine-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.engine-supply",
+						"label": "Drive Engine Supply",
+						"department": "engineering",
+						"controller": "drive.engine-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.impulse",
+						"label": "Drive Impulse",
+						"department": "sailing",
+						"controller": "drive.impulse",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "drive.impulse-cooling.orders",
+						"label": "Drive Impulse Cooling Orders",
+						"department": "engineering",
+						"controller": "drive.impulse-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.impulse-cooling",
+						"label": "Drive Impulse Cooling",
+						"department": "engineering",
+						"controller": "drive.impulse-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.impulse-supply.orders",
+						"label": "Drive Impulse Supply Orders",
+						"department": "engineering",
+						"controller": "drive.impulse-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.impulse-supply",
+						"label": "Drive Impulse Supply",
+						"department": "engineering",
+						"controller": "drive.impulse-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.lateral",
+						"label": "Drive Lateral",
+						"department": "sailing",
+						"controller": "drive.lateral",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "drive.lateral-cooling.orders",
+						"label": "Drive Lateral Cooling Orders",
+						"department": "engineering",
+						"controller": "drive.lateral-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.lateral-cooling",
+						"label": "Drive Lateral Cooling",
+						"department": "engineering",
+						"controller": "drive.lateral-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.lateral-supply.orders",
+						"label": "Drive Lateral Supply Orders",
+						"department": "engineering",
+						"controller": "drive.lateral-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.lateral-supply",
+						"label": "Drive Lateral Supply",
+						"department": "engineering",
+						"controller": "drive.lateral-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.steering",
+						"label": "Drive Steering",
+						"department": "sailing",
+						"controller": "drive.steering",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "drive.steering-cooling.orders",
+						"label": "Drive Steering Cooling Orders",
+						"department": "engineering",
+						"controller": "drive.steering-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.steering-cooling",
+						"label": "Drive Steering Cooling",
+						"department": "engineering",
+						"controller": "drive.steering-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.steering-supply.orders",
+						"label": "Drive Steering Supply Orders",
+						"department": "engineering",
+						"controller": "drive.steering-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.steering-supply",
+						"label": "Drive Steering Supply",
+						"department": "engineering",
+						"controller": "drive.steering-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "sensors.cooling.orders",
+						"label": "Sensors Cooling Orders",
+						"department": "engineering",
+						"controller": "sensors.cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "sensors.cooling",
+						"label": "Sensors Cooling",
+						"department": "engineering",
+						"controller": "sensors.cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "sensors.distribution.orders",
+						"label": "Sensors Distribution Orders",
+						"department": "engineering",
+						"controller": "sensors.distribution.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "sensors.distribution",
+						"label": "Sensors Distribution",
+						"department": "engineering",
+						"controller": "sensors.distribution",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "sensors.radar",
+						"label": "Sensors Radar",
+						"department": "sciences",
+						"controller": "sensors.radar",
+						"compartment": "bridge",
+						"effects": {
+							"sensors.radar": ["sensors"]
+						}
+					},
+					{
+						"id": "navigation.orders",
+						"label": "Navigation Orders",
+						"department": "command",
+						"controller": "navigation.orders",
+						"compartment": "bridge",
+						"effects": {}
+					}
+				],
+				"officers": [
+					{
+						"id": "officer-1",
+						"name": "Mara Venn",
+						"portrait": "phoenix-base:assets/personnel/officer-1.png",
+						"department": "command",
+						"duty": "navigation.orders",
+						"compartment": "bridge",
+						"traits": ["sensors"]
+					},
+					{
+						"id": "officer-2",
+						"name": "Idris Holt",
+						"portrait": "phoenix-base:assets/personnel/officer-2.png",
+						"department": "sailing",
+						"duty": "drive.engine",
+						"compartment": "bridge",
+						"traits": ["propulsion"]
+					},
+					{
+						"id": "officer-3",
+						"name": "Sera Dain",
+						"portrait": "phoenix-base:assets/personnel/officer-3.png",
+						"department": "sailing",
+						"duty": "drive.boost",
+						"compartment": "bridge",
+						"traits": ["propulsion"]
+					},
+					{
+						"id": "officer-4",
+						"name": "Tomas Rook",
+						"portrait": "phoenix-base:assets/personnel/officer-4.png",
+						"department": "engineering",
+						"duty": "core.distribution.orders",
+						"compartment": "engineering",
+						"traits": ["repair"]
+					},
+					{
+						"id": "officer-5",
+						"name": "Nadia Keene",
+						"portrait": "phoenix-base:assets/personnel/officer-5.png",
+						"department": "engineering",
+						"duty": "core.distribution",
+						"compartment": "engineering",
+						"traits": ["repair"]
+					},
+					{
+						"id": "officer-6",
+						"name": "Jonas Pell",
+						"portrait": "phoenix-base:assets/personnel/officer-6.png",
+						"department": "sciences",
+						"duty": "sensors.radar",
+						"compartment": "bridge",
+						"traits": ["sensors"]
+					}
+				],
+				"compartments": ["bridge", "engineering", "operations"],
+				"connections": [
+					{
+						"from": "bridge",
+						"to": "operations",
+						"ticks": 40
+					},
+					{
+						"from": "operations",
+						"to": "engineering",
+						"ticks": 60
+					}
+				]
 			}
 		},
 		{
@@ -8436,6 +10890,445 @@
 						"public": false
 					}
 				]
+			},
+			"personnel": {
+				"departments": [
+					{
+						"id": "command",
+						"label": "Command",
+						"station": "support"
+					},
+					{
+						"id": "sailing",
+						"label": "Sailing",
+						"station": "helm"
+					},
+					{
+						"id": "tactical",
+						"label": "Tactical",
+						"station": "helm"
+					},
+					{
+						"id": "engineering",
+						"label": "Engineering",
+						"station": "support"
+					},
+					{
+						"id": "sciences",
+						"label": "Sciences",
+						"station": "support"
+					},
+					{
+						"id": "signals",
+						"label": "Signals",
+						"station": "support"
+					}
+				],
+				"traits": [
+					{
+						"id": "propulsion",
+						"label": "Drive specialist",
+						"bonuses": {
+							"propulsion": 200
+						}
+					},
+					{
+						"id": "sensors",
+						"label": "Keen observer",
+						"bonuses": {
+							"sensors": 200
+						}
+					},
+					{
+						"id": "cycling",
+						"label": "Gunnery drill",
+						"bonuses": {
+							"cycling": 150
+						}
+					},
+					{
+						"id": "traverse",
+						"label": "Steady tracking",
+						"bonuses": {
+							"traverse": 200
+						}
+					},
+					{
+						"id": "reload",
+						"label": "Magazine discipline",
+						"bonuses": {
+							"reload": 150
+						}
+					},
+					{
+						"id": "recharge",
+						"label": "Field specialist",
+						"bonuses": {
+							"recharge": 200
+						}
+					},
+					{
+						"id": "repair",
+						"label": "Damage control veteran",
+						"bonuses": {
+							"repair": 200
+						}
+					},
+					{
+						"id": "comms",
+						"label": "Signal clarity",
+						"bonuses": {
+							"comms": 200
+						}
+					}
+				],
+				"duties": [
+					{
+						"id": "drive",
+						"label": "Drive",
+						"department": "sailing",
+						"controller": "drive",
+						"compartment": "stern-port",
+						"effects": {
+							"drive": ["propulsion"]
+						}
+					},
+					{
+						"id": "helm",
+						"label": "Helm",
+						"department": "sailing",
+						"controller": "helm",
+						"compartment": "bow-port",
+						"effects": {}
+					},
+					{
+						"id": "radar",
+						"label": "Radar",
+						"department": "sciences",
+						"controller": "radar",
+						"compartment": "bow-starboard",
+						"effects": {
+							"radar": ["sensors"]
+						}
+					},
+					{
+						"id": "top",
+						"label": "Top",
+						"department": "tactical",
+						"controller": "top",
+						"compartment": "mid-port",
+						"effects": {
+							"top": ["traverse"]
+						}
+					},
+					{
+						"id": "top-mag",
+						"label": "Top Mag",
+						"department": "tactical",
+						"controller": "top-mag",
+						"compartment": "mid-port",
+						"effects": {
+							"top-mag": ["reload"]
+						}
+					},
+					{
+						"id": "top-gun",
+						"label": "Top Gun",
+						"department": "tactical",
+						"controller": "top-gun",
+						"compartment": "mid-port",
+						"effects": {
+							"top-gun": ["cycling"]
+						}
+					},
+					{
+						"id": "bottom",
+						"label": "Bottom",
+						"department": "tactical",
+						"controller": "bottom",
+						"compartment": "mid-starboard",
+						"effects": {
+							"bottom": ["traverse"]
+						}
+					},
+					{
+						"id": "bottom-mag",
+						"label": "Bottom Mag",
+						"department": "tactical",
+						"controller": "bottom-mag",
+						"compartment": "mid-starboard",
+						"effects": {
+							"bottom-mag": ["reload"]
+						}
+					},
+					{
+						"id": "bottom-gun",
+						"label": "Bottom Gun",
+						"department": "tactical",
+						"controller": "bottom-gun",
+						"compartment": "mid-starboard",
+						"effects": {
+							"bottom-gun": ["cycling"]
+						}
+					},
+					{
+						"id": "forward-mag",
+						"label": "Forward Mag",
+						"department": "tactical",
+						"controller": "forward-mag",
+						"compartment": "bow-port",
+						"effects": {
+							"forward-mag": ["reload"]
+						}
+					},
+					{
+						"id": "forward-gun",
+						"label": "Forward Gun",
+						"department": "tactical",
+						"controller": "forward-gun",
+						"compartment": "bow-port",
+						"effects": {
+							"forward-gun": ["cycling"]
+						}
+					},
+					{
+						"id": "team-1",
+						"label": "Team 1",
+						"department": "engineering",
+						"controller": "team-1",
+						"compartment": "stern-starboard",
+						"effects": {
+							"team-1": ["repair"]
+						}
+					},
+					{
+						"id": "team-2",
+						"label": "Team 2",
+						"department": "engineering",
+						"controller": "team-2",
+						"compartment": "stern-starboard",
+						"effects": {
+							"team-2": ["repair"]
+						}
+					},
+					{
+						"id": "reactor",
+						"label": "Reactor",
+						"department": "engineering",
+						"controller": "reactor",
+						"compartment": "mid-port",
+						"effects": {}
+					},
+					{
+						"id": "weapon-cell",
+						"label": "Weapon Cell",
+						"department": "engineering",
+						"controller": "weapon-cell",
+						"compartment": "mid-port",
+						"effects": {}
+					},
+					{
+						"id": "shield-cell",
+						"label": "Shield Cell",
+						"department": "engineering",
+						"controller": "shield-cell",
+						"compartment": "mid-port",
+						"effects": {}
+					},
+					{
+						"id": "beam",
+						"label": "Beam",
+						"department": "tactical",
+						"controller": "beam",
+						"compartment": "mid-port",
+						"effects": {
+							"beam": ["cycling"]
+						}
+					},
+					{
+						"id": "shield-fore",
+						"label": "Shield Fore",
+						"department": "sciences",
+						"controller": "shield-fore",
+						"compartment": "mid-port",
+						"effects": {
+							"shield-fore": ["recharge"]
+						}
+					},
+					{
+						"id": "shield-aft",
+						"label": "Shield Aft",
+						"department": "sciences",
+						"controller": "shield-aft",
+						"compartment": "mid-port",
+						"effects": {
+							"shield-aft": ["recharge"]
+						}
+					},
+					{
+						"id": "homing-mag",
+						"label": "Homing Mag",
+						"department": "tactical",
+						"controller": "homing-mag",
+						"compartment": "mid-port",
+						"effects": {
+							"homing-mag": ["reload"]
+						}
+					},
+					{
+						"id": "havok-mag",
+						"label": "Havok Mag",
+						"department": "tactical",
+						"controller": "havok-mag",
+						"compartment": "mid-port",
+						"effects": {
+							"havok-mag": ["reload"]
+						}
+					},
+					{
+						"id": "missile-launcher",
+						"label": "Missile Launcher",
+						"department": "tactical",
+						"controller": "missile-launcher",
+						"compartment": "mid-port",
+						"effects": {
+							"missile-launcher": ["cycling"]
+						}
+					},
+					{
+						"id": "pdc-mag",
+						"label": "Pdc Mag",
+						"department": "tactical",
+						"controller": "pdc-mag",
+						"compartment": "mid-port",
+						"effects": {
+							"pdc-mag": ["reload"]
+						}
+					},
+					{
+						"id": "pdc",
+						"label": "Pdc",
+						"department": "tactical",
+						"controller": "pdc",
+						"compartment": "mid-port",
+						"effects": {
+							"pdc": ["cycling"]
+						}
+					},
+					{
+						"id": "external-comms",
+						"label": "External Comms",
+						"department": "signals",
+						"controller": "external-comms",
+						"compartment": "bow-port",
+						"effects": {
+							"comms-radio": ["comms"]
+						}
+					},
+					{
+						"id": "team.team-1",
+						"label": "Team 1 team",
+						"department": "engineering",
+						"team": "team-1",
+						"compartment": "stern-starboard",
+						"effects": {
+							"team-1": ["repair"]
+						}
+					},
+					{
+						"id": "team.team-2",
+						"label": "Team 2 team",
+						"department": "engineering",
+						"team": "team-2",
+						"compartment": "stern-starboard",
+						"effects": {
+							"team-2": ["repair"]
+						}
+					}
+				],
+				"officers": [
+					{
+						"id": "officer-1",
+						"name": "Mara Venn",
+						"portrait": "phoenix-base:assets/personnel/officer-1.png",
+						"department": "sailing",
+						"duty": "drive",
+						"compartment": "stern-port",
+						"traits": ["propulsion"]
+					},
+					{
+						"id": "officer-2",
+						"name": "Idris Holt",
+						"portrait": "phoenix-base:assets/personnel/officer-2.png",
+						"department": "sailing",
+						"duty": "helm",
+						"compartment": "bow-port",
+						"traits": ["propulsion"]
+					},
+					{
+						"id": "officer-3",
+						"name": "Sera Dain",
+						"portrait": "phoenix-base:assets/personnel/officer-3.png",
+						"department": "tactical",
+						"duty": "top",
+						"compartment": "mid-port",
+						"traits": ["traverse"]
+					},
+					{
+						"id": "officer-4",
+						"name": "Tomas Rook",
+						"portrait": "phoenix-base:assets/personnel/officer-4.png",
+						"department": "tactical",
+						"duty": "top-mag",
+						"compartment": "mid-port",
+						"traits": ["reload"]
+					},
+					{
+						"id": "officer-5",
+						"name": "Nadia Keene",
+						"portrait": "phoenix-base:assets/personnel/officer-5.png",
+						"department": "engineering",
+						"duty": "team.team-1",
+						"compartment": "stern-starboard",
+						"traits": ["repair"]
+					},
+					{
+						"id": "officer-6",
+						"name": "Jonas Pell",
+						"portrait": "phoenix-base:assets/personnel/officer-6.png",
+						"department": "engineering",
+						"duty": "team.team-2",
+						"compartment": "stern-starboard",
+						"traits": ["repair"]
+					},
+					{
+						"id": "officer-7",
+						"name": "Elin Saye",
+						"portrait": "phoenix-base:assets/personnel/officer-7.png",
+						"department": "sciences",
+						"duty": "radar",
+						"compartment": "bow-starboard",
+						"traits": ["sensors"]
+					},
+					{
+						"id": "officer-8",
+						"name": "Cassian Ward",
+						"portrait": "phoenix-base:assets/personnel/officer-8.png",
+						"department": "sciences",
+						"duty": "shield-fore",
+						"compartment": "mid-port",
+						"traits": ["recharge"]
+					},
+					{
+						"id": "officer-9",
+						"name": "Iona Marr",
+						"portrait": "phoenix-base:assets/personnel/officer-9.png",
+						"department": "signals",
+						"duty": "external-comms",
+						"compartment": "bow-port",
+						"traits": ["comms"]
+					}
+				]
 			}
 		},
 		{
@@ -9716,7 +12609,407 @@
 					"id": "combat-power",
 					"assembly": "base.assembly.combat-power"
 				}
-			]
+			],
+			"personnel": {
+				"departments": [
+					{
+						"id": "command",
+						"label": "Command",
+						"station": "support"
+					},
+					{
+						"id": "sailing",
+						"label": "Sailing",
+						"station": "helm"
+					},
+					{
+						"id": "tactical",
+						"label": "Tactical",
+						"station": "helm"
+					},
+					{
+						"id": "engineering",
+						"label": "Engineering",
+						"station": "support"
+					},
+					{
+						"id": "sciences",
+						"label": "Sciences",
+						"station": "support"
+					},
+					{
+						"id": "signals",
+						"label": "Signals",
+						"station": "support"
+					}
+				],
+				"traits": [
+					{
+						"id": "propulsion",
+						"label": "Drive specialist",
+						"bonuses": {
+							"propulsion": 200
+						}
+					},
+					{
+						"id": "sensors",
+						"label": "Keen observer",
+						"bonuses": {
+							"sensors": 200
+						}
+					},
+					{
+						"id": "cycling",
+						"label": "Gunnery drill",
+						"bonuses": {
+							"cycling": 150
+						}
+					},
+					{
+						"id": "traverse",
+						"label": "Steady tracking",
+						"bonuses": {
+							"traverse": 200
+						}
+					},
+					{
+						"id": "reload",
+						"label": "Magazine discipline",
+						"bonuses": {
+							"reload": 150
+						}
+					},
+					{
+						"id": "recharge",
+						"label": "Field specialist",
+						"bonuses": {
+							"recharge": 200
+						}
+					},
+					{
+						"id": "repair",
+						"label": "Damage control veteran",
+						"bonuses": {
+							"repair": 200
+						}
+					},
+					{
+						"id": "comms",
+						"label": "Signal clarity",
+						"bonuses": {
+							"comms": 200
+						}
+					}
+				],
+				"duties": [
+					{
+						"id": "drive",
+						"label": "Drive",
+						"department": "sailing",
+						"controller": "drive",
+						"compartment": "stern-port",
+						"effects": {
+							"drive": ["propulsion"]
+						}
+					},
+					{
+						"id": "helm",
+						"label": "Helm",
+						"department": "sailing",
+						"controller": "helm",
+						"compartment": "bow-port",
+						"effects": {}
+					},
+					{
+						"id": "radar",
+						"label": "Radar",
+						"department": "sciences",
+						"controller": "radar",
+						"compartment": "bow-starboard",
+						"effects": {
+							"radar": ["sensors"]
+						}
+					},
+					{
+						"id": "top",
+						"label": "Top",
+						"department": "tactical",
+						"controller": "top",
+						"compartment": "mid-port",
+						"effects": {
+							"top": ["traverse"]
+						}
+					},
+					{
+						"id": "top-mag",
+						"label": "Top Mag",
+						"department": "tactical",
+						"controller": "top-mag",
+						"compartment": "mid-port",
+						"effects": {
+							"top-mag": ["reload"]
+						}
+					},
+					{
+						"id": "top-gun",
+						"label": "Top Gun",
+						"department": "tactical",
+						"controller": "top-gun",
+						"compartment": "mid-port",
+						"effects": {
+							"top-gun": ["cycling"]
+						}
+					},
+					{
+						"id": "bottom",
+						"label": "Bottom",
+						"department": "tactical",
+						"controller": "bottom",
+						"compartment": "mid-starboard",
+						"effects": {
+							"bottom": ["traverse"]
+						}
+					},
+					{
+						"id": "bottom-mag",
+						"label": "Bottom Mag",
+						"department": "tactical",
+						"controller": "bottom-mag",
+						"compartment": "mid-starboard",
+						"effects": {
+							"bottom-mag": ["reload"]
+						}
+					},
+					{
+						"id": "bottom-gun",
+						"label": "Bottom Gun",
+						"department": "tactical",
+						"controller": "bottom-gun",
+						"compartment": "mid-starboard",
+						"effects": {
+							"bottom-gun": ["cycling"]
+						}
+					},
+					{
+						"id": "team-1",
+						"label": "Team 1",
+						"department": "engineering",
+						"controller": "team-1",
+						"compartment": "stern-starboard",
+						"effects": {
+							"team-1": ["repair"]
+						}
+					},
+					{
+						"id": "team-2",
+						"label": "Team 2",
+						"department": "engineering",
+						"controller": "team-2",
+						"compartment": "stern-starboard",
+						"effects": {
+							"team-2": ["repair"]
+						}
+					},
+					{
+						"id": "reactor",
+						"label": "Reactor",
+						"department": "engineering",
+						"controller": "reactor",
+						"compartment": "mid-port",
+						"effects": {}
+					},
+					{
+						"id": "weapon-cell",
+						"label": "Weapon Cell",
+						"department": "engineering",
+						"controller": "weapon-cell",
+						"compartment": "mid-port",
+						"effects": {}
+					},
+					{
+						"id": "shield-cell",
+						"label": "Shield Cell",
+						"department": "engineering",
+						"controller": "shield-cell",
+						"compartment": "mid-port",
+						"effects": {}
+					},
+					{
+						"id": "beam",
+						"label": "Beam",
+						"department": "tactical",
+						"controller": "beam",
+						"compartment": "mid-port",
+						"effects": {
+							"beam": ["cycling"]
+						}
+					},
+					{
+						"id": "shield-fore",
+						"label": "Shield Fore",
+						"department": "sciences",
+						"controller": "shield-fore",
+						"compartment": "mid-port",
+						"effects": {
+							"shield-fore": ["recharge"]
+						}
+					},
+					{
+						"id": "shield-aft",
+						"label": "Shield Aft",
+						"department": "sciences",
+						"controller": "shield-aft",
+						"compartment": "mid-port",
+						"effects": {
+							"shield-aft": ["recharge"]
+						}
+					},
+					{
+						"id": "homing-mag",
+						"label": "Homing Mag",
+						"department": "tactical",
+						"controller": "homing-mag",
+						"compartment": "mid-port",
+						"effects": {
+							"homing-mag": ["reload"]
+						}
+					},
+					{
+						"id": "havok-mag",
+						"label": "Havok Mag",
+						"department": "tactical",
+						"controller": "havok-mag",
+						"compartment": "mid-port",
+						"effects": {
+							"havok-mag": ["reload"]
+						}
+					},
+					{
+						"id": "missile-launcher",
+						"label": "Missile Launcher",
+						"department": "tactical",
+						"controller": "missile-launcher",
+						"compartment": "mid-port",
+						"effects": {
+							"missile-launcher": ["cycling"]
+						}
+					},
+					{
+						"id": "pdc-mag",
+						"label": "Pdc Mag",
+						"department": "tactical",
+						"controller": "pdc-mag",
+						"compartment": "mid-port",
+						"effects": {
+							"pdc-mag": ["reload"]
+						}
+					},
+					{
+						"id": "pdc",
+						"label": "Pdc",
+						"department": "tactical",
+						"controller": "pdc",
+						"compartment": "mid-port",
+						"effects": {
+							"pdc": ["cycling"]
+						}
+					},
+					{
+						"id": "team.team-1",
+						"label": "Team 1 team",
+						"department": "engineering",
+						"team": "team-1",
+						"compartment": "stern-starboard",
+						"effects": {
+							"team-1": ["repair"]
+						}
+					},
+					{
+						"id": "team.team-2",
+						"label": "Team 2 team",
+						"department": "engineering",
+						"team": "team-2",
+						"compartment": "stern-starboard",
+						"effects": {
+							"team-2": ["repair"]
+						}
+					}
+				],
+				"officers": [
+					{
+						"id": "officer-1",
+						"name": "Mara Venn",
+						"portrait": "phoenix-base:assets/personnel/officer-1.png",
+						"department": "sailing",
+						"duty": "drive",
+						"compartment": "stern-port",
+						"traits": ["propulsion"]
+					},
+					{
+						"id": "officer-2",
+						"name": "Idris Holt",
+						"portrait": "phoenix-base:assets/personnel/officer-2.png",
+						"department": "sailing",
+						"duty": "helm",
+						"compartment": "bow-port",
+						"traits": ["propulsion"]
+					},
+					{
+						"id": "officer-3",
+						"name": "Sera Dain",
+						"portrait": "phoenix-base:assets/personnel/officer-3.png",
+						"department": "tactical",
+						"duty": "top",
+						"compartment": "mid-port",
+						"traits": ["traverse"]
+					},
+					{
+						"id": "officer-4",
+						"name": "Tomas Rook",
+						"portrait": "phoenix-base:assets/personnel/officer-4.png",
+						"department": "tactical",
+						"duty": "top-mag",
+						"compartment": "mid-port",
+						"traits": ["reload"]
+					},
+					{
+						"id": "officer-5",
+						"name": "Nadia Keene",
+						"portrait": "phoenix-base:assets/personnel/officer-5.png",
+						"department": "engineering",
+						"duty": "team.team-1",
+						"compartment": "stern-starboard",
+						"traits": ["repair"]
+					},
+					{
+						"id": "officer-6",
+						"name": "Jonas Pell",
+						"portrait": "phoenix-base:assets/personnel/officer-6.png",
+						"department": "engineering",
+						"duty": "team.team-2",
+						"compartment": "stern-starboard",
+						"traits": ["repair"]
+					},
+					{
+						"id": "officer-7",
+						"name": "Elin Saye",
+						"portrait": "phoenix-base:assets/personnel/officer-7.png",
+						"department": "sciences",
+						"duty": "radar",
+						"compartment": "bow-starboard",
+						"traits": ["sensors"]
+					},
+					{
+						"id": "officer-8",
+						"name": "Cassian Ward",
+						"portrait": "phoenix-base:assets/personnel/officer-8.png",
+						"department": "sciences",
+						"duty": "shield-fore",
+						"compartment": "mid-port",
+						"traits": ["recharge"]
+					}
+				]
+			}
 		},
 		{
 			"id": "base.combat-missile",
@@ -11190,6 +14483,503 @@
 						"id": "engineer",
 						"name_key": "Engineer Orin",
 						"public": false
+					}
+				]
+			},
+			"personnel": {
+				"departments": [
+					{
+						"id": "command",
+						"label": "Command",
+						"station": "engineering"
+					},
+					{
+						"id": "sailing",
+						"label": "Sailing",
+						"station": "helm"
+					},
+					{
+						"id": "tactical",
+						"label": "Tactical",
+						"station": "helm"
+					},
+					{
+						"id": "engineering",
+						"label": "Engineering",
+						"station": "engineering"
+					},
+					{
+						"id": "sciences",
+						"label": "Sciences",
+						"station": "helm"
+					},
+					{
+						"id": "signals",
+						"label": "Signals",
+						"station": "engineering"
+					}
+				],
+				"traits": [
+					{
+						"id": "propulsion",
+						"label": "Drive specialist",
+						"bonuses": {
+							"propulsion": 200
+						}
+					},
+					{
+						"id": "sensors",
+						"label": "Keen observer",
+						"bonuses": {
+							"sensors": 200
+						}
+					},
+					{
+						"id": "cycling",
+						"label": "Gunnery drill",
+						"bonuses": {
+							"cycling": 150
+						}
+					},
+					{
+						"id": "traverse",
+						"label": "Steady tracking",
+						"bonuses": {
+							"traverse": 200
+						}
+					},
+					{
+						"id": "reload",
+						"label": "Magazine discipline",
+						"bonuses": {
+							"reload": 150
+						}
+					},
+					{
+						"id": "recharge",
+						"label": "Field specialist",
+						"bonuses": {
+							"recharge": 200
+						}
+					},
+					{
+						"id": "repair",
+						"label": "Damage control veteran",
+						"bonuses": {
+							"repair": 200
+						}
+					},
+					{
+						"id": "comms",
+						"label": "Signal clarity",
+						"bonuses": {
+							"comms": 200
+						}
+					}
+				],
+				"duties": [
+					{
+						"id": "core.distribution.orders",
+						"label": "Core Distribution Orders",
+						"department": "engineering",
+						"controller": "core.distribution.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.distribution",
+						"label": "Core Distribution",
+						"department": "engineering",
+						"controller": "core.distribution",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.generator.orders",
+						"label": "Core Generator Orders",
+						"department": "engineering",
+						"controller": "core.generator.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.generator",
+						"label": "Core Generator",
+						"department": "engineering",
+						"controller": "core.generator",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.pump",
+						"label": "Core Pump",
+						"department": "engineering",
+						"controller": "core.pump",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.reactor-cooling.orders",
+						"label": "Core Reactor Cooling Orders",
+						"department": "engineering",
+						"controller": "core.reactor-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.reactor-cooling",
+						"label": "Core Reactor Cooling",
+						"department": "engineering",
+						"controller": "core.reactor-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "core.reserve",
+						"label": "Core Reserve",
+						"department": "engineering",
+						"controller": "core.reserve",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.boost",
+						"label": "Drive Boost",
+						"department": "sailing",
+						"controller": "drive.boost",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "drive.boost-cooling.orders",
+						"label": "Drive Boost Cooling Orders",
+						"department": "engineering",
+						"controller": "drive.boost-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.boost-cooling",
+						"label": "Drive Boost Cooling",
+						"department": "engineering",
+						"controller": "drive.boost-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.boost-supply.orders",
+						"label": "Drive Boost Supply Orders",
+						"department": "engineering",
+						"controller": "drive.boost-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.boost-supply",
+						"label": "Drive Boost Supply",
+						"department": "engineering",
+						"controller": "drive.boost-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.distribution.orders",
+						"label": "Drive Distribution Orders",
+						"department": "engineering",
+						"controller": "drive.distribution.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.distribution",
+						"label": "Drive Distribution",
+						"department": "engineering",
+						"controller": "drive.distribution",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.engine",
+						"label": "Drive Engine",
+						"department": "sailing",
+						"controller": "drive.engine",
+						"compartment": "bridge",
+						"effects": {
+							"drive.engine": ["propulsion"]
+						}
+					},
+					{
+						"id": "drive.engine-cooling.orders",
+						"label": "Drive Engine Cooling Orders",
+						"department": "engineering",
+						"controller": "drive.engine-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.engine-cooling",
+						"label": "Drive Engine Cooling",
+						"department": "engineering",
+						"controller": "drive.engine-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.engine-supply.orders",
+						"label": "Drive Engine Supply Orders",
+						"department": "engineering",
+						"controller": "drive.engine-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.engine-supply",
+						"label": "Drive Engine Supply",
+						"department": "engineering",
+						"controller": "drive.engine-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.impulse",
+						"label": "Drive Impulse",
+						"department": "sailing",
+						"controller": "drive.impulse",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "drive.impulse-cooling.orders",
+						"label": "Drive Impulse Cooling Orders",
+						"department": "engineering",
+						"controller": "drive.impulse-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.impulse-cooling",
+						"label": "Drive Impulse Cooling",
+						"department": "engineering",
+						"controller": "drive.impulse-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.impulse-supply.orders",
+						"label": "Drive Impulse Supply Orders",
+						"department": "engineering",
+						"controller": "drive.impulse-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.impulse-supply",
+						"label": "Drive Impulse Supply",
+						"department": "engineering",
+						"controller": "drive.impulse-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.lateral",
+						"label": "Drive Lateral",
+						"department": "sailing",
+						"controller": "drive.lateral",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "drive.lateral-cooling.orders",
+						"label": "Drive Lateral Cooling Orders",
+						"department": "engineering",
+						"controller": "drive.lateral-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.lateral-cooling",
+						"label": "Drive Lateral Cooling",
+						"department": "engineering",
+						"controller": "drive.lateral-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.lateral-supply.orders",
+						"label": "Drive Lateral Supply Orders",
+						"department": "engineering",
+						"controller": "drive.lateral-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.lateral-supply",
+						"label": "Drive Lateral Supply",
+						"department": "engineering",
+						"controller": "drive.lateral-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.steering",
+						"label": "Drive Steering",
+						"department": "sailing",
+						"controller": "drive.steering",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "drive.steering-cooling.orders",
+						"label": "Drive Steering Cooling Orders",
+						"department": "engineering",
+						"controller": "drive.steering-cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.steering-cooling",
+						"label": "Drive Steering Cooling",
+						"department": "engineering",
+						"controller": "drive.steering-cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.steering-supply.orders",
+						"label": "Drive Steering Supply Orders",
+						"department": "engineering",
+						"controller": "drive.steering-supply.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "drive.steering-supply",
+						"label": "Drive Steering Supply",
+						"department": "engineering",
+						"controller": "drive.steering-supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "sensors.cooling.orders",
+						"label": "Sensors Cooling Orders",
+						"department": "engineering",
+						"controller": "sensors.cooling.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "sensors.cooling",
+						"label": "Sensors Cooling",
+						"department": "engineering",
+						"controller": "sensors.cooling",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "sensors.distribution.orders",
+						"label": "Sensors Distribution Orders",
+						"department": "engineering",
+						"controller": "sensors.distribution.orders",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "sensors.distribution",
+						"label": "Sensors Distribution",
+						"department": "engineering",
+						"controller": "sensors.distribution",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "sensors.radar",
+						"label": "Sensors Radar",
+						"department": "sciences",
+						"controller": "sensors.radar",
+						"compartment": "bridge",
+						"effects": {
+							"sensors.radar": ["sensors"]
+						}
+					},
+					{
+						"id": "external-comms",
+						"label": "External Comms",
+						"department": "signals",
+						"controller": "external-comms",
+						"compartment": "bridge",
+						"effects": {
+							"comms-radio": ["comms"]
+						}
+					}
+				],
+				"officers": [
+					{
+						"id": "officer-1",
+						"name": "Mara Venn",
+						"portrait": "phoenix-base:assets/personnel/officer-1.png",
+						"department": "sailing",
+						"duty": "drive.engine",
+						"compartment": "bridge",
+						"traits": ["propulsion"]
+					},
+					{
+						"id": "officer-2",
+						"name": "Idris Holt",
+						"portrait": "phoenix-base:assets/personnel/officer-2.png",
+						"department": "sailing",
+						"duty": "drive.boost",
+						"compartment": "bridge",
+						"traits": ["propulsion"]
+					},
+					{
+						"id": "officer-3",
+						"name": "Sera Dain",
+						"portrait": "phoenix-base:assets/personnel/officer-3.png",
+						"department": "engineering",
+						"duty": "core.distribution.orders",
+						"compartment": "engineering",
+						"traits": ["repair"]
+					},
+					{
+						"id": "officer-4",
+						"name": "Tomas Rook",
+						"portrait": "phoenix-base:assets/personnel/officer-4.png",
+						"department": "engineering",
+						"duty": "core.distribution",
+						"compartment": "engineering",
+						"traits": ["repair"]
+					},
+					{
+						"id": "officer-5",
+						"name": "Nadia Keene",
+						"portrait": "phoenix-base:assets/personnel/officer-5.png",
+						"department": "sciences",
+						"duty": "sensors.radar",
+						"compartment": "bridge",
+						"traits": ["sensors"]
+					},
+					{
+						"id": "officer-6",
+						"name": "Jonas Pell",
+						"portrait": "phoenix-base:assets/personnel/officer-6.png",
+						"department": "signals",
+						"duty": "external-comms",
+						"compartment": "bridge",
+						"traits": ["comms"]
+					}
+				],
+				"compartments": ["bridge", "engineering", "operations"],
+				"connections": [
+					{
+						"from": "bridge",
+						"to": "operations",
+						"ticks": 40
+					},
+					{
+						"from": "operations",
+						"to": "engineering",
+						"ticks": 60
 					}
 				]
 			}

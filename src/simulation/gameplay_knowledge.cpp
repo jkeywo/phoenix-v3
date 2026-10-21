@@ -600,7 +600,7 @@ KnowledgeId GameplayKnowledge::admit_template(const ConsoleAddress &source, cons
                                               ControlOrigin origin, KnowledgeTick tick,
                                               std::map<std::string, std::string> parameters, bool execute,
                                               bool controller, const std::string &speaker_name,
-                                              const Bytes &speaker_avatar)
+                                              const Bytes &speaker_avatar, const std::string &speaker_portrait)
 {
 	const auto &definition = message_definition(name);
 	knowledge_require(payload.schema == definition.schema, "payload does not match message template");
@@ -638,11 +638,12 @@ KnowledgeId GameplayKnowledge::admit_template(const ConsoleAddress &source, cons
 		break;
 	}
 	value.presentation = definition.presentation;
-	if (origin == ControlOrigin::Human)
+	if (origin == ControlOrigin::Human || (origin == ControlOrigin::AI && controller))
 	{
 		knowledge_require(speaker_name.size() <= 64 && speaker_avatar.size() <= 12288, "speaker profile exceeds limit");
 		value.presentation.speaker_name = speaker_name;
 		value.presentation.speaker_avatar = speaker_avatar;
+		value.presentation.speaker_portrait = speaker_portrait;
 	}
 	for (auto &[key, parameter] : parameters)
 		value.presentation.parameters[key] = std::move(parameter);
@@ -763,6 +764,7 @@ Json GameplayKnowledge::project_json(const ConsoleAddress &address, bool public_
 		     {"sender_console_key", source.console},
 		     {"sender_console_label", label == console_labels_.end() ? source.console : label->second},
 		     {"speaker_name", p.speaker_name},
+		     {"speaker_portrait", p.speaker_portrait},
 		     {"speaker_avatar", p.speaker_avatar},
 		     {"origin", static_cast<unsigned>(message.value.origin)},
 		     {"destination_kind", static_cast<unsigned>(message.value.destination.kind)},

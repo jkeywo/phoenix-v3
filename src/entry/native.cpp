@@ -30,6 +30,7 @@ import phoenix.workshop_test;
 #include "../../tests/manual/bridge_ui.hpp"
 
 int main(int argc, char **argv)
+try
 {
 	if (argc > 1 && std::strcmp(argv[1], "--build-check") == 0)
 	{
@@ -51,7 +52,7 @@ int main(int argc, char **argv)
 	unsigned join_ready_frames = 0;
 	int smoke_frames = 0;
 	bool helm_smoke = false, readout_smoke = false, controller_report_smoke = false;
-	bool engineering_smoke = false;
+	bool engineering_smoke = false, personnel_smoke = false;
 	bool navigation_smoke = false;
 	bool on_screen_smoke = false;
 	int bridge_smoke_width = 0, bridge_smoke_height = 0;
@@ -177,6 +178,11 @@ int main(int argc, char **argv)
 		if (argument == "--controller-report-smoke")
 		{
 			controller_report_smoke = helm_smoke = true;
+			smoke_frames = 90;
+		}
+		if (argument == "--personnel-smoke")
+		{
+			personnel_smoke = true;
 			smoke_frames = 90;
 		}
 		if (argument == "--engineering-smoke")
@@ -853,6 +859,41 @@ int main(int argc, char **argv)
 			if (smoke_frames == 1)
 				std::cout << "Workshop Controller edit/export/reopen/Test/Pause/Step/Restart smoke passed\n";
 		}
+
+		if (personnel_smoke)
+		{
+			if (smoke_frames == 80)
+			{
+				std::string open;
+				for (const auto &[id, label] : app.screen_controls)
+					if (id.ends_with("/personnel"))
+						open = id;
+				if (open.empty() && GetTime() - smoke_started < 90)
+				{
+					smoke_frames = 81;
+					continue;
+				}
+				if (open.empty() || !phoenix::invoke_navigation(app, open))
+					throw std::runtime_error("Personnel button missing after loading");
+			}
+			if (smoke_frames == 60 || smoke_frames == 40 || smoke_frames == 20)
+			{
+				const auto prefix = smoke_frames == 60   ? "console/1/personnel/select/"
+				                    : smoke_frames == 40 ? "console/1/personnel/relieve"
+				                                         : "console/1/personnel/assign/";
+				std::string action;
+				for (const auto &[id, label] : app.screen_controls)
+					if (id.starts_with(prefix))
+					{
+						action = id;
+						break;
+					}
+				if (action.empty() || !phoenix::invoke_navigation(app, action))
+					throw std::runtime_error("Personnel roster action missing");
+			}
+			if (smoke_frames == 2)
+				TakeScreenshot("build/personnel-smoke.png");
+		}
 		if (engineering_smoke)
 		{
 			if ((smoke_frames == 80 && !phoenix::probe_console_engineering(1, 0)) ||
@@ -942,4 +983,10 @@ int main(int argc, char **argv)
 		std::cerr << "Manual performance capture ended before the requested sample count\n";
 		return 1;
 	}
+}
+
+catch (const std::exception &error)
+{
+	std::cerr << "Native application: " << error.what() << std::endl;
+	return 1;
 }

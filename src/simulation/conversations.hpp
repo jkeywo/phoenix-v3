@@ -60,7 +60,8 @@ void refresh_comms()
 			if (fit.enabled && funded && !structurally_disabled(entity, fit.id) && !combat_dead(entity))
 			{
 				endpoint.working = true;
-				endpoint.range = std::max(endpoint.range, fit.maximum * fault_effectiveness(entity, fit.id) / 1000);
+				endpoint.range = std::max(endpoint.range, officer_value(id, fit.id, "comms", fit.maximum) *
+				                                              fault_effectiveness(entity, fit.id) / 1000);
 			}
 		}
 		conversations.endpoints[id] = endpoint;

@@ -847,6 +847,79 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		{
+			auto source = fixture();
+			auto &ship = source["entities"][0];
+			Json duties = Json::array();
+			for (const auto &c : ship["control_layout"]["controllers"])
+			{
+				Json duty{{"id", "controller-" + c.at("id").get<std::string>()},
+				          {"label", "Watch"},
+				          {"controller", c.at("id")},
+				          {"console", c.at("console")},
+				          {"department", "engineering"},
+				          {"compartment", "fore"}};
+				if (c.at("id") == "team-a")
+					duty["effects"] = {{"team-a", {"repair"}}};
+				duties.push_back(duty);
+			}
+			for (const auto *team : {"team-a", "team-b"})
+				duties.push_back({{"id", std::string("leader-") + team},
+				                  {"label", "Team leader"},
+				                  {"team", team},
+				                  {"department", "engineering"},
+				                  {"compartment", "fore"},
+				                  {"effects", {{team, {"repair"}}}}});
+			ship["personnel"] = {
+			    {"departments",
+			     Json::array({{{"id", "engineering"}, {"label", "Engineering"}, {"station", "operations"}}})},
+			    {"traits", Json::array({{{"id", "expert"}, {"label", "Expert"}, {"bonuses", {{"repair", 250}}}}})},
+			    {"duties", duties},
+			    {"officers", Json::array({{{"id", "controller"},
+			                               {"name", "Controller officer"},
+			                               {"department", "engineering"},
+			                               {"compartment", "fore"},
+			                               {"duty", "controller-team-a"},
+			                               {"traits", {"expert"}}},
+			                              {{"id", "leader"},
+			                               {"name", "Team officer"},
+			                               {"department", "engineering"},
+			                               {"compartment", "fore"},
+			                               {"duty", "leader-team-a"},
+			                               {"traits", {"expert"}}}})}};
+			ship["combat"]["decks"][0]["compartments"][1]["initial_hp"] = 0;
+			const auto content = load(source);
+			World w;
+			w.load(content, "test.map");
+			claim(w);
+			const auto roster = w.observe(102)->gameplay.at("personnel");
+			bool stacked = false;
+			for (const auto &d : roster.at("duties"))
+				if (d.at("id") == "leader-team-a")
+					stacked = d.at("effects")[0].at("multiplier") == 1500;
+			require(stacked, "Controller and team officer contributions sum once on physical team");
+			require(w.submit(102, command(w, 102, "team-a", "assignment", 2)), "move team with its officer");
+			for (int i = 0; i < 5; ++i)
+				w.tick();
+			require(w.observe(102)->gameplay.at("personnel").at("officers")[1].at("present").get<bool>(),
+			        "assigned officer accompanies travelling team");
+			World resumed;
+			resumed.restore(content, w.save());
+			for (int i = 0; i < 20; ++i)
+			{
+				w.tick();
+				resumed.tick();
+			}
+			require(w.save() == resumed.save(), "moving team and attached officer survive restore");
+			auto command_officer = OperatingCommand{1, "personnel.assign", 0, "controller"};
+			command_officer.text = "leader-team-b";
+			command_officer.generation = w.observe(102)->gameplay.at("personnel").at("revision");
+			require(w.submit(102, command_officer), "assign officer to another physical team");
+			w.tick();
+			require(!w.observe(102)->gameplay.at("personnel").at("officers")[0].at("present").get<bool>(),
+			        "officer must reach moving team's actual compartment");
+		}
+
 		auto source = fixture();
 		if (argc > 1 && std::string(argv[1]) == "--trace")
 		{

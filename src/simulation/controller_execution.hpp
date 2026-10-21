@@ -289,9 +289,10 @@ void controller_output(EntityId id, std::size_t index, const state_tree::Output 
 				context.elapsed = output.captured_elapsed;
 				const auto bound = evaluate_gameplay_message(message, context);
 				payload.fields = bound.fields;
-				controller.result.id =
-				    knowledge.admit_template(source, controller.definition.id, name, payload, ControlOrigin::AI,
-				                             ecs.get<Clock>().tick, bound.parameters, true, true);
+				const auto speaker = officer_speaker(id, controller.definition.console, controller.definition.id);
+				controller.result.id = knowledge.admit_template(
+				    source, controller.definition.id, name, payload, ControlOrigin::AI, ecs.get<Clock>().tick,
+				    bound.parameters, true, true, speaker.first, {}, speaker.second);
 				controller.result.message = controller.result.id;
 			}
 			else

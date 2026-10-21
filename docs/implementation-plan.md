@@ -1,5 +1,7 @@
 # Foundation implementation plan
 
+Duty officers, 21 October 2026: department-scoped Controller/team assignments, compartment travel, expertise modifiers, Personnel UI, Workshop authoring and AI speaker identity are implemented. Native, network and WebAssembly checks pass; the Personnel reassignment smoke was rendered and inspected. See [the contract and validation](duty-officers.md); platform acceptance remains separate.
+
 Comms conversations, 21 October 2026: powered external Comms, known ship/character directories, persistent group threads, authored conversation state trees, delayed messages, choices, AI/default responses, recipient-specific delivery and live On Screen publication. The human-seeking Console, Workshop authoring and separate local-assistance demonstration build on `combat-mvp`. See the [Comms contract and verification](comms-conversations.md). This increment does not establish first-level rescue/scenario completion.
 
 Simplification follow-up, 21 October 2026: six sequential refactors add ship-owned close-in navigation evidence, retain Console layout metadata, classify controls once, share native journal workers and body projection codecs, and reuse compiled Controller validation metadata. See the [change and verification receipt](audit-remediation.md#follow-up-simplification-audit--21-october-2026).

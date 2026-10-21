@@ -180,15 +180,24 @@ class ConsoleSurface final : public Rml::EventListener
 			}
 		return false;
 	}
+#include "personnel.hpp"
 	void prepare_local_settings(Application &app, const ConsoleRegion &region)
 	{
 		local_settings_controls_.clear();
-		std::string markup = "<div class=\"local-settings-card\"><h1>" + localise("Console settings") + "</h1><div>";
-		for (const auto &[tab, label] : std::vector<std::pair<std::string, std::string>>{
-		         {"display", "Display"}, {"language", "Language"}, {"audio", "Audio"}, {"session", "Session"}})
+		const auto content_width = std::max(180.f, region.width * .84f - 52.f);
+		std::string markup =
+		    "<div class=\"local-settings-card\"><div style=\"display:block;width:" + std::to_string(content_width) +
+		    "px;\"><h1>" + localise("Console settings") + "</h1><div>";
+		for (const auto &[tab, label] : std::vector<std::pair<std::string, std::string>>{{"personnel", "Personnel"},
+		                                                                                 {"display", "Display"},
+		                                                                                 {"language", "Language"},
+		                                                                                 {"audio", "Audio"},
+		                                                                                 {"session", "Session"}})
 			markup += settings_button("local-settings.tab/" + tab, label);
 		markup += "</div>";
-		if (local_settings_tab_ == "display")
+		if (local_settings_tab_ == "personnel")
+			markup += personnel_markup(app);
+		else if (local_settings_tab_ == "display")
 		{
 			markup += "<p>" + localise("Text size") + ": " + std::to_string(text_scale_) + "%</p>";
 			markup += settings_button("local-settings.smaller", "Smaller text");
@@ -234,7 +243,7 @@ class ConsoleSurface final : public Rml::EventListener
 					markup += settings_button(descriptor_action(control.at("id")),
 					                          "Complexity: " + control.value("label", std::string{}));
 		}
-		markup += settings_button("local-settings.close", "Return to station") + "</div>";
+		markup += settings_button("local-settings.close", "Return to station") + "</div></div>";
 		if (markup != local_settings_markup_)
 		{
 			const auto focus = context_->GetFocusElement() ? context_->GetFocusElement()->GetId() : std::string{};
@@ -253,6 +262,12 @@ class ConsoleSurface final : public Rml::EventListener
 		                 }))
 			if (auto *first = document_->GetElementById(local_settings_controls_.front().first))
 				first->Focus();
+		if (local_settings_tab_ == "personnel")
+			for (const auto &[key, text] : personnel_readouts_)
+			{
+				app.screen_readouts.emplace_back(key, text);
+				place(app, region, key);
+			}
 		for (const auto &[name, label] : local_settings_controls_)
 		{
 			app.screen_controls.emplace_back(name, localise(label));
@@ -520,7 +535,16 @@ button.on-screen-active .share-live {display:block;}
 .local-settings-open #comms-layer,.local-settings-open #toolbar,.local-settings-open #widgets,.local-settings-open #gameplay,.local-settings-open #lobby {visibility:hidden;}
 .local-settings-card {position:absolute;left:8%;top:8%;width:84%;max-height:84%;overflow:auto;box-sizing:border-box;padding:24px;background:#0b1719;border:2px #988b71;}
 .local-settings-card h1 {display:block;}
+)"
+		                                                            R"(
+.local-settings-card {display:block;}
+.local-settings-card > div {display:block;width:100%;}
+.local-settings-card h1,.local-settings-card h2,.local-settings-card p {display:block;width:100%;box-sizing:border-box;}
+.personnel-row {display:block;width:100%;border-bottom:1px #526265;padding:8px;}
+.personnel-row img {width:64px;height:64px;vertical-align:middle;}
+.personnel-row button {width:75%;}
 .local-settings-card button {width:190px;min-height:48px;box-sizing:border-box;}
+.local-settings-card .personnel-row button {width:80%;text-align:left;}
 .navigation-console #gameplay {display:none;}
 .navigation-console #widgets {display:block;pointer-events:none;z-index:4;}
 .navigation-console #widgets .widget {display:none;}
@@ -601,6 +625,8 @@ button.on-screen-active .share-live {display:block;}
 		if (!app_ || !name.starts_with(prefix))
 			return false;
 		const auto action = name.substr(prefix.size());
+		if (app_ && app_->session && personnel_action(action))
+			return true;
 		if (app_ && !settings_open_ && app_->screen != Screen::settings && conversation_action(action))
 			return true;
 		if (app_ && navigation_action(action))
@@ -1762,6 +1788,8 @@ button.on-screen-active .share-live {display:block;}
 			if (toolbar_enabled_ && route_ != 31 && !pregame)
 			{
 				button("settings", "Settings");
+				toolbar +=
+				    "<div style=\"position:absolute;right:0;top:0;\">" + button("personnel", "Personnel") + "</div>";
 				toolbar += "<button class=\"settings-cog\" id=\"" + id("settings") + "\"><img src=\"" +
 				           asset_path("../menu/settings.png") + "\" width=\"56\" height=\"56\"/></button>";
 			}

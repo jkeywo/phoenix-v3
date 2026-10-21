@@ -63,7 +63,10 @@ inline void refresh(Rml::ElementDocument &document, Rml::Element &panel,
 			created->SetProperty("display", "block");
 			row = panel.AppendChild(std::move(created));
 		}
-		const auto text = markup(message);
+		auto presented = message;
+		if (app.session && app.session->catalog().assets.contains(message.portrait))
+			presented.avatar = app.session->catalog().assets.at(message.portrait);
+		const auto text = markup(presented);
 		if (row->GetAttribute<std::string>("data-message", "") != text)
 		{
 			row->SetInnerRML(text);

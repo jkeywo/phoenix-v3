@@ -347,7 +347,10 @@ void actuate_combat(flecs::entity ship)
 					if (const auto *p = ship.try_get<ShipResources>())
 						paid = p->grants.at(child.get<ResourceBinding>().slot).supply_permille == 1000 &&
 						       !p->grants.at(child.get<ResourceBinding>().slot).blocked;
-				if (paid && ++m->get<MagazineState>().refill >= d.get<MagazineDefinition>().refill_ticks)
+				if (paid &&
+				    ++m->get<MagazineState>().refill >=
+				        std::max<std::int64_t>(
+				            1, officer_value(id, d.id, "reload", d.get<MagazineDefinition>().refill_ticks, true)))
 				{
 					m->get<MagazineState>().ammo =
 					    std::min(d.reserve().capacity - m->get<MagazineState>().reserved_return,
@@ -575,7 +578,8 @@ void step_repairs()
 					claimed.insert(*task);
 					auto &f = s.faults.at(task->first)[task->second];
 					const auto &d = s.definition.faults.at(task->first)[task->second];
-					f.work += m->definition.get<RepairDefinition>().repair_rate * 1000 *
+					f.work += officer_value(ship.get<StableId>().id, m->definition.id, "repair",
+					                        m->definition.get<RepairDefinition>().repair_rate * 1000) *
 					          fault_effectiveness(ship, m->definition.id) / 1000;
 					if (f.work >= d.repair_work * rate * 1000)
 					{
@@ -603,7 +607,8 @@ void step_repairs()
 			for (std::size_t rank = 0; rank < teams.size(); ++rank)
 			{
 				const auto &d = teams[rank].get<CombatMechanism>().definition;
-				c.work += d.get<RepairDefinition>().repair_rate * 1000000 /
+				c.work += officer_value(ship.get<StableId>().id, d.id, "repair",
+				                        d.get<RepairDefinition>().repair_rate * 1000000) /
 				          (1000 + d.get<RepairDefinition>().stack_penalty * static_cast<std::int64_t>(rank)) *
 				          fault_effectiveness(ship, d.id) / 1000;
 			}
@@ -869,7 +874,17 @@ void restore_combat(flecs::entity ship, const Json &j)
 			{
 				const auto &a = m->get<MagazineState>();
 				bounded("ammo", 0, m->definition.reserve().capacity);
-				bounded("refill", 0, m->definition.get<MagazineDefinition>().refill_ticks - 1);
+				std::int64_t worst_bonus = 0;
+				const auto &personnel = definition(ship.get<StableId>().id).personnel;
+				for (const auto &officer : personnel.officers)
+					for (const auto &trait : officer.traits)
+					{
+						const auto &bonuses = personnel.traits.at(trait).bonuses;
+						if (bonuses.contains("reload"))
+							worst_bonus += std::min<std::int64_t>(0, bonuses.at("reload"));
+					}
+				bounded("refill", 0,
+				        personnel_scale(m->definition.get<MagazineDefinition>().refill_ticks, worst_bonus, true) - 1);
 				bounded("reserved_return", 0, m->definition.reserve().capacity);
 				if (a.ammo + a.reserved_return > m->definition.reserve().capacity)
 					throw std::runtime_error("Invalid magazine reservation");

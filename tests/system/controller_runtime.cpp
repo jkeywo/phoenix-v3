@@ -1839,6 +1839,42 @@ int main()
 		])json");
 		ai_messages_source["entities"][0]["control_layout"]["controllers"][0]["tree"] = "test.receiver";
 		ai_messages_source["entities"][0]["control_layout"]["controllers"][1]["tree"] = "test.sender";
+
+		ai_messages_source["entities"][0]["personnel"] = {
+		    {"departments", Json::array({{{"id", "watch"}, {"label", "Watch"}, {"station", "operations"}}})},
+		    {"compartments", {"bridge"}},
+		    {"connections", Json::array()},
+		    {"traits", Json::array()},
+		    {"duties", Json::array({{{"id", "receiver"},
+		                             {"label", "Receiver"},
+		                             {"controller", "port"},
+		                             {"console", "drive"},
+		                             {"department", "watch"},
+		                             {"compartment", "bridge"}},
+		                            {{"id", "sender"},
+		                             {"label", "Sender"},
+		                             {"controller", "port"},
+		                             {"console", "observer"},
+		                             {"department", "watch"},
+		                             {"compartment", "bridge"}}})},
+		    {"officers", Json::array({{{"id", "duty-officer"},
+		                               {"name", "Officer Test"},
+		                               {"portrait", "test-core:assets/pixel.png"},
+		                               {"department", "watch"},
+		                               {"compartment", "bridge"},
+		                               {"duty", "sender"},
+		                               {"traits", Json::array()}}})}};
+		auto unstaffed_source = ai_messages_source;
+		unstaffed_source["entities"][0]["personnel"]["officers"] = Json::array();
+		World unstaffed_sender;
+		unstaffed_sender.load(load(unstaffed_source), "test.map");
+		require(unstaffed_sender.claim(101, 1, "drive") && unstaffed_sender.claim(102, 1, "observer"),
+		        "unstaffed message claims");
+		require(unstaffed_sender.submit(102, {1, "preset", 1, {}}), "unstaffed AI operates normally");
+		for (int i = 0; i < 6; ++i)
+			unstaffed_sender.tick();
+		require(unstaffed_sender.observe(101)->gameplay.at("messages")[0].at("speaker_portrait") == "generic-crew",
+		        "unstaffed AI uses generic crew portrait");
 		const auto ai_message_content = load(ai_messages_source);
 		World ai_messages;
 		ai_messages.load(ai_message_content, "test.map");
@@ -1849,6 +1885,17 @@ int main()
 		require(ai_messages.observe(101)->gameplay.at("messages").size() == 1 && requested(ai_messages, "port") == 0,
 		        "AI sends once while human recipient retains command control");
 		require(ai_messages.observe(102)->gameplay.at("messages").empty(), "same-named sender has no recipient inbox");
+
+		const auto sent_identity = ai_messages.observe(101)->gameplay.at("messages")[0];
+		require(sent_identity.at("speaker_name") == "Officer Test" &&
+		            sent_identity.at("speaker_portrait").get<std::string>().starts_with("console-assets:assets/comms/"),
+		        "AI message snapshots the officer at its exact Console/Controller address");
+		OperatingCommand relief{1, "personnel.relieve", 0, "duty-officer"};
+		relief.generation = ai_messages.observe(102)->gameplay.at("personnel").at("revision");
+		require(ai_messages.submit(102, relief), "relieve the message sender");
+		ai_messages.tick();
+		require(ai_messages.observe(101)->gameplay.at("messages")[0].at("speaker_name") == "Officer Test",
+		        "old messages retain officer identity after relief");
 		World ai_message_resume;
 		ai_message_resume.restore(ai_message_content, ai_messages.save());
 		for (auto *run : {&ai_messages, &ai_message_resume})
@@ -1878,6 +1925,7 @@ int main()
 		}
 		require(ai_messages.save() == consumed_resume.save(),
 		        "acknowledged inbox and effect journal survive restoration");
+		ai_messages_source["entities"][0].erase("personnel");
 		auto forbidden_message = ai_messages_source;
 		forbidden_message["entities"][0]["message_templates"] = Json::array();
 		rejects(

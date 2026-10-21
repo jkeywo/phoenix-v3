@@ -28,6 +28,7 @@ import phoenix.gameplay_scenario;
 #include "equipment.hpp"
 #include "controllers.hpp"
 #include "combat.hpp"
+#include "personnel_state.hpp"
 #include "../core/display_projection.hpp"
 
 namespace phoenix::fixed
@@ -111,6 +112,7 @@ struct CompiledDefinition
 	std::optional<DestructionDefinition> destruction;
 	std::int64_t durability = 0, half_height = 5000;
 	BridgeDefinition bridge;
+	PersonnelDefinition personnel;
 	std::map<std::string, ConsoleBridgeDefinition> console_bridge;
 	std::vector<std::string> tags;
 	std::map<std::string, std::vector<std::string>> radar_shows;
@@ -482,6 +484,7 @@ struct World::Impl
 				throw std::runtime_error("Invalid entity durability/vertical extent");
 			visual_scales[name] = definition.at("render").at("scale");
 			result.bridge = compile_bridge(content, name);
+			result.personnel = compile_personnel(content, name);
 			for (const auto &console : resolve_consoles(content, name))
 				if (!console.definition.empty())
 					result.console_bridge.emplace(
@@ -852,6 +855,7 @@ struct World::Impl
 				board.epochs.emplace(console, 0);
 			}
 		entity.set<BridgeBlackboard>(std::move(board));
+		entity.set<PersonnelState>(initial_personnel(data.personnel));
 		if (data.layout)
 		{
 			EntityControls controls;
@@ -1203,7 +1207,7 @@ struct World::Impl
 			}
 			range = range * power.grants[index].supply_permille / 1000;
 		}
-		return range * fault_effectiveness(entity, name) / 1000;
+		return officer_value(ship, name, "sensors", range) * fault_effectiveness(entity, name) / 1000;
 	}
 #include "sensor_profile.hpp"
 
@@ -1389,7 +1393,8 @@ struct World::Impl
 			if (auto ship = child.parent();
 			    ship.has<Movable>() && !structurally_disabled(ship, child.get<Equipment>().id))
 				step_basic_engine(ship.get<Pose>(), ship.get_mut<Motion>(), child.get_mut<Engine>(),
-				                  fault_effectiveness(ship, child.get<Equipment>().id));
+				                  officer_value(ship.get<StableId>().id, child.get<Equipment>().id, "propulsion",
+				                                fault_effectiveness(ship, child.get<Equipment>().id)));
 	}
 	struct FlightRestrictions
 	{
@@ -1563,7 +1568,8 @@ struct World::Impl
 					}
 			}
 			definition.maximum_speed = definition.maximum_speed * speed / 1000;
-			definition.acceleration = definition.acceleration * acceleration / 1000;
+			definition.acceleration = officer_value(id, target.get<Equipment>().id, "propulsion",
+			                                        definition.acceleration * acceleration / 1000);
 			definition.turn_rate = definition.turn_rate * turn / 1000;
 			auto state = flight.state;
 			if (structurally_disabled(ship, target.get<Equipment>().id))
@@ -1921,6 +1927,7 @@ struct World::Impl
 		}
 		return true;
 	}
+#include "personnel.hpp"
 #include "bridge.hpp"
 #include "conversations.hpp"
 	bool meta(std::uint64_t claimant, const OperatingCommand &command, bool execute)
@@ -1932,6 +1939,8 @@ struct World::Impl
 			return false;
 		const auto &console = *seat(address.ship, address.console);
 		const auto &spec = definition(address.ship);
+		if (command.action.starts_with("personnel."))
+			return personnel_command(address, command, execute);
 		if (command.action == "alert.set" || command.action == "stance.set")
 			return bridge_command(address, command, execute);
 		if (command.action.starts_with("comms."))
@@ -2259,6 +2268,9 @@ void World::tick()
 		impl_->meta(claim, command, true);
 	impl_->meta_pending.clear();
 	impl_->prune_displays();
+	for (const auto &[id, entity] : impl_->entities)
+		if (entity.has<PersonnelState>())
+			impl_->advance_personnel(id);
 	for (const auto &proposal : impl_->controller_pending)
 		impl_->commit_controller(proposal);
 	impl_->controller_pending.clear();
@@ -2654,6 +2666,7 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	result.gameplay["alert"] = impl_->alert_board(address.ship);
 	result.gameplay["navigation"] = impl_->navigation_board(address.ship);
 	result.gameplay["stance"] = impl_->stance_board(address);
+	result.gameplay["personnel"] = impl_->personnel_board(address);
 	if (impl_->comms_owner(address.ship) == address)
 		result.gameplay["conversations"] = impl_->conversations.project(address.ship);
 	if (entity.has<EntityControls>())
@@ -3136,6 +3149,8 @@ Json World::save() const
 			if (systems->power)
 				result["bodies"].back()["resources"] = save_ship_resources(*systems->power);
 		}
+		if (entity.has<PersonnelState>())
+			result["bodies"].back()["personnel"] = impl_->personnel_snapshot(id);
 		if (entity.has<CombatStructure>())
 			result["bodies"].back()["combat"] = impl_->save_combat(entity);
 		if (const auto *d = entity.try_get<Destructible>())
@@ -3231,6 +3246,10 @@ void World::restore(const Catalog &content, const Json &saved)
 		}
 		if (entity.has<CombatStructure>())
 			candidate.impl_->restore_combat(entity, value.at("combat"));
+		if (!candidate.impl_->definition(restored.id).personnel.officers.empty() && !value.contains("personnel"))
+			throw std::runtime_error("Missing saved personnel");
+		if (value.contains("personnel"))
+			candidate.impl_->restore_personnel(restored.id, value.at("personnel"));
 		if (value.contains("bridge"))
 			candidate.impl_->restore_bridge(restored.id, value.at("bridge"));
 		if (entity.has<EntityControls>())

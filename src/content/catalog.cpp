@@ -378,6 +378,16 @@ Catalog resolve(const std::vector<PackView> &ordered)
 				result.assets["console-assets:assets/comms/" + sha256(png) + ".png"] = png;
 			}
 		}
+	for (const auto &[id, entity] : result.entities)
+		for (const auto &person : entity.value("personnel", Json::object()).value("officers", Json::array()))
+		{
+			const auto reference = person.value("portrait", std::string{});
+			if (!reference.empty())
+			{
+				const auto png = result.assets.at(reference);
+				result.assets["console-assets:assets/comms/" + sha256(png) + ".png"] = png;
+			}
+		}
 	// Public icon aliases use identical addresses in full and restricted catalogues.
 	for (const auto &[id, entity] : result.entities)
 	{
@@ -647,7 +657,10 @@ void verify_prepared_catalog(const Catalog &catalog)
 		}
 	}
 	for (const auto &[id, entity] : catalog.entities)
+	{
 		(void)compile_bridge(catalog, id);
+		(void)compile_personnel(catalog, id);
+	}
 	for (const auto &[id, console] : catalog.consoles)
 	{
 		auto path = "consoles." + id;

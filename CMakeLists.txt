@@ -258,6 +258,7 @@ add_library(
 	src/content/combat.cpp
 	src/content/conversations.cpp
 	src/content/bridge.cpp
+	src/content/personnel.cpp
 	src/content/controllers.cpp
 	src/content/console_assets.cpp
 	src/content/workshop.cpp
@@ -363,6 +364,7 @@ foreach(
 		summary_bindings
 		swept_collision
 		workshop_test
+		personnel
 		controller_runtime
 		combat
 )
