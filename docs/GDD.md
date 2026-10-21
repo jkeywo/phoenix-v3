@@ -419,6 +419,8 @@ Science owns onboard Medical assessment and treatment priorities. Team skills, t
 
 ### 11.2 Deployment, support and recovery
 
+The [carried-craft contract](carried-craft.md) specifies prefilled bays of ordinary entities, persistent craft condition, docked energy/ammunition transfers, interceptor defence/escort and bomber attack-and-return orders. FTL preparation recalls craft and shuttle parties without guaranteeing recovery before departure. Away missions allow the crew's own ship unless explicitly prohibited; Helm must manually reach the deployment or pickup location. Mission trees check transport capabilities and can release independent teams' shuttles for other work.
+
 Tactical owns security and flight operations: combat sorties, rescue/evacuation sorties and general utility-craft commitments. Routine craft flight uses ordinary individual AI. Particular-craft assignment is an optional deeper decision; goal-level dispatch remains possible.
 
 Standing authorisation permits suitable routine specialist transport requests within actual craft availability, permitted work and reserves. It does not require Tactical to approve every ferry. Conflicting/protected commitments require coordination. A request cannot double-book craft, cancel an existing mission or take another Console's controls.

@@ -2,6 +2,8 @@
 
 [Security and boarding](docs/security-boarding.md) adds target-authored encounters, finite transports and whole-ship capture.
 
+[Carried craft](docs/carried-craft.md) adds shuttle bays, interceptor/bomber sorties, docked servicing, shuttle away transport and manual delivery using the crew's ship.
+
 [Mission objectives and debriefs](docs/mission-objectives.md) connect physical rescue outcomes, stable events and authoritative departure reports through authored rules.
 
 [Navigator FTL departure](docs/ftl-departure.md) adds a dedicated auxiliary Console, a powered and cooled FTL reserve, deliberate departure and a persistent report for that ship's crew.
