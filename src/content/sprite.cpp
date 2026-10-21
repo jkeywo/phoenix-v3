@@ -312,6 +312,14 @@ SpriteMaterial compile_sprite(const Json &sprite, const Catalog &catalog, const 
 		vector(f.at("pivot"), 2, path + ".frames.pivot");
 		for (int i = 0; i < 2; ++i)
 			frame.pivot[i] = number(f.at("pivot")[i], path + ".frames.pivot", 0, static_cast<float>(frame.rect[i + 2]));
+		if (f.contains("forward"))
+		{
+			vector(f.at("forward"), 2, path + ".frames.forward");
+			for (int i = 0; i < 2; ++i)
+				frame.forward[i] = number(f.at("forward")[i], path + ".frames.forward", -1, 1);
+			if (frame.forward[0] * frame.forward[0] + frame.forward[1] * frame.forward[1] < .0001f)
+				bad(path + ".frames.forward", "requires a nonzero projected forward axis");
+		}
 		frame.azimuth =
 		    number(f.value("azimuth", Json(material.frames.size() * 45)), path + ".frames.azimuth", 0, 359.999f);
 		if (std::any_of(material.frames.begin(), material.frames.end(),
@@ -443,6 +451,7 @@ Json import_sprite_sidecar(const Json &source, const std::map<std::string, std::
 		            {"mirror_x", f.value("mirror_x", Json(false))},
 		            {"rect", f.at("rect")},
 		            {"pivot", f.at("pivot")},
+		            {"forward", f.value("forward", Json::array({0, -1}))},
 		            {"azimuth", f.value("camera_azimuth_degrees", 0)},
 		            {"depth_scale", f.value("depth_scale", images.contains("depth") ? .5 : 0)},
 		            {"depth_offset", f.value("depth_offset", 0.0)},

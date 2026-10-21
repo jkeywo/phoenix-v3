@@ -16,6 +16,7 @@ int main(int argc, char **argv)
 	{
 		if (argc < 2)
 			throw std::runtime_error("Usage: phoenix_combat_smoke pack-directory");
+		const bool mvp = argc > 2 && std::string(argv[2]) == "mvp";
 		const bool support = argc > 2 && std::string(argv[2]) == "support";
 		const bool destruction = argc > 2 && std::string(argv[2]) == "destruction";
 		Application app;
@@ -152,6 +153,33 @@ int main(int argc, char **argv)
 				}
 		if (!fired)
 			throw std::runtime_error("No armed Tactical Controller");
+		if (mvp)
+		{
+			frame();
+			if (!app.screen_action("console/1/game.status/beam"))
+				throw std::runtime_error("System status light unavailable");
+			frame();
+			frame();
+			TakeScreenshot("combat-system-popup.png");
+			if (!app.screen_action("console/1/game.status-close"))
+				throw std::runtime_error("System status popup close unavailable");
+			frame();
+			for (const auto &controller : tactical->gameplay.at("controllers"))
+				for (auto it = controller.at("commands").begin(); it != controller.at("commands").end(); ++it)
+					if (it.value().at("action") == "weapon_mode")
+					{
+						OperatingCommand command{own->own.id,
+						                         "weapon_mode",
+						                         1,
+						                         {},
+						                         controller.at("id"),
+						                         it.key(),
+						                         controller.at("generation")};
+						command.console = "tactical";
+						if (!app.session->command(command))
+							throw std::runtime_error("Point defence Auto refused");
+					}
+		}
 		app.session->tick();
 		frame();
 		frame();
@@ -210,6 +238,22 @@ int main(int argc, char **argv)
 		{
 			app.session->tick();
 			frame();
+			if (mvp && tick == 20)
+				TakeScreenshot("combat-missile-flight.png");
+			if (mvp && tick == 35)
+			{
+				for (const auto &controller : tactical->gameplay.at("controllers"))
+					for (auto it = controller.at("commands").begin(); it != controller.at("commands").end(); ++it)
+						if (it.value().at("action") == "magazine_select")
+						{
+							OperatingCommand command{
+							    own->own.id, "magazine_select",          1, {}, controller.at("id"),
+							    it.key(),    controller.at("generation")};
+							command.console = "tactical";
+							if (!app.session->command(command))
+								throw std::runtime_error("Havok magazine selection refused");
+						}
+			}
 		}
 		TakeScreenshot("combat-scene.png");
 		bool turrets = false;

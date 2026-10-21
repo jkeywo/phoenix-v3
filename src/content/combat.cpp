@@ -150,7 +150,9 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 		r.blast_radius = amount(p, "blast_radius_mm", 0, 0, 10000000);
 		r.fuse_radius = amount(p, "fuse_radius_mm", 0, 0, 1000000);
 		r.trail = p.value("trail", std::string{});
-		if (!catalog.entities.contains(r.visual) || (!r.trail.empty() && !catalog.entities.contains(r.trail)))
+		r.tracer = p.value("tracer", false);
+		if (!catalog.entities.contains(r.visual) ||
+		    (!r.trail.empty() && r.trail != "smoke" && !catalog.entities.contains(r.trail)))
 			fail("unknown projectile/trail visual");
 		if (p.contains("destruction"))
 			r.destruction = compile_destruction(p.at("destruction"), catalog, path + ".projectile.destruction");
@@ -172,6 +174,11 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 			fault.symptom = f.at("symptom");
 			fault.diagnosis = f.at("diagnosis");
 			fault.effect = f.value("effect", std::string("output"));
+			if (fault.effect == "output" &&
+			    (fit.kind == OperatingSystem::Generator || fit.kind == OperatingSystem::Storage ||
+			     fit.kind == OperatingSystem::Distribution || fit.kind == OperatingSystem::Coolant ||
+			     fit.kind == OperatingSystem::Magazine))
+				fail("this mechanism requires a feed/disabled fault effect");
 			if (!valid_identifier(fault.id) ||
 			    (fault.effect != "output" && fault.effect != "disabled" && fault.effect != "feed"))
 				fail("invalid fault identity/effect");
@@ -272,6 +279,8 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 		}
 		if (s.kind == OperatingSystem::Magazine)
 		{
+			s.interval = amount(v, "fire_ticks", 0, 0, 1000000);
+			s.load_ticks = amount(v, "load_ticks", 0, 0, 1000000);
 			if (v.contains("projectile"))
 				s.projectile = projectile(v.at("projectile"));
 			s.capacity = amount(v, "capacity", 0, 1, 1000000);

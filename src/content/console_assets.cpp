@@ -87,7 +87,7 @@ Pack console_assets(const Catalog &catalog, const std::string &ship, const std::
 				{
 					Json frame;
 					for (const char *field :
-					     {"name", "rect", "pivot", "mirror_x", "azimuth", "depth_scale", "depth_offset"})
+					     {"name", "rect", "pivot", "forward", "mirror_x", "azimuth", "depth_scale", "depth_offset"})
 						if (f.contains(field))
 							frame[field] = f.at(field);
 					frame["attachments"] = Json::object();

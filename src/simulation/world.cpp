@@ -40,11 +40,11 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(DestructionDefinition, visual, s
                                                 shield_bypass, growth_ticks, fade_ticks, size, affects_missiles)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ProjectileDefinition, visual, speed, lifetime, penetration, damage,
                                                 deposition, spread, guidance, trail, shield_bypass, turn_rate,
-                                                seeker_range, arc_height, chaos, durability, radius, resistance,
+                                                seeker_range, arc_height, chaos, tracer, durability, radius, resistance,
                                                 blast_radius, fuse_radius, destruction)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(FaultState, active, diagnosed, work, generation)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Destructible, definition, durability, destroyed_tick, processed)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(BlastVisual, id, position, altitude, tick, definition)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(BlastVisual, id, position, altitude, tick, definition, kind, bearing, arc)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ConsoleAddress, ship, console)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SavedBody, id, definition, position, velocity, remainder, heading)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SavedOperation, speed, heading, acceleration_remainder, turn_remainder,
@@ -2358,6 +2358,8 @@ std::vector<SceneBody> World::scene() const
 					item.forward_thrust =
 					    std::max(item.forward_thrust, std::max(0, system.flight->state.actual_longitudinal));
 		const auto entity = impl_->entities.at(body.id);
+		if (impl_->combat_dead(entity) && !entity.has<CombatStructure>())
+			continue;
 		if (const auto *structure = entity.try_get<CombatStructure>())
 		{
 			if (structure->destroyed_tick >= 0)
@@ -2407,7 +2409,60 @@ std::vector<SceneBody> World::scene() const
 		shot.vx = p.velocity.x;
 		shot.vy = p.velocity.y;
 		shot.heading = p.heading;
+		shot.visual_height_mm = p.altitude;
+		shot.visual_vz = p.vz;
+		shot.velocity_rotation = p.definition.durability > 0;
+		shot.smoke_trail = !p.definition.trail.empty();
+		if (p.definition.tracer)
+		{
+			shot.line_style = 2;
+			shot.line_end_x = p.position.x - p.velocity.x / rate;
+			shot.line_end_y = p.position.y - p.velocity.y / rate;
+			shot.line_end_z = p.altitude - p.vz / rate;
+		}
 		result.push_back(shot);
+	}
+	for (const auto &[id, ship] : impl_->combat_rows())
+		for (auto child : ship.get<EquipmentIndex>().values)
+			if (const auto *m = child.try_get<CombatMechanism>();
+			    m && m->definition.family == "beam" && m->beam_tick == static_cast<std::int64_t>(ticks()))
+			{
+				const auto [origin, heading] = impl_->weapon_mount(ship, *m);
+				SceneBody beam;
+				beam.id = 6000000000000000ULL + id * 256 + child.get<Equipment>().ordinal;
+				beam.definition = ship.get<Definition>().name;
+				beam.x = origin.x;
+				beam.y = origin.y;
+				beam.line_end_x = m->beam_end.x;
+				beam.line_end_y = m->beam_end.y;
+				beam.line_style = 1;
+				result.push_back(beam);
+			}
+	for (const auto &v : impl_->blast_visuals)
+	{
+		const auto age = static_cast<std::int64_t>(ticks()) - v.tick;
+		const auto &d = v.definition;
+		SceneBody visual;
+		visual.id = 8500000000000000ULL + v.id;
+		visual.definition = d.visual;
+		visual.x = v.position.x;
+		visual.y = v.position.y;
+		visual.visual_height_mm = v.altitude;
+		visual.visual_scale = static_cast<float>(d.size) / 1000.f /
+		                      std::max(.001f, d.visual.empty() ? 1.f : impl_->visual_scales.at(d.visual)) *
+		                      std::min(1.f, std::max(.01f, static_cast<float>(age) / d.growth_ticks));
+		visual.alpha =
+		    age < d.growth_ticks ? 1.f : std::max(0.f, 1.f - static_cast<float>(age - d.growth_ticks) / d.fade_ticks);
+		visual.sound = d.sound;
+		visual.effect_tick = v.tick;
+		if (v.kind == 1)
+		{
+			visual.line_style = 3;
+			visual.visual_scale = d.size / 1000.f;
+			visual.heading = v.bearing;
+			visual.rotation_mdeg = v.arc;
+		}
+		result.push_back(visual);
 	}
 	for (const auto &[id, rock] : impl_->field_rocks)
 		if (rock.loaded && rock.decorative)
@@ -3097,7 +3152,15 @@ void World::restore(const Catalog &content, const Json &saved)
 		if (entity.has<CombatStructure>())
 			candidate.impl_->restore_combat(entity, value.at("combat"));
 		if (entity.has<Destructible>())
-			entity.set<Destructible>(value.at("destructible").get<Destructible>());
+		{
+			const auto d = value.at("destructible").get<Destructible>();
+			if (Json(d.definition) != Json(entity.get<Destructible>().definition) || d.durability < 0 ||
+			    d.durability > candidate.impl_->definitions.at(restored.definition).durability ||
+			    d.destroyed_tick < -1 || d.destroyed_tick > saved.at("tick").get<std::int64_t>() ||
+			    (d.processed && d.destroyed_tick < 0))
+				throw std::runtime_error("Invalid destruction continuation");
+			entity.set<Destructible>(d);
+		}
 		if (value.contains("bridge"))
 			candidate.impl_->restore_bridge(restored.id, value.at("bridge"));
 		if (entity.has<EntityControls>())

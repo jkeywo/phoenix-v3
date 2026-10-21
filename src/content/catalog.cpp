@@ -601,6 +601,12 @@ void verify_prepared_catalog(const Catalog &catalog)
 		resolve_consoles(catalog, id);
 		verify_gameplay_fitting(catalog, id);
 		(void)compile_combat(catalog, id);
+		if (entity.contains("destruction"))
+			(void)compile_destruction(entity.at("destruction"), catalog, path + ".destruction");
+		if (entity.contains("durability"))
+			integer(entity, "durability", path, 0, 1000000);
+		if (entity.contains("half_height_mm"))
+			integer(entity, "half_height_mm", path, 1, 1000000);
 		(void)compile_controllable_layout(catalog, id);
 		if (entity.contains("controllers"))
 		{

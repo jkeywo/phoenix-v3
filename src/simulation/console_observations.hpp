@@ -78,7 +78,9 @@ Observation capture_console_observation(const ConsoleAddress &address) const
 		if (instance && structurally_disabled(entity, id))
 		{
 			state.enabled = false;
-			state.status = "Disabled: compartment structure";
+			state.status = state.telemetry["destroyed"] ? "Destroyed"
+			               : state.telemetry["damaged"] ? "Damaged"
+			                                            : "Disabled: compartment structure";
 		}
 		result.systems.push_back(std::move(state));
 	}

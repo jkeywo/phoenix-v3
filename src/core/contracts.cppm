@@ -317,6 +317,9 @@ struct SceneBody : BodyView
 	float visual_scale = 1, alpha = 1;
 	std::string sound;
 	std::uint64_t effect_tick = 0;
+	std::int64_t visual_vz = 0, line_end_x = 0, line_end_y = 0, line_end_z = 0;
+	int line_style = 0;
+	bool velocity_rotation = false, smoke_trail = false;
 };
 struct SensorReachInterval
 {

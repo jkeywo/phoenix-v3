@@ -171,7 +171,7 @@ std::map<std::string, SystemObservationSchema> compile_system_observations(std::
 			for (const auto *field : fields)
 				schema.emplace(field, system_observation_type(field));
 		};
-		add({"enabled", "requested", "structural_disabled"});
+		add({"enabled", "requested", "structural_disabled", "damaged", "destroyed", "overheated"});
 		if (fitted[i].kind >= OperatingSystem::Weapon)
 			add({"target", "ready", "heading_mdeg", "ammo", "capacity", "reload_progress", "reload_ticks", "shots",
 			     "team_location", "team_destination", "travel_remaining"});

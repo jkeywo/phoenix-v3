@@ -556,6 +556,10 @@ void material_properties(Json &sprite, bool with_radar_icon = true)
 			float pivot[2] = {frame["pivot"][0], frame["pivot"][1]};
 			if (ImGui::InputFloat2(tool_label("Frame pivot").c_str(), pivot))
 				frame["pivot"] = {pivot[0], pivot[1]};
+			const auto axis = frame.value("forward", Json::array({0, -1}));
+			float forward[2] = {axis[0], axis[1]};
+			if (ImGui::InputFloat2(tool_label("Projected forward axis").c_str(), forward))
+				frame["forward"] = {forward[0], forward[1]};
 			real_field("Camera azimuth", frame, "azimuth", static_cast<float>(i) * 45, 0, 359.999f);
 			real_field("Depth span / height", frame, "depth_scale", 0, 0, 16);
 			real_field("Depth centre / height", frame, "depth_offset", 0, -16, 16);

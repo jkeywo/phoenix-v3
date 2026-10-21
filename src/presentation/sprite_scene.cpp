@@ -159,6 +159,11 @@ void main(){
   float pixelDepth=clip.z/clip.w*.5+.5;
   if(pixelDepth<=0.0||pixelDepth>=1.0)discard;
   gl_FragDepth=pixelDepth;
+  if(burstGraphic==2){
+    vec2 q=(uv-.5)*2.0;float r=length(q);float noise=fract(sin(dot(floor(uv*24.0),vec2(12.9898,78.233)))*43758.5453);
+    float edge=.72+.12*sin(atan(q.y,q.x)*7.0);if(r>edge)discard;
+    finalColor=vec4(burstTint.rgb*(.55+.45*noise),burstTint.a*(1.0-smoothstep(.3,edge,r)));return;
+  }
   if(burstGraphic==1){
     vec2 q=(uv-.5)*2.0;float r=length(q);float angle=atan(q.y,q.x);
     float edge=mix(.40,1.0,pow(abs(sin(angle*12.0)),5.0));
@@ -218,7 +223,7 @@ struct Item
 	bool colour_visible = true, shadow_visible = true;
 	bool effect = false;
 	bool flip_y = false;
-	float alpha = 1;
+	float alpha = 1, rotation = 0;
 };
 struct LocalLight
 {
@@ -265,6 +270,54 @@ struct SpriteScene::State
 	Vector3 rebase{};
 	std::vector<Item> items;
 	std::vector<LocalLight> lights;
+	std::vector<SceneBody> combat_lines;
+	struct Smoke
+	{
+		Vector3 position;
+		double started;
+	};
+	std::vector<Smoke> smoke;
+	std::map<std::uint64_t, std::pair<Vector3, double>> trail_heads;
+	double trail_clock = -1;
+	void update_smoke(std::span<const SceneBody> bodies, double simulation, bool reduced)
+	{
+		if (reduced || simulation < trail_clock || simulation - trail_clock > .2)
+		{
+			smoke.clear();
+			trail_heads.clear();
+		}
+		if (reduced || simulation == trail_clock)
+			return;
+		trail_clock = simulation;
+		std::set<std::uint64_t> seen;
+		for (const auto &body : bodies)
+			if (body.smoke_trail)
+			{
+				seen.insert(body.id);
+				const Vector3 world{body.x / 1000.f, body.visual_height_mm / 1000.f, -body.y / 1000.f};
+				if (const auto at = trail_heads.find(body.id);
+				    at != trail_heads.end() && simulation - at->second.second <= .15)
+				{
+					const auto distance = Vector3Distance(at->second.first, world);
+					const int count = std::clamp(static_cast<int>(distance / .5f), 1, 12);
+					for (int i = 0; i < count && smoke.size() < 4096; ++i)
+						smoke.push_back(
+						    {Vector3Lerp(at->second.first, world, static_cast<float>(i) / count), simulation});
+				}
+				trail_heads[body.id] = {world, simulation};
+			}
+		std::erase_if(trail_heads,
+		              [&](const auto &head)
+		              {
+			              return !seen.contains(head.first);
+		              });
+		std::erase_if(smoke,
+		              [&](const auto &p)
+		              {
+			              return simulation - p.started > 1.2;
+		              });
+	}
+
 #include "asteroid_instances.hpp"
 	~State()
 	{
@@ -275,6 +328,9 @@ struct SpriteScene::State
 		clear_instances();
 		navigation.clear();
 		directions.clear();
+		smoke.clear();
+		trail_heads.clear();
+		trail_clock = -1;
 		for (auto &[id, data] : materials)
 			for (auto im : data.cpu)
 				UnloadImage(im);
@@ -282,6 +338,7 @@ struct SpriteScene::State
 		textures.clear();
 		effects.clear();
 		items.clear();
+		combat_lines.clear();
 		lights.clear();
 		if (grid.vaoId)
 			UnloadMesh(grid);
@@ -448,8 +505,14 @@ struct SpriteScene::State
 		{
 			if (body.field_instance)
 				continue;
+			if (body.line_style)
+			{
+				combat_lines.push_back(body);
+				if (body.line_style != 2)
+					continue;
+			}
 			const auto &render = catalog.entities.at(body.definition).at("render");
-			Vector3 world = {body.x / 1000.f, 0, -body.y / 1000.f};
+			Vector3 world = {body.x / 1000.f, body.visual_height_mm / 1000.f, -body.y / 1000.f};
 			Vector3 p = Vector3Subtract(world, rebase);
 			if (Vector3Distance(p, cameraPosition) > rlGetCullDistanceFar() + render.at("scale").get<float>() * 20)
 				continue;
@@ -502,6 +565,13 @@ struct SpriteScene::State
 			const auto &f = *selected;
 			Item hull{&data, &f, p, render.at("scale").get<float>() * body.visual_scale};
 			hull.alpha = body.alpha;
+			if (body.velocity_rotation)
+			{
+				const Vector3 velocity{body.vx / 1000.f, body.visual_vz / 1000.f, -body.vy / 1000.f};
+				const auto dx = Vector3DotProduct(velocity, right), dy = Vector3DotProduct(velocity, up);
+				if (dx * dx + dy * dy > .0001f)
+					hull.rotation = std::atan2(dy, dx) - std::atan2(f.forward[1], f.forward[0]);
+			}
 			if (!body.sound.empty())
 			{
 				hull.effect = true;
@@ -589,8 +659,12 @@ struct SpriteScene::State
 		const auto &f = *item.frame;
 		auto &m = *item.material;
 		vec("anchor", item.anchor);
-		vec("basisRight", right);
-		vec("basisUp", item.flip_y ? Vector3Negate(up) : up);
+		const auto rotated_right =
+		    Vector3Add(Vector3Scale(right, std::cos(item.rotation)), Vector3Scale(up, std::sin(item.rotation)));
+		const auto rotated_up =
+		    Vector3Subtract(Vector3Scale(up, std::cos(item.rotation)), Vector3Scale(right, std::sin(item.rotation)));
+		vec("basisRight", rotated_right);
+		vec("basisUp", item.flip_y ? Vector3Negate(rotated_up) : rotated_up);
 		vec("basisNear", near);
 		vec("cameraPosition", cameraPosition);
 		number("height", item.height);
@@ -732,6 +806,8 @@ void SpriteScene::draw(const Catalog &catalog, std::span<const SceneBody> bodies
 	// Resource creation binds the default framebuffer internally. Preserve the
 	// caller's preview target on the first draw as well as subsequent draws.
 	rlEnableFramebuffer(destination);
+	s.update_smoke(bodies, lighting.value("environment", Json::object()).value("simulation_time", time),
+	               environment.reduced_motion);
 	s.prepare(catalog, bodies, camera);
 	s.cull_instances(camera, region);
 	const auto get = [&](const char *key, float fallback)
@@ -942,6 +1018,63 @@ void SpriteScene::draw(const Catalog &catalog, std::span<const SceneBody> bodies
 		if (item.colour_visible)
 			s.draw_item(item, false);
 	s.draw_instances(false);
+	for (const auto &line : s.combat_lines)
+	{
+		const auto start =
+		    Vector3Subtract(Vector3{line.x / 1000.f, line.visual_height_mm / 1000.f, -line.y / 1000.f}, s.rebase);
+		const auto end = Vector3Subtract(
+		    Vector3{line.line_end_x / 1000.f, line.line_end_z / 1000.f, -line.line_end_y / 1000.f}, s.rebase);
+		if (line.line_style == 3)
+		{
+			if (!environment.reduced_motion)
+			{
+				const auto segments = std::max(2, static_cast<int>(line.rotation_mdeg / 15000));
+				const auto radius = line.visual_scale * .55f;
+				for (float latitude : {-.45f, 0.f, .45f})
+					for (int i = 0; i < segments; ++i)
+					{
+						const auto a = (line.heading - line.rotation_mdeg / 2 + line.rotation_mdeg * i / segments) /
+						               1000.f * pi / 180;
+						const auto b =
+						    (line.heading - line.rotation_mdeg / 2 + line.rotation_mdeg * (i + 1) / segments) / 1000.f *
+						    pi / 180;
+						const Vector3 from{start.x + radius * std::cos(latitude) * std::cos(a),
+						                   start.y + radius * std::sin(latitude),
+						                   start.z - radius * std::cos(latitude) * std::sin(a)};
+						const Vector3 to{start.x + radius * std::cos(latitude) * std::cos(b),
+						                 start.y + radius * std::sin(latitude),
+						                 start.z - radius * std::cos(latitude) * std::sin(b)};
+						DrawLine3D(from, to, Color{95, 205, 255, static_cast<unsigned char>(line.alpha * 180)});
+					}
+			}
+		}
+		else if (Vector3Distance(start, end) > .001f)
+		{
+			DrawCylinderEx(start, end, line.line_style == 1 ? .10f : .035f, line.line_style == 1 ? .10f : .035f, 5,
+			               line.line_style == 1 ? Color{255, 95, 65, 220} : Color{255, 220, 125, 255});
+			if (line.line_style == 1)
+				DrawCylinderEx(start, end, .025f, .025f, 5, Color{255, 245, 210, 255});
+		}
+	}
+	for (const auto &p : s.smoke)
+	{
+		const float age = static_cast<float>(s.trail_clock - p.started);
+		SpriteFrame frame;
+		frame.rect = {0, 0, 1, 1};
+		frame.pivot = {.5f, .5f};
+		MaterialData material;
+		material.albedo = s.white;
+		material.normal = s.white;
+		material.depth = s.white;
+		Item puff{&material, &frame, Vector3Subtract(Vector3Add(p.position, {0, age * .15f, 0}), s.rebase),
+		          .4f + age * 1.8f, true};
+		const Vector4 tint{.28f, .30f, .32f, .6f * (1 - age / 1.2f)};
+		SetShaderValue(s.shader, s.loc("burstTint"), &tint, SHADER_UNIFORM_VEC4);
+		s.integer("burstGraphic", 2);
+		s.draw_item(puff, false);
+		s.integer("burstGraphic", 0);
+	}
+
 	// The event interface is intentionally not wired to gameplay or a UI action.
 	for (const auto &e : s.effects)
 		if (time >= e.started)

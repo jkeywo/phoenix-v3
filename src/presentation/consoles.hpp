@@ -132,7 +132,7 @@ class ConsoleSurface final : public Rml::EventListener
 	std::vector<std::pair<std::string, std::string>> controls_;
 	std::string gameplay_signature_;
 	std::string placement_signature_;
-	std::string gameplay_readout_signature_;
+	std::string gameplay_readout_signature_, fault_dialog_signature_, fault_dialog_system_;
 	std::string engineering_signature_;
 	std::set<std::string> held_clicks_;
 	std::map<std::string, Texture2D> hud_;
@@ -549,7 +549,10 @@ button.on-screen-active .share-live {display:block;}
 .mission-copy button:hover,.mission-copy button:focus {background:#bce8ad;color:#102014;border-color:#d1f9be;}
 #navigation-layer {position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;}
 #navigation-layer button,#navigation-layer input,#navigation-canvas {pointer-events:auto;}
-</style></head><body><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="engineering-cards"></div><div id="gameplay-controls"></div><div id="gameplay-messages"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div><div id="navigation-layer"></div><div id="manual-flight"></div><div id="local-settings"></div></body></rml>)"));
+#gameplay-controls .status-indicator {width:132px;min-height:30px;height:32px;margin:2px;padding:3px;font-size:14px;overflow:hidden;}
+#fault-dialog {position:absolute;left:10%;top:15%;width:80%;height:65%;padding:24px;box-sizing:border-box;background:#111e22;border:3px #dfa35d;z-index:80;overflow:auto;display:none;}
+#fault-dialog p {font-size:22px;line-height:1.4;}
+</style></head><body><div id="fault-dialog"></div><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="engineering-cards"></div><div id="gameplay-controls"></div><div id="gameplay-messages"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div><div id="navigation-layer"></div><div id="manual-flight"></div><div id="local-settings"></div></body></rml>)"));
 		if (!document_)
 			throw std::runtime_error("Cannot create Console document");
 		document_->AddEventListener("click", this);
@@ -1885,6 +1888,28 @@ button.on-screen-active .share-live {display:block;}
 				                                : Rml::StringUtilities::EncodeRml(localise("Starting in")) + " " +
 				                                      std::to_string((left + 999) / 1000));
 			}
+		const auto details = model_.system_details();
+		const auto selected_system = model_.status_system();
+		auto *dialog = document_->GetElementById("fault-dialog");
+		if (fault_dialog_signature_ != details)
+		{
+			elements_.clear();
+			dialog->SetInnerRML(
+			    details.empty()
+			        ? ""
+			        : "<h1>" + Rml::StringUtilities::EncodeRml(localise("System details")) + "</h1><p>" +
+			              Rml::StringUtilities::EncodeRml(details) + "</p><button id=\"" + id("game.status-close") +
+			              "\">" + Rml::StringUtilities::EncodeRml(localise("Close system details")) + "</button>");
+			dialog->SetProperty("display", details.empty() ? "none" : "block");
+			fault_dialog_signature_ = details;
+		}
+		if (fault_dialog_system_ != selected_system)
+		{
+			const auto target = selected_system.empty() ? "game.status/" + fault_dialog_system_ : "game.status-close";
+			if (auto *focus = document_->GetElementById(id(target)))
+				focus->Focus();
+			fault_dialog_system_ = selected_system;
+		}
 		const auto readouts_started = GetTime();
 		auto gameplay_controls =
 		    pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_controls();
@@ -2256,9 +2281,14 @@ button.on-screen-active .share-live {display:block;}
 
 			for (const auto &[name, label] : gameplay_controls)
 				if (!stance_controls.contains(name) && !engineering_controls.contains(name) &&
-				    !name.starts_with("game.compartment/"))
-					markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(id(name)) + "\">" +
-					          Rml::StringUtilities::EncodeRml(label) + "</button>";
+				    !name.starts_with("game.compartment/") && name != "game.status-close")
+				{
+					const bool status = name.starts_with("game.status/");
+					const auto visible = status ? label.substr(0, 4) + name.substr(12) : label;
+					markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(id(name)) + "\"" +
+					          (status ? " class=\"status-indicator\"" : "") + ">" +
+					          Rml::StringUtilities::EncodeRml(visible) + "</button>";
+				}
 			document_->GetElementById("gameplay-controls")->SetInnerRML(markup);
 			if (auto *previous = document_->GetElementById(focused))
 				previous->Focus();
@@ -2271,9 +2301,16 @@ button.on-screen-active .share-live {display:block;}
 			    displayed_values_["control/" + name] != label)
 			{
 				if (auto *element = this->element(id(name)))
-					element->SetInnerRML(Rml::StringUtilities::EncodeRml(label));
+					element->SetInnerRML(Rml::StringUtilities::EncodeRml(
+					    name.starts_with("game.status/") ? label.substr(0, 4) + name.substr(12) : label));
 				displayed_values_["control/" + name] = label;
 			}
+		for (const auto &[name, label] : gameplay_controls)
+			if (name.starts_with("game.status/"))
+				if (auto *light = element(id(name)))
+				{
+					property(light, "border-left", label.starts_with("[!]") ? "10px #f08060" : "10px #83be90");
+				}
 		if (model_.observation())
 			for (const auto &c :
 			     model_.observation()->gameplay.value("combat", Json::object()).value("compartments", Json::array()))

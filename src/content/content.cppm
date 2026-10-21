@@ -285,6 +285,7 @@ struct SpriteFrame
 	std::string name;
 	std::array<int, 4> rect{};
 	std::array<float, 2> pivot{};
+	std::array<float, 2> forward{0, -1};
 	bool mirror_x = false;
 	float azimuth = 0, depth_scale = 0, depth_offset = 0;
 	std::map<std::string, SpriteAttachment> attachments;
@@ -413,6 +414,7 @@ struct ProjectileDefinition
 	std::string visual;
 	std::int64_t speed = 0, lifetime = 0, penetration = 0, damage = 0, deposition = 0, spread = 0;
 	std::string guidance = "none", trail;
+	bool tracer = false;
 	std::int64_t shield_bypass = 0, turn_rate = 0, seeker_range = 0, arc_height = 0, chaos = 0;
 	std::int64_t durability = 0, radius = 100, resistance = 1, blast_radius = 0, fuse_radius = 0;
 	DestructionDefinition destruction;

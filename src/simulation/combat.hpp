@@ -18,6 +18,8 @@ struct BlastVisual
 	fixed::Vec position;
 	std::int64_t altitude = 0, tick = 0;
 	DestructionDefinition definition;
+	int kind = 0;
+	std::int64_t bearing = 0, arc = 360000;
 };
 struct FaultState
 {
@@ -43,7 +45,7 @@ struct CombatMechanism
 	bool ready = false;
 	std::int64_t selected_magazine = 0, loaded_magazine = -1, loading = 0, reserved_return = 0, mode = 1;
 	std::int64_t strength = 0, warmup = 0, recharge_remainder = 0, discharge_remainder = 0, beam_remainder = 0;
-	std::int64_t repair_system = -1, beam_tick = -1;
+	std::int64_t repair_system = -1, beam_tick = -1, bypass_remainder = 0;
 	fixed::Vec beam_end;
 	bool discharge = false, repair_auto = true;
 	std::uint64_t intercept = 0;
@@ -59,6 +61,8 @@ struct Projectile
 	std::int64_t altitude = 0, vz = 0, z_remainder = 0, durability = 0, age = 0, initial_distance = 0, base_heading = 0;
 	std::int64_t turn_remainder = 0;
 	std::uint64_t random = 1;
+	bool continuous = false;
+	std::int64_t bypass_remainder = 0;
 	std::set<EntityId> shield_hits;
 	std::set<std::uint64_t> missile_hits;
 	std::map<EntityId, std::string> decks;

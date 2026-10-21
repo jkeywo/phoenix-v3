@@ -1,3 +1,15 @@
+bool equipment_destroyed(flecs::entity ship, const std::string &equipment) const
+{
+	const auto *s = ship.try_get<CombatStructure>();
+	if (!s || !s->faults.contains(equipment))
+		return false;
+	const auto &states = s->faults.at(equipment);
+	const auto &defs = s->definition.faults.at(equipment);
+	for (std::size_t i = 0; i < states.size(); ++i)
+		if (states[i].active && defs[i].destroys)
+			return true;
+	return false;
+}
 // Typed effects shared by weapons, physical mechanisms and repair work.
 std::int64_t fault_effectiveness(flecs::entity ship, const std::string &equipment) const
 {
@@ -80,11 +92,17 @@ void actuate_shields(flecs::entity ship)
 		{
 			const auto &d = m->definition;
 			const bool enabled = child.get<Equipment>().enabled;
-			const bool paid = combat_paid(ship, child) && !structurally_disabled(ship, d.id);
+			const auto *power_source = ship.try_get<ShipResources>();
+			const auto *grant = power_source ? &power_source->grants.at(child.get<ResourceBinding>().slot) : nullptr;
+			const auto sustain = enabled ? d.sustain_energy : 0;
+			const auto requested = sustain + (m->discharge ? 0 : shield_rate(child) * d.recharge_energy);
+			const auto funded = grant && !grant->blocked ? requested * grant->supply_permille / 1000 : 0;
+			const bool paid = grant && !grant->blocked && !structurally_disabled(ship, d.id) && funded >= sustain;
 			m->warmup = paid && enabled ? std::min(d.warmup_ticks, m->warmup + 1) : 0;
 			if (paid && !m->discharge)
 			{
-				m->recharge_remainder += shield_rate(child) * fault_effectiveness(ship, d.id);
+				const auto recharge = std::min(shield_rate(child), (funded - sustain) / d.recharge_energy);
+				m->recharge_remainder += recharge * fault_effectiveness(ship, d.id);
 				m->strength = std::min(d.capacity, m->strength + m->recharge_remainder / (rate * 1000));
 				m->recharge_remainder %= rate * 1000;
 			}
@@ -103,9 +121,13 @@ void actuate_shields(flecs::entity ship)
 				}
 		}
 }
-std::int64_t absorb_shields(flecs::entity ship, std::int64_t heading, std::int64_t damage, std::int64_t bypass)
+std::int64_t absorb_shields(flecs::entity ship, std::int64_t heading, std::int64_t damage, std::int64_t bypass,
+                            std::int64_t *carry = nullptr)
 {
-	const auto bypassed = damage * bypass / 1000;
+	const auto budget = damage * bypass + (carry ? *carry : 0);
+	const auto bypassed = budget / 1000;
+	if (carry)
+		*carry = budget % 1000;
 	auto remaining = damage - bypassed;
 	std::vector<flecs::entity> layers;
 	for (auto child : ship.get<EquipmentIndex>().values)
@@ -130,6 +152,17 @@ std::int64_t absorb_shields(flecs::entity ship, std::int64_t heading, std::int64
 		const auto &d = m.definition;
 		const auto available = m.strength * m.warmup / d.warmup_ticks * fault_effectiveness(ship, d.id) / 1000;
 		const auto stopped = std::min(remaining, available);
+		if (stopped && blast_visuals.size() < 8192)
+		{
+			DestructionDefinition flash;
+			const auto &shape = ship.get<Collider>();
+			flash.size = 2 * (shape.box ? std::max(shape.half_width, shape.half_length) : shape.radius);
+			flash.growth_ticks = 1;
+			flash.fade_ticks = 5;
+			blast_visuals.push_back({next_blast++, ship.get<Pose>().position, 0,
+			                         static_cast<std::int64_t>(ecs.get<Clock>().tick), flash, 1,
+			                         combat_angle(ship.get<Pose>().heading + d.bearing), d.arc});
+		}
 		m.strength -= stopped;
 		remaining -= stopped;
 		if (!remaining)

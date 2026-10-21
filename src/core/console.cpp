@@ -1237,7 +1237,8 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 			                   : flag("overheated")          ? "Overheated"
 			                   : flag("structural_disabled") ? "Compartment disabled"
 			                   : flag("damaged")             ? "Damaged"
-			                                                 : "Operational";
+			                   : system.enabled              ? "Operational"
+			                                                 : "Off";
 			result.emplace_back("game.status/" + system.id,
 			                    std::string(label == std::string("Operational") ? "[+] " : "[!] ") + system.id + ": " +
 			                        localise(label));

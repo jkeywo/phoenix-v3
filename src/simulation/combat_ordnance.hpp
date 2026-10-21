@@ -54,6 +54,33 @@ bool blast_occluded(fixed::Vec origin, std::int64_t z, fixed::Vec end, std::int6
 	    });
 	return blocked;
 }
+struct BlastExposure
+{
+	fixed::Vec point;
+	std::int64_t altitude, distance;
+};
+BlastExposure blast_exposure(fixed::Vec origin, std::int64_t altitude, flecs::entity target) const
+{
+	const auto &shape = target.get<Collider>();
+	const auto &pose = target.get<Pose>();
+	const auto local = combat_local(origin, pose);
+	fixed::Vec point;
+	if (shape.box)
+		point = {std::clamp(local.x, -shape.half_width, shape.half_width),
+		         std::clamp(local.y, -shape.half_length, shape.half_length)};
+	else
+	{
+		const auto distance = fixed::length(local);
+		point = distance > shape.radius ? fixed::scale(fixed::normal(local), shape.radius) : local;
+	}
+	point = combat_world(point, pose);
+	const auto extent = definitions.at(target.get<Definition>().name).half_height;
+	const auto z = std::clamp(altitude, -extent, extent);
+	const auto delta = point - origin;
+	const auto dz = z - altitude;
+	return {point, z,
+	        static_cast<std::int64_t>(fixed::sqrt(static_cast<std::uint64_t>(fixed::dot(delta, delta) + dz * dz)))};
+}
 void emit_blast(fixed::Vec origin, std::int64_t altitude, const DestructionDefinition &d, EntityId source = 0)
 {
 	if (!d.visual.empty())
@@ -69,10 +96,9 @@ void emit_blast(fixed::Vec origin, std::int64_t altitude, const DestructionDefin
 		if (combat_dead(ship))
 			continue;
 		const auto centre = ship.get<Pose>().position;
-		const auto planar = fixed::length(centre - origin);
-		const auto distance =
-		    static_cast<std::int64_t>(fixed::sqrt(static_cast<std::uint64_t>(planar * planar + altitude * altitude)));
-		if (distance >= d.radius || blast_occluded(origin, altitude, centre, 0, id))
+		const auto exposure = blast_exposure(origin, altitude, ship);
+		const auto distance = exposure.distance;
+		if (distance >= d.radius || blast_occluded(origin, altitude, exposure.point, exposure.altitude, id))
 			continue;
 		Projectile effect;
 		effect.source = source;
@@ -104,10 +130,9 @@ void emit_blast(fixed::Vec origin, std::int64_t altitude, const DestructionDefin
 		    auto *v = e.try_get_mut<Destructible>();
 		    if (!v || v->durability <= 0 || e.has<CombatStructure>())
 			    return;
-		    const auto planar = fixed::length(pose.position - origin);
-		    const auto distance = static_cast<std::int64_t>(
-		        fixed::sqrt(static_cast<std::uint64_t>(planar * planar + altitude * altitude)));
-		    if (distance < d.radius && !blast_occluded(origin, altitude, pose.position, 0, id.id))
+		    const auto exposure = blast_exposure(origin, altitude, e);
+		    const auto distance = exposure.distance;
+		    if (distance < d.radius && !blast_occluded(origin, altitude, exposure.point, exposure.altitude, id.id))
 		    {
 			    v->durability = std::max<std::int64_t>(0, v->durability - d.damage * (d.radius - distance) / d.radius);
 			    if (!v->durability)
@@ -227,10 +252,13 @@ void fire_beam(flecs::entity ship, flecs::entity child, fixed::Vec origin, std::
 	{
 		Projectile p;
 		p.damage = damage;
+		p.continuous = true;
+		p.bypass_remainder = m.bypass_remainder;
 		p.penetration = d.projectile.penetration;
 		p.definition = d.projectile;
 		p.heading = bearing;
 		penetrate(p, target, origin, full_end);
+		m.bypass_remainder = p.bypass_remainder;
 	}
 	else if (auto *v = target.try_get_mut<Destructible>(); v && v->durability > 0)
 	{
@@ -413,12 +441,28 @@ void step_ordnance()
 				auto &m = hit.entity.get_mut<Projectile>();
 				if (m.durability <= 0)
 					continue;
-				p.missile_hits.insert(m.id);
-				const auto distance = 2 * m.definition.radius;
+				const auto old = previous.at(m.id);
+				CollisionBody reverse_target;
+				reverse_target.position = old.position;
+				reverse_target.radius = m.definition.radius;
+				reverse_target.mass = 1;
+				const auto reverse =
+				    volume_hit(p.position, from.position, p.altitude, from.altitude, reverse_target, m.position,
+				               m.altitude, old.altitude, m.definition.radius, p.definition.radius);
+				const auto exit = reverse ? fixed::unit - *reverse : fixed::unit;
+				if (exit < fixed::unit)
+					p.missile_hits.insert(m.id);
+				const auto relative = (p.position - from.position) - (m.position - old.position);
+				const auto dz = (p.altitude - from.altitude) - (m.altitude - old.altitude);
+				const auto path = static_cast<std::int64_t>(
+				    fixed::sqrt(static_cast<std::uint64_t>(fixed::dot(relative, relative) + dz * dz)));
+				const auto distance = path * std::max<std::int64_t>(0, exit - hit.time) / fixed::unit;
 				const auto resistance = std::max<std::int64_t>(1, distance * m.definition.resistance / 1000);
-				const auto deposited = p.penetration <= resistance
-				                           ? p.damage
-				                           : std::min(p.damage, distance * p.definition.deposition / 1000);
+				const auto deposited =
+				    p.penetration <= resistance
+				        ? p.damage
+				        : std::min(p.damage, (distance * p.definition.deposition + p.deposit_remainder) / 1000);
+				p.deposit_remainder = (distance * p.definition.deposition + p.deposit_remainder) % 1000;
 				m.durability = std::max<std::int64_t>(0, m.durability - deposited);
 				p.damage -= deposited;
 				p.penetration = std::max<std::int64_t>(0, p.penetration - resistance);

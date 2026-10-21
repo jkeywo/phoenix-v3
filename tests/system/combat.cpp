@@ -215,6 +215,285 @@ void add_beam(Json &s, int damage = 20, int bypass = 0)
 	         {"power_store", "cell"}},
 	        {{"target", "weapon_target"}});
 }
+Json missile_fixture(bool defence = false)
+{
+	auto s = powered_fixture();
+	auto &ship = s["entities"][0];
+	ship["systems"]["radar"]["shows"].push_back("missile");
+	Json payload = {{"visual", "test.visual"},
+	                {"speed_mm_s", 20000},
+	                {"lifetime_ticks", 200},
+	                {"penetration", 1000},
+	                {"damage", 100},
+	                {"damage_per_m", 5},
+	                {"guidance", "homing"},
+	                {"durability", 20},
+	                {"radius_mm", 1000},
+	                {"resistance_per_m", 1},
+	                {"arc_height_mm", 20000},
+	                {"seeker_range_mm", 200000},
+	                {"blast_radius_mm", 12000},
+	                {"trail", "smoke"},
+	                {"destruction", {{"visual", "test.visual"}, {"chance_permille", 0}, {"affects_missiles", false}}}};
+	add_fit(s, "missile-mag",
+	        {{"kind", "magazine"},
+	         {"compartment", "fore"},
+	         {"capacity", 3},
+	         {"reload", {{"strategy", "none"}}},
+	         {"projectile", payload}},
+	        {});
+	add_fit(s, "launcher",
+	        {{"kind", "weapon"},
+	         {"compartment", "fore"},
+	         {"magazines", {"missile-mag"}},
+	         {"arc_mdeg", 360000},
+	         {"fire_ticks", 1000},
+	         {"range_mm", 200000}},
+	        {{"target", "weapon_target"}});
+	if (defence)
+	{
+		Json tracer = {{"visual", "test.visual"}, {"speed_mm_s", 1000000}, {"lifetime_ticks", 5},
+		               {"penetration", 1000},     {"damage", 20},          {"damage_per_m", 2}};
+		add_fit(s, "pdc-mag",
+		        {{"kind", "magazine"},
+		         {"compartment", "fore"},
+		         {"capacity", 100},
+		         {"reload", {{"strategy", "none"}}},
+		         {"projectile", tracer}},
+		        {});
+		add_fit(s, "pdc",
+		        {{"kind", "weapon"},
+		         {"compartment", "fore"},
+		         {"magazines", {"pdc-mag"}},
+		         {"arc_mdeg", 360000},
+		         {"fire_ticks", 1},
+		         {"range_mm", 150000},
+		         {"point_defence", true},
+		         {"auto_energy_per_second", 200},
+		         {"discrete_energy", 1},
+		         {"power_store", "cell"}},
+		        {{"target", "weapon_target"}, {"mode", "weapon_mode"}});
+	}
+	return s;
+}
+void ordnance_contracts()
+{
+	{
+		auto s = missile_fixture();
+		auto obstacle = s["entities"][1];
+		obstacle["id"] = "test.cover";
+		obstacle["collision"] = {{"shape", "circle"}, {"radius_mm", 3000}, {"mass_grams", 0}};
+		obstacle["half_height_mm"] = 1000;
+		s["entities"].push_back(obstacle);
+		s["maps"][0]["entities"].push_back(
+		    {{"id", 4}, {"definition", "test.cover"}, {"x_mm", 30000}, {"y_mm", 0}, {"heading_mdeg", 0}});
+		const auto c = load(s);
+		const std::string map = s["maps"][0]["id"];
+		World w;
+		w.load(c, map);
+		claim(w);
+		submit(w, 101, "launcher", "target", 2);
+		advance(w, 30);
+		require(w.save()["projectiles"].size() == 1 && w.save()["projectiles"][0]["altitude"].get<int>() > 1000,
+		        "physical missile crosses low cover above horizon");
+		World resumed;
+		resumed.restore(c, w.save());
+		advance(w, 40);
+		advance(resumed, 40);
+		require(w.save() == resumed.save(), "elevated seeker and detonation continuation");
+		require(hp(w) < 20000 && w.save()["projectiles"].empty(),
+		        "homing missile descends into physical target and applies area payload once");
+	}
+	{
+		auto s = missile_fixture();
+		auto &p = s["entities"][0]["systems"]["missile-mag"]["projectile"];
+		p["guidance"] = "chaotic";
+		p["chaos_mdeg"] = 40000;
+		p["turn_mdeg_s"] = 360000;
+		p["arc_height_mm"] = 1000;
+		const auto c = load(s);
+		const std::string map = s["maps"][0]["id"];
+		World w;
+		w.load(c, map);
+		claim(w);
+		submit(w, 101, "launcher", "target", 2);
+		advance(w, 10);
+		const auto old = w.save()["projectiles"][0];
+		require(old["position"]["y"].get<int>() != 0, "havok follows a chaotic path");
+		World resumed;
+		resumed.restore(c, w.save());
+		submit(w, 101, "launcher", "target", 3);
+		submit(resumed, 101, "launcher", "target", 3);
+		advance(w, 10);
+		advance(resumed, 10);
+		require(w.save() == resumed.save() && w.save()["projectiles"][0]["target"] == 2,
+		        "unguided launch payload and intent survive later assignment changes");
+	}
+	{
+		auto s = missile_fixture(true);
+		s["entities"][0]["systems"]["missile-mag"]["projectile"]["arc_height_mm"] = 10000;
+		const auto c = load(s);
+		const std::string map = s["maps"][0]["id"];
+		World w;
+		w.load(c, map);
+		claim(w);
+		require(w.claim(201, 2, "drive"), "claim defender");
+		auto mode = command(w, 201, "pdc", "mode", 1);
+		mode.target = 2;
+		require(w.submit(201, mode), "activate defender automatic interception");
+		submit(w, 101, "launcher", "target", 2);
+		advance(w, 40);
+		require(state(w, 2)["systems"]["pdc"]["shots"].get<int>() > 1,
+		        "high-penetration low-deposition defence needs repeated hits");
+		require(w.save()["projectiles"].empty() && hp(w) == 20000,
+		        "point defence physically intercepts elevated missiles before impact");
+		World idle;
+		idle.load(c, map);
+		claim(idle);
+		submit(idle, 101, "pdc", "mode", 1);
+		advance(idle, 20);
+		require(idle.save()["bodies"][0]["resources"]["network"]["stores"][0]["energy"] == 99800,
+		        "Auto has a real standby draw without targets");
+		submit(idle, 101, "pdc", "mode", 0);
+		advance(idle, 20);
+		require(idle.save()["bodies"][0]["resources"]["network"]["stores"][0]["energy"] == 99800,
+		        "Off stops standby draw");
+		submit(idle, 101, "pdc", "target", 2);
+		idle.tick();
+		require(state(idle)["systems"]["pdc"]["mode"] == 2, "ship assignment enters Manual");
+		submit(idle, 101, "pdc", "target", 0);
+		idle.tick();
+		require(state(idle)["systems"]["pdc"]["mode"] == 1, "cancel returns Manual to Auto");
+	}
+}
+void effects_contracts()
+{
+	{
+		auto source = powered_fixture();
+		add_beam(source, 20, 250);
+		add_fit(source, "shield",
+		        {{"kind", "shield"},
+		         {"compartment", "fore"},
+		         {"capacity", 1000},
+		         {"power_store", "cell"},
+		         {"warmup_ticks", 1}},
+		        {});
+		const auto c = load(source);
+		const std::string map = source["maps"][0]["id"];
+		World w;
+		w.load(c, map);
+		claim(w);
+		w.tick();
+		submit(w, 101, "beam", "target", 2);
+		advance(w, 10);
+		World resumed;
+		resumed.restore(c, w.save());
+		advance(w, 10);
+		advance(resumed, 10);
+		require(hp(w) == 19995 && w.save() == resumed.save(),
+		        "continuous shield bypass preserves fractional damage across ticks and resume");
+	}
+	{
+		auto source = powered_fixture();
+		source["entities"][0]["resources"]["stores"][0]["discharge_rate"] = 20;
+		add_fit(source, "shield",
+		        {{"kind", "shield"},
+		         {"compartment", "fore"},
+		         {"capacity", 100},
+		         {"initial", 20},
+		         {"recharge_per_second", 80},
+		         {"off_recharge_per_second", 0},
+		         {"sustain_energy_per_second", 20},
+		         {"warmup_ticks", 4},
+		         {"power_store", "cell"}},
+		        {});
+		const auto c = load(source);
+		World w;
+		w.load(c, source["maps"][0]["id"]);
+		claim(w);
+		advance(w, 10);
+		require(state(w)["systems"]["shield"]["warmup"] == 4 && state(w)["systems"]["shield"]["strength"] == 20,
+		        "funded sustaining power retains coverage while recharge is unfunded");
+	}
+	for (const int chance : {0, 1000})
+	{
+		auto source = powered_fixture();
+		add_beam(source, 20);
+		auto bomb = source["entities"][1];
+		bomb["id"] = "test.bomb";
+		bomb["collision"] = {{"shape", "circle"}, {"radius_mm", 3000}, {"mass_grams", 0}};
+		bomb["durability"] = 1;
+		bomb["destruction"] = {
+		    {"visual", "test.visual"}, {"chance_permille", chance}, {"damage", 100}, {"radius_mm", 100000}};
+		source["entities"].push_back(bomb);
+		source["maps"][0]["entities"].push_back(
+		    {{"id", 4}, {"definition", "test.bomb"}, {"x_mm", 30000}, {"y_mm", 0}, {"heading_mdeg", 0}});
+		const auto c = load(source);
+		World w;
+		w.load(c, source["maps"][0]["id"]);
+		claim(w);
+		submit(w, 101, "beam", "target", 2);
+		w.tick();
+		require(chance ? hp(w) < 20000 && hp(w, 1) < 20000 : hp(w) == 20000 && hp(w, 1) == 20000,
+		        "generic destruction odds and faction-independent blast collateral");
+		submit(w, 101, "beam", "target", 0);
+		w.tick();
+		const auto health = hp(w);
+		World resumed;
+		resumed.restore(c, w.save());
+		advance(w, 20);
+		advance(resumed, 20);
+		require(hp(w) == health && w.save() == resumed.save(),
+		        "shared destruction applies once and survives restoration");
+	}
+	for (const int chance : {0, 1000})
+	{
+		auto source = missile_fixture(true);
+		auto &ship = source["entities"][0];
+		ship["systems"]["launcher"]["fire_ticks"] = 1;
+		auto &payload = ship["systems"]["missile-mag"]["projectile"];
+		payload["arc_height_mm"] = 0;
+		payload["durability"] = 1;
+		payload["shield_bypass_permille"] = 1000;
+		payload["destruction"] = {{"visual", "test.visual"},
+		                          {"chance_permille", chance},
+		                          {"damage", 100},
+		                          {"radius_mm", 100000},
+		                          {"affects_missiles", false}};
+		auto &pdc = ship["systems"]["pdc-mag"]["projectile"];
+		pdc["penetration"] = 1;
+		pdc["damage"] = 1;
+		pdc["damage_per_m"] = 1000000;
+		ship["systems"]["pdc"]["fire_ticks"] = 1000;
+		add_fit(source, "shield",
+		        {{"kind", "shield"},
+		         {"compartment", "fore"},
+		         {"capacity", 1000},
+		         {"power_store", "cell"},
+		         {"warmup_ticks", 1}},
+		        {});
+		const auto c = load(source);
+		World w;
+		w.load(c, source["maps"][0]["id"]);
+		claim(w);
+		require(w.claim(201, 2, "drive"), "claim destruction test defender");
+		submit(w, 101, "launcher", "target", 2);
+		advance(w, 20);
+		auto auto_mode = command(w, 201, "pdc", "mode", 1);
+		auto_mode.target = 2;
+		require(w.submit(201, auto_mode), "enable interception after missiles clear launch hull");
+		w.tick();
+		const auto snapshot = w.save();
+		int missiles = 0;
+		for (const auto &p : snapshot["projectiles"])
+			if (p["definition"]["durability"].get<int>() > 0)
+				++missiles;
+		require(missiles == 2, "intercepted missile destruction excludes neighbouring missiles");
+		require(hp(w) == 20000 && (chance ? state(w, 2)["systems"]["shield"]["strength"].get<int>() < 1000
+		                                  : state(w, 2)["systems"]["shield"]["strength"].get<int>() == 1000),
+		        "interception damage profile has no shield penetration and honours probability");
+	}
+}
 void extended_contracts()
 {
 	{
@@ -400,6 +679,20 @@ int main(int argc, char **argv)
 	try
 	{
 		auto source = fixture();
+		if (argc > 1 && std::string(argv[1]) == "--trace")
+		{
+			source = missile_fixture(true);
+			add_beam(source, 400);
+			source["entities"][0]["systems"]["launcher"]["load_ticks"] = 4;
+			source["entities"][0]["combat"]["decks"][0]["compartments"][1]["initial_hp"] = 0;
+			add_fit(source, "shield",
+			        {{"kind", "shield"},
+			         {"compartment", "fore"},
+			         {"capacity", 1000},
+			         {"power_store", "cell"},
+			         {"warmup_ticks", 20}},
+			        {{"discharge", "shield_discharge"}});
+		}
 		auto catalog = load(source);
 		const auto map = source["maps"][0]["id"].get<std::string>();
 		if (argc > 1 && std::string(argv[1]) == "--trace")
@@ -407,7 +700,9 @@ int main(int argc, char **argv)
 			World world;
 			world.load(catalog, map);
 			claim(world);
-			submit(world, 101, "gun", "target", 2);
+			submit(world, 101, "launcher", "target", 2);
+			submit(world, 101, "beam", "target", 3);
+			submit(world, 102, "team-a", "enabled", 1);
 			submit(world, 102, "team-a", "assignment", 2);
 			advance(world, 6);
 			World resumed;
@@ -780,6 +1075,8 @@ int main(int argc, char **argv)
 			        "combat AI cannot target ships absent from its permitted sensor feed");
 		}
 		extended_contracts();
+		ordnance_contracts();
+		effects_contracts();
 		std::cout << "Combat system contracts passed\n";
 		return 0;
 	}

@@ -1,3 +1,11 @@
+std::int64_t load_duration(flecs::entity ship, const CombatMechanism &m) const
+{
+	if (m.definition.magazines.empty())
+		return 0;
+	const auto &mag =
+	    instance(ship, m.definition.magazines.at(m.selected_magazine))->entity.get<CombatMechanism>().definition;
+	return mag.load_ticks ? mag.load_ticks : m.definition.load_ticks;
+}
 const ProjectileDefinition &weapon_payload(flecs::entity ship, const CombatMechanism &m) const
 {
 	if (!m.definition.magazines.empty())
@@ -116,12 +124,12 @@ void prepare_weapons(flecs::entity ship)
 					}
 				}
 			}
-			if (d.load_ticks && m->loaded_magazine < 0 && !d.magazines.empty())
+			if (load_duration(ship, *m) && m->loaded_magazine < 0 && !d.magazines.empty())
 			{
 				auto mag = instance(ship, d.magazines.at(m->selected_magazine))->entity;
 				auto &a = mag.get_mut<CombatMechanism>();
 				if (mag.get<Equipment>().enabled && !structurally_disabled(ship, a.definition.id) &&
-				    a.ammo >= d.ammo_use && ++m->loading >= d.load_ticks)
+				    a.ammo >= d.ammo_use && ++m->loading >= load_duration(ship, *m))
 				{
 					a.ammo -= d.ammo_use;
 					a.reserved_return += d.ammo_use;
@@ -202,7 +210,7 @@ void prepare_weapons(flecs::entity ship)
 				const auto &a = mag.get<CombatMechanism>();
 				if (!mag.get<Equipment>().enabled || structurally_disabled(ship, name))
 					continue;
-				if (d.load_ticks)
+				if (load_duration(ship, *m))
 				{
 					if (m->loaded_magazine < 0)
 						continue;
@@ -249,7 +257,7 @@ void fire_weapons(flecs::entity ship)
 				continue;
 			}
 			auto &a = instance(ship, d.magazines.at(m->selected_magazine))->entity.get_mut<CombatMechanism>();
-			if (d.load_ticks)
+			if (load_duration(ship, *m))
 			{
 				if (m->loaded_magazine < 0)
 					continue;
@@ -262,7 +270,8 @@ void fire_weapons(flecs::entity ship)
 					continue;
 				a.ammo -= d.ammo_use;
 			}
-			m->cooldown = std::max<std::int64_t>(1, d.interval * 1000 / fault_effectiveness(ship, d.id));
+			const auto interval = a.definition.interval ? a.definition.interval : d.interval;
+			m->cooldown = std::max<std::int64_t>(1, interval * 1000 / fault_effectiveness(ship, d.id));
 			++m->shots;
 			auto &s = ship.get_mut<CombatStructure>();
 			s.random = s.random * 6364136223846793005ULL + 1;

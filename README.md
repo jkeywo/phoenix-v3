@@ -24,6 +24,8 @@ The native [main menu and pre-game lobby](docs/native-menu.md) provide cascading
 
 The [comic renderer](docs/comic-rendering.md) uses calibrated sprite depth for lighting and per-pixel occlusion, with depth-backed sun shadows, crosshatching and directional engine light. The Phoenix Base Game pack includes the Courier, powered engineering fit, six-Console Cruiser and Free Flight. Use the development-only test base for powered objective scenarios and navigation/lighting exercises; see the [reusable content guide](docs/gameplay-content.md). Workshop provides a live material/lighting preview. Browser graphics require WebGL 2.
 
+The [combat MVP](docs/combat-mvp.md) extends the [first combat stage](docs/combat-stage-one.md) with sustained beams, selectable ammunition, elevated homing/havok missiles, point defence, layered shields and fault-aware repairs in the asteroid duel. Verification and remaining platform acceptance are recorded separately.
+
 The [source guide](docs/source-guide.md) explains the inputs; the [prior setting agreement](docs/settled-dark-direction.md) preserves the earlier pivot decisions. The consolidated GDD incorporates those decisions and the subsequent V3 consolidation choices. Historical snapshots remain unchanged.
 
 See [launch bases and development test content](docs/base-mods.md) for fixed base selection, child mods, isolated preferences and the model test level.

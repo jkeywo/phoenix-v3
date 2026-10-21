@@ -151,6 +151,9 @@ bool knowledge_telemetry_source(const std::string &name)
 	                                             "actual_coolant_used",
 	                                             "coolant_stock",
 	                                             "structural_disabled",
+	                                             "damaged",
+	                                             "destroyed",
+	                                             "overheated",
 	                                             "target",
 	                                             "ready",
 	                                             "heading_mdeg",
@@ -383,7 +386,7 @@ state_tree::Type system_observation_type(const std::string &name)
 	                                         "assisted",    "boost",          "impulse",         "match_speed",
 	                                         "match_stale", "supply_limited", "thermal_stopped", "thermal_override",
 	                                         "overdrive",   "flow_cut",       "link_isolated",   "structural_disabled",
-	                                         "ready"};
+	                                         "damaged",     "destroyed",      "overheated",      "ready"};
 	return flags.contains(name) ? state_tree::Type::Boolean : state_tree::Type::Integer;
 }
 GameplayKnowledgeDefinitions compile_gameplay_knowledge(const Catalog &catalog)

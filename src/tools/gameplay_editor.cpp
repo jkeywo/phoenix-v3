@@ -472,6 +472,43 @@ struct GameplayEditor
 		}
 		return fallback;
 	}
+	void destruction_fields(Json &d)
+	{
+		optional_string(d, "visual");
+		optional_string(d, "sound");
+		integer(d, "chance_permille", 1000);
+		integer(d, "damage");
+		integer(d, "radius_mm");
+		integer(d, "shield_bypass_permille");
+		integer(d, "growth_ticks", 1);
+		integer(d, "fade_ticks", 10);
+		integer(d, "size_mm", 10000);
+		boolean(d, "affects_missiles", true);
+	}
+	void projectile_fields(Json &p)
+	{
+		string(p, "visual");
+		for (const auto *key : {"speed_mm_s", "lifetime_ticks", "penetration", "damage", "damage_per_m", "spread_mdeg",
+		                        "shield_bypass_permille", "durability", "arc_height_mm", "chaos_mdeg",
+		                        "blast_radius_mm", "fuse_radius_mm"})
+			integer(p, key);
+		integer(p, "radius_mm", 100);
+		integer(p, "resistance_per_m", 1);
+		integer(p, "turn_mdeg_s", 90000);
+		integer(p, "seeker_range_mm", 1000000);
+		boolean(p, "tracer");
+		choice(p, "guidance", {"none", "homing", "chaotic"});
+		optional_string(p, "trail");
+		if (p.contains("destruction"))
+		{
+			ScopedId scope("projectile-destruction");
+			destruction_fields(p["destruction"]);
+			if (button("Remove destruction effect"))
+				p.erase("destruction");
+		}
+		else if (button("Add destruction effect"))
+			p["destruction"] = {{"chance_permille", 1000}, {"affects_missiles", false}};
+	}
 	void system_details(Json &spec, const std::string &fallback_kind = "engine")
 	{
 		for (const char *key : {"power_store", "generator", "power_group", "conduit", "cooling_link", "coolant_source"})
@@ -494,26 +531,68 @@ struct GameplayEditor
 		        });
 		const auto kind = spec.value("kind", fallback_kind);
 		optional_string(spec, "compartment");
-		if (kind == "weapon" || kind == "turret")
+		if (kind == "weapon" || kind == "turret" || kind == "shield")
 		{
 			integer(spec, "arc_mdeg", 360000);
 			integer(spec, "bearing_mdeg");
 			integer(spec, "x_mm");
 			integer(spec, "y_mm");
 		}
+		records(spec, "faults",
+		        {{"id", "fault"},
+		         {"symptom", "Erratic equipment response"},
+		         {"diagnosis", "Damaged mechanism requires repair"},
+		         {"chance_permille", 100},
+		         {"repair_work", 100}},
+		        [&](Json &f)
+		        {
+			        string(f, "id");
+			        string(f, "symptom");
+			        string(f, "diagnosis");
+			        choice(f, "effect", {"output", "disabled", "feed"});
+			        integer(f, "chance_permille", 100);
+			        integer(f, "damage_threshold", 1);
+			        integer(f, "severity", 1);
+			        integer(f, "effectiveness_permille", 500);
+			        integer(f, "repair_work", 100);
+			        boolean(f, "destroyed");
+		        });
 		if (kind == "weapon")
 		{
-			string(spec, "magazine");
+			choice(spec, "family", {"projectile", "beam"});
+			optional_string(spec, "magazine");
+			strings(spec, "magazines");
 			optional_string(spec, "turret");
 			integer(spec, "fire_ticks", 20);
 			integer(spec, "ammo_use", 1);
-			if (!spec.contains("projectile"))
+			integer(spec, "load_ticks");
+			integer(spec, "range_mm", 1000000);
+			integer(spec, "damage_per_second", 1);
+			boolean(spec, "point_defence");
+			integer(spec, "auto_energy_per_second");
+			strings(spec, "intercept_classes");
+			if (spec.contains("projectile"))
+			{
+				ScopedId scope("weapon-projectile");
+				projectile_fields(spec["projectile"]);
+				if (button("Remove weapon projectile"))
+					spec.erase("projectile");
+			}
+			else if (button("Add weapon projectile"))
 				spec["projectile"] = Json::object();
-			auto &p = spec["projectile"];
-			string(p, "visual");
-			for (const auto *key :
-			     {"speed_mm_s", "lifetime_ticks", "penetration", "damage", "damage_per_m", "spread_mdeg"})
-				integer(p, key);
+		}
+		if (kind == "shield")
+		{
+			integer(spec, "capacity", 100);
+			integer(spec, "initial", 100);
+			integer(spec, "layer");
+			integer(spec, "sustain_energy_per_second", 20);
+			integer(spec, "energy_per_strength", 1);
+			integer(spec, "recharge_per_second", 20);
+			integer(spec, "off_recharge_per_second", 5);
+			integer(spec, "warmup_ticks", 20);
+			integer(spec, "discharge_per_second", 20);
+			integer(spec, "discharge_efficiency_permille", 1000);
 		}
 		if (kind == "turret")
 		{
@@ -525,6 +604,17 @@ struct GameplayEditor
 		}
 		if (kind == "magazine")
 		{
+			integer(spec, "fire_ticks");
+			integer(spec, "load_ticks");
+			if (spec.contains("projectile"))
+			{
+				ScopedId scope("magazine-projectile");
+				projectile_fields(spec["projectile"]);
+				if (button("Remove ammunition projectile"))
+					spec.erase("projectile");
+			}
+			else if (button("Add ammunition projectile"))
+				spec["projectile"] = Json::object();
 			integer(spec, "capacity", 10);
 			integer(spec, "initial", 10);
 			if (!spec.contains("reload"))
@@ -636,6 +726,17 @@ struct GameplayEditor
 		auto *ship = select_entity(document);
 		if (!ship)
 			return;
+		integer(*ship, "durability");
+		integer(*ship, "half_height_mm", 5000);
+		if (ship->contains("destruction"))
+		{
+			ScopedId scope("entity-destruction");
+			destruction_fields((*ship)["destruction"]);
+			if (button("Remove entity destruction effect"))
+				ship->erase("destruction");
+		}
+		else if (button("Add entity destruction effect"))
+			(*ship)["destruction"] = Json::object();
 		if (!ship->contains("combat"))
 		{
 			if (button("Add compartment combat layout"))
@@ -700,7 +801,9 @@ struct GameplayEditor
 		        });
 		if (!c.contains("destruction"))
 			c["destruction"] = Json::object();
+		integer(c, "half_height_mm", 5000);
 		auto &d = c["destruction"];
+		destruction_fields(d);
 		string(d, "visual");
 		string(d, "sound");
 		integer(d, "growth_ticks", 10);
@@ -775,7 +878,7 @@ struct GameplayEditor
 				choice(spec, "template", document.definition_choices(WorkshopDefinitionKind::Equipment), true);
 				choice(spec, "kind",
 				       {"engine", "steering", "radar", "generator", "distribution", "coolant", "storage", "lateral",
-				        "boost", "impulse", "weapon", "turret", "magazine", "repair_team"},
+				        "boost", "impulse", "weapon", "turret", "magazine", "repair_team", "shield"},
 				       true);
 				auto kind = equipment_kind(document, spec);
 				if (kind.empty())
