@@ -895,7 +895,12 @@ if(EMSCRIPTEN)
 			"${CMAKE_CURRENT_BINARY_DIR}/assets@/assets"
 			"SHELL:--preload-file \"${CMAKE_CURRENT_BINARY_DIR}/base.zip@/assets/base.zip\""
 			"--shell-file"
-			"${CMAKE_CURRENT_SOURCE_DIR}/tests/manual/manual_flight_ui.html"
+			"${CMAKE_CURRENT_SOURCE_DIR}/tests/manual/sensors_ui.html"
+	)
+	set_target_properties(
+		phoenix_sensors_smoke
+		PROPERTIES
+			LINK_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/base.zip;${CMAKE_CURRENT_SOURCE_DIR}/tests/manual/sensors_ui.html"
 	)
 endif()
 

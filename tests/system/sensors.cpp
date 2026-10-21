@@ -98,6 +98,10 @@ int main(int argc, char **argv)
 		require(!samples(w).at("compartment_condition").at("data").is_null(), "resumed long acquisition completes");
 		require(samples(w).at("finding:engineering").at("data").at("text") == "Isolated conduit",
 		        "authored information acquired");
+		const auto acquired_observation = w.observe(101);
+		for (const auto &contact : acquired_observation->gameplay.at("sensors").at("contacts"))
+			require(!contact.at("findings").contains("findings"),
+			        "knowledge records do not duplicate direct authored findings");
 		auto damaged = w.save();
 		for (auto &body : damaged["bodies"])
 			if (body.at("body").at("id") == 2)
@@ -218,6 +222,19 @@ int main(int argc, char **argv)
 			const auto projected = network::bounded_gameplay(sharing.observe(102)->gameplay);
 			require(projected.at("sensors").at("scanners").empty(),
 			        "network receiver gains evidence without private scanner state");
+			source["entities"][0]["publications"][0]["schema"] = "phoenix.sensor.findings";
+			World findings;
+			findings.load(load(source), "test.map");
+			require(findings.claim(101, 1, "drive") && findings.claim(102, 1, "observer"), "claim finding publication");
+			command(findings, "target", 2);
+			ticks(findings, 8);
+			require(findings.submit(101, OperatingCommand{1, "publish.scan", 0, {}}), "publish authored finding");
+			ticks(findings, 1);
+			const auto shared_findings = network::bounded_gameplay(findings.observe(102)->gameplay).at("sensors");
+			const auto &discovery = shared_findings.at("contacts")[0].at("findings").at("finding:engineering");
+			require(discovery.at("data").at("text") == "Isolated conduit" && discovery.at("observed") == 6 &&
+			            !discovery.at("live").get<bool>(),
+			        "shared finding retains its acquisition timestamp instead of publication time");
 		}
 		{
 			auto source = fixture();

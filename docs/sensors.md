@@ -57,4 +57,16 @@ Saved sensor state contains selected targets, independent partial exposure, last
 
 `phoenix_sensors_tests` uses synthetic combat fittings through production loaders and Controller admission. `--trace` supports native/WASM continuation comparison. `phoenix_sensors_smoke` is an explicitly invoked graphical Courier journey, excluded from automatic tests. Build it with `scripts/build.ps1 -Target native -BuildTarget phoenix_sensors_smoke`, then run it with `build/native` as the pack directory. The equivalent WASM target produces an HTML harness.
 
+Verification on 21 October 2026:
+
+- `scripts/check.ps1 -Target native` passed all 27 system cases, content/build checks and service checks.
+- The sensor continuation case saves separately during turret traversal and genuinely unfinished acquisition, then compares restored and uninterrupted state.
+- The final native and WASM sensor continuation traces match.
+- The broader WASM system gate and combat, Controller, Comms, sensor and away-mission continuation comparisons passed. The final finding-deduplication correction is additionally covered by the focused sensor and graphical journeys.
+- The native graphical Courier journey passed select, slew, pause, resume, acquire and retained-observation checks. Captures were inspected at 1280 × 900; the contact panel's nested widths were corrected after visual inspection.
+- The same Courier journey passed in the in-app browser with WebGL rendering. The acquired panel and exposed semantic controls were inspected, including timestamped retained findings and the rescue engineering discovery.
+- Compatibility capabilities on the legacy Courier and combat-radar template passed production pack verification. Courier timing and ranges remain authored tuning, not exact-value test expectations.
+
+The browser harness at `build/web/phoenix_sensors_smoke.html` displays its result and four captured stages. Physical multi-display and assistive-reader acceptance remain separate from these semantic-control and graphical checks.
+
 Enquiry queues, intrusive scans, spoofing, triangulation, probes and individual equipment fault diagnosis remain outside this increment.

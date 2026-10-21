@@ -366,11 +366,22 @@ Json sensor_projection(const ConsoleAddress &address) const
 		auto &row = contacts[record.value.subject];
 		if (row.is_null())
 			row = Json{{"id", record.value.subject}, {"findings", Json::object()}};
+		const auto payload = Json::parse(std::get<std::string>(record.value.fields.at(field)));
+		if (cap == "findings")
+		{
+			for (const auto &entry : payload)
+			{
+				auto &finding = row["findings"]["finding:" + entry.at("id").get<std::string>()];
+				if (finding.is_null() || finding.at("observed") < entry.at("observed"))
+					finding = Json{{"data", {{"id", entry.at("id")}, {"text", entry.at("text")}}},
+					               {"observed", entry.at("observed")},
+					               {"live", false}};
+			}
+			continue;
+		}
 		auto &finding = row["findings"][cap];
 		if (finding.is_null() || finding.at("observed") < record.value.provenance.observed_tick)
-			finding = Json{{"data", Json::parse(std::get<std::string>(record.value.fields.at(field)))},
-			               {"observed", record.value.provenance.observed_tick},
-			               {"live", false}};
+			finding = Json{{"data", payload}, {"observed", record.value.provenance.observed_tick}, {"live", false}};
 	}
 	for (auto &[target, row] : contacts)
 		out["contacts"].push_back(row);

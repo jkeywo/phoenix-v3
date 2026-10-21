@@ -206,7 +206,8 @@ std::vector<std::pair<std::string, std::string>> board_readouts(const Json &boar
 		std::map<std::string, Json> latest;
 		for (const auto &record : records)
 		{
-			if (!record.is_object() || console_string(record, "schema") == "phoenix.camera")
+			if (!record.is_object() || console_string(record, "schema") == "phoenix.camera" ||
+			    console_string(record, "schema").starts_with("phoenix.sensor."))
 				continue;
 			std::string identity = console_string(record, "schema");
 			for (const auto *key : {"subject", "source", "publication"})
@@ -1505,7 +1506,7 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 			for (const auto &[cap, finding] : contact.at("findings").items())
 			{
 				const auto key = "game.scan-finding/" + std::to_string(sensor_contact_) + "/" + cap;
-				result.emplace_back(key, localise(cap) + " / " +
+				result.emplace_back(key, localise(cap.starts_with("finding:") ? "Sensor finding" : cap) + " / " +
 				                             localise(finding.at("live").get<bool>() ? "Live" : "Last observed") + " " +
 				                             std::to_string(finding.at("observed").get<std::uint64_t>() / 20) + "s");
 				const auto &data = finding.at("data");

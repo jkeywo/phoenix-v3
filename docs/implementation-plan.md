@@ -1,5 +1,7 @@
 # Foundation implementation plan
 
+Sensors and focused scanning, 21 October 2026: capability-based radar, independently targeted sensor turrets, concurrent timed acquisitions, retained evidence, scenario discoveries, Tactical controls and Workshop authoring are implemented. Native integration, native/WASM sensor continuation and the manually invoked native/browser Courier journeys pass. See [the contract and verification](sensors.md).
+
 Away missions, 21 October 2026: Dispatch, qualified displacement, department-scoped contributions, remote work/Comms and authored recall/resumption are implemented. Native system checks, WASM integration/continuation parity, fleet checks and the manually invoked native rescue journey passed. The bounded rescue demonstration uses repair teams and existing combat; shuttles, security encounters and evacuation logistics remain later work. See [the contract and evidence](away-missions.md).
 
 Duty officers, 21 October 2026: department-scoped Controller/team assignments, compartment travel, expertise modifiers, Personnel UI, Workshop authoring and AI speaker identity are implemented. Native, network and WebAssembly checks pass; the Personnel reassignment smoke was rendered and inspected. See [the contract and validation](duty-officers.md); platform acceptance remains separate.
