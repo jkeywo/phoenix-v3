@@ -757,7 +757,7 @@ Json save_away() const
 	for (std::size_t i = 0; i < away_missions.size(); ++i)
 	{
 		Json row = away_missions[i];
-		row["schema"] = 4;
+		row["schema"] = 5;
 		row["id"] = away_definitions[i].id;
 		row["continuation"] = state_tree::save(away_definitions[i].program, away_missions[i].continuation);
 		for (const auto &[team, care] : away_missions[i].care)
@@ -781,7 +781,7 @@ void restore_away(const Json &rows)
 	{
 		const auto &d = away_definitions[i];
 		const auto schema = rows[i].at("schema");
-		if ((schema != 1 && schema != 2 && schema != 3 && schema != 4) || rows[i].at("id") != d.id)
+		if ((schema != 1 && schema != 2 && schema != 3 && schema != 4 && schema != 5) || rows[i].at("id") != d.id)
 			throw std::runtime_error("Away mission identity mismatch");
 		auto record = rows[i];
 		if (schema == 1)
@@ -805,7 +805,15 @@ void restore_away(const Json &rows)
 		if (!care_record.is_object() || care_record.size() > 16)
 			throw std::runtime_error("Invalid away care roster");
 		for (auto &[key, value] : record["care"].items())
+		{
 			value.erase("continuation");
+			if (schema < 5)
+			{
+				value["activity"] = "";
+				value["work_done"] = false;
+				value["done"] = false;
+			}
+		}
 		auto m = record.get<AwayMission>();
 		if ((schema == 1 && rows[i].at("deployed").get<bool>() != m.deployed()) ||
 		    (schema >= 2 && rows[i].contains("deployed")))
@@ -909,7 +917,17 @@ void restore_away(const Json &rows)
 				if (!link)
 					throw std::runtime_error("Invalid away care route");
 			}
+			const auto &actions = order->program.registry.actions;
+			if (!care.activity.empty() && std::none_of(actions.begin(), actions.end(),
+			                                           [&](const auto &action)
+			                                           {
+				                                           return action.name == care.activity;
+			                                           }))
+				throw std::runtime_error("Invalid away clinical activity");
+			// Validate legacy tree state too, then restart only its missing retained intent.
 			care.continuation = state_tree::load(order->program, care_record.at(team).at("continuation"));
+			if (schema < 5)
+				care.continuation = {};
 		}
 		m.continuation = state_tree::load(d.program, rows[i].at("continuation"));
 		away_sequence = std::max(away_sequence, m.sequence);

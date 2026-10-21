@@ -118,7 +118,7 @@ int main(int argc, char **argv)
 		ticks(w, 1);
 		require(!w.submit(101, stale), "stale manifest rejected");
 		auto saved = w.save();
-		require(saved["away_missions"][0]["schema"] == 4 && !saved["away_missions"][0].contains("deployed"),
+		require(saved["away_missions"][0]["schema"] == 5 && !saved["away_missions"][0].contains("deployed"),
 		        "deployment is derived from the typed phase");
 		auto legacy = saved;
 		legacy["away_missions"][0]["schema"] = 1;

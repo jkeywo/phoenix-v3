@@ -63,8 +63,9 @@ void personnel_casualties(flecs::entity ship, std::size_t compartment, std::int6
 		auto roll = static_cast<std::int64_t>((random >> 16) % 1000);
 		bool system_heavy = heavy;
 		if (const auto *duty = personnel_duty(id, o.duty))
-			for (const auto &[system, slots] : duty->effects)
-				if (fault_effectiveness(ship, system) <= policy.heavy_below_permille)
+			for (const auto &system : definition(id).fitted->values)
+				if (duty_affects_system(id, *duty, system.id) &&
+				    fault_effectiveness(ship, system.id) <= policy.heavy_below_permille)
 					system_heavy = true;
 		const auto death = lethal && system_heavy ? policy.killed : 0;
 		std::string condition;
@@ -106,6 +107,32 @@ bool patient_eligible(const OfficerState &o) const
 {
 	return (o.condition == "minor" || o.condition == "severe") && o.facility.empty() && o.escort.empty();
 }
+// Order filters and action restrictions apply before severity/individual priority.
+bool patient_matches(EntityId target, std::size_t patient, const OfficerState &o, const TeamOrderDefinition &order,
+                     const std::string &activity = {}) const
+{
+	if (!patient_eligible(o) ||
+	    !order.patient_states.contains(o.condition == "severe" && o.stabilised ? "stabilised" : o.condition) ||
+	    !away_officer_location(target, definition(target).personnel.officers.at(patient).id).empty())
+		return false;
+	if (activity == "recover")
+		return o.condition == "severe" && o.stabilised;
+	if (activity == "stabilise")
+		return o.condition == "severe" && !o.stabilised;
+	if (activity == "treat")
+		return o.condition == "minor" || (o.condition == "severe" && !o.stabilised);
+	return true;
+}
+void step_team_order(const TeamOrderDefinition &order, state_tree::Instance &continuation, std::string &activity,
+                     bool arrived, bool work_done, bool eligible)
+{
+	using state_tree::Value;
+	const std::vector<Value> observations{Value::boolean(arrived), Value::boolean(work_done), Value::boolean(eligible),
+	                                      Value::integer(ecs.get<Clock>().tick)};
+	const auto outputs = state_tree::step(order.program, continuation, observations);
+	for (const auto &output : outputs.outputs)
+		activity = order.program.registry.actions.at(output.action).name;
+}
 bool team_target_eligible(EntityId ship, const TeamOrderDefinition &order, std::size_t compartment) const
 {
 	const auto &pd = definition(ship).personnel;
@@ -116,9 +143,8 @@ bool team_target_eligible(EntityId ship, const TeamOrderDefinition &order, std::
 	if (order.target == "damage")
 		return entities.at(ship).has<CombatStructure>() && repair_candidate(entities.at(ship), compartment).score > 0;
 	const auto ps = personnel_snapshot(ship);
-	for (const auto &o : ps.officers)
-		if (o.location == compartment && patient_eligible(o) &&
-		    order.patient_states.contains(o.condition == "severe" && o.stabilised ? "stabilised" : o.condition))
+	for (std::size_t i = 0; i < ps.officers.size(); ++i)
+		if (ps.officers[i].location == compartment && patient_matches(ship, i, ps.officers[i], order))
 			return true;
 	return false;
 }
@@ -173,7 +199,7 @@ bool team_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 			bool found = false;
 			for (std::size_t i = 0; i < pd.officers.size(); ++i)
 				if (pd.officers[i].id == patient && ps.officers[i].location == target &&
-				    patient_eligible(ps.officers[i]))
+				    patient_matches(a.ship, i, ps.officers[i], *order))
 					found = true;
 			if (!found || order->target != "patients")
 				return false;
@@ -206,7 +232,9 @@ bool team_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 	++r.revision;
 	return true;
 }
-std::optional<std::size_t> triage_patient(EntityId target, std::size_t compartment, const std::string &priority,
+std::optional<std::size_t> triage_patient(EntityId target, std::optional<std::size_t> compartment,
+                                          const TeamOrderDefinition &order, const std::string &activity,
+                                          const std::string &priority,
                                           const std::set<std::pair<EntityId, std::size_t>> &claimed) const
 {
 	const auto &pd = definition(target).personnel;
@@ -216,8 +244,8 @@ std::optional<std::size_t> triage_patient(EntityId target, std::size_t compartme
 	for (std::size_t i = 0; i < pd.officers.size(); ++i)
 	{
 		const auto &o = snapshot.officers[i];
-		if (o.location != compartment || !patient_eligible(o) || claimed.contains({target, i}) ||
-		    !away_officer_location(target, pd.officers[i].id).empty())
+		if ((compartment && o.location != *compartment) || !patient_matches(target, i, o, order, activity) ||
+		    claimed.contains({target, i}))
 			continue;
 		const auto candidate = std::tuple{o.condition == "severe" && !o.stabilised ? 3
 		                                  : o.condition == "minor"                 ? 2
@@ -252,6 +280,24 @@ void treat_patient(EntityId origin, const CombatMechanism &team, EntityId target
 	else
 		o.condition = "healthy";
 	personnel_changed(target);
+}
+bool step_clinical_work(EntityId origin, const CombatMechanism &team, EntityId target, std::size_t compartment,
+                        const TeamOrderDefinition &order, const std::string &activity, const std::string &priority,
+                        std::set<std::pair<EntityId, std::size_t>> &claimed)
+{
+	const auto patient = triage_patient(target, compartment, order, activity, priority, claimed);
+	if (!patient)
+		return false;
+	claimed.insert({target, *patient});
+	const auto before = entities.at(target).get<PersonnelState>().officers.at(*patient);
+	treat_patient(origin, team, target, *patient, activity);
+	const auto &after = entities.at(target).get<PersonnelState>().officers.at(*patient);
+	return before.condition != after.condition || before.stabilised != after.stabilised;
+}
+bool clinical_work_done(EntityId target, std::optional<std::size_t> compartment, const TeamOrderDefinition &order,
+                        const std::string &activity) const
+{
+	return !triage_patient(target, compartment, order, activity, {}, {});
 }
 void step_medical_facilities()
 {
@@ -317,7 +363,6 @@ void step_teams()
 			const bool arrived = advance_repair_team(ship, child) && r.destination >= 0 && r.location == r.destination;
 			if (r.destination >= 0 && r.location != r.destination && !r.travel)
 				route_repair_team(ship, r, r.destination);
-			using state_tree::Value;
 			const bool eligible = r.destination >= 0 && team_target_eligible(id, *order, r.destination);
 			r.work_done = r.work_done || (arrived && !eligible && order->target == "damage");
 			// Escort position follows every segment, including ticks before arrival.
@@ -328,11 +373,7 @@ void step_teams()
 					p.edge_to = r.edge_to;
 					p.remaining = r.travel;
 				}
-			const std::vector<Value> obs{Value::boolean(arrived), Value::boolean(r.work_done), Value::boolean(eligible),
-			                             Value::integer(ecs.get<Clock>().tick)};
-			auto outputs = state_tree::step(order->program, r.continuation, obs);
-			for (const auto &o : outputs.outputs)
-				r.activity = order->program.registry.actions.at(o.action).name;
+			step_team_order(*order, r.continuation, r.activity, arrived, r.work_done, eligible);
 			if (r.activity == "complete")
 			{
 				for (auto &p : ship.get_mut<PersonnelState>().officers)
@@ -370,7 +411,8 @@ void step_teams()
 				for (std::size_t i = 0; i < ps.officers.size(); ++i)
 					if (ps.officers[i].escort == m->definition.id)
 						escorted = i;
-				auto patient = escorted ? escorted : triage_patient(id, r.location, r.patient, claimed);
+				auto patient =
+				    escorted ? escorted : triage_patient(id, r.location, *order, r.activity, r.patient, claimed);
 				if (!patient)
 					continue;
 				auto &p = ps.officers[*patient];
@@ -410,20 +452,8 @@ void step_teams()
 			}
 			else if (r.activity == "treat" || r.activity == "stabilise")
 			{
-				if (auto patient = triage_patient(id, r.location, r.patient, claimed))
-				{
-					claimed.insert({id, *patient});
-					treat_patient(id, *m, id, *patient, r.activity);
-				}
-				const auto snapshot = personnel_snapshot(id);
-				r.work_done = std::none_of(snapshot.officers.begin(), snapshot.officers.end(),
-				                           [&](const auto &p)
-				                           {
-					                           return p.location == static_cast<std::size_t>(r.location) &&
-					                                  patient_eligible(p) &&
-					                                  ((p.condition == "severe" && !p.stabilised) ||
-					                                   (p.condition == "minor" && r.activity == "treat"));
-				                           });
+				step_clinical_work(id, *m, id, r.location, *order, r.activity, r.patient, claimed);
+				r.work_done = clinical_work_done(id, r.location, *order, r.activity);
 			}
 			for (auto &p : ps.officers)
 				if (p.escort == m->definition.id)
@@ -508,72 +538,74 @@ void advance_away_medical(std::size_t index)
 			const auto &td = mechanism.definition.get<TeamDefinition>();
 			if (!team.get<Equipment>().enabled || !td.capabilities.contains("medical"))
 				continue;
-			const auto order = std::find_if(td.orders.begin(), td.orders.end(),
-			                                [](const auto &o)
-			                                {
-				                                return o.target == "patients";
-			                                });
-			if (order == td.orders.end())
-				continue;
 			auto &care = mission.care[mechanism.definition.id];
 			if (care.order.empty())
-				care.order = order->id;
-			if (care.travel > 0)
 			{
-				if (--care.travel > 0)
+				const auto first = std::find_if(td.orders.begin(), td.orders.end(),
+				                                [](const auto &o)
+				                                {
+					                                return o.target == "patients";
+				                                });
+				if (first == td.orders.end())
+				{
+					mission.care.erase(mechanism.definition.id);
 					continue;
+				}
+				care.order = first->id;
+			}
+			const auto *order = team_order_definition(mechanism, care.order);
+			if (!order)
+				continue; // Restore validates saved identities.
+			if (care.travel > 0 && --care.travel == 0)
+			{
 				care.location = care.edge_to;
 				care.edge_to = -1;
 			}
-			const auto ps = personnel_snapshot(target);
-			std::optional<std::size_t> destination;
-			for (std::size_t c = 0; c < pd.compartments.size(); ++c)
-				for (const auto &p : ps.officers)
-					if (p.location == c && patient_eligible(p) && (p.condition == "minor" || !p.stabilised))
-					{
-						destination = c;
-						break;
-					}
-			if (destination && care.location != static_cast<std::int64_t>(*destination))
+			// Away field care supports treatment/stabilisation, not facility escorts.
+			auto destination = [&]() -> std::optional<std::size_t>
 			{
-				const auto route = compartment_route(pd.compartments.size(), pd.links, care.location, *destination);
-				if (route.first < 0)
-					continue;
-				care.edge_to = route.first;
-				care.travel = route.second;
+				const auto activity = care.activity == "stabilise" ? "stabilise" : "treat";
+				std::optional<std::size_t> found;
+				for (std::size_t c = 0; c < pd.compartments.size(); ++c)
+					if (!clinical_work_done(target, c, *order, activity))
+						found = c;
+				return found;
+			};
+			auto at = destination();
+			if (at && care.done)
+			{
+				care.done = care.work_done = false;
+				care.activity.clear();
+				care.continuation = {};
+			}
+			const bool arrived = !care.travel && (!at || care.location == static_cast<std::int64_t>(*at));
+			step_team_order(*order, care.continuation, care.activity, arrived, care.work_done, at.has_value());
+			if (care.activity == "complete")
+			{
+				care.done = true;
 				continue;
 			}
+			at = destination();
+			if (at && !care.travel && care.location != static_cast<std::int64_t>(*at))
+			{
+				const auto route = compartment_route(pd.compartments.size(), pd.links, care.location, *at);
+				if (route.first >= 0)
+				{
+					care.edge_to = route.first;
+					care.travel = route.second;
+				}
+			}
+			if (care.travel || (at && care.location != static_cast<std::int64_t>(*at)))
+				continue;
 			if (entities.at(target).has<CombatStructure>() &&
 			    entities.at(target).get<CombatStructure>().compartments.at(care.location).disabled)
 				continue;
-			if (destination && care.done)
+			if (care.activity == "treat" || care.activity == "stabilise")
 			{
-				care.done = false;
-				care.continuation = {};
-			}
-			using state_tree::Value;
-			const std::vector<Value> observations{Value::boolean(true), Value::boolean(!destination),
-			                                      Value::boolean(destination.has_value()),
-			                                      Value::integer(ecs.get<Clock>().tick)};
-			const auto outputs = state_tree::step(order->program, care.continuation, observations);
-			for (const auto &output : outputs.outputs)
-			{
-				const auto &action = order->program.registry.actions.at(output.action).name;
-				if (action == "complete")
-					care.done = true;
-				if (action != "treat" && action != "stabilise")
-					continue;
-				if (auto patient = triage_patient(target, care.location, {}, claimed))
-				{
-					claimed.insert({target, *patient});
-					const auto condition = ps.officers[*patient].condition;
-					const auto stabilised = ps.officers[*patient].stabilised;
-					treat_patient(origin, mechanism, target, *patient, action);
-					const auto &after = entities.at(target).get<PersonnelState>().officers.at(*patient);
-					if (after.condition != condition || after.stabilised != stabilised)
-						if (const auto conversation = away_conversation(definition_mission))
-							conversations.report(conversation, "medical");
-				}
+				if (step_clinical_work(origin, mechanism, target, care.location, *order, care.activity, {}, claimed))
+					if (const auto conversation = away_conversation(definition_mission))
+						conversations.report(conversation, "medical");
+				care.work_done = clinical_work_done(target, std::nullopt, *order, care.activity);
 			}
 		}
 }

@@ -45,11 +45,11 @@ inline void from_json(const Json &json, AwayPhase &phase)
 struct AwayCare
 {
 	std::int64_t location = 0, edge_to = -1, travel = 0;
-	std::string order;
-	bool done = false;
+	std::string order, activity;
+	bool done = false, work_done = false;
 	state_tree::Instance continuation;
 };
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(AwayCare, location, edge_to, travel, order, done)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(AwayCare, location, edge_to, travel, order, activity, done, work_done)
 struct AwayMission
 {
 	std::map<std::string, AwayCare> care;

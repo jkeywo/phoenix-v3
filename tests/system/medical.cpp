@@ -195,12 +195,274 @@ void shoot(World &w)
 		}
 	throw std::runtime_error("missing gun");
 }
+void deploy_clinical_party(World &w)
+{
+	ticks(w, 4);
+	require(w.submit(101, away_order(w, "open")), "open clinical regression mission");
+	ticks(w, 1);
+	require(w.submit(102, away_order(w, "assign", "repair/team:team", 102, "team")), "stage repair team");
+	ticks(w, 1);
+	require(w.submit(102, away_order(w, "assign", "medical/team:medical", 102, "medical")), "stage clinical team");
+	ticks(w, 1);
+	require(w.submit(101, away_order(w, "transport", "transport", 101, "transport")), "select clinical transport");
+	ticks(w, 7);
+	require(w.submit(101, away_order(w, "send")), "deploy clinical regression party");
+	for (int i = 0; i < 20 && w.observe(101)->gameplay.at("away_missions")[0]["phase"] != "deployed"; ++i)
+		w.tick();
+	require(w.observe(101)->gameplay.at("away_missions")[0]["phase"] == "deployed",
+	        "clinical party physically arrived");
+}
+void finish_clinical_order(World &w)
+{
+	for (int i = 0; i < 60; ++i)
+	{
+		w.tick();
+		auto save = w.save();
+		if (saved_body(save, 2)["combat"]["systems"]["medical"]["order"] == "")
+			return;
+	}
+	throw std::runtime_error("Clinical regression order did not complete");
+}
+void clinical_execution_regressions(Json &trace)
+{
+	for (int emission : {0, 1, 2})
+	{
+		auto source = medical_fixture();
+		for (auto &tree : source["trees"])
+			if (tree["id"] == "test.treat" && emission > 0)
+			{
+				tree["states"][0]["entry"] = tree["states"][0]["running"];
+				if (emission == 1)
+					tree["states"][0].erase("running");
+			}
+		source["entities"][0]["systems"]["medical"]["treatment_ticks"] = 12;
+		auto alternate = source["entities"][0]["systems"]["medical"]["orders"][0];
+		alternate["id"] = "severe-only";
+		alternate["patient_states"] = {"severe"};
+		source["entities"][0]["systems"]["medical"]["orders"].push_back(alternate);
+		// Remote patients are reserves so they remain at their physical clinical location.
+		source["entities"][1]["personnel"]["officers"][0]["duty"] = "";
+		source["entities"][1]["personnel"]["officers"][0]["compartment"] = "workshop";
+		const auto catalog = load(source);
+		World onboard;
+		onboard.load(catalog, "test.map", {{"crew", "test.away"}});
+		claim(onboard);
+		require(onboard.submit(102, command(onboard, "order", "treat/bridge")), "order retained onboard treatment");
+		onboard.tick();
+		require(officer(onboard, 2, 0)["treatment"] == 0, "onboard treatment waits for physical arrival");
+		for (int i = 0; i < 10 && officer(onboard, 2, 0)["treatment"] == 0; ++i)
+			onboard.tick();
+		require(officer(onboard, 2, 0)["treatment"] == 1000, "onboard action performs one work increment per tick");
+		World onboard_resume;
+		onboard_resume.restore(catalog, onboard.save());
+		ticks(onboard, 2);
+		ticks(onboard_resume, 2);
+		require(officer(onboard, 2, 0)["treatment"] == 3000 && onboard.save() == onboard_resume.save(),
+		        "entry/running onboard action retains intent across ticks and restore");
+		finish_clinical_order(onboard);
+		require(officer(onboard, 2, 0)["condition"] == "healthy", "retained onboard treatment completes");
+
+		World away;
+		away.load(catalog, "test.map", {{"crew", "test.away"}});
+		auto ready = away.save();
+		for (auto &o : saved_body(ready, 2)["personnel"]["officers"])
+			o["condition"] = "healthy";
+		away.restore(catalog, ready);
+		claim(away);
+		deploy_clinical_party(away);
+		auto travelling = away.save();
+		const auto &travel_care = travelling["away_missions"][0]["care"]["medical"];
+		require(travel_care["travel"] > 0 && travel_care["activity"] == "treat" &&
+		            officer(away, 1, 0)["treatment"] == 0,
+		        "away tree starts during travel without treating remotely");
+		World travel_resume;
+		travel_resume.restore(catalog, travelling);
+		for (int i = 0; i < 10 && officer(away, 1, 0)["treatment"] == 0; ++i)
+		{
+			away.tick();
+			travel_resume.tick();
+		}
+		require(officer(away, 1, 0)["treatment"] == 1000 && away.save() == travel_resume.save(),
+		        "away entry/running action survives travel and increments once on arrival");
+		auto partial = away.save();
+		World resumed;
+		resumed.restore(catalog, partial);
+		ticks(away, 2);
+		ticks(resumed, 2);
+		require(officer(away, 1, 0)["treatment"] == 3000 && away.save() == resumed.save(),
+		        "away retained action and patient progress resume identically");
+		ticks(away, 20);
+		require(officer(away, 1, 0)["condition"] == "healthy" &&
+		            away.save()["away_missions"][0]["care"]["medical"]["done"] == true,
+		        "away entry/running treatment reaches authored completion");
+		trace.push_back(away.save());
+		for (auto old : {travelling, partial})
+		{
+			auto &mission = old["away_missions"][0];
+			mission["schema"] = 4;
+			mission["care"]["medical"].erase("activity");
+			mission["care"]["medical"].erase("work_done");
+			World migrated;
+			migrated.restore(catalog, old);
+			const auto upgraded = migrated.save();
+			const auto &care = upgraded["away_missions"][0]["care"]["medical"];
+			require(upgraded["away_missions"][0]["schema"] == 5 &&
+			            care["continuation"]["instance"]["initialised"] == false &&
+			            care["location"] == mission["care"]["medical"]["location"] &&
+			            care["travel"] == mission["care"]["medical"]["travel"] &&
+			            care["edge_to"] == mission["care"]["medical"]["edge_to"] &&
+			            upgraded["away_missions"][0]["assignments"] == mission["assignments"] &&
+			            upgraded["away_missions"][0]["progress"] == mission["progress"],
+			        "schema-4 migration restarts only clinical intent, preserving route, reservation and mission work");
+			auto copy = upgraded;
+			require(saved_body(old, 1)["personnel"] == saved_body(copy, 1)["personnel"],
+			        "schema-4 migration preserves patient work");
+			ticks(migrated, 25);
+			require(officer(migrated, 1, 0)["condition"] == "healthy", "migrated entry action resumes care");
+		}
+		auto invalid = partial;
+		invalid["away_missions"][0]["care"]["medical"]["activity"] = "unknown";
+		rejects(
+		    [&]
+		    {
+			    World bad;
+			    bad.restore(catalog, invalid);
+		    },
+		    "unknown retained away activity rejected");
+		// A second order shares the same program, so its continuation remains valid.
+		auto selected = partial;
+		selected["away_missions"][0]["care"]["medical"]["order"] = "severe-only";
+		World filtered;
+		filtered.restore(catalog, selected);
+		ticks(filtered, 20);
+		require(officer(filtered, 1, 0)["condition"] == "minor" && officer(filtered, 1, 0)["treatment"] == 1000,
+		        "away care resolves the saved order and honours its patient-state filter");
+	}
+}
+void patient_selection_regressions()
+{
+	auto source = medical_fixture();
+	auto &orders = source["entities"][0]["systems"]["medical"]["orders"];
+	orders[0]["patient_states"] = {"minor", "severe"};
+	orders[1]["patient_states"] = {"stabilised"};
+	source["trees"].push_back(order_tree("test.stabilise", "stabilise"));
+	orders.push_back({{"id", "stabilise"},
+	                  {"label", "Stabilise"},
+	                  {"target", "patients"},
+	                  {"patient_states", {"minor", "severe", "stabilised"}},
+	                  {"tree", "test.stabilise"}});
+	auto minor_order = orders[0];
+	minor_order["id"] = "minor";
+	minor_order["patient_states"] = {"minor"};
+	orders.push_back(minor_order);
+	for (const auto *id : {"minor", "priority"})
+		source["entities"][0]["personnel"]["officers"].push_back({{"id", id},
+		                                                          {"name", id},
+		                                                          {"department", "engineering"},
+		                                                          {"compartment", "bridge"},
+		                                                          {"condition", "minor"},
+		                                                          {"traits", Json::array()}});
+	const auto catalog = load(source);
+	World seed;
+	seed.load(catalog, "test.map", {{"crew", "test.away"}});
+	claim(seed);
+	auto initial = seed.save();
+	auto &patients = saved_body(initial, 2)["personnel"]["officers"];
+	for (auto &p : patients)
+	{
+		p["duty"] = "";
+		p["present"] = false;
+		p["location"] = 0;
+	}
+	patients[0]["condition"] = "severe";
+	patients[0]["stabilised"] = true;
+	World recovery;
+	recovery.restore(catalog, initial);
+	require(!recovery.submit(102, command(recovery, "order", "recover/bridge/chief")),
+	        "individual priority must match recovery order filter");
+	require(recovery.submit(102, command(recovery, "order", "recover/bridge/nav")),
+	        "select stabilised recovery patient");
+	finish_clinical_order(recovery);
+	require(officer(recovery, 2, 0)["facility"] == "bay" && officer(recovery, 2, 1)["stabilised"] == false,
+	        "recovery escorts stabilised patient despite higher-severity unstabilised neighbour");
+	World stabilise;
+	stabilise.restore(catalog, initial);
+	require(stabilise.submit(102, command(stabilise, "order", "stabilise/bridge/minor")),
+	        "a broad order filter cannot override stabilisation action restrictions");
+	finish_clinical_order(stabilise);
+	require(officer(stabilise, 2, 1)["stabilised"] == true && officer(stabilise, 2, 2)["condition"] == "minor" &&
+	            officer(stabilise, 2, 2)["treatment"] == 0,
+	        "stabilisation completes without treating or waiting for minor/excluded patients");
+	World minor;
+	minor.restore(catalog, initial);
+	require(!minor.submit(102, command(minor, "order", "minor/bridge/chief")), "minor order rejects severe priority");
+	require(minor.submit(102, command(minor, "order", "minor/bridge/minor")), "prioritise one eligible minor patient");
+	minor.tick();
+	for (int i = 0; i < 10 && officer(minor, 2, 2)["treatment"] == 0; ++i)
+		minor.tick();
+	require(officer(minor, 2, 2)["treatment"] == 1000 && officer(minor, 2, 3)["treatment"] == 0 &&
+	            officer(minor, 2, 1)["treatment"] == 0,
+	        "individual priority breaks severity ties only among order-eligible patients");
+	finish_clinical_order(minor);
+	require(officer(minor, 2, 2)["condition"] == "healthy" && officer(minor, 2, 3)["condition"] == "healthy" &&
+	            officer(minor, 2, 1)["stabilised"] == false,
+	        "filtered treatment completes while excluded severe casualty remains");
+	World triage;
+	triage.restore(catalog, initial);
+	require(!triage.submit(102, command(triage, "order", "treat/bridge/nav")),
+	        "treatment excludes stabilised priority");
+	require(triage.submit(102, command(triage, "order", "treat/bridge/minor")), "order mixed-severity triage");
+	triage.tick();
+	for (int i = 0; i < 15 && officer(triage, 2, 1)["stabilised"] == false; ++i)
+		triage.tick();
+	require(officer(triage, 2, 1)["stabilised"] == true && officer(triage, 2, 2)["treatment"] == 0,
+	        "severe triage precedes individual minor priority");
+}
+void system_casualty_regressions()
+{
+	for (const auto *system : {"radar", "team-a"})
+		for (int scenario = 0; scenario < 3; ++scenario)
+		{
+			const bool heavy = scenario != 1, lethal = scenario != 2;
+			auto source = casualty_fixture("dead", lethal);
+			auto &ship = source["entities"][0];
+			ship["systems"][system]["faults"] = Json::array({{{"id", "failure"},
+			                                                  {"symptom", "Failure"},
+			                                                  {"diagnosis", "Failed component"},
+			                                                  {"chance_permille", 0},
+			                                                  {"damage_threshold", 1},
+			                                                  {"effectiveness_permille", 500},
+			                                                  {"repair_work", 100000}}});
+			ship["personnel"]["officers"][0]["duty"] = std::string(system) == "radar" ? "radar" : "duty-team-a";
+			const auto catalog = load(source);
+			World battle;
+			battle.load(catalog, "test.map");
+			auto saved = battle.save();
+			saved_body(saved, 2)["combat"]["faults"][system][0]["active"] = heavy;
+			battle.restore(catalog, saved);
+			require(battle.claim(201, 1, "drive"), "claim System-bound casualty fixture");
+			shoot(battle);
+			bool hit = false;
+			for (int i = 0; i < 30 && !hit; ++i)
+			{
+				battle.tick();
+				auto state = battle.save();
+				hit = saved_body(state, 2)["combat"]["compartments"][0]["hp"] < 100;
+			}
+			require(
+			    hit && (officer(battle, 2, 0)["condition"] == "dead") == (heavy && lethal),
+			    "Controller/team duty uses bound System damage, still requiring prior heavy damage and lethal event");
+		}
+}
 } // namespace
 int main(int argc, char **argv)
 {
 	try
 	{
 		Json trace = Json::array();
+		clinical_execution_regressions(trace);
+		patient_selection_regressions();
+		system_casualty_regressions();
 		auto source = medical_fixture();
 		const auto catalog = load(source);
 		World w;
