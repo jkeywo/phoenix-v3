@@ -60,16 +60,18 @@ TextureCache::~TextureCache()
 void TextureCache::clear()
 {
 	textures_.clear();
-	std::erase_if(shared_textures,
-	              [](const auto &entry)
-	              {
-		              return entry.second.expired();
-	              });
 }
 Texture2D TextureCache::load(const std::string &id, std::span<const std::uint8_t> bytes)
 {
 	if (const auto found = textures_.find(id); found != textures_.end())
 		return *found->second;
+	// Static scene owners can clear after the shared index has been destroyed.
+	// Prune only while loading; releasing a cache needs no access to that index.
+	std::erase_if(shared_textures,
+	              [](const auto &entry)
+	              {
+		              return entry.second.expired();
+	              });
 	const auto hash = sha256(bytes);
 	auto texture = shared_textures[hash].lock();
 	if (!texture)

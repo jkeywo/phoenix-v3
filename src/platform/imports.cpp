@@ -19,10 +19,17 @@ struct FileImportInbox::State
 	FilePurpose purpose{};
 	std::optional<ImportedFile> result;
 	static inline ImportId next = 0;
-	static inline std::map<ImportId, std::weak_ptr<State>> requests;
+	static auto &requests()
+	{
+		static std::map<ImportId, std::weak_ptr<State>> registry;
+		return registry;
+	}
 };
 FileImportInbox::FileImportInbox() : state_(std::make_shared<State>())
 {
+	// Construct the registry before any inbox owner can register its destructor.
+	// Static UI owners must reset their inboxes before the registry is destroyed.
+	(void)State::requests();
 }
 FileImportInbox::~FileImportInbox()
 {
@@ -36,12 +43,12 @@ ImportId FileImportInbox::begin(FilePurpose purpose)
 		throw std::runtime_error("File request identifiers exhausted");
 	state_->pending = ++State::next;
 	state_->purpose = purpose;
-	State::requests.emplace(state_->pending, state_);
+	State::requests().emplace(state_->pending, state_);
 	return state_->pending;
 }
 void FileImportInbox::reset()
 {
-	State::requests.erase(state_->pending);
+	State::requests().erase(state_->pending);
 	state_->pending = 0;
 	state_->result.reset();
 }
@@ -56,11 +63,12 @@ std::optional<ImportedFile> FileImportInbox::take()
 void complete_import(ImportId id, std::string filename, Bytes bytes, std::string error, bool cancelled,
                      std::string destination)
 {
-	auto found = FileImportInbox::State::requests.find(id);
-	if (found == FileImportInbox::State::requests.end())
+	auto &requests = FileImportInbox::State::requests();
+	auto found = requests.find(id);
+	if (found == requests.end())
 		return;
 	auto state = found->second.lock();
-	FileImportInbox::State::requests.erase(found);
+	requests.erase(found);
 	if (!state || state->pending != id)
 		return;
 	if (bytes.size() > 32 * 1024 * 1024)

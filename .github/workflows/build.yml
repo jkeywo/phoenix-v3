@@ -58,6 +58,9 @@ jobs:
             build/native/continuation.trace
             build/native/combat-continuation.trace
             build/native/conversation-continuation.trace
+            build/native/controller-continuation.trace
+            build/native/sensor-continuation.trace
+            build/native/away-continuation.trace
   linux:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
