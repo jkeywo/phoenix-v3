@@ -125,3 +125,7 @@ The production content verifier checks selected scenario programs, literal actio
 ## Verification evidence
 
 The synthetic scenario integration source exercises production pack loading and compiled tree/domain behavior: high-speed circle/rectangle crossings, starting inside, intentional repetition versus replay, independent situation instances, failed/limited spawning, restricted publication and continuation on both sides of spawn/objective boundaries. It also covers transactional journal refusal and malformed continuation/receipt rejection. A separate World integration source exercises actual ECS creation, admitted movement, scoped objective records and dynamic-roster save/resume through `World` public APIs. Shipped mission values are content verification inputs, not balance goldens. Test execution results belong in the implementation record; this document does not claim the physical-device or graphical acceptance journeys have run.
+
+## Condition objectives and debrief rules
+
+The [mission objective contract](mission-objectives.md) extends this runtime with compiled typed facts/conditions, persisted transition events and authoritative departure reports. Live publications retain recipient restrictions. Mission grading does not set competition outcomes or freeze physical simulation.

@@ -29,6 +29,8 @@ const PersonnelDuty *away_team_duty(EntityId ship, const std::string &key) const
 }
 std::string away_officer_location(EntityId ship, const std::string &officer) const
 {
+	if (mission_ledger.lost.contains(ship) && mission_ledger.lost.at(ship).contains("officer:" + officer))
+		return "Lost";
 	for (std::size_t i = 0; i < away_missions.size(); ++i)
 		if (away_ship(away_definitions[i]) == ship && away_missions[i].deployed())
 		{
@@ -43,6 +45,8 @@ std::string away_officer_location(EntityId ship, const std::string &officer) con
 }
 bool away_reserved(EntityId ship, const std::string &asset) const
 {
+	if (mission_ledger.lost.contains(ship) && mission_ledger.lost.at(ship).contains(asset))
+		return true;
 	for (std::size_t i = 0; i < away_missions.size(); ++i)
 		if (away_ship(away_definitions[i]) == ship)
 		{
@@ -457,7 +461,7 @@ void advance_away()
 		auto &m = away_missions[i];
 		const auto &d = away_definitions[i];
 		const auto ship = away_ship(d);
-		if (!ship || departed(ship))
+		if (!ship || departed(ship) || m.phase == AwayPhase::Lost)
 			continue;
 		const auto cid = away_conversation(d);
 		if (m.phase == AwayPhase::Hidden)
@@ -487,6 +491,14 @@ void advance_away()
 				{
 					m.recovered = m.phase == AwayPhase::Inbound;
 					m.phase = m.recovered ? AwayPhase::Recovered : AwayPhase::Deployed;
+					if (!m.recovered)
+					{
+						m.ever_deployed = true;
+						for (const auto &[slot, a] : m.assignments)
+							m.participants.insert(a);
+						for (const auto &o : m.accompanying)
+							m.participants.insert("officer:" + o);
+					}
 					m.transfer = 0;
 					++m.revision;
 					if (!m.deployed())
@@ -544,6 +556,10 @@ void advance_away()
 			                       .get<CombatStructure>()
 			                       .definition.compartments.at(d.repair_compartments.at(m.repair_compartment))
 			                       .maximum;
+			if (scenario && !scenario->runtime().definition().event_bindings.empty() && m.work > 0 &&
+			    m.progress >= m.work && repaired)
+				mission_change("work/" + std::to_string(ship) + "/" + d.id + "/" + m.work_key, "completed",
+				               "away.work_completed", ship, d.target, d.id, m.work_key);
 			const auto answer = cid ? conversations.conversations.at(cid).prompt.answer : std::string{};
 			using state_tree::Value;
 			std::vector<Value> obs{Value::boolean(m.deployed()),
@@ -691,7 +707,7 @@ Json save_away() const
 	for (std::size_t i = 0; i < away_missions.size(); ++i)
 	{
 		Json row = away_missions[i];
-		row["schema"] = 2;
+		row["schema"] = 3;
 		row["id"] = away_definitions[i].id;
 		row["continuation"] = state_tree::save(away_definitions[i].program, away_missions[i].continuation);
 		out.push_back(row);
@@ -707,14 +723,27 @@ void restore_away(const Json &rows)
 	{
 		const auto &d = away_definitions[i];
 		const auto schema = rows[i].at("schema");
-		if ((schema != 1 && schema != 2) || rows[i].at("id") != d.id)
+		if ((schema != 1 && schema != 2 && schema != 3) || rows[i].at("id") != d.id)
 			throw std::runtime_error("Away mission identity mismatch");
 		auto record = rows[i];
 		if (schema == 1)
 			record["repair_compartment"] = record.value("repair_compartment", std::string{});
+		if (schema != 3)
+		{
+			record["ever_deployed"] =
+			    record.value("recovered", false) || record.at("phase") == "deployed" || record.at("phase") == "inbound";
+			record["participants"] = Json::array();
+			if (record.at("ever_deployed") == true)
+			{
+				for (const auto &[key, a] : record.at("assignments").items())
+					record["participants"].push_back(a);
+				for (const auto &o : record.at("accompanying"))
+					record["participants"].push_back("officer:" + o.get<std::string>());
+			}
+		}
 		auto m = record.get<AwayMission>();
 		if ((schema == 1 && rows[i].at("deployed").get<bool>() != m.deployed()) ||
-		    (schema == 2 && rows[i].contains("deployed")))
+		    (schema >= 2 && rows[i].contains("deployed")))
 			throw std::runtime_error("Inconsistent saved deployment");
 		if (!m.repair_compartment.empty() && !d.repair_compartments.contains(m.repair_compartment))
 			throw std::runtime_error("Invalid saved repair target");
@@ -722,8 +751,18 @@ void restore_away(const Json &rows)
 
 		if (m.revision < 1 || m.revision > 9007199254740991ULL || m.sequence > 9007199254740991ULL || m.progress < 0 ||
 		    m.work < 0 || m.progress > m.work || m.work > 1728000000 || m.transfer < 0 ||
-		    m.effects.size() > effect_receipt_limit || m.assignments.size() > 16)
+		    m.effects.size() > effect_receipt_limit || m.assignments.size() > 16 || m.participants.size() > 256 ||
+		    (!m.ever_deployed && !m.participants.empty()))
 			throw std::runtime_error("Invalid away continuation");
+		for (const auto &asset : m.participants)
+		{
+			bool valid = asset.starts_with("team:") && away_team_duty(ship, asset.substr(5));
+			if (asset.starts_with("officer:"))
+				for (const auto &o : definition(ship).personnel.officers)
+					valid |= asset == "officer:" + o.id;
+			if (!valid)
+				throw std::runtime_error("Invalid away participant");
+		}
 		if (!m.transport.empty() && (!ship || !definition(ship).displacements.contains(m.transport)))
 			throw std::runtime_error("Invalid saved transport");
 		if ((m.phase == AwayPhase::Outbound || m.phase == AwayPhase::Inbound || m.deployed()) && m.transport.empty())

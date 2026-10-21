@@ -962,3 +962,7 @@ All 76 reviewed architecture decisions are accounted for below. Behavior and aut
 | AD74     | Reject message-capacity, bandwidth-pool and traffic-budget simulation.                                                                | [7](#7-communications-and-psychic-warfare)   |
 | AD75     | One actual boundary state serves access and containment; commanded closure is not proven sealing.                                     | [10](#10-damage-restoration-and-loss)        |
 | AD76     | Automatic routes respect deliberate seals and request authorised access changes.                                                      | [9](#9-energy-heat-and-material-supply)      |
+
+## Implementation decision: authoritative departure debriefs
+
+The departure debrief freezes selected world facts, objective statuses and personnel disposition at the successful FTL boundary, regardless of crew discovery. This exception applies only to the departed crew’s report. In-mission Console information, AI policies and network projections retain their knowledge restrictions. Mission grading is authored separately from competition outcomes and does not freeze the world. See [mission objectives and debriefs](mission-objectives.md).

@@ -57,7 +57,8 @@ std::string ftl_blocker(EntityId id, flecs::entity child) const
 	    power.grants.at(child.get<ResourceBinding>().slot).blocked)
 		return "FTL drive unavailable";
 	for (std::size_t i = 0; i < away_missions.size(); ++i)
-		if (away_ship(away_definitions[i]) == id && away_missions[i].transfer > 0 &&
+		if ((away_ship(away_definitions[i]) == id || away_definitions[i].target == id) &&
+		    away_missions[i].transfer > 0 &&
 		    (away_missions[i].phase == AwayPhase::Outbound || away_missions[i].phase == AwayPhase::Inbound))
 			return "Displacement transfer active";
 	if (s.energy != power.definition.network.stores.at(store).capacity)
@@ -98,6 +99,22 @@ void actuate_ftl(flecs::entity ship)
 			}
 		}
 }
+std::pair<bool, std::int64_t> ftl_local_facts(EntityId id) const
+{
+	bool completed = false;
+	std::int64_t visitors = 0;
+	for (std::size_t i = 0; i < away_missions.size(); ++i)
+		if (away_definitions[i].target == id)
+		{
+			const auto &m = away_missions[i];
+			completed |= m.outcome.starts_with("complete:");
+			if (m.deployed())
+				visitors += m.assignments.size() + m.accompanying.size();
+			if (m.phase == AwayPhase::Outbound || m.phase == AwayPhase::Inbound)
+				++visitors;
+		}
+	return {completed, visitors};
+}
 Json ftl_board(const ConsoleAddress &a) const
 {
 	Json rows = Json::array();
@@ -116,11 +133,13 @@ Json ftl_board(const ConsoleAddress &a) const
 			                {"power_draw", p.network.telemetry().at(ftl->definition.store).accepted_incoming * rate},
 			                {"heat", s.heat},
 			                {"blocker", blocker},
-			                {"left_behind", ftl_left_behind(a.ship)}});
+			                {"left_behind", ftl_left_behind(a.ship)},
+			                {"visitors", ftl_local_facts(a.ship).second},
+			                {"work_completed", ftl_local_facts(a.ship).first}});
 		}
 	return rows;
 }
-bool ftl_command(const ConsoleAddress &a, const OperatingCommand &c, bool execute)
+bool ftl_command(const ConsoleAddress &a, const OperatingCommand &c, bool execute, bool ai = false)
 {
 	if (c.action != "ftl.depart" || departed(a.ship) || c.value || !c.channel.empty() || c.request_id ||
 	    !c.arguments.empty() || !c.text.empty() || !c.speaker_name.empty() || !c.speaker_avatar.empty())
@@ -130,7 +149,7 @@ bool ftl_command(const ConsoleAddress &a, const OperatingCommand &c, bool execut
 		return false;
 	bool authority = false;
 	for (const auto &ctrl : ship.get<EntityControls>().controllers)
-		if (ctrl.definition.console == a.console && ctrl.definition.id == c.controller && ctrl.human &&
+		if (ctrl.definition.console == a.console && ctrl.definition.id == c.controller && ctrl.human != ai &&
 		    ctrl.generation == c.generation)
 			for (const auto &channel : ctrl.definition.commands)
 				for (const auto i : channel.consumers)
@@ -144,36 +163,71 @@ bool ftl_command(const ConsoleAddress &a, const OperatingCommand &c, bool execut
 				return false;
 			if (!execute)
 				return true;
-			Json report{{"reason", "ftl"},
-			            {"tick", ecs.get<Clock>().tick},
-			            {"objectives", Json::array()},
-			            {"left_behind", ftl_left_behind(a.ship)}};
-			std::map<std::uint64_t, Json> objectives;
-			for (const auto &r : knowledge.public_board(a.ship).value("shared", Json::array()))
-				if (r.value("schema", "") == "phoenix.objective")
-					objectives[r.at("fields").at("id").get<std::uint64_t>()] = r.at("fields");
-			for (const auto &[id, o] : objectives)
-				report["objectives"].push_back(
-				    {{"title", o.value("title", "")}, {"status", o.value("status", "active")}});
-			auto &p = ship.get_mut<ShipResources>();
-			const auto store = child.get<FtlReserve>().definition.store;
-			p.network.dissipate(store, p.network.stores().at(store).energy, false);
-			ship.set<MissionDeparture>({ftl_projection::report(report)});
-			for (std::size_t i = 0; i < away_missions.size(); ++i)
-				if (away_ship(away_definitions[i]) == a.ship)
-				{
-					auto &m = away_missions[i];
-					if (m.phase == AwayPhase::Outbound || m.phase == AwayPhase::Inbound)
-					{
-						m.phase = m.phase == AwayPhase::Inbound ? AwayPhase::Deployed : AwayPhase::Open;
-						m.transfer = 0;
-						++m.revision;
-					}
-				}
-			retire_departed(a.ship);
-			if (scenario)
-				scenario->runtime().withdraw_actor(a.ship);
+			departure_requests.emplace_back(a, c, ai);
 			return true;
 		}
 	return false;
+}
+
+void commit_departures()
+{
+	auto pending = std::move(departure_requests);
+	departure_requests.clear();
+	std::sort(pending.begin(), pending.end(),
+	          [](const auto &a, const auto &b)
+	          {
+		          return std::get<0>(a).ship < std::get<0>(b).ship;
+	          });
+	std::vector<std::pair<ConsoleAddress, OperatingCommand>> accepted;
+	std::set<EntityId> seen;
+	for (const auto &[a, c, ai] : pending)
+		if (!seen.contains(a.ship) && ftl_command(a, c, false, ai))
+		{
+			accepted.emplace_back(a, c);
+			seen.insert(a.ship);
+		}
+	for (const auto &[a, c] : accepted)
+	{
+		auto ship = entities.at(a.ship);
+		for (auto child : ship.get<EquipmentIndex>().values)
+			if (child.has<FtlReserve>() && child.get<Equipment>().id == c.system)
+			{
+				Json report{{"reason", "ftl"},
+				            {"tick", ecs.get<Clock>().tick},
+				            {"objectives", Json::array()},
+				            {"left_behind", ftl_left_behind(a.ship)}};
+				std::map<std::uint64_t, Json> objectives;
+				for (const auto &r : knowledge.public_board(a.ship).value("shared", Json::array()))
+					if (r.value("schema", "") == "phoenix.objective")
+						objectives[r.at("fields").at("id").get<std::uint64_t>()] = r.at("fields");
+				for (const auto &[id, o] : objectives)
+					report["objectives"].push_back(
+					    {{"title", o.value("title", "")}, {"status", o.value("status", "active")}});
+				auto &p = ship.get_mut<ShipResources>();
+				const auto store = child.get<FtlReserve>().definition.store;
+				p.network.dissipate(store, p.network.stores().at(store).energy, false);
+				ship.set<MissionDeparture>({ftl_projection::report(report)});
+				for (std::size_t i = 0; i < away_missions.size(); ++i)
+					if (away_ship(away_definitions[i]) == a.ship)
+					{
+						auto &m = away_missions[i];
+						if (m.phase == AwayPhase::Outbound || m.phase == AwayPhase::Inbound)
+						{
+							m.phase = m.phase == AwayPhase::Inbound ? AwayPhase::Deployed : AwayPhase::Open;
+							m.transfer = 0;
+							++m.revision;
+						}
+					}
+				retire_departed(a.ship);
+			}
+	}
+	update_mission_facts();
+	for (const auto &[a, c] : accepted)
+	{
+		auto ship = entities.at(a.ship);
+		ship.set<MissionDeparture>(
+		    {ftl_projection::report(authoritative_report(a.ship, ship.get<MissionDeparture>().report))});
+		if (scenario)
+			scenario->runtime().withdraw_actor(a.ship);
+	}
 }

@@ -118,6 +118,9 @@ enum class ControllerOwnField
 	AlertId,
 	AlertSeverity,
 	Stance,
+	FtlReady,
+	Visitors,
+	LocalWorkComplete,
 	Count
 };
 enum class ControllerRecordField
@@ -220,6 +223,7 @@ struct ControllerCommandBinding
 // entity-local indices by simulation setup, destinations are never reconstructed.
 struct ControllerTreeBindings
 {
+	std::string ftl_system;
 	std::size_t decision_base = 0, action_base = 0, coordination_base = 0;
 	state_tree::Registry registry;
 	ControllerDestinations<ControllerOwnField> own;

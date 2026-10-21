@@ -2202,8 +2202,20 @@ struct GameplayEditor
 		    [&](Json &objective)
 		    {
 			    string(objective, "id");
-			    choice(objective, "type", {"reach_region"});
-			    choice(objective, "region", regions);
+			    choice(objective, "type", {"reach_region", "condition"});
+			    boolean(objective, "optional");
+			    if (objective.value("type", "") == "condition")
+			    {
+				    if (!objective.contains("complete_when"))
+					    objective["complete_when"] = {{"fact", ""}, {"op", "eq"}, {"value", true}};
+				    structure(objective["complete_when"]);
+				    if (objective.contains("fail_when"))
+					    structure(objective["fail_when"]);
+				    else if (button("Add failure condition"))
+					    objective["fail_when"] = {{"fact", ""}, {"op", "eq"}, {"value", true}};
+			    }
+			    else
+				    choice(objective, "region", regions);
 			    actor(objective, "actor", slots);
 			    string(objective, "title_key");
 			    string(objective, "description_key");
@@ -2220,6 +2232,32 @@ struct GameplayEditor
 				    strings(objective["recipients"], "consoles");
 			    }
 		    });
+		records(scenario, "fact_bindings",
+		        {{"id", "fact"}, {"kind", "entity"}, {"subject", {{"entity", 1}}}, {"field", "lifecycle"}},
+		        [&](Json &f)
+		        {
+			        structure(f);
+		        });
+		records(scenario, "event_bindings", {{"kind", "entity.departed"}, {"event", "event"}},
+		        [&](Json &e)
+		        {
+			        structure(e);
+		        });
+		records(scenario, "reports",
+		        {{"id", "report"},
+		         {"ship", {{"slot", slots.empty() ? "" : slots.front()}}},
+		         {"title_key", "Mission report"},
+		         {"objectives", Json::array()},
+		         {"facts", Json::array()},
+		         {"rules", Json::array()},
+		         {"fallback",
+		          {{"result", "unfinished"},
+		           {"title_key", "Unfinished"},
+		           {"explanation_key", "Work remains unfinished."}}}},
+		        [&](Json &r)
+		        {
+			        structure(r);
+		        });
 		records(scenario, "objective_sequences", {{"id", "sequence"}, {"objectives", Json::array()}, {"repeat", false}},
 		        [&](Json &sequence)
 		        {
@@ -2606,6 +2644,8 @@ struct GameplayEditor
 				        if (binding.value("action", std::string{}).empty())
 					        binding.erase("action");
 			        });
+		if (editable("ftl_system"))
+			optional_string(tree, "ftl_system");
 		if (editable("system_bindings"))
 			records(tree, "system_bindings", {{"name", "observed"}, {"system", ""}, {"field", "enabled"}},
 			        [&](Json &binding)

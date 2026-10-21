@@ -18,6 +18,30 @@ module phoenix.state_tree;
 
 namespace phoenix::state_tree
 {
+bool compare_values(const Value &left, Compare operation, const Value &right)
+{
+	if (operation == Compare::Present)
+		return left.type != Type::Missing;
+	if (left.type == Type::Missing || right.type == Type::Missing || left.type != right.type)
+		return false;
+	switch (operation)
+	{
+	case Compare::Equal:
+		return left == right;
+	case Compare::NotEqual:
+		return left != right;
+	case Compare::Less:
+		return left.number < right.number;
+	case Compare::LessEqual:
+		return left.number <= right.number;
+	case Compare::Greater:
+		return left.number > right.number;
+	case Compare::GreaterEqual:
+		return left.number >= right.number;
+	default:
+		return false;
+	}
+}
 Value Value::boolean(bool value)
 {
 	return {Type::Boolean, value ? 1 : 0, {}};

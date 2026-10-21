@@ -1,5 +1,7 @@
 # Phoenix V3
 
+[Mission objectives and debriefs](docs/mission-objectives.md) connect physical rescue outcomes, stable events and authoritative departure reports through authored rules.
+
 [Navigator FTL departure](docs/ftl-departure.md) adds a dedicated auxiliary Console, a powered and cooled FTL reserve, deliberate departure and a persistent report for that ship's crew.
 
 [Away missions](docs/away-missions.md) adds Dispatch, qualified displacement, Station-owned contributions and the Rescue under threat demonstration.

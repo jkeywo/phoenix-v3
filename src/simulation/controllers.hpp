@@ -30,6 +30,7 @@ struct ControllerBrain
 {
 	state_tree::Program program;
 	std::string tree;
+	std::string ftl_system;
 	std::string routine_stance = "routine";
 	std::size_t decision_base = 0, action_base = 0, coordination_base = 0;
 	ControllerDestinations<ControllerOwnField> own;

@@ -424,10 +424,16 @@ std::vector<Value> GameplayScenarioBridge::snapshot(ScenarioId id, ScenarioId *n
 		set(GameplayTreeObservation::Objective, Value::reference(Type::Objective, o.id));
 		set(GameplayTreeObservation::ObjectiveState, Value::integer(static_cast<std::int64_t>(o.status)));
 		const auto r = runtime_.definition().objectives.at(o.definition).region;
-		const auto &destination = runtime_.definition().regions.at(r);
-		set(GameplayTreeObservation::DestinationRegion, Value::reference(Type::Region, r + 1));
-		set(GameplayTreeObservation::DestinationX, Value::integer(destination.centre.x));
-		set(GameplayTreeObservation::DestinationY, Value::integer(destination.centre.y));
+		const ScenarioRegion destination = runtime_.definition().objectives.at(o.definition).condition
+		                                       ? ScenarioRegion{}
+		                                       : runtime_.definition().regions.at(r);
+		if (!runtime_.definition().objectives.at(o.definition).condition)
+			set(GameplayTreeObservation::DestinationRegion, Value::reference(Type::Region, r + 1));
+		if (!runtime_.definition().objectives.at(o.definition).condition)
+		{
+			set(GameplayTreeObservation::DestinationX, Value::integer(destination.centre.x));
+			set(GameplayTreeObservation::DestinationY, Value::integer(destination.centre.y));
+		}
 		if (!actor)
 			actor = o.actor;
 		if (region.empty())
@@ -820,6 +826,12 @@ std::vector<ScenarioMotionSegment> GameplayScenarioBridge::sample_motion(std::sp
 		     {b.x, b.y}});
 	}
 	return out;
+}
+void GameplayScenarioBridge::evaluate_conditions(ScenarioTick tick,
+                                                 const std::map<ScenarioId, ScenarioFacts> &snapshots)
+{
+	runtime_.evaluate_conditions(tick, snapshots);
+	tick_ = tick;
 }
 void GameplayScenarioBridge::evaluate(std::span<const ScenarioMotionSegment> motion)
 {

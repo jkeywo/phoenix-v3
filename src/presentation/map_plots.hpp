@@ -131,6 +131,8 @@ inline void draw_navigation_plot(const BodyView &own, const Json &regions, const
 		DrawLineV({area.x, y}, {area.x + area.width, y}, {35, 65, 70, 255});
 	for (const auto &o : objectives)
 	{
+		if (!o.contains("destination_x"))
+			continue;
 		const auto p = point(o.at("destination_x"), o.at("destination_y"));
 		DrawCircleLinesV(p, std::max(8.f, static_cast<float>(o.value("radius", 0.0) / camera.scale)), GOLD);
 		DrawCircleV(p, 4, GOLD);

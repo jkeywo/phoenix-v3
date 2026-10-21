@@ -19151,7 +19151,9 @@
 								"havok-mag",
 								"missile-launcher",
 								"pdc-mag",
-								"pdc"
+								"pdc",
+								"ftl.supply",
+								"ftl.cooling"
 							]
 						},
 						{
@@ -19160,6 +19162,14 @@
 							"systems": [],
 							"feeds": ["comms-radio", "radar"],
 							"human_preferences": ["support"]
+						},
+						{
+							"id": "navigator",
+							"definition": "base.console.navigator",
+							"systems": [],
+							"feeds": ["ftl.drive"],
+							"human_preferences": ["support", "helm"],
+							"knowledge_roles": ["base.crew"]
 						}
 					]
 				}
@@ -19589,6 +19599,49 @@
 								"consumers": ["comms-radio"]
 							}
 						]
+					},
+					{
+						"id": "ftl.drive",
+						"console": "navigator",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 0,
+								"consumers": ["ftl.drive"],
+								"label_key": "FTL battery"
+							}
+						],
+						"tree": "base.policy.depart-after-visiting-work"
+					},
+					{
+						"id": "ftl.supply",
+						"console": "support",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "isolated",
+								"action": "link_isolated",
+								"initial": 0,
+								"consumers": ["ftl.supply"],
+								"label_key": "FTL power isolation"
+							}
+						]
+					},
+					{
+						"id": "ftl.cooling",
+						"console": "support",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "allocation",
+								"action": "cooling_allocation",
+								"initial": 300,
+								"consumers": ["ftl.cooling"],
+								"label_key": "FTL cooling"
+							}
+						]
 					}
 				],
 				"default_profile": "direct",
@@ -19626,11 +19679,16 @@
 									"weapon-cell",
 									"shield-cell",
 									"shield-fore",
-									"shield-aft"
+									"shield-aft",
+									"ftl.supply",
+									"ftl.cooling"
 								]
 							},
 							"comms": {
 								"human": ["external-comms"]
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
 							}
 						}
 					},
@@ -19668,10 +19726,14 @@
 									"shield-cell",
 									"shield-fore",
 									"shield-aft"
-								]
+								],
+								"human": ["ftl.supply", "ftl.cooling"]
 							},
 							"comms": {
 								"ai": ["external-comms"]
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
 							}
 						}
 					}
@@ -19803,6 +19865,73 @@
 				{
 					"id": "combat-power",
 					"assembly": "base.assembly.combat-power"
+				},
+				{
+					"id": "ftl",
+					"assembly": "base.assembly.ftl",
+					"bindings": {
+						"power": "combat-power.power"
+					},
+					"overrides": {
+						"systems": {
+							"drive": {
+								"charge_per_second": 1200,
+								"charging_loss_per_second": 240,
+								"ready_loss_per_second": 600,
+								"off_discharge_per_second": 960,
+								"compartment": "stern-port"
+							},
+							"supply": {
+								"observation_console": "support",
+								"compartment": "stern-port"
+							},
+							"cooling": {
+								"observation_console": "support",
+								"compartment": "stern-port"
+							}
+						},
+						"resources": {
+							"stores": [
+								{
+									"id": "cell",
+									"capacity": 28800,
+									"initial": 0,
+									"charge_rate": 1200,
+									"discharge_rate": 1200,
+									"operation_heat_ppm": 1000000,
+									"charge_heat_ppm": 0,
+									"passive_cooling": 12,
+									"stop_heat": 36000,
+									"recover_heat": 18000
+								}
+							],
+							"links": [
+								{
+									"id": "feed",
+									"from": "$power",
+									"to": "cell",
+									"capacity_rate": 1200
+								}
+							],
+							"coolant_sources": [
+								{
+									"id": "coolant",
+									"initial": 60000,
+									"removal_rate": 1200,
+									"coolant_per_heat_ppm": 100000
+								}
+							],
+							"cooling_links": [
+								{
+									"id": "cooling",
+									"source": "coolant",
+									"store": "cell",
+									"capacity_rate": 1200,
+									"allocation_rate": 300
+								}
+							]
+						}
+					}
 				}
 			],
 			"comms": {
@@ -19850,6 +19979,11 @@
 					{
 						"id": "signals",
 						"label": "Signals",
+						"station": "support"
+					},
+					{
+						"id": "passage",
+						"label": "Guild passage",
 						"station": "support"
 					}
 				],
@@ -20173,6 +20307,30 @@
 						"effects": {
 							"team-2": ["repair"]
 						}
+					},
+					{
+						"id": "ftl.drive",
+						"label": "FTL Navigator",
+						"department": "passage",
+						"controller": "ftl.drive",
+						"compartment": "stern-port",
+						"effects": {}
+					},
+					{
+						"id": "ftl.supply",
+						"label": "FTL supply",
+						"department": "passage",
+						"controller": "ftl.supply",
+						"compartment": "stern-port",
+						"effects": {}
+					},
+					{
+						"id": "ftl.cooling",
+						"label": "FTL cooling",
+						"department": "passage",
+						"controller": "ftl.cooling",
+						"compartment": "stern-port",
+						"effects": {}
 					}
 				],
 				"officers": [
@@ -20788,7 +20946,9 @@
 					"id": "courier",
 					"name": "Rescue Courier",
 					"mandatory": true,
-					"allowed_ships": ["base.rescue-courier"],
+					"allowed_ships": [
+						"base.rescue-courier"
+					],
 					"x_mm": 0,
 					"y_mm": 0,
 					"heading_mdeg": 0
@@ -20807,7 +20967,14 @@
 							"character": "engineer"
 						}
 					},
-					"members": ["ship", "engineer"]
+					"members": [
+						"ship",
+						"engineer"
+					],
+					"events": [
+						"rescue.work-completed",
+						"rescue.party-recovered"
+					]
 				}
 			],
 			"away_missions": [
@@ -20840,14 +21007,359 @@
 					"actor": {
 						"slot": "courier"
 					}
-				}
+				},
+				"events": [
+					"rescue.work-completed",
+					"rescue.party-recovered",
+					"rescue.casualty-escaped",
+					"rescue.casualty-lost",
+					"rescue.casualty-ready"
+				],
+				"event_bindings": [
+					{
+						"kind": "away.completed",
+						"subject": {
+							"entity": 1
+						},
+						"event": "rescue.work-completed",
+						"operation": "repairs"
+					},
+					{
+						"kind": "away.recovered",
+						"subject": {
+							"entity": 1
+						},
+						"event": "rescue.party-recovered",
+						"operation": "repairs"
+					},
+					{
+						"kind": "entity.departed",
+						"subject": {
+							"entity": 1
+						},
+						"event": "rescue.casualty-escaped"
+					},
+					{
+						"kind": "entity.destroyed",
+						"subject": {
+							"entity": 1
+						},
+						"event": "rescue.casualty-lost"
+					},
+					{
+						"kind": "ftl.ready",
+						"subject": {
+							"entity": 1
+						},
+						"operation": "ftl.drive",
+						"event": "rescue.casualty-ready"
+					}
+				],
+				"fact_bindings": [
+					{
+						"id": "propulsion-restored",
+						"kind": "compartment",
+						"subject": {
+							"entity": 1
+						},
+						"field": "stern-port"
+					},
+					{
+						"id": "services-restored",
+						"kind": "compartment",
+						"subject": {
+							"entity": 1
+						},
+						"field": "mid-port"
+					},
+					{
+						"id": "casualty-state",
+						"kind": "entity",
+						"subject": {
+							"entity": 1
+						},
+						"field": "lifecycle"
+					},
+					{
+						"id": "party-recovered",
+						"kind": "away",
+						"subject": {
+							"slot": "courier"
+						},
+						"operation": "repairs",
+						"field": "recovered"
+					},
+					{
+						"id": "repair-outcome",
+						"kind": "away",
+						"subject": {
+							"slot": "courier"
+						},
+						"operation": "repairs",
+						"field": "outcome"
+					},
+					{
+						"id": "personnel-lost",
+						"kind": "personnel",
+						"subject": {
+							"slot": "courier"
+						},
+						"field": "lost"
+					},
+					{
+						"id": "personnel-away",
+						"kind": "personnel",
+						"subject": {
+							"slot": "courier"
+						},
+						"field": "deployed"
+					},
+					{
+						"id": "propulsion-objective",
+						"kind": "objective",
+						"subject": {
+							"slot": "courier"
+						},
+						"operation": "restore-propulsion",
+						"field": "status"
+					},
+					{
+						"id": "services-objective",
+						"kind": "objective",
+						"subject": {
+							"slot": "courier"
+						},
+						"operation": "restore-services",
+						"field": "status"
+					}
+				],
+				"objectives": [
+					{
+						"id": "restore-propulsion",
+						"type": "condition",
+						"title_key": "Restore casualty propulsion",
+						"description_key": "Restore casualty propulsion",
+						"optional": false,
+						"actor": {
+							"slot": "courier"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "courier"
+							}
+						},
+						"complete_when": {
+							"fact": "propulsion-restored",
+							"op": "eq",
+							"value": true
+						},
+						"fail_when": {
+							"fact": "casualty-state",
+							"op": "eq",
+							"value": "destroyed"
+						}
+					},
+					{
+						"id": "restore-services",
+						"type": "condition",
+						"title_key": "Restore casualty services",
+						"description_key": "Restore casualty services",
+						"optional": true,
+						"actor": {
+							"slot": "courier"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "courier"
+							}
+						},
+						"complete_when": {
+							"fact": "services-restored",
+							"op": "eq",
+							"value": true
+						},
+						"fail_when": {
+							"fact": "casualty-state",
+							"op": "eq",
+							"value": "destroyed"
+						}
+					},
+					{
+						"id": "recover-party",
+						"type": "condition",
+						"title_key": "Recover the repair party",
+						"description_key": "Recover the repair party",
+						"optional": false,
+						"actor": {
+							"slot": "courier"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "courier"
+							}
+						},
+						"complete_when": {
+							"fact": "party-recovered",
+							"value": true
+						},
+						"fail_when": {
+							"fact": "personnel-lost",
+							"op": "gt",
+							"value": 0
+						}
+					},
+					{
+						"id": "casualty-escape",
+						"type": "condition",
+						"title_key": "Secure the casualty escape",
+						"description_key": "Secure the casualty escape",
+						"optional": false,
+						"actor": {
+							"slot": "courier"
+						},
+						"recipients": {
+							"ship": {
+								"slot": "courier"
+							}
+						},
+						"complete_when": {
+							"fact": "casualty-state",
+							"op": "eq",
+							"value": "departed"
+						},
+						"fail_when": {
+							"fact": "casualty-state",
+							"op": "eq",
+							"value": "destroyed"
+						}
+					}
+				],
+				"reports": [
+					{
+						"id": "rescue-debrief",
+						"ship": {
+							"slot": "courier"
+						},
+						"title_key": "Rescue operation debrief",
+						"objectives": [
+							"restore-propulsion",
+							"restore-services",
+							"recover-party",
+							"casualty-escape"
+						],
+						"facts": [
+							{
+								"fact": "propulsion-restored",
+								"label_key": "Propulsion restored"
+							},
+							{
+								"fact": "services-restored",
+								"label_key": "Services restored"
+							},
+							{
+								"fact": "casualty-state",
+								"label_key": "Casualty disposition"
+							},
+							{
+								"fact": "personnel-away",
+								"label_key": "Personnel still deployed"
+							},
+							{
+								"fact": "personnel-lost",
+								"label_key": "Personnel lost"
+							}
+						],
+						"rules": [
+							{
+								"result": "success",
+								"title_key": "Rescue successful",
+								"explanation_key": "The casualty escaped and the repair party returned safely.",
+								"when": {
+									"all": [
+										{
+											"fact": "casualty-state",
+											"op": "eq",
+											"value": "departed"
+										},
+										{
+											"fact": "propulsion-objective",
+											"op": "eq",
+											"value": "completed"
+										},
+										{
+											"fact": "repair-outcome",
+											"op": "eq",
+											"value": "complete:repairs"
+										},
+										{
+											"fact": "party-recovered",
+											"op": "eq",
+											"value": true
+										},
+										{
+											"fact": "personnel-away",
+											"op": "eq",
+											"value": 0
+										},
+										{
+											"fact": "personnel-lost",
+											"op": "eq",
+											"value": 0
+										}
+									]
+								}
+							},
+							{
+								"result": "partial",
+								"title_key": "Partial rescue",
+								"explanation_key": "Useful repairs were completed, but the casualty had not escaped when you departed.",
+								"when": {
+									"all": [
+										{
+											"fact": "casualty-state",
+											"op": "ne",
+											"value": "destroyed"
+										},
+										{
+											"fact": "personnel-lost",
+											"op": "eq",
+											"value": 0
+										},
+										{
+											"any": [
+												{
+													"fact": "propulsion-objective",
+													"op": "eq",
+													"value": "completed"
+												},
+												{
+													"fact": "services-objective",
+													"op": "eq",
+													"value": "completed"
+												}
+											]
+										}
+									]
+								}
+							}
+						],
+						"fallback": {
+							"result": "failure",
+							"title_key": "Rescue unsuccessful",
+							"explanation_key": "The casualty was lost, personnel were lost, or no restoration objective was completed before departure."
+						}
+					}
+				]
 			},
 			"sensor_findings": [
 				{
 					"id": "isolated-drive",
 					"target_entity": 1,
 					"text_key": "The propulsion compartment is isolated. A repair team can restore the damaged drive and service connections.",
-					"requires": ["findings", "compartment_condition"],
+					"requires": [
+						"findings",
+						"compartment_condition"
+					],
 					"scan_ticks": 300
 				}
 			]
@@ -28975,6 +29487,16 @@
 					"speaker": "engineer",
 					"text_key": "Team recovered. Completed repairs remain in place; unfinished work can resume.",
 					"incoming_ticks": 20
+				},
+				"ready": {
+					"speaker": "engineer",
+					"text_key": "Propulsion is restored. Our FTL reserve is charging; we will wait until your repair party is clear.",
+					"incoming_ticks": 20
+				},
+				"charged": {
+					"speaker": "engineer",
+					"text_key": "Our FTL reserve is ready. We will depart as soon as all visiting personnel and transfers are clear.",
+					"incoming_ticks": 20
 				}
 			},
 			"prompts": {
@@ -29003,7 +29525,9 @@
 					"entry": [
 						{
 							"action": "say",
-							"arguments": ["intro"]
+							"arguments": [
+								"intro"
+							]
 						}
 					],
 					"transitions": [
@@ -29026,11 +29550,15 @@
 					"entry": [
 						{
 							"action": "say",
-							"arguments": ["arrived"]
+							"arguments": [
+								"arrived"
+							]
 						},
 						{
 							"action": "offer",
-							"arguments": ["priority"]
+							"arguments": [
+								"priority"
+							]
 						}
 					],
 					"transitions": [
@@ -29065,7 +29593,9 @@
 					"entry": [
 						{
 							"action": "say",
-							"arguments": ["stable"]
+							"arguments": [
+								"stable"
+							]
 						}
 					],
 					"transitions": [
@@ -29088,7 +29618,9 @@
 					"entry": [
 						{
 							"action": "say",
-							"arguments": ["priority"]
+							"arguments": [
+								"priority"
+							]
 						}
 					],
 					"transitions": [
@@ -29111,7 +29643,59 @@
 					"entry": [
 						{
 							"action": "say",
-							"arguments": ["done"]
+							"arguments": [
+								"done"
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "charging",
+							"conditions": [
+								{
+									"left": {
+										"observation": "event"
+									},
+									"op": "eq",
+									"right": "rescue.work-completed"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "charging",
+					"entry": [
+						{
+							"action": "say",
+							"arguments": [
+								"ready"
+							]
+						}
+					],
+					"transitions": [
+						{
+							"target": "ready",
+							"conditions": [
+								{
+									"left": {
+										"observation": "event"
+									},
+									"op": "eq",
+									"right": "rescue.casualty-ready"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "ready",
+					"entry": [
+						{
+							"action": "say",
+							"arguments": [
+								"charged"
+							]
 						}
 					]
 				}
@@ -29449,6 +30033,48 @@
 									"op": "ge",
 									"right": 1800
 								}
+							]
+						}
+					],
+					"entry": [
+						{
+							"action": "add_objective",
+							"arguments": [
+								"restore-propulsion",
+								{
+									"observation": "self.entity"
+								},
+								"restore-propulsion"
+							]
+						},
+						{
+							"action": "add_objective",
+							"arguments": [
+								"restore-services",
+								{
+									"observation": "self.entity"
+								},
+								"restore-services"
+							]
+						},
+						{
+							"action": "add_objective",
+							"arguments": [
+								"recover-party",
+								{
+									"observation": "self.entity"
+								},
+								"recover-party"
+							]
+						},
+						{
+							"action": "add_objective",
+							"arguments": [
+								"casualty-escape",
+								{
+									"observation": "self.entity"
+								},
+								"casualty-escape"
 							]
 						}
 					]
@@ -31356,6 +31982,80 @@
 									"right": 40
 								}
 							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.policy.depart-after-visiting-work",
+			"context": "controller",
+			"ftl_system": "ftl.drive",
+			"command_bindings": [
+				{
+					"channel": "enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "waiting",
+			"states": [
+				{
+					"id": "waiting",
+					"transitions": [
+						{
+							"target": "charging",
+							"conditions": [
+								{
+									"left": {
+										"observation": "local.work_completed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "charging",
+					"running": [
+						{
+							"action": "write.enabled",
+							"arguments": [true]
+						}
+					],
+					"transitions": [
+						{
+							"target": "depart",
+							"conditions": [
+								{
+									"left": {
+										"observation": "ftl.ready"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "local.visitors"
+									},
+									"op": "eq",
+									"right": 0
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "depart",
+					"running": [
+						{
+							"action": "write.enabled",
+							"arguments": [true]
+						},
+						{
+							"action": "ftl.depart",
+							"arguments": ["ftl.drive"]
 						}
 					]
 				}

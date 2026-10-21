@@ -1,0 +1,420 @@
+// Generic world-fact adapter. No scenario/content identities belong here.
+MissionLedger mission_ledger;
+std::vector<std::tuple<ConsoleAddress, OperatingCommand, bool>> departure_requests;
+bool truly_destroyed(EntityId id) const
+{
+	const auto *s = entities.at(id).try_get<Destructible>();
+	return s && s->destroyed_tick >= 0;
+}
+EntityId mission_subject(ScenarioId instance_id, const ScenarioActor &a) const
+{
+	EntityId id = 0;
+	if (a.kind == ScenarioActorKind::Entity)
+		id = a.entity;
+	else if (a.kind == ScenarioActorKind::ShipSlot)
+	{
+		auto i = slot_entities.find(a.name);
+		if (i != slot_entities.end())
+			id = i->second;
+	}
+	else if (scenario && scenario->runtime().instances().contains(instance_id))
+	{
+		const auto &handles = scenario->runtime().instances().at(instance_id).entity_handles;
+		auto i = handles.find(a.name);
+		if (i != handles.end() && i->second.size() == 1)
+			id = i->second[0];
+	}
+	return entities.contains(id) ? id : 0;
+}
+std::string lifecycle(EntityId id) const
+{
+	return truly_destroyed(id) ? "destroyed" : departed(id) ? "departed" : "active";
+}
+static const char *objective_status_name(ObjectiveStatus s)
+{
+	static constexpr const char *names[]{"pending", "active", "completed", "failed", "cancelled"};
+	return names[static_cast<unsigned>(s)];
+}
+std::int64_t mission_personnel(EntityId ship, const std::string &which) const
+{
+	std::set<std::string> assets, deployed;
+	if (which == "lost")
+	{
+		auto i = mission_ledger.lost.find(ship);
+		return i == mission_ledger.lost.end() ? 0 : i->second.size();
+	}
+	for (std::size_t i = 0; i < away_missions.size(); ++i)
+		if (away_ship(away_definitions[i]) == ship)
+		{
+			const auto &m = away_missions[i];
+			if (m.deployed())
+			{
+				for (const auto &[slot, a] : m.assignments)
+					deployed.insert(a);
+				for (const auto &o : m.accompanying)
+					deployed.insert("officer:" + o);
+			}
+			if (which == "recovered")
+				assets.insert(m.participants.begin(), m.participants.end());
+		}
+	if (which == "deployed")
+		assets = deployed;
+	else
+		for (const auto &a : deployed)
+			assets.erase(a);
+	if (auto i = mission_ledger.lost.find(ship); i != mission_ledger.lost.end())
+		for (const auto &a : i->second)
+			assets.erase(a);
+	return assets.size();
+}
+state_tree::Value mission_fact(ScenarioId instance_id, const ScenarioFactBinding &b) const
+{
+	using state_tree::Value;
+	if (b.kind == "event")
+	{
+		const bool filtered = b.subject.entity || !b.subject.name.empty();
+		const auto subject = filtered ? mission_subject(instance_id, b.subject) : 0;
+		if (filtered && !subject)
+			return {};
+		for (const auto &e : scenario->runtime().events(b.event))
+		{
+			bool match =
+			    !filtered || (e.payload.contains("subject") &&
+			                  e.payload.at("subject") == ScenarioParameter{static_cast<std::int64_t>(subject)});
+			for (const auto &[key, v] : b.match)
+			{
+				auto i = e.payload.find(key);
+				match &= i != e.payload.end() && i->second == v;
+			}
+			if (match)
+				return Value::boolean(true);
+		}
+		return Value::boolean(false);
+	}
+	auto id = mission_subject(instance_id, b.subject);
+	if (!id)
+		return {};
+	if (b.kind == "objective")
+	{
+		const ScenarioObjective *latest = nullptr;
+		for (const auto &[key, o] : scenario->runtime().objectives())
+			if (o.instance == instance_id && (o.handle == b.operation || o.definition == b.operation) &&
+			    mission_subject(o.instance, o.actor) == id && (!latest || o.id > latest->id))
+				latest = &o;
+		return latest ? Value::string(objective_status_name(latest->status)) : Value{};
+	}
+	if (b.kind == "entity")
+		return Value::string(lifecycle(id));
+	if (b.kind == "personnel")
+		return Value::integer(mission_personnel(id, b.field));
+	if (b.kind == "compartment")
+	{
+		const auto *s = entities.at(id).try_get<CombatStructure>();
+		if (!s)
+			return {};
+		for (std::size_t i = 0; i < s->compartments.size(); ++i)
+			if (s->definition.compartments[i].id == b.field)
+				return Value::boolean(!truly_destroyed(id) &&
+				                      s->compartments[i].hp == s->definition.compartments[i].maximum &&
+				                      !s->compartments[i].disabled);
+		return {};
+	}
+	if (b.kind == "away")
+		for (std::size_t i = 0; i < away_missions.size(); ++i)
+			if (away_ship(away_definitions[i]) == id && away_definitions[i].id == b.operation)
+			{
+				const auto &m = away_missions[i];
+				if (b.field == "phase")
+				{
+					Json p = m.phase;
+					return Value::string(p.get<std::string>());
+				}
+				if (b.field == "outcome")
+					return Value::string(m.outcome);
+				if (b.field == "ever_deployed")
+					return Value::boolean(m.ever_deployed);
+				if (b.field == "recovered")
+					return Value::boolean(m.ever_deployed && m.phase == AwayPhase::Recovered);
+				return Value::boolean(m.phase == AwayPhase::Lost);
+			}
+	return {};
+}
+ScenarioFacts mission_snapshot(ScenarioId instance_id) const
+{
+	ScenarioFacts facts;
+	for (const auto &[key, b] : scenario->runtime().definition().fact_bindings)
+		facts.emplace(key, mission_fact(instance_id, b));
+	for (const auto &[name, o] : scenario->runtime().definition().objectives)
+		facts.emplace("actor." + name, state_tree::Value::integer(mission_subject(instance_id, o.actor)));
+	return facts;
+}
+void mission_transition(std::string kind, EntityId source, EntityId subject, std::string operation = {},
+                        std::string detail = {})
+{
+	if (!scenario)
+		return;
+	scenario->evaluate_conditions(ecs.get<Clock>().tick, {});
+	auto &r = scenario->runtime();
+	if (mission_ledger.transitions.size() >= r.definition().maximum_events)
+		throw std::runtime_error("Mission transition journal exhausted");
+	if (!mission_ledger.instance)
+		mission_ledger.instance = conversation_instance;
+	MissionTransition t{mission_ledger.next++, ecs.get<Clock>().tick, source,           subject,
+	                    std::move(kind),       std::move(operation),  std::move(detail)};
+	mission_ledger.transitions.push_back(t);
+	for (std::size_t i = 0; i < r.definition().event_bindings.size(); ++i)
+	{
+		const auto &b = r.definition().event_bindings[i];
+		if (b.kind != t.kind || (!b.operation.empty() && b.operation != t.operation) ||
+		    (!b.detail.empty() && b.detail != t.detail))
+			continue;
+		ScenarioId main = 0;
+		for (const auto &[id, instance] : r.instances())
+			if (instance.name == "main")
+				main = id;
+		if (b.subject && mission_subject(main, *b.subject) != t.subject)
+			continue;
+		const auto &result =
+		    r.emit({mission_ledger.instance, t.id, static_cast<std::uint32_t>(0x7fff0000U + i)}, b.event,
+		           {{"source", static_cast<std::int64_t>(source)},
+		            {"subject", static_cast<std::int64_t>(subject)},
+		            {"ship", static_cast<std::int64_t>(source)},
+		            {"operation", t.operation},
+		            {"detail", t.detail},
+		            {"tick", static_cast<std::int64_t>(t.tick)},
+		            {"kind", t.kind},
+		            {"outcome", t.detail}});
+		if (result.status == ScenarioActionStatus::Failed)
+			throw std::runtime_error(result.reason);
+	}
+}
+void mission_change(const std::string &key, const std::string &value, const std::string &kind, EntityId source,
+                    EntityId subject, const std::string &operation = {}, const std::string &detail = {})
+{
+	auto &old = mission_ledger.states[key];
+	if (old == value)
+		return;
+	old = value;
+	if (!kind.empty())
+		mission_transition(kind, source, subject, operation, detail);
+}
+void resolve_lost_parties()
+{
+	for (std::size_t i = 0; i < away_missions.size(); ++i)
+	{
+		auto &m = away_missions[i];
+		const auto &d = away_definitions[i];
+		auto ship = away_ship(d);
+		if (!ship || m.phase == AwayPhase::Lost || !truly_destroyed(d.target))
+			continue;
+		if (m.deployed())
+		{
+			for (const auto &[slot, a] : m.assignments)
+				mission_ledger.lost[ship].insert(a);
+			for (const auto &o : m.accompanying)
+				mission_ledger.lost[ship].insert("officer:" + o);
+			auto &personnel = entities.at(ship).get_mut<PersonnelState>();
+			const auto &p = definition(ship).personnel;
+			for (std::size_t o = 0; o < p.officers.size(); ++o)
+				if (mission_ledger.lost[ship].contains("officer:" + p.officers[o].id))
+				{
+					personnel.officers[o].present = false;
+					personnel.officers[o].duty.clear();
+					personnel.officers[o].remaining = 0;
+					personnel.officers[o].edge_to = -1;
+				}
+			++personnel.revision;
+			refresh_personnel_bonuses(personnel, p);
+			m.assignments.clear();
+			m.accompanying.clear();
+			m.phase = AwayPhase::Lost;
+			m.transfer = 0;
+			m.outcome = "fail:target_destroyed";
+			++m.revision;
+			mission_transition("personnel.lost", ship, d.target, d.id, "target_destroyed");
+		}
+		else if (m.phase == AwayPhase::Outbound)
+		{
+			m.phase = AwayPhase::Open;
+			m.transfer = 0;
+			++m.revision;
+		}
+	}
+}
+void update_mission_facts()
+{
+	resolve_lost_parties();
+	if (!scenario ||
+	    (scenario->runtime().definition().fact_bindings.empty() &&
+	     scenario->runtime().definition().event_bindings.empty() && scenario->runtime().definition().reports.empty()))
+		return;
+	for (const auto &[id, e] : entities)
+		if (id < field_identity_base)
+		{
+			const auto state = lifecycle(id);
+			mission_change("entity/" + std::to_string(id), state, state == "active" ? "" : "entity." + state, id, id);
+		}
+	for (const auto &[id, entity] : entities)
+		if (id < field_identity_base)
+			for (auto child : entity.get<EquipmentIndex>().values)
+				if (child.has<FtlReserve>())
+				{
+					const auto &system = child.get<Equipment>().id;
+					const bool ready = ftl_blocker(id, child).empty();
+					mission_change("ftl/" + std::to_string(id) + "/" + system, ready ? "ready" : "blocked",
+					               ready ? "ftl.ready" : "", id, id, system);
+				}
+	for (std::size_t i = 0; i < away_missions.size(); ++i)
+	{
+		const auto &d = away_definitions[i];
+		auto ship = away_ship(d);
+		if (!ship)
+			continue;
+		const auto &m = away_missions[i];
+		Json p = m.phase;
+		const auto phase = p.get<std::string>();
+		const auto key = "away/" + std::to_string(ship) + "/" + d.id;
+		mission_change(key + "/phase", phase,
+		               phase == "deployed"    ? "away.deployed"
+		               : phase == "recovered" ? "away.recovered"
+		                                      : "",
+		               ship, d.target, d.id);
+		mission_change(key + "/outcome", m.outcome,
+		               m.outcome.starts_with("complete:") ? "away.completed"
+		               : m.outcome.starts_with("fail:")   ? "away.failed"
+		                                                  : "",
+		               ship, d.target, d.id, m.outcome);
+	}
+	std::map<ScenarioId, ScenarioFacts> snapshots;
+	for (const auto &[id, instance] : scenario->runtime().instances())
+		snapshots.emplace(id, mission_snapshot(id));
+	scenario->evaluate_conditions(ecs.get<Clock>().tick, snapshots);
+	for (const auto &[id, o] : scenario->runtime().objectives())
+	{
+		const auto state = objective_status_name(o.status);
+		mission_change("objective/" + std::to_string(id), state, "objective." + std::string(state),
+		               mission_subject(o.instance, o.actor), mission_subject(o.instance, o.actor), o.definition);
+	}
+	scenario_publications();
+}
+Json authoritative_report(EntityId ship, Json legacy) const
+{
+	if (!scenario)
+		return legacy;
+	const auto &r = scenario->runtime();
+	for (const auto &spec : r.definition().reports)
+	{
+		ScenarioId instance_id = 0;
+		for (const auto &[id, instance] : r.instances())
+			if (instance.name == spec.instance)
+				instance_id = id;
+		if (!instance_id || mission_subject(instance_id, spec.ship) != ship)
+			continue;
+		const auto facts = mission_snapshot(instance_id);
+		legacy["version"] = 2;
+		legacy["title"] = spec.title_key;
+		legacy["result"] = spec.fallback;
+		legacy["result_title"] = spec.fallback_title_key;
+		legacy["explanation"] = spec.fallback_explanation_key;
+		legacy["facts"] = Json::array();
+		legacy["personnel"] = Json::array();
+		legacy["objectives"] = Json::array();
+		for (const auto &rule : spec.rules)
+			if (scenario_condition(rule.when, facts).value_or(false))
+			{
+				legacy["result"] = rule.result;
+				legacy["result_title"] = rule.title_key;
+				legacy["explanation"] = rule.explanation_key;
+				break;
+			}
+		for (const auto &name : spec.objectives)
+		{
+			const auto &d = r.definition().objectives.at(name);
+			const ScenarioObjective *latest = nullptr;
+			for (const auto &[id, o] : r.objectives())
+				if (o.instance == instance_id && o.definition == name && (!latest || o.id > latest->id))
+					latest = &o;
+			legacy["objectives"].push_back({{"id", name},
+			                                {"title", d.title_key},
+			                                {"status", latest ? objective_status_name(latest->status) : "pending"},
+			                                {"optional", d.optional}});
+		}
+		for (const auto &[name, label] : spec.facts)
+		{
+			Json value = nullptr;
+			const auto &v = facts.at(name);
+			if (v.type == state_tree::Type::Text)
+				value = v.text;
+			else if (v.type == state_tree::Type::Boolean)
+				value = v.number != 0;
+			else if (v.type == state_tree::Type::Integer)
+				value = v.number;
+			legacy["facts"].push_back({{"label", label}, {"value", value}});
+		}
+		std::set<std::string> participants;
+		for (std::size_t i = 0; i < away_missions.size(); ++i)
+			if (away_ship(away_definitions[i]) == ship)
+				participants.insert(away_missions[i].participants.begin(), away_missions[i].participants.end());
+		for (const auto &a : participants)
+		{
+			const auto lost = mission_ledger.lost.contains(ship) && mission_ledger.lost.at(ship).contains(a);
+			bool away = false;
+			for (std::size_t i = 0; i < away_missions.size(); ++i)
+				if (away_ship(away_definitions[i]) == ship && away_missions[i].deployed() &&
+				    (std::any_of(away_missions[i].assignments.begin(), away_missions[i].assignments.end(),
+				                 [&](const auto &x)
+				                 {
+					                 return x.second == a;
+				                 }) ||
+				     (a.starts_with("officer:") &&
+				      std::find(away_missions[i].accompanying.begin(), away_missions[i].accompanying.end(),
+				                a.substr(8)) != away_missions[i].accompanying.end())))
+					away = true;
+			legacy["personnel"].push_back({{"name", away_asset_label(ship, a)},
+			                               {"status", lost   ? "lost"
+			                                          : away ? "deployed"
+			                                                 : "recovered"}});
+		}
+		return legacy;
+	}
+	return legacy;
+}
+
+void validate_mission_ledger() const
+{
+	const auto &m = mission_ledger;
+	if (!m.next || m.transitions.size() > 16384 || m.states.size() > 65536 || m.lost.size() > entities.size())
+		throw std::runtime_error("Invalid mission ledger bounds");
+	std::uint64_t last = 0;
+	for (const auto &t : m.transitions)
+	{
+		if (t.id <= last || t.id >= m.next || t.tick > ecs.get<Clock>().tick || t.kind.size() > 128 ||
+		    t.operation.size() > 256 || t.detail.size() > 512 || (t.subject && !entities.contains(t.subject)) ||
+		    (t.source && !entities.contains(t.source)))
+			throw std::runtime_error("Invalid mission transition");
+		last = t.id;
+	}
+	if (m.instance &&
+	    (!scenario || !scenario->runtime().instances().contains(m.instance) || m.instance != conversation_instance))
+		throw std::runtime_error("Invalid mission event source");
+	for (const auto &[ship, assets] : m.lost)
+	{
+		if (!entities.contains(ship) || assets.size() > 256)
+			throw std::runtime_error("Invalid lost personnel");
+		for (const auto &a : assets)
+		{
+			bool valid = false;
+			if (a.starts_with("team:"))
+			{
+				auto team = away_equipment(ship, a.substr(5));
+				valid = team.is_valid() && team.has<CombatMechanism>() &&
+				        std::holds_alternative<RepairState>(team.get<CombatMechanism>().state);
+			}
+			else if (a.starts_with("officer:"))
+				for (const auto &o : definition(ship).personnel.officers)
+					valid |= a == "officer:" + o.id;
+			if (!valid)
+				throw std::runtime_error("Invalid lost asset");
+		}
+	}
+}

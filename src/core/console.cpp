@@ -1404,6 +1404,9 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 		        localise(ftl.at("ready").get<bool>() ? "Ready to depart" : ftl.at("blocker").get<std::string>()) +
 		        ". " + localise("Power draw") + ": " + std::to_string(ftl.at("power_draw").get<std::int64_t>()) + ". " +
 		        localise("Heat") + ": " + std::to_string(ftl.at("heat").get<std::int64_t>()));
+		if (ftl.value("visitors", 0) > 0)
+			result.emplace_back("game.readout/ftl-visitors", localise("Visiting personnel and transfers") + ": " +
+			                                                     std::to_string(ftl.at("visitors").get<int>()));
 		for (const auto &name : ftl.at("left_behind"))
 			result.emplace_back("game.readout/ftl-away/" + name.get<std::string>(),
 			                    localise("Personnel left behind") + ": " + localise(name));

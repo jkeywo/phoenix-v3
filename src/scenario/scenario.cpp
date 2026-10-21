@@ -22,6 +22,65 @@ namespace phoenix
 {
 #include "scenario_internal.hpp"
 
+std::optional<bool> scenario_condition(const ScenarioCondition &c, const ScenarioFacts &facts)
+{
+	if (c.kind == ScenarioCondition::Kind::Leaf)
+	{
+		auto i = facts.find(c.fact);
+		if (i == facts.end() || i->second.type == state_tree::Type::Missing)
+			return {};
+		return state_tree::compare_values(i->second, c.operation, c.value);
+	}
+	bool missing = false;
+	bool value = c.kind == ScenarioCondition::Kind::All;
+	for (const auto &child : c.children)
+	{
+		auto r = scenario_condition(child, facts);
+		if (!r)
+		{
+			missing = true;
+			continue;
+		}
+		if (c.kind == ScenarioCondition::Kind::Not)
+			return !*r;
+		if (c.kind == ScenarioCondition::Kind::All && !*r)
+			return false;
+		if (c.kind == ScenarioCondition::Kind::Any && *r)
+			return true;
+		if (c.kind == ScenarioCondition::Kind::All)
+			value = value && *r;
+		else
+			value = value || *r;
+	}
+	if (missing)
+		return {};
+	return value;
+}
+void ScenarioRuntime::evaluate_conditions(ScenarioTick tick, const std::map<ScenarioId, ScenarioFacts> &snapshots)
+{
+	require(tick >= tick_, "condition time cannot reverse");
+	tick_ = tick;
+	for (auto &[id, o] : objectives_)
+	{
+		const auto &d = definition_.objectives.at(o.definition);
+		if (!d.condition || o.status != ObjectiveStatus::Active || !snapshots.contains(o.instance))
+			continue;
+		const auto &facts = snapshots.at(o.instance);
+		const auto failed = d.fail_when && scenario_condition(*d.fail_when, facts).value_or(false);
+		if (failed || scenario_condition(d.complete_when, facts).value_or(false))
+		{
+			o.status = failed ? ObjectiveStatus::Failed : ObjectiveStatus::Completed;
+			if (!failed)
+			{
+				o.completed_tick = tick_;
+				auto i = facts.find("actor." + o.definition);
+				o.completed_actor = i != facts.end() ? i->second.number : resolve(o.instance, o.actor);
+				require(o.completed_actor > 0, "completed condition needs resolved actor");
+			}
+			objective_publication(o);
+		}
+	}
+}
 bool ScenarioActionToken::operator<(const ScenarioActionToken &other) const
 {
 	return std::tie(instance, call_path, call_activations, activation, task) <
@@ -334,7 +393,8 @@ const ScenarioActionResult &ScenarioRuntime::add_objective(ScenarioActionToken t
 	{
 		o.status = ObjectiveStatus::Active;
 		const auto id = resolve(t.instance, o.actor);
-		if (d.competition.empty() && id && scenario_contains(definition_.regions.at(d.region), positions_.at(id)))
+		if (!d.condition && d.competition.empty() && id &&
+		    scenario_contains(definition_.regions.at(d.region), positions_.at(id)))
 		{
 			o.status = ObjectiveStatus::Completed;
 			o.completed_tick = tick_;
@@ -382,7 +442,8 @@ const ScenarioActionResult &ScenarioRuntime::set_objective_status(ScenarioAction
 	if (status == ObjectiveStatus::Active)
 	{
 		const auto actor_id = resolve(o.instance, o.actor);
-		if (definition_.objectives.at(o.definition).competition.empty() && actor_id &&
+		if (!definition_.objectives.at(o.definition).condition &&
+		    definition_.objectives.at(o.definition).competition.empty() && actor_id &&
 		    scenario_contains(definition_.regions.at(definition_.objectives.at(o.definition).region),
 		                      positions_.at(actor_id)))
 		{
@@ -595,7 +656,7 @@ void ScenarioRuntime::evaluate(std::span<const ScenarioMotionSegment> motion)
 	}
 	for (auto &[id, o] : objectives_)
 	{
-		if (o.status != ObjectiveStatus::Active)
+		if (o.status != ObjectiveStatus::Active || definition_.objectives.at(o.definition).condition)
 			continue;
 		const auto entity = resolve(o.instance, o.actor);
 		if (!entity)
@@ -673,7 +734,7 @@ void ScenarioRuntime::acknowledge_credit(ScenarioId id)
 
 Json ScenarioRuntime::save() const
 {
-	Json j{{"version", 1},
+	Json j{{"version", 2},
 	       {"contract", definition_.signature},
 	       {"next_id", next_id_},
 	       {"tick", tick_},
@@ -754,7 +815,7 @@ Json ScenarioRuntime::save() const
 
 void ScenarioRuntime::restore(const Json &j)
 {
-	require(j.at("version") == 1 && j.at("contract") == definition_.signature,
+	require((j.at("version") == 1 || j.at("version") == 2) && j.at("contract") == definition_.signature,
 	        "unsupported continuation or changed scenario definitions");
 	ScenarioRuntime r(definition_);
 	r.next_id_ = unsigned_number(j.at("next_id"), "next_id");

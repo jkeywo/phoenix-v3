@@ -821,7 +821,21 @@ Json KnowledgeRuntime::save() const
 void KnowledgeRuntime::restore(const Json &j)
 {
 	require(j.at("version") == 2 || j.at("version") == 3, "unsupported save version");
-	require(j.at("contract") == contract_signature(schema_), "saved schema contract differs from loaded content");
+	auto loaded_contract = contract_signature(schema_);
+	auto saved_contract = j.at("contract");
+	if (saved_contract.is_object() && saved_contract.contains("schemas") && saved_contract.at("schemas").is_array() &&
+	    saved_contract.at("schemas").size() == loaded_contract.at("schemas").size())
+		for (std::size_t i = 0; i < loaded_contract.at("schemas").size(); ++i)
+		{
+			auto &saved = saved_contract["schemas"][i];
+			const auto &loaded = loaded_contract.at("schemas")[i];
+			if (saved.contains("fields") && saved.at("fields").is_array() &&
+			    saved.at("fields").size() == loaded.at("fields").size())
+				for (std::size_t f = 0; f < loaded.at("fields").size(); ++f)
+					if (loaded.at("fields")[f].at("required") == false && saved["fields"][f].value("required", true))
+						saved["fields"][f]["required"] = false;
+		}
+	require(saved_contract == loaded_contract, "saved schema contract differs from loaded content");
 	KnowledgeRuntime restored(schema_);
 	restored.next_id_ = read_unsigned<KnowledgeId>(j.at("next_id"));
 	restored.next_delivery_ = read_unsigned<KnowledgeId>(j.at("next_delivery"));

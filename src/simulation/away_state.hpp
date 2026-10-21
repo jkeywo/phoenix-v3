@@ -14,13 +14,14 @@ enum class AwayPhase
 	Outbound,
 	Deployed,
 	Inbound,
-	Recovered
+	Recovered,
+	Lost
 };
 inline constexpr std::array away_phases{
-    std::pair{AwayPhase::Hidden, "hidden"},      std::pair{AwayPhase::Available, "available"},
-    std::pair{AwayPhase::Open, "open"},          std::pair{AwayPhase::Outbound, "outbound"},
-    std::pair{AwayPhase::Deployed, "deployed"},  std::pair{AwayPhase::Inbound, "inbound"},
-    std::pair{AwayPhase::Recovered, "recovered"}};
+    std::pair{AwayPhase::Hidden, "hidden"},       std::pair{AwayPhase::Available, "available"},
+    std::pair{AwayPhase::Open, "open"},           std::pair{AwayPhase::Outbound, "outbound"},
+    std::pair{AwayPhase::Deployed, "deployed"},   std::pair{AwayPhase::Inbound, "inbound"},
+    std::pair{AwayPhase::Recovered, "recovered"}, std::pair{AwayPhase::Lost, "lost"}};
 inline void to_json(Json &json, AwayPhase phase)
 {
 	for (const auto &[value, name] : away_phases)
@@ -51,6 +52,8 @@ struct AwayMission
 	std::int64_t transfer = 0, work = 0, progress = 0;
 	// Remains true during a queued redeployment, until the next successful delivery.
 	bool recovered = false;
+	bool ever_deployed = false;
+	std::set<std::string> participants;
 	bool deployed() const
 	{
 		return phase == AwayPhase::Deployed || phase == AwayPhase::Inbound;
@@ -60,5 +63,5 @@ struct AwayMission
 };
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(AwayMission, phase, transport, checkpoint, outcome, work_key, repair_compartment,
                                    assignments, accompanying, revision, sequence, transfer, work, progress, recovered,
-                                   effects)
+                                   effects, ever_deployed, participants)
 } // namespace phoenix

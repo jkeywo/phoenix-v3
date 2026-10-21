@@ -10,7 +10,7 @@ Departure requires an enabled, operational, fully charged drive. It has no locat
 
 The authoritative tick rechecks readiness after consuming admitted Controller changes. A refused click never becomes a queued future jump. A successful jump consumes the reserve once, removes that ship and its equipment from active physical queries, and closes its gameplay command admission. Other ships and committed frame numbering continue. Projectiles already fired remain physical objects.
 
-Every Console of the departing crew receives the same frozen **Departed via FTL** report. It lists crew-published objectives with their actual status and known teams/officers left behind. Unfinished work is not automatically a defeat. Later race resolution cannot replace this report, and the departed ship cannot win by arriving after departure. The existing Return to menu action remains explicit; displaying the report does not disconnect a simulation peer.
+Every Console of the departing crew receives the same frozen **Departed via FTL** report. Maps without authored debrief rules list crew-published objectives with their actual status and known teams/officers left behind. Maps with authored rules receive an authoritative snapshot of selected objectives, world facts, personnel disposition and the first matching result rule. See [mission objectives and debriefs](mission-objectives.md). Unfinished work is not automatically a defeat. Later race resolution cannot replace this report, and the departed ship cannot win by arriving after departure. The existing Return to menu action remains explicit; displaying the report does not disconnect a simulation peer.
 
 ## Authoring and continuation
 

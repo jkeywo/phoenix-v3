@@ -399,6 +399,13 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	for (std::size_t i = 0; i < own.size(); ++i)
 		result.own.values.at(i) = add(own[i]);
 	const auto resolved = resolve_tree_definition(tree, catalog);
+	if (resolved.contains("ftl_system"))
+	{
+		result.ftl_system = resolved.at("ftl_system").get<std::string>();
+		result.own[ControllerOwnField::FtlReady] = add({"ftl.ready", Type::Boolean, 4, {}});
+		result.own[ControllerOwnField::Visitors] = add({"local.visitors", Type::Integer, 4, {}});
+		result.own[ControllerOwnField::LocalWorkComplete] = add({"local.work_completed", Type::Boolean, 4, {}});
+	}
 	binding_require(!resolved.contains("summary_bindings"), "Controller tree",
 	                "use owned command channels instead of System summary intents");
 	const auto commands = resolved.value("command_bindings", Json::array());
@@ -457,6 +464,13 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	}
 	for (const auto &name : {"open", "assign", "withdraw", "transport", "send", "recall", "cancel"})
 		registry.actions.push_back({std::string("away.") + name, 4, {Type::Text, Type::Text, Type::Integer}, true});
+	if (resolved.contains("ftl_system"))
+	{
+		binding_require(resolved.at("ftl_system").is_string() &&
+		                    valid_identifier(resolved.at("ftl_system").get<std::string>()),
+		                "Controller tree", "invalid FTL binding");
+		registry.actions.push_back({"ftl.depart", 4, {Type::Text}, true});
+	}
 	registry.actions.push_back({"stop_publication", 4, {Type::Integer}, true});
 	registry.actions.push_back({"withdraw_request", 4, {Type::Text}, true});
 	registry.actions.push_back({"acknowledge_message", 4, {Type::Message}, true});

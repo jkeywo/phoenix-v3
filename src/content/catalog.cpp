@@ -325,16 +325,18 @@ Catalog resolve(const std::vector<PackView> &ordered)
 		     {"producers", {"phoenix.scenario"}},
 		     {"readers", {"phoenix.crew"}},
 		     {"ship_publishable", true},
-		     {"fields", Json::array({{{"id", "id"}, {"type", "integer"}, {"publishable", true}},
-		                             {{"id", "status"}, {"type", "text"}, {"publishable", true}},
-		                             {{"id", "title"}, {"type", "text"}, {"publishable", true}},
-		                             {{"id", "description"}, {"type", "text"}, {"publishable", true}},
-		                             {{"id", "outcome"}, {"type", "text"}, {"publishable", true}},
-		                             {{"id", "radius"}, {"type", "integer"}, {"publishable", true}},
-		                             {{"id", "region"}, {"type", "text"}, {"publishable", true}},
-		                             {{"id", "credited"}, {"type", "boolean"}, {"publishable", true}},
-		                             {{"id", "destination_x"}, {"type", "integer"}, {"publishable", true}},
-		                             {{"id", "destination_y"}, {"type", "integer"}, {"publishable", true}}})}});
+		     {"fields",
+		      Json::array(
+		          {{{"id", "id"}, {"type", "integer"}, {"publishable", true}},
+		           {{"id", "status"}, {"type", "text"}, {"publishable", true}},
+		           {{"id", "title"}, {"type", "text"}, {"publishable", true}},
+		           {{"id", "description"}, {"type", "text"}, {"publishable", true}},
+		           {{"id", "outcome"}, {"type", "text"}, {"publishable", true}},
+		           {{"id", "radius"}, {"type", "integer"}, {"publishable", true}, {"required", false}},
+		           {{"id", "region"}, {"type", "text"}, {"publishable", true}, {"required", false}},
+		           {{"id", "credited"}, {"type", "boolean"}, {"publishable", true}},
+		           {{"id", "destination_x"}, {"type", "integer"}, {"publishable", true}, {"required", false}},
+		           {{"id", "destination_y"}, {"type", "integer"}, {"publishable", true}, {"required", false}}})}});
 	}
 	if (!result.presentation)
 		result.knowledge["schemas"].push_back(

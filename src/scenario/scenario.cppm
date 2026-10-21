@@ -13,6 +13,7 @@ module;
 export module phoenix.scenario;
 export import phoenix.data;
 export import phoenix.contracts;
+export import phoenix.state_tree;
 
 export namespace phoenix
 {
@@ -125,10 +126,55 @@ struct ScenarioSpawnGroup
 	std::string id;
 	std::vector<ScenarioSpawnPlacement> entities;
 };
+using ScenarioFacts = std::map<std::string, state_tree::Value>;
+struct ScenarioCondition
+{
+	enum class Kind
+	{
+		Leaf,
+		All,
+		Any,
+		Not
+	} kind = Kind::Leaf;
+	std::string fact;
+	state_tree::Compare operation = state_tree::Compare::Equal;
+	state_tree::Value value;
+	std::vector<ScenarioCondition> children;
+};
+struct ScenarioFactBinding
+{
+	std::string id, kind, field, operation, event;
+	ScenarioActor subject;
+	std::map<std::string, ScenarioParameter> match;
+	state_tree::Type type = state_tree::Type::Boolean;
+};
+struct ScenarioEventBinding
+{
+	std::string kind, event, operation, detail;
+	std::optional<ScenarioActor> subject;
+};
+struct ScenarioReportRule
+{
+	std::string result, title_key, explanation_key;
+	ScenarioCondition when;
+};
+struct ScenarioReportDefinition
+{
+	std::string id, instance = "main", title_key;
+	ScenarioActor ship;
+	std::vector<std::string> objectives;
+	std::vector<std::pair<std::string, std::string>> facts;
+	std::vector<ScenarioReportRule> rules;
+	std::string fallback, fallback_title_key, fallback_explanation_key;
+};
+std::optional<bool> scenario_condition(const ScenarioCondition &, const ScenarioFacts &);
 struct ScenarioObjectiveDefinition
 {
 	std::string id, title_key, description_key;
 	std::string competition;
+	bool condition = false, optional = false;
+	ScenarioCondition complete_when;
+	std::optional<ScenarioCondition> fail_when;
 	std::uint32_t region = 0;
 	ScenarioActor actor;
 	ScenarioRecipients recipients;
@@ -141,6 +187,9 @@ struct ScenarioObjectiveSequence
 };
 struct ScenarioDefinition
 {
+	std::map<std::string, ScenarioFactBinding> fact_bindings;
+	std::vector<ScenarioEventBinding> event_bindings;
+	std::vector<ScenarioReportDefinition> reports;
 	std::vector<ScenarioRegion> regions;
 	std::map<std::string, std::uint32_t> region_ids;
 	std::map<std::string, ScenarioPoint> spawn_points;
@@ -292,6 +341,7 @@ public:
 	void begin_tick(ScenarioTick tick, std::map<std::string, EntityId> slots,
 	                std::map<EntityId, ScenarioPoint> positions);
 	void evaluate(std::span<const ScenarioMotionSegment> movement);
+	void evaluate_conditions(ScenarioTick tick, const std::map<ScenarioId, ScenarioFacts> &snapshots);
 	void withdraw_actor(EntityId entity);
 	bool mission_complete() const;
 	std::vector<ScenarioPublication> pending_publications() const;

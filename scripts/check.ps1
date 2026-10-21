@@ -38,6 +38,12 @@ try
 			throw 'Native simulation trace failed'
 		}
 		Set-Content -LiteralPath "$repo/build/native/continuation.trace" -Value $nativeTrace -Encoding utf8
+		$missionNativeTrace = & ./build/native/Release/phoenix_missions_tests.exe --trace
+		if ($LASTEXITCODE)
+		{
+			throw "Native mission continuation failed"
+		}
+		Set-Content -LiteralPath "$repo/build/native/mission-continuation.trace" -Value $missionNativeTrace -Encoding utf8
 		$combatNativeTrace = & "$repo/build/native/Release/phoenix_combat_tests.exe" --trace
 		if ($LASTEXITCODE)
 		{
@@ -145,6 +151,7 @@ try
 					'phoenix_personnel_tests.js',
 					'phoenix_away_tests.js',
 					'phoenix_ftl_tests.js',
+					'phoenix_missions_tests.js',
 					'phoenix_sensors_tests.js',
 					'phoenix_controller_runtime_tests.js',
 					'phoenix_combat_tests.js',
@@ -200,6 +207,13 @@ try
 				throw 'Native/WASM FTL continuation differs'
 			}
 			Write-Output 'PASS native/WASM FTL reserve and departure continuation'
+			$missionNativeTrace = Get-Content -LiteralPath "$repo/build/native/mission-continuation.trace"
+			$missionWebTrace = & $node phoenix_missions_tests.js --trace
+			if ($LASTEXITCODE -or ($missionNativeTrace -join "`n").Trim() -ne ($missionWebTrace -join "`n").Trim())
+			{
+				throw 'Native/WASM mission continuation differs'
+			}
+			Write-Output 'PASS native/WASM objectives, events, losses and frozen reports continuation'
 			$wasmTrace = & $node phoenix_simulation_check.js --trace
 			if ($LASTEXITCODE)
 			{

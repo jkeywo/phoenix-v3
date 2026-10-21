@@ -22,6 +22,7 @@ module phoenix.scenario;
 namespace phoenix
 {
 #include "scenario_internal.hpp"
+#include "conditions.hpp"
 
 ScenarioDefinition compile_scenario(const Json &map, std::span<const std::string> entities,
                                     std::span<const std::string> slots)
@@ -175,20 +176,34 @@ ScenarioDefinition compile_scenario(const Json &map, std::span<const std::string
 		require(!group.entities.empty(), "spawn group must not be empty");
 		require(out.spawn_groups.emplace(group.id, std::move(group)).second, "duplicate spawn group");
 	}
+	compile_fact_bindings(source, out);
 	for (const auto &v : list(source, "objectives"))
 	{
 		ScenarioObjectiveDefinition d;
 		d.id = identifier(v, "id");
-		require(text(v, "type") == "reach_region", "unsupported objective type in " + d.id);
-		const auto region = text(v, "region");
-		require(out.region_ids.contains(region), "unresolved objective region " + region);
-		d.region = out.region_ids.at(region);
+		const auto kind = text(v, "type");
+		require(kind == "reach_region" || kind == "condition", "unsupported objective type in " + d.id);
+		d.condition = kind == "condition";
+		d.optional = v.value("optional", false);
+		if (d.condition)
+		{
+			d.complete_when = compile_condition(v.at("complete_when"), out);
+			if (v.contains("fail_when"))
+				d.fail_when = compile_condition(v.at("fail_when"), out);
+		}
+		else
+		{
+			const auto region = text(v, "region");
+			require(out.region_ids.contains(region), "unresolved objective region " + region);
+			d.region = out.region_ids.at(region);
+		}
 		d.actor = actor(v.at("actor"));
 		d.recipients = recipients(v.at("recipients"));
 		d.title_key = text(v, "title_key");
 		d.description_key = text(v, "description_key", true);
 		d.competition = text(v, "competition", true);
-		require(d.competition.empty() || valid_identifier(d.competition), "invalid objective competition");
+		require(d.competition.empty() || (!d.condition && valid_identifier(d.competition)),
+		        "invalid objective competition");
 		auto check_slot = [&](const ScenarioActor &a)
 		{
 			if (a.kind == ScenarioActorKind::ShipSlot)
@@ -227,6 +242,7 @@ ScenarioDefinition compile_scenario(const Json &map, std::span<const std::string
 		{
 			const auto &objective = out.objectives.at(id);
 			require(objective.competition.empty(), "competition objectives cannot repeat in a sequence");
+			require(!objective.condition, "condition objectives cannot use region objective sequences");
 			require(objective.actor == first.actor && objective.recipients == first.recipients,
 			        "sequence objectives must share actor and recipients");
 		}
@@ -260,6 +276,7 @@ ScenarioDefinition compile_scenario(const Json &map, std::span<const std::string
 		out.maximum_objectives = static_cast<std::uint32_t>(number(v, "objectives", out.maximum_objectives, 1, 65536));
 		out.maximum_events = static_cast<std::uint32_t>(number(v, "events", out.maximum_events, 1, 1000000));
 	}
+	compile_mission_reports(source, out);
 	Json signature{
 	    {"scenario", source}, {"regions", regions}, {"entities", out.entity_definitions}, {"slots", out.ship_slots}};
 	const auto encoded = signature.dump();

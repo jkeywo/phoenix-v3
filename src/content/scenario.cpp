@@ -64,6 +64,69 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map)
 		else
 			require(a.kind == ScenarioActorKind::Handle && valid_identifier(a.name), "invalid spawned actor handle");
 	};
+	for (const auto &[id, f] : definition.fact_bindings)
+	{
+		if (f.kind == "event")
+		{
+			if (f.subject.entity || !f.subject.name.empty())
+				actor(f.subject);
+			continue;
+		}
+		actor(f.subject);
+		if (f.kind == "objective")
+		{
+			require(definition.objectives.contains(f.operation), "unknown objective fact " + f.operation);
+			continue;
+		}
+		std::vector<std::string> hulls;
+		if (f.subject.kind == ScenarioActorKind::Entity)
+			hulls.push_back(entities.at(f.subject.entity));
+		else if (f.subject.kind == ScenarioActorKind::ShipSlot)
+			hulls = slots.at(f.subject.name);
+		else
+			for (const auto &[name, e] : catalog.entities)
+				hulls.push_back(name);
+		if (f.kind == "compartment")
+		{
+			bool found = false;
+			for (const auto &h : hulls)
+			{
+				auto combat = compile_combat(catalog, h);
+				const bool valid = combat && combat->compartment_ids.contains(f.field);
+				found |= valid;
+				if (f.subject.kind != ScenarioActorKind::Handle)
+					require(valid, "unknown compartment fact " + f.id);
+			}
+			require(found, "unknown spawned compartment fact " + f.id);
+		}
+		if (f.kind == "away")
+		{
+			bool valid = false;
+			for (const auto &m : map.value("away_missions", Json::array()))
+				if (m.at("id") == f.operation && f.subject.kind == ScenarioActorKind::ShipSlot &&
+				    m.at("ship_slot") == f.subject.name)
+					valid = true;
+			require(valid, "away fact needs matching operation and owner slot " + f.id);
+		}
+	}
+	std::set<std::string> report_instances;
+	if (source.contains("tree"))
+		report_instances.insert("main");
+	for (const auto &v : source.value("situations", Json::array()))
+		report_instances.insert(v.value("instance_name", v.at("id").get<std::string>()));
+	std::set<std::pair<std::string, std::string>> reports;
+	for (const auto &r : definition.reports)
+	{
+		actor(r.ship);
+		require(valid_identifier(r.instance) && report_instances.contains(r.instance), "unknown report instance");
+		std::string key = r.ship.kind == ScenarioActorKind::Entity
+		                      ? "entity:" + std::to_string(r.ship.entity)
+		                      : std::to_string(static_cast<int>(r.ship.kind)) + ":" + r.ship.name;
+		require(reports.emplace(r.instance, key).second, "duplicate report for ship and situation");
+	}
+	for (const auto &b : definition.event_bindings)
+		if (b.subject)
+			actor(*b.subject);
 	for (const auto &[id, objective] : definition.objectives)
 	{
 		actor(objective.actor);

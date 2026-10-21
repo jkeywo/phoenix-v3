@@ -38,7 +38,8 @@ bool navigation_action(const std::string &action)
 		model_.set_waypoint(static_cast<std::int64_t>(navigation_x_), static_cast<std::int64_t>(navigation_y_));
 	else if (action.starts_with("nav.objective/"))
 		for (const auto &objective : model_.objectives())
-			if (std::to_string(objective.at("id").get<std::uint64_t>()) == action.substr(14))
+			if (objective.contains("destination_x") &&
+			    std::to_string(objective.at("id").get<std::uint64_t>()) == action.substr(14))
 				model_.set_waypoint(objective.at("destination_x"), objective.at("destination_y"));
 	return true;
 }
@@ -159,7 +160,8 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 			top = std::max(top, y + radius);
 		};
 		for (const auto &o : objectives)
-			include(o.at("destination_x"), o.at("destination_y"), o.value("radius", 0.0));
+			if (o.contains("destination_x"))
+				include(o.at("destination_x"), o.at("destination_y"), o.value("radius", 0.0));
 		const auto w = model_.waypoint();
 		if (w.value("active", false))
 			include(w.at("x"), w.at("y"), 0);
@@ -186,29 +188,56 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 		              {
 			              return input.id.starts_with(id(""));
 		              });
-		markup = "<div class=\"mission-result\"><img class=\"mission-art\" src=\"" +
-		         asset_path("mission-terminal.png") + "\"/><div class=\"mission-copy\"><h1>" +
-		         localise("MISSION REPORT // FINAL") + "</h1><h2>" +
-		         localise(mission_outcome_ == "ftl"    ? "Departed via FTL"
-		                  : mission_outcome_ == "won"  ? "You won"
-		                  : mission_outcome_ == "lost" ? "You lost"
-		                                               : "Draw") +
-		         "</h2><div class=\"terminal-rule\"></div><p class=\"terminal-status\">" +
-		         localise("Mission complete") + "</p>";
+		markup =
+		    "<div class=\"mission-result\"><img class=\"mission-art\" src=\"" + asset_path("mission-terminal.png") +
+		    "\"/><div class=\"mission-copy\"><h1>" +
+		    localise(!report.is_null() && report.value("version", 1) == 2 ? report.at("title").get<std::string>()
+		                                                                  : "MISSION REPORT // FINAL") +
+		    "</h1><h2>" +
+		    localise(!report.is_null() && report.value("version", 1) == 2 ? report.at("result_title").get<std::string>()
+		             : mission_outcome_ == "ftl"                          ? "Departed via FTL"
+		             : mission_outcome_ == "won"                          ? "You won"
+		             : mission_outcome_ == "lost"                         ? "You lost"
+		                                                                  : "Draw") +
+		    "</h2><div class=\"terminal-rule\"></div><p class=\"terminal-status\">" + localise("Mission complete") +
+		    "</p>";
 		std::string report_text = localise(mission_outcome_ == "ftl" ? "Departed via FTL" : "Mission complete");
+		if (!report.is_null() && report.value("version", 1) == 2)
+			report_text += ". " + localise(report.at("title")) + ". " + localise(report.at("result_title"));
 		for (const auto &o : report.is_null() ? objectives : report.at("objectives"))
 		{
 			const auto status = o.value("status", "active");
-			const auto line = localise(o.value("title", "")) +
-			                  (report.is_null() ? ""
-			                                    : ": " + localise(status == "active"      ? "Unfinished"
-			                                                      : status == "completed" ? "Completed"
-			                                                      : status == "failed"    ? "Failed"
-			                                                                              : "Cancelled"));
+			const auto line =
+			    localise(o.value("title", "")) +
+			    (report.is_null() ? ""
+			                      : ": " + localise((status == "active" || status == "pending") ? "Unfinished"
+			                                        : status == "completed"                     ? "Completed"
+			                                        : status == "failed"                        ? "Failed"
+			                                                                                    : "Cancelled"));
 			markup += "<p>" + Rml::StringUtilities::EncodeRml(line) + "</p>";
 			report_text += ". " + line;
 		}
-		if (!report.is_null())
+		if (!report.is_null() && report.value("version", 1) == 2)
+		{
+			auto line = [&](std::string value)
+			{
+				markup += "<p>" + Rml::StringUtilities::EncodeRml(value) + "</p>";
+				report_text += ". " + value;
+			};
+
+			line(localise(report.at("explanation")));
+			for (const auto &f : report.at("facts"))
+			{
+				std::string value = f.at("value").is_null()      ? localise("Unresolved")
+				                    : f.at("value").is_string()  ? localise(f.at("value").get<std::string>())
+				                    : f.at("value").is_boolean() ? localise(f.at("value").get<bool>() ? "Yes" : "No")
+				                                                 : f.at("value").dump();
+				line(localise(f.at("label")) + ": " + value);
+			}
+			for (const auto &p : report.at("personnel"))
+				line(localise(p.at("name")) + ": " + localise(p.at("status")));
+		}
+		if (!report.is_null() && report.value("version", 1) == 1)
 			for (const auto &name : report.at("left_behind"))
 			{
 				const auto line = localise("Personnel left behind") + ": " + localise(name);
@@ -276,9 +305,12 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 		          "\" value=\"" + std::to_string(static_cast<std::int64_t>(navigation_y_)) + "\"/>" +
 		          button("nav.set", "Set waypoint") + "</div><div class=\"navigation-objectives\">";
 		for (const auto &o : objectives)
-			markup += button("nav.objective/" + std::to_string(o.at("id").get<std::uint64_t>()),
-			                 o.value("title", "Objective")) +
-			          "<p>" + Rml::StringUtilities::EncodeRml(localise(o.value("description", ""))) + "</p>";
+			markup +=
+			    (o.contains("destination_x")
+			         ? button("nav.objective/" + std::to_string(o.at("id").get<std::uint64_t>()),
+			                  o.value("title", "Objective"))
+			         : "<p>" + Rml::StringUtilities::EncodeRml(localise(o.value("title", "Objective"))) + "</p>") +
+			    "<p>" + Rml::StringUtilities::EncodeRml(localise(o.value("description", ""))) + "</p>";
 		markup += "</div>";
 		app.screen_inputs.push_back({id("nav.x"), localise("Waypoint X in millimetres"),
 		                             std::to_string(static_cast<std::int64_t>(navigation_x_))});

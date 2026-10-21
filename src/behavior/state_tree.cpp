@@ -84,28 +84,8 @@ struct Evaluation
 		spend();
 		const auto left = read(condition.left, instance, frame);
 		if (condition.operation == Compare::Present)
-			return left.type != Type::Missing;
-		const auto right = read(condition.right, instance, frame);
-		if (left.type == Type::Missing || right.type == Type::Missing)
-			return false;
-		switch (condition.operation)
-		{
-		case Compare::Equal:
-			return left == right;
-		case Compare::NotEqual:
-			return left != right;
-		case Compare::Less:
-			return left.number < right.number;
-		case Compare::LessEqual:
-			return left.number <= right.number;
-		case Compare::Greater:
-			return left.number > right.number;
-		case Compare::GreaterEqual:
-			return left.number >= right.number;
-		case Compare::Present:
-			break;
-		}
-		return false;
+			return compare_values(left, condition.operation, {});
+		return compare_values(left, condition.operation, read(condition.right, instance, frame));
 	}
 	void emit(const Program &program, Output output)
 	{

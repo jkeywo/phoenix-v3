@@ -482,6 +482,24 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 				    action.name == "withdraw_request")
 					continue;
 
+				if (action.name == "ftl.depart")
+				{
+					control_require(
+					    std::any_of(controller.commands.begin(), controller.commands.end(),
+					                [&](const auto &c)
+					                {
+						                return std::any_of(
+						                    c.consumers.begin(), c.consumers.end(),
+						                    [&](auto i)
+						                    {
+							                    return systems.at(i).kind == OperatingSystem::Ftl &&
+							                           systems.at(i).id ==
+							                               catalog.controller_bindings.at(controller.tree).ftl_system;
+						                    });
+					                }),
+					    where, "FTL departure requires an owned FTL fitting");
+					continue;
+				}
 				if (action.name.starts_with("publish."))
 				{
 					const auto publications = entity.value("publications", Json::array());

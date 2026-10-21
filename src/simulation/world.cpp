@@ -31,6 +31,7 @@ import phoenix.gameplay_scenario;
 #include "combat.hpp"
 #include "personnel_state.hpp"
 #include "away_state.hpp"
+#include "mission_state.hpp"
 #include "sensors_state.hpp"
 #include "../core/display_projection.hpp"
 #include "../core/ftl_projection.hpp"
@@ -536,6 +537,7 @@ struct World::Impl
 							brain.routine_stance =
 							    content.trees.at(spec.tree).value("officer_routine_stance", std::string("routine"));
 							brain.own = bindings.own;
+							brain.ftl_system = bindings.ftl_system;
 							brain.inbox = bindings.inbox;
 							brain.result = bindings.result;
 							brain.telemetry_reads = bindings.telemetry;
@@ -1815,7 +1817,7 @@ struct World::Impl
 			{
 				const auto &objective = runtime.objectives().at(publication.objective);
 				const auto &spec = definition.objectives.at(objective.definition);
-				const auto &region = definition.regions.at(spec.region);
+				const ScenarioRegion region = spec.condition ? ScenarioRegion{} : definition.regions.at(spec.region);
 				const auto &schema = knowledge.definition();
 				const auto key = schema.schema("phoenix.objective");
 				KnowledgeRecordInput value;
@@ -1836,6 +1838,9 @@ struct World::Impl
 				     objective.completion_credited || publication.status == ObjectiveStatus::Completed},
 				    {schema.field(key, "destination_x"), region.centre.x},
 				    {schema.field(key, "destination_y"), region.centre.y}};
+				if (spec.condition)
+					for (const auto *field : {"radius", "region", "destination_x", "destination_y"})
+						value.fields.erase(schema.field(key, field));
 				if (publication.recipients.audience == ScenarioAudience::Ship)
 					knowledge.publish_ship(*ship, value, publication.tick);
 				else
@@ -1948,6 +1953,7 @@ struct World::Impl
 #include "conversations.hpp"
 #include "away.hpp"
 #include "ftl.hpp"
+#include "missions.hpp"
 #include "sensors.hpp"
 	bool meta(std::uint64_t claimant, const OperatingCommand &command, bool execute)
 	{
@@ -2145,6 +2151,11 @@ void World::load(const Catalog &source, const std::string &map, const std::map<s
 	candidate->sensor_findings = compile_sensor_findings(content, data);
 	if (candidate->scenario && !candidate->sensor_findings.empty() && !candidate->conversation_instance)
 		candidate->conversation_instance = candidate->scenario->runtime().create_instance("sensor-events");
+	if (candidate->scenario && !candidate->conversation_instance &&
+	    (!candidate->scenario->runtime().definition().fact_bindings.empty() ||
+	     !candidate->scenario->runtime().definition().event_bindings.empty() ||
+	     !candidate->scenario->runtime().definition().reports.empty()))
+		candidate->conversation_instance = candidate->scenario->runtime().create_instance("world-events");
 	candidate->away_missions.resize(candidate->away_definitions.size());
 	candidate->refresh_comms();
 	candidate->stream_fields();
@@ -2392,6 +2403,7 @@ void World::tick()
 			impl_->run_console_controllers(entity);
 	for (const auto &[claim, command] : departures)
 		impl_->meta(claim, command, true);
+	impl_->commit_departures();
 	impl_->apply_structural_disablement();
 	impl_->run_basic_steering();
 	impl_->run_basic_engines();
@@ -2415,6 +2427,7 @@ void World::tick()
 	impl_->resolve_collisions.run();
 	impl_->step_ordnance();
 	impl_->resolve_destructions();
+	impl_->resolve_lost_parties();
 	impl_->step_repairs();
 	impl_->index_contacts.run();
 	impl_->waypoint_arrivals();
@@ -2440,6 +2453,7 @@ void World::tick()
 	impl_->conversations.advance(ticks());
 	impl_->advance_away();
 	impl_->advance_sensors();
+	impl_->update_mission_facts();
 	impl_->observation_snapshots.clear();
 	impl_->command_snapshots.clear();
 	impl_->controller_inboxes.clear();
@@ -2705,7 +2719,8 @@ Json World::public_board(EntityId entity) const
 	for (const auto &record : board.value("shared", Json::array()))
 		if (record.value("schema", "") == "phoenix.waypoint")
 			value["waypoint"] = record.at("fields");
-		else if (!radar && record.value("schema", "") == "phoenix.objective")
+		else if (!radar && record.value("schema", "") == "phoenix.objective" &&
+		         record.at("fields").contains("destination_x"))
 			objectives[record.at("fields").at("id").get<std::uint64_t>()] = record.at("fields");
 	for (const auto &[id, fields] : objectives)
 		value["objectives"].push_back(fields);
@@ -3300,6 +3315,7 @@ Json World::save() const
 	}
 	result["conversations"] = impl_->conversations.save();
 	result["away_missions"] = impl_->save_away();
+	result["mission_ledger"] = impl_->mission_ledger;
 	result["sensors"] = impl_->save_sensors();
 	result["sensor_discoveries"] = impl_->sensor_discoveries;
 	result["conversation_starts"] = impl_->save_conversation_starts();
@@ -3550,6 +3566,7 @@ void World::restore(const Catalog &content, const Json &saved)
 	candidate.impl_->refresh_comms();
 	candidate.impl_->conversations.restore(saved.at("conversations"));
 	candidate.impl_->restore_away(saved.value("away_missions", Json::array()));
+	candidate.impl_->mission_ledger = saved.value("mission_ledger", MissionLedger{});
 	candidate.impl_->restore_sensors(saved.value("sensors", Json::array()));
 	candidate.impl_->sensor_discoveries =
 	    saved.value("sensor_discoveries", std::set<std::tuple<EntityId, EntityId, std::string>>{});
@@ -3568,6 +3585,7 @@ void World::restore(const Catalog &content, const Json &saved)
 			candidate.impl_->retire_departed(id);
 		}
 	candidate.impl_->index_contacts.run();
+	candidate.impl_->validate_mission_ledger();
 	impl_ = std::move(candidate.impl_);
 }
 } // namespace phoenix

@@ -103,6 +103,7 @@ enum class Compare : std::uint8_t
 	GreaterEqual,
 	Present
 };
+bool compare_values(const Value &left, Compare operation, const Value &right);
 struct Condition
 {
 	Binding left;

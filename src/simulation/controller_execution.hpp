@@ -28,6 +28,18 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 	values[brain.own[ControllerOwnField::Vx]] = Value::integer(observation.own.vx);
 	values[brain.own[ControllerOwnField::Vy]] = Value::integer(observation.own.vy);
 	values[brain.own[ControllerOwnField::Heading]] = Value::integer(observation.own.heading);
+	if (brain.own[ControllerOwnField::FtlReady])
+	{
+		bool ready = false;
+		auto [completed, visitors] = ftl_local_facts(id);
+		for (auto child : entities.at(id).get<EquipmentIndex>().values)
+			if (child.has<FtlReserve>() && child.get<Equipment>().id == brain.ftl_system &&
+			    ftl_owner(id, child.get<Equipment>().id) == address)
+				ready = ftl_blocker(id, child).empty();
+		values[brain.own[ControllerOwnField::FtlReady]] = Value::boolean(ready);
+		values[brain.own[ControllerOwnField::Visitors]] = Value::integer(visitors);
+		values[brain.own[ControllerOwnField::LocalWorkComplete]] = Value::boolean(completed);
+	}
 	const auto &navigation = bridge.navigation;
 	values[brain.own[ControllerOwnField::Blocked]] = Value::boolean(navigation.blocked);
 	values[brain.own[ControllerOwnField::LeftHeading]] = Value::integer(navigation.left_heading);
@@ -283,7 +295,15 @@ void controller_output(EntityId id, std::size_t index, const state_tree::Output 
 			const ControllerAddress address{id, controller.definition.console, controller.definition.id};
 
 			const ConsoleAddress source{id, controller.definition.console};
-			if (action.name.starts_with("away."))
+			if (action.name == "ftl.depart")
+			{
+				OperatingCommand command{id, "ftl.depart", 0, output.arguments.at(0).text, controller.definition.id,
+				                         {}};
+				command.generation = controller.generation;
+				if (!ftl_command(source, command, true, true))
+					throw std::runtime_error("FTL departure refused");
+			}
+			else if (action.name.starts_with("away."))
 			{
 				OperatingCommand command{id, action.name, output.arguments.at(2).number, output.arguments.at(0).text};
 				command.text = output.arguments.at(1).text;
