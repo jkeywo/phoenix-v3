@@ -252,7 +252,17 @@ int main(int argc, char **argv)
 		ticks(w, 1);
 		require(!w.submit(101, stale), "stale manifest rejected");
 		auto saved = w.save();
+		require(saved["away_missions"][0]["schema"] == 2 && !saved["away_missions"][0].contains("deployed"),
+		        "deployment is derived from the typed phase");
+		auto legacy = saved;
+		legacy["away_missions"][0]["schema"] = 1;
+		legacy["away_missions"][0]["deployed"] = false;
+		legacy["away_missions"][0].erase("repair_compartment");
+		World migrated;
+		migrated.restore(catalog, legacy);
+		require(migrated.save() == saved, "valid legacy away state migrates without changing continuation");
 		auto invalid = saved;
+		invalid["away_missions"][0]["schema"] = 1;
 		invalid["away_missions"][0]["deployed"] = true;
 		rejects(
 		    [&]
@@ -261,6 +271,15 @@ int main(int argc, char **argv)
 			    rejected.restore(catalog, invalid);
 		    },
 		    "inconsistent deployment rejected");
+		invalid = saved;
+		invalid["away_missions"][0]["phase"] = "unknown";
+		rejects(
+		    [&]
+		    {
+			    World rejected;
+			    rejected.restore(catalog, invalid);
+		    },
+		    "unknown away phase rejected");
 		World resumed;
 		invalid = saved;
 		invalid["away_missions"][0]["accompanying"] = Json::array();

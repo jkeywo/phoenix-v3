@@ -30,7 +30,7 @@ const PersonnelDuty *away_team_duty(EntityId ship, const std::string &key) const
 std::string away_officer_location(EntityId ship, const std::string &officer) const
 {
 	for (std::size_t i = 0; i < away_missions.size(); ++i)
-		if (away_ship(away_definitions[i]) == ship && away_missions[i].deployed)
+		if (away_ship(away_definitions[i]) == ship && away_missions[i].deployed())
 		{
 			const auto &m = away_missions[i];
 			if (std::find(m.accompanying.begin(), m.accompanying.end(), officer) != m.accompanying.end())
@@ -60,7 +60,7 @@ bool away_transport_requested(EntityId ship, const std::string &system) const
 {
 	for (std::size_t i = 0; i < away_missions.size(); ++i)
 		if (away_ship(away_definitions[i]) == ship && away_missions[i].transport == system &&
-		    (away_missions[i].phase == "outbound" || away_missions[i].phase == "inbound") &&
+		    (away_missions[i].phase == AwayPhase::Outbound || away_missions[i].phase == AwayPhase::Inbound) &&
 		    away_blocker(i, false).empty())
 			return true;
 	return false;
@@ -265,32 +265,32 @@ bool away_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 	const auto index = it - away_definitions.begin();
 	const auto &d = *it;
 	auto &m = away_missions[index];
-	if (m.phase == "hidden" || m.revision >= 9007199254740991ULL || away_sequence >= 9007199254740991ULL ||
+	if (m.phase == AwayPhase::Hidden || m.revision >= 9007199254740991ULL || away_sequence >= 9007199254740991ULL ||
 	    c.value != static_cast<std::int64_t>(m.revision))
 		return false;
 	const auto action = c.action.substr(5);
 	if (action == "open")
 	{
-		if (!away_dispatch(a) || m.phase != "available")
+		if (!away_dispatch(a) || m.phase != AwayPhase::Available)
 			return false;
 		if (execute)
 		{
-			m.phase = "open";
+			m.phase = AwayPhase::Open;
 			++m.revision;
 		}
 		return true;
 	}
 	if (action == "send")
 	{
-		if (!away_dispatch(a) || (m.phase != "open" && m.phase != "recovered") || !m.outcome.empty() ||
-		    !away_staged(a.ship, m))
+		if (!away_dispatch(a) || (m.phase != AwayPhase::Open && m.phase != AwayPhase::Recovered) ||
+		    !m.outcome.empty() || !away_staged(a.ship, m))
 			return false;
 		for (const auto &s : d.slots)
 			if (s.required && !m.assignments.contains(s.id))
 				return false;
 		if (execute)
 		{
-			m.phase = "outbound";
+			m.phase = AwayPhase::Outbound;
 			m.sequence = ++away_sequence;
 			m.transfer = 0;
 			++m.revision;
@@ -299,11 +299,11 @@ bool away_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 	}
 	if (action == "recall")
 	{
-		if (!away_dispatch(a) || m.phase != "deployed" || !away_blocker(index, false).empty())
+		if (!away_dispatch(a) || m.phase != AwayPhase::Deployed || !away_blocker(index, false).empty())
 			return false;
 		if (execute)
 		{
-			m.phase = "inbound";
+			m.phase = AwayPhase::Inbound;
 			m.sequence = ++away_sequence;
 			m.transfer = 0;
 			++m.revision;
@@ -312,17 +312,17 @@ bool away_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 	}
 	if (action == "cancel")
 	{
-		if (!away_dispatch(a) || (m.phase != "outbound" && m.phase != "inbound"))
+		if (!away_dispatch(a) || (m.phase != AwayPhase::Outbound && m.phase != AwayPhase::Inbound))
 			return false;
 		if (execute)
 		{
-			m.phase = m.deployed ? "deployed" : "open";
+			m.phase = m.deployed() ? AwayPhase::Deployed : AwayPhase::Open;
 			m.transfer = 0;
 			++m.revision;
 		}
 		return true;
 	}
-	if ((m.phase != "open" && m.phase != "recovered") || !m.outcome.empty())
+	if ((m.phase != AwayPhase::Open && m.phase != AwayPhase::Recovered) || !m.outcome.empty())
 		return false;
 	if (action == "transport")
 	{
@@ -405,7 +405,7 @@ bool away_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 }
 void stage_away(EntityId ship, AwayMission &m)
 {
-	if (m.transport.empty() || m.deployed)
+	if (m.transport.empty() || m.deployed())
 		return;
 	const auto target = away_origin(ship, m.transport);
 	const auto &pd = definition(ship).personnel;
@@ -445,7 +445,7 @@ void advance_away()
 	for (std::size_t i = 0; i < away_missions.size(); ++i)
 	{
 		const auto &m = away_missions[i];
-		if (m.phase == "outbound" || m.phase == "inbound")
+		if (m.phase == AwayPhase::Outbound || m.phase == AwayPhase::Inbound)
 		{
 			auto key = std::pair{away_ship(away_definitions[i]), m.transport};
 			if (!active.contains(key) || m.sequence < away_missions[active.at(key)].sequence)
@@ -460,7 +460,7 @@ void advance_away()
 		if (!ship)
 			continue;
 		const auto cid = away_conversation(d);
-		if (m.phase == "hidden")
+		if (m.phase == AwayPhase::Hidden)
 		{
 			// A delivered introduction, not an undisclosed host event, makes a mission selectable.
 			if (cid && conversations.conversations.contains(cid))
@@ -470,27 +470,26 @@ void advance_away()
 				for (const auto &msg : c.messages)
 					if (msg.text == d.reveal_event && msg.delivered.contains(self))
 					{
-						m.phase = "available";
+						m.phase = AwayPhase::Available;
 						++m.revision;
 						break;
 					}
 			}
-			if (m.phase == "hidden")
+			if (m.phase == AwayPhase::Hidden)
 				continue;
 		}
-		if (m.phase == "open" || m.phase == "recovered" || m.phase == "outbound")
+		if (m.phase == AwayPhase::Open || m.phase == AwayPhase::Recovered || m.phase == AwayPhase::Outbound)
 			stage_away(ship, m);
-		if ((m.phase == "outbound" || m.phase == "inbound") && active.at({ship, m.transport}) == i)
-			if (away_blocker(i).empty() && (m.deployed || away_staged(ship, m)))
+		if ((m.phase == AwayPhase::Outbound || m.phase == AwayPhase::Inbound) && active.at({ship, m.transport}) == i)
+			if (away_blocker(i).empty() && (m.deployed() || away_staged(ship, m)))
 			{
 				if (++m.transfer >= definition(ship).displacements.at(m.transport).ticks)
 				{
-					m.deployed = m.phase == "outbound";
-					m.recovered = !m.deployed;
-					m.phase = m.deployed ? "deployed" : "recovered";
+					m.recovered = m.phase == AwayPhase::Inbound;
+					m.phase = m.recovered ? AwayPhase::Recovered : AwayPhase::Deployed;
 					m.transfer = 0;
 					++m.revision;
-					if (!m.deployed)
+					if (!m.deployed())
 					{
 						const auto location = away_origin(ship, m.transport);
 						for (const auto &[slot, asset] : m.assignments)
@@ -512,7 +511,7 @@ void advance_away()
 			}
 		if (m.outcome.empty())
 		{
-			if (m.deployed && m.work > 0)
+			if (m.deployed() && m.work > 0)
 			{
 				std::vector<flecs::entity> teams;
 				std::int64_t specialist_bonus = 0, officer_work = 0;
@@ -547,7 +546,7 @@ void advance_away()
 			                       .maximum;
 			const auto answer = cid ? conversations.conversations.at(cid).prompt.answer : std::string{};
 			using state_tree::Value;
-			std::vector<Value> obs{Value::boolean(m.deployed),
+			std::vector<Value> obs{Value::boolean(m.deployed()),
 			                       Value::boolean(m.recovered),
 			                       Value::boolean(m.work > 0 && m.progress >= m.work && repaired),
 			                       Value::integer(tick),
@@ -574,7 +573,7 @@ void advance_away()
 				}
 				else if (name == "restore_compartment")
 				{
-					if (!m.deployed)
+					if (!m.deployed())
 						throw std::runtime_error("Away repairs require a deployed party");
 					m.repair_compartment = arg.text;
 				}
@@ -616,12 +615,12 @@ Json away_board(const ConsoleAddress &a) const
 	{
 		const auto &d = away_definitions[i];
 		const auto &m = away_missions[i];
-		if (away_ship(d) != a.ship || m.phase == "hidden")
+		if (away_ship(d) != a.ship || m.phase == AwayPhase::Hidden)
 			continue;
 		Json row{{"id", d.id},
 		         {"title", d.title},
 		         {"phase", m.phase},
-		         {"result", m.phase == "recovered" ? m.outcome : std::string{}},
+		         {"result", m.phase == AwayPhase::Recovered ? m.outcome : std::string{}},
 		         {"revision", m.revision},
 		         {"transport", m.transport},
 		         {"dispatch", away_dispatch(a)},
@@ -629,7 +628,7 @@ Json away_board(const ConsoleAddress &a) const
 		         {"slots", Json::array()},
 		         {"transports", Json::array()},
 		         {"accompanying", m.accompanying}};
-		if (m.outcome.empty() && (m.phase == "open" || m.phase == "recovered"))
+		if (m.outcome.empty() && (m.phase == AwayPhase::Open || m.phase == AwayPhase::Recovered))
 		{
 			if (!away_staged(a.ship, m))
 				row["blocker"] = "Personnel moving to displacement";
@@ -648,7 +647,7 @@ Json away_board(const ConsoleAddress &a) const
 			       {"assigned", assigned},
 			       {"owned", !assigned.empty() && away_asset_owned(a, assigned)},
 			       {"choices", Json::array()}};
-			if (m.outcome.empty() && (m.phase == "open" || m.phase == "recovered"))
+			if (m.outcome.empty() && (m.phase == AwayPhase::Open || m.phase == AwayPhase::Recovered))
 			{
 				for (const auto &duty : definition(a.ship).personnel.duties)
 					if (!duty.team.empty())
@@ -692,8 +691,7 @@ Json save_away() const
 	for (std::size_t i = 0; i < away_missions.size(); ++i)
 	{
 		Json row = away_missions[i];
-		row["schema"] = 1;
-		row["repair_compartment"] = away_missions[i].repair_compartment;
+		row["schema"] = 2;
 		row["id"] = away_definitions[i].id;
 		row["continuation"] = state_tree::save(away_definitions[i].program, away_missions[i].continuation);
 		out.push_back(row);
@@ -708,27 +706,30 @@ void restore_away(const Json &rows)
 	for (std::size_t i = 0; i < rows.size(); ++i)
 	{
 		const auto &d = away_definitions[i];
-		if (rows[i].at("schema") != 1 || rows[i].at("id") != d.id)
+		const auto schema = rows[i].at("schema");
+		if ((schema != 1 && schema != 2) || rows[i].at("id") != d.id)
 			throw std::runtime_error("Away mission identity mismatch");
-		auto m = rows[i].get<AwayMission>();
-		m.repair_compartment = rows[i].value("repair_compartment", std::string{});
+		auto record = rows[i];
+		if (schema == 1)
+			record["repair_compartment"] = record.value("repair_compartment", std::string{});
+		auto m = record.get<AwayMission>();
+		if ((schema == 1 && rows[i].at("deployed").get<bool>() != m.deployed()) ||
+		    (schema == 2 && rows[i].contains("deployed")))
+			throw std::runtime_error("Inconsistent saved deployment");
 		if (!m.repair_compartment.empty() && !d.repair_compartments.contains(m.repair_compartment))
 			throw std::runtime_error("Invalid saved repair target");
 		const auto ship = away_ship(d);
-		const std::set<std::string> phases{"hidden",   "available", "open",     "outbound",
-		                                   "deployed", "inbound",   "recovered"};
-		if (!phases.contains(m.phase) || m.revision < 1 || m.revision > 9007199254740991ULL ||
-		    m.sequence > 9007199254740991ULL || m.progress < 0 || m.work < 0 || m.progress > m.work ||
-		    m.work > 1728000000 || m.transfer < 0 || m.effects.size() > effect_receipt_limit ||
-		    m.assignments.size() > 16)
+
+		if (m.revision < 1 || m.revision > 9007199254740991ULL || m.sequence > 9007199254740991ULL || m.progress < 0 ||
+		    m.work < 0 || m.progress > m.work || m.work > 1728000000 || m.transfer < 0 ||
+		    m.effects.size() > effect_receipt_limit || m.assignments.size() > 16)
 			throw std::runtime_error("Invalid away continuation");
 		if (!m.transport.empty() && (!ship || !definition(ship).displacements.contains(m.transport)))
 			throw std::runtime_error("Invalid saved transport");
-		if ((m.phase == "outbound" || m.phase == "inbound" || m.deployed) && m.transport.empty())
+		if ((m.phase == AwayPhase::Outbound || m.phase == AwayPhase::Inbound || m.deployed()) && m.transport.empty())
 			throw std::runtime_error("Missing saved transport");
-		if (m.deployed != (m.phase == "deployed" || m.phase == "inbound") || (m.phase == "recovered" && !m.recovered) ||
-		    m.accompanying.size() > 128 || m.checkpoint.size() > 256 || m.work_key.size() > 256 ||
-		    m.outcome.size() > 512)
+		if ((m.phase == AwayPhase::Recovered && !m.recovered) || m.accompanying.size() > 128 ||
+		    m.checkpoint.size() > 256 || m.work_key.size() > 256 || m.outcome.size() > 512)
 			throw std::runtime_error("Inconsistent away phase");
 		if (!m.transport.empty() && m.transfer >= definition(ship).displacements.at(m.transport).ticks)
 			throw std::runtime_error("Invalid transfer progress");
