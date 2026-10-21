@@ -214,6 +214,7 @@ int main(int argc, char **argv)
 		mixed_pack.files["definitions.json"] = json_bytes(mixed_defs);
 		host->add_pack(write_pack(mixed_pack));
 		host->prepare_lobby({"test.map", {{"test.slot", "test.ship"}}, "test.slot"});
+		const auto lobby_generation = host->generation();
 		std::vector<std::shared_ptr<SessionPort>> nodes{host};
 		auto join = [&](const std::string &id, JoinRole role)
 		{
@@ -268,6 +269,8 @@ int main(int argc, char **argv)
 			                       });
 		    });
 		const auto admission_controls = host->lobby_controls();
+		require(host->generation() == lobby_generation,
+		        "Admitting crew does not replace the host presentation or reload its assets");
 		require(std::none_of(admission_controls.begin(), admission_controls.end(),
 		                     [](const auto &control)
 		                     {

@@ -93,7 +93,7 @@ int main(int argc, char **argv)
 		};
 		frame();
 		frame();
-		// Graphics preparation also runs again when a lobby claim changes the setup.
+		// Wait for initial graphics preparation before exercising lobby claims.
 		wait_for_board();
 		const auto lobby = app.session->lobby();
 		require(std::any_of(app.screen_readouts.begin(), app.screen_readouts.end(),

@@ -251,7 +251,8 @@ class GameLobby final : public SessionPort
 	{
 		countdown_.reset();
 		++revision_;
-		++generation_;
+		// Roster/readiness changes invalidate the prepared launch, not its assets.
+		// Keep presentation generation stable while players join or choose seats.
 		setup_ack_ = false;
 		for (auto &[id, p] : peers_)
 		{
@@ -1006,6 +1007,7 @@ public:
 			throw;
 		}
 		active_ = true;
+		++generation_;
 	}
 	void restore(const Bytes &archive) override
 	{
@@ -1050,6 +1052,7 @@ public:
 		peers_.at(self_).member.console.clear();
 		packs_source_ = std::make_unique<PackSource>(services_.packs(*source_));
 		invalidate();
+		++generation_;
 	}
 	bool running() const override
 	{
