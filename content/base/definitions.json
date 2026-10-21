@@ -22583,6 +22583,7 @@
 			},
 			"context": "controller",
 			"id": "base.control.courier-engineering.core.distribution",
+			"decision_context": "You allocate core power. Meet observed service demand and accepted support commitments using the prepared allocation. Continue an appropriate running allocation. A cancelled executor will not resume through continue alone; select an allocation to start it. Power remains finite and physical links enforce actual supply.",
 			"initial": "service",
 			"parameters": {
 				"default_allocation": {
@@ -22706,6 +22707,7 @@
 		{
 			"context": "controller",
 			"id": "base.control.courier-engineering.core.generator",
+			"decision_context": "You operate the generator. Compare present power demand and observed stored energy with the offered operating limits. Routine or capped output normally supports the ship; hot mode reduces output to protect machinery when thermal evidence warrants it. Combat output is available when increased supply is justified. Preserve support commitments and judge success from observed supply, not command acceptance.",
 			"initial": "service",
 			"states": [
 				{
@@ -23060,6 +23062,7 @@
 			},
 			"context": "controller",
 			"id": "base.control.courier-engineering.core.reactor-cooling",
+			"decision_context": "You allocate reactor cooling. Maintain routine cooling unless observations, orders or support commitments justify a different offered allocation. An accepted cooling command is not proof that heat has been removed. Continue suitable running work, and restart cancelled work by choosing an allocation.",
 			"initial": "service",
 			"parameters": {
 				"default_allocation": {
@@ -23798,6 +23801,7 @@
 		{
 			"context": "controller",
 			"id": "base.control.courier-engineering.drive.engine",
+			"decision_context": "You control longitudinal propulsion, independently of the steering officer. Follow an active ship objective or waypoint using its prepared destination action; the steering officer must also aim the ship. Waiting is appropriate when no destination is active. Continue running useful work. A cancelled or completed executor needs a fresh selection when a destination becomes active. Navigation and resource limits are observed facts, and accepted commands do not guarantee thrust.",
 			"initial": "orders",
 			"parameters": {
 				"cruise_speed": {
@@ -24620,6 +24624,7 @@
 			},
 			"context": "controller",
 			"id": "base.control.courier-engineering.drive.engine-supply",
+			"decision_context": "You supply the main engine with power. Maintain enough supply for the active travel objective and accepted power requests. Reserve mode protects upstream stock but can limit the engine. Prefer an offered allocation that meets present demand unless observed resource or thermal limits justify conserving supply. Only observed delivery completes a support commitment.",
 			"initial": "service",
 			"parameters": {
 				"default_allocation": {
@@ -25607,6 +25612,7 @@
 		{
 			"context": "controller",
 			"id": "base.control.courier-engineering.drive.steering",
+			"decision_context": "You control heading independently of propulsion. To pursue an active objective or waypoint, select the prepared destination action even if the engine officer is already travelling there: the engine cannot steer for you. Use an avoidance heading when navigation reports an obstruction; otherwise aim toward the active destination. Continue a running navigation action while it remains appropriate. You do not generate propulsion.",
 			"initial": "orders",
 			"states": [
 				{
@@ -25724,7 +25730,7 @@
 			"decision_candidates": [
 				{
 					"id": "option-1",
-					"description": "Travel to destination: navigate mode. Use the prepared inputs shown for this action.",
+					"description": "Steer toward the active objective using the prepared coordinates.",
 					"deviation": "Officer prioritised navigate.",
 					"tasks": [
 						{
@@ -30840,6 +30846,7 @@
 		},
 		{
 			"id": "base.ai.race.engine",
+			"decision_context": "You control longitudinal propulsion, independently of the steering officer. Follow an active ship objective or waypoint using its prepared destination action; the steering officer must also aim the ship. Waiting is appropriate when no destination is active. Continue running useful work. A cancelled or completed executor needs a fresh selection when a destination becomes active. Navigation and resource limits are observed facts, and accepted commands do not guarantee thrust.",
 			"context": "controller",
 			"initial": "waiting",
 			"states": [
@@ -31250,6 +31257,7 @@
 		},
 		{
 			"id": "base.ai.race.steering",
+			"decision_context": "You control heading independently of propulsion. To pursue an active objective or waypoint, select the prepared destination action even if the engine officer is already travelling there: the engine cannot steer for you. Use an avoidance heading when navigation reports an obstruction; otherwise aim toward the active destination. Continue a running navigation action while it remains appropriate. You do not generate propulsion.",
 			"context": "controller",
 			"initial": "waiting",
 			"states": [
@@ -31612,7 +31620,7 @@
 			"decision_candidates": [
 				{
 					"id": "option-1",
-					"description": "Travel to destination: waiting mode. Use the prepared inputs shown for this action.",
+					"description": "Wait for a destination while keeping steering assistance enabled.",
 					"deviation": "Officer prioritised waiting.",
 					"tasks": [
 						{
@@ -31623,7 +31631,7 @@
 				},
 				{
 					"id": "option-2",
-					"description": "Travel to destination: objective mode. Use the prepared inputs shown for this action.",
+					"description": "Steer toward the active objective using the prepared coordinates.",
 					"deviation": "Officer prioritised objective.",
 					"tasks": [
 						{
@@ -31643,7 +31651,7 @@
 				},
 				{
 					"id": "option-3",
-					"description": "Travel to destination: waypoint mode. Use the prepared inputs shown for this action.",
+					"description": "Steer toward the selected waypoint using the prepared coordinates.",
 					"deviation": "Officer prioritised waypoint.",
 					"tasks": [
 						{
@@ -31663,7 +31671,7 @@
 				},
 				{
 					"id": "option-4",
-					"description": "Travel to destination: avoid mode. Use the prepared inputs shown for this action.",
+					"description": "Steer to the prepared avoidance heading to clear an observed obstruction.",
 					"deviation": "Officer prioritised avoid.",
 					"tasks": [
 						{
@@ -31682,7 +31690,7 @@
 				},
 				{
 					"id": "option-5",
-					"description": "Travel to destination: clear mode. Use the prepared inputs shown for this action.",
+					"description": "End destination steering when there is no active destination.",
 					"deviation": "Officer prioritised clear.",
 					"tasks": [
 						{

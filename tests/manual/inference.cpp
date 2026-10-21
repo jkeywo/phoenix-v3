@@ -9,10 +9,13 @@ import phoenix.simulation;
 import phoenix.inference;
 #include "../../src/session/inference_host.hpp"
 using namespace phoenix;
+#include "officer_inference.hpp"
 int main(int argc, char **argv)
 {
 	try
 	{
+		if (argc > 1 && (std::string(argv[1]) == "--officers" || std::string(argv[1]) == "--officer-snapshots"))
+			return officer_journey(argc, argv);
 		auto source = phoenix::test::controller_model_fixture();
 		const int controllers = argc > 4 ? std::clamp(std::stoi(argv[4]), 1, 6) : 1;
 		auto &ship = source["entities"][0];
