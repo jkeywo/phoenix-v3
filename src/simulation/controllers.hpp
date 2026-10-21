@@ -29,7 +29,7 @@ struct RuntimeCommandBinding : ControllerCommandBinding
 struct ControllerBrain
 {
 	state_tree::Program program;
-	std::string tree;
+	std::string tree, model_context;
 	std::string ftl_system;
 	std::string routine_stance = "routine";
 	std::size_t decision_base = 0, action_base = 0, coordination_base = 0;
@@ -100,12 +100,12 @@ struct ConsoleControllerRuntime
 	std::optional<ControllerBrain> brain;
 	ActionResult result;
 	std::set<std::string> effects;
- std::vector<ControllerCandidateSpec> candidates;
- std::string selected_provider = "tree", effective_provider = "tree", fallback_reason;
- std::uint64_t provider_generation = 1, decision_sequence = 0, next_decision = 0;
- std::uint64_t retry_count = 0, last_decision_tick = 0;
- Json decision_history = Json::array();
- std::vector<ControllerActionSpec> actions;
+	std::vector<ControllerCandidateSpec> candidates;
+	std::string selected_provider = "tree", effective_provider = "tree", fallback_reason;
+	std::uint64_t provider_generation = 1, decision_sequence = 0, next_decision = 0;
+	std::uint64_t retry_count = 0, last_decision_tick = 0;
+	Json decision_history = Json::array();
+	std::vector<ControllerActionSpec> actions;
 	ControllerActionInstance action;
 	// Transient: execution writes are consumed in this tick, before any save boundary.
 	std::set<std::size_t> action_writes;

@@ -269,8 +269,12 @@ void controller_output(EntityId id, std::size_t index, const state_tree::Output 
 		controller.result.available = true;
 		controller.result.success =
 		    admit_controller_decision({{id, controller.definition.console, controller.definition.id},
-		                                controller.generation, "select", action.name.substr(replace ? 8 : 7),
-		                                invocation, {output.arguments.begin() + 1, output.arguments.end()}}, observations);
+		                               controller.generation,
+		                               "select",
+		                               action.name.substr(replace ? 8 : 7),
+		                               invocation,
+		                               {output.arguments.begin() + 1, output.arguments.end()}},
+		                              observations);
 		controller.result.reason = controller.result.success ? "" : "action_unavailable";
 		return;
 	}
@@ -301,7 +305,14 @@ void controller_output(EntityId id, std::size_t index, const state_tree::Output 
 		{
 			if (action.name.starts_with("coordination."))
 			{
-				controller.result.success = controller_coordination_action(id, index, action.name, output.arguments);
+				controller.result.success =
+				    admit_controller_decision({{id, controller.definition.console, controller.definition.id},
+				                               controller.generation,
+				                               action.name,
+				                               {},
+				                               {},
+				                               output.arguments},
+				                              observations);
 				return;
 			}
 			const ControllerAddress address{id, controller.definition.console, controller.definition.id};
@@ -685,14 +696,13 @@ void run_console_controllers(flecs::entity entity)
 			if (brain.continuation.interrupted)
 				state_tree::resume(brain.continuation);
 			const auto observations = controller_observations(id, controller);
-			if (controller.effective_provider != "tree" && ecs.get<Clock>().tick > controller.last_decision_tick + 100)
-    model_fallback(id, i, "decision_timeout");
-   if (controller.effective_provider == "tree")
-   {
-   const auto result = state_tree::step(brain.program, brain.continuation, observations);
-			brain.debug = result.debug;
-			for (const auto &output : result.outputs)
-				controller_output(id, i, output, observations);
+
+			if (controller.effective_provider == "tree")
+			{
+				const auto result = state_tree::step(brain.program, brain.continuation, observations);
+				brain.debug = result.debug;
+				for (const auto &output : result.outputs)
+					controller_output(id, i, output, observations);
 			}
 			run_controller_action(id, i, observations);
 		}
@@ -831,7 +841,9 @@ Json project_controllers(const ConsoleAddress &address)
 				                     {"inputs", inputs},
 				                     {"available", usable}});
 			}
-		result.back()["provider"] = {{"selected", controller.selected_provider}, {"effective", controller.effective_provider}, {"reason", controller.fallback_reason}};
+		result.back()["provider"] = {{"selected", controller.selected_provider},
+		                             {"effective", controller.effective_provider},
+		                             {"reason", controller.fallback_reason}};
 		result.back()["action"]["invocation"] = controller.action.invocation;
 		result.back()["coordination"] = save_controller_coordination(controller);
 	}
@@ -864,11 +876,12 @@ Json save_controllers(flecs::entity entity) const
 		                 {"publication", controller.result.publication},
 		                 {"message", controller.result.message},
 		                 {"reason", controller.result.reason}};
-  row["model"] = {{"selected", controller.selected_provider}, {"effective", controller.effective_provider},
-   {"reason", controller.fallback_reason}, {"generation", controller.provider_generation},
-   {"sequence", controller.decision_sequence}, {"next", controller.next_decision},
-   {"retries", controller.retry_count}, {"last", controller.last_decision_tick}, {"history", controller.decision_history}};
-  row["effects"] = controller.effects;
+		row["model"] = {{"selected", controller.selected_provider}, {"effective", controller.effective_provider},
+		                {"reason", controller.fallback_reason},     {"generation", controller.provider_generation},
+		                {"sequence", controller.decision_sequence}, {"next", controller.next_decision},
+		                {"retries", controller.retry_count},        {"last", controller.last_decision_tick},
+		                {"history", controller.decision_history}};
+		row["effects"] = controller.effects;
 		if (!controller.action.id.empty())
 			row["action"] = save_controller_action(controller);
 		if (!controller.incoming_requests.empty() || !controller.outgoing_requests.empty() ||
@@ -932,25 +945,31 @@ void restore_controllers(flecs::entity entity, const Json &saved)
 		fail(!row.contains("timed") && row.contains("brain") == controller.brain.has_value());
 		if (controller.brain)
 			controller.brain->continuation = state_tree::load(controller.brain->program, row.at("brain"));
-  if (row.contains("model"))
-  {
-   const auto &m = row.at("model");
-   controller.selected_provider = m.at("selected"); controller.effective_provider = m.at("effective");
-   for (const auto *p : {&controller.selected_provider, &controller.effective_provider})
-    fail(*p == "tree" || *p == "anyjev" || *p == "llamacpp" || *p == "jev");
-   fail(controller.effective_provider == "tree" || controller.effective_provider == controller.selected_provider);
-   fail(controller.selected_provider == "tree" || !controller.candidates.empty());
-   controller.provider_generation = checked_unsigned(m.at("generation"), 1, 9007199254740991ULL, "model generation");
-   controller.decision_sequence = checked_unsigned(m.at("sequence"), 0, 9007199254740991ULL, "decision sequence");
-   controller.next_decision = checked_unsigned(m.at("next"), 0, 9007199254740991ULL, "decision tick");
-   controller.last_decision_tick = checked_unsigned(m.at("last"), 0, 9007199254740991ULL, "last decision");
-   controller.retry_count = checked_unsigned(m.at("retries"), 0, 5, "decision retries");
-   controller.fallback_reason = m.at("reason"); fail(controller.fallback_reason.size() <= 256);
-   controller.decision_history = m.at("history");
-   fail(controller.decision_history.is_array() && controller.decision_history.size() <= 16 && controller.decision_history.dump().size() <= 8192);
-  }
-  if (row.contains("action"))
-   restore_controller_action(controller, row.at("action"));
+		if (row.contains("model"))
+		{
+			const auto &m = row.at("model");
+			controller.selected_provider = m.at("selected");
+			controller.effective_provider = m.at("effective");
+			for (const auto *p : {&controller.selected_provider, &controller.effective_provider})
+				fail(*p == "tree" || *p == "anyjev" || *p == "llamacpp" || *p == "jev");
+			fail(controller.effective_provider == "tree" ||
+			     controller.effective_provider == controller.selected_provider);
+			fail(controller.selected_provider == "tree" || !controller.candidates.empty());
+			controller.provider_generation =
+			    checked_unsigned(m.at("generation"), 1, 9007199254740991ULL, "model generation");
+			controller.decision_sequence =
+			    checked_unsigned(m.at("sequence"), 0, 9007199254740991ULL, "decision sequence");
+			controller.next_decision = checked_unsigned(m.at("next"), 0, 9007199254740991ULL, "decision tick");
+			controller.last_decision_tick = checked_unsigned(m.at("last"), 0, 9007199254740991ULL, "last decision");
+			controller.retry_count = checked_unsigned(m.at("retries"), 0, 5, "decision retries");
+			controller.fallback_reason = m.at("reason");
+			fail(controller.fallback_reason.size() <= 256);
+			controller.decision_history = m.at("history");
+			fail(controller.decision_history.is_array() && controller.decision_history.size() <= 16 &&
+			     controller.decision_history.dump().size() <= 8192);
+		}
+		if (row.contains("action"))
+			restore_controller_action(controller, row.at("action"));
 		else
 			controller.action = {};
 		if (row.contains("coordination"))

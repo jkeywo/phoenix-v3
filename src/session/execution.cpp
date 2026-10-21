@@ -117,6 +117,26 @@ bool GameExecution::apply(const std::string &server, const Json &frame)
 		checkpoint_ready_ = true;
 		return true;
 	}
+
+	if (kind == "ai-config" || kind == "ai-decision")
+	{
+		if (!slots_.contains(server) || slots_.at(server).empty())
+			return false;
+		const auto ship = world.ship_for_slot(slots_.at(server));
+		if (!ship)
+			return false;
+		bool accepted = false;
+		if (kind == "ai-config")
+			accepted = frame.at("ship") == *ship &&
+			           world.configure_controller_provider({*ship, frame.at("console"), frame.at("controller")},
+			                                               frame.at("provider"));
+		else
+			accepted = frame.at("decision").at("snapshot").at("ship") == *ship &&
+			           world.submit_controller_decision(frame.at("decision"));
+		if (accepted)
+			checkpoint_ready_ = false; // Cleanup may have queued ordinary physical commands.
+		return accepted;
+	}
 	const std::string owner = frame.at("owner");
 	const auto route = frame.value("route", std::uint64_t{1});
 	if (kind == "station-claim")

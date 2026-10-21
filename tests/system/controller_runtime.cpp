@@ -53,61 +53,90 @@ int main(int argc, char **argv)
 	try
 	{
 
-  {
-   auto source = controller_fixture();
-   auto &owner = source["entities"][0]["control_layout"]["controllers"][0];
-   owner.erase("fallback"); owner["tree"] = "test.model-policy";
-   source["trees"].push_back(Json::parse(R"json({"id":"test.model-action","context":"controller",
-    "controller_action":{"label":"Cruise","inputs":[{"name":"speed","type":"integer"}]},
-    "command_bindings":[{"channel":"speed"}],"initial":"run",
-    "states":[{"id":"run","running":[{"action":"write.speed","arguments":[{"observation":"input.speed"}]}]}]})json"));
-   source["trees"].push_back(Json::parse(R"json({"id":"test.model-policy","context":"controller",
-    "command_bindings":[{"channel":"speed"}],"action_bindings":[{"id":"cruise","tree":"test.model-action"}],
-    "decision_candidates":[{"id":"faster","description":"Cruise at the prepared speed.",
-       "tasks":[{"action":"select.cruise","arguments":["cruise",5500]}]},
-      {"id":"stop","description":"Stop to protect the ship.","deviation":"protect_machinery",
-       "tasks":[{"action":"select.cruise","arguments":["stop",0]}]}],
-    "initial":"run","states":[{"id":"run","running":[{"action":"select.cruise","arguments":["routine",2200]}]}]})json"));
-   const auto catalog = load(source);
-   World world; world.load(catalog, "test.map"); world.tick();
-   const ControllerAddress address{1, "drive", "propulsion"};
-   require(world.configure_controller_provider(address, "anyjev"), "shared action Controller accepts model provider");
-   auto snapshot = world.controller_decision_snapshot(address);
-   require(snapshot.at("candidates").size() == 4 && snapshot.at("facts").contains("own.x"), "model gets permitted facts and prepared choices");
-   require(world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "faster"}}), "prepared choice enters common admission");
-   require(!world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "faster"}}), "duplicate decision cannot repeat effects");
-   world.tick();
-   auto model = world.save();
-   require(model.at("bodies")[0].at("console_controllers").at("controllers")[0].at("commands")[0].at("value") == 5500, "external decision reaches ordinary physical command consumption");
-   const auto serial = model.at("bodies")[0].at("console_controllers").at("controllers")[0].at("action").at("serial");
-   snapshot = world.controller_decision_snapshot(address);
-   require(world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "faster"}}), "same choice continues existing invocation");
-   require(world.save().at("bodies")[0].at("console_controllers").at("controllers")[0].at("action").at("serial") == serial, "reconsideration does not restart action");
-   World resumed; resumed.restore(catalog, world.save());
-   for (int i=0; i<8; ++i) { world.tick(); resumed.tick(); }
-   require(world.save() == resumed.save(), "model action and decision sequence restore deterministically");
-   snapshot = world.controller_decision_snapshot(address);
-   require(world.claim(991, 1, "drive"), "human can take over model Controller");
-   require(!world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "stop"}}), "handover rejects delayed inference");
-   world.release(991);
-   require(world.configure_controller_provider(address, "tree"), "host can restore authored policy");
-   world.tick();
-   auto old = world.save(); old["schema"] = 13;
-   for (auto &body : old["bodies"]) if (body.contains("console_controllers"))
-    for (auto &c : body["console_controllers"]["controllers"]) c.erase("model");
-   old["knowledge"]["runtime"]["contract"]["schemas"].erase(old["knowledge"]["runtime"]["contract"]["schemas"].end()-1);
-   World migrated; migrated.restore(catalog, old);
-   require(migrated.controller_ai(1)[0].at("selected") == "tree", "schema 13 migrates to default state trees");
-   require(world.configure_controller_provider(address, "jev"), "Jev shares the same policy boundary");
-   snapshot = world.controller_decision_snapshot(address);
-   require(world.submit_controller_decision({{"snapshot", snapshot}, {"failed", true}, {"reason", "provider_failed"}}), "failed provider commits fallback");
-   const auto row = world.controller_ai(1)[0];
-   require(row.at("effective") == "tree" && row.at("next") == world.ticks()+40, "fallback uses deterministic first retry delay");
-   world.tick(); snapshot = world.controller_decision_snapshot(address);
-   require(world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "stop"}}), "fresh response recovers automatically");
-   world.tick();
-   require(world.controller_ai(1)[0].at("effective") == "jev", "recovered provider becomes effective");
-  }
+		{
+			auto source = controller_model_fixture();
+			const auto catalog = load(source);
+			World world;
+			world.load(catalog, "test.map");
+			world.tick();
+			const ControllerAddress address{1, "drive", "propulsion"};
+			require(world.configure_controller_provider(address, "anyjev"),
+			        "shared action Controller accepts model provider");
+			auto snapshot = world.controller_decision_snapshot(address);
+			require(snapshot.at("candidates").size() == 4 && snapshot.at("facts").contains("own.x"),
+			        "model gets permitted facts and prepared choices");
+			require(world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "faster"}}),
+			        "prepared choice enters common admission");
+			require(!world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "faster"}}),
+			        "duplicate decision cannot repeat effects");
+			world.tick();
+			auto model = world.save();
+			require(
+			    model.at("bodies")[0].at("console_controllers").at("controllers")[0].at("commands")[0].at("value") ==
+			        5500,
+			    "external decision reaches ordinary physical command consumption");
+			{
+				auto altered = world.controller_decision_snapshot(address);
+				altered["candidates"][0]["operations"][0]["arguments"][1]["number"] = 999999;
+				const auto before = world.save();
+				require(!world.submit_controller_decision({{"snapshot", altered}, {"candidate", "faster"}}) &&
+				            world.save() == before,
+				        "unoffered argument edits cannot cross the provider boundary");
+			}
+			for (int waiting = 0; waiting < 110; ++waiting)
+				world.tick();
+			require(world.controller_ai(1)[0].at("effective") == "anyjev",
+			        "an ongoing action does not time out merely while other Controllers are served");
+			const auto serial =
+			    model.at("bodies")[0].at("console_controllers").at("controllers")[0].at("action").at("serial");
+			snapshot = world.controller_decision_snapshot(address);
+			require(world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "faster"}}),
+			        "same choice continues existing invocation");
+			require(
+			    world.save().at("bodies")[0].at("console_controllers").at("controllers")[0].at("action").at("serial") ==
+			        serial,
+			    "reconsideration does not restart action");
+			World resumed;
+			resumed.restore(catalog, world.save());
+			for (int i = 0; i < 8; ++i)
+			{
+				world.tick();
+				resumed.tick();
+			}
+			require(world.save() == resumed.save(), "model action and decision sequence restore deterministically");
+			snapshot = world.controller_decision_snapshot(address);
+			require(world.claim(991, 1, "drive"), "human can take over model Controller");
+			require(!world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "stop"}}),
+			        "handover rejects delayed inference");
+			world.release(991);
+			require(world.configure_controller_provider(address, "tree"), "host can restore authored policy");
+			world.tick();
+			auto old = world.save();
+			old["schema"] = 13;
+			for (auto &body : old["bodies"])
+				if (body.contains("console_controllers"))
+					for (auto &c : body["console_controllers"]["controllers"])
+						c.erase("model");
+			old["knowledge"]["runtime"]["contract"]["schemas"].erase(
+			    old["knowledge"]["runtime"]["contract"]["schemas"].end() - 1);
+			World migrated;
+			migrated.restore(catalog, old);
+			require(migrated.controller_ai(1)[0].at("selected") == "tree", "schema 13 migrates to default state trees");
+			require(world.configure_controller_provider(address, "jev"), "Jev shares the same policy boundary");
+			snapshot = world.controller_decision_snapshot(address);
+			require(world.submit_controller_decision(
+			            {{"snapshot", snapshot}, {"failed", true}, {"reason", "provider_failed"}}),
+			        "failed provider commits fallback");
+			const auto row = world.controller_ai(1)[0];
+			require(row.at("effective") == "tree" && row.at("next") == world.ticks() + 40,
+			        "fallback uses deterministic first retry delay");
+			world.tick();
+			snapshot = world.controller_decision_snapshot(address);
+			require(world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "stop"}}),
+			        "fresh response recovers automatically");
+			world.tick();
+			require(world.controller_ai(1)[0].at("effective") == "jev", "recovered provider becomes effective");
+		}
 		Json continuation_trace = Json::array();
 		auto record = [&](Json saved)
 		{
@@ -3221,6 +3250,41 @@ int main(int argc, char **argv)
 		execution.absent("server");
 		frame["sequence"] = 2;
 		require(!execution.apply("server", frame), "server absence cannot revive a stale Controller lease");
+		{
+			auto fixture = controller_model_fixture();
+			fixture["maps"][0] = controller_session_fixture()["maps"][0];
+			fixture["entities"][0]["systems"]["steering"] = {{"kind", "steering"}, {"turn_mdeg_s", 90000}};
+			auto model_host = make_host_world();
+			model_host->add_pack(archive(fixture));
+			model_host->start_server(setup);
+			GameExecution committed(model_host, {{"server", "test.slot"}});
+			const auto ship = *model_host->authoritative_world().ship_for_slot("test.slot");
+			const Json assignment{{"kind", "ai-config"},
+			                      {"ship", ship},
+			                      {"console", "drive"},
+			                      {"controller", "propulsion"},
+			                      {"provider", "anyjev"}};
+			require(!committed.apply("intruder", assignment),
+			        "another server cannot assign this ship's model provider");
+			require(committed.apply("server", assignment), "owning server commits provider assignment");
+			const auto basis =
+			    model_host->authoritative_world().controller_decision_snapshot({ship, "drive", "propulsion"});
+			const Json decision{{"kind", "ai-decision"}, {"decision", {{"snapshot", basis}, {"candidate", "faster"}}}};
+			require(!committed.apply("intruder", decision) && committed.apply("server", decision),
+			        "external decision obeys committed ship ownership");
+			require(committed.apply("server", {{"kind", "tick"}, {"tick", 1}}),
+			        "committed model decision executes on normal tick");
+			auto replica = make_host_world();
+			replica->add_pack(archive(fixture));
+			replica->start_server(setup);
+			GameExecution replayed(replica, {{"server", "test.slot"}});
+			require(replayed.apply("server", assignment) && replayed.apply("server", decision) &&
+			            replayed.apply("server", {{"kind", "tick"}, {"tick", 1}}),
+			        "replica replays committed model inputs without an inference connection");
+			require(replica->authoritative_world().save() == model_host->authoritative_world().save(),
+			        "replicated model execution matches the owning host exactly");
+			record(model_host->authoritative_world().save());
+		}
 		if (argc > 1 && std::string(argv[1]) == "--trace")
 			std::cout << sha256(json_bytes(continuation_trace)) << '\n';
 		else

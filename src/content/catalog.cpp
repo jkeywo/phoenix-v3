@@ -365,7 +365,6 @@ Catalog resolve(const std::vector<PackView> &ordered)
 			                                       {"readers", {"phoenix.crew"}},
 			                                       {"ship_publishable", true},
 			                                       {"fields", fields}});
-
 		}
 		if (!result.presentation)
 			for (const auto *cap :
@@ -377,9 +376,12 @@ Catalog resolve(const std::vector<PackView> &ordered)
 				     {"ship_publishable", true},
 				     {"fields", Json::array({{{"id", "payload"}, {"type", "text"}, {"publishable", true}}})}});
 		if (!result.presentation)
-   result.knowledge["schemas"].push_back({{"id", "phoenix.officer-decision"}, {"producers", {"phoenix.officer"}},
-    {"readers", {"phoenix.crew"}}, {"ship_publishable", true},
-    {"fields", Json::array({{{"id", "reason"}, {"type", "text"}, {"publishable", true}}})}});
+			result.knowledge["schemas"].push_back(
+			    {{"id", "phoenix.officer-decision"},
+			     {"producers", {"phoenix.officer"}},
+			     {"readers", {"phoenix.crew"}},
+			     {"ship_publishable", true},
+			     {"fields", Json::array({{{"id", "reason"}, {"type", "text"}, {"publishable", true}}})}});
 		result.knowledge_definition = compile_knowledge(result.knowledge);
 	}
 	for (const auto &[name, entity] : result.entities)
@@ -1023,6 +1025,7 @@ void prepare_catalog(Catalog &catalog)
 			{
 				auto bindings = compile_controller_bindings(tree, catalog);
 				(void)compile_controller_actions(tree, catalog, bindings.registry);
+				(void)compile_controller_candidates(tree, catalog, bindings.registry);
 				catalog.tree_programs.emplace(id, state_tree::compile(tree, bindings.registry, catalog.trees));
 				catalog.controller_bindings.emplace(id, std::move(bindings));
 			}

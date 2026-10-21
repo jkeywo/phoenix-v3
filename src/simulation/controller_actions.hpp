@@ -268,27 +268,33 @@ bool select_controller_action(EntityId id, std::size_t index, const std::string 
 bool admit_controller_decision(const ControllerDecisionProposal &proposal,
                                std::span<const state_tree::Value> observations)
 {
- auto entity = entities.find(proposal.address.entity);
- if (entity == entities.end() || !entity->second.has<EntityControls>()) return false;
- auto &controllers = entity->second.get_mut<EntityControls>().controllers;
- for (std::size_t index = 0; index < controllers.size(); ++index)
- {
-  auto &controller = controllers[index];
-  if (controller.definition.console != proposal.address.console || controller.definition.id != proposal.address.controller) continue;
-  if (controller.human || controller.generation != proposal.generation) return false;
-  if (proposal.operation == "select")
-   return select_controller_action(proposal.address.entity, index, proposal.action, proposal.invocation, proposal.inputs, observations, proposal.generation);
-  if (proposal.operation == "continue") return true;
-  if (proposal.operation == "cancel")
-  {
-   cancel_controller_action(proposal.address.entity, index, proposal.invocation, observations);
-   return true;
-  }
-  if (proposal.operation.starts_with("coordination."))
-   return controller_coordination_action(proposal.address.entity, index, proposal.operation, proposal.inputs);
-  return false;
- }
- return false;
+	auto entity = entities.find(proposal.address.entity);
+	if (entity == entities.end() || !entity->second.has<EntityControls>())
+		return false;
+	auto &controllers = entity->second.get_mut<EntityControls>().controllers;
+	for (std::size_t index = 0; index < controllers.size(); ++index)
+	{
+		auto &controller = controllers[index];
+		if (controller.definition.console != proposal.address.console ||
+		    controller.definition.id != proposal.address.controller)
+			continue;
+		if (controller.human || controller.generation != proposal.generation)
+			return false;
+		if (proposal.operation == "select")
+			return select_controller_action(proposal.address.entity, index, proposal.action, proposal.invocation,
+			                                proposal.inputs, observations, proposal.generation);
+		if (proposal.operation == "continue")
+			return true;
+		if (proposal.operation == "cancel")
+		{
+			cancel_controller_action(proposal.address.entity, index, proposal.invocation, observations);
+			return true;
+		}
+		if (proposal.operation.starts_with("coordination."))
+			return controller_coordination_action(proposal.address.entity, index, proposal.operation, proposal.inputs);
+		return false;
+	}
+	return false;
 }
 void run_controller_action(EntityId id, std::size_t index, std::span<const state_tree::Value> source)
 {

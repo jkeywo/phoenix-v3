@@ -53,6 +53,25 @@ inline Json controller_fixture(bool split = false, std::int64_t initial = 0)
 	source["maps"][0]["ship_slots"] = Json::array();
 	return source;
 }
+inline Json controller_model_fixture()
+{
+	auto source = controller_fixture();
+	auto &owner = source["entities"][0]["control_layout"]["controllers"][0];
+	owner.erase("fallback");
+	owner["tree"] = "test.model-policy";
+	source["trees"].push_back(Json::parse(R"json({"id":"test.model-action","context":"controller",
+    "controller_action":{"label":"Cruise","inputs":[{"name":"speed","type":"integer"}]},
+    "command_bindings":[{"channel":"speed"}],"initial":"run",
+    "states":[{"id":"run","running":[{"action":"write.speed","arguments":[{"observation":"input.speed"}]}]}]})json"));
+	source["trees"].push_back(Json::parse(R"json({"id":"test.model-policy","context":"controller",
+    "command_bindings":[{"channel":"speed"}],"action_bindings":[{"id":"cruise","tree":"test.model-action"}],
+    "decision_candidates":[{"id":"faster","description":"Cruise at the prepared speed.",
+       "tasks":[{"action":"select.cruise","arguments":["cruise",5500]}]},
+      {"id":"stop","description":"Stop to protect the ship.","deviation":"protect_machinery",
+       "tasks":[{"action":"select.cruise","arguments":["stop",0]}]}],
+    "initial":"run","states":[{"id":"run","running":[{"action":"select.cruise","arguments":["routine",2200]}]}]})json"));
+	return source;
+}
 inline Json controller_session_fixture()
 {
 	auto source = controller_fixture();

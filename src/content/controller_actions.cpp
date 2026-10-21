@@ -393,6 +393,25 @@ void expand_officer_policies(Catalog &catalog)
 				return Json{{"action", "coordination.respond"},
 				            {"arguments", Json::array({status, obs("limit"), reason})}};
 			};
+			if (!policy.contains("decision_candidates"))
+				policy["decision_candidates"] = Json::array();
+			policy["decision_candidates"].push_back(
+			    {{"id", "officer-accept"},
+			     {"description", "Accept the pending officer request and execute the permitted support action."},
+			     {"deviation", "Prioritising an officer support request."},
+			     {"available", Json::array({condition("pending", "eq", true), condition("feasible", "eq", true)})},
+			     {"tasks", Json::array({{{"action", "select.officer_support"},
+			                             {"arguments", Json::array({obs("invocation"), obs("operation"), obs("target"),
+			                                                        obs("limit")})}},
+			                            response("accepted", "support_committed")})}});
+			for (const auto *status : {"refused", "completed", "failed"})
+				policy["decision_candidates"].push_back(
+				    {{"id", std::string("officer-") + status},
+				     {"description", std::string("Report pending officer request as ") + status +
+				                         "; completion requires observed success."},
+				     {"available", Json::array({condition("pending", "eq", true),
+				                                condition("done", "eq", std::string(status) == "completed")})},
+				     {"tasks", Json::array({response(status, "officer_judgement")})}});
 			Json leave{{"target", "normal"}, {"conditions", Json::array({condition("pending", "eq", false)})}};
 			Json changed_request{{"target", "normal"},
 			                     {"conditions", Json::array({{{"left", {{"memory", "phoenix_officer_request"}}},
@@ -451,44 +470,62 @@ void expand_officer_policies(Catalog &catalog)
 	}
 }
 std::vector<ControllerCandidateSpec> compile_controller_candidates(const Json &source, const Catalog &catalog,
-                                                                  const state_tree::Registry &registry)
+                                                                   const state_tree::Registry &registry)
 {
- const auto tree = resolve_tree_definition(source, catalog);
- std::vector<ControllerCandidateSpec> result;
- std::set<std::string> ids;
- for (const auto &candidate : tree.value("decision_candidates", Json::array()))
- {
-  ControllerCandidateSpec spec;
-  spec.id = candidate.at("id");
-  spec.description = candidate.at("description");
-  spec.deviation = candidate.value("deviation", std::string{});
-  if (!valid_identifier(spec.id) || spec.id == "continue" || spec.id == "defer_to_tree" ||
-      !ids.insert(spec.id).second || ids.size() > 128 || spec.description.empty() ||
-      spec.description.size() > 2048 || spec.deviation.size() > 256)
-   throw std::runtime_error("Invalid Controller decision candidate");
-  Json definition{{"context", "controller"}, {"parameters", tree.value("parameters", Json::object())}, {"initial", "check"},
-   {"states", Json::array({{{"id", "check"}, {"transitions", Json::array({{{"target", "offer"},
-    {"conditions", candidate.value("available", Json::array())}}})}},
-    {{"id", "offer"}, {"running", candidate.at("tasks")}}})}};
-  spec.program = state_tree::compile(definition, registry);
-  const auto &tasks = spec.program.states.back().running;
-  if (tasks.empty() || tasks.size() > 4) throw std::runtime_error("Candidate needs 1..4 operations");
-  unsigned selections = 0;
-  for (const auto &task : tasks)
-  {
-   if (task.kind != state_tree::TaskKind::Action) throw std::runtime_error("Candidate cannot own memory or call policies");
-   const auto &name = registry.actions.at(task.target).name;
-   if (name.starts_with("select.") || name.starts_with("replace.")) ++selections;
-   else if (!name.starts_with("coordination.") && name != "action.cancel" && name != "acknowledge_message")
-    throw std::runtime_error("Candidate operation is not a policy decision: " + name);
-   for (const auto &argument : task.arguments)
-    if (argument.source != state_tree::Source::Literal && argument.source != state_tree::Source::Observation)
-     throw std::runtime_error("Candidate inputs require permitted observations or constants");
-  }
-  if (selections > 1) throw std::runtime_error("Candidate selects several active actions");
-  result.push_back(std::move(spec));
- }
- return result;
+	const auto tree = resolve_tree_definition(source, catalog);
+	if (tree.value("decision_context", std::string{}).size() > 4096)
+		throw std::runtime_error("Controller decision context exceeds 4096 bytes");
+	std::vector<ControllerCandidateSpec> result;
+	std::set<std::string> ids;
+	for (const auto &candidate : tree.value("decision_candidates", Json::array()))
+	{
+		ControllerCandidateSpec spec;
+		spec.id = candidate.at("id");
+		spec.description = candidate.at("description");
+		spec.deviation = candidate.value("deviation", std::string{});
+		if (!valid_identifier(spec.id) || spec.id == "continue" || spec.id == "defer_to_tree" ||
+		    !ids.insert(spec.id).second || ids.size() > 128 || spec.description.empty() ||
+		    spec.description.size() > 2048 || spec.deviation.size() > 256)
+			throw std::runtime_error("Invalid Controller decision candidate");
+		Json definition{
+		    {"context", "controller"},
+		    {"parameters", tree.value("parameters", Json::object())},
+		    {"initial", "check"},
+		    {"states",
+		     Json::array(
+		         {{{"id", "check"},
+		           {"transitions",
+		            Json::array({{{"target", "offer"}, {"conditions", candidate.value("available", Json::array())}}})}},
+		          {{"id", "offer"}, {"running", candidate.at("tasks")}}})}};
+		spec.program = state_tree::compile(definition, registry);
+		const auto &tasks = spec.program.states.back().running;
+		if (tasks.empty() || tasks.size() > 4)
+			throw std::runtime_error("Candidate needs 1..4 operations");
+		unsigned selections = 0;
+		for (const auto &task : tasks)
+		{
+			if (task.kind != state_tree::TaskKind::Action)
+				throw std::runtime_error("Candidate cannot own memory or call policies");
+			const auto &name = registry.actions.at(task.target).name;
+			if (name.starts_with("select.") || name.starts_with("replace."))
+				++selections;
+			else if (!name.starts_with("coordination.") && name != "action.cancel" && name != "acknowledge_message")
+				throw std::runtime_error("Candidate operation is not a policy decision: " + name);
+			for (const auto &argument : task.arguments)
+				if (argument.source != state_tree::Source::Literal &&
+				    argument.source != state_tree::Source::Observation)
+					throw std::runtime_error("Candidate inputs require permitted observations or constants");
+		}
+		if (selections > 1)
+			throw std::runtime_error("Candidate selects several active actions");
+		result.push_back(std::move(spec));
+	}
+	std::stable_partition(result.begin(), result.end(),
+	                      [](const auto &candidate)
+	                      {
+		                      return candidate.id.starts_with("officer-");
+	                      });
+	return result;
 }
 std::vector<ControllerActionSpec> compile_controller_actions(const Json &source, const Catalog &catalog,
                                                              const state_tree::Registry &registry)
