@@ -1696,6 +1696,7 @@ button.on-screen-active .share-live {display:block;}
 			prepared_layout_ = layout;
 			prepared_layout_revision_ = model_.layout_revision();
 			++layout_identity_;
+			command_language_.clear();
 		}
 		std::string signature = std::to_string(layout_identity_) + (app.pseudo_locale ? "pseudo" : "normal") +
 		                        (pregame ? ready ? "ready" : "waiting" : "running") + (profile_open_ ? "profile" : "") +
@@ -1887,89 +1888,84 @@ button.on-screen-active .share-live {display:block;}
 		const auto readouts_started = GetTime();
 		auto gameplay_controls =
 		    pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_controls();
-		if (model_.manual_available())
+		enum class ControlDestination
 		{
-			std::set<std::string> hidden;
-			for (const auto &d : model_.observation()->gameplay.value("controls", Json::array()))
+			general,
+			manual_flight,
+			settings,
+			camera,
+			dial,
+			profile,
+			message,
+			stance
+		};
+		std::set<std::pair<std::string, std::string>> dial_bindings;
+		if (helm && layout)
+			for (const auto &widget : layout->at("widgets"))
 			{
-				const auto a = d.value("action", "");
-				if (a == "assisted" || a == "manual_steering" || a == "longitudinal_thrust" ||
-				    (model_.manual_active() && (a == "speed_mm_s" || a == "heading_mdeg" || a == "destination" ||
-				                                a == "follow_contact" || a == "match_speed")))
-					hidden.insert(descriptor_action(d.at("id")));
+				const auto kind = widget.at("kind").get<std::string>();
+				if (kind == "throttle" || kind == "heading")
+					dial_bindings.emplace(kind == "throttle" ? "speed_mm_s" : "heading_mdeg",
+					                      model_.widget_system(widget.at("id")));
 			}
-			std::erase_if(gameplay_controls,
-			              [&](const auto &c)
-			              {
-				              return hidden.contains(c.first);
-			              });
-		}
+		const bool manual_available = model_.manual_available();
+		const bool manual_active = manual_available && model_.manual_active();
+		const auto destination = [&](const Json &descriptor)
+		{
+			const auto action = descriptor.value("action", "");
+			if (manual_available &&
+			    (action == "assisted" || action == "manual_steering" || action == "longitudinal_thrust" ||
+			     (manual_active && (action == "speed_mm_s" || action == "heading_mdeg" || action == "destination" ||
+			                        action == "follow_contact" || action == "match_speed"))))
+				return ControlDestination::manual_flight;
+			if (action == "away")
+				return ControlDestination::settings;
+			if (action == "camera_mode" || action == "camera_direction")
+				return ControlDestination::camera;
+			if (action == "preset")
+				return ControlDestination::profile;
+			if (action.starts_with("message."))
+				return ControlDestination::message;
+			if (action == "stance.set")
+				return ControlDestination::stance;
+			const auto target = descriptor.value("controller", std::string{}).empty()
+			                        ? descriptor.value("system", std::string{})
+			                        : "controller/" + descriptor.at("controller").get<std::string>() + "/" +
+			                              descriptor.at("channel").get<std::string>();
+			return dial_bindings.contains({action, target}) ? ControlDestination::dial : ControlDestination::general;
+		};
+		std::set<std::string> specialised_controls, stance_controls;
+		std::vector<StanceChoice> choices;
+		if (!pregame && model_.observation() && model_.observation()->gameplay.contains("controls"))
+			for (const auto &descriptor : model_.observation()->gameplay.at("controls"))
+			{
+				const auto action = descriptor_action(descriptor.at("id"));
+				switch (destination(descriptor))
+				{
+				case ControlDestination::general:
+					break;
+				case ControlDestination::message:
+					if (engineering)
+						specialised_controls.insert(action);
+					break;
+				case ControlDestination::stance:
+					if (command_console)
+					{
+						stance_controls.insert(action);
+						choices.push_back({action, descriptor.at("system"), descriptor.at("label"),
+						                   descriptor.value("selected", false)});
+					}
+					break;
+				default:
+					specialised_controls.insert(action);
+					break;
+				}
+			}
 		std::erase_if(gameplay_controls,
-		              [](const auto &control)
+		              [&](const auto &control)
 		              {
-			              // ConsoleModel encodes descriptor IDs as hexadecimal.
-			              return control.first == "game.control/61776179";
+			              return specialised_controls.contains(control.first);
 		              });
-		if (model_.observation())
-		{
-			std::set<std::string> camera_controls;
-			for (const auto &d : model_.observation()->gameplay.value("controls", Json::array()))
-				if (d.value("action", "") == "camera_mode" || d.value("action", "") == "camera_direction")
-					camera_controls.insert(descriptor_action(d.at("id")));
-			std::erase_if(gameplay_controls,
-			              [&](const auto &control)
-			              {
-				              return camera_controls.contains(control.first);
-			              });
-		}
-		if (helm && model_.observation())
-		{
-			std::set<std::string> dial_controls;
-			for (const auto &d : model_.observation()->gameplay.value("controls", Json::array()))
-				if (d.value("action", "") == "heading_mdeg" || d.value("action", "") == "speed_mm_s")
-					for (const auto &widget : layout->at("widgets"))
-						if ((widget.at("kind") == "throttle" && d.at("action") == "speed_mm_s") ||
-						    (widget.at("kind") == "heading" && d.at("action") == "heading_mdeg"))
-						{
-							const auto target = d.value("controller", std::string{}).empty()
-							                        ? d.value("system", std::string{})
-							                        : "controller/" + d.at("controller").get<std::string>() + "/" +
-							                              d.at("channel").get<std::string>();
-							if (model_.widget_system(widget.at("id")) == target)
-								dial_controls.insert(descriptor_action(d.at("id")));
-						}
-			// The dial and throttle already expose these actions, including numeric
-			// accessibility inputs. Their changing +/- values must not rebuild the panel.
-			std::erase_if(gameplay_controls,
-			              [&](const auto &control)
-			              {
-				              return dial_controls.contains(control.first);
-			              });
-		}
-		if (model_.observation())
-		{
-			std::set<std::string> presets;
-			for (const auto &d : model_.observation()->gameplay.value("controls", Json::array()))
-				if (d.value("action", "") == "preset")
-					presets.insert(descriptor_action(d.at("id")));
-			std::erase_if(gameplay_controls,
-			              [&](const auto &control)
-			              {
-				              return presets.contains(control.first);
-			              });
-		}
-		if (engineering && model_.observation())
-		{
-			std::set<std::string> messages;
-			for (const auto &d : model_.observation()->gameplay.value("controls", Json::array()))
-				if (d.value("action", "").starts_with("message."))
-					messages.insert(descriptor_action(d.at("id")));
-			std::erase_if(gameplay_controls,
-			              [&](const auto &control)
-			              {
-				              return messages.contains(control.first);
-			              });
-		}
 		readout_values_ = pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_readouts();
 		if (route_ == 31)
 			std::erase_if(readout_values_,
@@ -2173,16 +2169,6 @@ button.on-screen-active .share-live {display:block;}
 		for (const auto &[name, label] : gameplay_controls)
 			if (!engineering_controls.contains(name))
 				gameplay_identity.push_back(name);
-		std::vector<StanceChoice> choices;
-		std::set<std::string> stance_controls;
-		if (command_console && model_.observation())
-			for (const auto &d : model_.observation()->gameplay.value("controls", Json::array()))
-				if (d.value("action", "") == "stance.set")
-				{
-					const auto action = descriptor_action(d.at("id"));
-					stance_controls.insert(action);
-					choices.push_back({action, d.at("system"), d.at("label"), d.value("selected", false)});
-				}
 		const auto command_language = local_language_ + (app.pseudo_locale ? "/pseudo" : "/normal");
 		if (choices != command_choices_ || command_language != command_language_)
 		{
