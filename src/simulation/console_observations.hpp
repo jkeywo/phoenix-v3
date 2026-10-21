@@ -38,7 +38,7 @@ void append_sensor_contacts(const ConsoleAddress &address, Observation &result) 
 	for (auto missile : projectile_rows())
 	{
 		const auto &p = missile.get<Projectile>();
-		if (!p.definition.durability || p.durability <= 0)
+		if (!p.definition.durability || missile.get<Destructible>().durability <= 0)
 			continue;
 		bool visible = false;
 		const auto contact_id = 7000000000000000ULL + p.id;

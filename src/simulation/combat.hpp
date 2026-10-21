@@ -24,7 +24,7 @@ struct BlastVisual
 struct FaultState
 {
 	bool active = false, diagnosed = false;
-	std::int64_t work = 0, generation = 0;
+	std::int64_t work = 0;
 };
 struct CombatStructure
 {
@@ -32,7 +32,6 @@ struct CombatStructure
 	std::vector<CompartmentState> compartments;
 	std::uint64_t random = 1;
 	std::map<std::string, std::vector<FaultState>> faults;
-	bool destruction_processed = false;
 };
 struct WeaponState
 {
@@ -93,7 +92,7 @@ struct Projectile
 	std::int64_t heading = 0, life = 0, penetration = 0, damage = 0, deposit_remainder = 0, resistance_remainder = 0;
 	ProjectileDefinition definition;
 	EntityId target = 0;
-	std::int64_t altitude = 0, vz = 0, z_remainder = 0, durability = 0, age = 0, initial_distance = 0, base_heading = 0;
+	std::int64_t altitude = 0, vz = 0, z_remainder = 0, age = 0, initial_distance = 0, base_heading = 0;
 	std::int64_t turn_remainder = 0;
 	std::uint64_t random = 1;
 	bool continuous = false;

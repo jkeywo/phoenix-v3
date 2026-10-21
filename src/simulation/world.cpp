@@ -42,7 +42,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ProjectileDefinition, visual, sp
                                                 deposition, spread, guidance, trail, shield_bypass, turn_rate,
                                                 seeker_range, arc_height, chaos, tracer, durability, radius, resistance,
                                                 blast_radius, fuse_radius, destruction)
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(FaultState, active, diagnosed, work, generation)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(FaultState, active, diagnosed, work)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(WeaponState, target, cooldown, shots, ready, selected_magazine, loaded_magazine,
                                    loading, unloading, mode, beam_remainder, beam_tick, bypass_remainder, beam_end,
                                    intercept)
@@ -2313,7 +2313,7 @@ void World::tick()
 	    });
 	impl_->integrate.run();
 	impl_->resolve_collisions.run();
-	impl_->step_projectiles();
+	impl_->step_ordnance();
 	impl_->resolve_destructions();
 	impl_->step_repairs();
 	impl_->index_contacts.run();

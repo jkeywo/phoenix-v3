@@ -49,18 +49,8 @@ void damage_faults(flecs::entity ship, std::size_t compartment, std::int64_t dam
 			states[i].active = true;
 			states[i].diagnosed = false;
 			states[i].work = 0;
-			++states[i].generation;
 		}
 	}
-}
-bool combat_paid(flecs::entity ship, flecs::entity child) const
-{
-	if (const auto *power = ship.try_get<ShipResources>())
-	{
-		const auto &g = power->grants.at(child.get<ResourceBinding>().slot);
-		return !g.blocked && g.supply_permille == 1000;
-	}
-	return false;
 }
 std::int64_t shield_rate(flecs::entity child) const
 {

@@ -116,13 +116,14 @@ void emit_blast(fixed::Vec origin, std::int64_t altitude, const DestructionDefin
 		for (auto row : projectile_rows())
 		{
 			auto &p = row.get_mut<Projectile>();
-			if (!p.definition.durability || p.durability <= 0)
+			if (!p.definition.durability || row.get_mut<Destructible>().durability <= 0)
 				continue;
 			const auto planar = fixed::length(p.position - origin), dz = p.altitude - altitude;
 			const auto distance =
 			    static_cast<std::int64_t>(fixed::sqrt(static_cast<std::uint64_t>(planar * planar + dz * dz)));
 			if (distance < d.radius && !blast_occluded(origin, altitude, p.position, p.altitude, 0))
-				p.durability = std::max<std::int64_t>(0, p.durability - d.damage * (d.radius - distance) / d.radius);
+				row.get_mut<Destructible>().durability = std::max<std::int64_t>(
+				    0, row.get_mut<Destructible>().durability - d.damage * (d.radius - distance) / d.radius);
 		}
 	bodies.each(
 	    [&](flecs::entity e, const StableId &id, const Definition &, const Pose &pose, const Motion &)
@@ -151,7 +152,7 @@ void destroy_missile(flecs::entity row, bool warhead)
 	component.processed = true;
 	component.destroyed_tick = ecs.get<Clock>().tick;
 	p.life = 0;
-	p.durability = 0;
+	component.durability = 0;
 	p.random = p.random * 6364136223846793005ULL + 1;
 	auto effect = component.definition;
 	if (warhead)
@@ -190,7 +191,7 @@ void resolve_destructions()
 		for (auto e : projectile_rows())
 		{
 			const auto &p = e.get<Projectile>();
-			if (p.definition.durability && p.durability <= 0 && p.life > 0)
+			if (p.definition.durability && e.get<Destructible>().durability <= 0 && p.life > 0)
 			{
 				destroy_missile(e, false);
 				changed = true;
@@ -364,7 +365,7 @@ void step_ordnance()
 	for (auto row : rows)
 	{
 		auto &p = row.get_mut<Projectile>();
-		if (p.life <= 0 || (p.definition.durability && p.durability <= 0))
+		if (p.life <= 0 || (p.definition.durability && row.get_mut<Destructible>().durability <= 0))
 			continue;
 		const auto from = previous.at(p.id);
 		struct Hit
@@ -399,7 +400,7 @@ void step_ordnance()
 		{
 			auto e = missiles[at];
 			const auto &target = e.get<Projectile>();
-			if (target.id == p.id || target.source == p.source || target.durability <= 0 ||
+			if (target.id == p.id || target.source == p.source || e.get<Destructible>().durability <= 0 ||
 			    p.missile_hits.contains(target.id))
 				continue;
 			CollisionBody shape;
@@ -433,7 +434,7 @@ void step_ordnance()
 			if (hit.missile)
 			{
 				auto &m = hit.entity.get_mut<Projectile>();
-				if (m.durability <= 0)
+				if (hit.entity.get_mut<Destructible>().durability <= 0)
 					continue;
 				const auto old = previous.at(m.id);
 				CollisionBody reverse_target;
@@ -452,7 +453,8 @@ void step_ordnance()
 				    fixed::sqrt(static_cast<std::uint64_t>(fixed::dot(relative, relative) + dz * dz)));
 				const auto distance = path * std::max<std::int64_t>(0, exit - hit.time) / fixed::unit;
 				const auto deposited = deposit_material(p, distance, m.definition.resistance);
-				m.durability = std::max<std::int64_t>(0, m.durability - deposited);
+				hit.entity.get_mut<Destructible>().durability =
+				    std::max<std::int64_t>(0, hit.entity.get_mut<Destructible>().durability - deposited);
 			}
 			else if (hit.entity.has<CombatStructure>())
 			{

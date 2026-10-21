@@ -51,7 +51,7 @@ std::optional<WeaponAim> weapon_contact(flecs::entity ship, const CombatMechanis
 				for (auto missile : projectile_rows())
 				{
 					const auto &p = missile.get<Projectile>();
-					if (p.id == m.get<WeaponState>().intercept && p.durability > 0)
+					if (p.id == m.get<WeaponState>().intercept && missile.get<Destructible>().durability > 0)
 					{
 						aim.altitude = p.altitude;
 						aim.vz = p.vz;
@@ -116,7 +116,7 @@ void prepare_weapons(flecs::entity ship)
 				for (auto missile : projectile_rows())
 				{
 					const auto &p = missile.get<Projectile>();
-					if (!p.definition.durability || p.durability <= 0 || p.source == id ||
+					if (!p.definition.durability || missile.get<Destructible>().durability <= 0 || p.source == id ||
 					    d.get<WeaponDefinition>().intercept_classes.empty())
 						continue;
 					if (std::none_of(contacts.begin(), contacts.end(),
@@ -340,7 +340,6 @@ void fire_weapons(flecs::entity ship)
 			p.life = payload.lifetime;
 			p.penetration = payload.penetration;
 			p.damage = payload.damage;
-			p.durability = payload.durability;
 			p.random = s.random;
 			p.initial_distance =
 			    std::max<std::int64_t>(1, fixed::length(fixed::Vec{target->body.x, target->body.y} - origin));

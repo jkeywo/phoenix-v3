@@ -420,10 +420,6 @@ void penetrate(Projectile &p, flecs::entity ship, fixed::Vec start, fixed::Vec e
 	}
 }
 #include "combat_ordnance.hpp"
-void step_projectiles()
-{
-	step_ordnance();
-}
 std::pair<std::int64_t, std::int64_t> repair_route(const CombatStructure &s, std::size_t from, std::size_t to,
                                                    std::int64_t *total_cost = nullptr) const
 {
@@ -961,7 +957,7 @@ Json save_projectiles() const
 		               {"altitude", p.altitude},
 		               {"vz", p.vz},
 		               {"z_remainder", p.z_remainder},
-		               {"durability", p.durability},
+		               {"durability", particle.get<Destructible>().durability},
 		               {"age", p.age},
 		               {"initial_distance", p.initial_distance},
 		               {"base_heading", p.base_heading},
@@ -999,7 +995,8 @@ void restore_projectiles(const Json &saved)
 		p.altitude = v.at("altitude").get<decltype(p.altitude)>();
 		p.vz = v.at("vz").get<decltype(p.vz)>();
 		p.z_remainder = v.at("z_remainder").get<decltype(p.z_remainder)>();
-		p.durability = v.at("durability").get<decltype(p.durability)>();
+		const auto durability =
+		    checked_integer(v.at("durability"), 0, p.definition.durability, "projectile.durability");
 		p.age = v.at("age").get<decltype(p.age)>();
 		p.initial_distance = v.at("initial_distance").get<decltype(p.initial_distance)>();
 		p.base_heading = v.at("base_heading").get<decltype(p.base_heading)>();
@@ -1025,7 +1022,7 @@ void restore_projectiles(const Json &saved)
 				                 return c.deck == deck;
 			                 }))
 				throw std::runtime_error("Invalid projectile deck selection");
-		ecs.entity().set<Projectile>(p).set<Destructible>({p.definition.destruction, p.durability});
+		ecs.entity().set<Projectile>(p).set<Destructible>({p.definition.destruction, durability});
 	}
 }
 

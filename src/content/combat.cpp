@@ -207,12 +207,10 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 			s.get<WeaponDefinition>().family = v.value("family", std::string("projectile"));
 			if (s.get<WeaponDefinition>().family != "projectile" && s.get<WeaponDefinition>().family != "beam")
 				fail("unsupported weapon family");
-			s.get<WeaponDefinition>().magazine = v.value("magazine", std::string{});
+			const auto magazine = v.value("magazine", std::string{});
 			s.get<WeaponDefinition>().magazines = v.value("magazines", std::vector<std::string>{});
-			if (s.get<WeaponDefinition>().magazines.empty() && !s.get<WeaponDefinition>().magazine.empty())
-				s.get<WeaponDefinition>().magazines.push_back(s.get<WeaponDefinition>().magazine);
-			if (!s.get<WeaponDefinition>().magazines.empty())
-				s.get<WeaponDefinition>().magazine = s.get<WeaponDefinition>().magazines.front();
+			if (s.get<WeaponDefinition>().magazines.empty() && !magazine.empty())
+				s.get<WeaponDefinition>().magazines.push_back(magazine);
 			if (s.get<WeaponDefinition>().family == "projectile" && s.get<WeaponDefinition>().magazines.empty())
 				fail("projectile weapon requires magazines");
 			s.get<WeaponDefinition>().turret = v.value("turret", std::string{});

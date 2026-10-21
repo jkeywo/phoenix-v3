@@ -438,7 +438,7 @@ struct ReserveDefinition
 struct WeaponDefinition
 {
 	AmmunitionDefinition ammunition;
-	std::string magazine, turret, family = "projectile";
+	std::string turret, family = "projectile";
 	std::int64_t ammo_use = 1, range = 0, beam_damage = 0, standby_energy = 0;
 	bool point_defence = false;
 	std::vector<std::string> magazines, intercept_classes;
@@ -472,7 +472,6 @@ struct CombatSystemDefinition
 	OperatingSystem kind = OperatingSystem::Weapon;
 	std::int64_t x = 0, y = 0, bearing = 0, arc = 360000;
 	std::variant<WeaponDefinition, TurretDefinition, MagazineDefinition, RepairDefinition, ShieldDefinition> details;
-	std::vector<FaultDefinition> faults;
 	explicit CombatSystemDefinition(OperatingSystem type = OperatingSystem::Weapon) : kind(type)
 	{
 		switch (type)
