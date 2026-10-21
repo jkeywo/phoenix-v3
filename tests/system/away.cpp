@@ -3,6 +3,7 @@
 #include <iostream>
 import phoenix.simulation;
 #include "../../src/network/projection.hpp"
+#include "../../src/simulation/effect_receipts.hpp"
 using namespace phoenix;
 using namespace phoenix::test;
 Json fixture()
@@ -175,6 +176,26 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		// Support the save/resume contract at the shared effect-journal boundary.
+		std::set<std::string> receipts;
+		state_tree::Output effect;
+		effect.task = 1;
+		effect.call_path = {2};
+		effect.call_activations = {1};
+		for (std::size_t i = 1; i <= effect_receipt_limit; ++i)
+		{
+			effect.activation = i;
+			require(admit_effect(receipts, effect), "distinct tree activation admitted");
+		}
+		require(!admit_effect(receipts, effect), "replay remains harmless at journal capacity");
+		++effect.call_activations[0];
+		rejects(
+		    [&]
+		    {
+			    admit_effect(receipts, effect);
+		    },
+		    "new nested activation refused before journal overflow");
+		require(receipts.size() == effect_receipt_limit, "refused effect keeps journal within save bounds");
 		auto input = fixture();
 		auto bad = input;
 		bad["entities"][0]["personnel"]["officers"][0]["traits"] = Json::array();

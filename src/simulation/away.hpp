@@ -557,10 +557,7 @@ void advance_away()
 			const auto outputs = state_tree::step(d.program, m.continuation, obs);
 			for (const auto &o : outputs.outputs)
 			{
-				std::string token = std::to_string(o.activation) + "/" + std::to_string(o.task);
-				for (std::size_t k = 0; k < o.call_path.size(); ++k)
-					token += "/" + std::to_string(o.call_path[k]) + ":" + std::to_string(o.call_activations[k]);
-				if (!m.effects.insert(token).second)
+				if (!admit_effect(m.effects, o))
 					continue;
 				const auto &name = d.program.registry.actions.at(o.action).name;
 				const auto &arg = o.arguments.at(0);
@@ -722,7 +719,8 @@ void restore_away(const Json &rows)
 		                                   "deployed", "inbound",   "recovered"};
 		if (!phases.contains(m.phase) || m.revision < 1 || m.revision > 9007199254740991ULL ||
 		    m.sequence > 9007199254740991ULL || m.progress < 0 || m.work < 0 || m.progress > m.work ||
-		    m.work > 1728000000 || m.transfer < 0 || m.effects.size() > 65536 || m.assignments.size() > 16)
+		    m.work > 1728000000 || m.transfer < 0 || m.effects.size() > effect_receipt_limit ||
+		    m.assignments.size() > 16)
 			throw std::runtime_error("Invalid away continuation");
 		if (!m.transport.empty() && (!ship || !definition(ship).displacements.contains(m.transport)))
 			throw std::runtime_error("Invalid saved transport");

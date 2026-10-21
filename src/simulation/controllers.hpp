@@ -1,4 +1,5 @@
 #pragma once
+#include "effect_receipts.hpp"
 namespace phoenix
 {
 struct RecordReadBinding
