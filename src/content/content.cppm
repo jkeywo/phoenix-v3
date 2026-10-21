@@ -34,6 +34,12 @@ struct FactionCatalog
 };
 FactionCatalog compile_factions(const Json &map);
 struct ControllerTreeBindings;
+struct ControllerCandidateSpec
+{
+ std::string id, description, deviation;
+ state_tree::Program program;
+};
+std::vector<ControllerCandidateSpec> compile_controller_candidates(const Json &, const Catalog &, const state_tree::Registry &);
 struct ControllerActionSpec
 {
 	std::string id, label, tree;

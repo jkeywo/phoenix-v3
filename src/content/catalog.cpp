@@ -358,13 +358,14 @@ Catalog resolve(const std::vector<PackView> &ordered)
 			for (const auto *name : {"request", "target", "amount", "priority", "expires"})
 				fields.push_back({{"id", name}, {"type", "integer"}, {"publishable", true}});
 			for (const auto &schema : result.knowledge["schemas"])
-				if (schema.at("id") == "phoenix.coordination")
+				if (schema.at("id") == "phoenix.coordination" || schema.at("id") == "phoenix.officer-decision")
 					invalid("knowledge", "reserved coordination schema");
 			result.knowledge["schemas"].push_back({{"id", "phoenix.coordination"},
 			                                       {"producers", {"phoenix.officer"}},
 			                                       {"readers", {"phoenix.crew"}},
 			                                       {"ship_publishable", true},
 			                                       {"fields", fields}});
+
 		}
 		if (!result.presentation)
 			for (const auto *cap :
@@ -375,6 +376,10 @@ Catalog resolve(const std::vector<PackView> &ordered)
 				     {"readers", {"phoenix.crew"}},
 				     {"ship_publishable", true},
 				     {"fields", Json::array({{{"id", "payload"}, {"type", "text"}, {"publishable", true}}})}});
+		if (!result.presentation)
+   result.knowledge["schemas"].push_back({{"id", "phoenix.officer-decision"}, {"producers", {"phoenix.officer"}},
+    {"readers", {"phoenix.crew"}}, {"ship_publishable", true},
+    {"fields", Json::array({{{"id", "reason"}, {"type", "text"}, {"publishable", true}}})}});
 		result.knowledge_definition = compile_knowledge(result.knowledge);
 	}
 	for (const auto &[name, entity] : result.entities)

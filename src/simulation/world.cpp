@@ -568,6 +568,7 @@ struct World::Impl
 							auto &brain = *controller.brain;
 							controller.actions = compile_controller_actions(content.trees.at(spec.tree), content,
 							                                           brain.program.registry);
+							controller.candidates = compile_controller_candidates(content.trees.at(spec.tree), content, brain.program.registry);
 							const auto &bindings = content.controller_bindings.at(spec.tree);
 							brain.decision_base = bindings.decision_base;
 							brain.action_base = bindings.action_base;
@@ -1283,6 +1284,7 @@ struct World::Impl
 #include "controller_execution.hpp"
 #include "controller_actions.hpp"
 #include "controller_coordination.hpp"
+#include "controller_models.hpp"
 	std::int64_t sensor_range(EntityId ship, const std::string &name) const
 	{
 		const auto entity = entities.at(ship);
@@ -3135,6 +3137,122 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 		button["console"] = address.console;
 	return result;
 }
+Json World::controller_ai(EntityId id) const
+{
+ Json rows = Json::array();
+ auto entity = impl_->entities.find(id);
+ if (entity == impl_->entities.end() || !entity->second.has<EntityControls>()) return rows;
+ for (const auto &c : entity->second.get<EntityControls>().controllers)
+  rows.push_back({{"ship", id}, {"console", c.definition.console}, {"controller", c.definition.id},
+   {"eligible", !c.candidates.empty()}, {"human", c.human}, {"selected", c.selected_provider},
+   {"effective", c.effective_provider}, {"reason", c.fallback_reason}, {"next", c.next_decision},
+   {"last", c.last_decision_tick}, {"sequence", c.decision_sequence}});
+ return rows;
+}
+Json World::controller_decision_snapshot(const ControllerAddress &address)
+{
+ return impl_->model_snapshot(address);
+}
+bool World::configure_controller_provider(const ControllerAddress &address, const std::string &provider)
+{
+ if (provider != "tree" && provider != "anyjev" && provider != "llamacpp" && provider != "jev") return false;
+ auto *c = impl_->model_controller(address);
+ if (!c || (provider != "tree" && c->candidates.empty())) return false;
+ if (c->selected_provider == provider) return true;
+ const auto index = static_cast<std::size_t>(c - impl_->entities.at(address.entity).get_mut<EntityControls>().controllers.data());
+ if (c->brain && !c->human)
+ {
+  const auto observations = impl_->controller_observations(address.entity, *c);
+  impl_->cancel_controller_action(address.entity, index, "provider_changed", observations);
+  const auto exit = state_tree::interrupt(c->brain->program, c->brain->continuation, observations);
+  for (const auto &output : exit.outputs) impl_->controller_output(address.entity, index, output, observations);
+ }
+ ++c->provider_generation;
+ c->selected_provider = provider;
+ c->effective_provider = "tree";
+ c->fallback_reason = provider == "tree" ? "" : "connecting";
+ c->next_decision = ticks();
+ c->retry_count = 0;
+ return true;
+}
+bool World::submit_controller_decision(const Json &decision)
+{
+ try
+ {
+  const auto &snapshot = decision.at("snapshot");
+  ControllerAddress address{snapshot.at("ship"), snapshot.at("console"), snapshot.at("controller")};
+  auto *c = impl_->model_controller(address);
+  if (!c || c->human || c->selected_provider == "tree" || snapshot.at("schema") != 1 ||
+      snapshot.at("provider") != c->selected_provider || snapshot.at("tick") > ticks() ||
+      (!decision.value("failed", false) && snapshot.at("expires") < ticks()) || snapshot.at("expires").get<std::uint64_t>() > snapshot.at("tick").get<std::uint64_t>() + 100 ||
+      snapshot.at("sequence") != c->decision_sequence + 1 || snapshot.at("basis").at("generation") != c->generation ||
+      snapshot.at("basis").at("provider_generation") != c->provider_generation ||
+      (!decision.value("failed", false) && snapshot.at("basis") != impl_->model_basis(address.entity, *c))) return false;
+  const auto index = static_cast<std::size_t>(c - impl_->entities.at(address.entity).get_mut<EntityControls>().controllers.data());
+  const auto chosen = decision.value("candidate", std::string("defer_to_tree"));
+  if (decision.value("failed", false) || chosen == "defer_to_tree")
+  {
+   ++c->decision_sequence;
+   impl_->model_fallback(address.entity, index, decision.value("reason", std::string("provider_failed")));
+   return true;
+  }
+  const auto observed = impl_->controller_observations(address.entity, *c);
+  Json selected;
+  if (chosen != "continue")
+  {
+   for (const auto &candidate : impl_->model_candidates(*c, observed))
+    if (candidate.at("id") == chosen) selected = candidate;
+   if (selected.is_null()) return false;
+   bool offered = false;
+   for (const auto &candidate : snapshot.at("candidates")) if (candidate == selected) offered = true;
+   if (!offered) return false;
+  }
+  if (c->effective_provider == "tree")
+  {
+   const auto exit = state_tree::interrupt(c->brain->program, c->brain->continuation, observed);
+   for (const auto &output : exit.outputs) impl_->controller_output(address.entity, index, output, observed);
+  }
+  c->effective_provider = c->selected_provider;
+  c->fallback_reason.clear();
+  c->retry_count = 0;
+  c->next_decision = ticks() + 40;
+  c->last_decision_tick = ticks();
+  ++c->decision_sequence;
+  bool accepted = true;
+  if (!selected.is_null())
+   for (const auto &operation : selected.at("operations"))
+   {
+    const auto name = operation.at("name").get<std::string>();
+    std::vector<state_tree::Value> args;
+    for (const auto &v : operation.at("arguments"))
+     args.push_back({static_cast<state_tree::Type>(v.at("type").get<int>()), v.at("number"), v.at("text")});
+    ControllerDecisionProposal proposal{address, c->generation};
+    if (name.starts_with("select.") || name.starts_with("replace."))
+    {
+     proposal.action = name.substr(name.starts_with("select.") ? 7 : 8);
+     proposal.invocation = "model/" + chosen;
+     if (name.starts_with("replace.")) proposal.invocation += "/" + std::to_string(c->decision_sequence);
+     proposal.inputs = {args.begin() + 1, args.end()};
+    }
+    else if (name == "action.cancel") { proposal.operation = "cancel"; proposal.invocation = args[0].text; }
+    else if (name == "acknowledge_message")
+    {
+     impl_->knowledge.acknowledge_controller(address, args[0].number);
+     continue;
+    }
+    else { proposal.operation = name; proposal.inputs = args; }
+    if (!impl_->admit_controller_decision(proposal, observed)) { accepted = false; break; }
+   }
+  c->decision_history.push_back({{"tick", ticks()}, {"candidate", chosen}, {"accepted", accepted},
+                                {"deviation", selected.is_null() ? Json("") : selected.at("deviation")}});
+  if (c->decision_history.size() > 16) c->decision_history.erase(c->decision_history.begin());
+  if (!selected.is_null() && !selected.at("deviation").get<std::string>().empty())
+   impl_->model_deviation(address, *c, selected.at("deviation"));
+  if (!accepted) impl_->model_fallback(address.entity, index, "decision_refused");
+  return true;
+ }
+ catch (const std::exception &) { return false; }
+}
 Json World::debug() const
 {
 	Json result{{"tick", ticks()},
@@ -3311,7 +3429,7 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 13},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 14},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
 	if (impl_->display_revision)
 	{
@@ -3429,14 +3547,15 @@ Json World::save() const
 	result["next_projectile"] = impl_->next_projectile;
 	return result;
 }
-void World::restore(const Catalog &content, const Json &saved)
+void World::restore(const Catalog &content, const Json &source_saved)
 {
+ Json saved = source_saved;
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 13 || saved.at("packs") != Json(content.ordered_packs))
+	if ((saved.at("schema") != 13 && saved.at("schema") != 14) || saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error(
-		    "Saved state schema/content identity mismatch; Controller runtime requires schema 13; start a new session");
+		    "Saved state schema/content identity mismatch; Controller runtime requires schema 13 or 14; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))
 		throw std::runtime_error("Legacy authority fields are not Controller continuation");
 	World candidate;
@@ -3522,8 +3641,8 @@ void World::restore(const Catalog &content, const Json &saved)
 			candidate.impl_->restore_bridge(restored.id, value.at("bridge"));
 		if (entity.has<EntityControls>())
 		{
-			if (saved.at("schema") != 13)
-				throw std::runtime_error("Controller state requires schema 13; start a new session");
+			if ((saved.at("schema") != 13 && saved.at("schema") != 14))
+				throw std::runtime_error("Controller state requires schema 13 or 14; start a new session");
 			candidate.impl_->restore_controllers(entity, value.at("console_controllers"));
 		}
 		else if (value.contains("console_controllers"))
@@ -3632,7 +3751,16 @@ void World::restore(const Catalog &content, const Json &saved)
 	}
 	if (saved.at("schema") >= 4)
 	{
-		candidate.impl_->knowledge.restore(saved.at("knowledge"));
+  if (saved.at("schema") == 13)
+  {
+   const auto expected = candidate.impl_->knowledge.save().at("runtime").at("contract");
+   auto old = expected;
+   if (!old.at("schemas").empty() && old.at("schemas").back().at("name") == "phoenix.officer-decision")
+    old["schemas"].erase(old["schemas"].end() - 1);
+   auto &actual = saved["knowledge"]["runtime"]["contract"];
+   if (actual == old) actual = expected;
+  }
+  candidate.impl_->knowledge.restore(saved.at("knowledge"));
 		if (saved.at("knowledge").at("ships").size() != candidate.impl_->entities.size())
 			throw std::runtime_error("Knowledge/physical roster count mismatch");
 		for (const auto &row : saved.at("knowledge").at("ships"))

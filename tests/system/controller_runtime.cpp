@@ -52,6 +52,62 @@ int main(int argc, char **argv)
 {
 	try
 	{
+
+  {
+   auto source = controller_fixture();
+   auto &owner = source["entities"][0]["control_layout"]["controllers"][0];
+   owner.erase("fallback"); owner["tree"] = "test.model-policy";
+   source["trees"].push_back(Json::parse(R"json({"id":"test.model-action","context":"controller",
+    "controller_action":{"label":"Cruise","inputs":[{"name":"speed","type":"integer"}]},
+    "command_bindings":[{"channel":"speed"}],"initial":"run",
+    "states":[{"id":"run","running":[{"action":"write.speed","arguments":[{"observation":"input.speed"}]}]}]})json"));
+   source["trees"].push_back(Json::parse(R"json({"id":"test.model-policy","context":"controller",
+    "command_bindings":[{"channel":"speed"}],"action_bindings":[{"id":"cruise","tree":"test.model-action"}],
+    "decision_candidates":[{"id":"faster","description":"Cruise at the prepared speed.",
+       "tasks":[{"action":"select.cruise","arguments":["cruise",5500]}]},
+      {"id":"stop","description":"Stop to protect the ship.","deviation":"protect_machinery",
+       "tasks":[{"action":"select.cruise","arguments":["stop",0]}]}],
+    "initial":"run","states":[{"id":"run","running":[{"action":"select.cruise","arguments":["routine",2200]}]}]})json"));
+   const auto catalog = load(source);
+   World world; world.load(catalog, "test.map"); world.tick();
+   const ControllerAddress address{1, "drive", "propulsion"};
+   require(world.configure_controller_provider(address, "anyjev"), "shared action Controller accepts model provider");
+   auto snapshot = world.controller_decision_snapshot(address);
+   require(snapshot.at("candidates").size() == 4 && snapshot.at("facts").contains("own.x"), "model gets permitted facts and prepared choices");
+   require(world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "faster"}}), "prepared choice enters common admission");
+   require(!world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "faster"}}), "duplicate decision cannot repeat effects");
+   world.tick();
+   auto model = world.save();
+   require(model.at("bodies")[0].at("console_controllers").at("controllers")[0].at("commands")[0].at("value") == 5500, "external decision reaches ordinary physical command consumption");
+   const auto serial = model.at("bodies")[0].at("console_controllers").at("controllers")[0].at("action").at("serial");
+   snapshot = world.controller_decision_snapshot(address);
+   require(world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "faster"}}), "same choice continues existing invocation");
+   require(world.save().at("bodies")[0].at("console_controllers").at("controllers")[0].at("action").at("serial") == serial, "reconsideration does not restart action");
+   World resumed; resumed.restore(catalog, world.save());
+   for (int i=0; i<8; ++i) { world.tick(); resumed.tick(); }
+   require(world.save() == resumed.save(), "model action and decision sequence restore deterministically");
+   snapshot = world.controller_decision_snapshot(address);
+   require(world.claim(991, 1, "drive"), "human can take over model Controller");
+   require(!world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "stop"}}), "handover rejects delayed inference");
+   world.release(991);
+   require(world.configure_controller_provider(address, "tree"), "host can restore authored policy");
+   world.tick();
+   auto old = world.save(); old["schema"] = 13;
+   for (auto &body : old["bodies"]) if (body.contains("console_controllers"))
+    for (auto &c : body["console_controllers"]["controllers"]) c.erase("model");
+   old["knowledge"]["runtime"]["contract"]["schemas"].erase(old["knowledge"]["runtime"]["contract"]["schemas"].end()-1);
+   World migrated; migrated.restore(catalog, old);
+   require(migrated.controller_ai(1)[0].at("selected") == "tree", "schema 13 migrates to default state trees");
+   require(world.configure_controller_provider(address, "jev"), "Jev shares the same policy boundary");
+   snapshot = world.controller_decision_snapshot(address);
+   require(world.submit_controller_decision({{"snapshot", snapshot}, {"failed", true}, {"reason", "provider_failed"}}), "failed provider commits fallback");
+   const auto row = world.controller_ai(1)[0];
+   require(row.at("effective") == "tree" && row.at("next") == world.ticks()+40, "fallback uses deterministic first retry delay");
+   world.tick(); snapshot = world.controller_decision_snapshot(address);
+   require(world.submit_controller_decision({{"snapshot", snapshot}, {"candidate", "stop"}}), "fresh response recovers automatically");
+   world.tick();
+   require(world.controller_ai(1)[0].at("effective") == "jev", "recovered provider becomes effective");
+  }
 		Json continuation_trace = Json::array();
 		auto record = [&](Json saved)
 		{
@@ -1715,7 +1771,7 @@ int main(int argc, char **argv)
 		world.tick();
 
 		const auto saved = world.save();
-		require(saved.at("schema") == 13, "Controller continuation has an explicit new save schema");
+		require(saved.at("schema") == 14, "Controller continuation has an explicit new save schema");
 		World resumed;
 		resumed.restore(content, saved);
 		for (int tick = 0; tick < 12; ++tick)

@@ -364,4 +364,3 @@ void restore_controller_action(ConsoleControllerRuntime &controller, const Json 
 	}
 	a.continuation = state_tree::load(spec.program, saved.at("continuation"));
 }
-
