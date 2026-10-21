@@ -103,6 +103,41 @@ void personnel_casualties(flecs::entity ship, std::size_t compartment, std::int6
 		personnel_changed(id);
 	}
 }
+std::int64_t team_effectiveness(const CombatMechanism &m) const
+{
+	const auto &r = m.get<TeamState>();
+	return r.condition == "lost"      ? 0
+	       : r.condition == "injured" ? m.definition.get<TeamDefinition>().injured_effectiveness
+	                                  : 1000;
+}
+struct ClinicalPatient
+{
+	std::string id, name, team;
+	OfficerState state;
+};
+std::vector<ClinicalPatient> clinical_patients(EntityId ship) const
+{
+	std::vector<ClinicalPatient> out;
+	const auto ps = personnel_snapshot(ship);
+	const auto &pd = definition(ship).personnel;
+	for (std::size_t i = 0; i < pd.officers.size(); ++i)
+		out.push_back({pd.officers[i].id, pd.officers[i].name, {}, ps.officers[i]});
+	for (auto child : entities.at(ship).get<EquipmentIndex>().values)
+		if (const auto *m = child.try_get<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Team)
+		{
+			const auto &r = m->get<TeamState>();
+			OfficerState state;
+			state.location = r.location;
+			state.condition = r.condition == "injured" ? "minor" : r.condition == "lost" ? "dead" : "healthy";
+			for (std::size_t i = 0; i < away_missions.size(); ++i)
+				if (away_ship(away_definitions[i]) == ship && away_missions[i].deployed())
+					for (const auto &[slot, asset] : away_missions[i].assignments)
+						if (asset == "team:" + m->definition.id)
+							state.facility = "away";
+			out.push_back({"team:" + m->definition.id, m->definition.id, m->definition.id, state});
+		}
+	return out;
+}
 bool patient_eligible(const OfficerState &o) const
 {
 	return (o.condition == "minor" || o.condition == "severe") && o.facility.empty() && o.escort.empty();
@@ -113,7 +148,8 @@ bool patient_matches(EntityId target, std::size_t patient, const OfficerState &o
 {
 	if (!patient_eligible(o) ||
 	    !order.patient_states.contains(o.condition == "severe" && o.stabilised ? "stabilised" : o.condition) ||
-	    !away_officer_location(target, definition(target).personnel.officers.at(patient).id).empty())
+	    (patient < definition(target).personnel.officers.size() &&
+	     !away_officer_location(target, definition(target).personnel.officers.at(patient).id).empty()))
 		return false;
 	if (activity == "recover")
 		return o.condition == "severe" && o.stabilised;
@@ -142,9 +178,9 @@ bool team_target_eligible(EntityId ship, const TeamOrderDefinition &order, std::
 		return true;
 	if (order.target == "damage")
 		return entities.at(ship).has<CombatStructure>() && repair_candidate(entities.at(ship), compartment).score > 0;
-	const auto ps = personnel_snapshot(ship);
-	for (std::size_t i = 0; i < ps.officers.size(); ++i)
-		if (ps.officers[i].location == compartment && patient_matches(ship, i, ps.officers[i], order))
+	const auto ps = clinical_patients(ship);
+	for (std::size_t i = 0; i < ps.size(); ++i)
+		if (ps[i].state.location == compartment && patient_matches(ship, i, ps[i].state, order))
 			return true;
 	return false;
 }
@@ -169,7 +205,8 @@ bool team_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 		return false;
 	auto &m = fit->entity.get_mut<CombatMechanism>();
 	auto &r = m.get<TeamState>();
-	if (c.value < 1 || static_cast<std::uint64_t>(c.value) != r.revision || r.revision >= 9007199254740991ULL)
+	if (r.condition == "lost" || c.value < 1 || static_cast<std::uint64_t>(c.value) != r.revision ||
+	    r.revision >= 9007199254740991ULL)
 		return false;
 	const TeamOrderDefinition *order = nullptr;
 	std::size_t target = 0;
@@ -195,11 +232,11 @@ bool team_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 		if (next != std::string::npos)
 		{
 			patient = c.text.substr(next + 1);
-			const auto ps = personnel_snapshot(a.ship);
+			const auto ps = clinical_patients(a.ship);
 			bool found = false;
-			for (std::size_t i = 0; i < pd.officers.size(); ++i)
-				if (pd.officers[i].id == patient && ps.officers[i].location == target &&
-				    patient_matches(a.ship, i, ps.officers[i], *order))
+			for (std::size_t i = 0; i < ps.size(); ++i)
+				if (ps[i].id == patient && ps[i].state.location == target &&
+				    patient_matches(a.ship, i, ps[i].state, *order))
 					found = true;
 			if (!found || order->target != "patients")
 				return false;
@@ -238,19 +275,19 @@ std::optional<std::size_t> triage_patient(EntityId target, std::optional<std::si
                                           const std::set<std::pair<EntityId, std::size_t>> &claimed) const
 {
 	const auto &pd = definition(target).personnel;
-	const auto snapshot = personnel_snapshot(target);
+	const auto snapshot = clinical_patients(target);
 	std::optional<std::size_t> best;
 	std::tuple<int, int, std::string> score;
-	for (std::size_t i = 0; i < pd.officers.size(); ++i)
+	for (std::size_t i = 0; i < snapshot.size(); ++i)
 	{
-		const auto &o = snapshot.officers[i];
+		const auto &o = snapshot[i].state;
 		if ((compartment && o.location != *compartment) || !patient_matches(target, i, o, order, activity) ||
 		    claimed.contains({target, i}))
 			continue;
 		const auto candidate = std::tuple{o.condition == "severe" && !o.stabilised ? 3
 		                                  : o.condition == "minor"                 ? 2
 		                                                                           : 1,
-		                                  pd.officers[i].id == priority ? 1 : 0, pd.officers[i].id};
+		                                  snapshot[i].id == priority ? 1 : 0, snapshot[i].id};
 		if (!best || candidate > score)
 		{
 			best = i;
@@ -262,6 +299,22 @@ std::optional<std::size_t> triage_patient(EntityId target, std::optional<std::si
 void treat_patient(EntityId origin, const CombatMechanism &team, EntityId target, std::size_t patient,
                    const std::string &activity)
 {
+	const auto patients = clinical_patients(target);
+	const auto &selected = patients.at(patient);
+	if (!selected.team.empty())
+	{
+		auto &r = away_equipment(target, selected.team).get_mut<CombatMechanism>().get<TeamState>();
+		if (activity != "treat" || r.condition != "injured")
+			return;
+		r.treatment += officer_value(origin, team.definition.id, "medical", 1000) * team_effectiveness(team) / 1000;
+		if (r.treatment >= team.definition.get<TeamDefinition>().treatment_ticks * 1000)
+		{
+			r.condition = "healthy";
+			r.treatment = 0;
+			++r.revision;
+		}
+		return;
+	}
 	auto &o = entities.at(target).get_mut<PersonnelState>().officers.at(patient);
 	const auto &d = team.definition.get<TeamDefinition>();
 	if (!d.capabilities.contains("medical") || !patient_eligible(o))
@@ -271,7 +324,7 @@ void treat_patient(EntityId origin, const CombatMechanism &team, EntityId target
 	if (o.condition == "severe" && o.stabilised)
 		return;
 	const auto ticks = o.condition == "severe" ? d.stabilise_ticks : d.treatment_ticks;
-	o.treatment += officer_value(origin, team.definition.id, "medical", 1000);
+	o.treatment += officer_value(origin, team.definition.id, "medical", 1000) * team_effectiveness(team) / 1000;
 	if (o.treatment < ticks * 1000)
 		return;
 	o.treatment = 0;
@@ -289,9 +342,9 @@ bool step_clinical_work(EntityId origin, const CombatMechanism &team, EntityId t
 	if (!patient)
 		return false;
 	claimed.insert({target, *patient});
-	const auto before = entities.at(target).get<PersonnelState>().officers.at(*patient);
+	const auto before = clinical_patients(target).at(*patient).state;
 	treat_patient(origin, team, target, *patient, activity);
-	const auto &after = entities.at(target).get<PersonnelState>().officers.at(*patient);
+	const auto after = clinical_patients(target).at(*patient).state;
 	return before.condition != after.condition || before.stabilised != after.stabilised;
 }
 bool clinical_work_done(EntityId target, std::optional<std::size_t> compartment, const TeamOrderDefinition &order,
@@ -339,7 +392,8 @@ void step_teams()
 		{
 			auto *m = child.try_get_mut<CombatMechanism>();
 			if (!m || m->definition.kind != OperatingSystem::Team || away_reserved(id, "team:" + m->definition.id) ||
-			    !child.get<Equipment>().enabled || !fault_effectiveness(ship, m->definition.id))
+			    !child.get<Equipment>().enabled || !fault_effectiveness(ship, m->definition.id) ||
+			    !team_effectiveness(*m))
 				continue;
 			auto &r = m->get<TeamState>();
 			const auto &d = m->definition.get<TeamDefinition>();
@@ -479,10 +533,15 @@ Json team_board(const ConsoleAddress &a) const
 			continue;
 		const auto &r = m->get<TeamState>();
 		const auto &d = m->definition.get<TeamDefinition>();
-		Json row{{"id", m->definition.id}, {"type", d.type},
-		         {"revision", r.revision}, {"order", r.order},
-		         {"activity", r.activity}, {"reserved", away_reserved(a.ship, "team:" + m->definition.id)},
-		         {"location", r.location}, {"destination", r.destination},
+		Json row{{"id", m->definition.id},
+		         {"type", d.type},
+		         {"revision", r.revision},
+		         {"order", r.order},
+		         {"condition", r.condition},
+		         {"activity", r.activity},
+		         {"reserved", away_reserved(a.ship, "team:" + m->definition.id)},
+		         {"location", r.location},
+		         {"destination", r.destination},
 		         {"orders", Json::array()}};
 		for (const auto &o : d.orders)
 		{
@@ -496,15 +555,16 @@ Json team_board(const ConsoleAddress &a) const
 		row["patients"] = Json::array();
 		if (d.capabilities.contains("medical"))
 		{
-			const auto ps = personnel_snapshot(a.ship);
-			for (std::size_t i = 0; i < pd.officers.size(); ++i)
-				if (ps.officers[i].condition != "healthy" && away_officer_location(a.ship, pd.officers[i].id).empty())
-					row["patients"].push_back({{"id", pd.officers[i].id},
-					                           {"name", pd.officers[i].name},
-					                           {"condition", ps.officers[i].condition},
-					                           {"location", ps.officers[i].location},
-					                           {"stabilised", ps.officers[i].stabilised},
-					                           {"facility", ps.officers[i].facility}});
+			const auto ps = clinical_patients(a.ship);
+			for (const auto &p : ps)
+				if (p.state.condition != "healthy" && p.state.facility != "away" &&
+				    (p.team.empty() ? away_officer_location(a.ship, p.id).empty() : true))
+					row["patients"].push_back({{"id", p.id},
+					                           {"name", p.name},
+					                           {"condition", p.state.condition},
+					                           {"location", p.state.location},
+					                           {"stabilised", p.state.stabilised},
+					                           {"facility", p.state.facility}});
 		}
 		out.push_back(std::move(row));
 	}
@@ -536,7 +596,8 @@ void advance_away_medical(std::size_t index)
 			const auto team = away_equipment(origin, asset.substr(5));
 			const auto &mechanism = team.get<CombatMechanism>();
 			const auto &td = mechanism.definition.get<TeamDefinition>();
-			if (!team.get<Equipment>().enabled || !td.capabilities.contains("medical"))
+			if (!team.get<Equipment>().enabled || !team_effectiveness(mechanism) ||
+			    !td.capabilities.contains("medical"))
 				continue;
 			auto &care = mission.care[mechanism.definition.id];
 			if (care.order.empty())
@@ -642,12 +703,16 @@ void validate_medical_state() const
 				if (const auto *m = child.try_get<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Team)
 				{
 					const auto &r = m->get<TeamState>();
-					if (!r.patient.empty() && std::none_of(pd.officers.begin(), pd.officers.end(),
+					const auto patients = clinical_patients(id);
+					if (!r.patient.empty() && std::none_of(patients.begin(), patients.end(),
 					                                       [&](const auto &o)
 					                                       {
 						                                       return o.id == r.patient;
 					                                       }))
 						throw std::runtime_error("Unknown priority patient");
+					if ((r.condition != "healthy" && r.condition != "injured" && r.condition != "lost") ||
+					    r.treatment < 0 || r.treatment > 1728000000LL || (r.condition != "injured" && r.treatment))
+						throw std::runtime_error("Invalid team clinical state");
 				}
 		}
 }

@@ -1407,7 +1407,8 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 		for (const auto &order : team.at("orders"))
 			result.emplace_back(
 			    "game.team-order/" + team.at("id").get<std::string>() + "/" + order.at("id").get<std::string>(),
-			    team.at("id").get<std::string>() + ": " + localise(order.at("label")) +
+			    team.at("id").get<std::string>() + " (" + localise(team.value("condition", "healthy")) +
+			        "): " + localise(order.at("label")) +
 			        (team.at("id") == selected_team_ && order.at("id") == selected_team_order_ ? " [*]" : ""));
 		if (team.at("order") != "")
 			result.emplace_back("game.team-cancel/" + team.at("id").get<std::string>(),

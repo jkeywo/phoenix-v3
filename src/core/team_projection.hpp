@@ -12,7 +12,7 @@ inline Json board(const Json &source)
 	for (const auto &team : source)
 	{
 		Json t;
-		for (const auto *key : {"id", "type", "order", "activity"})
+		for (const auto *key : {"id", "type", "order", "activity", "condition"})
 			t[key] = text(team.at(key), 64);
 		t["revision"] = number(team.at("revision"), 1, 9007199254740991LL);
 		t["location"] = number(team.at("location"), 0, 255);
@@ -35,13 +35,13 @@ inline Json board(const Json &source)
 			t["orders"].push_back(std::move(o));
 		}
 		t["patients"] = Json::array();
-		if (!team.at("patients").is_array() || team.at("patients").size() > 128)
+		if (!team.at("patients").is_array() || team.at("patients").size() > 384)
 			throw std::runtime_error("Invalid patients");
 		for (const auto &patient : team.at("patients"))
 		{
 			Json p;
 			for (const auto *key : {"id", "condition", "facility"})
-				p[key] = text(patient.at(key), 64);
+				p[key] = text(patient.at(key), 72);
 			p["name"] = text(patient.at("name"), 64);
 			p["location"] = number(patient.at("location"), 0, 255);
 			p["stabilised"] = patient.at("stabilised").get<bool>();

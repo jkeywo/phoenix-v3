@@ -316,6 +316,7 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 					fail("invalid team capability");
 			team.treatment_ticks = amount(v, "treatment_ticks", 400, 1, 1728000);
 			team.stabilise_ticks = amount(v, "stabilise_ticks", 200, 1, 1728000);
+			team.injured_effectiveness = amount(v, "injured_effectiveness_permille", 500, 0, 1000);
 			std::set<std::string> orders;
 			for (const auto &o : v.value("orders", Json::array()))
 			{

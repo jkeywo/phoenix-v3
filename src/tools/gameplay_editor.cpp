@@ -651,6 +651,7 @@ struct GameplayEditor
 			strings(spec, "capabilities");
 			integer(spec, "treatment_ticks", 400);
 			integer(spec, "stabilise_ticks", 200);
+			integer(spec, "injured_effectiveness_permille", 500);
 			records(
 			    spec, "orders",
 			    {{"id", "order"}, {"label", "Team order"}, {"icon", "team"}, {"target", "compartments"}, {"tree", ""}},

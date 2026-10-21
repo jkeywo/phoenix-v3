@@ -574,7 +574,8 @@ struct MagazineDefinition
 };
 struct TeamDefinition
 {
-	std::int64_t repair_rate = 0, stack_penalty = 500, treatment_ticks = 400, stabilise_ticks = 200;
+	std::int64_t repair_rate = 0, stack_penalty = 500, treatment_ticks = 400, stabilise_ticks = 200,
+	             injured_effectiveness = 500;
 	std::string type = "engineering";
 	std::set<std::string> capabilities{"repair"};
 	std::vector<TeamOrderDefinition> orders;

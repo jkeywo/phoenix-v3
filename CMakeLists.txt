@@ -373,6 +373,7 @@ foreach(
 		workshop_test
 		personnel
 		medical
+		security
 		away
 		ftl
 		sensors

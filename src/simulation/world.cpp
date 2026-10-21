@@ -56,7 +56,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(TurretState, target, heading, turn_remainder)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MagazineState, ammo, refill, reserved_return)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(TeamState, location, destination, edge_to, travel, edge_total,
                                                 repair_system, repair_auto, revision, order, activity, patient,
-                                                work_done)
+                                                work_done, condition, treatment)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ShieldState, strength, warmup, recharge_remainder, discharge_remainder,
                                    discharge_credit, discharge)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Destructible, definition, durability, destroyed_tick, processed)

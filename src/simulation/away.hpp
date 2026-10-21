@@ -119,6 +119,12 @@ bool away_asset_healthy(EntityId ship, const std::string &asset) const
 	const auto &pd = definition(ship).personnel;
 	const auto &ps = entities.at(ship).get<PersonnelState>();
 	if (asset.starts_with("team:"))
+	{
+		const auto team = away_equipment(ship, asset.substr(5));
+		if (!team || !team_effectiveness(team.get<CombatMechanism>()))
+			return false;
+	}
+	if (asset.starts_with("team:"))
 		for (const auto &o : ps.officers)
 			if (o.escort == asset.substr(5))
 				return false;

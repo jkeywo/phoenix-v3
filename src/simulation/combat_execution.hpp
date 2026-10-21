@@ -490,7 +490,8 @@ bool advance_repair_team(flecs::entity ship, flecs::entity child)
 {
 	auto &s = ship.get_mut<CombatStructure>();
 	auto &m = child.get_mut<CombatMechanism>();
-	if (combat_dead(ship) || !child.get<Equipment>().enabled || !fault_effectiveness(ship, m.definition.id))
+	if (combat_dead(ship) || !child.get<Equipment>().enabled || !fault_effectiveness(ship, m.definition.id) ||
+	    !team_effectiveness(m))
 		return false;
 	auto &r = m.get<TeamState>();
 	if (r.travel > 0)
@@ -524,7 +525,8 @@ std::int64_t structural_repair_work(flecs::entity ship, std::vector<flecs::entit
 	              [&](auto team)
 	              {
 		              return !team.template get<Equipment>().enabled ||
-		                     !fault_effectiveness(ship, team.template get<Equipment>().id);
+		                     !fault_effectiveness(ship, team.template get<Equipment>().id) ||
+		                     !team_effectiveness(team.template get<CombatMechanism>());
 	              });
 	std::sort(teams.begin(), teams.end(),
 	          [](auto a, auto b)
@@ -545,7 +547,7 @@ std::int64_t structural_repair_work(flecs::entity ship, std::vector<flecs::entit
 		work += personnel_scale(d.get<TeamDefinition>().repair_rate * 1000000,
 		                        officer_bonus(ship.get<StableId>().id, d.id, "repair") + specialist_bonus) /
 		        (1000 + d.get<TeamDefinition>().stack_penalty * static_cast<std::int64_t>(rank)) *
-		        fault_effectiveness(ship, d.id) / 1000;
+		        fault_effectiveness(ship, d.id) / 1000 * team_effectiveness(teams[rank].get<CombatMechanism>()) / 1000;
 	}
 	return work;
 }
@@ -899,7 +901,8 @@ void restore_combat(flecs::entity ship, const Json &j)
 				    if constexpr (std::is_same_v<State, TeamState>)
 				    {
 					    actual.erase("order_continuation");
-					    for (const auto *key : {"revision", "order", "activity", "patient", "work_done"})
+					    for (const auto *key :
+					         {"revision", "order", "activity", "patient", "work_done", "condition", "treatment"})
 						    if (!actual.contains(key))
 							    actual[key] = expected.at(key);
 				    }
