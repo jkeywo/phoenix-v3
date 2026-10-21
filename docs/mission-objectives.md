@@ -22,14 +22,14 @@ A map's `scenario` accepts `fact_bindings`, `event_bindings` and `reports`. Work
 
 Facts use existing `entity`, `slot` or singular spawned `handle` selectors. An unresolved selector produces Missing, including beneath `not`. Comparisons reuse state-tree typed values: `eq` (default), `ne`, `lt`, `le`, `gt`, `ge`, `present`; ordering requires integers. `all`, `any` and `not` compose expressions. A decisive false in `all` or true in `any` resolves the expression; otherwise Missing propagates. Expressions compile once, with type, depth and node bounds.
 
-| Kind | Fields and references | Value |
-| --- | --- | --- |
-| `entity` | `field: lifecycle` | `active`, `destroyed`, `departed` |
-| `compartment` | `field`: validated compartment ID | Fully restored and operational, Boolean |
-| `away` | `operation`: mission ID; `field`: `phase`, `outcome`, `ever_deployed`, `recovered`, `lost` | Text or Boolean |
-| `personnel` | `field`: `deployed`, `recovered`, `lost` | Integer count of distinct assets |
-| `objective` | `operation`: objective definition; `field: status` | Objective status text in this situation |
-| `event` | `event`: declared event, optional `subject` and typed `match` payload fields | Whether a matching event has occurred |
+| Kind          | Fields and references                                                                      | Value                                   |
+| ------------- | ------------------------------------------------------------------------------------------ | --------------------------------------- |
+| `entity`      | `field: lifecycle`                                                                         | `active`, `destroyed`, `departed`       |
+| `compartment` | `field`: validated compartment ID                                                          | Fully restored and operational, Boolean |
+| `away`        | `operation`: mission ID; `field`: `phase`, `outcome`, `ever_deployed`, `recovered`, `lost` | Text or Boolean                         |
+| `personnel`   | `field`: `deployed`, `recovered`, `lost`                                                   | Integer count of distinct assets        |
+| `objective`   | `operation`: objective definition; `field: status`                                         | Objective status text in this situation |
+| `event`       | `event`: declared event, optional `subject` and typed `match` payload fields               | Whether a matching event has occurred   |
 
 Completion and failure use the same authoritative boundary snapshot. Failure wins a tie; terminal status is latched. Reports can use latched objective-status facts while displaying current restoration facts separately. Region sequences remain region-only, and competition/race outcomes remain separate from mission grading.
 
