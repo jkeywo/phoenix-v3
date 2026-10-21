@@ -323,15 +323,13 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 			if (!s.turret.empty())
 				check(s.turret, OperatingSystem::Turret);
 		}
-	const auto destruction = c.at("destruction");
+	auto destruction = c.at("destruction");
+	// Preserve ship defaults while compiling a single shared destruction definition.
+	const Json defaults{{"growth_ticks", 10}, {"fade_ticks", 20}, {"size_mm", 100000}};
+	for (const auto &[key, fallback] : defaults.items())
+		if (!destruction.contains(key))
+			destruction[key] = fallback;
 	d.destruction = compile_destruction(destruction, catalog, path + ".destruction");
-	d.explosion = destruction.at("visual");
-	d.explosion_sound = destruction.at("sound");
-	if (!catalog.entities.contains(d.explosion) || !catalog.assets.contains(d.explosion_sound))
-		fail("unresolved destruction asset");
-	d.growth_ticks = amount(destruction, "growth_ticks", 10, 1, 10000);
-	d.fade_ticks = amount(destruction, "fade_ticks", 20, 1, 10000);
-	d.explosion_size = amount(destruction, "size_mm", 100000, 1, 1000000);
 	d.collision_scale = amount(c, "collision_scale", 1, 1, 100000);
 	d.collision_threshold = amount(c, "collision_threshold_mm_s", 1000, 1, 1000000);
 	return d;

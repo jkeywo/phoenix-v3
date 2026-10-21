@@ -176,8 +176,6 @@ void resolve_destructions()
 		for (const auto &[id, e] : entities)
 			if (auto *d = e.try_get_mut<Destructible>(); d && !d->processed)
 			{
-				if (const auto *s = e.try_get<CombatStructure>(); s && s->destroyed_tick >= 0)
-					d->destroyed_tick = s->destroyed_tick;
 				if (d->destroyed_tick < 0)
 					continue;
 				d->processed = true;
@@ -186,11 +184,7 @@ void resolve_destructions()
 				    (id * 7919ULL + static_cast<std::uint64_t>(d->destroyed_tick) * 6364136223846793005ULL) >> 16;
 				if (roll % 1000 < static_cast<std::uint64_t>(d->definition.chance))
 				{
-					auto effect = d->definition;
-					// Ships retain their existing grow/remove/fade visual sequence.
-					if (e.has<CombatStructure>())
-						effect.visual.clear();
-					emit_blast(e.get<Pose>().position, 0, effect, id);
+					emit_blast(e.get<Pose>().position, 0, d->definition, id);
 				}
 			}
 		for (auto e : projectile_rows())

@@ -450,9 +450,8 @@ struct CombatDefinition
 	std::map<std::string, std::size_t> compartment_ids, system_ids;
 	std::map<std::string, std::string> equipment_compartments;
 	std::map<std::string, std::vector<FaultDefinition>> faults;
-	std::string repair_console, explosion, explosion_sound;
-	std::int64_t growth_ticks = 10, fade_ticks = 20, explosion_size = 100000, collision_scale = 1,
-	             collision_threshold = 1000, half_height = 5000;
+	std::string repair_console;
+	std::int64_t collision_scale = 1, collision_threshold = 1000, half_height = 5000;
 	DestructionDefinition destruction;
 };
 std::optional<CombatDefinition> compile_combat(const Catalog &, const std::string &entity);

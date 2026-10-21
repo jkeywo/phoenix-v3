@@ -51,8 +51,14 @@ Fault definitions supply stable identity, symptom, diagnosis, trigger chance/thr
 
 Sprite frames optionally supply a nonzero two-dimensional `forward` axis. Missiles select their eight-direction frame with hysteresis, then align that axis to projected physical velocity. Smoke is bounded renderer state and resets across discontinuities; reduced motion suppresses smoke and shield pulses. Beam and tracer lines retain the physical firing information.
 
-Save schema **9** records ammunition return reservations, missile/random state, shields, continuous damage remainders, faults, diagnosis, repairs and destruction commitments. Earlier saves are refused explicitly.
+Save schema **10** records ammunition return reservations, missile/random state, shields, continuous damage remainders, faults, diagnosis, repairs and destruction commitments. Earlier saves are refused explicitly.
 
 ## Original-plan review
 
 The independent review identified fractional shield conversion loss, immediate unloading, targeted repairs ignoring structural disablement, audio-only destruction omission, partial faults ignored by basic motion, and degenerate missile projection losing its orientation. These are corrected with persisted progress and focused synthetic regression cases. Re-review found no remaining confirmed defects. A subsequent WASM compiler warning exposed an incorrectly associated `else` in generated weapon/repair choices; braces and a Console-model regression correct that issue too, and the reviewer checked the correction.
+
+## Combat audit cleanup
+
+The follow-up refactoring series uses save schema 10; previous continuation formats are explicitly refused.
+
+1. Ship death is owned by `Destructible`. One shared destruction definition and once-only event drive damage, visual and audio output. Ship defaults and hull removal after the growth phase are preserved; the shared authored probability applies to the entire event. Restoration rejects compartment/death disagreement. The synthetic destruction case asserts exactly one sound-bearing event and resumed continuation equality.

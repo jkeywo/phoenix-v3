@@ -729,7 +729,7 @@ struct World::Impl
 			                {
 				                return c.hp == 0;
 			                }))
-				structure.destroyed_tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
+				entity.get_mut<Destructible>().destroyed_tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
 			entity.set<CombatStructure>(std::move(structure));
 		}
 		if (data.collider.mass)
@@ -2364,28 +2364,10 @@ std::vector<SceneBody> World::scene() const
 			continue;
 		if (const auto *structure = entity.try_get<CombatStructure>())
 		{
-			if (structure->destroyed_tick >= 0)
+			if (impl_->combat_dead(entity))
 			{
-				const auto age = static_cast<std::int64_t>(ticks()) - structure->destroyed_tick;
-				const auto &d = structure->definition;
-				if (age < d.growth_ticks + d.fade_ticks)
-				{
-					SceneBody burst = item;
-					burst.id = 8000000000000000ULL + body.id;
-					burst.definition = d.explosion;
-					burst.forward_thrust = 0;
-					burst.sprite_entry = 0;
-					burst.visual_scale = static_cast<float>(d.explosion_size) / 1000.f /
-					                     std::max(0.001f, impl_->visual_scales.at(d.explosion)) *
-					                     std::min(1.f, std::max(.01f, static_cast<float>(age) / d.growth_ticks));
-					burst.alpha = age < d.growth_ticks
-					                  ? 1.f
-					                  : std::max(0.f, 1.f - static_cast<float>(age - d.growth_ticks) / d.fade_ticks);
-					burst.sound = d.explosion_sound;
-					burst.effect_tick = static_cast<std::uint64_t>(structure->destroyed_tick);
-					result.push_back(burst);
-				}
-				if (age >= d.growth_ticks)
+				const auto &death = entity.get<Destructible>();
+				if (static_cast<std::int64_t>(ticks()) - death.destroyed_tick >= death.definition.growth_ticks)
 					continue;
 				item.forward_thrust = 0;
 			}
@@ -3004,7 +2986,7 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 9},           {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 10},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
 	if (impl_->display_revision)
 	{
@@ -3107,9 +3089,9 @@ void World::restore(const Catalog &content, const Json &saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 9 || saved.at("packs") != Json(content.ordered_packs))
+	if (saved.at("schema") != 10 || saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error(
-		    "Saved state schema/content identity mismatch; Controller runtime requires schema 9; start a new session");
+		    "Saved state schema/content identity mismatch; Controller runtime requires schema 10; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))
 		throw std::runtime_error("Legacy authority fields are not Controller continuation");
 	World candidate;
@@ -3153,8 +3135,6 @@ void World::restore(const Catalog &content, const Json &saved)
 		if (!seen.insert(restored.id).second || !candidate.impl_->entities.contains(restored.id))
 			throw std::runtime_error("Saved state duplicate/unknown entity");
 		auto entity = candidate.impl_->entities.at(restored.id);
-		if (entity.has<CombatStructure>())
-			candidate.impl_->restore_combat(entity, value.at("combat"));
 		if (entity.has<Destructible>())
 		{
 			const auto d = value.at("destructible").get<Destructible>();
@@ -3165,12 +3145,14 @@ void World::restore(const Catalog &content, const Json &saved)
 				throw std::runtime_error("Invalid destruction continuation");
 			entity.set<Destructible>(d);
 		}
+		if (entity.has<CombatStructure>())
+			candidate.impl_->restore_combat(entity, value.at("combat"));
 		if (value.contains("bridge"))
 			candidate.impl_->restore_bridge(restored.id, value.at("bridge"));
 		if (entity.has<EntityControls>())
 		{
-			if (saved.at("schema") != 9)
-				throw std::runtime_error("Controller state requires schema 9; start a new session");
+			if (saved.at("schema") != 10)
+				throw std::runtime_error("Controller state requires schema 10; start a new session");
 			candidate.impl_->restore_controllers(entity, value.at("console_controllers"));
 		}
 		else if (value.contains("console_controllers"))

@@ -43,9 +43,8 @@ bool duel_ended() const
 }
 bool combat_dead(flecs::entity ship) const
 {
-	const auto *s = ship.try_get<CombatStructure>();
 	const auto *d = ship.try_get<Destructible>();
-	return (s && s->destroyed_tick >= 0) || (d && d->destroyed_tick >= 0);
+	return d && d->destroyed_tick >= 0;
 }
 bool structurally_disabled(flecs::entity ship, const std::string &equipment) const
 {
@@ -53,8 +52,8 @@ bool structurally_disabled(flecs::entity ship, const std::string &equipment) con
 	if (!s)
 		return false;
 	if (auto fit = instance(ship, equipment); fit && fit->kind == OperatingSystem::RepairTeam)
-		return s->destroyed_tick >= 0;
-	if (s->destroyed_tick >= 0)
+		return combat_dead(ship);
+	if (combat_dead(ship))
 		return true;
 	if (!fault_effectiveness(ship, equipment))
 		return true;
@@ -65,7 +64,7 @@ bool structurally_disabled(flecs::entity ship, const std::string &equipment) con
 void combat_damage(flecs::entity ship, std::size_t compartment, std::int64_t amount)
 {
 	auto &s = ship.get_mut<CombatStructure>();
-	if (s.destroyed_tick >= 0 || amount <= 0)
+	if (combat_dead(ship) || amount <= 0)
 		return;
 	damage_faults(ship, compartment, amount);
 	auto &c = s.compartments.at(compartment);
@@ -78,7 +77,7 @@ void combat_damage(flecs::entity ship, std::size_t compartment, std::int64_t amo
 		                return v.hp == 0;
 	                }))
 	{
-		s.destroyed_tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
+		ship.get_mut<Destructible>().destroyed_tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
 		ship.get_mut<Motion>().velocity = {};
 	}
 }
@@ -643,7 +642,7 @@ void project_combat(const ConsoleAddress &address, Observation &result) const
 	const auto *s = ship.try_get<CombatStructure>();
 	if (!s)
 		return;
-	Json output = {{"destroyed", s->destroyed_tick >= 0},
+	Json output = {{"destroyed", combat_dead(ship)},
 	               {"compartments", Json::array()},
 	               {"teams", Json::array()},
 	               {"arcs", Json::array()}};
@@ -760,11 +759,7 @@ void project_combat(const ConsoleAddress &address, Observation &result) const
 Json save_combat(flecs::entity ship) const
 {
 	const auto &s = ship.get<CombatStructure>();
-	Json j = {{"destroyed_tick", s.destroyed_tick},
-	          {"random", s.random},
-	          {"faults", s.faults},
-	          {"compartments", Json::array()},
-	          {"systems", Json::object()}};
+	Json j = {{"random", s.random}, {"faults", s.faults}, {"compartments", Json::array()}, {"systems", Json::object()}};
 	for (const auto &c : s.compartments)
 		j["compartments"].push_back({{"hp", c.hp}, {"work", c.work}, {"disabled", c.disabled}});
 	for (auto child : ship.get<EquipmentIndex>().values)
@@ -806,8 +801,6 @@ Json save_combat(flecs::entity ship) const
 void restore_combat(flecs::entity ship, const Json &j)
 {
 	auto &s = ship.get_mut<CombatStructure>();
-	s.destroyed_tick = checked_integer(j.at("destroyed_tick"), -1, static_cast<std::int64_t>(1000000000000LL),
-	                                   "combat.destroyed_tick");
 	s.random = j.at("random");
 	s.faults = j.value("faults", Json(s.faults)).get<std::map<std::string, std::vector<FaultState>>>();
 	for (const auto &[id, defs] : s.definition.faults)
@@ -825,6 +818,13 @@ void restore_combat(flecs::entity ship, const Json &j)
 		if ((c.hp == 0 && !c.disabled) || (c.hp >= s.definition.compartments[i].recovery && c.disabled))
 			throw std::runtime_error("Invalid structural disablement");
 	}
+	const auto destroyed = std::all_of(s.compartments.begin(), s.compartments.end(),
+	                                   [](const auto &c)
+	                                   {
+		                                   return c.hp == 0;
+	                                   });
+	if (destroyed != combat_dead(ship))
+		throw std::runtime_error("Inconsistent ship destruction continuation");
 	if (j.at("systems").size() != s.definition.systems.size())
 		throw std::runtime_error("Combat equipment roster mismatch");
 	for (auto child : ship.get<EquipmentIndex>().values)
@@ -905,7 +905,7 @@ void restore_combat(flecs::entity ship, const Json &j)
 		if (const auto *m = child.try_get<CombatMechanism>();
 		    m && m->definition.kind == OperatingSystem::Magazine && m->reserved_return != reserved[m->definition.id])
 			throw std::runtime_error("Unbalanced magazine return reservation");
-	if (s.destroyed_tick >= 0)
+	if (combat_dead(ship))
 		ship.remove<Movable>();
 }
 Json save_projectiles() const

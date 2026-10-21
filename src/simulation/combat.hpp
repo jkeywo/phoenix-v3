@@ -30,7 +30,6 @@ struct CombatStructure
 {
 	CombatDefinition definition;
 	std::vector<CompartmentState> compartments;
-	std::int64_t destroyed_tick = -1;
 	std::uint64_t random = 1;
 	std::map<std::string, std::vector<FaultState>> faults;
 	bool destruction_processed = false;

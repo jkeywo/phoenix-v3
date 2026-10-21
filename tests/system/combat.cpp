@@ -973,16 +973,17 @@ int main(int argc, char **argv)
 			claim(w);
 			submit(w, 101, "gun", "target", 2);
 			advance(w, 12);
-			require(state(w, 2).at("destroyed_tick").get<std::int64_t>() >= 0, "all compartments zero destroys ship");
+			require(w.save().at("bodies").at(1).at("destructible").at("destroyed_tick").get<std::int64_t>() >= 0,
+			        "all compartments zero destroys ship");
 			require(w.public_board(1).at("combat_result") == "Victory",
 			        "duel outcome survives physical ship loss on the public Viewscreen board");
 			const auto scene = w.scene();
-			require(std::any_of(scene.begin(), scene.end(),
-			                    [](const auto &b)
-			                    {
-				                    return !b.sound.empty();
-			                    }),
-			        "destruction emits authored billboard and sound event");
+			require(std::count_if(scene.begin(), scene.end(),
+			                      [](const auto &b)
+			                      {
+				                      return !b.sound.empty();
+			                      }) == 1,
+			        "ship destruction emits a single shared billboard and sound event");
 			const auto snapshot = w.save();
 			World restored;
 			restored.restore(c, snapshot);
