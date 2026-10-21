@@ -234,7 +234,7 @@ bool select_controller_action(EntityId id, std::size_t index, const std::string 
 {
 	auto &controller = entities.at(id).get_mut<EntityControls>().controllers.at(index);
 	if (controller.human || generation != controller.generation || !controller.brain || invocation.empty() ||
-	    invocation.size() > 128)
+	    invocation.size() > 1024)
 		return false;
 	const auto found = std::find_if(controller.brain->actions.begin(), controller.brain->actions.end(),
 	                                [&](const auto &spec)
@@ -309,7 +309,7 @@ void restore_controller_action(ConsoleControllerRuntime &controller, const Json 
 	a.status = saved.at("status");
 	a.reason = saved.at("reason");
 	a.serial = saved.at("serial");
-	if (a.reason.size() > 4096 || a.invocation.size() > 128 ||
+	if (a.reason.size() > 4096 || a.invocation.size() > 1024 ||
 	    (a.status != "idle" && a.status != "running" && a.status != "succeeded" && a.status != "failed" &&
 	     a.status != "cancelled"))
 		throw std::runtime_error("Invalid action status");

@@ -238,8 +238,11 @@ void controller_output(EntityId id, std::size_t index, const state_tree::Output 
 	if (action.name.starts_with("select.") || action.name.starts_with("replace."))
 	{
 		const bool replace = action.name.starts_with("replace.");
-		const auto invocation = output.arguments.at(0).text + "/" + std::to_string(output.activation) +
-		                        (replace ? "/replace/" + std::to_string(output.task) : std::string{});
+		auto invocation = output.arguments.at(0).text + "/" + std::to_string(output.activation) +
+		                  (replace ? "/replace/" + std::to_string(output.task) : std::string{});
+		for (std::size_t i = 0; i < output.call_path.size(); ++i)
+			invocation +=
+			    "/" + std::to_string(output.call_path[i]) + ":" + std::to_string(output.call_activations.at(i));
 		controller.result.available = true;
 		controller.result.success =
 		    select_controller_action(id, index, action.name.substr(replace ? 8 : 7), invocation,

@@ -440,6 +440,37 @@ int main(int argc, char **argv)
 			require(equivalent.save().at("bodies")[0].at("console_controllers").at("controllers")[0].at("commands") ==
 			            world.save().at("bodies")[0].at("console_controllers").at("controllers")[0].at("commands"),
 			        "independent policy sources produce equivalent admitted action work");
+			for (const auto *selection : {"select.cruise", "replace.cruise"})
+			{
+				auto nested = source;
+				nested["trees"][1]["initial"] = "first";
+				nested["trees"][1]["states"] = Json::parse(R"json([
+{"id":"first","running":[{"call":"test.selector"}],"transitions":[{"target":"second","conditions":[{"left":{"elapsed":true},"op":"ge","right":9}]}]},
+{"id":"second","running":[{"call":"test.selector"}]}
+])json");
+				auto selector = source["trees"][1];
+				selector["id"] = "test.selector";
+				selector["states"][0]["running"][0]["action"] = selection;
+				nested["trees"].push_back(selector);
+				const auto catalog = load(nested);
+				World repeated;
+				repeated.load(catalog, "test.map");
+				for (int i = 0; i < 8; ++i)
+					repeated.tick();
+				World resumed;
+				resumed.restore(catalog, repeated.save());
+				for (int i = 0; i < 10; ++i)
+				{
+					repeated.tick();
+					resumed.tick();
+				}
+				const auto completed =
+				    repeated.save().at("bodies")[0].at("console_controllers").at("controllers")[0].at("action");
+				require(completed.at("serial") == 2 && completed.at("status") == "succeeded",
+				        "fresh caller activation cannot collide with a completed subtree invocation");
+				require(repeated.save() == resumed.save(), "nested action invocation lineage resumes exactly");
+				record(repeated.save());
+			}
 			auto lifecycle = source;
 			lifecycle["trees"][0]["states"][0].erase("transitions");
 			lifecycle["trees"][0]["states"][0]["exit"] = Json::array({{{"action", "write.speed"}, {"arguments", {0}}}});
