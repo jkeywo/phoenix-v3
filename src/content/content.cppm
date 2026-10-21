@@ -423,15 +423,41 @@ struct SensorFinding
 };
 std::map<std::string, SensorDefinition> compile_sensors(const Catalog &, const std::string &);
 std::vector<SensorFinding> compile_sensor_findings(const Catalog &, const Json &);
+struct BoardingEncounter
+{
+	std::string id, compartment, report;
+	std::vector<std::string> defenders;
+	std::map<std::string, std::int64_t> defences;
+	std::int64_t success = 700, team_bonus = 100, defender_penalty = 150, injury = 250, loss = 50,
+	             medical_reduction = 150, assessment_ticks = 20, officer_injury = 0, officer_loss = 0;
+};
+struct BoardingObjective
+{
+	std::string compartment, kind, system, fault;
+	bool prize_crew = true;
+};
+struct BoardingDefinition
+{
+	std::string id, title, dialogue, entry;
+	bool retain_craft = true;
+	state_tree::Program program;
+	std::vector<AwaySlot> slots;
+	std::map<std::string, std::size_t> compartments;
+	std::map<std::string, BoardingEncounter> encounters;
+	std::map<std::string, BoardingObjective> objectives;
+};
+std::vector<BoardingDefinition> compile_boarding(const Catalog &, const std::string &entity);
 struct AwayDefinition
 {
 	std::string id, title, slot, conversation, reveal_event, tree;
-	EntityId target = 0;
+	EntityId target = 0, origin = 0;
+	bool retain_craft = true;
+	std::optional<BoardingDefinition> boarding;
 	std::vector<AwaySlot> slots;
 	state_tree::Program program;
 	std::map<std::string, std::size_t> repair_compartments;
 };
-state_tree::Registry away_registry();
+state_tree::Registry away_registry(bool boarding = false);
 std::vector<AwayDefinition> compile_away(const Catalog &, const Json &);
 struct OfficerTrait
 {

@@ -27,9 +27,36 @@ GameExecution::GameExecution(std::shared_ptr<HostAccess> world, std::map<std::st
 		auto ship = world_->authoritative_world().ship_for_slot(slot);
 		if (!ship)
 			throw std::runtime_error("Server slot is missing from the world");
-		for (const auto &seat : world_->authoritative_world().consoles(*ship))
-			leases_.push_back({{*ship, seat.id}, server});
 	}
+	refresh_leases();
+}
+void GameExecution::refresh_leases()
+{
+	auto &world = world_->authoritative_world();
+	std::map<ConsoleAddress, std::string> desired;
+	for (const auto &[server, slot] : slots_)
+		if (!slot.empty())
+			if (const auto root = world.ship_for_slot(slot))
+				for (auto ship : world.operational_fleet(*root))
+					for (const auto &seat : world.consoles(ship))
+						desired[{ship, seat.id}] = server;
+	std::vector<ConsoleLease> next;
+	for (const auto &[address, server] : desired)
+	{
+		const auto found = std::find_if(leases_.begin(), leases_.end(),
+		                                [&](const auto &l)
+		                                {
+			                                return l.address == address && l.server == server;
+		                                });
+		if (found != leases_.end())
+			next.push_back(*found);
+		else
+			next.push_back({address, server});
+	}
+	for (const auto &old : leases_)
+		if (old.active && (!desired.contains(old.address) || desired.at(old.address) != old.server))
+			world.release(old.claimant);
+	leases_ = std::move(next);
 }
 const ConsoleLease *GameExecution::lease(const ConsoleAddress &address) const
 {
@@ -86,6 +113,7 @@ bool GameExecution::apply(const std::string &server, const Json &frame)
 		if (frame.at("tick") != world.ticks() + 1)
 			return false;
 		world.tick();
+		refresh_leases();
 		checkpoint_ready_ = true;
 		return true;
 	}
@@ -178,18 +206,25 @@ Json GameExecution::snapshot() const
 }
 void GameExecution::restore(const Json &state)
 {
+	refresh_leases();
 	if (state.at("schema") != 1 || state.at("seats").size() != leases_.size())
 		throw std::runtime_error("Invalid Console lease snapshot");
 	auto candidate = leases_;
 	const auto next = state.at("next_claimant").get<std::uint64_t>();
 	if (!next || next >= 9007199254740991ULL)
 		throw std::runtime_error("Invalid next Console claimant");
+	std::map<ConsoleAddress, const Json *> saved_seats;
+	for (const auto &saved : state.at("seats"))
+		if (!saved_seats.emplace(ConsoleAddress{saved.at("ship"), saved.at("seat")}, &saved).second)
+			throw std::runtime_error("Duplicate saved Console lease");
 	std::set<std::uint64_t> claimants;
 	std::set<std::pair<std::string, std::pair<std::string, std::uint64_t>>> owners;
 	for (std::size_t i = 0; i < candidate.size(); ++i)
 	{
 		auto &seat = candidate[i];
-		const auto &saved = state.at("seats")[i];
+		if (!saved_seats.contains(seat.address))
+			throw std::runtime_error("Console lease roster mismatch");
+		const auto &saved = *saved_seats.at(seat.address);
 		if (saved.at("ship") != seat.address.ship || saved.at("seat") != seat.address.console ||
 		    saved.at("server") != seat.server)
 			throw std::runtime_error("Console lease roster mismatch");

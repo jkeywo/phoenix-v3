@@ -4,7 +4,7 @@ namespace phoenix::away_projection
 {
 inline Json board(const Json &rows)
 {
-	if (!rows.is_array() || rows.size() > 32 || rows.dump().size() > 256 * 1024)
+	if (!rows.is_array() || rows.size() > 256 || rows.dump().size() > 256 * 1024)
 		throw std::runtime_error("Invalid away projection");
 	Json out = Json::array();
 	using projection::text;
@@ -47,6 +47,18 @@ inline Json board(const Json &rows)
 			throw std::runtime_error("Invalid asset labels");
 		for (const auto &[key, label] : r.at("labels").items())
 			v["labels"][text(Json(key), 160)] = text(label, 256);
+		if (r.contains("boarding_check"))
+		{
+			const auto &c = r.at("boarding_check");
+			v["boarding_check"] = {{"chance_permille", projection::number(c.at("chance_permille"), 0, 1000)},
+			                       {"defenders", projection::number(c.at("defenders"), 0, 128)},
+			                       {"encounter", text(c.at("encounter"), 64)},
+			                       {"factors", Json::object()}};
+			if (!c.at("factors").is_object() || c.at("factors").size() > 35)
+				throw std::runtime_error("Invalid boarding factors");
+			for (const auto &[key, value] : c.at("factors").items())
+				v["boarding_check"]["factors"][text(Json(key), 64)] = projection::number(value, -1000000, 1000000);
+		}
 		out.push_back(v);
 	}
 	return out;

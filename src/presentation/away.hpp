@@ -42,6 +42,20 @@ std::string away_markup()
 		html += line(localise(phase) + (m.at("blocker") == "" ? "" : " / " + localise(m.at("blocker"))));
 		for (const auto &o : m.at("accompanying"))
 			html += line(localise("Accompanying officer") + ": " + label("officer:" + o.get<std::string>()));
+		if (m.contains("boarding_check"))
+		{
+			const auto &c = m.at("boarding_check");
+			const auto percent = [](int value)
+			{
+				const auto magnitude = std::abs(value);
+				return std::string(value < 0 ? "-" : "") + std::to_string(magnitude / 10) +
+				       (magnitude % 10 ? "." + std::to_string(magnitude % 10) : "") + "%";
+			};
+			html += line(localise("Encounter chance") + ": " + percent(c.at("chance_permille").get<int>()) + " / " +
+			             localise("Defending teams") + ": " + std::to_string(c.at("defenders").get<int>()));
+			for (const auto &[key, value] : c.at("factors").items())
+				html += line(localise(key) + ": " + percent(value.get<int>()));
+		}
 		html += line(localise("Transport") + ": " + m.at("transport").get<std::string>());
 		auto button = [&](const std::string &action, const std::string &value, const std::string &label)
 		{
@@ -58,7 +72,7 @@ std::string away_markup()
 			if (phase == "outbound" || phase == "inbound")
 				html += button("cancel", "", "Cancel transfer");
 		}
-		if (phase == "open" || phase == "recovered")
+		if (phase == "open" || phase == "recovered" || phase == "deployed")
 			for (const auto &t : m.at("transports"))
 				html += button("transport", t, localise("Assign transport") + ": " + t.get<std::string>());
 		for (const auto &s : m.at("slots"))

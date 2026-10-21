@@ -40,6 +40,8 @@ void refresh_comms()
 	conversations.endpoints.clear();
 	for (const auto &[id, entity] : entities)
 	{
+		if (entity.has(flecs::Disabled))
+			continue;
 		auto owner = comms_owner(id);
 		if (!owner)
 			continue;
@@ -189,7 +191,7 @@ void conversation_scenarios()
 		                                                  {
 			                                                  return e.name == s.start_event;
 		                                                  });
-		if (!s.conversation && start)
+		if (!s.conversation && (start || boarding_conversation_requested(s.id)))
 		{
 			std::map<std::string, std::string> bindings;
 			bool available = true;
@@ -241,6 +243,21 @@ void restore_conversation_starts(const Json &j)
 	conversation_event_sequence = j.at("sequence");
 	if (j.at("starts").size() != conversation_starts.size())
 		throw std::runtime_error("Saved conversation starts mismatch");
+	std::vector<ConversationStart> ordered;
+	std::set<std::string> identities;
+	for (const auto &row : j.at("starts"))
+	{
+		const auto id = row.at("id").get<std::string>();
+		const auto found = std::find_if(conversation_starts.begin(), conversation_starts.end(),
+		                                [&](const auto &s)
+		                                {
+			                                return s.id == id;
+		                                });
+		if (!identities.insert(id).second || found == conversation_starts.end())
+			throw std::runtime_error("Saved conversation configuration mismatch");
+		ordered.push_back(*found);
+	}
+	conversation_starts = std::move(ordered);
 	for (std::size_t i = 0; i < conversation_starts.size(); ++i)
 	{
 		auto &s = conversation_starts[i];

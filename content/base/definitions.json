@@ -16990,6 +16990,41 @@
 							"patient_states": ["stabilised"]
 						}
 					]
+				},
+				"security-team": {
+					"kind": "team",
+					"type": "security",
+					"capabilities": ["security"],
+					"compartment": "bow-starboard",
+					"injured_effectiveness_permille": 500
+				},
+				"shuttle-bay": {
+					"kind": "transport",
+					"mode": "shuttle",
+					"craft": "base.boarding-shuttle",
+					"count": 1,
+					"range_mm": 200000,
+					"capacity": 8,
+					"transfer_ticks": 20,
+					"energy_per_second": 0,
+					"compartment": "bow-starboard",
+					"arrival_distance_mm": 18000,
+					"arrival_speed_mm_s": 1500,
+					"cruise_speed_mm_s": 16000
+				},
+				"boarding-torpedo": {
+					"kind": "transport",
+					"mode": "boarding_torpedo",
+					"craft": "base.boarding-shuttle",
+					"count": 2,
+					"range_mm": 200000,
+					"capacity": 8,
+					"transfer_ticks": 20,
+					"energy_per_second": 0,
+					"compartment": "bow-starboard",
+					"arrival_distance_mm": 18000,
+					"arrival_speed_mm_s": 1500,
+					"cruise_speed_mm_s": 16000
 				}
 			},
 			"stations": [
@@ -17052,7 +17087,10 @@
 								"pdc-mag",
 								"pdc",
 								"focused-scanner",
-								"sensor-turret"
+								"sensor-turret",
+								"security-team",
+								"shuttle-bay",
+								"boarding-torpedo"
 							]
 						}
 					]
@@ -17637,6 +17675,45 @@
 								"consumers": ["medical-team"]
 							}
 						]
+					},
+					{
+						"id": "security-team",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["security-team"]
+							}
+						]
+					},
+					{
+						"id": "shuttle-bay",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["shuttle-bay"]
+							}
+						]
+					},
+					{
+						"id": "boarding-torpedo",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["boarding-torpedo"]
+							}
+						]
 					}
 				],
 				"default_profile": "direct",
@@ -17663,7 +17740,10 @@
 									"missile-launcher",
 									"pdc-mag",
 									"pdc",
-									"scanner"
+									"scanner",
+									"security-team",
+									"shuttle-bay",
+									"boarding-torpedo"
 								]
 							},
 							"support": {
@@ -17711,7 +17791,10 @@
 									"missile-launcher",
 									"pdc-mag",
 									"pdc",
-									"scanner"
+									"scanner",
+									"security-team",
+									"shuttle-bay",
+									"boarding-torpedo"
 								]
 							},
 							"support": {
@@ -18062,6 +18145,13 @@
 						"bonuses": {
 							"medical": 250
 						}
+					},
+					{
+						"id": "security",
+						"label": "Boarding veteran",
+						"bonuses": {
+							"security": 200
+						}
 					}
 				],
 				"duties": [
@@ -18399,6 +18489,41 @@
 						"effects": {
 							"medical-team": ["medical"]
 						}
+					},
+					{
+						"id": "security-controller",
+						"label": "Security coordination",
+						"department": "tactical",
+						"controller": "security-team",
+						"console": "tactical",
+						"compartment": "bow-starboard",
+						"effects": {}
+					},
+					{
+						"id": "team.security",
+						"label": "Security team",
+						"department": "tactical",
+						"team": "security-team",
+						"compartment": "bow-starboard",
+						"effects": {}
+					},
+					{
+						"id": "shuttle-bay",
+						"label": "Shuttle bay",
+						"department": "tactical",
+						"controller": "shuttle-bay",
+						"console": "tactical",
+						"compartment": "bow-starboard",
+						"effects": {}
+					},
+					{
+						"id": "boarding-torpedo",
+						"label": "Boarding torpedoes",
+						"department": "tactical",
+						"controller": "boarding-torpedo",
+						"console": "tactical",
+						"compartment": "bow-starboard",
+						"effects": {}
 					}
 				],
 				"officers": [
@@ -18427,7 +18552,7 @@
 						"department": "tactical",
 						"duty": "top",
 						"compartment": "mid-port",
-						"traits": ["traverse"]
+						"traits": ["traverse", "security"]
 					},
 					{
 						"id": "officer-4",
@@ -20620,6 +20745,218 @@
 				]
 			},
 			"class_key": "Courier"
+		},
+		{
+			"id": "base.boarding-shuttle",
+			"name": "Boarding shuttle",
+			"tags": ["ship", "craft"],
+			"motion_model": "inertial",
+			"render": {
+				"scale": 2
+			},
+			"collision": {
+				"shape": "circle",
+				"radius_mm": 1200,
+				"mass_grams": 300000
+			},
+			"systems": {
+				"engine": {
+					"kind": "engine",
+					"max_speed_mm_s": 22000,
+					"acceleration_mm_s2": 5000,
+					"compartment": "cabin",
+					"power_rate": 200,
+					"power_store": "cell"
+				},
+				"steering": {
+					"kind": "steering",
+					"turn_mdeg_s": 90000,
+					"compartment": "cabin",
+					"power_rate": 40,
+					"power_store": "cell"
+				},
+				"radar": {
+					"kind": "radar",
+					"range_mm": 300000,
+					"shows": ["ship"],
+					"capabilities": {
+						"basic_identity": 0
+					},
+					"compartment": "cabin",
+					"energy_per_second": 20,
+					"power_store": "cell"
+				}
+			},
+			"resources": {
+				"stores": [
+					{
+						"id": "cell",
+						"capacity": 60000,
+						"initial": 60000,
+						"charge_rate": 1000,
+						"discharge_rate": 1000
+					}
+				]
+			},
+			"stations": [
+				{
+					"id": "flight",
+					"consoles": [
+						{
+							"id": "flight",
+							"definition": "base.console.craft",
+							"systems": [],
+							"feeds": ["engine", "steering", "radar"]
+						}
+					]
+				}
+			],
+			"control_layout": {
+				"schema": 1,
+				"controllers": [
+					{
+						"id": "guidance",
+						"console": "flight",
+						"commands": [
+							{
+								"id": "follow",
+								"action": "follow_contact",
+								"initial": 0,
+								"arguments": [0, 18000, 16000],
+								"consumers": ["engine", "steering"]
+							}
+						],
+						"tree": "base.craft-guidance"
+					},
+					{
+						"id": "radar",
+						"console": "flight",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["radar"]
+							}
+						]
+					}
+				],
+				"default_profile": "automatic",
+				"profiles": [
+					{
+						"id": "automatic",
+						"consoles": {
+							"flight": {
+								"ai": ["guidance", "radar"]
+							}
+						}
+					}
+				]
+			},
+			"combat": {
+				"repair_console": "flight",
+				"decks": [
+					{
+						"id": "main",
+						"weight": 1,
+						"compartments": [
+							{
+								"id": "cabin",
+								"x_mm": 0,
+								"y_mm": 0,
+								"half_width_mm": 1200,
+								"half_length_mm": 1200,
+								"hp": 60,
+								"resistance_per_m": 1,
+								"recovery_hp": 10
+							}
+						]
+					}
+				],
+				"connections": [],
+				"destruction": {
+					"visual": "base.combat-explosion",
+					"sound": "phoenix-base:assets/combat/explosion.wav",
+					"growth_ticks": 12,
+					"fade_ticks": 30,
+					"size_mm": 65000,
+					"damage": 400,
+					"radius_mm": 50000
+				}
+			},
+			"extends": "base.courier",
+			"assemblies": null,
+			"personnel": null
+		},
+		{
+			"id": "base.boarding-target",
+			"extends": "base.rescue-courier",
+			"name": "Corsair prize",
+			"class_key": "Corsair prize",
+			"boarding_missions": [
+				{
+					"id": "prize",
+					"title_key": "Board and secure the Corsair",
+					"entry": "bow-starboard",
+					"tree": "base.boarding-operation",
+					"dialogue": "base.boarding-dialogue",
+					"slots": [
+						{
+							"id": "security",
+							"kind": "team",
+							"capability": "security",
+							"required": true
+						},
+						{
+							"id": "medical",
+							"kind": "team",
+							"capability": "medical",
+							"required": false
+						}
+					],
+					"encounters": [
+						{
+							"id": "bridge-guards",
+							"compartment": "bow-port",
+							"defenders": ["security-team"],
+							"success_permille": 850,
+							"team_bonus_permille": 100,
+							"defender_penalty_permille": 150,
+							"injury_permille": 250,
+							"loss_permille": 50,
+							"medical_reduction_permille": 150,
+							"assessment_ticks": 100,
+							"report": "assessment"
+						},
+						{
+							"id": "reactor-guards",
+							"compartment": "mid-port",
+							"defenders": ["security-team"],
+							"success_permille": 850,
+							"team_bonus_permille": 100,
+							"defender_penalty_permille": 150,
+							"injury_permille": 250,
+							"loss_permille": 50,
+							"medical_reduction_permille": 150,
+							"assessment_ticks": 100,
+							"report": "assessment"
+						}
+					],
+					"objectives": {
+						"bridge": {
+							"kind": "bridge",
+							"compartment": "bow-port",
+							"prize_crew": true
+						},
+						"reactor": {
+							"kind": "hold",
+							"compartment": "mid-port",
+							"system": "reactor"
+						}
+					}
+				}
+			]
 		}
 	],
 	"maps": [
@@ -21556,6 +21893,53 @@
 					"scan_ticks": 300
 				}
 			]
+		},
+		{
+			"id": "base.boarding-action",
+			"name": "Boarding action",
+			"description": "Tactical contributes Security and finite shuttles or disposable boarding torpedoes. Support can contribute Medical. Helm coordinates Dispatch and displacement; Comms chooses the objective. The target authors its own defence and capture outcomes.",
+			"presentation": {
+				"skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png"
+			},
+			"entities": [
+				{
+					"id": 1,
+					"definition": "base.boarding-target",
+					"x_mm": 90000,
+					"y_mm": 30000,
+					"heading_mdeg": 180000,
+					"faction": "corsair"
+				}
+			],
+			"ship_slots": [
+				{
+					"id": "courier",
+					"name": "Rescue Courier",
+					"mandatory": true,
+					"allowed_ships": ["base.rescue-courier"],
+					"x_mm": 0,
+					"y_mm": 0,
+					"heading_mdeg": 0,
+					"faction": "house"
+				}
+			],
+			"factions": [
+				{
+					"id": "house",
+					"label": "House"
+				},
+				{
+					"id": "corsair",
+					"label": "Corsairs"
+				}
+			],
+			"relationships": [
+				{
+					"a": "house",
+					"b": "corsair",
+					"relation": "hostile"
+				}
+			]
 		}
 	],
 	"consoles": [
@@ -21979,6 +22363,12 @@
 			"description": "Charge the FTL battery and depart the mission. Holding readiness consumes power and generates heat.",
 			"human_seeking": true,
 			"knowledge_roles": ["base.crew"],
+			"widgets": []
+		},
+		{
+			"id": "base.console.craft",
+			"name": "Craft flight",
+			"description": "Automatic carried craft guidance",
 			"widgets": []
 		}
 	],
@@ -32351,6 +32741,369 @@
 							"action": "complete"
 						}
 					]
+				}
+			]
+		},
+		{
+			"id": "base.boarding-operation",
+			"context": "away",
+			"boarding": true,
+			"initial": "wait",
+			"states": [
+				{
+					"id": "wait",
+					"transitions": [
+						{
+							"target": "choose",
+							"conditions": [
+								{
+									"left": {
+										"observation": "deployed"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "choose",
+					"entry": [
+						{
+							"action": "report",
+							"arguments": ["arrived"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "bridge",
+							"conditions": [
+								{
+									"left": {
+										"observation": "answer"
+									},
+									"op": "eq",
+									"right": "bridge"
+								}
+							]
+						},
+						{
+							"target": "reactor",
+							"conditions": [
+								{
+									"left": {
+										"observation": "answer"
+									},
+									"op": "eq",
+									"right": "reactor"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "bridge",
+					"entry": [
+						{
+							"action": "encounter",
+							"arguments": ["bridge-guards"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "secure-bridge",
+							"conditions": [
+								{
+									"left": {
+										"observation": "encounter_done"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "encounter_success"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "failed",
+							"conditions": [
+								{
+									"left": {
+										"observation": "encounter_done"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "encounter_success"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "secure-bridge",
+					"entry": [
+						{
+							"action": "secure",
+							"arguments": ["bridge"]
+						},
+						{
+							"action": "capture",
+							"arguments": ["bridge"]
+						},
+						{
+							"action": "report",
+							"arguments": ["bridge-secured"]
+						},
+						{
+							"action": "complete",
+							"arguments": ["bridge secured"]
+						}
+					]
+				},
+				{
+					"id": "reactor",
+					"entry": [
+						{
+							"action": "encounter",
+							"arguments": ["reactor-guards"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "secure-reactor",
+							"conditions": [
+								{
+									"left": {
+										"observation": "encounter_done"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "encounter_success"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						},
+						{
+							"target": "failed",
+							"conditions": [
+								{
+									"left": {
+										"observation": "encounter_done"
+									},
+									"op": "eq",
+									"right": true
+								},
+								{
+									"left": {
+										"observation": "encounter_success"
+									},
+									"op": "eq",
+									"right": false
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "secure-reactor",
+					"entry": [
+						{
+							"action": "secure",
+							"arguments": ["reactor"]
+						},
+						{
+							"action": "report",
+							"arguments": ["reactor-secured"]
+						},
+						{
+							"action": "complete",
+							"arguments": ["reactor secured"]
+						}
+					]
+				},
+				{
+					"id": "failed",
+					"entry": [
+						{
+							"action": "report",
+							"arguments": ["repelled"]
+						},
+						{
+							"action": "fail",
+							"arguments": ["Boarding party repelled"]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.boarding-dialogue",
+			"context": "conversation",
+			"initial": "wait",
+			"lines": {
+				"ready": {
+					"speaker": "party",
+					"text_key": "Boarding operation ready. Commit Security and choose a transport."
+				},
+				"assessment": {
+					"speaker": "party",
+					"text_key": "Local defences assessed. Encounter estimate available in Dispatch."
+				},
+				"bridge-secured": {
+					"speaker": "party",
+					"text_key": "Bridge secured. Prize crew is taking command of the ship."
+				},
+				"reactor-secured": {
+					"speaker": "party",
+					"text_key": "Reactor room held. Power remains inhibited while our team holds this compartment."
+				},
+				"repelled": {
+					"speaker": "party",
+					"text_key": "Boarding party repelled. Arrange extraction for survivors."
+				}
+			},
+			"prompts": {
+				"objective": {
+					"speaker": "party",
+					"text_key": "Party aboard. Should we seize the bridge or shut down the reactor?",
+					"choices": [
+						{
+							"id": "bridge",
+							"text_key": "Seize the bridge"
+						},
+						{
+							"id": "reactor",
+							"text_key": "Hold the reactor room"
+						}
+					],
+					"timeout_ticks": 600,
+					"default_choice": "bridge"
+				}
+			},
+			"states": [
+				{
+					"id": "wait",
+					"entry": [
+						{
+							"action": "say",
+							"arguments": ["ready"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "choose",
+							"conditions": [
+								{
+									"left": {
+										"observation": "event"
+									},
+									"op": "eq",
+									"right": "arrived"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "choose",
+					"entry": [
+						{
+							"action": "offer",
+							"arguments": ["objective"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "bridge-secured",
+							"conditions": [
+								{
+									"left": {
+										"observation": "event"
+									},
+									"op": "eq",
+									"right": "bridge-secured"
+								}
+							]
+						},
+						{
+							"target": "reactor-secured",
+							"conditions": [
+								{
+									"left": {
+										"observation": "event"
+									},
+									"op": "eq",
+									"right": "reactor-secured"
+								}
+							]
+						},
+						{
+							"target": "repelled",
+							"conditions": [
+								{
+									"left": {
+										"observation": "event"
+									},
+									"op": "eq",
+									"right": "repelled"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "bridge-secured",
+					"entry": [
+						{
+							"action": "say",
+							"arguments": ["bridge-secured"]
+						}
+					]
+				},
+				{
+					"id": "reactor-secured",
+					"entry": [
+						{
+							"action": "say",
+							"arguments": ["reactor-secured"]
+						}
+					]
+				},
+				{
+					"id": "repelled",
+					"entry": [
+						{
+							"action": "say",
+							"arguments": ["repelled"]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.craft-guidance",
+			"context": "controller",
+			"initial": "idle",
+			"states": [
+				{
+					"id": "idle"
 				}
 			]
 		}

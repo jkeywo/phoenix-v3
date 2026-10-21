@@ -336,8 +336,9 @@ public:
 			return result;
 		for (const auto &[slot, definition] : setup_.ships)
 			if (auto ship = world_->ship_for_slot(slot))
-				for (const auto &seat : world_->consoles(*ship))
-					result.push_back({{*ship, seat.id}, seat, world_->can_claim(UINT64_MAX, *ship, seat.id)});
+				for (auto member : world_->operational_fleet(*ship))
+					for (const auto &seat : world_->consoles(member))
+						result.push_back({{member, seat.id}, seat, world_->can_claim(UINT64_MAX, member, seat.id)});
 		return result;
 	}
 	bool claim_console(std::uint64_t route, const ConsoleAddress &seat) override

@@ -56,7 +56,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(TurretState, target, heading, turn_remainder)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MagazineState, ammo, refill, reserved_return)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(TeamState, location, destination, edge_to, travel, edge_total,
                                                 repair_system, repair_auto, revision, order, activity, patient,
-                                                work_done, condition, treatment)
+                                                work_done, condition, treatment, detained)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ShieldState, strength, warmup, recharge_remainder, discharge_remainder,
                                    discharge_credit, discharge)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Destructible, definition, durability, destroyed_tick, processed)
@@ -124,6 +124,7 @@ struct CompiledDefinition
 	std::int64_t durability = 0, half_height = 5000;
 	BridgeDefinition bridge;
 	PersonnelDefinition personnel;
+	std::vector<BoardingDefinition> boarding;
 	std::map<std::string, DisplacementDefinition> displacements;
 	std::map<std::string, FtlDefinition> ftl;
 	std::map<std::string, ConsoleBridgeDefinition> console_bridge;
@@ -503,11 +504,21 @@ struct World::Impl
 			visual_scales[name] = definition.at("render").at("scale");
 			result.bridge = compile_bridge(content, name);
 			result.personnel = compile_personnel(content, name);
+			result.boarding = compile_boarding(content, name);
 			result.ftl = compile_ftl(content, name);
 			for (const auto &[key, s] : definition.at("systems").items())
-				if (s.value("kind", key) == "displacement")
-					result.displacements[key] = {s.at("compartment"), s.at("range_mm"), s.at("capacity"),
-					                             s.at("transfer_ticks")};
+				if (s.value("kind", key) == "displacement" || s.value("kind", key) == "transport")
+				{
+					DisplacementDefinition t{s.at("compartment"), s.at("range_mm"), s.at("capacity"),
+					                         s.at("transfer_ticks")};
+					t.mode = s.value("mode", std::string{"displacement"});
+					t.craft = s.value("craft", std::string{});
+					t.count = s.value("count", 1);
+					t.arrival_distance = s.value("arrival_distance_mm", 5000);
+					t.arrival_speed = s.value("arrival_speed_mm_s", 1000);
+					t.cruise_speed = s.value("cruise_speed_mm_s", 10000);
+					result.displacements[key] = t;
+				}
 			for (const auto &console : resolve_consoles(content, name))
 				if (!console.definition.empty())
 					result.console_bridge.emplace(
@@ -1740,7 +1751,8 @@ struct World::Impl
 			{
 				std::vector<std::size_t> unavailable;
 				for (auto child : ship.get<EquipmentIndex>().values)
-					if (structurally_disabled(ship, child.get<Equipment>().id))
+					if (structurally_disabled(ship, child.get<Equipment>().id) ||
+					    boarding_inhibited(id, child.get<Equipment>().id))
 						unavailable.push_back(child.get<ResourceBinding>().slot);
 				allocation.emplace(*power, unavailable);
 			}
@@ -1954,6 +1966,8 @@ struct World::Impl
 #include "bridge.hpp"
 #include "conversations.hpp"
 #include "away.hpp"
+#include "boarding.hpp"
+#include "craft_transport.hpp"
 #include "ftl.hpp"
 #include "missions.hpp"
 #include "sensors.hpp"
@@ -2161,6 +2175,8 @@ void World::load(const Catalog &source, const std::string &map, const std::map<s
 	     !candidate->scenario->runtime().definition().reports.empty()))
 		candidate->conversation_instance = candidate->scenario->runtime().create_instance("world-events");
 	candidate->away_missions.resize(candidate->away_definitions.size());
+	candidate->refresh_carried_craft();
+	candidate->refresh_boarding_templates();
 	candidate->refresh_comms();
 	candidate->stream_fields();
 	candidate->index_contacts.run();
@@ -2175,6 +2191,8 @@ std::vector<ConsoleSpec> World::consoles(EntityId ship) const
 }
 bool World::can_claim(std::uint64_t console, EntityId ship, const std::string &name, bool sidebar) const
 {
+	if (impl_->transport_craft(ship))
+		return false;
 	if (!console || impl_->claims.contains(console) || !impl_->entities.contains(ship))
 		return false;
 	auto seat = impl_->seat(ship, name);
@@ -2193,6 +2211,17 @@ bool World::can_claim(std::uint64_t console, EntityId ship, const std::string &n
 	                   {
 		                   return controller.definition.console == seat->id;
 	                   });
+}
+std::vector<EntityId> World::operational_fleet(EntityId origin) const
+{
+	std::vector<EntityId> out;
+	if (!impl_->entities.contains(origin) || impl_->operational_owner(origin) != origin)
+		return out;
+	for (const auto &[id, ship] : impl_->entities)
+		if ((id == origin || impl_->captured_by.contains(id)) && impl_->operational_owner(id) == origin &&
+		    !impl_->transport_craft(id))
+			out.push_back(id);
+	return out;
 }
 bool World::prepare_console_profile(const ConsoleAddress &address, const std::string &profile)
 {
@@ -2394,6 +2423,7 @@ void World::tick()
 				if (!impl_->brain_snapshots.contains(address))
 					impl_->brain_snapshots.emplace(address, impl_->knowledge.project(address));
 			}
+	impl_->guide_carried_craft();
 	impl_->step_starts.clear();
 	impl_->bodies.each(
 	    [&](const StableId &id, const Definition &, const Pose &pose, const Motion &)
@@ -2455,6 +2485,8 @@ void World::tick()
 	++impl_->environment_tick;
 	impl_->knowledge.tick(ticks());
 	impl_->refresh_comms();
+	impl_->refresh_carried_craft();
+	impl_->refresh_boarding_templates();
 	impl_->conversation_scenarios();
 	impl_->conversations.advance(ticks());
 	impl_->advance_away();
@@ -3322,6 +3354,8 @@ Json World::save() const
 	}
 	result["conversations"] = impl_->conversations.save();
 	result["away_missions"] = impl_->save_away();
+	result["captured_by"] = impl_->captured_by;
+	result["carried_craft"] = impl_->carried_craft;
 	result["mission_ledger"] = impl_->mission_ledger;
 	result["sensors"] = impl_->save_sensors();
 	result["sensor_discoveries"] = impl_->sensor_discoveries;
@@ -3376,6 +3410,9 @@ void World::restore(const Catalog &content, const Json &saved)
 		     candidate.impl_->next_entity <= candidate.impl_->entities.rbegin()->first))
 			throw std::runtime_error("Saved entity allocator overlaps roster");
 	}
+	candidate.impl_->restore_craft_roster(saved.value("carried_craft", Json::array()));
+	candidate.impl_->refresh_boarding_templates();
+	candidate.impl_->captured_by = saved.value("captured_by", std::map<EntityId, EntityId>{});
 	if (!saved.at("bodies").is_array() || saved.at("bodies").size() != candidate.impl_->entities.size())
 		throw std::runtime_error("Saved state entity roster mismatch");
 	std::set<EntityId> seen;
@@ -3387,6 +3424,17 @@ void World::restore(const Catalog &content, const Json &saved)
 		if (!seen.insert(restored.id).second || !candidate.impl_->entities.contains(restored.id))
 			throw std::runtime_error("Saved state duplicate/unknown entity");
 		auto entity = candidate.impl_->entities.at(restored.id);
+		if (candidate.impl_->captured_by.contains(restored.id))
+		{
+			const auto owner = candidate.impl_->captured_by.at(restored.id);
+			if (!candidate.impl_->entities.contains(owner) || owner == restored.id)
+				throw std::runtime_error("Invalid capture owner");
+			candidate.impl_->factions.validate(value.at("faction"));
+			entity.set<FactionMembership>({value.at("faction")});
+		}
+		for (const auto &craft : candidate.impl_->carried_craft)
+			if (craft.id == restored.id && candidate.impl_->captured_by.contains(craft.carrier))
+				entity.set<FactionMembership>(candidate.impl_->entities.at(craft.carrier).get<FactionMembership>());
 		if (value.value("faction", std::string{}) !=
 		    (entity.try_get<FactionMembership>() ? entity.get<FactionMembership>().id : std::string{}))
 			throw std::runtime_error("Saved faction differs from fixed map membership");
@@ -3573,6 +3621,34 @@ void World::restore(const Catalog &content, const Json &saved)
 	candidate.impl_->refresh_comms();
 	candidate.impl_->conversations.restore(saved.at("conversations"));
 	candidate.impl_->restore_away(saved.value("away_missions", Json::array()));
+	candidate.impl_->validate_craft_missions();
+	for (const auto &[target, origin] : candidate.impl_->captured_by)
+	{
+		bool receipt = false;
+		for (std::size_t i = 0; i < candidate.impl_->away_definitions.size(); ++i)
+			receipt |=
+			    candidate.impl_->away_definitions[i].target == target &&
+			    candidate.impl_->operational_owner(candidate.impl_->away_ship(candidate.impl_->away_definitions[i])) ==
+			        candidate.impl_->operational_owner(origin) &&
+			    candidate.impl_->away_missions[i].boarding.captured;
+		if (!receipt)
+			throw std::runtime_error("Capture without boarding receipt");
+		(void)candidate.impl_->operational_owner(target);
+	}
+	for (const auto &[id, entity] : candidate.impl_->entities)
+		if (!candidate.impl_->captured_by.contains(id))
+		{
+			if (entity.has<PersonnelState>())
+				for (const auto &o : entity.get<PersonnelState>().officers)
+					if (o.detained)
+						throw std::runtime_error("Detention without capture");
+			if (entity.has<EquipmentIndex>())
+				for (auto child : entity.get<EquipmentIndex>().values)
+					if (const auto *mechanism = child.try_get<CombatMechanism>();
+					    mechanism && mechanism->definition.kind == OperatingSystem::Team &&
+					    mechanism->get<TeamState>().detained)
+						throw std::runtime_error("Team detention without capture");
+		}
 	candidate.impl_->mission_ledger = saved.value("mission_ledger", MissionLedger{});
 	candidate.impl_->restore_sensors(saved.value("sensors", Json::array()));
 	candidate.impl_->sensor_discoveries =

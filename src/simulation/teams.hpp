@@ -1,4 +1,4 @@
-ConsoleAddress team_owner(EntityId ship, const std::string &team) const
+ConsoleAddress enabled_system_owner(EntityId ship, const std::string &system) const
 {
 	const auto &d = definition(ship);
 	if (d.layout)
@@ -6,9 +6,9 @@ ConsoleAddress team_owner(EntityId ship, const std::string &team) const
 			for (const auto &command : controller.commands)
 				if (command.action == OperatingAction::SystemEnabled)
 					for (auto consumer : command.consumers)
-						if (d.fitted->values.at(consumer).id == team)
+						if (d.fitted->values.at(consumer).id == system)
 							return {ship, controller.console};
-	return system_owner(ship, team);
+	return system_owner(ship, system);
 }
 // World adapter: authored team orders use the same physical routes, work and personnel as repair/away work.
 const TeamOrderDefinition *team_order_definition(const CombatMechanism &m, const std::string &id) const
@@ -106,6 +106,8 @@ void personnel_casualties(flecs::entity ship, std::size_t compartment, std::int6
 std::int64_t team_effectiveness(const CombatMechanism &m) const
 {
 	const auto &r = m.get<TeamState>();
+	if (r.detained)
+		return 0;
 	return r.condition == "lost"      ? 0
 	       : r.condition == "injured" ? m.definition.get<TeamDefinition>().injured_effectiveness
 	                                  : 1000;
@@ -144,11 +146,14 @@ bool patient_eligible(const OfficerState &o) const
 }
 // Order filters and action restrictions apply before severity/individual priority.
 bool patient_matches(EntityId target, std::size_t patient, const OfficerState &o, const TeamOrderDefinition &order,
-                     const std::string &activity = {}) const
+                     const std::string &activity = {}, bool with_party = false) const
 {
-	if (!patient_eligible(o) ||
+	auto candidate = o;
+	if (with_party && candidate.facility == "away")
+		candidate.facility.clear();
+	if (!patient_eligible(candidate) ||
 	    !order.patient_states.contains(o.condition == "severe" && o.stabilised ? "stabilised" : o.condition) ||
-	    (patient < definition(target).personnel.officers.size() &&
+	    (!with_party && patient < definition(target).personnel.officers.size() &&
 	     !away_officer_location(target, definition(target).personnel.officers.at(patient).id).empty()))
 		return false;
 	if (activity == "recover")
@@ -190,7 +195,7 @@ bool team_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 	    !c.speaker_avatar.empty() || c.text.size() > 256 || combat_dead(entities.at(a.ship)))
 		return false;
 	const auto fit = instance(entities.at(a.ship), c.system);
-	if (!fit || fit->kind != OperatingSystem::Team || team_owner(a.ship, c.system) != a ||
+	if (!fit || fit->kind != OperatingSystem::Team || enabled_system_owner(a.ship, c.system) != a ||
 	    away_reserved(a.ship, "team:" + c.system))
 		return false;
 	bool authority = false;
@@ -205,7 +210,7 @@ bool team_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 		return false;
 	auto &m = fit->entity.get_mut<CombatMechanism>();
 	auto &r = m.get<TeamState>();
-	if (r.condition == "lost" || c.value < 1 || static_cast<std::uint64_t>(c.value) != r.revision ||
+	if (!team_effectiveness(m) || c.value < 1 || static_cast<std::uint64_t>(c.value) != r.revision ||
 	    r.revision >= 9007199254740991ULL)
 		return false;
 	const TeamOrderDefinition *order = nullptr;
@@ -272,7 +277,8 @@ bool team_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 std::optional<std::size_t> triage_patient(EntityId target, std::optional<std::size_t> compartment,
                                           const TeamOrderDefinition &order, const std::string &activity,
                                           const std::string &priority,
-                                          const std::set<std::pair<EntityId, std::size_t>> &claimed) const
+                                          const std::set<std::pair<EntityId, std::size_t>> &claimed,
+                                          const std::set<std::size_t> *party = nullptr) const
 {
 	const auto &pd = definition(target).personnel;
 	const auto snapshot = clinical_patients(target);
@@ -281,7 +287,8 @@ std::optional<std::size_t> triage_patient(EntityId target, std::optional<std::si
 	for (std::size_t i = 0; i < snapshot.size(); ++i)
 	{
 		const auto &o = snapshot[i].state;
-		if ((compartment && o.location != *compartment) || !patient_matches(target, i, o, order, activity) ||
+		if ((compartment && o.location != *compartment) ||
+		    !patient_matches(target, i, o, order, activity, party != nullptr) || (party && !party->contains(i)) ||
 		    claimed.contains({target, i}))
 			continue;
 		const auto candidate = std::tuple{o.condition == "severe" && !o.stabilised ? 3
@@ -529,7 +536,7 @@ Json team_board(const ConsoleAddress &a) const
 	for (auto child : ship.get<EquipmentIndex>().values)
 	{
 		const auto *m = child.try_get<CombatMechanism>();
-		if (!m || m->definition.kind != OperatingSystem::Team || team_owner(a.ship, m->definition.id) != a)
+		if (!m || m->definition.kind != OperatingSystem::Team || enabled_system_owner(a.ship, m->definition.id) != a)
 			continue;
 		const auto &r = m->get<TeamState>();
 		const auto &d = m->definition.get<TeamDefinition>();
@@ -537,7 +544,7 @@ Json team_board(const ConsoleAddress &a) const
 		         {"type", d.type},
 		         {"revision", r.revision},
 		         {"order", r.order},
-		         {"condition", r.condition},
+		         {"condition", r.detained ? "detained" : r.condition},
 		         {"activity", r.activity},
 		         {"reserved", away_reserved(a.ship, "team:" + m->definition.id)},
 		         {"location", r.location},
@@ -575,7 +582,7 @@ bool team_map_allowed(const ConsoleAddress &a) const
 {
 	for (auto child : entities.at(a.ship).get<EquipmentIndex>().values)
 		if (const auto *m = child.try_get<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Team &&
-		                                                      team_owner(a.ship, m->definition.id) == a &&
+		                                                      enabled_system_owner(a.ship, m->definition.id) == a &&
 		                                                      !m->definition.get<TeamDefinition>().orders.empty())
 			return true;
 	return false;

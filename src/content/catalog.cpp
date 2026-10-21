@@ -614,15 +614,18 @@ void verify_prepared_catalog(const Catalog &catalog)
 			else if (kind == "dispatch")
 			{
 			}
-			else if (kind == "displacement")
+			else if (kind == "displacement" || kind == "transport")
 			{
 				integer(system, "range_mm", field, 1, 1000000000);
 				integer(system, "capacity", field, 1, 64);
 				integer(system, "transfer_ticks", field, 1, 36000);
 				if (!catalog.presentation)
 				{
-					integer(system, "energy_per_second", field, 1);
-					if (!system.contains("power_store") || !system.contains("compartment"))
+					integer(system, "energy_per_second", field,
+					        system.value("mode", std::string{"displacement"}) == "displacement" ? 1 : 0);
+					if ((system.value("mode", std::string{"displacement"}) == "displacement" &&
+					     !system.contains("power_store")) ||
+					    !system.contains("compartment"))
 						invalid(field, "displacement requires power and compartment");
 				}
 			}
@@ -631,8 +634,10 @@ void verify_prepared_catalog(const Catalog &catalog)
 				integer(system, "range_mm", field, 1, 1000000000);
 				if (!catalog.presentation)
 				{
-					integer(system, "energy_per_second", field, 1);
-					if (!system.contains("power_store"))
+					integer(system, "energy_per_second", field,
+					        system.value("mode", std::string{"displacement"}) == "displacement" ? 1 : 0);
+					if ((system.value("mode", std::string{"displacement"}) == "displacement" &&
+					     !system.contains("power_store")))
 						invalid(field, "Comms requires power_store");
 				}
 			}
@@ -709,6 +714,42 @@ void verify_prepared_catalog(const Catalog &catalog)
 	{
 		(void)compile_bridge(catalog, id);
 		(void)compile_personnel(catalog, id);
+		(void)compile_boarding(catalog, id);
+		for (const auto &[key, transport] : entity.at("systems").items())
+			if (transport.value("kind", key) == "displacement" || transport.value("kind", key) == "transport")
+			{
+				const auto mode = transport.value("mode", std::string{"displacement"});
+				if (mode != "displacement" && mode != "shuttle" && mode != "boarding_torpedo")
+					invalid(id, "unknown transport mode");
+				if (mode != "displacement")
+				{
+					const auto craft = transport.value("craft", std::string{});
+					if (!catalog.entities.contains(craft) ||
+					    catalog.entities.at(craft).value("motion_model", std::string{}) != "inertial")
+						invalid(id, "craft transport requires an inertial-flight entity");
+					const auto layout = compile_controllable_layout(catalog, craft);
+					bool guidance = false;
+					for (const auto &controller : layout.controllers)
+						for (const auto &channel : controller.commands)
+							if (channel.action == OperatingAction::FollowContact &&
+							    (controller.tree.empty() ||
+							     (catalog.tree_programs.at(controller.tree).states.size() == 1 &&
+							      catalog.tree_programs.at(controller.tree).states[0].entry.empty() &&
+							      catalog.tree_programs.at(controller.tree).states[0].running.empty() &&
+							      catalog.tree_programs.at(controller.tree).states[0].exit.empty() &&
+							      catalog.tree_programs.at(controller.tree).states[0].transitions.empty())))
+								guidance = true;
+					if (!guidance)
+						invalid(id, "craft requires a dedicated AI follow-contact Controller");
+					integer(transport, "count", id, 1, 16);
+					integer(transport, "arrival_distance_mm", id, 1, 1000000000);
+					integer(transport, "arrival_speed_mm_s", id, 1, 1000000000);
+					integer(transport, "cruise_speed_mm_s", id, 1, 1000000000);
+					for (const auto &[k, s] : catalog.entities.at(craft).at("systems").items())
+						if (s.value("kind", k) == "transport" || s.value("kind", k) == "displacement")
+							invalid(id, "carried craft cannot carry nested transports");
+				}
+			}
 	}
 	for (const auto &[id, console] : catalog.consoles)
 	{
@@ -969,7 +1010,8 @@ void prepare_catalog(Catalog &catalog)
 			else if (*context == state_tree::Context::Team)
 				catalog.tree_programs.emplace(id, state_tree::compile(tree, team_registry(), catalog.trees));
 			else if (*context == state_tree::Context::Away)
-				catalog.tree_programs.emplace(id, state_tree::compile(tree, away_registry(), catalog.trees));
+				catalog.tree_programs.emplace(
+				    id, state_tree::compile(tree, away_registry(tree.value("boarding", false)), catalog.trees));
 			else if (*context == state_tree::Context::Controller)
 			{
 				auto bindings = compile_controller_bindings(tree, catalog);

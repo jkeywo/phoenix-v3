@@ -139,7 +139,7 @@ bool personnel_command(const ConsoleAddress &address, const OperatingCommand &co
 		return false;
 	const auto i = static_cast<std::size_t>(it - d.officers.begin());
 	if (state.officers[i].condition == "dead" ||
-	    (!officer_mobile(state.officers[i]) && command.action != "personnel.relieve") ||
+	    (state.officers[i].detained || (!officer_mobile(state.officers[i]) && command.action != "personnel.relieve")) ||
 	    (!state.officers[i].facility.empty() && command.action != "personnel.relieve") ||
 	    !state.officers[i].escort.empty() || away_reserved(address.ship, "officer:" + it->id))
 		return false;
@@ -272,7 +272,7 @@ Json personnel_board(const ConsoleAddress &address) const
 			                           {"department", o.department},
 			                           {"duty", r.duty},
 			                           {"present", r.present},
-			                           {"condition", r.condition},
+			                           {"condition", r.detained ? "detained" : r.condition},
 			                           {"stabilised", r.stabilised},
 			                           {"stun_until", r.stun_until},
 			                           {"facility", r.facility},

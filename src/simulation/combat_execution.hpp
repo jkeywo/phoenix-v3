@@ -901,8 +901,8 @@ void restore_combat(flecs::entity ship, const Json &j)
 				    if constexpr (std::is_same_v<State, TeamState>)
 				    {
 					    actual.erase("order_continuation");
-					    for (const auto *key :
-					         {"revision", "order", "activity", "patient", "work_done", "condition", "treatment"})
+					    for (const auto *key : {"revision", "order", "activity", "patient", "work_done", "condition",
+					                            "treatment", "detained"})
 						    if (!actual.contains(key))
 							    actual[key] = expected.at(key);
 				    }
@@ -964,7 +964,7 @@ void restore_combat(flecs::entity ship, const Json &j)
 			case OperatingSystem::Team:
 			{
 				auto &r = m->get<TeamState>();
-				if (!r.revision || r.revision > 9007199254740991ULL || r.patient.size() > 64)
+				if (!r.revision || r.revision > 9007199254740991ULL || r.patient.size() > 72)
 					throw std::runtime_error("Invalid team revision/patient");
 				if (!r.order.empty())
 				{

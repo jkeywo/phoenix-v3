@@ -29,7 +29,8 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 	if (!hull.contains("personnel") || hull.at("personnel").is_null())
 	{
 		for (const auto &[key, s] : hull.at("systems").items())
-			if (s.value("kind", key) == "displacement")
+			if ((s.value("kind", key) == "displacement" || s.value("kind", key) == "transport") &&
+			    s.value("mode", std::string{"displacement"}) == "displacement")
 				throw std::runtime_error(entity + ": displacement requires personnel and a Navigator duty");
 		return out;
 	}
@@ -104,8 +105,8 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 	    {"propulsion", OperatingSystem::Engine}, {"sensors", OperatingSystem::Radar},
 	    {"cycling", OperatingSystem::Weapon},    {"traverse", OperatingSystem::Turret},
 	    {"reload", OperatingSystem::Magazine},   {"recharge", OperatingSystem::Shield},
-	    {"medical", OperatingSystem::Team},      {"repair", OperatingSystem::Team},
-	    {"comms", OperatingSystem::Comms}};
+	    {"security", OperatingSystem::Team},     {"medical", OperatingSystem::Team},
+	    {"repair", OperatingSystem::Team},       {"comms", OperatingSystem::Comms}};
 	for (const auto &v : data.at("traits"))
 	{
 		OfficerTrait t{identifier(v.at("id")), text(v.at("label")), {}};
@@ -265,7 +266,8 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 			     "starting officer lacks duty qualification");
 		}
 	for (const auto &[key, s] : hull.at("systems").items())
-		if (s.value("kind", key) == "displacement")
+		if ((s.value("kind", key) == "displacement" || s.value("kind", key) == "transport") &&
+		    s.value("mode", std::string{"displacement"}) == "displacement")
 		{
 			fail(std::find(out.compartments.begin(), out.compartments.end(), s.at("compartment").get<std::string>()) !=
 			         out.compartments.end(),

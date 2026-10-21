@@ -1065,6 +1065,10 @@ endif()
 
 # Explicit graphical Comms evidence; not an automatic acceptance test.
 if(NOT EMSCRIPTEN)
+	add_executable(phoenix_boarding_smoke EXCLUDE_FROM_ALL tests/manual/boarding_ui.cpp)
+	set_property(TARGET phoenix_boarding_smoke PROPERTY CXX_SCAN_FOR_MODULES ON)
+	target_link_libraries(phoenix_boarding_smoke PRIVATE phoenix_session phoenix_presentation phoenix_core)
+	add_dependencies(phoenix_boarding_smoke base_pack)
 	add_executable(phoenix_away_smoke EXCLUDE_FROM_ALL tests/manual/away_ui.cpp)
 	set_property(TARGET phoenix_away_smoke PROPERTY CXX_SCAN_FOR_MODULES ON)
 	add_executable(phoenix_ftl_smoke EXCLUDE_FROM_ALL tests/manual/ftl_ui.cpp)

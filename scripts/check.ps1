@@ -68,6 +68,12 @@ try
 			throw 'Native Medical continuation failed'
 		}
 		Set-Content -LiteralPath "$repo/build/native/medical-continuation.trace" -Value $medicalNativeTrace -Encoding utf8
+		$securityNativeTrace = & "$repo/build/native/Release/phoenix_security_tests.exe" --trace
+		if ($LASTEXITCODE)
+		{
+			throw 'Native security continuation failed'
+		}
+		Set-Content -LiteralPath "$repo/build/native/security-continuation.trace" -Value $securityNativeTrace -Encoding utf8
 		$awayNativeTrace = & "$repo/build/native/Release/phoenix_away_tests.exe" --trace
 		if ($LASTEXITCODE)
 		{
@@ -156,6 +162,7 @@ try
 					'phoenix_workshop_test_tests.js',
 					'phoenix_personnel_tests.js',
 					'phoenix_medical_tests.js',
+					'phoenix_security_tests.js',
 					'phoenix_away_tests.js',
 					'phoenix_ftl_tests.js',
 					'phoenix_missions_tests.js',
@@ -207,6 +214,13 @@ try
 				throw 'Native/WASM Medical continuation differs'
 			}
 			Write-Output 'PASS native/WASM Medical continuation'
+			$securityNativeTrace = Get-Content -LiteralPath "$repo/build/native/security-continuation.trace"
+			$securityWebTrace = & $node phoenix_security_tests.js --trace
+			if ($LASTEXITCODE -or ($securityNativeTrace -join "`n").Trim() -ne ($securityWebTrace -join "`n").Trim())
+			{
+				throw 'Native/WASM security continuation differs'
+			}
+			Write-Output 'PASS native/WASM security continuation'
 			$awayNativeTrace = Get-Content -LiteralPath "$repo/build/native/away-continuation.trace"
 			$awayWebTrace = & $node phoenix_away_tests.js --trace
 			if ($LASTEXITCODE -or ($awayNativeTrace -join "`n").Trim() -ne ($awayWebTrace -join "`n").Trim())

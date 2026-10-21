@@ -47,7 +47,7 @@ std::int64_t mission_personnel(EntityId ship, const std::string &which) const
 		if (away_ship(away_definitions[i]) == ship)
 		{
 			const auto &m = away_missions[i];
-			if (m.deployed())
+			if (m.deployed() || (m.phase == AwayPhase::Outbound && m.craft))
 			{
 				for (const auto &[slot, a] : m.assignments)
 					deployed.insert(a);
@@ -205,12 +205,21 @@ void resolve_lost_parties()
 		auto &m = away_missions[i];
 		const auto &d = away_definitions[i];
 		auto ship = away_ship(d);
-		if (!ship || m.phase == AwayPhase::Lost || !truly_destroyed(d.target))
+		if (!ship || m.phase == AwayPhase::Lost || craft_passengers_extracted(m) || !truly_destroyed(d.target))
 			continue;
 		if (m.deployed())
 		{
 			for (const auto &[slot, a] : m.assignments)
+			{
 				mission_ledger.lost[ship].insert(a);
+				if (a.starts_with("team:"))
+				{
+					auto &team = away_equipment(ship, a.substr(5)).get_mut<CombatMechanism>().get<TeamState>();
+					team.condition = "lost";
+					team.treatment = 0;
+					++team.revision;
+				}
+			}
 			for (const auto &o : m.accompanying)
 				mission_ledger.lost[ship].insert("officer:" + o);
 			auto &personnel = entities.at(ship).get_mut<PersonnelState>();
@@ -236,6 +245,11 @@ void resolve_lost_parties()
 		}
 		else if (m.phase == AwayPhase::Outbound)
 		{
+			if (m.craft)
+			{
+				cancel_craft_transfer(i);
+				continue;
+			}
 			m.phase = AwayPhase::Open;
 			m.transfer = 0;
 			++m.revision;

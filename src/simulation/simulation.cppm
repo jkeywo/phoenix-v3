@@ -28,6 +28,7 @@ public:
 	bool claim(std::uint64_t console, EntityId ship, const std::string &seat = {}, bool sidebar = false);
 	bool can_claim(std::uint64_t console, EntityId ship, const std::string &seat = {}, bool sidebar = false) const;
 	std::vector<ConsoleSpec> consoles(EntityId ship) const;
+	std::vector<EntityId> operational_fleet(EntityId origin) const;
 	std::optional<EntityId> ship_for_slot(const std::string &slot) const;
 	bool release(std::uint64_t console);
 	// Recovery discards transport ownership without changing saved operations.

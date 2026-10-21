@@ -539,11 +539,20 @@ struct GameplayEditor
 			integer(spec, "off_discharge_per_second", 80);
 			text("FTL uses a dedicated empty reserve. Charge and loss rates compete for actual reactor flow.");
 		}
-		if (kind == "displacement")
+		if (kind == "displacement" || kind == "transport")
 		{
 			integer(spec, "range_mm", 100000);
 			integer(spec, "capacity", 8);
 			integer(spec, "transfer_ticks", 40);
+			choice(spec, "mode", {"displacement", "shuttle", "boarding_torpedo"});
+			if (spec.value("mode", std::string{"displacement"}) != "displacement")
+			{
+				string(spec, "craft");
+				integer(spec, "count", 1);
+				integer(spec, "arrival_distance_mm", 5000);
+				integer(spec, "arrival_speed_mm_s", 1000);
+				integer(spec, "cruise_speed_mm_s", 10000);
+			}
 		}
 		if (kind == "comms")
 			integer(spec, "range_mm", 1000000);
@@ -983,6 +992,59 @@ struct GameplayEditor
 		auto &ship = *selected;
 		personnel(ship);
 		{
+			ScopedTree panel("Boarding missions");
+			if (panel)
+				records(
+				    ship, "boarding_missions",
+				    {{"id", "boarding"},
+				     {"title_key", "Board target"},
+				     {"entry", ""},
+				     {"tree", ""},
+				     {"dialogue", ""},
+				     {"slots", Json::array()},
+				     {"encounters", Json::array()},
+				     {"objectives", Json::object()}},
+				    [&](Json &m)
+				    {
+					    string(m, "id");
+					    string(m, "title_key");
+					    string(m, "entry");
+					    choice(m, "tree", document.definition_choices(WorkshopDefinitionKind::Tree));
+					    choice(m, "dialogue", document.definition_choices(WorkshopDefinitionKind::Tree));
+					    boolean(m, "retain_craft", true);
+					    records(m, "slots",
+					            {{"id", "security"}, {"kind", "team"}, {"capability", "security"}, {"required", true}},
+					            [&](Json &slot)
+					            {
+						            string(slot, "id");
+						            choice(slot, "kind", {"team", "officer"});
+						            optional_string(slot, "capability");
+						            optional_string(slot, "team_type");
+						            optional_string(slot, "trait");
+						            boolean(slot, "required", true);
+					            });
+					    records(m, "encounters", {{"id", "guards"}, {"compartment", ""}, {"defenders", Json::array()}},
+					            [&](Json &e)
+					            {
+						            string(e, "id");
+						            string(e, "compartment");
+						            strings(e, "defenders");
+						            optional_string(e, "report");
+						            integer(e, "success_permille", 700);
+						            integer(e, "team_bonus_permille", 100);
+						            integer(e, "defender_penalty_permille", 150);
+						            integer(e, "injury_permille", 250);
+						            integer(e, "loss_permille", 50);
+						            integer(e, "medical_reduction_permille", 150);
+						            integer(e, "officer_injury_permille", 0);
+						            integer(e, "officer_loss_permille", 0);
+						            integer(e, "assessment_ticks", 20);
+						            structured_field(e, "defences");
+					            });
+					    structured_field(m, "objectives");
+				    });
+		}
+		{
 			ScopedTree panel("External Comms");
 			if (panel)
 			{
@@ -1069,7 +1131,7 @@ struct GameplayEditor
 				choice(spec, "kind",
 				       {"engine",      "steering", "radar",   "generator",    "distribution", "coolant",  "storage",
 				        "lateral",     "boost",    "impulse", "weapon",       "turret",       "magazine", "team",
-				        "repair_team", "shield",   "comms",   "displacement", "dispatch",     "ftl"},
+				        "repair_team", "shield",   "comms",   "displacement", "transport",    "dispatch", "ftl"},
 				       true);
 				auto kind = equipment_kind(document, spec);
 				if (kind.empty())
@@ -1813,6 +1875,8 @@ struct GameplayEditor
 				Json context{{"context", resolved.at("context")}};
 				if (choice(context, "context", {"controller", "scenario", "conversation", "away", "team"}))
 					definition["context"] = context.at("context");
+				if (context.at("context") == "away")
+					boolean(definition, "boarding", false);
 				if (context.at("context") == "conversation")
 				{
 					optional_string(definition, "title_key");
@@ -2048,6 +2112,7 @@ struct GameplayEditor
 			        integer(m, "target_entity", 1);
 			        string(m, "conversation");
 			        string(m, "reveal_event");
+			        boolean(m, "retain_craft", true);
 			        choice(m, "tree", document.definition_choices(WorkshopDefinitionKind::Tree));
 			        records(m, "slots", {{"id", "repair"}, {"kind", "team"}, {"required", true}},
 			                [&](Json &s)
@@ -3179,7 +3244,7 @@ void set_gameplay_authoring_vocabulary(const Json &vocabulary)
 		    {{"id", f.name}, {"type", f.type == state_tree::Type::Boolean ? "boolean" : "integer"}});
 	for (const auto &a : teams.actions)
 		contexts["team"]["actions"].push_back({{"id", a.name}, {"arguments", Json::array()}});
-	const auto away = away_registry();
+	const auto away = away_registry(true);
 	contexts["away"] = {{"observations", Json::array()}, {"actions", Json::array()}};
 	for (const auto &f : away.observations)
 		contexts["away"]["observations"].push_back({{"id", f.name},

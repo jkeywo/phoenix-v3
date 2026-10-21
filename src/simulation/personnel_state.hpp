@@ -7,7 +7,7 @@ struct OfficerState
 	std::string duty;
 	std::size_t location = 0;
 	std::int64_t edge_to = -1, remaining = 0;
-	bool present = false;
+	bool present = false, detained = false;
 	std::string condition = "healthy", facility, escort;
 	bool stabilised = false;
 	std::int64_t stun_until = 0, treatment = 0, recovery = 0, casualty_tick = -1;
@@ -21,14 +21,14 @@ struct PersonnelState
 };
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(OfficerState, duty, location, edge_to, remaining, present, condition,
                                                 facility, escort, stabilised, stun_until, treatment, recovery,
-                                                casualty_tick)
+                                                casualty_tick, detained)
 inline bool officer_healthy(const OfficerState &o)
 {
-	return o.condition == "healthy";
+	return !o.detained && o.condition == "healthy";
 }
 inline bool officer_mobile(const OfficerState &o)
 {
-	return o.condition == "healthy" || o.condition == "minor";
+	return !o.detained && (o.condition == "healthy" || o.condition == "minor");
 }
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PersonnelState, revision, officers)
 inline void refresh_personnel_bonuses(PersonnelState &state, const PersonnelDefinition &d)

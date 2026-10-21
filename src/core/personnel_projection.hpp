@@ -53,7 +53,7 @@ inline Json board(const Json &source)
 					r["stabilised"] = row.at("stabilised").get<bool>();
 					const auto condition = r.at("condition").get<std::string>();
 					if (condition != "healthy" && condition != "stunned" && condition != "minor" &&
-					    condition != "severe" && condition != "dead")
+					    condition != "severe" && condition != "dead" && condition != "detained")
 						throw std::runtime_error("Invalid officer condition projection");
 					r["stun_until"] = number(row.at("stun_until"), 0, 9007199254740991LL);
 					r["facility"] = text(row.at("facility"), 64);

@@ -306,7 +306,7 @@ void clinical_execution_regressions(Json &trace)
 			migrated.restore(catalog, old);
 			const auto upgraded = migrated.save();
 			const auto &care = upgraded["away_missions"][0]["care"]["medical"];
-			require(upgraded["away_missions"][0]["schema"] == 5 &&
+			require(upgraded["away_missions"][0]["schema"] == 7 &&
 			            care["continuation"]["instance"]["initialised"] == false &&
 			            care["location"] == mission["care"]["medical"]["location"] &&
 			            care["travel"] == mission["care"]["medical"]["travel"] &&

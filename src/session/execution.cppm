@@ -43,6 +43,7 @@ public:
 	void restore(const Json &state);
 
 private:
+	void refresh_leases();
 	std::shared_ptr<HostAccess> world_;
 	std::map<std::string, std::string> slots_;
 	std::vector<ConsoleLease> leases_;

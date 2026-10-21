@@ -9,7 +9,7 @@ module;
 module phoenix.content;
 namespace phoenix
 {
-state_tree::Registry away_registry()
+state_tree::Registry away_registry(bool boarding)
 {
 	using namespace state_tree;
 	Registry r;
@@ -22,6 +22,14 @@ state_tree::Registry away_registry()
 	for (const auto &name : {"report", "checkpoint", "emit", "complete", "fail", "restore_compartment"})
 		r.actions.push_back({name, 16, {Type::Text}, true});
 	r.actions.push_back({"work", 16, {Type::Integer}, true});
+	if (boarding)
+	{
+		for (const auto *name : {"arrived", "encounter_done", "encounter_success"})
+			r.observations.push_back({name, Type::Boolean, 16, {}});
+		r.observations.push_back({"defenders", Type::Integer, 16, {}});
+		for (const auto *name : {"move_to", "encounter", "secure", "release", "capture"})
+			r.actions.push_back({name, 16, {Type::Text}, true});
+	}
 	return r;
 }
 std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map)
@@ -42,6 +50,7 @@ std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map
 		d.title = j.at("title_key");
 		d.slot = j.at("ship_slot");
 		d.target = j.at("target_entity");
+		d.retain_craft = j.value("retain_craft", true);
 		d.conversation = j.at("conversation");
 		d.reveal_event = j.at("reveal_event");
 		d.tree = j.at("tree");
@@ -132,6 +141,163 @@ std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map
 			d.slots.push_back(v);
 		}
 		require(!d.slots.empty() && d.slots.size() <= 16, "expected 1..16 slots");
+		out.push_back(std::move(d));
+	}
+	return out;
+}
+std::vector<BoardingDefinition> compile_boarding(const Catalog &catalog, const std::string &entity)
+{
+	std::vector<BoardingDefinition> out;
+	const auto &hull = catalog.entities.at(entity);
+	auto fail = [&](bool ok, const std::string &why)
+	{
+		if (!ok)
+			throw std::runtime_error(entity + ".boarding_missions: " + why);
+	};
+	const auto rows = hull.value("boarding_missions", Json::array());
+	fail(rows.is_array() && rows.size() <= 8, "expected at most 8 templates");
+	if (rows.empty())
+		return out;
+	const auto combat = compile_combat(catalog, entity);
+	fail(combat.has_value(), "boarding requires compartment structure");
+	std::set<std::string> ids;
+	for (const auto &j : rows)
+	{
+		BoardingDefinition d;
+		d.id = j.at("id");
+		d.title = j.at("title_key");
+		d.dialogue = j.at("dialogue");
+		d.entry = j.at("entry");
+		d.retain_craft = j.value("retain_craft", true);
+		fail(!d.id.empty() && d.id.size() <= 24 &&
+		         d.id.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") ==
+		             std::string::npos &&
+		         ids.insert(d.id).second,
+		     "invalid template identity");
+		d.compartments = combat->compartment_ids;
+		fail(d.compartments.contains(d.entry) && !d.title.empty() && d.title.size() <= 128, "invalid title/entry");
+		const auto tree = j.at("tree").get<std::string>();
+		fail(catalog.trees.contains(tree) && catalog.trees.at(tree).value("boarding", false),
+		     "tree requires boarding: true");
+		fail(catalog.tree_programs.contains(tree) &&
+		         catalog.tree_programs.at(tree).context == state_tree::Context::Away &&
+		         catalog.conversation_programs.contains(d.dialogue),
+		     "expected away tree and dialogue");
+		d.program = catalog.tree_programs.at(tree);
+		for (const auto &[key, prompt] : catalog.conversation_programs.at(d.dialogue).prompts)
+			fail(prompt.timeout && !prompt.default_choice.empty(), "boarding prompts require timeouts/defaults");
+		std::set<std::string> slots;
+		bool security = false;
+		for (const auto &s : j.at("slots"))
+		{
+			AwaySlot slot{s.at("id"), s.value("kind", std::string{"team"}), s.value("trait", std::string{}),
+			              s.value("required", true)};
+			slot.team_type = s.value("team_type", std::string{});
+			slot.capability = s.value("capability", std::string{});
+			fail(!slot.id.empty() && slot.id.size() <= 64 &&
+			         slot.id.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") ==
+			             std::string::npos &&
+			         slots.insert(slot.id).second && (slot.kind == "team" || slot.kind == "officer"),
+			     "invalid slot");
+			security |= slot.kind == "team" && slot.capability == "security" && slot.required;
+			d.slots.push_back(slot);
+		}
+		fail(security && d.slots.size() <= 16, "required security slot missing or too many slots");
+		auto amount = [&](const Json &row, const char *key, std::int64_t fallback, std::int64_t high = 1000)
+		{
+			const auto v = row.value(key, fallback);
+			fail(v >= 0 && v <= high, std::string("invalid ") + key);
+			return v;
+		};
+		for (const auto &e : j.value("encounters", Json::array()))
+		{
+			BoardingEncounter v;
+			v.id = e.at("id");
+			v.compartment = e.at("compartment");
+			v.report = e.value("report", std::string{});
+			fail(d.compartments.contains(v.compartment) && !v.id.empty() && v.id.size() <= 64 &&
+			         !d.encounters.contains(v.id),
+			     "invalid encounter");
+			v.defenders = e.value("defenders", std::vector<std::string>{});
+			fail(v.defenders.size() <= 128 &&
+			         std::set<std::string>(v.defenders.begin(), v.defenders.end()).size() == v.defenders.size(),
+			     "duplicate or excessive defending teams");
+			for (const auto &id : v.defenders)
+				fail(combat->system_ids.contains(id) &&
+				         combat->systems.at(combat->system_ids.at(id)).kind == OperatingSystem::Team &&
+				         combat->systems.at(combat->system_ids.at(id))
+				             .get<TeamDefinition>()
+				             .capabilities.contains("security"),
+				     "defender requires a security team");
+			v.defences = e.value("defences", std::map<std::string, std::int64_t>{});
+			fail(v.defences.size() <= 32, "too many defence factors");
+			for (const auto &[id, penalty] : v.defences)
+				fail(combat->equipment_compartments.contains(id) && penalty >= 0 && penalty <= 1000,
+				     "invalid defence System/factor");
+			v.success = amount(e, "success_permille", 700);
+			v.team_bonus = amount(e, "team_bonus_permille", 100);
+			v.defender_penalty = amount(e, "defender_penalty_permille", 150);
+			v.injury = amount(e, "injury_permille", 250);
+			v.loss = amount(e, "loss_permille", 50);
+			v.medical_reduction = amount(e, "medical_reduction_permille", 150);
+			v.assessment_ticks = amount(e, "assessment_ticks", 20, 1728000);
+			v.officer_injury = amount(e, "officer_injury_permille", 0);
+			v.officer_loss = amount(e, "officer_loss_permille", 0);
+			fail(v.injury + v.loss <= 1000 && v.officer_injury + v.officer_loss <= 1000,
+			     "casualty probabilities exceed 1000");
+			fail(v.report.empty() || catalog.conversation_programs.at(d.dialogue).lines.contains(v.report),
+			     "unknown assessment report");
+			d.encounters.emplace(v.id, v);
+		}
+		for (const auto &[key, o] : j.at("objectives").items())
+		{
+			BoardingObjective v{o.at("compartment"), o.at("kind"), o.value("system", std::string{}),
+			                    o.value("fault", std::string{}), o.value("prize_crew", true)};
+			fail(d.compartments.contains(v.compartment) &&
+			         (v.kind == "bridge" || v.kind == "hold" || v.kind == "sabotage"),
+			     "invalid objective");
+			if (v.kind != "bridge")
+				fail(combat->equipment_compartments.contains(v.system) &&
+				         combat->equipment_compartments.at(v.system) == v.compartment,
+				     "objective System is outside its compartment");
+			if (v.kind == "sabotage")
+			{
+				const auto f = combat->faults.find(v.system);
+				fail(f != combat->faults.end() && std::any_of(f->second.begin(), f->second.end(),
+				                                              [&](const auto &f)
+				                                              {
+					                                              return f.id == v.fault && !f.destroys;
+				                                              }),
+				     "sabotage requires a repairable authored fault");
+			}
+			d.objectives.emplace(key, v);
+		}
+		fail(d.encounters.size() <= 32 && d.objectives.size() <= 32, "too many encounters/objectives");
+		const auto validate = [&](const auto &self, const state_tree::Program &p) -> void
+		{
+			for (const auto &state : p.states)
+				for (const auto *tasks : {&state.entry, &state.running, &state.exit})
+					for (const auto &t : *tasks)
+						if (t.kind == state_tree::TaskKind::Action)
+						{
+							const auto &name = p.registry.actions.at(t.target).name;
+							fail(t.arguments.size() == 1 && t.arguments[0].source == state_tree::Source::Literal,
+							     "actions require literal arguments");
+							const auto &id = t.arguments[0].literal.text;
+							if (name == "move_to" || name == "restore_compartment")
+								fail(d.compartments.contains(id), "unknown compartment");
+							if (name == "encounter")
+								fail(d.encounters.contains(id), "unknown encounter");
+							if (name == "secure" || name == "release" || name == "capture")
+								fail(d.objectives.contains(id), "unknown objective");
+							if (name == "capture")
+								fail(d.objectives.at(id).kind == "bridge", "capture requires bridge objective");
+							fail(name != "emit", "boarding uses mission outcomes rather than map-specific events");
+						}
+			for (const auto &ref : p.references)
+				self(self, ref);
+		};
+		validate(validate, d.program);
 		out.push_back(std::move(d));
 	}
 	return out;
