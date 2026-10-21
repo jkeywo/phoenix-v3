@@ -560,6 +560,9 @@ void prepare_settings(Application &app)
 void prepare_public_board(Application &app, bool visible)
 {
 	static std::string previous_markup;
+	const auto display = app.viewscreen_region.value_or(
+	    ConsoleRegion{30, 0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())});
+	const float scale = std::max(1.f, std::min(display.width / 1280.f * scale, display.height / 720.f));
 	auto *panel = document->GetElementById("viewscreen-board");
 	if (!panel)
 	{
@@ -569,9 +572,9 @@ void prepare_public_board(Application &app, bool visible)
 		created->SetProperty("position", "absolute");
 		created->SetProperty("background-color", "#081420dd");
 		created->SetProperty("color", "#e8f4ff");
-		created->SetProperty("padding", "12px");
+		created->SetProperty("padding", "12dp");
 		created->SetProperty("overflow-y", "auto");
-		created->SetProperty("font-size", "18px");
+		created->SetProperty("font-size", "18dp");
 		panel = document->AppendChild(std::move(created));
 	}
 	auto *condition = document->GetElementById("viewscreen.readout/alert");
@@ -581,9 +584,9 @@ void prepare_public_board(Application &app, bool visible)
 		created->SetId("viewscreen.readout/alert");
 		created->SetProperty("position", "absolute");
 		created->SetProperty("background", "transparent");
-		created->SetProperty("padding", "12px 8px");
+		created->SetProperty("padding", "12dp 8dp");
 		created->SetProperty("text-align", "center");
-		created->SetProperty("font-size", "24px");
+		created->SetProperty("font-size", "24dp");
 		created->SetProperty("box-sizing", "border-box");
 
 		condition = document->AppendChild(std::move(created));
@@ -594,10 +597,10 @@ void prepare_public_board(Application &app, bool visible)
 	{
 		const auto area = app.viewscreen_region.value_or(
 		    ConsoleRegion{30, 0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())});
-		condition->SetProperty("left", std::to_string(area.x + 48.f) + "px");
-		condition->SetProperty("top", std::to_string(area.y + area.height - 100.f) + "px");
-		condition->SetProperty("width", std::to_string(std::min(230.f, area.width - 96.f)) + "px");
-		condition->SetProperty("min-height", "64px");
+		condition->SetProperty("left", std::to_string(area.x + 48.f * scale) + "px");
+		condition->SetProperty("top", std::to_string(area.y + area.height - 100.f * scale) + "px");
+		condition->SetProperty("width", std::to_string(std::min(230.f * scale, area.width - 96.f * scale)) + "px");
+		condition->SetProperty("min-height", "64dp");
 		condition->SetProperty("color", alert.value("colour", "#e8f4ff"));
 		condition->SetInnerRML(Rml::StringUtilities::EncodeRml(localise(alert.at("label"))));
 	}
@@ -611,11 +614,11 @@ void prepare_public_board(Application &app, bool visible)
 	const auto area = app.viewscreen_region ? *app.viewscreen_region
 	                                        : ConsoleRegion{1, 0, 0, static_cast<float>(GetScreenWidth()),
 	                                                        static_cast<float>(GetScreenHeight())};
-	const auto width = std::max(120.f, std::min(520.f, area.width - 48.f));
-	panel->SetProperty("left", std::to_string(area.x + area.width - width - 36.f) + "px");
-	panel->SetProperty("top", std::to_string(area.y + 24.f) + "px");
+	const auto width = std::max(120.f * scale, std::min(520.f * scale, area.width - 48.f * scale));
+	panel->SetProperty("left", std::to_string(area.x + area.width - width - 36.f * scale) + "px");
+	panel->SetProperty("top", std::to_string(area.y + 24.f * scale) + "px");
 	panel->SetProperty("width", std::to_string(width) + "px");
-	panel->SetProperty("max-height", std::to_string(std::max(80.f, area.height - 72.f)) + "px");
+	panel->SetProperty("max-height", std::to_string(std::max(80.f * scale, area.height - 72.f * scale)) + "px");
 	std::string markup;
 	for (const auto &[id, text] : rows)
 	{
@@ -653,6 +656,10 @@ void prepare_public_board(Application &app, bool visible)
 void prepare_runtime_chrome(Application &app)
 {
 	const bool view = app.screen == Screen::viewscreen;
+	const auto display = app.viewscreen_region.value_or(
+	    ConsoleRegion{30, 0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())});
+	const float scale = std::max(1.f, std::min(display.width / 1280.f, display.height / 720.f));
+	context->SetDensityIndependentPixelRatio(scale);
 	if (view && document->GetElementById("settings")->GetInnerRML().find("<img") == std::string::npos)
 	{
 #ifdef __EMSCRIPTEN__
@@ -680,19 +687,19 @@ void prepare_runtime_chrome(Application &app)
 	nav->SetProperty("display", view ? "block" : "none");
 	nav->SetProperty("position", "absolute");
 	nav->SetProperty("right", "auto");
-	nav->SetProperty("left", "20px");
-	nav->SetProperty("top", "18px");
+	nav->SetProperty("left", "20dp");
+	nav->SetProperty("top", "18dp");
 	if (app.viewscreen_region && view)
 	{
 		const auto &r = *app.viewscreen_region;
 		nav->SetProperty("right", "auto");
-		nav->SetProperty("width", "64px");
-		nav->SetProperty("left", std::to_string(r.x + 20) + "px");
-		nav->SetProperty("top", std::to_string(r.y + 18) + "px");
+		nav->SetProperty("width", "64dp");
+		nav->SetProperty("left", std::to_string(r.x + 20 * scale) + "px");
+		nav->SetProperty("top", std::to_string(r.y + 18 * scale) + "px");
 	}
 	else
 	{
-		nav->SetProperty("width", "64px");
+		nav->SetProperty("width", "64dp");
 	}
 }
 } // namespace
@@ -816,37 +823,37 @@ void open_window()
 			throw std::runtime_error("Could not load Unicode fallback font");
 	context = Rml::CreateContext("navigation", {GetScreenWidth(), GetScreenHeight()});
 	document = context->LoadDocumentFromMemory(std::string(R"(<rml><head><style>
-    body { display:block; width:100%; box-sizing:border-box; font-family:LatoLatin; font-size:20px; color:#d9e9ef; padding:20px; }
+    body { display:block; width:100%; box-sizing:border-box; font-family:LatoLatin; font-size:20dp; color:#d9e9ef; padding:20dp; }
     h1, h2, p { display:block; }
-    h1 { font-size:22px; color:#76c9e8; margin-bottom:6px; }
-    h2 { font-size:20px; margin:4px 0; }
+    h1 { font-size:22dp; color:#76c9e8; margin-bottom:6dp; }
+    h2 { font-size:20dp; margin:4dp 0; }
     #nav { display:flex; flex-wrap:wrap; }
-    button { display:inline-block; width:170px; padding:8px 12px; margin:0 8px 8px 0; background:#173142; border:1px #76c9e8; }
+    button { display:inline-block; width:170dp; padding:8dp 12dp; margin:0 8dp 8dp 0; background:#173142; border:1dp #76c9e8; }
     button:hover, button:focus { background:#315a70; }
-    #nav button { width:130px; padding:4px 8px; font-size:16px; }
-    #nav #settings {width:64px;height:64px;margin:0;padding:0;background:transparent;border:2px transparent;}
+    #nav button { width:130dp; padding:4dp 8dp; font-size:16dp; }
+    #nav #settings {width:64dp;height:64dp;margin:0;padding:0;background:transparent;border:2dp transparent;}
     #nav #settings:hover,#nav #settings:focus {background:#455458;border-color:#ec9c52;}
-    #settings img {position:absolute;left:4px;top:4px;width:54px;height:54px;pointer-events:none;}
+    #settings img {position:absolute;left:4dp;top:4dp;width:54dp;height:54dp;pointer-events:none;}
     #session-controls { display:block; width:100%; }
-    #session-controls button { width:250px; font-size:16px; padding:4px 8px; }
-    p { max-width:1100px; line-height:1.5; }
-    #description { width:100%; max-height:50px; overflow:auto; font-size:16px; }
-    #game { position:absolute; top:200px; left:20px; right:20px; bottom:20px; display:block; }
-    #game button { width:250px; }
-    .widget { position:absolute; box-sizing:border-box; border:1px #315a70; padding:10px; overflow:auto; }
-    .widget h3 { display:block; font-size:20px; margin-bottom:8px; }
-    .widget button { display:block; width:200px; font-size:16px; padding:4px; }
-    .connection { display:block; width:100%; margin-top:12px; }
-    .connection label { display:block; font-size:16px; }
-    .connection input { display:block; width:700px; height:26px; font-size:18px; background:#173142; color:#d9e9ef; border:1px #76c9e8; margin:4px 0 8px; }
-    #settings-panel { display:none; margin-top:20px; }
-    #settings-tabs { display:flex; margin-bottom:16px; }
-    #settings-tabs button { width:auto; min-width:120px; }
-    #settings-tabs .selected { background:#315a70; border:2px #d9e9ef; }
-    #settings-panel label, #settings-panel .audio-percent { display:block; margin-bottom:12px; }
-    #settings-panel .audio-volume { display:block; width:80%; max-width:600px; height:40px; margin-bottom:16px; }
-    #settings-panel .audio-volume slidertrack { height:8px; margin:16px 0; background:#315a70; }
-    #settings-panel .audio-volume sliderbar { width:24px; height:40px; background:#76c9e8; border:2px #d9e9ef; }
+    #session-controls button { width:250dp; font-size:16dp; padding:4dp 8dp; }
+    p { max-width:1100dp; line-height:1.5; }
+    #description { width:100%; max-height:50dp; overflow:auto; font-size:16dp; }
+    #game { position:absolute; top:200dp; left:20dp; right:20dp; bottom:20dp; display:block; }
+    #game button { width:250dp; }
+    .widget { position:absolute; box-sizing:border-box; border:1dp #315a70; padding:10dp; overflow:auto; }
+    .widget h3 { display:block; font-size:20dp; margin-bottom:8dp; }
+    .widget button { display:block; width:200dp; font-size:16dp; padding:4dp; }
+    .connection { display:block; width:100%; margin-top:12dp; }
+    .connection label { display:block; font-size:16dp; }
+    .connection input { display:block; width:700dp; height:26dp; font-size:18dp; background:#173142; color:#d9e9ef; border:1dp #76c9e8; margin:4dp 0 8dp; }
+    #settings-panel { display:none; margin-top:20dp; }
+    #settings-tabs { display:flex; margin-bottom:16dp; }
+    #settings-tabs button { width:auto; min-width:120dp; }
+    #settings-tabs .selected { background:#315a70; border:2dp #d9e9ef; }
+    #settings-panel label, #settings-panel .audio-percent { display:block; margin-bottom:12dp; }
+    #settings-panel .audio-volume { display:block; width:80%; max-width:600dp; height:40dp; margin-bottom:16dp; }
+    #settings-panel .audio-volume slidertrack { height:8dp; margin:16dp 0; background:#315a70; }
+    #settings-panel .audio-volume sliderbar { width:24dp; height:40dp; background:#76c9e8; border:2dp #d9e9ef; }
     #settings-panel .audio-volume:focus sliderbar { background:#d9e9ef; border-color:#76c9e8; }
     #settings-panel .audio-volume sliderarrowdec, #settings-panel .audio-volume sliderarrowinc { display:none; }
     #native-menu { position:absolute; overflow:hidden; background:#080f19; padding:0; box-sizing:border-box; }
@@ -857,9 +864,9 @@ void open_window()
     #native-menu p { word-break:break-word; }
     #native-menu scrollbarhorizontal { height:14dp; background:#102535; }
     #native-menu scrollbarhorizontal sliderbar { min-width:24dp; background:#76c9e8; }
-    #viewscreen-board scrollbarvertical {width:14px;background:#263638;}
-    #viewscreen-board scrollbarvertical sliderbar {min-height:32px;background:#ccc2af;}
-    #viewscreen-board scrollbarvertical slidertrack {width:14px;}
+    #viewscreen-board scrollbarvertical {width:14dp;background:#263638;}
+    #viewscreen-board scrollbarvertical sliderbar {min-height:32dp;background:#ccc2af;}
+    #viewscreen-board scrollbarvertical slidertrack {width:14dp;}
     #native-menu scrollbarvertical { width:14dp; background:#102535; }
     #native-menu scrollbarvertical sliderbar { min-height:24dp; background:#76c9e8; }
     #native-menu button:disabled { color:#617785; background:#10202b; border-color:#243b49; }

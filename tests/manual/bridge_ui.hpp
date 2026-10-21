@@ -27,6 +27,9 @@ inline void probe_bridge_ui(phoenix::Application &app, int frames, int width, in
 	{
 		require(app.control_placements.contains("viewscreen.readout/alert"), "Condition must have rendered bounds");
 		const auto &condition = app.control_placements.at("viewscreen.readout/alert");
+		std::cout << "Condition bounds: " << condition.x << "," << condition.y << " " << condition.width << "x"
+		          << condition.height << " window " << GetScreenWidth() << "x" << GetScreenHeight() << std::endl;
+		capture("bounds");
 		require(condition.width > 0 && condition.height > 0 && condition.y >= 0 &&
 		            condition.y + condition.height <= height,
 		        "Condition must remain inside the ship frame");

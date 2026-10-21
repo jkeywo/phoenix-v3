@@ -309,9 +309,10 @@ class ConsoleSurface final : public Rml::EventListener
 		auto *widget = document_->GetElementById("widget/" + key);
 		const auto at = widget_offset(key);
 		const auto &size = hud_metadata_.at("helm-throttle-track").at("image_size");
-		const float height = std::max(30.f, widget->GetOffsetHeight() - 100),
+		const float density = context_->GetDensityIndependentPixelRatio();
+		const float height = std::max(30.f * density, widget->GetOffsetHeight() - 100 * density),
 		            width = height * size[0].get<float>() / size[1].get<float>();
-		return {at.x + (widget->GetOffsetWidth() - width) / 2, at.y + 45, width, height};
+		return {at.x + (widget->GetOffsetWidth() - width) / 2, at.y + 45 * density, width, height};
 	}
 	void place(Application &app, const ConsoleRegion &region, const std::string &name)
 	{
@@ -374,6 +375,8 @@ class ConsoleSurface final : public Rml::EventListener
 			markup.replace(markup.find(needle), needle.size(),
 			               "ninepatch(" + token + "-outer, " + token + "-inner, 14px 18px 14px 18px) border-box");
 		}
+		for (auto at = markup.find("px"); at != std::string::npos; at = markup.find("px", at + 2))
+			markup.replace(at, 2, "dp");
 		markup.insert(markup.find("<style>") + 7, sheets);
 		return markup;
 	}
@@ -1556,8 +1559,14 @@ button.on-screen-active .share-live {display:block;}
 		}
 		return !action(id("release")) && !action(id("local-settings.quit"));
 	}
-	void prepare(Application &app, const ConsoleRegion &region, const std::set<std::string> &pads)
+	void prepare(Application &app, const ConsoleRegion &physical_region, const std::set<std::string> &pads)
 	{
+		// Embedded Command uses the scale of its parent Viewscreen.
+		const float display_scale = std::max(
+		    1.f, std::min(physical_region.width * (route_ == 31 ? 4.f : 1.f) / 1280.f, physical_region.height / 720.f));
+		context_->SetDensityIndependentPixelRatio(display_scale);
+		const ConsoleRegion region{physical_region.console, physical_region.x, physical_region.y,
+		                           physical_region.width / display_scale, physical_region.height / display_scale};
 		app_ = &app;
 		const auto preparation_started = GetTime();
 		const auto previous_announcement = model_.announcement();
@@ -1607,7 +1616,7 @@ button.on-screen-active .share-live {display:block;}
 			if (!profile.empty() && profile != "automatic")
 				manual_profile_ = "profile." + profile;
 		}
-		context_->SetDimensions({static_cast<int>(region.width), static_cast<int>(region.height)});
+		context_->SetDimensions({static_cast<int>(physical_region.width), static_cast<int>(physical_region.height)});
 		select_language(local_language_, app.pseudo_locale);
 		struct RestoreLanguage
 		{
@@ -1617,7 +1626,7 @@ button.on-screen-active .share-live {display:block;}
 				select_language(app.language, app.pseudo_locale);
 			}
 		} restore_language{app};
-		property(document_, "font-size", std::to_string(text_scale_ * .2f) + "px");
+		property(document_, "font-size", std::to_string(text_scale_ * .2f) + "dp");
 		if (settings_open_)
 		{
 			prepare_local_settings(app, region);
@@ -1840,12 +1849,12 @@ button.on-screen-active .share-live {display:block;}
 				            ah = aperture.at("height");
 				lobby += "<button id=\"" + id("profile") +
 				         "\" class=\"profile-tv\" style=\"width:" + std::to_string(tw) +
-				         "px;height:" + std::to_string(tw * sh / sw) + "px\"><img src=\"" +
+				         "dp;height:" + std::to_string(tw * sh / sw) + "dp\"><img src=\"" +
 				         asset_path("../menu/crt-terminal.png") + "\" width=\"" + std::to_string(tw) +
 				         "\"/><span style=\"left:" + std::to_string(ax / sw * 100) +
 				         "%;top:" + std::to_string((ay + ah * .85f) / sh * 100) +
 				         "%;width:" + std::to_string(aw / sw * 100) +
-				         "%;height:" + std::to_string(ah * .15f / sh * 100) + "%;background:#101918;font-size:16px\">" +
+				         "%;height:" + std::to_string(ah * .15f / sh * 100) + "%;background:#101918;font-size:16dp\">" +
 				         Rml::StringUtilities::EncodeRml(profile_name_) + "</span></button>";
 				if (profile_open_)
 				{
@@ -2007,14 +2016,14 @@ button.on-screen-active .share-live {display:block;}
 		const auto &gameplay_readouts = readout_values_;
 		std::set<std::string> engineering_controls;
 		property(document_->GetElementById("engineering-cards"), "width",
-		         std::to_string(region.width * .92f - 24) + "px");
+		         std::to_string(region.width * .92f - 24) + "dp");
 		std::string engineering_markup;
 		for (const auto &card : cards)
 		{
 			const int columns = region.width >= 900 ? 2 : 1;
 			const float card_width = (region.width * .92f - 40) / columns - 12;
 			engineering_markup += "<div class=\"engineering-card\" style=\"width:" + std::to_string(card_width) +
-			                      "px\"><h2>" + Rml::StringUtilities::EncodeRml(localise(card.title)) +
+			                      "dp\"><h2>" + Rml::StringUtilities::EncodeRml(localise(card.title)) +
 			                      "</h2><p id=\"" + id("resource/" + card.id) + "\"></p>";
 			for (const auto &[name, value] : std::vector<std::pair<std::string, std::optional<int>>>{
 			         {"heat", card.heat}, {"battery", card.battery}})
@@ -2071,10 +2080,10 @@ button.on-screen-active .share-live {display:block;}
 			widgets->SetProperty("bottom", "4%");
 			gameplay->SetProperty("left", "4%");
 			gameplay->SetProperty("right", "4%");
-			gameplay->SetProperty("top", "125px");
+			gameplay->SetProperty("top", "125dp");
 			gameplay->SetProperty("bottom", "4%");
 			gameplay->RemoveProperty("width");
-			gameplay->SetProperty("height", std::to_string(std::max(80.f, region.height * .96f - 125)) + "px");
+			gameplay->SetProperty("height", std::to_string(std::max(80.f, region.height * .96f - 125)) + "dp");
 			bool placed_gameplay = false;
 			if (has_gameplay && layout && layout->contains("gameplay_panel") &&
 			    layout->at("gameplay_panel").is_object())
@@ -2090,10 +2099,10 @@ button.on-screen-active .share-live {display:block;}
 					    x >= 0 && y >= 0 && width > 0 && height > 0 && x + width <= 1 && y + height <= 1)
 					{
 						const auto available_height = std::max(80.f, region.height - 125.f);
-						gameplay->SetProperty("left", std::to_string(region.width * x) + "px");
-						gameplay->SetProperty("top", std::to_string(125 + available_height * y) + "px");
-						gameplay->SetProperty("width", std::to_string(region.width * width) + "px");
-						gameplay->SetProperty("height", std::to_string(available_height * height) + "px");
+						gameplay->SetProperty("left", std::to_string(region.width * x) + "dp");
+						gameplay->SetProperty("top", std::to_string(125 + available_height * y) + "dp");
+						gameplay->SetProperty("width", std::to_string(region.width * width) + "dp");
+						gameplay->SetProperty("height", std::to_string(available_height * height) + "dp");
 						gameplay->RemoveProperty("right");
 						gameplay->RemoveProperty("bottom");
 						placed_gameplay = true;
@@ -2136,10 +2145,10 @@ button.on-screen-active .share-live {display:block;}
 						element->SetProperty(
 						    "left",
 						    std::to_string(has_camera ? width * .24f + (width * .61f - side) / 2 : (width - side) / 2) +
-						        "px");
-						element->SetProperty("top", std::to_string((height - side) / 2) + "px");
-						element->SetProperty("width", std::to_string(side) + "px");
-						element->SetProperty("height", std::to_string(side) + "px");
+						        "dp");
+						element->SetProperty("top", std::to_string((height - side) / 2) + "dp");
+						element->SetProperty("width", std::to_string(side) + "dp");
+						element->SetProperty("height", std::to_string(side) + "dp");
 					}
 					else if (kind == "throttle")
 					{
@@ -2173,19 +2182,19 @@ button.on-screen-active .share-live {display:block;}
 			if (engineering)
 			{
 				gameplay->SetProperty("left", "4%");
-				gameplay->SetProperty("top", "100px");
-				gameplay->SetProperty("width", std::to_string(region.width * .92f) + "px");
-				gameplay->SetProperty("height", std::to_string(std::max(80.f, region.height * .96f - 100)) + "px");
+				gameplay->SetProperty("top", "100dp");
+				gameplay->SetProperty("width", std::to_string(region.width * .92f) + "dp");
+				gameplay->SetProperty("height", std::to_string(std::max(80.f, region.height * .96f - 100)) + "dp");
 				gameplay->RemoveProperty("right");
 				gameplay->RemoveProperty("bottom");
 			}
 			if (command_console)
 			{
 				const float left = route_ == 31 ? 16.f : 48.f;
-				gameplay->SetProperty("left", std::to_string(left) + "px");
-				gameplay->SetProperty("top", "112px");
-				gameplay->SetProperty("width", std::to_string(region.width - left - 48.f) + "px");
-				gameplay->SetProperty("height", std::to_string(std::max(80.f, region.height - 224.f)) + "px");
+				gameplay->SetProperty("left", std::to_string(left) + "dp");
+				gameplay->SetProperty("top", "112dp");
+				gameplay->SetProperty("width", std::to_string(region.width - left - 48.f) + "dp");
+				gameplay->SetProperty("height", std::to_string(std::max(80.f, region.height - 224.f)) + "dp");
 				gameplay->RemoveProperty("right");
 				gameplay->RemoveProperty("bottom");
 			}
@@ -2249,7 +2258,7 @@ button.on-screen-active .share-live {display:block;}
 						}
 					markup += "<h2>" + Rml::StringUtilities::EncodeRml(deck) +
 					          "</h2><div "
-					          "style=\"display:block;position:relative;width:100%;height:300px;min-height:300px;clear:"
+					          "style=\"display:block;position:relative;width:100%;height:300dp;min-height:300dp;clear:"
 					          "both;overflow:hidden;\">";
 					for (const auto &c : compartments)
 						if (c.at("deck") == deck)
@@ -2309,7 +2318,7 @@ button.on-screen-active .share-live {display:block;}
 			if (name.starts_with("game.status/"))
 				if (auto *light = element(id(name)))
 				{
-					property(light, "border-left", label.starts_with("[!]") ? "10px #f08060" : "10px #83be90");
+					property(light, "border-left", label.starts_with("[!]") ? "10dp #f08060" : "10dp #83be90");
 				}
 		if (model_.observation())
 			for (const auto &c :
@@ -2346,8 +2355,8 @@ button.on-screen-active .share-live {display:block;}
 				if (auto *readout = element(id(name)))
 				{
 					property(readout, "border-left",
-					         text.find("[!]") != std::string::npos ? "8px #f08060" : "8px #83be90");
-					property(readout, "padding-left", "8px");
+					         text.find("[!]") != std::string::npos ? "8dp #f08060" : "8dp #83be90");
+					property(readout, "padding-left", "8dp");
 				}
 
 			app.screen_readouts.emplace_back(id(name), text);
@@ -2452,8 +2461,9 @@ button.on-screen-active .share-live {display:block;}
 					const auto selected = kind == "camera_mode" ? camera.mode : camera.direction;
 					auto *housing = document_->GetElementById("widget/" + key);
 					const float aspect = kind == "camera_mode" ? 2.5f : 1.f;
-					const float width = std::max(
-					    1.f, std::min(housing->GetOffsetWidth() - 16, (housing->GetOffsetHeight() - 50) * aspect));
+					const float width =
+					    std::max(1.f, std::min(housing->GetOffsetWidth() - 16 * display_scale,
+					                           (housing->GetOffsetHeight() - 50 * display_scale) * aspect));
 					const float height = width / aspect;
 					if (auto *panel = document_->GetElementById("camera-panel/" + key))
 					{
@@ -2463,7 +2473,7 @@ button.on-screen-active .share-live {display:block;}
 					}
 					if (auto *status = document_->GetElementById(id("camera-status/" + key)))
 					{
-						property(status, "top", std::to_string(height + 30) + "px");
+						property(status, "top", std::to_string(height + 30 * display_scale) + "px");
 						update_readout("camera-status/" + key,
 						               localise(kind == "camera_mode" ? (selected ? "Third person" : "First person")
 						                                              : camera_directions[selected]),
@@ -2518,7 +2528,12 @@ button.on-screen-active .share-live {display:block;}
 					const auto parent = widget_offset(key);
 					const float r = std::min(dial->GetOffsetWidth(), dial->GetOffsetHeight()) * .5f;
 					const float cx = at.x + dial->GetOffsetWidth() / 2, cy = at.y + dial->GetOffsetHeight() / 2;
-					const Rectangle pod{cx + r * .34f, cy + r * 1.02f, std::clamp(r * .70f, 196.f, 240.f), 76.f};
+					const float pod_width = std::clamp(r * .70f, 196.f * display_scale, 240.f * display_scale);
+					const float pod_height = 76.f * display_scale;
+					const Rectangle pod{
+					    std::min(cx + r * .34f, physical_region.width - pod_width - 24.f * display_scale),
+					    std::min(cy + r * 1.02f, physical_region.height - pod_height - 24.f * display_scale), pod_width,
+					    pod_height};
 					sharing_pods_[key] = pod;
 					property(control, "left", std::to_string(pod.x - parent.x) + "px");
 					property(control, "top", std::to_string(pod.y - parent.y) + "px");
@@ -2541,7 +2556,8 @@ button.on-screen-active .share-live {display:block;}
 					toggle->SetClass("manual-on", manual);
 					toggle->SetAttribute("aria-pressed", manual ? "true" : "false");
 					// Keep the single switch inside the radar bezel at smaller viewport sizes.
-					const float width = std::clamp(toggle->GetParentNode()->GetOffsetWidth() * .34f, 160.f, 220.f);
+					const float width = std::clamp(toggle->GetParentNode()->GetOffsetWidth() * .34f,
+					                               160.f * display_scale, 220.f * display_scale);
 					property(toggle, "width", std::to_string(width) + "px");
 					property(toggle, "height", std::to_string(width / 2.68f) + "px");
 				}
@@ -2629,11 +2645,13 @@ button.on-screen-active .share-live {display:block;}
 			const auto key = sha256(profile_avatar_);
 			const auto &portrait = crew_portraits_.contains(key) ? crew_portraits_.at(key) : profile_avatar_;
 			const auto texture = radar_textures_.load(key + "/portrait", portrait);
-			const float tw = terminal_.value("display_width", 264.f), sw = terminal_.at("size").at(0), scale = tw / sw;
+			const float density = context_->GetDensityIndependentPixelRatio();
+			const float tw = terminal_.value("display_width", 264.f) * density, sw = terminal_.at("size").at(0),
+			            scale = tw / sw;
 			const auto &screen = terminal_.at("screen");
 			const float x = screen.at("x"), y = screen.at("y"), w = screen.at("width"), h = screen.at("height");
-			const Rectangle area{region.x + region.width - 20 - tw + x * scale, region.y + y * scale, w * scale,
-			                     h * .85f * scale};
+			const Rectangle area{region.x + region.width - 20 * density - tw + x * scale, region.y + y * scale,
+			                     w * scale, h * .85f * scale};
 			const float fill = std::max(area.width / texture.width, area.height / texture.height);
 			DrawTexturePro(texture,
 			               {(texture.width - area.width / fill) / 2, (texture.height - area.height / fill) / 2,
