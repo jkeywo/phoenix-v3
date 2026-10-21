@@ -156,8 +156,8 @@ std::int64_t absorb_shields(flecs::entity ship, std::int64_t heading, std::int64
 	          {
 		          const auto &x = a.template get<CombatMechanism>().definition;
 		          const auto &y = b.template get<CombatMechanism>().definition;
-		          return std::pair{x.get<ShieldDefinition>().layer, x.id} <
-		                 std::pair{y.get<ShieldDefinition>().layer, y.id};
+		          return std::pair{x.template get<ShieldDefinition>().layer, x.id} <
+		                 std::pair{y.template get<ShieldDefinition>().layer, y.id};
 	          });
 	for (auto child : layers)
 	{

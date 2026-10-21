@@ -593,8 +593,10 @@ void step_repairs()
 			          {
 				          const auto &x = a.template get<CombatMechanism>().definition;
 				          const auto &y = b.template get<CombatMechanism>().definition;
-				          return x.get<RepairDefinition>().repair_rate != y.get<RepairDefinition>().repair_rate
-				                     ? x.get<RepairDefinition>().repair_rate > y.get<RepairDefinition>().repair_rate
+				          return x.template get<RepairDefinition>().repair_rate !=
+				                         y.template get<RepairDefinition>().repair_rate
+				                     ? x.template get<RepairDefinition>().repair_rate >
+				                           y.template get<RepairDefinition>().repair_rate
 				                     : x.id < y.id;
 			          });
 			auto &c = s.compartments[index];
