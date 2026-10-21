@@ -313,6 +313,8 @@ void ModelScene::draw(const Catalog &catalog, std::span<const SceneBody> bodies,
 	float radius = 20;
 	for (const auto &body : bodies)
 	{
+		if (body.definition.empty() && !body.sound.empty())
+			continue;
 		const auto &r = catalog.entities.at(body.definition).at("render");
 		s.load(catalog, r);
 		const Vector3 pos{body.x / 1000.f - rebase.x, -rebase.y, -body.y / 1000.f - rebase.z};
