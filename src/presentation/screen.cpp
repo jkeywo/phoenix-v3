@@ -491,6 +491,8 @@ void update_document(Application &app)
 	document->GetElementById("host")->SetProperty("display", app.can_host ? "inline-block" : "none");
 	document->GetElementById("edit")->SetProperty("display", app.can_edit ? "inline-block" : "none");
 	document->GetElementById("settings")->SetProperty("display", app.can_host ? "inline-block" : "none");
+	document->GetElementById("ai.config")
+	    ->SetProperty("display", ai_configuration_available(app) ? "inline-block" : "none");
 }
 void prepare_settings(Application &app)
 {
@@ -510,9 +512,52 @@ void prepare_settings(Application &app)
 	auto *tab_bar = document->GetElementById("settings-tabs");
 	if (tab_bar->GetInnerRML() != tab_markup)
 		tab_bar->SetInnerRML(tab_markup);
-	for (const char *section : {"audio", "display", "session"})
+	for (const char *section : {"audio", "display", "session", "ai"})
 		document->GetElementById(std::string("settings-") + section)
 		    ->SetProperty("display", app.settings_tab == section ? "block" : "none");
+	if (app.settings_tab == "ai")
+	{
+		auto *panel = document->GetElementById("settings-ai");
+		panel->SetInnerRML("");
+		const auto readouts = inference_readouts(app), controls = inference_controls(app);
+		auto line = [&](const std::string &id, const std::string &text)
+		{
+			auto element = document->CreateElement("p");
+			element->SetId(id);
+			element->AppendChild(document->CreateTextNode(localise(text)));
+			panel->AppendChild(std::move(element));
+			app.screen_readouts.emplace_back(id, localise(text));
+		};
+		auto button = [&](const std::string &id, const std::string &text)
+		{
+			auto element = document->CreateElement("button");
+			element->SetId(id);
+			element->AppendChild(document->CreateTextNode(localise(text)));
+			panel->AppendChild(std::move(element));
+			app.screen_controls.emplace_back(id, text);
+		};
+		for (const auto &[id, text] : readouts)
+			if (!id.starts_with("ai.status/"))
+				line(id, text);
+		button("ai.pair", "Pair inference bridge");
+		std::map<std::string, std::vector<Json>> groups;
+		for (const auto &row : app.session->inference_state().value("controllers", Json::array()))
+			groups[row.at("console")].push_back(row);
+		for (const auto &[console, rows] : groups)
+		{
+			line("ai.console/" + console, console);
+			for (const auto &row : rows)
+			{
+				const auto key = console + "/" + row.at("controller").get<std::string>();
+				for (const auto &[id, text] : readouts)
+					if (id == "ai.status/" + key)
+						line(id, text);
+				for (const auto &[id, text] : controls)
+					if (id.starts_with("ai.select/" + key + "/"))
+						button(id, text);
+			}
+		}
+	}
 	app.screen_controls.emplace_back("settings.close", "Back");
 	const bool can_quit = app.settings_tab == "session" && game_active(app) && bool(app.return_home);
 	document->GetElementById("settings.quit")->SetProperty("display", can_quit ? "block" : "none");
@@ -888,6 +933,8 @@ void open_window()
     #settings-panel .audio-volume slidertrack { height:8dp; margin:16dp 0; background:#315a70; }
     #settings-panel .audio-volume sliderbar { width:24dp; height:40dp; background:#76c9e8; border:2dp #d9e9ef; }
     #settings-panel .audio-volume:focus sliderbar { background:#d9e9ef; border-color:#76c9e8; }
+    .ai-brain { display:inline-block; width:26dp; height:24dp; margin-right:8dp; }
+    .ai-brain-left, .ai-brain-right { display:inline-block; width:11dp; height:19dp; border:2dp #a5d7ec; border-radius:7dp; }
     #settings-panel .audio-volume sliderarrowdec, #settings-panel .audio-volume sliderarrowinc { display:none; }
     #native-menu { position:absolute; overflow:hidden; background:#080f19; padding:0; box-sizing:border-box; }
     #native-menu h1 { position:absolute; top:30dp; left:0; width:100%; text-align:center; font-size:34dp; letter-spacing:3dp; }
@@ -924,9 +971,9 @@ void open_window()
     )") + native_menu->style_sheet(font_directory.generic_string()) +
 	                                               R"(</style></head><body><h1 id="app-title">Against the Stars</h1>
     <div id="nav"><button id="home">Home</button><button id="lobby" style="display:none;">Lobby</button><button id="host">New game</button><button id="join">Join console</button>
-    <button id="view">Viewscreen</button><button id="edit">Workshop</button><button id="locale">Toggle pseudo-localisation</button><button id="settings">Settings</button></div>
+    <button id="view">Viewscreen</button><button id="edit">Workshop</button><button id="locale">Toggle pseudo-localisation</button><button id="settings">Settings</button><button id="ai.config"><span class="ai-brain"><span class="ai-brain-left"/><span class="ai-brain-right"/></span>AI configuration</button></div>
     <h2 id="heading">Home</h2><p id="description"></p><div id="session-controls"></div><div id="game"></div>
-    <div id="settings-panel"><div id="settings-tabs"></div><div id="settings-audio"></div><div id="settings-display"><button id="settings.dust">Dust motes: On</button><button id="settings.grid">Reference grid: On</button><button id="settings.motion">Reduced motion: Off</button></div><div id="settings-session"><div id="settings-approvals"></div><button id="settings.quit">Quit to Main Menu</button></div><button id="settings.close">Back</button></div></body></rml>)",
+    <div id="settings-panel"><div id="settings-tabs"></div><div id="settings-audio"></div><div id="settings-display"><button id="settings.dust">Dust motes: On</button><button id="settings.grid">Reference grid: On</button><button id="settings.motion">Reduced motion: Off</button></div><div id="settings-ai"></div><div id="settings-session"><div id="settings-approvals"></div><button id="settings.quit">Quit to Main Menu</button></div><button id="settings.close">Back</button></div></body></rml>)",
 	                                           (font_directory / "navigation.rml").generic_string());
 	if (!document)
 		throw std::runtime_error("Could not load home screen");

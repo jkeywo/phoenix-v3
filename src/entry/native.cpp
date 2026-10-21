@@ -47,6 +47,8 @@ try
 	network.link.url = phoenix::default_network_service;
 	bool remote = false, gm = false, local_only = false, custom_data = false;
 	NativeMenuSmoke menu_smoke;
+	std::string inference_pair;
+	bool ai_config_smoke = false, ai_config_opened = false;
 	bool qr_smoke = false;
 	bool join_smoke = false, join_submitted = false, claim_submitted = false;
 	unsigned join_ready_frames = 0;
@@ -90,6 +92,10 @@ try
 		}
 		if (argument == "--base-url" && i + 1 < argc)
 			app.base_reference = argv[++i];
+		if (argument == "--inference-pair" && i + 1 < argc)
+			inference_pair = argv[++i];
+		if (argument == "--ai-config-smoke")
+			ai_config_smoke = true;
 		if (argument == "--menu-smoke")
 			menu_smoke.enabled = true;
 		if (argument == "--menu-smoke-large")
@@ -690,6 +696,9 @@ try
 		}
 	}
 	double accumulated = 0;
+	if (!inference_pair.empty() && app.can_host)
+		app.session->set_inference_connection(
+		    std::make_shared<phoenix::InferenceConnection>(inference_pair, network.link.url));
 	bool performance_released = false, performance_ready = false;
 	menu_smoke.configure_displays(app);
 	if (menu_smoke.large)
@@ -704,6 +713,14 @@ try
 	{
 		const auto frame_started = GetTime();
 		app.session->poll();
+		if (ai_config_smoke && !ai_config_opened && phoenix::ai_configuration_available(app))
+		{
+			phoenix::invoke_navigation(app, "ai.config");
+			ai_config_opened = true;
+			smoke_frames = 60;
+		}
+		if (ai_config_smoke && !ai_config_opened && GetTime() - smoke_started > 30)
+			throw std::runtime_error("AI configuration smoke pairing timed out");
 		if (!performance.output.empty() && !performance_ready && app.session->running())
 		{
 			if (!performance_released)
@@ -968,7 +985,8 @@ try
 		}
 		if (smoke_frames && --smoke_frames == 0)
 		{
-			TakeScreenshot(qr_smoke                                    ? "invitation-smoke.png"
+			TakeScreenshot(ai_config_opened                            ? "build/ai-configuration.png"
+			               : qr_smoke                                  ? "invitation-smoke.png"
 			               : workshop_smoke                            ? "workshop-smoke.png"
 			               : app.screen == phoenix::Screen::console    ? "console-smoke.png"
 			               : app.screen == phoenix::Screen::viewscreen ? "viewscreen-smoke.png"

@@ -2782,16 +2782,36 @@ struct GameplayEditor
 					        structure(binding[key], true);
 				        }
 			        });
+		optional_string(tree, "decision_context");
+		if (editable("decision_candidates"))
+			records(tree, "decision_candidates",
+			        {{"id", "candidate"},
+			         {"description", "Describe this officer decision"},
+			         {"available", Json::array()},
+			         {"tasks", Json::array()}},
+			        [&](Json &candidate)
+			        {
+				        string(candidate, "id");
+				        string(candidate, "description");
+				        string(candidate, "deviation");
+				        heading("Availability from permitted observations");
+				        structure(candidate["available"], true);
+				        heading("Prepared action and coordination tasks");
+				        structure(candidate["tasks"], true);
+			        });
 		if (tree.contains("controller_action") || button("Declare reusable Controller action"))
 		{
 			auto &action = tree["controller_action"];
 			if (action.is_null())
 				action = {{"label", "Controller action"}};
 			string(action, "label");
+			string(action, "description");
 			records(action, "inputs", {{"name", "target"}, {"type", "integer"}},
 			        [&](Json &input)
 			        {
 				        string(input, "name");
+				        string(input, "description");
+				        string(input, "unit");
 				        choice(input, "type", {"integer", "boolean", "text"});
 			        });
 			if (!action.contains("available"))

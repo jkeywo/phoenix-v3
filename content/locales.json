@@ -1000,7 +1000,14 @@
       "Shuttle bay unavailable": "Shuttle bay unavailable",
       "FTL preparation: launches suspended": "FTL preparation: launches suspended",
       "Personnel moving to transport": "Personnel moving to transport",
-      "Destination contact": "Destination contact"
+      "Destination contact": "Destination contact",
+      "AI configuration": "AI configuration",
+      "Pair inference bridge": "Pair inference bridge",
+      "Inference bridge connected": "Inference bridge connected",
+      "Inference bridge offline": "Inference bridge offline",
+      "Officer judgement": "Officer judgement",
+      "Officer decision under standing orders: {reason}": "Officer decision under standing orders: {reason}",
+      "State tree": "State tree"
     }
   }
 }

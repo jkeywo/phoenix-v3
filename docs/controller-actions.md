@@ -83,7 +83,7 @@ Detected contact projections carry faction ID, localisable label and viewer-rela
 
 Empty idle action/coordination records are omitted from saves and restored as defaults, keeping ordinary worlds compact without dropping active or terminal outcomes.
 
-World/session schema **13** persists action identity, inputs, continuation, outcome, effect receipts, officer commitments/replies and fixed faction membership. Incompatible runtime schemas/contracts are rejected transactionally; valid older content still uses defaults and boundary conversion. No external inference service or JEV adapter is included.
+World/session schema **13** persists action identity, inputs, continuation, outcome, effect receipts, officer commitments/replies and fixed faction membership. Incompatible runtime schemas/contracts are rejected transactionally; valid older content still uses defaults and boundary conversion. Optional external providers now use this executor through [Controller model providers](controller-models.md). The provider increment adds schema 14 and an explicit schema-13 migration.
 
 Synthetic production-loader integrations exercise shared actions with different policy/channel bindings, runtime argument types, replacement, completion, cleanup, forbidden writes, factions, hostile selection, supply/cooling exchanges, manoeuvre, repair completion and exact save/resume. The normal native, WASM and network gates remain the integrated acceptance checks. Graphical smoke, physical-device operation and screen-reader acceptance require separate explicitly recorded evidence.
 

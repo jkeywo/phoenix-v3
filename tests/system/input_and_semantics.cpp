@@ -24,10 +24,91 @@ import phoenix.navigation;
 
 using namespace phoenix;
 using phoenix::test::require;
+struct InferenceView final : SessionPort
+{
+	Json state = Json::object();
+	Catalog content;
+	void add_pack(const Bytes &) override
+	{
+	}
+	void clear_packs() override
+	{
+	}
+	const Catalog &catalog() const override
+	{
+		return content;
+	}
+	void start(const GameSetup &) override
+	{
+	}
+	bool running() const override
+	{
+		return false;
+	}
+	bool recovery_pending() const override
+	{
+		return false;
+	}
+	Bytes save() const override
+	{
+		return {};
+	}
+	void restore(const Bytes &) override
+	{
+	}
+	void resume_local() override
+	{
+	}
+	void tick() override
+	{
+	}
+	std::uint64_t ticks() const override
+	{
+		return 0;
+	}
+	bool command(const OperatingCommand &) override
+	{
+		return false;
+	}
+	std::optional<Observation> observation() const override
+	{
+		return {};
+	}
+	std::vector<BodyView> viewscreen() const override
+	{
+		return {};
+	}
+	Json inference_state() const override
+	{
+		return state;
+	}
+};
 int main()
 {
 	try
 	{
+		{
+			Application app;
+			app.can_host = true;
+			app.screen = Screen::viewscreen;
+			auto view = std::make_shared<InferenceView>();
+			app.session = view;
+			require(!ai_configuration_available(app) && !invoke_navigation(app, "ai.config"),
+			        "unconfigured inference hides and refuses the AI button");
+			const auto controls = navigation_controls(app);
+			require(std::none_of(controls.begin(), controls.end(),
+			                     [](const auto &c)
+			                     {
+				                     return c.id == "ai.config";
+			                     }),
+			        "unconfigured button absent from accessibility navigation");
+			view->state = {{"configured", true}, {"online", false}, {"providers", {"anyjev"}}};
+			require(ai_configuration_available(app) && invoke_navigation(app, "ai.config") && app.settings_tab == "ai",
+			        "configured offline provider retains repair access");
+			app.can_host = false;
+			require(!ai_configuration_available(app) && !invoke_navigation(app, "ai.pair"),
+			        "crew cannot change host provider configuration");
+		}
 		using P = Application::ToolPointer;
 		MapGesture gesture;
 		float pan_x = 0, pan_y = 0, zoom = 1;

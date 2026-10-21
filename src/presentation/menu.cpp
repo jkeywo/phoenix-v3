@@ -211,7 +211,10 @@ struct NativeMenuScreen::State
 		    (id.starts_with("settings.tab/") && id.substr(13) == app.settings_tab);
 		return "<button id=\"" + Rml::StringUtilities::EncodeRml(id) + "\" class=\"menu-skinned" +
 		       (selected ? " menu-selected" : "") + "\"" + (button_enabled ? "" : " disabled") + ">" +
-		       (id == "menu.settings" ? "<span class=\"menu-settings-icon\"/>" : "") +
+		       (id == "ai.config"
+		            ? "<span class=\"ai-brain\"><span class=\"ai-brain-left\"/><span class=\"ai-brain-right\"/></span>"
+		        : id == "menu.settings" ? "<span class=\"menu-settings-icon\"/>"
+		                                : "") +
 		       "<span class=\"menu-button-label\">" + Rml::StringUtilities::EncodeRml(localise(label)) +
 		       "</span></button>";
 	}
@@ -391,6 +394,8 @@ struct NativeMenuScreen::State
 			return false;
 		document.GetElementById("lobby")->SetProperty("display", "none");
 		document.GetElementById("settings")->SetProperty("display", "inline-block");
+		document.GetElementById("ai.config")
+		    ->SetProperty("display", ai_configuration_available(app) ? "inline-block" : "none");
 		for (const char *id : {"home", "settings", "lobby"})
 			document.GetElementById(id)->SetInnerRML(localise(id == std::string("home")       ? "Home"
 			                                                  : id == std::string("settings") ? "Settings"
@@ -760,6 +765,48 @@ struct NativeMenuScreen::State
 					}
 					if (app.reduced_motion)
 						markup += paragraph("Reduced motion hides dust motes and the reference grid.");
+				}
+				else if (app.settings_tab == "ai")
+				{
+					const auto readouts = inference_readouts(app);
+					const auto controls = inference_controls(app);
+					for (const auto &[id, text] : readouts)
+						if (!id.starts_with("ai.status/"))
+						{
+							markup += paragraph(text);
+							app.screen_readouts.emplace_back(id, localise(text));
+						}
+					markup += add("ai.pair", "Pair inference bridge",
+					              [&]
+					              {
+						              invoke_navigation(app, "ai.pair");
+					              });
+					std::map<std::string, std::vector<Json>> groups;
+					for (const auto &row : app.session->inference_state().value("controllers", Json::array()))
+						groups[row.at("console")].push_back(row);
+					for (const auto &[console, rows] : groups)
+					{
+						markup += heading(console);
+						for (const auto &row : rows)
+						{
+							const auto key = console + "/" + row.at("controller").get<std::string>();
+							for (const auto &[id, text] : readouts)
+								if (id == "ai.status/" + key)
+								{
+									markup += paragraph(text);
+									app.screen_readouts.emplace_back(id, localise(text));
+								}
+							markup += "<div class=\"ai-choices\">";
+							for (const auto &[id, text] : controls)
+								if (id.starts_with("ai.select/" + key + "/"))
+									markup += add(id, text,
+									              [&, id]
+									              {
+										              invoke_navigation(app, id);
+									              });
+							markup += "</div>";
+						}
+					}
 				}
 				else if (app.settings_tab == "session")
 				{
@@ -1358,6 +1405,8 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
     #native-menu .menu-top button.menu-skinned { decorator:none; padding:0; width:64px; height:64px; margin:0; }
     #native-menu .menu-top .menu-button-label { display:none; }
     .menu-settings-icon { position:absolute; left:4px; top:4px; width:54px; height:54px; decorator:image(menu/settings.png contain); pointer-events:none; }
+    .ai-choices { display:block; margin-bottom:12dp; }
+    #native-menu .ai-choices button { display:inline-block; width:200dp; margin-right:8dp; }
     #native-menu .settings-tabs { display:flex; flex-wrap:wrap; margin-bottom:16px; }
     #native-menu .settings-tabs button { flex:1 0 110px; width:auto; min-height:48px; font-size:16px; padding:8px; margin:0 4px 4px 0; }
     #native-menu .settings-tabs .menu-selected { image-color:#ffd093; }

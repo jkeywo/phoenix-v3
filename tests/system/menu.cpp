@@ -59,7 +59,7 @@ int main()
 			    "Invalid slice bounds, markers and resource paths are rejected");
 		}
 		// A nested library must not exceed Windows path limits just for its temporary writes.
-		const auto directory = "menu-integration-" + random_token() + "/nested-library";
+		const auto directory = "menu-integration-" + random_token().substr(0, 12) + "/nested-library";
 		const auto launch_directory = std::filesystem::current_path();
 		const auto native_data = std::filesystem::u8path(native_data_directory());
 		require(native_data.is_absolute(), "Native default storage is independent of the launch directory");

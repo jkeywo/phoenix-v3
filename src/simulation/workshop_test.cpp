@@ -156,6 +156,16 @@ Json GameplayTestHost::feedback() const
 		result["mission"] = impl_->snapshot->mission;
 		result["slot"] = impl_->snapshot->slot;
 		result["ship"] = impl_->snapshot->ship;
+		if (impl_->world)
+			if (const auto ship = impl_->world->ship_for_slot(impl_->snapshot->slot))
+			{
+				result["model_snapshots"] = Json::array();
+				for (const auto &row : impl_->world->controller_ai(*ship))
+					if (row.at("eligible").get<bool>() && !row.at("human").get<bool>() &&
+					    result["model_snapshots"].size() < 4)
+						result["model_snapshots"].push_back(impl_->world->controller_decision_snapshot(
+						    {*ship, row.at("console"), row.at("controller")}));
+			}
 	}
 	return result;
 }

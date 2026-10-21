@@ -22466,6 +22466,24 @@
 					"id": "act_bdf2290f28ee",
 					"tree": "base.action.lateral-thrust"
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Set lateral thrust: operate mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised operate.",
+					"tasks": [
+						{
+							"action": "select.act_bdf2290f28ee",
+							"arguments": [
+								"base.action.bdf2290f28ee",
+								{
+									"observation": "navigation.lateral_thrust"
+								}
+							]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -22648,6 +22666,40 @@
 				{
 					"id": "act_040b144d038c",
 					"tree": "base.action.group-allocation"
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate power: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate power: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
 				}
 			]
 		},
@@ -22944,6 +22996,62 @@
 					"id": "act_879a3769c35a",
 					"tree": "base.action.generator-output"
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Set generator operating output: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_879a3769c35a",
+							"arguments": [
+								"base.action.879a3769c35a",
+								{
+									"observation": "power.demand"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Set generator operating output: capped mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised capped.",
+					"tasks": [
+						{
+							"action": "select.act_879a3769c35a",
+							"arguments": [
+								"base.action.879a3769c35a",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-3",
+					"description": "Set generator operating output: combat mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised combat.",
+					"tasks": [
+						{
+							"action": "select.act_879a3769c35a",
+							"arguments": ["base.action.879a3769c35a", 20000]
+						}
+					]
+				},
+				{
+					"id": "option-4",
+					"description": "Set generator operating output: hot mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised hot.",
+					"tasks": [
+						{
+							"action": "select.act_879a3769c35a",
+							"arguments": ["base.action.879a3769c35a", 7000]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -23036,6 +23144,40 @@
 					"id": "act_f22a1b3b1aff",
 					"tree": "base.action.cooling-allocation"
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate cooling: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate cooling: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -23127,6 +23269,40 @@
 				{
 					"id": "act_f22a1b3b1aff",
 					"tree": "base.action.cooling-allocation"
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate cooling: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate cooling: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
 				}
 			]
 		},
@@ -23318,6 +23494,62 @@
 					"id": "act_040b144d038c",
 					"tree": "base.action.group-allocation"
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate power: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate power: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-3",
+					"description": "Allocate power: combat mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised combat.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1000]
+						}
+					]
+				},
+				{
+					"id": "option-4",
+					"description": "Allocate power: reserve mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised reserve.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 250]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -23504,6 +23736,62 @@
 				{
 					"id": "act_040b144d038c",
 					"tree": "base.action.group-allocation"
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate power: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate power: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-3",
+					"description": "Allocate power: combat mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised combat.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 10000]
+						}
+					]
+				},
+				{
+					"id": "option-4",
+					"description": "Allocate power: reserve mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised reserve.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 2000]
+						}
+					]
 				}
 			]
 		},
@@ -24066,6 +24354,138 @@
 					"id": "act_2a9a60bf3ced",
 					"tree": "base.action.speed-mm-s"
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "waiting: officer withdraw_from. Inputs are precomputed from permitted evidence.",
+					"deviation": "Officer prioritised waiting.",
+					"tasks": [
+						{
+							"action": "coordination.withdraw_from",
+							"arguments": ["power", "engineering", "core.generator"]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Travel to destination: navigate mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised navigate.",
+					"tasks": [
+						{
+							"action": "select.act_2cfba4c387d2",
+							"arguments": [
+								"base.action.2cfba4c387d2",
+								true,
+								{
+									"observation": "objective.x"
+								},
+								{
+									"observation": "objective.y"
+								},
+								{
+									"parameter": "cruise_speed"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-3",
+					"description": "limited: officer maintain. Inputs are precomputed from permitted evidence.",
+					"deviation": "Officer prioritised limited.",
+					"tasks": [
+						{
+							"action": "coordination.maintain",
+							"arguments": ["power", "engineering", "core.generator", 0, 8000, 1, 600, 40]
+						}
+					]
+				},
+				{
+					"id": "option-4",
+					"description": "Travel to destination: limited mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised limited.",
+					"tasks": [
+						{
+							"action": "select.act_2cfba4c387d2",
+							"arguments": [
+								"base.action.2cfba4c387d2",
+								true,
+								{
+									"observation": "objective.x"
+								},
+								{
+									"observation": "objective.y"
+								},
+								4500
+							]
+						}
+					]
+				},
+				{
+					"id": "option-5",
+					"description": "Maintain speed: arrived mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised arrived.",
+					"tasks": [
+						{
+							"action": "select.act_2a9a60bf3ced",
+							"arguments": ["base.action.2a9a60bf3ced", 0]
+						}
+					]
+				},
+				{
+					"id": "option-6",
+					"description": "Travel to destination: stance hold mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised stance hold.",
+					"tasks": [
+						{
+							"action": "select.act_2cfba4c387d2",
+							"arguments": ["base.action.2cfba4c387d2", false, 0, 0, 0]
+						}
+					]
+				},
+				{
+					"id": "option-7",
+					"description": "Travel to destination: supported mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised supported.",
+					"tasks": [
+						{
+							"action": "select.act_2cfba4c387d2",
+							"arguments": [
+								"base.action.2cfba4c387d2",
+								true,
+								{
+									"observation": "objective.x"
+								},
+								{
+									"observation": "objective.y"
+								},
+								9000
+							]
+						}
+					]
+				},
+				{
+					"id": "option-8",
+					"description": "Travel to destination: restricted mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised restricted.",
+					"tasks": [
+						{
+							"action": "select.act_2cfba4c387d2",
+							"arguments": [
+								"base.action.2cfba4c387d2",
+								true,
+								{
+									"observation": "objective.x"
+								},
+								{
+									"observation": "objective.y"
+								},
+								2000
+							]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -24157,6 +24577,40 @@
 				{
 					"id": "act_f22a1b3b1aff",
 					"tree": "base.action.cooling-allocation"
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate cooling: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate cooling: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
 				}
 			]
 		},
@@ -24348,6 +24802,62 @@
 					"id": "act_040b144d038c",
 					"tree": "base.action.group-allocation"
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate power: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate power: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-3",
+					"description": "Allocate power: combat mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised combat.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 4000]
+						}
+					]
+				},
+				{
+					"id": "option-4",
+					"description": "Allocate power: reserve mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised reserve.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1000]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -24439,6 +24949,40 @@
 				{
 					"id": "act_f22a1b3b1aff",
 					"tree": "base.action.cooling-allocation"
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate cooling: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate cooling: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
 				}
 			]
 		},
@@ -24630,6 +25174,62 @@
 					"id": "act_040b144d038c",
 					"tree": "base.action.group-allocation"
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate power: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate power: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-3",
+					"description": "Allocate power: combat mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised combat.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1500]
+						}
+					]
+				},
+				{
+					"id": "option-4",
+					"description": "Allocate power: reserve mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised reserve.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 375]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -24721,6 +25321,40 @@
 				{
 					"id": "act_f22a1b3b1aff",
 					"tree": "base.action.cooling-allocation"
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate cooling: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate cooling: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
 				}
 			]
 		},
@@ -24912,6 +25546,62 @@
 					"id": "act_040b144d038c",
 					"tree": "base.action.group-allocation"
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate power: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate power: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-3",
+					"description": "Allocate power: combat mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised combat.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1000]
+						}
+					]
+				},
+				{
+					"id": "option-4",
+					"description": "Allocate power: reserve mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised reserve.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 250]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -25030,6 +25720,28 @@
 					"id": "act_203a684bc78b",
 					"tree": "base.action.destination"
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Travel to destination: navigate mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised navigate.",
+					"tasks": [
+						{
+							"action": "select.act_203a684bc78b",
+							"arguments": [
+								"base.action.203a684bc78b",
+								true,
+								{
+									"observation": "objective.x"
+								},
+								{
+									"observation": "objective.y"
+								}
+							]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -25121,6 +25833,40 @@
 				{
 					"id": "act_f22a1b3b1aff",
 					"tree": "base.action.cooling-allocation"
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate cooling: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate cooling: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
 				}
 			]
 		},
@@ -25312,6 +26058,62 @@
 					"id": "act_040b144d038c",
 					"tree": "base.action.group-allocation"
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate power: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate power: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-3",
+					"description": "Allocate power: combat mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised combat.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1000]
+						}
+					]
+				},
+				{
+					"id": "option-4",
+					"description": "Allocate power: reserve mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised reserve.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 125]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -25403,6 +26205,40 @@
 				{
 					"id": "act_f22a1b3b1aff",
 					"tree": "base.action.cooling-allocation"
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate cooling: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate cooling: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
 				}
 			]
 		},
@@ -25594,6 +26430,62 @@
 					"id": "act_040b144d038c",
 					"tree": "base.action.group-allocation"
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate power: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate power: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-3",
+					"description": "Allocate power: combat mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised combat.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1000]
+						}
+					]
+				},
+				{
+					"id": "option-4",
+					"description": "Allocate power: reserve mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised reserve.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 250]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -25685,6 +26577,40 @@
 				{
 					"id": "act_f22a1b3b1aff",
 					"tree": "base.action.cooling-allocation"
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate cooling: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate cooling: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
 				}
 			]
 		},
@@ -25876,6 +26802,62 @@
 					"id": "act_040b144d038c",
 					"tree": "base.action.group-allocation"
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate power: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate power: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-3",
+					"description": "Allocate power: combat mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised combat.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1000]
+						}
+					]
+				},
+				{
+					"id": "option-4",
+					"description": "Allocate power: reserve mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised reserve.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 250]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -25967,6 +26949,40 @@
 				{
 					"id": "act_f22a1b3b1aff",
 					"tree": "base.action.cooling-allocation"
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate cooling: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate cooling: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
 				}
 			]
 		},
@@ -26157,6 +27173,62 @@
 				{
 					"id": "act_040b144d038c",
 					"tree": "base.action.group-allocation"
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate power: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate power: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-3",
+					"description": "Allocate power: combat mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised combat.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1000]
+						}
+					]
+				},
+				{
+					"id": "option-4",
+					"description": "Allocate power: reserve mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised reserve.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 250]
+						}
+					]
 				}
 			]
 		},
@@ -26453,6 +27525,62 @@
 					"id": "act_879a3769c35a",
 					"tree": "base.action.generator-output"
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Set generator operating output: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_879a3769c35a",
+							"arguments": [
+								"base.action.879a3769c35a",
+								{
+									"observation": "power.demand"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Set generator operating output: capped mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised capped.",
+					"tasks": [
+						{
+							"action": "select.act_879a3769c35a",
+							"arguments": [
+								"base.action.879a3769c35a",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-3",
+					"description": "Set generator operating output: combat mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised combat.",
+					"tasks": [
+						{
+							"action": "select.act_879a3769c35a",
+							"arguments": ["base.action.879a3769c35a", 30000]
+						}
+					]
+				},
+				{
+					"id": "option-4",
+					"description": "Set generator operating output: hot mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised hot.",
+					"tasks": [
+						{
+							"action": "select.act_879a3769c35a",
+							"arguments": ["base.action.879a3769c35a", 10500]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -26544,6 +27672,40 @@
 				{
 					"id": "act_f22a1b3b1aff",
 					"tree": "base.action.cooling-allocation"
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate cooling: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate cooling: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
 				}
 			]
 		},
@@ -26735,6 +27897,62 @@
 					"id": "act_040b144d038c",
 					"tree": "base.action.group-allocation"
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate power: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate power: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-3",
+					"description": "Allocate power: combat mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised combat.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1000]
+						}
+					]
+				},
+				{
+					"id": "option-4",
+					"description": "Allocate power: reserve mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised reserve.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 250]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -26826,6 +28044,40 @@
 				{
 					"id": "act_f22a1b3b1aff",
 					"tree": "base.action.cooling-allocation"
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate cooling: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate cooling: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
 				}
 			]
 		},
@@ -27017,6 +28269,62 @@
 					"id": "act_040b144d038c",
 					"tree": "base.action.group-allocation"
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate power: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate power: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-3",
+					"description": "Allocate power: combat mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised combat.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1000]
+						}
+					]
+				},
+				{
+					"id": "option-4",
+					"description": "Allocate power: reserve mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised reserve.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 250]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -27203,6 +28511,62 @@
 				{
 					"id": "act_040b144d038c",
 					"tree": "base.action.group-allocation"
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate power: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate power: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-3",
+					"description": "Allocate power: combat mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised combat.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 10000]
+						}
+					]
+				},
+				{
+					"id": "option-4",
+					"description": "Allocate power: reserve mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised reserve.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 2000]
+						}
+					]
 				}
 			]
 		},
@@ -27765,6 +29129,138 @@
 					"id": "act_2a9a60bf3ced",
 					"tree": "base.action.speed-mm-s"
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "waiting: officer withdraw_from. Inputs are precomputed from permitted evidence.",
+					"deviation": "Officer prioritised waiting.",
+					"tasks": [
+						{
+							"action": "coordination.withdraw_from",
+							"arguments": ["power", "engineering", "core.generator"]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Travel to destination: navigate mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised navigate.",
+					"tasks": [
+						{
+							"action": "select.act_2cfba4c387d2",
+							"arguments": [
+								"base.action.2cfba4c387d2",
+								true,
+								{
+									"observation": "objective.x"
+								},
+								{
+									"observation": "objective.y"
+								},
+								{
+									"parameter": "cruise_speed"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-3",
+					"description": "limited: officer maintain. Inputs are precomputed from permitted evidence.",
+					"deviation": "Officer prioritised limited.",
+					"tasks": [
+						{
+							"action": "coordination.maintain",
+							"arguments": ["power", "engineering", "core.generator", 0, 8000, 1, 600, 40]
+						}
+					]
+				},
+				{
+					"id": "option-4",
+					"description": "Travel to destination: limited mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised limited.",
+					"tasks": [
+						{
+							"action": "select.act_2cfba4c387d2",
+							"arguments": [
+								"base.action.2cfba4c387d2",
+								true,
+								{
+									"observation": "objective.x"
+								},
+								{
+									"observation": "objective.y"
+								},
+								4500
+							]
+						}
+					]
+				},
+				{
+					"id": "option-5",
+					"description": "Maintain speed: arrived mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised arrived.",
+					"tasks": [
+						{
+							"action": "select.act_2a9a60bf3ced",
+							"arguments": ["base.action.2a9a60bf3ced", 0]
+						}
+					]
+				},
+				{
+					"id": "option-6",
+					"description": "Travel to destination: stance hold mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised stance hold.",
+					"tasks": [
+						{
+							"action": "select.act_2cfba4c387d2",
+							"arguments": ["base.action.2cfba4c387d2", false, 0, 0, 0]
+						}
+					]
+				},
+				{
+					"id": "option-7",
+					"description": "Travel to destination: supported mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised supported.",
+					"tasks": [
+						{
+							"action": "select.act_2cfba4c387d2",
+							"arguments": [
+								"base.action.2cfba4c387d2",
+								true,
+								{
+									"observation": "objective.x"
+								},
+								{
+									"observation": "objective.y"
+								},
+								9000
+							]
+						}
+					]
+				},
+				{
+					"id": "option-8",
+					"description": "Travel to destination: restricted mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised restricted.",
+					"tasks": [
+						{
+							"action": "select.act_2cfba4c387d2",
+							"arguments": [
+								"base.action.2cfba4c387d2",
+								true,
+								{
+									"observation": "objective.x"
+								},
+								{
+									"observation": "objective.y"
+								},
+								2000
+							]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -27856,6 +29352,40 @@
 				{
 					"id": "act_f22a1b3b1aff",
 					"tree": "base.action.cooling-allocation"
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate cooling: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate cooling: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
 				}
 			]
 		},
@@ -28047,6 +29577,62 @@
 					"id": "act_040b144d038c",
 					"tree": "base.action.group-allocation"
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate power: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate power: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-3",
+					"description": "Allocate power: combat mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised combat.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 4000]
+						}
+					]
+				},
+				{
+					"id": "option-4",
+					"description": "Allocate power: reserve mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised reserve.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1000]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -28138,6 +29724,40 @@
 				{
 					"id": "act_f22a1b3b1aff",
 					"tree": "base.action.cooling-allocation"
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate cooling: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate cooling: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
 				}
 			]
 		},
@@ -28329,6 +29949,62 @@
 					"id": "act_040b144d038c",
 					"tree": "base.action.group-allocation"
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate power: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate power: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-3",
+					"description": "Allocate power: combat mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised combat.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1500]
+						}
+					]
+				},
+				{
+					"id": "option-4",
+					"description": "Allocate power: reserve mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised reserve.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 375]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -28420,6 +30096,40 @@
 				{
 					"id": "act_f22a1b3b1aff",
 					"tree": "base.action.cooling-allocation"
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate cooling: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate cooling: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
 				}
 			]
 		},
@@ -28611,6 +30321,62 @@
 					"id": "act_040b144d038c",
 					"tree": "base.action.group-allocation"
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate power: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate power: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-3",
+					"description": "Allocate power: combat mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised combat.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1000]
+						}
+					]
+				},
+				{
+					"id": "option-4",
+					"description": "Allocate power: reserve mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised reserve.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 250]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -28702,6 +30468,40 @@
 				{
 					"id": "act_f22a1b3b1aff",
 					"tree": "base.action.cooling-allocation"
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate cooling: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate cooling: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_f22a1b3b1aff",
+							"arguments": [
+								"base.action.f22a1b3b1aff",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
 				}
 			]
 		},
@@ -28893,6 +30693,62 @@
 					"id": "act_040b144d038c",
 					"tree": "base.action.group-allocation"
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Allocate power: routine mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised routine.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"parameter": "default_allocation"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Allocate power: summary mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised summary.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": [
+								"base.action.040b144d038c",
+								{
+									"observation": "summary.level"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-3",
+					"description": "Allocate power: combat mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised combat.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1000]
+						}
+					]
+				},
+				{
+					"id": "option-4",
+					"description": "Allocate power: reserve mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised reserve.",
+					"tasks": [
+						{
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 125]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -28954,6 +30810,31 @@
 				{
 					"id": "act_28a7c0cbefc3",
 					"tree": "base.action.follow-contact"
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Follow contact: follow mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised follow.",
+					"tasks": [
+						{
+							"action": "select.act_28a7c0cbefc3",
+							"arguments": [
+								"base.action.28a7c0cbefc3",
+								true,
+								{
+									"parameter": "leader"
+								},
+								{
+									"parameter": "distance"
+								},
+								{
+									"parameter": "speed_limit"
+								}
+							]
+						}
+					]
 				}
 			]
 		},
@@ -29298,6 +31179,72 @@
 				{
 					"id": "act_2cfba4c387d2",
 					"tree": "base.action.destination-speed-mm-s"
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Travel to destination: waiting mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised waiting.",
+					"tasks": [
+						{
+							"action": "select.act_2cfba4c387d2",
+							"arguments": ["base.action.2cfba4c387d2", false, 0, 0, 0]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Travel to destination: objective mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised objective.",
+					"tasks": [
+						{
+							"action": "select.act_2cfba4c387d2",
+							"arguments": [
+								"base.action.2cfba4c387d2",
+								true,
+								{
+									"observation": "objective.x"
+								},
+								{
+									"observation": "objective.y"
+								},
+								9000
+							]
+						}
+					]
+				},
+				{
+					"id": "option-3",
+					"description": "Travel to destination: waypoint mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised waypoint.",
+					"tasks": [
+						{
+							"action": "select.act_2cfba4c387d2",
+							"arguments": [
+								"base.action.2cfba4c387d2",
+								true,
+								{
+									"observation": "waypoint.x"
+								},
+								{
+									"observation": "waypoint.y"
+								},
+								9000
+							]
+						}
+					]
+				},
+				{
+					"id": "option-4",
+					"description": "Travel to destination: clear mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised clear.",
+					"tasks": [
+						{
+							"action": "select.act_2cfba4c387d2",
+							"arguments": ["base.action.2cfba4c387d2", false, 0, 0, 2000]
+						}
+					]
 				}
 			]
 		},
@@ -29660,6 +31607,97 @@
 				{
 					"id": "act_f478207abf60",
 					"tree": "base.action.destination-heading-mdeg"
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Travel to destination: waiting mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised waiting.",
+					"tasks": [
+						{
+							"action": "select.act_203a684bc78b",
+							"arguments": ["base.action.203a684bc78b", false, 0, 0]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Travel to destination: objective mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised objective.",
+					"tasks": [
+						{
+							"action": "select.act_203a684bc78b",
+							"arguments": [
+								"base.action.203a684bc78b",
+								true,
+								{
+									"observation": "objective.x"
+								},
+								{
+									"observation": "objective.y"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-3",
+					"description": "Travel to destination: waypoint mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised waypoint.",
+					"tasks": [
+						{
+							"action": "select.act_203a684bc78b",
+							"arguments": [
+								"base.action.203a684bc78b",
+								true,
+								{
+									"observation": "waypoint.x"
+								},
+								{
+									"observation": "waypoint.y"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-4",
+					"description": "Travel to destination: avoid mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised avoid.",
+					"tasks": [
+						{
+							"action": "select.act_f478207abf60",
+							"arguments": [
+								"base.action.f478207abf60",
+								false,
+								0,
+								0,
+								{
+									"observation": "navigation.left_heading"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-5",
+					"description": "Travel to destination: clear mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised clear.",
+					"tasks": [
+						{
+							"action": "select.act_f478207abf60",
+							"arguments": [
+								"base.action.f478207abf60",
+								false,
+								0,
+								0,
+								{
+									"observation": "own.heading"
+								}
+							]
+						}
+					]
 				}
 			]
 		},
@@ -31357,6 +33395,51 @@
 						}
 					]
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Combat approach: hold mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised hold.",
+					"tasks": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", 0]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Combat approach: approach mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised approach.",
+					"tasks": [
+						{
+							"action": "select.duty",
+							"arguments": [
+								"standing-duty",
+								{
+									"observation": "drive.approach_speed"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-3",
+					"description": "Combat approach: cruise mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised cruise.",
+					"tasks": [
+						{
+							"action": "select.duty",
+							"arguments": [
+								"standing-duty",
+								{
+									"observation": "drive.cruise_speed"
+								}
+							]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -31423,6 +33506,24 @@
 						}
 					]
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Face contact: operate mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised operate.",
+					"tasks": [
+						{
+							"action": "select.duty",
+							"arguments": [
+								"standing-duty",
+								{
+									"observation": "tactical.bearing"
+								}
+							]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -31456,6 +33557,19 @@
 				{
 					"id": "operate",
 					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty"]
+						}
+					]
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Face contact: operate mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised operate.",
+					"tasks": [
 						{
 							"action": "select.duty",
 							"arguments": ["standing-duty"]
@@ -31861,6 +33975,35 @@
 						}
 					]
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Face contact: operate mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised operate.",
+					"tasks": [
+						{
+							"action": "select.duty",
+							"arguments": [
+								"standing-duty",
+								{
+									"observation": "tactical.target"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Engage hostile: conserve mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised conserve.",
+					"tasks": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", 0]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -31916,6 +34059,24 @@
 				{
 					"id": "operate",
 					"running": [
+						{
+							"action": "select.duty",
+							"arguments": [
+								"standing-duty",
+								{
+									"observation": "repair.compartment"
+								}
+							]
+						}
+					]
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Face contact: operate mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised operate.",
+					"tasks": [
 						{
 							"action": "select.duty",
 							"arguments": [
@@ -32051,6 +34212,35 @@
 					"field": "thermal_stopped",
 					"type": "boolean"
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Face contact: operate mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised operate.",
+					"tasks": [
+						{
+							"action": "select.duty",
+							"arguments": [
+								"standing-duty",
+								{
+									"observation": "power.demand"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Regulate reactor: recover mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised recover.",
+					"tasks": [
+						{
+							"action": "select.duty",
+							"arguments": ["thermal-recovery", 0]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -32173,6 +34363,30 @@
 									"right": 100
 								}
 							]
+						}
+					]
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Combat approach: hold mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised hold.",
+					"tasks": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", false]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Maintain shield distribution: share mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised share.",
+					"tasks": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", true]
 						}
 					]
 				}
@@ -32348,6 +34562,44 @@
 						}
 					]
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Face contact: operate mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised operate.",
+					"tasks": [
+						{
+							"action": "select.duty",
+							"arguments": [
+								"standing-duty",
+								{
+									"observation": "tactical.target"
+								},
+								{
+									"observation": "tactical.magazine"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Engage hostile: conserve mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised conserve.",
+					"tasks": [
+						{
+							"action": "select.duty",
+							"arguments": [
+								"standing-duty",
+								0,
+								{
+									"observation": "tactical.magazine"
+								}
+							]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -32453,6 +34705,24 @@
 						}
 					]
 				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Face contact: operate mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised operate.",
+					"tasks": [
+						{
+							"action": "select.duty",
+							"arguments": [
+								"standing-duty",
+								{
+									"observation": "tactical.target"
+								}
+							]
+						}
+					]
+				}
 			]
 		},
 		{
@@ -32555,6 +34825,35 @@
 									"right": 40
 								}
 							]
+						}
+					]
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Face contact: operate mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised operate.",
+					"tasks": [
+						{
+							"action": "select.duty",
+							"arguments": [
+								"standing-duty",
+								{
+									"observation": "tactical.target"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Engage hostile: conserve mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised conserve.",
+					"tasks": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", 0]
 						}
 					]
 				}

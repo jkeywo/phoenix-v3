@@ -132,6 +132,57 @@ void load_display_preferences(Application &app)
 	}
 #endif
 }
+bool ai_configuration_available(const Application &app)
+{
+	return app.can_host && app.session && app.session->inference_state().value("configured", false);
+}
+std::vector<std::pair<std::string, std::string>> inference_controls(const Application &app)
+{
+	std::vector<std::pair<std::string, std::string>> controls;
+	if (!app.can_host || !app.session)
+		return controls;
+	controls.emplace_back("ai.pair", "Pair inference bridge");
+	const auto state = app.session->inference_state();
+	for (const auto &row : state.value("controllers", Json::array()))
+	{
+		if (!row.at("eligible").get<bool>())
+			continue;
+		auto providers = state.value("providers", Json::array());
+		providers.push_back("tree");
+		for (const auto &provider : providers)
+		{
+			if (provider != "tree" && !row.at("eligible").get<bool>())
+				continue;
+			const auto console = row.at("console").get<std::string>(),
+			           controller = row.at("controller").get<std::string>(), p = provider.get<std::string>();
+			controls.emplace_back("ai.select/" + console + "/" + controller + "/" + p,
+			                      console + " / " + controller + ": " + (p == "tree" ? "State tree" : p) +
+			                          (row.at("selected") == p ? " (selected)" : ""));
+		}
+	}
+	return controls;
+}
+std::vector<std::pair<std::string, std::string>> inference_readouts(const Application &app)
+{
+	std::vector<std::pair<std::string, std::string>> rows;
+	if (!app.can_host || !app.session)
+		return rows;
+	const auto state = app.session->inference_state();
+	rows.emplace_back("ai.health",
+	                  state.value("online", false) ? "Inference bridge connected" : "Inference bridge offline");
+	rows.emplace_back("ai.latency",
+	                  "Last inference: " + std::to_string(state.value("latency_ms", std::uint64_t{0})) + " ms");
+	if (state.contains("pair") && !state.value("paired", false))
+		rows.emplace_back("ai.pair-code", "Pairing token: " + state.at("pair").get<std::string>());
+	for (const auto &row : state.value("controllers", Json::array()))
+		rows.emplace_back(
+		    "ai.status/" + row.at("console").get<std::string>() + "/" + row.at("controller").get<std::string>(),
+		    row.at("controller").get<std::string>() + ": " +
+		        (row.value("human", false) ? std::string("Human operator") : row.at("effective").get<std::string>()) +
+		        "; " + row.at("reason").get<std::string>() +
+		        (row.at("eligible").get<bool>() ? "" : "; no model candidates authored"));
+	return rows;
+}
 std::vector<std::pair<std::string, std::string>> settings_tabs(const Application &app)
 {
 	std::vector<std::pair<std::string, std::string>> tabs{{"settings.tab/audio", "Audio"}};
@@ -141,6 +192,8 @@ std::vector<std::pair<std::string, std::string>> settings_tabs(const Application
 		tabs.emplace_back("settings.tab/language", "Language");
 	}
 	tabs.emplace_back("settings.tab/display", "Display");
+	if (app.can_host && app.session)
+		tabs.emplace_back("settings.tab/ai", "AI configuration");
 	if (game_active(app) || (app.session && app.session->lobby().active))
 		tabs.emplace_back("settings.tab/session", "Session");
 	return tabs;
@@ -148,20 +201,20 @@ std::vector<std::pair<std::string, std::string>> settings_tabs(const Application
 std::vector<SemanticControl> navigation_controls(const Application &app)
 {
 	std::vector<SemanticControl> controls;
-	for (const char *id : {"home", "host", "join", "view", "edit", "locale", "settings", "lobby"})
+	for (const char *id : {"home", "host", "join", "view", "edit", "locale", "settings", "ai.config", "lobby"})
 	{
 		if (app.console_surface_active)
 			break;
 		if (game_active(app) && app.screen == Screen::settings)
 			break;
-		if (game_active(app) && std::string(id) != "settings")
+		if (game_active(app) && std::string(id) != "settings" && std::string(id) != "ai.config")
 			continue;
 		if (app.native_menu)
 		{
 			if (app.screen == Screen::home || app.screen == Screen::server_lobby ||
 			    app.screen == Screen::client_lobby || app.screen == Screen::settings || app.packs_popup)
 				break;
-			if (std::string(id) != "settings")
+			if (std::string(id) != "settings" && std::string(id) != "ai.config")
 				continue;
 		}
 		if (std::string(id) == "lobby" && !app.native_menu)
@@ -172,7 +225,10 @@ std::vector<SemanticControl> navigation_controls(const Application &app)
 			continue;
 		if (std::string(id) == "settings" && !app.can_host && !app.native_menu && !game_active(app))
 			continue;
-		controls.push_back({id, translate(id, app.pseudo_locale)});
+		if (std::string(id) == "ai.config" && !ai_configuration_available(app))
+			continue;
+		controls.push_back(
+		    {id, translate(std::string(id) == "ai.config" ? "AI configuration" : id, app.pseudo_locale)});
 	}
 	for (const auto &[id, label] : app.screen_controls)
 		controls.push_back({id, translate(label, app.pseudo_locale)});
@@ -222,6 +278,33 @@ bool invoke_navigation(Application &app, const std::string &id)
 				app.button_click();
 				break;
 			}
+	if (id == "ai.config")
+	{
+		if (!ai_configuration_available(app))
+			return false;
+		app.settings_return = app.screen;
+		app.screen = Screen::settings;
+		app.settings_tab = "ai";
+		return true;
+	}
+	if (id.starts_with("ai."))
+	{
+		if (!app.can_host || !app.session || app.screen != Screen::settings || app.settings_tab != "ai")
+			return false;
+		if (id == "ai.pair")
+			return app.session->inference_command({{"operation", "pair"}});
+		for (const auto &[control, label] : inference_controls(app))
+			if (control == id && id.starts_with("ai.select/"))
+			{
+				const auto a = id.find('/', 10), b = a == std::string::npos ? a : id.find('/', a + 1);
+				if (b == std::string::npos)
+					return false;
+				return app.session->inference_command({{"console", id.substr(10, a - 10)},
+				                                       {"controller", id.substr(a + 1, b - a - 1)},
+				                                       {"provider", id.substr(b + 1)}});
+			}
+		return false;
+	}
 	const bool active = game_active(app);
 	// Reject stale UI/accessibility actions as well as hiding navigation during play.
 	if (active &&

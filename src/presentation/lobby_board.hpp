@@ -87,6 +87,12 @@ std::string lobby_board(Application &app, Add &add, Heading &heading, Paragraph 
 			                app.settings_return = app.screen;
 			                app.screen = Screen::settings;
 		                });
+		if (ai_configuration_available(app))
+			html += control("ai.config", "AI configuration",
+			                [&]
+			                {
+				                invoke_navigation(app, "ai.config");
+			                });
 		html += control("menu.leave", "Leave Game",
 		                [&]
 		                {
@@ -379,6 +385,12 @@ std::string lobby_board(Application &app, Add &add, Heading &heading, Paragraph 
 		                app.screen = Screen::settings;
 		                focus_next = "settings.tab/" + app.settings_tab;
 	                });
+	if (ai_configuration_available(app))
+		html += control("ai.config", "AI configuration",
+		                [&]
+		                {
+			                invoke_navigation(app, "ai.config");
+		                });
 	html += control("menu.leave", "Leave Game",
 	                [&]
 	                {
