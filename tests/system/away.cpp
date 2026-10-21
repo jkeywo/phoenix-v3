@@ -338,6 +338,40 @@ int main(int argc, char **argv)
 		ticks(shared, 5);
 		require(board(shared)[0]["phase"] == "deployed" && board(shared)[1]["phase"] == "deployed",
 		        "shared system deploys both missions serially");
+		// Staging uses the same enabled gate as ordinary repair-team travel.
+		World staging;
+		staging.load(catalog, "test.map", {{"crew", "test.away"}});
+		const auto staging_ship = *staging.ship_for_slot("crew");
+		staging.claim(101, staging_ship, "drive");
+		staging.claim(102, staging_ship, "observer");
+		ticks(staging, 4);
+		auto team_enabled = [&](int value)
+		{
+			OperatingCommand c{staging_ship, {}, value, {}};
+			c.controller = "team";
+			c.channel = "enabled";
+			const auto observation = staging.observe(102);
+			for (const auto &ctrl : observation->gameplay.at("controllers"))
+				if (ctrl.at("id") == "team")
+					c.generation = ctrl.at("generation");
+			return staging.submit(102, c);
+		};
+		require(team_enabled(0), "disable team before reservation");
+		ticks(staging, 1);
+		staging.submit(101, order(staging, "open"));
+		ticks(staging, 1);
+		staging.submit(102, order(staging, "assign", "repair/team:team", 102));
+		ticks(staging, 1);
+		staging.submit(101, order(staging, "transport", "transport"));
+		ticks(staging, 12);
+		require(!staging.submit(101, order(staging, "send")), "disabled team cannot walk to transport");
+		require(staging.submit(102, order(staging, "withdraw", "repair", 102)), "release disabled team");
+		ticks(staging, 1);
+		require(team_enabled(1), "enable released team");
+		ticks(staging, 1);
+		staging.submit(102, order(staging, "assign", "repair/team:team", 102));
+		ticks(staging, 12);
+		require(staging.submit(101, order(staging, "send")), "enabled team reaches transport");
 		auto ranged = fixture();
 		ranged["entities"][0]["systems"]["transport"]["range_mm"] = 1000;
 		auto ranged_catalog = load(ranged);

@@ -466,6 +466,36 @@ RepairCandidate repair_candidate(flecs::entity ship, std::size_t compartment, co
 	}
 	return best;
 }
+// Shared by ordinary repair orders and away staging. Inspect at each arrival.
+bool advance_repair_team(flecs::entity ship, flecs::entity child)
+{
+	auto &s = ship.get_mut<CombatStructure>();
+	auto &m = child.get_mut<CombatMechanism>();
+	if (combat_dead(ship) || !child.get<Equipment>().enabled || !fault_effectiveness(ship, m.definition.id))
+		return false;
+	auto &r = m.get<RepairState>();
+	if (r.travel > 0)
+	{
+		if (--r.travel > 0)
+			return false;
+		r.location = r.edge_to;
+		r.edge_to = -1;
+		r.edge_total = 0;
+	}
+	for (auto &[equipment, states] : s.faults)
+		if (s.definition.compartment_ids.at(s.definition.equipment_compartments.at(equipment)) ==
+		    static_cast<std::size_t>(r.location))
+			for (auto &state : states)
+				if (state.active)
+					state.diagnosed = true;
+	return true;
+}
+void route_repair_team(flecs::entity ship, RepairState &r, std::size_t target)
+{
+	const auto route = repair_route(ship.get<CombatStructure>(), r.location, target);
+	r.edge_to = route.first;
+	r.travel = r.edge_total = route.second;
+}
 void step_repairs()
 {
 	if (duel_ended())
@@ -482,23 +512,8 @@ void step_repairs()
 			{
 				if (away_reserved(id, "team:" + m->definition.id))
 					continue;
-				if (!child.get<Equipment>().enabled || !fault_effectiveness(ship, m->definition.id))
+				if (!advance_repair_team(ship, child))
 					continue;
-				if (m->get<RepairState>().travel > 0)
-				{
-					if (--m->get<RepairState>().travel > 0)
-						continue;
-					m->get<RepairState>().location = m->get<RepairState>().edge_to;
-					m->get<RepairState>().edge_to = -1;
-					m->get<RepairState>().edge_total = 0;
-				}
-				// Inspection is performed whenever a team reaches a physical compartment.
-				for (auto &[equipment, states] : s.faults)
-					if (s.definition.compartment_ids.at(s.definition.equipment_compartments.at(equipment)) ==
-					    static_cast<std::size_t>(m->get<RepairState>().location))
-						for (auto &state : states)
-							if (state.active)
-								state.diagnosed = true;
 				if (m->get<RepairState>().repair_auto)
 				{
 					std::tuple<std::int64_t, std::int64_t, std::int64_t> best{
@@ -525,11 +540,7 @@ void step_repairs()
 					continue;
 				if (m->get<RepairState>().destination != m->get<RepairState>().location)
 				{
-					const auto route =
-					    repair_route(s, m->get<RepairState>().location, m->get<RepairState>().destination);
-					m->get<RepairState>().edge_to = route.first;
-					m->get<RepairState>().travel = route.second;
-					m->get<RepairState>().edge_total = route.second;
+					route_repair_team(ship, m->get<RepairState>(), m->get<RepairState>().destination);
 					continue;
 				}
 				std::string priority;

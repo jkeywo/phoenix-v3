@@ -413,24 +413,13 @@ void stage_away(EntityId ship, AwayMission &m)
 	{
 		if (asset.starts_with("team:"))
 		{
-			auto &r = away_equipment(ship, asset.substr(5)).get_mut<CombatMechanism>().get<RepairState>();
+			const auto team = away_equipment(ship, asset.substr(5));
+			auto &r = team.get_mut<CombatMechanism>().get<RepairState>();
 			r.repair_auto = false;
 			r.repair_system = -1;
 			r.destination = -1;
-			if (r.travel > 0)
-			{
-				if (--r.travel)
-					continue;
-				r.location = r.edge_to;
-				r.edge_to = -1;
-				r.edge_total = 0;
-			}
-			if (r.location != static_cast<std::int64_t>(target))
-			{
-				auto route = compartment_route(pd.compartments.size(), pd.links, r.location, target);
-				r.edge_to = route.first;
-				r.travel = r.edge_total = route.second;
-			}
+			if (advance_repair_team(entities.at(ship), team) && r.location != static_cast<std::int64_t>(target))
+				route_repair_team(entities.at(ship), r, target);
 		}
 		else
 		{
