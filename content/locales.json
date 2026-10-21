@@ -674,7 +674,31 @@
 			"severity": "severity",
 			"effectiveness_permille": "effectiveness_permille",
 			"repair_work": "repair_work",
-			"destroyed": "destroyed"
+			"destroyed": "destroyed",
+			"Conversations": "Conversations",
+			"Hail": "Hail",
+			"Message": "Message",
+			"Send": "Send",
+			"Connected": "Connected",
+			"Out of contact": "Out of contact",
+			"Incoming message": "Incoming message",
+			"Ship communications": "Ship communications",
+			"Local assistance channel": "Local assistance channel",
+			"Captain Vale": "Captain Vale",
+			"Engineer Orin": "Engineer Orin",
+			"This is Captain Vale. We have a propulsion fault. Can you stand by?": "This is Captain Vale. We have a propulsion fault. Can you stand by?",
+			"Orin here. The drive is isolated. We can hold position while you approach.": "Orin here. The drive is isolated. We can hold position while you approach.",
+			"Understood. We will keep our beacon active.": "Understood. We will keep our beacon active.",
+			"We are still here. Our previous arrangements stand.": "We are still here. Our previous arrangements stand.",
+			"Will you stand by while we assess the fault?": "Will you stand by while we assess the fault?",
+			"We will stand by. Put your engineer on this channel.": "We will stand by. Put your engineer on this channel.",
+			"Unable to assist. Keep your beacon active.": "Unable to assist. Keep your beacon active.",
+			"Both Couriers, please coordinate your approach on this channel.": "Both Couriers, please coordinate your approach on this channel.",
+			"I have joined the assistance channel. Our crew are secure.": "I have joined the assistance channel. Our crew are secure.",
+			"Acknowledged. We will await your arrival.": "Acknowledged. We will await your arrival.",
+			"Which Courier can take the lead?": "Which Courier can take the lead?",
+			"We will take the lead.": "We will take the lead.",
+			"Hold position; we need more time.": "Hold position; we need more time."
 		}
 	}
 }

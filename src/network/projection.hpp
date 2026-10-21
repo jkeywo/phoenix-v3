@@ -38,6 +38,8 @@ static inline Json bounded_gameplay(const Json &source)
 	const char *categories[] = {"controls", "notifications", "controllers", "objectives",
 	                            "shared",   "records",       "messages"};
 	Json result = source;
+	if (source.contains("conversations"))
+		result["conversations"] = conversation_projection::board(source.at("conversations"));
 	if (source.contains("alert"))
 		result["alert"] = alert_json(source.at("alert"));
 	Json omitted = Json::object();
@@ -234,8 +236,8 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 	result.radar_enabled = value.at("radar_enabled");
 	result.console = value.value("console", std::string{"main"});
 	const auto controls = value.value("controls", 7), feeds = value.value("feeds", 7);
-	if (controls < 0 || controls > static_cast<std::int64_t>((system_bit(OperatingSystem::Shield) << 1) - 1) ||
-	    feeds < 0 || feeds > static_cast<std::int64_t>((system_bit(OperatingSystem::Shield) << 1) - 1) ||
+	if (controls < 0 || controls > static_cast<std::int64_t>((system_bit(OperatingSystem::Comms) << 1) - 1) ||
+	    feeds < 0 || feeds > static_cast<std::int64_t>((system_bit(OperatingSystem::Comms) << 1) - 1) ||
 	    (controls & feeds) != controls || result.console.size() > 128)
 		throw std::runtime_error("Invalid projected Console permissions");
 	result.controls = static_cast<SystemMask>(controls);
@@ -348,6 +350,8 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 				throw std::runtime_error("Invalid region tag");
 	}
 	result.gameplay = value.value("gameplay", Json::object());
+	if (result.gameplay.contains("conversations"))
+		result.gameplay["conversations"] = conversation_projection::board(result.gameplay.at("conversations"));
 	// StateSource/StateTransfer already authenticate and bound the complete
 	// snapshot to 4 MiB. Permitted records and history may exceed one packet;
 	// applying a smaller sub-envelope limit would reject valid chunked snapshots.

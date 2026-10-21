@@ -46,7 +46,7 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 	if (!entity.contains("combat"))
 	{
 		for (const auto &fit : resolve_systems(catalog, name))
-			if (fit.kind >= OperatingSystem::Weapon)
+			if (fit.kind >= OperatingSystem::Weapon && fit.kind <= OperatingSystem::Shield)
 				throw std::runtime_error("entities." + name + ".combat: required for combat equipment");
 		return {};
 	}
@@ -193,7 +193,7 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 			fault.destroys = f.value("destroyed", false);
 			d.faults[fit.id].push_back(fault);
 		}
-		if (fit.kind < OperatingSystem::Weapon)
+		if (fit.kind < OperatingSystem::Weapon || fit.kind > OperatingSystem::Shield)
 			continue;
 		CombatSystemDefinition s(fit.kind);
 		s.id = fit.id;

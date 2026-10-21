@@ -2214,11 +2214,12 @@
 					"consoles": [
 						{
 							"definition": "base.console.comms",
-							"feeds": ["communications.reserve"],
+							"feeds": ["communications.reserve", "comms-radio", "sensors.radar"],
 							"id": "comms",
 							"knowledge_producers": ["base.machinery"],
 							"knowledge_roles": ["base.crew", "base.comms"],
-							"systems": []
+							"systems": [],
+							"human_preferences": ["comms"]
 						}
 					],
 					"id": "comms"
@@ -3939,6 +3940,19 @@
 								"consumers": ["wing.steering-supply"]
 							}
 						]
+					},
+					{
+						"id": "external-comms",
+						"console": "comms",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["comms-radio"]
+							}
+						]
 					}
 				],
 				"profiles": [
@@ -3950,7 +3964,7 @@
 								"ai": []
 							},
 							"comms": {
-								"human": ["communications.reserve"],
+								"human": ["communications.reserve", "external-comms"],
 								"ai": []
 							},
 							"engineering": {
@@ -4049,7 +4063,7 @@
 								"ai": []
 							},
 							"comms": {
-								"human": ["communications.reserve"],
+								"human": ["communications.reserve", "external-comms"],
 								"ai": []
 							},
 							"engineering": {
@@ -4158,7 +4172,7 @@
 								"ai": []
 							},
 							"comms": {
-								"human": ["communications.reserve"],
+								"human": ["communications.reserve", "external-comms"],
 								"ai": []
 							},
 							"engineering": {
@@ -4354,7 +4368,7 @@
 								"ai": ["tactical.radar"]
 							},
 							"comms": {
-								"ai": ["communications.reserve"]
+								"ai": ["communications.reserve", "external-comms"]
 							},
 							"captain": {
 								"ai": ["command.reserve"]
@@ -4400,6 +4414,30 @@
 				],
 				"initial": "condition-5",
 				"alert_console": "captain"
+			},
+			"systems": {
+				"comms-radio": {
+					"kind": "comms",
+					"range_mm": 450000,
+					"energy_per_second": 40,
+					"power_store": "communications.cell",
+					"observation_console": "comms"
+				}
+			},
+			"comms": {
+				"default_conversation": "base.dialogue.hail",
+				"characters": [
+					{
+						"id": "captain",
+						"name_key": "Captain Vale",
+						"public": true
+					},
+					{
+						"id": "engineer",
+						"name_key": "Engineer Orin",
+						"public": false
+					}
+				]
 			}
 		},
 		{
@@ -7606,6 +7644,14 @@
 				},
 				"pdc": {
 					"template": "base.equipment.combat-pdc"
+				},
+				"comms-radio": {
+					"kind": "comms",
+					"range_mm": 450000,
+					"energy_per_second": 40,
+					"power_store": "combat-power.main",
+					"observation_console": "comms",
+					"compartment": "bow-port"
 				}
 			},
 			"stations": [
@@ -7702,6 +7748,13 @@
 								"pdc-mag",
 								"pdc"
 							]
+						},
+						{
+							"id": "comms",
+							"definition": "base.console.comms",
+							"systems": [],
+							"feeds": ["comms-radio", "radar"],
+							"human_preferences": ["support"]
 						}
 					]
 				}
@@ -8142,6 +8195,19 @@
 								"consumers": ["pdc"]
 							}
 						]
+					},
+					{
+						"id": "external-comms",
+						"console": "comms",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["comms-radio"]
+							}
+						]
 					}
 				],
 				"default_profile": "direct",
@@ -8181,6 +8247,9 @@
 									"shield-fore",
 									"shield-aft"
 								]
+							},
+							"comms": {
+								"human": ["external-comms"]
 							}
 						}
 					},
@@ -8219,6 +8288,9 @@
 									"shield-fore",
 									"shield-aft"
 								]
+							},
+							"comms": {
+								"ai": ["external-comms"]
 							}
 						}
 					}
@@ -8349,7 +8421,22 @@
 					"id": "combat-power",
 					"assembly": "base.assembly.combat-power"
 				}
-			]
+			],
+			"comms": {
+				"default_conversation": "base.dialogue.hail",
+				"characters": [
+					{
+						"id": "captain",
+						"name_key": "Captain Vale",
+						"public": true
+					},
+					{
+						"id": "engineer",
+						"name_key": "Engineer Orin",
+						"public": false
+					}
+				]
+			}
 		},
 		{
 			"id": "base.pirate-raider",
@@ -9720,6 +9807,1392 @@
 				"mass_grams": 0
 			},
 			"systems": {}
+		},
+		{
+			"id": "base.comms-courier",
+			"extends": "base.courier",
+			"name": "Courier — Communications fit",
+			"controller": null,
+			"console": null,
+			"systems": {
+				"engine": null,
+				"steering": null,
+				"radar": null,
+				"comms-radio": {
+					"kind": "comms",
+					"range_mm": 450000,
+					"energy_per_second": 40,
+					"power_store": "core.capacitor",
+					"observation_console": "comms"
+				}
+			},
+			"assemblies": [
+				{
+					"assembly": "base.assembly.power-core",
+					"id": "core",
+					"overrides": {
+						"systems": {
+							"distribution": {
+								"observation_console": "engineering"
+							},
+							"generator": {
+								"observation_console": "engineering",
+								"reporters": [
+									{
+										"id": "thermal-protection",
+										"field": "thermal_stopped",
+										"above": 0,
+										"message": "base.message.thermal-stop",
+										"recovery_message": "base.message.supply-restored",
+										"recovery_ticks": 40,
+										"minimum_gap_ticks": 40
+									}
+								]
+							},
+							"pump": {
+								"observation_console": "engineering"
+							},
+							"reactor-cooling": {
+								"observation_console": "engineering"
+							},
+							"reserve": {
+								"observation_console": "engineering"
+							}
+						}
+					}
+				},
+				{
+					"assembly": "base.assembly.drive",
+					"bindings": {
+						"coolant": "core.coolant",
+						"power": "core.power"
+					},
+					"id": "drive",
+					"overrides": {
+						"systems": {
+							"boost": {
+								"observation_console": "helm"
+							},
+							"boost-cooling": {
+								"observation_console": "engineering"
+							},
+							"boost-supply": {
+								"observation_console": "engineering"
+							},
+							"distribution": {
+								"observation_console": "engineering"
+							},
+							"engine": {
+								"observation_console": "helm"
+							},
+							"engine-cooling": {
+								"observation_console": "engineering"
+							},
+							"engine-supply": {
+								"observation_console": "engineering"
+							},
+							"impulse": {
+								"observation_console": "helm"
+							},
+							"impulse-cooling": {
+								"observation_console": "engineering"
+							},
+							"impulse-supply": {
+								"observation_console": "engineering"
+							},
+							"lateral": {
+								"observation_console": "helm"
+							},
+							"lateral-cooling": {
+								"observation_console": "engineering"
+							},
+							"lateral-supply": {
+								"observation_console": "engineering"
+							},
+							"steering": {
+								"observation_console": "helm"
+							},
+							"steering-cooling": {
+								"observation_console": "engineering"
+							},
+							"steering-supply": {
+								"observation_console": "engineering"
+							}
+						}
+					}
+				},
+				{
+					"assembly": "base.assembly.sensors",
+					"bindings": {
+						"coolant": "core.coolant",
+						"power": "core.power"
+					},
+					"id": "sensors",
+					"overrides": {
+						"systems": {
+							"cooling": {
+								"observation_console": "engineering"
+							},
+							"distribution": {
+								"observation_console": "engineering"
+							},
+							"radar": {
+								"observation_console": "helm"
+							}
+						}
+					}
+				}
+			],
+			"message_templates": [
+				"base.message.power-request",
+				"base.message.cooling-request",
+				"base.message.supply-limited",
+				"base.message.supply-restored",
+				"base.message.thermal-stop",
+				"base.message.navigation-advisory",
+				"base.message.engineering-request",
+				"base.message.lateral-avoidance"
+			],
+			"publications": [
+				{
+					"id": "propulsion-availability",
+					"source_console": "helm",
+					"schema": "base.machinery-status",
+					"subject": 0,
+					"fields": ["limited"],
+					"live": true
+				}
+			],
+			"feeds": [
+				{
+					"id": "propulsion-to-engineering",
+					"source_console": "helm",
+					"target_console": "engineering",
+					"schema": "base.machinery-status",
+					"subject": 0,
+					"fields": ["limited"]
+				}
+			],
+			"default_preset": null,
+			"stations": [
+				{
+					"consoles": [
+						{
+							"definition": "base.console.helm",
+							"feeds": [
+								"drive.engine",
+								"drive.steering",
+								"drive.lateral",
+								"drive.boost",
+								"drive.impulse",
+								"sensors.radar"
+							],
+							"id": "helm",
+							"knowledge_producers": ["base.machinery"],
+							"knowledge_roles": ["base.crew", "base.helm"],
+							"systems": []
+						}
+					],
+					"id": "helm"
+				},
+				{
+					"consoles": [
+						{
+							"definition": "base.console.engineering",
+							"feeds": [
+								"core.generator",
+								"core.reserve",
+								"core.distribution",
+								"core.pump",
+								"core.reactor-cooling",
+								"drive.distribution",
+								"drive.engine-supply",
+								"drive.engine-cooling",
+								"drive.steering-supply",
+								"drive.steering-cooling",
+								"drive.lateral-supply",
+								"drive.lateral-cooling",
+								"drive.boost-supply",
+								"drive.boost-cooling",
+								"drive.impulse-supply",
+								"drive.impulse-cooling",
+								"sensors.distribution",
+								"sensors.cooling"
+							],
+							"id": "engineering",
+							"knowledge_producers": ["base.machinery"],
+							"knowledge_roles": ["base.crew", "base.engineering"],
+							"systems": []
+						},
+						{
+							"id": "command",
+							"definition": "base.console.command",
+							"systems": []
+						},
+						{
+							"id": "comms",
+							"definition": "base.console.comms",
+							"systems": [],
+							"feeds": ["comms-radio", "sensors.radar"],
+							"human_preferences": ["engineering"]
+						}
+					],
+					"id": "engineering"
+				}
+			],
+			"presets": null,
+			"controllers": null,
+			"control_layout": {
+				"schema": 1,
+				"controllers": [
+					{
+						"id": "core.distribution.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 1000,
+								"initial": 1000,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "core.distribution",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.core.distribution",
+						"commands": [
+							{
+								"id": "group_allocation",
+								"action": "group_allocation",
+								"initial": 1000,
+								"consumers": ["core.distribution"]
+							}
+						]
+					},
+					{
+						"id": "core.generator.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 20000,
+								"initial": 13000,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "core.generator",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.core.generator",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["core.generator"]
+							},
+							{
+								"id": "generator_output",
+								"action": "generator_output",
+								"initial": 13000,
+								"consumers": ["core.generator"]
+							}
+						]
+					},
+					{
+						"id": "core.pump",
+						"console": "engineering",
+						"tree": "base.ai.standby",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["core.pump"]
+							},
+							{
+								"id": "cooling_allocation",
+								"action": "cooling_allocation",
+								"initial": 300,
+								"consumers": ["core.pump"]
+							},
+							{
+								"id": "overdrive",
+								"action": "overdrive",
+								"initial": 0,
+								"consumers": ["core.pump"]
+							},
+							{
+								"id": "thermal_override",
+								"action": "thermal_override",
+								"initial": 0,
+								"consumers": ["core.pump"]
+							}
+						]
+					},
+					{
+						"id": "core.reactor-cooling.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 3000,
+								"initial": 3000,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "core.reactor-cooling",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.core.reactor-cooling",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["core.reactor-cooling"]
+							},
+							{
+								"id": "cooling_allocation",
+								"action": "cooling_allocation",
+								"initial": 3000,
+								"consumers": ["core.reactor-cooling"]
+							}
+						]
+					},
+					{
+						"id": "core.reserve",
+						"console": "engineering",
+						"tree": "base.ai.standby",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["core.reserve"]
+							},
+							{
+								"id": "charge_limit",
+								"action": "charge_limit",
+								"initial": 20000,
+								"consumers": ["core.reserve"]
+							},
+							{
+								"id": "discharge_limit",
+								"action": "discharge_limit",
+								"initial": 20000,
+								"consumers": ["core.reserve"]
+							},
+							{
+								"id": "overdrive",
+								"action": "overdrive",
+								"initial": 0,
+								"consumers": ["core.reserve"]
+							},
+							{
+								"id": "thermal_override",
+								"action": "thermal_override",
+								"initial": 0,
+								"consumers": ["core.reserve"]
+							}
+						]
+					},
+					{
+						"id": "drive.boost",
+						"console": "helm",
+						"tree": "base.ai.standby",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive.boost"]
+							},
+							{
+								"id": "assisted",
+								"action": "assisted",
+								"initial": 1,
+								"consumers": ["drive.boost"]
+							},
+							{
+								"id": "selected_contact",
+								"action": "selected_contact",
+								"initial": 0,
+								"consumers": ["drive.boost"]
+							},
+							{
+								"id": "boost",
+								"action": "boost",
+								"initial": 0,
+								"consumers": ["drive.boost"]
+							},
+							{
+								"id": "overdrive",
+								"action": "overdrive",
+								"initial": 0,
+								"consumers": ["drive.boost"]
+							},
+							{
+								"id": "thermal_override",
+								"action": "thermal_override",
+								"initial": 0,
+								"consumers": ["drive.boost"]
+							}
+						]
+					},
+					{
+						"id": "drive.boost-cooling.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 1000,
+								"initial": 1000,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "drive.boost-cooling",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.drive.boost-cooling",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive.boost-cooling"]
+							},
+							{
+								"id": "cooling_allocation",
+								"action": "cooling_allocation",
+								"initial": 1000,
+								"consumers": ["drive.boost-cooling"]
+							}
+						]
+					},
+					{
+						"id": "drive.boost-supply.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 1000,
+								"initial": 1000,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "drive.boost-supply",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.drive.boost-supply",
+						"commands": [
+							{
+								"id": "group_allocation",
+								"action": "group_allocation",
+								"initial": 1000,
+								"consumers": ["drive.boost-supply"]
+							}
+						]
+					},
+					{
+						"id": "drive.distribution.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 10000,
+								"initial": 8000,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "drive.distribution",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.drive.distribution",
+						"commands": [
+							{
+								"id": "group_allocation",
+								"action": "group_allocation",
+								"initial": 8000,
+								"consumers": ["drive.distribution"]
+							}
+						]
+					},
+					{
+						"id": "drive.engine",
+						"console": "helm",
+						"tree": "base.control.courier-engineering.drive.engine",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive.engine"]
+							},
+							{
+								"id": "assisted",
+								"action": "assisted",
+								"initial": 1,
+								"consumers": ["drive.engine"]
+							},
+							{
+								"id": "selected_contact",
+								"action": "selected_contact",
+								"initial": 0,
+								"consumers": ["drive.engine"]
+							},
+							{
+								"id": "destination",
+								"action": "destination",
+								"initial": 0,
+								"consumers": ["drive.engine"],
+								"arguments": [0, 0]
+							},
+							{
+								"id": "follow_contact",
+								"action": "follow_contact",
+								"initial": 0,
+								"consumers": ["drive.engine"],
+								"arguments": [0, 40000, 12000]
+							},
+							{
+								"id": "speed_mm_s",
+								"action": "speed_mm_s",
+								"initial": 0,
+								"consumers": ["drive.engine"]
+							},
+							{
+								"id": "longitudinal_thrust",
+								"action": "longitudinal_thrust",
+								"initial": 0,
+								"consumers": ["drive.engine"]
+							},
+							{
+								"id": "match_speed",
+								"action": "match_speed",
+								"initial": 0,
+								"consumers": ["drive.engine"]
+							},
+							{
+								"id": "overdrive",
+								"action": "overdrive",
+								"initial": 0,
+								"consumers": ["drive.engine"]
+							},
+							{
+								"id": "thermal_override",
+								"action": "thermal_override",
+								"initial": 0,
+								"consumers": ["drive.engine"]
+							}
+						]
+					},
+					{
+						"id": "drive.engine-cooling.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 1000,
+								"initial": 1000,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "drive.engine-cooling",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.drive.engine-cooling",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive.engine-cooling"]
+							},
+							{
+								"id": "cooling_allocation",
+								"action": "cooling_allocation",
+								"initial": 1000,
+								"consumers": ["drive.engine-cooling"]
+							}
+						]
+					},
+					{
+						"id": "drive.engine-supply.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 4000,
+								"initial": 4000,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "drive.engine-supply",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.drive.engine-supply",
+						"commands": [
+							{
+								"id": "group_allocation",
+								"action": "group_allocation",
+								"initial": 4000,
+								"consumers": ["drive.engine-supply"]
+							}
+						]
+					},
+					{
+						"id": "drive.impulse",
+						"console": "helm",
+						"tree": "base.ai.standby",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive.impulse"]
+							},
+							{
+								"id": "assisted",
+								"action": "assisted",
+								"initial": 1,
+								"consumers": ["drive.impulse"]
+							},
+							{
+								"id": "selected_contact",
+								"action": "selected_contact",
+								"initial": 0,
+								"consumers": ["drive.impulse"]
+							},
+							{
+								"id": "impulse",
+								"action": "impulse",
+								"semantics": "request",
+								"initial": 0,
+								"consumers": ["drive.impulse"]
+							},
+							{
+								"id": "overdrive",
+								"action": "overdrive",
+								"initial": 0,
+								"consumers": ["drive.impulse"]
+							},
+							{
+								"id": "thermal_override",
+								"action": "thermal_override",
+								"initial": 0,
+								"consumers": ["drive.impulse"]
+							}
+						]
+					},
+					{
+						"id": "drive.impulse-cooling.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 1500,
+								"initial": 1500,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "drive.impulse-cooling",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.drive.impulse-cooling",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive.impulse-cooling"]
+							},
+							{
+								"id": "cooling_allocation",
+								"action": "cooling_allocation",
+								"initial": 1500,
+								"consumers": ["drive.impulse-cooling"]
+							}
+						]
+					},
+					{
+						"id": "drive.impulse-supply.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 1500,
+								"initial": 1500,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "drive.impulse-supply",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.drive.impulse-supply",
+						"commands": [
+							{
+								"id": "group_allocation",
+								"action": "group_allocation",
+								"initial": 1500,
+								"consumers": ["drive.impulse-supply"]
+							}
+						]
+					},
+					{
+						"id": "drive.lateral",
+						"console": "helm",
+						"tree": "base.ai.lateral-avoidance",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive.lateral"]
+							},
+							{
+								"id": "assisted",
+								"action": "assisted",
+								"initial": 1,
+								"consumers": ["drive.lateral"]
+							},
+							{
+								"id": "selected_contact",
+								"action": "selected_contact",
+								"initial": 0,
+								"consumers": ["drive.lateral"]
+							},
+							{
+								"id": "lateral_thrust",
+								"action": "lateral_thrust",
+								"initial": 0,
+								"consumers": ["drive.lateral"]
+							},
+							{
+								"id": "overdrive",
+								"action": "overdrive",
+								"initial": 0,
+								"consumers": ["drive.lateral"]
+							},
+							{
+								"id": "thermal_override",
+								"action": "thermal_override",
+								"initial": 0,
+								"consumers": ["drive.lateral"]
+							}
+						]
+					},
+					{
+						"id": "drive.lateral-cooling.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 200,
+								"initial": 200,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "drive.lateral-cooling",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.drive.lateral-cooling",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive.lateral-cooling"]
+							},
+							{
+								"id": "cooling_allocation",
+								"action": "cooling_allocation",
+								"initial": 200,
+								"consumers": ["drive.lateral-cooling"]
+							}
+						]
+					},
+					{
+						"id": "drive.lateral-supply.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 1000,
+								"initial": 1000,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "drive.lateral-supply",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.drive.lateral-supply",
+						"commands": [
+							{
+								"id": "group_allocation",
+								"action": "group_allocation",
+								"initial": 1000,
+								"consumers": ["drive.lateral-supply"]
+							}
+						]
+					},
+					{
+						"id": "drive.steering",
+						"console": "helm",
+						"tree": "base.control.courier-engineering.drive.steering",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive.steering"]
+							},
+							{
+								"id": "assisted",
+								"action": "assisted",
+								"initial": 1,
+								"consumers": ["drive.steering"]
+							},
+							{
+								"id": "selected_contact",
+								"action": "selected_contact",
+								"initial": 0,
+								"consumers": ["drive.steering"]
+							},
+							{
+								"id": "destination",
+								"action": "destination",
+								"initial": 0,
+								"consumers": ["drive.steering"],
+								"arguments": [0, 0]
+							},
+							{
+								"id": "follow_contact",
+								"action": "follow_contact",
+								"initial": 0,
+								"consumers": ["drive.steering"],
+								"arguments": [0, 40000, 12000]
+							},
+							{
+								"id": "heading_mdeg",
+								"action": "heading_mdeg",
+								"consumers": ["drive.steering"]
+							},
+							{
+								"id": "manual_steering",
+								"action": "manual_steering",
+								"initial": 0,
+								"consumers": ["drive.steering"]
+							},
+							{
+								"id": "overdrive",
+								"action": "overdrive",
+								"initial": 0,
+								"consumers": ["drive.steering"]
+							},
+							{
+								"id": "thermal_override",
+								"action": "thermal_override",
+								"initial": 0,
+								"consumers": ["drive.steering"]
+							}
+						]
+					},
+					{
+						"id": "drive.steering-cooling.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 100,
+								"initial": 100,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "drive.steering-cooling",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.drive.steering-cooling",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["drive.steering-cooling"]
+							},
+							{
+								"id": "cooling_allocation",
+								"action": "cooling_allocation",
+								"initial": 100,
+								"consumers": ["drive.steering-cooling"]
+							}
+						]
+					},
+					{
+						"id": "drive.steering-supply.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 1000,
+								"initial": 500,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "drive.steering-supply",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.drive.steering-supply",
+						"commands": [
+							{
+								"id": "group_allocation",
+								"action": "group_allocation",
+								"initial": 500,
+								"consumers": ["drive.steering-supply"]
+							}
+						]
+					},
+					{
+						"id": "sensors.cooling.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 200,
+								"initial": 200,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "sensors.cooling",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.sensors.cooling",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["sensors.cooling"]
+							},
+							{
+								"id": "cooling_allocation",
+								"action": "cooling_allocation",
+								"initial": 200,
+								"consumers": ["sensors.cooling"]
+							}
+						]
+					},
+					{
+						"id": "sensors.distribution.orders",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "level",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 1000,
+								"initial": 1000,
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "sensors.distribution",
+						"console": "engineering",
+						"tree": "base.control.courier-engineering.sensors.distribution",
+						"commands": [
+							{
+								"id": "group_allocation",
+								"action": "group_allocation",
+								"initial": 1000,
+								"consumers": ["sensors.distribution"]
+							}
+						]
+					},
+					{
+						"id": "sensors.radar",
+						"console": "helm",
+						"tree": "base.ai.standby",
+						"commands": [
+							{
+								"id": "system_enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["sensors.radar"]
+							},
+							{
+								"id": "overdrive",
+								"action": "overdrive",
+								"initial": 0,
+								"consumers": ["sensors.radar"]
+							},
+							{
+								"id": "thermal_override",
+								"action": "thermal_override",
+								"initial": 0,
+								"consumers": ["sensors.radar"]
+							}
+						]
+					},
+					{
+						"id": "external-comms",
+						"console": "comms",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["comms-radio"]
+							}
+						]
+					}
+				],
+				"profiles": [
+					{
+						"id": "simple",
+						"consoles": {
+							"engineering": {
+								"human": [
+									"core.distribution.orders",
+									"core.generator.orders",
+									"core.reactor-cooling.orders",
+									"drive.boost-cooling.orders",
+									"drive.distribution.orders",
+									"drive.engine-cooling.orders",
+									"drive.impulse-cooling.orders",
+									"drive.lateral-cooling.orders",
+									"drive.steering-cooling.orders",
+									"sensors.cooling.orders",
+									"sensors.distribution.orders"
+								],
+								"ai": [
+									"core.distribution",
+									"core.generator",
+									"core.pump",
+									"core.reactor-cooling",
+									"core.reserve",
+									"drive.boost-cooling",
+									"drive.boost-supply.orders",
+									"drive.boost-supply",
+									"drive.distribution",
+									"drive.engine-cooling",
+									"drive.engine-supply.orders",
+									"drive.engine-supply",
+									"drive.impulse-cooling",
+									"drive.impulse-supply.orders",
+									"drive.impulse-supply",
+									"drive.lateral-cooling",
+									"drive.lateral-supply.orders",
+									"drive.lateral-supply",
+									"drive.steering-cooling",
+									"drive.steering-supply.orders",
+									"drive.steering-supply",
+									"sensors.cooling",
+									"sensors.distribution"
+								]
+							},
+							"helm": {
+								"human": ["drive.engine", "drive.steering", "sensors.radar"],
+								"ai": ["drive.boost", "drive.impulse", "drive.lateral"]
+							},
+							"comms": {
+								"human": ["external-comms"]
+							}
+						}
+					},
+					{
+						"id": "middle",
+						"consoles": {
+							"engineering": {
+								"human": [
+									"core.distribution",
+									"core.generator",
+									"drive.distribution",
+									"sensors.distribution"
+								],
+								"ai": [
+									"core.distribution.orders",
+									"core.generator.orders",
+									"core.pump",
+									"core.reactor-cooling.orders",
+									"core.reactor-cooling",
+									"core.reserve",
+									"drive.boost-cooling.orders",
+									"drive.boost-cooling",
+									"drive.boost-supply.orders",
+									"drive.boost-supply",
+									"drive.distribution.orders",
+									"drive.engine-cooling.orders",
+									"drive.engine-cooling",
+									"drive.engine-supply.orders",
+									"drive.engine-supply",
+									"drive.impulse-cooling.orders",
+									"drive.impulse-cooling",
+									"drive.impulse-supply.orders",
+									"drive.impulse-supply",
+									"drive.lateral-cooling.orders",
+									"drive.lateral-cooling",
+									"drive.lateral-supply.orders",
+									"drive.lateral-supply",
+									"drive.steering-cooling.orders",
+									"drive.steering-cooling",
+									"drive.steering-supply.orders",
+									"drive.steering-supply",
+									"sensors.cooling.orders",
+									"sensors.cooling",
+									"sensors.distribution.orders"
+								]
+							},
+							"helm": {
+								"human": [
+									"drive.boost",
+									"drive.engine",
+									"drive.impulse",
+									"drive.lateral",
+									"drive.steering",
+									"sensors.radar"
+								],
+								"ai": []
+							},
+							"comms": {
+								"human": ["external-comms"]
+							}
+						}
+					},
+					{
+						"id": "detailed",
+						"consoles": {
+							"engineering": {
+								"human": [
+									"core.distribution",
+									"core.generator",
+									"core.pump",
+									"core.reactor-cooling",
+									"core.reserve",
+									"drive.boost-cooling",
+									"drive.boost-supply",
+									"drive.distribution",
+									"drive.engine-cooling",
+									"drive.engine-supply",
+									"drive.impulse-cooling",
+									"drive.impulse-supply",
+									"drive.lateral-cooling",
+									"drive.lateral-supply",
+									"drive.steering-cooling",
+									"drive.steering-supply",
+									"sensors.cooling",
+									"sensors.distribution"
+								],
+								"ai": [
+									"core.distribution.orders",
+									"core.generator.orders",
+									"core.reactor-cooling.orders",
+									"drive.boost-cooling.orders",
+									"drive.boost-supply.orders",
+									"drive.distribution.orders",
+									"drive.engine-cooling.orders",
+									"drive.engine-supply.orders",
+									"drive.impulse-cooling.orders",
+									"drive.impulse-supply.orders",
+									"drive.lateral-cooling.orders",
+									"drive.lateral-supply.orders",
+									"drive.steering-cooling.orders",
+									"drive.steering-supply.orders",
+									"sensors.cooling.orders",
+									"sensors.distribution.orders"
+								]
+							},
+							"helm": {
+								"human": [
+									"drive.boost",
+									"drive.engine",
+									"drive.impulse",
+									"drive.lateral",
+									"drive.steering",
+									"sensors.radar"
+								],
+								"ai": []
+							},
+							"comms": {
+								"human": ["external-comms"]
+							}
+						}
+					},
+					{
+						"id": "automatic",
+						"consoles": {
+							"helm": {
+								"ai": [
+									"drive.boost",
+									"drive.engine",
+									"drive.impulse",
+									"drive.lateral",
+									"drive.steering",
+									"sensors.radar"
+								]
+							},
+							"engineering": {
+								"ai": [
+									"core.distribution.orders",
+									"core.distribution",
+									"core.generator.orders",
+									"core.generator",
+									"core.pump",
+									"core.reactor-cooling.orders",
+									"core.reactor-cooling",
+									"core.reserve",
+									"drive.boost-cooling.orders",
+									"drive.boost-cooling",
+									"drive.boost-supply.orders",
+									"drive.boost-supply",
+									"drive.distribution.orders",
+									"drive.distribution",
+									"drive.engine-cooling.orders",
+									"drive.engine-cooling",
+									"drive.engine-supply.orders",
+									"drive.engine-supply",
+									"drive.impulse-cooling.orders",
+									"drive.impulse-cooling",
+									"drive.impulse-supply.orders",
+									"drive.impulse-supply",
+									"drive.lateral-cooling.orders",
+									"drive.lateral-cooling",
+									"drive.lateral-supply.orders",
+									"drive.lateral-supply",
+									"drive.steering-cooling.orders",
+									"drive.steering-cooling",
+									"drive.steering-supply.orders",
+									"drive.steering-supply",
+									"sensors.cooling.orders",
+									"sensors.cooling",
+									"sensors.distribution.orders",
+									"sensors.distribution"
+								]
+							},
+							"comms": {
+								"ai": ["external-comms"]
+							}
+						}
+					}
+				],
+				"default_profile": "middle"
+			},
+			"motion_model": "inertial",
+			"bridge": {
+				"conditions": [
+					{
+						"id": "condition-5",
+						"label": "Condition 5",
+						"colour": "#3399cc",
+						"glow": false
+					},
+					{
+						"id": "condition-4",
+						"label": "Condition 4",
+						"colour": "#33bb77",
+						"glow": true
+					},
+					{
+						"id": "condition-3",
+						"label": "Condition 3",
+						"colour": "#e5c340",
+						"glow": true
+					},
+					{
+						"id": "condition-2",
+						"label": "Condition 2",
+						"colour": "#ed8534",
+						"glow": true
+					},
+					{
+						"id": "condition-1",
+						"label": "Condition 1",
+						"colour": "#e73535",
+						"glow": true,
+						"siren": "phoenix-base:assets/audio/red_alert_siren.ogg"
+					}
+				],
+				"initial": "condition-5",
+				"alert_console": "engineering",
+				"sidebar_default": "command"
+			},
+			"comms": {
+				"default_conversation": "base.dialogue.hail",
+				"characters": [
+					{
+						"id": "captain",
+						"name_key": "Captain Vale",
+						"public": true
+					},
+					{
+						"id": "engineer",
+						"name_key": "Engineer Orin",
+						"public": false
+					}
+				]
+			}
 		}
 	],
 	"maps": [
@@ -10147,6 +11620,66 @@
 				}
 			],
 			"combat_duel": true
+		},
+		{
+			"presentation": {
+				"skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png"
+			},
+			"id": "base.comms-demonstration",
+			"name": "Comms — Local assistance",
+			"entities": [
+				{
+					"id": 1,
+					"definition": "base.comms-courier",
+					"x_mm": 90000,
+					"y_mm": 30000,
+					"heading_mdeg": 180000
+				}
+			],
+			"ship_slots": [
+				{
+					"id": "courier",
+					"name": "First Courier",
+					"mandatory": true,
+					"allowed_ships": ["base.comms-courier"],
+					"x_mm": 0,
+					"y_mm": 0,
+					"heading_mdeg": 0
+				},
+				{
+					"id": "partner",
+					"name": "Second Courier",
+					"mandatory": true,
+					"allowed_ships": ["base.comms-courier"],
+					"x_mm": 0,
+					"y_mm": 50000,
+					"heading_mdeg": 0
+				}
+			],
+			"description": "Hail Captain Vale, coordinate with another Courier, and test communication range.",
+			"conversations": [
+				{
+					"id": "assistance",
+					"tree": "base.dialogue.group",
+					"bindings": {
+						"first": {
+							"slot": "courier"
+						},
+						"second": {
+							"slot": "partner"
+						},
+						"captain": {
+							"entity": 1,
+							"character": "captain"
+						},
+						"engineer": {
+							"entity": 1,
+							"character": "engineer"
+						}
+					},
+					"members": ["first", "second", "captain"]
+				}
+			]
 		}
 	],
 	"consoles": [
@@ -10364,20 +11897,21 @@
 		{
 			"id": "base.console.comms",
 			"name": "Comms",
-			"description": "Review received Coordination and send structured bridge requests.",
+			"description": "Hail nearby ships and known people, follow conversations and choose replies.",
 			"knowledge_roles": ["base.crew", "base.comms"],
 			"widgets": [
 				{
-					"id": "status",
-					"kind": "status",
-					"binding": "ship.status",
-					"label": "Communications and received reports",
+					"id": "conversations",
+					"kind": "conversations",
+					"binding": "ship.conversations",
+					"label": "Conversations",
 					"x": 0,
 					"y": 0,
 					"width": 1000,
 					"height": 1000
 				}
-			]
+			],
+			"human_seeking": true
 		},
 		{
 			"id": "base.console.captain",
@@ -17075,6 +18609,301 @@
 								},
 								"finish"
 							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.dialogue.hail",
+			"context": "conversation",
+			"title_key": "Ship communications",
+			"initial": "greeting",
+			"lines": {
+				"greeting": {
+					"speaker": "target",
+					"text_key": "This is Captain Vale. We have a propulsion fault. Can you stand by?",
+					"delay_ticks": 20,
+					"incoming_ticks": 40
+				},
+				"engineer": {
+					"speaker": "engineer",
+					"text_key": "Orin here. The drive is isolated. We can hold position while you approach.",
+					"delay_ticks": 10,
+					"incoming_ticks": 40
+				},
+				"declined": {
+					"speaker": "target",
+					"text_key": "Understood. We will keep our beacon active.",
+					"incoming_ticks": 30
+				},
+				"repeat": {
+					"speaker": "target",
+					"text_key": "We are still here. Our previous arrangements stand.",
+					"incoming_ticks": 30
+				}
+			},
+			"prompts": {
+				"help": {
+					"speaker": "target",
+					"text_key": "Will you stand by while we assess the fault?",
+					"choices": [
+						{
+							"id": "help",
+							"text_key": "We will stand by. Put your engineer on this channel."
+						},
+						{
+							"id": "decline",
+							"text_key": "Unable to assist. Keep your beacon active."
+						}
+					],
+					"ai_choice": "help",
+					"ai_delay_ticks": 60,
+					"timeout_ticks": 600,
+					"default_choice": "decline"
+				}
+			},
+			"states": [
+				{
+					"id": "greeting",
+					"entry": [
+						{
+							"action": "say",
+							"arguments": ["greeting"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "offer",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 65
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "offer",
+					"entry": [
+						{
+							"action": "offer",
+							"arguments": ["help"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "help",
+							"conditions": [
+								{
+									"left": {
+										"observation": "answer"
+									},
+									"op": "eq",
+									"right": "help"
+								}
+							]
+						},
+						{
+							"target": "decline",
+							"conditions": [
+								{
+									"left": {
+										"observation": "answer"
+									},
+									"op": "eq",
+									"right": "decline"
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "help",
+					"entry": [
+						{
+							"action": "add_participant",
+							"arguments": ["engineer"]
+						},
+						{
+							"action": "say",
+							"arguments": ["engineer"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "repeat",
+							"conditions": [
+								{
+									"left": {
+										"observation": "hails"
+									},
+									"op": "ge",
+									"right": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "decline",
+					"entry": [
+						{
+							"action": "say",
+							"arguments": ["declined"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "repeat",
+							"conditions": [
+								{
+									"left": {
+										"observation": "hails"
+									},
+									"op": "ge",
+									"right": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "repeat",
+					"entry": [
+						{
+							"action": "say",
+							"arguments": ["repeat"]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.dialogue.group",
+			"context": "conversation",
+			"title_key": "Local assistance channel",
+			"initial": "wait",
+			"lines": {
+				"request": {
+					"speaker": "captain",
+					"text_key": "Both Couriers, please coordinate your approach on this channel.",
+					"incoming_ticks": 40
+				},
+				"joined": {
+					"speaker": "engineer",
+					"text_key": "I have joined the assistance channel. Our crew are secure.",
+					"delay_ticks": 20,
+					"incoming_ticks": 30
+				},
+				"ack": {
+					"speaker": "captain",
+					"text_key": "Acknowledged. We will await your arrival.",
+					"incoming_ticks": 30
+				}
+			},
+			"prompts": {
+				"lead": {
+					"speaker": "captain",
+					"text_key": "Which Courier can take the lead?",
+					"choices": [
+						{
+							"id": "lead",
+							"text_key": "We will take the lead."
+						},
+						{
+							"id": "wait",
+							"text_key": "Hold position; we need more time."
+						}
+					],
+					"ai_choice": "wait",
+					"ai_delay_ticks": 200,
+					"timeout_ticks": 900,
+					"default_choice": "wait"
+				}
+			},
+			"states": [
+				{
+					"id": "wait",
+					"transitions": [
+						{
+							"target": "request",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 200
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "request",
+					"entry": [
+						{
+							"action": "say",
+							"arguments": ["request"]
+						},
+						{
+							"action": "add_participant",
+							"arguments": ["engineer"]
+						},
+						{
+							"action": "say",
+							"arguments": ["joined"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "ask",
+							"conditions": [
+								{
+									"left": {
+										"elapsed": true
+									},
+									"op": "ge",
+									"right": 60
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "ask",
+					"entry": [
+						{
+							"action": "offer",
+							"arguments": ["lead"]
+						}
+					],
+					"transitions": [
+						{
+							"target": "ack",
+							"conditions": [
+								{
+									"left": {
+										"observation": "answer"
+									},
+									"op": "ne",
+									"right": ""
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "ack",
+					"entry": [
+						{
+							"action": "say",
+							"arguments": ["ack"]
 						}
 					]
 				}

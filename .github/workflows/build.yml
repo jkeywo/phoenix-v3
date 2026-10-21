@@ -57,6 +57,7 @@ jobs:
             build/native/base.zip.menu.json
             build/native/continuation.trace
             build/native/combat-continuation.trace
+            build/native/conversation-continuation.trace
   linux:
     runs-on: ubuntu-24.04
     timeout-minutes: 30

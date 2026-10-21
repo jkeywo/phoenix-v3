@@ -19,6 +19,7 @@ export import phoenix.scenario;
 export import phoenix.state_tree;
 export import phoenix.gameplay_vocabulary;
 export import phoenix.flight;
+export import phoenix.conversations;
 
 export namespace phoenix
 {
@@ -251,6 +252,7 @@ struct StaticModel
 StaticModel compile_model(std::span<const std::uint8_t> bytes);
 void verify_model_render(const Json &render, const Catalog &catalog, const std::string &path);
 ControllerTreeBindings compile_controller_bindings(const Json &, const Catalog &);
+void verify_conversation_authoring(const Catalog &catalog);
 void verify_scenario_authoring(const Catalog &catalog, const Json &map);
 // Render-only navigation aids. Distances are metres; speed is metres/second.
 struct DustConfig

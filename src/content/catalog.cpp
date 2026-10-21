@@ -143,11 +143,12 @@ std::optional<state_tree::Context> contextual_tree(const std::map<std::string, J
 		if (tree.contains("context"))
 		{
 			const auto context = tree.at("context").get<std::string>();
-			if (context != "system" && context != "scenario" && context != "controller")
+			if (context != "system" && context != "scenario" && context != "controller" && context != "conversation")
 				invalid("trees." + id, "unsupported tree context");
-			return context == "controller" ? state_tree::Context::Controller
-			       : context == "scenario" ? state_tree::Context::Scenario
-			                               : state_tree::Context::System;
+			return context == "conversation" ? state_tree::Context::Conversation
+			       : context == "controller" ? state_tree::Context::Controller
+			       : context == "scenario"   ? state_tree::Context::Scenario
+			                                 : state_tree::Context::System;
 		}
 		if (!tree.contains("extends"))
 			return {};
@@ -366,6 +367,17 @@ Catalog resolve(const std::vector<PackView> &ordered)
 			result.scenarios.emplace(name, compile_scenario(map, spawnable, slots));
 		}
 	prepare_catalog(result);
+	// Public portrait bytes use opaque content addresses without exposing character directories.
+	for (const auto &[id, entity] : result.entities)
+		for (const auto &person : entity.value("comms", Json::object()).value("characters", Json::array()))
+		{
+			const auto reference = person.value("portrait", std::string{});
+			if (!reference.empty())
+			{
+				const auto png = result.assets.at(reference);
+				result.assets["console-assets:assets/comms/" + sha256(png) + ".png"] = png;
+			}
+		}
 	// Public icon aliases use identical addresses in full and restricted catalogues.
 	for (const auto &[id, entity] : result.entities)
 	{
@@ -397,7 +409,8 @@ Catalog resolve_draft(const std::vector<Pack> &libraries, const PackDraft &draft
 }
 std::span<const WidgetBinding> widget_bindings()
 {
-	static constexpr WidgetBinding bindings[] = {{"radar", "radar.contacts"},
+	static constexpr WidgetBinding bindings[] = {{"conversations", "ship.conversations"},
+	                                             {"radar", "radar.contacts"},
 	                                             {"throttle", "engine.desired_speed"},
 	                                             {"heading", "steering.desired_heading"},
 	                                             {"camera_mode", "ship.camera.mode"},
@@ -554,6 +567,16 @@ void verify_prepared_catalog(const Catalog &catalog)
 			{
 				if (!catalog.presentation)
 					integer(system, "turn_mdeg_s", field, 1, 360000);
+			}
+			else if (kind == "comms")
+			{
+				integer(system, "range_mm", field, 1, 1000000000);
+				if (!catalog.presentation)
+				{
+					integer(system, "energy_per_second", field, 1);
+					if (!system.contains("power_store"))
+						invalid(field, "Comms requires power_store");
+				}
 			}
 			else if (kind == "radar")
 				integer(system, "range_mm", field, 1);
@@ -868,7 +891,9 @@ void prepare_catalog(Catalog &catalog)
 	for (const auto &[id, tree] : catalog.trees)
 		if (const auto context = contextual_tree(catalog.trees, id))
 		{
-			if (*context == state_tree::Context::Controller)
+			if (*context == state_tree::Context::Conversation)
+				catalog.tree_programs.emplace(id, compile_conversation(tree, catalog.trees).tree);
+			else if (*context == state_tree::Context::Controller)
 			{
 				auto bindings = compile_controller_bindings(tree, catalog);
 				catalog.tree_programs.emplace(id, state_tree::compile(tree, bindings.registry, catalog.trees));
@@ -882,6 +907,7 @@ void prepare_catalog(Catalog &catalog)
 			invalid("trees." + id, "timed tree format retired; author a controller-context state tree");
 	for (const auto &[id, map] : catalog.maps)
 		verify_scenario_authoring(catalog, map);
+	verify_conversation_authoring(catalog);
 	verify_prepared_catalog(catalog);
 }
 } // namespace

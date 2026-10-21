@@ -33,7 +33,8 @@ std::vector<FittedSystemSpec> resolve_systems(const Catalog &catalog, const std:
 		     {OperatingSystem::Engine, OperatingSystem::Steering, OperatingSystem::Radar, OperatingSystem::Generator,
 		      OperatingSystem::Storage, OperatingSystem::Distribution, OperatingSystem::Coolant,
 		      OperatingSystem::Lateral, OperatingSystem::Boost, OperatingSystem::Impulse, OperatingSystem::Weapon,
-		      OperatingSystem::Turret, OperatingSystem::Magazine, OperatingSystem::RepairTeam, OperatingSystem::Shield})
+		      OperatingSystem::Turret, OperatingSystem::Magazine, OperatingSystem::RepairTeam, OperatingSystem::Shield,
+		      OperatingSystem::Comms})
 			if (kind == operating_system_name(candidate))
 				type = candidate;
 		if (!type)
@@ -46,7 +47,7 @@ std::vector<FittedSystemSpec> resolve_systems(const Catalog &catalog, const std:
 		}
 		else if (*type == OperatingSystem::Steering)
 			spec.response = it.value().value("turn_mdeg_s", std::int64_t{0});
-		else if (*type == OperatingSystem::Radar)
+		else if (*type == OperatingSystem::Radar || *type == OperatingSystem::Comms)
 			spec.maximum = it.value().at("range_mm");
 		else
 		{

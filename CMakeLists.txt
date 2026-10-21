@@ -211,6 +211,7 @@ add_library(
 	src/scenario/scenario_definitions.cpp
 	src/scenario/fields.cpp
 	src/behavior/state_tree_definitions.cpp
+	src/conversations/conversation_definitions.cpp
 	src/behavior/gameplay_vocabulary.cpp
 	src/flight/flight_definitions.cpp
 )
@@ -225,6 +226,7 @@ target_sources(
 				src/behavior/state_tree.cppm
 				src/behavior/gameplay_vocabulary.cppm
 				src/flight/flight.cppm
+				src/conversations/conversations.cppm
 )
 target_link_libraries(phoenix_gameplay_definitions PUBLIC phoenix_foundation)
 add_library(
@@ -234,6 +236,7 @@ add_library(
 	src/knowledge/knowledge.cpp
 	src/scenario/scenario.cpp
 	src/behavior/state_tree.cpp
+	src/conversations/conversations.cpp
 )
 target_link_libraries(phoenix_gameplay_runtime PUBLIC phoenix_gameplay_definitions)
 target_link_libraries(phoenix_session_api PUBLIC phoenix_content phoenix_transport)
@@ -253,6 +256,7 @@ add_library(
 	src/content/model.cpp
 	src/content/stations.cpp
 	src/content/combat.cpp
+	src/content/conversations.cpp
 	src/content/bridge.cpp
 	src/content/controllers.cpp
 	src/content/console_assets.cpp
@@ -372,6 +376,12 @@ foreach(
 		add_test(NAME system.${case} COMMAND phoenix_${case}_tests)
 	endif()
 endforeach()
+add_executable(phoenix_conversation_tests tests/system/conversations.cpp)
+target_link_libraries(phoenix_conversation_tests PRIVATE phoenix_simulation)
+phoenix_fixture(phoenix_conversation_tests)
+if(NOT EMSCRIPTEN)
+	add_test(NAME system.conversations COMMAND phoenix_conversation_tests)
+endif()
 add_executable(phoenix_scenario_tests tests/manual/scenario.cpp)
 target_link_libraries(phoenix_scenario_tests PRIVATE phoenix_scenario_bridge phoenix_gameplay_runtime)
 phoenix_fixture(phoenix_scenario_tests)
@@ -1003,4 +1013,11 @@ if(NOT EMSCRIPTEN)
 	add_executable(phoenix_combat_smoke EXCLUDE_FROM_ALL tests/manual/combat_ui.cpp)
 	target_link_libraries(phoenix_combat_smoke PRIVATE phoenix_session phoenix_presentation)
 	add_dependencies(phoenix_combat_smoke base_pack)
+endif()
+
+# Explicit graphical Comms evidence; not an automatic acceptance test.
+if(NOT EMSCRIPTEN)
+	add_executable(phoenix_comms_smoke EXCLUDE_FROM_ALL tests/manual/comms_ui.cpp)
+	target_link_libraries(phoenix_comms_smoke PRIVATE phoenix_session phoenix_presentation)
+	add_dependencies(phoenix_comms_smoke base_pack)
 endif()

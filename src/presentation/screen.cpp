@@ -606,19 +606,41 @@ void prepare_public_board(Application &app, bool visible)
 	}
 	const auto rows = visible ? public_board_readouts(app.session->public_board(), app.session->ticks())
 	                          : std::vector<std::pair<std::string, std::string>>{};
-	const auto messages =
-	    visible ? console_messages(app.session->public_board(), true) : std::vector<ConsoleMessageView>{};
+	auto messages = visible ? console_messages(app.session->public_board(), true) : std::vector<ConsoleMessageView>{};
+	const auto shared = visible ? app.session->public_board().value("display", Json(nullptr)) : Json(nullptr);
+	const bool conversation = shared.is_object() && shared.value("kind", std::string{}) == "conversations";
+	if (conversation)
+	{
+		messages.clear();
+		const auto &thread = shared.at("conversation");
+		if (!thread.empty())
+			for (const auto &m : thread.at("messages"))
+			{
+				ConsoleMessageView row;
+				row.id = "viewscreen.conversation/" + std::to_string(m.at("id").get<std::uint64_t>());
+				row.sender = localise(m.at("name"));
+				row.text = m.at("literal").get<bool>() ? m.at("text").get<std::string>() : localise(m.at("text"));
+				row.portrait = "messages/console-4.png";
+				const auto portrait = m.value("portrait", std::string{});
+				if (app.session->catalog().assets.contains(portrait))
+					row.avatar = app.session->catalog().assets.at(portrait);
+				messages.push_back(std::move(row));
+			}
+	}
 	panel->SetProperty("display", rows.empty() && messages.empty() ? "none" : "block");
 	if (rows.empty() && messages.empty())
 		return;
 	const auto area = app.viewscreen_region ? *app.viewscreen_region
 	                                        : ConsoleRegion{1, 0, 0, static_cast<float>(GetScreenWidth()),
 	                                                        static_cast<float>(GetScreenHeight())};
-	const auto width = std::max(120.f * scale, std::min(520.f * scale, area.width - 48.f * scale));
+	const auto width =
+	    conversation ? area.width * .88f : std::max(120.f * scale, std::min(520.f * scale, area.width - 48.f * scale));
 	panel->SetProperty("left", std::to_string(area.x + area.width - width - 36.f * scale) + "px");
-	panel->SetProperty("top", std::to_string(area.y + 24.f * scale) + "px");
+	panel->SetProperty("top", std::to_string(area.y + (conversation ? 90.f : 24.f) * scale) + "px");
 	panel->SetProperty("width", std::to_string(width) + "px");
-	panel->SetProperty("max-height", std::to_string(std::max(80.f * scale, area.height - 72.f * scale)) + "px");
+	panel->SetProperty("max-height",
+	                   std::to_string(std::max(80.f * scale, area.height - (conversation ? 160.f : 72.f) * scale)) +
+	                       "px");
 	std::string markup;
 	for (const auto &[id, text] : rows)
 	{
@@ -631,6 +653,19 @@ void prepare_public_board(Application &app, bool visible)
 		    "<p id=\"" + Rml::StringUtilities::EncodeRml(id) + "\">" + Rml::StringUtilities::EncodeRml(text) + "</p>";
 	}
 	panel->SetProperty("display", markup.empty() && messages.empty() ? "none" : "block");
+	if (conversation && !shared.at("conversation").empty())
+	{
+		const auto &thread = shared.at("conversation");
+		markup +=
+		    "<h2 style=\"display:block\">" + Rml::StringUtilities::EncodeRml(localise(thread.at("title"))) + "</h2>";
+		for (const auto &p : thread.at("incoming"))
+		{
+			auto text = localise(p.at("name")) + ": " + localise("Incoming message") + "...";
+			markup += "<p>" + Rml::StringUtilities::EncodeRml(text) + "</p>";
+			app.screen_readouts.emplace_back("viewscreen.conversation/incoming/" + p.at("sender").get<std::string>(),
+			                                 text);
+		}
+	}
 	// Avoid resetting scroll position on unchanged ticks.
 	if (previous_markup != markup)
 	{

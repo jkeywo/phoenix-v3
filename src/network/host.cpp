@@ -405,6 +405,7 @@ class NetworkHost final : public SessionPort
 			             {"request_id", command.request_id},
 			             {"arguments", command.arguments},
 			             {"console", command.console},
+			             {"text", command.text},
 			             {"speaker_name", command.speaker_name},
 			             {"speaker_avatar", command.speaker_avatar}}))
 				send(sender, "command-result",
@@ -833,6 +834,7 @@ public:
 		               {"request_id", command.request_id},
 		               {"arguments", command.arguments},
 		               {"console", command.console},
+		               {"text", command.text},
 		               {"speaker_name", command.speaker_name},
 		               {"speaker_avatar", command.speaker_avatar}});
 	}

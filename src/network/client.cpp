@@ -481,7 +481,7 @@ public:
 		}
 		// Semantic/meta commands are authored by the server and carry no public
 		// free-form command language. Admit only an exact current descriptor.
-		bool projected = false;
+		bool projected = conversation_projection::command_allowed(*view, command);
 		const auto controls = view->gameplay.find("controls");
 		if (controls != view->gameplay.end() && controls->is_array())
 			for (const auto &descriptor : *controls)
@@ -540,7 +540,8 @@ public:
 			for (const auto &console : resolve_consoles(catalog(), view->own.definition))
 				if (console.id == view->console && catalog().consoles.contains(console.definition))
 					for (const auto &w : catalog().consoles.at(console.definition).at("widgets"))
-						if (w.at("id") == command.system && (w.at("kind") == "radar" || w.at("kind") == "navigation"))
+						if (w.at("id") == command.system && (w.at("kind") == "radar" || w.at("kind") == "navigation" ||
+						                                     w.at("kind") == "conversations"))
 							source = true;
 			const auto d = public_board_.value("display", Json(nullptr));
 			projected =
@@ -582,6 +583,7 @@ public:
 		                        {"generation", command.generation},
 		                        {"request_id", command.request_id},
 		                        {"arguments", command.arguments},
+		                        {"text", command.text},
 		                        {"speaker_name", command.speaker_name},
 		                        {"speaker_avatar", command.speaker_avatar},
 		                        {"lease", lease_},

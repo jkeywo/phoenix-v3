@@ -530,6 +530,8 @@ struct GameplayEditor
 			        text("Physical reporters emit measured facts under both human and AI operation.");
 		        });
 		const auto kind = spec.value("kind", fallback_kind);
+		if (kind == "comms")
+			integer(spec, "range_mm", 1000000);
 		optional_string(spec, "compartment");
 		if (kind == "weapon" || kind == "turret" || kind == "shield")
 		{
@@ -817,6 +819,30 @@ struct GameplayEditor
 			return;
 		auto &ship = *selected;
 		{
+			ScopedTree panel("External Comms");
+			if (panel)
+			{
+				if (!ship.contains("comms") && button("Add Comms directory"))
+					ship["comms"] = {{"characters", Json::array()}};
+				if (ship.contains("comms"))
+				{
+					choice(ship["comms"], "default_conversation",
+					       document.definition_choices(WorkshopDefinitionKind::Tree), true);
+					records(ship["comms"], "characters",
+					        {{"id", "character"}, {"name_key", "New character"}, {"public", true}},
+					        [&](Json &p)
+					        {
+						        string(p, "id");
+						        string(p, "name_key");
+						        optional_string(p, "portrait");
+						        boolean(p, "public", true);
+						        choice(p, "default_conversation",
+						               document.definition_choices(WorkshopDefinitionKind::Tree), true);
+					        });
+				}
+			}
+		}
+		{
 			ScopedTree panel("Alert conditions and Viewscreen");
 			if (panel)
 			{
@@ -878,7 +904,7 @@ struct GameplayEditor
 				choice(spec, "template", document.definition_choices(WorkshopDefinitionKind::Equipment), true);
 				choice(spec, "kind",
 				       {"engine", "steering", "radar", "generator", "distribution", "coolant", "storage", "lateral",
-				        "boost", "impulse", "weapon", "turret", "magazine", "repair_team", "shield"},
+				        "boost", "impulse", "weapon", "turret", "magazine", "repair_team", "shield", "comms"},
 				       true);
 				auto kind = equipment_kind(document, spec);
 				if (kind.empty())
@@ -1620,8 +1646,26 @@ struct GameplayEditor
 					ImGui::TextUnformatted(definition.at("extends").get<std::string>().c_str());
 				}
 				Json context{{"context", resolved.at("context")}};
-				if (choice(context, "context", {"controller", "scenario"}))
+				if (choice(context, "context", {"controller", "scenario", "conversation"}))
 					definition["context"] = context.at("context");
+				if (context.at("context") == "conversation")
+				{
+					optional_string(definition, "title_key");
+					if (!definition.contains("lines") && button("Add dialogue lines"))
+						definition["lines"] = {{"greeting",
+						                        {{"speaker", "target"},
+						                         {"text_key", "Hello"},
+						                         {"delay_ticks", 0},
+						                         {"incoming_ticks", 20}}}};
+					if (!definition.contains("prompts") && button("Add dialogue choices"))
+						definition["prompts"] = {{"question",
+						                          {{"speaker", "target"},
+						                           {"text_key", "Your answer?"},
+						                           {"choices", Json::array({{{"id", "yes"}, {"text_key", "Yes"}}})},
+						                           {"ai_choice", "yes"}}}};
+					structured_field(definition, "lines");
+					structured_field(definition, "prompts");
+				}
 				integer(definition, "budget", resolved.value("budget", 4096));
 				Json initial{{"initial", resolved.value("initial", std::string{})}};
 				if (choice(initial, "initial", ids(resolved.at("states"))))
@@ -1791,6 +1835,18 @@ struct GameplayEditor
 	void scenario(WorkshopDocument &document)
 	{
 		auto &map = document.map();
+		records(map, "conversations",
+		        {{"id", "conversation"}, {"tree", ""}, {"bindings", Json::object()}, {"members", Json::array()}},
+		        [&](Json &c)
+		        {
+			        string(c, "id");
+			        choice(c, "tree", document.definition_choices(WorkshopDefinitionKind::Tree));
+			        optional_string(c, "title_key");
+			        optional_string(c, "start_event");
+			        strings(c, "members");
+			        strings(c, "events");
+			        structured_field(c, "bindings");
+		        });
 		records(map, "regions", {{"id", "region"}, {"shape", "circle"}, {"x_mm", 0}, {"y_mm", 0}, {"radius_mm", 10000}},
 		        [&](Json &region)
 		        {
@@ -2804,6 +2860,22 @@ void set_gameplay_authoring_vocabulary(const Json &vocabulary)
 						contexts[context][kind].push_back(std::move(descriptor));
 					}
 	}
+	const auto dialogue = conversation_registry();
+	contexts["conversation"] = {
+	    {"actions", Json::array()}, {"observations", Json::array()}, {"intents", Json::array()}};
+	for (const auto &f : dialogue.observations)
+		contexts["conversation"]["observations"].push_back(
+		    {{"id", f.name},
+		     {"name", f.name},
+		     {"type", f.type == state_tree::Type::Text      ? "text"
+		              : f.type == state_tree::Type::Boolean ? "boolean"
+		                                                    : "integer"}});
+	for (const auto &a : dialogue.actions)
+		contexts["conversation"]["actions"].push_back(
+		    {{"id", a.name},
+		     {"name", a.name},
+		     {"arguments", Json::array({{{"name", "definition"}, {"type", "text"}}})},
+		     {"effect", true}});
 	gameplay_editor.vocabulary = std::move(contexts);
 }
 bool probe_gameplay_controller_test(WorkshopDocument &document, unsigned stage)

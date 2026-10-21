@@ -1170,7 +1170,7 @@ int main()
 		world.tick();
 
 		const auto saved = world.save();
-		require(saved.at("schema") == 10, "Controller continuation has an explicit new save schema");
+		require(saved.at("schema") == 11, "Controller continuation has an explicit new save schema");
 		World resumed;
 		resumed.restore(content, saved);
 		for (int tick = 0; tick < 12; ++tick)

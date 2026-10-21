@@ -106,7 +106,7 @@ CommandBounds fitted_commands(const FittedSystemSpec &fit, Json spec, const Ship
 	};
 	const auto kind = fit.kind;
 	if (kind == OperatingSystem::Weapon || kind == OperatingSystem::Turret || kind == OperatingSystem::Magazine ||
-	    kind == OperatingSystem::RepairTeam || kind == OperatingSystem::Shield)
+	    kind == OperatingSystem::RepairTeam || kind == OperatingSystem::Shield || kind == OperatingSystem::Comms)
 	{
 		add(OperatingAction::SystemEnabled);
 		if (kind == OperatingSystem::Weapon)

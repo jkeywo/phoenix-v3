@@ -65,7 +65,8 @@ Json encode_operating_command(const OperatingCommand &command)
 	        {"arguments", command.arguments},
 	        {"console", command.console},
 	        {"speaker_name", command.speaker_name},
-	        {"speaker_avatar", command.speaker_avatar}};
+	        {"speaker_avatar", command.speaker_avatar},
+	        {"text", command.text}};
 }
 OperatingCommand decode_operating_command(const Json &value)
 {
@@ -101,6 +102,9 @@ OperatingCommand decode_operating_command(const Json &value)
 			result.arguments.push_back(argument.get<std::int64_t>());
 		}
 	}
+	result.text = value.value("text", std::string{});
+	if (result.text.size() > 4096)
+		throw std::runtime_error("Command text exceeds limit");
 	result.console = value.value("console", std::string{});
 	result.speaker_name = value.value("speaker_name", std::string{});
 	const auto avatar = value.value("speaker_avatar", Json::array());

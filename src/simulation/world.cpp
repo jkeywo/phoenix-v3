@@ -679,6 +679,25 @@ struct World::Impl
 					result.fitted->values.push_back(std::move(runtime));
 				}
 			}
+			if (std::any_of(result.fitted->values.begin(), result.fitted->values.end(),
+			                [](const auto &s)
+			                {
+				                return s.kind == OperatingSystem::Comms;
+			                }))
+			{
+				const auto &spec = content.entities.at(name);
+				const auto comms = spec.value("comms", Json::object());
+				const auto tree = comms.value("default_conversation", std::string{});
+				auto &roster = comms_rosters[name];
+				roster.push_back({"", spec.value("name", name), "", tree, 0, false, true});
+				for (const auto &p : comms.value("characters", Json::array()))
+					roster.push_back(
+					    {p.at("id"), p.at("name_key"),
+					     p.value("portrait", std::string{}).empty()
+					         ? std::string{}
+					         : "console-assets:assets/comms/" + sha256(content.assets.at(p.at("portrait"))) + ".png",
+					     p.value("default_conversation", tree), 0, true, p.value("public", true)});
+			}
 			definitions.emplace(name, result);
 		}
 	}
@@ -869,6 +888,7 @@ struct World::Impl
 		construction.indexed = true;
 		next_entity = std::max(next_entity, id + 1);
 		knowledge.register_ship(id, definition, ecs.get<Clock>().tick);
+		register_comms(id, definition);
 		if (!data.consoles.empty())
 			knowledge.set_camera(id, {}, ecs.get<Clock>().tick);
 		if (data.layout)
@@ -993,6 +1013,15 @@ struct World::Impl
 	}
 	bool operate(flecs::entity entity, const std::string &name, OperatingRequest output, bool execute)
 	{
+		if (auto target = instance(entity, name); target && target->kind == OperatingSystem::Comms)
+		{
+			if (output.action != OperatingAction::SystemEnabled || output.value < 0 || output.value > 1 ||
+			    !output.arguments.empty())
+				return false;
+			if (execute)
+				target->enabled = output.value != 0;
+			return true;
+		}
 		if (entity.has<CombatStructure>())
 			if (auto target = instance(entity, name); target && target->entity.has<CombatMechanism>())
 				return operate_combat(entity, target->entity, output, execute);
@@ -1714,6 +1743,7 @@ struct World::Impl
 			const auto previous_instances = instance_systems;
 			const auto previous_stations = explicit_stations;
 			auto previous = knowledge;
+			const auto previous_participants = conversations.participants;
 			std::vector<EntityId> ids;
 			try
 			{
@@ -1740,6 +1770,7 @@ struct World::Impl
 					}
 				}
 				knowledge = std::move(previous);
+				conversations.participants = previous_participants;
 				next_entity = allocator;
 				instance_systems = previous_instances;
 				explicit_stations = previous_stations;
@@ -1840,7 +1871,8 @@ struct World::Impl
 		if (!spec || !console_layouts.contains(spec->definition))
 			return nullptr;
 		for (const auto &w : console_layouts.at(spec->definition).at("widgets"))
-			if (w.at("id") == id && (w.at("kind") == "radar" || w.at("kind") == "navigation"))
+			if (w.at("id") == id &&
+			    (w.at("kind") == "radar" || w.at("kind") == "navigation" || w.at("kind") == "conversations"))
 				return &w;
 		return nullptr;
 	}
@@ -1890,6 +1922,7 @@ struct World::Impl
 		return true;
 	}
 #include "bridge.hpp"
+#include "conversations.hpp"
 	bool meta(std::uint64_t claimant, const OperatingCommand &command, bool execute)
 	{
 		if (!claims.contains(claimant) || command.target != claims.at(claimant).ship)
@@ -1901,6 +1934,8 @@ struct World::Impl
 		const auto &spec = definition(address.ship);
 		if (command.action == "alert.set" || command.action == "stance.set")
 			return bridge_command(address, command, execute);
+		if (command.action.starts_with("comms."))
+			return comms_command(address, command, execute);
 		if (command.action.starts_with("display."))
 			return display_command(claimant, command, execute);
 		if (command.action == "camera_mode" || command.action == "camera_direction")
@@ -2069,6 +2104,11 @@ void World::load(const Catalog &source, const std::string &map, const std::map<s
 		candidate->scenario.emplace();
 		candidate->scenario->load(content, map);
 	}
+	for (const auto &[id, tree] : content.trees)
+		if (content.tree_programs.at(id).context == state_tree::Context::Conversation)
+			candidate->conversations.programs.emplace(id, compile_conversation(tree, content.trees));
+	candidate->compile_conversation_starts(data);
+	candidate->refresh_comms();
 	candidate->stream_fields();
 	candidate->index_contacts.run();
 	impl_ = std::move(candidate);
@@ -2335,6 +2375,9 @@ void World::tick()
 	++impl_->ecs.get_mut<Clock>().tick;
 	++impl_->environment_tick;
 	impl_->knowledge.tick(ticks());
+	impl_->refresh_comms();
+	impl_->conversation_scenarios();
+	impl_->conversations.advance(ticks());
 	impl_->observation_snapshots.clear();
 	impl_->command_snapshots.clear();
 	impl_->controller_inboxes.clear();
@@ -2533,6 +2576,16 @@ Json World::public_board(EntityId entity) const
 	           {"camera", publication.camera},     {"own", display::body_json(view.own)},
 	           {"contacts", Json::array()},        {"regions", Json::array()},
 	           {"waypoint", Json::object()},       {"objectives", Json::array()}};
+	if (widget->at("kind") == "conversations")
+	{
+		auto projection = impl_->conversations.project(entity);
+		value["conversation"] = Json::object();
+		for (const auto &thread : projection.at("threads"))
+			if (thread.at("id") == projection.at("selected"))
+				value["conversation"] = thread;
+		board["display"] = display::sanitise(value);
+		return board;
+	}
 	const SystemView *sensor = nullptr;
 	if (radar)
 	{
@@ -2603,6 +2656,8 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	result.gameplay["alert"] = impl_->alert_board(address.ship);
 	result.gameplay["navigation"] = impl_->navigation_board(address.ship);
 	result.gameplay["stance"] = impl_->stance_board(address);
+	if (impl_->comms_owner(address.ship) == address)
+		result.gameplay["conversations"] = impl_->conversations.project(address.ship);
 	if (entity.has<EntityControls>())
 		result.gameplay["controllers"] = impl_->project_controllers(address);
 
@@ -3014,7 +3069,7 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 10},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 11},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
 	if (impl_->display_revision)
 	{
@@ -3099,6 +3154,7 @@ Json World::save() const
 	if (impl_->gameplay)
 	{
 		result["knowledge"] = impl_->knowledge.save();
+
 		result["away"] = Json::array();
 		for (const auto &[a, v] : impl_->away)
 			result["away"].push_back({{"address", a}, {"value", v}});
@@ -3106,6 +3162,8 @@ Json World::save() const
 		if (impl_->scenario)
 			result["scenario"] = impl_->scenario->save();
 	}
+	result["conversations"] = impl_->conversations.save();
+	result["conversation_starts"] = impl_->save_conversation_starts();
 	result["projectiles"] = impl_->save_projectiles();
 	result["blast_visuals"] = impl_->blast_visuals;
 	result["next_blast"] = impl_->next_blast;
@@ -3117,9 +3175,9 @@ void World::restore(const Catalog &content, const Json &saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 10 || saved.at("packs") != Json(content.ordered_packs))
+	if (saved.at("schema") != 11 || saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error(
-		    "Saved state schema/content identity mismatch; Controller runtime requires schema 10; start a new session");
+		    "Saved state schema/content identity mismatch; Controller runtime requires schema 11; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))
 		throw std::runtime_error("Legacy authority fields are not Controller continuation");
 	World candidate;
@@ -3179,8 +3237,8 @@ void World::restore(const Catalog &content, const Json &saved)
 			candidate.impl_->restore_bridge(restored.id, value.at("bridge"));
 		if (entity.has<EntityControls>())
 		{
-			if (saved.at("schema") != 10)
-				throw std::runtime_error("Controller state requires schema 10; start a new session");
+			if (saved.at("schema") != 11)
+				throw std::runtime_error("Controller state requires schema 11; start a new session");
 			candidate.impl_->restore_controllers(entity, value.at("console_controllers"));
 		}
 		else if (value.contains("console_controllers"))
@@ -3326,6 +3384,9 @@ void World::restore(const Catalog &content, const Json &saved)
 		throw std::runtime_error("Saved state invalid tick");
 	candidate.impl_->ecs.get_mut<Clock>().tick = static_cast<std::uint64_t>(tick);
 	candidate.impl_->environment_tick = saved.value("environment_tick", static_cast<std::uint64_t>(tick));
+	candidate.impl_->refresh_comms();
+	candidate.impl_->conversations.restore(saved.at("conversations"));
+	candidate.impl_->restore_conversation_starts(saved.at("conversation_starts"));
 	if (saved.contains("asteroid_fields"))
 		candidate.impl_->restore_fields(saved.at("asteroid_fields"));
 	else

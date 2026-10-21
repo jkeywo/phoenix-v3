@@ -73,6 +73,9 @@ public:
 	bool set_waypoint(std::int64_t x, std::int64_t y, bool active = true);
 	ShipCameraState camera() const;
 	Json objectives() const;
+	Json conversations() const;
+	bool conversation_action(const std::string &action, std::uint64_t conversation = 0, const std::string &text = {},
+	                         std::uint64_t prompt = 0);
 	Json waypoint() const;
 	std::string widget_system(const std::string &widget) const;
 	std::int64_t system_maximum(const std::string &system) const;

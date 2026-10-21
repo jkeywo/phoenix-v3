@@ -1,4 +1,4 @@
-﻿param([ValidateSet('all', 'native', 'web')][string]$Target = 'all')
+param([ValidateSet('all', 'native', 'web')][string]$Target = 'all')
 $ErrorActionPreference = 'Stop'
 
 $repo = Split-Path $PSScriptRoot -Parent
@@ -44,6 +44,12 @@ try
 			throw "Native combat continuation trace failed"
 		}
 		Set-Content -LiteralPath "$repo/build/native/combat-continuation.trace" -Value $combatNativeTrace -Encoding utf8
+		$commsNativeTrace = & "$repo/build/native/Release/phoenix_conversation_tests.exe" --trace
+		if ($LASTEXITCODE)
+		{
+			throw 'Native Comms continuation trace failed'
+		}
+		Set-Content -LiteralPath "$repo/build/native/conversation-continuation.trace" -Value $commsNativeTrace -Encoding utf8
 		& "$PSScriptRoot/check-network-service.ps1"
 	}
 	if ($Target -ne 'native')
@@ -114,6 +120,7 @@ try
 					'phoenix_workshop_test_tests.js',
 					'phoenix_controller_runtime_tests.js',
 					'phoenix_combat_tests.js',
+					'phoenix_conversation_tests.js',
 					'phoenix_camera_tests.js'
 				))
 			{
@@ -130,6 +137,13 @@ try
 				throw 'Native/WASM combat continuation differs'
 			}
 			Write-Output 'PASS native/WASM combat projectile, refill and team-travel continuation'
+			$commsNativeTrace = Get-Content -LiteralPath "$repo/build/native/conversation-continuation.trace"
+			$commsWebTrace = & $node phoenix_conversation_tests.js --trace
+			if ($LASTEXITCODE -or ($commsNativeTrace -join "`n").Trim() -ne ($commsWebTrace -join "`n").Trim())
+			{
+				throw 'Native/WASM Comms continuation differs'
+			}
+			Write-Output 'PASS native/WASM Comms conversation continuation'
 			$wasmTrace = & $node phoenix_simulation_check.js --trace
 			if ($LASTEXITCODE)
 			{

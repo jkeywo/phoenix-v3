@@ -1,5 +1,6 @@
 #pragma once
 #include "body_projection.hpp"
+#include "conversation_projection.hpp"
 // Shared visual projection only: no Console controls, telemetry, inbox or private records.
 namespace phoenix::display
 {
@@ -52,6 +53,11 @@ inline Json sanitise(const Json &v)
 	            {"own", body_json(read_body(v.at("own")))},
 	            {"contacts", Json::array()},
 	            {"regions", Json::array()}};
+	if (result.at("kind") == "conversations")
+	{
+		result["conversation"] = conversation_projection::thread(v.at("conversation"), true);
+		return result;
+	}
 	const bool radar = result.at("kind") == "radar";
 	if (!radar && result.at("kind") != "navigation")
 		throw std::runtime_error("Invalid shared display kind");

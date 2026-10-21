@@ -79,7 +79,8 @@ enum class OperatingSystem
 	Turret,
 	Magazine,
 	RepairTeam,
-	Shield
+	Shield,
+	Comms
 };
 using SystemMask = std::uint32_t;
 constexpr SystemMask system_bit(OperatingSystem system)
@@ -234,6 +235,8 @@ constexpr std::string_view operating_system_name(OperatingSystem system)
 		return "turret";
 	case OperatingSystem::Magazine:
 		return "magazine";
+	case OperatingSystem::Comms:
+		return "comms";
 	case OperatingSystem::Shield:
 		return "shield";
 	case OperatingSystem::RepairTeam:
@@ -375,6 +378,7 @@ struct OperatingCommand
 	// Display-only snapshot from the sending player's profile; never command authority.
 	std::string speaker_name;
 	Bytes speaker_avatar;
+	std::string text; // Bounded player-authored conversation text/choice identity.
 };
 Json encode_operating_command(const OperatingCommand &command);
 OperatingCommand decode_operating_command(const Json &value);

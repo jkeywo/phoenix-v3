@@ -822,7 +822,11 @@ struct GameScreen::State
 				const Rectangle plot{rect.x + rect.width * .04f, rect.y + rect.height * .08f, rect.width * .92f,
 				                     rect.height * .84f};
 				const auto own = display::read_body(shared.at("own"));
-				if (shared.at("kind") == "navigation")
+				if (shared.at("kind") == "conversations")
+				{
+					// The RmlUi overlay below supplies shaped, accessible transcript text.
+				}
+				else if (shared.at("kind") == "navigation")
 				{
 					NavigationCamera camera;
 					camera.x = shared.at("camera")[0];

@@ -370,12 +370,12 @@ std::vector<std::pair<std::string, std::string>> public_board_readouts(const Jso
 			                      std::to_string(contact.at("y").get<std::int64_t>()));
 		for (const auto &r : d.at("regions"))
 			rows.emplace_back("viewscreen.readout/region/" + r.at("name").get<std::string>(), localise(r.at("name")));
-		for (const auto &o : d.at("objectives"))
+		for (const auto &o : d.value("objectives", Json::array()))
 			rows.emplace_back("viewscreen.readout/objective/" + std::to_string(o.at("id").get<std::uint64_t>()),
 			                  localise(o.at("title")) + "; X " +
 			                      std::to_string(o.at("destination_x").get<std::int64_t>()) + "; Y " +
 			                      std::to_string(o.at("destination_y").get<std::int64_t>()));
-		if (const auto w = d.at("waypoint"); w.value("active", false))
+		if (const auto w = d.value("waypoint", Json::object()); w.value("active", false))
 			rows.emplace_back("viewscreen.readout/waypoint",
 			                  localise("Waypoint") + "; X " + std::to_string(w.at("x").get<std::int64_t>()) + "; Y " +
 			                      std::to_string(w.at("y").get<std::int64_t>()));
@@ -756,7 +756,8 @@ bool ConsoleModel::on_screen(const std::string &widget, const std::vector<std::i
 		return false;
 	bool supported = false;
 	for (const auto &w : layout_.at("widgets"))
-		if (w.at("id") == widget && (w.at("kind") == "radar" || w.at("kind") == "navigation"))
+		if (w.at("id") == widget &&
+		    (w.at("kind") == "radar" || w.at("kind") == "navigation" || w.at("kind") == "conversations"))
 			supported = true;
 	if (!supported || (update && !is_on_screen(widget)))
 		return false;
@@ -1095,6 +1096,38 @@ const Json *ConsoleModel::controller_channel(const std::string &binding) const
 	const auto &commands = owner->at("commands");
 	return commands.contains(channel) ? &commands.at(channel) : nullptr;
 }
+Json ConsoleModel::conversations() const
+{
+	return observation_ ? observation_->gameplay.value("conversations", Json::object()) : Json::object();
+}
+bool ConsoleModel::conversation_action(const std::string &action, std::uint64_t conversation, const std::string &text,
+                                       std::uint64_t prompt)
+{
+	if (!observation_)
+		return false;
+	for (const auto &section : observation_->gameplay.value("controllers", Json::array()))
+	{
+		if (!section.value("human", false))
+			continue;
+		bool owns = false;
+		for (const auto &command : section.at("commands"))
+			for (const auto &consumer : command.at("consumers"))
+				for (const auto &system : observation_->systems)
+					if (system.kind == OperatingSystem::Comms && system.id == consumer.get<std::string>())
+						owns = true;
+		if (!owns)
+			continue;
+		OperatingCommand command{observation_->own.id, "comms." + action, static_cast<std::int64_t>(conversation)};
+		command.console = observation_->console;
+		command.controller = section.at("id");
+		command.generation = section.at("generation");
+		command.request_id = prompt;
+		command.text = text;
+		auto session = owner_.lock();
+		return session && session->console_command(route_, command);
+	}
+	return false;
+}
 bool ConsoleModel::submit(OperatingCommand command)
 {
 	auto session = owner_.lock();
@@ -1299,7 +1332,7 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 			bool combat_control = false;
 			for (const auto &system : observation_->systems)
 				if (system.id == descriptor.value("controller", std::string{}) &&
-				    system.kind >= OperatingSystem::Weapon && system.kind != OperatingSystem::Shield)
+				    system.kind >= OperatingSystem::Weapon && system.kind < OperatingSystem::Shield)
 					combat_control = true;
 			if (combat_control)
 				continue;

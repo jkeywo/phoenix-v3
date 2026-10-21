@@ -1,5 +1,7 @@
 # Phoenix V3
 
+The Comms conversation increment adds nearby hails, authored branching/group dialogue and a two-pane player Console. See [Comms conversations](docs/comms-conversations.md) for the demonstration and authoring contract.
+
 A fresh rewrite of Project Phoenix, using the previous project as a design and implementation reference, in the Settled Dark setting.
 
 Start with the **[consolidated Game Design Document](docs/GDD.md)**. It defines the intended gameplay, crew responsibilities, Settled Dark setting, authoring behavior and validation scenarios for Phoenix V3, with coverage of all 216 reviewed catalogue entries and 76 architecture decisions.

@@ -55,6 +55,7 @@ class ConsoleSurface final : public Rml::EventListener
 	}
 
 #include "navigation_surface.hpp"
+#include "conversations.hpp"
 	TextureCache radar_textures_;
 	std::map<std::string, std::unique_ptr<RadarSweep>> radar_sweeps_;
 	Application *app_ = nullptr;
@@ -516,7 +517,7 @@ button.on-screen-active .share-live {display:block;}
 .local-settings-open #manual-flight {visibility:hidden;}
 #local-settings {display:none;position:absolute;left:0;top:0;width:100%;height:100%;background:#080d0fee;z-index:20;}
 .local-settings-open #local-settings {display:block;}
-.local-settings-open #toolbar,.local-settings-open #widgets,.local-settings-open #gameplay,.local-settings-open #lobby {visibility:hidden;}
+.local-settings-open #comms-layer,.local-settings-open #toolbar,.local-settings-open #widgets,.local-settings-open #gameplay,.local-settings-open #lobby {visibility:hidden;}
 .local-settings-card {position:absolute;left:8%;top:8%;width:84%;max-height:84%;overflow:auto;box-sizing:border-box;padding:24px;background:#0b1719;border:2px #988b71;}
 .local-settings-card h1 {display:block;}
 .local-settings-card button {width:190px;min-height:48px;box-sizing:border-box;}
@@ -555,7 +556,20 @@ button.on-screen-active .share-live {display:block;}
 #gameplay-controls .status-indicator {width:132px;min-height:30px;height:32px;margin:2px;padding:3px;font-size:14px;overflow:hidden;}
 #fault-dialog {position:absolute;left:10%;top:15%;width:80%;height:65%;padding:24px;box-sizing:border-box;background:#111e22;border:3px #dfa35d;z-index:80;overflow:auto;display:none;}
 #fault-dialog p {font-size:22px;line-height:1.4;}
-</style></head><body><div id="fault-dialog"></div><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="engineering-cards"></div><div id="gameplay-controls"></div><div id="gameplay-messages"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div><div id="navigation-layer"></div><div id="manual-flight"></div><div id="local-settings"></div></body></rml>)"));
+#comms-layer {position:absolute;left:1%;top:80px;width:98%;bottom:1%;background:#102027;}
+#comms-list {position:absolute;left:0;top:0;height:100%;overflow:auto;}
+#comms-list button {display:block;width:96%;min-height:48px;margin:4px;}
+#comms-conversation {position:absolute;top:0;height:100%;}
+#comms-header {display:block;width:100%;height:20%;overflow:auto;}
+#comms-choices,#comms-incoming,#comms-compose {display:block;}
+#comms-header button {width:190px;min-height:48px;box-sizing:border-box;}
+#comms-header h3,#comms-list h3 {display:block;margin:6px 4px;font-size:1.1em;}
+#comms-history {height:52%;overflow:auto;background:#172b32;padding:8px;}
+#comms-incoming {height:30px;}
+#comms-choices {max-height:18%;overflow:auto;}
+#comms-choices button {min-height:44px;margin:4px;}
+#comms-compose input {width:75%;height:40px;}
+</style></head><body><div id="comms-layer"><div id="comms-list"></div><div id="comms-conversation"><div id="comms-header"></div><div id="comms-history"></div><div id="comms-incoming"></div><div id="comms-choices"></div><div id="comms-compose"></div></div></div><div id="fault-dialog"></div><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="engineering-cards"></div><div id="gameplay-controls"></div><div id="gameplay-messages"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div><div id="navigation-layer"></div><div id="manual-flight"></div><div id="local-settings"></div></body></rml>)"));
 		if (!document_)
 			throw std::runtime_error("Cannot create Console document");
 		document_->AddEventListener("click", this);
@@ -587,6 +601,8 @@ button.on-screen-active .share-live {display:block;}
 		if (!app_ || !name.starts_with(prefix))
 			return false;
 		const auto action = name.substr(prefix.size());
+		if (app_ && !settings_open_ && app_->screen != Screen::settings && conversation_action(action))
+			return true;
 		if (app_ && navigation_action(action))
 			return true;
 		if ((app_->screen != Screen::console && app_->screen != Screen::viewscreen &&
@@ -901,6 +917,16 @@ button.on-screen-active .share-live {display:block;}
 	}
 	bool set_value(const std::string &name, const std::string &text)
 	{
+		if (name == id("comms/draft") && text.size() <= 4096)
+		{
+			if (auto *field = dynamic_cast<Rml::ElementFormControl *>(document_->GetElementById(name)))
+			{
+				if (field->GetValue() != text)
+					field->SetValue(text);
+				return true;
+			}
+			return false;
+		}
 		if (name == id("nav.x") || name == id("nav.y"))
 		{
 			std::int64_t value = 0;
@@ -2350,6 +2376,7 @@ button.on-screen-active .share-live {display:block;}
 			gameplay_readout_signature_ = readout_signature;
 		}
 		message_ui::refresh(*document_, *document_->GetElementById("gameplay-messages"), messages, app, id(""));
+		refresh_conversations(app, region);
 		for (const auto &[name, text] : gameplay_readouts)
 		{
 			update_readout(name, text, placement_changed);

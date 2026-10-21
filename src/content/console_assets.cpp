@@ -57,6 +57,9 @@ Pack console_assets(const Catalog &catalog, const std::string &ship, const std::
 			draft.files[address.substr(pack_id.size() + 1)] = png;
 		}
 	}
+	for (const auto &[name, bytes] : catalog.assets)
+		if (name.starts_with("console-assets:assets/comms/"))
+			draft.files[name.substr(pack_id.size() + 1)] = bytes;
 	const auto own_icon = render_radar_sprite(source.at("render"), catalog);
 	if (!own_icon.empty() && !source.at("render").contains("sprite"))
 		entity["render"]["radar_sprite"] = own_icon;
@@ -136,7 +139,7 @@ Pack console_assets(const Catalog &catalog, const std::string &ship, const std::
 		if (system.kind == OperatingSystem::Engine || system.kind == OperatingSystem::Lateral ||
 		    system.kind == OperatingSystem::Boost || system.kind == OperatingSystem::Impulse)
 			copy["max_speed_mm_s"] = system.maximum;
-		else if (system.kind == OperatingSystem::Radar)
+		else if (system.kind == OperatingSystem::Radar || system.kind == OperatingSystem::Comms)
 		{
 			copy["range_mm"] = system.maximum;
 			if (systems.at(system.id).contains("shows"))
@@ -234,7 +237,7 @@ Pack console_assets(const Catalog &catalog, const std::string &ship, const std::
 		              [](const auto &entry)
 		              {
 			              return entry.first.starts_with("assets/") && entry.first != "assets/contact.png" &&
-			                     !entry.first.starts_with("assets/radar/");
+			                     !entry.first.starts_with("assets/radar/") && !entry.first.starts_with("assets/comms/");
 		              });
 	}
 	const auto loading = background.empty() ? catalog.loading_background : background;

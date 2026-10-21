@@ -1,5 +1,7 @@
 # Foundation implementation plan
 
+Comms conversations, 21 October 2026: powered external Comms, known ship/character directories, persistent group threads, authored conversation state trees, delayed messages, choices, AI/default responses, recipient-specific delivery and live On Screen publication. The human-seeking Console, Workshop authoring and separate local-assistance demonstration build on `combat-mvp`. See the [Comms contract and verification](comms-conversations.md). This increment does not establish first-level rescue/scenario completion.
+
 Simplification follow-up, 21 October 2026: six sequential refactors add ship-owned close-in navigation evidence, retain Console layout metadata, classify controls once, share native journal workers and body projection codecs, and reuse compiled Controller validation metadata. See the [change and verification receipt](audit-remediation.md#follow-up-simplification-audit--21-october-2026).
 
 Combat MVP, 21 October 2026: sustained beams, generic selectable magazines with timed unload/load, physical homing/havok missiles, point defence, layered shield arcs and energy redistribution, authored faults/diagnosis and targeted repairs extend the existing asteroid duel. Workshop, Console semantics, missile sprite/smoke and save schema 9 are implemented. The independent original-plan review and corrections are recorded in the [combat contract](combat-mvp.md) and [verification receipt](smoke/combat-mvp.md).
