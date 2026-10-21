@@ -22,6 +22,9 @@ int main()
 		            retain_sprite_direction(334, 0, 315) && !retain_sprite_direction(332, 0, 315) &&
 		            !retain_sprite_direction(180, 0, 180),
 		        "Directional sprites resist boundary jitter by five degrees, wrap through zero and follow large turns");
+		const auto aligned = velocity_billboard_rotation(0, 1, 1, 0, 0);
+		require(std::abs(aligned - 1.5707963f) < .0001f && velocity_billboard_rotation(0, 0, 1, 0, aligned) == aligned,
+		        "Missile billboard preserves alignment when projected velocity degenerates");
 		// Synthetic sidecar: asymmetric borders catch uniform-scaling regressions.
 		nlohmann::json skin_source = {{"schema_version", 1},
 		                              {"coordinate_system", "frame_pixels_top_left_y_down"},

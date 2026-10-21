@@ -51,7 +51,7 @@ Fault definitions supply stable identity, symptom, diagnosis, trigger chance/thr
 
 Sprite frames optionally supply a nonzero two-dimensional `forward` axis. Missiles select their eight-direction frame with hysteresis, then align that axis to projected physical velocity. Smoke is bounded renderer state and resets across discontinuities; reduced motion suppresses smoke and shield pulses. Beam and tracer lines retain the physical firing information.
 
-Save schema **8** records ammunition return reservations, missile/random state, shields, continuous damage remainders, faults, diagnosis, repairs and destruction commitments. Earlier saves are refused explicitly.
+Save schema **9** records ammunition return reservations, missile/random state, shields, continuous damage remainders, faults, diagnosis, repairs and destruction commitments. Earlier saves are refused explicitly.
 
 ## Implementation checkpoint
 

@@ -52,15 +52,15 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SavedOperation, speed, heading, acceleration_
 namespace
 {
 constexpr std::int64_t rate = World::ticks_per_second;
-void step_basic_steering(Pose &pose, Steering &turn)
+void step_basic_steering(Pose &pose, Steering &turn, std::int64_t effectiveness)
 {
-	auto available = turn.rate + turn.remainder;
+	auto available = turn.rate * effectiveness / 1000 + turn.remainder;
 	auto step = available / rate;
 	turn.remainder = available % rate;
 	auto difference = (turn.heading - pose.heading + 540000) % 360000 - 180000;
 	pose.heading = (pose.heading + std::clamp(difference, -step, step) + 360000) % 360000;
 }
-void step_basic_engine(const Pose &pose, Motion &motion, Engine &engine)
+void step_basic_engine(const Pose &pose, Motion &motion, Engine &engine, std::int64_t effectiveness)
 {
 	engine.forward_output = 0;
 	if (!engine.enabled)
@@ -69,7 +69,7 @@ void step_basic_engine(const Pose &pose, Motion &motion, Engine &engine)
 	const auto acceleration = engine.speed > forward_speed && forward_speed >= 0
 	                              ? launch_acceleration(engine.acceleration, forward_speed, engine.max_speed)
 	                              : engine.acceleration;
-	auto available = acceleration + engine.remainder;
+	auto available = acceleration * effectiveness / 1000 + engine.remainder;
 	auto step = available / rate;
 	engine.remainder = available % rate;
 	auto desired = fixed::scale(fixed::direction(pose.heading), engine.speed);
@@ -1326,14 +1326,16 @@ struct World::Impl
 		for (auto child : ordered_equipment(steering_query))
 			if (auto ship = child.parent();
 			    ship.has<Movable>() && !structurally_disabled(ship, child.get<Equipment>().id))
-				step_basic_steering(ship.get_mut<Pose>(), child.get_mut<Steering>());
+				step_basic_steering(ship.get_mut<Pose>(), child.get_mut<Steering>(),
+				                    fault_effectiveness(ship, child.get<Equipment>().id));
 	}
 	void run_basic_engines()
 	{
 		for (auto child : ordered_equipment(engine_query))
 			if (auto ship = child.parent();
 			    ship.has<Movable>() && !structurally_disabled(ship, child.get<Equipment>().id))
-				step_basic_engine(ship.get<Pose>(), ship.get_mut<Motion>(), child.get_mut<Engine>());
+				step_basic_engine(ship.get<Pose>(), ship.get_mut<Motion>(), child.get_mut<Engine>(),
+				                  fault_effectiveness(ship, child.get<Equipment>().id));
 	}
 	struct FlightRestrictions
 	{
@@ -3000,7 +3002,7 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 8},           {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 9},           {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
 	if (impl_->display_revision)
 	{
@@ -3103,9 +3105,9 @@ void World::restore(const Catalog &content, const Json &saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 8 || saved.at("packs") != Json(content.ordered_packs))
+	if (saved.at("schema") != 9 || saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error(
-		    "Saved state schema/content identity mismatch; Controller runtime requires schema 8; start a new session");
+		    "Saved state schema/content identity mismatch; Controller runtime requires schema 9; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))
 		throw std::runtime_error("Legacy authority fields are not Controller continuation");
 	World candidate;
@@ -3165,8 +3167,8 @@ void World::restore(const Catalog &content, const Json &saved)
 			candidate.impl_->restore_bridge(restored.id, value.at("bridge"));
 		if (entity.has<EntityControls>())
 		{
-			if (saved.at("schema") != 8)
-				throw std::runtime_error("Controller state requires schema 8; start a new session");
+			if (saved.at("schema") != 9)
+				throw std::runtime_error("Controller state requires schema 9; start a new session");
 			candidate.impl_->restore_controllers(entity, value.at("console_controllers"));
 		}
 		else if (value.contains("console_controllers"))

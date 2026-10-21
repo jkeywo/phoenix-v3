@@ -423,8 +423,10 @@ void effects_contracts()
 		bomb["id"] = "test.bomb";
 		bomb["collision"] = {{"shape", "circle"}, {"radius_mm", 3000}, {"mass_grams", 0}};
 		bomb["durability"] = 1;
-		bomb["destruction"] = {
-		    {"visual", "test.visual"}, {"chance_permille", chance}, {"damage", 100}, {"radius_mm", 100000}};
+		bomb["destruction"] = {{"sound", "test-core:assets/pixel.png"},
+		                       {"chance_permille", chance},
+		                       {"damage", 100},
+		                       {"radius_mm", 100000}};
 		source["entities"].push_back(bomb);
 		source["maps"][0]["entities"].push_back(
 		    {{"id", 4}, {"definition", "test.bomb"}, {"x_mm", 30000}, {"y_mm", 0}, {"heading_mdeg", 0}});
@@ -436,6 +438,13 @@ void effects_contracts()
 		w.tick();
 		require(chance ? hp(w) < 20000 && hp(w, 1) < 20000 : hp(w) == 20000 && hp(w, 1) == 20000,
 		        "generic destruction odds and faction-independent blast collateral");
+		const auto scene = w.scene();
+		require(std::any_of(scene.begin(), scene.end(),
+		                    [](const auto &v)
+		                    {
+			                    return v.definition.empty() && !v.sound.empty();
+		                    }) == (chance != 0),
+		        "audio-only destruction is projected without requiring a visual");
 		submit(w, 101, "beam", "target", 0);
 		w.tick();
 		const auto health = hp(w);
@@ -527,7 +536,23 @@ void extended_contracts()
 		advance(w, 4);
 		require(state(w)["systems"]["gun"]["loaded_magazine"] == 0, "weapon loads from selected magazine");
 		submit(w, 101, "gun", "magazine", 12);
-		advance(w, 4);
+		w.tick();
+		require(state(w)["systems"]["gun"]["unloading"] == 3 && state(w)["systems"]["mag"]["reserved_return"] == 1,
+		        "selection begins timed unload without returning committed stock");
+		World unloading;
+		unloading.restore(catalog, w.save());
+		submit(w, 101, "gun", "enabled", 0);
+		submit(unloading, 101, "gun", "enabled", 0);
+		advance(w, 5);
+		advance(unloading, 5);
+		require(state(w)["systems"]["gun"]["unloading"] == 3 && w.save() == unloading.save(),
+		        "disabled unload pauses and resumes exactly");
+		submit(w, 101, "gun", "enabled", 1);
+		submit(w, 101, "gun", "magazine", 0);
+		w.tick();
+		require(state(w)["systems"]["gun"]["unloading"] == 2, "switching back cannot bypass committed unload");
+		submit(w, 101, "gun", "magazine", 12);
+		advance(w, 6);
 		require(state(w)["systems"]["mag"]["ammo"] == 3 && state(w)["systems"]["ammo-12"]["ammo"] == 2,
 		        "unload returns stock and loads arbitrary compatible type");
 		require(state(w)["systems"]["gun"]["loaded_magazine"] == 12, "more than two magazine types supported");
@@ -671,6 +696,106 @@ void extended_contracts()
 		advance(w, 12);
 		require(w.observe(201)->gameplay["combat"]["faults"][0]["diagnosed"].get<bool>(),
 		        "team arrival reveals diagnosis to owner");
+	}
+}
+
+void review_contracts()
+{
+	{
+		auto source = powered_fixture();
+		source["entities"][0]["resources"]["stores"][0]["initial"] = 50000;
+		add_fit(source, "shield",
+		        {{"kind", "shield"},
+		         {"compartment", "fore"},
+		         {"capacity", 100},
+		         {"initial", 20},
+		         {"energy_per_strength", 1},
+		         {"discharge_per_second", 1},
+		         {"discharge_efficiency_permille", 900},
+		         {"power_store", "cell"}},
+		        {{"discharge", "shield_discharge"}});
+		const auto c = load(source);
+		World w;
+		w.load(c, source["maps"][0]["id"]);
+		claim(w);
+		submit(w, 101, "shield", "enabled", 0);
+		submit(w, 101, "shield", "discharge", 1);
+		advance(w, 53);
+		World resumed;
+		resumed.restore(c, w.save());
+		advance(w, 147);
+		advance(resumed, 147);
+		require(w.save() == resumed.save(), "fractional conversion and rate budgets persist across continuation");
+		require(state(w)["systems"]["shield"]["strength"] == 10 &&
+		            w.save()["bodies"][0]["resources"]["network"]["stores"][0]["energy"] == 50009,
+		        "low-rate inefficient discharge transfers exactly nine energy for ten strength");
+	}
+	{
+		auto source = fixture();
+		auto &ship = source["entities"][0];
+		for (auto &c : ship["control_layout"]["controllers"])
+		{
+			if (c["id"] == "team-a")
+				c["commands"].push_back({{"id", "priority"}, {"action", "repair_system"}, {"consumers", {"team-a"}}});
+			if (c["id"] == "team-b")
+				c["commands"][0]["initial"] = 0;
+		}
+		const auto c = load(source);
+		World w;
+		w.load(c, source["maps"][0]["id"]);
+		claim(w);
+		auto checkpoint = w.save();
+		checkpoint["bodies"][0]["combat"]["compartments"][0]["hp"] = 0;
+		checkpoint["bodies"][0]["combat"]["compartments"][0]["disabled"] = true;
+		w.restore(c, checkpoint);
+		submit(w, 102, "team-a", "priority", 1); // Sorted equipment roster: gun.
+		advance(w, 30);
+		require(state(w)["compartments"][0]["hp"].get<int>() >= 20 &&
+		            !state(w)["compartments"][0]["disabled"].get<bool>(),
+		        "specific system repair restores its disabling compartment even without a fault");
+	}
+	{
+		auto source = controller_fixture();
+		auto &ship = source["entities"][0];
+		ship["motion_model"] = "vector";
+		ship["control_layout"]["profiles"].erase(1);
+		ship["combat"] = fixture()["entities"][0]["combat"];
+		const Json fault = Json::array({{{"id", "output"},
+		                                 {"symptom", "Reduced output"},
+		                                 {"diagnosis", "Actuator damaged"},
+		                                 {"effectiveness_permille", 500},
+		                                 {"repair_work", 100}}});
+		for (auto &spec : ship["systems"])
+		{
+			spec["compartment"] = "fore";
+			spec["faults"] = fault;
+		}
+		add_fit(source, "steering",
+		        {{"kind", "steering"}, {"turn_mdeg_s", 90000}, {"compartment", "fore"}, {"faults", fault}},
+		        {{"heading", "heading_mdeg"}});
+		source["entities"][0]["control_layout"]["controllers"].back()["commands"].erase(0);
+		source["entities"].push_back(fixture()["entities"][1]);
+		const auto c = load(source);
+		World healthy;
+		healthy.load(c, source["maps"][0]["id"]);
+		claim(healthy);
+		auto checkpoint = healthy.save();
+		for (auto &states : checkpoint["bodies"][0]["combat"]["faults"])
+			states[0]["active"] = true;
+		World impaired;
+		impaired.restore(c, checkpoint);
+		submit(healthy, 101, "propulsion", "speed", 17000);
+		submit(impaired, 101, "propulsion", "speed", 17000);
+		advance(healthy, 10);
+		advance(impaired, 10);
+		const auto a = healthy.inspect().at(0), b = impaired.inspect().at(0);
+		require(b.vx > 0 && b.vx < a.vx, "partial output faults reduce basic engine acceleration");
+		submit(healthy, 101, "steering", "heading", 180000);
+		submit(impaired, 101, "steering", "heading", 180000);
+		advance(healthy, 10);
+		advance(impaired, 10);
+		require(impaired.inspect().at(0).heading != healthy.inspect().at(0).heading,
+		        "partial output faults reduce basic steering traverse");
 	}
 }
 } // namespace
@@ -1075,6 +1200,7 @@ int main(int argc, char **argv)
 			        "combat AI cannot target ships absent from its permitted sensor feed");
 		}
 		extended_contracts();
+		review_contracts();
 		ordnance_contracts();
 		effects_contracts();
 		std::cout << "Combat system contracts passed\n";

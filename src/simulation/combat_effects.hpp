@@ -111,13 +111,22 @@ void actuate_shields(flecs::entity ship)
 				{
 					m->discharge_remainder += d.discharge_rate;
 					const auto units = std::min(m->strength, m->discharge_remainder / rate);
-					m->discharge_remainder %= rate;
-					const auto offered = units * d.recharge_energy * d.discharge_efficiency / 1000;
+					const auto conversion = d.recharge_energy * d.discharge_efficiency;
+					const auto offered = (m->discharge_credit + units * conversion) / 1000;
 					const auto slot = power->definition.systems.at(child.get<ResourceBinding>().slot).store;
 					const auto received = power->network.receive_external(slot, offered);
-					const auto spent = (received * 1000 + d.recharge_energy * d.discharge_efficiency - 1) /
-					                   (d.recharge_energy * d.discharge_efficiency);
+					const auto spent = std::max<std::int64_t>(
+					    0, (received * 1000 - m->discharge_credit + conversion - 1) / conversion);
+					m->discharge_credit += spent * conversion - received * 1000;
 					m->strength -= spent;
+					// Retain a sub-energy rate budget until it produces one energy unit.
+					// Blocked batteries cannot bank rate for later bursts. Credit is
+					// already-consumed reserve, bounded below one strength unit.
+					if (offered > 0)
+						m->discharge_remainder %= rate;
+					else
+						m->discharge_remainder =
+						    std::min(m->discharge_remainder, rate * ((1000 + conversion - 1) / conversion));
 				}
 		}
 }

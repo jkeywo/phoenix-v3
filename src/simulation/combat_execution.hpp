@@ -101,15 +101,9 @@ bool operate_combat(flecs::entity ship, flecs::entity child, OperatingRequest ou
 			return false;
 		if (execute && m.selected_magazine != output.value)
 		{
-			if (m.loaded_magazine >= 0)
-			{
-				auto &mag =
-				    instance(ship, m.definition.magazines.at(m.loaded_magazine))->entity.get_mut<CombatMechanism>();
-				mag.ammo += m.definition.ammo_use;
-				mag.reserved_return -= m.definition.ammo_use;
-			}
+			if (m.loaded_magazine >= 0 && !m.unloading)
+				m.unloading = load_duration(ship, m, m.loaded_magazine);
 			m.selected_magazine = output.value;
-			m.loaded_magazine = -1;
 			m.loading = 0;
 		}
 		return true;
@@ -542,7 +536,7 @@ void step_repairs()
 				const auto &compartment = s.compartments[index];
 				const auto &definition = s.definition.compartments[index];
 				auto best =
-				    priority.empty() && compartment.hp < definition.maximum
+				    (priority.empty() || !equipment_destroyed(ship, priority)) && compartment.hp < definition.maximum
 				        ? (compartment.disabled ? std::int64_t{10000}
 				                                : (definition.maximum - compartment.hp) * 1000 / definition.maximum)
 				        : std::int64_t{0};
@@ -581,7 +575,8 @@ void step_repairs()
 						f.work = 0;
 					}
 				}
-				else if (priority.empty() && compartment.hp < definition.maximum)
+				else if ((priority.empty() || !equipment_destroyed(ship, priority)) &&
+				         compartment.hp < definition.maximum)
 					structural_workers[index].push_back(child);
 			}
 		for (auto &[index, teams] : structural_workers)
@@ -747,15 +742,18 @@ void project_combat(const ConsoleAddress &address, Observation &result) const
 				                             {"layer", d.layer},
 				                             {"discharging", m->discharge}});
 			if (d.kind == OperatingSystem::Weapon)
-				output["weapons"].push_back({{"id", d.id},
-				                             {"magazines", d.magazines},
-				                             {"selected", m->selected_magazine},
-				                             {"loaded", m->loaded_magazine},
-				                             {"loading", m->loading},
-				                             {"load_ticks", load_duration(ship, *m)},
-				                             {"mode", m->mode},
-				                             {"point_defence", d.point_defence},
-				                             {"intercept", m->intercept}});
+				output["weapons"].push_back(
+				    {{"id", d.id},
+				     {"magazines", d.magazines},
+				     {"selected", m->selected_magazine},
+				     {"loaded", m->loaded_magazine},
+				     {"loading", m->loading},
+				     {"unloading", m->unloading},
+				     {"load_ticks", load_duration(ship, *m)},
+				     {"unload_ticks", m->loaded_magazine < 0 ? 0 : load_duration(ship, *m, m->loaded_magazine)},
+				     {"mode", m->mode},
+				     {"point_defence", d.point_defence},
+				     {"intercept", m->intercept}});
 		}
 	result.gameplay["combat"] = std::move(output);
 }
@@ -787,12 +785,14 @@ Json save_combat(flecs::entity ship) const
 			                                  {"selected_magazine", m->selected_magazine},
 			                                  {"loaded_magazine", m->loaded_magazine},
 			                                  {"loading", m->loading},
+			                                  {"unloading", m->unloading},
 			                                  {"reserved_return", m->reserved_return},
 			                                  {"mode", m->mode},
 			                                  {"strength", m->strength},
 			                                  {"warmup", m->warmup},
 			                                  {"recharge_remainder", m->recharge_remainder},
 			                                  {"discharge_remainder", m->discharge_remainder},
+			                                  {"discharge_credit", m->discharge_credit},
 			                                  {"beam_remainder", m->beam_remainder},
 			                                  {"repair_system", m->repair_system},
 			                                  {"beam_tick", m->beam_tick},
@@ -848,12 +848,18 @@ void restore_combat(flecs::entity ship, const Json &j)
 			m->selected_magazine = v.at("selected_magazine").get<decltype(m->selected_magazine)>();
 			m->loaded_magazine = v.at("loaded_magazine").get<decltype(m->loaded_magazine)>();
 			m->loading = v.at("loading").get<decltype(m->loading)>();
+			m->unloading = v.at("unloading");
 			m->reserved_return = v.at("reserved_return").get<decltype(m->reserved_return)>();
 			m->mode = v.at("mode").get<decltype(m->mode)>();
 			m->strength = v.at("strength").get<decltype(m->strength)>();
 			m->warmup = v.at("warmup").get<decltype(m->warmup)>();
 			m->recharge_remainder = v.at("recharge_remainder").get<decltype(m->recharge_remainder)>();
 			m->discharge_remainder = v.at("discharge_remainder").get<decltype(m->discharge_remainder)>();
+			m->discharge_credit = v.at("discharge_credit");
+			if (m->discharge_credit < 0 ||
+			    m->discharge_credit >= m->definition.recharge_energy * m->definition.discharge_efficiency ||
+			    m->discharge_remainder < 0)
+				throw std::runtime_error("Invalid shield conversion progress");
 			m->beam_remainder = v.at("beam_remainder").get<decltype(m->beam_remainder)>();
 			m->repair_system = v.at("repair_system").get<decltype(m->repair_system)>();
 			m->beam_tick = v.at("beam_tick").get<decltype(m->beam_tick)>();
@@ -881,10 +887,15 @@ void restore_combat(flecs::entity ship, const Json &j)
 		{
 			if (m->loaded_magazine >= 0)
 			{
-				if (m->loaded_magazine != m->selected_magazine || !load_duration(ship, *m))
+				if ((!m->unloading && m->loaded_magazine != m->selected_magazine) ||
+				    !load_duration(ship, *m, m->loaded_magazine))
 					throw std::runtime_error("Invalid loaded ammunition commitment");
 				reserved[m->definition.magazines.at(m->loaded_magazine)] += m->definition.ammo_use;
 			}
+			if (m->unloading < 0 ||
+			    (m->unloading &&
+			     (m->loaded_magazine < 0 || m->unloading > load_duration(ship, *m, m->loaded_magazine) || m->loading)))
+				throw std::runtime_error("Invalid unload progress");
 			if (m->loading < 0 ||
 			    (load_duration(ship, *m) > 0 ? m->loading >= load_duration(ship, *m) : m->loading != 0) ||
 			    m->bypass_remainder < 0 || m->bypass_remainder >= 1000)

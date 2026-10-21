@@ -83,7 +83,7 @@ BlastExposure blast_exposure(fixed::Vec origin, std::int64_t altitude, flecs::en
 }
 void emit_blast(fixed::Vec origin, std::int64_t altitude, const DestructionDefinition &d, EntityId source = 0)
 {
-	if (!d.visual.empty())
+	if (!d.visual.empty() || !d.sound.empty())
 	{
 		if (blast_visuals.size() >= 8192)
 			blast_visuals.erase(blast_visuals.begin());

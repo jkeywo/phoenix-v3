@@ -1405,11 +1405,17 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 	{
 		std::string text = weapon.at("id").get<std::string>();
 		if (!weapon.at("magazines").empty())
-			text += "; " + localise("Selected magazine") + " " +
-			        weapon.at("magazines").at(weapon.at("selected").get<std::size_t>()).get<std::string>() + "; " +
-			        localise("Loading") + " " + std::to_string(weapon.at("loading").get<std::int64_t>()) + "/" +
-			        std::to_string(weapon.at("load_ticks").get<std::int64_t>()) + "; " +
-			        localise(weapon.at("loaded").get<std::int64_t>() < 0 ? "Unloaded" : "Loaded");
+			text +=
+			    "; " + localise("Selected magazine") + " " +
+			    weapon.at("magazines").at(weapon.at("selected").get<std::size_t>()).get<std::string>() + "; " +
+			    localise(weapon.at("unloading").get<std::int64_t>() > 0 ? "Unloading" : "Loading") + " " +
+			    std::to_string(weapon.at("unloading").get<std::int64_t>() > 0
+			                       ? weapon.at("unloading").get<std::int64_t>()
+			                       : weapon.at("loading").get<std::int64_t>()) +
+			    "/" +
+			    std::to_string(weapon.at(weapon.at("unloading").get<std::int64_t>() > 0 ? "unload_ticks" : "load_ticks")
+			                       .get<std::int64_t>()) +
+			    "; " + localise(weapon.at("loaded").get<std::int64_t>() < 0 ? "Unloaded" : "Loaded");
 		if (weapon.at("point_defence").get<bool>())
 			text += "; " + localise(weapon.at("mode") == 0 ? "Off" : weapon.at("mode") == 1 ? "Auto" : "Manual");
 		result.emplace_back("weapon." + weapon.at("id").get<std::string>(), text);

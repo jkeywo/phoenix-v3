@@ -1,9 +1,10 @@
-std::int64_t load_duration(flecs::entity ship, const CombatMechanism &m) const
+std::int64_t load_duration(flecs::entity ship, const CombatMechanism &m, std::int64_t magazine = -1) const
 {
 	if (m.definition.magazines.empty())
 		return 0;
-	const auto &mag =
-	    instance(ship, m.definition.magazines.at(m.selected_magazine))->entity.get<CombatMechanism>().definition;
+	const auto &mag = instance(ship, m.definition.magazines.at(magazine < 0 ? m.selected_magazine : magazine))
+	                      ->entity.get<CombatMechanism>()
+	                      .definition;
 	return mag.load_ticks ? mag.load_ticks : m.definition.load_ticks;
 }
 const ProjectileDefinition &weapon_payload(flecs::entity ship, const CombatMechanism &m) const
@@ -124,6 +125,17 @@ void prepare_weapons(flecs::entity ship)
 					}
 				}
 			}
+			if (m->unloading)
+			{
+				if (--m->unloading == 0)
+				{
+					auto &old = instance(ship, d.magazines.at(m->loaded_magazine))->entity.get_mut<CombatMechanism>();
+					old.ammo += d.ammo_use;
+					old.reserved_return -= d.ammo_use;
+					m->loaded_magazine = -1;
+				}
+				continue;
+			}
 			if (load_duration(ship, *m) && m->loaded_magazine < 0 && !d.magazines.empty())
 			{
 				auto mag = instance(ship, d.magazines.at(m->selected_magazine))->entity;
@@ -203,6 +215,8 @@ void prepare_weapons(flecs::entity ship)
 			        d.range ||
 			    std::abs(combat_delta(combat_bearing(lead - origin), orientation)) > d.arc / 2)
 				continue;
+			if (m->unloading)
+				continue;
 			if (d.family != "beam")
 			{
 				const auto &name = d.magazines.at(m->selected_magazine);
@@ -212,7 +226,7 @@ void prepare_weapons(flecs::entity ship)
 					continue;
 				if (load_duration(ship, *m))
 				{
-					if (m->loaded_magazine < 0)
+					if (m->loaded_magazine != m->selected_magazine || m->unloading)
 						continue;
 				}
 				else

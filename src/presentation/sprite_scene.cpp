@@ -254,6 +254,7 @@ struct SpriteScene::State
 	NavigationEffects navigation;
 	std::map<std::string, MaterialData> materials;
 	std::map<std::pair<std::uint64_t, std::string>, float> directions;
+	std::map<std::pair<std::uint64_t, std::string>, float> rotations;
 	TextureCache textures;
 	Shader shader{};
 	Shader fog_shader{};
@@ -285,6 +286,7 @@ struct SpriteScene::State
 		{
 			smoke.clear();
 			trail_heads.clear();
+			rotations.clear();
 		}
 		if (reduced || simulation == trail_clock)
 			return;
@@ -328,6 +330,7 @@ struct SpriteScene::State
 		clear_instances();
 		navigation.clear();
 		directions.clear();
+		rotations.clear();
 		smoke.clear();
 		trail_heads.clear();
 		trail_clock = -1;
@@ -493,6 +496,16 @@ struct SpriteScene::State
 				                                          entry.first.second.starts_with(body.definition + "#"));
 			                                  });
 		              });
+		std::erase_if(rotations,
+		              [&](const auto &entry)
+		              {
+			              return std::none_of(bodies.begin(), bodies.end(),
+			                                  [&](const auto &body)
+			                                  {
+				                                  return body.id == entry.first.first &&
+				                                         body.definition == entry.first.second;
+			                                  });
+		              });
 		items.clear();
 		lights.clear();
 		rebase = camera.target;
@@ -503,7 +516,7 @@ struct SpriteScene::State
 		prepare_instances(catalog, bodies);
 		for (const auto &body : bodies)
 		{
-			if (body.field_instance)
+			if (body.field_instance || (body.definition.empty() && !body.sound.empty()))
 				continue;
 			if (body.line_style)
 			{
@@ -569,8 +582,9 @@ struct SpriteScene::State
 			{
 				const Vector3 velocity{body.vx / 1000.f, body.visual_vz / 1000.f, -body.vy / 1000.f};
 				const auto dx = Vector3DotProduct(velocity, right), dy = Vector3DotProduct(velocity, up);
-				if (dx * dx + dy * dy > .0001f)
-					hull.rotation = std::atan2(dy, dx) - std::atan2(f.forward[1], f.forward[0]);
+				auto &rotation = rotations[std::pair{body.id, body.definition}];
+				rotation = velocity_billboard_rotation(dx, dy, f.forward[0], f.forward[1], rotation);
+				hull.rotation = rotation;
 			}
 			if (!body.sound.empty())
 			{

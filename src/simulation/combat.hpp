@@ -43,8 +43,9 @@ struct CombatMechanism
 	// Route endpoints identify a physical position even when the assignment changes mid-edge.
 	std::int64_t location = 0, destination = -1, edge_to = -1, travel = 0, edge_total = 0;
 	bool ready = false;
-	std::int64_t selected_magazine = 0, loaded_magazine = -1, loading = 0, reserved_return = 0, mode = 1;
-	std::int64_t strength = 0, warmup = 0, recharge_remainder = 0, discharge_remainder = 0, beam_remainder = 0;
+	std::int64_t selected_magazine = 0, loaded_magazine = -1, loading = 0, unloading = 0, reserved_return = 0, mode = 1;
+	std::int64_t strength = 0, warmup = 0, recharge_remainder = 0, discharge_remainder = 0, discharge_credit = 0,
+	             beam_remainder = 0;
 	std::int64_t repair_system = -1, beam_tick = -1, bypass_remainder = 0;
 	fixed::Vec beam_end;
 	bool discharge = false, repair_auto = true;
