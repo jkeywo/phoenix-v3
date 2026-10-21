@@ -457,7 +457,7 @@ void advance_away()
 		auto &m = away_missions[i];
 		const auto &d = away_definitions[i];
 		const auto ship = away_ship(d);
-		if (!ship)
+		if (!ship || departed(ship))
 			continue;
 		const auto cid = away_conversation(d);
 		if (m.phase == AwayPhase::Hidden)

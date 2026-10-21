@@ -1401,6 +1401,9 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 	{
 		if (!console_descriptor(descriptor))
 			continue;
+		if (!observation_->gameplay.value("ftl", Json::array()).empty() &&
+		    descriptor.value("action", "") != "system_enabled" && descriptor.value("action", "") != "ftl.depart")
+			continue;
 		if (descriptor.value("action", std::string{}) == "system_enabled")
 		{
 			bool combat_control = false;
@@ -1483,6 +1486,21 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 	std::vector<std::pair<std::string, std::string>> result;
 	if (!observation_)
 		return result;
+	for (const auto &ftl : observation_->gameplay.value("ftl", Json::array()))
+	{
+		const auto capacity = ftl.at("capacity").get<std::int64_t>();
+		result.emplace_back(
+		    "game.readout/ftl",
+		    localise("FTL battery") + ": " +
+		        std::to_string(ftl.at("energy").get<std::int64_t>() * 100 / std::max<std::int64_t>(1, capacity)) +
+		        "% — " +
+		        localise(ftl.at("ready").get<bool>() ? "Ready to depart" : ftl.at("blocker").get<std::string>()) +
+		        ". " + localise("Power draw") + ": " + std::to_string(ftl.at("power_draw").get<std::int64_t>()) + ". " +
+		        localise("Heat") + ": " + std::to_string(ftl.at("heat").get<std::int64_t>()));
+		for (const auto &name : ftl.at("left_behind"))
+			result.emplace_back("game.readout/ftl-away/" + name.get<std::string>(),
+			                    localise("Personnel left behind") + ": " + localise(name));
+	}
 	if (!status_system_.empty())
 		result.emplace_back("game.readout/system-details", system_details());
 	const auto sensors = observation_->gameplay.value("sensors", Json::object());

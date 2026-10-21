@@ -647,6 +647,12 @@ struct ShipResourcesDefinition
 	std::vector<SystemResourceBinding> systems;
 	std::string signature;
 };
+struct FtlDefinition
+{
+	ResourceIndex store = no_resource;
+	ResourceAmount charge_rate = 0, charging_loss = 0, ready_loss = 0, off_discharge = 0;
+};
+std::map<std::string, FtlDefinition> compile_ftl(const Catalog &catalog, const std::string &entity);
 std::optional<ShipResourcesDefinition> compile_ship_resources(const Catalog &catalog, const std::string &entity);
 using SystemObservationSchema = std::map<std::string, state_tree::Type>;
 std::map<std::string, SystemObservationSchema> compile_system_observations(const Catalog &, const std::string &entity);

@@ -298,7 +298,10 @@
 				},
 				"radar": {
 					"range_mm": 500000,
-					"capabilities": { "basic_identity": 0, "own_arcs": 0 }
+					"capabilities": {
+						"basic_identity": 0,
+						"own_arcs": 0
+					}
 				}
 			},
 			"collision": {
@@ -307,7 +310,7 @@
 				"mass_grams": 2000000
 			},
 			"name": "Courier",
-			"motion_model": "vector",
+			"motion_model": "inertial",
 			"control_layout": {
 				"schema": 1,
 				"controllers": [
@@ -347,6 +350,61 @@
 								"consumers": ["radar"]
 							}
 						]
+					},
+					{
+						"id": "ftl.drive",
+						"console": "navigator",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 0,
+								"consumers": ["ftl.drive"],
+								"label_key": "FTL battery"
+							}
+						]
+					},
+					{
+						"id": "ftl.supply",
+						"console": "main",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "isolated",
+								"action": "link_isolated",
+								"initial": 0,
+								"consumers": ["ftl.supply"],
+								"label_key": "FTL power isolation"
+							}
+						]
+					},
+					{
+						"id": "ftl.cooling",
+						"console": "main",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "allocation",
+								"action": "cooling_allocation",
+								"initial": 300,
+								"consumers": ["ftl.cooling"],
+								"label_key": "FTL cooling"
+							}
+						]
+					},
+					{
+						"id": "passage-power.reactor",
+						"console": "main",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "output",
+								"action": "generator_output",
+								"initial": 1600,
+								"consumers": ["passage-power.reactor"]
+							}
+						]
 					}
 				],
 				"profiles": [
@@ -354,7 +412,10 @@
 						"id": "direct",
 						"consoles": {
 							"main": {
-								"human": ["navigation", "sensors"]
+								"human": ["navigation", "sensors", "ftl.supply", "ftl.cooling", "passage-power.reactor"]
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
 							}
 						}
 					},
@@ -362,7 +423,11 @@
 						"id": "automatic",
 						"consoles": {
 							"main": {
-								"ai": ["navigation", "sensors"]
+								"ai": ["navigation", "sensors"],
+								"human": ["ftl.supply", "ftl.cooling", "passage-power.reactor"]
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
 							}
 						}
 					}
@@ -377,7 +442,22 @@
 							"id": "main",
 							"definition": "base.console.bridge",
 							"systems": [],
-							"feeds": ["engine", "steering", "radar"]
+							"feeds": [
+								"engine",
+								"steering",
+								"radar",
+								"ftl.supply",
+								"ftl.cooling",
+								"passage-power.reactor"
+							]
+						},
+						{
+							"id": "navigator",
+							"definition": "base.console.navigator",
+							"systems": [],
+							"feeds": ["ftl.drive"],
+							"human_preferences": ["main"],
+							"knowledge_roles": ["base.crew"]
 						}
 					]
 				}
@@ -412,6 +492,11 @@
 					{
 						"id": "signals",
 						"label": "Signals",
+						"station": "main"
+					},
+					{
+						"id": "passage",
+						"label": "Guild passage",
 						"station": "main"
 					}
 				],
@@ -493,6 +578,38 @@
 						"effects": {
 							"radar": ["sensors"]
 						}
+					},
+					{
+						"id": "ftl.drive",
+						"label": "FTL Navigator",
+						"department": "passage",
+						"controller": "ftl.drive",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "ftl.supply",
+						"label": "FTL supply",
+						"department": "passage",
+						"controller": "ftl.supply",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "ftl.cooling",
+						"label": "FTL cooling",
+						"department": "passage",
+						"controller": "ftl.cooling",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "passage-power.reactor",
+						"label": "FTL reactor",
+						"department": "passage",
+						"controller": "passage-power.reactor",
+						"compartment": "bridge",
+						"effects": {}
 					}
 				],
 				"officers": [
@@ -528,7 +645,77 @@
 						"ticks": 60
 					}
 				]
-			}
+			},
+			"assemblies": [
+				{
+					"id": "passage-power",
+					"assembly": "base.assembly.ftl-supply"
+				},
+				{
+					"id": "ftl",
+					"assembly": "base.assembly.ftl",
+					"bindings": {
+						"power": "passage-power.power"
+					},
+					"overrides": {
+						"systems": {
+							"drive": {
+								"charge_per_second": 1200,
+								"charging_loss_per_second": 240,
+								"ready_loss_per_second": 600,
+								"off_discharge_per_second": 960
+							},
+							"supply": {
+								"observation_console": "main"
+							},
+							"cooling": {
+								"observation_console": "main"
+							}
+						},
+						"resources": {
+							"stores": [
+								{
+									"id": "cell",
+									"capacity": 28800,
+									"initial": 0,
+									"charge_rate": 1200,
+									"discharge_rate": 1200,
+									"operation_heat_ppm": 1000000,
+									"charge_heat_ppm": 0,
+									"passive_cooling": 12,
+									"stop_heat": 36000,
+									"recover_heat": 18000
+								}
+							],
+							"links": [
+								{
+									"id": "feed",
+									"from": "$power",
+									"to": "cell",
+									"capacity_rate": 1200
+								}
+							],
+							"coolant_sources": [
+								{
+									"id": "coolant",
+									"initial": 60000,
+									"removal_rate": 1200,
+									"coolant_per_heat_ppm": 100000
+								}
+							],
+							"cooling_links": [
+								{
+									"id": "cooling",
+									"source": "coolant",
+									"store": "cell",
+									"capacity_rate": 1200,
+									"allocation_rate": 300
+								}
+							]
+						}
+					}
+				}
+			]
 		},
 		{
 			"id": "base.beacon",
@@ -606,7 +793,7 @@
 		{
 			"id": "base.courier-engineering",
 			"extends": "base.courier",
-			"name": "Courier \u00e2\u20ac\u201d Engineering fit",
+			"name": "Courier â€” Engineering fit",
 			"controller": null,
 			"console": null,
 			"systems": {
@@ -729,6 +916,70 @@
 							}
 						}
 					}
+				},
+				{
+					"id": "ftl",
+					"assembly": "base.assembly.ftl",
+					"bindings": {
+						"power": "core.power"
+					},
+					"overrides": {
+						"systems": {
+							"drive": {
+								"charge_per_second": 10000,
+								"charging_loss_per_second": 2000,
+								"ready_loss_per_second": 5000,
+								"off_discharge_per_second": 8000
+							},
+							"supply": {
+								"observation_console": "engineering"
+							},
+							"cooling": {
+								"observation_console": "engineering"
+							}
+						},
+						"resources": {
+							"stores": [
+								{
+									"id": "cell",
+									"capacity": 240000,
+									"initial": 0,
+									"charge_rate": 10000,
+									"discharge_rate": 10000,
+									"operation_heat_ppm": 1000000,
+									"charge_heat_ppm": 0,
+									"passive_cooling": 100,
+									"stop_heat": 300000,
+									"recover_heat": 150000
+								}
+							],
+							"links": [
+								{
+									"id": "feed",
+									"from": "$power",
+									"to": "cell",
+									"capacity_rate": 10000
+								}
+							],
+							"coolant_sources": [
+								{
+									"id": "coolant",
+									"initial": 500000,
+									"removal_rate": 10000,
+									"coolant_per_heat_ppm": 100000
+								}
+							],
+							"cooling_links": [
+								{
+									"id": "cooling",
+									"source": "coolant",
+									"store": "cell",
+									"capacity_rate": 10000,
+									"allocation_rate": 2500
+								}
+							]
+						}
+					}
 				}
 			],
 			"message_templates": [
@@ -808,7 +1059,9 @@
 								"drive.impulse-supply",
 								"drive.impulse-cooling",
 								"sensors.distribution",
-								"sensors.cooling"
+								"sensors.cooling",
+								"ftl.supply",
+								"ftl.cooling"
 							],
 							"id": "engineering",
 							"knowledge_producers": ["base.machinery"],
@@ -819,6 +1072,14 @@
 							"id": "command",
 							"definition": "base.console.command",
 							"systems": []
+						},
+						{
+							"id": "navigator",
+							"definition": "base.console.navigator",
+							"systems": [],
+							"feeds": ["ftl.drive"],
+							"human_preferences": ["engineering", "helm"],
+							"knowledge_roles": ["base.crew"]
 						}
 					],
 					"id": "engineering"
@@ -1678,6 +1939,48 @@
 								"consumers": ["sensors.radar"]
 							}
 						]
+					},
+					{
+						"id": "ftl.drive",
+						"console": "navigator",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 0,
+								"consumers": ["ftl.drive"],
+								"label_key": "FTL battery"
+							}
+						]
+					},
+					{
+						"id": "ftl.supply",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "isolated",
+								"action": "link_isolated",
+								"initial": 0,
+								"consumers": ["ftl.supply"],
+								"label_key": "FTL power isolation"
+							}
+						]
+					},
+					{
+						"id": "ftl.cooling",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "allocation",
+								"action": "cooling_allocation",
+								"initial": 2500,
+								"consumers": ["ftl.cooling"],
+								"label_key": "FTL cooling"
+							}
+						]
 					}
 				],
 				"profiles": [
@@ -1696,7 +1999,9 @@
 									"drive.lateral-cooling.orders",
 									"drive.steering-cooling.orders",
 									"sensors.cooling.orders",
-									"sensors.distribution.orders"
+									"sensors.distribution.orders",
+									"ftl.supply",
+									"ftl.cooling"
 								],
 								"ai": [
 									"core.distribution",
@@ -1727,6 +2032,9 @@
 							"helm": {
 								"human": ["drive.engine", "drive.steering", "sensors.radar"],
 								"ai": ["drive.boost", "drive.impulse", "drive.lateral"]
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
 							}
 						}
 					},
@@ -1738,7 +2046,9 @@
 									"core.distribution",
 									"core.generator",
 									"drive.distribution",
-									"sensors.distribution"
+									"sensors.distribution",
+									"ftl.supply",
+									"ftl.cooling"
 								],
 								"ai": [
 									"core.distribution.orders",
@@ -1783,6 +2093,9 @@
 									"sensors.radar"
 								],
 								"ai": []
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
 							}
 						}
 					},
@@ -1808,7 +2121,9 @@
 									"drive.steering-cooling",
 									"drive.steering-supply",
 									"sensors.cooling",
-									"sensors.distribution"
+									"sensors.distribution",
+									"ftl.supply",
+									"ftl.cooling"
 								],
 								"ai": [
 									"core.distribution.orders",
@@ -1839,6 +2154,9 @@
 									"sensors.radar"
 								],
 								"ai": []
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
 							}
 						}
 					},
@@ -1891,7 +2209,11 @@
 									"sensors.cooling",
 									"sensors.distribution.orders",
 									"sensors.distribution"
-								]
+								],
+								"human": ["ftl.supply", "ftl.cooling"]
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
 							}
 						}
 					}
@@ -1967,6 +2289,11 @@
 					{
 						"id": "signals",
 						"label": "Signals",
+						"station": "engineering"
+					},
+					{
+						"id": "passage",
+						"label": "Guild passage",
 						"station": "engineering"
 					}
 				],
@@ -2294,6 +2621,30 @@
 						"effects": {
 							"sensors.radar": ["sensors"]
 						}
+					},
+					{
+						"id": "ftl.drive",
+						"label": "FTL Navigator",
+						"department": "passage",
+						"controller": "ftl.drive",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "ftl.supply",
+						"label": "FTL supply",
+						"department": "passage",
+						"controller": "ftl.supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "ftl.cooling",
+						"label": "FTL cooling",
+						"department": "passage",
+						"controller": "ftl.cooling",
+						"compartment": "engineering",
+						"effects": {}
 					}
 				],
 				"officers": [
@@ -2361,7 +2712,7 @@
 		{
 			"id": "base.cruiser",
 			"extends": "base.courier-engineering",
-			"name": "Cruiser \u00e2\u20ac\u201d Six-station fit",
+			"name": "Cruiser â€” Six-station fit",
 			"render": {
 				"scale": 18
 			},
@@ -2678,6 +3029,70 @@
 							}
 						}
 					}
+				},
+				{
+					"id": "ftl",
+					"assembly": "base.assembly.ftl",
+					"bindings": {
+						"power": "core.power"
+					},
+					"overrides": {
+						"systems": {
+							"drive": {
+								"charge_per_second": 15000,
+								"charging_loss_per_second": 3000,
+								"ready_loss_per_second": 7500,
+								"off_discharge_per_second": 12000
+							},
+							"supply": {
+								"observation_console": "engineering"
+							},
+							"cooling": {
+								"observation_console": "engineering"
+							}
+						},
+						"resources": {
+							"stores": [
+								{
+									"id": "cell",
+									"capacity": 360000,
+									"initial": 0,
+									"charge_rate": 15000,
+									"discharge_rate": 15000,
+									"operation_heat_ppm": 1000000,
+									"charge_heat_ppm": 0,
+									"passive_cooling": 150,
+									"stop_heat": 450000,
+									"recover_heat": 225000
+								}
+							],
+							"links": [
+								{
+									"id": "feed",
+									"from": "$power",
+									"to": "cell",
+									"capacity_rate": 15000
+								}
+							],
+							"coolant_sources": [
+								{
+									"id": "coolant",
+									"initial": 750000,
+									"removal_rate": 15000,
+									"coolant_per_heat_ppm": 100000
+								}
+							],
+							"cooling_links": [
+								{
+									"id": "cooling",
+									"source": "coolant",
+									"store": "cell",
+									"capacity_rate": 15000,
+									"allocation_rate": 3750
+								}
+							]
+						}
+					}
 				}
 			],
 			"stations": [
@@ -2745,7 +3160,9 @@
 								"communications.distribution",
 								"communications.cooling",
 								"command.distribution",
-								"command.cooling"
+								"command.cooling",
+								"ftl.supply",
+								"ftl.cooling"
 							],
 							"id": "engineering",
 							"knowledge_producers": ["base.machinery"],
@@ -2764,6 +3181,14 @@
 							"knowledge_producers": ["base.machinery"],
 							"knowledge_roles": ["base.crew", "base.science"],
 							"systems": []
+						},
+						{
+							"id": "navigator",
+							"definition": "base.console.navigator",
+							"systems": [],
+							"feeds": ["ftl.drive"],
+							"human_preferences": ["science", "helm"],
+							"knowledge_roles": ["base.crew"]
 						}
 					],
 					"id": "science"
@@ -4524,6 +4949,48 @@
 								"consumers": ["comms-radio"]
 							}
 						]
+					},
+					{
+						"id": "ftl.drive",
+						"console": "navigator",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 0,
+								"consumers": ["ftl.drive"],
+								"label_key": "FTL battery"
+							}
+						]
+					},
+					{
+						"id": "ftl.supply",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "isolated",
+								"action": "link_isolated",
+								"initial": 0,
+								"consumers": ["ftl.supply"],
+								"label_key": "FTL power isolation"
+							}
+						]
+					},
+					{
+						"id": "ftl.cooling",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "allocation",
+								"action": "cooling_allocation",
+								"initial": 3750,
+								"consumers": ["ftl.cooling"],
+								"label_key": "FTL cooling"
+							}
+						]
 					}
 				],
 				"profiles": [
@@ -4562,7 +5029,9 @@
 									"wing.engine-cooling.orders",
 									"wing.impulse-cooling.orders",
 									"wing.lateral-cooling.orders",
-									"wing.steering-cooling.orders"
+									"wing.steering-cooling.orders",
+									"ftl.supply",
+									"ftl.cooling"
 								],
 								"ai": [
 									"command.cooling",
@@ -4623,6 +5092,9 @@
 							"tactical": {
 								"human": ["tactical.radar"],
 								"ai": []
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
 							}
 						}
 					},
@@ -4646,7 +5118,9 @@
 									"drive.distribution",
 									"sensors.distribution",
 									"tactical.distribution",
-									"wing.distribution"
+									"wing.distribution",
+									"ftl.supply",
+									"ftl.cooling"
 								],
 								"ai": [
 									"command.cooling.orders",
@@ -4732,6 +5206,9 @@
 							"tactical": {
 								"human": ["tactical.radar"],
 								"ai": []
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
 							}
 						}
 					},
@@ -4782,7 +5259,9 @@
 									"wing.lateral-cooling",
 									"wing.lateral-supply",
 									"wing.steering-cooling",
-									"wing.steering-supply"
+									"wing.steering-supply",
+									"ftl.supply",
+									"ftl.cooling"
 								],
 								"ai": [
 									"command.cooling.orders",
@@ -4841,6 +5320,9 @@
 							"tactical": {
 								"human": ["tactical.radar"],
 								"ai": []
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
 							}
 						}
 					},
@@ -4930,10 +5412,12 @@
 									"wing.steering-cooling",
 									"wing.steering-supply.orders",
 									"wing.steering-supply"
-								]
+								],
+								"human": ["ftl.supply", "ftl.cooling"]
 							},
 							"science": {
-								"ai": ["sensors.radar"]
+								"ai": ["sensors.radar"],
+								"human": []
 							},
 							"tactical": {
 								"ai": ["tactical.radar"]
@@ -4943,6 +5427,9 @@
 							},
 							"captain": {
 								"ai": ["command.reserve"]
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
 							}
 						}
 					}
@@ -5041,6 +5528,11 @@
 						"id": "signals",
 						"label": "Signals",
 						"station": "comms"
+					},
+					{
+						"id": "passage",
+						"label": "Guild passage",
+						"station": "science"
 					}
 				],
 				"duties": [
@@ -5709,6 +6201,30 @@
 						"effects": {
 							"comms-radio": ["comms"]
 						}
+					},
+					{
+						"id": "ftl.drive",
+						"label": "FTL Navigator",
+						"department": "passage",
+						"controller": "ftl.drive",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "ftl.supply",
+						"label": "FTL supply",
+						"department": "engineering",
+						"controller": "ftl.supply",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "ftl.cooling",
+						"label": "FTL cooling",
+						"department": "engineering",
+						"controller": "ftl.cooling",
+						"compartment": "bridge",
+						"effects": {}
 					}
 				],
 				"officers": [
@@ -7385,7 +7901,9 @@
 								"drive.impulse-supply",
 								"drive.impulse-cooling",
 								"sensors.distribution",
-								"sensors.cooling"
+								"sensors.cooling",
+								"ftl.supply",
+								"ftl.cooling"
 							],
 							"id": "engineering",
 							"knowledge_producers": ["base.machinery"],
@@ -7404,6 +7922,14 @@
 							"id": "command",
 							"definition": "base.console.command",
 							"systems": []
+						},
+						{
+							"id": "navigator",
+							"definition": "base.console.navigator",
+							"systems": [],
+							"feeds": ["ftl.drive"],
+							"human_preferences": ["engineering", "helm"],
+							"knowledge_roles": ["base.crew"]
 						}
 					],
 					"id": "engineering"
@@ -8275,6 +8801,48 @@
 								"consumers": []
 							}
 						]
+					},
+					{
+						"id": "ftl.drive",
+						"console": "navigator",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 0,
+								"consumers": ["ftl.drive"],
+								"label_key": "FTL battery"
+							}
+						]
+					},
+					{
+						"id": "ftl.supply",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "isolated",
+								"action": "link_isolated",
+								"initial": 0,
+								"consumers": ["ftl.supply"],
+								"label_key": "FTL power isolation"
+							}
+						]
+					},
+					{
+						"id": "ftl.cooling",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "allocation",
+								"action": "cooling_allocation",
+								"initial": 2500,
+								"consumers": ["ftl.cooling"],
+								"label_key": "FTL cooling"
+							}
+						]
 					}
 				],
 				"profiles": [
@@ -8293,7 +8861,9 @@
 									"drive.lateral-cooling.orders",
 									"drive.steering-cooling.orders",
 									"sensors.cooling.orders",
-									"sensors.distribution.orders"
+									"sensors.distribution.orders",
+									"ftl.supply",
+									"ftl.cooling"
 								],
 								"ai": [
 									"core.distribution",
@@ -8327,6 +8897,9 @@
 							},
 							"navigation": {
 								"human": ["navigation.orders"]
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
 							}
 						}
 					},
@@ -8338,7 +8911,9 @@
 									"core.distribution",
 									"core.generator",
 									"drive.distribution",
-									"sensors.distribution"
+									"sensors.distribution",
+									"ftl.supply",
+									"ftl.cooling"
 								],
 								"ai": [
 									"core.distribution.orders",
@@ -8386,6 +8961,9 @@
 							},
 							"navigation": {
 								"human": ["navigation.orders"]
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
 							}
 						}
 					},
@@ -8411,7 +8989,9 @@
 									"drive.steering-cooling",
 									"drive.steering-supply",
 									"sensors.cooling",
-									"sensors.distribution"
+									"sensors.distribution",
+									"ftl.supply",
+									"ftl.cooling"
 								],
 								"ai": [
 									"core.distribution.orders",
@@ -8445,6 +9025,9 @@
 							},
 							"navigation": {
 								"human": ["navigation.orders"]
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
 							}
 						}
 					},
@@ -8497,10 +9080,14 @@
 									"sensors.cooling",
 									"sensors.distribution.orders",
 									"sensors.distribution"
-								]
+								],
+								"human": ["ftl.supply", "ftl.cooling"]
 							},
 							"navigation": {
 								"human": ["navigation.orders"]
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
 							}
 						}
 					}
@@ -8575,6 +9162,11 @@
 					{
 						"id": "signals",
 						"label": "Signals",
+						"station": "engineering"
+					},
+					{
+						"id": "passage",
+						"label": "Guild passage",
 						"station": "engineering"
 					}
 				],
@@ -8910,6 +9502,30 @@
 						"controller": "navigation.orders",
 						"compartment": "bridge",
 						"effects": {}
+					},
+					{
+						"id": "ftl.drive",
+						"label": "FTL Navigator",
+						"department": "passage",
+						"controller": "ftl.drive",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "ftl.supply",
+						"label": "FTL supply",
+						"department": "passage",
+						"controller": "ftl.supply",
+						"compartment": "bridge",
+						"effects": {}
+					},
+					{
+						"id": "ftl.cooling",
+						"label": "FTL cooling",
+						"department": "passage",
+						"controller": "ftl.cooling",
+						"compartment": "bridge",
+						"effects": {}
 					}
 				],
 				"officers": [
@@ -8981,7 +9597,188 @@
 						"ticks": 60
 					}
 				]
-			}
+			},
+			"assemblies": [
+				{
+					"assembly": "base.assembly.power-core",
+					"id": "core",
+					"overrides": {
+						"systems": {
+							"distribution": {
+								"observation_console": "engineering"
+							},
+							"generator": {
+								"observation_console": "engineering",
+								"reporters": [
+									{
+										"id": "thermal-protection",
+										"field": "thermal_stopped",
+										"above": 0,
+										"message": "base.message.thermal-stop",
+										"recovery_message": "base.message.supply-restored",
+										"recovery_ticks": 40,
+										"minimum_gap_ticks": 40
+									}
+								]
+							},
+							"pump": {
+								"observation_console": "engineering"
+							},
+							"reactor-cooling": {
+								"observation_console": "engineering"
+							},
+							"reserve": {
+								"observation_console": "engineering"
+							}
+						}
+					}
+				},
+				{
+					"assembly": "base.assembly.drive",
+					"bindings": {
+						"coolant": "core.coolant",
+						"power": "core.power"
+					},
+					"id": "drive",
+					"overrides": {
+						"systems": {
+							"boost": {
+								"observation_console": "helm"
+							},
+							"boost-cooling": {
+								"observation_console": "engineering"
+							},
+							"boost-supply": {
+								"observation_console": "engineering"
+							},
+							"distribution": {
+								"observation_console": "engineering"
+							},
+							"engine": {
+								"observation_console": "helm"
+							},
+							"engine-cooling": {
+								"observation_console": "engineering"
+							},
+							"engine-supply": {
+								"observation_console": "engineering"
+							},
+							"impulse": {
+								"observation_console": "helm"
+							},
+							"impulse-cooling": {
+								"observation_console": "engineering"
+							},
+							"impulse-supply": {
+								"observation_console": "engineering"
+							},
+							"lateral": {
+								"observation_console": "helm"
+							},
+							"lateral-cooling": {
+								"observation_console": "engineering"
+							},
+							"lateral-supply": {
+								"observation_console": "engineering"
+							},
+							"steering": {
+								"observation_console": "helm"
+							},
+							"steering-cooling": {
+								"observation_console": "engineering"
+							},
+							"steering-supply": {
+								"observation_console": "engineering"
+							}
+						}
+					}
+				},
+				{
+					"assembly": "base.assembly.sensors",
+					"bindings": {
+						"coolant": "core.coolant",
+						"power": "core.power"
+					},
+					"id": "sensors",
+					"overrides": {
+						"systems": {
+							"cooling": {
+								"observation_console": "engineering"
+							},
+							"distribution": {
+								"observation_console": "engineering"
+							},
+							"radar": {
+								"observation_console": "helm"
+							}
+						}
+					}
+				},
+				{
+					"id": "ftl",
+					"assembly": "base.assembly.ftl",
+					"bindings": {
+						"power": "core.power"
+					},
+					"overrides": {
+						"systems": {
+							"drive": {
+								"charge_per_second": 10000,
+								"charging_loss_per_second": 2000,
+								"ready_loss_per_second": 5000,
+								"off_discharge_per_second": 8000
+							},
+							"supply": {
+								"observation_console": "engineering"
+							},
+							"cooling": {
+								"observation_console": "engineering"
+							}
+						},
+						"resources": {
+							"stores": [
+								{
+									"id": "cell",
+									"capacity": 240000,
+									"initial": 0,
+									"charge_rate": 10000,
+									"discharge_rate": 10000,
+									"operation_heat_ppm": 1000000,
+									"charge_heat_ppm": 0,
+									"passive_cooling": 100,
+									"stop_heat": 300000,
+									"recover_heat": 150000
+								}
+							],
+							"links": [
+								{
+									"id": "feed",
+									"from": "$power",
+									"to": "cell",
+									"capacity_rate": 10000
+								}
+							],
+							"coolant_sources": [
+								{
+									"id": "coolant",
+									"initial": 500000,
+									"removal_rate": 10000,
+									"coolant_per_heat_ppm": 100000
+								}
+							],
+							"cooling_links": [
+								{
+									"id": "cooling",
+									"source": "coolant",
+									"store": "cell",
+									"capacity_rate": 10000,
+									"allocation_rate": 2500
+								}
+							]
+						}
+					}
+				}
+			]
 		},
 		{
 			"id": "base.combat-projectile",
@@ -10238,7 +11035,9 @@
 								"havok-mag",
 								"missile-launcher",
 								"pdc-mag",
-								"pdc"
+								"pdc",
+								"ftl.supply",
+								"ftl.cooling"
 							]
 						},
 						{
@@ -10247,6 +11046,14 @@
 							"systems": [],
 							"feeds": ["comms-radio", "radar"],
 							"human_preferences": ["support"]
+						},
+						{
+							"id": "navigator",
+							"definition": "base.console.navigator",
+							"systems": [],
+							"feeds": ["ftl.drive"],
+							"human_preferences": ["support", "helm"],
+							"knowledge_roles": ["base.crew"]
 						}
 					]
 				}
@@ -10695,6 +11502,48 @@
 								"consumers": ["focused-scanner"]
 							}
 						]
+					},
+					{
+						"id": "ftl.drive",
+						"console": "navigator",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 0,
+								"consumers": ["ftl.drive"],
+								"label_key": "FTL battery"
+							}
+						]
+					},
+					{
+						"id": "ftl.supply",
+						"console": "support",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "isolated",
+								"action": "link_isolated",
+								"initial": 0,
+								"consumers": ["ftl.supply"],
+								"label_key": "FTL power isolation"
+							}
+						]
+					},
+					{
+						"id": "ftl.cooling",
+						"console": "support",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "allocation",
+								"action": "cooling_allocation",
+								"initial": 300,
+								"consumers": ["ftl.cooling"],
+								"label_key": "FTL cooling"
+							}
+						]
 					}
 				],
 				"default_profile": "direct",
@@ -10733,11 +11582,16 @@
 									"weapon-cell",
 									"shield-cell",
 									"shield-fore",
-									"shield-aft"
+									"shield-aft",
+									"ftl.supply",
+									"ftl.cooling"
 								]
 							},
 							"comms": {
 								"human": ["external-comms"]
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
 							}
 						}
 					},
@@ -10776,10 +11630,14 @@
 									"shield-cell",
 									"shield-fore",
 									"shield-aft"
-								]
+								],
+								"human": ["ftl.supply", "ftl.cooling"]
 							},
 							"comms": {
 								"ai": ["external-comms"]
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
 							}
 						}
 					}
@@ -10909,6 +11767,73 @@
 				{
 					"id": "combat-power",
 					"assembly": "base.assembly.combat-power"
+				},
+				{
+					"id": "ftl",
+					"assembly": "base.assembly.ftl",
+					"bindings": {
+						"power": "combat-power.power"
+					},
+					"overrides": {
+						"systems": {
+							"drive": {
+								"charge_per_second": 1200,
+								"charging_loss_per_second": 240,
+								"ready_loss_per_second": 600,
+								"off_discharge_per_second": 960,
+								"compartment": "stern-port"
+							},
+							"supply": {
+								"observation_console": "support",
+								"compartment": "stern-port"
+							},
+							"cooling": {
+								"observation_console": "support",
+								"compartment": "stern-port"
+							}
+						},
+						"resources": {
+							"stores": [
+								{
+									"id": "cell",
+									"capacity": 28800,
+									"initial": 0,
+									"charge_rate": 1200,
+									"discharge_rate": 1200,
+									"operation_heat_ppm": 1000000,
+									"charge_heat_ppm": 0,
+									"passive_cooling": 12,
+									"stop_heat": 36000,
+									"recover_heat": 18000
+								}
+							],
+							"links": [
+								{
+									"id": "feed",
+									"from": "$power",
+									"to": "cell",
+									"capacity_rate": 1200
+								}
+							],
+							"coolant_sources": [
+								{
+									"id": "coolant",
+									"initial": 60000,
+									"removal_rate": 1200,
+									"coolant_per_heat_ppm": 100000
+								}
+							],
+							"cooling_links": [
+								{
+									"id": "cooling",
+									"source": "coolant",
+									"store": "cell",
+									"capacity_rate": 1200,
+									"allocation_rate": 300
+								}
+							]
+						}
+					}
 				}
 			],
 			"comms": {
@@ -10956,6 +11881,11 @@
 					{
 						"id": "signals",
 						"label": "Signals",
+						"station": "support"
+					},
+					{
+						"id": "passage",
+						"label": "Guild passage",
 						"station": "support"
 					}
 				],
@@ -11290,6 +12220,30 @@
 							"focused-scanner": ["sensors"],
 							"sensor-turret": ["traverse"]
 						}
+					},
+					{
+						"id": "ftl.drive",
+						"label": "FTL Navigator",
+						"department": "passage",
+						"controller": "ftl.drive",
+						"compartment": "stern-port",
+						"effects": {}
+					},
+					{
+						"id": "ftl.supply",
+						"label": "FTL supply",
+						"department": "passage",
+						"controller": "ftl.supply",
+						"compartment": "stern-port",
+						"effects": {}
+					},
+					{
+						"id": "ftl.cooling",
+						"label": "FTL cooling",
+						"department": "passage",
+						"controller": "ftl.cooling",
+						"compartment": "stern-port",
+						"effects": {}
 					}
 				],
 				"officers": [
@@ -13132,7 +14086,7 @@
 		{
 			"id": "base.comms-courier",
 			"extends": "base.courier",
-			"name": "Courier \u00e2\u20ac\u201d Communications fit",
+			"name": "Courier â€” Communications fit",
 			"controller": null,
 			"console": null,
 			"systems": {
@@ -13262,6 +14216,70 @@
 							}
 						}
 					}
+				},
+				{
+					"id": "ftl",
+					"assembly": "base.assembly.ftl",
+					"bindings": {
+						"power": "core.power"
+					},
+					"overrides": {
+						"systems": {
+							"drive": {
+								"charge_per_second": 10000,
+								"charging_loss_per_second": 2000,
+								"ready_loss_per_second": 5000,
+								"off_discharge_per_second": 8000
+							},
+							"supply": {
+								"observation_console": "engineering"
+							},
+							"cooling": {
+								"observation_console": "engineering"
+							}
+						},
+						"resources": {
+							"stores": [
+								{
+									"id": "cell",
+									"capacity": 240000,
+									"initial": 0,
+									"charge_rate": 10000,
+									"discharge_rate": 10000,
+									"operation_heat_ppm": 1000000,
+									"charge_heat_ppm": 0,
+									"passive_cooling": 100,
+									"stop_heat": 300000,
+									"recover_heat": 150000
+								}
+							],
+							"links": [
+								{
+									"id": "feed",
+									"from": "$power",
+									"to": "cell",
+									"capacity_rate": 10000
+								}
+							],
+							"coolant_sources": [
+								{
+									"id": "coolant",
+									"initial": 500000,
+									"removal_rate": 10000,
+									"coolant_per_heat_ppm": 100000
+								}
+							],
+							"cooling_links": [
+								{
+									"id": "cooling",
+									"source": "coolant",
+									"store": "cell",
+									"capacity_rate": 10000,
+									"allocation_rate": 2500
+								}
+							]
+						}
+					}
 				}
 			],
 			"message_templates": [
@@ -13338,7 +14356,9 @@
 								"drive.impulse-supply",
 								"drive.impulse-cooling",
 								"sensors.distribution",
-								"sensors.cooling"
+								"sensors.cooling",
+								"ftl.supply",
+								"ftl.cooling"
 							],
 							"id": "engineering",
 							"knowledge_producers": ["base.machinery"],
@@ -13356,6 +14376,14 @@
 							"systems": [],
 							"feeds": ["comms-radio", "sensors.radar"],
 							"human_preferences": ["engineering"]
+						},
+						{
+							"id": "navigator",
+							"definition": "base.console.navigator",
+							"systems": [],
+							"feeds": ["ftl.drive"],
+							"human_preferences": ["engineering", "helm"],
+							"knowledge_roles": ["base.crew"]
 						}
 					],
 					"id": "engineering"
@@ -14228,6 +15256,48 @@
 								"consumers": ["comms-radio"]
 							}
 						]
+					},
+					{
+						"id": "ftl.drive",
+						"console": "navigator",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 0,
+								"consumers": ["ftl.drive"],
+								"label_key": "FTL battery"
+							}
+						]
+					},
+					{
+						"id": "ftl.supply",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "isolated",
+								"action": "link_isolated",
+								"initial": 0,
+								"consumers": ["ftl.supply"],
+								"label_key": "FTL power isolation"
+							}
+						]
+					},
+					{
+						"id": "ftl.cooling",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "allocation",
+								"action": "cooling_allocation",
+								"initial": 2500,
+								"consumers": ["ftl.cooling"],
+								"label_key": "FTL cooling"
+							}
+						]
 					}
 				],
 				"profiles": [
@@ -14246,7 +15316,9 @@
 									"drive.lateral-cooling.orders",
 									"drive.steering-cooling.orders",
 									"sensors.cooling.orders",
-									"sensors.distribution.orders"
+									"sensors.distribution.orders",
+									"ftl.supply",
+									"ftl.cooling"
 								],
 								"ai": [
 									"core.distribution",
@@ -14280,6 +15352,9 @@
 							},
 							"comms": {
 								"human": ["external-comms"]
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
 							}
 						}
 					},
@@ -14291,7 +15366,9 @@
 									"core.distribution",
 									"core.generator",
 									"drive.distribution",
-									"sensors.distribution"
+									"sensors.distribution",
+									"ftl.supply",
+									"ftl.cooling"
 								],
 								"ai": [
 									"core.distribution.orders",
@@ -14339,6 +15416,9 @@
 							},
 							"comms": {
 								"human": ["external-comms"]
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
 							}
 						}
 					},
@@ -14364,7 +15444,9 @@
 									"drive.steering-cooling",
 									"drive.steering-supply",
 									"sensors.cooling",
-									"sensors.distribution"
+									"sensors.distribution",
+									"ftl.supply",
+									"ftl.cooling"
 								],
 								"ai": [
 									"core.distribution.orders",
@@ -14398,6 +15480,9 @@
 							},
 							"comms": {
 								"human": ["external-comms"]
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
 							}
 						}
 					},
@@ -14450,10 +15535,14 @@
 									"sensors.cooling",
 									"sensors.distribution.orders",
 									"sensors.distribution"
-								]
+								],
+								"human": ["ftl.supply", "ftl.cooling"]
 							},
 							"comms": {
 								"ai": ["external-comms"]
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
 							}
 						}
 					}
@@ -14544,6 +15633,11 @@
 					{
 						"id": "signals",
 						"label": "Signals",
+						"station": "engineering"
+					},
+					{
+						"id": "passage",
+						"label": "Guild passage",
 						"station": "engineering"
 					}
 				],
@@ -14881,6 +15975,30 @@
 						"effects": {
 							"comms-radio": ["comms"]
 						}
+					},
+					{
+						"id": "ftl.drive",
+						"label": "FTL Navigator",
+						"department": "passage",
+						"controller": "ftl.drive",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "ftl.supply",
+						"label": "FTL supply",
+						"department": "passage",
+						"controller": "ftl.supply",
+						"compartment": "engineering",
+						"effects": {}
+					},
+					{
+						"id": "ftl.cooling",
+						"label": "FTL cooling",
+						"department": "passage",
+						"controller": "ftl.cooling",
+						"compartment": "engineering",
+						"effects": {}
 					}
 				],
 				"officers": [
@@ -14956,7 +16074,7 @@
 		},
 		{
 			"id": "base.rescue-courier",
-			"name": "Courier \u00e2\u20ac\u201d Rescue watch",
+			"name": "Courier â€” Rescue watch",
 			"tags": ["ship"],
 			"motion_model": "inertial",
 			"render": {
@@ -15862,7 +16980,9 @@
 								"havok-mag",
 								"missile-launcher",
 								"pdc-mag",
-								"pdc"
+								"pdc",
+								"ftl.supply",
+								"ftl.cooling"
 							]
 						},
 						{
@@ -15871,6 +16991,14 @@
 							"systems": [],
 							"feeds": ["comms-radio", "radar"],
 							"human_preferences": ["support"]
+						},
+						{
+							"id": "navigator",
+							"definition": "base.console.navigator",
+							"systems": [],
+							"feeds": ["ftl.drive"],
+							"human_preferences": ["support", "helm"],
+							"knowledge_roles": ["base.crew"]
 						}
 					]
 				}
@@ -16345,6 +17473,48 @@
 								"consumers": ["focused-scanner"]
 							}
 						]
+					},
+					{
+						"id": "ftl.drive",
+						"console": "navigator",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 0,
+								"consumers": ["ftl.drive"],
+								"label_key": "FTL battery"
+							}
+						]
+					},
+					{
+						"id": "ftl.supply",
+						"console": "support",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "isolated",
+								"action": "link_isolated",
+								"initial": 0,
+								"consumers": ["ftl.supply"],
+								"label_key": "FTL power isolation"
+							}
+						]
+					},
+					{
+						"id": "ftl.cooling",
+						"console": "support",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "allocation",
+								"action": "cooling_allocation",
+								"initial": 300,
+								"consumers": ["ftl.cooling"],
+								"label_key": "FTL cooling"
+							}
+						]
 					}
 				],
 				"default_profile": "direct",
@@ -16383,11 +17553,16 @@
 									"weapon-cell",
 									"shield-cell",
 									"shield-fore",
-									"shield-aft"
+									"shield-aft",
+									"ftl.supply",
+									"ftl.cooling"
 								]
 							},
 							"comms": {
 								"human": ["external-comms"]
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
 							}
 						}
 					},
@@ -16426,10 +17601,14 @@
 									"shield-cell",
 									"shield-fore",
 									"shield-aft"
-								]
+								],
+								"human": ["ftl.supply", "ftl.cooling"]
 							},
 							"comms": {
 								"ai": ["external-comms"]
+							},
+							"navigator": {
+								"human": ["ftl.drive"]
 							}
 						}
 					}
@@ -16559,6 +17738,73 @@
 				{
 					"id": "combat-power",
 					"assembly": "base.assembly.combat-power"
+				},
+				{
+					"id": "ftl",
+					"assembly": "base.assembly.ftl",
+					"bindings": {
+						"power": "combat-power.power"
+					},
+					"overrides": {
+						"systems": {
+							"drive": {
+								"charge_per_second": 1200,
+								"charging_loss_per_second": 240,
+								"ready_loss_per_second": 600,
+								"off_discharge_per_second": 960,
+								"compartment": "stern-port"
+							},
+							"supply": {
+								"observation_console": "support",
+								"compartment": "stern-port"
+							},
+							"cooling": {
+								"observation_console": "support",
+								"compartment": "stern-port"
+							}
+						},
+						"resources": {
+							"stores": [
+								{
+									"id": "cell",
+									"capacity": 28800,
+									"initial": 0,
+									"charge_rate": 1200,
+									"discharge_rate": 1200,
+									"operation_heat_ppm": 1000000,
+									"charge_heat_ppm": 0,
+									"passive_cooling": 12,
+									"stop_heat": 36000,
+									"recover_heat": 18000
+								}
+							],
+							"links": [
+								{
+									"id": "feed",
+									"from": "$power",
+									"to": "cell",
+									"capacity_rate": 1200
+								}
+							],
+							"coolant_sources": [
+								{
+									"id": "coolant",
+									"initial": 60000,
+									"removal_rate": 1200,
+									"coolant_per_heat_ppm": 100000
+								}
+							],
+							"cooling_links": [
+								{
+									"id": "cooling",
+									"source": "coolant",
+									"store": "cell",
+									"capacity_rate": 1200,
+									"allocation_rate": 300
+								}
+							]
+						}
+					}
 				}
 			],
 			"comms": {
@@ -16612,6 +17858,11 @@
 						"id": "navigation",
 						"label": "Navigation",
 						"station": "helm"
+					},
+					{
+						"id": "passage",
+						"label": "Guild passage",
+						"station": "support"
 					}
 				],
 				"traits": [
@@ -16969,6 +18220,30 @@
 							"focused-scanner": ["sensors"],
 							"sensor-turret": ["traverse"]
 						}
+					},
+					{
+						"id": "ftl.drive",
+						"label": "FTL Navigator",
+						"department": "passage",
+						"controller": "ftl.drive",
+						"compartment": "stern-port",
+						"effects": {}
+					},
+					{
+						"id": "ftl.supply",
+						"label": "FTL supply",
+						"department": "passage",
+						"controller": "ftl.supply",
+						"compartment": "stern-port",
+						"effects": {}
+					},
+					{
+						"id": "ftl.cooling",
+						"label": "FTL cooling",
+						"department": "passage",
+						"controller": "ftl.cooling",
+						"compartment": "stern-port",
+						"effects": {}
 					}
 				],
 				"officers": [
@@ -19437,7 +20712,7 @@
 				"skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png"
 			},
 			"id": "base.comms-demonstration",
-			"name": "Comms \u00e2\u20ac\u201d Local assistance",
+			"name": "Comms â€” Local assistance",
 			"entities": [
 				{
 					"id": 1,
@@ -19638,7 +20913,7 @@
 				}
 			],
 			"name": "Ship Operations",
-			"description": "Set the ship\u00e2\u20ac\u2122s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew."
+			"description": "Set the shipâ€™s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew."
 		},
 		{
 			"id": "base.console.helm",
@@ -19992,6 +21267,14 @@
 				"width": 1,
 				"height": 1
 			}
+		},
+		{
+			"id": "base.console.navigator",
+			"name": "Navigator",
+			"description": "Charge the FTL battery and depart the mission. Holding readiness consumes power and generates heat.",
+			"human_seeking": true,
+			"knowledge_roles": ["base.crew"],
+			"widgets": []
 		}
 	],
 	"trees": [
@@ -30302,7 +31585,10 @@
 			"id": "base.equipment.combat-radar",
 			"kind": "radar",
 			"range_mm": 350000,
-			"capabilities": { "basic_identity": 0, "own_arcs": 0 },
+			"capabilities": {
+				"basic_identity": 0,
+				"own_arcs": 0
+			},
 			"shows": ["ship", "asteroid", "missile"],
 			"compartment": "bow-starboard",
 			"observation_console": "support",
@@ -30751,6 +32037,17 @@
 					"repair_work": 100
 				}
 			]
+		},
+		{
+			"id": "base.equipment.ftl",
+			"kind": "ftl",
+			"enabled": false,
+			"power_store": "cell",
+			"charge_per_second": 10000,
+			"charging_loss_per_second": 2000,
+			"ready_loss_per_second": 5000,
+			"off_discharge_per_second": 8000,
+			"observation_console": "navigator"
 		}
 	],
 	"assemblies": [
@@ -31409,6 +32706,113 @@
 						"capacity_rate": 1500
 					}
 				]
+			},
+			"services": {
+				"power": {
+					"kind": "power",
+					"direction": "output",
+					"target": "main"
+				}
+			}
+		},
+		{
+			"id": "base.assembly.ftl",
+			"systems": {
+				"drive": {
+					"template": "base.equipment.ftl"
+				},
+				"supply": {
+					"kind": "distribution",
+					"conduit": "feed"
+				},
+				"cooling": {
+					"kind": "coolant",
+					"cooling_link": "cooling"
+				}
+			},
+			"resources": {
+				"stores": [
+					{
+						"id": "cell",
+						"capacity": 240000,
+						"initial": 0,
+						"charge_rate": 10000,
+						"discharge_rate": 10000,
+						"operation_heat_ppm": 1000000,
+						"charge_heat_ppm": 0,
+						"passive_cooling": 100,
+						"stop_heat": 300000,
+						"recover_heat": 150000
+					}
+				],
+				"links": [
+					{
+						"id": "feed",
+						"from": "$power",
+						"to": "cell",
+						"capacity_rate": 10000
+					}
+				],
+				"coolant_sources": [
+					{
+						"id": "coolant",
+						"initial": 500000,
+						"removal_rate": 10000,
+						"coolant_per_heat_ppm": 100000
+					}
+				],
+				"cooling_links": [
+					{
+						"id": "cooling",
+						"source": "coolant",
+						"store": "cell",
+						"capacity_rate": 10000,
+						"allocation_rate": 2500
+					}
+				]
+			},
+			"services": {
+				"power": {
+					"kind": "power",
+					"direction": "input"
+				}
+			}
+		},
+		{
+			"id": "base.assembly.ftl-supply",
+			"systems": {
+				"reactor": {
+					"kind": "generator",
+					"generator": "reactor",
+					"power_store": "main"
+				}
+			},
+			"resources": {
+				"stores": [
+					{
+						"id": "main",
+						"capacity": 30000,
+						"initial": 22500,
+						"charge_rate": 2400,
+						"discharge_rate": 2400
+					}
+				],
+				"generators": [
+					{
+						"id": "reactor",
+						"store": "main",
+						"maximum_rate": 2400,
+						"initial_output": 1600,
+						"response_rate": 400
+					}
+				]
+			},
+			"services": {
+				"power": {
+					"kind": "power",
+					"direction": "output",
+					"target": "main"
+				}
 			}
 		}
 	],

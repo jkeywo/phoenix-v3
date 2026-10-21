@@ -205,6 +205,8 @@ Impulse requires an authored minimum reserve in its connected local battery befo
 
 ### 5.2 Guild passage
 
+The initial [Navigator FTL departure](ftl-departure.md) increment provides a dedicated Navigator Console for leaving a mission. Its initially empty reserve takes substantial power to charge, wastes power as heat while held ready, and gradually discharges as heat when switched off. A fully charged operational drive permits deliberate departure; an active displacement transfer must finish first. Deployed personnel can be left behind with a visible warning. Departure ends that crew's mission and freezes a report of its known objectives and personnel, while other ships continue. This increment omits destination selection, fuel and qualified-officer gates; the full passage requirements below remain the subsequent design baseline.
+
 Science controls the navigator and coordinates with other stations. Passage consumes actual equipment capability, navigation knowledge, energy and other authored supplies. Interstellar travel uses finite transit fuel. Routine local manoeuvring does not add a separate propellant chore.
 
 Interstellar passage, fitted local jumps and short-range displacement share **one active passage operation per navigator**. Preparation may overlap. Science considers competing requests and releases an operation at the appropriate moment. Ordinary delegated navigator control can execute within approved intent and limits; it is not a requirement that a human approve every passage on an AI-operated ship.

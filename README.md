@@ -1,5 +1,7 @@
 # Phoenix V3
 
+[Navigator FTL departure](docs/ftl-departure.md) adds a dedicated auxiliary Console, a powered and cooled FTL reserve, deliberate departure and a persistent report for that ship's crew.
+
 [Away missions](docs/away-missions.md) adds Dispatch, qualified displacement, Station-owned contributions and the Rescue under threat demonstration.
 
 [Duty officers](docs/duty-officers.md) adds department-scoped Personnel rosters, compartment travel, expertise modifiers and named AI internal-message speakers.

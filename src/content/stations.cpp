@@ -34,7 +34,7 @@ std::vector<FittedSystemSpec> resolve_systems(const Catalog &catalog, const std:
 		      OperatingSystem::Storage, OperatingSystem::Distribution, OperatingSystem::Coolant,
 		      OperatingSystem::Lateral, OperatingSystem::Boost, OperatingSystem::Impulse, OperatingSystem::Weapon,
 		      OperatingSystem::Turret, OperatingSystem::Magazine, OperatingSystem::RepairTeam, OperatingSystem::Shield,
-		      OperatingSystem::Comms, OperatingSystem::Displacement, OperatingSystem::Dispatch})
+		      OperatingSystem::Comms, OperatingSystem::Displacement, OperatingSystem::Dispatch, OperatingSystem::Ftl})
 			if (kind == operating_system_name(candidate))
 				type = candidate;
 		if (!type)

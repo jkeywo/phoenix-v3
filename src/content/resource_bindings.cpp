@@ -1,6 +1,7 @@
 module;
 #include <nlohmann/json.hpp>
 #include <cstddef>
+#include <algorithm>
 #include <cstdint>
 #include <map>
 #include <optional>
@@ -54,6 +55,46 @@ bool adapter_flight_costs(const std::optional<FlightDefinition> &flight)
 	                  flight->heat_rate || flight->boost_heat_rate || flight->impulse_heat_rate);
 }
 } // namespace
+std::map<std::string, FtlDefinition> compile_ftl(const Catalog &catalog, const std::string &entity_id)
+{
+	std::map<std::string, FtlDefinition> out;
+	const auto &entity = catalog.entities.at(entity_id);
+	for (const auto &[id, spec] : entity.at("systems").items())
+	{
+		if (spec.value("kind", id) != "ftl" || catalog.presentation)
+			continue;
+		const auto path = "entities." + entity_id + ".systems." + id;
+		if (!catalog.resource_definitions.contains(entity_id))
+			throw std::runtime_error(path + ": FTL requires a resource network");
+		const auto &network = catalog.resource_definitions.at(entity_id);
+		FtlDefinition d;
+		d.store = adapter_reference(spec, "power_store", network.store_ids, path);
+		d.charge_rate = adapter_amount(spec, "charge_per_second", path);
+		d.charging_loss = adapter_amount(spec, "charging_loss_per_second", path);
+		d.ready_loss = adapter_amount(spec, "ready_loss_per_second", path);
+		d.off_discharge = adapter_amount(spec, "off_discharge_per_second", path);
+		if (spec.value("enabled", true) || d.store == no_resource || !d.charge_rate || !d.charging_loss ||
+		    !d.ready_loss || !d.off_discharge || d.charging_loss >= d.charge_rate || d.ready_loss > d.charge_rate)
+			throw std::runtime_error(path + ": invalid FTL reserve/rates");
+		const auto &store = network.stores.at(d.store);
+		if (store.initial || store.charge_rate < d.charge_rate ||
+		    store.discharge_rate < std::max(d.charging_loss, d.ready_loss) || store.operation_heat_ppm != 1000000 ||
+		    store.loss_empty_ppm || store.loss_full_ppm || store.capacity < d.charge_rate / resource_tick_hz)
+			throw std::runtime_error(path +
+			                         ": FTL requires an empty dedicated reserve with adequate rates and loss heat");
+		for (const auto &[other, s] : entity.at("systems").items())
+			if (other != id && s.value("power_store", std::string{}) == spec.at("power_store").get<std::string>())
+				throw std::runtime_error(path + ": FTL reserve must be dedicated");
+		for (const auto &link : network.links)
+			if (link.from == d.store)
+				throw std::runtime_error(path + ": FTL reserve cannot supply another store");
+		out.emplace(id, d);
+	}
+	if (out.size() > 1)
+		throw std::runtime_error(entity_id + ": only one FTL drive per ship is supported");
+	return out;
+}
+
 std::optional<ShipResourcesDefinition> compile_ship_resources(const Catalog &catalog, const std::string &entity_id)
 {
 	const auto &entity = catalog.entities.at(entity_id);

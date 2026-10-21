@@ -530,6 +530,15 @@ struct GameplayEditor
 			        text("Physical reporters emit measured facts under both human and AI operation.");
 		        });
 		const auto kind = spec.value("kind", fallback_kind);
+		if (kind == "ftl")
+		{
+			boolean(spec, "enabled");
+			integer(spec, "charge_per_second", 100);
+			integer(spec, "charging_loss_per_second", 20);
+			integer(spec, "ready_loss_per_second", 50);
+			integer(spec, "off_discharge_per_second", 80);
+			text("FTL uses a dedicated empty reserve. Charge and loss rates compete for actual reactor flow.");
+		}
 		if (kind == "displacement")
 		{
 			integer(spec, "range_mm", 100000);
@@ -1016,7 +1025,7 @@ struct GameplayEditor
 				choice(spec, "kind",
 				       {"engine", "steering", "radar", "generator", "distribution", "coolant", "storage", "lateral",
 				        "boost", "impulse", "weapon", "turret", "magazine", "repair_team", "shield", "comms",
-				        "displacement", "dispatch"},
+				        "displacement", "dispatch", "ftl"},
 				       true);
 				auto kind = equipment_kind(document, spec);
 				if (kind.empty())

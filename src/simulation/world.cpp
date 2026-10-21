@@ -26,12 +26,14 @@ import phoenix.gameplay_scenario;
 #include "gameplay_resources.hpp"
 #include "flight.hpp"
 #include "equipment.hpp"
+#include "ftl_state.hpp"
 #include "controllers.hpp"
 #include "combat.hpp"
 #include "personnel_state.hpp"
 #include "away_state.hpp"
 #include "sensors_state.hpp"
 #include "../core/display_projection.hpp"
+#include "../core/ftl_projection.hpp"
 
 namespace phoenix::fixed
 {
@@ -121,6 +123,7 @@ struct CompiledDefinition
 	BridgeDefinition bridge;
 	PersonnelDefinition personnel;
 	std::map<std::string, DisplacementDefinition> displacements;
+	std::map<std::string, FtlDefinition> ftl;
 	std::map<std::string, ConsoleBridgeDefinition> console_bridge;
 	std::vector<std::string> tags;
 	std::map<std::string, std::vector<std::string>> radar_shows;
@@ -498,6 +501,7 @@ struct World::Impl
 			visual_scales[name] = definition.at("render").at("scale");
 			result.bridge = compile_bridge(content, name);
 			result.personnel = compile_personnel(content, name);
+			result.ftl = compile_ftl(content, name);
 			for (const auto &[key, s] : definition.at("systems").items())
 				if (s.value("kind", key) == "displacement")
 					result.displacements[key] = {s.at("compartment"), s.at("range_mm"), s.at("capacity"),
@@ -854,6 +858,8 @@ struct World::Impl
 				continue;
 			}
 			child.add<AdvancedEquipment>().set<OperatingHeat>({});
+			if (data.ftl.contains(v.id))
+				child.set<FtlReserve>({data.ftl.at(v.id), 0});
 			const auto &g = data.gameplay->values[i];
 			if (g.flight)
 			{
@@ -1051,7 +1057,7 @@ struct World::Impl
 			return output.arguments.empty() && sensor_target(entity.get<StableId>().id, name, output.value, execute);
 		if (auto target = instance(entity, name);
 		    target && (target->kind == OperatingSystem::Comms || target->kind == OperatingSystem::Displacement ||
-		               target->kind == OperatingSystem::Dispatch))
+		               target->kind == OperatingSystem::Dispatch || target->kind == OperatingSystem::Ftl))
 		{
 			if (output.action != OperatingAction::SystemEnabled || output.value < 0 || output.value > 1 ||
 			    !output.arguments.empty())
@@ -1722,6 +1728,8 @@ struct World::Impl
 			prepare_combat(ship);
 			request_flight_resources(ship, restrictions);
 			request_combat_resources(ship);
+			if (!definition(id).ftl.empty())
+				prepare_ftl(ship);
 			struct RestoreService
 			{
 				ResourceControl kind;
@@ -1770,6 +1778,8 @@ struct World::Impl
 					control_resource(*power, saved.slot, saved.kind, saved.value);
 			}
 			actuate_combat(ship);
+			if (!definition(id).ftl.empty())
+				actuate_ftl(ship);
 			run_equipment_actuation(id, restrictions);
 		}
 	}
@@ -1970,6 +1980,7 @@ struct World::Impl
 #include "bridge.hpp"
 #include "conversations.hpp"
 #include "away.hpp"
+#include "ftl.hpp"
 #include "sensors.hpp"
 	bool meta(std::uint64_t claimant, const OperatingCommand &command, bool execute)
 	{
@@ -1980,6 +1991,10 @@ struct World::Impl
 			return false;
 		const auto &console = *seat(address.ship, address.console);
 		const auto &spec = definition(address.ship);
+		if (departed(address.ship) && command.action != "camera_mode" && command.action != "camera_direction")
+			return false;
+		if (command.action.starts_with("ftl."))
+			return ftl_command(address, command, execute);
 		if (command.action.starts_with("away."))
 			return away_command(address, command, execute);
 		if (command.action.starts_with("personnel."))
@@ -2262,6 +2277,8 @@ bool World::can_submit(std::uint64_t console, const OperatingCommand &command) c
 	auto claim = impl_->claims.find(console);
 	if (claim == impl_->claims.end() || claim->second.ship != command.target)
 		return false;
+	if (impl_->departed(command.target))
+		return false;
 	const auto address = impl_->command_address(console, command);
 	if (address != claim->second && impl_->console_operator(address) != console)
 		return false;
@@ -2316,15 +2333,21 @@ void World::tick()
 	}
 	impl_->stream_fields();
 	impl_->index_contacts.run();
+	// Departure is revalidated after this tick's admitted Controller changes are consumed.
+	std::vector<std::pair<std::uint64_t, OperatingCommand>> departures;
 	for (const auto &[claim, command] : impl_->meta_pending)
-		impl_->meta(claim, command, true);
+		if (command.action == "ftl.depart")
+			departures.emplace_back(claim, command);
+		else
+			impl_->meta(claim, command, true);
 	impl_->meta_pending.clear();
 	impl_->prune_displays();
 	for (const auto &[id, entity] : impl_->entities)
-		if (entity.has<PersonnelState>())
+		if (!impl_->departed(id) && entity.has<PersonnelState>())
 			impl_->advance_personnel(id);
 	for (const auto &proposal : impl_->controller_pending)
-		impl_->commit_controller(proposal);
+		if (!impl_->departed(proposal.address.entity))
+			impl_->commit_controller(proposal);
 	impl_->controller_pending.clear();
 	if (impl_->scenario)
 	{
@@ -2334,7 +2357,13 @@ void World::tick()
 		              {
 			              return body.id >= Impl::field_identity_base;
 		              });
-		impl_->scenario->begin_tick(ticks(), impl_->slot_entities, bodies);
+		auto active_slots = impl_->slot_entities;
+		std::erase_if(active_slots,
+		              [&](const auto &entry)
+		              {
+			              return impl_->departed(entry.second);
+		              });
+		impl_->scenario->begin_tick(ticks(), std::move(active_slots), bodies);
 		std::vector<ScenarioKnowledgeSnapshot> snapshots;
 		for (const auto &reader : impl_->scenario->knowledge_readers())
 		{
@@ -2392,8 +2421,10 @@ void World::tick()
 	// Explicit fixed-tick phases. Each pre-collision row operates only on itself,
 	// so archetype/table ordering cannot affect gameplay. No wall-clock progress.
 	for (const auto &[id, entity] : impl_->entities)
-		if (entity.has<EntityControls>())
+		if (!impl_->departed(id) && entity.has<EntityControls>())
 			impl_->run_console_controllers(entity);
+	for (const auto &[claim, command] : departures)
+		impl_->meta(claim, command, true);
 	impl_->apply_structural_disablement();
 	impl_->run_basic_steering();
 	impl_->run_basic_engines();
@@ -2739,12 +2770,35 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	result.gameplay["stance"] = impl_->stance_board(address);
 	result.gameplay["personnel"] = impl_->personnel_board(address);
 	result.gameplay["away_missions"] = impl_->away_board(address);
+	result.gameplay["ftl"] = impl_->ftl_board(address);
+	result.gameplay["mission_report"] =
+	    entity.has<MissionDeparture>() ? entity.get<MissionDeparture>().report : Json(nullptr);
 	if (impl_->comms_owner(address.ship) == address)
 		result.gameplay["conversations"] = impl_->conversations.project(address.ship);
 	if (entity.has<EntityControls>())
 		result.gameplay["controllers"] = impl_->project_controllers(address);
 
 	auto &buttons = result.gameplay["controls"] = Json::array();
+	if (impl_->departed(address.ship))
+		return result;
+	for (auto child : entity.get<EquipmentIndex>().values)
+		if (child.has<FtlReserve>() && impl_->ftl_owner(address.ship, child.get<Equipment>().id) == address)
+			for (const auto &ctrl : entity.get<EntityControls>().controllers)
+				if (ctrl.human && ctrl.definition.console == address.console)
+					for (const auto &channel : ctrl.definition.commands)
+						if (std::find(channel.consumers.begin(), channel.consumers.end(),
+						              child.get<Equipment>().ordinal) != channel.consumers.end())
+						{
+							OperatingCommand command{
+							    address.ship, "ftl.depart",   0, child.get<Equipment>().id, ctrl.definition.id,
+							    {},           ctrl.generation};
+							auto descriptor = encode_operating_command(command);
+							descriptor["id"] = "ftl.depart";
+							descriptor["label"] = "Leave mission";
+							descriptor["enabled"] = impl_->ftl_blocker(address.ship, child).empty();
+							buttons.push_back(std::move(descriptor));
+							break;
+						}
 	const auto button = [&](const std::string &id, const std::string &label, const std::string &action,
 	                        const std::string &system, std::int64_t value)
 	{
@@ -2887,6 +2941,11 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 					if (channel.action != OperatingAction::Lateral && channel.choices.empty() && channel.minimum <= 0 &&
 					    channel.maximum >= 0)
 						values.insert(0);
+					const bool ftl_toggle =
+					    channel.action == OperatingAction::SystemEnabled && channel.consumers.size() == 1 &&
+					    entity.get<EquipmentIndex>().values.at(channel.consumers.front()).has<FtlReserve>();
+					if (ftl_toggle)
+						values = {state.value ? 0 : 1};
 					for (const auto value : values)
 					{
 						if (state.request_id == std::numeric_limits<std::uint64_t>::max())
@@ -2925,6 +2984,11 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 						{
 							descriptor["label_key"] = channel.label_key;
 							descriptor["label_value"] = true;
+						}
+						if (ftl_toggle)
+						{
+							descriptor["label_key"] = value ? "Turn FTL battery on" : "Turn FTL battery off";
+							descriptor["label_value"] = false;
 						}
 						buttons.push_back(std::move(descriptor));
 					}
@@ -3189,6 +3253,8 @@ Json World::save() const
 			continue;
 		SavedBody body{entity.get<Pose>(), entity.get<Motion>(), id, entity.get<Definition>().name};
 		result["bodies"].push_back({{"body", body}});
+		if (entity.has<MissionDeparture>())
+			result["bodies"].back()["mission_report"] = entity.get<MissionDeparture>().report;
 		result["bodies"].back()["faction"] =
 		    (entity.try_get<FactionMembership>() ? entity.get<FactionMembership>().id : std::string{});
 		if (auto systems = fittings(entity))
@@ -3232,6 +3298,8 @@ Json World::save() const
 					value["radar_enabled"] = radar->enabled;
 				if (system.flight)
 					value["flight"] = save_flight(system.flight->definition, system.flight->state);
+				if (const auto *ftl = entity.get<EquipmentIndex>().values.at(i).try_get<FtlReserve>())
+					value["ftl_discharge_remainder"] = ftl->discharge_remainder;
 				data.push_back(std::move(value));
 			}
 			if (systems->power)
@@ -3433,6 +3501,11 @@ void World::restore(const Catalog &content, const Json &saved)
 				if (system.heat_remainder < 0 || system.heat_remainder >= rate)
 					throw std::runtime_error("Invalid operating heat remainder");
 				(*fittings(entity)).values[i].enabled = state.at("enabled");
+				if (auto *ftl = entity.get<EquipmentIndex>().values.at(i).try_get_mut<FtlReserve>())
+				{
+					ftl->discharge_remainder =
+					    projection::number(state.value("ftl_discharge_remainder", Json(0)), 0, rate - 1);
+				}
 				if (auto radar = (*fittings(entity)).values[i].radar)
 					radar->enabled = state.at("radar_enabled").get<bool>();
 			}
@@ -3506,10 +3579,20 @@ void World::restore(const Catalog &content, const Json &saved)
 		candidate.impl_->restore_fields(saved.at("asteroid_fields"));
 	else
 		candidate.impl_->stream_fields();
-	candidate.impl_->index_contacts.run();
 	candidate.impl_->restore_projectiles(saved);
 	candidate.impl_->blast_visuals = saved.value("blast_visuals", Json::array()).get<std::vector<BlastVisual>>();
 	candidate.impl_->next_blast = saved.value("next_blast", std::uint64_t{1});
+	for (const auto &value : saved.at("bodies"))
+		if (value.contains("mission_report"))
+		{
+			const auto id = value.at("body").at("id").get<EntityId>();
+			const auto report = ftl_projection::report(value.at("mission_report"));
+			if (report.is_null() || report.at("tick") > saved.at("tick") || candidate.impl_->definition(id).ftl.empty())
+				throw std::runtime_error("Invalid saved departure");
+			candidate.impl_->entities.at(id).set<MissionDeparture>({report});
+			candidate.impl_->retire_departed(id);
+		}
+	candidate.impl_->index_contacts.run();
 	impl_ = std::move(candidate.impl_);
 }
 } // namespace phoenix

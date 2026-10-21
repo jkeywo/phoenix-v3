@@ -650,7 +650,7 @@ void verify_prepared_catalog(const Catalog &catalog)
 			}
 			else if (kind != "generator" && kind != "storage" && kind != "distribution" && kind != "coolant" &&
 			         kind != "weapon" && kind != "turret" && kind != "magazine" && kind != "repair_team" &&
-			         kind != "shield")
+			         kind != "shield" && kind != "ftl")
 				invalid(field, "unsupported System capability");
 		}
 		if (!catalog.presentation)
@@ -678,6 +678,7 @@ void verify_prepared_catalog(const Catalog &catalog)
 			invalid(path + ".controller", "unresolved state tree");
 		resolve_consoles(catalog, id);
 		verify_gameplay_fitting(catalog, id);
+		(void)compile_ftl(catalog, id);
 		(void)compile_combat(catalog, id);
 		if (entity.contains("destruction"))
 			(void)compile_destruction(entity.at("destruction"), catalog, path + ".destruction");

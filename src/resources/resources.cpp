@@ -374,6 +374,19 @@ void ResourceNetwork::apply_operating_heat(ResourceIndex store, ResourceAmount h
 		stores_[store].thermal_stop = true;
 }
 
+ResourceAmount ResourceNetwork::dissipate(ResourceIndex i, ResourceAmount amount, bool heat)
+{
+	if (amount < 0 || amount > resource_limit)
+		throw std::runtime_error("Invalid reserve dissipation");
+	auto &s = stores_.at(i);
+	const auto paid = std::min(s.energy, amount);
+	s.energy -= paid;
+	telemetry_.at(i).lost += paid;
+	if (heat)
+		add_heat(i, paid);
+	return paid;
+}
+
 void ResourceNetwork::tick()
 {
 	++ticks_;

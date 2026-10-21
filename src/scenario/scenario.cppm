@@ -292,6 +292,7 @@ public:
 	void begin_tick(ScenarioTick tick, std::map<std::string, EntityId> slots,
 	                std::map<EntityId, ScenarioPoint> positions);
 	void evaluate(std::span<const ScenarioMotionSegment> movement);
+	void withdraw_actor(EntityId entity);
 	bool mission_complete() const;
 	std::vector<ScenarioPublication> pending_publications() const;
 	void acknowledge_publication(ScenarioId publication);

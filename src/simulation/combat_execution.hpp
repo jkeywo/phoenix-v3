@@ -43,6 +43,8 @@ bool duel_ended() const
 }
 bool combat_dead(flecs::entity ship) const
 {
+	if (ship.has<MissionDeparture>())
+		return true;
 	const auto *d = ship.try_get<Destructible>();
 	return d && d->destroyed_tick >= 0;
 }

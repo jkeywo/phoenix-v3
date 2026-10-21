@@ -113,6 +113,10 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 		for (const auto &widget : layout->at("widgets"))
 			navigation_visible_ |= widget.at("kind") == "navigation";
 	const auto objectives = model_.objectives();
+	const auto report =
+	    model_.observation() ? model_.observation()->gameplay.value("mission_report", Json(nullptr)) : Json(nullptr);
+	const auto ftl =
+	    model_.observation() && !pregame ? model_.observation()->gameplay.value("ftl", Json::array()) : Json::array();
 	if (const auto *layout = model_.layout(); layout && !pregame)
 		for (const auto &widget : layout->at("widgets"))
 			if (widget.at("kind") == "objectives")
@@ -133,12 +137,14 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 	for (const auto &objective : objectives)
 		if (!objective.value("outcome", "").empty())
 			mission_outcome_ = objective.at("outcome");
+	if (!report.is_null())
+		mission_outcome_ = "ftl";
 	if (pregame)
 		mission_outcome_.clear();
 	if (!mission_outcome_.empty())
 		navigation_visible_ = false;
 	document_->SetClass("navigation-console", navigation_visible_);
-	if (navigation_visible_)
+	if (navigation_visible_ || !ftl.empty() || !mission_outcome_.empty())
 		document_->GetElementById("gameplay")->SetProperty("display", "none");
 	navigation_area_ = {0, 110, region.width, std::max(50.f, region.height - 250)};
 	if (navigation_visible_ && model_.observation())
@@ -183,16 +189,62 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 		markup = "<div class=\"mission-result\"><img class=\"mission-art\" src=\"" +
 		         asset_path("mission-terminal.png") + "\"/><div class=\"mission-copy\"><h1>" +
 		         localise("MISSION REPORT // FINAL") + "</h1><h2>" +
-		         localise(mission_outcome_ == "won"    ? "You won"
+		         localise(mission_outcome_ == "ftl"    ? "Departed via FTL"
+		                  : mission_outcome_ == "won"  ? "You won"
 		                  : mission_outcome_ == "lost" ? "You lost"
 		                                               : "Draw") +
 		         "</h2><div class=\"terminal-rule\"></div><p class=\"terminal-status\">" +
 		         localise("Mission complete") + "</p>";
-		for (const auto &o : objectives)
-			markup += "<p>" + Rml::StringUtilities::EncodeRml(localise(o.value("title", ""))) + "</p>";
+		std::string report_text = localise(mission_outcome_ == "ftl" ? "Departed via FTL" : "Mission complete");
+		for (const auto &o : report.is_null() ? objectives : report.at("objectives"))
+		{
+			const auto status = o.value("status", "active");
+			const auto line = localise(o.value("title", "")) +
+			                  (report.is_null() ? ""
+			                                    : ": " + localise(status == "active"      ? "Unfinished"
+			                                                      : status == "completed" ? "Completed"
+			                                                      : status == "failed"    ? "Failed"
+			                                                                              : "Cancelled"));
+			markup += "<p>" + Rml::StringUtilities::EncodeRml(line) + "</p>";
+			report_text += ". " + line;
+		}
+		if (!report.is_null())
+			for (const auto &name : report.at("left_behind"))
+			{
+				const auto line = localise("Personnel left behind") + ": " + localise(name);
+				markup += "<p>" + Rml::StringUtilities::EncodeRml(line) + "</p>";
+				report_text += ". " + line;
+			}
 		markup += button("mission.leave", "Return to menu") + "</div></div>";
-		app.screen_readouts.emplace_back(id("mission-result"),
-		                                 localise("Mission complete") + ": " + localise(mission_outcome_));
+		app.screen_readouts.emplace_back(id("mission-result"), report_text);
+	}
+	else if (!ftl.empty())
+	{
+		std::erase_if(app.screen_controls,
+		              [&](const auto &control)
+		              {
+			              return control.first.starts_with(id("game."));
+		              });
+		std::erase_if(app.screen_inputs,
+		              [&](const auto &input)
+		              {
+			              return input.id.starts_with(id("game."));
+		              });
+		markup = "<div class=\"navigator-panel\" style=\"position:absolute;left:5%;top:120px;width:90%;height:" +
+		         std::to_string(std::max(50.f, region.height - 160)) + "px;overflow:auto;\"><h1>" +
+		         localise("FTL departure") + "</h1>";
+		for (const auto &[key, text] : model_.gameplay_readouts())
+			if (key.starts_with("game.readout/ftl"))
+				markup += "<p>" + Rml::StringUtilities::EncodeRml(text) + "</p>";
+		for (const auto &[key, label] : model_.gameplay_controls())
+			if (key.starts_with("game.console/") || key.starts_with("game.control/"))
+			{
+				actions.emplace_back(key, label);
+				markup += "<button id=\"" + id(key) + "\">" + Rml::StringUtilities::EncodeRml(label) + "</button>";
+			}
+		if (!ftl.at(0).at("ready").get<bool>())
+			markup += "<button disabled=\"disabled\" aria-disabled=\"true\">" + localise("Leave mission") + "</button>";
+		markup += "</div>";
 	}
 	else if (navigation_visible_)
 	{
@@ -241,7 +293,9 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 		elements_.clear();
 		if (!mission_outcome_.empty())
 		{
-			app.accessible_status = localise("Mission complete") + ": " + localise(mission_outcome_);
+			app.accessible_status = mission_outcome_ == "ftl"
+			                            ? localise("Departed via FTL")
+			                            : localise("Mission complete") + ": " + localise(mission_outcome_);
 			if (auto *button = document_->GetElementById(id("mission.leave")))
 				button->Focus();
 		}

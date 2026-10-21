@@ -63,6 +63,8 @@ The peer-consensus case runs on native and WASM against synthetic production-loa
 
 Native networking additionally builds pinned libdatachannel 0.24.6 and Mbed TLS 3.6.7 static dependencies (their submodules are pinned by immutable parent commits). Git and Git for Windows' OpenSSL executable are required. The automatic gate installs the integrity-locked `service/` dependency with the bundled Node/npm and exercises signalling, relay and actual native verified WSS. The WSS fixture checks both an explicitly trusted ephemeral CA and refusal without it. Direct native/browser connectivity remains a manually triggered [transport smoke](smoke/network-transport.md); see [network setup](network-transport.md).
 
+The FTL system check also records `build/native/ftl-continuation.trace`. The web gate runs the same synthetic charge/departure fixture and compares its continuation; include that trace when transferring native evidence to a separate web build machine.
+
 ## Linux native game and packager
 
 The Linux port builds the same `native`, `phoenix_pack` and `phoenix_verify` targets, plus the native system and network probes. Use Clang 19 with its matching `clang-scan-deps`, CMake 3.28+ (3.31.6 is the repository bootstrap pin), Ninja, Python, Git, Node 22+ and OpenSSL. GCC is not selected by the wrapper because the first-party C++20 named modules need a supported CMake dependency scanner.

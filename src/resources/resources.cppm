@@ -166,6 +166,8 @@ public:
 	void set_cooling(ResourceIndex link, ResourceAmount removal_per_second, bool isolated = false);
 	void tick();
 	ResourceAmount receive_external(ResourceIndex store, ResourceAmount offered);
+	// Physical dissipation also operates on an isolated or disabled reserve.
+	ResourceAmount dissipate(ResourceIndex store, ResourceAmount amount, bool heat = true);
 	void apply_operating_heat(ResourceIndex store, ResourceAmount paid_heat);
 	ResourceForecast forecast(ResourceIndex store) const;
 	CoolantForecast coolant_forecast(ResourceIndex source) const;

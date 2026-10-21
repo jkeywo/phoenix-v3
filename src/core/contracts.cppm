@@ -83,7 +83,8 @@ enum class OperatingSystem
 	Shield,
 	Comms,
 	Displacement,
-	Dispatch
+	Dispatch,
+	Ftl
 };
 using SystemMask = std::uint32_t;
 constexpr SystemMask system_bit(OperatingSystem system)
@@ -243,6 +244,8 @@ constexpr std::string_view operating_system_name(OperatingSystem system)
 		return "displacement";
 	case OperatingSystem::Dispatch:
 		return "dispatch";
+	case OperatingSystem::Ftl:
+		return "ftl";
 	case OperatingSystem::Comms:
 		return "comms";
 	case OperatingSystem::Shield:

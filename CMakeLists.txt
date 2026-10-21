@@ -370,6 +370,7 @@ foreach(
 		workshop_test
 		personnel
 		away
+		ftl
 		sensors
 		controller_runtime
 		combat
@@ -1053,6 +1054,9 @@ endif()
 # Explicit graphical Comms evidence; not an automatic acceptance test.
 if(NOT EMSCRIPTEN)
 	add_executable(phoenix_away_smoke EXCLUDE_FROM_ALL tests/manual/away_ui.cpp)
+	add_executable(phoenix_ftl_smoke EXCLUDE_FROM_ALL tests/manual/ftl_ui.cpp)
+	target_link_libraries(phoenix_ftl_smoke PRIVATE phoenix_session phoenix_presentation)
+	add_dependencies(phoenix_ftl_smoke base_pack)
 	target_link_libraries(phoenix_away_smoke PRIVATE phoenix_session phoenix_presentation)
 	add_dependencies(phoenix_away_smoke base_pack)
 	add_executable(phoenix_comms_smoke EXCLUDE_FROM_ALL tests/manual/comms_ui.cpp)

@@ -576,6 +576,15 @@ void ScenarioRuntime::begin_tick(ScenarioTick tick, std::map<std::string, Entity
 		objective_publication(o);
 	}
 }
+void ScenarioRuntime::withdraw_actor(EntityId entity)
+{
+	positions_.erase(entity);
+	std::erase_if(slots_,
+	              [entity](const auto &entry)
+	              {
+		              return entry.second == entity;
+	              });
+}
 void ScenarioRuntime::evaluate(std::span<const ScenarioMotionSegment> motion)
 {
 	std::map<std::string, std::vector<ScenarioId>> arrivals;

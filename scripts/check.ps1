@@ -62,6 +62,12 @@ try
 			throw 'Native away continuation trace failed'
 		}
 		Set-Content -LiteralPath "$repo/build/native/away-continuation.trace" -Value $awayNativeTrace -Encoding utf8
+		$ftlNativeTrace = & "$repo/build/native/Release/phoenix_ftl_tests.exe" --trace
+		if ($LASTEXITCODE)
+		{
+			throw 'Native FTL continuation trace failed'
+		}
+		Set-Content -LiteralPath "$repo/build/native/ftl-continuation.trace" -Value $ftlNativeTrace -Encoding utf8
 		& "$PSScriptRoot/check-network-service.ps1"
 		$controllerNativeTrace = & "$repo/build/native/Release/phoenix_controller_runtime_tests.exe" --trace
 		if ($LASTEXITCODE)
@@ -138,6 +144,7 @@ try
 					'phoenix_workshop_test_tests.js',
 					'phoenix_personnel_tests.js',
 					'phoenix_away_tests.js',
+					'phoenix_ftl_tests.js',
 					'phoenix_sensors_tests.js',
 					'phoenix_controller_runtime_tests.js',
 					'phoenix_combat_tests.js',
@@ -186,6 +193,13 @@ try
 				throw 'Native/WASM away continuation differs'
 			}
 			Write-Output 'PASS native/WASM away mission continuation'
+			$ftlNativeTrace = Get-Content -LiteralPath "$repo/build/native/ftl-continuation.trace"
+			$ftlWebTrace = & $node phoenix_ftl_tests.js --trace
+			if ($LASTEXITCODE -or ($ftlNativeTrace -join "`n").Trim() -ne ($ftlWebTrace -join "`n").Trim())
+			{
+				throw 'Native/WASM FTL continuation differs'
+			}
+			Write-Output 'PASS native/WASM FTL reserve and departure continuation'
 			$wasmTrace = & $node phoenix_simulation_check.js --trace
 			if ($LASTEXITCODE)
 			{
