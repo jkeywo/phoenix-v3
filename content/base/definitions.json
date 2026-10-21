@@ -20946,9 +20946,7 @@
 					"id": "courier",
 					"name": "Rescue Courier",
 					"mandatory": true,
-					"allowed_ships": [
-						"base.rescue-courier"
-					],
+					"allowed_ships": ["base.rescue-courier"],
 					"x_mm": 0,
 					"y_mm": 0,
 					"heading_mdeg": 0
@@ -20967,14 +20965,8 @@
 							"character": "engineer"
 						}
 					},
-					"members": [
-						"ship",
-						"engineer"
-					],
-					"events": [
-						"rescue.work-completed",
-						"rescue.party-recovered"
-					]
+					"members": ["ship", "engineer"],
+					"events": ["rescue.work-completed", "rescue.party-recovered"]
 				}
 			],
 			"away_missions": [
@@ -21241,12 +21233,7 @@
 							"slot": "courier"
 						},
 						"title_key": "Rescue operation debrief",
-						"objectives": [
-							"restore-propulsion",
-							"restore-services",
-							"recover-party",
-							"casualty-escape"
-						],
+						"objectives": ["restore-propulsion", "restore-services", "recover-party", "casualty-escape"],
 						"facts": [
 							{
 								"fact": "propulsion-restored",
@@ -21356,10 +21343,7 @@
 					"id": "isolated-drive",
 					"target_entity": 1,
 					"text_key": "The propulsion compartment is isolated. A repair team can restore the damaged drive and service connections.",
-					"requires": [
-						"findings",
-						"compartment_condition"
-					],
+					"requires": ["findings", "compartment_condition"],
 					"scan_ticks": 300
 				}
 			]
@@ -29525,9 +29509,7 @@
 					"entry": [
 						{
 							"action": "say",
-							"arguments": [
-								"intro"
-							]
+							"arguments": ["intro"]
 						}
 					],
 					"transitions": [
@@ -29550,15 +29532,11 @@
 					"entry": [
 						{
 							"action": "say",
-							"arguments": [
-								"arrived"
-							]
+							"arguments": ["arrived"]
 						},
 						{
 							"action": "offer",
-							"arguments": [
-								"priority"
-							]
+							"arguments": ["priority"]
 						}
 					],
 					"transitions": [
@@ -29593,9 +29571,7 @@
 					"entry": [
 						{
 							"action": "say",
-							"arguments": [
-								"stable"
-							]
+							"arguments": ["stable"]
 						}
 					],
 					"transitions": [
@@ -29618,9 +29594,7 @@
 					"entry": [
 						{
 							"action": "say",
-							"arguments": [
-								"priority"
-							]
+							"arguments": ["priority"]
 						}
 					],
 					"transitions": [
@@ -29643,9 +29617,7 @@
 					"entry": [
 						{
 							"action": "say",
-							"arguments": [
-								"done"
-							]
+							"arguments": ["done"]
 						}
 					],
 					"transitions": [
@@ -29668,9 +29640,7 @@
 					"entry": [
 						{
 							"action": "say",
-							"arguments": [
-								"ready"
-							]
+							"arguments": ["ready"]
 						}
 					],
 					"transitions": [
@@ -29693,9 +29663,7 @@
 					"entry": [
 						{
 							"action": "say",
-							"arguments": [
-								"charged"
-							]
+							"arguments": ["charged"]
 						}
 					]
 				}

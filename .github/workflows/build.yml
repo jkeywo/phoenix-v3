@@ -61,6 +61,8 @@ jobs:
             build/native/controller-continuation.trace
             build/native/sensor-continuation.trace
             build/native/away-continuation.trace
+            build/native/ftl-continuation.trace
+            build/native/mission-continuation.trace
   linux:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -82,7 +84,7 @@ jobs:
   web:
     needs: native
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Bootstrap pinned local tools
