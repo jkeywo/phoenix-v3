@@ -40,7 +40,7 @@ inline bool command_allowed(const Observation &view, const OperatingCommand &com
 		}
 	return false;
 }
-inline Json thread(const Json &v, bool shared = false)
+inline Json thread(const Json &v, bool shared = false, std::size_t message_limit = 4096)
 {
 	using projection::number;
 	using projection::text;
@@ -64,6 +64,12 @@ inline Json thread(const Json &v, bool shared = false)
 	std::size_t bytes = out.dump().size();
 	for (auto it = v.at("messages").rbegin(); it != v.at("messages").rend(); ++it)
 	{
+		if (out["messages"].size() >= message_limit || bytes > 256 * 1024)
+		{
+			out["omitted_messages"] = out["omitted_messages"].get<std::uint64_t>() +
+			                          static_cast<std::uint64_t>(std::distance(it, v.at("messages").rend()));
+			break;
+		}
 		const auto &m = *it;
 		Json row{{"id", number(m.at("id"), 1)},      {"sender", text(m.at("sender"))},
 		         {"name", text(m.at("name"), 4096)}, {"portrait", text(m.at("portrait"))},
@@ -106,14 +112,7 @@ inline Json board(const Json &v)
 		                            {"available", p.at("available").get<bool>()}});
 	for (const auto &t : v.at("threads"))
 	{
-		auto row = thread(t);
-		if (row.at("id") != out.at("selected"))
-			while (row["messages"].size() > 1)
-			{
-				row["messages"].erase(row["messages"].begin());
-				row["omitted_messages"] = row["omitted_messages"].get<std::uint64_t>() + 1;
-			}
-		out["threads"].push_back(std::move(row));
+		out["threads"].push_back(thread(t, false, t.at("id") == out.at("selected") ? 4096 : 1));
 	}
 	if (out.dump().size() > 768 * 1024)
 		throw std::runtime_error("Conversation metadata exceeds projection budget");

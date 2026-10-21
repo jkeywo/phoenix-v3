@@ -231,6 +231,7 @@ struct Catalog
 	std::map<std::string, ResourceNetworkDefinition> resource_definitions;
 	std::map<std::string, ScenarioDefinition> scenarios;
 	std::map<std::string, state_tree::Program> tree_programs;
+	std::map<std::string, ConversationProgram> conversation_programs;
 	std::map<std::string, ControllerTreeBindings> controller_bindings;
 	std::map<std::string, Bytes> assets;
 	std::vector<std::pair<std::string, std::string>> ordered_packs;

@@ -887,12 +887,17 @@ void verify_prepared_catalog(const Catalog &catalog)
 void prepare_catalog(Catalog &catalog)
 {
 	catalog.tree_programs.clear();
+	catalog.conversation_programs.clear();
 	catalog.controller_bindings.clear();
 	for (const auto &[id, tree] : catalog.trees)
 		if (const auto context = contextual_tree(catalog.trees, id))
 		{
 			if (*context == state_tree::Context::Conversation)
-				catalog.tree_programs.emplace(id, compile_conversation(tree, catalog.trees).tree);
+			{
+				auto program = compile_conversation(tree, catalog.trees);
+				catalog.tree_programs.emplace(id, program.tree);
+				catalog.conversation_programs.emplace(id, std::move(program));
+			}
 			else if (*context == state_tree::Context::Controller)
 			{
 				auto bindings = compile_controller_bindings(tree, catalog);

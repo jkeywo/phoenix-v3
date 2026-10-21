@@ -16,19 +16,6 @@ void require(bool ok, const std::string &why)
 	if (!ok)
 		throw std::runtime_error("conversations: " + why);
 }
-std::string text(const Json &j, const char *key, bool required = true)
-{
-	auto value = j.value(key, std::string{});
-	require(value.size() <= 4096 && (!required || !value.empty()), std::string("invalid ") + key);
-	return value;
-}
-std::uint64_t duration(const Json &j, const char *key, std::uint64_t fallback = 0)
-{
-	if (!j.contains(key))
-		return fallback;
-	require(j.at(key).is_number_integer() && j.at(key) >= 0 && j.at(key) <= 1728000, std::string("invalid ") + key);
-	return j.at(key).get<std::uint64_t>();
-}
 std::string ship_id(EntityId id)
 {
 	return "ship:" + std::to_string(id);
@@ -80,15 +67,17 @@ ConversationId ConversationRuntime::open(const std::string &program, std::map<st
 	conversations.emplace(id, std::move(c));
 	return id;
 }
-ConversationId ConversationRuntime::hail(EntityId source, const std::string &target)
+ConversationId ConversationRuntime::hail(EntityId source, const std::string &target, bool execute)
 {
 	const auto from = ship_id(source);
-	if (!known[source].contains(target) || from == target || !linked(from, target))
+	if (!known.contains(source) || !known.at(source).contains(target) || from == target || !linked(from, target))
 		return 0;
 	const auto key = std::min(from, target) + "|" + std::max(from, target);
 	if (direct_.contains(key))
 	{
 		auto &c = conversations.at(direct_.at(key));
+		if (!execute)
+			return c.id;
 		c.members.insert(from);
 		c.members.insert(target);
 		++c.hails;
@@ -100,8 +89,12 @@ ConversationId ConversationRuntime::hail(EntityId source, const std::string &tar
 	for (const auto &[id, person] : participants)
 		if (person.host == p.host && person.character)
 			bindings.try_emplace(id.substr(id.find('/') + 1), id);
-	const auto id = open(!p.character && endpoints.at(p.host).human ? std::string{} : p.default_tree,
-	                     std::move(bindings), {from, target}, p.name);
+	const auto program = !p.character && endpoints.at(p.host).human ? std::string{} : p.default_tree;
+	if (conversations.size() >= 256 || (!program.empty() && !programs.contains(program)))
+		return 0;
+	if (!execute)
+		return next_id_;
+	const auto id = open(program, std::move(bindings), {from, target}, p.name);
 	direct_[key] = id;
 	conversations.at(id).hails = 1;
 	selected[source] = id;
@@ -139,7 +132,7 @@ ConversationId ConversationRuntime::message(Conversation &c, const std::string &
 	c.messages.push_back(std::move(m));
 	return c.messages.back().id;
 }
-bool ConversationRuntime::send_text(EntityId source, ConversationId id, const std::string &body)
+bool ConversationRuntime::send_text(EntityId source, ConversationId id, const std::string &body, bool execute)
 {
 	if (!conversations.contains(id) || body.empty() || body.size() > 4096 || !text_allowed(conversations.at(id)))
 		return false;
@@ -147,7 +140,8 @@ bool ConversationRuntime::send_text(EntityId source, ConversationId id, const st
 	auto from = ship_id(source);
 	if (!c.members.contains(from) || c.messages.size() >= 4096)
 		return false;
-	message(c, from, body, 0, 0, 0, true);
+	if (execute)
+		message(c, from, body, 0, 0, 0, true);
 	return true;
 }
 void ConversationRuntime::resolve(Conversation &c, const std::string &who, const std::string &choice)
@@ -165,7 +159,8 @@ void ConversationRuntime::resolve(Conversation &c, const std::string &who, const
 	if (!who.empty())
 		message(c, who, found->text);
 }
-bool ConversationRuntime::answer(EntityId source, ConversationId id, ConversationId prompt, const std::string &choice)
+bool ConversationRuntime::answer(EntityId source, ConversationId id, ConversationId prompt, const std::string &choice,
+                                 bool execute)
 {
 	if (!conversations.contains(id))
 		return false;
@@ -189,7 +184,10 @@ bool ConversationRuntime::answer(EntityId source, ConversationId id, Conversatio
 		                 return v.id == choice;
 	                 }))
 		return false;
-	resolve(c, who, choice);
+	if (c.messages.size() >= 4096)
+		return false;
+	if (execute)
+		resolve(c, who, choice);
 	return true;
 }
 void ConversationRuntime::event(ConversationId id, const std::string &name)
@@ -212,13 +210,17 @@ void ConversationRuntime::step(Conversation &c)
 	                       Value::integer(c.hails),
 	                       Value::boolean(c.prompt.id && c.prompt.answer.empty())};
 	const auto outputs = state_tree::step(p.tree, continuation, obs);
-	auto candidate = c;
-	candidate.continuation = std::move(continuation);
+	// Stage only mutable script state and newly appended messages. Existing history
+	// remains in place until every output has been validated.
+	Conversation candidate{
+	    c.id,     c.title, c.program, c.bindings, c.members, c.former, {}, c.prompt, std::move(continuation),
+	    c.events, c.hails, c.finished};
+	std::set<std::string> removed;
+	std::vector<std::pair<EntityId, std::string>> disclosures;
+	std::vector<std::pair<ConversationId, std::string>> emissions;
 	if (!candidate.events.empty())
 		candidate.events.erase(candidate.events.begin());
 	const auto old_id = next_id_;
-	const auto old_emitted = emitted.size();
-	const auto old_known = known;
 	try
 	{
 		for (const auto &o : outputs.outputs)
@@ -228,6 +230,7 @@ void ConversationRuntime::step(Conversation &c)
 			const auto member = [&](const std::string &alias)
 			{
 				require(candidate.bindings.contains(alias), "unbound participant " + alias);
+				require(participants.contains(candidate.bindings.at(alias)), "unknown bound participant " + alias);
 				return candidate.bindings.at(alias);
 			};
 			if (name == "say")
@@ -253,13 +256,14 @@ void ConversationRuntime::step(Conversation &c)
 				for (const auto &to : candidate.members)
 					if (!participants.at(to).character)
 						for (const auto &participant : candidate.members)
-							disclose(participants.at(to).host, participant);
+							disclosures.emplace_back(participants.at(to).host, participant);
 			}
 			else if (name == "remove_participant")
 			{
 				auto id = member(ref);
 				candidate.members.erase(id);
 				candidate.former.insert(id);
+				removed.insert(id);
 				for (auto &m : candidate.messages)
 					if (m.recipients.contains(id) && !m.delivered.contains(id))
 						m.expired.insert(id);
@@ -269,20 +273,29 @@ void ConversationRuntime::step(Conversation &c)
 				auto id = member(ref);
 				for (const auto &to : candidate.members)
 					if (!participants.at(to).character)
-						disclose(participants.at(to).host, id);
+						disclosures.emplace_back(participants.at(to).host, id);
 			}
 			else if (name == "emit")
-				emitted.emplace_back(c.id, ref);
+				emissions.emplace_back(c.id, ref);
 			else if (name == "finish")
 				candidate.finished = true;
+			require(c.messages.size() + candidate.messages.size() <= 4096, "transcript capacity reached");
 		}
+		for (const auto &id : removed)
+			for (auto &m : c.messages)
+				if (m.recipients.contains(id) && !m.delivered.contains(id))
+					m.expired.insert(id);
+		for (auto &m : candidate.messages)
+			c.messages.push_back(std::move(m));
+		candidate.messages = std::move(c.messages);
+		for (const auto &[viewer, participant] : disclosures)
+			disclose(viewer, participant);
+		emitted.insert(emitted.end(), emissions.begin(), emissions.end());
 		c = std::move(candidate);
 	}
 	catch (...)
 	{
 		next_id_ = old_id;
-		emitted.resize(old_emitted);
-		known = old_known;
 		throw;
 	}
 }

@@ -29,10 +29,6 @@ std::uint64_t duration(const Json &j, const char *key, std::uint64_t fallback = 
 	require(j.at(key).is_number_integer() && j.at(key) >= 0 && j.at(key) <= 1728000, std::string("invalid ") + key);
 	return j.at(key).get<std::uint64_t>();
 }
-std::string ship_id(EntityId id)
-{
-	return "ship:" + std::to_string(id);
-}
 } // namespace
 state_tree::Registry conversation_registry()
 {

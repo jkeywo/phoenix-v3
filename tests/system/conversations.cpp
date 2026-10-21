@@ -67,7 +67,10 @@ int main(int argc, char **argv)
 		};
 		require(conversation_projection::command_allowed(*world.observe(1), cmd(1, "hail", 0, "ship:2/captain")),
 		        "remote hail projection admission");
+		const auto before_admission = world.observe(1)->gameplay.at("conversations");
 		require(world.submit(1, cmd(1, "hail", 0, "ship:2/captain")), "hail discovered public character");
+		require(world.observe(1)->gameplay.at("conversations") == before_admission,
+		        "hail admission does not create or select a conversation");
 		world.tick();
 		auto view = [&]()
 		{
@@ -150,8 +153,7 @@ int main(int argc, char **argv)
 		        "human delivery retains literal text");
 		// The production runtime consumes compiled synthetic pack trees and explicit endpoint observations.
 		ConversationRuntime runtime;
-		runtime.programs.emplace("test.dialogue",
-		                         compile_conversation(catalog.trees.at("test.dialogue"), catalog.trees));
+		runtime.programs = catalog.conversation_programs;
 		for (EntityId i = 1; i <= 3; ++i)
 		{
 			auto id = "ship:" + std::to_string(i);
@@ -262,6 +264,62 @@ int main(int argc, char **argv)
 		triggered_resume.advance(21);
 		require(triggered.save() == triggered_resume.save() && triggered.conversations.at(tid).prompt.id,
 		        "queued trigger resumes and advances the state tree");
+		// A late script refusal must discard earlier outputs, disclosure and continuation.
+		auto failing_source = fixture();
+		failing_source["trees"].back()["states"][0]["entry"] =
+		    Json::array({{{"action", "say"}, {"arguments", {"hello"}}},
+		                 {{"action", "reveal"}, {"arguments", {"captain"}}},
+		                 {{"action", "add_participant"}, {"arguments", {"captain"}}},
+		                 {{"action", "remove_participant"}, {"arguments", {"target"}}},
+		                 {{"action", "offer"}, {"arguments", {"question"}}}});
+		auto failing_catalog = load(failing_source);
+		ConversationRuntime failing;
+		failing.programs = failing_catalog.conversation_programs;
+		failing.participants = runtime.participants;
+		failing.endpoints = runtime.endpoints;
+		failing.open("test.dialogue", {{"caller", "ship:1"}, {"target", "captain"}, {"captain", "ship:3"}},
+		             {"ship:1", "captain"});
+		failing.tick = 1;
+		const auto before_failure = failing.save();
+		rejected = false;
+		try
+		{
+			failing.advance(1);
+		}
+		catch (const std::exception &)
+		{
+			rejected = true;
+		}
+		require(rejected && failing.save() == before_failure, "failed script outputs leave no partial changes");
+
+		const auto before_check = continued.save();
+		const auto pending = continued.conversations.at(rid).prompt.id;
+		require(continued.answer(1, rid, pending, "yes", false), "answer admission succeeds");
+		require(continued.save() == before_check, "answer admission preserves prompt and transcript");
+		continued.disclose(1, "ship:3");
+		const auto before_hail = continued.save();
+		require(continued.hail(1, "ship:3", false) != 0 && continued.save() == before_hail,
+		        "direct hail admission preserves runtime state");
+		const auto chat = continued.hail(1, "ship:3");
+		const auto before_text = continued.save();
+		require(continued.send_text(1, chat, "draft", false) && continued.save() == before_text,
+		        "text admission preserves transcript and identities");
+
+		auto projected = view();
+		projected["selected"] = 0;
+		const auto compact = conversation_projection::board(projected);
+		for (std::size_t i = 0; i < projected.at("threads").size(); ++i)
+		{
+			const auto &original = projected.at("threads")[i].at("messages");
+			const auto &summary = compact.at("threads")[i];
+			require(summary.at("messages").size() == std::min<std::size_t>(1, original.size()) &&
+			            summary.at("omitted_messages").get<std::size_t>() + summary.at("messages").size() ==
+			                original.size(),
+			        "unselected thread retains only its latest message with an omission count");
+			if (!original.empty())
+				require(summary.at("messages").back() == original.back(), "thread summary retains the latest message");
+		}
+		require(conversation_projection::board(compact) == compact, "bounded transcript projection is idempotent");
 		auto authority = cmd(1, "hail", 0, "ship:2");
 		OperatingCommand disable{1, "system_enabled", 0, "", "comms", "enabled", authority.generation};
 		disable.console = "drive";

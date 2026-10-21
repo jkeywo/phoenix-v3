@@ -91,8 +91,7 @@ bool comms_command(const ConsoleAddress &address, const OperatingCommand &comman
 		                        c.human && c.generation == command.generation;
 	                 }))
 		return false;
-	auto candidate = conversations;
-	for (auto &[id, endpoint] : candidate.endpoints)
+	for (auto &[id, endpoint] : conversations.endpoints)
 	{
 		endpoint.human = false;
 		if (entities.contains(id) && entities.at(id).has<EntityControls>())
@@ -104,27 +103,27 @@ bool comms_command(const ConsoleAddress &address, const OperatingCommand &comman
 	try
 	{
 		if (command.action == "comms.hail")
-			accepted = candidate.hail(address.ship, command.text) != 0;
+			accepted = conversations.hail(address.ship, command.text, execute) != 0;
 		else if (command.action == "comms.text")
-			accepted = candidate.send_text(address.ship, command.value, command.text);
+			accepted = conversations.send_text(address.ship, command.value, command.text, execute);
 		else if (command.action == "comms.answer")
-			accepted = candidate.answer(address.ship, command.value, command.request_id, command.text);
-		else if (command.action == "comms.select" && candidate.conversations.contains(command.value))
+			accepted = conversations.answer(address.ship, command.value, command.request_id, command.text, execute);
+		else if (command.action == "comms.select" && conversations.conversations.contains(command.value))
 		{
-			const auto &c = candidate.conversations.at(command.value);
+			const auto &c = conversations.conversations.at(command.value);
 			const auto self = "ship:" + std::to_string(address.ship);
 			if (c.members.contains(self) || c.former.contains(self))
 			{
-				candidate.selected[address.ship] = command.value;
+				if (!execute)
+					return true;
+				conversations.selected[address.ship] = command.value;
 				for (const auto &m : c.messages)
 					if (m.delivered.contains(self))
-						candidate.read_through[address.ship][c.id] =
-						    std::max(candidate.read_through[address.ship][c.id], m.id);
+						conversations.read_through[address.ship][c.id] =
+						    std::max(conversations.read_through[address.ship][c.id], m.id);
 				accepted = true;
 			}
 		}
-		if (accepted && execute)
-			conversations = std::move(candidate);
 	}
 	catch (const std::exception &)
 	{

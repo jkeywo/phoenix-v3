@@ -9,6 +9,19 @@ inline std::string asset(const std::string &relative)
 	return std::string(GetApplicationDirectory()) + "assets/" + relative;
 #endif
 }
+inline ConsoleMessageView conversation_message(const Json &message, const std::string &id, const Catalog &catalog)
+{
+	ConsoleMessageView row;
+	row.id = id;
+	row.sender = localise(message.at("name").get<std::string>());
+	row.text = message.at("literal").get<bool>() ? message.at("text").get<std::string>()
+	                                             : localise(message.at("text").get<std::string>());
+	row.portrait = "messages/console-4.png";
+	const auto portrait = message.value("portrait", std::string{});
+	if (catalog.assets.contains(portrait))
+		row.avatar = catalog.assets.at(portrait);
+	return row;
+}
 inline std::string markup(const ConsoleMessageView &message)
 {
 	const auto escape = [](const std::string &text)

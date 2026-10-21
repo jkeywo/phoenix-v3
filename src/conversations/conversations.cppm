@@ -91,10 +91,11 @@ public:
 	bool linked(const std::string &, const std::string &) const;
 	ConversationId open(const std::string &program, std::map<std::string, std::string> bindings,
 	                    const std::vector<std::string> &members, const std::string &title = {});
-	ConversationId hail(EntityId source, const std::string &target);
+	ConversationId hail(EntityId source, const std::string &target, bool execute = true);
 	bool text_allowed(const Conversation &) const;
-	bool send_text(EntityId source, ConversationId conversation, const std::string &text);
-	bool answer(EntityId source, ConversationId conversation, ConversationId prompt, const std::string &choice);
+	bool send_text(EntityId source, ConversationId conversation, const std::string &text, bool execute = true);
+	bool answer(EntityId source, ConversationId conversation, ConversationId prompt, const std::string &choice,
+	            bool execute = true);
 	void event(ConversationId conversation, const std::string &event);
 	void advance(std::uint64_t now);
 	Json project(EntityId viewer) const;

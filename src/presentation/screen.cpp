@@ -616,15 +616,9 @@ void prepare_public_board(Application &app, bool visible)
 		if (!thread.empty())
 			for (const auto &m : thread.at("messages"))
 			{
-				ConsoleMessageView row;
-				row.id = "viewscreen.conversation/" + std::to_string(m.at("id").get<std::uint64_t>());
-				row.sender = localise(m.at("name"));
-				row.text = m.at("literal").get<bool>() ? m.at("text").get<std::string>() : localise(m.at("text"));
-				row.portrait = "messages/console-4.png";
-				const auto portrait = m.value("portrait", std::string{});
-				if (app.session->catalog().assets.contains(portrait))
-					row.avatar = app.session->catalog().assets.at(portrait);
-				messages.push_back(std::move(row));
+				messages.push_back(message_ui::conversation_message(
+				    m, "viewscreen.conversation/" + std::to_string(m.at("id").get<std::uint64_t>()),
+				    app.session->catalog()));
 			}
 	}
 	panel->SetProperty("display", rows.empty() && messages.empty() ? "none" : "block");

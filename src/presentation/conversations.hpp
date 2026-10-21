@@ -134,17 +134,9 @@ void refresh_conversations(Application &app, const ConsoleRegion &region)
 	if (thread)
 		for (const auto &m : thread->at("messages"))
 		{
-			ConsoleMessageView row;
-			row.id =
-			    "comms/message/" + std::to_string(selected) + "/" + std::to_string(m.at("id").get<std::uint64_t>());
-			row.sender = localise(m.at("name").get<std::string>());
-			row.text =
-			    m.value("literal", false) ? m.at("text").get<std::string>() : localise(m.at("text").get<std::string>());
-			row.portrait = m.value("portrait", std::string{});
-			if (!row.portrait.empty() && app.session->catalog().assets.contains(row.portrait))
-				row.avatar = app.session->catalog().assets.at(row.portrait);
-			row.portrait = "messages/console-4.png";
-			messages.push_back(std::move(row));
+			messages.push_back(message_ui::conversation_message(
+			    m, "comms/message/" + std::to_string(selected) + "/" + std::to_string(m.at("id").get<std::uint64_t>()),
+			    app.session->catalog()));
 		}
 	auto *history = document_->GetElementById("comms-history");
 	const bool at_bottom = history->GetScrollTop() + history->GetClientHeight() >= history->GetScrollHeight() - 8;

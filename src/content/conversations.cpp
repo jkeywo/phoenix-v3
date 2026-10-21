@@ -30,7 +30,7 @@ void verify_conversation_authoring(const Catalog &catalog)
 		std::set<std::string> emissions;
 		if (name.empty())
 			return emissions;
-		const auto compiled = compile_conversation(catalog.trees.at(name), catalog.trees);
+		const auto &compiled = catalog.conversation_programs.at(name);
 		for (const auto &[key, line] : compiled.lines)
 			require(aliases.contains(line.speaker), path, "unbound line speaker " + line.speaker);
 		for (const auto &[key, prompt] : compiled.prompts)

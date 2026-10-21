@@ -2104,9 +2104,7 @@ void World::load(const Catalog &source, const std::string &map, const std::map<s
 		candidate->scenario.emplace();
 		candidate->scenario->load(content, map);
 	}
-	for (const auto &[id, tree] : content.trees)
-		if (content.tree_programs.at(id).context == state_tree::Context::Conversation)
-			candidate->conversations.programs.emplace(id, compile_conversation(tree, content.trees));
+	candidate->conversations.programs = content.conversation_programs;
 	candidate->compile_conversation_starts(data);
 	candidate->refresh_comms();
 	candidate->stream_fields();
