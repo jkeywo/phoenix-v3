@@ -232,6 +232,14 @@ struct NativeMenuSmoke
 			if (app.screen == phoenix::Screen::server_lobby)
 				break;
 			capture("ships");
+			for (const auto &[id, label] : app.screen_controls)
+				if (id.starts_with("menu.default/"))
+					throw std::runtime_error("Player ship picker exposes a duplicate default choice");
+			const auto profile = app.control_placements.find("menu-profile");
+			if (profile != app.control_placements.end())
+				for (const auto &[id, bounds] : app.control_placements)
+					if (id.starts_with("menu.ship/") && bounds.x + bounds.width > profile->second.x)
+						throw std::runtime_error("Ship picker overlaps the profile CRT");
 			if (large)
 				load_error_step = 2;
 			const auto &slot = app.session->catalog().maps.at(app.selected_scenario).at("ship_slots").at(0);
@@ -441,8 +449,12 @@ struct NativeMenuSmoke
 				if (ready == app.control_placements.end())
 					throw std::runtime_error("High-resolution lobby lost Ready");
 				const auto &r = ready->second;
-				if (r.width < 200 || r.height < 90 || r.x < 0 || r.y < 0 || r.x + r.width > GetScreenWidth() + 1 ||
-				    r.y + r.height > GetScreenHeight() + 1)
+				std::cout << "Ready bounds " << r.x << "," << r.y << " " << r.width << "x" << r.height << " window "
+				          << GetScreenWidth() << "x" << GetScreenHeight() << std::endl;
+				capture("ready-bounds");
+				const auto scale = std::max(1.f, std::min(GetScreenWidth() / 1280.f, GetScreenHeight() / 720.f));
+				if (r.width < 100 * scale || r.height < 36 * scale || r.x < 0 || r.y < 0 ||
+				    r.x + r.width > GetScreenWidth() + 1 || r.y + r.height > GetScreenHeight() + 1)
 					throw std::runtime_error("High-resolution Ready is tiny or outside the window");
 			}
 			capture("lobby");

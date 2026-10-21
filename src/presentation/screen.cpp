@@ -562,7 +562,7 @@ void prepare_public_board(Application &app, bool visible)
 	static std::string previous_markup;
 	const auto display = app.viewscreen_region.value_or(
 	    ConsoleRegion{30, 0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())});
-	const float scale = std::max(1.f, std::min(display.width / 1280.f * scale, display.height / 720.f));
+	const float scale = std::max(1.f, std::min(display.width / 1280.f, display.height / 720.f));
 	auto *panel = document->GetElementById("viewscreen-board");
 	if (!panel)
 	{

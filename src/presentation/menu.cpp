@@ -641,19 +641,6 @@ struct NativeMenuScreen::State
 						{
 							const std::string slot_id = slot.at("id");
 							markup += heading(slot_id);
-							const auto default_ship =
-							    slot.value("default_ship", slot.at("allowed_ships").front().get<std::string>());
-							markup +=
-							    add("menu.default/" + slot_id,
-							        "Default: " +
-							            app.session->catalog().entities.at(default_ship).value("name", default_ship),
-							        [&, slot_id, default_ship]
-							        {
-								        app.session->prepare_lobby(
-								            {app.selected_scenario, {{slot_id, default_ship}}, slot_id, ""});
-								        app.screen = Screen::server_lobby;
-								        focus_next = "lobby.ready";
-							        });
 							for (const auto &choice : slot.at("allowed_ships"))
 							{
 								const std::string ship = choice;
@@ -1014,7 +1001,8 @@ struct NativeMenuScreen::State
 			title->SetProperty("width", std::to_string(logo_width) + "dp");
 			title->SetProperty("height", std::to_string(logo_width * 2 / 3) + "dp");
 		}
-		const float reserved_right = 0.f;
+		// Keep every menu column outside the profile CRT, including the ship picker.
+		const float reserved_right = profile_width + 40.f;
 		if (auto *viewport = document.GetElementById("menu-viewport"))
 		{
 			viewport->SetProperty("right", std::to_string(reserved_right) + "dp");
@@ -1028,7 +1016,7 @@ struct NativeMenuScreen::State
 		                    : branch == Branch::scenarios ? 3
 		                    : branch == Branch::root      ? 1
 		                                                  : 2;
-		const float column_width = std::min(320.f, (region.width - reserved_right - 48.f) / columns);
+		const float column_width = std::clamp((region.width - reserved_right - 48.f) / columns, 240.f, 320.f);
 		const float target = 24.f;
 		column_offset += (target - column_offset) * (app.reduced_motion ? 1.f : std::min(1.f, GetFrameTime() * 18.f));
 		if (auto *columns_element = document.GetElementById("menu-columns"))

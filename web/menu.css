@@ -742,3 +742,12 @@ body.reduced-motion .debris-track i::after {
 	height: 22px;
 	accent-color: #d48a48;
 }
+
+/* Keep ship selection and other cascading choices clear of the profile CRT. */
+body.cascading #viewport {
+	right: calc(var(--crt-display-width, 264px) + 40px);
+	overflow-x: auto;
+}
+body.cascading:not(.compact) .column {
+	min-width: 220px;
+}

@@ -1014,19 +1014,6 @@ async function boot() {
 					button(ships, "GM", () => start(options({ type: "server", action: "host-gm", scenario })));
 					for (const slot of scene?.slots || []) {
 						element("h2", slot.id, ships);
-						const defaultShip = slot.ships.find((ship) => ship.id === slot.default_ship) || slot.ships[0];
-						if (defaultShip)
-							button(ships, "Default: " + (defaultShip.name || defaultShip.id), () =>
-								start(
-									options({
-										type: "server",
-										action: "host",
-										scenario,
-										slot: slot.id,
-										ship: defaultShip.id,
-									}),
-								),
-							);
 						for (const ship of slot.ships)
 							button(ships, ship.name || ship.id, () =>
 								start(
