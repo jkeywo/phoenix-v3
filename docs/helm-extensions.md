@@ -4,13 +4,13 @@
 
 Boost supports explicit typed System/property targets for speed, acceleration and turn rate. Paid bonuses combine by strongest value. Shipped propulsion templates target assembly-local engine/steering fittings and retain independent local batteries. Workshop exposes target records, lateral direction, total charging energy and minimum reserve.
 
-Two momentary lateral controls are direction-aware and neutral when both are held. AI evaluates both lateral corridors from permitted evidence, uses existing avoidance when neither is feasible, and counter-thrusts to arrest drift. Complexity delegates the lateral Controller independently of human forward propulsion and steering. Shipped trees publish avoidance intent through normal Controller messaging.
+Two momentary lateral controls are direction-aware and neutral when both are held. The ship evaluates both lateral corridors through its shared close-in lookout; AI reads that blackboard assessment, uses existing avoidance when neither is feasible, and counter-thrusts to arrest drift. Since 21 October 2026, this lookout reads world geometry and motion directly, independently of radar visibility. Complexity delegates the lateral Controller independently of human forward propulsion and steering. Shipped trees publish avoidance intent through normal Controller messaging.
 
 The shipped Simple profiles delegate lateral thrust to AI while retaining human Helm movement. Middle/Detailed retain human lateral control. The Cruiser's paired lateral fittings share one Controller channel, providing one port/starboard button pair and feeding the same command to both physical actuators.
 
 Impulse spends authored energy during charging after checking the starting reserve. Charging pauses when unfunded. Active transit uses bound propulsion and reduced steering until cancellation, collision, disablement or insufficient power. Flight schema 5 rejects incompatible older continuations explicitly.
 
-Validation uses synthetic production-loader scenarios for targeting, stacking, partial/unpaid bonuses, target power, directional/simultaneous controls, mixed human/AI Helm ownership, hidden-obstacle refusal, paid charging and recovery, collision cancellation/restart and invalid authoring/save versions.
+Validation uses synthetic production-loader scenarios for targeting, stacking, partial/unpaid bonuses, target power, directional/simultaneous controls, mixed human/AI Helm ownership, close-in avoidance independent of radar visibility, paid charging and recovery, collision cancellation/restart and invalid authoring/save versions.
 
 Verification on 20 October 2026:
 
