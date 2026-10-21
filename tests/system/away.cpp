@@ -338,6 +338,76 @@ int main(int argc, char **argv)
 		ticks(shared, 5);
 		require(board(shared)[0]["phase"] == "deployed" && board(shared)[1]["phase"] == "deployed",
 		        "shared system deploys both missions serially");
+		// Remote repair uses real team rates and leaves actual, resumable HP changes.
+		auto repair_input = fixture();
+		auto casualty = repair_input["entities"][0];
+		casualty["id"] = "test.casualty";
+		casualty["combat"]["decks"][0]["compartments"][0]["initial_hp"] = 0;
+		casualty["combat"]["decks"][0]["compartments"][0]["recovery_hp"] = 50;
+		casualty["systems"]["radio"]["compartment"] = "workshop";
+		for (auto &ctrl : casualty["control_layout"]["controllers"])
+			if (ctrl["id"] == "team")
+				ctrl["commands"][0]["initial"] = 0;
+		repair_input["entities"].push_back(casualty);
+		repair_input["maps"][0]["entities"][0]["definition"] = "test.casualty";
+		auto &work_entry = repair_input["trees"].back()["states"][1]["entry"];
+		work_entry[2]["arguments"] = {1};
+		work_entry.push_back({{"action", "restore_compartment"}, {"arguments", {"bridge"}}});
+		const auto repair_catalog = load(repair_input);
+		auto slow_input = repair_input;
+		slow_input["entities"][0]["systems"]["team"]["hp_per_second"] = 10;
+		const auto slow_catalog = load(slow_input);
+		auto deploy = [&](World &world, const Catalog &content)
+		{
+			world.load(content, "test.map", {{"crew", "test.away"}});
+			const auto own = *world.ship_for_slot("crew");
+			world.claim(101, own, "drive");
+			world.claim(102, own, "observer");
+			ticks(world, 4);
+			require(world.submit(101, order(world, "open")), "open repair job");
+			ticks(world, 1);
+			require(world.submit(102, order(world, "assign", "repair/team:team", 102)), "assign repair team");
+			ticks(world, 1);
+			require(world.submit(101, order(world, "transport", "transport")), "bind repair transport");
+			ticks(world, 12);
+			require(world.submit(101, order(world, "send")), "deploy repair team");
+			ticks(world, 5);
+		};
+		auto repaired_compartment = [](const World &world)
+		{
+			const auto saved = world.save();
+			for (const auto &body : saved.at("bodies"))
+				if (body.at("body").at("id") == 1)
+					return body.at("combat").at("compartments")[0];
+			throw std::runtime_error("Missing casualty");
+		};
+		World repair, slow;
+		deploy(repair, repair_catalog);
+		deploy(slow, slow_catalog);
+		ticks(repair, 10);
+		ticks(slow, 10);
+		const auto partial = repaired_compartment(repair);
+		require(partial.at("hp") > repaired_compartment(slow).at("hp") && partial.at("hp") < 100,
+		        "authored repair rate controls partial remote restoration");
+		require(partial.at("disabled") && repair.save()["away_missions"][0]["outcome"] == "",
+		        "work budget alone cannot bypass structural recovery or complete repair");
+		World repair_resumed;
+		repair_resumed.restore(repair_catalog, repair.save());
+		ticks(repair, 8);
+		ticks(repair_resumed, 8);
+		require(repair.save() == repair_resumed.save(), "partial remote repair resumes exactly");
+		require(repair.submit(101, order(repair, "recall")), "recall during structural repair");
+		ticks(repair, 5);
+		const auto paused_hp = repaired_compartment(repair);
+		ticks(repair, 10);
+		require(repaired_compartment(repair) == paused_hp, "recovered team stops remote repair");
+		require(repair.submit(102, order(repair, "assign", "repair/team:team", 102)), "reassign repair party");
+		ticks(repair, 2);
+		require(repair.submit(101, order(repair, "send")), "redeploy repair party");
+		ticks(repair, 200);
+		require(repaired_compartment(repair).at("hp") == 100 && !repaired_compartment(repair).at("disabled") &&
+		            repair.save()["away_missions"][0]["outcome"] == "complete:repaired",
+		        "physical repairs finish before mission completion");
 		// Staging uses the same enabled gate as ordinary repair-team travel.
 		World staging;
 		staging.load(catalog, "test.map", {{"crew", "test.away"}});

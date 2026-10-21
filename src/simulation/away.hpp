@@ -512,29 +512,44 @@ void advance_away()
 			}
 		if (m.outcome.empty())
 		{
-			if (m.deployed && m.work > m.progress)
+			if (m.deployed && m.work > 0)
 			{
-				std::int64_t rate = 0;
-				const auto &pd = definition(ship).personnel;
-				const auto &ps = entities.at(ship).get<PersonnelState>();
+				std::vector<flecs::entity> teams;
+				std::int64_t specialist_bonus = 0, officer_work = 0;
 				for (const auto &[slot, asset] : m.assignments)
-				{
-					std::int64_t bonus = 0;
-					for (std::size_t j = 0; j < pd.officers.size(); ++j)
-						if (asset == "officer:" + pd.officers[j].id ||
-						    (asset.starts_with("team:") &&
-						     away_team_duty(ship, asset.substr(5))->id == ps.officers[j].duty))
-							if (pd.officers[j].bonuses.contains("repair"))
-								bonus += pd.officers[j].bonuses.at("repair");
-					rate += personnel_scale(1000, bonus);
-				}
-				m.progress = std::min(m.work, m.progress + rate);
+					if (asset.starts_with("team:"))
+						teams.push_back(away_equipment(ship, asset.substr(5)));
+					else
+						for (const auto &officer : definition(ship).personnel.officers)
+							if (asset == "officer:" + officer.id)
+							{
+								const auto bonus =
+								    officer.bonuses.contains("repair") ? officer.bonuses.at("repair") : 0;
+								specialist_bonus += bonus;
+								officer_work += personnel_scale(1000, bonus);
+							}
+				const auto effort = structural_repair_work(entities.at(ship), teams, specialist_bonus);
+				// Standalone officers can perform generic work, but structural repair needs a team.
+				const auto progress = teams.empty() ? officer_work : effort / rate;
+				m.progress = std::min(m.work, m.progress + progress);
+				if (!m.repair_compartment.empty() && !combat_dead(entities.at(d.target)))
+					apply_structural_repair(entities.at(d.target).get_mut<CombatStructure>(),
+					                        d.repair_compartments.at(m.repair_compartment), effort);
 			}
+			const bool repaired =
+			    m.repair_compartment.empty() ||
+			    entities.at(d.target)
+			            .get<CombatStructure>()
+			            .compartments.at(d.repair_compartments.at(m.repair_compartment))
+			            .hp == entities.at(d.target)
+			                       .get<CombatStructure>()
+			                       .definition.compartments.at(d.repair_compartments.at(m.repair_compartment))
+			                       .maximum;
 			const auto answer = cid ? conversations.conversations.at(cid).prompt.answer : std::string{};
 			using state_tree::Value;
 			std::vector<Value> obs{Value::boolean(m.deployed),
 			                       Value::boolean(m.recovered),
-			                       Value::boolean(m.work > 0 && m.progress >= m.work),
+			                       Value::boolean(m.work > 0 && m.progress >= m.work && repaired),
 			                       Value::integer(tick),
 			                       Value::integer(m.progress),
 			                       Value::string(answer),
@@ -562,15 +577,16 @@ void advance_away()
 				}
 				else if (name == "restore_compartment")
 				{
-					if (!m.deployed || m.progress < m.work || m.work == 0)
-						throw std::runtime_error("Away repairs require completed deployed work");
-					auto &structure = entities.at(d.target).get_mut<CombatStructure>();
-					const auto at = d.repair_compartments.at(arg.text);
-					structure.compartments.at(at).hp = structure.definition.compartments.at(at).maximum;
-					structure.compartments.at(at).disabled = false;
+					if (!m.deployed)
+						throw std::runtime_error("Away repairs require a deployed party");
+					m.repair_compartment = arg.text;
 				}
 				else if (name == "checkpoint")
+				{
+					if (m.checkpoint != arg.text)
+						m.repair_compartment.clear();
 					m.checkpoint = arg.text;
+				}
 				else if (name == "report" && cid)
 					conversations.event(cid, arg.text);
 				else if (name == "complete" || name == "fail")
@@ -680,6 +696,7 @@ Json save_away() const
 	{
 		Json row = away_missions[i];
 		row["schema"] = 1;
+		row["repair_compartment"] = away_missions[i].repair_compartment;
 		row["id"] = away_definitions[i].id;
 		row["continuation"] = state_tree::save(away_definitions[i].program, away_missions[i].continuation);
 		out.push_back(row);
@@ -697,6 +714,9 @@ void restore_away(const Json &rows)
 		if (rows[i].at("schema") != 1 || rows[i].at("id") != d.id)
 			throw std::runtime_error("Away mission identity mismatch");
 		auto m = rows[i].get<AwayMission>();
+		m.repair_compartment = rows[i].value("repair_compartment", std::string{});
+		if (!m.repair_compartment.empty() && !d.repair_compartments.contains(m.repair_compartment))
+			throw std::runtime_error("Invalid saved repair target");
 		const auto ship = away_ship(d);
 		const std::set<std::string> phases{"hidden",   "available", "open",     "outbound",
 		                                   "deployed", "inbound",   "recovered"};

@@ -496,6 +496,46 @@ void route_repair_team(flecs::entity ship, RepairState &r, std::size_t target)
 	r.edge_to = route.first;
 	r.travel = r.edge_total = route.second;
 }
+// Repair effort is milli-HP per second; compartment work carries sub-tick fractions.
+std::int64_t structural_repair_work(flecs::entity ship, std::vector<flecs::entity> teams,
+                                    std::int64_t specialist_bonus = 0) const
+{
+	std::erase_if(teams,
+	              [&](auto team)
+	              {
+		              return !team.template get<Equipment>().enabled ||
+		                     !fault_effectiveness(ship, team.template get<Equipment>().id);
+	              });
+	std::sort(
+	    teams.begin(), teams.end(),
+	    [](auto a, auto b)
+	    {
+		    const auto &x = a.template get<CombatMechanism>().definition;
+		    const auto &y = b.template get<CombatMechanism>().definition;
+		    return x.template get<RepairDefinition>().repair_rate != y.template get<RepairDefinition>().repair_rate
+		               ? x.template get<RepairDefinition>().repair_rate > y.template get<RepairDefinition>().repair_rate
+		               : x.id < y.id;
+	    });
+	std::int64_t work = 0;
+	for (std::size_t rank = 0; rank < teams.size(); ++rank)
+	{
+		const auto &d = teams[rank].get<CombatMechanism>().definition;
+		work += personnel_scale(d.get<RepairDefinition>().repair_rate * 1000000,
+		                        officer_bonus(ship.get<StableId>().id, d.id, "repair") + specialist_bonus) /
+		        (1000 + d.get<RepairDefinition>().stack_penalty * static_cast<std::int64_t>(rank)) *
+		        fault_effectiveness(ship, d.id) / 1000;
+	}
+	return work;
+}
+void apply_structural_repair(CombatStructure &s, std::size_t index, std::int64_t work)
+{
+	auto &c = s.compartments.at(index);
+	c.work += work;
+	c.hp = std::min(s.definition.compartments[index].maximum, c.hp + c.work / (rate * 1000));
+	c.work %= rate * 1000;
+	if (c.disabled && c.hp >= s.definition.compartments[index].recovery)
+		c.disabled = false;
+}
 void step_repairs()
 {
 	if (duel_ended())
@@ -572,30 +612,7 @@ void step_repairs()
 			}
 		for (auto &[index, teams] : structural_workers)
 		{
-			std::sort(teams.begin(), teams.end(),
-			          [](auto a, auto b)
-			          {
-				          const auto &x = a.template get<CombatMechanism>().definition;
-				          const auto &y = b.template get<CombatMechanism>().definition;
-				          return x.template get<RepairDefinition>().repair_rate !=
-				                         y.template get<RepairDefinition>().repair_rate
-				                     ? x.template get<RepairDefinition>().repair_rate >
-				                           y.template get<RepairDefinition>().repair_rate
-				                     : x.id < y.id;
-			          });
-			auto &c = s.compartments[index];
-			for (std::size_t rank = 0; rank < teams.size(); ++rank)
-			{
-				const auto &d = teams[rank].get<CombatMechanism>().definition;
-				c.work += officer_value(ship.get<StableId>().id, d.id, "repair",
-				                        d.get<RepairDefinition>().repair_rate * 1000000) /
-				          (1000 + d.get<RepairDefinition>().stack_penalty * static_cast<std::int64_t>(rank)) *
-				          fault_effectiveness(ship, d.id) / 1000;
-			}
-			c.hp = std::min(s.definition.compartments[index].maximum, c.hp + c.work / (rate * 1000));
-			c.work %= rate * 1000;
-			if (c.disabled && c.hp >= s.definition.compartments[index].recovery)
-				c.disabled = false;
+			apply_structural_repair(s, index, structural_repair_work(ship, teams));
 		}
 	}
 }

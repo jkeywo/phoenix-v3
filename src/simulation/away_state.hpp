@@ -8,7 +8,7 @@ struct DisplacementDefinition
 };
 struct AwayMission
 {
-	std::string phase = "hidden", transport, checkpoint, outcome, work_key;
+	std::string phase = "hidden", transport, checkpoint, outcome, work_key, repair_compartment;
 	std::map<std::string, std::string> assignments;
 	std::vector<std::string> accompanying;
 	std::uint64_t revision = 1, sequence = 0;

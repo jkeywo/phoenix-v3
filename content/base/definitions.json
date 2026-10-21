@@ -26764,7 +26764,8 @@
 								}
 							]
 						}
-					]
+					],
+					"entry": []
 				},
 				{
 					"id": "inspect",
@@ -26825,6 +26826,10 @@
 							"arguments": ["services"]
 						},
 						{
+							"action": "restore_compartment",
+							"arguments": ["mid-port"]
+						},
+						{
 							"action": "work",
 							"arguments": [800]
 						}
@@ -26862,6 +26867,10 @@
 						{
 							"action": "checkpoint",
 							"arguments": ["priority-propulsion"]
+						},
+						{
+							"action": "restore_compartment",
+							"arguments": ["stern-port"]
 						},
 						{
 							"action": "work",
@@ -26903,6 +26912,10 @@
 							"arguments": ["propulsion"]
 						},
 						{
+							"action": "restore_compartment",
+							"arguments": ["stern-port"]
+						},
+						{
 							"action": "work",
 							"arguments": [800]
 						}
@@ -26937,10 +26950,6 @@
 				{
 					"id": "done",
 					"entry": [
-						{
-							"action": "restore_compartment",
-							"arguments": ["stern-port"]
-						},
 						{
 							"action": "report",
 							"arguments": ["done"]
@@ -27040,12 +27049,7 @@
 				},
 				{
 					"id": "restore-services",
-					"entry": [
-						{
-							"action": "restore_compartment",
-							"arguments": ["mid-port"]
-						}
-					],
+					"entry": [],
 					"transitions": [
 						{
 							"target": "drive"
