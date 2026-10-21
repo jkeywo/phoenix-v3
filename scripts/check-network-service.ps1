@@ -16,7 +16,7 @@ if ($LASTEXITCODE)
 {
 	throw 'TLS integration certificate generation failed'
 }
-$names = @('PATH', 'PHOENIX_NATIVE_PROBE', 'PHOENIX_SESSION_PROBE', 'PHOENIX_FLEET_PROBE', 'PHOENIX_LOBBY_PROBE', 'PHOENIX_TEST_CERT', 'PHOENIX_TEST_KEY')
+$names = @('PATH', 'PHOENIX_NATIVE_PROBE', 'PHOENIX_SESSION_PROBE', 'PHOENIX_FLEET_PROBE', 'PHOENIX_LOBBY_PROBE', 'PHOENIX_INFERENCE_PROBE', 'PHOENIX_INFERENCE_BRIDGE', 'PHOENIX_TEST_CERT', 'PHOENIX_TEST_KEY')
 $previous = @{}
 foreach ($name in $names)
 {
@@ -28,7 +28,7 @@ try
 	# Run a private executable snapshot so another build can relink the original Windows binaries.
 	$probeDirectory = Join-Path $repo ("build/network-check-" + [Guid]::NewGuid().ToString('N'))
 	New-Item -ItemType Directory -Path $probeDirectory | Out-Null
-	foreach ($probe in @('phoenix_network_probe', 'phoenix_session_probe', 'phoenix_fleet_probe', 'phoenix_lobby_tests'))
+	foreach ($probe in @('phoenix_network_probe', 'phoenix_session_probe', 'phoenix_fleet_probe', 'phoenix_lobby_tests', 'phoenix_inference_probe', 'phoenix_inference_bridge'))
 	{
 		Copy-Item -LiteralPath "$repo/build/native/Release/$probe.exe" -Destination "$probeDirectory/$probe.exe"
 	}
@@ -36,6 +36,8 @@ try
 	$env:PHOENIX_SESSION_PROBE = "$probeDirectory/phoenix_session_probe.exe"
 	$env:PHOENIX_FLEET_PROBE = "$probeDirectory/phoenix_fleet_probe.exe"
 	$env:PHOENIX_LOBBY_PROBE = "$probeDirectory/phoenix_lobby_tests.exe"
+	$env:PHOENIX_INFERENCE_PROBE = "$probeDirectory/phoenix_inference_probe.exe"
+	$env:PHOENIX_INFERENCE_BRIDGE = "$probeDirectory/phoenix_inference_bridge.exe"
 	$env:PHOENIX_TEST_CERT = $certificate
 	$env:PHOENIX_TEST_KEY = $key
 	& "$nodeDirectory/npm.cmd" ci --prefix "$repo/service" --ignore-scripts

@@ -20,6 +20,7 @@ import phoenix.session.execution;
 import phoenix.fleet_setup;
 import phoenix.wire;
 #include "projection.hpp"
+#include "../session/inference_host.hpp"
 
 namespace phoenix
 {
@@ -39,6 +40,7 @@ class NetworkHost final : public SessionPort
 		std::string projection_stream = random_token();
 	};
 	NetworkOptions options_;
+	InferenceHost inference_;
 	std::string member_;
 	std::shared_ptr<HostAccess> world_ = make_host_world();
 	std::unique_ptr<GameExecution> game_;
@@ -586,6 +588,7 @@ class NetworkHost final : public SessionPort
 	{
 		clear_packs();
 		generation_base_ += world_->generation();
+		inference_.reset();
 		world_ = prepared.world;
 		member_ = prepared.self;
 		epoch_ = prepared.plan.at("session");
@@ -631,6 +634,7 @@ public:
 		for (const auto &archive : archives)
 			candidate->add_pack(archive);
 		generation_base_ += world_->generation() + 1;
+		inference_.reset();
 		world_ = std::move(candidate);
 		refresh_source();
 	}
@@ -703,6 +707,7 @@ public:
 		candidate->restore_container(pack.draft());
 		clear_packs();
 		generation_base_ += world_->generation();
+		inference_.reset();
 		world_ = std::move(candidate);
 		refresh_source();
 	}
@@ -732,6 +737,36 @@ public:
 			world_->resume_server();
 			begin_log();
 		}
+	}
+	void set_inference_connection(std::shared_ptr<InferenceConnection> value) override
+	{
+		inference_.connection = std::move(value);
+		inference_.reset();
+	}
+	Json inference_state() const override
+	{
+		Json state = inference_.connection ? inference_.connection->status() : Json::object();
+		if (running())
+			if (const auto ship = world_->authoritative_world().ship_for_slot(world_->setup().local_slot))
+				state["controllers"] = world_->authoritative_world().controller_ai(*ship);
+		return state;
+	}
+	bool inference_command(const Json &command) override
+	{
+		if (command.value("operation", std::string{}) == "pair")
+		{
+			set_inference_connection(std::make_shared<InferenceConnection>(random_token(), options_.link.url));
+			return true;
+		}
+
+		if (!running() || !available())
+			return false;
+		const auto ship = world_->authoritative_world().ship_for_slot(world_->setup().local_slot);
+		return ship && intent({{"kind", "ai-config"},
+		                       {"ship", *ship},
+		                       {"console", command.at("console")},
+		                       {"controller", command.at("controller")},
+		                       {"provider", command.at("provider")}});
 	}
 	void tick() override
 	{
@@ -1014,6 +1049,13 @@ public:
 				if ((!client.connected || client.renew) && game_ && game_->owned(member_, id))
 					release(id, 1, false);
 			}
+			if (running() && available())
+				if (const auto ship = world_->authoritative_world().ship_for_slot(world_->setup().local_slot))
+					inference_.poll(world_->authoritative_world(), *ship,
+					                [&](const Json &frame)
+					                {
+						                return intent(frame);
+					                });
 			project();
 		}
 		catch (const std::exception &error)

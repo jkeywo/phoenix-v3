@@ -54,6 +54,10 @@ class GameLobby final : public SessionPort
 	}
 	Catalog empty_catalog_;
 	std::shared_ptr<SessionPort> backend_;
+	std::shared_ptr<InferenceConnection> inference_;
+	std::map<std::pair<std::string, std::string>, std::string> inference_choices_;
+	bool inference_attached_ = false;
+
 	std::unique_ptr<PeerTransport> transport_;
 	std::map<std::string, Peer> peers_;
 	std::map<std::string, Bytes> avatars_;
@@ -1096,6 +1100,74 @@ public:
 		else
 			lobby_command({LobbyAction::ready});
 	}
+	void set_inference_connection(std::shared_ptr<InferenceConnection> value) override
+	{
+		if (role_ != JoinRole::ship_server)
+			return;
+		inference_ = std::move(value);
+		inference_attached_ = false;
+	}
+	Json inference_state() const override
+	{
+		if (role_ != JoinRole::ship_server)
+			return Json::object();
+		if (backend_)
+			return backend_->inference_state();
+		Json state = inference_ ? inference_->status() : Json::object();
+		state["controllers"] = Json::array();
+		if (!source_ || !selection_.ships.contains(selection_.local_slot))
+			return state;
+		const auto &layout = controller_layout(selection_.ships.at(selection_.local_slot));
+		for (const auto &c : layout.controllers)
+		{
+			const auto chosen = inference_choices_.find({c.console, c.id});
+			const bool eligible = !c.tree.empty() && source_->catalog().trees.contains(c.tree) &&
+			                      resolve_tree_definition(source_->catalog().trees.at(c.tree), source_->catalog())
+			                          .contains("decision_candidates");
+			state["controllers"].push_back({{"console", c.console},
+			                                {"controller", c.id},
+			                                {"eligible", eligible},
+			                                {"selected", chosen == inference_choices_.end() ? "tree" : chosen->second},
+			                                {"effective", "tree"},
+			                                {"reason", "lobby"}});
+		}
+		return state;
+	}
+	bool inference_command(const Json &command) override
+	{
+		if (role_ != JoinRole::ship_server)
+			return false;
+		if (command.value("operation", std::string{}) == "pair")
+		{
+			set_inference_connection(std::make_shared<InferenceConnection>(random_token(), options_.link.url));
+			return true;
+		}
+		const auto provider = command.value("provider", std::string{});
+		if (provider != "tree")
+		{
+			bool found = false;
+			if (inference_)
+			{
+				const auto state = inference_->status();
+				for (const auto &p : state.at("providers"))
+					if (p == provider)
+						found = true;
+			}
+			if (!found)
+				return false;
+		}
+		if (backend_)
+			return backend_->inference_command(command);
+		const auto state = inference_state();
+		for (const auto &row : state.at("controllers"))
+			if (row.at("console") == command.at("console") && row.at("controller") == command.at("controller") &&
+			    (provider == "tree" || row.at("eligible").get<bool>()))
+			{
+				inference_choices_[{command.at("console"), command.at("controller")}] = provider;
+				return true;
+			}
+		return false;
+	}
 	void tick() override
 	{
 		if (backend_)
@@ -1407,6 +1479,23 @@ public:
 	}
 	void poll() override
 	{
+		if (inference_ && role_ == JoinRole::ship_server)
+		{
+			if (backend_)
+			{
+				if (!inference_attached_)
+				{
+					backend_->set_inference_connection(inference_);
+					inference_attached_ = true;
+					for (const auto &[address, provider] : inference_choices_)
+						backend_->inference_command(
+						    {{"console", address.first}, {"controller", address.second}, {"provider", provider}});
+				}
+			}
+			else
+				inference_->poll();
+		}
+
 		const auto current = std::chrono::steady_clock::now();
 		now_ += std::chrono::duration_cast<std::chrono::milliseconds>(current - previous_).count();
 		previous_ = current;

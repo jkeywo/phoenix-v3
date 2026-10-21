@@ -1,5 +1,6 @@
 module;
 #include <algorithm>
+#include <chrono>
 #include <stdexcept>
 #include <cstdint>
 #include <map>
@@ -14,6 +15,7 @@ module phoenix.session.local;
 import phoenix.session.api;
 import phoenix.simulation;
 
+#include "inference_host.hpp"
 namespace phoenix
 {
 namespace
@@ -24,11 +26,51 @@ class LocalSession final : public HostAccess
 	Catalog catalog_;
 	std::unique_ptr<World> world_;
 	GameSetup setup_;
+	InferenceHost inference_;
 	bool active_ = false;
 	std::uint64_t generation_ = 0;
 	static constexpr std::uint64_t local_console = 1;
 
 public:
+	void set_inference_connection(std::shared_ptr<InferenceConnection> value) override
+	{
+		inference_.connection = std::move(value);
+		inference_.reset();
+	}
+	Json inference_state() const override
+	{
+		Json state = inference_.connection ? inference_.connection->status() : Json::object();
+		if (world_)
+			if (const auto ship = world_->ship_for_slot(setup_.local_slot))
+				state["controllers"] = world_->controller_ai(*ship);
+		return state;
+	}
+	bool inference_command(const Json &command) override
+	{
+		if (command.value("operation", std::string{}) == "pair")
+		{
+			set_inference_connection(std::make_shared<InferenceConnection>(random_token(), default_network_service));
+			return true;
+		}
+
+		if (!world_)
+			return false;
+		const auto ship = world_->ship_for_slot(setup_.local_slot);
+		if (!ship)
+			return false;
+		return world_->configure_controller_provider({*ship, command.at("console"), command.at("controller")},
+		                                             command.at("provider"));
+	}
+	void poll() override
+	{
+		if (world_ && active_)
+			if (const auto ship = world_->ship_for_slot(setup_.local_slot))
+				inference_.poll(*world_, *ship,
+				                [&](const Json &frame)
+				                {
+					                return world_->submit_controller_decision(frame.at("decision"));
+				                });
+	}
 	std::uint64_t generation() const override
 	{
 		return generation_;
@@ -154,6 +196,7 @@ public:
 			candidate->claim(local_console, *controlled, setup.local_console);
 		setup_ = setup;
 		setup_.local_console = selected_console;
+		inference_.reset();
 		world_ = std::move(candidate);
 		active_ = true;
 		++generation_;
@@ -214,8 +257,8 @@ public:
 		if (container.manifest.value("format", std::string{}) != "phoenix-runtime-save")
 			throw std::runtime_error("Select a Phoenix runtime save ZIP");
 		const auto data = parse_json(container.files.at("session.json"), "session.json");
-		if (data.at("schema") != 13)
-			throw std::runtime_error("Saved state schema retired; start a new session (schema 13 required)");
+		if ((data.at("schema") != 13 && data.at("schema") != 14))
+			throw std::runtime_error("Saved state schema retired; start a new session (schema 13 or 14 required)");
 		if (!data.at("packs").is_array() || data.at("packs").empty() || data.at("packs").size() > 32)
 			throw std::runtime_error("Unsupported runtime save content roster");
 		LocalSession candidate;
@@ -254,6 +297,7 @@ public:
 		packs_ = std::move(candidate.packs_);
 		catalog_ = std::move(candidate.catalog_);
 		setup_ = std::move(candidate.setup_);
+		inference_.reset();
 		world_ = std::move(candidate.world_);
 		active_ = false;
 		++generation_;

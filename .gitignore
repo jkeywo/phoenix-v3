@@ -21,3 +21,5 @@ dist/
 *.fleet.zip
 /prototypes/
 /tmp/
+
+__pycache__/

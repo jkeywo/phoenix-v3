@@ -1,0 +1,7 @@
+{
+  "anyjev": {
+    "model": "Qwen/Qwen3-4B",
+    "rotations": 2,
+    "revision": "1cfa9a7208912126459214e8b04321603b3df60c"
+  }
+}

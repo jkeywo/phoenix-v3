@@ -306,6 +306,17 @@ target_include_directories(phoenix_content PRIVATE ${raylib_SOURCE_DIR}/src/exte
 add_library(phoenix_wire STATIC src/network/packet.cpp src/network/transfer.cpp)
 target_link_libraries(phoenix_wire PUBLIC phoenix_content)
 target_include_directories(phoenix_wire PRIVATE ${picosha2_SOURCE_DIR})
+add_library(phoenix_inference STATIC src/network/inference.cpp)
+target_sources(phoenix_inference PUBLIC FILE_SET CXX_MODULES FILES src/network/inference.cppm)
+target_link_libraries(phoenix_inference PUBLIC phoenix_foundation phoenix_transport PRIVATE phoenix_wire)
+target_link_libraries(phoenix_session_api PUBLIC phoenix_inference)
+if(NOT EMSCRIPTEN)
+	add_executable(phoenix_inference_bridge src/entry/inference_bridge.cpp)
+	target_link_libraries(phoenix_inference_bridge PRIVATE phoenix_inference phoenix_wire)
+	add_executable(phoenix_inference_probe tests/manual/inference.cpp)
+	target_link_libraries(phoenix_inference_probe PRIVATE phoenix_inference phoenix_simulation)
+	phoenix_fixture(phoenix_inference_probe)
+endif()
 add_library(phoenix_blobs STATIC src/network/blob.cpp)
 target_link_libraries(phoenix_blobs PUBLIC phoenix_foundation)
 if(EMSCRIPTEN)
@@ -1091,6 +1102,11 @@ if(EMSCRIPTEN)
 	)
 endif()
 
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+add_test(
+	NAME system.inference-adapters
+	COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/tests/system/inference_adapters.py
+)
 include(cmake/Modules.cmake)
 include(cmake/BuildPerformance.cmake)
 foreach(

@@ -14,6 +14,7 @@ export module phoenix.session.api;
 export import phoenix.content;
 export import phoenix.contracts;
 export import phoenix.transport;
+export import phoenix.inference;
 
 export namespace phoenix
 {
@@ -236,6 +237,17 @@ public:
 	virtual std::optional<Observation> console_observation(std::uint64_t route) const
 	{
 		return route == 1 ? observation() : std::nullopt;
+	}
+	virtual void set_inference_connection(std::shared_ptr<InferenceConnection>)
+	{
+	}
+	virtual Json inference_state() const
+	{
+		return Json::object();
+	}
+	virtual bool inference_command(const Json &)
+	{
+		return false;
 	}
 	virtual void poll()
 	{
