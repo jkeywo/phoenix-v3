@@ -1217,6 +1217,36 @@ bool ConsoleModel::submit(OperatingCommand command)
 		announcement_ = localise("Request sent") + (projected_label.empty() ? std::string{} : ": " + projected_label);
 	return true;
 }
+std::vector<ConsoleSystemStatus> ConsoleModel::system_statuses() const
+{
+	std::vector<ConsoleSystemStatus> result;
+	if (!observation_ || !observation_->gameplay.is_object() ||
+	    observation_->gameplay.value("combat", Json::object()).empty())
+		return result;
+	for (const auto &system : observation_->systems)
+	{
+		const auto flag = [&](const char *key)
+		{
+			return system.telemetry.contains(key) && system.telemetry.at(key) != 0;
+		};
+		const auto condition = flag("destroyed")             ? SystemCondition::Destroyed
+		                       : flag("overheated")          ? SystemCondition::Overheated
+		                       : flag("structural_disabled") ? SystemCondition::CompartmentDisabled
+		                       : flag("damaged")             ? SystemCondition::Damaged
+		                       : system.enabled              ? SystemCondition::Operational
+		                                                     : SystemCondition::Off;
+		const auto label = condition == SystemCondition::Destroyed             ? "Destroyed"
+		                   : condition == SystemCondition::Overheated          ? "Overheated"
+		                   : condition == SystemCondition::CompartmentDisabled ? "Compartment disabled"
+		                   : condition == SystemCondition::Damaged             ? "Damaged"
+		                   : condition == SystemCondition::Operational         ? "Operational"
+		                                                                       : "Off";
+		result.push_back({system.id, system.id + ": " + localise(label),
+		                  std::string(condition == SystemCondition::Operational ? "[+] " : "[!] ") + system.id,
+		                  condition});
+	}
+	return result;
+}
 std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls() const
 {
 	std::vector<std::pair<std::string, std::string>> result;
@@ -1226,23 +1256,8 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 	if (!observation_ || !observation_->gameplay.is_object())
 		return result;
 	const auto combat = observation_->gameplay.value("combat", Json::object());
-	if (!combat.empty())
-		for (const auto &system : observation_->systems)
-		{
-			const auto flag = [&](const char *key)
-			{
-				return system.telemetry.contains(key) && system.telemetry.at(key) != 0;
-			};
-			const auto label = flag("destroyed")             ? "Destroyed"
-			                   : flag("overheated")          ? "Overheated"
-			                   : flag("structural_disabled") ? "Compartment disabled"
-			                   : flag("damaged")             ? "Damaged"
-			                   : system.enabled              ? "Operational"
-			                                                 : "Off";
-			result.emplace_back("game.status/" + system.id,
-			                    std::string(label == std::string("Operational") ? "[+] " : "[!] ") + system.id + ": " +
-			                        localise(label));
-		}
+	for (const auto &status : system_statuses())
+		result.emplace_back("game.status/" + status.system, status.semantic_label);
 	if (!status_system_.empty())
 		result.emplace_back("game.status-close", localise("Close system details"));
 	bool weapons = false;

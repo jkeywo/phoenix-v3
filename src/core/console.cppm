@@ -24,6 +24,24 @@ struct ConsoleMessageView
 };
 std::vector<ConsoleMessageView> console_messages(const Json &board, bool public_only = false);
 std::vector<std::pair<std::string, std::string>> public_board_readouts(const Json &, std::uint64_t now);
+enum class SystemCondition
+{
+	Operational,
+	Off,
+	Damaged,
+	CompartmentDisabled,
+	Overheated,
+	Destroyed
+};
+struct ConsoleSystemStatus
+{
+	std::string system, semantic_label, compact_label;
+	SystemCondition condition = SystemCondition::Operational;
+	bool attention() const
+	{
+		return condition != SystemCondition::Operational;
+	}
+};
 // One instance per routed Console. No renderer, device or authoritative world.
 class ConsoleModel
 {
@@ -93,6 +111,7 @@ public:
 	std::vector<std::pair<std::string, std::string>> gameplay_readouts() const;
 	std::vector<ConsoleMessageView> messages() const;
 	std::string system_details() const;
+	std::vector<ConsoleSystemStatus> system_statuses() const;
 	const std::string &status_system() const
 	{
 		return status_system_;

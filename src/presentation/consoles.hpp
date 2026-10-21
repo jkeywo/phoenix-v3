@@ -1922,6 +1922,11 @@ button.on-screen-active .share-live {display:block;}
 		const auto readouts_started = GetTime();
 		auto gameplay_controls =
 		    pregame ? std::vector<std::pair<std::string, std::string>>{} : model_.gameplay_controls();
+		std::map<std::string, ConsoleSystemStatus> status_controls;
+		if (!pregame)
+			for (const auto &status : model_.system_statuses())
+				status_controls.emplace("game.status/" + status.system, status);
+
 		enum class ControlDestination
 		{
 			general,
@@ -2292,8 +2297,8 @@ button.on-screen-active .share-live {display:block;}
 				if (!stance_controls.contains(name) && !engineering_controls.contains(name) &&
 				    !name.starts_with("game.compartment/") && name != "game.status-close")
 				{
-					const bool status = name.starts_with("game.status/");
-					const auto visible = status ? label.substr(0, 4) + name.substr(12) : label;
+					const bool status = status_controls.contains(name);
+					const auto &visible = status ? status_controls.at(name).compact_label : label;
 					markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(id(name)) + "\"" +
 					          (status ? " class=\"status-indicator\"" : "") + ">" +
 					          Rml::StringUtilities::EncodeRml(visible) + "</button>";
@@ -2311,15 +2316,12 @@ button.on-screen-active .share-live {display:block;}
 			{
 				if (auto *element = this->element(id(name)))
 					element->SetInnerRML(Rml::StringUtilities::EncodeRml(
-					    name.starts_with("game.status/") ? label.substr(0, 4) + name.substr(12) : label));
+					    status_controls.contains(name) ? status_controls.at(name).compact_label : label));
 				displayed_values_["control/" + name] = label;
 			}
-		for (const auto &[name, label] : gameplay_controls)
-			if (name.starts_with("game.status/"))
-				if (auto *light = element(id(name)))
-				{
-					property(light, "border-left", label.starts_with("[!]") ? "10dp #f08060" : "10dp #83be90");
-				}
+		for (const auto &[name, status] : status_controls)
+			if (auto *light = element(id(name)))
+				property(light, "border-left", status.attention() ? "10dp #f08060" : "10dp #83be90");
 		if (model_.observation())
 			for (const auto &c :
 			     model_.observation()->gameplay.value("combat", Json::object()).value("compartments", Json::array()))
