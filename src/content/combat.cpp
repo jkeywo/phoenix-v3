@@ -195,9 +195,8 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 		}
 		if (fit.kind < OperatingSystem::Weapon)
 			continue;
-		CombatSystemDefinition s;
+		CombatSystemDefinition s(fit.kind);
 		s.id = fit.id;
-		s.kind = fit.kind;
 		s.compartment = compartment;
 		s.x = amount(v, "x_mm", 0, -1000000, 1000000);
 		s.y = amount(v, "y_mm", 0, -1000000, 1000000);
@@ -205,73 +204,77 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 		s.arc = amount(v, "arc_mdeg", 360000, 1, 360000);
 		if (s.kind == OperatingSystem::Weapon)
 		{
-			s.family = v.value("family", std::string("projectile"));
-			if (s.family != "projectile" && s.family != "beam")
+			s.get<WeaponDefinition>().family = v.value("family", std::string("projectile"));
+			if (s.get<WeaponDefinition>().family != "projectile" && s.get<WeaponDefinition>().family != "beam")
 				fail("unsupported weapon family");
-			s.magazine = v.value("magazine", std::string{});
-			s.magazines = v.value("magazines", std::vector<std::string>{});
-			if (s.magazines.empty() && !s.magazine.empty())
-				s.magazines.push_back(s.magazine);
-			if (!s.magazines.empty())
-				s.magazine = s.magazines.front();
-			if (s.family == "projectile" && s.magazines.empty())
+			s.get<WeaponDefinition>().magazine = v.value("magazine", std::string{});
+			s.get<WeaponDefinition>().magazines = v.value("magazines", std::vector<std::string>{});
+			if (s.get<WeaponDefinition>().magazines.empty() && !s.get<WeaponDefinition>().magazine.empty())
+				s.get<WeaponDefinition>().magazines.push_back(s.get<WeaponDefinition>().magazine);
+			if (!s.get<WeaponDefinition>().magazines.empty())
+				s.get<WeaponDefinition>().magazine = s.get<WeaponDefinition>().magazines.front();
+			if (s.get<WeaponDefinition>().family == "projectile" && s.get<WeaponDefinition>().magazines.empty())
 				fail("projectile weapon requires magazines");
-			s.turret = v.value("turret", std::string{});
-			s.interval = amount(v, "fire_ticks", 20, 1, 1000000);
-			s.ammo_use = amount(v, "ammo_use", 1, 1, 1000000);
-			s.load_ticks = amount(v, "load_ticks", 0, 0, 1000000);
-			s.range = amount(v, "range_mm", 1000000, 1, 10000000);
-			s.beam_damage = amount(v, "damage_per_second", 1, 1, 1000000);
-			s.standby_energy = amount(v, "auto_energy_per_second", 0, 0, 1000000000);
-			if (s.family == "beam" && (!v.contains("power_store") || amount(v, "energy_per_second", 0) == 0))
+			s.get<WeaponDefinition>().turret = v.value("turret", std::string{});
+			s.ammunition().interval = amount(v, "fire_ticks", 20, 1, 1000000);
+			s.get<WeaponDefinition>().ammo_use = amount(v, "ammo_use", 1, 1, 1000000);
+			s.ammunition().load_ticks = amount(v, "load_ticks", 0, 0, 1000000);
+			s.get<WeaponDefinition>().range = amount(v, "range_mm", 1000000, 1, 10000000);
+			s.get<WeaponDefinition>().beam_damage = amount(v, "damage_per_second", 1, 1, 1000000);
+			s.get<WeaponDefinition>().standby_energy = amount(v, "auto_energy_per_second", 0, 0, 1000000000);
+			if (s.get<WeaponDefinition>().family == "beam" &&
+			    (!v.contains("power_store") || amount(v, "energy_per_second", 0) == 0))
 				fail("beam requires positive operating energy and power_store");
-			s.point_defence = v.value("point_defence", false);
-			if (s.point_defence && (!v.contains("power_store") || !s.standby_energy))
+			s.get<WeaponDefinition>().point_defence = v.value("point_defence", false);
+			if (s.get<WeaponDefinition>().point_defence &&
+			    (!v.contains("power_store") || !s.get<WeaponDefinition>().standby_energy))
 				fail("point defence requires standby energy and power_store");
-			s.intercept_classes = v.value("intercept_classes", std::vector<std::string>{"missile"});
-			for (const auto &tag : s.intercept_classes)
+			s.get<WeaponDefinition>().intercept_classes =
+			    v.value("intercept_classes", std::vector<std::string>{"missile"});
+			for (const auto &tag : s.get<WeaponDefinition>().intercept_classes)
 				if (tag != "missile")
 					fail("unsupported intercept class");
 			if (v.contains("projectile"))
-				s.projectile = projectile(v.at("projectile"));
-			else if (s.family == "beam")
+				s.ammunition().projectile = projectile(v.at("projectile"));
+			else if (s.get<WeaponDefinition>().family == "beam")
 			{
-				s.projectile.speed = 10000000;
-				s.projectile.penetration = amount(v, "penetration", 1000, 1, 1000000);
-				s.projectile.deposition = amount(v, "damage_per_m", 1000000, 1, 1000000);
-				s.projectile.shield_bypass = amount(v, "shield_bypass_permille", 0, 0, 1000);
+				s.ammunition().projectile.speed = 10000000;
+				s.ammunition().projectile.penetration = amount(v, "penetration", 1000, 1, 1000000);
+				s.ammunition().projectile.deposition = amount(v, "damage_per_m", 1000000, 1, 1000000);
+				s.ammunition().projectile.shield_bypass = amount(v, "shield_bypass_permille", 0, 0, 1000);
 			}
 		}
 		if (s.kind == OperatingSystem::Shield)
 		{
-			s.capacity = amount(v, "capacity", 0, 1, 1000000);
-			s.initial = amount(v, "initial", s.capacity, 0, s.capacity);
-			s.sustain_energy = amount(v, "sustain_energy_per_second", 1, 1, 1000000000);
-			s.recharge_energy = amount(v, "energy_per_strength", 1, 1, 1000000);
-			s.recharge_rate = amount(v, "recharge_per_second", 1, 1, 1000000);
-			s.off_recharge_rate = amount(v, "off_recharge_per_second", 1, 0, s.recharge_rate);
-			s.warmup_ticks = amount(v, "warmup_ticks", 20, 1, 1000000);
-			s.layer = amount(v, "layer", 0, 0, 1000000);
-			s.discharge_rate = amount(v, "discharge_per_second", 1, 1, 1000000);
-			s.discharge_efficiency = amount(v, "discharge_efficiency_permille", 1000, 1, 1000);
+			s.reserve().capacity = amount(v, "capacity", 0, 1, 1000000);
+			s.reserve().initial = amount(v, "initial", s.reserve().capacity, 0, s.reserve().capacity);
+			s.get<ShieldDefinition>().sustain_energy = amount(v, "sustain_energy_per_second", 1, 1, 1000000000);
+			s.get<ShieldDefinition>().recharge_energy = amount(v, "energy_per_strength", 1, 1, 1000000);
+			s.get<ShieldDefinition>().recharge_rate = amount(v, "recharge_per_second", 1, 1, 1000000);
+			s.get<ShieldDefinition>().off_recharge_rate =
+			    amount(v, "off_recharge_per_second", 1, 0, s.get<ShieldDefinition>().recharge_rate);
+			s.get<ShieldDefinition>().warmup_ticks = amount(v, "warmup_ticks", 20, 1, 1000000);
+			s.get<ShieldDefinition>().layer = amount(v, "layer", 0, 0, 1000000);
+			s.get<ShieldDefinition>().discharge_rate = amount(v, "discharge_per_second", 1, 1, 1000000);
+			s.get<ShieldDefinition>().discharge_efficiency = amount(v, "discharge_efficiency_permille", 1000, 1, 1000);
 			if (!v.contains("power_store"))
 				fail("shield requires power_store");
 		}
 		if (s.kind == OperatingSystem::Turret)
 		{
-			s.traverse = amount(v, "traverse_mdeg_s", 0, 1, 360000);
-			s.marker = v.at("marker");
-			s.visual = v.at("visual");
-			s.scale_permille = amount(v, "scale_permille", 1000, 1, 10000);
-			s.flip_y = v.value("flip_y", false);
-			if (!catalog.entities.contains(s.visual))
-				fail("unknown turret visual " + s.visual);
+			s.get<TurretDefinition>().traverse = amount(v, "traverse_mdeg_s", 0, 1, 360000);
+			s.get<TurretDefinition>().marker = v.at("marker");
+			s.get<TurretDefinition>().visual = v.at("visual");
+			s.get<TurretDefinition>().scale_permille = amount(v, "scale_permille", 1000, 1, 10000);
+			s.get<TurretDefinition>().flip_y = v.value("flip_y", false);
+			if (!catalog.entities.contains(s.get<TurretDefinition>().visual))
+				fail("unknown turret visual " + s.get<TurretDefinition>().visual);
 			const auto material = compile_sprite(entity.at("render").at("sprite"), catalog, path);
 			const auto check_frames = [&](const auto &frames)
 			{
 				for (const auto &frame : frames)
-					if (!frame.attachments.contains(s.marker))
-						fail("missing turret marker " + s.marker);
+					if (!frame.attachments.contains(s.get<TurretDefinition>().marker))
+						fail("missing turret marker " + s.get<TurretDefinition>().marker);
 			};
 			check_frames(material.frames);
 			for (const auto &entry : material.entries)
@@ -279,26 +282,29 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 		}
 		if (s.kind == OperatingSystem::Magazine)
 		{
-			s.interval = amount(v, "fire_ticks", 0, 0, 1000000);
-			s.load_ticks = amount(v, "load_ticks", 0, 0, 1000000);
+			s.ammunition().interval = amount(v, "fire_ticks", 0, 0, 1000000);
+			s.ammunition().load_ticks = amount(v, "load_ticks", 0, 0, 1000000);
 			if (v.contains("projectile"))
-				s.projectile = projectile(v.at("projectile"));
-			s.capacity = amount(v, "capacity", 0, 1, 1000000);
-			s.initial = amount(v, "initial", s.capacity, 0, s.capacity);
+				s.ammunition().projectile = projectile(v.at("projectile"));
+			s.reserve().capacity = amount(v, "capacity", 0, 1, 1000000);
+			s.reserve().initial = amount(v, "initial", s.reserve().capacity, 0, s.reserve().capacity);
 			const auto reload = v.value("reload", Json{{"strategy", "none"}});
-			s.reload = reload.value("strategy", std::string("none"));
-			if (s.reload != "none" && s.reload != "infinite" && s.reload != "energy")
-				fail("unsupported reload strategy " + s.reload);
-			s.refill_ticks = amount(reload, "ticks", 20, 1, 1000000);
-			s.refill_amount = amount(reload, "amount", s.capacity, 1, s.capacity);
-			s.reload_energy = amount(reload, "energy_per_second", 0, 0, 1000000000);
-			if (s.reload == "energy" && (s.reload_energy == 0 || !v.contains("power_store")))
+			s.get<MagazineDefinition>().reload = reload.value("strategy", std::string("none"));
+			if (s.get<MagazineDefinition>().reload != "none" && s.get<MagazineDefinition>().reload != "infinite" &&
+			    s.get<MagazineDefinition>().reload != "energy")
+				fail("unsupported reload strategy " + s.get<MagazineDefinition>().reload);
+			s.get<MagazineDefinition>().refill_ticks = amount(reload, "ticks", 20, 1, 1000000);
+			s.get<MagazineDefinition>().refill_amount =
+			    amount(reload, "amount", s.reserve().capacity, 1, s.reserve().capacity);
+			s.get<MagazineDefinition>().reload_energy = amount(reload, "energy_per_second", 0, 0, 1000000000);
+			if (s.get<MagazineDefinition>().reload == "energy" &&
+			    (s.get<MagazineDefinition>().reload_energy == 0 || !v.contains("power_store")))
 				fail("energy reload requires power_store and positive energy_per_second");
 		}
 		if (s.kind == OperatingSystem::RepairTeam)
 		{
-			s.repair_rate = amount(v, "hp_per_second", 10, 1, 1000000);
-			s.stack_penalty = amount(v, "stack_penalty_permille", 500, 1, 10000);
+			s.get<RepairDefinition>().repair_rate = amount(v, "hp_per_second", 10, 1, 1000000);
+			s.get<RepairDefinition>().stack_penalty = amount(v, "stack_penalty_permille", 500, 1, 10000);
 		}
 		d.system_ids.emplace(s.id, d.systems.size());
 		d.systems.push_back(s);
@@ -312,16 +318,18 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 					fail(s.id + ": incompatible reference " + id);
 			};
 			std::set<std::string> seen_magazines;
-			for (const auto &mag : s.magazines)
+			for (const auto &mag : s.get<WeaponDefinition>().magazines)
 			{
 				check(mag, OperatingSystem::Magazine);
-				if (!seen_magazines.insert(mag).second || s.ammo_use > d.systems[d.system_ids.at(mag)].capacity)
+				if (!seen_magazines.insert(mag).second ||
+				    s.get<WeaponDefinition>().ammo_use > d.systems[d.system_ids.at(mag)].reserve().capacity)
 					fail(s.id + ": invalid magazine capacity/duplicate");
-				if (s.projectile.visual.empty() && d.systems[d.system_ids.at(mag)].projectile.visual.empty())
+				if (s.ammunition().projectile.visual.empty() &&
+				    d.systems[d.system_ids.at(mag)].ammunition().projectile.visual.empty())
 					fail(s.id + ": missing ammunition projectile");
 			}
-			if (!s.turret.empty())
-				check(s.turret, OperatingSystem::Turret);
+			if (!s.get<WeaponDefinition>().turret.empty())
+				check(s.get<WeaponDefinition>().turret, OperatingSystem::Turret);
 		}
 	auto destruction = c.at("destruction");
 	// Preserve ship defaults while compiling a single shared destruction definition.

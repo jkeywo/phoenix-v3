@@ -455,7 +455,7 @@ bool commit_controller(const ControllerProposal &proposal)
 			{
 				const auto child = entity.get<EquipmentIndex>().values.at(consumer);
 				if (const auto *weapon = child.try_get<CombatMechanism>();
-				    weapon && weapon->target != static_cast<EntityId>(proposal.value))
+				    weapon && weapon->target() != static_cast<EntityId>(proposal.value))
 					same_effect = false;
 			}
 		if (same_effect)

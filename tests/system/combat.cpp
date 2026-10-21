@@ -908,6 +908,23 @@ int main(int argc, char **argv)
 			require(a > 0 && b > a && b < 2 * a, "two teams repair faster with diminishing returns after travel");
 			require(!state(two).at("compartments")[1].at("disabled").get<bool>(),
 			        "structural recovery clears disabled latch at threshold");
+			const auto active_states = state(two).at("systems");
+			require(!active_states.at("mag").contains("target") && !active_states.at("gun").contains("strength") &&
+			            !active_states.at("team-a").contains("ammo"),
+			        "continuation stores only the fitted mechanism state");
+			auto foreign = two.save();
+			foreign["bodies"][0]["combat"]["systems"]["mag"]["beam_tick"] = 0;
+			bool foreign_refused = false;
+			try
+			{
+				World candidate;
+				candidate.restore(c, foreign);
+			}
+			catch (...)
+			{
+				foreign_refused = true;
+			}
+			require(foreign_refused, "continuation rejects fields from another mechanism kind");
 			auto bad = two.save();
 			bad["bodies"][0]["combat"]["systems"]["team-a"]["travel"] = -1;
 			bool refused = false;

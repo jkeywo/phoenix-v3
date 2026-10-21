@@ -1,23 +1,26 @@
 std::int64_t load_duration(flecs::entity ship, const CombatMechanism &m, std::int64_t magazine = -1) const
 {
-	if (m.definition.magazines.empty())
+	if (m.definition.get<WeaponDefinition>().magazines.empty())
 		return 0;
-	const auto &mag = instance(ship, m.definition.magazines.at(magazine < 0 ? m.selected_magazine : magazine))
+	const auto &mag = instance(ship, m.definition.get<WeaponDefinition>().magazines.at(
+	                                     magazine < 0 ? m.get<WeaponState>().selected_magazine : magazine))
 	                      ->entity.get<CombatMechanism>()
 	                      .definition;
-	return mag.load_ticks ? mag.load_ticks : m.definition.load_ticks;
+	return mag.ammunition().load_ticks ? mag.ammunition().load_ticks : m.definition.ammunition().load_ticks;
 }
 const ProjectileDefinition &weapon_payload(flecs::entity ship, const CombatMechanism &m) const
 {
-	if (!m.definition.magazines.empty())
+	if (!m.definition.get<WeaponDefinition>().magazines.empty())
 	{
-		const auto &p = instance(ship, m.definition.magazines.at(m.selected_magazine))
-		                    ->entity.get<CombatMechanism>()
-		                    .definition.projectile;
+		const auto &p =
+		    instance(ship, m.definition.get<WeaponDefinition>().magazines.at(m.get<WeaponState>().selected_magazine))
+		        ->entity.get<CombatMechanism>()
+		        .definition.ammunition()
+		        .projectile;
 		if (!p.visual.empty())
 			return p;
 	}
-	return m.definition.projectile;
+	return m.definition.ammunition().projectile;
 }
 struct WeaponAim
 {
@@ -35,18 +38,20 @@ const std::vector<BodyView> &weapon_contacts(flecs::entity ship, const CombatMec
 std::optional<WeaponAim> weapon_contact(flecs::entity ship, const CombatMechanism &m, WeaponContacts &cache) const
 {
 	const auto &contacts = weapon_contacts(ship, m, cache);
-	const auto wanted = m.definition.point_defence && m.mode == 1 ? 7000000000000000ULL + m.intercept : m.target;
+	const auto wanted = m.definition.get<WeaponDefinition>().point_defence && m.get<WeaponState>().mode == 1
+	                        ? 7000000000000000ULL + m.get<WeaponState>().intercept
+	                        : m.target();
 	if (!wanted)
 		return {};
 	for (const auto &contact : contacts)
 		if (contact.id == wanted)
 		{
 			WeaponAim aim{contact};
-			if (m.intercept && m.mode == 1)
+			if (m.get<WeaponState>().intercept && m.get<WeaponState>().mode == 1)
 				for (auto missile : projectile_rows())
 				{
 					const auto &p = missile.get<Projectile>();
-					if (p.id == m.intercept && p.durability > 0)
+					if (p.id == m.get<WeaponState>().intercept && p.durability > 0)
 					{
 						aim.altitude = p.altitude;
 						aim.vz = p.vz;
@@ -64,21 +69,21 @@ std::pair<fixed::Vec, std::int64_t> weapon_mount(flecs::entity ship, const Comba
 	const auto &pose = ship.get<Pose>();
 	fixed::Vec mount{d.x, d.y};
 	auto heading = pose.heading + d.bearing;
-	if (!d.turret.empty())
+	if (!d.get<WeaponDefinition>().turret.empty())
 	{
-		const auto turret = instance(ship, d.turret)->entity;
-		if (!turret.get<Equipment>().enabled || structurally_disabled(ship, d.turret))
+		const auto turret = instance(ship, d.get<WeaponDefinition>().turret)->entity;
+		if (!turret.get<Equipment>().enabled || structurally_disabled(ship, d.get<WeaponDefinition>().turret))
 			return {{}, -1};
 		const auto &t = turret.get<CombatMechanism>();
-		heading = pose.heading + t.heading + d.bearing;
-		mount = combat_world(mount, Pose{{t.definition.x, t.definition.y}, t.heading});
+		heading = pose.heading + t.get<TurretState>().heading + d.bearing;
+		mount = combat_world(mount, Pose{{t.definition.x, t.definition.y}, t.get<TurretState>().heading});
 	}
 	return {combat_world(mount, pose), combat_angle(heading)};
 }
 fixed::Vec weapon_lead(flecs::entity ship, const CombatMechanism &m, const WeaponAim &target, fixed::Vec origin) const
 {
 	const auto &d = weapon_payload(ship, m);
-	const auto travel = m.definition.family == "beam"
+	const auto travel = m.definition.get<WeaponDefinition>().family == "beam"
 	                        ? 0
 	                        : std::min<std::int64_t>(d.lifetime * 1000 / rate,
 	                                                 fixed::length(fixed::Vec{target.body.x, target.body.y} - origin) *
@@ -94,24 +99,25 @@ void prepare_weapons(flecs::entity ship)
 	const auto id = ship.get<StableId>().id;
 	const auto &pose = ship.get<Pose>();
 	for (auto child : ship.get<EquipmentIndex>().values)
-		if (auto *m = child.try_get_mut<CombatMechanism>())
+		if (auto *m = child.try_get_mut<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Weapon)
 		{
-			m->ready = false;
-			if (m->cooldown > 0)
-				--m->cooldown;
+			m->get<WeaponState>().ready = false;
+			if (m->get<WeaponState>().cooldown > 0)
+				--m->get<WeaponState>().cooldown;
 			const auto &d = m->definition;
 			if (d.kind != OperatingSystem::Weapon || !child.get<Equipment>().enabled ||
 			    structurally_disabled(ship, d.id))
 				continue;
-			if (d.point_defence && m->mode == 1)
+			if (d.get<WeaponDefinition>().point_defence && m->get<WeaponState>().mode == 1)
 			{
-				m->intercept = 0;
+				m->get<WeaponState>().intercept = 0;
 				const auto &contacts = weapon_contacts(ship, *m, contacts_by_console);
 				std::pair<std::int64_t, std::uint64_t> best{std::numeric_limits<std::int64_t>::max(), 0};
 				for (auto missile : projectile_rows())
 				{
 					const auto &p = missile.get<Projectile>();
-					if (!p.definition.durability || p.durability <= 0 || p.source == id || d.intercept_classes.empty())
+					if (!p.definition.durability || p.durability <= 0 || p.source == id ||
+					    d.get<WeaponDefinition>().intercept_classes.empty())
 						continue;
 					if (std::none_of(contacts.begin(), contacts.end(),
 					                 [&](const auto &c)
@@ -121,7 +127,7 @@ void prepare_weapons(flecs::entity ship)
 						continue;
 					const auto offset = p.position - pose.position;
 					const auto distance = fixed::length(offset) + std::abs(p.altitude);
-					if (distance > d.range)
+					if (distance > d.get<WeaponDefinition>().range)
 						continue;
 					const auto closing = std::max<std::int64_t>(
 					    1, -fixed::dot(p.velocity - ship.get<Motion>().velocity, fixed::normal(offset)) / fixed::unit);
@@ -130,32 +136,38 @@ void prepare_weapons(flecs::entity ship)
 					if (score < best)
 					{
 						best = score;
-						m->intercept = p.id;
+						m->get<WeaponState>().intercept = p.id;
 					}
 				}
 			}
-			if (m->unloading)
+			if (m->get<WeaponState>().unloading)
 			{
-				if (--m->unloading == 0)
+				if (--m->get<WeaponState>().unloading == 0)
 				{
-					auto &old = instance(ship, d.magazines.at(m->loaded_magazine))->entity.get_mut<CombatMechanism>();
-					old.ammo += d.ammo_use;
-					old.reserved_return -= d.ammo_use;
-					m->loaded_magazine = -1;
+					auto &old =
+					    instance(ship, d.get<WeaponDefinition>().magazines.at(m->get<WeaponState>().loaded_magazine))
+					        ->entity.get_mut<CombatMechanism>();
+					old.get<MagazineState>().ammo += d.get<WeaponDefinition>().ammo_use;
+					old.get<MagazineState>().reserved_return -= d.get<WeaponDefinition>().ammo_use;
+					m->get<WeaponState>().loaded_magazine = -1;
 				}
 				continue;
 			}
-			if (load_duration(ship, *m) && m->loaded_magazine < 0 && !d.magazines.empty())
+			if (load_duration(ship, *m) && m->get<WeaponState>().loaded_magazine < 0 &&
+			    !d.get<WeaponDefinition>().magazines.empty())
 			{
-				auto mag = instance(ship, d.magazines.at(m->selected_magazine))->entity;
+				auto mag =
+				    instance(ship, d.get<WeaponDefinition>().magazines.at(m->get<WeaponState>().selected_magazine))
+				        ->entity;
 				auto &a = mag.get_mut<CombatMechanism>();
 				if (mag.get<Equipment>().enabled && !structurally_disabled(ship, a.definition.id) &&
-				    a.ammo >= d.ammo_use && ++m->loading >= load_duration(ship, *m))
+				    a.get<MagazineState>().ammo >= d.get<WeaponDefinition>().ammo_use &&
+				    ++m->get<WeaponState>().loading >= load_duration(ship, *m))
 				{
-					a.ammo -= d.ammo_use;
-					a.reserved_return += d.ammo_use;
-					m->loaded_magazine = m->selected_magazine;
-					m->loading = 0;
+					a.get<MagazineState>().ammo -= d.get<WeaponDefinition>().ammo_use;
+					a.get<MagazineState>().reserved_return += d.get<WeaponDefinition>().ammo_use;
+					m->get<WeaponState>().loaded_magazine = m->get<WeaponState>().selected_magazine;
+					m->get<WeaponState>().loading = 0;
 				}
 			}
 		}
@@ -172,11 +184,13 @@ void prepare_weapons(flecs::entity ship)
 				for (auto candidate : ship.get<EquipmentIndex>().values)
 				{
 					const auto *w = candidate.try_get<CombatMechanism>();
-					if (!w || w->definition.kind != OperatingSystem::Weapon || w->definition.turret != d.id ||
-					    !candidate.get<Equipment>().enabled || structurally_disabled(ship, w->definition.id) ||
-					    (w->definition.point_defence && !w->mode))
+					if (!w || w->definition.kind != OperatingSystem::Weapon ||
+					    w->definition.get<WeaponDefinition>().turret != d.id || !candidate.get<Equipment>().enabled ||
+					    structurally_disabled(ship, w->definition.id) ||
+					    (w->definition.get<WeaponDefinition>().point_defence && !w->get<WeaponState>().mode))
 						continue;
-					if ((w->definition.point_defence && w->mode == 1) != (priority == 1))
+					if ((w->definition.get<WeaponDefinition>().point_defence && w->get<WeaponState>().mode == 1) !=
+					    (priority == 1))
 						continue;
 					if (auto found = weapon_contact(ship, *w, contacts_by_console))
 					{
@@ -197,21 +211,25 @@ void prepare_weapons(flecs::entity ship)
 			const auto aim = combat_bearing(lead - origin) - w.bearing - combat_bearing({forward, lateral});
 			const auto offset = std::clamp(combat_delta(aim - pose.heading, d.bearing), -d.arc / 2, d.arc / 2);
 			const auto desired = combat_angle(d.bearing + offset);
-			m->turn_remainder += d.traverse * fault_effectiveness(ship, d.id) / 1000;
-			const auto step = m->turn_remainder / rate;
-			m->turn_remainder %= rate;
-			const auto current = combat_delta(m->heading, d.bearing);
-			m->heading = d.arc == 360000
-			                 ? combat_angle(m->heading + std::clamp(combat_delta(desired, m->heading), -step, step))
-			                 : combat_angle(d.bearing + current + std::clamp(offset - current, -step, step));
+			m->get<TurretState>().turn_remainder +=
+			    d.get<TurretDefinition>().traverse * fault_effectiveness(ship, d.id) / 1000;
+			const auto step = m->get<TurretState>().turn_remainder / rate;
+			m->get<TurretState>().turn_remainder %= rate;
+			const auto current = combat_delta(m->get<TurretState>().heading, d.bearing);
+			m->get<TurretState>().heading =
+			    d.arc == 360000
+			        ? combat_angle(m->get<TurretState>().heading +
+			                       std::clamp(combat_delta(desired, m->get<TurretState>().heading), -step, step))
+			        : combat_angle(d.bearing + current + std::clamp(offset - current, -step, step));
 		}
 	std::map<std::string, std::int64_t> reserved;
 	for (auto child : ship.get<EquipmentIndex>().values)
 		if (auto *m = child.try_get_mut<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Weapon)
 		{
 			const auto &d = m->definition;
-			if (m->cooldown || !child.get<Equipment>().enabled || structurally_disabled(ship, d.id) ||
-			    (d.point_defence && !m->mode))
+			if (m->get<WeaponState>().cooldown || !child.get<Equipment>().enabled ||
+			    structurally_disabled(ship, d.id) ||
+			    (d.get<WeaponDefinition>().point_defence && !m->get<WeaponState>().mode))
 				continue;
 			const auto target = weapon_contact(ship, *m, contacts_by_console);
 			if (!target)
@@ -221,31 +239,32 @@ void prepare_weapons(flecs::entity ship)
 				continue;
 			const auto lead = weapon_lead(ship, *m, *target, origin);
 			if (fixed::length(fixed::Vec{target->body.x, target->body.y} - origin) + std::abs(target->altitude) >
-			        d.range ||
+			        d.get<WeaponDefinition>().range ||
 			    std::abs(combat_delta(combat_bearing(lead - origin), orientation)) > d.arc / 2)
 				continue;
-			if (m->unloading)
+			if (m->get<WeaponState>().unloading)
 				continue;
-			if (d.family != "beam")
+			if (d.get<WeaponDefinition>().family != "beam")
 			{
-				const auto &name = d.magazines.at(m->selected_magazine);
+				const auto &name = d.get<WeaponDefinition>().magazines.at(m->get<WeaponState>().selected_magazine);
 				const auto mag = instance(ship, name)->entity;
 				const auto &a = mag.get<CombatMechanism>();
 				if (!mag.get<Equipment>().enabled || structurally_disabled(ship, name))
 					continue;
 				if (load_duration(ship, *m))
 				{
-					if (m->loaded_magazine != m->selected_magazine || m->unloading)
+					if (m->get<WeaponState>().loaded_magazine != m->get<WeaponState>().selected_magazine ||
+					    m->get<WeaponState>().unloading)
 						continue;
 				}
 				else
 				{
-					if (a.ammo - reserved[name] < d.ammo_use)
+					if (a.get<MagazineState>().ammo - reserved[name] < d.get<WeaponDefinition>().ammo_use)
 						continue;
-					reserved[name] += d.ammo_use;
+					reserved[name] += d.get<WeaponDefinition>().ammo_use;
 				}
 			}
-			m->ready = true;
+			m->get<WeaponState>().ready = true;
 		}
 }
 void fire_weapons(flecs::entity ship)
@@ -255,7 +274,7 @@ void fire_weapons(flecs::entity ship)
 	const auto id = ship.get<StableId>().id;
 	for (auto child : ship.get<EquipmentIndex>().values)
 		if (auto *m = child.try_get_mut<CombatMechanism>();
-		    m && m->definition.kind == OperatingSystem::Weapon && m->ready)
+		    m && m->definition.kind == OperatingSystem::Weapon && m->get<WeaponState>().ready)
 		{
 			const auto &d = m->definition;
 			if (!child.get<Equipment>().enabled || structurally_disabled(ship, d.id))
@@ -276,28 +295,31 @@ void fire_weapons(flecs::entity ship)
 				continue;
 			const auto lead = weapon_lead(ship, *m, *target, origin);
 			auto bearing = combat_bearing(lead - origin);
-			if (d.family == "beam")
+			if (d.get<WeaponDefinition>().family == "beam")
 			{
 				fire_beam(ship, child, origin, bearing);
 				continue;
 			}
-			auto &a = instance(ship, d.magazines.at(m->selected_magazine))->entity.get_mut<CombatMechanism>();
+			auto &a = instance(ship, d.get<WeaponDefinition>().magazines.at(m->get<WeaponState>().selected_magazine))
+			              ->entity.get_mut<CombatMechanism>();
 			if (load_duration(ship, *m))
 			{
-				if (m->loaded_magazine < 0)
+				if (m->get<WeaponState>().loaded_magazine < 0)
 					continue;
-				a.reserved_return -= d.ammo_use;
-				m->loaded_magazine = -1;
+				a.get<MagazineState>().reserved_return -= d.get<WeaponDefinition>().ammo_use;
+				m->get<WeaponState>().loaded_magazine = -1;
 			}
 			else
 			{
-				if (a.ammo < d.ammo_use)
+				if (a.get<MagazineState>().ammo < d.get<WeaponDefinition>().ammo_use)
 					continue;
-				a.ammo -= d.ammo_use;
+				a.get<MagazineState>().ammo -= d.get<WeaponDefinition>().ammo_use;
 			}
-			const auto interval = a.definition.interval ? a.definition.interval : d.interval;
-			m->cooldown = std::max<std::int64_t>(1, interval * 1000 / fault_effectiveness(ship, d.id));
-			++m->shots;
+			const auto interval =
+			    a.definition.ammunition().interval ? a.definition.ammunition().interval : d.ammunition().interval;
+			m->get<WeaponState>().cooldown =
+			    std::max<std::int64_t>(1, interval * 1000 / fault_effectiveness(ship, d.id));
+			++m->get<WeaponState>().shots;
 			auto &s = ship.get_mut<CombatStructure>();
 			s.random = s.random * 6364136223846793005ULL + 1;
 			auto payload = weapon_payload(ship, *m);
@@ -310,7 +332,7 @@ void fire_weapons(flecs::entity ship)
 			p.definition = payload;
 			p.id = next_projectile++;
 			p.source = id;
-			p.target = m->target;
+			p.target = m->target();
 			p.position = origin;
 			p.heading = bearing;
 			p.base_heading = bearing;
@@ -322,7 +344,7 @@ void fire_weapons(flecs::entity ship)
 			p.random = s.random;
 			p.initial_distance =
 			    std::max<std::int64_t>(1, fixed::length(fixed::Vec{target->body.x, target->body.y} - origin));
-			if (m->intercept && m->mode == 1)
+			if (m->get<WeaponState>().intercept && m->get<WeaponState>().mode == 1)
 				p.vz = (target->altitude + target->vz * p.initial_distance / std::max<std::int64_t>(1, payload.speed)) *
 				       payload.speed / p.initial_distance;
 			ecs.entity().set<Projectile>(p).set<Destructible>({payload.destruction, payload.durability});

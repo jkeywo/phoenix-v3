@@ -96,26 +96,28 @@ bool operate_combat(flecs::entity ship, flecs::entity child, OperatingRequest ou
 	}
 	if (output.action == OperatingAction::MagazineSelect && m.definition.kind == OperatingSystem::Weapon)
 	{
-		if (output.value < 0 || output.value >= static_cast<std::int64_t>(m.definition.magazines.size()))
+		if (output.value < 0 ||
+		    output.value >= static_cast<std::int64_t>(m.definition.get<WeaponDefinition>().magazines.size()))
 			return false;
-		if (execute && m.selected_magazine != output.value)
+		if (execute && m.get<WeaponState>().selected_magazine != output.value)
 		{
-			if (m.loaded_magazine >= 0 && !m.unloading)
-				m.unloading = load_duration(ship, m, m.loaded_magazine);
-			m.selected_magazine = output.value;
-			m.loading = 0;
+			if (m.get<WeaponState>().loaded_magazine >= 0 && !m.get<WeaponState>().unloading)
+				m.get<WeaponState>().unloading = load_duration(ship, m, m.get<WeaponState>().loaded_magazine);
+			m.get<WeaponState>().selected_magazine = output.value;
+			m.get<WeaponState>().loading = 0;
 		}
 		return true;
 	}
-	if (output.action == OperatingAction::WeaponMode && m.definition.point_defence)
+	if (output.action == OperatingAction::WeaponMode && m.definition.kind == OperatingSystem::Weapon &&
+	    m.definition.get<WeaponDefinition>().point_defence)
 	{
 		if (output.value < 0 || output.value > 2)
 			return false;
 		if (execute)
 		{
-			m.mode = output.value;
-			if (m.mode != 2)
-				m.target = 0;
+			m.get<WeaponState>().mode = output.value;
+			if (m.get<WeaponState>().mode != 2)
+				m.target() = 0;
 		}
 		return true;
 	}
@@ -124,7 +126,7 @@ bool operate_combat(flecs::entity ship, flecs::entity child, OperatingRequest ou
 		if (output.value < 0 || output.value > 1)
 			return false;
 		if (execute)
-			m.discharge = output.value != 0;
+			m.get<ShieldState>().discharge = output.value != 0;
 		return true;
 	}
 	if (output.action == OperatingAction::RepairSystem && m.definition.kind == OperatingSystem::RepairTeam)
@@ -134,15 +136,15 @@ bool operate_combat(flecs::entity ship, flecs::entity child, OperatingRequest ou
 			return false;
 		if (execute)
 		{
-			m.repair_system = output.value - 1;
-			m.repair_auto = output.value == 0;
+			m.get<RepairState>().repair_system = output.value - 1;
+			m.get<RepairState>().repair_auto = output.value == 0;
 			if (!output.value)
-				m.destination = -1;
+				m.get<RepairState>().destination = -1;
 			if (output.value)
 			{
 				auto it = s.definition.equipment_compartments.begin();
-				std::advance(it, m.repair_system);
-				m.destination = s.definition.compartment_ids.at(it->second);
+				std::advance(it, m.get<RepairState>().repair_system);
+				m.get<RepairState>().destination = s.definition.compartment_ids.at(it->second);
 			}
 		}
 		return true;
@@ -165,18 +167,20 @@ bool operate_combat(flecs::entity ship, flecs::entity child, OperatingRequest ou
 		}
 		if (execute)
 		{
-			m.target = target;
-			if (m.definition.point_defence)
-				m.mode = target ? 2 : 1;
-			if (target && !m.definition.turret.empty())
+			m.target() = target;
+			if (m.definition.get<WeaponDefinition>().point_defence)
+				m.get<WeaponState>().mode = target ? 2 : 1;
+			if (target && !m.definition.get<WeaponDefinition>().turret.empty())
 				for (auto other : ship.get<EquipmentIndex>().values)
 					if (auto *w = other.try_get_mut<CombatMechanism>())
 					{
-						if (w->definition.id == m.definition.turret)
-							w->target = target;
+						if (w->definition.id == m.definition.get<WeaponDefinition>().turret)
+							w->target() = target;
 						if (w->definition.kind == OperatingSystem::Weapon &&
-						    w->definition.turret == m.definition.turret && w->target)
-							w->target = target;
+						    w->definition.get<WeaponDefinition>().turret ==
+						        m.definition.get<WeaponDefinition>().turret &&
+						    w->target())
+							w->target() = target;
 					}
 		}
 		return true;
@@ -188,9 +192,9 @@ bool operate_combat(flecs::entity ship, flecs::entity child, OperatingRequest ou
 			return false;
 		if (execute)
 		{
-			m.destination = output.value - 1;
-			m.repair_auto = output.value == 0;
-			m.repair_system = -1;
+			m.get<RepairState>().destination = output.value - 1;
+			m.get<RepairState>().repair_auto = output.value == 0;
+			m.get<RepairState>().repair_system = -1;
 		}
 		return true;
 	}
@@ -225,19 +229,44 @@ void combat_telemetry(flecs::entity ship, flecs::entity child, std::map<std::str
 		v["enabled"] = 0;
 	if (const auto *m = child.try_get<CombatMechanism>())
 	{
-		v["target"] = m->target;
-		v["requested"] = m->definition.kind == OperatingSystem::RepairTeam ? m->destination + 1
-		                                                                   : static_cast<std::int64_t>(m->target);
-		v["ready"] = m->ready;
-		v["heading_mdeg"] = m->heading;
-		v["ammo"] = m->ammo;
-		v["capacity"] = m->definition.capacity;
-		v["reload_progress"] = m->refill;
-		v["reload_ticks"] = m->definition.refill_ticks;
-		v["shots"] = m->shots;
-		v["team_location"] = m->location;
-		v["team_destination"] = m->destination;
-		v["travel_remaining"] = m->travel;
+		// The public telemetry vocabulary remains stable; absent capabilities project neutral values.
+		for (const auto *key : {"target", "requested", "ready", "heading_mdeg", "ammo", "capacity", "reload_progress",
+		                        "shots", "team_location", "travel_remaining"})
+			v[key] = 0;
+		v["reload_ticks"] = 1;
+		v["team_destination"] = -1;
+		switch (m->definition.kind)
+		{
+		case OperatingSystem::Weapon:
+		{
+			const auto &w = m->get<WeaponState>();
+			v["target"] = v["requested"] = w.target;
+			v["ready"] = w.ready;
+			v["shots"] = w.shots;
+			break;
+		}
+		case OperatingSystem::Turret:
+			v["target"] = v["requested"] = m->get<TurretState>().target;
+			v["heading_mdeg"] = m->get<TurretState>().heading;
+			break;
+		case OperatingSystem::Magazine:
+			v["ammo"] = m->get<MagazineState>().ammo;
+			v["capacity"] = m->definition.reserve().capacity;
+			v["reload_progress"] = m->get<MagazineState>().refill;
+			v["reload_ticks"] = m->definition.get<MagazineDefinition>().refill_ticks;
+			break;
+		case OperatingSystem::RepairTeam:
+			v["requested"] = m->get<RepairState>().destination + 1;
+			v["team_location"] = m->get<RepairState>().location;
+			v["team_destination"] = m->get<RepairState>().destination;
+			v["travel_remaining"] = m->get<RepairState>().travel;
+			break;
+		case OperatingSystem::Shield:
+			v["capacity"] = m->definition.reserve().capacity;
+			break;
+		default:
+			break;
+		}
 	}
 }
 void apply_structural_disablement()
@@ -262,8 +291,8 @@ void prepare_combat(flecs::entity ship)
 		prepare_weapons(ship);
 	else
 		for (auto child : ship.get<EquipmentIndex>().values)
-			if (auto *m = child.try_get_mut<CombatMechanism>())
-				m->ready = false;
+			if (auto *m = child.try_get_mut<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Weapon)
+				m->get<WeaponState>().ready = false;
 }
 void request_combat_resources(flecs::entity ship)
 {
@@ -278,13 +307,19 @@ void request_combat_resources(flecs::entity ship)
 			const bool enabled = !duel_ended() && child.get<Equipment>().enabled && !structurally_disabled(ship, d.id);
 			const auto index = child.get<ResourceBinding>().slot;
 			if (d.kind == OperatingSystem::Magazine)
-				request_system_resource(
-				    *power, index, 0, false,
-				    enabled && d.reload == "energy" && m->ammo + m->reserved_return < d.capacity ? d.reload_energy : 0);
+				request_system_resource(*power, index, 0, false,
+				                        enabled && d.get<MagazineDefinition>().reload == "energy" &&
+				                                m->get<MagazineState>().ammo + m->get<MagazineState>().reserved_return <
+				                                    d.reserve().capacity
+				                            ? d.get<MagazineDefinition>().reload_energy
+				                            : 0);
 			if (d.kind == OperatingSystem::Weapon)
-				request_system_resource(*power, index, enabled && m->ready ? 1000 : 0,
-				                        enabled && m->ready && d.family != "beam",
-				                        enabled && d.point_defence && m->mode == 1 ? d.standby_energy : 0);
+				request_system_resource(
+				    *power, index, enabled && m->get<WeaponState>().ready ? 1000 : 0,
+				    enabled && m->get<WeaponState>().ready && d.get<WeaponDefinition>().family != "beam",
+				    enabled && d.get<WeaponDefinition>().point_defence && m->get<WeaponState>().mode == 1
+				        ? d.get<WeaponDefinition>().standby_energy
+				        : 0);
 		}
 }
 void actuate_combat(flecs::entity ship)
@@ -304,17 +339,20 @@ void actuate_combat(flecs::entity ship)
 			const auto &d = m->definition;
 			if (!child.get<Equipment>().enabled || structurally_disabled(ship, d.id))
 				continue;
-			if (d.kind == OperatingSystem::Magazine && d.reload != "none" && m->ammo + m->reserved_return < d.capacity)
+			if (d.kind == OperatingSystem::Magazine && d.get<MagazineDefinition>().reload != "none" &&
+			    m->get<MagazineState>().ammo + m->get<MagazineState>().reserved_return < d.reserve().capacity)
 			{
-				bool paid = d.reload == "infinite";
-				if (d.reload == "energy")
+				bool paid = d.get<MagazineDefinition>().reload == "infinite";
+				if (d.get<MagazineDefinition>().reload == "energy")
 					if (const auto *p = ship.try_get<ShipResources>())
 						paid = p->grants.at(child.get<ResourceBinding>().slot).supply_permille == 1000 &&
 						       !p->grants.at(child.get<ResourceBinding>().slot).blocked;
-				if (paid && ++m->refill >= d.refill_ticks)
+				if (paid && ++m->get<MagazineState>().refill >= d.get<MagazineDefinition>().refill_ticks)
 				{
-					m->ammo = std::min(d.capacity - m->reserved_return, m->ammo + d.refill_amount);
-					m->refill = 0;
+					m->get<MagazineState>().ammo =
+					    std::min(d.reserve().capacity - m->get<MagazineState>().reserved_return,
+					             m->get<MagazineState>().ammo + d.get<MagazineDefinition>().refill_amount);
+					m->get<MagazineState>().refill = 0;
 				}
 			}
 		}
@@ -478,31 +516,31 @@ void step_repairs()
 			{
 				if (!child.get<Equipment>().enabled || !fault_effectiveness(ship, m->definition.id))
 					continue;
-				if (m->travel > 0)
+				if (m->get<RepairState>().travel > 0)
 				{
-					if (--m->travel > 0)
+					if (--m->get<RepairState>().travel > 0)
 						continue;
-					m->location = m->edge_to;
-					m->edge_to = -1;
-					m->edge_total = 0;
+					m->get<RepairState>().location = m->get<RepairState>().edge_to;
+					m->get<RepairState>().edge_to = -1;
+					m->get<RepairState>().edge_total = 0;
 				}
 				// Inspection is performed whenever a team reaches a physical compartment.
 				for (auto &[equipment, states] : s.faults)
 					if (s.definition.compartment_ids.at(s.definition.equipment_compartments.at(equipment)) ==
-					    static_cast<std::size_t>(m->location))
+					    static_cast<std::size_t>(m->get<RepairState>().location))
 						for (auto &state : states)
 							if (state.active)
 								state.diagnosed = true;
-				if (m->repair_auto)
+				if (m->get<RepairState>().repair_auto)
 				{
 					std::tuple<std::int64_t, std::int64_t, std::int64_t> best{
 					    0, std::numeric_limits<std::int64_t>::min(), 0};
-					m->destination = -1;
+					m->get<RepairState>().destination = -1;
 					for (std::size_t i = 0; i < s.compartments.size(); ++i)
 					{
 						std::int64_t travel_cost = 0;
-						const auto route = repair_route(s, m->location, i, &travel_cost);
-						if (i != static_cast<std::size_t>(m->location) && route.first < 0)
+						const auto route = repair_route(s, m->get<RepairState>().location, i, &travel_cost);
+						if (i != static_cast<std::size_t>(m->get<RepairState>().location) && route.first < 0)
 							continue;
 						const auto score = repair_candidate(ship, i, {}, claimed).score;
 						if (!score)
@@ -511,28 +549,29 @@ void step_repairs()
 						if (key > best)
 						{
 							best = key;
-							m->destination = i;
+							m->get<RepairState>().destination = i;
 						}
 					}
 				}
-				if (m->destination < 0)
+				if (m->get<RepairState>().destination < 0)
 					continue;
-				if (m->destination != m->location)
+				if (m->get<RepairState>().destination != m->get<RepairState>().location)
 				{
-					const auto route = repair_route(s, m->location, m->destination);
-					m->edge_to = route.first;
-					m->travel = route.second;
-					m->edge_total = route.second;
+					const auto route =
+					    repair_route(s, m->get<RepairState>().location, m->get<RepairState>().destination);
+					m->get<RepairState>().edge_to = route.first;
+					m->get<RepairState>().travel = route.second;
+					m->get<RepairState>().edge_total = route.second;
 					continue;
 				}
 				std::string priority;
-				if (m->repair_system >= 0)
+				if (m->get<RepairState>().repair_system >= 0)
 				{
 					auto at = s.definition.equipment_compartments.begin();
-					std::advance(at, m->repair_system);
+					std::advance(at, m->get<RepairState>().repair_system);
 					priority = at->first;
 				}
-				const auto index = static_cast<std::size_t>(m->location);
+				const auto index = static_cast<std::size_t>(m->get<RepairState>().location);
 				const auto candidate = repair_candidate(ship, index, priority, claimed);
 				const auto &task = candidate.fault;
 				if (task)
@@ -540,7 +579,8 @@ void step_repairs()
 					claimed.insert(*task);
 					auto &f = s.faults.at(task->first)[task->second];
 					const auto &d = s.definition.faults.at(task->first)[task->second];
-					f.work += m->definition.repair_rate * 1000 * fault_effectiveness(ship, m->definition.id) / 1000;
+					f.work += m->definition.get<RepairDefinition>().repair_rate * 1000 *
+					          fault_effectiveness(ship, m->definition.id) / 1000;
 					if (f.work >= d.repair_work * rate * 1000)
 					{
 						f.active = false;
@@ -557,13 +597,16 @@ void step_repairs()
 			          {
 				          const auto &x = a.template get<CombatMechanism>().definition;
 				          const auto &y = b.template get<CombatMechanism>().definition;
-				          return x.repair_rate != y.repair_rate ? x.repair_rate > y.repair_rate : x.id < y.id;
+				          return x.get<RepairDefinition>().repair_rate != y.get<RepairDefinition>().repair_rate
+				                     ? x.get<RepairDefinition>().repair_rate > y.get<RepairDefinition>().repair_rate
+				                     : x.id < y.id;
 			          });
 			auto &c = s.compartments[index];
 			for (std::size_t rank = 0; rank < teams.size(); ++rank)
 			{
 				const auto &d = teams[rank].get<CombatMechanism>().definition;
-				c.work += d.repair_rate * 1000000 / (1000 + d.stack_penalty * static_cast<std::int64_t>(rank)) *
+				c.work += d.get<RepairDefinition>().repair_rate * 1000000 /
+				          (1000 + d.get<RepairDefinition>().stack_penalty * static_cast<std::int64_t>(rank)) *
 				          fault_effectiveness(ship, d.id) / 1000;
 			}
 			c.hp = std::min(s.definition.compartments[index].maximum, c.hp + c.work / (rate * 1000));
@@ -641,25 +684,29 @@ void project_combat(const ConsoleAddress &address, Observation &result) const
 			const auto &d = m->definition;
 			if (d.kind == OperatingSystem::RepairTeam && address.console == s->definition.repair_console)
 				output["teams"].push_back({{"id", d.id},
-				                           {"location", m->location},
-				                           {"destination", m->destination},
-				                           {"travel", m->travel},
-				                           {"edge_to", m->edge_to},
-				                           {"edge_total", m->edge_total}});
+				                           {"location", m->get<RepairState>().location},
+				                           {"destination", m->get<RepairState>().destination},
+				                           {"travel", m->get<RepairState>().travel},
+				                           {"edge_to", m->get<RepairState>().edge_to},
+				                           {"edge_total", m->get<RepairState>().edge_total}});
 			if (std::find(feeds.begin(), feeds.end(), d.id) == feeds.end())
 				continue;
 			if (d.kind == OperatingSystem::Weapon || d.kind == OperatingSystem::Turret)
 			{
-				auto heading = ship.get<Pose>().heading + (d.kind == OperatingSystem::Turret ? m->heading : d.bearing);
-				if (!d.turret.empty())
-					heading += instance(ship, d.turret)->entity.get<CombatMechanism>().heading;
+				auto heading = ship.get<Pose>().heading +
+				               (d.kind == OperatingSystem::Turret ? m->get<TurretState>().heading : d.bearing);
+				if (d.kind == OperatingSystem::Weapon && !d.get<WeaponDefinition>().turret.empty())
+					heading += instance(ship, d.get<WeaponDefinition>().turret)
+					               ->entity.get<CombatMechanism>()
+					               .get<TurretState>()
+					               .heading;
 				output["arcs"].push_back(
 				    {{"id", d.id},
 				     {"kind", std::string(operating_system_name(d.kind))},
 				     {"bearing_mdeg", combat_angle(heading)},
 				     {"rest_mdeg", combat_angle(ship.get<Pose>().heading + d.bearing)},
 				     {"arc_mdeg", d.arc},
-				     {"active", m->target != 0},
+				     {"active", m->target() != 0},
 				     {"disabled", structurally_disabled(ship, d.id) || !child.get<Equipment>().enabled}});
 			}
 		}
@@ -704,27 +751,29 @@ void project_combat(const ConsoleAddress &address, Observation &result) const
 				continue;
 			if (d.kind == OperatingSystem::Shield)
 				output["shields"].push_back({{"id", d.id},
-				                             {"strength", m->strength},
-				                             {"capacity", d.capacity},
-				                             {"warmup", m->warmup},
-				                             {"warmup_ticks", d.warmup_ticks},
+				                             {"strength", m->get<ShieldState>().strength},
+				                             {"capacity", d.reserve().capacity},
+				                             {"warmup", m->get<ShieldState>().warmup},
+				                             {"warmup_ticks", d.get<ShieldDefinition>().warmup_ticks},
 				                             {"arc_mdeg", d.arc},
 				                             {"bearing_mdeg", combat_angle(ship.get<Pose>().heading + d.bearing)},
-				                             {"layer", d.layer},
-				                             {"discharging", m->discharge}});
+				                             {"layer", d.get<ShieldDefinition>().layer},
+				                             {"discharging", m->get<ShieldState>().discharge}});
 			if (d.kind == OperatingSystem::Weapon)
 				output["weapons"].push_back(
 				    {{"id", d.id},
-				     {"magazines", d.magazines},
-				     {"selected", m->selected_magazine},
-				     {"loaded", m->loaded_magazine},
-				     {"loading", m->loading},
-				     {"unloading", m->unloading},
+				     {"magazines", d.get<WeaponDefinition>().magazines},
+				     {"selected", m->get<WeaponState>().selected_magazine},
+				     {"loaded", m->get<WeaponState>().loaded_magazine},
+				     {"loading", m->get<WeaponState>().loading},
+				     {"unloading", m->get<WeaponState>().unloading},
 				     {"load_ticks", load_duration(ship, *m)},
-				     {"unload_ticks", m->loaded_magazine < 0 ? 0 : load_duration(ship, *m, m->loaded_magazine)},
-				     {"mode", m->mode},
-				     {"point_defence", d.point_defence},
-				     {"intercept", m->intercept}});
+				     {"unload_ticks", m->get<WeaponState>().loaded_magazine < 0
+				                          ? 0
+				                          : load_duration(ship, *m, m->get<WeaponState>().loaded_magazine)},
+				     {"mode", m->get<WeaponState>().mode},
+				     {"point_defence", d.get<WeaponDefinition>().point_defence},
+				     {"intercept", m->get<WeaponState>().intercept}});
 		}
 	result.gameplay["combat"] = std::move(output);
 }
@@ -736,38 +785,12 @@ Json save_combat(flecs::entity ship) const
 		j["compartments"].push_back({{"hp", c.hp}, {"work", c.work}, {"disabled", c.disabled}});
 	for (auto child : ship.get<EquipmentIndex>().values)
 		if (const auto *m = child.try_get<CombatMechanism>())
-			j["systems"][m->definition.id] = {{"target", m->target},
-			                                  {"heading", m->heading},
-			                                  {"turn_remainder", m->turn_remainder},
-			                                  {"cooldown", m->cooldown},
-			                                  {"ammo", m->ammo},
-			                                  {"refill", m->refill},
-			                                  {"shots", m->shots},
-			                                  {"location", m->location},
-			                                  {"destination", m->destination},
-			                                  {"edge_to", m->edge_to},
-			                                  {"travel", m->travel},
-			                                  {"edge_total", m->edge_total},
-			                                  {"ready", m->ready},
-			                                  {"selected_magazine", m->selected_magazine},
-			                                  {"loaded_magazine", m->loaded_magazine},
-			                                  {"loading", m->loading},
-			                                  {"unloading", m->unloading},
-			                                  {"reserved_return", m->reserved_return},
-			                                  {"mode", m->mode},
-			                                  {"strength", m->strength},
-			                                  {"warmup", m->warmup},
-			                                  {"recharge_remainder", m->recharge_remainder},
-			                                  {"discharge_remainder", m->discharge_remainder},
-			                                  {"discharge_credit", m->discharge_credit},
-			                                  {"beam_remainder", m->beam_remainder},
-			                                  {"repair_system", m->repair_system},
-			                                  {"beam_tick", m->beam_tick},
-			                                  {"beam_end", m->beam_end},
-			                                  {"discharge", m->discharge},
-			                                  {"intercept", m->intercept},
-			                                  {"bypass_remainder", m->bypass_remainder},
-			                                  {"repair_auto", m->repair_auto}};
+			j["systems"][m->definition.id] = std::visit(
+			    [](const auto &state)
+			    {
+				    return Json(state);
+			    },
+			    m->state);
 	return j;
 }
 void restore_combat(flecs::entity ship, const Json &j)
@@ -804,78 +827,113 @@ void restore_combat(flecs::entity ship, const Json &j)
 		{
 			const auto &v = j.at("systems").at(m->definition.id);
 			const auto n = static_cast<std::int64_t>(s.compartments.size());
-			m->target = checked_integer(v.at("target"), 0, 1000000000, "weapon.target");
-			m->heading = checked_integer(v.at("heading"), 0, 359999, "turret.heading");
-			m->turn_remainder = checked_integer(v.at("turn_remainder"), 0, rate - 1, "turret.remainder");
-			m->cooldown = checked_integer(v.at("cooldown"), 0, 1000000000, "weapon.cooldown");
-			m->ammo = checked_integer(v.at("ammo"), 0, m->definition.capacity, "magazine.ammo");
-			m->refill = checked_integer(v.at("refill"), 0, m->definition.refill_ticks - 1, "magazine.refill");
-			m->shots = checked_integer(v.at("shots"), 0, 1000000000000LL, "weapon.shots");
-			m->location = checked_integer(v.at("location"), 0, n - 1, "team.location");
-			m->destination = checked_integer(v.at("destination"), -1, n - 1, "team.destination");
-			m->edge_to = checked_integer(v.at("edge_to"), -1, n - 1, "team.edge_to");
-			m->travel = checked_integer(v.at("travel"), 0, 1000000, "team.travel");
-			m->edge_total = checked_integer(v.at("edge_total"), 0, 1000000, "team.edge_total");
-			m->ready = v.at("ready");
-			m->selected_magazine = v.at("selected_magazine").get<decltype(m->selected_magazine)>();
-			m->loaded_magazine = v.at("loaded_magazine").get<decltype(m->loaded_magazine)>();
-			m->loading = v.at("loading").get<decltype(m->loading)>();
-			m->unloading = v.at("unloading");
-			m->reserved_return = v.at("reserved_return").get<decltype(m->reserved_return)>();
-			m->mode = v.at("mode").get<decltype(m->mode)>();
-			m->strength = v.at("strength").get<decltype(m->strength)>();
-			m->warmup = v.at("warmup").get<decltype(m->warmup)>();
-			m->recharge_remainder = v.at("recharge_remainder").get<decltype(m->recharge_remainder)>();
-			m->discharge_remainder = v.at("discharge_remainder").get<decltype(m->discharge_remainder)>();
-			m->discharge_credit = v.at("discharge_credit");
-			if (m->discharge_credit < 0 ||
-			    m->discharge_credit >= m->definition.recharge_energy * m->definition.discharge_efficiency ||
-			    m->discharge_remainder < 0)
-				throw std::runtime_error("Invalid shield conversion progress");
-			m->beam_remainder = v.at("beam_remainder").get<decltype(m->beam_remainder)>();
-			m->repair_system = v.at("repair_system").get<decltype(m->repair_system)>();
-			m->beam_tick = v.at("beam_tick").get<decltype(m->beam_tick)>();
-			m->beam_end = v.at("beam_end").get<decltype(m->beam_end)>();
-			m->discharge = v.at("discharge").get<decltype(m->discharge)>();
-			m->intercept = v.at("intercept").get<decltype(m->intercept)>();
-			m->bypass_remainder = v.at("bypass_remainder");
-			m->repair_auto = v.at("repair_auto");
-			if (m->selected_magazine < 0 ||
-			    (!m->definition.magazines.empty() &&
-			     m->selected_magazine >= static_cast<std::int64_t>(m->definition.magazines.size())) ||
-			    m->loaded_magazine < -1 ||
-			    m->loaded_magazine >= static_cast<std::int64_t>(m->definition.magazines.size()) ||
-			    m->reserved_return < 0 || m->ammo + m->reserved_return > m->definition.capacity || m->strength < 0 ||
-			    m->strength > m->definition.capacity || m->warmup < 0 || m->warmup > m->definition.warmup_ticks ||
-			    m->mode < 0 || m->mode > 2)
-				throw std::runtime_error("Invalid extended combat state");
-
-			if ((m->travel > 0) != (m->edge_to >= 0) || m->travel > m->edge_total)
-				throw std::runtime_error("Invalid team traversal");
+			std::visit(
+			    [&](auto &state)
+			    {
+				    using State = std::decay_t<decltype(state)>;
+				    state = v.get<State>();
+				    if (Json(state) != v)
+					    throw std::runtime_error("Unexpected combat state fields");
+			    },
+			    m->state);
+			const auto bounded = [&](const char *key, std::int64_t low, std::int64_t high)
+			{
+				checked_integer(v.at(key), low, high, m->definition.id + "." + key);
+			};
+			switch (m->definition.kind)
+			{
+			case OperatingSystem::Weapon:
+			{
+				const auto &w = m->get<WeaponState>();
+				bounded("target", 0, 1000000000);
+				bounded("cooldown", 0, 1000000000);
+				bounded("shots", 0, 1000000000000LL);
+				bounded(
+				    "selected_magazine", 0,
+				    std::max<std::int64_t>(0, m->definition.get<WeaponDefinition>().magazines.size() -
+				                                  (m->definition.get<WeaponDefinition>().magazines.empty() ? 0 : 1)));
+				bounded("loaded_magazine", -1,
+				        static_cast<std::int64_t>(m->definition.get<WeaponDefinition>().magazines.size()) - 1);
+				bounded("mode", 0, 2);
+				bounded("beam_remainder", 0, rate * 1000 - 1);
+				bounded("beam_tick", -1, 1000000000000LL);
+				bounded("bypass_remainder", 0, 999);
+				if (w.loading < 0 || w.unloading < 0)
+					throw std::runtime_error("Invalid ammunition progress");
+				break;
+			}
+			case OperatingSystem::Turret:
+				bounded("target", 0, 1000000000);
+				bounded("heading", 0, 359999);
+				bounded("turn_remainder", 0, rate - 1);
+				break;
+			case OperatingSystem::Magazine:
+			{
+				const auto &a = m->get<MagazineState>();
+				bounded("ammo", 0, m->definition.reserve().capacity);
+				bounded("refill", 0, m->definition.get<MagazineDefinition>().refill_ticks - 1);
+				bounded("reserved_return", 0, m->definition.reserve().capacity);
+				if (a.ammo + a.reserved_return > m->definition.reserve().capacity)
+					throw std::runtime_error("Invalid magazine reservation");
+				break;
+			}
+			case OperatingSystem::RepairTeam:
+			{
+				const auto &r = m->get<RepairState>();
+				bounded("location", 0, n - 1);
+				bounded("destination", -1, n - 1);
+				bounded("edge_to", -1, n - 1);
+				bounded("travel", 0, 1000000);
+				bounded("edge_total", 0, 1000000);
+				bounded("repair_system", -1, static_cast<std::int64_t>(s.definition.equipment_compartments.size()) - 1);
+				if ((r.travel > 0) != (r.edge_to >= 0) || r.travel > r.edge_total)
+					throw std::runtime_error("Invalid team traversal");
+				break;
+			}
+			case OperatingSystem::Shield:
+				bounded("strength", 0, m->definition.reserve().capacity);
+				bounded("warmup", 0, m->definition.get<ShieldDefinition>().warmup_ticks);
+				bounded("recharge_remainder", 0, rate * 1000 - 1);
+				bounded("discharge_remainder", 0, rate * 1000);
+				bounded("discharge_credit", 0,
+				        m->definition.get<ShieldDefinition>().recharge_energy *
+				                m->definition.get<ShieldDefinition>().discharge_efficiency -
+				            1);
+				break;
+			default:
+				throw std::runtime_error("Unexpected combat mechanism");
+			}
 		}
+
 	std::map<std::string, std::int64_t> reserved;
 	for (auto child : ship.get<EquipmentIndex>().values)
 		if (const auto *m = child.try_get<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Weapon)
 		{
-			if (m->loaded_magazine >= 0)
+			if (m->get<WeaponState>().loaded_magazine >= 0)
 			{
-				if ((!m->unloading && m->loaded_magazine != m->selected_magazine) ||
-				    !load_duration(ship, *m, m->loaded_magazine))
+				if ((!m->get<WeaponState>().unloading &&
+				     m->get<WeaponState>().loaded_magazine != m->get<WeaponState>().selected_magazine) ||
+				    !load_duration(ship, *m, m->get<WeaponState>().loaded_magazine))
 					throw std::runtime_error("Invalid loaded ammunition commitment");
-				reserved[m->definition.magazines.at(m->loaded_magazine)] += m->definition.ammo_use;
+				reserved[m->definition.get<WeaponDefinition>().magazines.at(m->get<WeaponState>().loaded_magazine)] +=
+				    m->definition.get<WeaponDefinition>().ammo_use;
 			}
-			if (m->unloading < 0 ||
-			    (m->unloading &&
-			     (m->loaded_magazine < 0 || m->unloading > load_duration(ship, *m, m->loaded_magazine) || m->loading)))
+			if (m->get<WeaponState>().unloading < 0 ||
+			    (m->get<WeaponState>().unloading &&
+			     (m->get<WeaponState>().loaded_magazine < 0 ||
+			      m->get<WeaponState>().unloading > load_duration(ship, *m, m->get<WeaponState>().loaded_magazine) ||
+			      m->get<WeaponState>().loading)))
 				throw std::runtime_error("Invalid unload progress");
-			if (m->loading < 0 ||
-			    (load_duration(ship, *m) > 0 ? m->loading >= load_duration(ship, *m) : m->loading != 0) ||
-			    m->bypass_remainder < 0 || m->bypass_remainder >= 1000)
+			if (m->get<WeaponState>().loading < 0 ||
+			    (load_duration(ship, *m) > 0 ? m->get<WeaponState>().loading >= load_duration(ship, *m)
+			                                 : m->get<WeaponState>().loading != 0) ||
+			    m->get<WeaponState>().bypass_remainder < 0 || m->get<WeaponState>().bypass_remainder >= 1000)
 				throw std::runtime_error("Invalid weapon progress");
 		}
 	for (auto child : ship.get<EquipmentIndex>().values)
 		if (const auto *m = child.try_get<CombatMechanism>();
-		    m && m->definition.kind == OperatingSystem::Magazine && m->reserved_return != reserved[m->definition.id])
+		    m && m->definition.kind == OperatingSystem::Magazine &&
+		    m->get<MagazineState>().reserved_return != reserved[m->definition.id])
 			throw std::runtime_error("Unbalanced magazine return reservation");
 	if (combat_dead(ship))
 		ship.remove<Movable>();
@@ -1006,7 +1064,7 @@ void run_combat_controller(flecs::entity entity, std::size_t index)
 			if (!spec.consumers.empty())
 				if (const auto *m =
 				        entity.get<EquipmentIndex>().values.at(spec.consumers.front()).try_get<CombatMechanism>();
-				    m && m->definition.point_defence)
+				    m && m->definition.get<WeaponDefinition>().point_defence)
 					value = 0;
 			break;
 		case OperatingAction::Heading:
@@ -1034,13 +1092,16 @@ void run_combat_controller(flecs::entity entity, std::size_t index)
 			if (!m)
 				continue;
 			std::int64_t best_range = std::numeric_limits<std::int64_t>::max();
-			for (std::size_t i = 0; i < m->definition.magazines.size(); ++i)
+			for (std::size_t i = 0; i < m->definition.get<WeaponDefinition>().magazines.size(); ++i)
 			{
-				const auto &mag = instance(entity, m->definition.magazines[i])->entity.get<CombatMechanism>();
-				if (mag.ammo < m->definition.ammo_use && m->loaded_magazine != static_cast<std::int64_t>(i))
+				const auto &mag =
+				    instance(entity, m->definition.get<WeaponDefinition>().magazines[i])->entity.get<CombatMechanism>();
+				if (mag.get<MagazineState>().ammo < m->definition.get<WeaponDefinition>().ammo_use &&
+				    m->get<WeaponState>().loaded_magazine != static_cast<std::int64_t>(i))
 					continue;
-				const auto &p =
-				    mag.definition.projectile.visual.empty() ? m->definition.projectile : mag.definition.projectile;
+				const auto &p = mag.definition.ammunition().projectile.visual.empty()
+				                    ? m->definition.ammunition().projectile
+				                    : mag.definition.ammunition().projectile;
 				const auto reach = p.speed * p.lifetime / rate;
 				if (reach >= nearest && reach < best_range)
 				{

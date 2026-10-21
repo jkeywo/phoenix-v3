@@ -8,6 +8,7 @@ module;
 #include <span>
 #include <string>
 #include <vector>
+#include <variant>
 
 export module phoenix.content;
 export import phoenix.data;
@@ -425,22 +426,102 @@ struct FaultDefinition
 	std::int64_t chance = 0, threshold = 1, severity = 1, effectiveness = 500, repair_work = 100;
 	bool destroys = false;
 };
-struct CombatSystemDefinition
+struct AmmunitionDefinition
 {
-	std::string id, compartment, magazine, turret, marker, visual;
-	OperatingSystem kind = OperatingSystem::Weapon;
-	std::int64_t x = 0, y = 0, bearing = 0, arc = 360000, traverse = 0, interval = 1, ammo_use = 1;
-	std::int64_t capacity = 0, initial = 0, refill_ticks = 1, refill_amount = 0, reload_energy = 0, repair_rate = 0,
-	             stack_penalty = 500;
-	std::string reload = "none", family = "projectile";
-	std::int64_t scale_permille = 1000;
-	bool flip_y = false, point_defence = false;
+	std::int64_t interval = 1, load_ticks = 0;
+	ProjectileDefinition projectile;
+};
+struct ReserveDefinition
+{
+	std::int64_t capacity = 0, initial = 0;
+};
+struct WeaponDefinition
+{
+	AmmunitionDefinition ammunition;
+	std::string magazine, turret, family = "projectile";
+	std::int64_t ammo_use = 1, range = 0, beam_damage = 0, standby_energy = 0;
+	bool point_defence = false;
 	std::vector<std::string> magazines, intercept_classes;
-	std::int64_t load_ticks = 0, range = 0, beam_damage = 0, standby_energy = 0;
+};
+struct TurretDefinition
+{
+	std::string marker, visual;
+	std::int64_t traverse = 0, scale_permille = 1000;
+	bool flip_y = false;
+};
+struct MagazineDefinition
+{
+	AmmunitionDefinition ammunition;
+	ReserveDefinition reserve;
+	std::string reload = "none";
+	std::int64_t refill_ticks = 1, refill_amount = 0, reload_energy = 0;
+};
+struct RepairDefinition
+{
+	std::int64_t repair_rate = 0, stack_penalty = 500;
+};
+struct ShieldDefinition
+{
+	ReserveDefinition reserve;
 	std::int64_t sustain_energy = 0, recharge_energy = 1, recharge_rate = 0, off_recharge_rate = 0;
 	std::int64_t warmup_ticks = 1, layer = 0, discharge_rate = 0, discharge_efficiency = 1000;
-	ProjectileDefinition projectile;
+};
+struct CombatSystemDefinition
+{
+	std::string id, compartment;
+	OperatingSystem kind = OperatingSystem::Weapon;
+	std::int64_t x = 0, y = 0, bearing = 0, arc = 360000;
+	std::variant<WeaponDefinition, TurretDefinition, MagazineDefinition, RepairDefinition, ShieldDefinition> details;
 	std::vector<FaultDefinition> faults;
+	explicit CombatSystemDefinition(OperatingSystem type = OperatingSystem::Weapon) : kind(type)
+	{
+		switch (type)
+		{
+		case OperatingSystem::Weapon:
+			details = WeaponDefinition{};
+			break;
+		case OperatingSystem::Turret:
+			details = TurretDefinition{};
+			break;
+		case OperatingSystem::Magazine:
+			details = MagazineDefinition{};
+			break;
+		case OperatingSystem::RepairTeam:
+			details = RepairDefinition{};
+			break;
+		case OperatingSystem::Shield:
+			details = ShieldDefinition{};
+			break;
+		default:
+			break;
+		}
+	}
+	template <class T> T &get()
+	{
+		return std::get<T>(details);
+	}
+	template <class T> const T &get() const
+	{
+		return std::get<T>(details);
+	}
+	AmmunitionDefinition &ammunition()
+	{
+		return kind == OperatingSystem::Magazine ? get<MagazineDefinition>().ammunition
+		                                         : get<WeaponDefinition>().ammunition;
+	}
+	const AmmunitionDefinition &ammunition() const
+	{
+		return kind == OperatingSystem::Magazine ? get<MagazineDefinition>().ammunition
+		                                         : get<WeaponDefinition>().ammunition;
+	}
+	ReserveDefinition &reserve()
+	{
+		return kind == OperatingSystem::Shield ? get<ShieldDefinition>().reserve : get<MagazineDefinition>().reserve;
+	}
+	const ReserveDefinition &reserve() const
+	{
+		return kind == OperatingSystem::Shield ? get<ShieldDefinition>().reserve : get<MagazineDefinition>().reserve;
+	}
 };
 struct CombatDefinition
 {

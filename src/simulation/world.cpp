@@ -43,6 +43,15 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(ProjectileDefinition, visual, sp
                                                 seeker_range, arc_height, chaos, tracer, durability, radius, resistance,
                                                 blast_radius, fuse_radius, destruction)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(FaultState, active, diagnosed, work, generation)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(WeaponState, target, cooldown, shots, ready, selected_magazine, loaded_magazine,
+                                   loading, unloading, mode, beam_remainder, beam_tick, bypass_remainder, beam_end,
+                                   intercept)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(TurretState, target, heading, turn_remainder)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MagazineState, ammo, refill, reserved_return)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(RepairState, location, destination, edge_to, travel, edge_total, repair_system,
+                                   repair_auto)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ShieldState, strength, warmup, recharge_remainder, discharge_remainder,
+                                   discharge_credit, discharge)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Destructible, definition, durability, destroyed_tick, processed)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(BlastVisual, id, position, altitude, tick, definition, kind, bearing, arc)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ConsoleAddress, ship, console)
@@ -754,11 +763,27 @@ struct World::Impl
 			{
 				CombatMechanism mechanism;
 				mechanism.definition = data.combat->systems.at(data.combat->system_ids.at(v.id));
-				mechanism.ammo = mechanism.definition.initial;
-				mechanism.strength = mechanism.definition.initial;
-				mechanism.heading = mechanism.definition.bearing;
-				mechanism.location =
-				    static_cast<std::int64_t>(data.combat->compartment_ids.at(mechanism.definition.compartment));
+				switch (mechanism.definition.kind)
+				{
+				case OperatingSystem::Weapon:
+					mechanism.state = WeaponState{};
+					break;
+				case OperatingSystem::Turret:
+					mechanism.state = TurretState{0, mechanism.definition.bearing};
+					break;
+				case OperatingSystem::Magazine:
+					mechanism.state = MagazineState{mechanism.definition.reserve().initial};
+					break;
+				case OperatingSystem::Shield:
+					mechanism.state = ShieldState{mechanism.definition.reserve().initial};
+					break;
+				case OperatingSystem::RepairTeam:
+					mechanism.state = RepairState{
+					    static_cast<std::int64_t>(data.combat->compartment_ids.at(mechanism.definition.compartment))};
+					break;
+				default:
+					throw std::runtime_error("Unsupported combat mechanism");
+				}
 				child.set<CombatMechanism>(std::move(mechanism));
 			}
 			if (v.engine)
@@ -2376,8 +2401,10 @@ std::vector<SceneBody> World::scene() const
 				    m && m->definition.kind == OperatingSystem::Turret)
 				{
 					const auto &d = m->definition;
-					item.attachments.push_back({d.id, d.visual, d.marker, combat_angle(body.heading + m->heading),
-					                            d.scale_permille / 1000.f, d.flip_y});
+					item.attachments.push_back(
+					    {d.id, d.get<TurretDefinition>().visual, d.get<TurretDefinition>().marker,
+					     combat_angle(body.heading + m->get<TurretState>().heading),
+					     d.get<TurretDefinition>().scale_permille / 1000.f, d.get<TurretDefinition>().flip_y});
 				}
 		}
 		result.push_back(std::move(item));
@@ -2409,7 +2436,9 @@ std::vector<SceneBody> World::scene() const
 	for (const auto &[id, ship] : impl_->combat_rows())
 		for (auto child : ship.get<EquipmentIndex>().values)
 			if (const auto *m = child.try_get<CombatMechanism>();
-			    m && m->definition.family == "beam" && m->beam_tick == static_cast<std::int64_t>(ticks()))
+			    m && m->definition.kind == OperatingSystem::Weapon &&
+			    m->definition.get<WeaponDefinition>().family == "beam" &&
+			    m->get<WeaponState>().beam_tick == static_cast<std::int64_t>(ticks()))
 			{
 				const auto [origin, heading] = impl_->weapon_mount(ship, *m);
 				SceneBody beam;
@@ -2417,8 +2446,8 @@ std::vector<SceneBody> World::scene() const
 				beam.definition = ship.get<Definition>().name;
 				beam.x = origin.x;
 				beam.y = origin.y;
-				beam.line_end_x = m->beam_end.x;
-				beam.line_end_y = m->beam_end.y;
+				beam.line_end_x = m->get<WeaponState>().beam_end.x;
+				beam.line_end_y = m->get<WeaponState>().beam_end.y;
 				beam.line_style = 1;
 				result.push_back(beam);
 			}
@@ -2631,8 +2660,9 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 							continue;
 						std::vector<std::string> labels;
 						if (channel.action == OperatingAction::MagazineSelect)
-							labels = mechanism->definition.magazines;
-						if (channel.action == OperatingAction::WeaponMode && mechanism->definition.point_defence)
+							labels = mechanism->definition.get<WeaponDefinition>().magazines;
+						if (channel.action == OperatingAction::WeaponMode &&
+						    mechanism->definition.get<WeaponDefinition>().point_defence)
 							labels = {"Off", "Auto", "Manual"};
 						if (channel.action == OperatingAction::RepairSystem)
 						{

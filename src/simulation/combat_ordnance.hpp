@@ -211,8 +211,8 @@ void fire_beam(flecs::entity ship, flecs::entity child, fixed::Vec origin, std::
 {
 	auto &m = child.get_mut<CombatMechanism>();
 	const auto &d = m.definition;
-	m.beam_tick = ecs.get<Clock>().tick;
-	m.beam_end = origin + fixed::scale(fixed::direction(bearing), d.range);
+	m.get<WeaponState>().beam_tick = ecs.get<Clock>().tick;
+	m.get<WeaponState>().beam_end = origin + fixed::scale(fixed::direction(bearing), d.get<WeaponDefinition>().range);
 	std::int64_t nearest = fixed::unit + 1;
 	EntityId victim = 0;
 	bodies.each(
@@ -223,7 +223,7 @@ void fire_beam(flecs::entity ship, flecs::entity child, fixed::Vec origin, std::
 		    CollisionBody target;
 		    static_cast<Pose &>(target) = pose;
 		    static_cast<Collider &>(target) = e.get<Collider>();
-		    if (auto hit = volume_hit(origin, m.beam_end, 0, 0, target, pose.position, 0, 0,
+		    if (auto hit = volume_hit(origin, m.get<WeaponState>().beam_end, 0, 0, target, pose.position, 0, 0,
 		                              definitions.at(e.get<Definition>().name).half_height);
 		        hit && std::pair{*hit, id.id} < std::pair{nearest, victim})
 		    {
@@ -231,14 +231,14 @@ void fire_beam(flecs::entity ship, flecs::entity child, fixed::Vec origin, std::
 			    victim = id.id;
 		    }
 	    });
-	const auto full_end = m.beam_end;
+	const auto full_end = m.get<WeaponState>().beam_end;
 	if (victim)
-		m.beam_end = origin + fixed::Vec{(full_end.x - origin.x) * nearest / fixed::unit,
-		                                 (full_end.y - origin.y) * nearest / fixed::unit};
-	m.beam_remainder += d.beam_damage * fault_effectiveness(ship, d.id);
-	const auto damage = m.beam_remainder / (rate * 1000);
-	m.beam_remainder %= rate * 1000;
-	++m.shots;
+		m.get<WeaponState>().beam_end = origin + fixed::Vec{(full_end.x - origin.x) * nearest / fixed::unit,
+		                                                    (full_end.y - origin.y) * nearest / fixed::unit};
+	m.get<WeaponState>().beam_remainder += d.get<WeaponDefinition>().beam_damage * fault_effectiveness(ship, d.id);
+	const auto damage = m.get<WeaponState>().beam_remainder / (rate * 1000);
+	m.get<WeaponState>().beam_remainder %= rate * 1000;
+	++m.get<WeaponState>().shots;
 	if (!victim || !damage)
 		return;
 	auto target = entities.at(victim);
@@ -247,12 +247,12 @@ void fire_beam(flecs::entity ship, flecs::entity child, fixed::Vec origin, std::
 		Projectile p;
 		p.damage = damage;
 		p.continuous = true;
-		p.bypass_remainder = m.bypass_remainder;
-		p.penetration = d.projectile.penetration;
-		p.definition = d.projectile;
+		p.bypass_remainder = m.get<WeaponState>().bypass_remainder;
+		p.penetration = d.ammunition().projectile.penetration;
+		p.definition = d.ammunition().projectile;
 		p.heading = bearing;
 		penetrate(p, target, origin, full_end);
-		m.bypass_remainder = p.bypass_remainder;
+		m.get<WeaponState>().bypass_remainder = p.bypass_remainder;
 	}
 	else if (auto *v = target.try_get_mut<Destructible>(); v && v->durability > 0)
 	{
