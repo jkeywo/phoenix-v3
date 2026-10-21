@@ -3324,9 +3324,13 @@ void World::restore(const Catalog &content, const Json &saved)
 	for (auto &[id, rock] : candidate.impl_->field_rocks)
 		candidate.impl_->unload_rock(rock);
 	candidate.impl_->field_rocks.clear();
+	candidate.impl_->index_contacts.run();
 	if (saved.at("schema") >= 4 && candidate.impl_->scenario)
 	{
-		candidate.impl_->scenario->restore(content, saved.at("map"), saved.at("scenario"));
+		const auto event_source = candidate.impl_->conversation_instance;
+		if (saved.at("conversation_starts").at("instance") != event_source)
+			throw std::runtime_error("Saved scenario event source mismatch");
+		candidate.impl_->scenario->restore(content, saved.at("map"), saved.at("scenario"), event_source);
 		for (const auto &[id, definition] : candidate.impl_->scenario->runtime().spawned_entities())
 			if (candidate.impl_->entities.contains(id))
 				throw std::runtime_error("Spawned identity overlaps initial entity");
@@ -3500,6 +3504,13 @@ void World::restore(const Catalog &content, const Json &saved)
 			candidate.impl_->away[a] = entry.at("value");
 		}
 	}
+	// Restore physical field entities and their index before display/Comms
+	// reconstruction can capture a Console observation.
+	if (saved.contains("asteroid_fields"))
+		candidate.impl_->restore_fields(saved.at("asteroid_fields"));
+	else
+		candidate.impl_->stream_fields();
+	candidate.impl_->index_contacts.run();
 	for (const auto &[console, address] : saved.at("claims").get<std::map<std::uint64_t, ConsoleAddress>>())
 	{
 		const auto *seat = candidate.impl_->entities.contains(address.ship)
@@ -3529,7 +3540,8 @@ void World::restore(const Catalog &content, const Json &saved)
 
 	if (saved.at("schema") >= 4)
 		for (const auto &[id, entity] : candidate.impl_->entities)
-			candidate.impl_->refresh_control(id, false);
+			if (entity.has<EntityControls>())
+				candidate.impl_->refresh_control(id, false);
 	auto tick = saved.at("tick").get<std::int64_t>();
 	if (tick < 0)
 		throw std::runtime_error("Saved state invalid tick");
@@ -3542,10 +3554,6 @@ void World::restore(const Catalog &content, const Json &saved)
 	candidate.impl_->sensor_discoveries =
 	    saved.value("sensor_discoveries", std::set<std::tuple<EntityId, EntityId, std::string>>{});
 	candidate.impl_->restore_conversation_starts(saved.at("conversation_starts"));
-	if (saved.contains("asteroid_fields"))
-		candidate.impl_->restore_fields(saved.at("asteroid_fields"));
-	else
-		candidate.impl_->stream_fields();
 	candidate.impl_->restore_projectiles(saved);
 	candidate.impl_->blast_visuals = saved.value("blast_visuals", Json::array()).get<std::vector<BlastVisual>>();
 	candidate.impl_->next_blast = saved.value("next_blast", std::uint64_t{1});

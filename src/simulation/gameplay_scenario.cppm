@@ -82,7 +82,8 @@ public:
 	const ScenarioRuntime &runtime() const;
 	const std::map<ScenarioId, ScenarioTreeController> &controllers() const;
 	Json save() const;
-	void restore(const Catalog &catalog, const std::string &map, const Json &saved);
+	// World-owned event sources have no state-tree Controller.
+	void restore(const Catalog &catalog, const std::string &map, const Json &saved, ScenarioId event_source = 0);
 
 private:
 	ScenarioRuntime runtime_;

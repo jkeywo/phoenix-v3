@@ -129,6 +129,10 @@ public:
 	{
 		return {};
 	}
+	virtual std::string preparation_phase() const
+	{
+		return {};
+	}
 	virtual void start(const GameSetup &setup) = 0;
 	virtual void prepare_lobby(const GameSetup &setup)
 	{

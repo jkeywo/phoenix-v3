@@ -983,6 +983,8 @@ GameScreen::Loading GameScreen::preload(Application &app)
 	s.bind_session(app);
 	if (!app.session)
 		return {};
+	if (const auto phase = app.session->preparation_phase(); !phase.empty())
+		return {true, 0, 0, phase, {}, {}};
 	if (const auto progress = app.session->content_progress())
 		return {true,
 		        static_cast<std::size_t>(progress->first),

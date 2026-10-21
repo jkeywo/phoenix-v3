@@ -120,6 +120,13 @@ int main(int argc, char **argv)
 			const GameSetup setup{"test.map", {{"test.slot", "test.ship"}}, "test.slot"};
 			content_lobby->add_pack(write_pack(pack));
 			content_lobby->prepare_lobby(setup);
+			require(!content_lobby->preparation_phase().empty() && !content_lobby->running(),
+			        "Session preparation exposes loading before constructing the world");
+			content_lobby->poll();
+			require(!content_lobby->preparation_phase().empty(), "Preparation yields a presentation frame");
+			content_lobby->poll();
+			content_lobby->poll();
+			require(content_lobby->preparation_phase().empty(), "Prepared session returns to lobby");
 			const auto main_seat = [](const LobbyProjection &projection)
 			{
 				for (const auto &seat : projection.consoles)
@@ -765,6 +772,11 @@ int main(int argc, char **argv)
 				                        return slot.host.empty() && !slot.ship.empty();
 			                        }),
 			        "A GM lobby leaves every ship slot free and supplies default AI ships");
+			pump(
+			    [&]
+			    {
+				    return organiser->preparation_phase().empty();
+			    });
 			require(organiser->session_action("lobby.ready"), "The GM has an explicit Ready action");
 			pump(
 			    [&]

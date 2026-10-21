@@ -36,6 +36,7 @@ class GameLobby final : public SessionPort
 	NetworkOptions options_;
 	bool coordinator_ = true, offline_ = false, active_ = false, launched_ = false, welcomed_ = false;
 	bool recovery_ = false, setup_ack_ = false;
+	unsigned prepare_pending_ = 0, launch_pending_ = 0;
 	JoinRole role_ = JoinRole::ship_server;
 	std::string self_, target_, epoch_ = random_token(), nonce_ = random_token(), key_, error_;
 	LobbyServices services_;
@@ -250,6 +251,7 @@ class GameLobby final : public SessionPort
 	void invalidate()
 	{
 		countdown_.reset();
+		launch_pending_ = 0;
 		++revision_;
 		// Roster/readiness changes invalidate the prepared launch, not its assets.
 		// Keep presentation generation stable while players join or choose seats.
@@ -263,8 +265,14 @@ class GameLobby final : public SessionPort
 			member.ready = false;
 		setup_source_.reset();
 		bundle_.clear();
+		prepare_pending_ = 0;
 		if (selection_.local_slot.empty() && !selection_.gm_host)
 			return;
+		// Leave a complete presentation frame before rebuilding the World and bundle.
+		prepare_pending_ = 1;
+	}
+	void prepare_bundle()
+	{
 		std::map<std::string, std::string> members;
 		if (selection_.gm_host)
 			members[self_] = "";
@@ -340,6 +348,7 @@ class GameLobby final : public SessionPort
 				return false;
 			local_consoles_.at(cmd.screen).ready = cmd.action == LobbyAction::ready;
 			countdown_.reset();
+			launch_pending_ = 0;
 			return true;
 		}
 		if (cmd.action == LobbyAction::assign_local_console)
@@ -549,6 +558,7 @@ class GameLobby final : public SessionPort
 				return false;
 			member.ready = cmd.action == LobbyAction::ready;
 			countdown_.reset();
+			launch_pending_ = 0;
 			return true;
 		}
 		if (cmd.action == LobbyAction::leave && id != self_)
@@ -593,21 +603,22 @@ class GameLobby final : public SessionPort
 	{
 		if (backend_)
 			return;
+		std::shared_ptr<SessionPort> candidate;
 		const auto config = coordinator_ ? config_for(self_) : configuration_;
 		if (role_ == JoinRole::ship_server)
 		{
 			auto prepared = services_.read(bundle_, self_);
 			if (offline_)
-				backend_ = prepared.world;
+				candidate = prepared.world;
 			else
 			{
 				auto options = options_;
 				options.link.self = self_;
 				for (const auto &[id, ticket] : config.at("tickets").items())
 					options.lobby_tickets[id] = {ticket.at("key"), static_cast<JoinRole>(ticket.at("role").get<int>())};
-				backend_ = services_.host(options);
-				backend_->restore(bundle_);
-				backend_->activate_prepared();
+				candidate = services_.host(options);
+				candidate->restore(bundle_);
+				candidate->activate_prepared();
 			}
 		}
 		else
@@ -622,8 +633,9 @@ class GameLobby final : public SessionPort
 			options.inspector = role_ == JoinRole::gm;
 			options.admission = key_;
 			options.profile += "-" + epoch_ + "-" + runtime_identity(self_);
-			backend_ = make_network_client(options);
+			candidate = make_network_client(options);
 		}
+		backend_ = std::move(candidate);
 		local_claimed_ = config.at("console").get<std::string>().empty();
 		++generation_;
 	}
@@ -870,8 +882,8 @@ class GameLobby final : public SessionPort
 		{
 			if (role_ == JoinRole::ship_server && (!setup_ack_ || setup_transfer_->sequence() != body.at("revision")))
 				return;
-			launched_ = true;
-			launch_local();
+			if (!backend_ && !launch_pending_)
+				launch_pending_ = 1;
 		}
 	}
 
@@ -938,6 +950,7 @@ public:
 	}
 	void clear_packs() override
 	{
+		prepare_pending_ = launch_pending_ = 0;
 		backend_.reset();
 		active_ = launched_ = recovery_ = false;
 		countdown_.reset();
@@ -969,6 +982,10 @@ public:
 	std::optional<std::pair<std::uint64_t, std::uint64_t>> content_progress() const override
 	{
 		return backend_ ? backend_->content_progress() : std::nullopt;
+	}
+	std::string preparation_phase() const override
+	{
+		return prepare_pending_ ? "Preparing session" : launch_pending_ ? "Starting game..." : std::string{};
 	}
 	const Catalog &catalog() const override
 	{
@@ -1395,6 +1412,13 @@ public:
 		previous_ = current;
 		try
 		{
+			if (prepare_pending_ && prepare_pending_ < 3)
+				++prepare_pending_;
+			else if (prepare_pending_ == 3)
+			{
+				prepare_pending_ = 0;
+				prepare_bundle();
+			}
 			if (transport_)
 			{
 				for (const auto &event : transport_->poll())
@@ -1457,8 +1481,9 @@ public:
 						peer.member.connected = false;
 						peer.member.ready = false;
 						countdown_.reset();
+						launch_pending_ = 0;
 					}
-				if (!launched_)
+				if (!launched_ && !launch_pending_)
 				{
 					if (all_ready())
 					{
@@ -1466,9 +1491,8 @@ public:
 							countdown_ = now_;
 						if (now_ - *countdown_ >= 5000)
 						{
-							launched_ = true;
 							countdown_.reset();
-							launch_local();
+							launch_pending_ = 1;
 						}
 					}
 					else
@@ -1478,6 +1502,18 @@ public:
 				{
 					broadcast();
 					last_broadcast_ = now_;
+				}
+			}
+			// Consume readiness/disconnect packets before committing a deferred launch.
+			if (launch_pending_ && launch_pending_ < 3)
+				++launch_pending_;
+			else if (launch_pending_ == 3)
+			{
+				launch_pending_ = 0;
+				if (!coordinator_ || all_ready())
+				{
+					launch_local();
+					launched_ = true;
 				}
 			}
 			if (backend_)
@@ -1509,6 +1545,12 @@ public:
 		{
 			error_ = e.what();
 			countdown_.reset();
+			if (coordinator_ && !launched_)
+			{
+				peers_.at(self_).member.ready = false;
+				for (auto &[screen, member] : local_consoles_)
+					member.ready = false;
+			}
 		}
 	}
 };

@@ -291,7 +291,19 @@ int main(int argc, char **argv)
 			f["requires_event"] = "available";
 			f["discovery_event"] = "discovered";
 			World conditioned;
-			conditioned.load(load(source), "test.map");
+			const auto catalog = load(source);
+			conditioned.load(catalog, "test.map");
+			World resumed;
+			resumed.restore(catalog, conditioned.save());
+			require(resumed.save() == conditioned.save(), "event-only situation survives initial lobby snapshot");
+			auto missing_controller = conditioned.save();
+			missing_controller["scenario"]["controllers"] = Json::array();
+			rejects(
+			    [&]
+			    {
+				    resumed.restore(catalog, missing_controller);
+			    },
+			    "Event source exception must not admit a missing scenario Controller");
 			require(conditioned.claim(101, 1, "drive"), "claim conditioned scan");
 			command(conditioned, "target", 2);
 			ticks(conditioned, 3);
@@ -301,6 +313,10 @@ int main(int argc, char **argv)
 			require(!samples(conditioned).at("finding:engineering").at("data").is_null(), "available finding acquires");
 			require(conditioned.save().at("sensor_discoveries").size() == 1,
 			        "discovery emitted once per ship and finding");
+			resumed.restore(catalog, conditioned.save());
+			ticks(conditioned, 5);
+			ticks(resumed, 5);
+			require(resumed.save() == conditioned.save(), "scenario and sensor event source continue after recovery");
 		}
 
 		{

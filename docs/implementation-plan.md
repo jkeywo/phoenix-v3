@@ -160,3 +160,7 @@ Console and shared Viewscreen messages now use named portraits, Comic Neue speec
 ## Shared Controller actions and fixed factions — 21 October 2026
 
 Maintained navigation, engineering and combat policies select typed reusable execution trees through ordinary owned commands. Officer requests use correlated supply/cooling, manoeuvre and repair outcomes, with persisted commitments and handover cleanup. Map faction knowledge uses the same permitted contact projection for humans and AI. Workshop edits the corresponding content and shows action status through isolated Test. Runtime saves use schema 13 and reject incompatible continuations. See [contracts, authoring and verification scope](controller-actions.md). Physical-device, graphical and screen-reader acceptance remains separate.
+
+## Native launch regression — 21 October 2026
+
+Lobby launch now restores World-owned scenario event sources and streamed asteroid contacts safely, limits Console button activation to click events, and presents loading phases before session preparation and activation. All 28 native system cases and the explicit two-region Ready/Helm/Viewscreen journey pass. See [the regression receipt](smoke/native-menu.md#native-launch-ready-and-loading-regression--21-october-2026) for scope and evidence; this does not establish physical-display or screen-reader acceptance.

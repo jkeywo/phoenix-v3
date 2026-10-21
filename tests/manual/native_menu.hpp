@@ -6,6 +6,7 @@ struct NativeMenuSmoke
 	bool assign_displays = false;
 	bool virtual_displays = false;
 	bool display_transition_only = false;
+	bool preparation_captured = false, launch_captured = false;
 	void configure_displays(phoenix::Application &app)
 	{
 		if (!virtual_displays)
@@ -56,13 +57,27 @@ struct NativeMenuSmoke
 	}
 	bool frame(phoenix::Application &app)
 	{
-		if (!enabled || GetTime() - changed < .4)
+		if (!enabled)
 			return false;
 		if (std::any_of(app.screen_controls.begin(), app.screen_controls.end(),
 		                [](const auto &control)
 		                {
 			                return control.first == "loading.cancel";
 		                }))
+		{
+			if (app.accessible_status == "Preparing session")
+			{
+				TakeScreenshot("build/menu-native-preparing.png");
+				preparation_captured = true;
+			}
+			if (app.accessible_status == "Starting game...")
+			{
+				TakeScreenshot("build/menu-native-starting.png");
+				launch_captured = true;
+			}
+			return false;
+		}
+		if (GetTime() - changed < .4)
 			return false;
 		auto capture = [](const char *name)
 		{
@@ -307,6 +322,8 @@ struct NativeMenuSmoke
 					throw std::runtime_error("Assigned Console was not placed before launch");
 				if (display_transition_only)
 				{
+					if (!phoenix::probe_console_ready(app.console_regions.front().console))
+						throw std::runtime_error("Ready hover/scroll/click isolation failed");
 					capture("assigned-console");
 					for (const auto &seat : lobby.consoles)
 						if (seat.local_screen)
@@ -489,11 +506,6 @@ struct NativeMenuSmoke
 					throw std::runtime_error("Assigned display roles were not applied");
 				if (!app.session->console_observation(app.console_regions.front().console))
 					return false;
-				if (display_transition_only)
-				{
-					std::cout << "PASS assigned Console and host Viewscreen survive lobby launch (manual smoke)\n";
-					return true;
-				}
 				const auto route = app.console_regions.front().console;
 				if (console_frames == 3 && !phoenix::probe_console_helm(app, route))
 					throw std::runtime_error("Routed throttle drag or radar ring input failed");
@@ -503,6 +515,14 @@ struct NativeMenuSmoke
 				if (observed->requested_heading != 90000 || observed->requested_speed <= 0)
 					throw std::runtime_error("Second-screen Helm actions did not commit while host was on Viewscreen");
 				capture("helm-active");
+				if (display_transition_only)
+				{
+					if (!preparation_captured || !launch_captured)
+						throw std::runtime_error("Session preparation or launch loading screen was not rendered");
+					std::cout << "PASS Ready input, loading screens, assigned Helm controls and host Viewscreen "
+					             "(manual smoke)\n";
+					return true;
+				}
 				if (console_frames == 6)
 				{
 					action(app, "console/" + std::to_string(route) + "/settings");

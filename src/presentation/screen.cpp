@@ -790,6 +790,10 @@ bool probe_console_helm(Application &, ConsoleId route, bool verify)
 {
 	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_helm(verify);
 }
+bool probe_console_ready(ConsoleId route)
+{
+	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_ready();
+}
 bool probe_console_manual(ConsoleId route, unsigned stage)
 {
 	return console_surfaces.contains(route) && console_surfaces.at(route)->probe_manual(stage);
@@ -1467,7 +1471,7 @@ void draw_screen(Application &app)
 	}
 	if (!IsMouseButtonDown(0) && !IsMouseButtonDown(1) && !IsMouseButtonDown(2))
 		mouse_capture.reset();
-	if (mouse_context)
+	if (mouse_context && GetMouseWheelMove() != 0)
 		mouse_context->ProcessMouseWheel(-GetMouseWheelMove(), modifiers);
 	const std::pair<int, Rml::Input::KeyIdentifier> keys[] = {
 	    {KEY_TAB, Rml::Input::KI_TAB},        {KEY_ENTER, Rml::Input::KI_RETURN},  {KEY_SPACE, Rml::Input::KI_SPACE},

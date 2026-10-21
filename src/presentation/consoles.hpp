@@ -949,6 +949,8 @@ button.on-screen-active .share-live {display:block;}
 			}
 			return;
 		}
+		if (event.GetType() != "click")
+			return;
 		if (app_ && app_->screen == Screen::server_lobby && name == id("ready"))
 			invoke_navigation(*app_, name);
 		else
@@ -1390,6 +1392,42 @@ button.on-screen-active .share-live {display:block;}
 				return true;
 			}
 		return false;
+	}
+	bool probe_ready()
+	{
+		auto *control = document_->GetElementById(id("ready"));
+		if (!control || !app_)
+			return false;
+		auto ready = [&]()
+		{
+			for (const auto &member : app_->session->lobby().members)
+				if (member.local_screen == route_)
+					return member.ready;
+			return false;
+		};
+		const bool original = ready();
+		const auto at = control->GetAbsoluteOffset(Rml::BoxArea::Border);
+		context_->ProcessMouseMove(static_cast<int>(at.x + control->GetOffsetWidth() / 2),
+		                           static_cast<int>(at.y + control->GetOffsetHeight() / 2), 0);
+		for (int frame = 0; frame < 5; ++frame)
+		{
+			context_->ProcessMouseWheel(0, 0);
+			context_->ProcessMouseWheel(1, 0);
+			context_->Update();
+			if (ready() != original)
+				return false;
+		}
+		context_->ProcessMouseButtonDown(0, 0);
+		context_->ProcessMouseButtonUp(0, 0);
+		if (ready() == original)
+			return false;
+		context_->ProcessMouseWheel(0, 0);
+		context_->Update();
+		if (ready() == original)
+			return false;
+		context_->ProcessMouseButtonDown(0, 0);
+		context_->ProcessMouseButtonUp(0, 0);
+		return ready() == original;
 	}
 	bool probe_on_screen(const std::string &widget)
 	{

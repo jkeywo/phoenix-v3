@@ -160,6 +160,7 @@ void draw_radar_body(TextureCache &textures, const Catalog &catalog, const BodyV
 bool probe_menu_keyboard(Application &app);
 bool probe_console_on_screen(ConsoleId route, const std::string &widget);
 bool probe_console_helm(Application &app, ConsoleId route, bool verify = false);
+bool probe_console_ready(ConsoleId route);
 bool probe_console_manual(ConsoleId route, unsigned stage);
 bool probe_console_report(ConsoleId route);
 bool probe_console_readouts(ConsoleId route);

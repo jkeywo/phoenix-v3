@@ -6,6 +6,8 @@ The menu uses the [comic HUD artwork and sprite sidecars](../content/ui/menu/REA
 
 ## Preparing a game
 
+Session preparation and activation yield presentation frames before constructing or restoring the world, so the shared loading view shows **Preparing session** or **Starting game...** before that work begins. Graphics preparation then retains its resource progress display. World construction and archive verification remain synchronous within those phases; the screen does not imply that they run on a background thread. Failed activation preserves the lobby and clears local readiness instead of publishing a partly initialised game.
+
 Native startup adds missing definitions and assets from the bundled base pack to an already installed base. This makes newly shipped missions available after rebuilding/updating the game. Existing records and assets, including Workshop edits, keep their installed values; pack order and enabled state are preserved. The launcher catalogue is regenerated after an addition. Saved games retain their own exact archives.
 
 The fixed cockpit frame overlays a slowly panning, horizontally repeating space panorama. Reduced motion stops the pan. A ceiling-mounted CRT in the upper right displays the saved player avatar and username; the host lobby displays a full-column QR invitation above its right-hand sidebar. Clicking the QR opens the player-join page in a new browser tab (or the native default browser). The scenery and screen aperture share source-pixel metadata with the HTML menu. See [menu artwork](../content/ui/menu/README.md) for assets and generation prompts.

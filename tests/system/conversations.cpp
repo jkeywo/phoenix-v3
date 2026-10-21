@@ -51,6 +51,44 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		{
+			auto source = fixture();
+			source["entities"].push_back(
+			    {{"id", "test.rock"},
+			     {"tags", {"asteroid"}},
+			     {"systems", Json::object()},
+			     {"render",
+			      {{"mode", "camera"},
+			       {"scale", 1},
+			       {"sprite",
+			        {{"albedo", "test-core:assets/pixel.png"},
+			         {"frames", Json::array({{{"name", "front"}, {"rect", {0, 0, 1, 1}}, {"pivot", {.5, .5}}}})}}}}},
+			     {"collision", {{"shape", "circle"}, {"radius_mm", 100}, {"mass_grams", 0}}}});
+			source["maps"][0]["scenario"] = {{"events", {"test.signal"}}};
+			source["maps"][0]["regions"] = Json::array({{{"id", "belt"},
+			                                             {"shape", "circle"},
+			                                             {"x_mm", 0},
+			                                             {"y_mm", 0},
+			                                             {"radius_mm", 40000},
+			                                             {"asteroids",
+			                                              {{"seed", 91},
+			                                               {"spacing_mm", 10000},
+			                                               {"jitter_mm", 0},
+			                                               {"density", .1},
+			                                               {"clustering_permille", 0},
+			                                               {"visual_distance_mm", 50000},
+			                                               {"types", Json::array({{{"definition", "test.rock"}}})}}}}});
+			const auto field_catalog = load(source);
+			World initial, restored;
+			initial.load(field_catalog, "test.map");
+			const auto snapshot = initial.save();
+			require(!snapshot.at("asteroid_fields").empty(), "Comms recovery fixture has streamed asteroids");
+			restored.restore(field_catalog, snapshot);
+			require(restored.save() == snapshot, "Comms and event-only scenario restore with streamed contacts");
+			initial.tick();
+			restored.tick();
+			require(initial.save() == restored.save(), "Comms and streamed radar continue identically after restore");
+		}
 		auto catalog = load(fixture());
 		World world;
 		world.load(catalog, "test.map");

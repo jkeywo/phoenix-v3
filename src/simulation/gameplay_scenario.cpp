@@ -885,7 +885,8 @@ Json GameplayScenarioBridge::save() const
 		                         {"heading", b.heading}});
 	return out;
 }
-void GameplayScenarioBridge::restore(const Catalog &catalog, const std::string &map, const Json &saved)
+void GameplayScenarioBridge::restore(const Catalog &catalog, const std::string &map, const Json &saved,
+                                     ScenarioId event_source)
 {
 	GameplayScenarioBridge candidate;
 	candidate.load(catalog, map);
@@ -902,12 +903,15 @@ void GameplayScenarioBridge::restore(const Catalog &catalog, const std::string &
 	candidate.controllers_.clear();
 	candidate.receipts_.clear();
 	candidate.bodies_.clear();
-	scenario_require(saved.at("controllers").is_array() &&
-	                     saved.at("controllers").size() == candidate.runtime_.instances().size(),
+	if (event_source)
+		scenario_require(candidate.runtime_.instances().contains(event_source), "saved event source missing");
+	scenario_require(saved.at("controllers").is_array() && saved.at("controllers").size() + (event_source ? 1 : 0) ==
+	                                                           candidate.runtime_.instances().size(),
 	                 "saved controller/situation count mismatch");
 	for (const auto &j : saved.at("controllers"))
 	{
 		const auto id = scenario_unsigned(j.at("id"));
+		scenario_require(id != event_source, "event source cannot own a scenario controller");
 		scenario_require(candidate.runtime_.instances().contains(id), "saved controller situation missing");
 		ScenarioTreeController c;
 		c.tree = j.at("tree").get<std::string>();
