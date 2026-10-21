@@ -15,6 +15,7 @@ module phoenix.network.client;
 import phoenix.blobs;
 import phoenix.session.api;
 import phoenix.wire;
+import phoenix.console_controls;
 #include "projection.hpp"
 
 namespace phoenix
@@ -464,8 +465,10 @@ public:
 	{
 		return generation_;
 	}
-	bool command(const OperatingCommand &command) override
+	bool command(const OperatingCommand &input) override
 	{
+		auto command = input;
+
 		if (options_.inspector || !observation_ || !quorum_ || !profile_durable_ ||
 		    command.target != observation_->own.id)
 			return false;
@@ -479,104 +482,20 @@ public:
 			if (!view)
 				return false;
 		}
-		// Semantic/meta commands are authored by the server and carry no public
-		// free-form command language. Admit only an exact current descriptor.
-		bool projected = conversation_projection::command_allowed(*view, command);
-		const auto controls = view->gameplay.find("controls");
-		if (controls != view->gameplay.end() && controls->is_array())
-			for (const auto &descriptor : *controls)
-				if (descriptor.is_object() && descriptor.contains("id") && descriptor.at("id").is_string() &&
-				    !descriptor.at("id").get_ref<const std::string &>().empty() &&
-				    descriptor.at("id").get_ref<const std::string &>().size() <= 256 && descriptor.contains("action") &&
-				    descriptor.at("action") == command.action &&
-				    descriptor.value("system", Json("")) == command.system && descriptor.contains("value") &&
-				    descriptor.value("controller", std::string{}) == command.controller &&
-				    descriptor.value("channel", std::string{}) == command.channel &&
-				    descriptor.value("generation", std::uint64_t{0}) == command.generation &&
-				    descriptor.value("request_id", std::uint64_t{0}) == command.request_id &&
-				    descriptor.value("arguments", Json::array()) == Json(command.arguments) &&
-				    descriptor.at("value").is_number_integer() && descriptor.at("value") == command.value &&
-				    (!descriptor.contains("enabled") || descriptor.at("enabled") == true))
-					projected = true;
-		// Authored numeric widgets allow the full channel range, not just generated step buttons.
-		// Recheck the safe layout and current authority here as well as at the host.
-		if (!projected && command.system.empty() && !command.controller.empty() && !command.channel.empty() &&
-		    !command.request_id && command.arguments.empty() &&
-		    (command.action == "speed_mm_s" || command.action == "heading_mdeg"))
-		{
-			const auto sections = view->gameplay.value("controllers", Json::array());
-			for (const auto &section : sections)
-				if (section.value("id", std::string{}) == command.controller && section.value("human", false) &&
-				    section.value("console", std::string{}) == view->console &&
-				    section.value("generation", std::uint64_t{0}) == command.generation &&
-				    section.at("commands").contains(command.channel))
-				{
-					const auto &channel = section.at("commands").at(command.channel);
-					if (channel.value("action", std::string{}) != command.action ||
-					    channel.value("semantics", "") != "setting" ||
-					    command.value < channel.at("minimum").get<std::int64_t>() ||
-					    command.value > channel.at("maximum").get<std::int64_t>())
-						continue;
-					for (const auto &console : resolve_consoles(catalog(), view->own.definition))
-						if (console.id == view->console && catalog().consoles.contains(console.definition))
-							for (const auto &widget : catalog().consoles.at(console.definition).at("widgets"))
-								if (widget.value("controller", std::string{}) == command.controller &&
-								    widget.value("channel", std::string{}) == command.channel &&
-								    widget.value("kind", std::string{}) ==
-								        (command.action == "speed_mm_s" ? "throttle" : "heading"))
-									projected = true;
-				}
-		}
-		if ((command.action == "display.toggle" || command.action == "display.update") && command.value == 0 &&
-		    command.controller.empty() && command.channel.empty() && !command.request_id &&
-		    command.arguments.size() == 3 && command.arguments[2] > 0 &&
-		    std::all_of(command.arguments.begin(), command.arguments.end(),
-		                [](auto n)
-		                {
-			                return n >= -1000000000 && n <= 1000000000;
-		                }))
-		{
-			bool source = false;
-			for (const auto &console : resolve_consoles(catalog(), view->own.definition))
-				if (console.id == view->console && catalog().consoles.contains(console.definition))
-					for (const auto &w : catalog().consoles.at(console.definition).at("widgets"))
-						if (w.at("id") == command.system && (w.at("kind") == "radar" || w.at("kind") == "navigation" ||
-						                                     w.at("kind") == "conversations"))
-							source = true;
-			const auto d = public_board_.value("display", Json(nullptr));
-			projected =
-			    source && (command.action == "display.toggle"
-			                   ? command.generation == 0
-			                   : d.is_object() && d.at("console") == view->console &&
-			                         d.at("widget") == command.system && d.at("revision") == command.generation);
-		}
-		const auto *spec = operating_action(command.action);
-		if (((!spec || !command.controller.empty()) && !projected) ||
-		    (spec && !operating_value_valid(*spec, command.value)))
+		Json layout;
+		for (const auto &console : resolve_consoles(catalog(), view->own.definition))
+			if (console.id == view->console && catalog().consoles.contains(console.definition))
+				layout = catalog().consoles.at(console.definition);
+		const auto eligible = eligible_console_command(*view, layout, public_board_, std::move(command));
+		if (!eligible)
 			return false;
-		auto system = command.system;
-		if (spec && command.controller.empty())
-		{
-			if (system.empty())
-			{
-				const auto selected = select_system(view->systems, spec->system);
-				if (!selected)
-					return false;
-				system = *selected;
-			}
-			else if (!projected && std::none_of(view->systems.begin(), view->systems.end(),
-			                                    [&](const SystemView &value)
-			                                    {
-				                                    return value.id == system && value.controlled;
-			                                    }))
-				return false;
-		}
+		command = eligible->command;
 		// The authoritative World still validates capability, dynamic conditions,
 		// ownership and the lease when this ordinary request is committed.
 		return send("command", {{"console", view->console},
 		                        {"target", command.target},
 		                        {"action", command.action},
-		                        {"system", system},
+		                        {"system", command.system},
 		                        {"value", command.value},
 		                        {"controller", command.controller},
 		                        {"channel", command.channel},

@@ -4,9 +4,14 @@
 #include <nlohmann/json.hpp>
 import phoenix.simulation;
 import phoenix.conversations;
+import phoenix.console_controls;
 #include "../../src/core/conversation_projection.hpp"
 using namespace phoenix;
 using namespace phoenix::test;
+bool projected_command(const Observation &view, const OperatingCommand &command)
+{
+	return eligible_console_command(view, Json{{"widgets", Json::array()}}, Json::object(), command).has_value();
+}
 Json fixture()
 {
 	auto s = controller_fixture();
@@ -65,7 +70,7 @@ int main(int argc, char **argv)
 					c.generation = v.at("generation");
 			return c;
 		};
-		require(conversation_projection::command_allowed(*world.observe(1), cmd(1, "hail", 0, "ship:2/captain")),
+		require(projected_command(*world.observe(1), cmd(1, "hail", 0, "ship:2/captain")),
 		        "remote hail projection admission");
 		const auto before_admission = world.observe(1)->gameplay.at("conversations");
 		require(world.submit(1, cmd(1, "hail", 0, "ship:2/captain")), "hail discovered public character");
@@ -139,7 +144,7 @@ int main(int argc, char **argv)
 		require(decode_operating_command(encode_operating_command(cmd(1, "text", human_id, "wire text"))).text ==
 		            "wire text",
 		        "command codec preserves text");
-		require(conversation_projection::command_allowed(*world.observe(1), cmd(1, "text", human_id, "wire text")),
+		require(projected_command(*world.observe(1), cmd(1, "text", human_id, "wire text")),
 		        "remote human text admitted");
 		auto public_thread = conversation_projection::thread(view().at("threads")[0], true);
 		require(!public_thread.contains("choices") && !public_thread.contains("prompt") &&

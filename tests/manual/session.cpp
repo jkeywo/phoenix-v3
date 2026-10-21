@@ -14,6 +14,7 @@
 #include <span>
 #include <string>
 #include <vector>
+#include <tuple>
 
 import phoenix.network.client;
 import phoenix.network.host;
@@ -186,6 +187,16 @@ int fleet_journey(NetworkOptions options)
 	    R"json([{"id":"test.high-throttle","schema":"test.fact","destination":{"kind":"controller","console":"sensors","id":"reserve"},"title_key":"High throttle","body_key":"Requested speed exceeds the reporting threshold.","delay_ticks":1,"automatic":false,"fields":{"amount":{"argument":"amount"},"flag":{"argument":"flag"},"detail":{"argument":"detail"}}}])json");
 	layout_ship["systems"]["reserve"]["reporters"] =
 	    Json::parse(R"json([{"id":"high","field":"requested","above":500,"message":"test.high-throttle"}])json");
+	// A separate safe layout exposes continuous controls on the remote Console.
+	auto remote_layout = definitions["consoles"][1];
+	remote_layout["id"] = "test.remote-controls";
+	remote_layout["widgets"] = Json::parse(R"json([
+	 {"id":"throttle","kind":"throttle","label":"Remote throttle","controller":"reserve","channel":"speed_mm_s",
+	  "x":0,"y":0,"width":500,"height":1000},
+	 {"id":"radar","kind":"radar","label":"Radar","binding":"radar.contacts",
+	  "x":500,"y":0,"width":500,"height":1000}])json");
+	definitions["consoles"].push_back(remote_layout);
+	layout_ship["stations"][0]["consoles"][1]["definition"] = "test.remote-controls";
 	auto original_slot = definitions["maps"][0]["ship_slots"][0];
 	for (int i = 2; i <= 3; ++i)
 	{
@@ -337,6 +348,57 @@ int fleet_journey(NetworkOptions options)
 				return owner.at("human").get<bool>();
 		return false;
 	};
+	// Arbitrary continuous values and neutral release must cross the real adapter,
+	// even when no generated step descriptor contains that value.
+	auto continuous = [&](const std::string &owner, const std::string &channel, std::int64_t value)
+	{
+		OperatingCommand c{ship, channel, value};
+		c.console = client->observation()->console;
+		c.controller = owner;
+		c.channel = channel;
+		const auto current = client->observation();
+		for (const auto &section : current->gameplay.at("controllers"))
+			if (section.at("id") == owner)
+				c.generation = section.at("generation");
+		return c;
+	};
+	auto accepted_value = [&](const std::string &owner, const std::string &channel)
+	{
+		const auto current = client->observation();
+		for (const auto &section : current->gameplay.at("controllers"))
+			if (section.at("id") == owner)
+				return section.at("commands").at(channel).at("value").get<std::int64_t>();
+		throw std::runtime_error("Remote Controller missing");
+	};
+	auto arbitrary = continuous("reserve", "speed_mm_s", 123);
+	require(client->command(arbitrary), "remote authored throttle admits a non-descriptor value");
+	until(
+	    [&]
+	    {
+		    return accepted_value("reserve", "speed_mm_s") == 123;
+	    });
+	auto stale_control = arbitrary;
+	++stale_control.generation;
+	auto out_of_range = arbitrary;
+	out_of_range.value = 15001;
+	require(!client->command(stale_control) && !client->command(out_of_range),
+	        "remote numeric controls refuse stale authority and values outside the authored range");
+	for (const auto &[owner, action, value] :
+	     std::vector<std::tuple<std::string, std::string, std::int64_t>>{{"reserve", "assisted", 0},
+	                                                                     {"reserve", "longitudinal_thrust", 417},
+	                                                                     {"reserve", "longitudinal_thrust", 0},
+	                                                                     {"side", "lateral_thrust", -417},
+	                                                                     {"side", "lateral_thrust", 0},
+	                                                                     {"reserve", "assisted", 1},
+	                                                                     {"reserve", "speed_mm_s", 0}})
+	{
+		require(client->command(continuous(owner, action, value)), "remote manual input and neutral release admitted");
+		until(
+		    [&]
+		    {
+			    return accepted_value(owner, action) == value;
+		    });
+	}
 	// Walk real current descriptors for numeric buttons; every step crosses the authenticated transport.
 	auto send = [&](const std::shared_ptr<SessionPort> &port, OperatingCommand input)
 	{

@@ -22,6 +22,7 @@
 import phoenix.simulation;
 import phoenix.session.local;
 import phoenix.console;
+import phoenix.console_controls;
 
 using namespace phoenix;
 namespace
@@ -1375,6 +1376,16 @@ void manual_console_controls()
 	model.refresh(session);
 	require(model.manual_available() && !model.manual_active(),
 	        "bound Helm exposes combined manual mode with assistance as default");
+	auto ambiguous_observation = *model.observation();
+	const auto &safe_layout = session->catalog().consoles.at("test.manual-console");
+	const auto manual = manual_console_binding(ambiguous_observation, safe_layout, "longitudinal_thrust", "speed_mm_s");
+	require(!manual.empty(), "manual sibling resolves by physical consumers");
+	const auto split = manual.find('/', 11);
+	for (auto &owner : ambiguous_observation.gameplay["controllers"])
+		if (owner.at("id") == manual.substr(11, split - 11))
+			owner["commands"]["duplicate_thrust"] = owner["commands"].at(manual.substr(split + 1));
+	require(manual_console_binding(ambiguous_observation, safe_layout, "longitudinal_thrust", "speed_mm_s").empty(),
+	        "multiple sibling channels with the same physical consumers refuse manual binding");
 	require(!model.set_manual_axes(500, 500), "axes are refused until both mode channels confirm manual operation");
 	require(model.set_manual(true) && !model.manual_active(),
 	        "requesting manual must not optimistically display confirmation");

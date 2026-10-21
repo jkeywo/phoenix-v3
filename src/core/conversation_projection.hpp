@@ -3,43 +3,6 @@
 namespace phoenix::conversation_projection
 {
 
-// Client admission is based on the current permitted projection; World rechecks at commit.
-inline bool command_allowed(const Observation &view, const OperatingCommand &command)
-{
-	if (!command.action.starts_with("comms.") || command.target != view.own.id || !command.system.empty() ||
-	    !command.channel.empty() || !command.arguments.empty() || command.text.size() > 4096 ||
-	    !view.gameplay.contains("conversations"))
-		return false;
-	bool authority = false;
-	for (const auto &section : view.gameplay.value("controllers", Json::array()))
-		if (section.at("id") == command.controller && section.value("human", false) &&
-		    section.at("generation") == command.generation)
-			for (const auto &channel : section.at("commands"))
-				for (const auto &consumer : channel.at("consumers"))
-					for (const auto &system : view.systems)
-						if (system.kind == OperatingSystem::Comms && system.id == consumer.get<std::string>())
-							authority = true;
-	if (!authority)
-		return false;
-	const auto &board = view.gameplay.at("conversations");
-	if (command.action == "comms.hail" && command.value == 0 && !command.request_id)
-		for (const auto &p : board.at("directory"))
-			if (p.at("id") == command.text && p.at("available") == true)
-				return true;
-	for (const auto &thread : board.at("threads"))
-		if (thread.at("id") == command.value)
-		{
-			if (command.action == "comms.select")
-				return command.text.empty() && !command.request_id;
-			if (command.action == "comms.text")
-				return !command.text.empty() && !command.request_id && thread.at("text_allowed") == true;
-			if (command.action == "comms.answer" && command.request_id && thread.at("prompt") == command.request_id)
-				for (const auto &choice : thread.at("choices"))
-					if (choice.at("id") == command.text)
-						return true;
-		}
-	return false;
-}
 inline Json thread(const Json &v, bool shared = false, std::size_t message_limit = 4096)
 {
 	using projection::number;

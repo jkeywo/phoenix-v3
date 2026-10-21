@@ -2,6 +2,8 @@
 
 `phoenix.console` is owned by `phoenix_core`. `ConsoleModel` holds one route's permitted observation, authored layout, pending desired values and semantic announcement. It resolves commands through `SessionPort` and has no renderer, platform input or authoritative dependency. Session replacement, content identity, generation, route and claim changes invalidate its state. `GameScreen` renders this model and retains graphics resource ownership.
 
+`phoenix.console_controls` is owned by `phoenix_foundation`. It normalizes and checks proposed commands against a permitted Observation, resolved Console layout and public display state. Both `ConsoleModel` and the remote client use this interface for descriptor, numeric-widget, manual-flight, conversation and display eligibility. Manual sibling channels resolve by overlapping physical consumers; ambiguous identities or bindings refuse. Malformed required evidence refuses without throwing to callers. The module owns no session, content resolver or authority. Adapters retain input state, connection readiness and transport sequencing; the host independently validates authority and execution conditions at commit.
+
 Phoenix's first-party public interfaces are named C++20 modules. Import them by name; the previous public `include/phoenix/*.hpp` headers have been removed. The binaries still link static libraries. Third-party dependencies retain their normal headers and pinned versions.
 
 ## Interfaces and dependencies

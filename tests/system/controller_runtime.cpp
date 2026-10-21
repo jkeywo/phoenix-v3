@@ -9,6 +9,7 @@
 
 import phoenix.simulation;
 import phoenix.console;
+import phoenix.console_controls;
 import phoenix.session.execution;
 import phoenix.navigation;
 #include "../../src/network/projection.hpp"
@@ -2967,6 +2968,16 @@ int main(int argc, char **argv)
 		  "x":0,"y":0,"width":500,"height":500},
 		 {"id":"course","kind":"heading","label":"Course","controller":"propulsion","channel":"heading",
 		  "x":500,"y":0,"width":500,"height":500}])json");
+		widget_source["entities"][0]["systems"]["radar"] = {{"kind", "radar"}, {"range_mm", 100000}};
+		widget_source["entities"][0]["stations"][0]["consoles"][0]["feeds"].push_back("radar");
+		widget_source["consoles"][0]["widgets"].push_back({{"id", "radar"},
+		                                                   {"kind", "radar"},
+		                                                   {"label", "Radar"},
+		                                                   {"binding", "radar.contacts"},
+		                                                   {"x", 0},
+		                                                   {"y", 500},
+		                                                   {"width", 1000},
+		                                                   {"height", 500}});
 		const auto widget_catalog = load(widget_source);
 		const auto widget_public = resolve_packs({console_assets(widget_catalog, "test.controllable")});
 		require(widget_public.consoles.at("test.console").at("widgets")[0].at("controller") == "propulsion" &&
@@ -3011,6 +3022,49 @@ int main(int argc, char **argv)
 		require(widget_model.system_request(throttle_binding) == 8500 &&
 		            widget_model.system_request(heading_binding) == 90000,
 		        "widget readouts use separate accepted command sections");
+		// Exercise the shared seam with real loader/session projections, including
+		// corrupt or stale public evidence that must not grant control.
+		auto permitted = *widget_session->observation();
+		const auto &safe_layout = widget_catalog.consoles.at("test.console");
+		OperatingCommand proposal{permitted.own.id, "speed_mm_s", 8517, throttle_binding};
+		const auto normalized = eligible_console_command(permitted, safe_layout, Json::object(), proposal);
+		require(normalized && normalized->command.system.empty() && normalized->command.controller == "propulsion" &&
+		            normalized->command.channel == "speed",
+		        "shared eligibility normalizes authored Controller bindings");
+		auto stale_proposal = normalized->command;
+		++stale_proposal.generation;
+		require(!eligible_console_command(permitted, safe_layout, Json::object(), stale_proposal),
+		        "shared eligibility refuses stale Controller generations");
+		auto invalid_projection = permitted;
+		invalid_projection.gameplay["controllers"][0]["human"] = false;
+		require(!eligible_console_command(invalid_projection, safe_layout, Json::object(), proposal),
+		        "shared eligibility refuses AI-owned channels");
+		invalid_projection = permitted;
+		invalid_projection.gameplay["controllers"].push_back(invalid_projection.gameplay["controllers"][0]);
+		require(!eligible_console_command(invalid_projection, safe_layout, Json::object(), proposal),
+		        "shared eligibility refuses ambiguous Controller identities");
+		invalid_projection = permitted;
+		invalid_projection.gameplay["controls"] = Json::array({encode_operating_command(normalized->command)});
+		invalid_projection.gameplay["controls"][0]["id"] = "disabled";
+		invalid_projection.gameplay["controls"][0]["enabled"] = false;
+		require(!eligible_console_command(invalid_projection, safe_layout, Json::object(), proposal),
+		        "disabled descriptors cannot be bypassed through numeric widget eligibility");
+		invalid_projection.gameplay["controls"][0]["enabled"] = "bad";
+		require(!eligible_console_command(invalid_projection, safe_layout, Json::object(), proposal),
+		        "malformed eligibility evidence refuses safely");
+		OperatingCommand display_request{permitted.own.id, "display.update", 0, "radar"};
+		display_request.arguments = {0, 0, 1000};
+		display_request.generation = 7;
+		Json shared_display{{"display",
+		                     {{"console", permitted.console},
+		                      {"widget", "radar"},
+		                      {"revision", 7},
+		                      {"own", {{"id", permitted.own.id}}}}}};
+		require(eligible_console_command(permitted, safe_layout, shared_display, display_request).has_value(),
+		        "display updates use the current shared display revision");
+		++display_request.generation;
+		require(!eligible_console_command(permitted, safe_layout, shared_display, display_request),
+		        "display updates refuse stale shared display revisions");
 		const auto widget_observation = widget_session->observation();
 		for (const auto &system : widget_observation->systems)
 			if (system.id == "port" || system.id == "starboard")

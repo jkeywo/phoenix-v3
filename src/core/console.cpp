@@ -16,6 +16,7 @@ module;
 
 module phoenix.console;
 import phoenix.navigation;
+import phoenix.console_controls;
 namespace phoenix
 {
 namespace
@@ -782,7 +783,8 @@ bool ConsoleModel::on_screen(const std::string &widget, const std::vector<std::i
 	command.arguments = camera;
 	if (update)
 		command.generation = session->public_board().at("display").at("revision");
-	const bool accepted = session->console_command(route_, command);
+	const auto eligible = eligible_console_command(*observation_, layout_, session->public_board(), command);
+	const bool accepted = eligible && session->console_command(route_, eligible->command);
 	if (!update)
 		announcement_ = localise(accepted ? "Viewscreen request sent" : "The server refused that control request");
 	return accepted;
@@ -859,25 +861,7 @@ bool ConsoleModel::command(const std::string &action, std::int64_t value, const 
 // Resolve sibling commands by their physical consumers, never by channel names.
 std::string ConsoleModel::manual_binding(const std::string &action, const std::string &widget_action) const
 {
-	const auto anchor = default_binding(widget_action);
-	const auto section = controller_section(anchor), channel = controller_channel(anchor);
-	if (!section || !channel || !section->value("human", false))
-		return {};
-	std::string result;
-	for (auto it = section->at("commands").begin(); it != section->at("commands").end(); ++it)
-		if (it.value().value("action", "") == action && it.value().value("semantics", "") == "setting")
-		{
-			bool overlaps = false;
-			for (const auto &consumer : channel->at("consumers"))
-				for (const auto &target : it.value().at("consumers"))
-					overlaps |= consumer == target;
-			if (!overlaps)
-				continue;
-			if (!result.empty())
-				return {};
-			result = anchor.substr(0, anchor.find('/', 11) + 1) + it.key();
-		}
-	return result;
+	return observation_ ? manual_console_binding(*observation_, layout_, action, widget_action) : std::string{};
 }
 bool ConsoleModel::manual_available() const
 {
@@ -1180,7 +1164,9 @@ bool ConsoleModel::conversation_action(const std::string &action, std::uint64_t 
 		command.request_id = prompt;
 		command.text = text;
 		auto session = owner_.lock();
-		return session && session->console_command(route_, command);
+		const auto eligible =
+		    session ? eligible_console_command(*observation_, layout_, session->public_board(), command) : std::nullopt;
+		return eligible && session->console_command(route_, eligible->command);
 	}
 	return false;
 }
@@ -1190,98 +1176,19 @@ bool ConsoleModel::submit(OperatingCommand command)
 	if (!session || !observation_)
 		return false;
 	command.console = observation_->console;
-	const auto *spec = operating_action(command.action);
-	std::string projected_label;
-	bool projected = false;
-	const auto input_binding = command.system;
-	if (input_binding.starts_with("controller/"))
-	{
-		const auto section = controller_section(input_binding), channel = controller_channel(input_binding);
-		if (!section || !channel || !section->value("human", false) ||
-		    channel->value("action", std::string{}) != command.action || channel->value("semantics", "") != "setting" ||
-		    command.value < channel->at("minimum").get<std::int64_t>() ||
-		    command.value > channel->at("maximum").get<std::int64_t>() || !command.controller.empty() ||
-		    !command.channel.empty() || command.generation || command.request_id || !command.arguments.empty())
-			return false;
-		if (!layout_.is_null())
-			for (const auto &widget : layout_.at("widgets"))
-				if (widget.contains("controller") && widget.contains("channel") &&
-				    widget_system(widget.at("id")) == input_binding &&
-				    ((widget.at("kind") == "throttle" && command.action == "speed_mm_s") ||
-				     (widget.at("kind") == "heading" && command.action == "heading_mdeg")))
-					projected = true;
-		if (command.action == "assisted" || command.action == "longitudinal_thrust" ||
-		    command.action == "manual_steering")
-			for (const auto *anchor : {"speed_mm_s", "heading_mdeg"})
-				projected |= manual_binding(command.action, anchor) == input_binding;
-		if (!projected)
-			return false;
-		command.controller = section->at("id");
-		command.channel = input_binding.substr(input_binding.find('/', 11) + 1);
-		command.generation = section->at("generation");
-		command.system.clear();
-	}
-	if (observation_->gameplay.is_object())
-	{
-		const auto descriptors = observation_->gameplay.value("controls", Json::array());
-		if (descriptors.is_array())
-			for (const auto &descriptor : descriptors)
-				if (console_descriptor(descriptor) && console_string(descriptor, "action") == command.action &&
-				    console_string(descriptor, "system") == command.system &&
-				    console_string(descriptor, "controller") == command.controller &&
-				    console_string(descriptor, "channel") == command.channel &&
-				    descriptor.value("generation", std::uint64_t{0}) == command.generation &&
-				    descriptor.value("request_id", std::uint64_t{0}) == command.request_id &&
-				    descriptor.value("arguments", Json::array()) == Json(command.arguments) &&
-				    *console_integer(descriptor.at("value")) == command.value)
-				{
-					projected = true;
-					projected_label = console_label(console_string(descriptor, "label_key"));
-					if (projected_label.empty())
-						projected_label = console_label(console_string(descriptor, "label"));
-					if (descriptor.value("label_value", Json(false)) == true)
-						projected_label += " " + std::to_string(command.value);
-				}
-	}
-	if (!command.controller.empty() && command.system.empty() && !command.request_id && command.arguments.empty() &&
-	    (command.action == "longitudinal_thrust" || command.action == "manual_steering" ||
-	     command.action == "lateral_thrust" || command.action == "boost"))
-	{
-		const auto binding = "controller/" + command.controller + "/" + command.channel;
-		const auto section = controller_section(binding), channel = controller_channel(binding);
-		if (section && channel && section->value("human", false) && section->at("generation") == command.generation &&
-		    channel->value("action", "") == command.action && channel->value("semantics", "") == "setting" &&
-		    command.value >= channel->at("minimum") && command.value <= channel->at("maximum"))
-		{
-			if (command.action == "lateral_thrust" || command.action == "boost")
-				projected = true;
-			for (const auto *anchor : {"speed_mm_s", "heading_mdeg"})
-				projected |= manual_binding(command.action, anchor) == binding;
-		}
-	}
-	if ((!spec || !command.controller.empty()) && !projected)
+	const auto eligible = eligible_console_command(*observation_, layout_, session->public_board(), std::move(command));
+	if (!eligible)
 		return false;
-	if (spec && command.controller.empty())
+	command = eligible->command;
+	std::string projected_label;
+	if (!eligible->descriptor.is_null())
 	{
-		if (!operating_value_valid(*spec, command.value))
-			return false;
-		if (command.system.empty())
-		{
-			const auto selected = select_system(observation_->systems, spec->system);
-			if (!selected)
-				return false;
-			command.system = *selected;
-		}
-		else
-		{
-			const auto selected = std::find_if(observation_->systems.begin(), observation_->systems.end(),
-			                                   [&](const SystemView &system)
-			                                   {
-				                                   return system.id == command.system && system.controlled;
-			                                   });
-			if (selected == observation_->systems.end() && !projected)
-				return false;
-		}
+		const auto &descriptor = eligible->descriptor;
+		projected_label = console_label(console_string(descriptor, "label_key"));
+		if (projected_label.empty())
+			projected_label = console_label(console_string(descriptor, "label"));
+		if (descriptor.value("label_value", false))
+			projected_label += " " + std::to_string(command.value);
 	}
 	if (!session->console_command(route_, command))
 	{

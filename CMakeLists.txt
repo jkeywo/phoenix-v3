@@ -182,6 +182,7 @@ add_library(
 	STATIC
 	src/core/input.cpp
 	src/core/contracts.cpp
+	src/core/console_controls.cpp
 	src/core/data.cpp
 	src/platform/random.cpp
 	src/platform/atomic_file.cpp
@@ -192,7 +193,9 @@ if(WIN32)
 endif()
 target_sources(
 	phoenix_foundation
-	PUBLIC FILE_SET CXX_MODULES FILES src/core/input.cppm src/core/contracts.cppm src/core/data.cppm
+	PUBLIC
+		FILE_SET CXX_MODULES
+			FILES src/core/input.cppm src/core/contracts.cppm src/core/data.cppm src/core/console_controls.cppm
 )
 target_link_libraries(phoenix_foundation PUBLIC nlohmann_json::nlohmann_json)
 if(EMSCRIPTEN)
