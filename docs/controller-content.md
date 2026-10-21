@@ -137,7 +137,7 @@ Controller trees expose command, System observation, peer-command and message bi
 
 Isolated Test feedback identifies each Controller by entity, Console and Controller ID, with its effective operator, generation, active states, transition reason, diagnostics and bounded command receipts. This debugging view is separate from player observations and does not export private tree memory.
 
-World and portable session saves use schema 7 with Console Controller continuation and knowledge binding metadata. Schemas 1-6 and obsolete entity/System authority fields are refused transactionally; there is no implicit continuation migration. Command transport uses wire envelope schema 5 and carries Controller, channel, operator generation and request identity, plus bounded command arguments. Old peers are refused before play. Flight mechanism continuation retains its own schema 4. All live command decisions use the common Controller runtime, including converted definitions.
+World and portable session saves use schema 12 with Console Controller continuation and knowledge binding metadata. Schemas 1-11 and obsolete entity/System authority fields are refused transactionally; there is no implicit continuation migration. Command transport uses wire envelope schema 5 and carries Controller, channel, operator generation and request identity, plus bounded command arguments. Old peers are refused before play. Flight mechanism continuation retains its own schema 4. All live command decisions use the common Controller runtime, including converted definitions.
 
 Preference channels (`intent_integer` and `intent_boolean`) may declare `choices: [{"value":1000,"label_key":"Cruise policy"},{"value":3000,"label_key":"Fast policy"}]`. Choices are unique, in range, limited to 64 entries and include the initial value. Both human and AI admission enforce the list. Labels use ordinary localisation; Workshop can edit them. Omit choices for a continuous bounded setting. An optional channel `label_key` labels its generated controls.
 
@@ -167,10 +167,14 @@ This explicit test-only probe edits the initial command, verifies/exports/reopen
 
 All Controller decisions use the hierarchical evaluator. The former object-keyed timed tree format is rejected. For a cycle, author states with `running` actions marked `once: true` and transitions comparing `{"elapsed": true}` against the duration using `ge`. Running actions execute on the first tick in each state; the next state's outputs start the following tick, including for one-tick states. Use explicit owned `command_bindings` and `write.<channel>` actions. Human-to-AI handover restarts at the initial state while normal Controller command preservation applies.
 
-World and portable saves from schema 6 or earlier require a new session. Existing save files are preserved; no continuation conversion is attempted.
+World and portable saves from schema 11 or earlier require a new session. Existing save files are preserved; no continuation conversion is attempted.
 
 ## Ship navigation assessment
 
 The ship computes obstacle clearance and lateral-avoidance evidence once per fixed tick, before Controller trees run. This close-in lookout reads physical world geometry and motion directly, as a crew watching the Viewscreen would; radar range, fog and Console feeds do not limit it. The entity blackboard publishes `navigation` with `observed_tick`, `blocked`, `left_heading`, `lateral_thrust` and `lateral_safe`. Every Console and Controller on that ship can read this shared assessment without receiving another Console's private contact list or telemetry.
 
 Existing `navigation.blocked`, `navigation.left_heading`, `navigation.lateral_thrust` and `navigation.lateral_safe` tree observations read that blackboard. Assessment never writes machinery commands. Lateral recommendations consider AI-owned lateral machinery; human-owned channels remain under their operator's authority. Saves retain the latest blackboard assessment for consistent checkpoint presentation; older saves without it start with an empty assessment. The ship recomputes it before the next Controller step after load/resume.
+
+## Shared action execution
+
+Maintained policies select reusable actions through typed invocation bindings. See [shared Controller actions, officer requests and fixed factions](controller-actions.md) for runtime inputs, channel remapping, outcomes, coordination and schema-12 persistence. Legacy `policy: combat` declarations convert at the content boundary; they no longer select a separate native decision loop.

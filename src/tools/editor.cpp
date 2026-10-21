@@ -904,6 +904,7 @@ void lighting_preview()
 }
 void entity_properties(Json &entity)
 {
+	string_field("Default faction (optional)", entity, "faction");
 	ImGui::TextWrapped("Reusable definition: %s", entity.at("id").get_ref<const std::string &>().c_str());
 	const auto id = entity.at("id").get<std::string>();
 	if (editor.rename_from != id)
@@ -1267,6 +1268,7 @@ void slots_editor()
 			           if (ImGui::Checkbox(tool_label("Mandatory ship slot").c_str(), &mandatory))
 				           slot["mandatory"] = mandatory;
 			           transform_fields(slot);
+			           string_field("Faction (empty is unaffiliated)", slot, "faction");
 			           ImGui::TextUnformatted("Allowed ships:");
 			           for (const auto &id : editor.document.definition_choices(WorkshopDefinitionKind::Entity))
 			           {
@@ -2211,6 +2213,7 @@ void render_editor(Application &app)
 		{
 			ImGui::Text("Instance %llu", static_cast<unsigned long long>(editor.selected));
 			transform_fields(*instance);
+			string_field("Faction", *instance, "faction");
 			ImGui::Separator();
 			editor.definition = -1;
 			for (std::size_t i = 0; i < definitions.size(); ++i)

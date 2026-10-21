@@ -152,3 +152,7 @@ All 22 native system cases, the WASM suite/continuation comparison, and the targ
 ## Comic messages — 20 October 2026
 
 Console and shared Viewscreen messages now use named portraits, Comic Neue speech bubbles and prose-only accessible text. Human sender profiles survive delayed delivery, handover and saved history; private/public routing is unchanged. See [message presentation](messages.md) and [validation evidence](smoke/comic-messages.md).
+
+## Shared Controller actions and fixed factions — 21 October 2026
+
+Maintained navigation, engineering and combat policies select typed reusable execution trees through ordinary owned commands. Officer requests use correlated supply/cooling, manoeuvre and repair outcomes, with persisted commitments and handover cleanup. Map faction knowledge uses the same permitted contact projection for humans and AI. Workshop edits the corresponding content and shows action status through isolated Test. Runtime saves use schema 12 and reject incompatible continuations. See [contracts, authoring and verification scope](controller-actions.md). Physical-device, graphical and screen-reader acceptance remains separate.

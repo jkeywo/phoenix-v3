@@ -61,7 +61,7 @@ hints, not the instance command boundary.
 
 Restricted crew packs retain only public instance kind/bounds and verified
 Console/widget bindings and public Controller channel/profile metadata, without private
-tree programs or other machinery definitions. World/session saves use schema 7 with
+tree programs or other machinery definitions. World/session saves use schema 12 with
 Controller continuation; old authority formats are refused. Packet schema 5 refuses
 older peers before interpreting commands or projections.
 
@@ -115,3 +115,5 @@ For example, the final entry in `sprite_sheet.frames` is:
 ```
 
 Canonical frames use `azimuth` and `attachments` instead of sidecar bearings and markers. Their rectangle, pivot and mirror flag have the same meaning. An asymmetric source pivot at X=30 in a 100-pixel region displays at X=70; a source attachment at X=80 displays at X=20. Its displacement from the pivot changes from +50 to âˆ’50. Existing unmirrored packs need no migration, and mirroring does not change physical collision shapes or gameplay heading.
+
+Map packs may declare fixed factions and mutual relationships, with per-placement and ship-slot membership overrides. Shared action trees and their referenced execution subtrees participate in normal dependency closure. See [Controller actions and factions](controller-actions.md).

@@ -1943,6 +1943,20 @@ struct GameplayEditor
 	void scenario(WorkshopDocument &document)
 	{
 		auto &map = document.map();
+		records(map, "factions", {{"id", "faction"}, {"label", "Faction"}},
+		        [&](Json &f)
+		        {
+			        string(f, "id");
+			        string(f, "label");
+		        });
+		const auto faction_ids = map.contains("factions") ? ids(map.at("factions")) : std::vector<std::string>{};
+		records(map, "relationships", {{"a", ""}, {"b", ""}, {"relation", "neutral"}},
+		        [&](Json &r)
+		        {
+			        choice(r, "a", faction_ids);
+			        choice(r, "b", faction_ids);
+			        choice(r, "relation", {"friendly", "neutral", "hostile"});
+		        });
 		records(map, "away_missions",
 		        {{"id", "mission"},
 		         {"title_key", "Away mission"},
@@ -2520,6 +2534,37 @@ struct GameplayEditor
 			return true;
 		};
 
+		if (editable("action_bindings"))
+			records(tree, "action_bindings", {{"id", "action"}, {"tree", ""}},
+			        [&](Json &binding)
+			        {
+				        string(binding, "id");
+				        choice(binding, "tree", document.definition_choices(WorkshopDefinitionKind::Tree));
+				        for (const auto *key : {"channels", "observations"})
+				        {
+					        if (!binding.contains(key))
+						        binding[key] = Json::object();
+					        heading(key);
+					        structure(binding[key], true);
+				        }
+			        });
+		if (tree.contains("controller_action") || button("Declare reusable Controller action"))
+		{
+			auto &action = tree["controller_action"];
+			if (action.is_null())
+				action = {{"label", "Controller action"}};
+			string(action, "label");
+			records(action, "inputs", {{"name", "target"}, {"type", "integer"}},
+			        [&](Json &input)
+			        {
+				        string(input, "name");
+				        choice(input, "type", {"integer", "boolean", "text"});
+			        });
+			if (!action.contains("available"))
+				action["available"] = Json::array();
+			heading("Availability conditions");
+			structure(action["available"], true);
+		}
 		if (editable("command_bindings"))
 			records(tree, "command_bindings", {{"channel", "command"}, {"type", "integer"}, {"semantics", "setting"}},
 			        [&](Json &binding)
