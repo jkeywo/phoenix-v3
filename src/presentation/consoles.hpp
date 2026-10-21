@@ -181,6 +181,7 @@ class ConsoleSurface final : public Rml::EventListener
 		return false;
 	}
 #include "personnel.hpp"
+#include "away.hpp"
 	void prepare_local_settings(Application &app, const ConsoleRegion &region)
 	{
 		local_settings_controls_.clear();
@@ -188,14 +189,17 @@ class ConsoleSurface final : public Rml::EventListener
 		std::string markup =
 		    "<div class=\"local-settings-card\"><div style=\"display:block;width:" + std::to_string(content_width) +
 		    "px;\"><h1>" + localise("Console settings") + "</h1><div>";
-		for (const auto &[tab, label] : std::vector<std::pair<std::string, std::string>>{{"personnel", "Personnel"},
+		for (const auto &[tab, label] : std::vector<std::pair<std::string, std::string>>{{"away", "Away missions"},
+		                                                                                 {"personnel", "Personnel"},
 		                                                                                 {"display", "Display"},
 		                                                                                 {"language", "Language"},
 		                                                                                 {"audio", "Audio"},
 		                                                                                 {"session", "Session"}})
 			markup += settings_button("local-settings.tab/" + tab, label);
 		markup += "</div>";
-		if (local_settings_tab_ == "personnel")
+		if (local_settings_tab_ == "away")
+			markup += away_markup();
+		else if (local_settings_tab_ == "personnel")
 			markup += personnel_markup(app);
 		else if (local_settings_tab_ == "display")
 		{
@@ -264,6 +268,12 @@ class ConsoleSurface final : public Rml::EventListener
 				first->Focus();
 		if (local_settings_tab_ == "personnel")
 			for (const auto &[key, text] : personnel_readouts_)
+			{
+				app.screen_readouts.emplace_back(key, text);
+				place(app, region, key);
+			}
+		if (local_settings_tab_ == "away")
+			for (const auto &[key, text] : away_readouts_)
 			{
 				app.screen_readouts.emplace_back(key, text);
 				place(app, region, key);
@@ -541,6 +551,7 @@ button.on-screen-active .share-live {display:block;}
 .local-settings-card > div {display:block;width:100%;}
 .local-settings-card h1,.local-settings-card h2,.local-settings-card p {display:block;width:100%;box-sizing:border-box;}
 .personnel-row {display:block;width:100%;border-bottom:1px #526265;padding:8px;}
+.away-attention button {background:#664e27;border:2px #f2d68a;}
 .personnel-row img {width:64px;height:64px;vertical-align:middle;}
 .personnel-row button {width:75%;}
 .local-settings-card button {width:190px;min-height:48px;box-sizing:border-box;}
@@ -625,6 +636,8 @@ button.on-screen-active .share-live {display:block;}
 		if (!app_ || !name.starts_with(prefix))
 			return false;
 		const auto action = name.substr(prefix.size());
+		if (app_ && app_->session && away_action(action))
+			return true;
 		if (app_ && app_->session && personnel_action(action))
 			return true;
 		if (app_ && !settings_open_ && app_->screen != Screen::settings && conversation_action(action))
@@ -1765,7 +1778,7 @@ button.on-screen-active .share-live {display:block;}
 		std::string signature = std::to_string(layout_identity_) + (app.pseudo_locale ? "pseudo" : "normal") +
 		                        (pregame ? ready ? "ready" : "waiting" : "running") + (profile_open_ ? "profile" : "") +
 		                        (profile_open_ ? "" : profile_name_) + "/complexity/" + complexity +
-		                        (manual_toggle_ ? "/manual" : "");
+		                        (manual_toggle_ ? "/manual" : "") + (away_attention() ? "/away-attention" : "");
 		for (const auto &choice : complexity_choices)
 			signature += "/" + choice;
 		if (model_.observation())
@@ -1788,8 +1801,10 @@ button.on-screen-active .share-live {display:block;}
 			if (toolbar_enabled_ && route_ != 31 && !pregame)
 			{
 				button("settings", "Settings");
-				toolbar +=
-				    "<div style=\"position:absolute;right:0;top:0;\">" + button("personnel", "Personnel") + "</div>";
+				toolbar += "<div style=\"position:absolute;right:0;top:0;\">" + button("personnel", "Personnel") +
+				           "<span class=\"" + std::string(away_attention() ? "away-attention" : "") + "\">" +
+				           button("away", away_attention() ? "Away missions: assignment needed" : "Away missions") +
+				           "</span>" + "</div>";
 				toolbar += "<button class=\"settings-cog\" id=\"" + id("settings") + "\"><img src=\"" +
 				           asset_path("../menu/settings.png") + "\" width=\"56\" height=\"56\"/></button>";
 			}

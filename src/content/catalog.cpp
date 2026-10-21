@@ -143,12 +143,14 @@ std::optional<state_tree::Context> contextual_tree(const std::map<std::string, J
 		if (tree.contains("context"))
 		{
 			const auto context = tree.at("context").get<std::string>();
-			if (context != "system" && context != "scenario" && context != "controller" && context != "conversation")
+			if (context != "system" && context != "scenario" && context != "controller" && context != "conversation" &&
+			    context != "away")
 				invalid("trees." + id, "unsupported tree context");
-			return context == "conversation" ? state_tree::Context::Conversation
-			       : context == "controller" ? state_tree::Context::Controller
-			       : context == "scenario"   ? state_tree::Context::Scenario
-			                                 : state_tree::Context::System;
+			return context == "away"           ? state_tree::Context::Away
+			       : context == "conversation" ? state_tree::Context::Conversation
+			       : context == "controller"   ? state_tree::Context::Controller
+			       : context == "scenario"     ? state_tree::Context::Scenario
+			                                   : state_tree::Context::System;
 		}
 		if (!tree.contains("extends"))
 			return {};
@@ -578,6 +580,21 @@ void verify_prepared_catalog(const Catalog &catalog)
 				if (!catalog.presentation)
 					integer(system, "turn_mdeg_s", field, 1, 360000);
 			}
+			else if (kind == "dispatch")
+			{
+			}
+			else if (kind == "displacement")
+			{
+				integer(system, "range_mm", field, 1, 1000000000);
+				integer(system, "capacity", field, 1, 64);
+				integer(system, "transfer_ticks", field, 1, 36000);
+				if (!catalog.presentation)
+				{
+					integer(system, "energy_per_second", field, 1);
+					if (!system.contains("power_store") || !system.contains("compartment"))
+						invalid(field, "displacement requires power and compartment");
+				}
+			}
 			else if (kind == "comms")
 			{
 				integer(system, "range_mm", field, 1, 1000000000);
@@ -911,6 +928,8 @@ void prepare_catalog(Catalog &catalog)
 				catalog.tree_programs.emplace(id, program.tree);
 				catalog.conversation_programs.emplace(id, std::move(program));
 			}
+			else if (*context == state_tree::Context::Away)
+				catalog.tree_programs.emplace(id, state_tree::compile(tree, away_registry(), catalog.trees));
 			else if (*context == state_tree::Context::Controller)
 			{
 				auto bindings = compile_controller_bindings(tree, catalog);
@@ -924,7 +943,10 @@ void prepare_catalog(Catalog &catalog)
 		else
 			invalid("trees." + id, "timed tree format retired; author a controller-context state tree");
 	for (const auto &[id, map] : catalog.maps)
+	{
 		verify_scenario_authoring(catalog, map);
+		(void)compile_away(catalog, map);
+	}
 	verify_conversation_authoring(catalog);
 	verify_prepared_catalog(catalog);
 }

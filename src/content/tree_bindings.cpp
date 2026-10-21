@@ -50,11 +50,14 @@ InheritedRecordBindings inherited_record_bindings(const Json &tree, const Catalo
 	{
 		binding_require(tree.at("context").is_string(), path + ".context", "expected system or scenario");
 		const auto name = tree.at("context").get<std::string>();
-		binding_require(name == "system" || name == "scenario" || name == "controller", path + ".context",
-		                "expected system, controller or scenario");
-		const auto context = name == "controller" ? state_tree::Context::Controller
-		                     : name == "system"   ? state_tree::Context::System
-		                                          : state_tree::Context::Scenario;
+		binding_require(name == "system" || name == "scenario" || name == "controller" || name == "conversation" ||
+		                    name == "away",
+		                path + ".context", "expected system, controller or scenario");
+		const auto context = name == "away"           ? state_tree::Context::Away
+		                     : name == "conversation" ? state_tree::Context::Conversation
+		                     : name == "controller"   ? state_tree::Context::Controller
+		                     : name == "system"       ? state_tree::Context::System
+		                                              : state_tree::Context::Scenario;
 		binding_require(!result.context || *result.context == context, path + ".context",
 		                "inherited tree context cannot change");
 		result.context = context;
@@ -452,6 +455,8 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		                "invalid or duplicate publication template");
 		registry.actions.push_back({"publish." + name, 4, {}, true});
 	}
+	for (const auto &name : {"open", "assign", "withdraw", "transport", "send", "recall", "cancel"})
+		registry.actions.push_back({std::string("away.") + name, 4, {Type::Text, Type::Text, Type::Integer}, true});
 	registry.actions.push_back({"stop_publication", 4, {Type::Integer}, true});
 	registry.actions.push_back({"withdraw_request", 4, {Type::Text}, true});
 	registry.actions.push_back({"acknowledge_message", 4, {Type::Message}, true});

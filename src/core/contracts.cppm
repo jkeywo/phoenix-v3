@@ -80,7 +80,9 @@ enum class OperatingSystem
 	Magazine,
 	RepairTeam,
 	Shield,
-	Comms
+	Comms,
+	Displacement,
+	Dispatch
 };
 using SystemMask = std::uint32_t;
 constexpr SystemMask system_bit(OperatingSystem system)
@@ -235,6 +237,10 @@ constexpr std::string_view operating_system_name(OperatingSystem system)
 		return "turret";
 	case OperatingSystem::Magazine:
 		return "magazine";
+	case OperatingSystem::Displacement:
+		return "displacement";
+	case OperatingSystem::Dispatch:
+		return "dispatch";
 	case OperatingSystem::Comms:
 		return "comms";
 	case OperatingSystem::Shield:

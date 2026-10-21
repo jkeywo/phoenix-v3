@@ -192,7 +192,7 @@ void GameplayScenarioBridge::load(const Catalog &catalog, const std::string &nam
 	candidate.programs_ = catalog.tree_programs;
 	candidate.knowledge_ = catalog.knowledge_definition;
 	for (const auto &[id, tree] : catalog.trees)
-		if (catalog.tree_programs.contains(id))
+		if (catalog.tree_programs.contains(id) && catalog.tree_programs.at(id).context == state_tree::Context::Scenario)
 			candidate.record_bindings_.emplace(id, gameplay_record_bindings(tree, catalog));
 	const auto compiled_knowledge = compile_gameplay_knowledge(catalog);
 	for (const auto &[hull, ship] : compiled_knowledge.ships)

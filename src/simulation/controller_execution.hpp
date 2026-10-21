@@ -252,7 +252,16 @@ void controller_output(EntityId id, std::size_t index, const state_tree::Output 
 			const ControllerAddress address{id, controller.definition.console, controller.definition.id};
 
 			const ConsoleAddress source{id, controller.definition.console};
-			if (action.name.starts_with("publish."))
+			if (action.name.starts_with("away."))
+			{
+				OperatingCommand command{id, action.name, output.arguments.at(2).number, output.arguments.at(0).text};
+				command.text = output.arguments.at(1).text;
+				command.controller = controller.definition.id;
+				command.generation = controller.generation;
+				if (!away_command(source, command, true, true))
+					throw std::runtime_error("Away command refused");
+			}
+			else if (action.name.starts_with("publish."))
 			{
 				controller.result.id =
 				    knowledge.activate_publication(source, action.name.substr(8), ecs.get<Clock>().tick);

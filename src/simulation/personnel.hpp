@@ -121,6 +121,8 @@ bool personnel_command(const ConsoleAddress &address, const OperatingCommand &co
 	if (it == d.officers.end() || !personnel_owns(address, it->department))
 		return false;
 	const auto i = static_cast<std::size_t>(it - d.officers.begin());
+	if (away_reserved(address.ship, "officer:" + it->id))
+		return false;
 	const auto *duty = personnel_duty(address.ship, command.text);
 	if (command.action == "personnel.relieve")
 	{
@@ -129,7 +131,10 @@ bool personnel_command(const ConsoleAddress &address, const OperatingCommand &co
 	}
 	else if (command.action == "personnel.assign" || command.action == "personnel.swap")
 	{
-		if (!duty || duty->department != it->department)
+		if (!duty || duty->department != it->department ||
+		    (!duty->team.empty() && away_reserved(address.ship, "team:" + duty->team)) ||
+		    (!duty->required_trait.empty() &&
+		     std::find(it->traits.begin(), it->traits.end(), duty->required_trait) == it->traits.end()))
 			return false;
 	}
 	else
@@ -143,6 +148,14 @@ bool personnel_command(const ConsoleAddress &address, const OperatingCommand &co
 		return false;
 	if (command.action == "personnel.swap" && (occupied == state.officers.size() || state.officers[i].duty.empty()))
 		return false;
+	if (command.action == "personnel.swap")
+	{
+		const auto *previous = personnel_duty(address.ship, state.officers[i].duty);
+		if (!previous || (!previous->required_trait.empty() &&
+		                  std::find(d.officers[occupied].traits.begin(), d.officers[occupied].traits.end(),
+		                            previous->required_trait) == d.officers[occupied].traits.end()))
+			return false;
+	}
 	if (duty)
 	{
 		const auto &o = state.officers[i];
@@ -236,7 +249,9 @@ Json personnel_board(const ConsoleAddress &address) const
 			                           {"department", o.department},
 			                           {"duty", r.duty},
 			                           {"present", r.present},
-			                           {"location", d.compartments.at(r.location)},
+			                           {"location", away_officer_location(address.ship, o.id).empty()
+			                                            ? d.compartments.at(r.location)
+			                                            : away_officer_location(address.ship, o.id)},
 			                           {"remaining", r.remaining},
 			                           {"destination", r.edge_to < 0 ? std::string{} : d.compartments.at(r.edge_to)},
 			                           {"traits", traits}});
@@ -254,6 +269,10 @@ void restore_personnel(EntityId id, const Json &saved)
 	{
 		const auto &o = state.officers[i];
 		const auto *duty = personnel_duty(id, o.duty);
+		if (duty && !duty->required_trait.empty() &&
+		    std::find(d.officers[i].traits.begin(), d.officers[i].traits.end(), duty->required_trait) ==
+		        d.officers[i].traits.end())
+			throw std::runtime_error("Unqualified saved officer assignment");
 		if (o.location >= d.compartments.size() || o.edge_to < -1 ||
 		    o.edge_to >= static_cast<std::int64_t>(d.compartments.size()) || o.remaining < 0 || o.remaining > 36000 ||
 		    ((o.edge_to >= 0) != (o.remaining > 0)) ||

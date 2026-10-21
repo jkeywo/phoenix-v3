@@ -371,6 +371,21 @@ struct ConsoleSpec
 	std::vector<std::string> human_preferences;
 };
 // Authored personnel is compiled once; runtime assignments never alter these records.
+struct AwaySlot
+{
+	std::string id, kind, trait;
+	bool required = true;
+};
+struct AwayDefinition
+{
+	std::string id, title, slot, conversation, reveal_event, tree;
+	EntityId target = 0;
+	std::vector<AwaySlot> slots;
+	state_tree::Program program;
+	std::map<std::string, std::size_t> repair_compartments;
+};
+state_tree::Registry away_registry();
+std::vector<AwayDefinition> compile_away(const Catalog &, const Json &);
 struct OfficerTrait
 {
 	std::string id, label;
@@ -382,7 +397,7 @@ struct PersonnelDepartment
 };
 struct PersonnelDuty
 {
-	std::string id, label, department, controller, team, compartment, console;
+	std::string id, label, department, controller, team, compartment, console, required_trait;
 	std::map<std::string, std::vector<std::string>> effects;
 };
 struct OfficerDefinition

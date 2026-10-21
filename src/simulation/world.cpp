@@ -29,6 +29,7 @@ import phoenix.gameplay_scenario;
 #include "controllers.hpp"
 #include "combat.hpp"
 #include "personnel_state.hpp"
+#include "away_state.hpp"
 #include "../core/display_projection.hpp"
 
 namespace phoenix::fixed
@@ -113,6 +114,7 @@ struct CompiledDefinition
 	std::int64_t durability = 0, half_height = 5000;
 	BridgeDefinition bridge;
 	PersonnelDefinition personnel;
+	std::map<std::string, DisplacementDefinition> displacements;
 	std::map<std::string, ConsoleBridgeDefinition> console_bridge;
 	std::vector<std::string> tags;
 	std::map<std::string, std::vector<std::string>> radar_shows;
@@ -485,6 +487,10 @@ struct World::Impl
 			visual_scales[name] = definition.at("render").at("scale");
 			result.bridge = compile_bridge(content, name);
 			result.personnel = compile_personnel(content, name);
+			for (const auto &[key, s] : definition.at("systems").items())
+				if (s.value("kind", key) == "displacement")
+					result.displacements[key] = {s.at("compartment"), s.at("range_mm"), s.at("capacity"),
+					                             s.at("transfer_ticks")};
 			for (const auto &console : resolve_consoles(content, name))
 				if (!console.definition.empty())
 					result.console_bridge.emplace(
@@ -1017,7 +1023,9 @@ struct World::Impl
 	}
 	bool operate(flecs::entity entity, const std::string &name, OperatingRequest output, bool execute)
 	{
-		if (auto target = instance(entity, name); target && target->kind == OperatingSystem::Comms)
+		if (auto target = instance(entity, name);
+		    target && (target->kind == OperatingSystem::Comms || target->kind == OperatingSystem::Displacement ||
+		               target->kind == OperatingSystem::Dispatch))
 		{
 			if (output.action != OperatingAction::SystemEnabled || output.value < 0 || output.value > 1 ||
 			    !output.arguments.empty())
@@ -1484,7 +1492,10 @@ struct World::Impl
 			const auto radar = child.try_get<Radar>();
 			request_system_resource(
 			    ship.get_mut<ShipResources>(), child.get<ResourceBinding>().slot,
-			    fit.enabled && !structurally_disabled(ship, fit.id) && (!radar || radar->enabled) ? 1000 : 0);
+			    fit.enabled && !structurally_disabled(ship, fit.id) && (!radar || radar->enabled) &&
+			            (fit.kind != OperatingSystem::Displacement || away_transport_requested(id, fit.id))
+			        ? 1000
+			        : 0);
 		}
 	}
 	void prepare_paid_modifiers(flecs::entity ship, FlightRestrictions restrictions)
@@ -1930,6 +1941,7 @@ struct World::Impl
 #include "personnel.hpp"
 #include "bridge.hpp"
 #include "conversations.hpp"
+#include "away.hpp"
 	bool meta(std::uint64_t claimant, const OperatingCommand &command, bool execute)
 	{
 		if (!claims.contains(claimant) || command.target != claims.at(claimant).ship)
@@ -1939,6 +1951,8 @@ struct World::Impl
 			return false;
 		const auto &console = *seat(address.ship, address.console);
 		const auto &spec = definition(address.ship);
+		if (command.action.starts_with("away."))
+			return away_command(address, command, execute);
 		if (command.action.starts_with("personnel."))
 			return personnel_command(address, command, execute);
 		if (command.action == "alert.set" || command.action == "stance.set")
@@ -2115,6 +2129,8 @@ void World::load(const Catalog &source, const std::string &map, const std::map<s
 	}
 	candidate->conversations.programs = content.conversation_programs;
 	candidate->compile_conversation_starts(data);
+	candidate->away_definitions = compile_away(content, data);
+	candidate->away_missions.resize(candidate->away_definitions.size());
 	candidate->refresh_comms();
 	candidate->stream_fields();
 	candidate->index_contacts.run();
@@ -2388,6 +2404,7 @@ void World::tick()
 	impl_->refresh_comms();
 	impl_->conversation_scenarios();
 	impl_->conversations.advance(ticks());
+	impl_->advance_away();
 	impl_->observation_snapshots.clear();
 	impl_->command_snapshots.clear();
 	impl_->controller_inboxes.clear();
@@ -2684,6 +2701,7 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	result.gameplay["navigation"] = impl_->navigation_board(address.ship);
 	result.gameplay["stance"] = impl_->stance_board(address);
 	result.gameplay["personnel"] = impl_->personnel_board(address);
+	result.gameplay["away_missions"] = impl_->away_board(address);
 	if (impl_->comms_owner(address.ship) == address)
 		result.gameplay["conversations"] = impl_->conversations.project(address.ship);
 	if (entity.has<EntityControls>())
@@ -3193,6 +3211,7 @@ Json World::save() const
 			result["scenario"] = impl_->scenario->save();
 	}
 	result["conversations"] = impl_->conversations.save();
+	result["away_missions"] = impl_->save_away();
 	result["conversation_starts"] = impl_->save_conversation_starts();
 	result["projectiles"] = impl_->save_projectiles();
 	result["blast_visuals"] = impl_->blast_visuals;
@@ -3420,6 +3439,7 @@ void World::restore(const Catalog &content, const Json &saved)
 	candidate.impl_->environment_tick = saved.value("environment_tick", static_cast<std::uint64_t>(tick));
 	candidate.impl_->refresh_comms();
 	candidate.impl_->conversations.restore(saved.at("conversations"));
+	candidate.impl_->restore_away(saved.value("away_missions", Json::array()));
 	candidate.impl_->restore_conversation_starts(saved.at("conversation_starts"));
 	if (saved.contains("asteroid_fields"))
 		candidate.impl_->restore_fields(saved.at("asteroid_fields"));

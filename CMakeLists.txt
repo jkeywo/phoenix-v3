@@ -259,6 +259,7 @@ add_library(
 	src/content/conversations.cpp
 	src/content/bridge.cpp
 	src/content/personnel.cpp
+	src/content/away.cpp
 	src/content/controllers.cpp
 	src/content/console_assets.cpp
 	src/content/workshop.cpp
@@ -365,6 +366,7 @@ foreach(
 		swept_collision
 		workshop_test
 		personnel
+		away
 		controller_runtime
 		combat
 )
@@ -1019,6 +1021,9 @@ endif()
 
 # Explicit graphical Comms evidence; not an automatic acceptance test.
 if(NOT EMSCRIPTEN)
+	add_executable(phoenix_away_smoke EXCLUDE_FROM_ALL tests/manual/away_ui.cpp)
+	target_link_libraries(phoenix_away_smoke PRIVATE phoenix_session phoenix_presentation)
+	add_dependencies(phoenix_away_smoke base_pack)
 	add_executable(phoenix_comms_smoke EXCLUDE_FROM_ALL tests/manual/comms_ui.cpp)
 	target_link_libraries(phoenix_comms_smoke PRIVATE phoenix_session phoenix_presentation)
 	add_dependencies(phoenix_comms_smoke base_pack)

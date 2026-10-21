@@ -84,6 +84,9 @@ void combat_damage(flecs::entity ship, std::size_t compartment, std::int64_t amo
 bool operate_combat(flecs::entity ship, flecs::entity child, OperatingRequest output, bool execute)
 {
 	auto &m = child.get_mut<CombatMechanism>();
+	if (m.definition.kind == OperatingSystem::RepairTeam &&
+	    away_reserved(ship.get<StableId>().id, "team:" + m.definition.id))
+		return false;
 	if (!output.arguments.empty())
 		return false;
 	if (output.action == OperatingAction::SystemEnabled)
@@ -477,6 +480,8 @@ void step_repairs()
 		for (auto child : ship.get<EquipmentIndex>().values)
 			if (auto *m = child.try_get_mut<CombatMechanism>(); m && m->definition.kind == OperatingSystem::RepairTeam)
 			{
+				if (away_reserved(id, "team:" + m->definition.id))
+					continue;
 				if (!child.get<Equipment>().enabled || !fault_effectiveness(ship, m->definition.id))
 					continue;
 				if (m->get<RepairState>().travel > 0)

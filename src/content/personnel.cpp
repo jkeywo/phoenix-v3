@@ -13,8 +13,15 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 {
 	PersonnelDefinition out;
 	const auto &hull = catalog.entities.at(entity);
-	if (!hull.contains("personnel") || hull.at("personnel").is_null() || catalog.presentation)
+	if (catalog.presentation)
 		return out;
+	if (!hull.contains("personnel") || hull.at("personnel").is_null())
+	{
+		for (const auto &[key, s] : hull.at("systems").items())
+			if (s.value("kind", key) == "displacement")
+				throw std::runtime_error(entity + ": displacement requires personnel and a Navigator duty");
+		return out;
+	}
 	const auto fail = [&](bool ok, const std::string &why)
 	{
 		if (!ok)
@@ -108,6 +115,8 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 		d.compartment = identifier(v.at("compartment"));
 		d.controller = v.value("controller", std::string{});
 		d.console = v.value("console", std::string{});
+		d.required_trait = v.value("required_trait", std::string{});
+		fail(d.required_trait.empty() || out.traits.contains(d.required_trait), "unknown required trait");
 		d.team = v.value("team", std::string{});
 		fail(duties.insert(d.id).second && departments.contains(d.department) &&
 		         std::find(out.compartments.begin(), out.compartments.end(), d.compartment) != out.compartments.end(),
@@ -228,6 +237,30 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 		out.officers.push_back(o);
 	}
 	fail(out.officers.size() <= 128, "too many officers");
+	for (const auto &o : out.officers)
+		if (!o.duty.empty())
+		{
+			const auto &d = out.duties.at(out.duty_indices.at(o.duty));
+			fail(d.required_trait.empty() ||
+			         std::find(o.traits.begin(), o.traits.end(), d.required_trait) != o.traits.end(),
+			     "starting officer lacks duty qualification");
+		}
+	for (const auto &[key, s] : hull.at("systems").items())
+		if (s.value("kind", key) == "displacement")
+		{
+			fail(std::find(out.compartments.begin(), out.compartments.end(), s.at("compartment").get<std::string>()) !=
+			         out.compartments.end(),
+			     "unknown displacement compartment");
+			bool qualified = false;
+			for (const auto &c : layout.controllers)
+				for (const auto &command : c.commands)
+					for (auto consumer : command.consumers)
+						if (systems.at(consumer).id == key)
+							for (const auto &d : out.duties)
+								if (d.console == c.console && d.controller == c.id && !d.required_trait.empty())
+									qualified = true;
+			fail(qualified, "displacement requires a qualified Navigator duty");
+		}
 	// All authored duties/reserves must be mutually reachable.
 	std::set<std::size_t> reached{0};
 	for (std::size_t n = 0; n < out.compartments.size(); ++n)

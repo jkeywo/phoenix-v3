@@ -530,6 +530,12 @@ struct GameplayEditor
 			        text("Physical reporters emit measured facts under both human and AI operation.");
 		        });
 		const auto kind = spec.value("kind", fallback_kind);
+		if (kind == "displacement")
+		{
+			integer(spec, "range_mm", 100000);
+			integer(spec, "capacity", 8);
+			integer(spec, "transfer_ticks", 40);
+		}
 		if (kind == "comms")
 			integer(spec, "range_mm", 1000000);
 		optional_string(spec, "compartment");
@@ -865,6 +871,7 @@ struct GameplayEditor
 			        optional_string(d, "controller");
 			        optional_string(d, "console");
 			        optional_string(d, "team");
+			        choice(d, "required_trait", ids(p["traits"]), true);
 			        string(d, "compartment");
 			        auto &effects = d["effects"];
 			        if (effects.is_null())
@@ -1004,7 +1011,8 @@ struct GameplayEditor
 				choice(spec, "template", document.definition_choices(WorkshopDefinitionKind::Equipment), true);
 				choice(spec, "kind",
 				       {"engine", "steering", "radar", "generator", "distribution", "coolant", "storage", "lateral",
-				        "boost", "impulse", "weapon", "turret", "magazine", "repair_team", "shield", "comms"},
+				        "boost", "impulse", "weapon", "turret", "magazine", "repair_team", "shield", "comms",
+				        "displacement", "dispatch"},
 				       true);
 				auto kind = equipment_kind(document, spec);
 				if (kind.empty())
@@ -1746,7 +1754,7 @@ struct GameplayEditor
 					ImGui::TextUnformatted(definition.at("extends").get<std::string>().c_str());
 				}
 				Json context{{"context", resolved.at("context")}};
-				if (choice(context, "context", {"controller", "scenario", "conversation"}))
+				if (choice(context, "context", {"controller", "scenario", "conversation", "away"}))
 					definition["context"] = context.at("context");
 				if (context.at("context") == "conversation")
 				{
@@ -1935,6 +1943,33 @@ struct GameplayEditor
 	void scenario(WorkshopDocument &document)
 	{
 		auto &map = document.map();
+		records(map, "away_missions",
+		        {{"id", "mission"},
+		         {"title_key", "Away mission"},
+		         {"ship_slot", ""},
+		         {"target_entity", 1},
+		         {"conversation", ""},
+		         {"reveal_event", ""},
+		         {"tree", ""},
+		         {"slots", Json::array()}},
+		        [&](Json &m)
+		        {
+			        string(m, "id");
+			        string(m, "title_key");
+			        string(m, "ship_slot");
+			        integer(m, "target_entity", 1);
+			        string(m, "conversation");
+			        string(m, "reveal_event");
+			        choice(m, "tree", document.definition_choices(WorkshopDefinitionKind::Tree));
+			        records(m, "slots", {{"id", "repair"}, {"kind", "team"}, {"required", true}},
+			                [&](Json &s)
+			                {
+				                string(s, "id");
+				                choice(s, "kind", {"team", "officer"});
+				                optional_string(s, "trait");
+				                boolean(s, "required", true);
+			                });
+		        });
 		records(map, "conversations",
 		        {{"id", "conversation"}, {"tree", ""}, {"bindings", Json::object()}, {"members", Json::array()}},
 		        [&](Json &c)
@@ -2975,6 +3010,20 @@ void set_gameplay_authoring_vocabulary(const Json &vocabulary)
 		    {{"id", a.name},
 		     {"name", a.name},
 		     {"arguments", Json::array({{{"name", "definition"}, {"type", "text"}}})},
+		     {"effect", true}});
+	const auto away = away_registry();
+	contexts["away"] = {{"observations", Json::array()}, {"actions", Json::array()}};
+	for (const auto &f : away.observations)
+		contexts["away"]["observations"].push_back({{"id", f.name},
+		                                            {"name", f.name},
+		                                            {"type", f.type == state_tree::Type::Text      ? "text"
+		                                                     : f.type == state_tree::Type::Boolean ? "boolean"
+		                                                                                           : "integer"}});
+	for (const auto &a : away.actions)
+		contexts["away"]["actions"].push_back(
+		    {{"id", a.name},
+		     {"name", a.name},
+		     {"arguments", Json::array({{{"name", "value"}, {"type", a.name == "work" ? "integer" : "text"}}})},
 		     {"effect", true}});
 	gameplay_editor.vocabulary = std::move(contexts);
 }

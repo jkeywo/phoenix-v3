@@ -1,5 +1,7 @@
 # Foundation implementation plan
 
+Away missions, 21 October 2026: Dispatch, qualified displacement, department-scoped contributions, remote work/Comms and authored recall/resumption are implemented. Native system checks, WASM integration/continuation parity, fleet checks and the manually invoked native rescue journey passed. The bounded rescue demonstration uses repair teams and existing combat; shuttles, security encounters and evacuation logistics remain later work. See [the contract and evidence](away-missions.md).
+
 Duty officers, 21 October 2026: department-scoped Controller/team assignments, compartment travel, expertise modifiers, Personnel UI, Workshop authoring and AI speaker identity are implemented. Native, network and WebAssembly checks pass; the Personnel reassignment smoke was rendered and inspected. See [the contract and validation](duty-officers.md); platform acceptance remains separate.
 
 Comms conversations, 21 October 2026: powered external Comms, known ship/character directories, persistent group threads, authored conversation state trees, delayed messages, choices, AI/default responses, recipient-specific delivery and live On Screen publication. The human-seeking Console, Workshop authoring and separate local-assistance demonstration build on `combat-mvp`. See the [Comms contract and verification](comms-conversations.md). This increment does not establish first-level rescue/scenario completion.

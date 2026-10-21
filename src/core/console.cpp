@@ -1101,6 +1101,31 @@ const Json *ConsoleModel::controller_channel(const std::string &binding) const
 	const auto &commands = owner->at("commands");
 	return commands.contains(channel) ? &commands.at(channel) : nullptr;
 }
+Json ConsoleModel::away_missions() const
+{
+	return observation_ ? observation_->gameplay.value("away_missions", Json::array()) : Json::array();
+}
+bool ConsoleModel::away_action(const std::string &action, const std::string &mission, const std::string &text)
+{
+	if (!observation_)
+		return false;
+	for (const auto &m : away_missions())
+		if (m.at("id") == mission)
+			for (const auto &ctrl : observation_->gameplay.value("controllers", Json::array()))
+				if (ctrl.value("human", false))
+				{
+					OperatingCommand c{observation_->own.id, "away." + action, m.at("revision").get<std::int64_t>(),
+					                   mission};
+					c.text = text;
+					c.console = observation_->console;
+					c.controller = ctrl.at("id");
+					c.generation = ctrl.at("generation");
+					const auto session = owner_.lock();
+					if (session && session->console_command(route_, c))
+						return true;
+				}
+	return false;
+}
 Json ConsoleModel::personnel() const
 {
 	return observation_ ? observation_->gameplay.value("personnel", Json::object()) : Json::object();

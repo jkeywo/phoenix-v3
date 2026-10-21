@@ -106,7 +106,8 @@ CommandBounds fitted_commands(const FittedSystemSpec &fit, Json spec, const Ship
 	};
 	const auto kind = fit.kind;
 	if (kind == OperatingSystem::Weapon || kind == OperatingSystem::Turret || kind == OperatingSystem::Magazine ||
-	    kind == OperatingSystem::RepairTeam || kind == OperatingSystem::Shield || kind == OperatingSystem::Comms)
+	    kind == OperatingSystem::RepairTeam || kind == OperatingSystem::Shield || kind == OperatingSystem::Comms ||
+	    kind == OperatingSystem::Displacement || kind == OperatingSystem::Dispatch)
 	{
 		add(OperatingAction::SystemEnabled);
 		if (kind == OperatingSystem::Weapon)
@@ -468,6 +469,8 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			}
 			for (const auto &action : catalog.tree_programs.at(controller.tree).registry.actions)
 			{
+				if (action.name.starts_with("away."))
+					continue;
 				if (action.name == "acknowledge_message" || action.name == "stop_publication" ||
 				    action.name == "withdraw_request")
 					continue;

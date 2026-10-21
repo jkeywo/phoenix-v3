@@ -427,6 +427,8 @@ Umbilicals can perform equipment-supported parallel transfers under finite throu
 
 ### 11.3 Away-mission execution and Comms decisions
 
+The initial displacement increment is documented in [Away missions](away-missions.md). On the rescue Courier, Helm owns Dispatch and the Navigation department. A qualified navigator remains at the Navigator duty aboard ship; missions bind the displacement System as transport. The owning Station assigns each transport/team/officer, while Dispatch opens assignments, sends a ready manifest and recalls parties in range. Several missions may bind one displacement System, with one active transfer at a time. Engineering contributes repair teams through its Away missions panel. Attached officers accompany teams. Authored recovery branches preserve completed work and choose resumption checkpoints. This Courier layout supersedes the earlier Science/support placement for that hull.
+
 Away missions are authored state trees. They execute routine work autonomously and occasionally present a consequential decision to **Comms**. The bridge's preparation, personnel, equipment, scans, access, protection and support change what is feasible and the applicable chances. Not every assignment needs a mid-mission prompt.
 
 A decision has an authored timeout and default. A received answer selects a supported branch; without an answer the default resolves it and the tree continues. Link loss does not freeze the operation or introduce a separate return-home policy: the team continues through the same tree and defaults unanswered decisions after their timeouts. The bridge learns what happened through communication or observation; it does not gain live remote knowledge because the host knows the state.

@@ -50,6 +50,12 @@ try
 			throw 'Native Comms continuation trace failed'
 		}
 		Set-Content -LiteralPath "$repo/build/native/conversation-continuation.trace" -Value $commsNativeTrace -Encoding utf8
+		$awayNativeTrace = & "$repo/build/native/Release/phoenix_away_tests.exe" --trace
+		if ($LASTEXITCODE)
+		{
+			throw 'Native away continuation trace failed'
+		}
+		Set-Content -LiteralPath "$repo/build/native/away-continuation.trace" -Value $awayNativeTrace -Encoding utf8
 		& "$PSScriptRoot/check-network-service.ps1"
 	}
 	if ($Target -ne 'native')
@@ -119,6 +125,7 @@ try
 					'phoenix_swept_collision_tests.js',
 					'phoenix_workshop_test_tests.js',
 					'phoenix_personnel_tests.js',
+					'phoenix_away_tests.js',
 					'phoenix_controller_runtime_tests.js',
 					'phoenix_combat_tests.js',
 					'phoenix_conversation_tests.js',
@@ -145,6 +152,13 @@ try
 				throw 'Native/WASM Comms continuation differs'
 			}
 			Write-Output 'PASS native/WASM Comms conversation continuation'
+			$awayNativeTrace = Get-Content -LiteralPath "$repo/build/native/away-continuation.trace"
+			$awayWebTrace = & $node phoenix_away_tests.js --trace
+			if ($LASTEXITCODE -or ($awayNativeTrace -join "`n").Trim() -ne ($awayWebTrace -join "`n").Trim())
+			{
+				throw 'Native/WASM away continuation differs'
+			}
+			Write-Output 'PASS native/WASM away mission continuation'
 			$wasmTrace = & $node phoenix_simulation_check.js --trace
 			if ($LASTEXITCODE)
 			{

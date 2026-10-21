@@ -74,6 +74,8 @@ public:
 	ShipCameraState camera() const;
 	Json objectives() const;
 	Json personnel() const;
+	Json away_missions() const;
+	bool away_action(const std::string &, const std::string &, const std::string & = {});
 	bool personnel_action(const std::string &action, const std::string &officer, const std::string &duty = {});
 	Json conversations() const;
 	bool conversation_action(const std::string &action, std::uint64_t conversation = 0, const std::string &text = {},

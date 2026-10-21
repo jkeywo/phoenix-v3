@@ -149,12 +149,14 @@ struct Compiler
 		const Json source = resolve_definition(input, catalog);
 		Program program;
 		const auto context = source.at("context").get<std::string>();
-		if (context != "system" && context != "scenario" && context != "controller" && context != "conversation")
+		if (context != "system" && context != "scenario" && context != "controller" && context != "conversation" &&
+		    context != "away")
 			fail("context must be system, controller or scenario");
-		program.context = context == "conversation" ? Context::Conversation
-		                  : context == "controller" ? Context::Controller
-		                  : context == "system"     ? Context::System
-		                                            : Context::Scenario;
+		program.context = context == "away"           ? Context::Away
+		                  : context == "conversation" ? Context::Conversation
+		                  : context == "controller"   ? Context::Controller
+		                  : context == "system"       ? Context::System
+		                                              : Context::Scenario;
 		program.registry = registry;
 		program.budget = source.value("budget", 4096u);
 		if (program.budget < 1 || program.budget > 65536)
@@ -452,7 +454,7 @@ void validate_registry(const Registry &registry)
 		for (const auto &field : *fields)
 		{
 			if (!valid_identifier(field.name) || !names.insert(field.name).second || field.type <= Type::Missing ||
-			    field.type > Type::Message || field.contexts == 0 || field.contexts > 15)
+			    field.type > Type::Message || field.contexts == 0 || field.contexts > 31)
 				fail("invalid/duplicate registry field: " + field.name);
 			if (!valid_value(field.initial, field.type, true))
 				fail("invalid field default: " + field.name);
@@ -462,7 +464,7 @@ void validate_registry(const Registry &registry)
 	for (const auto &action : registry.actions)
 	{
 		if (!valid_identifier(action.name) || !names.insert(action.name).second || action.contexts == 0 ||
-		    action.contexts > 15 || action.arguments.size() > 64)
+		    action.contexts > 31 || action.arguments.size() > 64)
 			fail("invalid/duplicate action: " + action.name);
 		for (auto type : action.arguments)
 			if (type <= Type::Missing || type > Type::Message)

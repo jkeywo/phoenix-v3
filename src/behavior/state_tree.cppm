@@ -21,7 +21,8 @@ enum class Context : std::uint8_t
 	System = 1,
 	Scenario = 2,
 	Controller = 4,
-	Conversation = 8
+	Conversation = 8,
+	Away = 16
 };
 enum class Type : std::uint8_t
 {
