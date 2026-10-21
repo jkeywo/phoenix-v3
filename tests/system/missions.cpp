@@ -93,7 +93,7 @@ OperatingCommand cmd(const World &w, std::string action, int value = 0)
 {
 	auto o = nav(w);
 	OperatingCommand c{
-	    1, action, value, action == "ftl.depart" ? "jump" : "", "jump", action == "ftl.depart" ? "" : "enabled"};
+	    o.own.id, action, value, action == "ftl.depart" ? "jump" : "", "jump", action == "ftl.depart" ? "" : "enabled"};
 	c.console = "navigator";
 	for (const auto &x : o.gameplay.at("controllers"))
 		if (x.at("id") == "jump")
@@ -139,6 +139,7 @@ Json lost_save(const World &w)
 void loss_cases()
 {
 	auto s = away_fixture();
+	fit_ftl(s, "helm", "drive");
 	s["trees"].push_back({{"id", "test.loss"},
 	                      {"context", "scenario"},
 	                      {"initial", "idle"},
@@ -146,15 +147,31 @@ void loss_cases()
 	s["maps"][0]["scenario"] = {
 	    {"tree", "test.loss"},
 	    {"events", {"party-lost"}},
-	    {"fact_bindings", Json::array({{{"id", "recovered"},
+	    {"fact_bindings", Json::array({{{"id", "operation-recovered"},
 	                                    {"kind", "away"},
 	                                    {"subject", {{"slot", "crew"}}},
 	                                    {"operation", "job"},
 	                                    {"field", "recovered"}}})},
 	    {"event_bindings",
 	     Json::array({{{"kind", "personnel.lost"}, {"subject", {{"entity", 1}}}, {"event", "party-lost"}}})}};
+	auto &scenario = s["maps"][0]["scenario"];
+	Json facts = Json::array();
+	for (const auto *disposition : {"recovered", "deployed", "lost"})
+	{
+		scenario["fact_bindings"].push_back(
+		    {{"id", disposition}, {"kind", "personnel"}, {"subject", {{"slot", "crew"}}}, {"field", disposition}});
+		facts.push_back({{"fact", disposition}, {"label_key", disposition}});
+	}
+	scenario["reports"] = Json::array(
+	    {{{"id", "personnel"},
+	      {"ship", {{"slot", "crew"}}},
+	      {"title_key", "Personnel dispositions"},
+	      {"facts", facts},
+	      {"rules", Json::array()},
+	      {"fallback",
+	       {{"result", "recorded"}, {"title_key", "Recorded"}, {"explanation_key", "Actual personnel state"}}}}});
 	const auto catalog = load(s);
-	for (int phase = 0; phase < 3; ++phase)
+	for (int phase = 0; phase < 4; ++phase)
 	{
 		World w;
 		w.load(catalog, "test.map", {{"crew", "test.away"}});
@@ -169,31 +186,62 @@ void loss_cases()
 		ticks(w, 12);
 		require(w.submit(101, order(w, "send")), "send party");
 		ticks(w, phase == 0 ? 1 : 4);
-		if (phase == 2)
+		if (phase >= 2)
 		{
 			require(w.submit(101, order(w, "recall")), "queue return");
 			ticks(w, 1);
 		}
-		w.restore(catalog, lost_save(w));
+		if (phase == 3)
+			ticks(w, 4);
+		else
+			w.restore(catalog, lost_save(w));
 		ticks(w, 1);
 		const auto saved = w.save();
 		const auto &mission = saved.at("away_missions")[0];
-		require(mission.at("phase") == (phase == 0 ? "open" : "lost"), "loss follows actual atomic transfer location");
-		require(saved.at("mission_ledger").at("lost").empty() == (phase == 0), "only delivered personnel become lost");
+		require(mission.at("phase") == (phase == 0   ? "open"
+		                                : phase == 3 ? "recovered"
+		                                             : "lost"),
+		        "loss follows actual atomic transfer location");
+		require(saved.at("mission_ledger").at("lost").empty() == (phase == 0 || phase == 3),
+		        "only delivered personnel become lost");
 		World r;
 		r.restore(catalog, saved);
 		ticks(w, 5);
 		ticks(r, 5);
 		require(w.save() == r.save(), "lost disposition and transition receipts continue identically");
-		checkpoint(w);
-		if (phase)
+		if (phase == 1 || phase == 2)
 		{
 			require(mission.at("assignments").empty(), "lost disposition survives cleared manifest");
 			int events = 0;
 			for (const auto &e : saved.at("scenario").at("runtime").at("events"))
+			{
 				events += e.at("name") == "party-lost";
+				if (e.at("name") == "party-lost")
+					require(e.at("tick") == e.at("payload").at("tick"),
+					        "event occurrence time matches the physical transition");
+			}
 			require(events == 1, "loss emits once");
 		}
+		require(w.submit(101, cmd(w, "system_enabled", 1)), "charge for personnel report");
+		ticks(w, 650);
+		require(w.submit(101, cmd(w, "ftl.depart")), "depart with actual personnel dispositions");
+		w.tick();
+		const auto report = w.observe(101)->gameplay.at("mission_report");
+		for (const auto &fact : report.at("facts"))
+		{
+			const auto count = std::count_if(report.at("personnel").begin(), report.at("personnel").end(),
+			                                 [&](const auto &asset)
+			                                 {
+				                                 return asset.at("status") == fact.at("label");
+			                                 });
+			require(fact.at("value") == count, "objective personnel facts and debrief classifications agree");
+		}
+		require(report.at("personnel").size() == mission.at("participants").size(),
+		        "initial empty manifest is not recovered personnel and loss survives manifest cleanup");
+		for (const auto &asset : report.at("personnel"))
+			require(asset.at("status") == (phase == 3 ? "recovered" : "lost"),
+			        "debrief reflects actual recovery and cannot restore a lost party");
+		checkpoint(w);
 	}
 }
 void physical_boundary()
@@ -348,6 +396,20 @@ int main(int argc, char **argv)
 		                                                          {"subject", {{"entity", 2}}}});
 		source["maps"][0]["scenario"]["reports"][0]["facts"].push_back(
 		    {{"fact", "filtered-event"}, {"label_key", "Other subject"}});
+		for (const auto &[name, match] :
+		     std::map<std::string, Json>{{"typed-match", {{"source", 1}, {"kind", "entity.departed"}}},
+		                                 {"wrong-source", {{"source", 2}}},
+		                                 {"wrong-type", {{"source", "1"}}},
+		                                 {"missing-field", {{"unavailable", true}}},
+		                                 {"conflicting-subject", {{"subject", 2}}}})
+		{
+			source["maps"][0]["scenario"]["fact_bindings"].push_back({{"id", name},
+			                                                          {"kind", "event"},
+			                                                          {"event", "observed-departure"},
+			                                                          {"subject", {{"entity", 1}}},
+			                                                          {"match", match}});
+			source["maps"][0]["scenario"]["reports"][0]["facts"].push_back({{"fact", name}, {"label_key", name}});
+		}
 		source["maps"][0]["scenario"]["objectives"][0]["complete_when"] = {
 		    {"all",
 		     Json::array({leaf("life", "active"), Json{{"any", Json::array({Json{{"not", leaf("missing", "destroyed")}},
@@ -379,6 +441,9 @@ int main(int argc, char **argv)
 		require(report.at("result") == "success" && report.at("objectives").size() == 3 &&
 		            report.at("facts")[1].at("value") == true && report.at("facts")[2].at("value") == false,
 		        "authoritative report contains undiscovered truth and committed departure");
+		for (std::size_t i = 3; i < report.at("facts").size(); ++i)
+			require(report.at("facts")[i].at("value") == (report.at("facts")[i].at("label") == "typed-match"),
+			        "event predicates preserve typed payload, subject and missing-field filtering");
 		require(w.observe(102)->gameplay.at("mission_report").is_null(), "report isolated per crew");
 		require(network::read_observation(network::observation_json(*w.observe(101)), catalog)
 		                .gameplay.at("mission_report") == report,

@@ -26,18 +26,10 @@ void retire_departed(EntityId id)
 }
 std::vector<std::string> ftl_left_behind(EntityId id) const
 {
-	std::set<std::string> assets;
-	for (std::size_t i = 0; i < away_missions.size(); ++i)
-		if (away_ship(away_definitions[i]) == id && away_missions[i].absent())
-		{
-			for (const auto &[slot, asset] : away_missions[i].assignments)
-				assets.insert(asset);
-			for (const auto &officer : away_missions[i].accompanying)
-				assets.insert("officer:" + officer);
-		}
 	std::vector<std::string> names;
-	for (const auto &asset : assets)
-		names.push_back(away_asset_label(id, asset));
+	for (const auto &[asset, disposition] : personnel_dispositions(id))
+		if (disposition == "deployed")
+			names.push_back(away_asset_label(id, asset));
 	for (const auto &[craft, e] : craft_rows())
 		if (e.get<CraftState>().home == id && !craft_dormant(e))
 			names.push_back(e.get<Definition>().name + " #" + std::to_string(craft));

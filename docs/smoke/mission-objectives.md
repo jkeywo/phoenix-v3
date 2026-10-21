@@ -42,3 +42,11 @@ Native screenshots are written to ignored `build/mission-success.png`, `build/mi
 - The loss journey manoeuvres to expose remaining compartments instead of expecting repeated fire from one angle to destroy the whole hull.
 
 These are manually invoked receipts, not production-content timing goldens. No six-monitor hardware or actual assistive-technology session was available in these runs; browser semantic inspection is narrower evidence.
+
+## Review simplifications — 21 October 2026
+
+Event facts now use a short-circuiting predicate on the existing scenario journal, without copying matching events or adding a cache. Objective facts, authoritative debriefs and FTL personnel warnings share one disposition calculation, with persistent losses taking precedence over manifests and deployment history. Event emission synchronizes scenario time explicitly without invoking objective evaluation. Authoring and continuation formats are unchanged.
+
+The six relevant integration cases passed on native and WASM: mission outcomes, scenario situations, scenario-World, away missions, FTL and carried craft. Mission, away, FTL and craft continuation traces matched between native and WASM. The expanded synthetic mission case checks typed event payloads, subject conflicts, missing payload fields, event occurrence timestamps, and agreement between personnel facts and frozen report classifications after recovery or target loss. Existing cases retain deployment, interruption, repeated deployment, human/AI admission and departure-boundary coverage.
+
+Verification used an isolated snapshot of `6cbbfaa` plus the refactor to avoid a compiler-output collision with ongoing Cruiser work. No graphical smoke run was repeated for this internal refactor; the earlier journey receipts above remain scoped to that implementation.

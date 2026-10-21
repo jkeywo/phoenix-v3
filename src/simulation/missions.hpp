@@ -35,37 +35,28 @@ static const char *objective_status_name(ObjectiveStatus s)
 	static constexpr const char *names[]{"pending", "active", "completed", "failed", "cancelled"};
 	return names[static_cast<unsigned>(s)];
 }
-std::int64_t mission_personnel(EntityId ship, const std::string &which) const
+std::map<std::string, std::string> personnel_dispositions(EntityId ship) const
 {
-	std::set<std::string> assets, deployed;
-	if (which == "lost")
-	{
-		auto i = mission_ledger.lost.find(ship);
-		return i == mission_ledger.lost.end() ? 0 : i->second.size();
-	}
+	std::map<std::string, std::string> dispositions;
 	for (std::size_t i = 0; i < away_missions.size(); ++i)
 		if (away_ship(away_definitions[i]) == ship)
 		{
 			const auto &m = away_missions[i];
+			for (const auto &asset : m.participants)
+				dispositions.try_emplace(asset, "recovered");
 			if (m.absent())
 			{
-				for (const auto &[slot, a] : m.assignments)
-					deployed.insert(a);
-				for (const auto &o : m.accompanying)
-					deployed.insert("officer:" + o);
+				for (const auto &[slot, asset] : m.assignments)
+					dispositions[asset] = "deployed";
+				for (const auto &officer : m.accompanying)
+					dispositions["officer:" + officer] = "deployed";
 			}
-			if (which == "recovered")
-				assets.insert(m.participants.begin(), m.participants.end());
 		}
-	if (which == "deployed")
-		assets = deployed;
-	else
-		for (const auto &a : deployed)
-			assets.erase(a);
-	if (auto i = mission_ledger.lost.find(ship); i != mission_ledger.lost.end())
-		for (const auto &a : i->second)
-			assets.erase(a);
-	return assets.size();
+	// Loss is permanent and takes precedence over history or a current manifest.
+	if (auto lost = mission_ledger.lost.find(ship); lost != mission_ledger.lost.end())
+		for (const auto &asset : lost->second)
+			dispositions[asset] = "lost";
+	return dispositions;
 }
 state_tree::Value mission_fact(ScenarioId instance_id, const ScenarioFactBinding &b) const
 {
@@ -76,20 +67,15 @@ state_tree::Value mission_fact(ScenarioId instance_id, const ScenarioFactBinding
 		const auto subject = filtered ? mission_subject(instance_id, b.subject) : 0;
 		if (filtered && !subject)
 			return {};
-		for (const auto &e : scenario->runtime().events(b.event))
+		auto match = b.match;
+		if (filtered)
 		{
-			bool match =
-			    !filtered || (e.payload.contains("subject") &&
-			                  e.payload.at("subject") == ScenarioParameter{static_cast<std::int64_t>(subject)});
-			for (const auto &[key, v] : b.match)
-			{
-				auto i = e.payload.find(key);
-				match &= i != e.payload.end() && i->second == v;
-			}
-			if (match)
-				return Value::boolean(true);
+			const ScenarioParameter value{static_cast<std::int64_t>(subject)};
+			const auto [field, inserted] = match.emplace("subject", value);
+			if (!inserted && field->second != value)
+				return Value::boolean(false);
 		}
-		return Value::boolean(false);
+		return Value::boolean(scenario->runtime().has_event(b.event, match));
 	}
 	auto id = mission_subject(instance_id, b.subject);
 	if (!id)
@@ -106,7 +92,14 @@ state_tree::Value mission_fact(ScenarioId instance_id, const ScenarioFactBinding
 	if (b.kind == "entity")
 		return Value::string(lifecycle(id));
 	if (b.kind == "personnel")
-		return Value::integer(mission_personnel(id, b.field));
+	{
+		const auto dispositions = personnel_dispositions(id);
+		return Value::integer(std::count_if(dispositions.begin(), dispositions.end(),
+		                                    [&](const auto &asset)
+		                                    {
+			                                    return asset.second == b.field;
+		                                    }));
+	}
 	if (b.kind == "compartment")
 	{
 		const auto *s = entities.at(id).try_get<CombatStructure>();
@@ -153,7 +146,7 @@ void mission_transition(std::string kind, EntityId source, EntityId subject, std
 {
 	if (!scenario)
 		return;
-	scenario->evaluate_conditions(ecs.get<Clock>().tick, {});
+	scenario->synchronize_time(ecs.get<Clock>().tick);
 	auto &r = scenario->runtime();
 	if (mission_ledger.transitions.size() >= r.definition().maximum_events)
 		throw std::runtime_error("Mission transition journal exhausted");
@@ -371,30 +364,8 @@ Json authoritative_report(EntityId ship, Json legacy) const
 				value = v.number;
 			legacy["facts"].push_back({{"label", label}, {"value", value}});
 		}
-		std::set<std::string> participants;
-		for (std::size_t i = 0; i < away_missions.size(); ++i)
-			if (away_ship(away_definitions[i]) == ship)
-				participants.insert(away_missions[i].participants.begin(), away_missions[i].participants.end());
-		for (const auto &a : participants)
-		{
-			const auto lost = mission_ledger.lost.contains(ship) && mission_ledger.lost.at(ship).contains(a);
-			bool away = false;
-			for (std::size_t i = 0; i < away_missions.size(); ++i)
-				if (away_ship(away_definitions[i]) == ship && away_missions[i].absent() &&
-				    (std::any_of(away_missions[i].assignments.begin(), away_missions[i].assignments.end(),
-				                 [&](const auto &x)
-				                 {
-					                 return x.second == a;
-				                 }) ||
-				     (a.starts_with("officer:") &&
-				      std::find(away_missions[i].accompanying.begin(), away_missions[i].accompanying.end(),
-				                a.substr(8)) != away_missions[i].accompanying.end())))
-					away = true;
-			legacy["personnel"].push_back({{"name", away_asset_label(ship, a)},
-			                               {"status", lost   ? "lost"
-			                                          : away ? "deployed"
-			                                                 : "recovered"}});
-		}
+		for (const auto &[asset, disposition] : personnel_dispositions(ship))
+			legacy["personnel"].push_back({{"name", away_asset_label(ship, asset)}, {"status", disposition}});
 		return legacy;
 	}
 	return legacy;

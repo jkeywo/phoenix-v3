@@ -827,6 +827,11 @@ std::vector<ScenarioMotionSegment> GameplayScenarioBridge::sample_motion(std::sp
 	}
 	return out;
 }
+void GameplayScenarioBridge::synchronize_time(ScenarioTick tick)
+{
+	runtime_.synchronize_time(tick);
+	tick_ = tick;
+}
 void GameplayScenarioBridge::evaluate_conditions(ScenarioTick tick,
                                                  const std::map<ScenarioId, ScenarioFacts> &snapshots)
 {

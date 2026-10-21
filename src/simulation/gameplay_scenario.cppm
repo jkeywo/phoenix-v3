@@ -77,6 +77,7 @@ public:
 	void confirm_spawn(ScenarioId request, std::span<const EntityId> ids, std::string failure = {});
 	std::vector<ScenarioMotionSegment> sample_motion(std::span<const BodyView> bodies) const;
 	void evaluate(std::span<const ScenarioMotionSegment> executed_motion);
+	void synchronize_time(ScenarioTick tick);
 	void evaluate_conditions(ScenarioTick tick, const std::map<ScenarioId, ScenarioFacts> &snapshots);
 	std::vector<state_tree::Value> observations(ScenarioId instance) const;
 	ScenarioRuntime &runtime();

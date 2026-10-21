@@ -329,6 +329,7 @@ public:
 	const ScenarioActionResult &emit(ScenarioActionToken token, std::string name,
 	                                 std::map<std::string, ScenarioParameter> payload = {});
 	std::vector<ScenarioEvent> events(std::string_view name, ScenarioId after = 0) const;
+	bool has_event(std::string_view name, const std::map<std::string, ScenarioParameter> &match) const;
 	const ScenarioActionResult &publish(ScenarioActionToken token, std::string record, ScenarioRecipients recipients,
 	                                    std::map<std::string, ScenarioParameter> fields = {});
 	const ScenarioActionResult &finish(ScenarioActionToken token, bool success, std::string reason = {});
@@ -341,6 +342,8 @@ public:
 	void begin_tick(ScenarioTick tick, std::map<std::string, EntityId> slots,
 	                std::map<EntityId, ScenarioPoint> positions);
 	void evaluate(std::span<const ScenarioMotionSegment> movement);
+	// Advance event time without evaluating objectives or replacing the world view.
+	void synchronize_time(ScenarioTick tick);
 	void evaluate_conditions(ScenarioTick tick, const std::map<ScenarioId, ScenarioFacts> &snapshots);
 	void withdraw_actor(EntityId entity);
 	bool mission_complete() const;

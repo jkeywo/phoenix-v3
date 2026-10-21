@@ -56,10 +56,14 @@ std::optional<bool> scenario_condition(const ScenarioCondition &c, const Scenari
 		return {};
 	return value;
 }
+void ScenarioRuntime::synchronize_time(ScenarioTick tick)
+{
+	require(tick >= tick_, "scenario time cannot reverse");
+	tick_ = tick;
+}
 void ScenarioRuntime::evaluate_conditions(ScenarioTick tick, const std::map<ScenarioId, ScenarioFacts> &snapshots)
 {
-	require(tick >= tick_, "condition time cannot reverse");
-	tick_ = tick;
+	synchronize_time(tick);
 	for (auto &[id, o] : objectives_)
 	{
 		const auto &d = definition_.objectives.at(o.definition);
@@ -524,6 +528,20 @@ std::vector<ScenarioEvent> ScenarioRuntime::events(std::string_view name, Scenar
 		if (e.id > after && e.name == name)
 			out.push_back(e);
 	return out;
+}
+bool ScenarioRuntime::has_event(std::string_view name, const std::map<std::string, ScenarioParameter> &match) const
+{
+	return std::any_of(events_.begin(), events_.end(),
+	                   [&](const ScenarioEvent &event)
+	                   {
+		                   return event.name == name &&
+		                          std::all_of(match.begin(), match.end(),
+		                                      [&](const auto &field)
+		                                      {
+			                                      const auto value = event.payload.find(field.first);
+			                                      return value != event.payload.end() && value->second == field.second;
+		                                      });
+	                   });
 }
 const ScenarioActionResult &ScenarioRuntime::publish(ScenarioActionToken t, std::string record,
                                                      ScenarioRecipients recipients_value,
