@@ -2,6 +2,7 @@
 #include "../support/craft_fixture.hpp"
 #include "../support/ftl_fixture.hpp"
 #include <iostream>
+#include <set>
 import phoenix.simulation;
 #include "../../src/network/projection.hpp"
 using namespace phoenix;
@@ -61,6 +62,82 @@ int main(int argc, char **argv)
 		    },
 		    "prefilled craft cannot exceed bay slots");
 		const auto catalog = load(input);
+		{
+			auto serial = armed_craft_fixture();
+			serial["entities"][0]["systems"]["bay"]["slots"] = 8;
+			serial["entities"][0]["systems"]["bay"]["initial"] =
+			    Json::array({"test.interceptor", "test.interceptor", "test.interceptor", "test.interceptor",
+			                 "test.bomber", "test.bomber", "test.shuttle", "test.shuttle"});
+			serial["entities"][0]["systems"]["bay"]["transfer_ticks"] = 60;
+			serial["entities"][0]["combat"]["half_height_mm"] = 45000;
+			for (auto &craft : serial["entities"])
+				if (craft.contains("craft"))
+					craft["craft"]["cruise_altitude_mm"] = 100000;
+			const auto content = load(serial);
+			World running;
+			running.load(content, "test.map", {{"crew", "test.away"}});
+			require(running.claim(101, *running.ship_for_slot("crew"), "drive"), "serial bay claim");
+			ticks(running, 4);
+			const auto serial_view = *running.observe(101);
+			for (const auto &craft : serial_view.gameplay.at("craft"))
+				if (craft.at("role") != "shuttle")
+					require(
+					    running.submit(101, command(running, "craft", craft.at("role") == "bomber" ? "bomb" : "defend",
+					                                craft.at("id"), craft.at("role") == "bomber" ? "1" : "")),
+					    "enqueue multiple serial launches");
+			std::set<EntityId> launched;
+			for (int tick = 0; tick < 340; ++tick)
+			{
+				running.tick();
+				const auto snapshot = running.save();
+				for (const auto &row : snapshot.at("craft").at("entities"))
+					if (row.at("state").at("phase") == "flying" && launched.insert(row.at("id").get<EntityId>()).second)
+						for (const auto &body : snapshot.at("bodies"))
+							if (body.at("body").at("id") == row.at("id"))
+								require(body.at("vertical").at("desired") == 100000,
+								        "newly enabled craft consumes its own altitude guidance on the launch tick");
+			}
+			World recovered;
+			recovered.restore(content, running.save());
+			require(recovered.save() == running.save(), "serial bay restores before queued launch completes");
+			for (int i = 0; i < 100; ++i)
+			{
+				running.tick();
+				recovered.tick();
+			}
+			require(recovered.save() == running.save(), "serial launch altitude and resources continue exactly");
+		}
+		{
+			auto approach = craft_fixture();
+			approach["entities"][0]["systems"]["bay"]["slots"] = 1;
+			approach["entities"][0]["systems"]["bay"]["initial"] = Json::array({"test.shuttle"});
+			approach["entities"][0]["systems"]["bay"]["docking_range_mm"] = 190000;
+			approach["entities"][0]["systems"]["bay"]["docking_speed_mm_s"] = 6000;
+			approach["entities"][0]["combat"]["half_height_mm"] = 45000;
+			approach["maps"][0]["entities"] = Json::array();
+			approach["maps"][0].erase("away_missions");
+			approach["maps"][0].erase("conversations");
+			for (auto &craft : approach["entities"])
+				if (craft.contains("craft"))
+				{
+					craft["craft"]["cruise_altitude_mm"] = 100000;
+					craft["craft"]["role"] = "interceptor";
+				}
+			const auto content = load(approach);
+			World returning;
+			returning.load(content, "test.map", {{"crew", "test.away"}});
+			require(returning.claim(101, *returning.ship_for_slot("crew"), "drive"), "recovery bay claim");
+			ticks(returning, 4);
+			const auto craft = returning.observe(101)->gameplay.at("craft")[0].at("id").get<std::string>();
+			require(returning.submit(101, command(returning, "craft", "defend", craft)), "launch recovery fixture");
+			ticks(returning, 100);
+			require(returning.submit(101, command(returning, "craft", "recall", craft)), "recall over large hull");
+			for (int i = 0; i < 1000 && returning.observe(101)->gameplay.at("craft")[0].at("phase") != "docked"; ++i)
+				returning.tick();
+			const auto recovered = returning.observe(101)->gameplay.at("craft")[0];
+			require(recovered.at("phase") == "docked" && recovered.at("condition") == recovered.at("maximum_condition"),
+			        "recovery brakes above the carrier without striking its hull");
+		}
 		World w;
 		w.load(catalog, "test.map", {{"crew", "test.away"}});
 		const auto ship = *w.ship_for_slot("crew");

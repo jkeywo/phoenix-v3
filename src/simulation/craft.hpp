@@ -384,94 +384,100 @@ void prepare_craft()
 	std::set<std::pair<EntityId, std::string>> busy;
 	for (const auto &[id, e] : craft_rows())
 	{
-		auto &s = e.get_mut<CraftState>();
-		if (s.phase == CraftPhase::Lost)
-			continue;
-		if (combat_dead(e) || (craft_dormant(e) &&
-		                       (!entities.contains(s.home) || (combat_dead(entities.at(s.home)) && !departed(s.home)))))
 		{
-			if (auto *body = e.try_get_mut<Destructible>())
+			auto &s = e.get_mut<CraftState>();
+			if (s.phase == CraftPhase::Lost)
+				continue;
+			if (combat_dead(e) || (craft_dormant(e) && (!entities.contains(s.home) ||
+			                                            (combat_dead(entities.at(s.home)) && !departed(s.home)))))
 			{
-				body->durability = 0;
-				body->destroyed_tick = ecs.get<Clock>().tick;
-				body->processed = true;
-			}
-			if (auto *structure = e.try_get_mut<CombatStructure>())
-				for (auto &compartment : structure->compartments)
+				if (auto *body = e.try_get_mut<Destructible>())
 				{
-					compartment.hp = 0;
-					compartment.disabled = true;
+					body->durability = 0;
+					body->destroyed_tick = ecs.get<Clock>().tick;
+					body->processed = true;
 				}
-			s.phase = CraftPhase::Lost;
-			++s.revision;
-			set_craft_active(e, false);
-			continue;
-		}
-		if (ftl_recall_started(s.home) && !s.ftl_recalled)
-		{
-			s.ftl_recalled = true;
-			s.pending_order = "return";
-			++s.revision;
-		}
-		if (!ftl_preparing(s.home))
-			s.ftl_recalled = false;
-		if (!s.pending_order.empty() && craft_link(id))
-		{
-			if (s.pending_order == "return")
-			{
-				if (!s.mission.empty())
-					request_craft_pickup(id);
-				else
-					craft_return(e);
-			}
-			else
-			{
-				s.order = s.pending_order;
-				s.target = s.pending_target;
-				s.target_position = s.pending_position;
-				s.target_velocity = s.pending_velocity;
-				s.target_altitude = s.pending_altitude;
-				s.pending_order.clear();
-				if (s.phase == CraftPhase::Docked)
-					launch_craft(e);
-			}
-		}
-		const auto &bay = definition(s.home).craft_bays.at(s.bay);
-		if (s.phase == CraftPhase::Launching || s.phase == CraftPhase::Recovering)
-		{
-			if (bay_working(s.home, s.bay) && busy.emplace(s.home, s.bay).second)
-			{
-				if (s.phase == CraftPhase::Recovering &&
-				    (distance_3d(id, s.home) > bay.docking_range ||
-				     fixed::length(e.get<Motion>().velocity - entities.at(s.home).get<Motion>().velocity) >
-				         bay.docking_speed))
-				{
-					s.phase = CraftPhase::Flying;
-					s.progress = 0;
-				}
-				else if (++s.progress >= bay.transfer_ticks)
-				{
-					const bool launch = s.phase == CraftPhase::Launching;
-					s.phase = launch ? CraftPhase::Flying : CraftPhase::Docked;
-					s.progress = 0;
-					++s.revision;
-					if (launch)
+				if (auto *structure = e.try_get_mut<CombatStructure>())
+					for (auto &compartment : structure->compartments)
 					{
-						auto p = entities.at(s.home).get<Pose>();
-						p.position = p.position + fixed::scale(fixed::direction(p.heading), bay.docking_range);
-						e.set<Pose>(p).set<Motion>(entities.at(s.home).get<Motion>());
-						e.get_mut<VerticalMotion>().altitude =
-						    altitude(s.home) + definition(s.home).half_height + definition(id).half_height + 1000;
+						compartment.hp = 0;
+						compartment.disabled = true;
 					}
+				s.phase = CraftPhase::Lost;
+				++s.revision;
+				set_craft_active(e, false);
+				continue;
+			}
+			if (ftl_recall_started(s.home) && !s.ftl_recalled)
+			{
+				s.ftl_recalled = true;
+				s.pending_order = "return";
+				++s.revision;
+			}
+			if (!ftl_preparing(s.home))
+				s.ftl_recalled = false;
+			if (!s.pending_order.empty() && craft_link(id))
+			{
+				if (s.pending_order == "return")
+				{
+					if (!s.mission.empty())
+						request_craft_pickup(id);
 					else
+						craft_return(e);
+				}
+				else
+				{
+					s.order = s.pending_order;
+					s.target = s.pending_target;
+					s.target_position = s.pending_position;
+					s.target_velocity = s.pending_velocity;
+					s.target_altitude = s.pending_altitude;
+					s.pending_order.clear();
+					if (s.phase == CraftPhase::Docked)
+						launch_craft(e);
+				}
+			}
+			const auto &bay = definition(s.home).craft_bays.at(s.bay);
+			if (s.phase == CraftPhase::Launching || s.phase == CraftPhase::Recovering)
+			{
+				if (bay_working(s.home, s.bay) && busy.emplace(s.home, s.bay).second)
+				{
+					if (s.phase == CraftPhase::Recovering &&
+					    (distance_3d(id, s.home) > bay.docking_range ||
+					     fixed::length(e.get<Motion>().velocity - entities.at(s.home).get<Motion>().velocity) >
+					         bay.docking_speed))
 					{
-						s.order = "idle";
-						complete_craft_recovery(id);
+						s.phase = CraftPhase::Flying;
+						s.progress = 0;
 					}
-					set_craft_active(e, launch);
+					else if (++s.progress >= bay.transfer_ticks)
+					{
+						const bool launch = s.phase == CraftPhase::Launching;
+						s.phase = launch ? CraftPhase::Flying : CraftPhase::Docked;
+						s.progress = 0;
+						++s.revision;
+						if (launch)
+						{
+							auto p = entities.at(s.home).get<Pose>();
+							p.position = p.position + fixed::scale(fixed::direction(p.heading), bay.docking_range);
+							e.set<Pose>(p).set<Motion>(entities.at(s.home).get<Motion>());
+							e.get_mut<VerticalMotion>().altitude =
+							    altitude(s.home) + definition(s.home).half_height + definition(id).half_height + 1000;
+						}
+						else
+						{
+							s.order = "idle";
+							complete_craft_recovery(id);
+						}
+						set_craft_active(e, launch);
+					}
 				}
 			}
 		}
+		// Enabling/disabling a craft can move it between Flecs tables. Never
+		// retain the pre-transition component reference for flight guidance.
+		auto &s = e.get_mut<CraftState>();
+		const auto &bay = definition(s.home).craft_bays.at(s.bay);
 		if (s.phase != CraftPhase::Flying && s.phase != CraftPhase::Recovering)
 			continue;
 		const auto &d = *definition(id).craft;
@@ -526,6 +532,15 @@ void prepare_craft()
 					g.altitude = contact.altitude + (s.order == "return" ? 0 : d.cruise_altitude);
 					target_velocity = {contact.vx, contact.vy};
 				}
+			if (s.order == "return")
+			{
+				// Brake at a recovery point above the carrier, rather than
+				// pursuing its centre while descending through a large hull.
+				const auto outward = e.get<Pose>().position - g.destination;
+				const auto offset = std::min(fixed::length(outward), bay.docking_range * 3 / 4);
+				g.destination = g.destination + fixed::scale(fixed::normal(outward), offset);
+				g.altitude += definition(s.home).half_height + definition(id).half_height + 1000;
+			}
 			const auto delta = g.destination - e.get<Pose>().position;
 			const auto distance = fixed::length(delta);
 			std::int64_t maximum = 0, acceleration = 1;
