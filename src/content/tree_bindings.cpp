@@ -517,6 +517,43 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	                                                {"result.message", Type::Message, 4, {}},
 	                                                {"result.reason", Type::Text, 4, {}}})
 		result.result.values.at(result_index++) = add(field);
+	const auto add_inputs = [&](const Json &action)
+	{
+		for (const auto &input : action.value("inputs", Json::array()))
+		{
+			const auto name = input.at("name").get<std::string>();
+			binding_require(valid_identifier(name), "Controller action", "invalid input name");
+			const auto type = input.at("type").get<std::string>();
+			binding_require(type == "integer" || type == "boolean" || type == "text", "Controller action", "invalid input type");
+			const auto kind = type == "integer" ? Type::Integer : type == "boolean" ? Type::Boolean : Type::Text;
+			const auto found = std::find_if(registry.observations.begin(), registry.observations.end(), [&](const auto &f) { return f.name == "input." + name; });
+			if (found == registry.observations.end()) add({"input." + name, kind, 4, {}});
+			else binding_require(found->type == kind, "Controller action", "conflicting input types");
+		}
+	};
+	if (resolved.contains("controller_action")) add_inputs(resolved.at("controller_action"));
+	for (const auto &binding : resolved.value("action_bindings", Json::array()))
+	{
+		const auto name = binding.at("id").get<std::string>(), target = binding.at("tree").get<std::string>();
+		binding_require(valid_identifier(name) && catalog.trees.contains(target), "Controller action", "invalid action binding");
+		const auto definition = resolve_tree_definition(catalog.trees.at(target), catalog);
+		binding_require(definition.contains("controller_action") && !definition.contains("action_bindings"), "Controller action", "execution tree required; recursive selection forbidden");
+		const auto &metadata = definition.at("controller_action");
+		add_inputs(metadata);
+		ActionSpec select{"select." + name, 4, {Type::Text}, false, 100000};
+		for (const auto &input : metadata.value("inputs", Json::array()))
+		{
+			const auto type = input.at("type").get<std::string>();
+			select.arguments.push_back(type == "integer" ? Type::Integer : type == "boolean" ? Type::Boolean : Type::Text);
+		}
+		registry.actions.push_back(std::move(select));
+	}
+	registry.actions.push_back({"action.cancel", 4, {Type::Text}, false, 100000});
+	registry.actions.push_back({"action.succeed", 4, {Type::Text}, true});
+	registry.actions.push_back({"action.fail", 4, {Type::Text}, true});
+	add({"action.status", Type::Text, 4, {}});
+	add({"action.reason", Type::Text, 4, {}});
+	add({"action.id", Type::Text, 4, {}});
 	return result;
 }
 state_tree::Registry gameplay_registry(const Json &tree, const Catalog &catalog, state_tree::Context context)

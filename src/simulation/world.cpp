@@ -107,8 +107,10 @@ struct CompiledGameplay
 	std::vector<CompiledGameplaySystem> values;
 	std::optional<ShipResourcesDefinition> power;
 };
+struct FactionMembership { std::string id; };
 struct CompiledDefinition
 {
+	std::string faction;
 	std::optional<CombatDefinition> combat;
 	std::optional<DestructionDefinition> destruction;
 	std::int64_t durability = 0, half_height = 5000;
@@ -202,6 +204,7 @@ struct World::Impl
 	std::map<std::string, Json> console_layouts;
 	std::map<std::string, std::vector<std::string>> camera_widgets;
 	std::string map;
+	FactionCatalog factions;
 	std::map<std::string, std::string> ships;
 	std::map<std::string, EntityId> slot_entities;
 	// This is a boundary lookup index, never the tick's iteration source.
@@ -512,6 +515,7 @@ struct World::Impl
 						{
 							controller.brain = ControllerBrain{content.tree_programs.at(spec.tree), spec.tree};
 							auto &brain = *controller.brain;
+							brain.actions = compile_controller_actions(content.trees.at(spec.tree), content, brain.program.registry);
 							const auto &bindings = content.controller_bindings.at(spec.tree);
 							brain.own = bindings.own;
 							brain.inbox = bindings.inbox;
@@ -595,6 +599,7 @@ struct World::Impl
 			for (const auto &message : definition.value("message_templates", Json::array()))
 				result.message_templates.push_back(message);
 			result.tags = definition.value("tags", std::vector<std::string>{"contact"});
+			result.faction = definition.value("faction", std::string{});
 			for (const auto &spec : resolve_systems(content, name))
 				if (spec.kind == OperatingSystem::Radar)
 					result.radar_shows[spec.id] =
@@ -713,6 +718,8 @@ struct World::Impl
 	void create(EntityId id, const std::string &definition, const Json &transform)
 	{
 		const auto &data = definitions.at(definition);
+		const auto faction = transform.value("faction", data.faction);
+		factions.validate(faction);
 		auto choice = data.sprite_entry;
 		if (transform.contains("sprite_entry") && !transform.at("sprite_entry").get<std::string>().empty())
 		{
@@ -728,6 +735,7 @@ struct World::Impl
 		Pose pose{{transform.at("x_mm"), transform.at("y_mm")}, transform.at("heading_mdeg")};
 		auto entity = ecs.entity()
 		                  .set<StableId>({id})
+		                  .set<FactionMembership>({faction})
 		                  .set<Definition>({definition, data.radar_icon, data.radar_sprite})
 		                  .set<Pose>(pose)
 		                  .set<Motion>({})
@@ -1194,6 +1202,7 @@ struct World::Impl
 	}
 #include "navigation_assessment.hpp"
 #include "controller_execution.hpp"
+#include "controller_actions.hpp"
 	std::int64_t sensor_range(EntityId ship, const std::string &name) const
 	{
 		const auto entity = entities.at(ship);
@@ -2091,6 +2100,7 @@ void World::load(const Catalog &source, const std::string &map, const std::map<s
 	candidate->map = map;
 	candidate->ships = ships;
 	const auto &data = content.maps.at(map);
+	candidate->factions = compile_factions(data);
 	candidate->combat_duel = data.value("combat_duel", false);
 	std::vector<std::string> entity_names;
 	for (const auto &[name, definition] : content.entities)
@@ -3138,6 +3148,7 @@ Json World::save() const
 			continue;
 		SavedBody body{entity.get<Pose>(), entity.get<Motion>(), id, entity.get<Definition>().name};
 		result["bodies"].push_back({{"body", body}});
+		result["bodies"].back()["faction"] = entity.get<FactionMembership>().id;
 		if (auto systems = fittings(entity))
 		{
 			auto &saved = result["bodies"].back()["systems"] = Json::object();
@@ -3270,6 +3281,8 @@ void World::restore(const Catalog &content, const Json &saved)
 		if (!seen.insert(restored.id).second || !candidate.impl_->entities.contains(restored.id))
 			throw std::runtime_error("Saved state duplicate/unknown entity");
 		auto entity = candidate.impl_->entities.at(restored.id);
+		if (value.value("faction", std::string{}) != entity.get<FactionMembership>().id)
+			throw std::runtime_error("Saved faction differs from fixed map membership");
 		if (entity.has<Destructible>())
 		{
 			const auto d = value.at("destructible").get<Destructible>();

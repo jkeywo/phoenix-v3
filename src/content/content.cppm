@@ -24,7 +24,22 @@ export import phoenix.conversations;
 export namespace phoenix
 {
 struct Catalog;
+struct FactionCatalog
+{
+	std::map<std::string, std::string> labels;
+	std::map<std::pair<std::string, std::string>, std::string> relationships;
+	std::string relationship(const std::string &a, const std::string &b) const;
+	void validate(const std::string &id) const;
+};
+FactionCatalog compile_factions(const Json &map);
 struct ControllerTreeBindings;
+struct ControllerActionSpec
+{
+	std::string id, label, tree;
+	std::vector<std::size_t> inputs;
+	state_tree::Program program, availability;
+};
+std::vector<ControllerActionSpec> compile_controller_actions(const Json &, const Catalog &, const state_tree::Registry &);
 struct PackDraft
 {
 	Json manifest;

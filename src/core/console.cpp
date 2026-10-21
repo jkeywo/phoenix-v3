@@ -1347,6 +1347,7 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 				result.emplace_back("game.combat-target/" + std::to_string(contact.id),
 				                    localise("Select target") + " " + contact.definition + " " +
 				                        std::to_string(contact.id) +
+				                        " — " + localise(contact.faction_label.empty() ? "Unaffiliated" : contact.faction_label) + ", " + localise(contact.disposition) +
 				                        (combat_target_ == static_cast<std::int64_t>(contact.id) ? " [*]" : ""));
 	for (const auto &c : combat.value("compartments", Json::array()))
 		result.emplace_back("game.compartment/" + std::to_string(c.at("index").get<std::int64_t>()),
@@ -1645,6 +1646,8 @@ std::string ConsoleModel::contacts_text() const
 		const auto bearing = std::fmod(std::atan2(y, x) * 180 / 3.14159265358979323846 + 360, 360.0);
 		text << " " << contact.definition << " #" << contact.id << ", " << static_cast<int>(std::hypot(x, y) / 1000)
 		     << " m, bearing " << static_cast<int>(bearing) << " degrees.";
+		text << " " << localise(contact.faction_label.empty() ? "Unaffiliated" : contact.faction_label)
+		     << ", " << localise(contact.disposition) << ".";
 	}
 	return text.str();
 }

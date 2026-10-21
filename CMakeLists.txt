@@ -258,6 +258,8 @@ add_library(
 	src/content/combat.cpp
 	src/content/conversations.cpp
 	src/content/bridge.cpp
+	src/content/factions.cpp
+	src/content/controller_actions.cpp
 	src/content/personnel.cpp
 	src/content/away.cpp
 	src/content/controllers.cpp

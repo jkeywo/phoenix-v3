@@ -19166,7 +19166,8 @@
 					"definition": "base.pirate-raider",
 					"x_mm": 140000,
 					"y_mm": 18000,
-					"heading_mdeg": 180000
+					"heading_mdeg": 180000,
+					"faction": "raiders"
 				}
 			],
 			"ship_slots": [
@@ -19176,7 +19177,8 @@
 					"y_mm": -18000,
 					"heading_mdeg": 0,
 					"allowed_ships": ["base.armed-courier"],
-					"default_ship": "base.armed-courier"
+					"default_ship": "base.armed-courier",
+					"faction": "house"
 				}
 			],
 			"regions": [
@@ -19201,7 +19203,24 @@
 					}
 				}
 			],
-			"combat_duel": true
+			"combat_duel": true,
+			"factions": [
+				{
+					"id": "house",
+					"label": "House forces"
+				},
+				{
+					"id": "raiders",
+					"label": "Raiders"
+				}
+			],
+			"relationships": [
+				{
+					"a": "house",
+					"b": "raiders",
+					"relation": "hostile"
+				}
+			]
 		},
 		{
 			"presentation": {
@@ -19772,8 +19791,9 @@
 					"id": "operate",
 					"running": [
 						{
-							"action": "write.lateral_thrust",
+							"action": "select.act_bdf2290f28ee",
 							"arguments": [
+								"base.action.bdf2290f28ee",
 								{
 									"observation": "navigation.lateral_thrust"
 								}
@@ -19811,8 +19831,9 @@
 					],
 					"running": [
 						{
-							"action": "write.lateral_thrust",
+							"action": "select.act_bdf2290f28ee",
 							"arguments": [
+								"base.action.bdf2290f28ee",
 								{
 									"observation": "navigation.lateral_thrust"
 								}
@@ -19841,7 +19862,13 @@
 					]
 				}
 			],
-			"message_templates": ["base.message.lateral-avoidance"]
+			"message_templates": ["base.message.lateral-avoidance"],
+			"action_bindings": [
+				{
+					"id": "act_bdf2290f28ee",
+					"tree": "base.action.lateral-thrust"
+				}
+			]
 		},
 		{
 			"context": "scenario",
@@ -19960,8 +19987,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"parameter": "default_allocation"
 								}
@@ -19990,8 +20018,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"observation": "summary.level"
 								}
@@ -20016,6 +20045,12 @@
 					"channel": "level",
 					"type": "integer"
 				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_040b144d038c",
+					"tree": "base.action.group-allocation"
+				}
 			]
 		},
 		{
@@ -20037,8 +20072,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.generator_output",
+							"action": "select.act_879a3769c35a",
 							"arguments": [
+								"base.action.879a3769c35a",
 								{
 									"observation": "power.demand"
 								}
@@ -20103,8 +20139,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.generator_output",
+							"action": "select.act_879a3769c35a",
 							"arguments": [
+								"base.action.879a3769c35a",
 								{
 									"observation": "summary.level"
 								}
@@ -20169,8 +20206,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.generator_output",
-							"arguments": [20000]
+							"action": "select.act_879a3769c35a",
+							"arguments": ["base.action.879a3769c35a", 20000]
 						}
 					],
 					"transitions": [
@@ -20205,8 +20242,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.generator_output",
-							"arguments": [20000]
+							"action": "select.act_879a3769c35a",
+							"arguments": ["base.action.879a3769c35a", 20000]
 						}
 					],
 					"transitions": [
@@ -20241,8 +20278,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.generator_output",
-							"arguments": [7000]
+							"action": "select.act_879a3769c35a",
+							"arguments": ["base.action.879a3769c35a", 7000]
 						}
 					],
 					"transitions": [
@@ -20303,6 +20340,12 @@
 					"channel": "level",
 					"type": "integer"
 				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_879a3769c35a",
+					"tree": "base.action.generator-output"
+				}
 			]
 		},
 		{
@@ -20331,8 +20374,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"parameter": "default_allocation"
 								}
@@ -20361,8 +20405,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"observation": "summary.level"
 								}
@@ -20386,6 +20431,12 @@
 					"controller": "core.reactor-cooling.orders",
 					"channel": "level",
 					"type": "integer"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_f22a1b3b1aff",
+					"tree": "base.action.cooling-allocation"
 				}
 			]
 		},
@@ -20415,8 +20466,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"parameter": "default_allocation"
 								}
@@ -20445,8 +20497,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"observation": "summary.level"
 								}
@@ -20470,6 +20523,12 @@
 					"controller": "drive.boost-cooling.orders",
 					"channel": "level",
 					"type": "integer"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_f22a1b3b1aff",
+					"tree": "base.action.cooling-allocation"
 				}
 			]
 		},
@@ -20499,8 +20558,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"parameter": "default_allocation"
 								}
@@ -20553,8 +20613,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"observation": "summary.level"
 								}
@@ -20593,8 +20654,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [1000]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1000]
 						}
 					],
 					"transitions": [
@@ -20617,8 +20678,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [250]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 250]
 						}
 					],
 					"transitions": [
@@ -20653,6 +20714,12 @@
 					"channel": "level",
 					"type": "integer"
 				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_040b144d038c",
+					"tree": "base.action.group-allocation"
+				}
 			]
 		},
 		{
@@ -20678,8 +20745,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"parameter": "default_allocation"
 								}
@@ -20732,8 +20800,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"observation": "summary.level"
 								}
@@ -20772,8 +20841,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [10000]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 10000]
 						}
 					],
 					"transitions": [
@@ -20796,8 +20865,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [2000]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 2000]
 						}
 					],
 					"transitions": [
@@ -20831,6 +20900,12 @@
 					"controller": "drive.distribution.orders",
 					"channel": "level",
 					"type": "integer"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_040b144d038c",
+					"tree": "base.action.group-allocation"
 				}
 			]
 		},
@@ -20900,20 +20975,16 @@
 					"parent": "orders",
 					"running": [
 						{
-							"action": "write.destination",
+							"action": "select.act_2cfba4c387d2",
 							"arguments": [
+								"base.action.2cfba4c387d2",
 								true,
 								{
 									"observation": "objective.x"
 								},
 								{
 									"observation": "objective.y"
-								}
-							]
-						},
-						{
-							"action": "write.speed_mm_s",
-							"arguments": [
+								},
 								{
 									"parameter": "cruise_speed"
 								}
@@ -20960,20 +21031,16 @@
 					"parent": "orders",
 					"running": [
 						{
-							"action": "write.destination",
+							"action": "select.act_2cfba4c387d2",
 							"arguments": [
+								"base.action.2cfba4c387d2",
 								true,
 								{
 									"observation": "objective.x"
 								},
 								{
 									"observation": "objective.y"
-								}
-							]
-						},
-						{
-							"action": "write.speed_mm_s",
-							"arguments": [
+								},
 								{
 									"parameter": "cruise_speed"
 								}
@@ -21019,8 +21086,8 @@
 				{
 					"entry": [
 						{
-							"action": "write.speed_mm_s",
-							"arguments": [0]
+							"action": "select.act_2a9a60bf3ced",
+							"arguments": ["base.action.2a9a60bf3ced", 0]
 						}
 					],
 					"id": "arrived",
@@ -21045,12 +21112,8 @@
 					"id": "stance-hold",
 					"running": [
 						{
-							"action": "write.destination",
-							"arguments": [false, 0, 0]
-						},
-						{
-							"action": "write.speed_mm_s",
-							"arguments": [0]
+							"action": "select.act_2cfba4c387d2",
+							"arguments": ["base.action.2cfba4c387d2", false, 0, 0, 0]
 						}
 					],
 					"transitions": [
@@ -21115,7 +21178,17 @@
 				}
 			],
 			"message_bindings": [],
-			"message_templates": ["base.message.power-request"]
+			"message_templates": ["base.message.power-request"],
+			"action_bindings": [
+				{
+					"id": "act_2cfba4c387d2",
+					"tree": "base.action.destination-speed-mm-s"
+				},
+				{
+					"id": "act_2a9a60bf3ced",
+					"tree": "base.action.speed-mm-s"
+				}
+			]
 		},
 		{
 			"arguments": {
@@ -21143,8 +21216,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"parameter": "default_allocation"
 								}
@@ -21173,8 +21247,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"observation": "summary.level"
 								}
@@ -21198,6 +21273,12 @@
 					"controller": "drive.engine-cooling.orders",
 					"channel": "level",
 					"type": "integer"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_f22a1b3b1aff",
+					"tree": "base.action.cooling-allocation"
 				}
 			]
 		},
@@ -21227,8 +21308,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"parameter": "default_allocation"
 								}
@@ -21281,8 +21363,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"observation": "summary.level"
 								}
@@ -21321,8 +21404,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [4000]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 4000]
 						}
 					],
 					"transitions": [
@@ -21345,8 +21428,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [1000]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1000]
 						}
 					],
 					"transitions": [
@@ -21381,6 +21464,12 @@
 					"channel": "level",
 					"type": "integer"
 				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_040b144d038c",
+					"tree": "base.action.group-allocation"
+				}
 			]
 		},
 		{
@@ -21409,8 +21498,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"parameter": "default_allocation"
 								}
@@ -21439,8 +21529,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"observation": "summary.level"
 								}
@@ -21464,6 +21555,12 @@
 					"controller": "drive.impulse-cooling.orders",
 					"channel": "level",
 					"type": "integer"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_f22a1b3b1aff",
+					"tree": "base.action.cooling-allocation"
 				}
 			]
 		},
@@ -21493,8 +21590,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"parameter": "default_allocation"
 								}
@@ -21547,8 +21645,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"observation": "summary.level"
 								}
@@ -21587,8 +21686,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [1500]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1500]
 						}
 					],
 					"transitions": [
@@ -21611,8 +21710,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [375]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 375]
 						}
 					],
 					"transitions": [
@@ -21647,6 +21746,12 @@
 					"channel": "level",
 					"type": "integer"
 				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_040b144d038c",
+					"tree": "base.action.group-allocation"
+				}
 			]
 		},
 		{
@@ -21675,8 +21780,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"parameter": "default_allocation"
 								}
@@ -21705,8 +21811,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"observation": "summary.level"
 								}
@@ -21730,6 +21837,12 @@
 					"controller": "drive.lateral-cooling.orders",
 					"channel": "level",
 					"type": "integer"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_f22a1b3b1aff",
+					"tree": "base.action.cooling-allocation"
 				}
 			]
 		},
@@ -21759,8 +21872,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"parameter": "default_allocation"
 								}
@@ -21813,8 +21927,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"observation": "summary.level"
 								}
@@ -21853,8 +21968,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [1000]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1000]
 						}
 					],
 					"transitions": [
@@ -21877,8 +21992,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [250]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 250]
 						}
 					],
 					"transitions": [
@@ -21912,6 +22027,12 @@
 					"controller": "drive.lateral-supply.orders",
 					"channel": "level",
 					"type": "integer"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_040b144d038c",
+					"tree": "base.action.group-allocation"
 				}
 			]
 		},
@@ -21960,8 +22081,9 @@
 					"parent": "orders",
 					"running": [
 						{
-							"action": "write.destination",
+							"action": "select.act_203a684bc78b",
 							"arguments": [
+								"base.action.203a684bc78b",
 								true,
 								{
 									"observation": "objective.x"
@@ -22024,7 +22146,13 @@
 				}
 			],
 			"message_bindings": [],
-			"message_templates": []
+			"message_templates": [],
+			"action_bindings": [
+				{
+					"id": "act_203a684bc78b",
+					"tree": "base.action.destination"
+				}
+			]
 		},
 		{
 			"arguments": {
@@ -22052,8 +22180,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"parameter": "default_allocation"
 								}
@@ -22082,8 +22211,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"observation": "summary.level"
 								}
@@ -22107,6 +22237,12 @@
 					"controller": "drive.steering-cooling.orders",
 					"channel": "level",
 					"type": "integer"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_f22a1b3b1aff",
+					"tree": "base.action.cooling-allocation"
 				}
 			]
 		},
@@ -22136,8 +22272,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"parameter": "default_allocation"
 								}
@@ -22190,8 +22327,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"observation": "summary.level"
 								}
@@ -22230,8 +22368,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [1000]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1000]
 						}
 					],
 					"transitions": [
@@ -22254,8 +22392,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [125]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 125]
 						}
 					],
 					"transitions": [
@@ -22290,6 +22428,12 @@
 					"channel": "level",
 					"type": "integer"
 				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_040b144d038c",
+					"tree": "base.action.group-allocation"
+				}
 			]
 		},
 		{
@@ -22318,8 +22462,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"parameter": "default_allocation"
 								}
@@ -22348,8 +22493,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"observation": "summary.level"
 								}
@@ -22373,6 +22519,12 @@
 					"controller": "sensors.cooling.orders",
 					"channel": "level",
 					"type": "integer"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_f22a1b3b1aff",
+					"tree": "base.action.cooling-allocation"
 				}
 			]
 		},
@@ -22402,8 +22554,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"parameter": "default_allocation"
 								}
@@ -22456,8 +22609,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"observation": "summary.level"
 								}
@@ -22496,8 +22650,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [1000]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1000]
 						}
 					],
 					"transitions": [
@@ -22520,8 +22674,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [250]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 250]
 						}
 					],
 					"transitions": [
@@ -22556,6 +22710,12 @@
 					"channel": "level",
 					"type": "integer"
 				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_040b144d038c",
+					"tree": "base.action.group-allocation"
+				}
 			]
 		},
 		{
@@ -22584,8 +22744,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"parameter": "default_allocation"
 								}
@@ -22614,8 +22775,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"observation": "summary.level"
 								}
@@ -22639,6 +22801,12 @@
 					"controller": "command.cooling.orders",
 					"channel": "level",
 					"type": "integer"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_f22a1b3b1aff",
+					"tree": "base.action.cooling-allocation"
 				}
 			]
 		},
@@ -22668,8 +22836,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"parameter": "default_allocation"
 								}
@@ -22722,8 +22891,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"observation": "summary.level"
 								}
@@ -22762,8 +22932,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [1000]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1000]
 						}
 					],
 					"transitions": [
@@ -22786,8 +22956,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [250]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 250]
 						}
 					],
 					"transitions": [
@@ -22822,6 +22992,12 @@
 					"channel": "level",
 					"type": "integer"
 				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_040b144d038c",
+					"tree": "base.action.group-allocation"
+				}
 			]
 		},
 		{
@@ -22850,8 +23026,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"parameter": "default_allocation"
 								}
@@ -22880,8 +23057,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"observation": "summary.level"
 								}
@@ -22905,6 +23083,12 @@
 					"controller": "communications.cooling.orders",
 					"channel": "level",
 					"type": "integer"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_f22a1b3b1aff",
+					"tree": "base.action.cooling-allocation"
 				}
 			]
 		},
@@ -22934,8 +23118,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"parameter": "default_allocation"
 								}
@@ -22988,8 +23173,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"observation": "summary.level"
 								}
@@ -23028,8 +23214,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [1000]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1000]
 						}
 					],
 					"transitions": [
@@ -23052,8 +23238,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [250]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 250]
 						}
 					],
 					"transitions": [
@@ -23088,6 +23274,12 @@
 					"channel": "level",
 					"type": "integer"
 				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_040b144d038c",
+					"tree": "base.action.group-allocation"
+				}
 			]
 		},
 		{
@@ -23109,8 +23301,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.generator_output",
+							"action": "select.act_879a3769c35a",
 							"arguments": [
+								"base.action.879a3769c35a",
 								{
 									"observation": "power.demand"
 								}
@@ -23175,8 +23368,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.generator_output",
+							"action": "select.act_879a3769c35a",
 							"arguments": [
+								"base.action.879a3769c35a",
 								{
 									"observation": "summary.level"
 								}
@@ -23241,8 +23435,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.generator_output",
-							"arguments": [30000]
+							"action": "select.act_879a3769c35a",
+							"arguments": ["base.action.879a3769c35a", 30000]
 						}
 					],
 					"transitions": [
@@ -23277,8 +23471,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.generator_output",
-							"arguments": [30000]
+							"action": "select.act_879a3769c35a",
+							"arguments": ["base.action.879a3769c35a", 30000]
 						}
 					],
 					"transitions": [
@@ -23313,8 +23507,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.generator_output",
-							"arguments": [10500]
+							"action": "select.act_879a3769c35a",
+							"arguments": ["base.action.879a3769c35a", 10500]
 						}
 					],
 					"transitions": [
@@ -23375,6 +23569,12 @@
 					"channel": "level",
 					"type": "integer"
 				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_879a3769c35a",
+					"tree": "base.action.generator-output"
+				}
 			]
 		},
 		{
@@ -23403,8 +23603,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"parameter": "default_allocation"
 								}
@@ -23433,8 +23634,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"observation": "summary.level"
 								}
@@ -23458,6 +23660,12 @@
 					"controller": "tactical.cooling.orders",
 					"channel": "level",
 					"type": "integer"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_f22a1b3b1aff",
+					"tree": "base.action.cooling-allocation"
 				}
 			]
 		},
@@ -23487,8 +23695,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"parameter": "default_allocation"
 								}
@@ -23541,8 +23750,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"observation": "summary.level"
 								}
@@ -23581,8 +23791,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [1000]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1000]
 						}
 					],
 					"transitions": [
@@ -23605,8 +23815,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [250]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 250]
 						}
 					],
 					"transitions": [
@@ -23641,6 +23851,12 @@
 					"channel": "level",
 					"type": "integer"
 				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_040b144d038c",
+					"tree": "base.action.group-allocation"
+				}
 			]
 		},
 		{
@@ -23669,8 +23885,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"parameter": "default_allocation"
 								}
@@ -23699,8 +23916,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"observation": "summary.level"
 								}
@@ -23724,6 +23942,12 @@
 					"controller": "wing.boost-cooling.orders",
 					"channel": "level",
 					"type": "integer"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_f22a1b3b1aff",
+					"tree": "base.action.cooling-allocation"
 				}
 			]
 		},
@@ -23753,8 +23977,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"parameter": "default_allocation"
 								}
@@ -23807,8 +24032,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"observation": "summary.level"
 								}
@@ -23847,8 +24073,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [1000]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1000]
 						}
 					],
 					"transitions": [
@@ -23871,8 +24097,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [250]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 250]
 						}
 					],
 					"transitions": [
@@ -23907,6 +24133,12 @@
 					"channel": "level",
 					"type": "integer"
 				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_040b144d038c",
+					"tree": "base.action.group-allocation"
+				}
 			]
 		},
 		{
@@ -23932,8 +24164,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"parameter": "default_allocation"
 								}
@@ -23986,8 +24219,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"observation": "summary.level"
 								}
@@ -24026,8 +24260,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [10000]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 10000]
 						}
 					],
 					"transitions": [
@@ -24050,8 +24284,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [2000]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 2000]
 						}
 					],
 					"transitions": [
@@ -24085,6 +24319,12 @@
 					"controller": "wing.distribution.orders",
 					"channel": "level",
 					"type": "integer"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_040b144d038c",
+					"tree": "base.action.group-allocation"
 				}
 			]
 		},
@@ -24154,20 +24394,16 @@
 					"parent": "orders",
 					"running": [
 						{
-							"action": "write.destination",
+							"action": "select.act_2cfba4c387d2",
 							"arguments": [
+								"base.action.2cfba4c387d2",
 								true,
 								{
 									"observation": "objective.x"
 								},
 								{
 									"observation": "objective.y"
-								}
-							]
-						},
-						{
-							"action": "write.speed_mm_s",
-							"arguments": [
+								},
 								{
 									"parameter": "cruise_speed"
 								}
@@ -24214,20 +24450,16 @@
 					"parent": "orders",
 					"running": [
 						{
-							"action": "write.destination",
+							"action": "select.act_2cfba4c387d2",
 							"arguments": [
+								"base.action.2cfba4c387d2",
 								true,
 								{
 									"observation": "objective.x"
 								},
 								{
 									"observation": "objective.y"
-								}
-							]
-						},
-						{
-							"action": "write.speed_mm_s",
-							"arguments": [
+								},
 								{
 									"parameter": "cruise_speed"
 								}
@@ -24273,8 +24505,8 @@
 				{
 					"entry": [
 						{
-							"action": "write.speed_mm_s",
-							"arguments": [0]
+							"action": "select.act_2a9a60bf3ced",
+							"arguments": ["base.action.2a9a60bf3ced", 0]
 						}
 					],
 					"id": "arrived",
@@ -24299,12 +24531,8 @@
 					"id": "stance-hold",
 					"running": [
 						{
-							"action": "write.destination",
-							"arguments": [false, 0, 0]
-						},
-						{
-							"action": "write.speed_mm_s",
-							"arguments": [0]
+							"action": "select.act_2cfba4c387d2",
+							"arguments": ["base.action.2cfba4c387d2", false, 0, 0, 0]
 						}
 					],
 					"transitions": [
@@ -24369,7 +24597,17 @@
 				}
 			],
 			"message_bindings": [],
-			"message_templates": ["base.message.power-request"]
+			"message_templates": ["base.message.power-request"],
+			"action_bindings": [
+				{
+					"id": "act_2cfba4c387d2",
+					"tree": "base.action.destination-speed-mm-s"
+				},
+				{
+					"id": "act_2a9a60bf3ced",
+					"tree": "base.action.speed-mm-s"
+				}
+			]
 		},
 		{
 			"arguments": {
@@ -24397,8 +24635,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"parameter": "default_allocation"
 								}
@@ -24427,8 +24666,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"observation": "summary.level"
 								}
@@ -24452,6 +24692,12 @@
 					"controller": "wing.engine-cooling.orders",
 					"channel": "level",
 					"type": "integer"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_f22a1b3b1aff",
+					"tree": "base.action.cooling-allocation"
 				}
 			]
 		},
@@ -24481,8 +24727,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"parameter": "default_allocation"
 								}
@@ -24535,8 +24782,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"observation": "summary.level"
 								}
@@ -24575,8 +24823,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [4000]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 4000]
 						}
 					],
 					"transitions": [
@@ -24599,8 +24847,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [1000]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1000]
 						}
 					],
 					"transitions": [
@@ -24635,6 +24883,12 @@
 					"channel": "level",
 					"type": "integer"
 				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_040b144d038c",
+					"tree": "base.action.group-allocation"
+				}
 			]
 		},
 		{
@@ -24663,8 +24917,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"parameter": "default_allocation"
 								}
@@ -24693,8 +24948,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"observation": "summary.level"
 								}
@@ -24718,6 +24974,12 @@
 					"controller": "wing.impulse-cooling.orders",
 					"channel": "level",
 					"type": "integer"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_f22a1b3b1aff",
+					"tree": "base.action.cooling-allocation"
 				}
 			]
 		},
@@ -24747,8 +25009,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"parameter": "default_allocation"
 								}
@@ -24801,8 +25064,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"observation": "summary.level"
 								}
@@ -24841,8 +25105,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [1500]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1500]
 						}
 					],
 					"transitions": [
@@ -24865,8 +25129,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [375]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 375]
 						}
 					],
 					"transitions": [
@@ -24901,6 +25165,12 @@
 					"channel": "level",
 					"type": "integer"
 				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_040b144d038c",
+					"tree": "base.action.group-allocation"
+				}
 			]
 		},
 		{
@@ -24929,8 +25199,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"parameter": "default_allocation"
 								}
@@ -24959,8 +25230,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"observation": "summary.level"
 								}
@@ -24984,6 +25256,12 @@
 					"controller": "wing.lateral-cooling.orders",
 					"channel": "level",
 					"type": "integer"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_f22a1b3b1aff",
+					"tree": "base.action.cooling-allocation"
 				}
 			]
 		},
@@ -25013,8 +25291,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"parameter": "default_allocation"
 								}
@@ -25067,8 +25346,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"observation": "summary.level"
 								}
@@ -25107,8 +25387,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [1000]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1000]
 						}
 					],
 					"transitions": [
@@ -25131,8 +25411,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [250]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 250]
 						}
 					],
 					"transitions": [
@@ -25167,6 +25447,12 @@
 					"channel": "level",
 					"type": "integer"
 				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_040b144d038c",
+					"tree": "base.action.group-allocation"
+				}
 			]
 		},
 		{
@@ -25195,8 +25481,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"parameter": "default_allocation"
 								}
@@ -25225,8 +25512,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.cooling_allocation",
+							"action": "select.act_f22a1b3b1aff",
 							"arguments": [
+								"base.action.f22a1b3b1aff",
 								{
 									"observation": "summary.level"
 								}
@@ -25250,6 +25538,12 @@
 					"controller": "wing.steering-cooling.orders",
 					"channel": "level",
 					"type": "integer"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_f22a1b3b1aff",
+					"tree": "base.action.cooling-allocation"
 				}
 			]
 		},
@@ -25279,8 +25573,9 @@
 				{
 					"entry": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"parameter": "default_allocation"
 								}
@@ -25333,8 +25628,9 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
+							"action": "select.act_040b144d038c",
 							"arguments": [
+								"base.action.040b144d038c",
 								{
 									"observation": "summary.level"
 								}
@@ -25373,8 +25669,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [1000]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 1000]
 						}
 					],
 					"transitions": [
@@ -25397,8 +25693,8 @@
 					"parent": "service",
 					"running": [
 						{
-							"action": "write.group_allocation",
-							"arguments": [125]
+							"action": "select.act_040b144d038c",
+							"arguments": ["base.action.040b144d038c", 125]
 						}
 					],
 					"transitions": [
@@ -25433,6 +25729,12 @@
 					"channel": "level",
 					"type": "integer"
 				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_040b144d038c",
+					"tree": "base.action.group-allocation"
+				}
 			]
 		},
 		{
@@ -25461,8 +25763,9 @@
 							"call": "base.ai.messages"
 						},
 						{
-							"action": "write.follow_contact",
+							"action": "select.act_28a7c0cbefc3",
 							"arguments": [
+								"base.action.28a7c0cbefc3",
 								true,
 								{
 									"parameter": "leader"
@@ -25488,7 +25791,13 @@
 			"system_bindings": [],
 			"record_bindings": [],
 			"message_bindings": [],
-			"message_templates": []
+			"message_templates": [],
+			"action_bindings": [
+				{
+					"id": "act_28a7c0cbefc3",
+					"tree": "base.action.follow-contact"
+				}
+			]
 		},
 		{
 			"id": "base.ai.race.engine",
@@ -25499,12 +25808,8 @@
 					"id": "waiting",
 					"running": [
 						{
-							"action": "write.destination",
-							"arguments": [false, 0, 0]
-						},
-						{
-							"action": "write.speed_mm_s",
-							"arguments": [0]
+							"action": "select.act_2cfba4c387d2",
+							"arguments": ["base.action.2cfba4c387d2", false, 0, 0, 0]
 						}
 					],
 					"transitions": [
@@ -25559,20 +25864,18 @@
 					"id": "objective",
 					"running": [
 						{
-							"action": "write.destination",
+							"action": "select.act_2cfba4c387d2",
 							"arguments": [
+								"base.action.2cfba4c387d2",
 								true,
 								{
 									"observation": "objective.x"
 								},
 								{
 									"observation": "objective.y"
-								}
+								},
+								9000
 							]
-						},
-						{
-							"action": "write.speed_mm_s",
-							"arguments": [9000]
 						}
 					],
 					"transitions": [
@@ -25639,20 +25942,18 @@
 					"id": "waypoint",
 					"running": [
 						{
-							"action": "write.destination",
+							"action": "select.act_2cfba4c387d2",
 							"arguments": [
+								"base.action.2cfba4c387d2",
 								true,
 								{
 									"observation": "waypoint.x"
 								},
 								{
 									"observation": "waypoint.y"
-								}
+								},
+								9000
 							]
-						},
-						{
-							"action": "write.speed_mm_s",
-							"arguments": [9000]
 						}
 					],
 					"transitions": [
@@ -25705,12 +26006,8 @@
 					"id": "avoid",
 					"running": [
 						{
-							"action": "write.destination",
-							"arguments": [false, 0, 0]
-						},
-						{
-							"action": "write.speed_mm_s",
-							"arguments": [0]
+							"action": "select.act_2cfba4c387d2",
+							"arguments": ["base.action.2cfba4c387d2", false, 0, 0, 0]
 						}
 					],
 					"transitions": [
@@ -25732,12 +26029,8 @@
 					"id": "clear",
 					"entry": [
 						{
-							"action": "write.destination",
-							"arguments": [false, 0, 0]
-						},
-						{
-							"action": "write.speed_mm_s",
-							"arguments": [2000]
+							"action": "select.act_2cfba4c387d2",
+							"arguments": ["base.action.2cfba4c387d2", false, 0, 0, 2000]
 						}
 					],
 					"transitions": [
@@ -25842,6 +26135,12 @@
 					"subject": "latest",
 					"type": "integer"
 				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_2cfba4c387d2",
+					"tree": "base.action.destination-speed-mm-s"
+				}
 			]
 		},
 		{
@@ -25853,8 +26152,8 @@
 					"id": "waiting",
 					"running": [
 						{
-							"action": "write.destination",
-							"arguments": [false, 0, 0]
+							"action": "select.act_203a684bc78b",
+							"arguments": ["base.action.203a684bc78b", false, 0, 0]
 						}
 					],
 					"transitions": [
@@ -25909,8 +26208,9 @@
 					"id": "objective",
 					"running": [
 						{
-							"action": "write.destination",
+							"action": "select.act_203a684bc78b",
 							"arguments": [
+								"base.action.203a684bc78b",
 								true,
 								{
 									"observation": "objective.x"
@@ -25985,8 +26285,9 @@
 					"id": "waypoint",
 					"running": [
 						{
-							"action": "write.destination",
+							"action": "select.act_203a684bc78b",
 							"arguments": [
+								"base.action.203a684bc78b",
 								true,
 								{
 									"observation": "waypoint.x"
@@ -26047,12 +26348,12 @@
 					"id": "avoid",
 					"running": [
 						{
-							"action": "write.destination",
-							"arguments": [false, 0, 0]
-						},
-						{
-							"action": "write.heading_mdeg",
+							"action": "select.act_f478207abf60",
 							"arguments": [
+								"base.action.f478207abf60",
+								false,
+								0,
+								0,
 								{
 									"observation": "navigation.left_heading"
 								}
@@ -26078,12 +26379,12 @@
 					"id": "clear",
 					"entry": [
 						{
-							"action": "write.destination",
-							"arguments": [false, 0, 0]
-						},
-						{
-							"action": "write.heading_mdeg",
+							"action": "select.act_f478207abf60",
 							"arguments": [
+								"base.action.f478207abf60",
+								false,
+								0,
+								0,
 								{
 									"observation": "own.heading"
 								}
@@ -26191,6 +26492,16 @@
 					"field": "y",
 					"subject": "latest",
 					"type": "integer"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "act_203a684bc78b",
+					"tree": "base.action.destination"
+				},
+				{
+					"id": "act_f478207abf60",
+					"tree": "base.action.destination-heading-mdeg"
 				}
 			]
 		},
@@ -27086,6 +27397,414 @@
 						{
 							"action": "spawn_entity",
 							"arguments": ["base.pirate-raider", "", 220000, 80000, 180000, "raider"]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.lateral-thrust",
+			"context": "controller",
+			"controller_action": {
+				"label": "Set lateral thrust",
+				"inputs": [
+					{
+						"name": "i0_0",
+						"type": "integer"
+					}
+				]
+			},
+			"command_bindings": [
+				{
+					"channel": "lateral_thrust",
+					"type": "integer"
+				}
+			],
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.lateral_thrust",
+							"arguments": [
+								{
+									"observation": "input.i0_0"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.group-allocation",
+			"context": "controller",
+			"controller_action": {
+				"label": "Allocate power",
+				"inputs": [
+					{
+						"name": "i0_0",
+						"type": "integer"
+					}
+				]
+			},
+			"command_bindings": [
+				{
+					"channel": "group_allocation"
+				}
+			],
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.group_allocation",
+							"arguments": [
+								{
+									"observation": "input.i0_0"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.generator-output",
+			"context": "controller",
+			"controller_action": {
+				"label": "Set generator operating output",
+				"inputs": [
+					{
+						"name": "i0_0",
+						"type": "integer"
+					}
+				]
+			},
+			"command_bindings": [
+				{
+					"channel": "generator_output"
+				}
+			],
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.generator_output",
+							"arguments": [
+								{
+									"observation": "input.i0_0"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.cooling-allocation",
+			"context": "controller",
+			"controller_action": {
+				"label": "Allocate cooling",
+				"inputs": [
+					{
+						"name": "i0_0",
+						"type": "integer"
+					}
+				]
+			},
+			"command_bindings": [
+				{
+					"channel": "cooling_allocation"
+				}
+			],
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.cooling_allocation",
+							"arguments": [
+								{
+									"observation": "input.i0_0"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.destination-speed-mm-s",
+			"context": "controller",
+			"controller_action": {
+				"label": "Travel to destination",
+				"inputs": [
+					{
+						"name": "b0_0",
+						"type": "boolean"
+					},
+					{
+						"name": "i0_1",
+						"type": "integer"
+					},
+					{
+						"name": "i0_2",
+						"type": "integer"
+					},
+					{
+						"name": "i1_0",
+						"type": "integer"
+					}
+				]
+			},
+			"command_bindings": [
+				{
+					"channel": "destination",
+					"type": "boolean",
+					"action": "destination"
+				},
+				{
+					"channel": "speed_mm_s"
+				}
+			],
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.destination",
+							"arguments": [
+								{
+									"observation": "input.b0_0"
+								},
+								{
+									"observation": "input.i0_1"
+								},
+								{
+									"observation": "input.i0_2"
+								}
+							]
+						},
+						{
+							"action": "write.speed_mm_s",
+							"arguments": [
+								{
+									"observation": "input.i1_0"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.speed-mm-s",
+			"context": "controller",
+			"controller_action": {
+				"label": "Maintain speed",
+				"inputs": [
+					{
+						"name": "i0_0",
+						"type": "integer"
+					}
+				]
+			},
+			"command_bindings": [
+				{
+					"channel": "speed_mm_s"
+				}
+			],
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.speed_mm_s",
+							"arguments": [
+								{
+									"observation": "input.i0_0"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.destination",
+			"context": "controller",
+			"controller_action": {
+				"label": "Travel to destination",
+				"inputs": [
+					{
+						"name": "b0_0",
+						"type": "boolean"
+					},
+					{
+						"name": "i0_1",
+						"type": "integer"
+					},
+					{
+						"name": "i0_2",
+						"type": "integer"
+					}
+				]
+			},
+			"command_bindings": [
+				{
+					"channel": "destination",
+					"type": "boolean",
+					"action": "destination"
+				}
+			],
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.destination",
+							"arguments": [
+								{
+									"observation": "input.b0_0"
+								},
+								{
+									"observation": "input.i0_1"
+								},
+								{
+									"observation": "input.i0_2"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.follow-contact",
+			"context": "controller",
+			"controller_action": {
+				"label": "Follow contact",
+				"inputs": [
+					{
+						"name": "b0_0",
+						"type": "boolean"
+					},
+					{
+						"name": "i0_1",
+						"type": "integer"
+					},
+					{
+						"name": "i0_2",
+						"type": "integer"
+					},
+					{
+						"name": "i0_3",
+						"type": "integer"
+					}
+				]
+			},
+			"command_bindings": [
+				{
+					"channel": "follow_contact",
+					"type": "boolean",
+					"action": "follow_contact"
+				}
+			],
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.follow_contact",
+							"arguments": [
+								{
+									"observation": "input.b0_0"
+								},
+								{
+									"observation": "input.i0_1"
+								},
+								{
+									"observation": "input.i0_2"
+								},
+								{
+									"observation": "input.i0_3"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.action.destination-heading-mdeg",
+			"context": "controller",
+			"controller_action": {
+				"label": "Travel to destination",
+				"inputs": [
+					{
+						"name": "b0_0",
+						"type": "boolean"
+					},
+					{
+						"name": "i0_1",
+						"type": "integer"
+					},
+					{
+						"name": "i0_2",
+						"type": "integer"
+					},
+					{
+						"name": "i1_0",
+						"type": "integer"
+					}
+				]
+			},
+			"command_bindings": [
+				{
+					"channel": "destination",
+					"type": "boolean",
+					"action": "destination"
+				},
+				{
+					"channel": "heading_mdeg"
+				}
+			],
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.destination",
+							"arguments": [
+								{
+									"observation": "input.b0_0"
+								},
+								{
+									"observation": "input.i0_1"
+								},
+								{
+									"observation": "input.i0_2"
+								}
+							]
+						},
+						{
+							"action": "write.heading_mdeg",
+							"arguments": [
+								{
+									"observation": "input.i1_0"
+								}
+							]
 						}
 					]
 				}

@@ -820,6 +820,7 @@ void verify_prepared_catalog(const Catalog &catalog)
 		    !map["ship_slots"].is_array())
 			invalid(path, "entities and ship_slots arrays required");
 		std::set<std::int64_t> entity_ids;
+		const auto factions = compile_factions(map);
 		std::set<std::string> slots;
 		for (const auto &instance : map["entities"])
 		{
@@ -829,6 +830,7 @@ void verify_prepared_catalog(const Catalog &catalog)
 			auto definition = text(instance, "definition", path);
 			if (!catalog.entities.contains(definition))
 				invalid(path, "unknown entity definition '" + definition + "'");
+			factions.validate(instance.value("faction", catalog.entities.at(definition).value("faction", std::string{})));
 			transform(instance, path + ".entity." + std::to_string(entity_id));
 			if (instance.contains("sprite_entry"))
 			{
@@ -898,6 +900,7 @@ void verify_prepared_catalog(const Catalog &catalog)
 				    !allowed.insert(ship.get<std::string>()).second)
 					invalid(path + ".slot." + slot_id, "unknown or repeated allowed ship");
 				const auto &definition = catalog.entities.at(ship.get<std::string>());
+				factions.validate(slot.value("faction", definition.value("faction", std::string{})));
 				const auto fitted = resolve_systems(catalog, ship.get<std::string>());
 				const auto has = [&](OperatingSystem kind)
 				{
@@ -933,6 +936,7 @@ void prepare_catalog(Catalog &catalog)
 			else if (*context == state_tree::Context::Controller)
 			{
 				auto bindings = compile_controller_bindings(tree, catalog);
+				(void)compile_controller_actions(tree, catalog, bindings.registry);
 				catalog.tree_programs.emplace(id, state_tree::compile(tree, bindings.registry, catalog.trees));
 				catalog.controller_bindings.emplace(id, std::move(bindings));
 			}

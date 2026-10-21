@@ -223,15 +223,50 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 	values[brain.result[ControllerResultField::Message]] =
 	    result.message ? Value::reference(Type::Message, result.message) : Value{};
 	values[brain.result[ControllerResultField::Reason]] = Value::string(result.reason);
+	for (std::size_t i = 0; i < brain.program.registry.observations.size(); ++i)
+	{
+		const auto &name = brain.program.registry.observations[i].name;
+		if (name == "action.status") values[i] = Value::string(controller.action.status);
+		if (name == "action.reason") values[i] = Value::string(controller.action.reason);
+		if (name == "action.id") values[i] = Value::string(controller.action.id);
+	}
 	return values;
 }
 void controller_output(EntityId id, std::size_t index, const state_tree::Output &output,
-                       std::span<const state_tree::Value> observations)
+                       std::span<const state_tree::Value> observations, const state_tree::Program *execution = nullptr)
 {
 	auto &controller = entities.at(id).get_mut<EntityControls>().controllers.at(index);
 	const auto &action = controller.brain->program.registry.actions.at(output.action);
-	if (action.effect && !admit_effect(controller.effects, output))
+	if (action.name.starts_with("select."))
+	{
+		select_controller_action(id, index, action.name.substr(7), output.arguments.at(0).text,
+		                         std::span(output.arguments).subspan(1), observations, controller.generation);
 		return;
+	}
+	if (action.name == "action.cancel")
+	{
+		cancel_controller_action(id, index, output.arguments.at(0).text, observations);
+		return;
+	}
+	if (action.name == "action.succeed" || action.name == "action.fail")
+	{
+		if (!execution) throw std::runtime_error("Only an execution tree can complete a Controller action");
+		controller.action.status = action.name == "action.succeed" ? "succeeded" : "failed";
+		controller.action.reason = output.arguments.at(0).text;
+		return;
+	}
+	if (action.effect)
+	{
+		std::string receipt = std::to_string(output.activation) + "/" + std::to_string(output.task);
+		if (execution) receipt = "action/" + std::to_string(controller.action.serial) + "/" + receipt;
+		for (std::size_t i = 0; i < output.call_path.size(); ++i)
+			receipt += "/" + std::to_string(output.call_path[i]) + ":" + std::to_string(output.call_activations.at(i));
+		if (controller.effects.contains(receipt))
+			return;
+		if (controller.effects.size() >= 65536)
+			throw std::runtime_error("Controller effect journal exhausted");
+		controller.effects.insert(receipt);
+	}
 	if (!action.name.starts_with("write."))
 	{
 		controller.result = {};
@@ -281,7 +316,7 @@ void controller_output(EntityId id, std::size_t index, const state_tree::Output 
 				context.amount = output.arguments.at(0).number;
 				context.flag = output.arguments.at(1).number != 0;
 				context.detail = output.arguments.at(2).text;
-				context.program = &controller.brain->program;
+				context.program = execution ? execution : &controller.brain->program;
 				context.observations = observations;
 				context.parameters = &output.captured_parameters;
 				context.memory = &output.captured_memory;
@@ -494,6 +529,7 @@ void refresh_controllers(EntityId id, bool validate = false)
 		if (!controller.human && controller.brain)
 		{
 			const auto observations = controller_observations(id, controller);
+			cancel_controller_action(id, i, "operator_changed", observations);
 			const auto result =
 			    state_tree::interrupt(controller.brain->program, controller.brain->continuation, observations);
 			for (const auto &output : result.outputs)
@@ -585,6 +621,7 @@ void run_console_controllers(flecs::entity entity)
 			brain.debug = result.debug;
 			for (const auto &output : result.outputs)
 				controller_output(id, i, output, observations);
+			run_controller_action(id, i, observations);
 		}
 	}
 	consume_controller_commands(entity);
@@ -681,6 +718,10 @@ Json project_controllers(const ConsoleAddress &address) const
 		                  {"human", controller.human},
 		                  {"generation", controller.generation},
 		                  {"commands", commands}});
+		result.back()["action"] = {{"id", controller.action.id}, {"status", controller.action.status}, {"reason", controller.action.reason}};
+		auto &available = result.back()["actions"] = Json::array();
+		if (controller.brain) for (const auto &action : controller.brain->actions)
+			available.push_back({{"id", action.id}, {"label", action.label}});
 	}
 	return result;
 }
@@ -712,6 +753,7 @@ Json save_controllers(flecs::entity entity) const
 		                 {"message", controller.result.message},
 		                 {"reason", controller.result.reason}};
 		row["effects"] = controller.effects;
+		row["action"] = save_controller_action(controller);
 		result["controllers"].push_back(std::move(row));
 	}
 	return result;
@@ -770,6 +812,7 @@ void restore_controllers(flecs::entity entity, const Json &saved)
 		fail(!row.contains("timed") && row.contains("brain") == controller.brain.has_value());
 		if (controller.brain)
 			controller.brain->continuation = state_tree::load(controller.brain->program, row.at("brain"));
+		restore_controller_action(controller, row.at("action"));
 
 		const auto &result = row.at("result");
 		fail(result.at("available").is_boolean() && result.at("success").is_boolean() &&

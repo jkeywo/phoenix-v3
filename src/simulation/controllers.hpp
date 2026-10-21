@@ -40,6 +40,14 @@ struct ControllerBrain
 	std::vector<RuntimeContactRead> contact_reads;
 	state_tree::Instance continuation;
 	state_tree::Debug debug;
+	std::vector<ControllerActionSpec> actions;
+};
+struct ControllerActionInstance
+{
+	std::string id, invocation, status = "idle", reason;
+	std::vector<state_tree::Value> inputs;
+	state_tree::Instance continuation;
+	std::uint64_t serial = 0;
 };
 struct ActionResult
 {
@@ -64,6 +72,7 @@ struct ConsoleControllerRuntime
 	std::optional<ControllerBrain> brain;
 	ActionResult result;
 	std::set<std::string> effects;
+	ControllerActionInstance action;
 };
 struct EntityControls
 {

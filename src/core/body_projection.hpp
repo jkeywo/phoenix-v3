@@ -12,7 +12,8 @@ inline Json body_json(const BodyView &b)
 	        {"vy", b.vy},
 	        {"heading", b.heading},
 	        {"radar_icon", std::string(radar_icon_name(b.radar_icon))},
-	        {"radar_sprite", b.radar_sprite}};
+	        {"radar_sprite", b.radar_sprite},
+	        {"faction", b.faction}, {"faction_label", b.faction_label}, {"disposition", b.disposition}};
 }
 inline std::int64_t number(const Json &v, std::int64_t lo = -1000000000, std::int64_t hi = 1000000000)
 {
@@ -50,6 +51,11 @@ inline BodyView read_body(const Json &v, BodyReadPolicy policy)
 	if (!icon)
 		throw std::runtime_error("Invalid projected radar icon");
 	body.radar_icon = *icon;
+	body.faction = text(v.value("faction", Json("")), 128);
+	body.faction_label = text(v.value("faction_label", Json("")));
+	body.disposition = text(v.value("disposition", Json("neutral")));
+	if (body.disposition != "friendly" && body.disposition != "neutral" && body.disposition != "hostile")
+		throw std::runtime_error("Invalid projected disposition");
 	body.radar_sprite = policy == BodyReadPolicy::NetworkCompatible ? v.value("radar_sprite", std::string{})
 	                                                                : text(v.at("radar_sprite"));
 	const std::string prefix = "console-assets:assets/radar/";

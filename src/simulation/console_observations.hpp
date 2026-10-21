@@ -56,6 +56,15 @@ void append_sensor_contacts(const ConsoleAddress &address, Observation &result) 
 			result.contacts.push_back(
 			    {contact_id, p.definition.visual, p.position.x, p.position.y, p.velocity.x, p.velocity.y, p.heading});
 	}
+	const auto &own_faction = entity.get<FactionMembership>().id;
+	for (auto &contact : result.contacts)
+		if (const auto found = entities.find(contact.id); found != entities.end())
+		{
+			const auto *membership = found->second.try_get<FactionMembership>();
+			contact.faction = membership ? membership->id : std::string{};
+			contact.faction_label = contact.faction.empty() ? "Unaffiliated" : factions.labels.at(contact.faction);
+			contact.disposition = factions.relationship(own_faction, contact.faction);
+		}
 	std::sort(result.contacts.begin(), result.contacts.end(),
 	          [](const auto &a, const auto &b)
 	          {
@@ -86,6 +95,9 @@ Observation capture_console_observation(const ConsoleAddress &address, Json game
 	const auto &own = entity.get<Pose>();
 	const auto &seat = *this->seat(address.ship, address.console);
 	Observation result{view(address.ship, entity.get<Definition>(), own, entity.get<Motion>()), {}};
+	result.own.faction = entity.get<FactionMembership>().id;
+	result.own.faction_label = result.own.faction.empty() ? "Unaffiliated" : factions.labels.at(result.own.faction);
+	result.own.disposition = factions.relationship(result.own.faction, result.own.faction);
 	result.console = seat.id;
 	result.regions = region_markers(regions);
 	result.observed_tick = ecs.get<Clock>().tick;

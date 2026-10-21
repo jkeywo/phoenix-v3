@@ -53,6 +53,58 @@ int main()
 	{
 		{
 			auto source = controller_fixture();
+			auto &owner = source["entities"][0]["control_layout"]["controllers"][0];
+			owner.erase("fallback"); owner["tree"] = "test.policy";
+			source["trees"] = Json::parse(R"json([
+{"id":"test.action","context":"controller","command_bindings":[{"channel":"speed"}],
+ "controller_action":{"label":"Set cruise speed","inputs":[{"name":"speed","type":"integer"}]},
+ "initial":"set","states":[
+ {"id":"set","running":[{"action":"write.speed","arguments":[{"observation":"input.speed"}]}],
+ "transitions":[{"target":"done","conditions":[{"left":{"elapsed":true},"op":"ge","right":3},{"left":{"observation":"command.speed.pending"},"op":"eq","right":false},{"left":{"observation":"command.speed.accepted"},"op":"eq","right":true}]}]},
+ {"id":"done","entry":[{"action":"action.succeed","arguments":["setting_observed"]}]}]},
+{"id":"test.policy","context":"controller","command_bindings":[{"channel":"speed"}],
+ "action_bindings":[{"id":"cruise","tree":"test.action"}],"initial":"operate",
+ "states":[{"id":"operate","running":[{"action":"select.cruise","arguments":["order-1",4321]}]}]}
+])json");
+			const auto catalog = load(source);
+			World world; world.load(catalog, "test.map");
+			world.tick();
+			const auto midway = world.save();
+			World restored; restored.restore(catalog, midway);
+			for (int i = 0; i < 6; ++i) { world.tick(); restored.tick(); }
+			require(world.save() == restored.save(), "shared action continuation resumes exactly");
+			const auto action = world.save().at("bodies")[0].at("console_controllers").at("controllers")[0].at("action");
+			require(action.at("status") == "succeeded" && action.at("serial") == 1, "repeated selection does not restart a completed action");
+			require(world.claim(101, 1, "drive") && requested(world, "port") == 4321, "action reaches ordinary physical command consumption");
+		}
+		{
+			auto source = controller_fixture();
+			auto &map = source["maps"][0];
+			map["factions"] = Json::array({{{"id", "a"}, {"label", "Allies"}}, {{"id", "b"}, {"label", "Opposition"}}});
+			map["relationships"] = Json::array({{{"a", "a"}, {"b", "b"}, {"relation", "hostile"}}});
+			source["entities"][0]["systems"]["radar"] = {{"kind", "radar"}, {"range_mm", 10000}};
+			source["entities"][0]["stations"][0]["consoles"][0]["feeds"].push_back("radar");
+			map["entities"][0]["faction"] = "a";
+			map["entities"].push_back({{"id", 2}, {"definition", "test.controllable"}, {"faction", "b"}, {"x_mm", 5000}, {"y_mm", 0}, {"heading_mdeg", 0}});
+			map["entities"].push_back({{"id", 3}, {"definition", "test.controllable"}, {"faction", "b"}, {"x_mm", 50000}, {"y_mm", 0}, {"heading_mdeg", 0}});
+			const auto catalog = load(source);
+			World world;
+			world.load(catalog, "test.map");
+			require(world.claim(101, 1, "drive"), "faction observer claims Console");
+			const auto observed = world.observe(101).value();
+			require(observed.contacts.size() == 1 && observed.contacts[0].faction == "b" && observed.contacts[0].disposition == "hostile", "faction evidence is confined to detected contacts");
+			const auto transmitted = projection::read_body(projection::body_json(observed.contacts[0]), projection::BodyReadPolicy::NetworkCompatible);
+			require(transmitted.faction_label == "Opposition" && transmitted.disposition == "hostile", "network preserves permitted faction evidence");
+			World restored;
+			restored.restore(catalog, world.save());
+			require(restored.save() == world.save(), "fixed faction membership survives restore");
+			map["relationships"].push_back({{"a", "b"}, {"b", "a"}, {"relation", "friendly"}});
+			bool rejected = false;
+			try { (void)load(source); } catch (const std::exception &) { rejected = true; }
+			require(rejected, "contradictory mutual relationships are rejected by production loader");
+		}
+		{
+			auto source = controller_fixture();
 			auto &ship = source["entities"][0];
 			source["consoles"][0]["stances"] =
 			    Json::array({{{"id", "routine"}, {"label", "Routine"}}, {{"id", "hold"}, {"label", "Hold"}}});

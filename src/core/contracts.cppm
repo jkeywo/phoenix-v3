@@ -306,6 +306,8 @@ struct BodyView
 	std::int64_t x, y, vx, vy, heading;
 	RadarIcon radar_icon = RadarIcon::contact;
 	std::string radar_sprite;
+	std::string faction, faction_label;
+	std::string disposition = "neutral";
 };
 struct SceneAttachment
 {

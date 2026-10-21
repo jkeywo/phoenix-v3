@@ -27,6 +27,10 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map)
 	};
 	require(catalog.scenarios.contains(name), "missing compiled scenario definitions");
 	const auto &definition = catalog.scenarios.at(name);
+	const auto factions = compile_factions(map);
+	for (const auto &[group_id, group] : definition.spawn_groups)
+		for (const auto &placement : group.entities)
+			factions.validate(catalog.entities.at(placement.definition).value("faction", std::string{}));
 	const auto &source = map.at("scenario");
 	require(source.is_object(), "expected object");
 	const auto scenario_role = catalog.knowledge_definition.role("phoenix.scenario");
@@ -250,6 +254,7 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map)
 					{
 					case GameplayTreeAction::SpawnEntity:
 						require(catalog.entities.contains(id), "unresolved spawn_entity definition " + id);
+						factions.validate(catalog.entities.at(id).value("faction", std::string{}));
 						if (task.arguments.at(1).source == state_tree::Source::Literal &&
 						    !task.arguments.at(1).literal.text.empty())
 							require(definition.spawn_points.contains(task.arguments.at(1).literal.text),
