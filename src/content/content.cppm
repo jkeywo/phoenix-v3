@@ -389,12 +389,14 @@ struct OfficerDefinition
 {
 	std::string id, name, portrait, department, duty, compartment;
 	std::vector<std::string> traits;
+	std::map<std::string, std::int64_t> bonuses;
 };
 struct PersonnelDefinition
 {
 	std::vector<PersonnelDepartment> departments;
 	std::map<std::string, OfficerTrait> traits;
 	std::vector<PersonnelDuty> duties;
+	std::map<std::string, std::size_t> duty_indices;
 	std::vector<OfficerDefinition> officers;
 	std::vector<std::string> compartments;
 	struct Link

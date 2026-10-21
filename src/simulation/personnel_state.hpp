@@ -1,4 +1,5 @@
 #pragma once
+#include "compartment_route.hpp"
 namespace phoenix
 {
 struct OfficerState
@@ -12,36 +13,25 @@ struct PersonnelState
 {
 	std::uint64_t revision = 1;
 	std::vector<OfficerState> officers;
+	// Derived from assignments/presence; rebuilt on changes and restore, never saved.
+	std::map<std::pair<std::string, std::string>, std::int64_t> bonuses;
 };
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(OfficerState, duty, location, edge_to, remaining, present)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PersonnelState, revision, officers)
-inline std::pair<std::int64_t, std::int64_t> personnel_route(const PersonnelDefinition &d, std::size_t from,
-                                                             std::size_t to)
+inline void refresh_personnel_bonuses(PersonnelState &state, const PersonnelDefinition &d)
 {
-	const auto n = d.compartments.size();
-	std::vector<std::int64_t> distance(n, INT64_MAX), first(n, -1), cost(n, 0);
-	std::vector<bool> visited(n, false);
-	distance.at(from) = 0;
-	for (std::size_t step = 0; step < n; ++step)
+	state.bonuses.clear();
+	for (std::size_t i = 0; i < state.officers.size(); ++i)
 	{
-		std::size_t at = n;
-		for (std::size_t i = 0; i < n; ++i)
-			if (!visited[i] && (at == n || distance[i] < distance[at]))
-				at = i;
-		if (at == n || distance[at] == INT64_MAX)
-			break;
-		visited[at] = true;
-		for (const auto &l : d.links)
-		{
-			const auto next = l.from == at ? l.to : l.to == at ? l.from : n;
-			if (next == n || distance[next] <= distance[at] + l.ticks)
-				continue;
-			distance[next] = distance[at] + l.ticks;
-			first[next] = at == from ? static_cast<std::int64_t>(next) : first[at];
-			cost[next] = at == from ? l.ticks : cost[at];
-		}
+		const auto &o = state.officers[i];
+		if (!o.present)
+			continue;
+		const auto &duty = d.duties.at(d.duty_indices.at(o.duty));
+		for (const auto &[system, slots] : duty.effects)
+			for (const auto &slot : slots)
+				if (const auto b = d.officers[i].bonuses.find(slot); b != d.officers[i].bonuses.end())
+					state.bonuses[{system, slot}] += b->second;
 	}
-	return {first.at(to), cost.at(to)};
 }
 inline PersonnelState initial_personnel(const PersonnelDefinition &d)
 {
@@ -52,6 +42,7 @@ inline PersonnelState initial_personnel(const PersonnelDefinition &d)
 		     static_cast<std::size_t>(std::find(d.compartments.begin(), d.compartments.end(), o.compartment) -
 		                              d.compartments.begin()),
 		     -1, 0, !o.duty.empty()});
+	refresh_personnel_bonuses(state, d);
 	return state;
 }
 inline std::int64_t personnel_scale(std::int64_t value, std::int64_t bonus, bool inverse = false)

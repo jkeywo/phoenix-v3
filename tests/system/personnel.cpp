@@ -4,6 +4,7 @@
 import phoenix.simulation;
 using namespace phoenix;
 using namespace phoenix::test;
+#include "../../src/core/personnel_projection.hpp"
 Json fixture()
 {
 	auto source = controller_fixture(true, 12000);
@@ -14,8 +15,10 @@ Json fixture()
 	      Json::array({{{"id", "outsider"}, {"definition", "test.console"}, {"systems", Json::array()}}})}});
 	ship["personnel"] = {
 	    {"departments", Json::array({{{"id", "sailing"}, {"label", "Sailing"}, {"station", "operations"}}})},
-	    {"compartments", {"bridge", "engine-room"}},
-	    {"connections", Json::array({{{"from", "bridge"}, {"to", "engine-room"}, {"ticks", 3}}})},
+	    {"compartments", {"bridge", "engine-room", "junction"}},
+	    {"connections", Json::array({{{"from", "bridge"}, {"to", "engine-room"}, {"ticks", 9}},
+	                                 {{"from", "bridge"}, {"to", "junction"}, {"ticks", 1}},
+	                                 {{"from", "junction"}, {"to", "engine-room"}, {"ticks", 2}}})},
 	    {"traits", Json::array({{{"id", "expert"}, {"label", "Expert"}, {"bonuses", {{"propulsion", 250}}}},
 	                            {{"id", "steady"}, {"label", "Steady"}, {"bonuses", {{"propulsion", 250}}}},
 	                            {{"id", "cautious"}, {"label", "Cautious"}, {"bonuses", {{"propulsion", -1000}}}}})},
@@ -71,11 +74,37 @@ int main()
 		require(board(world)["duties"][1]["effects"][0]["multiplier"] == 500,
 		        "negative contributions remain reciprocal and positive");
 		require(board(world, 102)["officers"].empty(), "foreign Station cannot see roster");
+		const auto projected = board(world);
+		require(personnel_projection::board(projected) == projected, "personnel projection preserves permitted roster");
+		for (const auto *field : {"multiplier", "remaining", "bonus"})
+		{
+			auto invalid = projected;
+			if (std::string(field) == "multiplier")
+				invalid["duties"][0]["effects"][0]["multiplier"] = 1500.5;
+			if (std::string(field) == "remaining")
+				invalid["officers"][0]["remaining"] = 0.5;
+			if (std::string(field) == "bonus")
+				invalid["officers"][0]["traits"][0]["bonuses"]["propulsion"] = 250.5;
+			bool rejected = false;
+			try
+			{
+				(void)personnel_projection::board(invalid);
+			}
+			catch (const std::exception &)
+			{
+				rejected = true;
+			}
+			require(rejected, "personnel projection rejects fractional numeric state");
+		}
+
 		auto swap = command(world, "swap", "a", "starboard");
 		require(!world.can_submit(102, swap), "host refuses foreign Station reassignment");
 		require(world.submit(101, swap), "swap accepted");
 		world.tick();
 		require(!board(world)["officers"][0]["present"].get<bool>(), "departing officer gives no bonus");
+		require(board(world)["officers"][0]["destination"] == "junction" &&
+		            board(world)["officers"][0]["remaining"] == 1,
+		        "officer follows the cheaper multi-hop compartment route");
 		require(board(world)["duties"][0]["effects"][0]["multiplier"] == 1000, "vacated duty uses baseline");
 		require(!world.can_submit(101, swap), "stale revision refused");
 		auto no_bonus = source;
@@ -107,6 +136,10 @@ int main()
 		require(board(world) == board(restored), "restore continues travel identically");
 		require(board(world)["officers"][0]["present"].get<bool>(), "officer arrives through compartment route");
 		require(board(world)["duties"][1]["effects"][0]["multiplier"] == 1500, "bonus follows officer to new duty");
+		World arrived_restore;
+		arrived_restore.restore(catalog, world.save());
+		require(board(arrived_restore) == board(world), "restore rebuilds present officer bonuses without a tick");
+
 		auto relieve = command(world, "relieve", "a");
 		require(world.submit(101, relieve), "relieve officer");
 		world.tick();

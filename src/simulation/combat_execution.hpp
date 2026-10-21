@@ -426,45 +426,9 @@ void penetrate(Projectile &p, flecs::entity ship, fixed::Vec start, fixed::Vec e
 std::pair<std::int64_t, std::int64_t> repair_route(const CombatStructure &s, std::size_t from, std::size_t to,
                                                    std::int64_t *total_cost = nullptr) const
 {
-	const auto n = s.compartments.size();
-	const auto infinity = std::int64_t{1000000000000};
-	std::vector<std::int64_t> distance(n, infinity), first(n, -1);
-	std::set<std::size_t> visited;
-	distance[from] = 0;
-	for (std::size_t iteration = 0; iteration < n; ++iteration)
-	{
-		std::size_t at = n;
-		for (std::size_t i = 0; i < n; ++i)
-			if (!visited.contains(i) && (at == n || distance[i] < distance[at]))
-				at = i;
-		if (at == n || distance[at] == infinity)
-			break;
-		if (at == to)
-			break;
-		visited.insert(at);
-		for (const auto &edge : s.definition.connections)
-		{
-			const auto next = edge.from == at ? edge.to : edge.to == at ? edge.from : n;
-			if (next == n)
-				continue;
-			const auto cost = distance[at] + edge.ticks;
-			if (cost < distance[next])
-			{
-				distance[next] = cost;
-				first[next] = at == from ? static_cast<std::int64_t>(next) : first[at];
-			}
-		}
-	}
-	if (total_cost)
-		*total_cost = distance[to];
-	if (first[to] < 0)
-		return {-1, 0};
-	for (const auto &edge : s.definition.connections)
-		if ((edge.from == from && edge.to == static_cast<std::size_t>(first[to])) ||
-		    (edge.to == from && edge.from == static_cast<std::size_t>(first[to])))
-			return {first[to], edge.ticks};
-	return {-1, 0};
+	return compartment_route(s.compartments.size(), s.definition.connections, from, to, total_cost);
 }
+
 using RepairFault = std::pair<std::string, std::size_t>;
 struct RepairCandidate
 {

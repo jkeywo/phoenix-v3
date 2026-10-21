@@ -1966,64 +1966,6 @@
 						"station": "engineering"
 					}
 				],
-				"traits": [
-					{
-						"id": "propulsion",
-						"label": "Drive specialist",
-						"bonuses": {
-							"propulsion": 200
-						}
-					},
-					{
-						"id": "sensors",
-						"label": "Keen observer",
-						"bonuses": {
-							"sensors": 200
-						}
-					},
-					{
-						"id": "cycling",
-						"label": "Gunnery drill",
-						"bonuses": {
-							"cycling": 150
-						}
-					},
-					{
-						"id": "traverse",
-						"label": "Steady tracking",
-						"bonuses": {
-							"traverse": 200
-						}
-					},
-					{
-						"id": "reload",
-						"label": "Magazine discipline",
-						"bonuses": {
-							"reload": 150
-						}
-					},
-					{
-						"id": "recharge",
-						"label": "Field specialist",
-						"bonuses": {
-							"recharge": 200
-						}
-					},
-					{
-						"id": "repair",
-						"label": "Damage control veteran",
-						"bonuses": {
-							"repair": 200
-						}
-					},
-					{
-						"id": "comms",
-						"label": "Signal clarity",
-						"bonuses": {
-							"comms": 200
-						}
-					}
-				],
 				"duties": [
 					{
 						"id": "core.distribution.orders",
@@ -5097,64 +5039,6 @@
 						"station": "comms"
 					}
 				],
-				"traits": [
-					{
-						"id": "propulsion",
-						"label": "Drive specialist",
-						"bonuses": {
-							"propulsion": 200
-						}
-					},
-					{
-						"id": "sensors",
-						"label": "Keen observer",
-						"bonuses": {
-							"sensors": 200
-						}
-					},
-					{
-						"id": "cycling",
-						"label": "Gunnery drill",
-						"bonuses": {
-							"cycling": 150
-						}
-					},
-					{
-						"id": "traverse",
-						"label": "Steady tracking",
-						"bonuses": {
-							"traverse": 200
-						}
-					},
-					{
-						"id": "reload",
-						"label": "Magazine discipline",
-						"bonuses": {
-							"reload": 150
-						}
-					},
-					{
-						"id": "recharge",
-						"label": "Field specialist",
-						"bonuses": {
-							"recharge": 200
-						}
-					},
-					{
-						"id": "repair",
-						"label": "Damage control veteran",
-						"bonuses": {
-							"repair": 200
-						}
-					},
-					{
-						"id": "comms",
-						"label": "Signal clarity",
-						"bonuses": {
-							"comms": 200
-						}
-					}
-				],
 				"duties": [
 					{
 						"id": "command.cooling.orders",
@@ -7043,64 +6927,6 @@
 						"station": "engineering"
 					}
 				],
-				"traits": [
-					{
-						"id": "propulsion",
-						"label": "Drive specialist",
-						"bonuses": {
-							"propulsion": 200
-						}
-					},
-					{
-						"id": "sensors",
-						"label": "Keen observer",
-						"bonuses": {
-							"sensors": 200
-						}
-					},
-					{
-						"id": "cycling",
-						"label": "Gunnery drill",
-						"bonuses": {
-							"cycling": 150
-						}
-					},
-					{
-						"id": "traverse",
-						"label": "Steady tracking",
-						"bonuses": {
-							"traverse": 200
-						}
-					},
-					{
-						"id": "reload",
-						"label": "Magazine discipline",
-						"bonuses": {
-							"reload": 150
-						}
-					},
-					{
-						"id": "recharge",
-						"label": "Field specialist",
-						"bonuses": {
-							"recharge": 200
-						}
-					},
-					{
-						"id": "repair",
-						"label": "Damage control veteran",
-						"bonuses": {
-							"repair": 200
-						}
-					},
-					{
-						"id": "comms",
-						"label": "Signal clarity",
-						"bonuses": {
-							"comms": 200
-						}
-					}
-				],
 				"duties": [
 					{
 						"id": "core.distribution.orders",
@@ -8727,64 +8553,6 @@
 						"id": "signals",
 						"label": "Signals",
 						"station": "engineering"
-					}
-				],
-				"traits": [
-					{
-						"id": "propulsion",
-						"label": "Drive specialist",
-						"bonuses": {
-							"propulsion": 200
-						}
-					},
-					{
-						"id": "sensors",
-						"label": "Keen observer",
-						"bonuses": {
-							"sensors": 200
-						}
-					},
-					{
-						"id": "cycling",
-						"label": "Gunnery drill",
-						"bonuses": {
-							"cycling": 150
-						}
-					},
-					{
-						"id": "traverse",
-						"label": "Steady tracking",
-						"bonuses": {
-							"traverse": 200
-						}
-					},
-					{
-						"id": "reload",
-						"label": "Magazine discipline",
-						"bonuses": {
-							"reload": 150
-						}
-					},
-					{
-						"id": "recharge",
-						"label": "Field specialist",
-						"bonuses": {
-							"recharge": 200
-						}
-					},
-					{
-						"id": "repair",
-						"label": "Damage control veteran",
-						"bonuses": {
-							"repair": 200
-						}
-					},
-					{
-						"id": "comms",
-						"label": "Signal clarity",
-						"bonuses": {
-							"comms": 200
-						}
 					}
 				],
 				"duties": [
@@ -14517,64 +14285,6 @@
 						"id": "signals",
 						"label": "Signals",
 						"station": "engineering"
-					}
-				],
-				"traits": [
-					{
-						"id": "propulsion",
-						"label": "Drive specialist",
-						"bonuses": {
-							"propulsion": 200
-						}
-					},
-					{
-						"id": "sensors",
-						"label": "Keen observer",
-						"bonuses": {
-							"sensors": 200
-						}
-					},
-					{
-						"id": "cycling",
-						"label": "Gunnery drill",
-						"bonuses": {
-							"cycling": 150
-						}
-					},
-					{
-						"id": "traverse",
-						"label": "Steady tracking",
-						"bonuses": {
-							"traverse": 200
-						}
-					},
-					{
-						"id": "reload",
-						"label": "Magazine discipline",
-						"bonuses": {
-							"reload": 150
-						}
-					},
-					{
-						"id": "recharge",
-						"label": "Field specialist",
-						"bonuses": {
-							"recharge": 200
-						}
-					},
-					{
-						"id": "repair",
-						"label": "Damage control veteran",
-						"bonuses": {
-							"repair": 200
-						}
-					},
-					{
-						"id": "comms",
-						"label": "Signal clarity",
-						"bonuses": {
-							"comms": 200
-						}
 					}
 				],
 				"duties": [

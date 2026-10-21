@@ -1,11 +1,11 @@
 // Included inside World::Impl. Personnel commands use Station ownership, never role names.
 const PersonnelDuty *personnel_duty(EntityId id, const std::string &duty) const
 {
-	for (const auto &d : definition(id).personnel.duties)
-		if (d.id == duty)
-			return &d;
-	return nullptr;
+	const auto &d = definition(id).personnel;
+	const auto found = d.duty_indices.find(duty);
+	return found == d.duty_indices.end() ? nullptr : &d.duties[found->second];
 }
+
 OfficerState personnel_destination(EntityId id, const PersonnelDuty &duty) const
 {
 	const auto &d = definition(id).personnel;
@@ -36,6 +36,7 @@ void advance_personnel(EntityId id)
 	auto entity = entities.at(id);
 	auto &state = entity.get_mut<PersonnelState>();
 	const auto &d = definition(id).personnel;
+	bool arrived = false;
 	for (auto &o : state.officers)
 	{
 		const auto *duty = personnel_duty(id, o.duty);
@@ -60,16 +61,20 @@ void advance_personnel(EntityId id)
 		if (o.location == target.location && target.remaining == 0)
 		{
 			o.present = true;
+			arrived = true;
 			continue;
 		}
-		const auto route = personnel_route(
-		    d, o.location, target.remaining > 0 ? static_cast<std::size_t>(target.edge_to) : target.location);
+		const auto route =
+		    compartment_route(d.compartments.size(), d.links, o.location,
+		                      target.remaining > 0 ? static_cast<std::size_t>(target.edge_to) : target.location);
 		if (route.first >= 0)
 		{
 			o.edge_to = route.first;
 			o.remaining = route.second;
 		}
 	}
+	if (arrived)
+		refresh_personnel_bonuses(state, d);
 }
 std::int64_t officer_bonus(EntityId id, const std::string &system, const std::string &slot) const
 {
@@ -77,28 +82,8 @@ std::int64_t officer_bonus(EntityId id, const std::string &system, const std::st
 	const auto *state = entity.try_get<PersonnelState>();
 	if (!state)
 		return 0;
-	const auto &d = definition(id).personnel;
-	std::int64_t sum = 0;
-	for (std::size_t i = 0; i < state->officers.size(); ++i)
-	{
-		const auto &o = state->officers[i];
-		if (!o.present)
-			continue;
-		const auto *duty = personnel_duty(id, o.duty);
-		if (!duty || !duty->effects.contains(system))
-			continue;
-		const auto &slots = duty->effects.at(system);
-		if (std::find(slots.begin(), slots.end(), slot) == slots.end())
-			continue;
-		for (const auto &key : d.officers[i].traits)
-		{
-			const auto &bonuses = d.traits.at(key).bonuses;
-			const auto b = bonuses.find(slot);
-			if (b != bonuses.end())
-				sum += b->second;
-		}
-	}
-	return sum;
+	const auto b = state->bonuses.find({system, slot});
+	return b == state->bonuses.end() ? 0 : b->second;
 }
 std::int64_t officer_value(EntityId id, const std::string &system, const std::string &slot, std::int64_t base,
                            bool inverse = false) const
@@ -163,7 +148,8 @@ bool personnel_command(const ConsoleAddress &address, const OperatingCommand &co
 		const auto &o = state.officers[i];
 		const auto target = personnel_destination(address.ship, *duty);
 		const auto from = o.remaining ? static_cast<std::size_t>(o.edge_to) : o.location;
-		if (from != target.location && personnel_route(d, from, target.location).first < 0)
+		if (from != target.location &&
+		    compartment_route(d.compartments.size(), d.links, from, target.location).first < 0)
 			return false;
 	}
 	if (execute)
@@ -188,6 +174,7 @@ bool personnel_command(const ConsoleAddress &address, const OperatingCommand &co
 			detach(occupied, command.action == "personnel.swap" ? old : std::string{});
 		detach(i, duty ? duty->id : std::string{});
 		++state.revision;
+		refresh_personnel_bonuses(state, d);
 	}
 	return true;
 }
@@ -287,5 +274,6 @@ void restore_personnel(EntityId id, const Json &saved)
 		if (o.present && duty->team.empty() && (o.remaining || d.compartments.at(o.location) != duty->compartment))
 			throw std::runtime_error("Officer present outside duty compartment");
 	}
+	refresh_personnel_bonuses(state, d);
 	entities.at(id).set<PersonnelState>(state);
 }

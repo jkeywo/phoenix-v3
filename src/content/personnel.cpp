@@ -175,6 +175,7 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 				d.effects[system].push_back(key);
 			}
 		}
+		out.duty_indices.emplace(d.id, out.duties.size());
 		out.duties.push_back(d);
 	}
 	fail(out.duties.size() <= 128 && controllers.size() == layout.controllers.size(),
@@ -220,6 +221,8 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 			auto id = t.get<std::string>();
 			fail(out.traits.contains(id) && unique.insert(id).second, "unknown or duplicate trait");
 			o.traits.push_back(id);
+			for (const auto &[slot, bonus] : out.traits.at(id).bonuses)
+				o.bonuses[slot] += bonus;
 		}
 		fail(o.traits.size() <= 16, "too many officer traits");
 		out.officers.push_back(o);
