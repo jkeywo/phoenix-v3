@@ -23,6 +23,8 @@ The bridge must finish loading before it can advertise its providers.
 4. Start the bridge with the displayed pairing token:
 
 ```powershell
+$env:HF_HOME = Join-Path (Get-Location) "build/inference-cache"
+$env:HF_HUB_DISABLE_XET = "1"
 ./build/inference-venv/Scripts/python.exe tools/inference/bridge.py `
   --native build/native/Release/phoenix_inference_bridge.exe `
   --config build/inference.json --pair <token>

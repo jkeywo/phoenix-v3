@@ -172,3 +172,17 @@ Lobby launch now restores World-owned scenario event sources and streamed astero
 ## Mission objectives and authoritative debriefs — 21 October 2026
 
 Condition objectives now verify compiled typed world facts, with persisted transitions, explicit lifecycle distinctions and latched accomplishments. Human and AI departures share a deterministic batch, and authored report rules freeze objective, restoration and personnel facts at departure. The rescue authors its four objectives, casualty escape policy and success/partial/failure grades in content. Lost visiting parties remain unavailable after manifest cleanup. Workshop exposes the corresponding conditions, bindings and report rules. See the [authoring contract](mission-objectives.md) and [verification receipt](smoke/mission-objectives.md) for scope, checks and remaining physical-device acceptance.
+
+## Controller model providers — 21 October 2026
+
+Controller policies now share deterministic action admission with model choices,
+scoped prepared candidates and schema-14 continuation (schema 13 defaults to trees).
+An independently launched authenticated inference bridge supports local AnyJev,
+llama.cpp constrained HTTP and versioned hosted Jev. Host Settings pairs the bridge;
+the labelled brain button appears only for configured external providers and stays
+available during outages. Per-Controller assignment is separate from human/AI
+allocation. Workshop authors candidate metadata and previews scoped snapshots.
+See [setup and contracts](controller-models.md) and [hardware evidence and remaining
+acceptance](smoke/controller-models.md). Six-way AnyJev demand works through the
+real transport but exceeds the two-second revisit target; gameplay competence,
+9B comparison and six-display performance are not established.
