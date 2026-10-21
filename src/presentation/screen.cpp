@@ -480,7 +480,11 @@ void update_document(Application &app)
 		for (const auto &control : navigation_controls(app))
 			if (!control.editable)
 				if (auto *element = document->GetElementById(control.id))
-					element->SetInnerRML(control.label);
+					element->SetInnerRML(control.id == "ai.config"
+					                         ? "<span class=\"ai-brain\"><span class=\"ai-brain-left\"/><span "
+					                           "class=\"ai-brain-right\"/></span>" +
+					                               Rml::StringUtilities::EncodeRml(control.label)
+					                         : control.label);
 		labels_ready = true;
 		pseudo_shown = app.pseudo_locale;
 	}
@@ -758,7 +762,7 @@ void prepare_runtime_chrome(Application &app)
 	for (const char *id : {"home", "lobby", "host", "join", "view", "edit", "locale", "settings"})
 		document->GetElementById(id)->SetProperty("display", view && std::string(id) == "settings" ? "block" : "none");
 	auto *nav = document->GetElementById("nav");
-	nav->SetProperty("display", view ? "block" : "none");
+	nav->SetProperty("display", view ? "flex" : "none");
 	nav->SetProperty("position", "absolute");
 	nav->SetProperty("right", "auto");
 	nav->SetProperty("left", "20dp");
@@ -767,13 +771,13 @@ void prepare_runtime_chrome(Application &app)
 	{
 		const auto &r = *app.viewscreen_region;
 		nav->SetProperty("right", "auto");
-		nav->SetProperty("width", "64dp");
+		nav->SetProperty("width", ai_configuration_available(app) ? "340dp" : "64dp");
 		nav->SetProperty("left", std::to_string(r.x + 20 * scale) + "px");
 		nav->SetProperty("top", std::to_string(r.y + 18 * scale) + "px");
 	}
 	else
 	{
-		nav->SetProperty("width", "64dp");
+		nav->SetProperty("width", ai_configuration_available(app) ? "340dp" : "64dp");
 	}
 }
 } // namespace
@@ -910,6 +914,7 @@ void open_window()
     button:hover, button:focus { background:#315a70; }
     #nav button { width:130dp; padding:4dp 8dp; font-size:16dp; }
     #nav #settings {width:64dp;height:64dp;margin:0;padding:0;background:transparent;border:2dp transparent;}
+    #nav .ai-provider-button { width:190dp; min-height:64dp; margin-left:8dp; }
     #nav #settings:hover,#nav #settings:focus {background:#455458;border-color:#ec9c52;}
     #settings img {position:absolute;left:4dp;top:4dp;width:54dp;height:54dp;pointer-events:none;}
     #session-controls { display:block; width:100%; }
@@ -933,7 +938,7 @@ void open_window()
     #settings-panel .audio-volume slidertrack { height:8dp; margin:16dp 0; background:#315a70; }
     #settings-panel .audio-volume sliderbar { width:24dp; height:40dp; background:#76c9e8; border:2dp #d9e9ef; }
     #settings-panel .audio-volume:focus sliderbar { background:#d9e9ef; border-color:#76c9e8; }
-    .ai-brain { display:inline-block; width:26dp; height:24dp; margin-right:8dp; }
+    .ai-brain { display:inline-block; width:32dp; height:24dp; margin-right:8dp; }
     .ai-brain-left, .ai-brain-right { display:inline-block; width:11dp; height:19dp; border:2dp #a5d7ec; border-radius:7dp; }
     #settings-panel .audio-volume sliderarrowdec, #settings-panel .audio-volume sliderarrowinc { display:none; }
     #native-menu { position:absolute; overflow:hidden; background:#080f19; padding:0; box-sizing:border-box; }
@@ -971,7 +976,7 @@ void open_window()
     )") + native_menu->style_sheet(font_directory.generic_string()) +
 	                                               R"(</style></head><body><h1 id="app-title">Against the Stars</h1>
     <div id="nav"><button id="home">Home</button><button id="lobby" style="display:none;">Lobby</button><button id="host">New game</button><button id="join">Join console</button>
-    <button id="view">Viewscreen</button><button id="edit">Workshop</button><button id="locale">Toggle pseudo-localisation</button><button id="settings">Settings</button><button id="ai.config"><span class="ai-brain"><span class="ai-brain-left"/><span class="ai-brain-right"/></span>AI configuration</button></div>
+    <button id="view">Viewscreen</button><button id="edit">Workshop</button><button id="locale">Toggle pseudo-localisation</button><button id="settings">Settings</button><button id="ai.config" class="ai-provider-button"><span class="ai-brain"><span class="ai-brain-left"/><span class="ai-brain-right"/></span>AI configuration</button></div>
     <h2 id="heading">Home</h2><p id="description"></p><div id="session-controls"></div><div id="game"></div>
     <div id="settings-panel"><div id="settings-tabs"></div><div id="settings-audio"></div><div id="settings-display"><button id="settings.dust">Dust motes: On</button><button id="settings.grid">Reference grid: On</button><button id="settings.motion">Reduced motion: Off</button></div><div id="settings-ai"></div><div id="settings-session"><div id="settings-approvals"></div><button id="settings.quit">Quit to Main Menu</button></div><button id="settings.close">Back</button></div></body></rml>)",
 	                                           (font_directory / "navigation.rml").generic_string());

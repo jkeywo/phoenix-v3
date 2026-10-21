@@ -49,6 +49,7 @@ try
 	NativeMenuSmoke menu_smoke;
 	std::string inference_pair;
 	bool ai_config_smoke = false, ai_config_opened = false;
+	unsigned ai_config_ready_frames = 0;
 	bool qr_smoke = false;
 	bool join_smoke = false, join_submitted = false, claim_submitted = false;
 	unsigned join_ready_frames = 0;
@@ -713,8 +714,10 @@ try
 	{
 		const auto frame_started = GetTime();
 		app.session->poll();
-		if (ai_config_smoke && !ai_config_opened && phoenix::ai_configuration_available(app))
+		if (ai_config_smoke && !ai_config_opened && phoenix::ai_configuration_available(app) &&
+		    ++ai_config_ready_frames >= 120)
 		{
+			TakeScreenshot("build/ai-button.png");
 			phoenix::invoke_navigation(app, "ai.config");
 			ai_config_opened = true;
 			smoke_frames = 60;
