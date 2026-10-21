@@ -24,6 +24,8 @@ The ordinary `sensor_target` Controller channel selects one target per scanner; 
 
 Turrets use existing traversal, structural damage and rendering. A scanner turret has one targeting owner and cannot also aim a weapon. Beam coverage uses the mount's physical location and actual heading. Lost targets are aimed at their last permitted position. Changing targets or losing qualification retains unfinished exposure; acquired snapshots retain their observation ticks. Returning to qualifying scanning updates completed findings live.
 
+Weapon and scanner aiming reuse the same permitted contact cache per Console during each preparation pass. The cache is discarded after the pass; it cannot carry contacts across ticks or Console boundaries. Scanner aiming supplies position and bearing directly to the existing turret geometry calculation.
+
 Tactical's **Inspect contact**, **Scan target** and **Clear scan target** actions are available through the same semantic controls used by keyboard and screen readers. Readouts show acquisition percentages, blockers, identity and live or last-observed findings. Own and selected-contact weapon arcs have separate toggles. The narrow beam uses the physical scanner heading; sensor mounts are excluded from weapon arcs.
 
 ## Scenario findings
@@ -60,6 +62,10 @@ Saved sensor state contains selected targets, independent partial exposure, last
 ## Verification
 
 `phoenix_sensors_tests` uses synthetic combat fittings through production loaders and Controller admission. `--trace` supports native/WASM continuation comparison. `phoenix_sensors_smoke` is an explicitly invoked graphical Courier journey, excluded from automatic tests. Build it with `scripts/build.ps1 -Target native -BuildTarget phoenix_sensors_smoke`, then run it with `build/native` as the pack directory. The equivalent WASM target produces an HTML harness.
+
+The sensor simplification follow-up was checked in an isolated source snapshot to exclude concurrent FTL edits. Native build/content checks and all 27 system integration cases passed. The five related WASM cases (sensors, combat, radar/simulation, Controllers and knowledge) passed; sensor, combat, simulation and Controller continuation traces matched native. Changed C++ and documentation files passed their formatting checks. The sensor case additionally verifies anonymous detection under partial power and consistent identity after deliberate sharing.
+
+The first service-gate run overlapped WASM linking and reported two admission timeouts plus a temporary-directory cleanup failure. A repeat after linking completed passed all eight service cases, including fleet recovery, live sessions, verified WSS and pre-game admission.
 
 Verification on 21 October 2026:
 

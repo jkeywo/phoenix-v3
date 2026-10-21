@@ -64,7 +64,7 @@ bool sensor_target(EntityId ship, const std::string &id, std::int64_t value, boo
 	if (value)
 	{
 		const auto owner = system_owner(ship, id);
-		const auto contacts = capture_weapon_contacts(owner);
+		const auto contacts = capture_sensor_contacts(owner);
 		if (!state.tracks.contains(value) && std::none_of(contacts.begin(), contacts.end(),
 		                                                  [&](const auto &c)
 		                                                  {
@@ -246,7 +246,8 @@ void advance_sensors(bool acquire_timed = true)
 	}
 }
 // Sensor mounts use only current permitted returns or their last observation.
-std::optional<fixed::Vec> sensor_aim(EntityId ship, const std::string &turret)
+std::optional<std::pair<fixed::Vec, std::int64_t>> sensor_aim(EntityId ship, const std::string &turret,
+                                                              ConsoleContacts &cache)
 {
 	for (const auto &[id, d] : definition(ship).sensors)
 		if (d.turret == turret)
@@ -254,7 +255,7 @@ std::optional<fixed::Vec> sensor_aim(EntityId ship, const std::string &turret)
 			auto &state = instance(entities.at(ship), id)->entity.get_mut<SensorRuntime>();
 			if (!state.target || !sensor_powered(ship, id))
 				return {};
-			const auto contacts = capture_weapon_contacts(system_owner(ship, id));
+			const auto &contacts = console_contacts(system_owner(ship, id), cache);
 			for (const auto &contact : contacts)
 				if (contact.id == state.target)
 				{
@@ -263,12 +264,12 @@ std::optional<fixed::Vec> sensor_aim(EntityId ship, const std::string &turret)
 					auto &track = state.tracks[contact.id];
 					track.x = contact.x;
 					track.y = contact.y;
-					return fixed::Vec{contact.x, contact.y};
+					return std::pair{fixed::Vec{contact.x, contact.y}, d.bearing};
 				}
 			if (state.tracks.contains(state.target))
 			{
 				const auto &t = state.tracks.at(state.target);
-				return fixed::Vec{t.x, t.y};
+				return std::pair{fixed::Vec{t.x, t.y}, d.bearing};
 			}
 		}
 	return {};

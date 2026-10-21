@@ -87,7 +87,7 @@ void append_sensor_contacts(const ConsoleAddress &address, Observation &result,
 		          return a.id < b.id;
 	          });
 }
-std::vector<BodyView> capture_weapon_contacts(const ConsoleAddress &address) const
+std::vector<BodyView> capture_sensor_contacts(const ConsoleAddress &address) const
 {
 	Observation result;
 	const auto entity = entities.at(address.ship);
