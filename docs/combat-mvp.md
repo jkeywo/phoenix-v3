@@ -62,3 +62,5 @@ The independent review identified fractional shield conversion loss, immediate u
 The follow-up refactoring series uses save schema 10; previous continuation formats are explicitly refused.
 
 1. Ship death is owned by `Destructible`. One shared destruction definition and once-only event drive damage, visual and audio output. Ship defaults and hull removal after the growth phase are preserved; the shared authored probability applies to the entire event. Restoration rejects compartment/death disagreement. The synthetic destruction case asserts exactly one sound-bearing event and resumed continuation equality.
+
+2. Observations and weapon execution share permitted sensor-contact enumeration. Targeting requests only those contacts and caches them per Console within preparation or firing; firing starts a fresh cache after resource allocation. Human observation projects combat JSON once. Existing synthetic sensor restrictions, automatic/manual interception, energy and continuation contracts pass.

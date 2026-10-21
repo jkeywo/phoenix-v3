@@ -2570,12 +2570,10 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 {
 	auto entity = impl_->entities.at(address.ship);
 	const auto &seat = *impl_->seat(address.ship, address.console);
-	Observation result = impl_->capture_console_observation(address);
-	result.gameplay = impl_->knowledge.project_json(address);
+	Observation result = impl_->capture_console_observation(address, impl_->knowledge.project_json(address));
 	result.gameplay["alert"] = impl_->alert_board(address.ship);
 	result.gameplay["navigation"] = impl_->navigation_board(address.ship);
 	result.gameplay["stance"] = impl_->stance_board(address);
-	impl_->project_combat(address, result);
 	if (entity.has<EntityControls>())
 		result.gameplay["controllers"] = impl_->project_controllers(address);
 

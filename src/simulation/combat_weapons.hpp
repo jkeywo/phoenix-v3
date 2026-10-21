@@ -24,13 +24,21 @@ struct WeaponAim
 	BodyView body;
 	std::int64_t altitude = 0, vz = 0;
 };
-std::optional<WeaponAim> weapon_contact(flecs::entity ship, const CombatMechanism &m) const
+using WeaponContacts = std::map<ConsoleAddress, std::vector<BodyView>>;
+const std::vector<BodyView> &weapon_contacts(flecs::entity ship, const CombatMechanism &m, WeaponContacts &cache) const
 {
-	const auto observed = capture_console_observation(system_owner(ship.get<StableId>().id, m.definition.id));
+	const auto owner = system_owner(ship.get<StableId>().id, m.definition.id);
+	if (!cache.contains(owner))
+		cache.emplace(owner, capture_weapon_contacts(owner));
+	return cache.at(owner);
+}
+std::optional<WeaponAim> weapon_contact(flecs::entity ship, const CombatMechanism &m, WeaponContacts &cache) const
+{
+	const auto &contacts = weapon_contacts(ship, m, cache);
 	const auto wanted = m.definition.point_defence && m.mode == 1 ? 7000000000000000ULL + m.intercept : m.target;
 	if (!wanted)
 		return {};
-	for (const auto &contact : observed.contacts)
+	for (const auto &contact : contacts)
 		if (contact.id == wanted)
 		{
 			WeaponAim aim{contact};
@@ -82,6 +90,7 @@ fixed::Vec weapon_lead(flecs::entity ship, const CombatMechanism &m, const Weapo
 }
 void prepare_weapons(flecs::entity ship)
 {
+	WeaponContacts contacts_by_console;
 	const auto id = ship.get<StableId>().id;
 	const auto &pose = ship.get<Pose>();
 	for (auto child : ship.get<EquipmentIndex>().values)
@@ -97,14 +106,14 @@ void prepare_weapons(flecs::entity ship)
 			if (d.point_defence && m->mode == 1)
 			{
 				m->intercept = 0;
-				const auto observed = capture_console_observation(system_owner(id, d.id));
+				const auto &contacts = weapon_contacts(ship, *m, contacts_by_console);
 				std::pair<std::int64_t, std::uint64_t> best{std::numeric_limits<std::int64_t>::max(), 0};
 				for (auto missile : projectile_rows())
 				{
 					const auto &p = missile.get<Projectile>();
 					if (!p.definition.durability || p.durability <= 0 || p.source == id || d.intercept_classes.empty())
 						continue;
-					if (std::none_of(observed.contacts.begin(), observed.contacts.end(),
+					if (std::none_of(contacts.begin(), contacts.end(),
 					                 [&](const auto &c)
 					                 {
 						                 return c.id == 7000000000000000ULL + p.id;
@@ -169,7 +178,7 @@ void prepare_weapons(flecs::entity ship)
 						continue;
 					if ((w->definition.point_defence && w->mode == 1) != (priority == 1))
 						continue;
-					if (auto found = weapon_contact(ship, *w))
+					if (auto found = weapon_contact(ship, *w, contacts_by_console))
 					{
 						weapon = w;
 						target = found;
@@ -204,7 +213,7 @@ void prepare_weapons(flecs::entity ship)
 			if (m->cooldown || !child.get<Equipment>().enabled || structurally_disabled(ship, d.id) ||
 			    (d.point_defence && !m->mode))
 				continue;
-			const auto target = weapon_contact(ship, *m);
+			const auto target = weapon_contact(ship, *m, contacts_by_console);
 			if (!target)
 				continue;
 			const auto [origin, orientation] = weapon_mount(ship, *m);
@@ -241,6 +250,8 @@ void prepare_weapons(flecs::entity ship)
 }
 void fire_weapons(flecs::entity ship)
 {
+	// Resource allocation may have changed sensing since prepare_weapons.
+	WeaponContacts contacts_by_console;
 	const auto id = ship.get<StableId>().id;
 	for (auto child : ship.get<EquipmentIndex>().values)
 		if (auto *m = child.try_get_mut<CombatMechanism>();
@@ -257,7 +268,7 @@ void fire_weapons(flecs::entity ship)
 				    (power->definition.systems[slot].discrete_energy && !g.discrete_paid))
 					continue;
 			}
-			const auto target = weapon_contact(ship, *m);
+			const auto target = weapon_contact(ship, *m, contacts_by_console);
 			if (!target)
 				continue;
 			const auto [origin, orientation] = weapon_mount(ship, *m);

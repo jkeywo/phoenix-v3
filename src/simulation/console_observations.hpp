@@ -1,5 +1,86 @@
+// Append contacts using only the permitted radar feeds supplied by the caller.
+void append_sensor_contacts(const ConsoleAddress &address, Observation &result) const
+{
+	const auto entity = entities.at(address.ship);
+	const auto &own = entity.get<Pose>();
+	std::int64_t range = 0;
+	for (const auto &sensor : result.systems)
+		if (sensor.kind == OperatingSystem::Radar && sensor.enabled)
+			range = std::max(range, sensor.effective_range);
+	if (range)
+		contact_index.each(
+		    Bounds::around(own.position, range),
+		    [&](std::size_t row)
+		    {
+			    const auto &contact = contact_rows[row];
+			    if (contact.id == address.ship)
+				    return;
+			    const auto &tags = definitions.at(contact.entity.get<Definition>().name).tags;
+			    bool visible = false;
+			    for (auto &sensor : result.systems)
+				    if (sensor.kind == OperatingSystem::Radar && sensor.enabled &&
+				        std::any_of(tags.begin(), tags.end(),
+				                    [&](const auto &tag)
+				                    {
+					                    return std::find(sensor.shows.begin(), sensor.shows.end(), tag) !=
+					                           sensor.shows.end();
+				                    }) &&
+				        scenario_sensor_visible(regions, {own.position.x, own.position.y},
+				                                {contact.position.x, contact.position.y}, sensor.effective_range))
+				    {
+					    sensor.contact_ids.push_back(contact.id);
+					    visible = true;
+				    }
+			    if (visible)
+				    result.contacts.push_back(view(contact.id, contact.entity.get<Definition>(),
+				                                   contact.entity.get<Pose>(), contact.entity.get<Motion>()));
+		    });
+	for (auto missile : projectile_rows())
+	{
+		const auto &p = missile.get<Projectile>();
+		if (!p.definition.durability || p.durability <= 0)
+			continue;
+		bool visible = false;
+		const auto contact_id = 7000000000000000ULL + p.id;
+		for (auto &sensor : result.systems)
+			if (sensor.kind == OperatingSystem::Radar && sensor.enabled &&
+			    std::find(sensor.shows.begin(), sensor.shows.end(), "missile") != sensor.shows.end() &&
+			    scenario_sensor_visible(regions, {own.position.x, own.position.y}, {p.position.x, p.position.y},
+			                            sensor.effective_range) &&
+			    fixed::length(p.position - own.position) + std::abs(p.altitude) <= sensor.effective_range)
+			{
+				sensor.contact_ids.push_back(contact_id);
+				visible = true;
+			}
+		if (visible)
+			result.contacts.push_back(
+			    {contact_id, p.definition.visual, p.position.x, p.position.y, p.velocity.x, p.velocity.y, p.heading});
+	}
+	std::sort(result.contacts.begin(), result.contacts.end(),
+	          [](const auto &a, const auto &b)
+	          {
+		          return a.id < b.id;
+	          });
+}
+std::vector<BodyView> capture_weapon_contacts(const ConsoleAddress &address) const
+{
+	Observation result;
+	const auto entity = entities.at(address.ship);
+	for (const auto &id : seat(address.ship, address.console)->feed_systems)
+		if (const auto fit = instance(entity, id); fit && fit->radar)
+		{
+			SystemView sensor;
+			sensor.kind = OperatingSystem::Radar;
+			sensor.effective_range = sensor_range(address.ship, id);
+			sensor.enabled = sensor.effective_range > 0;
+			sensor.shows = definitions.at(entity.get<Definition>().name).radar_shows.at(id);
+			result.systems.push_back(std::move(sensor));
+		}
+	append_sensor_contacts(address, result);
+	return std::move(result.contacts);
+}
 // World::Impl observation producer. Human projection and decision snapshots share this boundary.
-Observation capture_console_observation(const ConsoleAddress &address) const
+Observation capture_console_observation(const ConsoleAddress &address, Json gameplay = Json::object()) const
 {
 	const auto entity = entities.at(address.ship);
 	const auto &own = entity.get<Pose>();
@@ -10,6 +91,7 @@ Observation capture_console_observation(const ConsoleAddress &address) const
 	result.observed_tick = ecs.get<Clock>().tick;
 	result.controls = seat.controls;
 	result.feeds = seat.feeds;
+	result.gameplay = std::move(gameplay);
 	project_combat(address, result);
 	result.engine_enabled = false;
 	result.radar_enabled = false;
@@ -100,60 +182,7 @@ Observation capture_console_observation(const ConsoleAddress &address) const
 				range = std::max(range, sensor_range(address.ship, state.id));
 		}
 		result.radar_enabled = range > 0;
-		if (range)
-			contact_index.each(
-			    Bounds::around(own.position, range),
-			    [&](std::size_t row)
-			    {
-				    const auto &contact = contact_rows[row];
-				    if (contact.id == address.ship)
-					    return;
-				    const auto &tags = definitions.at(contact.entity.get<Definition>().name).tags;
-				    bool visible = false;
-				    for (auto &sensor : result.systems)
-					    if (sensor.kind == OperatingSystem::Radar && sensor.enabled &&
-					        std::any_of(tags.begin(), tags.end(),
-					                    [&](const auto &tag)
-					                    {
-						                    return std::find(sensor.shows.begin(), sensor.shows.end(), tag) !=
-						                           sensor.shows.end();
-					                    }) &&
-					        scenario_sensor_visible(regions, {own.position.x, own.position.y},
-					                                {contact.position.x, contact.position.y}, sensor.effective_range))
-					    {
-						    sensor.contact_ids.push_back(contact.id);
-						    visible = true;
-					    }
-				    if (visible)
-					    result.contacts.push_back(view(contact.id, contact.entity.get<Definition>(),
-					                                   contact.entity.get<Pose>(), contact.entity.get<Motion>()));
-			    });
-		for (auto missile : projectile_rows())
-		{
-			const auto &p = missile.get<Projectile>();
-			if (!p.definition.durability || p.durability <= 0)
-				continue;
-			bool visible = false;
-			const auto contact_id = 7000000000000000ULL + p.id;
-			for (auto &sensor : result.systems)
-				if (sensor.kind == OperatingSystem::Radar && sensor.enabled &&
-				    std::find(sensor.shows.begin(), sensor.shows.end(), "missile") != sensor.shows.end() &&
-				    scenario_sensor_visible(regions, {own.position.x, own.position.y}, {p.position.x, p.position.y},
-				                            sensor.effective_range) &&
-				    fixed::length(p.position - own.position) + std::abs(p.altitude) <= sensor.effective_range)
-				{
-					sensor.contact_ids.push_back(contact_id);
-					visible = true;
-				}
-			if (visible)
-				result.contacts.push_back({contact_id, p.definition.visual, p.position.x, p.position.y, p.velocity.x,
-				                           p.velocity.y, p.heading});
-		}
-		std::sort(result.contacts.begin(), result.contacts.end(),
-		          [](const auto &a, const auto &b)
-		          {
-			          return a.id < b.id;
-		          });
+		append_sensor_contacts(address, result);
 		return result;
 	}
 	return result;
