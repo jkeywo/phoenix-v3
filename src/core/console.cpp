@@ -555,6 +555,16 @@ bool ConsoleModel::act(const std::string &id)
 		status_system_ = id.substr(12);
 		return true;
 	}
+	if (id == "game.contact-arcs")
+	{
+		contact_arcs_ = !contact_arcs_;
+		return true;
+	}
+	if (id.starts_with("game.sensor-contact/"))
+	{
+		sensor_contact_ = std::stoll(id.substr(20));
+		return true;
+	}
 	if (id == "game.fire-arcs")
 	{
 		fire_arcs_ = !fire_arcs_;
@@ -1333,6 +1343,22 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 			result.emplace_back("game.console/" + key, localise("Open console") + " " + localise(label));
 	if (!observation_ || !observation_->gameplay.is_object())
 		return result;
+	const auto sensors = observation_->gameplay.value("sensors", Json::object());
+	for (const auto &contact : observation_->contacts)
+		result.emplace_back("game.sensor-contact/" + std::to_string(contact.id), localise("Inspect contact") + " " +
+		                                                                             localise(contact.definition) +
+		                                                                             " " + std::to_string(contact.id));
+	for (const auto &contact : sensors.value("contacts", Json::array()))
+		if (std::none_of(observation_->contacts.begin(), observation_->contacts.end(),
+		                 [&](const auto &c)
+		                 {
+			                 return c.id == contact.at("id").get<EntityId>();
+		                 }))
+			result.emplace_back("game.sensor-contact/" + std::to_string(contact.at("id").get<EntityId>()),
+			                    localise("Last observed") + " " + std::to_string(contact.at("id").get<EntityId>()));
+	if (!sensors.empty())
+		result.emplace_back("game.contact-arcs",
+		                    localise("Contact fire arcs") + ": " + localise(contact_arcs_ ? "On" : "Off"));
 	const auto combat = observation_->gameplay.value("combat", Json::object());
 	for (const auto &status : system_statuses())
 		result.emplace_back("game.status/" + status.system, status.semantic_label);
@@ -1392,7 +1418,9 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 		if (descriptor.contains("combat_choice"))
 		{
 			const auto value = descriptor.at("value").get<std::int64_t>();
-			const auto selected = descriptor.at("combat_choice") == "weapon" ? combat_target_ : selected_compartment_;
+			const auto selected = descriptor.at("combat_choice") == "weapon"   ? combat_target_
+			                      : descriptor.at("combat_choice") == "sensor" ? sensor_contact_
+			                                                                   : selected_compartment_;
 			if (value && value != selected)
 				continue;
 		}
@@ -1456,6 +1484,51 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 		return result;
 	if (!status_system_.empty())
 		result.emplace_back("game.readout/system-details", system_details());
+	const auto sensors = observation_->gameplay.value("sensors", Json::object());
+	for (const auto &scanner : sensors.value("scanners", Json::array()))
+	{
+		const auto key = scanner.at("id").get<std::string>();
+		if (scanner.at("target") != 0)
+			result.emplace_back("game.scan-status/" + key, localise("Scanning") + " " +
+			                                                   std::to_string(scanner.at("target").get<EntityId>()) +
+			                                                   " / " + localise(scanner.at("blocker")));
+		for (const auto &progress : scanner.at("progress"))
+			result.emplace_back("game.scan-progress/" + key + "/" + progress.at("capability").get<std::string>(),
+			                    localise(progress.at("capability")) + ": " +
+			                        std::to_string(progress.at("ticks").get<std::int64_t>() * 100 /
+			                                       std::max<std::int64_t>(1, progress.at("required"))) +
+			                        "%");
+	}
+	for (const auto &contact : sensors.value("contacts", Json::array()))
+		if (contact.at("id") == sensor_contact_)
+		{
+			for (const auto &[cap, finding] : contact.at("findings").items())
+			{
+				const auto key = "game.scan-finding/" + std::to_string(sensor_contact_) + "/" + cap;
+				result.emplace_back(key, localise(cap) + " / " +
+				                             localise(finding.at("live").get<bool>() ? "Live" : "Last observed") + " " +
+				                             std::to_string(finding.at("observed").get<std::uint64_t>() / 20) + "s");
+				const auto &data = finding.at("data");
+				if (cap == "basic_identity")
+					result.emplace_back(key + "/identity", localise(data.at("class")) + " / " +
+					                                           localise(data.at("faction_label")) + " / " +
+					                                           localise(data.at("disposition")));
+				else if (cap.starts_with("finding:"))
+					result.emplace_back(key + "/text", localise(data.at("text")));
+				else if (cap == "findings")
+					for (const auto &r : data)
+						result.emplace_back(key + "/" + r.at("id").get<std::string>(), localise(r.at("text")));
+				else if (cap == "shield_sectors" || cap == "compartment_condition")
+					for (const auto &r : data)
+						result.emplace_back(
+						    key + "/" + r.at("id").get<std::string>(),
+						    r.at("id").get<std::string>() + ": " +
+						        std::to_string(r.at(cap == "shield_sectors" ? "strength" : "hp").get<std::int64_t>()) +
+						        "/" +
+						        std::to_string(
+						            r.at(cap == "shield_sectors" ? "capacity" : "maximum").get<std::int64_t>()));
+			}
+		}
 	const auto combat = observation_->gameplay.value("combat", Json::object());
 	if (!combat.empty())
 	{

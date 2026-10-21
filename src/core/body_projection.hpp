@@ -56,7 +56,8 @@ inline BodyView read_body(const Json &v, BodyReadPolicy policy)
 	body.faction = text(v.value("faction", Json("")), 128);
 	body.faction_label = text(v.value("faction_label", Json("")));
 	body.disposition = text(v.value("disposition", Json("neutral")));
-	if (body.disposition != "friendly" && body.disposition != "neutral" && body.disposition != "hostile")
+	if (body.disposition != "friendly" && body.disposition != "neutral" && body.disposition != "hostile" &&
+	    !(body.disposition == "unknown" && body.faction.empty()))
 		throw std::runtime_error("Invalid projected disposition");
 	body.radar_sprite = policy == BodyReadPolicy::NetworkCompatible ? v.value("radar_sprite", std::string{})
 	                                                                : text(v.at("radar_sprite"));

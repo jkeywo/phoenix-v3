@@ -39,6 +39,8 @@ bool accepts(const FittedSystemSpec &fit, const Json &spec, OperatingAction acti
 	                    kind == OperatingSystem::Impulse;
 	switch (action)
 	{
+	case OperatingAction::SensorTarget:
+		return kind == OperatingSystem::Radar;
 	case OperatingAction::MagazineSelect:
 	case OperatingAction::WeaponMode:
 	case OperatingAction::WeaponTarget:
@@ -137,6 +139,7 @@ CommandBounds fitted_commands(const FittedSystemSpec &fit, Json spec, const Ship
 			add(OperatingAction::Heading);
 		if (kind == OperatingSystem::Radar)
 		{
+			add(OperatingAction::SensorTarget);
 			add(OperatingAction::RadarEnabled);
 			add(OperatingAction::SystemEnabled);
 		}
@@ -175,6 +178,7 @@ CommandBounds fitted_commands(const FittedSystemSpec &fit, Json spec, const Ship
 	if (kind == OperatingSystem::Radar)
 	{
 		add(OperatingAction::SystemEnabled);
+		add(OperatingAction::SensorTarget);
 		add(OperatingAction::RadarEnabled);
 	}
 	if (kind == OperatingSystem::Coolant)

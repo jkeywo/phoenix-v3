@@ -50,6 +50,12 @@ try
 			throw 'Native Comms continuation trace failed'
 		}
 		Set-Content -LiteralPath "$repo/build/native/conversation-continuation.trace" -Value $commsNativeTrace -Encoding utf8
+		$sensorNativeTrace = & "$repo/build/native/Release/phoenix_sensors_tests.exe" --trace
+		if ($LASTEXITCODE)
+		{
+			throw 'Native sensor continuation failed'
+		}
+		Set-Content -LiteralPath "$repo/build/native/sensor-continuation.trace" -Value $sensorNativeTrace -Encoding utf8
 		$awayNativeTrace = & "$repo/build/native/Release/phoenix_away_tests.exe" --trace
 		if ($LASTEXITCODE)
 		{
@@ -132,6 +138,7 @@ try
 					'phoenix_workshop_test_tests.js',
 					'phoenix_personnel_tests.js',
 					'phoenix_away_tests.js',
+					'phoenix_sensors_tests.js',
 					'phoenix_controller_runtime_tests.js',
 					'phoenix_combat_tests.js',
 					'phoenix_conversation_tests.js',
@@ -165,6 +172,13 @@ try
 				throw 'Native/WASM Comms continuation differs'
 			}
 			Write-Output 'PASS native/WASM Comms conversation continuation'
+			$sensorNativeTrace = Get-Content -LiteralPath "$repo/build/native/sensor-continuation.trace"
+			$sensorWebTrace = & $node phoenix_sensors_tests.js --trace
+			if ($LASTEXITCODE -or ($sensorNativeTrace -join "`n").Trim() -ne ($sensorWebTrace -join "`n").Trim())
+			{
+				throw 'Native/WASM sensor continuation differs'
+			}
+			Write-Output 'PASS native/WASM sensor traversal and partial acquisition continuation'
 			$awayNativeTrace = Get-Content -LiteralPath "$repo/build/native/away-continuation.trace"
 			$awayWebTrace = & $node phoenix_away_tests.js --trace
 			if ($LASTEXITCODE -or ($awayNativeTrace -join "`n").Trim() -ne ($awayWebTrace -join "`n").Trim())

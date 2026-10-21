@@ -262,6 +262,7 @@ add_library(
 	src/content/controller_actions.cpp
 	src/content/personnel.cpp
 	src/content/away.cpp
+	src/content/sensors.cpp
 	src/content/controllers.cpp
 	src/content/console_assets.cpp
 	src/content/workshop.cpp
@@ -369,6 +370,7 @@ foreach(
 		workshop_test
 		personnel
 		away
+		sensors
 		controller_runtime
 		combat
 )
@@ -875,6 +877,28 @@ endif()
 add_executable(phoenix_camera_tests tests/system/camera.cpp)
 target_link_libraries(phoenix_camera_tests PRIVATE phoenix_session phoenix_core)
 phoenix_fixture(phoenix_camera_tests)
+add_executable(phoenix_sensors_smoke EXCLUDE_FROM_ALL tests/manual/sensors_ui.cpp)
+target_link_libraries(phoenix_sensors_smoke PRIVATE phoenix_session phoenix_presentation)
+if(NOT EMSCRIPTEN)
+	add_dependencies(phoenix_sensors_smoke base_pack)
+endif()
+if(EMSCRIPTEN)
+	set_target_properties(phoenix_sensors_smoke PROPERTIES SUFFIX ".html")
+	target_link_options(
+		phoenix_sensors_smoke
+		PRIVATE
+			"-O1"
+			"-sALLOW_MEMORY_GROWTH=1"
+			"-sSTACK_SIZE=1048576"
+			"-sSTACK_OVERFLOW_CHECK=2"
+			"--preload-file"
+			"${CMAKE_CURRENT_BINARY_DIR}/assets@/assets"
+			"SHELL:--preload-file \"${CMAKE_CURRENT_BINARY_DIR}/base.zip@/assets/base.zip\""
+			"--shell-file"
+			"${CMAKE_CURRENT_SOURCE_DIR}/tests/manual/manual_flight_ui.html"
+	)
+endif()
+
 add_executable(phoenix_camera_smoke EXCLUDE_FROM_ALL tests/manual/camera_ui.cpp)
 target_link_libraries(phoenix_camera_smoke PRIVATE phoenix_session phoenix_presentation)
 if(EMSCRIPTEN)

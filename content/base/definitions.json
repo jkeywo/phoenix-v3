@@ -297,7 +297,8 @@
 					"turn_mdeg_s": 45000
 				},
 				"radar": {
-					"range_mm": 500000
+					"range_mm": 500000,
+					"capabilities": { "basic_identity": 0, "own_arcs": 0 }
 				}
 			},
 			"collision": {
@@ -9381,6 +9382,12 @@
 									"y": 416,
 									"layer": 1,
 									"depth_offset": 0
+								},
+								"sensor_starboard": {
+									"x": 814.0,
+									"y": 391,
+									"layer": 1,
+									"depth_offset": 0
 								}
 							}
 						},
@@ -9408,6 +9415,12 @@
 								"muzzle": {
 									"x": 345,
 									"y": 414,
+									"layer": 1,
+									"depth_offset": 0
+								},
+								"sensor_starboard": {
+									"x": 376.82,
+									"y": 389,
 									"layer": 1,
 									"depth_offset": 0
 								}
@@ -9439,6 +9452,12 @@
 									"y": 385,
 									"layer": 1,
 									"depth_offset": 0
+								},
+								"sensor_starboard": {
+									"x": 150.0,
+									"y": 360,
+									"layer": 1,
+									"depth_offset": 0
 								}
 							}
 						},
@@ -9466,6 +9485,12 @@
 								"muzzle": {
 									"x": 400,
 									"y": 280,
+									"layer": 1,
+									"depth_offset": 0
+								},
+								"sensor_starboard": {
+									"x": 368.18,
+									"y": 255,
 									"layer": 1,
 									"depth_offset": 0
 								}
@@ -9497,6 +9522,12 @@
 									"y": 300,
 									"layer": 1,
 									"depth_offset": 0
+								},
+								"sensor_starboard": {
+									"x": 723.0,
+									"y": 275,
+									"layer": 1,
+									"depth_offset": 0
 								}
 							}
 						},
@@ -9524,6 +9555,12 @@
 								"muzzle": {
 									"x": 400,
 									"y": 280,
+									"layer": 1,
+									"depth_offset": 0
+								},
+								"sensor_starboard": {
+									"x": 368.18,
+									"y": 255,
 									"layer": 1,
 									"depth_offset": 0
 								}
@@ -9555,6 +9592,12 @@
 									"y": 385,
 									"layer": 1,
 									"depth_offset": 0
+								},
+								"sensor_starboard": {
+									"x": 150.0,
+									"y": 360,
+									"layer": 1,
+									"depth_offset": 0
 								}
 							}
 						},
@@ -9582,6 +9625,12 @@
 								"muzzle": {
 									"x": 345,
 									"y": 414,
+									"layer": 1,
+									"depth_offset": 0
+								},
+								"sensor_starboard": {
+									"x": 376.82,
+									"y": 389,
 									"layer": 1,
 									"depth_offset": 0
 								}
@@ -9662,7 +9711,12 @@
 					]
 				},
 				"radar": {
-					"template": "base.equipment.combat-radar"
+					"template": "base.equipment.combat-radar",
+					"capabilities": {
+						"basic_identity": 0,
+						"own_arcs": 0,
+						"contact_arcs": 0
+					}
 				},
 				"top": {
 					"kind": "turret",
@@ -10060,6 +10114,34 @@
 					"power_store": "combat-power.main",
 					"observation_console": "comms",
 					"compartment": "bow-port"
+				},
+				"sensor-turret": {
+					"kind": "turret",
+					"compartment": "bow-starboard",
+					"arc_mdeg": 360000,
+					"traverse_mdeg_s": 60000,
+					"visual": "base.courier-turret",
+					"scale_permille": 260,
+					"x_mm": 9000,
+					"y_mm": -3000,
+					"observation_console": "tactical",
+					"marker": "sensor_starboard"
+				},
+				"focused-scanner": {
+					"kind": "radar",
+					"range_mm": 350000,
+					"arc_mdeg": 15000,
+					"turret": "sensor-turret",
+					"compartment": "bow-starboard",
+					"shows": ["ship"],
+					"energy_per_second": 50,
+					"power_store": "combat-power.main",
+					"observation_console": "tactical",
+					"capabilities": {
+						"shield_sectors": 200,
+						"compartment_condition": 400,
+						"findings": 0
+					}
 				}
 			},
 			"stations": [
@@ -10118,7 +10200,9 @@
 								"havok-mag",
 								"missile-launcher",
 								"pdc-mag",
-								"pdc"
+								"pdc",
+								"focused-scanner",
+								"sensor-turret"
 							]
 						}
 					]
@@ -10592,6 +10676,25 @@
 								"consumers": ["comms-radio"]
 							}
 						]
+					},
+					{
+						"id": "scanner",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["focused-scanner", "sensor-turret"]
+							},
+							{
+								"id": "target",
+								"action": "sensor_target",
+								"initial": 0,
+								"consumers": ["focused-scanner"]
+							}
+						]
 					}
 				],
 				"default_profile": "direct",
@@ -10617,7 +10720,8 @@
 									"havok-mag",
 									"missile-launcher",
 									"pdc-mag",
-									"pdc"
+									"pdc",
+									"scanner"
 								]
 							},
 							"support": {
@@ -10658,7 +10762,8 @@
 									"havok-mag",
 									"missile-launcher",
 									"pdc-mag",
-									"pdc"
+									"pdc",
+									"scanner"
 								]
 							},
 							"support": {
@@ -11174,6 +11279,17 @@
 						"effects": {
 							"team-2": ["repair"]
 						}
+					},
+					{
+						"id": "scanner",
+						"label": "Focused sensors",
+						"department": "tactical",
+						"controller": "scanner",
+						"compartment": "bow-starboard",
+						"effects": {
+							"focused-scanner": ["sensors"],
+							"sensor-turret": ["traverse"]
+						}
 					}
 				],
 				"officers": [
@@ -11259,7 +11375,8 @@
 						"traits": ["comms"]
 					}
 				]
-			}
+			},
+			"class_key": "Courier"
 		},
 		{
 			"id": "base.pirate-raider",
@@ -14874,6 +14991,12 @@
 									"y": 416,
 									"layer": 1,
 									"depth_offset": 0
+								},
+								"sensor_starboard": {
+									"x": 814.0,
+									"y": 391,
+									"layer": 1,
+									"depth_offset": 0
 								}
 							}
 						},
@@ -14901,6 +15024,12 @@
 								"muzzle": {
 									"x": 345,
 									"y": 414,
+									"layer": 1,
+									"depth_offset": 0
+								},
+								"sensor_starboard": {
+									"x": 376.82,
+									"y": 389,
 									"layer": 1,
 									"depth_offset": 0
 								}
@@ -14932,6 +15061,12 @@
 									"y": 385,
 									"layer": 1,
 									"depth_offset": 0
+								},
+								"sensor_starboard": {
+									"x": 150.0,
+									"y": 360,
+									"layer": 1,
+									"depth_offset": 0
 								}
 							}
 						},
@@ -14959,6 +15094,12 @@
 								"muzzle": {
 									"x": 400,
 									"y": 280,
+									"layer": 1,
+									"depth_offset": 0
+								},
+								"sensor_starboard": {
+									"x": 368.18,
+									"y": 255,
 									"layer": 1,
 									"depth_offset": 0
 								}
@@ -14990,6 +15131,12 @@
 									"y": 300,
 									"layer": 1,
 									"depth_offset": 0
+								},
+								"sensor_starboard": {
+									"x": 723.0,
+									"y": 275,
+									"layer": 1,
+									"depth_offset": 0
 								}
 							}
 						},
@@ -15017,6 +15164,12 @@
 								"muzzle": {
 									"x": 400,
 									"y": 280,
+									"layer": 1,
+									"depth_offset": 0
+								},
+								"sensor_starboard": {
+									"x": 368.18,
+									"y": 255,
 									"layer": 1,
 									"depth_offset": 0
 								}
@@ -15048,6 +15201,12 @@
 									"y": 385,
 									"layer": 1,
 									"depth_offset": 0
+								},
+								"sensor_starboard": {
+									"x": 150.0,
+									"y": 360,
+									"layer": 1,
+									"depth_offset": 0
 								}
 							}
 						},
@@ -15075,6 +15234,12 @@
 								"muzzle": {
 									"x": 345,
 									"y": 414,
+									"layer": 1,
+									"depth_offset": 0
+								},
+								"sensor_starboard": {
+									"x": 376.82,
+									"y": 389,
 									"layer": 1,
 									"depth_offset": 0
 								}
@@ -15155,7 +15320,12 @@
 					]
 				},
 				"radar": {
-					"template": "base.equipment.combat-radar"
+					"template": "base.equipment.combat-radar",
+					"capabilities": {
+						"basic_identity": 0,
+						"own_arcs": 0,
+						"contact_arcs": 0
+					}
 				},
 				"top": {
 					"kind": "turret",
@@ -15566,6 +15736,34 @@
 				"dispatch": {
 					"kind": "dispatch",
 					"compartment": "bow-port"
+				},
+				"sensor-turret": {
+					"kind": "turret",
+					"compartment": "bow-starboard",
+					"arc_mdeg": 360000,
+					"traverse_mdeg_s": 60000,
+					"visual": "base.courier-turret",
+					"scale_permille": 260,
+					"x_mm": 9000,
+					"y_mm": -3000,
+					"observation_console": "tactical",
+					"marker": "sensor_starboard"
+				},
+				"focused-scanner": {
+					"kind": "radar",
+					"range_mm": 350000,
+					"arc_mdeg": 15000,
+					"turret": "sensor-turret",
+					"compartment": "bow-starboard",
+					"shows": ["ship"],
+					"energy_per_second": 50,
+					"power_store": "combat-power.main",
+					"observation_console": "tactical",
+					"capabilities": {
+						"shield_sectors": 200,
+						"compartment_condition": 400,
+						"findings": 0
+					}
 				}
 			},
 			"stations": [
@@ -15626,7 +15824,9 @@
 								"havok-mag",
 								"missile-launcher",
 								"pdc-mag",
-								"pdc"
+								"pdc",
+								"focused-scanner",
+								"sensor-turret"
 							]
 						}
 					]
@@ -16126,6 +16326,25 @@
 								"consumers": ["dispatch"]
 							}
 						]
+					},
+					{
+						"id": "scanner",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["focused-scanner", "sensor-turret"]
+							},
+							{
+								"id": "target",
+								"action": "sensor_target",
+								"initial": 0,
+								"consumers": ["focused-scanner"]
+							}
+						]
 					}
 				],
 				"default_profile": "direct",
@@ -16151,7 +16370,8 @@
 									"havok-mag",
 									"missile-launcher",
 									"pdc-mag",
-									"pdc"
+									"pdc",
+									"scanner"
 								]
 							},
 							"support": {
@@ -16192,7 +16412,8 @@
 									"havok-mag",
 									"missile-launcher",
 									"pdc-mag",
-									"pdc"
+									"pdc",
+									"scanner"
 								]
 							},
 							"support": {
@@ -16737,6 +16958,17 @@
 						"console": "helm",
 						"compartment": "bow-port",
 						"effects": {}
+					},
+					{
+						"id": "scanner",
+						"label": "Focused sensors",
+						"department": "tactical",
+						"controller": "scanner",
+						"compartment": "bow-starboard",
+						"effects": {
+							"focused-scanner": ["sensors"],
+							"sensor-turret": ["traverse"]
+						}
 					}
 				],
 				"officers": [
@@ -16831,7 +17063,8 @@
 						"traits": ["navigator"]
 					}
 				]
-			}
+			},
+			"class_key": "Courier"
 		},
 		{
 			"id": "base.rescue-casualty",
@@ -18750,7 +18983,8 @@
 						"traits": ["comms"]
 					}
 				]
-			}
+			},
+			"class_key": "Courier"
 		}
 	],
 	"maps": [
@@ -19332,7 +19566,16 @@
 						"slot": "courier"
 					}
 				}
-			}
+			},
+			"sensor_findings": [
+				{
+					"id": "isolated-drive",
+					"target_entity": 1,
+					"text_key": "The propulsion compartment is isolated. A repair team can restore the damaged drive and service connections.",
+					"requires": ["findings", "compartment_condition"],
+					"scan_ticks": 300
+				}
+			]
 		}
 	],
 	"consoles": [
@@ -19725,9 +19968,9 @@
 					"binding": "radar.contacts",
 					"system": "radar",
 					"label": "Combat radar",
-					"x": 200,
+					"x": 360,
 					"y": 0,
-					"width": 800,
+					"width": 640,
 					"height": 480,
 					"fire_arcs": true
 				}
@@ -30059,6 +30302,7 @@
 			"id": "base.equipment.combat-radar",
 			"kind": "radar",
 			"range_mm": 350000,
+			"capabilities": { "basic_identity": 0, "own_arcs": 0 },
 			"shows": ["ship", "asteroid", "missile"],
 			"compartment": "bow-starboard",
 			"observation_console": "support",

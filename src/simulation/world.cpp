@@ -30,6 +30,7 @@ import phoenix.gameplay_scenario;
 #include "combat.hpp"
 #include "personnel_state.hpp"
 #include "away_state.hpp"
+#include "sensors_state.hpp"
 #include "../core/display_projection.hpp"
 
 namespace phoenix::fixed
@@ -123,6 +124,8 @@ struct CompiledDefinition
 	std::map<std::string, ConsoleBridgeDefinition> console_bridge;
 	std::vector<std::string> tags;
 	std::map<std::string, std::vector<std::string>> radar_shows;
+	std::map<std::string, SensorDefinition> sensors;
+	std::string sensor_class;
 	std::vector<std::string> sprite_entries;
 	std::uint32_t sprite_entry = 0;
 	std::optional<ControllableLayout> layout;
@@ -231,6 +234,7 @@ struct World::Impl
 	SpatialIndex collision_index, contact_index;
 	flecs::query<const StableId, const Definition, const Pose, const Motion> bodies;
 	flecs::query<const Equipment, Steering> steering_query;
+	flecs::query<const Equipment, SensorRuntime> sensor_query;
 	flecs::query<const Equipment, Engine> engine_query;
 	flecs::query<const Equipment, FlightRuntime> flight_query;
 	flecs::query<const Equipment> advanced_equipment_query;
@@ -290,6 +294,7 @@ struct World::Impl
 		                               .second("$ship")
 		                               .cached()
 		                               .build();
+		sensor_query = ecs.query_builder<const Equipment, SensorRuntime>().with(flecs::ChildOf, "$ship").build();
 		passive_resource_query = ecs.query_builder<const Equipment, const ResourceBinding>()
 		                             .without<FlightRuntime>()
 		                             .with(flecs::ChildOf)
@@ -607,6 +612,8 @@ struct World::Impl
 				result.publications.push_back(publication.at("id"));
 			for (const auto &message : definition.value("message_templates", Json::array()))
 				result.message_templates.push_back(message);
+			result.sensors = compile_sensors(content, name);
+			result.sensor_class = definition.value("class_key", definition.value("name", std::string{"Unknown class"}));
 			result.tags = definition.value("tags", std::vector<std::string>{"contact"});
 			result.faction = definition.value("faction", std::string{});
 			for (const auto &spec : resolve_systems(content, name))
@@ -840,7 +847,7 @@ struct World::Impl
 				child.set<Steering>(turn);
 			}
 			if (v.radar)
-				child.set<Radar>(*v.radar);
+				child.set<Radar>(*v.radar).set<SensorRuntime>({});
 			if (!data.gameplay)
 			{
 				child.add<BasicEquipment>();
@@ -1040,6 +1047,8 @@ struct World::Impl
 	}
 	bool operate(flecs::entity entity, const std::string &name, OperatingRequest output, bool execute)
 	{
+		if (output.action == OperatingAction::SensorTarget)
+			return output.arguments.empty() && sensor_target(entity.get<StableId>().id, name, output.value, execute);
 		if (auto target = instance(entity, name);
 		    target && (target->kind == OperatingSystem::Comms || target->kind == OperatingSystem::Displacement ||
 		               target->kind == OperatingSystem::Dispatch))
@@ -1961,6 +1970,7 @@ struct World::Impl
 #include "bridge.hpp"
 #include "conversations.hpp"
 #include "away.hpp"
+#include "sensors.hpp"
 	bool meta(std::uint64_t claimant, const OperatingCommand &command, bool execute)
 	{
 		if (!claims.contains(claimant) || command.target != claims.at(claimant).ship)
@@ -2150,6 +2160,9 @@ void World::load(const Catalog &source, const std::string &map, const std::map<s
 	candidate->conversations.programs = content.conversation_programs;
 	candidate->compile_conversation_starts(data);
 	candidate->away_definitions = compile_away(content, data);
+	candidate->sensor_findings = compile_sensor_findings(content, data);
+	if (candidate->scenario && !candidate->sensor_findings.empty() && !candidate->conversation_instance)
+		candidate->conversation_instance = candidate->scenario->runtime().create_instance("sensor-events");
 	candidate->away_missions.resize(candidate->away_definitions.size());
 	candidate->refresh_comms();
 	candidate->stream_fields();
@@ -2425,6 +2438,7 @@ void World::tick()
 	impl_->conversation_scenarios();
 	impl_->conversations.advance(ticks());
 	impl_->advance_away();
+	impl_->advance_sensors();
 	impl_->observation_snapshots.clear();
 	impl_->command_snapshots.clear();
 	impl_->controller_inboxes.clear();
@@ -2812,10 +2826,12 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 						continue;
 					}
 					if (channel.action == OperatingAction::WeaponTarget ||
+					    channel.action == OperatingAction::SensorTarget ||
 					    channel.action == OperatingAction::RepairCompartment)
 					{
 						std::set<std::int64_t> choices{0};
-						if (channel.action == OperatingAction::WeaponTarget)
+						if (channel.action == OperatingAction::WeaponTarget ||
+						    channel.action == OperatingAction::SensorTarget)
 						{
 							for (const auto &contact : result.contacts)
 								if (contact.id <= 1000000000ULL)
@@ -2824,6 +2840,10 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 						else if (const auto *structure = entity.try_get<CombatStructure>())
 							for (std::size_t c = 0; c < structure->compartments.size(); ++c)
 								choices.insert(static_cast<std::int64_t>(c + 1));
+						if (channel.action == OperatingAction::SensorTarget)
+							for (const auto &contact : result.gameplay.at("sensors").at("contacts"))
+								if (contact.at("id").get<EntityId>() <= 1000000000ULL)
+									choices.insert(contact.at("id").get<std::int64_t>());
 						for (const auto choice : choices)
 						{
 							OperatingCommand command{address.ship,
@@ -2838,8 +2858,14 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 							    "combat." + controller.definition.id + "." + channel.id + "." + std::to_string(choice);
 							descriptor["label"] =
 							    choice ? controller.definition.id : "Cancel " + controller.definition.id;
-							descriptor["combat_choice"] =
-							    channel.action == OperatingAction::WeaponTarget ? "weapon" : "repair";
+							descriptor["combat_choice"] = channel.action == OperatingAction::WeaponTarget   ? "weapon"
+							                              : channel.action == OperatingAction::SensorTarget ? "sensor"
+							                                                                                : "repair";
+							if (channel.action == OperatingAction::SensorTarget)
+							{
+								descriptor["label"] = choice ? "Scan target" : "Clear scan target";
+								descriptor["label_prefix"] = controller.definition.id + ": ";
+							}
 							buttons.push_back(std::move(descriptor));
 						}
 						continue;
@@ -3236,6 +3262,8 @@ Json World::save() const
 	}
 	result["conversations"] = impl_->conversations.save();
 	result["away_missions"] = impl_->save_away();
+	result["sensors"] = impl_->save_sensors();
+	result["sensor_discoveries"] = impl_->sensor_discoveries;
 	result["conversation_starts"] = impl_->save_conversation_starts();
 	result["projectiles"] = impl_->save_projectiles();
 	result["blast_visuals"] = impl_->blast_visuals;
@@ -3467,6 +3495,9 @@ void World::restore(const Catalog &content, const Json &saved)
 	candidate.impl_->refresh_comms();
 	candidate.impl_->conversations.restore(saved.at("conversations"));
 	candidate.impl_->restore_away(saved.value("away_missions", Json::array()));
+	candidate.impl_->restore_sensors(saved.value("sensors", Json::array()));
+	candidate.impl_->sensor_discoveries =
+	    saved.value("sensor_discoveries", std::set<std::tuple<EntityId, EntityId, std::string>>{});
 	candidate.impl_->restore_conversation_starts(saved.at("conversation_starts"));
 	if (saved.contains("asteroid_fields"))
 		candidate.impl_->restore_fields(saved.at("asteroid_fields"));

@@ -777,7 +777,28 @@
 			"Mission failed": "Mission failed",
 			"Away": "Away",
 			"Personnel moving to displacement": "Personnel moving to displacement",
-			"Mandatory assignments required": "Mandatory assignments required"
+			"Mandatory assignments required": "Mandatory assignments required",
+			"Inspect contact": "Inspect contact",
+			"Contact fire arcs": "Contact fire arcs",
+			"Scan target": "Scan target",
+			"Clear scan target": "Clear scan target",
+			"Scanning": "Scanning",
+			"Last observed": "Last observed",
+			"Scanner unavailable or unpowered": "Scanner unavailable or unpowered",
+			"Target outside scanner coverage": "Target outside scanner coverage",
+			"Unidentified contact": "Unidentified contact",
+			"Unknown allegiance": "Unknown allegiance",
+			"Unknown class": "Unknown class",
+			"Focused scanner": "Focused scanner",
+			"Sensor finding": "Sensor finding",
+			"basic_identity": "Basic identity",
+			"own_arcs": "Own arcs",
+			"contact_arcs": "Contact arcs",
+			"shield_sectors": "Shield sectors",
+			"compartment_condition": "Compartment condition",
+			"findings": "findings",
+			"The propulsion compartment is isolated. A repair team can restore the damaged drive and service connections.": "The propulsion compartment is isolated. A repair team can restore the damaged drive and service connections.",
+			"Contact scan": "Contact scan"
 		}
 	}
 }

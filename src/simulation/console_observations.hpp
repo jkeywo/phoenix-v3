@@ -6,35 +6,37 @@ void append_sensor_contacts(const ConsoleAddress &address, Observation &result) 
 	std::int64_t range = 0;
 	for (const auto &sensor : result.systems)
 		if (sensor.kind == OperatingSystem::Radar && sensor.enabled)
-			range = std::max(range, sensor.effective_range);
+			range = std::max(range,
+			                 sensor.effective_range +
+			                     fixed::length(sensor_origin(address.ship, sensor_definition(address.ship, sensor.id)) -
+			                                   own.position));
 	if (range)
-		contact_index.each(
-		    Bounds::around(own.position, range),
-		    [&](std::size_t row)
-		    {
-			    const auto &contact = contact_rows[row];
-			    if (contact.id == address.ship)
-				    return;
-			    const auto &tags = definitions.at(contact.entity.get<Definition>().name).tags;
-			    bool visible = false;
-			    for (auto &sensor : result.systems)
-				    if (sensor.kind == OperatingSystem::Radar && sensor.enabled &&
-				        std::any_of(tags.begin(), tags.end(),
-				                    [&](const auto &tag)
-				                    {
-					                    return std::find(sensor.shows.begin(), sensor.shows.end(), tag) !=
-					                           sensor.shows.end();
-				                    }) &&
-				        scenario_sensor_visible(regions, {own.position.x, own.position.y},
-				                                {contact.position.x, contact.position.y}, sensor.effective_range))
-				    {
-					    sensor.contact_ids.push_back(contact.id);
-					    visible = true;
-				    }
-			    if (visible)
-				    result.contacts.push_back(view(contact.id, contact.entity.get<Definition>(),
-				                                   contact.entity.get<Pose>(), contact.entity.get<Motion>()));
-		    });
+		contact_index.each(Bounds::around(own.position, range),
+		                   [&](std::size_t row)
+		                   {
+			                   const auto &contact = contact_rows[row];
+			                   if (contact.id == address.ship)
+				                   return;
+			                   const auto &tags = definitions.at(contact.entity.get<Definition>().name).tags;
+			                   bool visible = false;
+			                   for (auto &sensor : result.systems)
+				                   if (sensor.kind == OperatingSystem::Radar && sensor.enabled &&
+				                       std::any_of(tags.begin(), tags.end(),
+				                                   [&](const auto &tag)
+				                                   {
+					                                   return std::find(sensor.shows.begin(), sensor.shows.end(),
+					                                                    tag) != sensor.shows.end();
+				                                   }) &&
+				                       sensor_covers(address.ship, sensor.id, contact.position))
+				                   {
+					                   sensor.contact_ids.push_back(contact.id);
+					                   visible = true;
+				                   }
+			                   if (visible)
+				                   result.contacts.push_back(view(contact.id, contact.entity.get<Definition>(),
+				                                                  contact.entity.get<Pose>(),
+				                                                  contact.entity.get<Motion>()));
+		                   });
 	for (auto missile : projectile_rows())
 	{
 		const auto &p = missile.get<Projectile>();
@@ -45,8 +47,7 @@ void append_sensor_contacts(const ConsoleAddress &address, Observation &result) 
 		for (auto &sensor : result.systems)
 			if (sensor.kind == OperatingSystem::Radar && sensor.enabled &&
 			    std::find(sensor.shows.begin(), sensor.shows.end(), "missile") != sensor.shows.end() &&
-			    scenario_sensor_visible(regions, {own.position.x, own.position.y}, {p.position.x, p.position.y},
-			                            sensor.effective_range) &&
+			    sensor_covers(address.ship, sensor.id, p.position) &&
 			    fixed::length(p.position - own.position) + std::abs(p.altitude) <= sensor.effective_range)
 			{
 				sensor.contact_ids.push_back(contact_id);
@@ -56,15 +57,42 @@ void append_sensor_contacts(const ConsoleAddress &address, Observation &result) 
 			result.contacts.push_back(
 			    {contact_id, p.definition.visual, p.position.x, p.position.y, p.velocity.x, p.velocity.y, p.heading});
 	}
-	const auto &own_faction =
-	    (entity.try_get<FactionMembership>() ? entity.get<FactionMembership>().id : std::string{});
 	for (auto &contact : result.contacts)
-		if (const auto found = entities.find(contact.id); found != entities.end())
+		if (entities.contains(contact.id))
 		{
-			const auto *membership = found->second.try_get<FactionMembership>();
-			contact.faction = membership ? membership->id : std::string{};
-			contact.faction_label = contact.faction.empty() ? "Unaffiliated" : factions.labels.at(contact.faction);
-			contact.disposition = factions.relationship(own_faction, contact.faction);
+			Json identity;
+			for (const auto &sensor : result.systems)
+				if (sensor.kind == OperatingSystem::Radar &&
+				    std::find(sensor.contact_ids.begin(), sensor.contact_ids.end(), contact.id) !=
+				        sensor.contact_ids.end())
+				{
+					const auto &d = sensor_definition(address.ship, sensor.id);
+					if (d.capabilities.contains("basic_identity"))
+					{
+						if (d.capabilities.at("basic_identity") == 0)
+							identity = sensor_data(address.ship, contact.id, "basic_identity");
+						const auto &tracks = instance(entity, sensor.id)->entity.get<SensorRuntime>().tracks;
+						if (tracks.contains(contact.id) && tracks.at(contact.id).samples.contains("basic_identity") &&
+						    !tracks.at(contact.id).samples.at("basic_identity").data.is_null() && identity.is_null())
+							identity = tracks.at(contact.id).samples.at("basic_identity").data;
+					}
+				}
+			const bool identified = !identity.is_null();
+			contact.definition = identified ? identity.at("class").get<std::string>() : "Unidentified contact";
+			if (!identified)
+			{
+				contact.radar_sprite.clear();
+				contact.faction.clear();
+				contact.faction_label = "Unknown allegiance";
+				contact.disposition = "unknown";
+			}
+			else
+			{
+				const auto &data = identity;
+				contact.faction = data.at("faction");
+				contact.faction_label = data.at("faction_label");
+				contact.disposition = data.at("disposition");
+			}
 		}
 	std::sort(result.contacts.begin(), result.contacts.end(),
 	          [](const auto &a, const auto &b)
@@ -81,6 +109,7 @@ std::vector<BodyView> capture_weapon_contacts(const ConsoleAddress &address) con
 		{
 			SystemView sensor;
 			sensor.kind = OperatingSystem::Radar;
+			sensor.id = id;
 			sensor.effective_range = sensor_range(address.ship, id);
 			sensor.enabled = sensor.effective_range > 0;
 			sensor.shows = definitions.at(entity.get<Definition>().name).radar_shows.at(id);
@@ -106,6 +135,7 @@ Observation capture_console_observation(const ConsoleAddress &address, Json game
 	result.feeds = seat.feeds;
 	result.gameplay = std::move(gameplay);
 	project_combat(address, result);
+	result.gameplay["sensors"] = sensor_projection(address);
 	result.engine_enabled = false;
 	result.radar_enabled = false;
 	for (const auto &id : seat.feed_systems)

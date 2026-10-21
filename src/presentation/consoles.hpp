@@ -131,7 +131,7 @@ class ConsoleSurface final : public Rml::EventListener
 	std::weak_ptr<SessionPort> owner_;
 	std::uint64_t generation_ = 0;
 	std::vector<std::pair<std::string, std::string>> controls_;
-	std::string gameplay_signature_;
+	std::string gameplay_signature_, sensor_controls_signature_;
 	std::string placement_signature_;
 	std::string gameplay_readout_signature_, fault_dialog_signature_, fault_dialog_system_;
 	std::string engineering_signature_;
@@ -446,6 +446,11 @@ button:hover,button:focus {background:#455458;border-color:#ec9c52;}
 #connection-status {font-size:.75em;}
 #widgets {position:absolute;left:4%;right:4%;top:125px;bottom:4%;}
 #gameplay {position:absolute;left:60%;right:4%;top:125px;bottom:4%;overflow-x:hidden;overflow-y:auto;clip:always;box-sizing:border-box;background:#0b1719ee;border:1px #988b71;padding:8px;display:none;}
+#sensor-panel {position:absolute;left:4%;top:105dp;width:30%;height:42%;overflow-y:auto;background:#0b1719ee;border:1px #988b71;padding:8dp;display:none;}
+#sensor-controls,#sensor-readouts,#sensor-title {display:block;width:100%;box-sizing:border-box;}
+#sensor-panel p {width:100%;font-size:16dp;margin:6dp 0;box-sizing:border-box;}
+#sensor-panel button {width:46%;min-width:140dp;min-height:44dp;box-sizing:border-box;font-size:16dp;}
+.local-settings-open #sensor-panel {visibility:hidden;}
 #gameplay scrollbarvertical {width:14px;background:#263638;}
 #gameplay scrollbarvertical sliderbar {min-height:32px;background:#ccc2af;}
 #gameplay scrollbarvertical slidertrack {width:14px;}
@@ -604,7 +609,7 @@ button.on-screen-active .share-live {display:block;}
 #comms-choices {max-height:18%;overflow:auto;}
 #comms-choices button {min-height:44px;margin:4px;}
 #comms-compose input {width:75%;height:40px;}
-</style></head><body><div id="comms-layer"><div id="comms-list"></div><div id="comms-conversation"><div id="comms-header"></div><div id="comms-history"></div><div id="comms-incoming"></div><div id="comms-choices"></div><div id="comms-compose"></div></div></div><div id="fault-dialog"></div><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="engineering-cards"></div><div id="gameplay-controls"></div><div id="gameplay-messages"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div><div id="navigation-layer"></div><div id="manual-flight"></div><div id="local-settings"></div></body></rml>)"));
+</style></head><body><div id="comms-layer"><div id="comms-list"></div><div id="comms-conversation"><div id="comms-header"></div><div id="comms-history"></div><div id="comms-incoming"></div><div id="comms-choices"></div><div id="comms-compose"></div></div></div><div id="sensor-panel"><h2 id="sensor-title"></h2><div id="sensor-controls"></div><div id="sensor-readouts"></div></div><div id="fault-dialog"></div><div id="toolbar"></div><div id="widgets"></div><div id="gameplay"><div id="engineering-cards"></div><div id="gameplay-controls"></div><div id="gameplay-messages"></div><div id="gameplay-readouts"></div></div><div id="lobby"></div><div id="navigation-layer"></div><div id="manual-flight"></div><div id="local-settings"></div></body></rml>)"));
 		if (!document_)
 			throw std::runtime_error("Cannot create Console document");
 		document_->AddEventListener("click", this);
@@ -2042,12 +2047,14 @@ button.on-screen-active .share-live {display:block;}
 			                              descriptor.at("channel").get<std::string>();
 			return dial_bindings.contains({action, target}) ? ControlDestination::dial : ControlDestination::general;
 		};
-		std::set<std::string> specialised_controls, stance_controls;
+		std::set<std::string> specialised_controls, stance_controls, sensor_actions;
 		std::vector<StanceChoice> choices;
 		if (!pregame && model_.observation() && model_.observation()->gameplay.contains("controls"))
 			for (const auto &descriptor : model_.observation()->gameplay.at("controls"))
 			{
 				const auto action = descriptor_action(descriptor.at("id"));
+				if (descriptor.value("action", "") == "sensor_target")
+					sensor_actions.insert(action);
 				switch (destination(descriptor))
 				{
 				case ControlDestination::general:
@@ -2088,6 +2095,35 @@ button.on-screen-active .share-live {display:block;}
 				              return readout.first.starts_with("game.readout/system-");
 			              });
 		const auto &gameplay_readouts = readout_values_;
+		document_->GetElementById("sensor-title")
+		    ->SetInnerRML(Rml::StringUtilities::EncodeRml(localise("Contact scan")));
+		std::set<std::string> sensor_controls;
+		for (const auto *section : {"sensor-controls", "sensor-readouts", "sensor-title"})
+			property(document_->GetElementById(section), "width", std::to_string(region.width * .30f - 18) + "dp");
+		std::string sensor_markup;
+		for (const auto &[name, label] : gameplay_controls)
+			if (sensor_actions.contains(name))
+			{
+				sensor_controls.insert(name);
+				sensor_markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(id(name)) + "\">" +
+				                 Rml::StringUtilities::EncodeRml(label) + "</button>";
+			}
+		if (sensor_markup != sensor_controls_signature_)
+		{
+			elements_.clear();
+			document_->GetElementById("sensor-controls")->SetInnerRML(sensor_markup);
+			sensor_controls_signature_ = sensor_markup;
+		}
+		document_->GetElementById("sensor-panel")
+		    ->SetProperty("display", model_.sensor_contact() && !pregame &&
+		                                     (!sensor_controls.empty() ||
+		                                      std::any_of(readout_values_.begin(), readout_values_.end(),
+		                                                  [](const auto &r)
+		                                                  {
+			                                                  return r.first.starts_with("game.scan-finding/");
+		                                                  }))
+		                                 ? "block"
+		                                 : "none");
 		std::set<std::string> engineering_controls;
 		property(document_->GetElementById("engineering-cards"), "width",
 		         std::to_string(region.width * .92f - 24) + "dp");
@@ -2364,7 +2400,8 @@ button.on-screen-active .share-live {display:block;}
 
 			for (const auto &[name, label] : gameplay_controls)
 				if (!stance_controls.contains(name) && !engineering_controls.contains(name) &&
-				    !name.starts_with("game.compartment/") && name != "game.status-close")
+				    !name.starts_with("game.compartment/") && name != "game.status-close" &&
+				    !sensor_controls.contains(name))
 				{
 					const bool status = status_controls.contains(name);
 					const auto &visible = status ? status_controls.at(name).compact_label : label;
@@ -2409,20 +2446,22 @@ button.on-screen-active .share-live {display:block;}
 		if (gameplay_readout_signature_ != readout_signature)
 		{
 			elements_.clear();
-			std::string markup;
+			std::string markup, sensor_readouts;
 			for (const auto &[name, text] : gameplay_readouts)
 			{
-				markup += "<p id=\"" + Rml::StringUtilities::EncodeRml(id(name)) + "\"></p>";
+				(name.starts_with("game.scan-") ? sensor_readouts : markup) +=
+				    "<p id=\"" + Rml::StringUtilities::EncodeRml(id(name)) + "\"></p>";
 				displayed_values_.erase(name);
 			}
 			document_->GetElementById("gameplay-readouts")->SetInnerRML(markup);
+			document_->GetElementById("sensor-readouts")->SetInnerRML(sensor_readouts);
 			gameplay_readout_signature_ = readout_signature;
 		}
 		message_ui::refresh(*document_, *document_->GetElementById("gameplay-messages"), messages, app, id(""));
 		refresh_conversations(app, region);
 		for (const auto &[name, text] : gameplay_readouts)
 		{
-			update_readout(name, text, placement_changed);
+			update_readout(name, text, placement_changed || name.starts_with("game.scan-"));
 			if (name.starts_with("game.readout/system-"))
 				if (auto *readout = element(id(name)))
 				{
@@ -2797,6 +2836,8 @@ button.on-screen-active .share-live {display:block;}
 											settings["fire_arcs"] =
 											    w.value("fire_arcs", false) && model_.fire_arcs_visible();
 										}
+								settings["contact_arcs"] = model_.contact_arcs_visible();
+								settings["sensor_contact"] = model_.sensor_contact();
 								auto &sweep = radar_sweeps_[key];
 								if (!sweep)
 									sweep = std::make_unique<RadarSweep>();

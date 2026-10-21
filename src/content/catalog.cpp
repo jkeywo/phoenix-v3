@@ -363,6 +363,15 @@ Catalog resolve(const std::vector<PackView> &ordered)
 			                                       {"ship_publishable", true},
 			                                       {"fields", fields}});
 		}
+		if (!result.presentation)
+			for (const auto *cap :
+			     {"basic_identity", "contact_arcs", "shield_sectors", "compartment_condition", "findings"})
+				result.knowledge["schemas"].push_back(
+				    {{"id", std::string("phoenix.sensor.") + cap},
+				     {"producers", {"phoenix.scenario"}},
+				     {"readers", {"phoenix.crew"}},
+				     {"ship_publishable", true},
+				     {"fields", Json::array({{{"id", "payload"}, {"type", "text"}, {"publishable", true}}})}});
 		result.knowledge_definition = compile_knowledge(result.knowledge);
 	}
 	for (const auto &[name, entity] : result.entities)
@@ -972,8 +981,12 @@ void prepare_catalog(Catalog &catalog)
 	{
 		verify_scenario_authoring(catalog, map);
 		(void)compile_away(catalog, map);
+		(void)compile_sensor_findings(catalog, map);
 	}
 	verify_conversation_authoring(catalog);
+	if (!catalog.presentation)
+		for (const auto &[id, entity] : catalog.entities)
+			(void)compile_sensors(catalog, id);
 	verify_prepared_catalog(catalog);
 }
 } // namespace

@@ -691,7 +691,18 @@ void project_combat(const ConsoleAddress &address, Observation &result) const
 				                           {"edge_total", m->get<RepairState>().edge_total}});
 			if (std::find(feeds.begin(), feeds.end(), d.id) == feeds.end())
 				continue;
-			if (d.kind == OperatingSystem::Weapon || d.kind == OperatingSystem::Turret)
+			if ((d.kind == OperatingSystem::Weapon || d.kind == OperatingSystem::Turret) &&
+			    std::any_of(definition(address.ship).sensors.begin(), definition(address.ship).sensors.end(),
+			                [&](const auto &entry)
+			                {
+				                return entry.second.capabilities.contains("own_arcs") &&
+				                       std::find(feeds.begin(), feeds.end(), entry.first) != feeds.end();
+			                }) &&
+			    std::none_of(definition(address.ship).sensors.begin(), definition(address.ship).sensors.end(),
+			                 [&](const auto &entry)
+			                 {
+				                 return entry.second.turret == d.id;
+			                 }))
 			{
 				auto heading = ship.get<Pose>().heading +
 				               (d.kind == OperatingSystem::Turret ? m->get<TurretState>().heading : d.bearing);

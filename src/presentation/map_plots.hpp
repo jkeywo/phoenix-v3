@@ -48,6 +48,42 @@ inline void draw_radar_plot(TextureCache &textures, const Catalog &catalog, cons
 			}
 		}
 	}
+	const auto sensing = view.gameplay.value("sensors", Json::object());
+	auto sector = [&](Vector2 origin, float bearing, float width, float length, Color colour)
+	{
+		auto at = [&](float angle)
+		{
+			return Vector2{origin.x + std::cos(angle * DEG2RAD) * length,
+			               origin.y - std::sin(angle * DEG2RAD) * length};
+		};
+		const int segments = std::max(2, static_cast<int>(width / 4));
+		const float begin = bearing - width / 2;
+		for (int i = 0; i < segments; ++i)
+			DrawLineV(at(begin + width * i / segments), at(begin + width * (i + 1) / segments), colour);
+		if (width < 360)
+		{
+			DrawLineV(origin, at(begin), colour);
+			DrawLineV(origin, at(begin + width), colour);
+		}
+	};
+	for (const auto &scanner : sensing.value("scanners", Json::array()))
+		if (scanner.at("arc_mdeg") != 360000)
+		{
+			sector(point(scanner.at("x"), scanner.at("y")), scanner.at("bearing_mdeg").get<float>() / 1000,
+			       scanner.at("arc_mdeg").get<float>() / 1000,
+			       static_cast<float>(std::min<double>(radius, scanner.at("range_mm").get<float>() / range * radius)),
+			       {130, 180, 255, 150});
+		}
+	for (const auto &contact : sensing.value("contacts", Json::array()))
+		if (contact.at("id") == settings.value("sensor_contact", EntityId{0}) && contact.contains("x"))
+		{
+			const auto p = point(contact.at("x"), contact.at("y"));
+			DrawCircleLinesV(p, 11, GOLD);
+			if (settings.value("contact_arcs", false) && contact.at("findings").contains("contact_arcs"))
+				for (const auto &arc : contact.at("findings").at("contact_arcs").at("data"))
+					sector(p, arc.at("bearing_mdeg").get<float>() / 1000, arc.at("arc_mdeg").get<float>() / 1000, 30,
+					       ORANGE);
+		}
 	sweep.draw(centre, radius, sensor, settings, time, reduced_motion);
 	draw_region_markers(view.regions, point, range / radius, &sensor, centre, radius);
 	draw_radar_body(textures, catalog, view.own, centre, 9, WHITE);

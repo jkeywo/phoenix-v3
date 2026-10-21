@@ -395,6 +395,21 @@ struct AwaySlot
 	std::string id, kind, trait;
 	bool required = true;
 };
+struct SensorDefinition
+{
+	std::int64_t arc = 360000, bearing = 0;
+	std::string turret;
+	std::map<std::string, std::int64_t> capabilities;
+};
+struct SensorFinding
+{
+	std::string id, text, requires_event, unless_event, event;
+	EntityId target = 0;
+	std::vector<std::string> capabilities;
+	std::int64_t ticks = 1;
+};
+std::map<std::string, SensorDefinition> compile_sensors(const Catalog &, const std::string &);
+std::vector<SensorFinding> compile_sensor_findings(const Catalog &, const Json &);
 struct AwayDefinition
 {
 	std::string id, title, slot, conversation, reveal_event, tree;

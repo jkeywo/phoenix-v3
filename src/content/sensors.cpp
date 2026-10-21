@@ -1,0 +1,101 @@
+module;
+#include <algorithm>
+#include <map>
+#include <set>
+#include <string>
+#include <stdexcept>
+#include <nlohmann/json.hpp>
+module phoenix.content;
+namespace phoenix
+{
+namespace
+{
+void sensor_require(bool ok, const std::string &text)
+{
+	if (!ok)
+		throw std::runtime_error("sensors: " + text);
+}
+const std::set<std::string> sensor_capabilities{"basic_identity",        "own_arcs", "contact_arcs", "shield_sectors",
+                                                "compartment_condition", "findings"};
+} // namespace
+std::map<std::string, SensorDefinition> compile_sensors(const Catalog &catalog, const std::string &entity)
+{
+	std::map<std::string, SensorDefinition> out;
+	const auto &hull = catalog.entities.at(entity);
+	for (const auto &fit : resolve_systems(catalog, entity))
+		if (fit.kind == OperatingSystem::Radar)
+		{
+			const auto &j = hull.at("systems").at(fit.id);
+			SensorDefinition d;
+			d.arc = j.value("arc_mdeg", 360000LL);
+			d.bearing = j.value("bearing_mdeg", 0LL);
+			d.turret = j.value("turret", std::string{});
+			sensor_require(d.arc > 0 && d.arc <= 360000 && d.bearing >= 0 && d.bearing < 360000,
+			               "invalid sensor coverage");
+			const auto caps = j.value("capabilities", Json{{"basic_identity", 0}, {"own_arcs", 0}});
+			sensor_require(caps.is_object() && caps.size() <= 6, "invalid capabilities");
+			for (const auto &[key, value] : caps.items())
+			{
+				sensor_require(sensor_capabilities.contains(key) && value.is_number_integer(),
+				               "unknown capability or noninteger exposure");
+				auto ticks = value.get<std::int64_t>();
+				sensor_require(ticks >= 0 && ticks <= 1728000, "invalid exposure ticks");
+				d.capabilities.emplace(key, ticks);
+			}
+			if (!d.turret.empty())
+			{
+				sensor_require(hull.at("systems").contains(d.turret) &&
+				                   hull.at("systems").at(d.turret).value("kind", d.turret) == "turret",
+				               "unknown sensor turret");
+				sensor_require(d.arc < 360000, "turret scanner must be directional");
+				for (const auto &[key, system] : hull.at("systems").items())
+					if (system.value("kind", key) == "weapon")
+						sensor_require(system.value("turret", std::string{}) != d.turret,
+						               "scanner turret cannot share weapon targeting");
+				for (const auto &[key, other] : out)
+					sensor_require(other.turret != d.turret, "sensor turrets require one targeting owner");
+			}
+			out.emplace(fit.id, std::move(d));
+		}
+	return out;
+}
+std::vector<SensorFinding> compile_sensor_findings(const Catalog &catalog, const Json &map)
+{
+	std::vector<SensorFinding> out;
+	std::set<std::string> ids;
+	auto rows = map.value("sensor_findings", Json::array());
+	sensor_require(rows.is_array() && rows.size() <= 128, "too many findings");
+	for (const auto &j : rows)
+	{
+		SensorFinding f;
+		f.id = j.at("id");
+		f.text = j.at("text_key");
+		f.target = j.at("target_entity");
+		f.ticks = j.at("scan_ticks");
+		f.capabilities = j.value("requires", std::vector<std::string>{"findings"});
+		f.requires_event = j.value("requires_event", std::string{});
+		f.unless_event = j.value("unless_event", std::string{});
+		f.event = j.value("discovery_event", std::string{});
+		sensor_require(!f.id.empty() && f.id.size() <= 64 && ids.insert(f.id).second && !f.text.empty() &&
+		                   f.text.size() <= 4096 && f.ticks > 0 && f.ticks <= 1728000,
+		               "invalid finding");
+		bool target = false;
+		for (const auto &e : map.value("entities", Json::array()))
+			target |= e.at("id") == f.target;
+		sensor_require(target && !f.capabilities.empty(), "finding needs target and qualifying capabilities");
+		for (const auto &cap : f.capabilities)
+			sensor_require(sensor_capabilities.contains(cap), "unknown finding capability");
+		for (const auto &event : {f.requires_event, f.unless_event, f.event})
+			if (!event.empty())
+			{
+				auto it = catalog.scenarios.find(map.at("id"));
+				sensor_require(it != catalog.scenarios.end(), "finding event needs scenario");
+				sensor_require(std::find(it->second.events.begin(), it->second.events.end(), event) !=
+				                   it->second.events.end(),
+				               "undeclared finding event");
+			}
+		out.push_back(std::move(f));
+	}
+	return out;
+}
+} // namespace phoenix

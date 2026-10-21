@@ -2,6 +2,7 @@
 #include "../core/display_projection.hpp"
 #include "../core/personnel_projection.hpp"
 #include "../core/away_projection.hpp"
+#include "../core/sensor_projection.hpp"
 namespace phoenix::network
 {
 static inline Json alert_json(const Json &source)
@@ -40,6 +41,8 @@ static inline Json bounded_gameplay(const Json &source)
 	const char *categories[] = {"controls", "notifications", "controllers", "objectives",
 	                            "shared",   "records",       "messages"};
 	Json result = source;
+	if (source.contains("sensors"))
+		result["sensors"] = sensor_projection::board(source.at("sensors"));
 	if (source.contains("away_missions"))
 		result["away_missions"] = away_projection::board(source.at("away_missions"));
 	if (source.contains("personnel"))
@@ -227,8 +230,7 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 	for (const auto &contact : value.at("contacts"))
 	{
 		auto body = read_body(contact);
-		if (!catalog.presentation && !catalog.entities.contains(body.definition))
-			throw std::runtime_error("Unknown projected contact definition");
+		// Contact definitions carry observed public class labels, not private catalog identifiers.
 		result.contacts.push_back(std::move(body));
 	}
 	if (value.contains("observed_tick") &&
@@ -356,6 +358,8 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 				throw std::runtime_error("Invalid region tag");
 	}
 	result.gameplay = value.value("gameplay", Json::object());
+	if (result.gameplay.contains("sensors"))
+		result.gameplay["sensors"] = sensor_projection::board(result.gameplay.at("sensors"));
 	if (result.gameplay.contains("away_missions"))
 		result.gameplay["away_missions"] = away_projection::board(result.gameplay.at("away_missions"));
 	if (result.gameplay.contains("personnel"))

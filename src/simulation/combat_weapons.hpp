@@ -199,11 +199,17 @@ void prepare_weapons(flecs::entity ship)
 						break;
 					}
 				}
-			if (!weapon)
+			const auto scanner_aim = sensor_aim(ship.get<StableId>().id, d.id);
+			if (!weapon && !scanner_aim)
 				continue;
 			const auto origin = combat_world({d.x, d.y}, pose);
-			const auto lead = weapon_lead(ship, *weapon, *target, origin);
-			const auto &w = weapon->definition;
+			const auto lead = scanner_aim ? *scanner_aim : weapon_lead(ship, *weapon, *target, origin);
+			CombatSystemDefinition sensor_mount;
+			if (scanner_aim)
+				for (const auto &[id, sensor] : definition(ship.get<StableId>().id).sensors)
+					if (sensor.turret == d.id)
+						sensor_mount.bearing = sensor.bearing;
+			const auto &w = weapon ? weapon->definition : sensor_mount;
 			const auto axis = fixed::direction(w.bearing);
 			const auto lateral = (axis.x * w.y - axis.y * w.x) / fixed::unit;
 			const auto forward = static_cast<std::int64_t>(fixed::sqrt(static_cast<std::uint64_t>(

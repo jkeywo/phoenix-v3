@@ -650,6 +650,10 @@ struct GameplayEditor
 		if (kind == "radar")
 		{
 			integer(spec, "range_mm");
+			integer(spec, "arc_mdeg", 360000);
+			integer(spec, "bearing_mdeg");
+			optional_string(spec, "turret");
+			scalar_map(spec, "capabilities");
 			strings(spec, "shows");
 		}
 		if (kind == "engine")
@@ -1956,6 +1960,23 @@ struct GameplayEditor
 			        choice(r, "a", faction_ids);
 			        choice(r, "b", faction_ids);
 			        choice(r, "relation", {"friendly", "neutral", "hostile"});
+		        });
+		records(map, "sensor_findings",
+		        {{"id", "finding"},
+		         {"text_key", "Sensor finding"},
+		         {"target_entity", 1},
+		         {"scan_ticks", 100},
+		         {"requires", {"findings"}}},
+		        [&](Json &f)
+		        {
+			        string(f, "id");
+			        string(f, "text_key");
+			        integer(f, "target_entity", 1);
+			        integer(f, "scan_ticks", 100);
+			        strings(f, "requires");
+			        optional_string(f, "requires_event");
+			        optional_string(f, "unless_event");
+			        optional_string(f, "discovery_event");
 		        });
 		records(map, "away_missions",
 		        {{"id", "mission"},

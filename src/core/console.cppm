@@ -49,6 +49,14 @@ public:
 	void refresh(const std::shared_ptr<SessionPort> &session, std::uint64_t route = 1);
 	void reset();
 	bool act(const std::string &action);
+	bool contact_arcs_visible() const
+	{
+		return contact_arcs_;
+	}
+	std::int64_t sensor_contact() const
+	{
+		return sensor_contact_;
+	}
 	bool fire_arcs_visible() const
 	{
 		return fire_arcs_;
@@ -128,6 +136,8 @@ private:
 	std::string selected_console_, status_system_;
 	std::int64_t combat_target_ = 0, selected_compartment_ = 0;
 	bool fire_arcs_ = true;
+	bool contact_arcs_ = true;
+	std::int64_t sensor_contact_ = 0;
 	std::vector<std::pair<std::string, std::string>> available_consoles_;
 	const Json *controller_section(const std::string &binding) const;
 	const Json *controller_channel(const std::string &binding) const;

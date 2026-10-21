@@ -61,7 +61,8 @@ enum class OperatingAction
 	MagazineSelect,
 	WeaponMode,
 	RepairSystem,
-	ShieldDischarge
+	ShieldDischarge,
+	SensorTarget
 };
 enum class OperatingSystem
 {
@@ -166,7 +167,8 @@ inline constexpr std::array operating_actions{
     OperatingActionSpec{OperatingAction::MagazineSelect, "magazine_select", OperatingSystem::Weapon, false, 256},
     OperatingActionSpec{OperatingAction::WeaponMode, "weapon_mode", OperatingSystem::Weapon, false, 2},
     OperatingActionSpec{OperatingAction::RepairSystem, "repair_system", OperatingSystem::RepairTeam, false, 256},
-    OperatingActionSpec{OperatingAction::ShieldDischarge, "shield_discharge", OperatingSystem::Shield, true, 1}};
+    OperatingActionSpec{OperatingAction::ShieldDischarge, "shield_discharge", OperatingSystem::Shield, true, 1},
+    OperatingActionSpec{OperatingAction::SensorTarget, "sensor_target", OperatingSystem::Radar, false, 1000000000}};
 constexpr const OperatingActionSpec *operating_action(std::string_view name)
 {
 	for (const auto &spec : operating_actions)
