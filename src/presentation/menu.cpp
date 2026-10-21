@@ -1016,7 +1016,7 @@ struct NativeMenuScreen::State
 		                    : branch == Branch::scenarios ? 3
 		                    : branch == Branch::root      ? 1
 		                                                  : 2;
-		const float column_width = std::clamp((region.width - reserved_right - 48.f) / columns, 240.f, 320.f);
+		const float column_width = std::clamp((region.width - reserved_right - 48.f) / columns, 180.f, 320.f);
 		const float target = 24.f;
 		column_offset += (target - column_offset) * (app.reduced_motion ? 1.f : std::min(1.f, GetFrameTime() * 18.f));
 		if (auto *columns_element = document.GetElementById("menu-columns"))
@@ -1349,6 +1349,7 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
     #native-menu h1 { color:#fff0d4; font-family:UnifrakturCook; font-weight:bold; font-size:56px; letter-spacing:0; }
     #native-menu h2 { color:#fff0d4; }
     #native-menu button.menu-skinned { position:relative; min-height:54px; line-height:22px; background:transparent; border:2px transparent; color:#fff4df; text-align:center; image-color:#ffffff; }
+    #native-menu .menu-column button.menu-skinned { min-height:54px; padding:8px 12px; margin-bottom:8px; font-size:16px; line-height:20px; }
     #native-menu button:hover, #native-menu button:focus { image-color:#ffce93; border-color:#ffad54; background:#17120c; }
     #native-menu button:active, #native-menu button.menu-selected { image-color:#ffb668; border-color:#f58330; background:#21170c; }
     #native-menu button:disabled { opacity:0.48; image-color:#b9b3a7; border-color:transparent; background:transparent; color:#ddd4c0; }

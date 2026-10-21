@@ -687,7 +687,8 @@ int main(int argc, char **argv)
 	bool performance_released = false, performance_ready = false;
 	menu_smoke.configure_displays(app);
 	if (menu_smoke.large)
-		SetWindowSize(3800, 2160);
+		SetWindowSize(std::min(3800, GetMonitorWidth(GetCurrentMonitor()) - 48),
+		              std::min(2160, GetMonitorHeight(GetCurrentMonitor()) - 108));
 	const auto smoke_started = GetTime();
 	menu_smoke.changed = smoke_started;
 	double previous_frame = smoke_started;

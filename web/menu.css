@@ -749,5 +749,14 @@ body.cascading #viewport {
 	overflow-x: auto;
 }
 body.cascading:not(.compact) .column {
-	min-width: 220px;
+	min-width: 180px;
+}
+
+/* Fit the standard six root choices without creating overflow from decoration padding. */
+.column button.skin {
+	min-height: 54px;
+	padding: 8px 12px;
+	margin-bottom: 8px;
+	font-size: 16px;
+	line-height: 20px;
 }

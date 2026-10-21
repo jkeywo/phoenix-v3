@@ -873,7 +873,7 @@ void open_window()
     .menu-top { position:absolute; top:18dp; left:20dp; width:140dp; }
     .menu-bottom { position:absolute; bottom:20dp; left:20dp; width:160dp; }
     .menu-back { position:absolute; bottom:20dp; right:20dp; width:140dp; }
-    #menu-viewport { position:absolute; left:0; top:120dp; right:0; bottom:100dp; overflow:auto; }
+    #menu-viewport { position:absolute; left:0; top:120dp; right:0; bottom:80dp; overflow:auto; }
     #menu-columns { position:relative; display:flex; flex-direction:row; align-items:flex-start; height:100%; }
     .menu-column { display:block; flex-shrink:0; padding-right:20dp; box-sizing:border-box; max-height:100%; overflow:auto; }
     .menu-column input { box-sizing:border-box; width:100%; height:44dp; margin:8dp 0 16dp; }
