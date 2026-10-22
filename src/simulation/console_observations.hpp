@@ -128,6 +128,8 @@ Observation capture_console_observation(const ConsoleAddress &address, Json game
 	result.feeds = seat.feeds;
 	result.gameplay = std::move(gameplay);
 	project_combat(address, result);
+	result.gameplay["logistics"] = logistics_board(address);
+	result.gameplay["docking"] = docking_board(address);
 	const auto evidence = sensor_evidence(address);
 	result.gameplay["sensors"] = sensor_projection(address, evidence);
 	result.engine_enabled = false;

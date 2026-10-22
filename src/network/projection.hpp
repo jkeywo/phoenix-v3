@@ -5,6 +5,7 @@
 #include "../core/team_projection.hpp"
 #include "../core/craft_projection.hpp"
 #include "../core/logistics_projection.hpp"
+#include "../core/docking_projection.hpp"
 #include "../core/sensor_projection.hpp"
 #include "../core/ftl_projection.hpp"
 namespace phoenix::network
@@ -53,6 +54,8 @@ static inline Json bounded_gameplay(const Json &source)
 		result["sensors"] = sensor_projection::board(source.at("sensors"));
 	if (source.contains("away_missions"))
 		result["away_missions"] = away_projection::board(source.at("away_missions"));
+	if (source.contains("docking"))
+		result["docking"] = docking_projection::board(source.at("docking"));
 	if (source.contains("logistics"))
 		result["logistics"] = logistics_projection::board(source.at("logistics"));
 	if (source.contains("craft"))
@@ -380,6 +383,8 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 		result.gameplay["sensors"] = sensor_projection::board(result.gameplay.at("sensors"));
 	if (result.gameplay.contains("away_missions"))
 		result.gameplay["away_missions"] = away_projection::board(result.gameplay.at("away_missions"));
+	if (result.gameplay.contains("docking"))
+		result.gameplay["docking"] = docking_projection::board(result.gameplay.at("docking"));
 	if (result.gameplay.contains("logistics"))
 		result.gameplay["logistics"] = logistics_projection::board(result.gameplay.at("logistics"));
 	if (result.gameplay.contains("craft"))

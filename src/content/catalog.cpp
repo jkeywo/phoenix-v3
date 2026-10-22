@@ -695,6 +695,7 @@ void verify_prepared_catalog(const Catalog &catalog)
 		verify_gameplay_fitting(catalog, id);
 		(void)compile_ftl(catalog, id);
 		(void)compile_logistics(catalog, id);
+		(void)compile_docking(catalog, id);
 		(void)compile_transport(catalog, id);
 		(void)compile_craft(catalog, id);
 		(void)compile_craft_bays(catalog, id);

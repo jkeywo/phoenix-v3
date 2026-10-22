@@ -67,6 +67,7 @@ void advance_personnel(EntityId id)
 		}
 		if (o.remaining > 0)
 		{
+            if(!physical_edge_open(id,o.location,o.edge_to))continue;
 			if (--o.remaining > 0)
 				continue;
 			o.location = static_cast<std::size_t>(o.edge_to);
@@ -82,7 +83,7 @@ void advance_personnel(EntityId id)
 			continue;
 		}
 		const auto route =
-		    compartment_route(d.compartments.size(), d.links, o.location,
+		    physical_route(id,d.compartments.size(), d.links, o.location,
 		                      target.remaining > 0 ? static_cast<std::size_t>(target.edge_to) : target.location);
 		if (route.first >= 0)
 		{
@@ -185,7 +186,7 @@ bool personnel_command(const ConsoleAddress &address, const OperatingCommand &co
 		const auto target = personnel_destination(address.ship, *duty);
 		const auto from = o.remaining ? static_cast<std::size_t>(o.edge_to) : o.location;
 		if (from != target.location &&
-		    compartment_route(d.compartments.size(), d.links, from, target.location).first < 0)
+		    physical_route(address.ship,d.compartments.size(), d.links, from, target.location).first < 0)
 			return false;
 	}
 	if (execute)

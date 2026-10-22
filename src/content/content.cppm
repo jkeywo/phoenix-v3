@@ -474,7 +474,8 @@ struct AwayDefinition
 	std::vector<AwaySlot> slots;
 	state_tree::Program program;
 	std::map<std::string, std::size_t> repair_compartments;
-	bool allow_ship_transport = true;
+	bool allow_ship_transport = false;
+	std::vector<std::string> docking_ports;
 	std::string ship_transport_reason;
 	std::int64_t deployment_range = 20000, deployment_ticks = 20;
 };
@@ -507,6 +508,14 @@ struct LogisticsDefinition
 	std::vector<MaterialConsumerDefinition> consumers;
 };
 LogisticsDefinition compile_logistics(const Catalog &, const std::string &);
+struct DockPortDefinition
+{
+ std::string id, controller, compartment, compatibility;
+ std::int64_t x = 0, y = 0, z = 0, heading = 0, capture_range = 1000, capture_speed = 500,
+ alignment = 5000, mating_ticks = 20, separation_ticks = 20, throughput = 20, emergency_damage = 0;
+ bool auto_accept_allies = false, supply = false, emergency_release = false;
+};
+std::vector<DockPortDefinition> compile_docking(const Catalog &, const std::string &);
 struct TransportDefinition
 {
 	std::string compartment;

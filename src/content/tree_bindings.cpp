@@ -410,6 +410,8 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	result.own[ControllerOwnField::CraftArmed] = add({"craft.armed", Type::Boolean, 4, {}});
 	result.own[ControllerOwnField::CraftTargetPresent] = add({"craft.target_present", Type::Boolean, 4, {}});
 	const auto resolved = resolve_tree_definition(tree, catalog);
+    if(resolved.value("logistics_commands",false)) add({"logistics.revision",Type::Integer,4,{}});
+    if(resolved.value("docking_commands",false)) add({"docking.revision",Type::Integer,4,{}});
 	if (resolved.contains("ftl_system"))
 	{
 		result.ftl_system = resolved.at("ftl_system").get<std::string>();
@@ -481,6 +483,12 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		registry.actions.push_back({"team.order", 4, {Type::Text, Type::Text, Type::Integer}, true});
 		registry.actions.push_back({"team.cancel", 4, {Type::Text, Type::Text, Type::Integer}, true});
 	}
+    if (resolved.value("logistics_commands", false))
+        for (const auto *name : {"target", "hold", "release", "cancel", "route", "transfer", "deliver", "craft_allow", "cargo_cancel"})
+            registry.actions.push_back({std::string("logistics.") + name, 4, {Type::Text, Type::Text, Type::Integer}, true});
+    if (resolved.value("docking_commands", false))
+        for (const auto *name : {"accept", "reject", "supply", "connect", "assist", "cancel", "undock", "emergency"})
+            registry.actions.push_back({std::string("dock.") + name, 4, {Type::Text, Type::Text, Type::Integer}, true});
 	for (const auto &name : {"open", "assign", "withdraw", "transport", "send", "recall", "cancel"})
 		registry.actions.push_back({std::string("away.") + name, 4, {Type::Text, Type::Text, Type::Integer}, true});
 	for (const auto &name : {"defend", "escort", "bomb", "recall"})

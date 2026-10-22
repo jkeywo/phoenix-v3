@@ -39,6 +39,7 @@ std::string ftl_blocker(EntityId id, flecs::entity child) const
 {
 	if (departed(id))
 		return "Departed via FTL";
+	if (dock_busy(id)) return "Undock before FTL departure";
 	const auto ship = entities.at(id);
 	const auto &fit = child.get<Equipment>();
 	const auto &power = ship.get<ShipResources>();

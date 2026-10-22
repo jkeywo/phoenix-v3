@@ -803,7 +803,7 @@
 		{
 			"id": "base.courier-engineering",
 			"extends": "base.courier",
-			"name": "Courier â€” Engineering fit",
+			"name": "Courier \u00e2\u20ac\u201d Engineering fit",
 			"controller": null,
 			"console": null,
 			"systems": {
@@ -2731,7 +2731,7 @@
 		},
 		{
 			"id": "base.cruiser",
-			"name": "Cruiser — Six-station combat fit",
+			"name": "Cruiser \u2014 Six-station combat fit",
 			"render": {
 				"mode": "eight",
 				"scale": 90,
@@ -8828,7 +8828,8 @@
 					"reload": {
 						"strategy": "none"
 					},
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"ammunition_type": "base.ammunition.kinetic"
 				},
 				"fore-dorsal-gun": {
 					"kind": "weapon",
@@ -8897,7 +8898,8 @@
 					"reload": {
 						"strategy": "none"
 					},
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"ammunition_type": "base.ammunition.kinetic"
 				},
 				"fore-ventral-gun": {
 					"kind": "weapon",
@@ -8966,7 +8968,8 @@
 					"reload": {
 						"strategy": "none"
 					},
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"ammunition_type": "base.ammunition.kinetic"
 				},
 				"aft-dorsal-gun": {
 					"kind": "weapon",
@@ -9035,7 +9038,8 @@
 					"reload": {
 						"strategy": "none"
 					},
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"ammunition_type": "base.ammunition.kinetic"
 				},
 				"aft-ventral-gun": {
 					"kind": "weapon",
@@ -9104,7 +9108,8 @@
 					"reload": {
 						"strategy": "none"
 					},
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"ammunition_type": "base.ammunition.kinetic"
 				},
 				"mid-dorsal-gun": {
 					"kind": "weapon",
@@ -9215,7 +9220,8 @@
 							"repair_work": 100
 						}
 					],
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"ammunition_type": "base.ammunition.homing"
 				},
 				"bow-port-havok": {
 					"kind": "magazine",
@@ -9280,7 +9286,8 @@
 							"repair_work": 100
 						}
 					],
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"ammunition_type": "base.ammunition.havok"
 				},
 				"bow-port-tube-1": {
 					"kind": "weapon",
@@ -9505,7 +9512,8 @@
 							"repair_work": 100
 						}
 					],
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"ammunition_type": "base.ammunition.homing"
 				},
 				"bow-starboard-havok": {
 					"kind": "magazine",
@@ -9570,7 +9578,8 @@
 							"repair_work": 100
 						}
 					],
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"ammunition_type": "base.ammunition.havok"
 				},
 				"bow-starboard-tube-1": {
 					"kind": "weapon",
@@ -9795,7 +9804,8 @@
 							"repair_work": 100
 						}
 					],
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"ammunition_type": "base.ammunition.homing"
 				},
 				"port-fore-havok": {
 					"kind": "magazine",
@@ -9860,7 +9870,8 @@
 							"repair_work": 100
 						}
 					],
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"ammunition_type": "base.ammunition.havok"
 				},
 				"port-fore-tube-1": {
 					"kind": "weapon",
@@ -10085,7 +10096,8 @@
 							"repair_work": 100
 						}
 					],
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"ammunition_type": "base.ammunition.homing"
 				},
 				"port-aft-havok": {
 					"kind": "magazine",
@@ -10150,7 +10162,8 @@
 							"repair_work": 100
 						}
 					],
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"ammunition_type": "base.ammunition.havok"
 				},
 				"port-aft-tube-1": {
 					"kind": "weapon",
@@ -10375,7 +10388,8 @@
 							"repair_work": 100
 						}
 					],
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"ammunition_type": "base.ammunition.homing"
 				},
 				"starboard-fore-havok": {
 					"kind": "magazine",
@@ -10440,7 +10454,8 @@
 							"repair_work": 100
 						}
 					],
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"ammunition_type": "base.ammunition.havok"
 				},
 				"starboard-fore-tube-1": {
 					"kind": "weapon",
@@ -10665,7 +10680,8 @@
 							"repair_work": 100
 						}
 					],
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"ammunition_type": "base.ammunition.homing"
 				},
 				"starboard-aft-havok": {
 					"kind": "magazine",
@@ -10730,7 +10746,8 @@
 							"repair_work": 100
 						}
 					],
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"ammunition_type": "base.ammunition.havok"
 				},
 				"starboard-aft-tube-1": {
 					"kind": "weapon",
@@ -10933,7 +10950,8 @@
 							"repair_work": 100
 						}
 					],
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"ammunition_type": "base.ammunition.pdc"
 				},
 				"pdc-port-1": {
 					"kind": "weapon",
@@ -11017,7 +11035,8 @@
 							"repair_work": 100
 						}
 					],
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"ammunition_type": "base.ammunition.pdc"
 				},
 				"pdc-port-2": {
 					"kind": "weapon",
@@ -11101,7 +11120,8 @@
 							"repair_work": 100
 						}
 					],
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"ammunition_type": "base.ammunition.pdc"
 				},
 				"pdc-port-3": {
 					"kind": "weapon",
@@ -11185,7 +11205,8 @@
 							"repair_work": 100
 						}
 					],
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"ammunition_type": "base.ammunition.pdc"
 				},
 				"pdc-port-4": {
 					"kind": "weapon",
@@ -11269,7 +11290,8 @@
 							"repair_work": 100
 						}
 					],
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"ammunition_type": "base.ammunition.pdc"
 				},
 				"pdc-starboard-1": {
 					"kind": "weapon",
@@ -11353,7 +11375,8 @@
 							"repair_work": 100
 						}
 					],
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"ammunition_type": "base.ammunition.pdc"
 				},
 				"pdc-starboard-2": {
 					"kind": "weapon",
@@ -11437,7 +11460,8 @@
 							"repair_work": 100
 						}
 					],
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"ammunition_type": "base.ammunition.pdc"
 				},
 				"pdc-starboard-3": {
 					"kind": "weapon",
@@ -11521,7 +11545,8 @@
 							"repair_work": 100
 						}
 					],
-					"observation_console": "tactical"
+					"observation_console": "tactical",
+					"ammunition_type": "base.ammunition.pdc"
 				},
 				"pdc-starboard-4": {
 					"kind": "weapon",
@@ -13971,7 +13996,593 @@
 						}
 					}
 				}
-			]
+			],
+			"logistics": {
+				"controller": "repair-1",
+				"materials": [
+					{
+						"id": "base.ammunition.havok"
+					},
+					{
+						"id": "base.ammunition.homing"
+					},
+					{
+						"id": "base.ammunition.kinetic"
+					},
+					{
+						"id": "base.ammunition.pdc"
+					},
+					{
+						"id": "base.craft.bomber"
+					},
+					{
+						"id": "base.craft.interceptor"
+					},
+					{
+						"id": "medical"
+					},
+					{
+						"id": "parts"
+					}
+				],
+				"units_per_second": 100,
+				"concurrency": 8,
+				"batch_size": 20,
+				"stores": [
+					{
+						"id": "main-hold",
+						"controller": "repair-1",
+						"compartment": "magazines",
+						"capacity": 52992,
+						"main": true,
+						"accepts": [
+							"base.ammunition.havok",
+							"base.ammunition.homing",
+							"base.ammunition.kinetic",
+							"base.ammunition.pdc",
+							"base.craft.bomber",
+							"base.craft.interceptor",
+							"medical",
+							"parts"
+						],
+						"initial": {
+							"parts": 2000,
+							"medical": 200,
+							"base.ammunition.kinetic": 1800,
+							"base.ammunition.homing": 192,
+							"base.ammunition.havok": 576,
+							"base.ammunition.pdc": 19200,
+							"base.craft.interceptor": 2400,
+							"base.craft.bomber": 128
+						},
+						"targets": {
+							"parts": 2000,
+							"medical": 200,
+							"base.ammunition.kinetic": 1800,
+							"base.ammunition.homing": 192,
+							"base.ammunition.havok": 576,
+							"base.ammunition.pdc": 19200,
+							"base.craft.interceptor": 2400,
+							"base.craft.bomber": 128
+						}
+					},
+					{
+						"id": "fore-dorsal-mag",
+						"system": "fore-dorsal-mag",
+						"controller": "armament-services",
+						"compartment": "weapons",
+						"capacity": 180,
+						"accepts": ["base.ammunition.kinetic"],
+						"targets": {
+							"base.ammunition.kinetic": 180
+						}
+					},
+					{
+						"id": "fore-ventral-mag",
+						"system": "fore-ventral-mag",
+						"controller": "armament-services",
+						"compartment": "weapons",
+						"capacity": 180,
+						"accepts": ["base.ammunition.kinetic"],
+						"targets": {
+							"base.ammunition.kinetic": 180
+						}
+					},
+					{
+						"id": "aft-dorsal-mag",
+						"system": "aft-dorsal-mag",
+						"controller": "armament-services",
+						"compartment": "engineering",
+						"capacity": 180,
+						"accepts": ["base.ammunition.kinetic"],
+						"targets": {
+							"base.ammunition.kinetic": 180
+						}
+					},
+					{
+						"id": "aft-ventral-mag",
+						"system": "aft-ventral-mag",
+						"controller": "armament-services",
+						"compartment": "engineering",
+						"capacity": 180,
+						"accepts": ["base.ammunition.kinetic"],
+						"targets": {
+							"base.ammunition.kinetic": 180
+						}
+					},
+					{
+						"id": "mid-dorsal-mag",
+						"system": "mid-dorsal-mag",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 180,
+						"accepts": ["base.ammunition.kinetic"],
+						"targets": {
+							"base.ammunition.kinetic": 180
+						}
+					},
+					{
+						"id": "bow-port-homing",
+						"system": "bow-port-homing",
+						"controller": "armament-services",
+						"compartment": "weapons",
+						"capacity": 16,
+						"accepts": ["base.ammunition.homing"],
+						"targets": {
+							"base.ammunition.homing": 16
+						}
+					},
+					{
+						"id": "bow-port-havok",
+						"system": "bow-port-havok",
+						"controller": "armament-services",
+						"compartment": "weapons",
+						"capacity": 48,
+						"accepts": ["base.ammunition.havok"],
+						"targets": {
+							"base.ammunition.havok": 48
+						}
+					},
+					{
+						"id": "bow-starboard-homing",
+						"system": "bow-starboard-homing",
+						"controller": "armament-services",
+						"compartment": "weapons",
+						"capacity": 16,
+						"accepts": ["base.ammunition.homing"],
+						"targets": {
+							"base.ammunition.homing": 16
+						}
+					},
+					{
+						"id": "bow-starboard-havok",
+						"system": "bow-starboard-havok",
+						"controller": "armament-services",
+						"compartment": "weapons",
+						"capacity": 48,
+						"accepts": ["base.ammunition.havok"],
+						"targets": {
+							"base.ammunition.havok": 48
+						}
+					},
+					{
+						"id": "port-fore-homing",
+						"system": "port-fore-homing",
+						"controller": "armament-services",
+						"compartment": "weapons",
+						"capacity": 16,
+						"accepts": ["base.ammunition.homing"],
+						"targets": {
+							"base.ammunition.homing": 16
+						}
+					},
+					{
+						"id": "port-fore-havok",
+						"system": "port-fore-havok",
+						"controller": "armament-services",
+						"compartment": "weapons",
+						"capacity": 48,
+						"accepts": ["base.ammunition.havok"],
+						"targets": {
+							"base.ammunition.havok": 48
+						}
+					},
+					{
+						"id": "port-aft-homing",
+						"system": "port-aft-homing",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 16,
+						"accepts": ["base.ammunition.homing"],
+						"targets": {
+							"base.ammunition.homing": 16
+						}
+					},
+					{
+						"id": "port-aft-havok",
+						"system": "port-aft-havok",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 48,
+						"accepts": ["base.ammunition.havok"],
+						"targets": {
+							"base.ammunition.havok": 48
+						}
+					},
+					{
+						"id": "starboard-fore-homing",
+						"system": "starboard-fore-homing",
+						"controller": "armament-services",
+						"compartment": "weapons",
+						"capacity": 16,
+						"accepts": ["base.ammunition.homing"],
+						"targets": {
+							"base.ammunition.homing": 16
+						}
+					},
+					{
+						"id": "starboard-fore-havok",
+						"system": "starboard-fore-havok",
+						"controller": "armament-services",
+						"compartment": "weapons",
+						"capacity": 48,
+						"accepts": ["base.ammunition.havok"],
+						"targets": {
+							"base.ammunition.havok": 48
+						}
+					},
+					{
+						"id": "starboard-aft-homing",
+						"system": "starboard-aft-homing",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 16,
+						"accepts": ["base.ammunition.homing"],
+						"targets": {
+							"base.ammunition.homing": 16
+						}
+					},
+					{
+						"id": "starboard-aft-havok",
+						"system": "starboard-aft-havok",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 48,
+						"accepts": ["base.ammunition.havok"],
+						"targets": {
+							"base.ammunition.havok": 48
+						}
+					},
+					{
+						"id": "pdc-port-1-mag",
+						"system": "pdc-port-1-mag",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 1200,
+						"accepts": ["base.ammunition.pdc"],
+						"targets": {
+							"base.ammunition.pdc": 1200
+						}
+					},
+					{
+						"id": "pdc-port-2-mag",
+						"system": "pdc-port-2-mag",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 1200,
+						"accepts": ["base.ammunition.pdc"],
+						"targets": {
+							"base.ammunition.pdc": 1200
+						}
+					},
+					{
+						"id": "pdc-port-3-mag",
+						"system": "pdc-port-3-mag",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 1200,
+						"accepts": ["base.ammunition.pdc"],
+						"targets": {
+							"base.ammunition.pdc": 1200
+						}
+					},
+					{
+						"id": "pdc-port-4-mag",
+						"system": "pdc-port-4-mag",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 1200,
+						"accepts": ["base.ammunition.pdc"],
+						"targets": {
+							"base.ammunition.pdc": 1200
+						}
+					},
+					{
+						"id": "pdc-starboard-1-mag",
+						"system": "pdc-starboard-1-mag",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 1200,
+						"accepts": ["base.ammunition.pdc"],
+						"targets": {
+							"base.ammunition.pdc": 1200
+						}
+					},
+					{
+						"id": "pdc-starboard-2-mag",
+						"system": "pdc-starboard-2-mag",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 1200,
+						"accepts": ["base.ammunition.pdc"],
+						"targets": {
+							"base.ammunition.pdc": 1200
+						}
+					},
+					{
+						"id": "pdc-starboard-3-mag",
+						"system": "pdc-starboard-3-mag",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 1200,
+						"accepts": ["base.ammunition.pdc"],
+						"targets": {
+							"base.ammunition.pdc": 1200
+						}
+					},
+					{
+						"id": "pdc-starboard-4-mag",
+						"system": "pdc-starboard-4-mag",
+						"controller": "armament-services",
+						"compartment": "magazines",
+						"capacity": 1200,
+						"accepts": ["base.ammunition.pdc"],
+						"targets": {
+							"base.ammunition.pdc": 1200
+						}
+					},
+					{
+						"id": "repair-1-kit",
+						"system": "repair-1",
+						"controller": "repair-1",
+						"compartment": "engineering",
+						"capacity": 24,
+						"accepts": ["parts"],
+						"initial": {
+							"parts": 24
+						},
+						"targets": {
+							"parts": 24
+						}
+					},
+					{
+						"id": "repair-2-kit",
+						"system": "repair-2",
+						"controller": "repair-2",
+						"compartment": "engineering",
+						"capacity": 24,
+						"accepts": ["parts"],
+						"initial": {
+							"parts": 24
+						},
+						"targets": {
+							"parts": 24
+						}
+					},
+					{
+						"id": "repair-3-kit",
+						"system": "repair-3",
+						"controller": "repair-3",
+						"compartment": "engineering",
+						"capacity": 24,
+						"accepts": ["parts"],
+						"initial": {
+							"parts": 24
+						},
+						"targets": {
+							"parts": 24
+						}
+					},
+					{
+						"id": "repair-4-kit",
+						"system": "repair-4",
+						"controller": "repair-4",
+						"compartment": "engineering",
+						"capacity": 24,
+						"accepts": ["parts"],
+						"initial": {
+							"parts": 24
+						},
+						"targets": {
+							"parts": 24
+						}
+					},
+					{
+						"id": "interceptor-supply",
+						"system": "interceptor-supply",
+						"controller": "interceptor-supply",
+						"compartment": "magazines",
+						"capacity": 1200,
+						"accepts": ["base.craft.interceptor"],
+						"targets": {
+							"base.craft.interceptor": 1200
+						}
+					},
+					{
+						"id": "bomber-supply",
+						"system": "bomber-supply",
+						"controller": "bomber-supply",
+						"compartment": "magazines",
+						"capacity": 64,
+						"accepts": ["base.craft.bomber"],
+						"targets": {
+							"base.craft.bomber": 64
+						}
+					},
+					{
+						"id": "medical-1-kit",
+						"system": "medical-1",
+						"controller": "medical-1",
+						"compartment": "medical",
+						"capacity": 12,
+						"accepts": ["medical"],
+						"initial": {
+							"medical": 12
+						},
+						"targets": {
+							"medical": 12
+						}
+					},
+					{
+						"id": "medical-2-kit",
+						"system": "medical-2",
+						"controller": "medical-2",
+						"compartment": "medical",
+						"capacity": 12,
+						"accepts": ["medical"],
+						"initial": {
+							"medical": 12
+						},
+						"targets": {
+							"medical": 12
+						}
+					},
+					{
+						"id": "infirmary-supplies",
+						"controller": "medical-1",
+						"compartment": "medical",
+						"capacity": 32,
+						"accepts": ["medical"],
+						"initial": {
+							"medical": 32
+						},
+						"targets": {
+							"medical": 32
+						}
+					}
+				],
+				"consumers": [
+					{
+						"system": "repair-1",
+						"store": "repair-1-kit",
+						"costs": {
+							"repair": {
+								"parts": 1
+							},
+							"structural": {
+								"parts": 1
+							}
+						}
+					},
+					{
+						"system": "repair-2",
+						"store": "repair-2-kit",
+						"costs": {
+							"repair": {
+								"parts": 1
+							},
+							"structural": {
+								"parts": 1
+							}
+						}
+					},
+					{
+						"system": "repair-3",
+						"store": "repair-3-kit",
+						"costs": {
+							"repair": {
+								"parts": 1
+							},
+							"structural": {
+								"parts": 1
+							}
+						}
+					},
+					{
+						"system": "repair-4",
+						"store": "repair-4-kit",
+						"costs": {
+							"repair": {
+								"parts": 1
+							},
+							"structural": {
+								"parts": 1
+							}
+						}
+					},
+					{
+						"system": "medical-1",
+						"store": "medical-1-kit",
+						"costs": {
+							"treat": {
+								"medical": 1
+							},
+							"stabilise": {
+								"medical": 2
+							}
+						}
+					},
+					{
+						"system": "medical-2",
+						"store": "medical-2-kit",
+						"costs": {
+							"treat": {
+								"medical": 1
+							},
+							"stabilise": {
+								"medical": 2
+							}
+						}
+					},
+					{
+						"system": "infirmary",
+						"store": "infirmary-supplies",
+						"costs": {
+							"recover": {
+								"medical": 2
+							}
+						}
+					}
+				]
+			},
+			"docking": {
+				"ports": [
+					{
+						"id": "fore",
+						"controller": "drive.engine",
+						"compartment": "weapons",
+						"compatibility": "standard",
+						"x_mm": 155000,
+						"heading_mdeg": 0,
+						"capture_range_mm": 1500,
+						"capture_speed_mm_s": 1000,
+						"mating_ticks": 40,
+						"separation_ticks": 30,
+						"units_per_second": 40,
+						"auto_accept_allies": true,
+						"supply": true,
+						"emergency_release": true,
+						"emergency_damage": 20
+					},
+					{
+						"id": "aft",
+						"controller": "drive.engine",
+						"compartment": "engines",
+						"compatibility": "standard",
+						"x_mm": -155000,
+						"heading_mdeg": 180000,
+						"capture_range_mm": 1500,
+						"capture_speed_mm_s": 1000,
+						"mating_ticks": 40,
+						"separation_ticks": 30,
+						"units_per_second": 40,
+						"auto_accept_allies": true,
+						"supply": true,
+						"emergency_release": true,
+						"emergency_damage": 20
+					}
+				]
+			}
 		},
 		{
 			"id": "base.courier-patrol-leader",
@@ -21755,7 +22366,7 @@
 		{
 			"id": "base.comms-courier",
 			"extends": "base.courier",
-			"name": "Courier â€” Communications fit",
+			"name": "Courier \u00e2\u20ac\u201d Communications fit",
 			"controller": null,
 			"console": null,
 			"systems": {
@@ -23753,7 +24364,7 @@
 		},
 		{
 			"id": "base.rescue-courier",
-			"name": "Courier â€” Rescue watch",
+			"name": "Courier \u00e2\u20ac\u201d Rescue watch",
 			"tags": ["ship"],
 			"motion_model": "inertial",
 			"render": {
@@ -29081,7 +29692,76 @@
 					}
 				]
 			},
-			"class_key": "Utility shuttle"
+			"class_key": "Utility shuttle",
+			"logistics": {
+				"controller": "flight",
+				"materials": [
+					{
+						"id": "base.ammunition.havok"
+					},
+					{
+						"id": "base.ammunition.homing"
+					},
+					{
+						"id": "base.ammunition.kinetic"
+					},
+					{
+						"id": "base.ammunition.pdc"
+					},
+					{
+						"id": "base.craft.bomber"
+					},
+					{
+						"id": "base.craft.interceptor"
+					},
+					{
+						"id": "medical"
+					},
+					{
+						"id": "parts"
+					}
+				],
+				"stores": [
+					{
+						"id": "cargo",
+						"controller": "flight",
+						"compartment": "hull",
+						"capacity": 200,
+						"main": true,
+						"accepts": [
+							"base.ammunition.havok",
+							"base.ammunition.homing",
+							"base.ammunition.kinetic",
+							"base.ammunition.pdc",
+							"base.craft.bomber",
+							"base.craft.interceptor",
+							"medical",
+							"parts"
+						]
+					}
+				]
+			},
+			"docking": {
+				"ports": [
+					{
+						"id": "service",
+						"controller": "flight",
+						"compartment": "hull",
+						"compatibility": "standard",
+						"x_mm": 7000,
+						"heading_mdeg": 0,
+						"capture_range_mm": 1500,
+						"capture_speed_mm_s": 1000,
+						"mating_ticks": 40,
+						"separation_ticks": 30,
+						"units_per_second": 40,
+						"auto_accept_allies": true,
+						"supply": true,
+						"emergency_release": true,
+						"emergency_damage": 20
+					}
+				]
+			}
 		},
 		{
 			"id": "base.interceptor",
@@ -29475,7 +30155,46 @@
 					}
 				]
 			},
-			"class_key": "Interceptor"
+			"class_key": "Interceptor",
+			"logistics": {
+				"controller": "flight",
+				"materials": [
+					{
+						"id": "base.ammunition.havok"
+					},
+					{
+						"id": "base.ammunition.homing"
+					},
+					{
+						"id": "base.ammunition.kinetic"
+					},
+					{
+						"id": "base.ammunition.pdc"
+					},
+					{
+						"id": "base.craft.bomber"
+					},
+					{
+						"id": "base.craft.interceptor"
+					},
+					{
+						"id": "medical"
+					},
+					{
+						"id": "parts"
+					}
+				],
+				"stores": [
+					{
+						"id": "intercept-mag",
+						"system": "intercept-mag",
+						"controller": "flight",
+						"compartment": "hull",
+						"capacity": 120,
+						"accepts": ["base.craft.interceptor"]
+					}
+				]
+			}
 		},
 		{
 			"id": "base.bomber",
@@ -29883,7 +30602,46 @@
 					}
 				]
 			},
-			"class_key": "Bomber"
+			"class_key": "Bomber",
+			"logistics": {
+				"controller": "flight",
+				"materials": [
+					{
+						"id": "base.ammunition.havok"
+					},
+					{
+						"id": "base.ammunition.homing"
+					},
+					{
+						"id": "base.ammunition.kinetic"
+					},
+					{
+						"id": "base.ammunition.pdc"
+					},
+					{
+						"id": "base.craft.bomber"
+					},
+					{
+						"id": "base.craft.interceptor"
+					},
+					{
+						"id": "medical"
+					},
+					{
+						"id": "parts"
+					}
+				],
+				"stores": [
+					{
+						"id": "bomb-mag",
+						"system": "bomb-mag",
+						"controller": "flight",
+						"compartment": "hull",
+						"capacity": 8,
+						"accepts": ["base.craft.bomber"]
+					}
+				]
+			}
 		},
 		{
 			"id": "base.cruiser-test-raider",
@@ -30312,7 +31070,7 @@
 							}
 						],
 						"visual_distance_mm": 400000,
-						"density": 0.00005,
+						"density": 5e-5,
 						"unload_margin_mm": 65000
 					}
 				}
@@ -30341,7 +31099,7 @@
 				"skybox": "phoenix-base:assets/skyboxes/settled-dark-v1.png"
 			},
 			"id": "base.comms-demonstration",
-			"name": "Comms â€” Local assistance",
+			"name": "Comms \u00e2\u20ac\u201d Local assistance",
 			"entities": [
 				{
 					"id": 1,
@@ -31251,7 +32009,7 @@
 				}
 			],
 			"name": "Ship Operations",
-			"description": "Set the shipâ€™s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew."
+			"description": "Set the ship\u00e2\u20ac\u2122s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew."
 		},
 		{
 			"id": "base.console.helm",

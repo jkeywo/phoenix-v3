@@ -287,40 +287,7 @@ int main(int argc, char **argv)
 			    invalid.restore(catalog, bad);
 		    },
 		    "craft-bearing saves require their roster");
-		// Own-ship transport never supplies flight orders and requires physical proximity.
-		auto manual = input;
-		manual["maps"][0]["away_missions"][0]["deployment_range_mm"] = 3000;
-		for (auto &c : manual["entities"][0]["control_layout"]["controllers"])
-			if (c.at("id") == "engine")
-				c["commands"].push_back(
-				    {{"id", "speed"}, {"action", "speed_mm_s"}, {"initial", 0}, {"consumers", {"engine"}}});
-		const auto manual_catalog = load(manual);
-		World own;
-		own.load(manual_catalog, "test.map", {{"crew", "test.away"}});
-		require(own.claim(101, *own.ship_for_slot("crew"), "drive") &&
-		            own.claim(102, *own.ship_for_slot("crew"), "observer"),
-		        "manual claims");
-		ticks(own, 4);
-		assign(own, "ship");
-		require(!own.submit(101, command(own, "away", "send", "job")), "own ship must be flown to mission");
-		require(own.observe(101)->own.x == 0, "selecting ship never flies it automatically");
-		OperatingCommand helm{*own.ship_for_slot("crew"), "speed_mm_s", 10000};
-		helm.console = "drive";
-		helm.controller = "engine";
-		helm.channel = "speed";
-		const auto helm_observation = *own.observe(101);
-		for (const auto &c : helm_observation.gameplay.at("controllers"))
-			if (c.at("id") == "engine")
-				helm.generation = c.at("generation");
-		require(own.submit(101, helm), "manual Helm flight");
-		for (int t = 0; t < 200 && own.observe(101)->own.x < 7500; ++t)
-			own.tick();
-		helm.value = 0;
-		require(own.submit(101, helm), "manual braking");
-		ticks(own, 1);
-		require(own.submit(101, command(own, "away", "send", "job")), "ship can deploy after manual approach");
-		ticks(own, 3);
-		require(missions(own)[0].at("phase") == "deployed", "ship deployment uses physical proximity");
+		// Large-ship delivery now requires an explicitly supported dock (system.docking).
 		bad = input;
 		bad["maps"][0]["away_missions"][0]["allow_ship_transport"] = false;
 		const auto restricted = load(bad);

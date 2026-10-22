@@ -69,7 +69,9 @@ std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map
 		d.conversation = j.at("conversation");
 		d.reveal_event = j.at("reveal_event");
 		d.tree = j.at("tree");
-		d.allow_ship_transport = j.value("allow_ship_transport", true);
+		d.allow_ship_transport = j.value("allow_ship_transport", false);
+		d.docking_ports = j.value("docking_ports", std::vector<std::string>{});
+		require(!d.allow_ship_transport || !d.docking_ports.empty(), "ship transport requires explicit docking_ports");
 		d.ship_transport_reason = j.value("ship_transport_reason", std::string{});
 		for (const auto *key : {"deployment_range_mm", "deployment_ticks"})
 			if (j.contains(key))
@@ -107,6 +109,14 @@ std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map
 				dialogue = c.at("tree");
 			}
 		require(target && conversation, "unknown target or conversation");
+        const auto ports = compile_docking(catalog, target_definition);
+        std::set<std::string> docking_ports;
+        for (const auto &port : d.docking_ports)
+        {
+            bool found = false;
+            for (const auto &p : ports) found |= p.id == port;
+            require(found && docking_ports.insert(port).second, "unknown/duplicate mission docking port");
+        }
 		require(!d.reveal_event.empty(), "disclosure line key required");
 		const auto &cp = catalog.conversation_programs.at(dialogue);
 		bool reveal = false;

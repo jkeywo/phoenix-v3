@@ -1,5 +1,7 @@
 # Phoenix V3
 
+[Storage, logistics and docking](docs/storage-logistics.md) adds finite supplies, automatic replenishment, docked transfers, cargo shuttles and docking-supported away delivery.
+
 [Security and boarding](docs/security-boarding.md) adds target-authored encounters, finite transports and whole-ship capture.
 
 [The modern Cruiser](docs/cruiser.md) fits six watches, five kinetic turrets, eight PDCs, 24 missile tubes and eight carried craft, with Medical, Security, a three-wave pirate combat test and calibrated sprite materials.

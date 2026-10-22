@@ -74,7 +74,7 @@ struct AwayMission
 	std::map<std::string, std::string> assignments;
 	std::vector<std::string> accompanying;
 	std::uint64_t revision = 1, sequence = 0;
-	std::int64_t transfer = 0, work = 0, progress = 0;
+	std::int64_t transfer = 0, work = 0, progress = 0, entry_compartment = 0;
 	// Remains true during a queued redeployment, until the next successful delivery.
 	bool recovered = false;
 	bool ever_deployed = false;
@@ -94,5 +94,5 @@ struct AwayMission
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(AwayMission, phase, transport, checkpoint, outcome, work_key, repair_compartment,
                                    assignments, accompanying, revision, sequence, transfer, work, progress, recovered,
                                    effects, ever_deployed, participants, care, boarding, aboard_craft,
-                                   transport_released)
+                                   transport_released, entry_compartment)
 } // namespace phoenix

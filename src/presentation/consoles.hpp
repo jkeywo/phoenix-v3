@@ -183,6 +183,7 @@ class ConsoleSurface final : public Rml::EventListener
 #include "personnel.hpp"
 #include "away.hpp"
 #include "craft.hpp"
+#include "logistics.hpp"
 	void prepare_local_settings(Application &app, const ConsoleRegion &region)
 	{
 		local_settings_controls_.clear();
@@ -190,7 +191,9 @@ class ConsoleSurface final : public Rml::EventListener
 		std::string markup =
 		    "<div class=\"local-settings-card\"><div style=\"display:block;width:" + std::to_string(content_width) +
 		    "px;\"><h1>" + localise("Console settings") + "</h1><div>";
-		for (const auto &[tab, label] : std::vector<std::pair<std::string, std::string>>{{"away", "Away missions"},
+		for (const auto &[tab, label] : std::vector<std::pair<std::string, std::string>>{{"logistics", "Stores and deliveries"},
+                                                                                 {"docking", "Docking"},
+                                                                                 {"away", "Away missions"},
 		                                                                                 {"craft", "Flight operations"},
 		                                                                                 {"personnel", "Personnel"},
 		                                                                                 {"display", "Display"},
@@ -199,7 +202,11 @@ class ConsoleSurface final : public Rml::EventListener
 		                                                                                 {"session", "Session"}})
 			markup += settings_button("local-settings.tab/" + tab, label);
 		markup += "</div>";
-		if (local_settings_tab_ == "away")
+		if (local_settings_tab_ == "logistics")
+			markup += logistics_markup();
+		else if (local_settings_tab_ == "docking")
+			markup += docking_markup();
+		else if (local_settings_tab_ == "away")
 			markup += away_markup();
 		else if (local_settings_tab_ == "craft")
 			markup += craft_markup();
@@ -283,6 +290,12 @@ class ConsoleSurface final : public Rml::EventListener
 			}
 		if (local_settings_tab_ == "away")
 			for (const auto &[key, text] : away_readouts_)
+			{
+				app.screen_readouts.emplace_back(key, text);
+				place(app, region, key);
+			}
+		if (local_settings_tab_ == "logistics" || local_settings_tab_ == "docking")
+			for (const auto &[key, text] : supply_readouts_)
 			{
 				app.screen_readouts.emplace_back(key, text);
 				place(app, region, key);
@@ -661,6 +674,7 @@ button.on-screen-active .share-live {display:block;}
 		const auto action = name.substr(prefix.size());
 		if (app_ && app_->session && away_action(action))
 			return true;
+		if (app_ && app_->session && supply_action(action)) return true;
 		if (app_ && app_->session && craft_action(action))
 			return true;
 		if (app_ && app_->session && personnel_action(action))

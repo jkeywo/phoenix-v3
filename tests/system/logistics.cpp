@@ -41,6 +41,54 @@ int main(int argc, char **argv)
 {
 	try
 	{
+        {
+            auto source = fixture(); const auto catalog = load(source);
+            World blocked; blocked.load(catalog, "test.map"); require(blocked.claim(101, 1, "observer"), "Claim routing controls");
+            auto command = [&](const std::string &action, const std::string &system, const std::string &text)
+            {
+                const auto o = *blocked.observe(101);
+                OperatingCommand c{1, "logistics." + action, o.gameplay.at("logistics").at("revision"), system};
+                c.console = "observer"; c.controller = "team-a"; c.text = text;
+                for (const auto &ctrl : o.gameplay.at("controllers")) if (ctrl.at("id") == c.controller) c.generation = ctrl.at("generation");
+                return c;
+            };
+            require(blocked.submit(101, command("route", "fore", "aft/close")), "Close delivery route deliberately");
+            for (int i=0;i<20;++i) blocked.tick();
+            require(blocked.observe(101)->gameplay.at("logistics").at("stores")[0].at("quantities").at("round")==5,
+                    "Blocked waiting requests leave source stock untouched");
+            require(blocked.submit(101, command("route", "fore", "aft/open")), "Authorise route reopening");
+            for (int i=0;i<4;++i) blocked.tick();
+            const auto before = blocked.save();
+            require(blocked.submit(101, command("route", "fore", "aft/close")), "Close route with cargo in transit");
+            for (int i=0;i<20;++i) blocked.tick();
+            require(total(blocked,"round")==15 && total(blocked,"parts")==9, "Route blockage preserves physical batch quantities");
+            require(blocked.observe(101)->gameplay.at("logistics").at("stores")[1].at("quantities").at("round")==0,
+                    "Closed route strands the batch instead of delivering through a seal");
+            require(blocked.submit(101, command("route", "fore", "aft/open")), "Reopen a stranded batch route");
+            for (int i=0;i<40;++i) blocked.tick();
+            require(blocked.observe(101)->gameplay.at("logistics").at("stores")[1].at("quantities").at("round")==3,
+                    "Stranded cargo resumes and arrives once");
+        }
+        {
+            auto source=fixture(); auto &stores=source["entities"][0]["logistics"]["stores"];
+            stores[0]["initial"]["parts"]=1;
+            auto later=stores[2];later["id"]="later";stores.push_back(later);
+            World scarce;scarce.load(load(source),"test.map");require(scarce.claim(101,1,"observer"),"Claim scarce supply fixture");
+            for(int i=0;i<40;++i)scarce.tick();
+            const auto stocks=scarce.observe(101)->gameplay.at("logistics").at("stores");
+            require(stocks[2].at("quantities").at("parts")==1 && stocks[3].at("quantities").at("parts")==0,
+                    "First eligible request receives scarce parts without priority reordering");
+        }
+        {
+            auto source=fixture();
+            source["trees"].push_back(Json::parse(R"({"id":"test.supply-ai","context":"controller","logistics_commands":true,"initial":"hold","states":[{"id":"hold","entry":[{"action":"logistics.hold","arguments":["hold","",{"observation":"logistics.revision"}]}]}]})"));
+            auto &e=source["entities"][0];
+            for(auto &ctrl:e["control_layout"]["controllers"])if(ctrl["id"]=="team-a"){ctrl.erase("fallback");ctrl["tree"]="test.supply-ai";}
+            e["control_layout"]["profiles"][0]["consoles"]["observer"]={{"human",{"team-b"}},{"ai",{"team-a"}}};
+            World automatic;automatic.load(load(source),"test.map");require(automatic.claim(101,1,"observer"),"Claim Console with delegated stock Controller");automatic.tick();
+            require(automatic.observe(101)->gameplay.at("logistics").at("stores")[0].at("held")==true,
+                    "AI uses the same scoped revision and stock command admission as humans");
+        }
 		auto source = fixture();
 		const auto catalog = load(source);
 		const auto map = source["maps"][0]["id"].get<std::string>();
@@ -93,7 +141,7 @@ int main(int argc, char **argv)
 		}
 		require(refused, "Loader rejects shared capacity overflow");
 		if (argc > 1 && std::string(argv[1]) == "--trace")
-			std::cout << w.save().dump() << '\n';
+			{auto trace=w.save();trace.erase("packs");std::cout<<trace.dump()<<'\n';}
 		else
 			std::cout << "Material logistics integration passed\n";
 	}

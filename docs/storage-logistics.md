@@ -1,21 +1,70 @@
-# Storage and logistics
+# Storage, logistics and docking
 
-The implementation follows GDD sections 9.3–9.4 and 11. Routine supplies use finite aggregate quantities. Material names are authored identities, not an engine enum.
+The implementation follows GDD sections 9.3–9.4 and 11. Material names are authored identities. Ships, carried craft and facilities use finite stores and the same delivery rules.
 
-## Inventory and internal delivery
+## Operating supplies
 
-Entity `logistics` defines `controller`, `materials` (`id`, positive `volume`), `units_per_second`, `concurrency`, `batch_size`, `stores` and optional `consumers`. Stores supply `id`, `compartment`, `controller`, `capacity`, `accepts`, optional `initial`, `targets`, `main` and `system`. Capacity is shared volume. A magazine-bound store uses the magazine's own stock and capacity; it does not duplicate ammunition. Its reload strategy must be `none`.
+Open **Console settings → Stores and deliveries**. Engineering sees main and local stocks, targets, waiting requests and physical batches. Other operators see their own stores. Local owners set local targets; Engineering holds main stocks, cancels waiting requests and requests external supply. Receiving space includes committed deliveries and loaded-round return reservations.
 
-Main stores satisfy local targets automatically. First eligible requests receive stock in creation order. Dispatch removes actual stock and reserves receiving space; waiting requests reserve neither. Batches route through compartment connections, retaining their location and remaining edge work when blocked. Handling throughput and concurrency are finite. Deliberate closures require an explicit reopening command.
+Reachable replenishment runs automatically. The first eligible authorised request receives scarce stock, in stable request order. Dispatch removes stock and reserves receiving space atomically. Waiting requests reserve neither. Routes have travel time, handling throughput and concurrency. Damage or deliberate closures strand cargo at its actual location with its progress retained. Teams, personnel and deliveries respect the same deliberate route closures.
 
-Consumers bind `system`, `store` and `costs` by activity: `repair`, `structural`, `treat`, `stabilise`, `recover`. Each cost maps material IDs to positive quantities. Component and clinical work pays when progress begins; retained progress prevents double payment after interruption. Structural costs are per HP, with saved prepaid fractional work. An away team requires its own System-bound kit to consume supplies from its origin inventory while deployed.
+Cancelling a waiting request releases its remaining work. Cancelling an in-transit batch requests a physical return when compatible return space is available; it does not refund stock instantly. Cargo that has crossed to another entity remains there until a supported return transfer occurs.
 
-Commands use the owning Controller and generation, inventory revision in `value`, and store ID in `system`: `logistics.target` takes `material/quantity`; `logistics.hold` and `logistics.release` control main stores. Engineering `logistics.cancel` addresses a waiting request ID or `batch:<id>`; a batch returns physically when compatible return space can be reserved. `logistics.route` uses source compartment in `system` and `destination/open|close` in `text`.
+Magazine stores use the existing ammunition state, loading timers and loaded-round reservations. Repair teams carry parts, clinical teams carry supplies, and facilities have local stock. Component and clinical work pays when progress begins; retained task progress prevents payment twice after interruption. Structural work pays per HP with saved fractional credit. Deployed teams consume their own carried kits, independently of access to mothership holds.
 
-Engineering sees main and local stocks. Local operators see their own stocks. Network projections bound and allowlist material fields. World schema 16 retains inventories, batches, reservations, ordering, handling remainders and paid structural work. Older content without logistics retains its existing behaviour and receives no invented stock.
+## Docking and cargo
+
+Open **Console settings → Docking**. Helm selects a known compatible port and requests a manual or assisted approach. Assistance commits ordinary flight channels through the owning Controllers. It uses real propulsion, power, turning, port alignment and collision geometry, including an approach around a receiving hull where needed. Manual movement cancels an assisted approach. Changing the responsible operator also cancels it.
+
+Both endpoints authorise docking. Ports can accept allies by standing permission or accept a specific known entity. Physical capture begins finite mating work. Docked vessels retain their identities, crews, condition and inventories; a rigid connection follows the receiving vessel, inhibits attached propulsion and accounts for assembly mass and collision impulses. Cyclic docking relationships and double-booked ports are rejected.
+
+Supply service additionally requires both ports to authorise it. Connected allied providers can replenish authorised targets from their actual main stocks. Explicit transfers select a compatible receiving store and quantity. Internal delivery, port crossing and receiving-side delivery all take actual work. Dock throughput is shared between crossing batches.
+
+Ordinary undocking stops new crossings, finishes an active crossing and performs visible separation work. Emergency release requires fitted hardware and applies authored consequences. FTL departure is blocked until docking operations have ended.
+
+The bay owner grants individual shuttles **standing cargo permission** from Stores and deliveries. Engineering can then select an available permitted shuttle, compatible cargo hold, destination store, material and quantity. The same craft loads finite stock, launches, flies, docks, unloads and returns. Cargo commitments prevent passenger/sortie double-booking and protect loaded supplies from later requests. Destination space is reserved before launch. Link loss retains the last reported job phase and report tick; recall/cancellation preserves delivered effects and unused physical cargo.
+
+Large-ship away transport is **Own ship — docking**. Missions must explicitly allow it and name acceptable destination ports. Dispatch never navigates the ship. Deployment and recovery require the correct completed dock and finite personnel crossing work; docking alone does not send a party. The target port supplies the entry compartment. Undocking leaves delivered parties and supplies in place. Shuttle and displacement personnel transport retain their separate insertion rules.
+
+## Authoring and commands
+
+Workshop exposes material stores, consumers, ports and mission docking support through its normal draft/Undo/Verify/Test flow.
+
+Entity `logistics` defines `controller`, `materials` (`id`, positive `volume`), `units_per_second`, `concurrency`, `batch_size`, `stores` and optional `consumers`. A store supplies `id`, `compartment`, `capacity`, `accepts`, optional `controller`, `initial`, `targets`, `main` and `system`. Capacity is shared volume. A magazine-bound store uses the magazine's initial stock and capacity, accepts one material and requires reload strategy `none`. Explicit energy-generated ammunition retains its existing paid mechanism on content outside supplied magazine stores.
+
+Consumers bind `system`, `store` and `costs` by activity: `repair`, `structural`, `treat`, `stabilise`, `recover`. Each cost maps material IDs to positive quantities. An away team requires its own System-bound kit; stationary origin stores cannot supply it remotely.
+
+Entity `docking.ports` records `id`, `controller`, `compartment`, `compatibility`, local `x_mm`, `y_mm`, `z_mm`, `heading_mdeg`, `capture_range_mm`, `capture_speed_mm_s`, `alignment_mdeg`, `mating_ticks`, `separation_ticks` and `units_per_second`. Optional flags are `auto_accept_allies`, `supply`, `emergency_release` and `emergency_damage`. Place ports outside the hull's collision geometry. Away missions use `allow_ship_transport: true` and a nonempty `docking_ports` list naming target ports; omission disables large-ship delivery.
+
+Commands carry the owning Controller/generation and the current inventory or docking revision in `value`. Human and AI commands share admission. Controller trees opt into `logistics_commands` or `docking_commands` and receive `logistics.revision` or `docking.revision`; unused trees retain their existing vocabulary fingerprints.
+
+| Command                                        | `system`                   | `text`                                                       |
+| ---------------------------------------------- | -------------------------- | ------------------------------------------------------------ |
+| `logistics.target`                             | Store                      | `material/quantity`                                          |
+| `logistics.hold`, `logistics.release`          | Main store                 | Empty                                                        |
+| `logistics.cancel`                             | Request ID or `batch:<id>` | Empty                                                        |
+| `logistics.route`                              | Source compartment         | `destination/open` or `destination/close`                    |
+| `logistics.transfer`                           | Source store               | `entity/receiving-store/material/quantity`                   |
+| `logistics.craft_allow`                        | Carried craft ID           | `1` or `0`                                                   |
+| `logistics.deliver`                            | Source store               | `craft/cargo-store/entity/receiving-store/material/quantity` |
+| `logistics.cargo_cancel`                       | Cargo job ID               | Empty                                                        |
+| `dock.accept`, `dock.reject`                   | Port                       | Entity ID, or `0` for allied standing permission             |
+| `dock.supply`                                  | Port                       | `1` or `0`                                                   |
+| `dock.connect`, `dock.assist`                  | Own port                   | `entity/target-port`                                         |
+| `dock.cancel`, `dock.undock`, `dock.emergency` | Own port                   | Empty                                                        |
+
+## Content and continuation
+
+The production Cruiser has finite main stores, local magazines, repair/medical kits, infirmary supplies and docking ports. Its utility shuttles carry cargo; docked combat-craft ammunition servicing uses the shared stock/request path. Existing content without logistics retains its previous behaviour.
+
+Build `development_packs`, run `native --base build/linux/test.zip`, and select **Storage and supply**. The supply carrier starts short of ammunition, repair parts and medical supplies, with an injured officer. The allied survey ship has finite replenishment stock. Dock for supply and away-party delivery, then authorise a shuttle cargo run. The original Carrier exercise also supports docking delivery.
+
+World schema 16 retains inventories, requests, batches, reservations, fractional work, standing craft permissions, cargo jobs and docking connections. Away schema 10 retains the entry compartment and migrates older records. Portable recovery accepts World schemas 13–16. Restore validates a replacement before changing the live world and rebuilds radio endpoints after restoring craft activity. Older deployed parties retain their physical state; subsequent large-ship crossings require docking support in the content.
+
+Trade, fabrication/recycling, salvage and general displacement cargo transport remain outside this increment.
 
 ## Verification
 
-`system.logistics` uses independent synthetic content through production loading and execution. It exercises aggregate conservation, receiving capacity, exact resumed delivery, scoped stock projections and transactional malformed-save refusal. `system.medical` includes finite consumable treatment and interrupted paid work. Production tuning is not frozen by these fixtures.
+`system.logistics`, `system.docking` and `system.cargo` load independent synthetic fixtures through production paths. They cover conservation, shared capacity, first-eligible stock allocation, deliberate route blockage, resumed transit, scoped observations, stale authority, AI admission, assisted/manual approach, docking supply, docking-only away delivery, cargo permission/commitments and exact resumed sorties. Medical integration covers finite consumables and interrupted paid work. Native/WASM continuation comparisons are included in the ordinary check scripts. Production verification checks bindings and capacities without freezing tuning.
 
-Docking, external supply, cargo-shuttle dispatch, Workshop controls and the player logistics panel are subsequent implementation stages in the approved plan; this document records completed behaviour as those stages land.
+Graphical journeys, real screen-reader use, touch/gamepad and six-display performance require separate manually invoked evidence. Compilation and headless system cases do not establish that usability evidence.

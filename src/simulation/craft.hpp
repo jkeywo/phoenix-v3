@@ -2,7 +2,7 @@
 std::int64_t altitude(EntityId id) const
 {
 	const auto *v = entities.at(id).try_get<VerticalMotion>();
-	return v ? v->altitude : 0;
+	return v ? v->altitude : entities.at(id).get<Pose>().altitude;
 }
 std::int64_t craft_flight_band(EntityId id) const
 {
@@ -209,7 +209,7 @@ void release_away_transport(EntityId ship, AwayMission &m)
 bool craft_available(EntityId id, const std::string &mission = {}) const
 {
 	const auto &s = entities.at(id).get<CraftState>();
-	return !combat_dead(entities.at(id)) && s.phase == CraftPhase::Docked && s.order == "idle" &&
+	return !cargo_committed(id) && !combat_dead(entities.at(id)) && s.phase == CraftPhase::Docked && s.order == "idle" &&
 	       s.pending_order.empty() && (s.mission.empty() || s.mission == mission) && bay_working(s.home, s.bay) &&
 	       !ftl_preparing(s.home);
 }
@@ -391,7 +391,7 @@ bool craft_command(const ConsoleAddress &a, const OperatingCommand &c, bool exec
 		}
 		return true;
 	}
-	if (!s.mission.empty() || ftl_preparing(a.ship) || !bay_working(a.ship, s.bay) ||
+	if (cargo_committed(id) || !s.mission.empty() || ftl_preparing(a.ship) || !bay_working(a.ship, s.bay) ||
 	    !((s.phase == CraftPhase::Docked && craft_available(id)) || s.phase == CraftPhase::Flying))
 		return false;
 	if (!((action == "defend" && d.role == "interceptor") || (action == "escort" && d.role == "interceptor") ||
@@ -761,6 +761,25 @@ void service_craft()
 					continue;
 				auto &from = a.get_mut<CombatMechanism>().get<MagazineState>();
 				auto &to = b.get_mut<CombatMechanism>().get<MagazineState>();
+                const auto home=entities.at(s.home);
+                if(home.has<MaterialInventory>() && craft.has<MaterialInventory>())
+                {
+                    const auto &source_stores=definition(s.home).logistics.stores;
+                    const auto &target_stores=definition(other).logistics.stores;
+                    std::size_t source_index=source_stores.size(),target_index=target_stores.size();
+                    for(std::size_t index=0;index<source_stores.size();++index)if(source_stores[index].system==connection.source)source_index=index;
+                    for(std::size_t index=0;index<target_stores.size();++index)if(target_stores[index].system==connection.destination)target_index=index;
+                    if(source_index<source_stores.size() && target_index<target_stores.size())
+                    {
+                        const auto &material=source_stores[source_index].accepts.front();
+                        auto pending=to.ammo+to.reserved_return;
+                        for(const auto &request:material_requests)if(request.destination==other && request.to==target_index && request.material==material)pending+=request.remaining;
+                        for(const auto &batch:material_batches)if(batch.destination==other && batch.to==target_index && batch.material==material)pending+=batch.quantity;
+                        const auto amount=std::min(rounds[i],std::max<std::int64_t>(0,b.get<CombatMechanism>().definition.reserve().capacity-pending));
+                        if(amount>0){request_material(s.home,source_index,other,target_index,material,amount,false);rounds[i]-=amount;}
+                        continue;
+                    }
+                }
 				const auto capacity = b.get<CombatMechanism>().definition.reserve().capacity;
 				const auto amount = std::min({rounds[i], from.ammo, capacity - to.ammo - to.reserved_return});
 				from.ammo -= amount;

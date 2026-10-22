@@ -445,10 +445,11 @@ void penetrate(Projectile &p, flecs::entity ship, fixed::Vec start, fixed::Vec e
 	}
 }
 #include "combat_ordnance.hpp"
-std::pair<std::int64_t, std::int64_t> repair_route(const CombatStructure &s, std::size_t from, std::size_t to,
+std::pair<std::int64_t, std::int64_t> repair_route(flecs::entity ship, std::size_t from, std::size_t to,
                                                    std::int64_t *total_cost = nullptr) const
 {
-	return compartment_route(s.compartments.size(), s.definition.connections, from, to, total_cost);
+	const auto &s=ship.get<CombatStructure>();
+	return physical_route(ship.get<StableId>().id,s.compartments.size(),s.definition.connections,from,to,total_cost);
 }
 
 using RepairFault = std::pair<std::string, std::size_t>;
@@ -496,6 +497,7 @@ bool advance_repair_team(flecs::entity ship, flecs::entity child)
 	auto &r = m.get<TeamState>();
 	if (r.travel > 0)
 	{
+        if(!physical_edge_open(ship.get<StableId>().id,r.location,r.edge_to))return false;
 		if (--r.travel > 0)
 			return false;
 		r.location = r.edge_to;
@@ -513,7 +515,7 @@ bool advance_repair_team(flecs::entity ship, flecs::entity child)
 }
 void route_repair_team(flecs::entity ship, TeamState &r, std::size_t target)
 {
-	const auto route = repair_route(ship.get<CombatStructure>(), r.location, target);
+	const auto route = repair_route(ship, r.location, target);
 	r.edge_to = route.first;
 	r.travel = r.edge_total = route.second;
 }
@@ -591,7 +593,7 @@ void step_repairs()
 					for (std::size_t i = 0; i < s.compartments.size(); ++i)
 					{
 						std::int64_t travel_cost = 0;
-						const auto route = repair_route(s, m->get<TeamState>().location, i, &travel_cost);
+						const auto route = repair_route(ship, m->get<TeamState>().location, i, &travel_cost);
 						if (i != static_cast<std::size_t>(m->get<TeamState>().location) && route.first < 0)
 							continue;
 						const auto score = repair_candidate(ship, i, {}, claimed).score;

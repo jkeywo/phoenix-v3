@@ -248,7 +248,7 @@ bool team_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 		}
 		const auto from = r.travel ? r.edge_to : r.location;
 		if (from != static_cast<std::int64_t>(target) &&
-		    repair_route(entities.at(a.ship).get<CombatStructure>(), from, target).first < 0)
+		    repair_route(entities.at(a.ship), from, target).first < 0)
 			return false;
 	}
 	else if (c.action != "team.cancel" || !c.text.empty())
@@ -616,6 +616,7 @@ void advance_away_medical(std::size_t index)
 			auto &care = mission.care[mechanism.definition.id];
 			if (care.order.empty())
 			{
+                care.location = mission.entry_compartment;
 				const auto first = std::find_if(td.orders.begin(), td.orders.end(),
 				                                [](const auto &o)
 				                                {
@@ -663,7 +664,7 @@ void advance_away_medical(std::size_t index)
 			at = destination();
 			if (at && !care.travel && care.location != static_cast<std::int64_t>(*at))
 			{
-				const auto route = compartment_route(pd.compartments.size(), pd.links, care.location, *at);
+				const auto route = physical_route(target,pd.compartments.size(),pd.links,care.location,*at);
 				if (route.first >= 0)
 				{
 					care.edge_to = route.first;

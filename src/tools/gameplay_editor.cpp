@@ -1010,6 +1010,44 @@ struct GameplayEditor
 			return;
 		auto &ship = *selected;
 		personnel(ship);
+        {
+            ScopedTree panel("Storage and logistics");
+            if (panel)
+            {
+                if (!ship.contains("logistics") && button("Configure material stores"))
+                    ship["logistics"] = {{"controller", ""}, {"materials", Json::array()}, {"stores", Json::array()}, {"consumers", Json::array()}};
+                if (ship.contains("logistics"))
+                {
+                    auto &l = ship["logistics"];
+                    string(l, "controller"); integer(l, "units_per_second", 20); integer(l, "concurrency", 4); integer(l, "batch_size", 10);
+                    records(l, "materials", {{"id", "parts"}, {"volume", 1}}, [&](Json &m) { string(m, "id"); integer(m, "volume", 1); });
+                    records(l, "stores", {{"id", "hold"}, {"compartment", ""}, {"capacity", 100}, {"accepts", Json::array()}, {"initial", Json::object()}, {"targets", Json::object()}}, [&](Json &m)
+                    {
+                        string(m, "id"); string(m, "compartment"); optional_string(m, "controller"); optional_string(m, "system");
+                        integer(m, "capacity", 100); boolean(m, "main", false); strings(m, "accepts");
+                        structured_field(m, "initial"); structured_field(m, "targets");
+                    });
+                    records(l, "consumers", {{"system", ""}, {"store", ""}, {"costs", Json::object()}}, [&](Json &m)
+                    { string(m, "system"); string(m, "store"); structured_field(m, "costs"); });
+                }
+            }
+        }
+        {
+            ScopedTree panel("Docking ports");
+            if (panel)
+            {
+                if (!ship.contains("docking") && button("Configure docking ports")) ship["docking"] = {{"ports", Json::array()}};
+                if (ship.contains("docking"))
+                    records(ship["docking"], "ports", {{"id", "port"}, {"controller", ""}, {"compartment", ""}, {"compatibility", "standard"}}, [&](Json &m)
+                    {
+                        string(m, "id"); string(m, "controller"); string(m, "compartment"); string(m, "compatibility");
+                        integer(m, "x_mm", 0); integer(m, "y_mm", 0); integer(m, "z_mm", 0); integer(m, "heading_mdeg", 0);
+                        integer(m, "capture_range_mm", 1000); integer(m, "capture_speed_mm_s", 500); integer(m, "alignment_mdeg", 5000);
+                        integer(m, "mating_ticks", 20); integer(m, "separation_ticks", 20); integer(m, "units_per_second", 20);
+                        boolean(m, "auto_accept_allies", false); boolean(m, "supply", false); boolean(m, "emergency_release", false); integer(m, "emergency_damage", 0);
+                    });
+            }
+        }
 		{
 			ScopedTree panel("Boarding missions");
 			if (panel)
@@ -2168,7 +2206,8 @@ struct GameplayEditor
 			        string(m, "reveal_event");
 			        boolean(m, "retain_craft", true);
 			        choice(m, "tree", document.definition_choices(WorkshopDefinitionKind::Tree));
-			        boolean(m, "allow_ship_transport", true);
+			        boolean(m, "allow_ship_transport", false);
+                strings(m, "docking_ports");
 			        optional_string(m, "ship_transport_reason");
 			        integer(m, "deployment_range_mm", 20000);
 			        integer(m, "deployment_ticks", 20);

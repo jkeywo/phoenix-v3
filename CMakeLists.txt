@@ -267,6 +267,7 @@ add_library(
 	src/content/away.cpp
 	src/content/craft.cpp
 	src/content/logistics.cpp
+	src/content/docking.cpp
 	src/content/sensors.cpp
 	src/content/controllers.cpp
 	src/content/console_assets.cpp
@@ -387,6 +388,8 @@ foreach(
 		personnel
 		medical
 		logistics
+		docking
+		cargo
 		security
 		away
 		craft
