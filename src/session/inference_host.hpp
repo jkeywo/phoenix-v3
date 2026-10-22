@@ -2,6 +2,9 @@
 // Host-local scheduling. Every state change goes through the supplied commit path.
 namespace phoenix
 {
+// Each including module owns its scheduler type and member definitions.
+namespace
+{
 struct InferenceHost
 {
 	std::shared_ptr<InferenceConnection> connection;
@@ -97,4 +100,5 @@ struct InferenceHost
 				         {"decision", {{"snapshot", snapshot}, {"failed", true}, {"reason", "provider_unavailable"}}}});
 	}
 };
+} // namespace
 } // namespace phoenix
