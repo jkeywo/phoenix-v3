@@ -105,7 +105,14 @@ export function menuMotion(width) {
 	return { logoWidth: Math.min(300, Math.max(180, width - 740)), logoDuration: 3 };
 }
 // A spinner shows activity; only real stage/download changes reset the wait clock.
-export function loadingFeedback(paint, clock = { now: Date.now, setInterval, clearInterval }) {
+export function loadingFeedback(
+	paint,
+	clock = {
+		now: () => Date.now(),
+		setInterval: (callback, delay) => globalThis.setInterval(callback, delay),
+		clearInterval: (timer) => globalThis.clearInterval(timer),
+	},
+) {
 	let timer, started, updated, current;
 	const tick = () =>
 		paint({
@@ -1775,10 +1782,10 @@ async function boot() {
 	};
 	// Paint the shell before storage, archive downloads and WASM verification.
 	// Entry stays disabled until the scoped library is ready.
-	render();
-	$("startup-title").textContent = t("Preparing main menu");
-	loadingStage("Reading saved settings and mod packs…");
 	try {
+		render();
+		$("startup-title").textContent = t("Preparing main menu");
+		loadingStage("Reading saved settings and mod packs…");
 		baseUrl = new URL(new URLSearchParams(location.search).get("base") ?? "base.zip", location.href).href;
 		const opening = indexedDB.open("phoenix-v3-menu", 1);
 		opening.onupgradeneeded = () => opening.result.createObjectStore("files");

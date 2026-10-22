@@ -606,3 +606,17 @@ test("loading feedback distinguishes slow progress from a wait and stops after c
 	feedback.stop();
 	assert.equal(stopped, true);
 });
+
+test("loading feedback preserves the browser receiver when calling host timers", (t) => {
+	t.mock.method(globalThis, "setInterval", function () {
+		assert.equal(this, globalThis);
+		return 7;
+	});
+	t.mock.method(globalThis, "clearInterval", function (timer) {
+		assert.equal(this, globalThis);
+		assert.equal(timer, 7);
+	});
+	const feedback = loadingFeedback(() => {});
+	feedback.update("Reading saved mods");
+	feedback.stop();
+});
