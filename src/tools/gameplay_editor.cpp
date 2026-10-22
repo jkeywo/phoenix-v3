@@ -554,6 +554,19 @@ struct GameplayEditor
 				integer(spec, "cruise_speed_mm_s", 10000);
 			}
 		}
+		if (kind == "psychic")
+		{
+			integer(spec, "range_mm", 500000);
+			integer(spec, "arc_mdeg", 90000);
+			optional_string(spec, "planning_controller");
+			strings(spec, "powers");
+			records(spec, "seats", {{"duty", ""}, {"console", ""}, {"controller", ""}, {"enabled", ""}, {"target", ""}},
+			        [&](Json &s)
+			        {
+				        for (const auto *k : {"duty", "console", "controller", "enabled", "target"})
+					        string(s, k);
+			        });
+		}
 		if (kind == "shuttle_bay")
 		{
 			integer(spec, "slots", 4);
@@ -705,6 +718,16 @@ struct GameplayEditor
 		if (kind == "radar")
 		{
 			integer(spec, "range_mm");
+			bool long_range = spec.contains("long_range_mm");
+			if (ImGui::Checkbox(label("Long-range detection").c_str(), &long_range))
+			{
+				if (long_range)
+					spec["long_range_mm"] = spec.value("range_mm", 100000LL) * 3;
+				else
+					spec.erase("long_range_mm");
+			}
+			if (long_range)
+				integer(spec, "long_range_mm");
 			integer(spec, "arc_mdeg", 360000);
 			integer(spec, "bearing_mdeg");
 			optional_string(spec, "turret");
@@ -956,6 +979,7 @@ struct GameplayEditor
 			        optional_string(d, "controller");
 			        optional_string(d, "console");
 			        optional_string(d, "team");
+			        optional_string(d, "choir");
 			        choice(d, "required_trait", ids(p["traits"]), true);
 			        string(d, "compartment");
 			        auto &effects = d["effects"];
@@ -997,6 +1021,7 @@ struct GameplayEditor
 			        string(o, "id");
 			        string(o, "name");
 			        optional_string(o, "portrait");
+			        optional_string(o, "power");
 			        choice(o, "department", ids(p["departments"]));
 			        choice(o, "duty", ids(p["duties"]), true);
 			        string(o, "compartment");
@@ -1094,6 +1119,38 @@ struct GameplayEditor
 					        });
 			}
 		}
+
+		{
+			ScopedTree panel("Psychic power profiles");
+			if (panel)
+			{
+				if (!ship.contains("psychic_powers"))
+					ship["psychic_powers"] = Json::object();
+				auto &powers = ship["psychic_powers"];
+				for (auto &[id, p] : powers.items())
+				{
+					ScopedTree profile(id.c_str());
+					if (!profile)
+						continue;
+					choice(p, "kind", {"cloak", "scramble", "ward"});
+					string(p, "label");
+					integer(p, "strength_permille", 700);
+					integer(p, "energy_per_second", 100);
+					integer(p, "recovery_ticks", 100);
+					if (p.value("kind", std::string{}) == "scramble")
+					{
+						optional_string(p, "apparent_class");
+						for (const auto *k :
+						     {"ghost_count", "offset_mm", "spacing_mm", "speed_mm_s", "acceleration_mm_s2",
+						      "turn_mdeg_s", "radius_mm", "scan_ticks", "fade_ticks"})
+							integer(p, k, p.value(k, 1LL));
+					}
+				}
+				if (button("Add psychic power"))
+					powers[fresh(powers, "power")] = {{"kind", "cloak"}, {"label", "Psychic power"}};
+			}
+		}
+
 		{
 			ScopedTree panel("Boarding missions");
 			if (panel)
@@ -1267,9 +1324,10 @@ struct GameplayEditor
 				ImGui::TextUnformatted(selected_system.c_str());
 				choice(spec, "template", document.definition_choices(WorkshopDefinitionKind::Equipment), true);
 				choice(spec, "kind",
-				       {"engine",      "steering", "radar",   "generator",    "distribution", "coolant",  "storage",
-				        "lateral",     "boost",    "impulse", "weapon",       "turret",       "magazine", "team",
-				        "repair_team", "shield",   "comms",   "displacement", "transport",    "dispatch", "ftl"},
+				       {"engine",    "steering", "radar",       "generator", "distribution", "coolant",
+				        "storage",   "lateral",  "boost",       "impulse",   "weapon",       "turret",
+				        "magazine",  "team",     "repair_team", "shield",    "comms",        "displacement",
+				        "transport", "dispatch", "ftl",         "psychic"},
 				       true);
 				auto kind = equipment_kind(document, spec);
 				if (kind.empty())

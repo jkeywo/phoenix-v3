@@ -37,7 +37,7 @@ std::vector<FittedSystemSpec> resolve_systems(const Catalog &catalog, const std:
 		                       OperatingSystem::Impulse,   OperatingSystem::Weapon,       OperatingSystem::Turret,
 		                       OperatingSystem::Magazine,  OperatingSystem::Team,         OperatingSystem::Shield,
 		                       OperatingSystem::Comms,     OperatingSystem::Displacement, OperatingSystem::Dispatch,
-		                       OperatingSystem::Ftl,       OperatingSystem::ShuttleBay})
+		                       OperatingSystem::Ftl,       OperatingSystem::ShuttleBay,   OperatingSystem::Psychic})
 			if (kind == operating_system_name(candidate) ||
 			    (kind == "transport" && candidate == OperatingSystem::Displacement))
 				type = candidate;

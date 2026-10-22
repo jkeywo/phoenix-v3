@@ -171,6 +171,11 @@ bool operate_combat(flecs::entity ship, flecs::entity child, OperatingRequest ou
 			                 [&](const auto &c)
 			                 {
 				                 return c.id == target;
+			                 }) &&
+			    std::none_of(observation.bearing_contacts.begin(), observation.bearing_contacts.end(),
+			                 [&](const auto &b)
+			                 {
+				                 return b.id == target;
 			                 }))
 				return false;
 		}
@@ -945,7 +950,7 @@ void restore_combat(flecs::entity ship, const Json &j)
 			case OperatingSystem::Weapon:
 			{
 				const auto &w = m->get<WeaponState>();
-				bounded("target", 0, 1000000000);
+				bounded("target", 0, 2000000000);
 				bounded("cooldown", 0, 1000000000);
 				bounded("shots", 0, 1000000000000LL);
 				bounded(
@@ -963,7 +968,7 @@ void restore_combat(flecs::entity ship, const Json &j)
 				break;
 			}
 			case OperatingSystem::Turret:
-				bounded("target", 0, 1000000000);
+				bounded("target", 0, 2000000000);
 				bounded("heading", 0, 359999);
 				bounded("turn_remainder", 0, rate - 1);
 				break;
@@ -1089,6 +1094,10 @@ Json save_projectiles() const
 		               {"target", p.target},
 		               {"altitude", p.altitude},
 		               {"launch_altitude", p.launch_altitude},
+		               {"bearing_launch", p.bearing_launch},
+		               {"seeker_acquired", p.seeker_acquired},
+		               {"arc_start_age", p.arc_start_age},
+		               {"seeker_altitude", p.seeker_altitude},
 		               {"vz", p.vz},
 		               {"z_remainder", p.z_remainder},
 		               {"durability", particle.get<Destructible>().durability},
@@ -1130,6 +1139,12 @@ void restore_projectiles(const Json &saved)
 		p.altitude = v.at("altitude").get<decltype(p.altitude)>();
 		p.launch_altitude =
 		    checked_integer(v.value("launch_altitude", Json(0)), -1000000, 1000000, "projectile.launch_altitude");
+		p.bearing_launch = v.value("bearing_launch", false);
+		p.seeker_acquired = v.value("seeker_acquired", false);
+		p.arc_start_age = checked_integer(v.value("arc_start_age", Json(0)), 0, v.at("age").get<std::int64_t>(),
+		                                  "projectile.arc_start_age");
+		p.seeker_altitude = checked_integer(v.value("seeker_altitude", Json(p.launch_altitude)), -1000000, 1000000,
+		                                    "projectile.seeker_altitude");
 		p.vz = v.at("vz").get<decltype(p.vz)>();
 		p.z_remainder = v.at("z_remainder").get<decltype(p.z_remainder)>();
 		const auto durability =

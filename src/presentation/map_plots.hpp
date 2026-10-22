@@ -2,6 +2,35 @@
 #include "region_markers.hpp"
 namespace phoenix
 {
+inline Vector2 bearing_ring_point(Vector2 centre, float radius, std::int64_t bearing)
+{
+	const auto angle = static_cast<float>(bearing) / 1000 * DEG2RAD;
+	return {centre.x + std::cos(angle) * radius * 1.08f, centre.y - std::sin(angle) * radius * 1.08f};
+}
+inline void draw_bearing_ring(const Observation &view, const SystemView &sensor, Vector2 centre, float radius,
+                              EntityId selected = 0)
+{
+	if (!sensor.enabled)
+		return;
+	bool any = false;
+	for (const auto &b : view.bearing_contacts)
+		if (std::find(sensor.contact_ids.begin(), sensor.contact_ids.end(), b.id) != sensor.contact_ids.end())
+		{
+			any = true;
+			auto p = bearing_ring_point(centre, radius, b.bearing_mdeg);
+			DrawCircleV(p, 5, SKYBLUE);
+			if (b.id == selected)
+				DrawCircleLinesV(p, 10, GOLD);
+			DrawText(TextFormat("#%llu", static_cast<unsigned long long>(b.id)), static_cast<int>(p.x + 8),
+			         static_cast<int>(p.y - 6), 14, SKYBLUE);
+		}
+	if (any)
+	{
+		DrawCircleLinesV(centre, radius * 1.08f, {80, 135, 155, 180});
+		DrawText(localise("Range unknown").c_str(), static_cast<int>(centre.x - radius),
+		         static_cast<int>(centre.y - radius * 1.2f), 14, SKYBLUE);
+	}
+}
 inline void draw_radar_plot(TextureCache &textures, const Catalog &catalog, const Observation &view,
                             const SystemView &sensor, const Json &waypoint, RadarSweep &sweep, const Json &settings,
                             Vector2 centre, float radius, double time, bool reduced_motion)
@@ -84,6 +113,17 @@ inline void draw_radar_plot(TextureCache &textures, const Catalog &catalog, cons
 					sector(p, arc.at("bearing_mdeg").get<float>() / 1000, arc.at("arc_mdeg").get<float>() / 1000, 30,
 					       ORANGE);
 		}
+	for (const auto &t : sensing.value("tracks", Json::array()))
+	{
+		const auto &b = t.at("body");
+		const auto at = point(b.at("x"), b.at("y"));
+		if (std::hypot(at.x - centre.x, at.y - centre.y) <= radius)
+		{
+			DrawCircleLinesV(at, 7, GRAY);
+			const auto uncertainty = std::min<float>(radius * .25f, t.at("uncertainty").get<float>() / range * radius);
+			DrawCircleLinesV(at, std::max(9.f, uncertainty), Color{130, 130, 130, 100});
+		}
+	}
 	sweep.draw(centre, radius, sensor, settings, time, reduced_motion);
 	draw_region_markers(view.regions, point, range / radius, &sensor, centre, radius);
 	draw_radar_body(textures, catalog, view.own, centre, 9, WHITE);
@@ -94,6 +134,18 @@ inline void draw_radar_plot(TextureCache &textures, const Catalog &catalog, cons
 			    std::hypot(static_cast<double>(contact.x - view.own.x), static_cast<double>(contact.y - view.own.y)) <=
 			        range)
 				draw_radar_body(textures, catalog, contact, point(contact.x, contact.y), 7, SKYBLUE);
+	draw_bearing_ring(view, sensor, centre, radius, settings.value("sensor_contact", EntityId{0}));
+	for (const auto &f : view.gameplay.value("psychic", Json::object()).value("fading", Json::array()))
+	{
+		const auto &b = f.at("body");
+		const double x = b.at("x"), y = b.at("y");
+		if (sensor.enabled && std::hypot(x - view.own.x, y - view.own.y) <= range)
+		{
+			const auto at = point(x, y);
+			const auto alpha = static_cast<unsigned char>(f.at("opacity").get<int>() * 255 / 1000);
+			DrawCircleLinesV(at, 7, Color{102, 191, 255, alpha});
+		}
+	}
 	if (waypoint.value("active", false))
 	{
 		const double dx = waypoint.value("x", 0.0) - view.own.x, dy = waypoint.value("y", 0.0) - view.own.y;

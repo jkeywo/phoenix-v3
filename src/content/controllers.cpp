@@ -112,7 +112,7 @@ CommandBounds fitted_commands(const FittedSystemSpec &fit, Json spec, const Ship
 	if (kind == OperatingSystem::Weapon || kind == OperatingSystem::Turret || kind == OperatingSystem::Magazine ||
 	    kind == OperatingSystem::Team || kind == OperatingSystem::Shield || kind == OperatingSystem::Comms ||
 	    kind == OperatingSystem::Displacement || kind == OperatingSystem::Dispatch || kind == OperatingSystem::Ftl ||
-	    kind == OperatingSystem::ShuttleBay)
+	    kind == OperatingSystem::ShuttleBay || kind == OperatingSystem::Psychic)
 	{
 		add(OperatingAction::SystemEnabled);
 		if (kind == OperatingSystem::Weapon)

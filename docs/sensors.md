@@ -28,6 +28,18 @@ Weapon and scanner aiming reuse the same permitted contact cache per Console dur
 
 Tactical's **Inspect contact**, **Scan target** and **Clear scan target** actions are available through the same semantic controls used by keyboard and screen readers. Readouts show acquisition percentages, blockers, identity and live or last-observed findings. Own and selected-contact weapon arcs have separate toggles. The narrow beam uses the physical scanner heading; sensor mounts are excluded from weapon arcs.
 
+## Long-range bearing contacts
+
+A radar may declare `long_range_mm` greater than its ordinary `range_mm`. Omission preserves ordinary detection. Within the outer limit, targets beyond normal coverage appear as anonymous bearing-only blips. Power, damage, sensor officer bonuses, physical arcs, `shows` filters and nebula attenuation apply to both limits. Long-range detection grants no identity or detailed capabilities.
+
+Consoles receive these returns separately as `Observation.bearing_contacts`: each `BearingContactView` contains only `id`, `bearing_mdeg` and `observed_tick`. Positional contacts take precedence across that Console's permitted feeds, retaining the same target ID. Network snapshots and deliberately published radar displays use the same three-field allowlist. Navigation, pursuit and craft operations that need position continue to require positional contacts. Controller contact bindings expose `bearing_available` and `bearing_mdeg`; their existing `available` field continues to mean positional information is available.
+
+The radar draws a separate unscaled bearing ring labelled **Range unknown**. Contact selection, inspection, radar summaries and shared-display text use the same bearing readout, in degrees to one decimal place. Blips can be selected directly or through the accessible contact list. Existing scan and weapon target channels accept them. A focused scanner slews along the observed bearing and acquires only within its own powered range and actual beam. Previously acquired findings remain available with their observation times; a bearing return cannot refresh them. Each scanner retains only its selected target’s last permitted bearing and observation time, separately from positional snapshots and detailed findings. Changing or clearing the target clears that bearing; contact loss retains it without following hidden movement. Broad radars do not retain a separate bearing history. Existing saves with bearing arrays are validated and retain only the selected target’s entry; older saves without bearing history start with none.
+
+Weapons fire along the observed bearing without lead or a hidden target-range check. Ordinary arcs, traversal, power, ammunition and physical reach still apply. Readiness does not prove the target is in range. Homing missiles launch with nominal weapon range and launch altitude as their initial flight references. Their existing bounded seeker acquires the designated target independently, including after the launching radar is lost. First acquisition starts the remaining descent arc from the missile's current position; subsequent altitude guidance uses seeker observations. An unsuccessful seeker continues flight until ordinary impact or expiry. No new seeker search patterns or post-launch retargeting are added.
+
+Workshop exposes optional long-range detection on radar fittings. The base Courier radar, combat-radar equipment template and Cruiser Science/Tactical radars initially use three times normal range; focused scanner ranges are unchanged. These values are authored tuning.
+
 ## Scenario findings
 
 Maps can declare localized findings:
@@ -80,3 +92,16 @@ Verification on 21 October 2026:
 The browser harness at `build/web/phoenix_sensors_smoke.html` displays its result and four captured stages. Physical multi-display and assistive-reader acceptance remain separate from these semantic-control and graphical checks.
 
 Enquiry queues, intrusive scans, spoofing, triangulation, probes and individual equipment fault diagnosis remain outside this increment.
+
+For the explicitly invoked bearing-ring journey, run `phoenix_sensors_smoke pack-directory --long-range`. It applies a disposable child-pack radar override to the rescue Courier, exercises anonymous selection and ordinary focused acquisition, disables the scanner to regain bearing-only tracking, and launches a homing missile. Captures add `sensors-bearing.png` and `sensors-bearing-launch.png`; production scenario tuning is not modified by the smoke tool.
+
+Long-range verification on 22 October 2026:
+
+- The complete native build, production base-pack verification and native build check passed. All 32 native CTest cases that do not need socket access passed.
+- The browser client built successfully. The updated sensor and combat system cases passed in WebAssembly; their native/WASM continuation traces match. Coverage includes bearing-only projection, Console isolation, power/nebula limits, scanning through semantic controls, positional promotion/demotion, retained evidence, unguided/beam fire and independent missile seeker acquisition after radar loss.
+- Changed C++ files passed clang-format checks; changed JSON and Markdown passed Prettier checks.
+- The socket-dependent inference-adapter test and the explicitly invoked graphical journey were blocked by sandbox socket restrictions. Xvfb could not establish an X11 listener, so no new graphical or physical screen-reader acceptance is claimed.
+
+The long-range cleanup on 22 October 2026 replaced broad bearing-history sweeps with one retained bearing for the current scanner target, shared normal-first band classification and weapon eligibility, and unified bearing readouts. The native build, all 32 CTest cases that do not require socket access, native build check and production base verification passed. The browser client built; updated sensor and combat cases passed in WebAssembly with matching native/WASM continuation traces. New coverage checks target changes, clearing, contact loss, legacy bearing-array migration (including validation of discarded entries), missing-history saves, attenuated normal returns that remain visible in the outer band, directional coverage and consistent semantic readouts. Socket-dependent and graphical checks remain blocked as recorded above; expanded access was not requested again.
+
+Integration with the psychic sensing changes on main passed the complete native and browser client builds, all 33 native CTest cases that do not require socket access, native build check and production base verification. Sensor, combat and psychic system cases passed in WebAssembly with matching native/WASM continuation traces. Concealment applies independently to both detection bands; apparent contacts can appear as outer-band bearings without positional returns or detailed scan findings. The existing socket and graphical limitations above remain.

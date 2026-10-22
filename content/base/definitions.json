@@ -298,6 +298,7 @@
 				},
 				"radar": {
 					"range_mm": 500000,
+					"long_range_mm": 1500000,
 					"capabilities": {
 						"basic_identity": 0,
 						"own_arcs": 0
@@ -5174,6 +5175,7 @@
 								"observation_console": "science",
 								"compartment": "sensors",
 								"range_mm": 2500000,
+								"long_range_mm": 7500000,
 								"shows": ["ship", "contact", "missile"],
 								"capabilities": {
 									"basic_identity": 0,
@@ -5195,6 +5197,7 @@
 						"systems": {
 							"radar": {
 								"range_mm": 2500000,
+								"long_range_mm": 7500000,
 								"observation_console": "tactical",
 								"compartment": "bridge",
 								"shows": ["ship", "contact", "missile"],
@@ -5410,7 +5413,9 @@
 								"shields-supply",
 								"shields-cooling",
 								"services-supply",
-								"services-cooling"
+								"services-cooling",
+								"psychic-supply",
+								"psychic-cooling"
 							],
 							"id": "engineering",
 							"knowledge_producers": ["base.machinery"],
@@ -5542,7 +5547,13 @@
 					"consoles": [
 						{
 							"definition": "base.console.cruiser-comms",
-							"feeds": ["communications.reserve", "comms-radio", "sensors.radar", "dispatch"],
+							"feeds": [
+								"communications.reserve",
+								"comms-radio",
+								"sensors.radar",
+								"dispatch",
+								"psychic-choir"
+							],
 							"id": "comms",
 							"knowledge_producers": ["base.machinery"],
 							"knowledge_roles": ["base.crew", "base.comms"],
@@ -8156,6 +8167,136 @@
 								"consumers": ["security-2"]
 							}
 						]
+					},
+					{
+						"id": "psychic-supply",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "isolate",
+								"action": "link_isolated",
+								"initial": 0,
+								"consumers": ["psychic-supply"]
+							}
+						]
+					},
+					{
+						"id": "psychic-cooling",
+						"console": "engineering",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "allocation",
+								"action": "cooling_allocation",
+								"initial": 0,
+								"consumers": ["psychic-cooling"]
+							}
+						]
+					},
+					{
+						"id": "psychic-choir",
+						"console": "comms",
+						"tree": "base.psychic.execute",
+						"commands": [
+							{
+								"id": "apparatus",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["psychic-choir"]
+							},
+							{
+								"id": "veil-enabled",
+								"action": "intent_boolean",
+								"initial": 0,
+								"consumers": []
+							},
+							{
+								"id": "veil-target",
+								"action": "intent_integer",
+								"initial": 0,
+								"consumers": [],
+								"minimum": 0,
+								"maximum": 1000000000
+							},
+							{
+								"id": "phantoms-enabled",
+								"action": "intent_boolean",
+								"initial": 0,
+								"consumers": []
+							},
+							{
+								"id": "phantoms-target",
+								"action": "intent_integer",
+								"initial": 0,
+								"consumers": [],
+								"minimum": 0,
+								"maximum": 1000000000
+							},
+							{
+								"id": "ward-enabled",
+								"action": "intent_boolean",
+								"initial": 0,
+								"consumers": []
+							},
+							{
+								"id": "ward-target",
+								"action": "intent_integer",
+								"initial": 0,
+								"consumers": [],
+								"minimum": 0,
+								"maximum": 1000000000
+							}
+						]
+					},
+					{
+						"id": "psychic-orders",
+						"console": "comms",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "veil-enabled",
+								"action": "intent_boolean",
+								"initial": 0,
+								"consumers": []
+							},
+							{
+								"id": "veil-target",
+								"action": "intent_integer",
+								"initial": 0,
+								"consumers": [],
+								"minimum": 0,
+								"maximum": 1000000000
+							},
+							{
+								"id": "phantoms-enabled",
+								"action": "intent_boolean",
+								"initial": 0,
+								"consumers": []
+							},
+							{
+								"id": "phantoms-target",
+								"action": "intent_integer",
+								"initial": 0,
+								"consumers": [],
+								"minimum": 0,
+								"maximum": 1000000000
+							},
+							{
+								"id": "ward-enabled",
+								"action": "intent_boolean",
+								"initial": 0,
+								"consumers": []
+							},
+							{
+								"id": "ward-target",
+								"action": "intent_integer",
+								"initial": 0,
+								"consumers": [],
+								"minimum": 0,
+								"maximum": 1000000000
+							}
+						]
 					}
 				],
 				"profiles": [
@@ -8167,8 +8308,8 @@
 								"ai": []
 							},
 							"comms": {
-								"human": ["communications.reserve", "external-comms", "dispatch"],
-								"ai": []
+								"human": ["communications.reserve", "external-comms", "dispatch", "psychic-orders"],
+								"ai": ["psychic-choir"]
 							},
 							"engineering": {
 								"human": [
@@ -8204,7 +8345,9 @@
 									"shields-supply",
 									"shields-cooling",
 									"services-supply",
-									"services-cooling"
+									"services-cooling",
+									"psychic-supply",
+									"psychic-cooling"
 								],
 								"ai": [
 									"command.cooling",
@@ -8308,8 +8451,8 @@
 								"ai": []
 							},
 							"comms": {
-								"human": ["communications.reserve", "external-comms", "dispatch"],
-								"ai": []
+								"human": ["communications.reserve", "external-comms", "dispatch", "psychic-orders"],
+								"ai": ["psychic-choir"]
 							},
 							"engineering": {
 								"human": [
@@ -8334,7 +8477,9 @@
 									"shields-supply",
 									"shields-cooling",
 									"services-supply",
-									"services-cooling"
+									"services-cooling",
+									"psychic-supply",
+									"psychic-cooling"
 								],
 								"ai": [
 									"command.cooling.orders",
@@ -8464,8 +8609,8 @@
 								"ai": []
 							},
 							"comms": {
-								"human": ["communications.reserve", "external-comms", "dispatch"],
-								"ai": []
+								"human": ["communications.reserve", "external-comms", "dispatch", "psychic-choir"],
+								"ai": ["psychic-orders"]
 							},
 							"engineering": {
 								"human": [
@@ -8517,7 +8662,9 @@
 									"shields-supply",
 									"shields-cooling",
 									"services-supply",
-									"services-cooling"
+									"services-cooling",
+									"psychic-supply",
+									"psychic-cooling"
 								],
 								"ai": [
 									"command.cooling.orders",
@@ -8711,7 +8858,7 @@
 									"services-supply",
 									"services-cooling"
 								],
-								"human": ["ftl.supply", "ftl.cooling"]
+								"human": ["ftl.supply", "ftl.cooling", "psychic-supply", "psychic-cooling"]
 							},
 							"science": {
 								"ai": [
@@ -8748,7 +8895,14 @@
 								"human": ["security-1", "security-2"]
 							},
 							"comms": {
-								"ai": ["communications.reserve", "external-comms", "dispatch"]
+								"ai": [
+									"communications.reserve",
+									"external-comms",
+									"dispatch",
+									"psychic-choir",
+									"psychic-orders"
+								],
+								"human": []
 							},
 							"captain": {
 								"ai": ["command.reserve"]
@@ -12085,6 +12239,48 @@
 					"capabilities": ["security"],
 					"compartment": "weapons",
 					"injured_effectiveness_permille": 500
+				},
+				"psychic-choir": {
+					"kind": "psychic",
+					"compartment": "bridge",
+					"power_store": "psychic-cell",
+					"range_mm": 2500000,
+					"arc_mdeg": 60000,
+					"powers": ["veil", "phantoms", "ward"],
+					"planning_controller": "psychic-orders",
+					"seats": [
+						{
+							"duty": "choir-veil",
+							"controller": "psychic-choir",
+							"console": "comms",
+							"enabled": "veil-enabled",
+							"target": "veil-target"
+						},
+						{
+							"duty": "choir-phantoms",
+							"controller": "psychic-choir",
+							"console": "comms",
+							"enabled": "phantoms-enabled",
+							"target": "phantoms-target"
+						},
+						{
+							"duty": "choir-ward",
+							"controller": "psychic-choir",
+							"console": "comms",
+							"enabled": "ward-enabled",
+							"target": "ward-target"
+						}
+					]
+				},
+				"psychic-supply": {
+					"kind": "distribution",
+					"compartment": "bridge",
+					"conduit": "psychic-feed"
+				},
+				"psychic-cooling": {
+					"kind": "coolant",
+					"compartment": "bridge",
+					"cooling_link": "psychic-cooling"
 				}
 			},
 			"comms": {
@@ -13423,6 +13619,59 @@
 						"team": "security-2",
 						"compartment": "weapons",
 						"effects": {}
+					},
+					{
+						"id": "choir-veil",
+						"label": "veil",
+						"department": "signals",
+						"compartment": "bridge",
+						"choir": "psychic-choir"
+					},
+					{
+						"id": "choir-phantoms",
+						"label": "phantoms",
+						"department": "signals",
+						"compartment": "bridge",
+						"choir": "psychic-choir"
+					},
+					{
+						"id": "choir-ward",
+						"label": "ward",
+						"department": "signals",
+						"compartment": "bridge",
+						"choir": "psychic-choir"
+					},
+					{
+						"id": "psychic-supply",
+						"label": "psychic-supply",
+						"department": "engineering",
+						"compartment": "bridge",
+						"controller": "psychic-supply",
+						"console": "engineering"
+					},
+					{
+						"id": "psychic-cooling",
+						"label": "psychic-cooling",
+						"department": "engineering",
+						"compartment": "bridge",
+						"controller": "psychic-cooling",
+						"console": "engineering"
+					},
+					{
+						"id": "psychic-choir",
+						"label": "Psychic choir",
+						"department": "signals",
+						"compartment": "bridge",
+						"controller": "psychic-choir",
+						"console": "comms"
+					},
+					{
+						"id": "psychic-orders",
+						"label": "Psychic intent",
+						"department": "signals",
+						"compartment": "bridge",
+						"controller": "psychic-orders",
+						"console": "comms"
 					}
 				],
 				"officers": [
@@ -13551,6 +13800,36 @@
 						"compartment": "weapons",
 						"portrait": "phoenix-base:assets/personnel/officer-4.png",
 						"traits": ["security"]
+					},
+					{
+						"id": "choir-veil",
+						"name": "Thalia Venn",
+						"portrait": "phoenix-base:assets/personnel/officer-10.png",
+						"department": "signals",
+						"duty": "choir-veil",
+						"compartment": "bridge",
+						"power": "veil",
+						"traits": []
+					},
+					{
+						"id": "choir-phantoms",
+						"name": "Severin Ash",
+						"portrait": "phoenix-base:assets/personnel/officer-11.png",
+						"department": "signals",
+						"duty": "choir-phantoms",
+						"compartment": "bridge",
+						"power": "phantoms",
+						"traits": []
+					},
+					{
+						"id": "choir-ward",
+						"name": "Mara Sable",
+						"portrait": "phoenix-base:assets/personnel/officer-12.png",
+						"department": "signals",
+						"duty": "choir-ward",
+						"compartment": "bridge",
+						"power": "ward",
+						"traits": []
 					}
 				],
 				"casualties": {
@@ -13880,6 +14159,17 @@
 						"stop_heat": 300000,
 						"recover_heat": 150000,
 						"passive_cooling": 40
+					},
+					{
+						"id": "psychic-cell",
+						"capacity": 150000,
+						"initial": 100000,
+						"charge_rate": 4000,
+						"discharge_rate": 10000,
+						"operation_heat_ppm": 500000,
+						"stop_heat": 300000,
+						"recover_heat": 150000,
+						"passive_cooling": 40
 					}
 				],
 				"links": [
@@ -13899,6 +14189,12 @@
 						"id": "services-feed",
 						"from": "core.capacitor",
 						"to": "services-cell",
+						"capacity_rate": 4000
+					},
+					{
+						"id": "psychic-feed",
+						"from": "core.capacitor",
+						"to": "psychic-cell",
 						"capacity_rate": 4000
 					}
 				],
@@ -13923,6 +14219,13 @@
 						"store": "services-cell",
 						"capacity_rate": 2000,
 						"allocation_rate": 1000
+					},
+					{
+						"id": "psychic-cooling",
+						"source": "core.coolant",
+						"store": "psychic-cell",
+						"capacity_rate": 2000,
+						"allocation_rate": 0
 					}
 				]
 			},
@@ -14582,6 +14885,37 @@
 						"emergency_damage": 20
 					}
 				]
+			},
+			"psychic_powers": {
+				"veil": {
+					"kind": "cloak",
+					"label": "Veil",
+					"strength_permille": 850,
+					"energy_per_second": 800
+				},
+				"phantoms": {
+					"kind": "scramble",
+					"label": "Phantom choir",
+					"strength_permille": 650,
+					"energy_per_second": 1000,
+					"ghost_count": 4,
+					"apparent_class": "Unidentified warship",
+					"offset_mm": 350000,
+					"spacing_mm": 120000,
+					"speed_mm_s": 30000,
+					"acceleration_mm_s2": 4000,
+					"turn_mdeg_s": 4000,
+					"radius_mm": 70000,
+					"scan_ticks": 200,
+					"fade_ticks": 30,
+					"recovery_ticks": 120
+				},
+				"ward": {
+					"kind": "ward",
+					"label": "Psychic ward",
+					"strength_permille": 800,
+					"energy_per_second": 600
+				}
 			}
 		},
 		{
@@ -47984,6 +48318,127 @@
 					"tree": "base.craft.bomber-flight.execute"
 				}
 			]
+		},
+		{
+			"id": "base.psychic.execute",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "veil-enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "veil-target"
+				},
+				{
+					"channel": "phantoms-enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "phantoms-target"
+				},
+				{
+					"channel": "ward-enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "ward-target"
+				}
+			],
+			"command_reads": [
+				{
+					"name": "plan.veil-enabled",
+					"controller": "psychic-orders",
+					"channel": "veil-enabled",
+					"type": "boolean"
+				},
+				{
+					"name": "plan.veil-target",
+					"controller": "psychic-orders",
+					"channel": "veil-target",
+					"type": "integer"
+				},
+				{
+					"name": "plan.phantoms-enabled",
+					"controller": "psychic-orders",
+					"channel": "phantoms-enabled",
+					"type": "boolean"
+				},
+				{
+					"name": "plan.phantoms-target",
+					"controller": "psychic-orders",
+					"channel": "phantoms-target",
+					"type": "integer"
+				},
+				{
+					"name": "plan.ward-enabled",
+					"controller": "psychic-orders",
+					"channel": "ward-enabled",
+					"type": "boolean"
+				},
+				{
+					"name": "plan.ward-target",
+					"controller": "psychic-orders",
+					"channel": "ward-target",
+					"type": "integer"
+				}
+			],
+			"initial": "execute",
+			"states": [
+				{
+					"id": "execute",
+					"running": [
+						{
+							"action": "write.veil-enabled",
+							"arguments": [
+								{
+									"observation": "plan.veil-enabled"
+								}
+							]
+						},
+						{
+							"action": "write.veil-target",
+							"arguments": [
+								{
+									"observation": "plan.veil-target"
+								}
+							]
+						},
+						{
+							"action": "write.phantoms-enabled",
+							"arguments": [
+								{
+									"observation": "plan.phantoms-enabled"
+								}
+							]
+						},
+						{
+							"action": "write.phantoms-target",
+							"arguments": [
+								{
+									"observation": "plan.phantoms-target"
+								}
+							]
+						},
+						{
+							"action": "write.ward-enabled",
+							"arguments": [
+								{
+									"observation": "plan.ward-enabled"
+								}
+							]
+						},
+						{
+							"action": "write.ward-target",
+							"arguments": [
+								{
+									"observation": "plan.ward-target"
+								}
+							]
+						}
+					]
+				}
+			]
 		}
 	],
 	"equipment": [
@@ -48209,6 +48664,7 @@
 			"id": "base.equipment.combat-radar",
 			"kind": "radar",
 			"range_mm": 350000,
+			"long_range_mm": 1050000,
 			"capabilities": {
 				"basic_identity": 0,
 				"own_arcs": 0

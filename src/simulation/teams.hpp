@@ -735,7 +735,7 @@ void validate_medical_state() const
 
 bool duty_affects_system(EntityId id, const PersonnelDuty &duty, const std::string &system) const
 {
-	if (duty.team == system || duty.effects.contains(system))
+	if (duty.team == system || duty.choir == system || duty.effects.contains(system))
 		return true;
 	for (const auto &c : definition(id).layout->controllers)
 		if (c.console == duty.console && c.id == duty.controller)

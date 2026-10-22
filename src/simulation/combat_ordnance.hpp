@@ -248,6 +248,10 @@ void fire_beam(flecs::entity ship, flecs::entity child, fixed::Vec origin, std::
 	const auto damage = m.get<WeaponState>().beam_remainder / (rate * 1000);
 	m.get<WeaponState>().beam_remainder %= rate * 1000;
 	++m.get<WeaponState>().shots;
+	psychic_weapon_emission(ship.get<StableId>().id);
+	if (damage)
+		ghost_damage(ship.get<StableId>().id, origin, m.get<WeaponState>().beam_end, from_z,
+		             from_z + (end_z - from_z) * std::min(nearest, fixed::unit) / fixed::unit);
 	if (!victim || !damage)
 		return;
 	auto target = entities.at(victim);
@@ -281,7 +285,17 @@ void advance_ordnance(Projectile &p)
 			const auto target = entities.at(p.target).get<Pose>().position;
 			if (fixed::length(target - p.position) + std::abs(p.altitude - altitude(p.target)) <=
 			    p.definition.seeker_range)
+			{
 				desired = combat_bearing(target - p.position);
+				p.seeker_altitude = altitude(p.target);
+				if (p.bearing_launch && !p.seeker_acquired)
+				{
+					p.seeker_acquired = true;
+					p.arc_start_age = p.age;
+					p.launch_altitude = p.altitude;
+					p.initial_distance = std::max<std::int64_t>(1, fixed::length(target - p.position));
+				}
+			}
 		}
 		if (p.definition.guidance == "chaotic")
 		{
@@ -295,10 +309,12 @@ void advance_ordnance(Projectile &p)
 		p.turn_remainder %= rate;
 		p.heading = combat_angle(p.heading + std::clamp(combat_delta(desired, p.heading), -step, step));
 		p.velocity = fixed::scale(fixed::direction(p.heading), p.definition.speed);
-		const auto progress = std::clamp<std::int64_t>(
-		    p.age * p.definition.speed * 1000 / (std::max<std::int64_t>(1, p.initial_distance) * rate), 0, 1000);
+		const auto progress = std::clamp<std::int64_t>((p.age - p.arc_start_age) * p.definition.speed * 1000 /
+		                                                   (std::max<std::int64_t>(1, p.initial_distance) * rate),
+		                                               0, 1000);
 		const auto launch_altitude = p.launch_altitude;
-		const auto target_altitude = entities.contains(p.target) ? altitude(p.target) : 0;
+		const auto target_altitude =
+		    p.bearing_launch ? p.seeker_altitude : (entities.contains(p.target) ? altitude(p.target) : 0);
 		p.altitude = launch_altitude + (target_altitude - launch_altitude) * progress / 1000 +
 		             4 * p.definition.arc_height * progress * (1000 - progress) / 1000000;
 		p.vz = (p.altitude - old_z) * rate;
@@ -436,6 +452,8 @@ void step_ordnance()
 			const auto impact = from.position + fixed::Vec{(p.position.x - from.position.x) * hit.time / fixed::unit,
 			                                               (p.position.y - from.position.y) * hit.time / fixed::unit};
 			const auto z = from.altitude + (p.altitude - from.altitude) * hit.time / fixed::unit;
+			if (p.damage > 0)
+				ghost_damage(p.source, from.position, impact, from.altitude, z, p.definition.radius);
 			if (p.definition.durability && p.definition.blast_radius)
 			{
 				p.position = impact;
@@ -486,6 +504,8 @@ void step_ordnance()
 				p.penetration = 0;
 			}
 		}
+		if (p.damage > 0)
+			ghost_damage(p.source, from.position, p.position, from.altitude, p.altitude, p.definition.radius);
 		if (p.life > 0 && --p.life == 0 && p.definition.durability)
 		{
 			p.life = 1;

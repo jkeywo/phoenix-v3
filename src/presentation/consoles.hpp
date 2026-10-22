@@ -1261,6 +1261,29 @@ button.on-screen-active .share-live {display:block;}
 						if (CheckCollisionPointRec({x, y}, {at.x, at.y, b->GetOffsetWidth(), b->GetOffsetHeight()}))
 							return false;
 					}
+		if (kind == DeviceEventKind::Down && model_.layout() && model_.observation())
+			for (const auto &w : model_.layout()->at("widgets"))
+				if (w.at("kind") == "radar")
+				{
+					const auto key = w.at("id").get<std::string>();
+					if (auto *dial = document_->GetElementById("dial/" + key))
+					{
+						const auto at = dial->GetAbsoluteOffset(Rml::BoxArea::Border);
+						const Vector2 centre{at.x + dial->GetOffsetWidth() / 2, at.y + dial->GetOffsetHeight() / 2};
+						const auto radius = std::min(dial->GetOffsetWidth(), dial->GetOffsetHeight()) * .33f;
+						const auto &view = *model_.observation();
+						const auto radar =
+						    select_system(view.systems, OperatingSystem::Radar, model_.widget_system(key), false);
+						for (const auto &sensor : view.systems)
+							if (radar && sensor.id == *radar && sensor.enabled)
+								for (const auto &b : view.bearing_contacts)
+									if (std::find(sensor.contact_ids.begin(), sensor.contact_ids.end(), b.id) !=
+									        sensor.contact_ids.end() &&
+									    CheckCollisionPointCircle(
+									        {x, y}, bearing_ring_point(centre, radius, b.bearing_mdeg), 14))
+										return action(id("game.sensor-contact/" + std::to_string(b.id)));
+					}
+				}
 		if (navigation_pointer(contact, x, y, kind))
 			return true;
 		if (model_.manual_active())

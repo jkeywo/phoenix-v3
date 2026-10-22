@@ -1,6 +1,7 @@
 #pragma once
 #include "../core/display_projection.hpp"
 #include "../core/personnel_projection.hpp"
+#include "../core/psychic_projection.hpp"
 #include "../core/away_projection.hpp"
 #include "../core/team_projection.hpp"
 #include "../core/craft_projection.hpp"
@@ -50,6 +51,8 @@ static inline Json bounded_gameplay(const Json &source)
 		result["ftl"] = ftl_projection::board(source.at("ftl"));
 	if (source.contains("mission_report"))
 		result["mission_report"] = ftl_projection::report(source.at("mission_report"));
+	if (source.contains("psychic"))
+		result["psychic"] = psychic_projection::board(source.at("psychic"));
 	if (source.contains("sensors"))
 		result["sensors"] = sensor_projection::board(source.at("sensors"));
 	if (source.contains("away_missions"))
@@ -188,6 +191,9 @@ static inline Json observation_json(const Observation &observation)
 	Json additional = Json::array();
 	for (const auto &console : observation.additional_consoles)
 		additional.push_back(observation_json(console));
+	Json bearings = Json::array();
+	for (const auto &b : observation.bearing_contacts)
+		bearings.push_back(projection::bearing_json(b));
 	Json contacts = Json::array();
 	for (const auto &contact : observation.contacts)
 		contacts.push_back(body_json(contact));
@@ -213,6 +219,7 @@ static inline Json observation_json(const Observation &observation)
 	}
 	return {{"own", body_json(observation.own)},
 	        {"contacts", contacts},
+	        {"bearing_contacts", bearings},
 	        {"observed_tick", observation.observed_tick},
 	        {"requested_speed", observation.requested_speed},
 	        {"requested_heading", observation.requested_heading},
@@ -244,6 +251,7 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 	if (!catalog.entities.contains(result.own.definition) || !value.at("contacts").is_array() ||
 	    value.at("contacts").size() > 4096)
 		throw std::runtime_error("Projected observation does not match verified content");
+	result.bearing_contacts = projection::read_bearings(value.value("bearing_contacts", Json::array()));
 	for (const auto &contact : value.at("contacts"))
 	{
 		auto body = read_body(contact);
@@ -255,14 +263,21 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 	     value.at("observed_tick") > ~std::uint64_t{0}))
 		throw std::runtime_error("Invalid observation tick");
 	result.observed_tick = value.value("observed_tick", std::uint64_t{0});
+	for (const auto &b : result.bearing_contacts)
+		if (b.observed_tick > result.observed_tick || std::any_of(result.contacts.begin(), result.contacts.end(),
+		                                                          [&](const auto &c)
+		                                                          {
+			                                                          return c.id == b.id;
+		                                                          }))
+			throw std::runtime_error("Invalid bearing observation");
 	result.requested_speed = value.at("requested_speed");
 	result.requested_heading = value.at("requested_heading");
 	result.engine_enabled = value.at("engine_enabled");
 	result.radar_enabled = value.at("radar_enabled");
 	result.console = value.value("console", std::string{"main"});
 	const auto controls = value.value("controls", 7), feeds = value.value("feeds", 7);
-	if (controls < 0 || controls > static_cast<std::int64_t>((system_bit(OperatingSystem::ShuttleBay) << 1) - 1) ||
-	    feeds < 0 || feeds > static_cast<std::int64_t>((system_bit(OperatingSystem::ShuttleBay) << 1) - 1) ||
+	if (controls < 0 || controls > static_cast<std::int64_t>((system_bit(OperatingSystem::Psychic) << 1) - 1) ||
+	    feeds < 0 || feeds > static_cast<std::int64_t>((system_bit(OperatingSystem::Psychic) << 1) - 1) ||
 	    (controls & feeds) != controls || result.console.size() > 128)
 		throw std::runtime_error("Invalid projected Console permissions");
 	result.controls = static_cast<SystemMask>(controls);
@@ -317,13 +332,19 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 		if (!entry.contains("contact_ids"))
 			for (const auto &body : result.contacts)
 				state.contact_ids.push_back(body.id);
-		if (state.shows.size() > 32 || state.contact_ids.size() > result.contacts.size())
+		if (state.shows.size() > 32 ||
+		    state.contact_ids.size() > result.contacts.size() + result.bearing_contacts.size())
 			throw std::runtime_error("Invalid radar tag projection");
 		for (const auto &tag : state.shows)
 			if (tag.empty() || tag.size() > 128)
 				throw std::runtime_error("Invalid radar tag");
 		for (const auto id : state.contact_ids)
 			if (std::none_of(result.contacts.begin(), result.contacts.end(),
+			                 [&](const auto &b)
+			                 {
+				                 return b.id == id;
+			                 }) &&
+			    std::none_of(result.bearing_contacts.begin(), result.bearing_contacts.end(),
 			                 [&](const auto &b)
 			                 {
 				                 return b.id == id;
@@ -379,6 +400,8 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 		result.gameplay["ftl"] = ftl_projection::board(result.gameplay.at("ftl"));
 	if (result.gameplay.contains("mission_report"))
 		result.gameplay["mission_report"] = ftl_projection::report(result.gameplay.at("mission_report"));
+	if (result.gameplay.contains("psychic"))
+		result.gameplay["psychic"] = psychic_projection::board(result.gameplay.at("psychic"));
 	if (result.gameplay.contains("sensors"))
 		result.gameplay["sensors"] = sensor_projection::board(result.gameplay.at("sensors"));
 	if (result.gameplay.contains("away_missions"))

@@ -4,58 +4,53 @@ void append_sensor_contacts(const ConsoleAddress &address, Observation &result,
 {
 	const auto entity = entities.at(address.ship);
 	const auto &own = entity.get<Pose>();
-	std::int64_t range = 0;
-	for (const auto &sensor : result.systems)
+	std::map<EntityId, BodyView> contacts;
+	std::map<EntityId, BearingContactView> bearings;
+	for (auto &sensor : result.systems)
 		if (sensor.kind == OperatingSystem::Radar && sensor.enabled)
-			range = std::max(range,
-			                 sensor.effective_range +
-			                     fixed::length(sensor_origin(address.ship, sensor_definition(address.ship, sensor.id)) -
-			                                   own.position));
-	if (range)
-		contact_index.each(Bounds::around(own.position, range),
-		                   [&](std::size_t row)
-		                   {
-			                   const auto &contact = contact_rows[row];
-			                   if (contact.id == address.ship)
-				                   return;
-			                   const auto &tags = definitions.at(contact.entity.get<Definition>().name).tags;
-			                   bool visible = false;
-			                   for (auto &sensor : result.systems)
-				                   if (sensor.kind == OperatingSystem::Radar && sensor.enabled &&
-				                       std::any_of(tags.begin(), tags.end(),
-				                                   [&](const auto &tag)
-				                                   {
-					                                   return std::find(sensor.shows.begin(), sensor.shows.end(),
-					                                                    tag) != sensor.shows.end();
-				                                   }) &&
-				                       sensor_covers(address.ship, sensor.id, contact.position) &&
-				                       distance_3d(address.ship, contact.id) <= sensor.effective_range)
-				                   {
-					                   sensor.contact_ids.push_back(contact.id);
-					                   visible = true;
-				                   }
-			                   if (visible)
-				                   result.contacts.push_back(view(contact.id, contact.entity.get<Definition>(),
-				                                                  contact.entity.get<Pose>(),
-				                                                  contact.entity.get<Motion>()));
-		                   });
+			for_sensor_contacts(
+			    address.ship, sensor.id,
+			    [&](const auto &input)
+			    {
+				    sensor.contact_ids.push_back(input.body.id);
+				    if (input.detection == SensorContact::Position)
+					    contacts.emplace(input.body.id, input.body);
+				    else
+					    bearings.emplace(
+					        input.body.id,
+					        BearingContactView{input.body.id,
+					                           combat_bearing(fixed::Vec{input.body.x, input.body.y} - own.position),
+					                           ecs.get<Clock>().tick});
+			    },
+			    true);
+	for (auto &[id, body] : contacts)
+		result.contacts.push_back(std::move(body));
+	for (const auto &[id, bearing] : bearings)
+		if (!contacts.contains(id))
+			result.bearing_contacts.push_back(bearing);
 	for (auto missile : projectile_rows())
 	{
 		const auto &p = missile.get<Projectile>();
 		if (!p.definition.durability || missile.get<Destructible>().durability <= 0)
 			continue;
-		bool visible = false;
+		bool visible = false, bearing_visible = false;
 		const auto contact_id = 7000000000000000ULL + p.id;
 		for (auto &sensor : result.systems)
 			if (sensor.kind == OperatingSystem::Radar && sensor.enabled &&
-			    std::find(sensor.shows.begin(), sensor.shows.end(), "missile") != sensor.shows.end() &&
-			    sensor_covers(address.ship, sensor.id, p.position) &&
-			    fixed::length(p.position - own.position) + std::abs(p.altitude - altitude(address.ship)) <=
-			        sensor.effective_range)
+			    std::find(sensor.shows.begin(), sensor.shows.end(), "missile") != sensor.shows.end())
 			{
+				const auto detection = sensor_contact(address.ship, sensor.id, p.position,
+				                                      fixed::length(p.position - own.position) +
+				                                          std::abs(p.altitude - altitude(address.ship)));
+				if (detection == SensorContact::None)
+					continue;
 				sensor.contact_ids.push_back(contact_id);
-				visible = true;
+				bearing_visible = true;
+				visible |= detection == SensorContact::Position;
 			}
+		if (!visible && bearing_visible)
+			result.bearing_contacts.push_back(
+			    {contact_id, combat_bearing(p.position - own.position), ecs.get<Clock>().tick});
 		if (visible)
 		{
 			result.contacts.push_back(
@@ -65,7 +60,7 @@ void append_sensor_contacts(const ConsoleAddress &address, Observation &result,
 		}
 	}
 	for (auto &contact : result.contacts)
-		if (entities.contains(contact.id))
+		if (entities.contains(contact.id) || ghost_receptions.contains(contact.id))
 		{
 			Json identity;
 			if (evidence.contains(contact.id) && evidence.at(contact.id).at("findings").contains("basic_identity"))
@@ -87,13 +82,18 @@ void append_sensor_contacts(const ConsoleAddress &address, Observation &result,
 				contact.disposition = data.at("disposition");
 			}
 		}
+	std::sort(result.bearing_contacts.begin(), result.bearing_contacts.end(),
+	          [](const auto &a, const auto &b)
+	          {
+		          return a.id < b.id;
+	          });
 	std::sort(result.contacts.begin(), result.contacts.end(),
 	          [](const auto &a, const auto &b)
 	          {
 		          return a.id < b.id;
 	          });
 }
-std::vector<BodyView> capture_sensor_contacts(const ConsoleAddress &address) const
+Observation capture_sensor_observation(const ConsoleAddress &address) const
 {
 	Observation result;
 	const auto entity = entities.at(address.ship);
@@ -109,7 +109,11 @@ std::vector<BodyView> capture_sensor_contacts(const ConsoleAddress &address) con
 			result.systems.push_back(std::move(sensor));
 		}
 	append_sensor_contacts(address, result, sensor_evidence(address));
-	return std::move(result.contacts);
+	return result;
+}
+std::vector<BodyView> capture_sensor_contacts(const ConsoleAddress &address) const
+{
+	return capture_sensor_observation(address).contacts;
 }
 // World::Impl observation producer. Human projection and decision snapshots share this boundary.
 Observation capture_console_observation(const ConsoleAddress &address, Json gameplay = Json::object()) const

@@ -52,6 +52,7 @@ inline Json sanitise(const Json &v)
 	            {"kind", text(v.at("kind"))},
 	            {"own", body_json(read_body(v.at("own")))},
 	            {"contacts", Json::array()},
+	            {"bearing_contacts", Json::array()},
 	            {"regions", Json::array()}};
 	if (result.at("kind") == "conversations")
 	{
@@ -69,6 +70,8 @@ inline Json sanitise(const Json &v)
 		throw std::runtime_error("Invalid shared display rows");
 	if (radar)
 	{
+		for (const auto &b : projection::read_bearings(v.value("bearing_contacts", Json::array())))
+			result["bearing_contacts"].push_back(projection::bearing_json(b));
 		result["radar"] = radar_json(read_radar(v.at("radar")));
 		const auto settings = v.value("sweep", Json::object());
 		const auto speed = settings.value("speed_degrees_s", 60.0), duration = settings.value("duration_seconds", 3.0);
@@ -132,7 +135,7 @@ inline Json sanitise(const Json &v)
 			                                {"radius", number(o.value("radius", Json(0)), 0)}});
 	// Keep the public envelope bounded without turning a crowded valid sensor feed into a runtime failure.
 	const auto omitted = number(v.value("omitted_contacts", Json(0)), 0, 4096);
-	if (omitted + result.at("contacts").size() > 4096)
+	if (omitted + result.at("contacts").size() + result.at("bearing_contacts").size() > 4096)
 		throw std::runtime_error("Invalid shared contact omission count");
 	auto contacts = std::move(result["contacts"]);
 	result["contacts"] = Json::array();

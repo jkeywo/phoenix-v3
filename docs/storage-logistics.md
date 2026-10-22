@@ -78,3 +78,5 @@ The cleanup shares batch-return eligibility, occupied-volume accounting and pend
 - All 11 affected WASM integration cases passed: logistics, docking, cargo, medical, craft, away, combat, security, conversations, Controller runtime and motion/radar/trees. Browser client, Workshop and server builds passed.
 - The native build check, production pack, development storage exercise pack and web-launcher tests passed.
 - `system.inference-adapters` could not open its localhost test server: the sandbox returned `PermissionError: [Errno 1] Operation not permitted`.
+
+Integration with the latest main branch passed the full native build, all 37 native system cases, the native build check and web-launcher tests. The inference-adapter case passed with localhost network access enabled, resolving the earlier sandbox blocker.

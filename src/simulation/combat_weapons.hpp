@@ -26,13 +26,18 @@ struct WeaponAim
 {
 	BodyView body;
 	std::int64_t altitude = 0, vz = 0;
+	std::optional<std::int64_t> bearing;
 };
-using ConsoleContacts = std::map<ConsoleAddress, std::vector<BodyView>>;
-const std::vector<BodyView> &console_contacts(const ConsoleAddress &owner, ConsoleContacts &cache) const
+using ConsoleContacts = std::map<ConsoleAddress, Observation>;
+const Observation &console_detection(const ConsoleAddress &owner, ConsoleContacts &cache) const
 {
 	if (!cache.contains(owner))
-		cache.emplace(owner, capture_sensor_contacts(owner));
+		cache.emplace(owner, capture_sensor_observation(owner));
 	return cache.at(owner);
+}
+const std::vector<BodyView> &console_contacts(const ConsoleAddress &owner, ConsoleContacts &cache) const
+{
+	return console_detection(owner, cache).contacts;
 }
 std::optional<WeaponAim> weapon_contact(flecs::entity ship, const CombatMechanism &m, ConsoleContacts &cache) const
 {
@@ -64,6 +69,17 @@ std::optional<WeaponAim> weapon_contact(flecs::entity ship, const CombatMechanis
 			else
 				return aim;
 		}
+	if (!(m.get<WeaponState>().intercept && m.get<WeaponState>().mode == 1))
+		for (const auto &b :
+		     console_detection(system_owner(ship.get<StableId>().id, m.definition.id), cache).bearing_contacts)
+			if (b.id == wanted)
+			{
+				WeaponAim aim{};
+				aim.body.id = b.id;
+				aim.bearing = b.bearing_mdeg;
+				aim.altitude = altitude(ship.get<StableId>().id);
+				return aim;
+			}
 	return {};
 }
 std::pair<fixed::Vec, std::int64_t> weapon_mount(flecs::entity ship, const CombatMechanism &m) const
@@ -85,6 +101,8 @@ std::pair<fixed::Vec, std::int64_t> weapon_mount(flecs::entity ship, const Comba
 }
 fixed::Vec weapon_lead(flecs::entity ship, const CombatMechanism &m, const WeaponAim &target, fixed::Vec origin) const
 {
+	if (target.bearing)
+		return origin + fixed::scale(fixed::direction(*target.bearing), m.definition.get<WeaponDefinition>().range);
 	const auto &d = weapon_payload(ship, m);
 	const auto travel = m.definition.get<WeaponDefinition>().family == "beam"
 	                        ? 0
@@ -95,6 +113,14 @@ fixed::Vec weapon_lead(flecs::entity ship, const CombatMechanism &m, const Weapo
 	                   fixed::unit),
 	        std::clamp(target.body.y + (target.body.vy - ship.get<Motion>().velocity.y) * travel / 1000, -fixed::unit,
 	                   fixed::unit)};
+}
+bool weapon_covers(flecs::entity ship, const CombatMechanism &m, const WeaponAim &target, fixed::Vec origin,
+                   std::int64_t orientation, fixed::Vec lead) const
+{
+	return (target.bearing || fixed::length(fixed::Vec{target.body.x, target.body.y} - origin) +
+	                                  std::abs(target.altitude - altitude(ship.get<StableId>().id)) <=
+	                              m.definition.get<WeaponDefinition>().range) &&
+	       std::abs(combat_delta(combat_bearing(lead - origin), orientation)) <= m.definition.arc / 2;
 }
 std::uint64_t point_defence_target(flecs::entity ship, const CombatSystemDefinition &d,
                                    const std::vector<BodyView> &contacts) const
@@ -251,10 +277,7 @@ void prepare_weapons(flecs::entity ship)
 			if (orientation < 0)
 				continue;
 			const auto lead = weapon_lead(ship, *m, *target, origin);
-			if (fixed::length(fixed::Vec{target->body.x, target->body.y} - origin) +
-			            std::abs(target->altitude - altitude(id)) >
-			        d.get<WeaponDefinition>().range ||
-			    std::abs(combat_delta(combat_bearing(lead - origin), orientation)) > d.arc / 2)
+			if (!weapon_covers(ship, *m, *target, origin, orientation, lead))
 				continue;
 			if (m->get<WeaponState>().unloading)
 				continue;
@@ -308,6 +331,8 @@ void fire_weapons(flecs::entity ship)
 			if (orientation < 0)
 				continue;
 			const auto lead = weapon_lead(ship, *m, *target, origin);
+			if (!weapon_covers(ship, *m, *target, origin, orientation, lead))
+				continue;
 			auto bearing = combat_bearing(lead - origin);
 			if (d.get<WeaponDefinition>().family == "beam")
 			{
@@ -335,6 +360,7 @@ void fire_weapons(flecs::entity ship)
 			    std::max<std::int64_t>(1, officer_value(ship.get<StableId>().id, d.id, "cycling", interval, true) *
 			                                  1000 / fault_effectiveness(ship, d.id));
 			++m->get<WeaponState>().shots;
+			psychic_weapon_emission(ship.get<StableId>().id);
 			auto &s = ship.get_mut<CombatStructure>();
 			s.random = s.random * 6364136223846793005ULL + 1;
 			auto payload = weapon_payload(ship, *m);
@@ -359,8 +385,12 @@ void fire_weapons(flecs::entity ship)
 			p.penetration = payload.penetration;
 			p.damage = payload.damage;
 			p.random = s.random;
+			p.bearing_launch = target->bearing.has_value();
+			p.seeker_altitude = p.launch_altitude;
 			p.initial_distance =
-			    std::max<std::int64_t>(1, fixed::length(fixed::Vec{target->body.x, target->body.y} - origin));
+			    target->bearing
+			        ? d.get<WeaponDefinition>().range
+			        : std::max<std::int64_t>(1, fixed::length(fixed::Vec{target->body.x, target->body.y} - origin));
 			p.vz = (target->altitude - p.altitude +
 			        target->vz * p.initial_distance / std::max<std::int64_t>(1, payload.speed)) *
 			       payload.speed / p.initial_distance;
