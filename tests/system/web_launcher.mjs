@@ -485,3 +485,75 @@ test("launch preflight resolves production previews and always releases its work
 	);
 	assert.equal(terminated, 3);
 });
+
+test("mobile menu is drawn before asynchronous startup and remains visible on failure", async (t) => {
+	// Minimal DOM adapter: exercise the real boot path while storage is delayed.
+	class Element {
+		children = [];
+		style = { setProperty() {} };
+		dataset = {};
+		classList = { add() {}, remove() {}, toggle() {}, contains: () => false };
+		textContent = "";
+		hidden = false;
+		append(child) {
+			this.children.push(child);
+		}
+		replaceChildren() {
+			this.children = [];
+		}
+		get lastElementChild() {
+			return this.children.at(-1);
+		}
+		setAttribute() {}
+		removeAttribute() {}
+		addEventListener() {}
+		querySelectorAll() {
+			return [];
+		}
+		querySelector() {
+			return (this.label ||= new Element());
+		}
+	}
+	const elements = new Map();
+	const get = (id) => {
+		if (!elements.has(id)) elements.set(id, new Element());
+		return elements.get(id);
+	};
+	const opening = {};
+	const globals = {
+		document: {
+			body: new Element(),
+			documentElement: new Element(),
+			getElementById: get,
+			createElement: () => new Element(),
+		},
+		window: { innerWidth: 390, innerHeight: 844, addEventListener() {} },
+		getComputedStyle: () => ({ getPropertyValue: () => "" }),
+		location: new URL("https://example.test/phoenix-v3/"),
+		indexedDB: { open: () => opening },
+		fetch: async () => ({ ok: false }),
+	};
+	for (const [name, value] of Object.entries(globals)) {
+		const descriptor = Object.getOwnPropertyDescriptor(globalThis, name);
+		Object.defineProperty(globalThis, name, { configurable: true, writable: true, value });
+		t.after(() => {
+			if (descriptor) Object.defineProperty(globalThis, name, descriptor);
+			else delete globalThis[name];
+		});
+	}
+	t.mock.method(console, "error", () => {});
+	await import("../../web/launcher.mjs?delayed-startup");
+	const buttons = () => get("columns").children[0].children;
+	assert.deepEqual(
+		buttons().map((button) => button.textContent),
+		["Host Game", "Join Game (New Ship)", "Join Game (As Player)", "Join Game (As GM)", "Workshop", "Exit"],
+	);
+	assert.ok(buttons().every((button) => button.disabled));
+	assert.equal(get("profile-crt").disabled, true);
+	opening.error = Error("Storage unavailable");
+	opening.onerror();
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.equal(get("menu").hidden, false);
+	assert.equal(buttons().length, 6);
+	assert.equal(get("status").textContent, "Storage unavailable");
+});

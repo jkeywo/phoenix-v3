@@ -6,6 +6,8 @@ The cockpit frame stays fixed over a slow twelve-minute mirrored panorama loop. 
 
 `index.html` opens a plain HTML menu with the native menu's ordered buttons, title, cascading Host/scenario/ship choices, Join Code forms, Settings and Mod Packs popups. It uses the same artwork and reads the same nine-slice borders from the sprite sidecars. Labels remain HTML text. Dialogs trap/restore focus; Escape closes a popup before returning through the columns. The stage scales to the viewport; portrait viewports rotate the menu, dialogs and runtime canvas into landscape. Compact menus show the current column. Pointer coordinates and semantic overlays use the same transformed coordinate space. Reduced motion disables transitions. Exit explains when the browser requires the user to close the tab.
 
+The menu buttons appear before asynchronous startup finishes. Menu entry and profile/settings edits stay disabled until storage, base verification and the scoped library are ready. Startup failures keep the shell visible with an error in the status region.
+
 The landing page requests no role `.js`, `.wasm` or `.data` bundle until entry:
 
 On each menu load, published base/training catalogues are revalidated over HTTP, with IndexedDB metadata retained as an offline fallback. Unedited bundled packs follow the published hash without changing enabled state. Workshop-edited bases retain their archive and show newly published missions as launch hints; entering Host or Workshop sends the latest bundled archives through the production C++ merge path before validating the selection. Saves keep their exact archived content. Clearing browser cache is not required for pack updates.

@@ -557,6 +557,7 @@ async function boot() {
 		menuAmbient,
 		db,
 		busy = false,
+		loading = true,
 		started = false,
 		failed = false,
 		returning = false,
@@ -655,7 +656,7 @@ async function boot() {
 		const el = element("button", text, parent);
 		el.type = "button";
 		el.className = "skin" + (selected ? " selected" : "");
-		el.disabled = busy;
+		el.disabled = busy || loading;
 		if (selected) el.setAttribute("aria-pressed", "true");
 		el.onclick = run(fn);
 		return el;
@@ -938,6 +939,7 @@ async function boot() {
 	}
 	function render() {
 		updateProfile();
+		for (const id of ["settings", "packs", "profile-crt"]) $(id).disabled = busy || loading;
 		document.body.classList.toggle("cascading", branch !== "root");
 		for (const input of $("columns").querySelectorAll("input[name]")) draftFields.set(input.name, input.value);
 		if (branch === "ships" && !scenarios().some((scene) => scene.id === scenario)) {
@@ -1690,6 +1692,9 @@ async function boot() {
 		render();
 		popupFocus?.focus();
 	};
+	// Paint the shell before storage, archive downloads and WASM verification.
+	// Entry stays disabled until the scoped library is ready.
+	render();
 	try {
 		baseUrl = new URL(new URLSearchParams(location.search).get("base") ?? "base.zip", location.href).href;
 		const opening = indexedDB.open("phoenix-v3-menu", 1);
@@ -1792,6 +1797,7 @@ async function boot() {
 			}
 		}
 
+		loading = false;
 		if (routes) {
 			await start(routes, true);
 			return;
@@ -1800,9 +1806,9 @@ async function boot() {
 		if (!$("status").textContent || $("status").textContent === "Loading menu…") status("");
 	} catch (error) {
 		document.documentElement.classList.remove("direct-launch");
-		$("menu").hidden = !launchBase;
+		$("menu").hidden = false;
 		report(error);
-		if (launchBase) render();
+		render();
 	}
 }
 if (typeof document !== "undefined") boot();
