@@ -732,10 +732,38 @@ body.reduced-motion .debris-track i::after {
 	display: none;
 }
 .startup-card {
-	width: min(70vw, 760px);
+	width: min(calc(var(--stage-width) - 48px), 640px);
+	max-height: calc(var(--stage-height) - 32px);
+	overflow: auto;
 	padding: 32px;
 	background: #101c23ee;
 	color: #fff0d4;
+}
+.startup-card h2 {
+	margin-top: 0;
+}
+.loading-spinner {
+	float: right;
+	width: 32px;
+	height: 32px;
+	margin: 0 0 16px 16px;
+	border: 4px solid #fff0d433;
+	border-top-color: #d48a48;
+	border-radius: 50%;
+	animation: loading-spin 1s linear infinite;
+}
+@keyframes loading-spin {
+	to {
+		transform: rotate(360deg);
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.loading-spinner {
+		animation: none;
+	}
+}
+body.reduced-motion .loading-spinner {
+	animation: none;
 }
 #startup-progress {
 	width: 100%;

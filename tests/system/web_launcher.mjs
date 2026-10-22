@@ -9,6 +9,7 @@ import { deflateRawSync } from "node:zlib";
 import {
 	viewportLayout,
 	menuMotion,
+	loadingFeedback,
 	canvasPoint,
 	launchOptions,
 	launchArguments,
@@ -447,16 +448,29 @@ test("child imports reject duplicate IDs, missing ancestors and foreign roots", 
 test("launch preflight resolves production previews and always releases its worker", async () => {
 	const bytes = new Uint8Array([1, 2, 3]);
 	let terminated = 0;
+	const progress = [];
 	const worker = {
 		postMessage(value) {
 			assert.equal(value, bytes);
-			queueMicrotask(() => this.onmessage({ data: { ok: true, preview: { id: "verified" } } }));
+			queueMicrotask(() => {
+				this.onmessage({ data: { phase: "Loading the mod checker…", received: 12, total: 24 } });
+				assert.equal(terminated, 0);
+				this.onmessage({ data: { ok: true, preview: { id: "verified" } } });
+			});
 		},
 		terminate() {
 			terminated++;
 		},
 	};
-	assert.deepEqual(await verifyLaunchBase(bytes, () => worker), { id: "verified" });
+	assert.deepEqual(
+		await verifyLaunchBase(
+			bytes,
+			() => worker,
+			(update) => progress.push(update),
+		),
+		{ id: "verified" },
+	);
+	assert.deepEqual(progress, [{ phase: "Loading the mod checker…", received: 12, total: 24 }]);
 	assert.equal(terminated, 1);
 	assert.deepEqual([...bytes], [1, 2, 3]);
 	const rejectedWorker = {
@@ -550,10 +564,45 @@ test("mobile menu is drawn before asynchronous startup and remains visible on fa
 	);
 	assert.ok(buttons().every((button) => button.disabled));
 	assert.equal(get("profile-crt").disabled, true);
+	assert.equal(get("startup-loading").hidden, false);
+	assert.equal(get("startup-phase").textContent, "Reading saved settings and mod packs…");
 	opening.error = Error("Storage unavailable");
 	opening.onerror();
 	await new Promise((resolve) => setImmediate(resolve));
 	assert.equal(get("menu").hidden, false);
 	assert.equal(buttons().length, 6);
 	assert.equal(get("status").textContent, "Storage unavailable");
+	assert.equal(get("startup-loading").hidden, true);
+});
+
+test("loading feedback distinguishes slow progress from a wait and stops after completion", () => {
+	let time = 1000,
+		tick,
+		stopped = false;
+	const updates = [];
+	const feedback = loadingFeedback((state) => updates.push(state), {
+		now: () => time,
+		setInterval: (callback) => {
+			tick = callback;
+			return 7;
+		},
+		clearInterval: (timer) => {
+			assert.equal(timer, 7);
+			stopped = true;
+		},
+	});
+	feedback.update("Downloading mod", 0, 100);
+	time += 25000;
+	tick();
+	assert.equal(updates.at(-1).idle, 25);
+	feedback.update("Downloading mod", 0, 100);
+	assert.equal(updates.at(-1).idle, 25);
+	feedback.update("Downloading mod", 50, 100);
+	assert.equal(updates.at(-1).idle, 0);
+	assert.equal(updates.at(-1).elapsed, 25);
+	feedback.update("Checking levels");
+	assert.equal(updates.at(-1).received, undefined);
+	assert.equal(updates.at(-1).total, undefined);
+	feedback.stop();
+	assert.equal(stopped, true);
 });
