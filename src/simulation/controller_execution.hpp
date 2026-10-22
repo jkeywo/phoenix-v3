@@ -1,3 +1,26 @@
+// Reset only the selected settings; a shared Controller can serve other duties.
+void clear_controller_settings(EntityId ship, std::size_t controller_index, std::initializer_list<std::size_t> channels)
+{
+	auto &controller = entities.at(ship).get_mut<EntityControls>().controllers.at(controller_index);
+	for (auto channel : channels)
+	{
+		const auto &spec = controller.definition.commands.at(channel);
+		auto &state = controller.commands.at(channel);
+		if (spec.semantics == CommandSemantics::Request)
+			throw std::runtime_error("Cannot reset request as a Controller setting");
+		if (state.revision == std::numeric_limits<std::uint64_t>::max())
+			throw std::runtime_error("Controller command revision exhausted");
+		state.value = spec.initial;
+		state.arguments.clear();
+		++state.revision;
+	}
+	std::erase_if(controller_pending,
+	              [&](const auto &p)
+	              {
+		              return p.address.entity == ship && p.controller == controller_index &&
+		                     std::find(channels.begin(), channels.end(), p.channel) != channels.end();
+	              });
+}
 // World::Impl methods. Physical mutation is confined to command consumption below.
 std::vector<state_tree::Value> controller_observations(EntityId id, const ConsoleControllerRuntime &controller)
 {
@@ -544,6 +567,8 @@ std::optional<ControllerProposal> controller_proposal(const ConsoleAddress &addr
 			    (!spec.choices.empty() && !spec.choices.contains(command.value)) ||
 			    !operating_arguments_valid(spec.action, command.value, command.arguments))
 				return {};
+			if (!psychic_channel_valid(address.ship, i, field, command.value))
+				return {};
 			const auto &state = controller.commands[field];
 			if (spec.semantics == CommandSemantics::Request)
 			{
@@ -588,6 +613,8 @@ bool commit_controller(const ControllerProposal &proposal)
 	if (controller.definition.console != proposal.address.console ||
 	    controller.definition.id != proposal.address.controller || controller.generation != proposal.generation ||
 	    controller.human != proposal.human || proposal.channel >= controller.commands.size())
+		return false;
+	if (!psychic_channel_valid(proposal.address.entity, proposal.controller, proposal.channel, proposal.value))
 		return false;
 	const auto &spec = controller.definition.commands[proposal.channel];
 	auto &state = controller.commands[proposal.channel];

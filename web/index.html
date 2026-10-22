@@ -37,13 +37,18 @@
 		</main>
 		<p id="status" role="status" aria-live="polite">Loading menu…</p>
 		<dialog id="popup" aria-labelledby="popup-title"></dialog>
-		<section id="runtime" hidden aria-label="Phoenix application">
-			<div id="startup-loading" hidden>
-				<div class="startup-card">
-					<h1>Loading application�</h1>
-					<progress id="startup-progress" aria-label="Loading application"></progress>
-				</div>
+		<section id="startup-loading" hidden aria-labelledby="startup-title">
+			<div class="startup-card">
+				<div class="loading-spinner" aria-hidden="true"></div>
+				<h2 id="startup-title">Preparing main menu</h2>
+				<p id="startup-phase" role="status" aria-live="polite">Reading saved settings and mod packs…</p>
+				<progress id="startup-progress" aria-label="Current download"></progress>
+				<p id="startup-time" class="help"></p>
+				<p id="startup-wait" class="help"></p>
+				<button id="startup-reload" type="button" hidden>Reload and try again</button>
 			</div>
+		</section>
+		<section id="runtime" hidden aria-label="Phoenix application">
 			<div id="semantics" aria-label="Player console">
 				<p id="player-status" role="status" aria-live="polite"></p>
 			</div>

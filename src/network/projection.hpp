@@ -1,6 +1,7 @@
 #pragma once
 #include "../core/display_projection.hpp"
 #include "../core/personnel_projection.hpp"
+#include "../core/psychic_projection.hpp"
 #include "../core/away_projection.hpp"
 #include "../core/team_projection.hpp"
 #include "../core/craft_projection.hpp"
@@ -48,6 +49,8 @@ static inline Json bounded_gameplay(const Json &source)
 		result["ftl"] = ftl_projection::board(source.at("ftl"));
 	if (source.contains("mission_report"))
 		result["mission_report"] = ftl_projection::report(source.at("mission_report"));
+	if (source.contains("psychic"))
+		result["psychic"] = psychic_projection::board(source.at("psychic"));
 	if (source.contains("sensors"))
 		result["sensors"] = sensor_projection::board(source.at("sensors"));
 	if (source.contains("away_missions"))
@@ -267,8 +270,8 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 	result.radar_enabled = value.at("radar_enabled");
 	result.console = value.value("console", std::string{"main"});
 	const auto controls = value.value("controls", 7), feeds = value.value("feeds", 7);
-	if (controls < 0 || controls > static_cast<std::int64_t>((system_bit(OperatingSystem::ShuttleBay) << 1) - 1) ||
-	    feeds < 0 || feeds > static_cast<std::int64_t>((system_bit(OperatingSystem::ShuttleBay) << 1) - 1) ||
+	if (controls < 0 || controls > static_cast<std::int64_t>((system_bit(OperatingSystem::Psychic) << 1) - 1) ||
+	    feeds < 0 || feeds > static_cast<std::int64_t>((system_bit(OperatingSystem::Psychic) << 1) - 1) ||
 	    (controls & feeds) != controls || result.console.size() > 128)
 		throw std::runtime_error("Invalid projected Console permissions");
 	result.controls = static_cast<SystemMask>(controls);
@@ -391,6 +394,8 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 		result.gameplay["ftl"] = ftl_projection::board(result.gameplay.at("ftl"));
 	if (result.gameplay.contains("mission_report"))
 		result.gameplay["mission_report"] = ftl_projection::report(result.gameplay.at("mission_report"));
+	if (result.gameplay.contains("psychic"))
+		result.gameplay["psychic"] = psychic_projection::board(result.gameplay.at("psychic"));
 	if (result.gameplay.contains("sensors"))
 		result.gameplay["sensors"] = sensor_projection::board(result.gameplay.at("sensors"));
 	if (result.gameplay.contains("away_missions"))

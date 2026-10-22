@@ -248,6 +248,10 @@ void fire_beam(flecs::entity ship, flecs::entity child, fixed::Vec origin, std::
 	const auto damage = m.get<WeaponState>().beam_remainder / (rate * 1000);
 	m.get<WeaponState>().beam_remainder %= rate * 1000;
 	++m.get<WeaponState>().shots;
+	psychic_weapon_emission(ship.get<StableId>().id);
+	if (damage)
+		ghost_damage(ship.get<StableId>().id, origin, m.get<WeaponState>().beam_end, from_z,
+		             from_z + (end_z - from_z) * std::min(nearest, fixed::unit) / fixed::unit);
 	if (!victim || !damage)
 		return;
 	auto target = entities.at(victim);
@@ -448,6 +452,8 @@ void step_ordnance()
 			const auto impact = from.position + fixed::Vec{(p.position.x - from.position.x) * hit.time / fixed::unit,
 			                                               (p.position.y - from.position.y) * hit.time / fixed::unit};
 			const auto z = from.altitude + (p.altitude - from.altitude) * hit.time / fixed::unit;
+			if (p.damage > 0)
+				ghost_damage(p.source, from.position, impact, from.altitude, z, p.definition.radius);
 			if (p.definition.durability && p.definition.blast_radius)
 			{
 				p.position = impact;
@@ -498,6 +504,8 @@ void step_ordnance()
 				p.penetration = 0;
 			}
 		}
+		if (p.damage > 0)
+			ghost_damage(p.source, from.position, p.position, from.altitude, p.altitude, p.definition.radius);
 		if (p.life > 0 && --p.life == 0 && p.definition.durability)
 		{
 			p.life = 1;

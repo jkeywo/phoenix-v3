@@ -93,6 +93,12 @@ try
 		}
 		Set-Content -LiteralPath "$repo/build/native/ftl-continuation.trace" -Value $ftlNativeTrace -Encoding utf8
 		& "$PSScriptRoot/check-network-service.ps1"
+		$psychicNativeTrace = & "$repo/build/native/Release/phoenix_psychic_tests.exe" --trace
+		if ($LASTEXITCODE)
+		{
+			throw 'Native psychic continuation trace failed'
+		}
+		Set-Content -LiteralPath "$repo/build/native/psychic-continuation.trace" -Value $psychicNativeTrace -Encoding utf8
 		$controllerNativeTrace = & "$repo/build/native/Release/phoenix_controller_runtime_tests.exe" --trace
 		if ($LASTEXITCODE)
 		{
@@ -174,6 +180,7 @@ try
 					'phoenix_ftl_tests.js',
 					'phoenix_missions_tests.js',
 					'phoenix_sensors_tests.js',
+					'phoenix_psychic_tests.js',
 					'phoenix_controller_runtime_tests.js',
 					'phoenix_combat_tests.js',
 					'phoenix_conversation_tests.js',
@@ -207,6 +214,12 @@ try
 				throw 'Native/WASM Comms continuation differs'
 			}
 			Write-Output 'PASS native/WASM Comms conversation continuation'
+			$psychicNativeTrace = Get-Content -LiteralPath "$repo/build/native/psychic-continuation.trace"
+			$psychicWebTrace = & $node phoenix_psychic_tests.js --trace
+			if ($LASTEXITCODE -or ($psychicNativeTrace -join "`n").Trim() -ne ($psychicWebTrace -join "`n").Trim())
+			{
+				throw 'Psychic native/WASM continuation differs'
+			}
 			$sensorNativeTrace = Get-Content -LiteralPath "$repo/build/native/sensor-continuation.trace"
 			$sensorWebTrace = & $node phoenix_sensors_tests.js --trace
 			if ($LASTEXITCODE -or ($sensorNativeTrace -join "`n").Trim() -ne ($sensorWebTrace -join "`n").Trim())

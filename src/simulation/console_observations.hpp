@@ -4,47 +4,30 @@ void append_sensor_contacts(const ConsoleAddress &address, Observation &result,
 {
 	const auto entity = entities.at(address.ship);
 	const auto &own = entity.get<Pose>();
-	std::int64_t range = 0;
-	for (const auto &sensor : result.systems)
+	std::map<EntityId, BodyView> contacts;
+	std::map<EntityId, BearingContactView> bearings;
+	for (auto &sensor : result.systems)
 		if (sensor.kind == OperatingSystem::Radar && sensor.enabled)
-			range = std::max(range,
-			                 sensor_range(address.ship, sensor.id, true) +
-			                     fixed::length(sensor_origin(address.ship, sensor_definition(address.ship, sensor.id)) -
-			                                   own.position));
-	if (range)
-		contact_index.each(
-		    Bounds::around(own.position, range),
-		    [&](std::size_t row)
-		    {
-			    const auto &contact = contact_rows[row];
-			    if (contact.id == address.ship)
-				    return;
-			    const auto &tags = definitions.at(contact.entity.get<Definition>().name).tags;
-			    bool visible = false, bearing_visible = false;
-			    for (auto &sensor : result.systems)
-				    if (sensor.kind == OperatingSystem::Radar && sensor.enabled &&
-				        std::any_of(tags.begin(), tags.end(),
-				                    [&](const auto &tag)
-				                    {
-					                    return std::find(sensor.shows.begin(), sensor.shows.end(), tag) !=
-					                           sensor.shows.end();
-				                    }))
-				    {
-					    const auto detection = sensor_contact(address.ship, sensor.id, contact.position,
-					                                          distance_3d(address.ship, contact.id));
-					    if (detection == SensorContact::None)
-						    continue;
-					    sensor.contact_ids.push_back(contact.id);
-					    bearing_visible = true;
-					    visible |= detection == SensorContact::Position;
-				    }
-			    if (visible)
-				    result.contacts.push_back(view(contact.id, contact.entity.get<Definition>(),
-				                                   contact.entity.get<Pose>(), contact.entity.get<Motion>()));
-			    else if (bearing_visible)
-				    result.bearing_contacts.push_back(
-				        {contact.id, combat_bearing(contact.position - own.position), ecs.get<Clock>().tick});
-		    });
+			for_sensor_contacts(
+			    address.ship, sensor.id,
+			    [&](const auto &input)
+			    {
+				    sensor.contact_ids.push_back(input.body.id);
+				    if (input.detection == SensorContact::Position)
+					    contacts.emplace(input.body.id, input.body);
+				    else
+					    bearings.emplace(
+					        input.body.id,
+					        BearingContactView{input.body.id,
+					                           combat_bearing(fixed::Vec{input.body.x, input.body.y} - own.position),
+					                           ecs.get<Clock>().tick});
+			    },
+			    true);
+	for (auto &[id, body] : contacts)
+		result.contacts.push_back(std::move(body));
+	for (const auto &[id, bearing] : bearings)
+		if (!contacts.contains(id))
+			result.bearing_contacts.push_back(bearing);
 	for (auto missile : projectile_rows())
 	{
 		const auto &p = missile.get<Projectile>();
@@ -77,7 +60,7 @@ void append_sensor_contacts(const ConsoleAddress &address, Observation &result,
 		}
 	}
 	for (auto &contact : result.contacts)
-		if (entities.contains(contact.id))
+		if (entities.contains(contact.id) || ghost_receptions.contains(contact.id))
 		{
 			Json identity;
 			if (evidence.contains(contact.id) && evidence.at(contact.id).at("findings").contains("basic_identity"))

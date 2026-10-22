@@ -1805,6 +1805,29 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 			    localise("Estimates assume current demand and supply remain constant; future commands are excluded.");
 		result.emplace_back("game.readout/system-" + console_encoded(system.id), std::move(text));
 	}
+	for (const auto &c : observation_->gameplay.value("psychic", Json::object()).value("choirs", Json::array()))
+	{
+		for (const auto &seat : c.at("seats"))
+		{
+			std::string value = seat.at("officer").get<std::string>() + ": " + localise(seat.at("power"));
+			value += ". " + localise("Effective strength") + " " + std::to_string(seat.at("work").get<int>()) + "/1000";
+			if (!seat.at("blocker").get<std::string>().empty())
+				value += ". " + localise(seat.at("blocker"));
+			result.emplace_back("psychic." + seat.at("duty").get<std::string>(), value);
+		}
+	}
+
+	for (const auto &t : observation_->gameplay.value("sensors", Json::object()).value("tracks", Json::array()))
+	{
+		const auto &b = t.at("body");
+		result.emplace_back("track." + std::to_string(b.at("id").get<EntityId>()),
+		                    localise("Last observed") + " " + localise(b.at("definition")) + ". " +
+		                        localise("Predicted position") + " " + std::to_string(b.at("x").get<std::int64_t>()) +
+		                        ", " + std::to_string(b.at("y").get<std::int64_t>()) + ". " + localise("Uncertainty") +
+		                        " " + std::to_string(t.at("uncertainty").get<std::int64_t>()) + ". " +
+		                        localise("Observed tick") + " " +
+		                        std::to_string(t.at("observed").get<std::uint64_t>()));
+	}
 	for (auto row : board_readouts(observation_->gameplay, now))
 		result.push_back(std::move(row));
 	const auto marker = waypoint();

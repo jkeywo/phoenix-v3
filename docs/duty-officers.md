@@ -1,10 +1,10 @@
 # Duty officers
 
-Duty officers are named members of a ship's watch. They support human and AI operators equally. Unstaffed duties keep their baseline capability. Open **Personnel** from a Console toolbar or Console settings; the roster contains only that Station's departments.
+Duty officers are named members of a ship's watch. They support human and AI operators equally. Unstaffed duties keep their baseline capability; psychic choir seats require a compatible specialist to supply a power. Open **Personnel** from a Console toolbar or Console settings; the roster contains only that Station's departments.
 
 ## Assignment
 
-Each department has one owning Station. Each Controller and physical repair team has a duty with one officer slot. Officers belong to a fixed department and may hold one duty at a time, or remain in reserve. Assigning to an occupied duty relieves its occupant; Swap duties exchanges both assignments. There is no Captain override, department transfer or ship transfer.
+Each department has one owning Station. Each Controller and physical team has a duty with one officer slot. [Psychic choirs](psychic-choir.md) additionally author multiple seat duties; each seat accepts one compatible psychic officer. Officers belong to a fixed department and may hold one duty at a time, or remain in reserve. Assigning to an occupied duty relieves its occupant; Swap duties exchanges both assignments. There is no Captain override, department transfer or ship transfer.
 
 Reassignment removes the previous contribution immediately. Officers walk the ship's compartment connections, finishing an existing segment before changing direction. Bonuses begin on arrival. Officers attached to teams accompany them; an officer approaching a moving team follows its current route endpoint. Controllers have compartment locations but are not damageable equipment. Ships without combat interiors author a small personnel-only compartment graph. Reserve officers remain at their physical location.
 

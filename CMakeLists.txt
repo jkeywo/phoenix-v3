@@ -267,6 +267,7 @@ add_library(
 	src/content/away.cpp
 	src/content/craft.cpp
 	src/content/sensors.cpp
+	src/content/psychic.cpp
 	src/content/controllers.cpp
 	src/content/console_assets.cpp
 	src/content/workshop.cpp
@@ -390,6 +391,7 @@ foreach(
 		craft
 		ftl
 		sensors
+		psychic
 		controller_runtime
 		combat
 )
@@ -1155,3 +1157,10 @@ if(NOT EMSCRIPTEN)
 endif()
 
 include(cmake/cruiser-smoke.cmake)
+
+add_executable(phoenix_psychic_smoke EXCLUDE_FROM_ALL tests/manual/psychic_ui.cpp)
+set_property(TARGET phoenix_psychic_smoke PROPERTY CXX_SCAN_FOR_MODULES ON)
+target_link_libraries(phoenix_psychic_smoke PRIVATE phoenix_session phoenix_presentation phoenix_core)
+if(NOT EMSCRIPTEN)
+	add_dependencies(phoenix_psychic_smoke base_pack)
+endif()
