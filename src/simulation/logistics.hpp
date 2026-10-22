@@ -1,0 +1,578 @@
+// Typed material simulation. Strings/JSON are confined to commands and projections.
+std::vector<std::pair<EntityId, flecs::entity>> inventory_rows() const
+{
+	std::vector<std::pair<EntityId, flecs::entity>> rows;
+	inventory_query.each(
+	    [&](flecs::entity e, const StableId &id, MaterialInventory &)
+	    {
+		    rows.emplace_back(id.id, e);
+	    });
+	std::sort(rows.begin(), rows.end(),
+	          [](const auto &a, const auto &b)
+	          {
+		          return a.first < b.first;
+	          });
+	return rows;
+}
+const MaterialStoreDefinition &material_store(EntityId id, std::size_t store) const
+{
+	return definition(id).logistics.stores.at(store);
+}
+bool material_accepts(EntityId id, std::size_t store, const std::string &m) const
+{
+	const auto &s = material_store(id, store);
+	return std::find(s.accepts.begin(), s.accepts.end(), m) != s.accepts.end();
+}
+flecs::entity material_magazine(EntityId id, std::size_t store) const
+{
+	const auto &s = material_store(id, store);
+	if (s.system.empty())
+		return {};
+	const auto fit = instance(entities.at(id), s.system);
+	return fit && fit->kind == OperatingSystem::Magazine ? fit->entity : flecs::entity{};
+}
+std::int64_t material_quantity(EntityId id, std::size_t store, const std::string &m) const
+{
+	if (const auto mag = material_magazine(id, store))
+		return mag.get<CombatMechanism>().get<MagazineState>().ammo;
+	const auto &q = entities.at(id).get<MaterialInventory>().stores.at(store).quantities;
+	return q.contains(m) ? q.at(m) : 0;
+}
+void material_add(EntityId id, std::size_t store, const std::string &m, std::int64_t n)
+{
+	if (const auto mag = material_magazine(id, store))
+		mag.get_mut<CombatMechanism>().get<MagazineState>().ammo += n;
+	else
+		entities.at(id).get_mut<MaterialInventory>().stores.at(store).quantities[m] += n;
+}
+std::int64_t material_space(EntityId id, std::size_t store, const std::string &m) const
+{
+	if (!material_accepts(id, store, m))
+		return 0;
+	const auto &d = definition(id).logistics;
+	std::int64_t used = 0;
+	for (const auto &type : material_store(id, store).accepts)
+		used += material_quantity(id, store, type) * d.materials.at(type).volume;
+	if (const auto mag = material_magazine(id, store))
+		used += mag.get<CombatMechanism>().get<MagazineState>().reserved_return * d.materials.at(m).volume;
+	for (const auto &b : material_batches)
+		if (b.destination == id && b.to == store)
+			used += b.quantity * d.materials.at(b.material).volume;
+	return std::max<std::int64_t>(0, material_store(id, store).capacity - used) / d.materials.at(m).volume;
+}
+std::size_t material_compartment(EntityId id, std::size_t store) const
+{
+	const auto &s = material_store(id, store);
+	if (!s.system.empty())
+		if (const auto fit = instance(entities.at(id), s.system); fit && fit->kind == OperatingSystem::Team)
+			return fit->entity.get<CombatMechanism>().get<TeamState>().location;
+	return definition(id).combat->compartment_ids.at(s.compartment);
+}
+bool material_store_working(EntityId id, std::size_t store) const
+{
+	if (combat_dead(entities.at(id)) || departed(id))
+		return false;
+	const auto &s = material_store(id, store);
+	if (entities.at(id).get<CombatStructure>().compartments.at(material_compartment(id, store)).disabled)
+		return false;
+	if (!s.system.empty())
+	{
+		const auto fit = instance(entities.at(id), s.system);
+		if (!fit->enabled || !fault_effectiveness(entities.at(id), s.system))
+			return false;
+		if (fit->kind == OperatingSystem::Team)
+		{
+			const auto &t = fit->entity.get<CombatMechanism>().get<TeamState>();
+			if (t.travel || away_reserved(id, "team:" + s.system))
+				return false;
+		}
+	}
+	return true;
+}
+std::string material_edge_key(std::size_t a, std::size_t b) const
+{
+	return std::to_string(std::min(a, b)) + ":" + std::to_string(std::max(a, b));
+}
+std::pair<std::int64_t, std::int64_t> material_route(EntityId id, std::size_t from, std::size_t to) const
+{
+	const auto &s = entities.at(id).get<CombatStructure>();
+	const auto &closed = entities.at(id).get<MaterialInventory>().closed_routes;
+	std::vector<CompartmentConnection> links;
+	for (const auto &l : s.definition.connections)
+		if (!closed.contains(material_edge_key(l.from, l.to)) && !s.compartments.at(l.from).disabled &&
+		    !s.compartments.at(l.to).disabled)
+			links.push_back(l);
+	return compartment_route(s.compartments.size(), links, from, to);
+}
+bool material_connection(EntityId, EntityId) const
+{
+	return false;
+} // Extended by docking/bay adapters.
+void request_material(EntityId source, std::size_t from, EntityId destination, std::size_t to, const std::string &m,
+                      std::int64_t n, bool automatic)
+{
+	if (material_requests.size() >= 4096 || next_material_request >= 9007199254740991ULL)
+		return;
+	material_requests.push_back({next_material_request++, source, destination, from, to, m, n, automatic});
+}
+void step_logistics()
+{
+	const auto rows = inventory_rows();
+	for (const auto &[id, e] : rows)
+	{
+		if (combat_dead(e) || departed(id) || craft_dormant(e))
+			continue;
+		const auto &d = definition(id).logistics;
+		for (std::size_t to = 0; to < d.stores.size(); ++to)
+			for (const auto &[m, target] : e.get<MaterialInventory>().stores[to].targets)
+			{
+				auto pending = material_quantity(id, to, m);
+				for (const auto &b : material_batches)
+					if (b.destination == id && b.to == to && b.material == m)
+						pending += b.quantity;
+				for (const auto &r : material_requests)
+					if (r.destination == id && r.to == to && r.material == m)
+						pending += r.remaining;
+				if (pending >= target)
+					continue;
+				for (std::size_t from = 0; from < d.stores.size(); ++from)
+					if (from != to && d.stores[from].main && material_accepts(id, from, m))
+					{
+						request_material(id, from, id, to, m, target - pending, true);
+						break;
+					}
+			}
+	}
+	std::map<EntityId, std::int64_t> budgets, active;
+	for (const auto &[id, e] : rows)
+	{
+		auto &state = e.get_mut<MaterialInventory>();
+		state.handling_remainder += definition(id).logistics.throughput;
+		budgets[id] = state.handling_remainder / rate;
+		state.handling_remainder %= rate;
+	}
+	for (const auto &b : material_batches)
+		++active[b.source];
+	for (auto &r : material_requests)
+	{
+		if (!r.remaining || !material_store_working(r.source, r.from) || !material_store_working(r.destination, r.to))
+			continue;
+		if (entities.at(r.source).get<MaterialInventory>().stores[r.from].held)
+			continue;
+		if (material_batches.size() >= 4096 || active[r.source] >= definition(r.source).logistics.concurrency)
+			continue;
+		const auto start = material_compartment(r.source, r.from), end = material_compartment(r.destination, r.to);
+		if (r.source == r.destination ? start != end && material_route(r.source, start, end).first < 0
+		                              : !material_connection(r.source, r.destination))
+			continue;
+		auto n = std::min({r.remaining, material_quantity(r.source, r.from, r.material),
+		                   material_space(r.destination, r.to, r.material), budgets[r.source],
+		                   definition(r.source).logistics.batch_size});
+		if (r.source != r.destination)
+			n = std::min(n, budgets[r.destination]);
+		if (n <= 0)
+			continue;
+		material_add(r.source, r.from, r.material, -n);
+		r.remaining -= n;
+		budgets[r.source] -= n;
+		if (r.source != r.destination)
+			budgets[r.destination] -= n;
+		material_batches.push_back(
+		    {next_material_batch++, r.id, r.source, r.destination, r.source, r.from, r.to, start, r.material, n});
+		++active[r.source];
+	}
+	std::erase_if(material_requests,
+	              [](const auto &r)
+	              {
+		              return r.remaining == 0;
+	              });
+	for (auto &b : material_batches)
+	{
+		if (combat_dead(entities.at(b.location)) || departed(b.location))
+			continue;
+		if (b.travel)
+		{
+			const auto route = material_route(b.location, b.compartment, b.edge_to);
+			if (route.first != b.edge_to)
+				continue;
+			if (--b.travel)
+				continue;
+			b.compartment = b.edge_to;
+			b.edge_to = -1;
+		}
+		auto end = b.location == b.destination ? material_compartment(b.destination, b.to)
+		                                       : material_compartment(b.source, b.from);
+		if (b.compartment != end)
+		{
+			const auto route = material_route(b.location, b.compartment, end);
+			if (route.first < 0)
+				continue;
+			b.edge_to = route.first;
+			b.travel = route.second;
+			continue;
+		}
+		if (b.location != b.destination)
+		{
+			if (!material_connection(b.location, b.destination))
+				continue;
+			b.location = b.destination;
+			b.compartment = material_compartment(b.destination, b.to);
+			continue;
+		}
+		if (!material_store_working(b.destination, b.to))
+			continue;
+		material_add(b.destination, b.to, b.material, b.quantity);
+		b.quantity = 0;
+	}
+	std::erase_if(material_batches,
+	              [](const auto &b)
+	              {
+		              return b.quantity == 0;
+	              });
+}
+bool material_authority(const ConsoleAddress &a, const OperatingCommand &c, const std::string &owner, bool ai) const
+{
+	if (!entities.at(a.ship).has<EntityControls>())
+		return false;
+	for (const auto &ctrl : entities.at(a.ship).get<EntityControls>().controllers)
+		if (ctrl.definition.console == a.console && ctrl.definition.id == owner && c.controller == owner &&
+		    ctrl.generation == c.generation && ctrl.human != ai)
+			return true;
+	return false;
+}
+bool logistics_command(const ConsoleAddress &a, const OperatingCommand &c, bool execute, bool ai = false)
+{
+	const auto e = entities.at(a.ship);
+	if (!e.has<MaterialInventory>() || c.channel != "" || c.request_id || !c.arguments.empty() || c.text.size() > 512 ||
+	    !c.speaker_name.empty() || !c.speaker_avatar.empty())
+		return false;
+	auto &state = e.get_mut<MaterialInventory>();
+	const auto &d = definition(a.ship).logistics;
+	if (c.value != static_cast<std::int64_t>(state.revision) || state.revision >= 9007199254740991ULL)
+		return false;
+	if (c.action == "logistics.route")
+	{
+		if (!material_authority(a, c, d.controller, ai))
+			return false;
+		const auto slash = c.text.find('/');
+		if (slash == std::string::npos)
+			return false;
+		const auto &compartments = definition(a.ship).combat->compartment_ids;
+		if (!compartments.contains(c.system) || !compartments.contains(c.text.substr(0, slash)))
+			return false;
+		const auto from = compartments.at(c.system), to = compartments.at(c.text.substr(0, slash));
+		const auto mode = c.text.substr(slash + 1);
+		if (mode != "close" && mode != "open")
+			return false;
+		bool exists = false;
+		for (const auto &l : definition(a.ship).combat->connections)
+			exists |= (l.from == from && l.to == to) || (l.from == to && l.to == from);
+		if (!exists)
+			return false;
+		if (execute)
+		{
+			const auto key = material_edge_key(from, to);
+			if (mode == "close")
+				state.closed_routes.insert(key);
+			else
+				state.closed_routes.erase(key);
+			++state.revision;
+		}
+		return true;
+	}
+	if (c.action == "logistics.cancel" && c.system.starts_with("batch:"))
+	{
+		if (!material_authority(a, c, d.controller, ai))
+			return false;
+		auto it = std::find_if(material_batches.begin(), material_batches.end(),
+		                       [&](const auto &b)
+		                       {
+			                       return b.source == a.ship && c.system == "batch:" + std::to_string(b.id);
+		                       });
+		if (it == material_batches.end() || it->returning ||
+		    material_space(it->source, it->from, it->material) < it->quantity)
+			return false;
+		if (execute)
+		{
+			it->destination = it->source;
+			it->to = it->from;
+			it->returning = true;
+			++state.revision;
+		}
+		return true;
+	}
+	if (c.action == "logistics.cancel")
+	{
+		if (!material_authority(a, c, d.controller, ai))
+			return false;
+		const auto it = std::find_if(material_requests.begin(), material_requests.end(),
+		                             [&](const auto &r)
+		                             {
+			                             return r.source == a.ship && c.system == std::to_string(r.id);
+		                             });
+		if (it == material_requests.end())
+			return false;
+		if (execute)
+		{
+			material_requests.erase(it);
+			++state.revision;
+		}
+		return true;
+	}
+	std::size_t index = d.stores.size();
+	for (std::size_t i = 0; i < d.stores.size(); ++i)
+		if (d.stores[i].id == c.system)
+			index = i;
+	if (index == d.stores.size())
+		return false;
+	const auto &s = d.stores[index];
+	if (!material_authority(a, c, s.controller, ai))
+		return false;
+	if (c.action == "logistics.hold" || c.action == "logistics.release")
+	{
+		if (!s.main || !c.text.empty())
+			return false;
+		if (execute)
+		{
+			state.stores[index].held = c.action == "logistics.hold";
+			++state.revision;
+		}
+		return true;
+	}
+	if (c.action == "logistics.target")
+	{
+		const auto slash = c.text.find('/');
+		if (slash == std::string::npos)
+			return false;
+		const auto m = c.text.substr(0, slash);
+		const auto n = parse_material_number(c.text.substr(slash + 1));
+		if (n < 0 || !material_accepts(a.ship, index, m) || n > s.capacity / d.materials.at(m).volume)
+			return false;
+		if (execute)
+		{
+			state.stores[index].targets[m] = n;
+			std::erase_if(material_requests,
+			              [&](const auto &r)
+			              {
+				              return r.automatic && r.destination == a.ship && r.to == index && r.material == m;
+			              });
+			++state.revision;
+		}
+		return true;
+	}
+	return false;
+}
+std::int64_t parse_material_number(const std::string &s) const
+{
+	if (s.empty() || s.size() > 15)
+		return -1;
+	std::int64_t n = 0;
+	for (char c : s)
+	{
+		if (c < '0' || c > '9')
+			return -1;
+		n = n * 10 + c - '0';
+	}
+	return n;
+}
+Json logistics_board(const ConsoleAddress &a) const
+{
+	Json out{{"revision", 1}, {"stores", Json::array()}, {"requests", Json::array()}, {"batches", Json::array()}};
+	const auto e = entities.at(a.ship);
+	if (!e.has<MaterialInventory>())
+		return out;
+	const auto &d = definition(a.ship).logistics;
+	const auto &state = e.get<MaterialInventory>();
+	out["revision"] = state.revision;
+	auto visible = [&](const std::string &owner)
+	{
+		for (const auto &ctrl : e.get<EntityControls>().controllers)
+			if (ctrl.definition.id == owner)
+				return ctrl.definition.console == a.console;
+		return false;
+	};
+	const bool main = visible(d.controller);
+	for (std::size_t i = 0; i < d.stores.size(); ++i)
+	{
+		const auto &s = d.stores[i];
+		if (!main && !visible(s.controller))
+			continue;
+		Json quantities = Json::object(), space = Json::object();
+		for (const auto &m : s.accepts)
+		{
+			quantities[m] = material_quantity(a.ship, i, m);
+			space[m] = material_space(a.ship, i, m);
+		}
+		out["stores"].push_back({{"id", s.id},
+		                         {"controller", s.controller},
+		                         {"main", s.main},
+		                         {"held", state.stores[i].held},
+		                         {"quantities", quantities},
+		                         {"space", space},
+		                         {"targets", state.stores[i].targets},
+		                         {"working", material_store_working(a.ship, i)}});
+	}
+	if (main)
+	{
+		for (const auto &r : material_requests)
+			if ((r.source == a.ship || r.destination == a.ship) && out["requests"].size() < 256)
+				out["requests"].push_back(r);
+		for (const auto &b : material_batches)
+			if ((b.source == a.ship || b.destination == a.ship) && out["batches"].size() < 256)
+				out["batches"].push_back(b);
+	}
+	return out;
+}
+void restore_logistics(const Json &saved)
+{
+	material_requests.clear();
+	material_batches.clear();
+	if (saved.at("schema").get<int>() < 16)
+		return;
+	const auto &j = saved.at("logistics");
+	material_requests = j.at("requests").get<std::vector<MaterialRequest>>();
+	material_batches = j.at("batches").get<std::vector<MaterialBatch>>();
+	next_material_request = j.at("next_request");
+	next_material_batch = j.at("next_batch");
+	if (material_requests.size() > 4096 || material_batches.size() > 4096 || !next_material_request ||
+	    !next_material_batch)
+		throw std::runtime_error("Invalid logistics continuation size");
+	for (const auto &b : saved.at("bodies"))
+	{
+		const auto id = b.at("body").at("id").get<EntityId>();
+		const auto e = entities.at(id);
+		if (!e.has<MaterialInventory>())
+		{
+			if (b.contains("inventory"))
+				throw std::runtime_error("Unexpected inventory");
+			continue;
+		}
+		const auto state = b.at("inventory").get<MaterialInventory>();
+		const auto &d = definition(id).logistics;
+		if (state.stores.size() != d.stores.size() || !state.revision || state.revision >= 9007199254740991ULL ||
+		    state.handling_remainder < 0 || state.handling_remainder >= rate)
+			throw std::runtime_error("Invalid inventory continuation");
+		for (std::size_t i = 0; i < state.stores.size(); ++i)
+			for (const auto *q : {&state.stores[i].quantities, &state.stores[i].targets})
+				for (const auto &[m, n] : *q)
+					if (!material_accepts(id, i, m) || n < 0 || n > d.stores[i].capacity / d.materials.at(m).volume)
+						throw std::runtime_error("Invalid saved material stock");
+		if (state.closed_routes.size() > definition(id).combat->connections.size() ||
+		    state.work_credit.size() > d.consumers.size())
+			throw std::runtime_error("Invalid saved routing/work credit");
+		for (const auto &key : state.closed_routes)
+		{
+			bool found = false;
+			for (const auto &l : definition(id).combat->connections)
+				found |= key == material_edge_key(l.from, l.to);
+			if (!found)
+				throw std::runtime_error("Unknown saved material route");
+		}
+		for (const auto &[key, n] : state.work_credit)
+			if (!material_consumer(id, key) || n < 0 || n > rate * 1000)
+				throw std::runtime_error("Invalid saved material credit");
+		e.set<MaterialInventory>(state);
+	}
+	auto endpoint = [&](EntityId id, std::size_t i, const std::string &m)
+	{
+		return entities.contains(id) && entities.at(id).has<MaterialInventory>() &&
+		       i < definition(id).logistics.stores.size() && material_accepts(id, i, m);
+	};
+	std::uint64_t last = 0;
+	for (const auto &r : material_requests)
+	{
+		if (r.id <= last || r.id >= next_material_request || r.remaining <= 0 ||
+		    !endpoint(r.source, r.from, r.material) || !endpoint(r.destination, r.to, r.material))
+			throw std::runtime_error("Invalid saved supply request");
+		last = r.id;
+	}
+	last = 0;
+	for (const auto &b : material_batches)
+	{
+		if (b.id <= last || b.id >= next_material_batch || !b.request || b.request >= next_material_request ||
+		    b.quantity <= 0 || !endpoint(b.source, b.from, b.material) || !endpoint(b.destination, b.to, b.material) ||
+		    (b.location != b.source && b.location != b.destination) ||
+		    b.compartment >= definition(b.location).combat->compartments.size() || b.edge_to < -1 ||
+		    b.edge_to >= static_cast<std::int64_t>(definition(b.location).combat->compartments.size()) ||
+		    b.travel < 0 || (b.travel > 0) != (b.edge_to >= 0))
+			throw std::runtime_error("Invalid saved delivery batch");
+		last = b.id;
+	}
+	for (const auto &[id, e] : inventory_rows())
+		for (std::size_t i = 0; i < definition(id).logistics.stores.size(); ++i)
+		{
+			std::int64_t used = 0;
+			const auto &d = definition(id).logistics;
+			for (const auto &m : d.stores[i].accepts)
+				used += material_quantity(id, i, m) * d.materials.at(m).volume;
+			for (const auto &b : material_batches)
+				if (b.destination == id && b.to == i)
+					used += b.quantity * d.materials.at(b.material).volume;
+			if (const auto mag = material_magazine(id, i))
+				used += mag.get<CombatMechanism>().get<MagazineState>().reserved_return *
+				        d.materials.at(d.stores[i].accepts[0]).volume;
+			if (used > d.stores[i].capacity)
+				throw std::runtime_error("Saved stock and reservations exceed capacity");
+		}
+}
+
+const MaterialConsumerDefinition *material_consumer(EntityId origin, const std::string &system) const
+{
+	for (const auto &c : definition(origin).logistics.consumers)
+		if (c.system == system)
+			return &c;
+	return nullptr;
+}
+bool pay_material_work(EntityId origin, const std::string &system, const std::string &activity, bool paid)
+{
+	if (paid)
+		return true;
+	const auto *c = material_consumer(origin, system);
+	if (!c || !c->costs.contains(activity))
+		return true;
+	const auto &d = definition(origin).logistics;
+	const auto at = std::find_if(d.stores.begin(), d.stores.end(),
+	                             [&](const auto &s)
+	                             {
+		                             return s.id == c->store;
+	                             });
+	const auto index = static_cast<std::size_t>(at - d.stores.begin());
+	// Deployed teams carry their own kit; stationary stores cannot supply them remotely.
+	if (away_reserved(origin, "team:" + system) && at->system != system)
+		return false;
+	if (!at->system.empty())
+	{
+		const auto fit = instance(entities.at(origin), at->system);
+		if (!fit || !fit->enabled || !fault_effectiveness(entities.at(origin), at->system))
+			return false;
+	}
+	const auto &costs = c->costs.at(activity);
+	for (const auto &[m, n] : costs)
+		if (material_quantity(origin, index, m) < n)
+			return false;
+	for (const auto &[m, n] : costs)
+		material_add(origin, index, m, -n);
+	return true;
+}
+std::int64_t paid_structural_work(EntityId origin, const std::string &system, std::int64_t work)
+{
+	const auto *c = material_consumer(origin, system);
+	if (!c || !c->costs.contains("structural"))
+		return work;
+	auto &credit = entities.at(origin).get_mut<MaterialInventory>().work_credit[system];
+	std::int64_t result = 0;
+	while (work > 0)
+	{
+		if (!credit)
+		{
+			if (!pay_material_work(origin, system, "structural", false))
+				break;
+			credit = rate * 1000;
+		}
+		const auto amount = std::min(work, credit);
+		credit -= amount;
+		work -= amount;
+		result += amount;
+	}
+	return result;
+}

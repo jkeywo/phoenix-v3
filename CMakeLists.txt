@@ -266,6 +266,7 @@ add_library(
 	src/content/personnel.cpp
 	src/content/away.cpp
 	src/content/craft.cpp
+	src/content/logistics.cpp
 	src/content/sensors.cpp
 	src/content/controllers.cpp
 	src/content/console_assets.cpp
@@ -385,6 +386,7 @@ foreach(
 		workshop_test
 		personnel
 		medical
+		logistics
 		security
 		away
 		craft

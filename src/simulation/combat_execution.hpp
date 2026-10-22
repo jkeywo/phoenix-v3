@@ -519,7 +519,7 @@ void route_repair_team(flecs::entity ship, TeamState &r, std::size_t target)
 }
 // Repair effort is milli-HP per second; compartment work carries sub-tick fractions.
 std::int64_t structural_repair_work(flecs::entity ship, std::vector<flecs::entity> teams,
-                                    std::int64_t specialist_bonus = 0) const
+                                    std::int64_t specialist_bonus = 0)
 {
 	std::erase_if(teams,
 	              [&](auto team)
@@ -544,10 +544,12 @@ std::int64_t structural_repair_work(flecs::entity ship, std::vector<flecs::entit
 		const auto &d = teams[rank].get<CombatMechanism>().definition;
 		if (!d.get<TeamDefinition>().capabilities.contains("repair"))
 			continue;
-		work += personnel_scale(d.get<TeamDefinition>().repair_rate * 1000000,
-		                        officer_bonus(ship.get<StableId>().id, d.id, "repair") + specialist_bonus) /
-		        (1000 + d.get<TeamDefinition>().stack_penalty * static_cast<std::int64_t>(rank)) *
-		        fault_effectiveness(ship, d.id) / 1000 * team_effectiveness(teams[rank].get<CombatMechanism>()) / 1000;
+		const auto contribution =
+		    personnel_scale(d.get<TeamDefinition>().repair_rate * 1000000,
+		                    officer_bonus(ship.get<StableId>().id, d.id, "repair") + specialist_bonus) /
+		    (1000 + d.get<TeamDefinition>().stack_penalty * static_cast<std::int64_t>(rank)) *
+		    fault_effectiveness(ship, d.id) / 1000 * team_effectiveness(teams[rank].get<CombatMechanism>()) / 1000;
+		work += paid_structural_work(ship.get<StableId>().id, d.id, contribution);
 	}
 	return work;
 }
@@ -625,6 +627,8 @@ void step_repairs()
 					claimed.insert(*task);
 					auto &f = s.faults.at(task->first)[task->second];
 					const auto &d = s.definition.faults.at(task->first)[task->second];
+					if (!pay_material_work(id, m->definition.id, "repair", f.work > 0))
+						continue;
 					f.work += officer_value(ship.get<StableId>().id, m->definition.id, "repair",
 					                        m->definition.get<TeamDefinition>().repair_rate * 1000) *
 					          fault_effectiveness(ship, m->definition.id) / 1000;

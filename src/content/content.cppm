@@ -480,6 +480,33 @@ struct AwayDefinition
 };
 state_tree::Registry away_registry(const Json &tree = Json::object());
 std::vector<AwayDefinition> compile_away(const Catalog &, const Json &);
+struct MaterialDefinition
+{
+	std::string id;
+	std::int64_t volume = 1;
+};
+struct MaterialStoreDefinition
+{
+	std::string id, compartment, system, controller;
+	std::int64_t capacity = 0;
+	bool main = false;
+	std::vector<std::string> accepts;
+	std::map<std::string, std::int64_t> initial, targets;
+};
+struct MaterialConsumerDefinition
+{
+	std::string system, store;
+	std::map<std::string, std::map<std::string, std::int64_t>> costs;
+};
+struct LogisticsDefinition
+{
+	std::string controller;
+	std::int64_t throughput = 20, concurrency = 4, batch_size = 10;
+	std::map<std::string, MaterialDefinition> materials;
+	std::vector<MaterialStoreDefinition> stores;
+	std::vector<MaterialConsumerDefinition> consumers;
+};
+LogisticsDefinition compile_logistics(const Catalog &, const std::string &);
 struct TransportDefinition
 {
 	std::string compartment;

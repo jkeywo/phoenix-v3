@@ -30,6 +30,7 @@ import phoenix.gameplay_scenario;
 #include "ftl_state.hpp"
 #include "controllers.hpp"
 #include "combat.hpp"
+#include "logistics_state.hpp"
 #include "personnel_state.hpp"
 #include "away_state.hpp"
 #include "mission_state.hpp"
@@ -131,6 +132,7 @@ struct CompiledDefinition
 	PersonnelDefinition personnel;
 	std::vector<BoardingDefinition> boarding;
 	TransportDefinition transport;
+	LogisticsDefinition logistics;
 	std::optional<CraftDefinition> craft;
 	std::map<std::string, CraftBayDefinition> craft_bays;
 	std::map<std::string, DisplacementDefinition> displacements;
@@ -260,6 +262,10 @@ struct World::Impl
 	flecs::query<const StableId, const CombatStructure> combat_ships;
 	flecs::query<const Projectile> projectile_query;
 	flecs::query<CraftState> craft_query;
+	flecs::query<const StableId, MaterialInventory> inventory_query;
+	std::vector<MaterialRequest> material_requests;
+	std::vector<MaterialBatch> material_batches;
+	std::uint64_t next_material_request = 1, next_material_batch = 1;
 	flecs::query<const StableId, VerticalMotion> vertical_query;
 	flecs::system integrate, resolve_collisions, index_contacts;
 	bool instance_systems = false;
@@ -323,6 +329,8 @@ struct World::Impl
 		advanced_ships = ecs.query_builder<const StableId, const GameplayShip>().cached().build();
 		combat_ships = ecs.query_builder<const StableId, const CombatStructure>().cached().build();
 		projectile_query = ecs.query_builder<const Projectile>().cached().build();
+		inventory_query =
+		    ecs.query_builder<const StableId, MaterialInventory>().with(flecs::Disabled).optional().cached().build();
 		craft_query = ecs.query_builder<CraftState>().with(flecs::Disabled).optional().cached().build();
 		vertical_query = ecs.query_builder<const StableId, VerticalMotion>().cached().build();
 		integrate = ecs.system<Pose, Motion>("Integrate")
@@ -528,6 +536,7 @@ struct World::Impl
 			result.personnel = compile_personnel(content, name);
 			result.boarding = compile_boarding(content, name);
 			result.transport = compile_transport(content, name);
+			result.logistics = compile_logistics(content, name);
 			result.craft = compile_craft(content, name);
 			result.craft_bays = compile_craft_bays(content, name);
 			result.ftl = compile_ftl(content, name);
@@ -835,6 +844,13 @@ struct World::Impl
 			                }))
 				entity.get_mut<Destructible>().destroyed_tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
 			entity.set<CombatStructure>(std::move(structure));
+		}
+		if (!data.logistics.stores.empty())
+		{
+			MaterialInventory inventory;
+			for (const auto &s : data.logistics.stores)
+				inventory.stores.push_back({s.initial, s.targets});
+			entity.set<MaterialInventory>(std::move(inventory));
 		}
 		if (data.collider.mass)
 			entity.add<Movable>();
@@ -2010,6 +2026,7 @@ struct World::Impl
 	}
 #include "personnel.hpp"
 #include "teams.hpp"
+#include "logistics.hpp"
 #include "bridge.hpp"
 #include "conversations.hpp"
 #include "away.hpp"
@@ -2033,6 +2050,8 @@ struct World::Impl
 			return ftl_command(address, command, execute);
 		if (command.action.starts_with("away."))
 			return away_command(address, command, execute);
+		if (command.action.starts_with("logistics."))
+			return logistics_command(address, command, execute);
 		if (command.action.starts_with("team."))
 			return team_command(address, command, execute);
 		if (command.action.starts_with("craft."))
@@ -2501,6 +2520,7 @@ void World::tick()
 	impl_->run_advanced_equipment();
 	impl_->step_vertical();
 	impl_->service_craft();
+	impl_->step_logistics();
 	// Commands may change velocity this tick. Activate swept collision partners
 	// after propulsion, including their starting poses, before any integration.
 	impl_->stream_fields();
@@ -2847,6 +2867,7 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	result.gameplay["teams"] = impl_->team_board(address);
 	result.gameplay["away_missions"] = impl_->away_board(address);
 	result.gameplay["craft"] = impl_->craft_board(address);
+	result.gameplay["logistics"] = impl_->logistics_board(address);
 	result.gameplay["ftl"] = impl_->ftl_board(address);
 	result.gameplay["mission_report"] =
 	    entity.has<MissionDeparture>() ? entity.get<MissionDeparture>().report : Json(nullptr);
@@ -3489,7 +3510,7 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 15},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 16},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
 	if (impl_->display_revision)
 	{
@@ -3566,6 +3587,8 @@ Json World::save() const
 			if (systems->power)
 				result["bodies"].back()["resources"] = save_ship_resources(*systems->power);
 		}
+		if (entity.has<MaterialInventory>())
+			result["bodies"].back()["inventory"] = entity.get<MaterialInventory>();
 		if (entity.has<PersonnelState>())
 			result["bodies"].back()["personnel"] = impl_->personnel_snapshot(id);
 		if (entity.has<CombatStructure>())
@@ -3595,6 +3618,10 @@ Json World::save() const
 	result["conversations"] = impl_->conversations.save();
 	result["away_missions"] = impl_->save_away();
 	result["captured_by"] = impl_->captured_by;
+	result["logistics"] = {{"requests", impl_->material_requests},
+	                       {"batches", impl_->material_batches},
+	                       {"next_request", impl_->next_material_request},
+	                       {"next_batch", impl_->next_material_batch}};
 	result["craft"] = impl_->save_craft();
 	result["mission_ledger"] = impl_->mission_ledger;
 	result["sensors"] = impl_->save_sensors();
@@ -3612,7 +3639,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if ((saved.at("schema") != 13 && saved.at("schema") != 14 && saved.at("schema") != 15) ||
+	if ((saved.at("schema") != 13 && saved.at("schema") != 14 && saved.at("schema") != 15 &&
+	     saved.at("schema") != 16) ||
 	    saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error("Saved state schema/content identity mismatch; Controller runtime requires schema 13, "
 		                         "14 or 15; start a new session");
@@ -3705,7 +3733,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 			candidate.impl_->restore_bridge(restored.id, value.at("bridge"));
 		if (entity.has<EntityControls>())
 		{
-			if ((saved.at("schema") != 13 && saved.at("schema") != 14 && saved.at("schema") != 15))
+			if ((saved.at("schema") != 13 && saved.at("schema") != 14 && saved.at("schema") != 15 &&
+			     saved.at("schema") != 16))
 				throw std::runtime_error("Controller state requires schema 13, 14 or 15; start a new session");
 			candidate.impl_->restore_controllers(entity, value.at("console_controllers"));
 		}
@@ -3918,6 +3947,7 @@ void World::restore(const Catalog &content, const Json &source_saved)
 						throw std::runtime_error("Team detention without capture");
 		}
 	candidate.impl_->validate_craft_transports();
+	candidate.impl_->restore_logistics(saved);
 	candidate.impl_->mission_ledger = saved.value("mission_ledger", MissionLedger{});
 	candidate.impl_->restore_sensors(saved.value("sensors", Json::array()));
 	candidate.impl_->sensor_discoveries =

@@ -459,6 +459,32 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		{
+			auto source = medical_fixture();
+			auto &ship = source["entities"][0];
+			for (auto &officer : ship["personnel"]["officers"])
+			{
+				officer["duty"] = "";
+				officer["compartment"] = "workshop";
+				officer["condition"] = "minor";
+			}
+			ship["logistics"] = Json::parse(R"({"controller":"medical","materials":[{"id":"medical"}],
+              "stores":[{"id":"kit","system":"medical","compartment":"workshop","capacity":2,"accepts":["medical"],"initial":{"medical":1}}],
+              "consumers":[{"system":"medical","store":"kit","costs":{"treat":{"medical":1},"stabilise":{"medical":1}}}]})");
+			const auto catalog = load(source);
+			World supplied;
+			supplied.load(catalog, "test.map", {{"crew", "test.away"}});
+			claim(supplied);
+			ticks(supplied, 3);
+			World resumed;
+			resumed.restore(catalog, supplied.save());
+			ticks(supplied, 20);
+			ticks(resumed, 20);
+			require(supplied.save() == resumed.save(), "Paid medical work resumes without charging twice");
+			const auto a = officer(supplied, 2, 0), b = officer(supplied, 2, 1);
+			require((a["condition"] == "healthy") != (b["condition"] == "healthy"),
+			        "One medical supply heals one patient and depletion blocks the next");
+		}
 		Json trace = Json::array();
 		clinical_execution_regressions(trace);
 		patient_selection_regressions();

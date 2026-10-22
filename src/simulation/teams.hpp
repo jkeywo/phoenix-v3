@@ -313,6 +313,8 @@ void treat_patient(EntityId origin, const CombatMechanism &team, EntityId target
 		auto &r = away_equipment(target, selected.team).get_mut<CombatMechanism>().get<TeamState>();
 		if (activity != "treat" || r.condition != "injured")
 			return;
+		if (!pay_material_work(origin, team.definition.id, "treat", r.treatment > 0))
+			return;
 		r.treatment += officer_value(origin, team.definition.id, "medical", 1000) * team_effectiveness(team) / 1000;
 		if (r.treatment >= team.definition.get<TeamDefinition>().treatment_ticks * 1000)
 		{
@@ -331,6 +333,9 @@ void treat_patient(EntityId origin, const CombatMechanism &team, EntityId target
 	if (o.condition == "severe" && o.stabilised)
 		return;
 	const auto ticks = o.condition == "severe" ? d.stabilise_ticks : d.treatment_ticks;
+	if (!pay_material_work(origin, team.definition.id, o.condition == "severe" ? "stabilise" : "treat",
+	                       o.treatment > 0))
+		return;
 	o.treatment += officer_value(origin, team.definition.id, "medical", 1000) * team_effectiveness(team) / 1000;
 	if (o.treatment < ticks * 1000)
 		return;
@@ -375,6 +380,8 @@ void step_medical_facilities()
 						const auto at = std::find(pd.compartments.begin(), pd.compartments.end(), f.compartment) -
 						                pd.compartments.begin();
 						if (ship.has<CombatStructure>() && ship.get<CombatStructure>().compartments.at(at).disabled)
+							continue;
+						if (!pay_material_work(id, f.id, "recover", o.recovery > 0))
 							continue;
 						o.recovery += 1000;
 						if (o.recovery >= f.recovery_ticks * 1000)
