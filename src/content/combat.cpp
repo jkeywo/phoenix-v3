@@ -66,6 +66,16 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 	CombatDefinition d;
 	const auto &c = entity.at("combat");
 	d.half_height = amount(c, "half_height_mm", 5000, 1, 1000000);
+	d.access_controller =
+	    c.value("access_controller", entity.value("logistics", Json::object()).value("controller", std::string{}));
+	if (!d.access_controller.empty())
+	{
+		bool found = false;
+		for (const auto &ctrl : entity.at("control_layout").at("controllers"))
+			found |= ctrl.at("id") == d.access_controller;
+		if (!found)
+			fail("unknown access_controller");
+	}
 	d.repair_console = c.value("repair_console", std::string{});
 	if (!d.repair_console.empty())
 	{

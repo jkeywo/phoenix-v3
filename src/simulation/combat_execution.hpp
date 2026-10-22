@@ -448,8 +448,9 @@ void penetrate(Projectile &p, flecs::entity ship, fixed::Vec start, fixed::Vec e
 std::pair<std::int64_t, std::int64_t> repair_route(flecs::entity ship, std::size_t from, std::size_t to,
                                                    std::int64_t *total_cost = nullptr) const
 {
-	const auto &s=ship.get<CombatStructure>();
-	return physical_route(ship.get<StableId>().id,s.compartments.size(),s.definition.connections,from,to,total_cost);
+	const auto &s = ship.get<CombatStructure>();
+	return physical_route(ship.get<StableId>().id, s.compartments.size(), s.definition.connections, from, to,
+	                      total_cost);
 }
 
 using RepairFault = std::pair<std::string, std::size_t>;
@@ -497,7 +498,8 @@ bool advance_repair_team(flecs::entity ship, flecs::entity child)
 	auto &r = m.get<TeamState>();
 	if (r.travel > 0)
 	{
-        if(!physical_edge_open(ship.get<StableId>().id,r.location,r.edge_to))return false;
+		if (!physical_edge_open(ship.get<StableId>().id, r.location, r.edge_to))
+			return false;
 		if (--r.travel > 0)
 			return false;
 		r.location = r.edge_to;
@@ -582,8 +584,10 @@ void step_repairs()
 				    (!m->get<TeamState>().order.empty() && m->get<TeamState>().activity != "repair") ||
 				    away_reserved(id, "team:" + m->definition.id))
 					continue;
-				if (m->get<TeamState>().order.empty() ? !advance_repair_team(ship, child)
-				                                      : m->get<TeamState>().travel > 0)
+				if (m->get<TeamState>().order.empty()
+				        ? !advance_repair_team(ship, child)
+				        : m->get<TeamState>().travel > 0 || m->get<TeamState>().destination < 0 ||
+				              m->get<TeamState>().location != m->get<TeamState>().destination)
 					continue;
 				if (m->get<TeamState>().repair_auto)
 				{
@@ -848,6 +852,8 @@ Json save_combat(flecs::entity ship) const
 {
 	const auto &s = ship.get<CombatStructure>();
 	Json j = {{"random", s.random}, {"faults", s.faults}, {"compartments", Json::array()}, {"systems", Json::object()}};
+	j["closed_routes"] = s.closed_routes;
+	j["access_revision"] = s.access_revision;
 	for (const auto &c : s.compartments)
 		j["compartments"].push_back({{"hp", c.hp}, {"work", c.work}, {"disabled", c.disabled}});
 	for (auto child : ship.get<EquipmentIndex>().values)
@@ -868,6 +874,19 @@ Json save_combat(flecs::entity ship) const
 void restore_combat(flecs::entity ship, const Json &j)
 {
 	auto &s = ship.get_mut<CombatStructure>();
+	s.closed_routes = j.at("closed_routes").get<std::set<std::string>>();
+	s.access_revision = j.at("access_revision");
+	if (!s.access_revision || s.access_revision >= 9007199254740991ULL ||
+	    s.closed_routes.size() > s.definition.connections.size())
+		throw std::runtime_error("Invalid compartment access continuation");
+	for (const auto &key : s.closed_routes)
+	{
+		bool found = false;
+		for (const auto &edge : s.definition.connections)
+			found |= key == compartment_edge_key(edge.from, edge.to);
+		if (!found)
+			throw std::runtime_error("Unknown closed compartment route");
+	}
 	s.random = j.at("random");
 	s.faults = j.value("faults", Json(s.faults)).get<std::map<std::string, std::vector<FaultState>>>();
 	for (const auto &[id, defs] : s.definition.faults)

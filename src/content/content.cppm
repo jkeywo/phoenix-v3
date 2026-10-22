@@ -510,10 +510,10 @@ struct LogisticsDefinition
 LogisticsDefinition compile_logistics(const Catalog &, const std::string &);
 struct DockPortDefinition
 {
- std::string id, controller, compartment, compatibility;
- std::int64_t x = 0, y = 0, z = 0, heading = 0, capture_range = 1000, capture_speed = 500,
- alignment = 5000, mating_ticks = 20, separation_ticks = 20, throughput = 20, emergency_damage = 0;
- bool auto_accept_allies = false, supply = false, emergency_release = false;
+	std::string id, controller, compartment, compatibility;
+	std::int64_t x = 0, y = 0, z = 0, heading = 0, capture_range = 1000, capture_speed = 500, alignment = 5000,
+	             mating_ticks = 20, separation_ticks = 20, throughput = 20, emergency_damage = 0;
+	bool auto_accept_allies = false, supply = false, emergency_release = false;
 };
 std::vector<DockPortDefinition> compile_docking(const Catalog &, const std::string &);
 struct TransportDefinition
@@ -533,6 +533,9 @@ struct CraftSupplyDefinition
 {
 	std::string source, destination;
 	std::int64_t rate = 0;
+	std::size_t source_store = 0;
+	std::string material;
+	std::map<std::string, std::size_t> destination_stores;
 };
 struct CraftBayDefinition
 {
@@ -766,7 +769,7 @@ struct CombatDefinition
 	std::map<std::string, std::size_t> compartment_ids, system_ids;
 	std::map<std::string, std::string> equipment_compartments;
 	std::map<std::string, std::vector<FaultDefinition>> faults;
-	std::string repair_console;
+	std::string repair_console, access_controller;
 	std::int64_t collision_scale = 1, collision_threshold = 1000, half_height = 5000;
 	DestructionDefinition destruction;
 };

@@ -23,8 +23,10 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 	const auto fallback =
 	    observation_snapshots.contains(address) ? std::optional<Observation>{} : capture_console_observation(address);
 	const auto &observation = fallback ? *fallback : observation_snapshots.at(address);
-    if(brain.logistics_revision)values.at(*brain.logistics_revision)=Value::integer(observation.gameplay.at("logistics").at("revision"));
-    if(brain.docking_revision)values.at(*brain.docking_revision)=Value::integer(observation.gameplay.at("docking").at("revision"));
+	if (brain.logistics_revision)
+		values.at(*brain.logistics_revision) = Value::integer(observation.gameplay.at("logistics").at("revision"));
+	if (brain.docking_revision)
+		values.at(*brain.docking_revision) = Value::integer(observation.gameplay.at("docking").at("revision"));
 	values[brain.own[ControllerOwnField::X]] = Value::integer(observation.own.x);
 	values[brain.own[ControllerOwnField::Y]] = Value::integer(observation.own.y);
 	values[brain.own[ControllerOwnField::Vx]] = Value::integer(observation.own.vx);
@@ -364,15 +366,18 @@ void controller_output(EntityId id, std::size_t index, const state_tree::Output 
 				if (!ftl_command(source, command, true, true))
 					throw std::runtime_error("FTL departure refused");
 			}
-            else if (action.name.starts_with("logistics.") || action.name.starts_with("dock."))
-            {
-                OperatingCommand command{id, action.name, output.arguments.at(2).number, output.arguments.at(0).text};
-                command.text = output.arguments.at(1).text;
-                command.controller = controller.definition.id;
-                command.generation = controller.generation;
-                const bool accepted=action.name.starts_with("logistics.")?logistics_command(source,command,true,true):docking_command(source,command,true,true);
-                if(!accepted)throw std::runtime_error("Supply/docking command refused");
-            }
+			else if (action.name.starts_with("logistics.") || action.name.starts_with("dock."))
+			{
+				OperatingCommand command{id, action.name, output.arguments.at(2).number, output.arguments.at(0).text};
+				command.text = output.arguments.at(1).text;
+				command.controller = controller.definition.id;
+				command.generation = controller.generation;
+				const bool accepted = action.name.starts_with("logistics.")
+				                          ? logistics_command(source, command, true, true)
+				                          : docking_command(source, command, true, true);
+				if (!accepted)
+					throw std::runtime_error("Supply/docking command refused");
+			}
 			else if (action.name.starts_with("team."))
 			{
 				OperatingCommand command{id, action.name, output.arguments.at(2).number, output.arguments.at(0).text};

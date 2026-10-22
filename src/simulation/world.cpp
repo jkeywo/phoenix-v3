@@ -45,7 +45,8 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Vec, x, y)
 }
 namespace phoenix
 {
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(DockConnection, parent, port, remote_port, phase, controller, progress, relative_heading, relative_z, relative, assisted, generation, generations)
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(DockConnection, parent, port, remote_port, phase, controller, progress,
+                                   relative_heading, relative_z, relative, assisted, generation, generations)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(CraftState, home, target, bay, order, pending_order, pending_target, mission, slot,
                                    phase, revision, progress, ftl_recalled, report, rendezvous, rendezvous_velocity,
                                    target_position, target_velocity, rendezvous_altitude, target_altitude,
@@ -133,6 +134,7 @@ struct CompiledDefinition
 	BridgeDefinition bridge;
 	PersonnelDefinition personnel;
 	std::vector<BoardingDefinition> boarding;
+	std::map<std::string, std::vector<std::string>> boarding_docking_ports;
 	TransportDefinition transport;
 	LogisticsDefinition logistics;
 	std::vector<DockPortDefinition> docking;
@@ -334,7 +336,8 @@ struct World::Impl
 		advanced_ships = ecs.query_builder<const StableId, const GameplayShip>().cached().build();
 		combat_ships = ecs.query_builder<const StableId, const CombatStructure>().cached().build();
 		projectile_query = ecs.query_builder<const Projectile>().cached().build();
-		docking_query = ecs.query_builder<const StableId, DockingState>().with(flecs::Disabled).optional().cached().build();
+		docking_query =
+		    ecs.query_builder<const StableId, DockingState>().with(flecs::Disabled).optional().cached().build();
 		dock_connection_query = ecs.query_builder<const StableId, DockConnection>().cached().build();
 		inventory_query =
 		    ecs.query_builder<const StableId, MaterialInventory>().with(flecs::Disabled).optional().cached().build();
@@ -346,7 +349,8 @@ struct World::Impl
 		                .each(
 		                    [this](flecs::entity e, Pose &pose, Motion &motion)
 		                    {
-                            if (dock_attached(e.get<StableId>().id)) return;
+			                    if (dock_attached(e.get<StableId>().id))
+				                    return;
 			                    motion.velocity.x = std::clamp(motion.velocity.x, -fixed::unit, fixed::unit);
 			                    motion.velocity.y = std::clamp(motion.velocity.y, -fixed::unit, fixed::unit);
 			                    motion.remainder = motion.remainder + motion.velocity;
@@ -382,7 +386,8 @@ struct World::Impl
 			                      {
 				                      return a.id < b.id;
 			                      });
-			            for (auto &row : collisions) row.body.mass = dock_mass(dock_root(row.id));
+			            for (auto &row : collisions)
+				            row.body.mass = dock_mass(dock_root(row.id));
 			            collision_boxes.clear();
 			            for (const auto &entry : collisions)
 				            collision_boxes.push_back(collision_bounds(entry.body));
@@ -413,7 +418,8 @@ struct World::Impl
 			            for (std::size_t a = 0; a < collisions.size(); ++a)
 				            for (auto b = collision_index.first(collision_boxes[a], a + 1); b != SpatialIndex::none;
 				                 b = collision_index.first(collision_boxes[a], b + 1))
-					            if (dock_root(collisions[a].id) != dock_root(collisions[b].id) && step_starts.contains(collisions[a].id) && step_starts.contains(collisions[b].id))
+					            if (dock_root(collisions[a].id) != dock_root(collisions[b].id) &&
+					                step_starts.contains(collisions[a].id) && step_starts.contains(collisions[b].id))
 						            if (auto time = sweep_contact_time(collisions[a].body, collisions[b].body,
 						                                               step_starts.at(collisions[a].id),
 						                                               step_starts.at(collisions[b].id), true))
@@ -453,7 +459,11 @@ struct World::Impl
 						            auto b = collision_index.first(collision_bounds(collisions[a].body), begin);
 						            if (b == SpatialIndex::none)
 							            break;
-						            if (dock_root(collisions[a].id) == dock_root(collisions[b].id)) { begin = b + 1; continue; }
+						            if (dock_root(collisions[a].id) == dock_root(collisions[b].id))
+						            {
+							            begin = b + 1;
+							            continue;
+						            }
 						            const auto impact_a = collisions[a].body, impact_b = collisions[b].body;
 						            const auto before_a = collisions[a].body.position,
 						                       before_b = collisions[b].body.position;
@@ -470,8 +480,9 @@ struct World::Impl
 							            cancel_ship_impulse(collisions[b].id);
 						            }
 						            for (std::size_t row = 0; row < collisions.size(); ++row)
-                                    if (dock_root(collisions[row].id) == dock_root(collisions[a].id) || dock_root(collisions[row].id) == dock_root(collisions[b].id))
-                                        collision_index.update(row, collision_bounds(collisions[row].body));
+							            if (dock_root(collisions[row].id) == dock_root(collisions[a].id) ||
+							                dock_root(collisions[row].id) == dock_root(collisions[b].id))
+								            collision_index.update(row, collision_bounds(collisions[row].body));
 						            collision_index.update(a, collision_bounds(collisions[a].body));
 						            collision_index.update(b, collision_bounds(collisions[b].body));
 						            begin = b + 1;
@@ -552,6 +563,9 @@ struct World::Impl
 			result.bridge = compile_bridge(content, name);
 			result.personnel = compile_personnel(content, name);
 			result.boarding = compile_boarding(content, name);
+			for (const auto &row : definition.value("boarding_missions", Json::array()))
+				result.boarding_docking_ports[row.at("id").get<std::string>()] =
+				    row.value("docking_ports", std::vector<std::string>{});
 			result.transport = compile_transport(content, name);
 			result.logistics = compile_logistics(content, name);
 			result.docking = compile_docking(content, name);
@@ -599,12 +613,14 @@ struct World::Impl
 							brain.routine_stance =
 							    content.trees.at(spec.tree).value("officer_routine_stance", std::string("routine"));
 							brain.own = bindings.own;
-                            for(std::size_t field=0;field<brain.program.registry.observations.size();++field)
-                            {
-                                const auto &name=brain.program.registry.observations[field].name;
-                                if(name=="logistics.revision")brain.logistics_revision=field;
-                                if(name=="docking.revision")brain.docking_revision=field;
-                            }
+							for (std::size_t field = 0; field < brain.program.registry.observations.size(); ++field)
+							{
+								const auto &name = brain.program.registry.observations[field].name;
+								if (name == "logistics.revision")
+									brain.logistics_revision = field;
+								if (name == "docking.revision")
+									brain.docking_revision = field;
+							}
 							brain.ftl_system = bindings.ftl_system;
 							brain.inbox = bindings.inbox;
 							brain.result = bindings.result;
@@ -869,12 +885,13 @@ struct World::Impl
 				entity.get_mut<Destructible>().destroyed_tick = static_cast<std::int64_t>(ecs.get<Clock>().tick);
 			entity.set<CombatStructure>(std::move(structure));
 		}
-  if (!data.docking.empty())
-  {
-   DockingState state;
-   for (const auto &p : data.docking) state.ports.push_back({p.auto_accept_allies,p.supply,{}});
-   entity.set<DockingState>(std::move(state));
-  }
+		if (!data.docking.empty())
+		{
+			DockingState state;
+			for (const auto &p : data.docking)
+				state.ports.push_back({p.auto_accept_allies, p.supply, {}});
+			entity.set<DockingState>(std::move(state));
+		}
 		if (!data.logistics.stores.empty())
 		{
 			MaterialInventory inventory;
@@ -1523,16 +1540,16 @@ struct World::Impl
 	void run_basic_steering()
 	{
 		for (auto child : ordered_equipment(steering_query))
-			if (auto ship = child.parent();
-			    ship.has<Movable>() && !dock_attached(ship.get<StableId>().id) && !structurally_disabled(ship, child.get<Equipment>().id))
+			if (auto ship = child.parent(); ship.has<Movable>() && !dock_attached(ship.get<StableId>().id) &&
+			                                !structurally_disabled(ship, child.get<Equipment>().id))
 				step_basic_steering(ship.get_mut<Pose>(), child.get_mut<Steering>(),
 				                    fault_effectiveness(ship, child.get<Equipment>().id));
 	}
 	void run_basic_engines()
 	{
 		for (auto child : ordered_equipment(engine_query))
-			if (auto ship = child.parent();
-			    ship.has<Movable>() && !dock_attached(ship.get<StableId>().id) && !structurally_disabled(ship, child.get<Equipment>().id))
+			if (auto ship = child.parent(); ship.has<Movable>() && !dock_attached(ship.get<StableId>().id) &&
+			                                !structurally_disabled(ship, child.get<Equipment>().id))
 				step_basic_engine(ship.get<Pose>(), ship.get_mut<Motion>(), child.get_mut<Engine>(),
 				                  officer_value(ship.get<StableId>().id, child.get<Equipment>().id, "propulsion",
 				                                fault_effectiveness(ship, child.get<Equipment>().id)));
@@ -1763,7 +1780,8 @@ struct World::Impl
 		}
 		if (restrictions.impulse && flight.definition.kind == FlightKind::Boost)
 			paid = 0;
-		const bool structural_stop = dock_attached(ship.get<StableId>().id) || structurally_disabled(ship, child.get<Equipment>().id);
+		const bool structural_stop =
+		    dock_attached(ship.get<StableId>().id) || structurally_disabled(ship, child.get<Equipment>().id);
 		const bool accepted_enabled = flight.state.enabled;
 		if (structural_stop)
 			flight.state.enabled = false;
@@ -2056,6 +2074,7 @@ struct World::Impl
 	}
 #include "personnel.hpp"
 #include "teams.hpp"
+#include "compartment_access.hpp"
 #include "logistics.hpp"
 #include "docking.hpp"
 #include "cargo.hpp"
@@ -2461,12 +2480,15 @@ void World::tick()
 			impl_->advance_personnel(id);
 	for (const auto &proposal : impl_->controller_pending)
 		if (!impl_->departed(proposal.address.entity))
-        {
-            const auto &ctrl = impl_->entities.at(proposal.address.entity).get<EntityControls>().controllers.at(proposal.controller);
-            if (impl_->commit_controller(proposal))
-                impl_->cancel_docking_assist(proposal.address.entity, proposal.address.controller,
-                    std::string(operating_action(ctrl.definition.commands.at(proposal.channel).action).name), proposal.value);
-        }
+		{
+			const auto &ctrl =
+			    impl_->entities.at(proposal.address.entity).get<EntityControls>().controllers.at(proposal.controller);
+			if (impl_->commit_controller(proposal))
+				impl_->cancel_docking_assist(
+				    proposal.address.entity, proposal.address.controller,
+				    std::string(operating_action(ctrl.definition.commands.at(proposal.channel).action).name),
+				    proposal.value);
+		}
 	impl_->controller_pending.clear();
 	if (impl_->scenario)
 	{
@@ -2562,8 +2584,8 @@ void World::tick()
 	impl_->adjust_dock_propulsion();
 	impl_->step_vertical();
 	impl_->service_craft();
-	impl_->step_logistics();
 	impl_->step_cargo();
+	impl_->step_logistics();
 	// Commands may change velocity this tick. Activate swept collision partners
 	// after propulsion, including their starting poses, before any integration.
 	impl_->stream_fields();
@@ -3556,7 +3578,7 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 16},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 17},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
 	if (impl_->display_revision)
 	{
@@ -3671,7 +3693,9 @@ Json World::save() const
 	result["logistics"] = {{"requests", impl_->material_requests},
 	                       {"batches", impl_->material_batches},
 	                       {"next_request", impl_->next_material_request},
-	                       {"next_batch", impl_->next_material_batch}, {"cargo", impl_->cargo_deliveries}, {"next_cargo", impl_->next_cargo_delivery}};
+	                       {"next_batch", impl_->next_material_batch},
+	                       {"cargo", impl_->cargo_deliveries},
+	                       {"next_cargo", impl_->next_cargo_delivery}};
 	result["craft"] = impl_->save_craft();
 	result["mission_ledger"] = impl_->mission_ledger;
 	result["sensors"] = impl_->save_sensors();
@@ -3685,15 +3709,14 @@ Json World::save() const
 }
 void World::restore(const Catalog &content, const Json &source_saved)
 {
-	Json saved = source_saved;
+	const Json &saved = source_saved;
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if ((saved.at("schema") != 13 && saved.at("schema") != 14 && saved.at("schema") != 15 &&
-	     saved.at("schema") != 16) ||
-	    saved.at("packs") != Json(content.ordered_packs))
-		throw std::runtime_error("Saved state schema/content identity mismatch; Controller runtime requires schema 13, "
-		                         "14 or 15; start a new session");
+	if (saved.at("schema") != 17)
+		throw std::runtime_error("Saved state schema retired; start a new session (schema 17 required)");
+	if (saved.at("packs") != Json(content.ordered_packs))
+		throw std::runtime_error("Saved state content identity mismatch; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))
 		throw std::runtime_error("Legacy authority fields are not Controller continuation");
 	if (!saved.value("carried_craft", Json::array()).empty())
@@ -3707,7 +3730,7 @@ void World::restore(const Catalog &content, const Json &source_saved)
 		candidate.impl_->unload_rock(rock);
 	candidate.impl_->field_rocks.clear();
 	candidate.impl_->index_contacts.run();
-	if (saved.at("schema") >= 4 && candidate.impl_->scenario)
+	if (candidate.impl_->scenario)
 	{
 		const auto event_source = candidate.impl_->conversation_instance;
 		if (saved.at("conversation_starts").at("instance") != event_source)
@@ -3719,13 +3742,7 @@ void World::restore(const Catalog &content, const Json &source_saved)
 			else
 				candidate.impl_->create(id, definition, {{"x_mm", 0}, {"y_mm", 0}, {"heading_mdeg", 0}});
 		candidate.impl_->restore_spawned_craft(saved.value("craft", Json()));
-		candidate.impl_->next_entity = saved.at("next_entity").get<EntityId>();
-		if (!candidate.impl_->entities.empty() &&
-		    (candidate.impl_->next_entity <= candidate.impl_->entities.rbegin()->first ||
-		     candidate.impl_->next_entity > 1000000001ULL))
-			throw std::runtime_error("Saved next entity identity overlaps roster");
 	}
-	if (saved.at("schema") >= 4)
 	{
 		const auto &value = saved.at("next_entity");
 		if (!value.is_number_integer() || (!value.is_number_unsigned() && value.get<std::int64_t>() < 1))
@@ -3783,9 +3800,6 @@ void World::restore(const Catalog &content, const Json &source_saved)
 			candidate.impl_->restore_bridge(restored.id, value.at("bridge"));
 		if (entity.has<EntityControls>())
 		{
-			if ((saved.at("schema") != 13 && saved.at("schema") != 14 && saved.at("schema") != 15 &&
-			     saved.at("schema") != 16))
-				throw std::runtime_error("Controller state requires schema 13–16; start a new session");
 			candidate.impl_->restore_controllers(entity, value.at("console_controllers"));
 		}
 		else if (value.contains("console_controllers"))
@@ -3802,8 +3816,10 @@ void World::restore(const Catalog &content, const Json &source_saved)
 		    restored.remainder.x >= rate || restored.remainder.y <= -rate || restored.remainder.y >= rate)
 			throw std::runtime_error("Saved state invalid numeric remainder/heading");
 		const auto saved_altitude = value.value("body_altitude", std::int64_t{0});
-        if (std::abs(saved_altitude)>1000000) throw std::runtime_error("Invalid saved body altitude");
-        entity.set<Pose>({restored.position, restored.heading, saved_altitude, saved_altitude}).set<Motion>({restored.velocity, restored.remainder});
+		if (std::abs(saved_altitude) > 1000000)
+			throw std::runtime_error("Invalid saved body altitude");
+		entity.set<Pose>({restored.position, restored.heading, saved_altitude, saved_altitude})
+		    .set<Motion>({restored.velocity, restored.remainder});
 		if (candidate.impl_->definition(restored.id).craft)
 		{
 			const auto v = value.at("vertical").get<VerticalMotion>();
@@ -3894,18 +3910,7 @@ void World::restore(const Catalog &content, const Json &source_saved)
 				restore_ship_resources(*systems->power, value.at("resources"));
 		}
 	}
-	if (saved.at("schema") >= 4)
 	{
-		if (saved.at("schema") == 13)
-		{
-			const auto expected = candidate.impl_->knowledge.save().at("runtime").at("contract");
-			auto old = expected;
-			if (!old.at("schemas").empty() && old.at("schemas").back().at("name") == "phoenix.officer-decision")
-				old["schemas"].erase(old["schemas"].end() - 1);
-			auto &actual = saved["knowledge"]["runtime"]["contract"];
-			if (actual == old)
-				actual = expected;
-		}
 		candidate.impl_->knowledge.restore(saved.at("knowledge"));
 		if (saved.at("knowledge").at("ships").size() != candidate.impl_->entities.size())
 			throw std::runtime_error("Knowledge/physical roster count mismatch");
@@ -3958,10 +3963,9 @@ void World::restore(const Catalog &content, const Json &source_saved)
 		                                           command.system, command.arguments};
 	}
 
-	if (saved.at("schema") >= 4)
-		for (const auto &[id, entity] : candidate.impl_->entities)
-			if (entity.has<EntityControls>())
-				candidate.impl_->refresh_control(id, false);
+	for (const auto &[id, entity] : candidate.impl_->entities)
+		if (entity.has<EntityControls>())
+			candidate.impl_->refresh_control(id, false);
 	auto tick = saved.at("tick").get<std::int64_t>();
 	if (tick < 0)
 		throw std::runtime_error("Saved state invalid tick");
@@ -4020,7 +4024,7 @@ void World::restore(const Catalog &content, const Json &source_saved)
 			candidate.impl_->retire_departed(id);
 		}
 	candidate.impl_->index_contacts.run();
-	candidate.impl_->refresh_comms();
+	candidate.impl_->refresh_comms(false);
 	candidate.impl_->validate_mission_ledger();
 	candidate.impl_->validate_medical_state();
 	impl_ = std::move(candidate.impl_);

@@ -16,6 +16,16 @@ inline Json board(const Json &source)
 	if (!source.is_object() || source.dump().size() > 512 * 1024)
 		throw std::runtime_error("Invalid material projection");
 	Json out{{"revision", projection::number(source.at("revision"), 1, 9007199254740991LL)}};
+	out["controller"] = projection::text(source.value("controller", Json("")), 64);
+	out["route_controller"] = projection::text(source.value("route_controller", Json("")), 64);
+	out["routes"] = Json::array();
+	const auto routes = source.value("routes", Json::array());
+	if (!routes.is_array() || routes.size() > 1024)
+		throw std::runtime_error("Invalid projected material routes");
+	for (const auto &r : routes)
+		out["routes"].push_back({{"from", projection::text(r.at("from"), 64)},
+		                         {"to", projection::text(r.at("to"), 64)},
+		                         {"closed", r.at("closed").get<bool>()}});
 	const auto &stores = source.at("stores");
 	if (!stores.is_array() || stores.size() > 128)
 		throw std::runtime_error("Invalid projected stores");
@@ -58,42 +68,50 @@ inline Json board(const Json &source)
 			out[field].push_back(v);
 		}
 	}
-    for (const auto *key : {"cargo", "cargo_craft", "offers"})
-    {
-        const auto rows = source.value(key, Json::array());
-        if (!rows.is_array() || rows.size() > 128) throw std::runtime_error("Invalid cargo projection");
-        out[key] = Json::array();
-        for (const auto &r : rows)
-        {
-            Json v;
-            if (std::string(key) == "cargo")
-            {
-                for (const auto *k : {"id", "carrier", "target", "quantity", "report_tick"}) v[k] = projection::number(r.at(k), 0, 9007199254740991LL);
-                for (const auto *k : {"material", "phase"}) v[k] = projection::text(r.at(k), 64);
-            }
-            else if (std::string(key) == "offers")
-            {
-                v["entity"] = projection::number(r.at("entity"), 1, 9007199254740991LL);
-                for (const auto *k : {"store", "material"}) v[k] = projection::text(r.at(k), 64);
-                v["connected"] = r.at("connected").get<bool>();
-            }
-            else
-            {
-                v["id"] = projection::number(r.at("id"), 1, 9007199254740991LL);
-                for (const auto *k : {"authorised", "available", "controllable"}) v[k] = r.at(k).get<bool>();
-                v["stores"] = Json::array();
-                if (!r.at("stores").is_array() || r.at("stores").size() > 128) throw std::runtime_error("Invalid cargo store projection");
-                for (const auto &store : r.at("stores"))
-                {
-                    Json types = Json::array();
-                    if (!store.at("accepts").is_array() || store.at("accepts").size() > 128) throw std::runtime_error("Invalid cargo compatibility projection");
-                    for (const auto &m : store.at("accepts")) types.push_back(projection::text(m, 64));
-                    v["stores"].push_back({{"id", projection::text(store.at("id"), 64)}, {"accepts", types}});
-                }
-            }
-            out[key].push_back(v);
-        }
-    }
+	for (const auto *key : {"cargo", "cargo_craft", "offers"})
+	{
+		const auto rows = source.value(key, Json::array());
+		if (!rows.is_array() || rows.size() > 128)
+			throw std::runtime_error("Invalid cargo projection");
+		out[key] = Json::array();
+		for (const auto &r : rows)
+		{
+			Json v;
+			if (std::string(key) == "cargo")
+			{
+				for (const auto *k : {"id", "carrier", "target", "quantity", "report_tick"})
+					v[k] = projection::number(r.at(k), 0, 9007199254740991LL);
+				for (const auto *k : {"material", "phase"})
+					v[k] = projection::text(r.at(k), 64);
+			}
+			else if (std::string(key) == "offers")
+			{
+				v["entity"] = projection::number(r.at("entity"), 1, 9007199254740991LL);
+				for (const auto *k : {"store", "material"})
+					v[k] = projection::text(r.at(k), 64);
+				v["connected"] = r.at("connected").get<bool>();
+			}
+			else
+			{
+				v["id"] = projection::number(r.at("id"), 1, 9007199254740991LL);
+				for (const auto *k : {"authorised", "available", "controllable"})
+					v[k] = r.at(k).get<bool>();
+				v["stores"] = Json::array();
+				if (!r.at("stores").is_array() || r.at("stores").size() > 128)
+					throw std::runtime_error("Invalid cargo store projection");
+				for (const auto &store : r.at("stores"))
+				{
+					Json types = Json::array();
+					if (!store.at("accepts").is_array() || store.at("accepts").size() > 128)
+						throw std::runtime_error("Invalid cargo compatibility projection");
+					for (const auto &m : store.at("accepts"))
+						types.push_back(projection::text(m, 64));
+					v["stores"].push_back({{"id", projection::text(store.at("id"), 64)}, {"accepts", types}});
+				}
+			}
+			out[key].push_back(v);
+		}
+	}
 
 	return out;
 }

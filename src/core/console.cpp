@@ -1160,35 +1160,53 @@ Json ConsoleModel::away_missions() const
 }
 Json ConsoleModel::logistics() const
 {
- return observation_ ? observation_->gameplay.value("logistics",Json::object()) : Json::object();
+	return observation_ ? observation_->gameplay.value("logistics", Json::object()) : Json::object();
 }
 Json ConsoleModel::docking() const
 {
- return observation_ ? observation_->gameplay.value("docking",Json::object()) : Json::object();
+	return observation_ ? observation_->gameplay.value("docking", Json::object()) : Json::object();
 }
-bool ConsoleModel::logistics_action(const std::string &action,const std::string &system,const std::string &text)
+bool ConsoleModel::logistics_action(const std::string &action, const std::string &system, const std::string &text)
 {
- if(!observation_)return false;
- const auto board=logistics();if(!board.contains("revision"))return false;
- for(const auto &ctrl:observation_->gameplay.value("controllers",Json::array()))if(ctrl.value("human",false))
- {
-  OperatingCommand c{observation_->own.id,"logistics."+action,board.at("revision").get<std::int64_t>(),system};
-  c.console=observation_->console;c.controller=ctrl.at("id");c.generation=ctrl.at("generation");c.text=text;
-  if(const auto session=owner_.lock();session&&session->console_command(route_,c))return true;
- }
- return false;
+	if (!observation_)
+		return false;
+	const auto board = logistics();
+	if (!board.contains("revision"))
+		return false;
+	for (const auto &ctrl : observation_->gameplay.value("controllers", Json::array()))
+		if (ctrl.value("human", false))
+		{
+			OperatingCommand c{observation_->own.id, "logistics." + action, board.at("revision").get<std::int64_t>(),
+			                   system};
+			c.console = observation_->console;
+			c.controller = ctrl.at("id");
+			c.generation = ctrl.at("generation");
+			c.text = text;
+			if (const auto session = owner_.lock(); session && session->console_command(route_, c))
+				return true;
+		}
+	return false;
 }
-bool ConsoleModel::docking_action(const std::string &action,const std::string &system,const std::string &text)
+bool ConsoleModel::docking_action(const std::string &action, const std::string &system, const std::string &text)
 {
- if(!observation_)return false;
- const auto board=docking();if(!board.contains("revision"))return false;
- for(const auto &ctrl:observation_->gameplay.value("controllers",Json::array()))if(ctrl.value("human",false))
- {
-  OperatingCommand c{observation_->own.id,"dock."+action,board.at("revision").get<std::int64_t>(),system};
-  c.console=observation_->console;c.controller=ctrl.at("id");c.generation=ctrl.at("generation");c.text=text;
-  if(const auto session=owner_.lock();session&&session->console_command(route_,c))return true;
- }
- return false;
+	if (!observation_)
+		return false;
+	const auto board = docking();
+	if (!board.contains("revision"))
+		return false;
+	for (const auto &ctrl : observation_->gameplay.value("controllers", Json::array()))
+		if (ctrl.value("human", false))
+		{
+			OperatingCommand c{observation_->own.id, "dock." + action, board.at("revision").get<std::int64_t>(),
+			                   system};
+			c.console = observation_->console;
+			c.controller = ctrl.at("id");
+			c.generation = ctrl.at("generation");
+			c.text = text;
+			if (const auto session = owner_.lock(); session && session->console_command(route_, c))
+				return true;
+		}
+	return false;
 }
 Json ConsoleModel::craft() const
 {

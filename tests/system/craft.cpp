@@ -63,6 +63,26 @@ int main(int argc, char **argv)
 		    "prefilled craft cannot exceed bay slots");
 		const auto catalog = load(input);
 		{
+			auto missing = armed_craft_fixture();
+			missing["entities"][0].erase("logistics");
+			rejected(
+			    [&]
+			    {
+				    load(missing);
+			    },
+			    "requires a magazine-bound logistics store");
+			auto incompatible = armed_craft_fixture();
+			for (auto &entity : incompatible["entities"])
+				if (entity.value("id", std::string{}) == "test.interceptor")
+					entity["logistics"]["materials"][0]["volume"] = 2;
+			rejects(
+			    [&]
+			    {
+				    load(incompatible);
+			    },
+			    "Serviced stores require compatible volume and capacity");
+		}
+		{
 			auto serial = armed_craft_fixture();
 			serial["entities"][0]["systems"]["bay"]["slots"] = 8;
 			serial["entities"][0]["systems"]["bay"]["initial"] =
@@ -335,6 +355,40 @@ int main(int argc, char **argv)
 				ferry.tick();
 			require(missions(ferry)[0].at("phase") == "recovered",
 			        "replacement shuttle physically recovers independent party");
+		}
+		{
+			auto source = armed_craft_fixture();
+			source["entities"][0]["logistics"]["stores"][0]["main"] = true;
+			for (auto &entity : source["entities"])
+				if (entity["systems"].contains("magazine"))
+					entity["systems"]["magazine"]["initial"] = 0;
+			const auto catalog = load(source);
+			World held;
+			held.load(catalog, "test.map", {{"crew", "test.away"}});
+			const auto home = *held.ship_for_slot("crew");
+			require(held.claim(101, home, "drive"), "Claim ammunition supply Controller");
+			auto stock_command = [&](const std::string &verb)
+			{
+				const auto observed = *held.observe(101);
+				OperatingCommand c{home, "logistics." + verb, observed.gameplay.at("logistics").at("revision"),
+				                   "ammunition"};
+				c.console = "drive";
+				c.controller = "engine";
+				for (const auto &ctrl : observed.gameplay.at("controllers"))
+					if (ctrl.at("id") == "engine")
+						c.generation = ctrl.at("generation");
+				return c;
+			};
+			require(held.submit(101, stock_command("hold")), "Hold ammunition before servicing dispatch");
+			ticks(held, 10);
+			require(held.observe(101)->gameplay.at("logistics").at("stores")[0].at("quantities").at("test.missile") ==
+			            20,
+			        "Held main stock cannot bypass logistics through craft servicing");
+			require(held.submit(101, stock_command("release")), "Release finite ammunition stock");
+			ticks(held, 30);
+			require(held.observe(101)->gameplay.at("logistics").at("stores")[0].at("quantities").at("test.missile") ==
+			            14,
+			        "Ordinary delivery refills both three-round combat magazines");
 		}
 		{
 			const auto armed = load(armed_craft_fixture());

@@ -485,6 +485,37 @@ int main(int argc, char **argv)
 			require((a["condition"] == "healthy") != (b["condition"] == "healthy"),
 			        "One medical supply heals one patient and depletion blocks the next");
 		}
+		{
+			auto source = medical_fixture();
+			source["entities"][0]["logistics"] = Json::parse(
+			    R"({"controller":"medical","materials":[{"id":"medical"}],"stores":[{"id":"kit","system":"medical","compartment":"workshop","capacity":10,"accepts":["medical"]}]})");
+			const auto catalog = load(source);
+			World closed;
+			closed.load(catalog, "test.map", {{"crew", "test.away"}});
+			claim(closed);
+			require(closed.submit(102, command(closed, "order", "treat/bridge")), "Clinical order begins real travel");
+			ticks(closed, 1);
+			auto route = [&](const std::string &mode)
+			{
+				const auto o = *closed.observe(102);
+				OperatingCommand c{2, "logistics.route", o.gameplay.at("logistics").at("revision"), "bridge"};
+				c.console = "observer";
+				c.controller = "medical";
+				c.text = "workshop/" + mode;
+				for (const auto &ctrl : o.gameplay.at("controllers"))
+					if (ctrl.at("id") == "medical")
+						c.generation = ctrl.at("generation");
+				return c;
+			};
+			require(closed.submit(102, route("close")), "Close a route during clinical transit");
+			ticks(closed, 12);
+			require(officer(closed, 2, 0)["treatment"] == 0 && officer(closed, 2, 0)["condition"] == "minor",
+			        "Clinical teams cannot cross a deliberate delivery-route seal");
+			require(closed.submit(102, route("open")), "Authorise the shared route reopening");
+			ticks(closed, 20);
+			require(officer(closed, 2, 0)["condition"] == "healthy",
+			        "Clinical work resumes after authorised reopening");
+		}
 		Json trace = Json::array();
 		clinical_execution_regressions(trace);
 		patient_selection_regressions();

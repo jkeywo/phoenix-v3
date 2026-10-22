@@ -209,9 +209,9 @@ void release_away_transport(EntityId ship, AwayMission &m)
 bool craft_available(EntityId id, const std::string &mission = {}) const
 {
 	const auto &s = entities.at(id).get<CraftState>();
-	return !cargo_committed(id) && !combat_dead(entities.at(id)) && s.phase == CraftPhase::Docked && s.order == "idle" &&
-	       s.pending_order.empty() && (s.mission.empty() || s.mission == mission) && bay_working(s.home, s.bay) &&
-	       !ftl_preparing(s.home);
+	return !cargo_committed(id) && !combat_dead(entities.at(id)) && s.phase == CraftPhase::Docked &&
+	       s.order == "idle" && s.pending_order.empty() && (s.mission.empty() || s.mission == mission) &&
+	       bay_working(s.home, s.bay) && !ftl_preparing(s.home);
 }
 void craft_return(flecs::entity e)
 {
@@ -751,40 +751,21 @@ void service_craft()
 			for (std::size_t i = 0; i < d.ammunition.size(); ++i)
 			{
 				const auto &connection = d.ammunition[i];
-				const auto a = away_equipment(s.home, connection.source),
-				           b = away_equipment(other, connection.destination);
-				if (!b || !a.get<Equipment>().enabled || !b.get<Equipment>().enabled ||
-				    structurally_disabled(entities.at(s.home), connection.source) ||
-				    structurally_disabled(craft, connection.destination) ||
-				    !fault_effectiveness(entities.at(s.home), connection.source) ||
-				    !fault_effectiveness(craft, connection.destination))
+				const auto name = craft.get<Definition>().name;
+				const auto bound = connection.destination_stores.find(name);
+				if (bound == connection.destination_stores.end())
 					continue;
-				auto &from = a.get_mut<CombatMechanism>().get<MagazineState>();
-				auto &to = b.get_mut<CombatMechanism>().get<MagazineState>();
-                const auto home=entities.at(s.home);
-                if(home.has<MaterialInventory>() && craft.has<MaterialInventory>())
-                {
-                    const auto &source_stores=definition(s.home).logistics.stores;
-                    const auto &target_stores=definition(other).logistics.stores;
-                    std::size_t source_index=source_stores.size(),target_index=target_stores.size();
-                    for(std::size_t index=0;index<source_stores.size();++index)if(source_stores[index].system==connection.source)source_index=index;
-                    for(std::size_t index=0;index<target_stores.size();++index)if(target_stores[index].system==connection.destination)target_index=index;
-                    if(source_index<source_stores.size() && target_index<target_stores.size())
-                    {
-                        const auto &material=source_stores[source_index].accepts.front();
-                        auto pending=to.ammo+to.reserved_return;
-                        for(const auto &request:material_requests)if(request.destination==other && request.to==target_index && request.material==material)pending+=request.remaining;
-                        for(const auto &batch:material_batches)if(batch.destination==other && batch.to==target_index && batch.material==material)pending+=batch.quantity;
-                        const auto amount=std::min(rounds[i],std::max<std::int64_t>(0,b.get<CombatMechanism>().definition.reserve().capacity-pending));
-                        if(amount>0){request_material(s.home,source_index,other,target_index,material,amount,false);rounds[i]-=amount;}
-                        continue;
-                    }
-                }
-				const auto capacity = b.get<CombatMechanism>().definition.reserve().capacity;
-				const auto amount = std::min({rounds[i], from.ammo, capacity - to.ammo - to.reserved_return});
-				from.ammo -= amount;
-				to.ammo += amount;
-				rounds[i] -= amount;
+				const auto to = bound->second;
+				const auto amount = std::min(
+				    rounds[i], std::max<std::int64_t>(
+				                   0, material_store(other, to).capacity /
+				                              definition(other).logistics.materials.at(connection.material).volume -
+				                          material_pending(other, to, connection.material)));
+				if (amount > 0)
+				{
+					request_material(s.home, connection.source_store, other, to, connection.material, amount, false);
+					rounds[i] -= amount;
+				}
 			}
 		}
 	}

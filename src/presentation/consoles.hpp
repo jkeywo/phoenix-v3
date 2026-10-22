@@ -191,15 +191,16 @@ class ConsoleSurface final : public Rml::EventListener
 		std::string markup =
 		    "<div class=\"local-settings-card\"><div style=\"display:block;width:" + std::to_string(content_width) +
 		    "px;\"><h1>" + localise("Console settings") + "</h1><div>";
-		for (const auto &[tab, label] : std::vector<std::pair<std::string, std::string>>{{"logistics", "Stores and deliveries"},
-                                                                                 {"docking", "Docking"},
-                                                                                 {"away", "Away missions"},
-		                                                                                 {"craft", "Flight operations"},
-		                                                                                 {"personnel", "Personnel"},
-		                                                                                 {"display", "Display"},
-		                                                                                 {"language", "Language"},
-		                                                                                 {"audio", "Audio"},
-		                                                                                 {"session", "Session"}})
+		for (const auto &[tab, label] :
+		     std::vector<std::pair<std::string, std::string>>{{"logistics", "Stores and deliveries"},
+		                                                      {"docking", "Docking"},
+		                                                      {"away", "Away missions"},
+		                                                      {"craft", "Flight operations"},
+		                                                      {"personnel", "Personnel"},
+		                                                      {"display", "Display"},
+		                                                      {"language", "Language"},
+		                                                      {"audio", "Audio"},
+		                                                      {"session", "Session"}})
 			markup += settings_button("local-settings.tab/" + tab, label);
 		markup += "</div>";
 		if (local_settings_tab_ == "logistics")
@@ -674,7 +675,8 @@ button.on-screen-active .share-live {display:block;}
 		const auto action = name.substr(prefix.size());
 		if (app_ && app_->session && away_action(action))
 			return true;
-		if (app_ && app_->session && supply_action(action)) return true;
+		if (app_ && app_->session && supply_action(action))
+			return true;
 		if (app_ && app_->session && craft_action(action))
 			return true;
 		if (app_ && app_->session && personnel_action(action))

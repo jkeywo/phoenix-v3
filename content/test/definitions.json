@@ -458,7 +458,7 @@
 		{
 			"id": "test.courier-engineering",
 			"extends": "test.courier",
-			"name": "Courier \u2014 Engineering fit",
+			"name": "Courier — Engineering fit",
 			"controller": null,
 			"console": null,
 			"systems": {
@@ -1790,7 +1790,7 @@
 		{
 			"id": "test.cruiser",
 			"extends": "test.courier-engineering",
-			"name": "Cruiser \u2014 Six-station fit",
+			"name": "Cruiser — Six-station fit",
 			"render": {
 				"scale": 18
 			},
@@ -7273,6 +7273,24 @@
 						}
 					}
 				]
+			},
+			"logistics": {
+				"controller": "flight",
+				"units_per_second": 20,
+				"materials": [
+					{
+						"id": "exercise.interceptor"
+					}
+				],
+				"stores": [
+					{
+						"id": "intercept-mag",
+						"system": "intercept-mag",
+						"compartment": "hull",
+						"capacity": 24,
+						"accepts": ["exercise.interceptor"]
+					}
+				]
 			}
 		},
 		{
@@ -7481,6 +7499,24 @@
 								"ai": ["flight"]
 							}
 						}
+					}
+				]
+			},
+			"logistics": {
+				"controller": "flight",
+				"units_per_second": 20,
+				"materials": [
+					{
+						"id": "exercise.bomber"
+					}
+				],
+				"stores": [
+					{
+						"id": "bomb-mag",
+						"system": "bomb-mag",
+						"compartment": "hull",
+						"capacity": 4,
+						"accepts": ["exercise.bomber"]
 					}
 				]
 			}
@@ -9749,7 +9785,7 @@
 		},
 		{
 			"id": "test.powered-navigation-offset",
-			"name": "Powered navigation \u2014 offset regions",
+			"name": "Powered navigation — offset regions",
 			"entities": [
 				{
 					"id": 1,
@@ -10242,7 +10278,7 @@
 				}
 			],
 			"name": "Ship Operations",
-			"description": "Set the ship\u2019s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew."
+			"description": "Set the ship’s speed with the throttle and choose a heading on the radar ring. Monitor nearby contacts while coordinating with the crew."
 		},
 		{
 			"id": "test.console.helm",

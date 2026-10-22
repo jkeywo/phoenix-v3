@@ -109,14 +109,15 @@ std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map
 				dialogue = c.at("tree");
 			}
 		require(target && conversation, "unknown target or conversation");
-        const auto ports = compile_docking(catalog, target_definition);
-        std::set<std::string> docking_ports;
-        for (const auto &port : d.docking_ports)
-        {
-            bool found = false;
-            for (const auto &p : ports) found |= p.id == port;
-            require(found && docking_ports.insert(port).second, "unknown/duplicate mission docking port");
-        }
+		const auto ports = compile_docking(catalog, target_definition);
+		std::set<std::string> docking_ports;
+		for (const auto &port : d.docking_ports)
+		{
+			bool found = false;
+			for (const auto &p : ports)
+				found |= p.id == port;
+			require(found && docking_ports.insert(port).second, "unknown/duplicate mission docking port");
+		}
 		require(!d.reveal_event.empty(), "disclosure line key required");
 		const auto &cp = catalog.conversation_programs.at(dialogue);
 		bool reveal = false;
@@ -203,6 +204,15 @@ std::vector<BoardingDefinition> compile_boarding(const Catalog &catalog, const s
 		d.dialogue = j.at("dialogue");
 		d.entry = j.at("entry");
 		d.retain_craft = j.value("retain_craft", true);
+		const auto ports = compile_docking(catalog, entity);
+		std::set<std::string> docking_ports;
+		for (const auto &port : j.value("docking_ports", std::vector<std::string>{}))
+			fail(docking_ports.insert(port).second && std::any_of(ports.begin(), ports.end(),
+			                                                      [&](const auto &p)
+			                                                      {
+				                                                      return p.id == port;
+			                                                      }),
+			     "unknown/duplicate boarding docking port");
 		fail(!d.id.empty() && d.id.size() <= 24 &&
 		         d.id.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") ==
 		             std::string::npos &&

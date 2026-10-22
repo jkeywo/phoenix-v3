@@ -30,7 +30,8 @@ struct CombatStructure
 {
 	CombatDefinition definition;
 	std::vector<CompartmentState> compartments;
-	std::uint64_t random = 1;
+	std::uint64_t random = 1, access_revision = 1;
+	std::set<std::string> closed_routes;
 	std::map<std::string, std::vector<FaultState>> faults;
 };
 struct WeaponState

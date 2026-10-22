@@ -35,7 +35,7 @@ void register_comms(EntityId id, const std::string &definition)
 		conversations.participants.emplace(p.id, std::move(p));
 	}
 }
-void refresh_comms()
+void refresh_comms(bool disclose = true)
 {
 	conversations.endpoints.clear();
 	for (const auto &[id, entity] : entities)
@@ -70,6 +70,8 @@ void refresh_comms()
 		}
 		conversations.endpoints[id] = endpoint;
 	}
+	if (!disclose)
+		return;
 	for (const auto &[id, endpoint] : conversations.endpoints)
 	{
 		const auto owner = comms_owner(id);

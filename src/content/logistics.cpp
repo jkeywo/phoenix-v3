@@ -26,14 +26,17 @@ LogisticsDefinition compile_logistics(const Catalog &catalog, const std::string 
 {
 	LogisticsDefinition d;
 	const auto &e = catalog.entities.at(id);
- if (catalog.presentation) return d;
+	if (catalog.presentation)
+		return d;
 	if (!e.contains("logistics"))
 		return d;
 	const auto &j = e.at("logistics");
 	material_require(j.is_object(), id + ": expected object");
 	const auto structure = compile_combat(catalog, id);
 	material_require(structure.has_value(), id + ": stores require compartments");
-    material_require(j.at("materials").is_array() && j.at("materials").size()<=128 && j.at("stores").is_array() && j.at("stores").size()<=128 && j.value("consumers",Json::array()).is_array(), id + ": expected bounded material/store arrays");
+	material_require(j.at("materials").is_array() && j.at("materials").size() <= 128 && j.at("stores").is_array() &&
+	                     j.at("stores").size() <= 128 && j.value("consumers", Json::array()).is_array(),
+	                 id + ": expected bounded material/store arrays");
 	d.controller = j.at("controller");
 	std::set<std::string> controllers;
 	for (const auto &c : e.at("control_layout").at("controllers"))
@@ -46,8 +49,12 @@ LogisticsDefinition compile_logistics(const Catalog &catalog, const std::string 
 	for (const auto &m : j.at("materials"))
 	{
 		const auto key = m.at("id").get<std::string>();
-		material_require(!key.empty() && key.size() <= 64 && key.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")==std::string::npos && !d.materials.contains(key),
-		                 id + ": duplicate/invalid material");
+		material_require(
+		    !key.empty() && key.size() <= 64 &&
+		        key.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") ==
+		            std::string::npos &&
+		        !d.materials.contains(key),
+		    id + ": duplicate/invalid material");
 		d.materials.emplace(key, MaterialDefinition{key, material_number(m, "volume", 1, 1)});
 	}
 	material_require(!d.materials.empty() && d.materials.size() <= 128, id + ": invalid material count");
@@ -61,9 +68,12 @@ LogisticsDefinition compile_logistics(const Catalog &catalog, const std::string 
 		v.controller = s.value("controller", d.controller);
 		v.capacity = material_number(s, "capacity", 0, 1);
 		v.main = s.value("main", false);
-		material_require(!v.id.empty() && v.id.size() <= 64 && v.id.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")==std::string::npos && stores.insert(v.id).second &&
-		                     controllers.contains(v.controller),
-		                 id + ": invalid store/owner");
+		material_require(
+		    !v.id.empty() && v.id.size() <= 64 &&
+		        v.id.find_first_not_of("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-") ==
+		            std::string::npos &&
+		        stores.insert(v.id).second && controllers.contains(v.controller),
+		    id + ": invalid store/owner");
 		material_require(structure->compartment_ids.contains(v.compartment),
 		                 id + ": unknown store compartment " + v.compartment);
 		v.accepts = s.at("accepts").get<std::vector<std::string>>();
