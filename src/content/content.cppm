@@ -521,6 +521,8 @@ struct ChoirSeatDefinition
 {
 	std::string duty;
 	std::size_t controller = 0, enabled = 0, target = 0;
+	std::optional<std::size_t> planner;
+	std::size_t planning_enabled = 0, planning_target = 0;
 };
 struct ChoirDefinition
 {

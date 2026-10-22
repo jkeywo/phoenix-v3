@@ -55,49 +55,39 @@ bool choir_assignment(EntityId ship, const OfficerDefinition &officer, const Per
 	return !duty || duty->choir.empty() ||
 	       (!officer.power.empty() && definition(ship).psychic.choirs.at(duty->choir).powers.contains(officer.power));
 }
-bool psychic_target_valid(EntityId ship, const ChoirSeatDefinition &binding, EntityId target) const
+using PsychicContacts = std::map<EntityId, BodyView>;
+PsychicContacts index_psychic_contacts(const std::vector<BodyView> &contacts) const
+{
+	PsychicContacts result;
+	for (const auto &c : contacts)
+		result.emplace(c.id, c);
+	return result;
+}
+bool psychic_target_valid(EntityId ship, const ChoirSeatDefinition &binding, EntityId target,
+                          const PsychicContacts &contacts) const
 {
 	if (!target)
 		return true;
+	const auto *o = choir_officer(ship, binding.duty);
+	const auto kind = o ? definition(ship).psychic.powers.at(o->power).kind : "";
 	if (target == ship)
-		return true;
+		return kind != "scramble";
 	if (!entities.contains(target) || departed(target) || combat_dead(entities.at(target)))
 		return false;
-	const auto &controller = entities.at(ship).get<EntityControls>().controllers.at(binding.controller);
-	const auto contacts = capture_sensor_contacts({ship, controller.definition.console});
-	return std::any_of(contacts.begin(), contacts.end(),
-	                   [&](const auto &c)
-	                   {
-		                   return c.id == target;
-	                   });
+	const auto found = contacts.find(target);
+	return found != contacts.end() && (kind != "ward" || found->second.disposition == "friendly");
 }
 bool psychic_channel_valid(EntityId ship, std::size_t controller, std::size_t channel, std::int64_t value) const
 {
-	const auto &ctrl = entities.at(ship).get<EntityControls>().controllers.at(controller);
 	for (const auto &[id, c] : definition(ship).psychic.choirs)
 		for (const auto &b : c.seats)
-		{
-			const auto &owner = entities.at(ship).get<EntityControls>().controllers.at(b.controller);
-			if (ctrl.definition.console != owner.definition.console ||
-			    (b.controller != controller && ctrl.definition.id != c.planning_controller) ||
-			    ctrl.definition.commands[channel].id != owner.definition.commands[b.target].id)
-				continue;
-			if (!psychic_target_valid(ship, b, value))
-				return false;
-			const auto *o = choir_officer(ship, b.duty);
-			if (o && value == static_cast<std::int64_t>(ship) &&
-			    definition(ship).psychic.powers.at(o->power).kind == "scramble")
-				return false;
-			if (o && definition(ship).psychic.powers.at(o->power).kind == "ward" && value && value != ship)
+			if ((b.controller == controller && b.target == channel) ||
+			    (b.planner == controller && b.planning_target == channel))
 			{
-				const auto contacts = capture_sensor_contacts({ship, ctrl.definition.console});
-				return std::any_of(contacts.begin(), contacts.end(),
-				                   [&](const auto &v)
-				                   {
-					                   return v.id == static_cast<EntityId>(value) && v.disposition == "friendly";
-				                   });
+				const auto &owner = entities.at(ship).get<EntityControls>().controllers.at(controller);
+				const auto contacts = index_psychic_contacts(capture_sensor_contacts({ship, owner.definition.console}));
+				return psychic_target_valid(ship, b, value, contacts);
 			}
-		}
 	return true;
 }
 void clear_choir_intent(EntityId ship, const std::string &duty)
@@ -106,48 +96,18 @@ void clear_choir_intent(EntityId ship, const std::string &duty)
 		for (std::size_t i = 0; i < c.seats.size(); ++i)
 			if (c.seats[i].duty == duty)
 			{
-				auto &controller = entities.at(ship).get_mut<EntityControls>().controllers.at(c.seats[i].controller);
-				for (auto channel : {c.seats[i].enabled, c.seats[i].target})
-				{
-					auto &state = controller.commands.at(channel);
-					state.value = 0;
-					++state.revision;
-				}
-				for (auto &planner : entities.at(ship).get_mut<EntityControls>().controllers)
-					if (planner.definition.id == c.planning_controller &&
-					    planner.definition.console == controller.definition.console)
-						for (std::size_t n = 0; n < planner.commands.size(); ++n)
-							if (planner.definition.commands[n].id ==
-							        controller.definition.commands[c.seats[i].enabled].id ||
-							    planner.definition.commands[n].id ==
-							        controller.definition.commands[c.seats[i].target].id)
-							{
-								planner.commands[n].value = 0;
-								++planner.commands[n].revision;
-							}
+				const auto &b = c.seats[i];
+				clear_controller_settings(ship, b.controller, {b.enabled, b.target});
+				if (b.planner)
+					clear_controller_settings(ship, *b.planner, {b.planning_enabled, b.planning_target});
 				auto &s = instance(entities.at(ship), id)->entity.get_mut<PsychicChoirState>().seats[i];
 				s.active = false;
 				s.work = 0;
-				// Personnel changes execute before queued Controller writes. Do not
-				// let an order admitted for the previous occupant restore this intent.
-				std::erase_if(controller_pending,
-				              [&](const auto &proposal)
-				              {
-					              if (proposal.address.entity != ship ||
-					                  proposal.address.console != controller.definition.console ||
-					                  (proposal.address.controller != controller.definition.id &&
-					                   proposal.address.controller != c.planning_controller))
-						              return false;
-					              const auto &pending_controller =
-					                  entities.at(ship).get<EntityControls>().controllers.at(proposal.controller);
-					              const auto &channel = pending_controller.definition.commands.at(proposal.channel).id;
-					              return channel == controller.definition.commands[c.seats[i].enabled].id ||
-					                     channel == controller.definition.commands[c.seats[i].target].id;
-				              });
 			}
 }
 void prepare_psychic(EntityId ship)
 {
+	std::map<std::string, PsychicContacts> snapshots;
 	const auto tick = ecs.get<Clock>().tick;
 	for (const auto &[id, c] : definition(ship).psychic.choirs)
 	{
@@ -174,20 +134,19 @@ void prepare_psychic(EntityId ship)
 				continue;
 			const auto &p = definition(ship).psychic.powers.at(o->power);
 			s.officer = o->id;
-			const auto contacts = capture_sensor_contacts({ship, controller.definition.console});
-			const auto observed = std::find_if(contacts.begin(), contacts.end(),
-			                                   [&](const auto &v)
-			                                   {
-				                                   return v.id == target;
-			                                   });
+			const auto &console = controller.definition.console;
+			if (!snapshots.contains(console))
+				snapshots.emplace(console, index_psychic_contacts(capture_sensor_contacts({ship, console})));
+			const auto &contacts = snapshots.at(console);
+			const auto observed = contacts.find(target);
 			if (observed != contacts.end())
 			{
-				s.aim_x = observed->x;
-				s.aim_y = observed->y;
+				s.aim_x = observed->second.x;
+				s.aim_y = observed->second.y;
 			}
 
 			if (!s.active && tick >= s.ready && (p.kind == "cloak" || target) &&
-			    psychic_channel_valid(ship, b.controller, b.target, target))
+			    psychic_target_valid(ship, b, target, contacts))
 			{
 				s.active = true;
 				s.target = target;
@@ -199,10 +158,10 @@ void prepare_psychic(EntityId ship)
 					for (std::int64_t g = 0; g < p.ghosts; ++g)
 					{
 						PsychicGhostShape shape;
-						shape.x = s.aim_x + p.offset;
-						shape.y = s.aim_y + (g - (p.ghosts - 1) / 2) * p.spacing;
-						shape.heading = pose.heading;
-						shape.altitude = pose.altitude;
+						shape.pose.position.x = s.aim_x + p.offset;
+						shape.pose.position.y = s.aim_y + (g - (p.ghosts - 1) / 2) * p.spacing;
+						shape.pose.heading = pose.heading;
+						shape.pose.altitude = pose.altitude;
 						s.shapes.push_back(shape);
 					}
 				}
@@ -233,10 +192,8 @@ void request_psychic_resources(EntityId ship)
 }
 void refresh_psychic_work()
 {
-	for (auto child : ordered_equipment(advanced_equipment_query))
+	for (auto child : ordered_equipment(choir_query))
 	{
-		if (!child.has<PsychicChoirState>())
-			continue;
 		const auto ship = child.parent().get<StableId>().id;
 		const auto &c = definition(ship).psychic.choirs.at(child.get<Equipment>().id);
 		auto &state = child.get_mut<PsychicChoirState>();
@@ -280,21 +237,6 @@ bool psychic_coverage(EntityId ship, const ChoirDefinition &c, const PsychicSeat
 	       scenario_sensor_visible(regions, {origin.x, origin.y}, {origin.x + delta.x, origin.y + delta.y}, c.range) &&
 	       (c.arc == 360000 || std::abs(combat_delta(combat_bearing(delta), combat_bearing(aim))) <= c.arc / 2);
 }
-std::int64_t ward_strength(EntityId receiver) const
-{
-	std::int64_t result = 0;
-	for (auto child : ordered_equipment(advanced_equipment_query))
-		if (child.has<PsychicChoirState>())
-		{
-			const auto ship = child.parent().get<StableId>().id;
-			const auto &c = definition(ship).psychic.choirs.at(child.get<Equipment>().id);
-			for (const auto &s : child.get<PsychicChoirState>().seats)
-				if (s.work && s.target == receiver && seat_power(ship, s).kind == "ward" &&
-				    psychic_coverage(ship, c, s, receiver))
-					result = std::max(result, s.work);
-		}
-	return result;
-}
 std::int64_t compute_concealment(EntityId target) const
 {
 	std::int64_t strength = 0;
@@ -324,39 +266,61 @@ bool psychic_detects(EntityId observer, const std::string &sensor, EntityId targ
 }
 void dispel_ghost(GhostReception &g)
 {
+	if (g.dispelled)
+		return;
 	g.dispelled = true;
 	if (g.ended < 0)
 		g.ended = ecs.get<Clock>().tick;
+	record_sensor_dispel(g);
 }
 bool ghost_live(const GhostReception &g) const
 {
 	return !g.dispelled && g.ended < 0 && g.seen == ecs.get<Clock>().tick;
 }
-std::tuple<EntityId, std::string, std::size_t> strongest_scrambler(EntityId receiver) const
+using PsychicSource = std::tuple<EntityId, std::string, std::size_t>;
+std::map<EntityId, PsychicSource> scrambler_winners;
+void refresh_psychic_reception()
 {
-	std::int64_t strength = ward_strength(receiver);
-	std::tuple<EntityId, std::string, std::size_t> winner{};
-	for (auto child : ordered_equipment(advanced_equipment_query))
-		if (child.has<PsychicChoirState>())
-		{
-			const auto ship = child.parent().get<StableId>().id;
-			if (ship == receiver)
-				continue;
-			const auto &c = definition(ship).psychic.choirs.at(child.get<Equipment>().id);
-			const auto &seats = child.get<PsychicChoirState>().seats;
-			for (std::size_t i = 0; i < seats.size(); ++i)
-				if (seats[i].work > strength && !seats[i].shapes.empty() &&
-				    psychic_coverage(ship, c, seats[i], receiver))
+	scrambler_winners.clear();
+	const auto choirs = ordered_equipment(choir_query);
+	for (const auto &[receiver, entity] : entities)
+	{
+		if (!entity.has<EquipmentIndex>())
+			continue;
+		std::int64_t strength = 0;
+		PsychicSource winner{};
+		for (bool wards : {true, false})
+			for (auto child : choirs)
+			{
+				const auto ship = child.parent().get<StableId>().id;
+				const auto &c = definition(ship).psychic.choirs.at(child.get<Equipment>().id);
+				const auto &seats = child.get<PsychicChoirState>().seats;
+				for (std::size_t i = 0; i < seats.size(); ++i)
 				{
-					strength = seats[i].work;
-					winner = {ship, c.id, i};
+					const auto &s = seats[i];
+					if (s.work <= strength)
+						continue;
+					const bool ward = seat_power(ship, s).kind == "ward";
+					if (ward != wards || (ward ? s.target != receiver : ship == receiver || s.shapes.empty()) ||
+					    !psychic_coverage(ship, c, s, receiver))
+						continue;
+					strength = s.work;
+					if (!ward)
+						winner = {ship, c.id, i};
 				}
-		}
-	return winner;
+			}
+		scrambler_winners.emplace(receiver, winner);
+	}
+}
+PsychicSource strongest_scrambler(EntityId receiver) const
+{
+	const auto found = scrambler_winners.find(receiver);
+	return found == scrambler_winners.end() ? PsychicSource{} : found->second;
 }
 void advance_psychic()
 {
 	refresh_psychic_work();
+	refresh_psychic_reception();
 	refresh_concealment();
 	const auto tick = ecs.get<Clock>().tick;
 	std::erase_if(weapon_emissions,
@@ -364,7 +328,7 @@ void advance_psychic()
 	              {
 		              return !entities.contains(v.first) || v.second <= tick;
 	              });
-	for (auto child : ordered_equipment(advanced_equipment_query))
+	for (auto child : ordered_equipment(choir_query))
 		if (child.has<PsychicChoirState>())
 		{
 			const auto ship = child.parent().get<StableId>().id;
@@ -378,21 +342,11 @@ void advance_psychic()
 				const auto &p = seat_power(ship, s);
 				for (auto &g : s.shapes)
 				{
-					Pose pose{{g.x, g.y}, g.heading};
-					Motion motion{{g.vx, g.vy}, {g.mx, g.my}};
 					Engine engine{p.speed, p.acceleration, p.speed, g.acceleration_remainder};
-					Steering steer{p.turn_rate, combat_angle(g.heading + p.turn_rate / rate), g.turn_remainder};
-					step_basic_steering(pose, steer, 1000);
-					step_basic_engine(pose, motion, engine, 1000);
-					motion.remainder = motion.remainder + motion.velocity;
-					pose.position = pose.position + fixed::Vec{motion.remainder.x / rate, motion.remainder.y / rate};
-					g.x = std::clamp(pose.position.x, -fixed::unit, fixed::unit);
-					g.y = std::clamp(pose.position.y, -fixed::unit, fixed::unit);
-					g.heading = pose.heading;
-					g.vx = motion.velocity.x;
-					g.vy = motion.velocity.y;
-					g.mx = motion.remainder.x % rate;
-					g.my = motion.remainder.y % rate;
+					Steering steer{p.turn_rate, combat_angle(g.pose.heading + p.turn_rate / rate), g.turn_remainder};
+					step_basic_steering(g.pose, steer, 1000);
+					step_basic_engine(g.pose, g.motion, engine, 1000);
+					integrate_motion(g.pose, g.motion);
 					g.acceleration_remainder = engine.remainder;
 					g.turn_remainder = steer.remainder;
 				}
@@ -406,7 +360,7 @@ void advance_psychic()
 						const auto &shape = s.shapes[n];
 						bool visible = false;
 						for (const auto &[sensor, d] : definition(receiver).sensors)
-							if (sensor_covers(receiver, sensor, {shape.x, shape.y}))
+							if (sensor_covers(receiver, sensor, {shape.pose.position.x, shape.pose.position.y}))
 								visible = true;
 						if (!visible)
 							continue;
@@ -439,22 +393,6 @@ void advance_psychic()
 						g.last = shape;
 						g.seen = tick;
 						g.ended = -1;
-						for (const auto &[sensor, d] : definition(receiver).sensors)
-						{
-							const auto &scanner = instance(entity, sensor)->entity.get<SensorRuntime>();
-							if (scanner.target != g.id || !sensor_powered(receiver, sensor) ||
-							    !sensor_covers(receiver, sensor, {shape.x, shape.y}) ||
-							    (!d.capabilities.contains("findings") &&
-							     !d.capabilities.contains("compartment_condition")))
-								continue;
-							const auto duration =
-							    std::max(p.scan_ticks, d.capabilities.contains("compartment_condition")
-							                               ? d.capabilities.at("compartment_condition")
-							                               : d.capabilities.at("findings"));
-							if (++g.scan >= duration)
-								dispel_ghost(g);
-							break;
-						}
 					}
 				}
 			}
@@ -481,63 +419,16 @@ BodyView ghost_body(const GhostReception &g) const
 	BodyView b;
 	b.id = g.id;
 	b.definition = definition(g.source).psychic.powers.at(g.power).apparent_class;
-	b.x = g.last.x;
-	b.y = g.last.y;
-	b.vx = g.last.vx;
-	b.vy = g.last.vy;
-	b.heading = g.last.heading;
-	b.altitude = g.last.altitude;
+	b.x = g.last.pose.position.x;
+	b.y = g.last.pose.position.y;
+	b.vx = g.last.motion.velocity.x;
+	b.vy = g.last.motion.velocity.y;
+	b.heading = g.last.pose.heading;
+	b.altitude = g.last.pose.altitude;
 	b.radar_icon = RadarIcon::ship;
 	b.disposition = "hostile";
 	b.faction_label = "Unknown allegiance";
 	return b;
-}
-void append_ghosts(const ConsoleAddress &address, Observation &out) const
-{
-	for (const auto &[id, g] : ghost_receptions)
-		if (g.observer == address.ship && ghost_live(g))
-		{
-			bool visible = false;
-			for (auto &sensor : out.systems)
-				if (sensor.kind == OperatingSystem::Radar && sensor.enabled &&
-				    std::find(sensor.shows.begin(), sensor.shows.end(), "ship") != sensor.shows.end() &&
-				    sensor_covers(address.ship, sensor.id, {g.last.x, g.last.y}))
-				{
-					sensor.contact_ids.push_back(g.id);
-					visible = true;
-				}
-			if (visible)
-				out.contacts.push_back(ghost_body(g));
-		}
-}
-void append_ghost_evidence(const ConsoleAddress &address, std::map<EntityId, Json> &evidence) const
-{
-	for (const auto &[id, g] : ghost_receptions)
-		if (g.observer == address.ship)
-		{
-			bool permitted = false;
-			for (const auto &sensor : seat(address.ship, address.console)->feed_systems)
-				if (definition(address.ship).sensors.contains(sensor) &&
-				    sensor_covers(address.ship, sensor, {g.last.x, g.last.y}))
-					permitted = true;
-			if (!permitted)
-				continue;
-			const auto body = ghost_body(g);
-			Json findings = {{"basic_identity",
-			                  {{"data",
-			                    {{"class", body.definition},
-			                     {"faction", ""},
-			                     {"faction_label", body.faction_label},
-			                     {"disposition", body.disposition}}},
-			                   {"observed", g.seen},
-			                   {"live", ghost_live(g)}}}};
-			if (g.dispelled)
-				findings["finding:dispelled"] = {
-				    {"data", {{"id", "dispelled"}, {"text", "Psychic projection dispelled"}}},
-				    {"observed", g.ended},
-				    {"live", false}};
-			evidence[id] = {{"id", id}, {"x", g.last.x}, {"y", g.last.y}, {"findings", findings}};
-		}
 }
 void ghost_damage(EntityId observer, fixed::Vec from, fixed::Vec to, std::int64_t from_z, std::int64_t to_z,
                   std::int64_t radius = 0)
@@ -545,19 +436,18 @@ void ghost_damage(EntityId observer, fixed::Vec from, fixed::Vec to, std::int64_
 	for (auto &[id, g] : ghost_receptions)
 		if (g.observer == observer && ghost_live(g))
 		{
-			const auto &s = instance(entities.at(g.source), g.choir)->entity.get<PsychicChoirState>().seats[g.seat];
 			const auto &p = definition(g.source).psychic.powers.at(g.power);
 			CollisionBody body;
-			body.position = {g.last.x, g.last.y};
-			body.altitude = g.last.altitude;
+			body.position = {g.last.pose.position.x, g.last.pose.position.y};
+			body.altitude = g.last.pose.altitude;
 			body.radius = p.radius;
-			if (volume_hit(from, to, from_z, to_z, body, body.position, g.last.altitude, g.last.altitude, p.radius,
-			               radius))
+			if (volume_hit(from, to, from_z, to_z, body, body.position, g.last.pose.altitude, g.last.pose.altitude,
+			               p.radius, radius))
 				dispel_ghost(g);
 		}
 }
 bool psychic_controls(const ConsoleAddress &address, const ConsoleControllerRuntime &controller, std::size_t channel,
-                      Json &buttons) const
+                      Json &buttons, const PsychicContacts &contacts) const
 {
 	for (const auto &[id, c] : definition(address.ship).psychic.choirs)
 		for (const auto &b : c.seats)
@@ -565,12 +455,13 @@ bool psychic_controls(const ConsoleAddress &address, const ConsoleControllerRunt
 			const auto &owner = entities.at(address.ship).get<EntityControls>().controllers.at(b.controller);
 			if (owner.definition.console != address.console)
 				continue;
-			const bool planning = controller.definition.id == c.planning_controller;
-			if (owner.definition.id != controller.definition.id && !planning)
+			const bool planning =
+			    b.planner && &controller == &entities.at(address.ship).get<EntityControls>().controllers.at(*b.planner);
+			const bool execution = &controller == &owner;
+			if (!execution && !planning)
 				continue;
-			const auto &name = controller.definition.commands[channel].id;
-			const bool enabled = name == owner.definition.commands[b.enabled].id;
-			const bool target = name == owner.definition.commands[b.target].id;
+			const bool enabled = channel == (planning ? b.planning_enabled : b.enabled);
+			const bool target = channel == (planning ? b.planning_target : b.target);
 			if (!enabled && !target)
 				continue;
 			const auto *o = choir_officer(address.ship, b.duty);
@@ -583,9 +474,8 @@ bool psychic_controls(const ConsoleAddress &address, const ConsoleControllerRunt
 				choices.push_back({0, "Clear psychic target"});
 				if (definition(address.ship).psychic.powers.at(o->power).kind == "ward")
 					choices.push_back({address.ship, "Protect own ship"});
-				for (const auto &contact : capture_sensor_contacts(address))
-					if (contact.id <= 1000000000ULL &&
-					    psychic_channel_valid(address.ship, b.controller, b.target, contact.id))
+				for (const auto &[contact_id, contact] : contacts)
+					if (contact.id <= 1000000000ULL && psychic_target_valid(address.ship, b, contact.id, contacts))
 						choices.push_back({contact.id, "Target"});
 			}
 			for (const auto &[value, label] : choices)
@@ -648,11 +538,10 @@ Json psychic_board(const ConsoleAddress &address) const
 			bool permitted = false;
 			for (const auto &sensor : seat(address.ship, address.console)->feed_systems)
 				if (definition(address.ship).sensors.contains(sensor) &&
-				    sensor_covers(address.ship, sensor, {g.last.x, g.last.y}))
+				    instance(entities.at(address.ship), sensor)->entity.get<SensorRuntime>().tracks.contains(g.id))
 					permitted = true;
 			if (!permitted)
 				continue;
-			const auto &s = instance(entities.at(g.source), g.choir)->entity.get<PsychicChoirState>().seats[g.seat];
 			const auto &p = definition(g.source).psychic.powers.at(g.power);
 			const auto age = static_cast<std::int64_t>(ecs.get<Clock>().tick) - g.ended;
 			if (age < p.fade_ticks)
@@ -663,8 +552,8 @@ Json psychic_board(const ConsoleAddress &address) const
 }
 Json save_psychic() const
 {
-	Json out = {{"choirs", Json::array()}, {"receptions", Json::array()}, {"emissions", Json::array()}};
-	for (auto child : ordered_equipment(advanced_equipment_query))
+	Json out = {{"version", 1}, {"choirs", Json::array()}, {"receptions", Json::array()}, {"emissions", Json::array()}};
+	for (auto child : ordered_equipment(choir_query))
 		if (child.has<PsychicChoirState>())
 			out["choirs"].push_back({{"ship", child.parent().get<StableId>().id},
 			                         {"system", child.get<Equipment>().id},
@@ -679,6 +568,8 @@ void restore_psychic(const Json &saved)
 {
 	if (saved.empty())
 		return;
+	if (saved.value("version", 0) != 1 && (!saved.at("choirs").empty() || !saved.at("receptions").empty()))
+		throw std::runtime_error("Psychic continuation changed; start a new session");
 	if (!saved.is_object() || saved.at("choirs").size() > 2048 || saved.at("receptions").size() > 4096)
 		throw std::runtime_error("Invalid psychic save bounds");
 	const auto shape_valid = [](const PsychicGhostShape &g)
@@ -687,9 +578,10 @@ void restore_psychic(const Json &saved)
 		{
 			return v >= lo && v <= hi;
 		};
-		return in(g.x, -1000000000, 1000000000) && in(g.y, -1000000000, 1000000000) && in(g.vx, -1000000, 1000000) &&
-		       in(g.vy, -1000000, 1000000) && in(g.altitude, -1000000, 1000000) && in(g.heading, 0, 359999) &&
-		       in(g.mx, 1 - rate, rate - 1) && in(g.my, 1 - rate, rate - 1) &&
+		return in(g.pose.position.x, -1000000000, 1000000000) && in(g.pose.position.y, -1000000000, 1000000000) &&
+		       in(g.motion.velocity.x, -1000000, 1000000) && in(g.motion.velocity.y, -1000000, 1000000) &&
+		       in(g.pose.altitude, -1000000, 1000000) && in(g.pose.heading, 0, 359999) &&
+		       in(g.motion.remainder.x, 1 - rate, rate - 1) && in(g.motion.remainder.y, 1 - rate, rate - 1) &&
 		       in(g.acceleration_remainder, 0, rate - 1) && in(g.turn_remainder, 0, rate - 1);
 	};
 	std::set<std::pair<EntityId, std::string>> seen;
@@ -738,6 +630,7 @@ void restore_psychic(const Json &saved)
 			if (!seen.contains({ship, id}))
 				throw std::runtime_error("Missing saved choir");
 	refresh_psychic_work();
+	refresh_psychic_reception();
 	std::set<std::tuple<EntityId, EntityId, std::string, std::size_t, std::uint64_t, std::size_t>> reception_keys;
 	for (const auto &row : saved.at("receptions"))
 	{
@@ -750,7 +643,7 @@ void restore_psychic(const Json &saved)
 		    g.member >= static_cast<std::size_t>(definition(g.source).psychic.powers.at(g.power).ghosts) ||
 		    !shape_valid(g.last) ||
 		    !reception_keys.emplace(g.observer, g.source, g.choir, g.seat, g.activation, g.member).second ||
-		    g.scan < 0 || g.scan > 1728000 || g.seen > ecs.get<Clock>().tick || g.activation > g.seen || g.ended < -1 ||
+		    g.seen > ecs.get<Clock>().tick || g.activation > g.seen || g.ended < -1 ||
 		    g.ended > static_cast<std::int64_t>(ecs.get<Clock>().tick) || (g.dispelled && g.ended < 0) ||
 		    !ghost_receptions.emplace(g.id, g).second)
 			throw std::runtime_error("Invalid saved ghost reception");

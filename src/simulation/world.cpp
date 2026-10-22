@@ -74,6 +74,17 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(SavedOperation, speed, heading, acceleration_
 namespace
 {
 constexpr std::int64_t rate = World::ticks_per_second;
+void integrate_motion(Pose &pose, Motion &motion)
+{
+	motion.velocity.x = std::clamp(motion.velocity.x, -fixed::unit, fixed::unit);
+	motion.velocity.y = std::clamp(motion.velocity.y, -fixed::unit, fixed::unit);
+	motion.remainder = motion.remainder + motion.velocity;
+	pose.position = pose.position + fixed::Vec{motion.remainder.x / rate, motion.remainder.y / rate};
+	motion.remainder.x %= rate;
+	motion.remainder.y %= rate;
+	pose.position.x = std::clamp(pose.position.x, -fixed::unit, fixed::unit);
+	pose.position.y = std::clamp(pose.position.y, -fixed::unit, fixed::unit);
+}
 void step_basic_steering(Pose &pose, Steering &turn, std::int64_t effectiveness)
 {
 	auto available = turn.rate * effectiveness / 1000 + turn.remainder;
@@ -254,6 +265,7 @@ struct World::Impl
 	flecs::query<const StableId, const Definition, const Pose, const Motion> bodies;
 	flecs::query<const Equipment, Steering> steering_query;
 	flecs::query<const Equipment, SensorRuntime> sensor_query;
+	flecs::query<const Equipment, PsychicChoirState> choir_query;
 	flecs::query<const Equipment, Engine> engine_query;
 	flecs::query<const Equipment, FlightRuntime> flight_query;
 	flecs::query<const Equipment> advanced_equipment_query;
@@ -315,6 +327,8 @@ struct World::Impl
 		                               .second("$ship")
 		                               .cached()
 		                               .build();
+		choir_query =
+		    ecs.query_builder<const Equipment, PsychicChoirState>().with(flecs::ChildOf, "$ship").cached().build();
 		sensor_query = ecs.query_builder<const Equipment, SensorRuntime>().with(flecs::ChildOf, "$ship").build();
 		passive_resource_query = ecs.query_builder<const Equipment, const ResourceBinding>()
 		                             .without<FlightRuntime>()
@@ -333,15 +347,7 @@ struct World::Impl
 		                .each(
 		                    [](Pose &pose, Motion &motion)
 		                    {
-			                    motion.velocity.x = std::clamp(motion.velocity.x, -fixed::unit, fixed::unit);
-			                    motion.velocity.y = std::clamp(motion.velocity.y, -fixed::unit, fixed::unit);
-			                    motion.remainder = motion.remainder + motion.velocity;
-			                    pose.position =
-			                        pose.position + fixed::Vec{motion.remainder.x / rate, motion.remainder.y / rate};
-			                    motion.remainder.x %= rate;
-			                    motion.remainder.y %= rate;
-			                    pose.position.x = std::clamp(pose.position.x, -fixed::unit, fixed::unit);
-			                    pose.position.y = std::clamp(pose.position.y, -fixed::unit, fixed::unit);
+			                    integrate_motion(pose, motion);
 		                    });
 		resolve_collisions =
 		    ecs.system<const StableId, Pose, Motion, const Collider>("Collisions")
@@ -2925,6 +2931,7 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	if (entity.has<EntityControls>())
 	{
 		const auto &controls = entity.get<EntityControls>();
+		const auto psychic_contacts = impl_->index_psychic_contacts(result.contacts);
 		if (!impl_->definition(address.ship).console_bridge.at(seat.id).command)
 		{
 			result.gameplay["profile"] = controls.layout.profiles.at(controls.profiles.at(seat.id)).id;
@@ -2937,7 +2944,7 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 				{
 					const auto &channel = controller.definition.commands[i];
 					const auto &state = controller.commands[i];
-					if (impl_->psychic_controls(address, controller, i, buttons))
+					if (impl_->psychic_controls(address, controller, i, buttons, psychic_contacts))
 						continue;
 					const auto scale = channel.action == OperatingAction::GroupAllocation
 					                       ? std::max(state.value, channel.initial)

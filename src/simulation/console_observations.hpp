@@ -4,42 +4,17 @@ void append_sensor_contacts(const ConsoleAddress &address, Observation &result,
 {
 	const auto entity = entities.at(address.ship);
 	const auto &own = entity.get<Pose>();
-	std::int64_t range = 0;
-	for (const auto &sensor : result.systems)
+	std::map<EntityId, BodyView> contacts;
+	for (auto &sensor : result.systems)
 		if (sensor.kind == OperatingSystem::Radar && sensor.enabled)
-			range = std::max(range,
-			                 sensor.effective_range +
-			                     fixed::length(sensor_origin(address.ship, sensor_definition(address.ship, sensor.id)) -
-			                                   own.position));
-	if (range)
-		contact_index.each(Bounds::around(own.position, range),
-		                   [&](std::size_t row)
-		                   {
-			                   const auto &contact = contact_rows[row];
-			                   if (contact.id == address.ship)
-				                   return;
-			                   const auto &tags = definitions.at(contact.entity.get<Definition>().name).tags;
-			                   bool visible = false;
-			                   for (auto &sensor : result.systems)
-				                   if (sensor.kind == OperatingSystem::Radar && sensor.enabled &&
-				                       std::any_of(tags.begin(), tags.end(),
-				                                   [&](const auto &tag)
-				                                   {
-					                                   return std::find(sensor.shows.begin(), sensor.shows.end(),
-					                                                    tag) != sensor.shows.end();
-				                                   }) &&
-				                       sensor_covers(address.ship, sensor.id, contact.position) &&
-				                       distance_3d(address.ship, contact.id) <= sensor.effective_range &&
-				                       psychic_detects(address.ship, sensor.id, contact.id))
-				                   {
-					                   sensor.contact_ids.push_back(contact.id);
-					                   visible = true;
-				                   }
-			                   if (visible)
-				                   result.contacts.push_back(view(contact.id, contact.entity.get<Definition>(),
-				                                                  contact.entity.get<Pose>(),
-				                                                  contact.entity.get<Motion>()));
-		                   });
+			for_sensor_contacts(address.ship, sensor.id,
+			                    [&](const auto &input)
+			                    {
+				                    sensor.contact_ids.push_back(input.body.id);
+				                    contacts.emplace(input.body.id, input.body);
+			                    });
+	for (auto &[id, body] : contacts)
+		result.contacts.push_back(std::move(body));
 	for (auto missile : projectile_rows())
 	{
 		const auto &p = missile.get<Projectile>();
@@ -66,7 +41,7 @@ void append_sensor_contacts(const ConsoleAddress &address, Observation &result,
 		}
 	}
 	for (auto &contact : result.contacts)
-		if (entities.contains(contact.id))
+		if (entities.contains(contact.id) || ghost_receptions.contains(contact.id))
 		{
 			Json identity;
 			if (evidence.contains(contact.id) && evidence.at(contact.id).at("findings").contains("basic_identity"))
@@ -88,7 +63,6 @@ void append_sensor_contacts(const ConsoleAddress &address, Observation &result,
 				contact.disposition = data.at("disposition");
 			}
 		}
-	append_ghosts(address, result);
 	std::sort(result.contacts.begin(), result.contacts.end(),
 	          [](const auto &a, const auto &b)
 	          {

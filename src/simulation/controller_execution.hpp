@@ -1,3 +1,26 @@
+// Reset only the selected settings; a shared Controller can serve other duties.
+void clear_controller_settings(EntityId ship, std::size_t controller_index, std::initializer_list<std::size_t> channels)
+{
+	auto &controller = entities.at(ship).get_mut<EntityControls>().controllers.at(controller_index);
+	for (auto channel : channels)
+	{
+		const auto &spec = controller.definition.commands.at(channel);
+		auto &state = controller.commands.at(channel);
+		if (spec.semantics == CommandSemantics::Request)
+			throw std::runtime_error("Cannot reset request as a Controller setting");
+		if (state.revision == std::numeric_limits<std::uint64_t>::max())
+			throw std::runtime_error("Controller command revision exhausted");
+		state.value = spec.initial;
+		state.arguments.clear();
+		++state.revision;
+	}
+	std::erase_if(controller_pending,
+	              [&](const auto &p)
+	              {
+		              return p.address.entity == ship && p.controller == controller_index &&
+		                     std::find(channels.begin(), channels.end(), p.channel) != channels.end();
+	              });
+}
 // World::Impl methods. Physical mutation is confined to command consumption below.
 std::vector<state_tree::Value> controller_observations(EntityId id, const ConsoleControllerRuntime &controller)
 {

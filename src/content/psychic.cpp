@@ -133,6 +133,7 @@ PsychicDefinition compile_psychic(const Catalog &catalog, const std::string &ent
 					                                  return v.id == c.planning_controller && v.console == ci->console;
 				                                  });
 				fail(planner != layout.controllers.end(), "unknown same-Console planning Controller");
+				seat.planner = planner - layout.controllers.begin();
 				for (auto index : {seat.enabled, seat.target})
 				{
 					const auto &command = ci->commands[index];
@@ -144,6 +145,8 @@ PsychicDefinition compile_psychic(const Catalog &catalog, const std::string &ent
 						                                    v.maximum == command.maximum && v.initial == 0;
 					                             });
 					fail(ch != planner->commands.end(), "planning channels must match bound choir intent");
+					(index == seat.enabled ? seat.planning_enabled : seat.planning_target) =
+					    ch - planner->commands.begin();
 				}
 			}
 			c.seats.push_back(seat);

@@ -30,17 +30,25 @@ Workshop exposes profiles, apparatus, seats and officer powers through its norma
 
 Apparent contacts receive stable identities from the ordinary entity identity allocator without creating physical bodies. Their visible IDs do not classify them as ghosts. Weapon and scanner targets resolve apparent evidence without requiring a physical entity. Ghost provenance stays authoritative; permitted Console observations carry apparent evidence and only reveal a dispel after it happens. Network projections explicitly allowlist choir status, fading contacts and retained tracks. Console readouts and actions use the same model for graphical and semantic interaction.
 
+## Shared simulation paths
+
+Physical and apparent contacts use the same sensor admission, capability acquisition, retained tracks, findings publication and permitted evidence. A sensor that filters out ships cannot observe ghost ships; a sensor without identity capability cannot identify them. Detailed-scan exposure belongs to each scanner, so switching scanners does not combine progress. Unsupported physical details remain unavailable. Rejection receipts remain observer-local psychic state.
+
+The choir query supplies a stable contribution order. Each tick computes the strongest ward and scrambler once per receiver; derived winners are rebuilt after restore. Psychic preparation reuses one permitted contact lookup per Console, and UI actions reuse their captured observation. Command admission and commit each validate fresh permitted contacts.
+
+Personnel changes clear bound execution and planning settings through the Controller's setting-reset helper, including pending writes for those channels. Other seats and operator generations remain intact. Apparent trajectories use ordinary `Pose`/`Motion`, basic steering and acceleration, and the same fixed-step position integrator as physical ships.
+
 ## Persistence and verification
 
-World saves optionally contain `psychic`: apparatus seat continuation, projection trajectories, observer contact identities, scan and rejection receipts, recovery deadlines and weapon emission deadlines. Funded strength is rebuilt from restored grants without advancing time or paying again. Sensor motion fields default to zero for older saves. Content without psychic fittings retains its previous capabilities.
+World saves optionally contain `psychic`: apparatus seat continuation, projection trajectories, observer contact identities, rejection receipts, recovery deadlines and weapon emission deadlines. Funded strength is rebuilt from restored grants without advancing time or paying again. Psychic continuation version 1 requires a new session for saves from the earlier choir implementation. Saves without psychic continuation retain their existing compatibility. Per-scanner exposure and required duration belong to ordinary sensor samples; apparent tracks retain an internal source marker that is omitted from permitted projections. Sensor motion fields default to zero for older saves. Content without psychic fittings retains its previous capabilities.
 
-`system.psychic` uses independent synthetic fittings through production loaders, command admission and authoritative execution. It covers concurrent powers, shortages, injury, reassignment and queued orders, sensor isolation, friendly reception, duplicate powers, wards, scan and weapon dispels, fading, hostile save input, network projection filtering and exact continuation. Cross-platform traces exclude fixture ZIP timestamps; within-run restore comparisons retain full content identities.
+`system.psychic` uses independent synthetic fittings through production loaders, command admission and authoritative execution. It covers concurrent powers, shortages, injury, reassignment and queued orders, sensor isolation, friendly reception, duplicate powers, wards, scan and weapon dispels, fading, hostile save input, network projection filtering and exact continuation. Cross-platform traces exclude fixture ZIP timestamps; within-run restore comparisons retain full content identities. The review-refactor cases additionally cover missing sensor identity capability, ship filtering, independent scanner exposure and resume, deliberate finding publication to an unfed Console, equal-strength overlapping fitted choirs, selective planning/execution resets, old psychic-save rejection, fractional movement and world boundaries. Winner selection is computed once per receiver from a stable choir query; target enumeration reuses its existing observation instead of recapturing contacts per candidate.
 
-Verification on 22 October 2026:
+Verification after the review refactor on 22 October 2026:
 
 - Native: all 33 runnable CTest cases passed, including `system.psychic`. The separate inference adapter case requires a local HTTP socket and was blocked by the sandbox.
 - WASM: all 30 Node cases passed. All 11 native/WASM continuation comparisons matched, including psychic, sensors, combat and Controller runtime. Repeated native psychic traces also matched.
-- Production pack verification, native `--build-check`, WASM launch preflight, launcher tests and source formatting passed.
-- The explicit `phoenix_psychic_smoke` target compiled. Its graphical journey could not run because Xvfb could not bind a sandbox socket. No graphical or screen-reader pass is claimed. The network service suite was likewise blocked by socket restrictions.
+- Production pack verification, native `--build-check` and source formatting passed. WASM launch preflight and launcher tests passed in the original choir implementation run; they were not rerun for this refactor.
+- In the original choir implementation run, the explicit `phoenix_psychic_smoke` target compiled. Its graphical journey could not run because Xvfb could not bind a sandbox socket. No graphical or screen-reader pass is claimed. The network service suite was likewise blocked by socket restrictions.
 
 Native/WASM checks do not establish actual screen-reader, physical-device or six-display acceptance.

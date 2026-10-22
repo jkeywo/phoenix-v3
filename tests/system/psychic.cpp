@@ -293,6 +293,17 @@ int main(int argc, char **argv)
 		{
 			auto duplicate_source = fixture();
 			duplicate_source["entities"][0]["personnel"]["officers"][2]["power"] = "scramble";
+			auto &e = duplicate_source["entities"][0];
+			e["systems"]["choir2"] = e["systems"]["choir"];
+			e["systems"]["choir2"]["seats"] = Json::array({e["systems"]["choir"]["seats"][2]});
+			e["systems"]["choir"]["seats"].erase(2);
+			for (auto &d : e["personnel"]["duties"])
+				if (d["id"] == "ward")
+					d["choir"] = "choir2";
+			for (auto &c : e["control_layout"]["controllers"])
+				if (c["id"] == "choir")
+					c["commands"][0]["consumers"].push_back("choir2");
+			e["stations"][0]["consoles"][0]["feeds"].push_back("choir2");
 			const auto duplicate_catalog = load(duplicate_source);
 			World duplicate;
 			duplicate.load(duplicate_catalog, "test.map");
@@ -304,10 +315,235 @@ int main(int argc, char **argv)
 			command(duplicate, 101, 1, "choir", "ward-enabled", 1);
 			ticks(duplicate, 3);
 			require(ghosts(duplicate, 102).size() == 2, "overlapping scramblers use one strongest contribution");
+			const auto overlapping = duplicate.save();
+			for (const auto &g : overlapping.at("psychic").at("receptions"))
+				if (g.at("source") == 1 && g.at("observer") == 2)
+					require(g.at("choir") == "choir", "equal-strength choirs use stable ordering");
 			command(duplicate, 101, 1, "choir", "ward-target", 3);
 			ticks(duplicate, 8);
 			require(ghosts(duplicate, 102).size() == 2 && ghosts(duplicate, 103).size() == 2,
 			        "duplicate powers can serve independent victims after recovery");
+		}
+		// Sensor admission and capability acquisition must match real contacts.
+		for (bool hide_ships : {false, true})
+		{
+			auto authored = fixture();
+			auto &radar = authored["entities"][0]["systems"]["radar"];
+			radar["capabilities"] = Json::object();
+			if (hide_ships)
+				radar["shows"] = {"asteroid"};
+			// The projector keeps a ship feed; the receiving hull filters ships.
+			if (hide_ships)
+			{
+				auto enabled = authored;
+				enabled["entities"][0]["systems"]["radar"]["shows"] = {"ship"};
+				authored["entities"].push_back(enabled["entities"][0]);
+				authored["entities"].back()["id"] = "test.projector";
+				authored["maps"][0]["entities"][0]["definition"] = "test.projector";
+				const auto filtered = load(authored);
+				World view;
+				view.load(filtered, "test.map");
+				claim(view);
+				ticks(view);
+				command(view, 101, 1, "choir", "scramble-target", 2);
+				command(view, 101, 1, "choir", "scramble-enabled", 1);
+				ticks(view, 3);
+				require(ghosts(view, 102).empty(), "ship filter excludes apparent contacts");
+				require(view.observe(102)->gameplay.at("sensors").at("contacts").empty(),
+				        "ship filter excludes apparent evidence");
+			}
+			else
+			{
+				const auto local = load(authored);
+				World sensors;
+				sensors.load(local, "test.map");
+				claim(sensors);
+				ticks(sensors);
+
+				command(sensors, 101, 1, "choir", "scramble-target", 2);
+				command(sensors, 101, 1, "choir", "scramble-enabled", 1);
+				ticks(sensors, 3);
+				require(ghosts(sensors, 102).size() == 2, "unidentified apparent bodies remain targetable");
+				const auto observed = sensors.observe(102);
+				for (const auto &c : observed->gameplay.at("sensors").at("contacts"))
+					require(!c.at("findings").contains("basic_identity"), "identity requires the sensor capability");
+			}
+		}
+		{
+			auto authored = fixture();
+			auto &e = authored["entities"][0];
+			e["systems"]["radar2"] = e["systems"]["radar"];
+			e["publications"] = Json::array({{{"id", "scan"},
+			                                  {"source_console", "drive"},
+			                                  {"schema", "phoenix.sensor.findings"},
+			                                  {"subject", 4},
+			                                  {"fields", {"payload"}},
+			                                  {"live", false}}});
+			e["stations"][0]["consoles"][0]["feeds"].push_back("radar2");
+			for (auto &c : e["control_layout"]["controllers"])
+				if (c.at("id") == "radar")
+					c["commands"].push_back(
+					    {{"id", "target2"}, {"action", "sensor_target"}, {"consumers", {"radar2"}}});
+			const auto local = load(authored);
+			World scans;
+			scans.load(local, "test.map");
+			claim(scans);
+			ticks(scans);
+			command(scans, 101, 1, "choir", "scramble-target", 2);
+			command(scans, 101, 1, "choir", "scramble-enabled", 1);
+			ticks(scans, 2);
+			const auto target = ghosts(scans, 102).at(0);
+			command(scans, 102, 2, "radar", "target", target);
+			ticks(scans, 3);
+			command(scans, 102, 2, "radar", "target", 0);
+			command(scans, 102, 2, "radar", "target2", target);
+			ticks(scans, 3);
+			require(ghosts(scans, 102).size() == 2, "switching scanners does not combine their exposure");
+			const auto middle = scans.save();
+			World continued;
+			continued.restore(local, middle);
+			ticks(scans, 3);
+			ticks(continued, 3);
+			require(ghosts(scans, 102).size() == 1, "second scanner completes its own detailed scan");
+			require(scans.save() == continued.save(), "per-scanner exposure survives exact continuation");
+			const auto evidence = scans.observe(102)->gameplay.at("sensors").at("contacts");
+			bool finding = false;
+			for (const auto &c : evidence)
+				if (c.at("id") == target)
+					finding = c.at("findings").contains("finding:dispelled");
+			require(finding, "dispel finding uses retained sensor evidence");
+			require(scans.submit(102, OperatingCommand{2, "publish.scan", 0, {}}),
+			        "publish apparent finding through ordinary knowledge");
+			ticks(scans);
+			const auto shared = scans.observe(104)->gameplay.at("sensors");
+			require(shared.at("scanners").empty() && !shared.at("contacts").empty(),
+			        "unfed Console receives only deliberately shared finding");
+			bool shared_finding = false;
+			for (const auto &c : shared.at("contacts"))
+				if (c.at("id") == target)
+					shared_finding = c.at("findings").contains("finding:dispelled");
+			require(shared_finding, "apparent finding uses the existing publication and evidence path");
+		}
+		{
+			auto authored = fixture();
+			auto &e = authored["entities"][0];
+			Json orders = Json::array();
+			for (const auto &c : e["control_layout"]["controllers"])
+				if (c.at("id") == "choir")
+					for (const auto &ch : c.at("commands"))
+						if (ch.at("id") != "apparatus")
+							orders.push_back(ch);
+			e["control_layout"]["controllers"].push_back(
+			    {{"id", "orders"}, {"console", "drive"}, {"fallback", "hold"}, {"commands", orders}});
+			e["control_layout"]["profiles"][0]["consoles"]["drive"]["human"].push_back("orders");
+			e["personnel"]["duties"].push_back({{"id", "planner"},
+			                                    {"label", "Planner"},
+			                                    {"department", "signals"},
+			                                    {"compartment", "fore"},
+			                                    {"controller", "orders"},
+			                                    {"console", "drive"}});
+			e["systems"]["choir"]["planning_controller"] = "orders";
+			const auto local = load(authored);
+			World reassigned;
+			reassigned.load(local, "test.map");
+			claim(reassigned);
+			ticks(reassigned);
+			command(reassigned, 101, 1, "choir", "scramble-enabled", 1);
+			command(reassigned, 101, 1, "orders", "scramble-enabled", 1);
+			command(reassigned, 101, 1, "orders", "cloak-enabled", 1);
+			OperatingCommand relieve{1, "personnel.relieve", 0, "scramble"};
+			relieve.generation = reassigned.observe(101)->gameplay.at("personnel").at("revision");
+			require(reassigned.submit(101, relieve), "relieve officer with queued planning and execution writes");
+			ticks(reassigned);
+			const auto observation = reassigned.observe(101);
+			for (const auto &c : observation->gameplay.at("controllers"))
+				if (c.at("id") == "orders" || c.at("id") == "choir")
+				{
+					require(c.at("commands").at("scramble-enabled").at("value") == 0,
+					        "reset clears both command owners");
+					if (c.at("id") == "orders")
+						require(c.at("commands").at("cloak-enabled").at("value") == 1,
+						        "reset preserves unrelated seat writes");
+				}
+			const auto current = reassigned.save();
+			auto old = current;
+			old["psychic"].erase("version");
+			bool rejected = false;
+			try
+			{
+				reassigned.restore(local, old);
+			}
+			catch (const std::exception &ex)
+			{
+				rejected = std::string(ex.what()).find("start a new session") != std::string::npos;
+			}
+			require(rejected && reassigned.save() == current, "old psychic saves fail clearly without writes");
+		}
+		for (bool boundary : {false, true})
+		{
+			auto authored = fixture();
+			authored["entities"][0]["psychic_powers"]["scramble"]["speed_mm_s"] = 1001;
+			authored["entities"][0]["psychic_powers"]["scramble"]["turn_mdeg_s"] = 1;
+			if (boundary)
+			{
+				authored["maps"][0]["entities"][0]["x_mm"] = 999900000;
+				authored["maps"][0]["entities"][1]["x_mm"] = 999999990;
+				authored["maps"][0]["entities"][2]["x_mm"] = -999900000;
+			}
+			const auto local = load(authored);
+			World motion;
+			motion.load(local, "test.map");
+			claim(motion);
+			ticks(motion);
+			command(motion, 101, 1, "choir", "scramble-target", 2);
+			command(motion, 101, 1, "choir", "scramble-enabled", 1);
+			ticks(motion, 2);
+			auto saved = motion.save();
+			Json position;
+			for (auto &body : saved["bodies"])
+				if (body["body"]["id"] == 2)
+				{
+					position = body["body"]["position"];
+					body["body"]["velocity"] = {{"x", 1001}, {"y", 0}};
+					body["body"]["remainder"] = {{"x", 19}, {"y", -19}};
+				}
+			Json shapes;
+			for (auto &choir : saved["psychic"]["choirs"])
+				if (choir["ship"] == 1)
+				{
+					for (auto &shape : choir["state"]["seats"][1]["shapes"])
+					{
+						shape["x"] = position["x"];
+						shape["y"] = position["y"];
+						shape["vx"] = 1001;
+						shape["vy"] = 0;
+						shape["mx"] = 19;
+						shape["my"] = -19;
+						shape["heading"] = 0;
+					}
+					shapes = choir["state"]["seats"][1]["shapes"];
+				}
+			for (auto &g : saved["psychic"]["receptions"])
+				if (g["source"] == 1)
+					g["last"] = shapes[g["member"].get<std::size_t>()];
+			motion.restore(local, saved);
+			for (int n = 0; n < 24; ++n)
+			{
+				ticks(motion);
+				const auto next = motion.save();
+				Json actual;
+				for (const auto &body : next.at("bodies"))
+					if (body.at("body").at("id") == 2)
+						actual = body.at("body");
+				for (const auto &choir : next.at("psychic").at("choirs"))
+					if (choir.at("ship") == 1)
+						for (const auto &shape : choir.at("state").at("seats")[1].at("shapes"))
+							require(shape.at("x") == actual.at("position").at("x") &&
+							            shape.at("y") == actual.at("position").at("y") &&
+							            shape.at("mx") == actual.at("remainder").at("x") &&
+							            shape.at("my") == actual.at("remainder").at("y"),
+							        "apparent and ordinary motion share fractional integration and world bounds");
+			}
 		}
 		if (argc > 1 && std::string(argv[1]) == "--trace")
 		{
