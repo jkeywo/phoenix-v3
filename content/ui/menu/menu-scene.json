@@ -54,13 +54,15 @@
 	},
 	"intro": {
 		"paragraphs": [
-			"The Conclave has ended.",
-			"Across the Settled Dark, its laws endure only where someone has the strength to enforce them. Old agreements unravel and ancient trade routes decay. Noble Houses that once answered to the Conclave\u2019s authority now regard one another with open hostility.",
+			"The CONCLAVE has ended.",
+			"For centuries, it held the SETTLED DARK together through fear, tribute, and overwhelming force. Its officials sold justice. Its fleets crushed dissent. Its peace was bought with the lives of those who refused to kneel.",
+			"But it was peace.",
+			"Now, old agreements unravel and ancient trade routes decay. The NOBLE HOUSES settle old grudges with open war. Those who paid for the CONCLAVE\u2019s protection find themselves paying again for its collapse.",
 			"Far from the centres of power, on the fringes of settled space, news travels slowly. Ships go missing. Dark deals are made. A stranger arriving at the dock might bring supplies, a warning, or trouble enough for everyone.",
-			"Out here, the law was always distant. Still, you and your crew did your best to hold things together.",
-			"Now, with only your ship and each other, you are the last light standing"
+			"Out here, the law was always distant. You and your crew learned to look after your own.",
+			"Now, with only your ship and each other, you must stand alone\u2014"
 		],
-		"ending": "against the Stars.",
+		"ending": "AGAINST THE STARS.",
 		"prose_seconds": 56,
 		"arrival_seconds": 4
 	}

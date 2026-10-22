@@ -104,8 +104,8 @@ struct NativeMenuSmoke
 				if (!has("menu.close-intro") || !std::any_of(app.screen_readouts.begin(), app.screen_readouts.end(),
 				                                             [](const auto &readout)
 				                                             {
-					                                             return readout.first == "intro-reading-4" &&
-					                                                    readout.second.ends_with("against the Stars.");
+					                                             return readout.first.starts_with("intro-reading-") &&
+					                                                    readout.second.ends_with("AGAINST THE STARS.");
 				                                             }))
 					throw std::runtime_error("Static introduction needs readable semantics and a close action");
 				TakeScreenshot("build/menu-native-intro-reading.png");
