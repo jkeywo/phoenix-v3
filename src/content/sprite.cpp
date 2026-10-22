@@ -45,8 +45,7 @@ std::array<int, 2> image(const Catalog &catalog, const Json &reference, const st
 	const auto &bytes = catalog.assets.at(reference.get<std::string>());
 	try
 	{
-		const auto decoded = decode_asset_image(bytes);
-		return {decoded.width, decoded.height};
+		return verified_image_dimensions(bytes);
 	}
 	catch (const std::exception &error)
 	{
@@ -236,8 +235,26 @@ const SpriteFrame &sprite_frame(const SpriteMaterial &sprite, std::uint32_t entr
 		                                std::abs(std::remainder(b.azimuth - bearing, 360.f));
 	                         });
 }
-SpriteMaterial compile_sprite(const Json &sprite, const Catalog &catalog, const std::string &path)
+namespace
 {
+SpriteMaterial compile_sprite_cached(const Json &sprite, const Catalog &catalog, const std::string &path,
+                                     std::map<std::string, std::array<int, 2>> &images)
+{
+	// Materials in one unchanged catalogue share image bytes. Reuse dimensions by
+	// reference here rather than comparing the same bytes for every entry or turret.
+	const auto dimensions_for = [&](const Json &reference, const std::string &field)
+	{
+		if (reference.is_string())
+		{
+			const auto key = reference.get<std::string>();
+			if (const auto found = images.find(key); found != images.end())
+				return found->second;
+			const auto dimensions = image(catalog, reference, field);
+			images.emplace(key, dimensions);
+			return dimensions;
+		}
+		return image(catalog, reference, field);
+	};
 	if (!sprite.is_object() || !sprite.contains("albedo"))
 		bad(path, "expected sprite material with albedo");
 	if (sprite.contains("entries"))
@@ -258,7 +275,7 @@ SpriteMaterial compile_sprite(const Json &sprite, const Catalog &catalog, const 
 			auto source = sprite;
 			source.erase("entries");
 			source["frames"] = entry.at("frames");
-			auto compiled = compile_sprite(source, catalog, path + ".entries." + name);
+			auto compiled = compile_sprite_cached(source, catalog, path + ".entries." + name, images);
 			if (result.entries.empty())
 				result = compiled;
 			result.entries.push_back({name, std::move(compiled.frames)});
@@ -269,13 +286,13 @@ SpriteMaterial compile_sprite(const Json &sprite, const Catalog &catalog, const 
 	material.radar_icon = compile_radar_icon(sprite.value("radar_icon", Json("contact")), path + ".radar_icon");
 	material.radar_sprite = sprite.value("radar_sprite", std::string{});
 	if (!material.radar_sprite.empty())
-		image(catalog, material.radar_sprite, path + ".radar_sprite");
-	const auto dimensions = image(catalog, sprite.at("albedo"), path + ".albedo");
+		dimensions_for(material.radar_sprite, path + ".radar_sprite");
+	const auto dimensions = dimensions_for(sprite.at("albedo"), path + ".albedo");
 	material.albedo = sprite.at("albedo");
 	for (const char *field : {"normal", "depth"})
 		if (sprite.contains(field) && !sprite.at(field).is_null())
 		{
-			if (image(catalog, sprite.at(field), path + "." + field) != dimensions)
+			if (dimensions_for(sprite.at(field), path + "." + field) != dimensions)
 				bad(path + "." + field, "map dimensions differ from albedo");
 			(field == std::string("normal") ? material.normal : material.depth) = sprite.at(field).get<std::string>();
 		}
@@ -353,6 +370,18 @@ SpriteMaterial compile_sprite(const Json &sprite, const Catalog &catalog, const 
 		material.frames.push_back(std::move(frame));
 	}
 	return material;
+}
+} // namespace
+SpriteMaterial compile_sprite(const Json &sprite, const Catalog &catalog, const std::string &path)
+{
+	return SpriteCompiler(catalog).compile(sprite, path);
+}
+SpriteCompiler::SpriteCompiler(const Catalog &catalog) : catalog_(catalog)
+{
+}
+SpriteMaterial SpriteCompiler::compile(const Json &sprite, const std::string &path)
+{
+	return compile_sprite_cached(sprite, catalog_, path, images_);
 }
 std::uint32_t sprite_entry_index(const SpriteMaterial &sprite, const std::string &name)
 {

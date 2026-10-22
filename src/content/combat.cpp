@@ -51,6 +51,7 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 		return {};
 	}
 	const auto path = "entities." + name + ".combat";
+	SpriteCompiler sprites(catalog);
 	const auto fail = [&](const std::string &why)
 	{
 		throw std::runtime_error(path + ": " + why);
@@ -278,7 +279,7 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 			s.get<TurretDefinition>().flip_y = v.value("flip_y", false);
 			if (!catalog.entities.contains(s.get<TurretDefinition>().visual))
 				fail("unknown turret visual " + s.get<TurretDefinition>().visual);
-			const auto material = compile_sprite(entity.at("render").at("sprite"), catalog, path);
+			const auto material = sprites.compile(entity.at("render").at("sprite"), path);
 			const auto check_frames = [&](const auto &frames)
 			{
 				for (const auto &frame : frames)
@@ -415,7 +416,7 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 				        ? entity
 				        : catalog.entities.at(
 				              d.systems.at(d.system_ids.at(weapon.turret)).get<TurretDefinition>().visual);
-				const auto sprite = compile_sprite(visual.at("render").at("sprite"), catalog, path);
+				const auto sprite = sprites.compile(visual.at("render").at("sprite"), path);
 				const auto verify = [&](const auto &frames)
 				{
 					for (const auto &frame : frames)

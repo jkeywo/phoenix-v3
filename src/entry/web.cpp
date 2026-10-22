@@ -30,6 +30,7 @@ double session_work_seconds = 0;
 // clang-format off: embedded JavaScript must retain its operators.
 EM_JS(void, persist_menu, (), { Module.phoenixPersistMenu?.().catch(() => {}); });
 EM_JS(void, return_to_menu, (), { Module.phoenixReturnToMenu?.(); });
+EM_JS(void, startup_phase, (const char *phase), { Module.phoenixStartupStage?.(UTF8ToString(phase)); });
 // clang-format on
 extern "C" EMSCRIPTEN_KEEPALIVE void phoenix_session_pump()
 {
@@ -74,6 +75,12 @@ void frame()
 #endif
 	const double drawn = GetTime();
 	EndDrawing();
+	static bool first_frame = true;
+	if (std::exchange(first_frame, false))
+	{
+		// The loading screen ends only once the runtime has presented a frame.
+		EM_ASM({ Module.phoenixStartupReady ?.(); });
+	}
 	profile.record(started, drawn, GetTime(), std::exchange(session_work_seconds, 0.0), app);
 }
 int main(int argc, char **argv)
@@ -142,12 +149,14 @@ int main(int argc, char **argv)
 	{
 		if (!action.empty())
 		{
+			startup_phase("Reading the launch base and saved settings…");
 			app.native_menu = true;
 			const auto root_bytes = phoenix::read_file(base_file);
 			const auto root = phoenix::base_configuration(phoenix::read_pack(root_bytes));
 			app.library = std::make_shared<phoenix::MenuLibrary>(
 			    "/launcher/menu", menu_scope.empty() ? network.profile + "/" + root.id : menu_scope);
 			app.library->load();
+			startup_phase("Checking installed mods…");
 			app.library->launch_base(root_bytes);
 			network.expected_base = root;
 			const auto &preferences = app.library->preferences;
@@ -166,6 +175,7 @@ int main(int argc, char **argv)
 			network.avatar = app.avatar;
 		}
 #ifdef PHOENIX_SERVER
+		startup_phase("Preparing the game lobby…");
 		if (action.empty())
 			network.link.self = network.server;
 		if (action == "join")
@@ -178,7 +188,11 @@ int main(int argc, char **argv)
 				return phoenix::make_game_lobby(network);
 			};
 			if (app.library)
+			{
+				startup_phase("Loading selected mods into the game…");
 				app.session->replace_packs(app.library->archives(app.library->packs));
+			}
+			startup_phase("Preparing the selected level…");
 			if (action == "recover")
 				app.session->restore(app.library->read_save(save));
 			else if (action == "host")
@@ -220,11 +234,13 @@ int main(int argc, char **argv)
 		return 1;
 	}
 	phoenix::load_display_preferences(app);
+	startup_phase("Starting graphics and loading interface artwork…");
 	phoenix::open_window();
 	phoenix::select_language(app.language, app.pseudo_locale);
 #if defined(PHOENIX_WORKSHOP) || defined(PHOENIX_SERVER)
 	phoenix::begin_tools();
 #endif
 	EM_ASM({ Module.phoenixStartSessionPump(); });
+	startup_phase("Drawing the first game frame…");
 	emscripten_set_main_loop(frame, 0, true);
 }

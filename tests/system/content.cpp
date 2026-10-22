@@ -30,6 +30,14 @@ int main()
 		require(loaded.hash() == sha256(bytes), "pack identity must be the SHA256 of transferred archive bytes");
 		auto catalog = resolve_packs({loaded});
 		{
+			auto isolated = resolve_packs({loaded});
+			isolated.entities.clear();
+			isolated.assets.clear();
+			const auto repeated = resolve_packs({read_pack(bytes)});
+			require(repeated.entities == catalog.entities && repeated.assets == catalog.assets,
+			        "Repeated verified resolution returns independent catalogue values");
+		}
+		{
 			// Independent 2x1 panorama, never derived from production artwork.
 			const Bytes pixels{'P', 'H', 'X', 'R', 'G', 'B', 'A', '1', 2,  0,  0,  0,
 			                   1,   0,   0,   0,   80,  20,  10,  255, 10, 20, 80, 255};
@@ -860,6 +868,27 @@ int main()
 			require(reopened.definitions() == entries.definitions(),
 			        "Environment and entry authoring changed during verified export/reload");
 			const auto entry_catalog = resolve_packs({read_pack(exported)});
+			const auto &entry_sprite = entry_catalog.entities.at("test.ship").at("render").at("sprite");
+			SpriteCompiler shared_atlas(entry_catalog);
+			(void)shared_atlas.compile(entry_sprite, "shared atlas");
+			auto bad_entry = entry_sprite;
+			bad_entry["entries"][1]["frames"][0]["rect"] = {0, 0, 2, 1};
+			rejected(
+			    [&]
+			    {
+				    shared_atlas.compile(bad_entry, "shared atlas");
+			    },
+			    "rect");
+			auto edited_images = entry_catalog;
+			// Keep the same path and byte length: validation receipts must compare
+			// content, so an in-place corruption cannot reuse the earlier result.
+			edited_images.assets.at(entry_sprite.at("albedo").get<std::string>())[0] ^= 0xff;
+			rejected(
+			    [&]
+			    {
+				    compile_sprite(entry_sprite, edited_images, "edited atlas");
+			    },
+			    "edited atlas");
 			const auto projected = resolve_packs({console_assets(entry_catalog, "test.ship")});
 			require(projected.entities.at("test.ship")["render"]["sprite"]["entries"].size() == 2 &&
 			            projected.entities.at("test.ship")["systems"]["radar"]["shows"].size() == 2,

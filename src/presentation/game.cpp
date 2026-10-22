@@ -1043,9 +1043,11 @@ GameScreen::Loading GameScreen::preload(Application &app)
 			        {}};
 		}
 		const auto total = s.preload_images.size() + s.preload_definitions.size() + s.preload_ui.size() + 1;
+		std::string phase;
 		// Yield to the platform after each bounded resource; GPU work stays on the graphics thread.
 		if (s.preload_done < s.preload_images.size())
 		{
+			phase = "Loading ship and level images";
 			const auto &id = s.preload_images.at(s.preload_done);
 			const auto &bytes = catalog.assets.at(id);
 			if (compiled_image(bytes) ||
@@ -1055,17 +1057,20 @@ GameScreen::Loading GameScreen::preload(Application &app)
 		}
 		else if (s.preload_done < s.preload_images.size() + s.preload_definitions.size())
 		{
+			phase = "Preparing ships and scenery";
 			s.scene.preload(catalog, s.preload_definitions.at(s.preload_done - s.preload_images.size()));
 			++s.preload_done;
 		}
 		else if (s.preload_done < total - 1)
 		{
+			phase = "Loading cockpit controls";
 			s.textures.load_file(
 			    s.preload_ui.at(s.preload_done - s.preload_images.size() - s.preload_definitions.size()));
 			++s.preload_done;
 		}
 		else if (s.preload_done == total - 1)
 		{
+			phase = "Preparing space backdrop and lighting";
 			if (!catalog.presentation)
 			{
 				SceneEnvironment environment;
@@ -1090,7 +1095,7 @@ GameScreen::Loading GameScreen::preload(Application &app)
 			s.preload_finished = true;
 			return {};
 		}
-		return {true, s.preload_done, total, "Preparing graphics", title, {}};
+		return {true, s.preload_done, total, phase, title, {}};
 	}
 	catch (const std::exception &error)
 	{

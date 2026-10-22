@@ -246,7 +246,7 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 			fail(catalog.assets.contains(o.portrait), "missing portrait");
 			const auto &bytes = catalog.assets.at(o.portrait);
 			fail(bytes.size() <= 256 * 1024, "portrait exceeds 256 KiB");
-			(void)decode_asset_image(bytes);
+			(void)verified_image_dimensions(bytes);
 			o.portrait = "console-assets:assets/comms/" + sha256(bytes) + ".png";
 		}
 		std::set<std::string> unique;

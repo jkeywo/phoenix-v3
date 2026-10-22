@@ -24,6 +24,7 @@ import {
 	installPack,
 	mergeScopedLibrary,
 	menuLocation,
+	runtimeLibraryFiles,
 } from "../../web/launcher.mjs";
 const route = (query) => launchOptions(new URLSearchParams(query), "https://example.test/phoenix-v3/");
 test("concurrent default-profile tabs and duplicated tabs keep separate durable identities", async () => {
@@ -426,6 +427,35 @@ test("menu returns retain the launched base and local profile", () => {
 	assert.equal(target.searchParams.get("profile"), "alice");
 	assert.equal(target.searchParams.has("type"), false);
 	assert.equal(target.hash, "");
+});
+
+test("runtime hydration retains installed disabled packs and saves without copying unrelated cached archives", () => {
+	const active = "a".repeat(64),
+		disabled = "b".repeat(64),
+		save = "c".repeat(32),
+		stale = "d".repeat(64);
+	const library = {
+		packs: [
+			{ hash: active, enabled: true },
+			{ hash: disabled, enabled: false },
+		],
+		saves: [{ id: save }],
+	};
+	const stored = new Map([
+		["library.json", new Uint8Array([1])],
+		[`packs/${active}.zip`, new Uint8Array([2])],
+		[`packs/${disabled}.zip`, new Uint8Array([3])],
+		[`saves/${save}.zip`, new Uint8Array([4])],
+		[`packs/${stale}.zip`, new Uint8Array([5])],
+		[`saves/${stale}.zip`, new Uint8Array([6])],
+	]);
+	const transferred = new Map(runtimeLibraryFiles(library, stored));
+	assert.deepEqual(
+		[...transferred.keys()],
+		["library.json", `packs/${active}.zip`, `packs/${disabled}.zip`, `saves/${save}.zip`],
+	);
+	assert.equal(stored.size, 6, "Other profiles and old versions remain stored for future use");
+	assert.equal(transferred.get(`packs/${active}.zip`), stored.get(`packs/${active}.zip`));
 });
 
 test("mod ordering and removal cannot orphan disabled descendants", () => {

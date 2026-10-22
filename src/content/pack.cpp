@@ -1,6 +1,7 @@
 module;
 #include <miniz.h>
 #include <algorithm>
+#include <array>
 #include <filesystem>
 #define STB_IMAGE_STATIC
 #define STB_IMAGE_IMPLEMENTATION
@@ -364,6 +365,40 @@ AssetImage decode_asset_image(std::span<const std::uint8_t> bytes)
 	result.rgba.assign(pixels, pixels + std::size_t(result.width) * result.height * 4);
 	stbi_image_free(pixels);
 	return result;
+}
+std::array<int, 2> verified_image_dimensions(std::span<const std::uint8_t> bytes)
+{
+	// Never key validation by a mutable asset path: edited replacements need a new
+	// full decode. Compare exact encoded bytes, avoiding repeated cryptographic
+	// hashing on the graphics thread. No decoded pixel buffers are retained.
+	struct Receipt
+	{
+		Bytes encoded;
+		std::array<int, 2> dimensions;
+	};
+	struct Cache
+	{
+		std::vector<Receipt> receipts;
+		std::size_t size = 0;
+	};
+	thread_local Cache verified;
+	for (const auto &receipt : verified.receipts)
+		if (receipt.encoded.size() == bytes.size() && std::equal(bytes.begin(), bytes.end(), receipt.encoded.begin()))
+			return receipt.dimensions;
+	const auto image = decode_asset_image(bytes);
+	const std::array dimensions{image.width, image.height};
+	constexpr std::size_t budget = 32 * 1024 * 1024;
+	if (bytes.size() <= budget)
+	{
+		if (verified.receipts.size() >= 128 || bytes.size() > budget - verified.size)
+		{
+			verified.receipts.clear();
+			verified.size = 0;
+		}
+		verified.receipts.push_back({Bytes(bytes.begin(), bytes.end()), dimensions});
+		verified.size += bytes.size();
+	}
+	return dimensions;
 }
 Bytes compile_asset_image(std::span<const std::uint8_t> bytes)
 {

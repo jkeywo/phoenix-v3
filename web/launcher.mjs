@@ -44,6 +44,17 @@ export function menuLocation(page, base, profile) {
 	url.searchParams.set("profile", profile || "default");
 	return url.href;
 }
+export function* runtimeLibraryFiles(library, files) {
+	const referenced = new Set([
+		...library.packs.map((pack) => `packs/${pack.hash}.zip`),
+		...library.saves.map((save) => `saves/${save.id}.zip`),
+	]);
+	for (const entry of files) {
+		const [key] = entry;
+		if (key === "library.json" || (referenced.has(key) && /^(packs|saves)\/[a-f0-9]{32,64}\.zip$/.test(key)))
+			yield entry;
+	}
+}
 export function movePack(selection, hash, shift, metadata) {
 	const candidate = selection.map((pack) => ({ ...pack }));
 	const index = candidate.findIndex((pack) => pack.hash === hash),
@@ -1584,21 +1595,22 @@ async function boot() {
 						fs.mkdirTree("/launcher/menu/packs");
 						fs.mkdirTree("/launcher/menu/saves");
 						fs.writeFile("/launcher/base.zip", launchBaseBytes);
-						for (const [key, bytes] of files)
-							if (key === "library.json" || /^(packs|saves)\/[a-f0-9]{32,64}\.zip$/.test(key))
-								fs.writeFile("/launcher/menu/" + key, bytes);
+						for (const [key, bytes] of runtimeLibraryFiles(library, files))
+							fs.writeFile("/launcher/menu/" + key, bytes);
 						lastIndex = decoder.decode(files.get("library.json"));
 					},
 				],
-				postRun: [
-					() => {
-						if (!failed) {
-							finishLoading();
-							status("");
-							$("canvas").focus();
-						}
-					},
-				],
+				onRuntimeInitialized: () => loadingStage("Starting the game and loading levels…"),
+				phoenixStartupStage: (message) => {
+					if (!failed && loadingActive) loadingStage(message);
+				},
+				phoenixStartupReady: () => {
+					if (!failed) {
+						finishLoading();
+						status("");
+						$("canvas").focus();
+					}
+				},
 				onAbort: (reason) => launchError("Startup failed: " + String(reason || "Unknown runtime error")),
 				setStatus: (message) => {
 					if (!failed && loadingActive) {
@@ -1664,6 +1676,16 @@ async function boot() {
 			location.assign(menuLocation(location.href, baseUrl, scopeKey.split("/")[0])),
 		).disabled = false;
 	}
+	// Script evaluation and Emscripten's asynchronous run() can fail after start()
+	// has returned. Surface those failures instead of leaving the loading panel up.
+	window.addEventListener("error", (event) => {
+		if (started && loadingActive && !failed && event.message)
+			launchError(t("Startup failed:") + " " + event.message);
+	});
+	window.addEventListener("unhandledrejection", (event) => {
+		if (started && loadingActive && !failed)
+			launchError(t("Startup failed:") + " " + String(event.reason?.message || event.reason));
+	});
 	// Install before GLFW. Native HTML and semantic controls retain their keyboard behavior.
 	for (const type of ["keydown", "keypress", "keyup"])
 		window.addEventListener(
@@ -1893,9 +1915,10 @@ async function boot() {
 		opening.onupgradeneeded = () => opening.result.createObjectStore("files");
 		db = await request(opening);
 		db.onversionchange = () => db.close();
-		const store = db.transaction("files").objectStore("files");
-		const [keys, values] = await Promise.all([request(store.getAllKeys()), request(store.getAll())]);
-		keys.forEach((key, i) => files.set(key, values[i]));
+		// Read the index first. Historical archives and other profiles can be much
+		// larger than the active library and must not all enter the page's heap.
+		const cachedLibrary = await request(db.transaction("files").objectStore("files").get("library.json"));
+		if (cachedLibrary !== undefined) files.set("library.json", cachedLibrary);
 		if (files.has("library.json")) {
 			library = { ...defaults(), ...JSON.parse(decoder.decode(files.get("library.json"))) };
 			if (library.schema !== 1 || !Array.isArray(library.packs) || !Array.isArray(library.saves))
@@ -1980,6 +2003,20 @@ async function boot() {
 			[`packs/${hash}.zip`, launchBaseBytes],
 			[`preview/${hash}.json`, encoder.encode(JSON.stringify(launchBase))],
 		]);
+		loadingStage("Reading installed mods and saves…");
+		const stored = db.transaction("files").objectStore("files");
+		const needed = new Set([
+			...library.packs.flatMap((pack) => [`packs/${pack.hash}.zip`, `preview/${pack.hash}.json`]),
+			...library.saves.map((save) => `saves/${save.id}.zip`),
+		]);
+		await Promise.all(
+			[...needed]
+				.filter((key) => !files.has(key))
+				.map(async (key) => {
+					const bytes = await request(stored.get(key));
+					if (bytes !== undefined) files.set(key, bytes);
+				}),
+		);
 
 		if (!library.avatar?.length) {
 			library.avatar = [
@@ -2000,12 +2037,11 @@ async function boot() {
 			}
 		}
 
-		loading = false;
 		if (routes) {
+			loading = false;
 			await start(routes, true);
 			return;
 		}
-		render();
 		await document.fonts.load('28px "Comic Neue"');
 		await Promise.all(
 			["cockpit-frame.png", "menu-logotype.png", "space-panorama.png", "menu-debris.png"].map(async (name) => {
@@ -2014,6 +2050,8 @@ async function boot() {
 				await image.decode();
 			}),
 		);
+		loading = false;
+		render();
 		finishLoading();
 		menuIntro = openingCrawl(data[3].intro);
 		if (!$("status").textContent || $("status").textContent === "Loading menu…") status("");

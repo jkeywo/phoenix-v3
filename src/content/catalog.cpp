@@ -1,6 +1,7 @@
 module;
 #include <algorithm>
 #include <functional>
+#include <new>
 #include <set>
 #include <stdexcept>
 #include <cmath>
@@ -443,10 +444,53 @@ Catalog resolve(const std::vector<PackView> &ordered)
 } // namespace
 Catalog resolve_packs(const std::vector<Pack> &ordered)
 {
+	// Pack storage is immutable and its identity covers the complete archive.
+	// Repeated lobby/preparation checks can reuse compiled definitions, while
+	// changed bytes or order still take the full production verification path.
+	struct Cached
+	{
+		std::vector<std::string> identities;
+		Catalog catalog;
+		std::size_t source_bytes = 0;
+	};
+	thread_local std::vector<Cached> cache;
+	std::vector<std::string> identities;
+	for (const auto &pack : ordered)
+		identities.push_back(pack.hash());
+	for (const auto &entry : cache)
+		if (entry.identities == identities)
+			return entry.catalog;
 	std::vector<PackView> views;
 	for (const auto &pack : ordered)
 		views.push_back({pack.manifest(), pack.files(), pack.hash()});
-	return resolve(views);
+	auto result = resolve(views);
+	constexpr std::size_t budget = 64 * 1024 * 1024;
+	std::size_t source_bytes = 0;
+	for (const auto &pack : ordered)
+		for (const auto &[path, bytes] : pack.files())
+		{
+			if (bytes.size() > budget - source_bytes)
+				return result;
+			source_bytes += bytes.size();
+		}
+	try
+	{
+		std::size_t retained = 0;
+		for (const auto &entry : cache)
+			retained += entry.source_bytes;
+		while (!cache.empty() && (cache.size() >= 2 || source_bytes > budget - retained))
+		{
+			retained -= cache.front().source_bytes;
+			cache.erase(cache.begin());
+		}
+		cache.push_back({std::move(identities), result, source_bytes});
+	}
+	catch (const std::bad_alloc &)
+	{
+		// Caching is optional; a valid catalogue can still be returned on its own.
+		cache.clear();
+	}
+	return result;
 }
 Catalog resolve_draft(const std::vector<Pack> &libraries, const PackDraft &draft)
 {
@@ -474,6 +518,7 @@ namespace
 {
 void verify_prepared_catalog(const Catalog &catalog)
 {
+	SpriteCompiler sprites(catalog);
 	if (catalog.presentation &&
 	    (!catalog.maps.empty() || !catalog.trees.empty() || !catalog.equipment.empty() || !catalog.assemblies.empty() ||
 	     !catalog.messages.empty() || !catalog.knowledge.empty() ||
@@ -486,7 +531,7 @@ void verify_prepared_catalog(const Catalog &catalog)
 	{
 		if (!catalog.assets.contains(catalog.loading_background))
 			invalid("loading_background", "unresolved image");
-		decode_asset_image(catalog.assets.at(catalog.loading_background));
+		verified_image_dimensions(catalog.assets.at(catalog.loading_background));
 	}
 	std::set<std::string> verified_images;
 	for (const auto &[id, entity] : catalog.entities)
@@ -524,7 +569,7 @@ void verify_prepared_catalog(const Catalog &catalog)
 		{
 			Json icon = {{"albedo", radar_sprite},
 			             {"frames", Json::array({{{"name", "icon"}, {"rect", {0, 0, 1, 1}}, {"pivot", {0, 0}}}})}};
-			compile_sprite(icon, catalog, path + ".render.radar_sprite");
+			sprites.compile(icon, path + ".render.radar_sprite");
 		}
 		const bool model = render.contains("model") || render.contains("star");
 		const bool contact_only = render.value("contact_only", false);
@@ -548,14 +593,14 @@ void verify_prepared_catalog(const Catalog &catalog)
 			verify_model_render(render, catalog, path + ".render");
 		else if (render.contains("sprite"))
 		{
-			const auto material = compile_sprite(render.at("sprite"), catalog, path + ".render.sprite");
+			const auto material = sprites.compile(render.at("sprite"), path + ".render.sprite");
 			sprite_entry_index(material, render.value("sprite_entry", std::string{}));
 			if (material.entries.empty() && material.frames.size() != (mode == "eight" ? 8u : 1u))
 				invalid(path + ".render.sprite.frames", "frame count does not match billboard mode");
 			if (render.contains("engines"))
 			{
 				const auto &engines = render.at("engines");
-				const auto effect = compile_sprite(engines.at("sprite"), catalog, path + ".render.engines.sprite");
+				const auto effect = sprites.compile(engines.at("sprite"), path + ".render.engines.sprite");
 				auto check_frames = [&](const auto &frames)
 				{
 					if (effect.frames.size() != frames.size())
@@ -595,7 +640,7 @@ void verify_prepared_catalog(const Catalog &catalog)
 				if (!verified_images.insert(asset.get<std::string>()).second)
 					continue;
 				const auto &bytes = catalog.assets.at(asset.get<std::string>());
-				decode_asset_image(bytes);
+				verified_image_dimensions(bytes);
 			}
 		}
 		if (!entity.contains("systems") || !entity["systems"].is_object())
@@ -820,7 +865,7 @@ void verify_prepared_catalog(const Catalog &catalog)
 						const auto &entity = catalog.entities.at(type.definition);
 						if (!entity.at("systems").empty() || !entity.at("render").contains("sprite"))
 							invalid("maps." + id, "asteroid types require sprite artwork and no fitted Systems");
-						sprite_entry_index(compile_sprite(entity.at("render").at("sprite"), catalog, type.definition),
+						sprite_entry_index(sprites.compile(entity.at("render").at("sprite"), type.definition),
 						                   type.entry);
 					}
 			}
@@ -842,8 +887,8 @@ void verify_prepared_catalog(const Catalog &catalog)
 						invalid(path, "unresolved image");
 					try
 					{
-						const auto image = decode_asset_image(catalog.assets.at(reference));
-						if (image.width != image.height * 2 && image.height != image.width * 6)
+						const auto image = verified_image_dimensions(catalog.assets.at(reference));
+						if (image[0] != image[1] * 2 && image[1] != image[0] * 6)
 							invalid(path, "expected 2:1 panorama or vertical six-face cube strip");
 					}
 					catch (const std::exception &error)
@@ -865,7 +910,7 @@ void verify_prepared_catalog(const Catalog &catalog)
 			const auto reference = map.at("loading_background").get<std::string>();
 			if (!catalog.assets.contains(reference))
 				invalid(path + ".loading_background", "unresolved image");
-			decode_asset_image(catalog.assets.at(reference));
+			verified_image_dimensions(catalog.assets.at(reference));
 		}
 		if (!map.contains("entities") || !map["entities"].is_array() || !map.contains("ship_slots") ||
 		    !map["ship_slots"].is_array())
@@ -889,7 +934,7 @@ void verify_prepared_catalog(const Catalog &catalog)
 				const auto &render = catalog.entities.at(definition).at("render");
 				if (!render.contains("sprite"))
 					invalid(path, "sprite_entry requires a sprite material");
-				sprite_entry_index(compile_sprite(render.at("sprite"), catalog, path),
+				sprite_entry_index(sprites.compile(render.at("sprite"), path),
 				                   instance.at("sprite_entry").get<std::string>());
 			}
 		}

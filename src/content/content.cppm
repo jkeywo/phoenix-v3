@@ -365,6 +365,16 @@ RadarIcon render_radar_icon(const Json &render);
 // Verified material contract, independent of GPU/platform types. Calibration
 // is in multiples of rendered height, with white toward the viewing camera.
 SpriteMaterial compile_sprite(const Json &sprite, const Catalog &catalog, const std::string &path);
+// Reuse validated image dimensions while compiling one unchanged catalogue.
+class SpriteCompiler
+{
+	const Catalog &catalog_;
+	std::map<std::string, std::array<int, 2>> images_;
+
+public:
+	explicit SpriteCompiler(const Catalog &catalog);
+	SpriteMaterial compile(const Json &sprite, const std::string &path);
+};
 void verify_lighting(const Json &lighting, const std::string &path);
 // Convert an imported source sidecar to the canonical pack material. Image
 // references must already have been imported and resolved by the caller.
@@ -389,6 +399,8 @@ struct AssetImage
 };
 bool compiled_image(std::span<const std::uint8_t> bytes);
 AssetImage decode_asset_image(std::span<const std::uint8_t> bytes);
+// Fully validates pixels, reusing bounded success receipts for identical bytes.
+std::array<int, 2> verified_image_dimensions(std::span<const std::uint8_t> bytes);
 Bytes compile_asset_image(std::span<const std::uint8_t> bytes);
 Bytes source_asset_image(std::span<const std::uint8_t> bytes);
 void verify_pack_draft(const PackDraft &pack);
