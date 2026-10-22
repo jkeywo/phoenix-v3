@@ -127,6 +127,8 @@ void craft_regression(Json &trace)
 		w.load(catalog, "test.map", {{"crew", "test.away"}});
 		require(w.claim(101, 2, "drive") && w.claim(102, 2, "observer"), "claim craft fixture");
 		require(w.inspect().size() == 2, "stored craft are absent from physical/sensor bodies");
+		require(w.observe(101)->gameplay["craft"].size() == 1 && w.observe(102)->gameplay["craft"].empty(),
+		        "bay operator owns craft controls; a telemetry reader does not");
 		ticks(w, 5);
 		auto initial = w.save();
 		require(body(initial, 2)["body"]["position"] == Json{{"x", 0}, {"y", 0}},
@@ -135,6 +137,9 @@ void craft_regression(Json &trace)
 		ticks(w, 1);
 		require(w.submit(102, mission_command(w, "assign", "security/team:security", 102, "security")),
 		        "assign craft passengers");
+		ticks(w, 1);
+		require(w.submit(102, mission_command(w, "assign", "medical/team:medical", 102, "medical")),
+		        "assign clinical craft support");
 		ticks(w, 1);
 		require(w.submit(101, mission_command(w, "transport", "transport", 101, "transport")), "bind actual craft bay");
 		ticks(w, 7);
@@ -154,18 +159,35 @@ void craft_regression(Json &trace)
 				if (m["id"].get<std::string>().starts_with("board."))
 					blocked = m["blocker"] == "Shuttle boarding requires hull below 50%";
 			require(blocked, "shuttle threshold is strictly below half total HP");
+			require(!w.submit(101, mission_command(w, "send")), "legacy alias cannot bypass shuttle boarding gate");
+			const auto selected = saved["away_missions"].back()["transport"].get<std::string>();
+			require(selected.starts_with("craft:"), "legacy alias binds canonical craft identity");
+			require(w.submit(101, mission_command(w, "transport", selected, 101, "transport")),
+			        "bind individual shuttle");
+			ticks(w, 1);
+			require(!w.submit(101, mission_command(w, "send")), "individual shuttle cannot bypass boarding gate");
 			body(saved, 1)["combat"]["compartments"][0]["hp"] = 99;
 			w.restore(catalog, saved);
 		}
 		require(w.submit(101, mission_command(w, "send")), "send finite physical craft");
-		ticks(w, 2);
+		ticks(w, 1);
+		{
+			World queued;
+			queued.restore(catalog, w.save());
+			require(queued.submit(101, mission_command(queued, "cancel")),
+			        "queued insertion can cancel before physical launch");
+			ticks(queued, 1);
+			require(queued.save()["craft"]["entities"][0]["state"]["phase"] == "docked",
+			        "queued cancellation preserves finite stock");
+		}
+		ticks(w, 4);
 		saved = w.save();
 		bool flying = false;
-		for (const auto &c : saved["carried_craft"])
-			flying |= c["phase"] == "outbound";
+		for (const auto &c : saved["craft"]["entities"])
+			flying |= (c["state"]["phase"] == "flying" || c["state"]["phase"] == "launching");
 		require(flying, "launch is an actual flying entity, not immediate transfer");
 		auto malformed_craft = saved;
-		malformed_craft["carried_craft"][0]["phase"] = "teleport";
+		malformed_craft["craft"]["entities"][0]["state"]["phase"] = "teleport";
 		rejects(
 		    [&]
 		    {
@@ -174,8 +196,19 @@ void craft_regression(Json &trace)
 		    },
 		    "unknown craft phases rejected");
 		if (mode == "boarding_torpedo")
+		{
 			require(!w.submit(101, mission_command(w, "cancel")),
 			        "launched boarding torpedo cannot return or be reused");
+			const auto &craft = saved["craft"]["entities"][0];
+			OperatingCommand recall{2, "craft.recall", craft["state"]["revision"],
+			                        std::to_string(craft["id"].get<EntityId>())};
+			recall.controller = "transport";
+			const auto flight_view = w.observe(101);
+			for (const auto &controller : flight_view->gameplay["controllers"])
+				if (controller["id"] == "transport")
+					recall.generation = controller["generation"];
+			require(!w.submit(101, recall), "airborne torpedo rejects ordinary craft recall");
+		}
 		else
 		{
 			World aborted;
@@ -184,16 +217,38 @@ void craft_regression(Json &trace)
 			ticks(aborted, 1);
 			World abort_resume;
 			abort_resume.restore(catalog, aborted.save());
-			ticks(aborted, 500);
-			ticks(abort_resume, 500);
+			ticks(aborted, 2000);
+			ticks(abort_resume, 2000);
 			require(aborted.save() == abort_resume.save(), "aborted insertion resumes its physical return");
-			require(aborted.save()["carried_craft"][0]["phase"] == "stored" && aborted.save()["captured_by"].empty(),
+			require(aborted.save()["craft"]["entities"][0]["state"]["phase"] == "docked" &&
+			            aborted.save()["captured_by"].empty(),
 			        "abort returns passengers without completing target mission");
+		}
+		if (mode == "boarding_torpedo")
+		{
+			auto destroyed = saved;
+			auto &target = body(destroyed, 1);
+			target["destructible"]["durability"] = 0;
+			target["destructible"]["destroyed_tick"] = w.ticks();
+			for (auto &compartment : target["combat"]["compartments"])
+			{
+				compartment["hp"] = 0;
+				compartment["disabled"] = true;
+			}
+			World lost;
+			lost.restore(catalog, destroyed);
+			ticks(lost, 2);
+			require(lost.save()["away_missions"].back()["phase"] == "lost" &&
+			            lost.save()["craft"]["entities"][0]["state"]["phase"] == "consumed",
+			        "torpedo target loss cannot return its occupied party");
+			World restored;
+			restored.restore(catalog, lost.save());
+			require(restored.save() == lost.save(), "failed disposable insertion restores without replenishment");
 		}
 		World resumed;
 		resumed.restore(catalog, saved);
-		ticks(w, 500);
-		ticks(resumed, 500);
+		ticks(w, 2000);
+		ticks(resumed, 2000);
 		require(w.save() == resumed.save(), "physical flight and encounter continue identically");
 		saved = w.save();
 		bool delivered = false;
@@ -206,12 +261,24 @@ void craft_regression(Json &trace)
 		ticks(w, 1);
 		ticks(delivered_resume, 1);
 		require(w.save() == delivered_resume.save(), "docked and consumed craft restore identically");
-		const auto phase = saved["carried_craft"][0]["phase"];
-		require(phase == (mode == "shuttle" ? "docked" : "consumed"),
+		const auto phase = saved["craft"]["entities"][0]["state"]["phase"];
+		require(phase == (mode == "shuttle" ? "flying" : "consumed"),
 		        "finite shuttle retained or disposable torpedo consumed");
+		auto invalid_terminal = saved;
+		invalid_terminal["craft"]["entities"][0]["state"]["phase"] = "consumed";
+		invalid_terminal["craft"]["entities"][0]["state"]["order"] = "return";
+		rejects(
+		    [&]
+		    {
+			    World bad;
+			    bad.restore(catalog, invalid_terminal);
+		    },
+		    "consumed craft cannot retain a return order");
 		if (mode == "boarding_torpedo")
 		{
 			require(!w.submit(101, mission_command(w, "recall")), "spent torpedo cannot extract personnel");
+			require(!w.submit(101, mission_command(w, "transport", "transport", 101, "transport")),
+			        "consumed torpedo never replenishes alias stock");
 			require(w.submit(101, mission_command(w, "transport", "rescue", 101, "rescue")),
 			        "bind different extraction method after torpedo delivery");
 			ticks(w, 1);
@@ -222,11 +289,204 @@ void craft_regression(Json &trace)
 		else
 		{
 			require(w.submit(101, mission_command(w, "recall")), "recall retained shuttle");
-			ticks(w, 500);
-			require(w.save()["carried_craft"][0]["phase"] == "stored", "physical shuttle returns to finite inventory");
+			ticks(w, 2000);
+			require(w.save()["craft"]["entities"][0]["state"]["phase"] == "docked",
+			        "physical shuttle returns to finite inventory");
+			World recovered;
+			recovered.restore(catalog, w.save());
+			require(recovered.save() == w.save(), "ordinary craft Medical recovery restores without orphaned care");
 		}
 		trace.push_back(w.save());
 	}
+}
+void finalizer_regression(Json &trace)
+{
+	for (const auto &transport : {std::string("ship"), std::string("transport"), std::string("shuttle")})
+	{
+		auto fixture = transport == "shuttle" ? boarding_craft_fixture("shuttle") : boarding_mission_fixture();
+		fixture["entities"][1]["boarding_missions"][0]["entry"] = "workshop";
+		fixture["entities"][1]["boarding_missions"][0]["tree"] = "test.finalizer-hold";
+		fixture["trees"].push_back({{"id", "test.finalizer-hold"},
+		                            {"context", "away"},
+		                            {"boarding", true},
+		                            {"initial", "hold"},
+		                            {"states", Json::array({{{"id", "hold"}}})}});
+		fixture["entities"][1]["boarding_missions"][0]["objectives"]["bridge"]["prize_crew"] = false;
+		for (auto &c : fixture["entities"][1]["control_layout"]["controllers"])
+			if (c["id"] == "team")
+				c["commands"][0]["initial"] = 0;
+		const auto catalog = load(fixture);
+		World w;
+		w.load(catalog, "test.map", {{"crew", "test.away"}});
+		require(w.claim(101, 2, "drive") && w.claim(102, 2, "observer"), "claim shared finalizer fixture");
+		ticks(w, 5);
+		require(w.submit(101, mission_command(w, "open")), "open finalizer mission");
+		ticks(w, 1);
+		for (const auto *team : {"security", "medical"})
+		{
+			require(w.submit(102, mission_command(w, "assign", std::string(team) + "/team:" + team, 102, team)),
+			        "assign finalizer team");
+			ticks(w, 1);
+		}
+		require(w.submit(101, mission_command(w, "transport", transport == "shuttle" ? "transport" : transport, 101,
+		                                      transport == "ship" ? "dispatch" : "transport")),
+		        "select finalizer transport");
+		ticks(w, 8);
+		auto saved = w.save();
+		if (transport == "ship" || transport == "shuttle")
+		{
+			body(saved, 1)["combat"]["compartments"][0]["hp"] = 100;
+			body(saved, 1)["combat"]["compartments"][1]["hp"] = 0;
+			body(saved, 1)["combat"]["compartments"][1]["disabled"] = true;
+			w.restore(catalog, saved);
+			require(!w.submit(101, mission_command(w, "send")), "physical boarding blocks at exactly half health");
+			body(saved, 1)["combat"]["compartments"][0]["hp"] = 99;
+			w.restore(catalog, saved);
+		}
+		require(w.submit(101, mission_command(w, "send")), "send through shared deployment finalizer");
+		ticks(w, 1);
+		World resumed;
+		resumed.restore(catalog, w.save());
+		ticks(w, transport == "shuttle" ? 2000 : 70);
+		ticks(resumed, transport == "shuttle" ? 2000 : 70);
+		require(w.save() == resumed.save(), "shared deployment and clinical work continue deterministically");
+		saved = w.save();
+		require(saved["away_missions"].back()["phase"] == "deployed" &&
+		            saved["away_missions"].back()["boarding"]["location"] == 1,
+		        "each transport initializes the authored nonzero boarding entry");
+		require(!saved["away_missions"].back()["care"].empty(), "Medical creates clinical continuation away");
+		// Restore the target above the insertion threshold; recovery must remain available.
+		for (auto &compartment : body(saved, 1)["combat"]["compartments"])
+		{
+			compartment["hp"] = 100;
+			compartment["disabled"] = false;
+		}
+		w.restore(catalog, saved);
+		require(w.submit(101, mission_command(w, "recall")), "recovery does not repeat insertion vulnerability gate");
+		ticks(w, transport == "shuttle" ? 2000 : 25);
+		saved = w.save();
+		const auto &mission = saved["away_missions"].back();
+		require(mission["phase"] == "recovered" && mission["care"].empty() && mission["assignments"].empty(),
+		        "shared recovery clears clinical and assignment state");
+		resumed.restore(catalog, saved);
+		ticks(w, 2);
+		ticks(resumed, 2);
+		require(w.save() == resumed.save(), "recovered Medical mission restores");
+		auto legacy = saved;
+		legacy["schema"] = 14;
+		legacy["craft"]["schema"] = 1;
+		for (auto &row : legacy["away_missions"])
+			row["schema"] = 8;
+		resumed.restore(catalog, legacy);
+		require(resumed.save() == saved, "older ordinary saves remain supported");
+		legacy["carried_craft"] = Json::array({{{"id", 3}, {"phase", "stored"}}});
+		rejects(
+		    [&]
+		    {
+			    resumed.restore(catalog, legacy);
+		    },
+		    "legacy physical craft requires a new game");
+		trace.push_back(w.save());
+	}
+}
+void defender_regression(Json &trace)
+{
+	auto fixture = boarding_mission_fixture();
+	// A second, inert expedition lets the defender's team leave through normal commands.
+	auto expedition = fixture["entities"][1]["boarding_missions"][0];
+	expedition["tree"] = "test.guard-expedition";
+	expedition["objectives"].erase("reactor");
+	fixture["entities"][0]["boarding_missions"] = Json::array({expedition});
+	fixture["trees"].push_back({{"id", "test.guard-expedition"},
+	                            {"context", "away"},
+	                            {"boarding", true},
+	                            {"initial", "wait"},
+	                            {"states", Json::array({{{"id", "wait"}}})}});
+	for (auto &tree : fixture["trees"])
+		if (tree["id"] == "test.boarding-dialogue")
+			tree["prompts"]["objective"]["default_choice"] = "reactor";
+	const auto catalog = load(fixture);
+	World w;
+	w.load(catalog, "test.map", {{"crew", "test.away"}});
+	require(w.claim(101, 2, "drive") && w.claim(102, 2, "observer") && w.claim(103, 1, "drive") &&
+	            w.claim(104, 1, "observer"),
+	        "claim both boarding parties");
+	ticks(w, 5);
+	const auto command = [&](std::uint64_t route, const std::string &action, const std::string &text = "",
+	                         const std::string &controller = "dispatch")
+	{
+		auto c = mission_command(w, action, text, route, controller);
+		c.target = route == 103 || route == 104 ? 1 : 2;
+		return c;
+	};
+	require(w.submit(103, command(103, "open")), "defender opens expedition");
+	ticks(w, 1);
+	require(w.submit(104, command(104, "assign", "security/team:security", "security")),
+	        "defender commits guard elsewhere");
+	ticks(w, 1);
+	require(w.submit(103, command(103, "transport", "transport", "transport")), "defender selects displacement");
+	ticks(w, 8);
+	require(w.submit(103, command(103, "send")), "guard deploys away");
+	ticks(w, 8);
+	require(w.submit(101, command(101, "open")), "attacker opens boarding");
+	ticks(w, 1);
+	require(w.submit(102, command(102, "assign", "security/team:security", "security")), "attacker assigns security");
+	ticks(w, 1);
+	require(w.submit(101, command(101, "transport", "transport", "transport")), "attacker selects displacement");
+	ticks(w, 8);
+	require(w.submit(101, command(101, "send")), "attacker boards unguarded ship");
+	ticks(w, 50);
+	const auto saved = w.save();
+	bool secured = false;
+	for (const auto &m : saved["away_missions"])
+		if (m["id"] == "board.2.1.seize")
+			secured = m["boarding"]["defenders"] == 0 && m["outcome"] == "complete:reactor_stopped";
+	require(secured, "absent guard neither fights nor blocks reactor from stale home location");
+	World resumed;
+	resumed.restore(catalog, saved);
+	ticks(w, 2);
+	ticks(resumed, 2);
+	require(w.save() == resumed.save(), "defender availability preserves continuation");
+	trace.push_back(w.save());
+}
+void captured_craft_regression(Json &trace)
+{
+	auto fixture = boarding_mission_fixture();
+	const auto physical = boarding_craft_fixture("shuttle");
+	fixture["entities"].push_back(physical["entities"][2]);
+	fixture["trees"].push_back(physical["trees"].back());
+	auto &target = fixture["entities"][1];
+	target["systems"]["prize-bay"] = physical["entities"][0]["systems"]["transport"];
+	for (auto &controller : target["control_layout"]["controllers"])
+		if (controller["id"] == "transport")
+			controller["commands"].push_back(
+			    {{"id", "prize"}, {"action", "system_enabled"}, {"initial", 1}, {"consumers", {"prize-bay"}}});
+	target["stations"][0]["consoles"][0]["feeds"].push_back("prize-bay");
+	const auto catalog = load(fixture);
+	World w;
+	w.load(catalog, "test.map", {{"crew", "test.away"}});
+	require(w.claim(101, 2, "drive") && w.claim(102, 2, "observer"), "claim prize carrier fixture");
+	ticks(w, 5);
+	require(w.submit(101, mission_command(w, "open")), "open prize mission");
+	ticks(w, 1);
+	require(w.submit(102, mission_command(w, "assign", "security/team:security", 102, "security")),
+	        "assign prize security");
+	ticks(w, 1);
+	require(w.submit(101, mission_command(w, "transport", "transport", 101, "transport")), "select prize insertion");
+	ticks(w, 8);
+	require(w.submit(101, mission_command(w, "send")), "board carrier with actual craft");
+	ticks(w, 50);
+	auto saved = w.save();
+	require(!saved["captured_by"].empty(), "carrier captured");
+	for (const auto &craft : saved["craft"]["entities"])
+		require(craft["state"]["home"] == 1 && body(saved, craft["id"])["faction"] == body(saved, 1)["faction"],
+		        "captured ordinary craft follow carrier faction");
+	World resumed;
+	resumed.restore(catalog, saved);
+	ticks(w, 2);
+	ticks(resumed, 2);
+	require(w.save() == resumed.save(), "captured craft ownership restores");
+	trace.push_back(w.save());
 }
 void encounter_outcomes(Json &trace)
 {
@@ -300,9 +560,10 @@ void boarding_mission_regression(Json &trace)
 {
 	for (bool medical : {false, true})
 	{
-		const auto catalog = load(boarding_mission_fixture());
+		const auto packed = archive(boarding_mission_fixture());
+		const auto catalog = resolve_packs({read_pack(packed)});
 		auto host = make_host_world();
-		host->add_pack(archive(boarding_mission_fixture()));
+		host->add_pack(packed);
 		host->start_server({"test.map", {{"crew", "test.away"}}, "crew", "drive"});
 		auto &w = host->authoritative_world();
 		GameExecution execution(host, {{"crew-server", "crew"}});
@@ -384,6 +645,9 @@ int main(int argc, char **argv)
 		boarding_mission_regression(trace);
 		bay_boarding_regression(trace);
 		craft_regression(trace);
+		finalizer_regression(trace);
+		defender_regression(trace);
+		captured_craft_regression(trace);
 		encounter_outcomes(trace);
 		const auto catalog = load(boarding_fixture());
 		World world;

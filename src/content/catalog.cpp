@@ -726,41 +726,6 @@ void verify_prepared_catalog(const Catalog &catalog)
 		(void)compile_personnel(catalog, id);
 		(void)compile_psychic(catalog, id);
 		(void)compile_boarding(catalog, id);
-		for (const auto &[key, transport] : entity.at("systems").items())
-			if (transport.value("kind", key) == "displacement" || transport.value("kind", key) == "transport")
-			{
-				const auto mode = transport.value("mode", std::string{"displacement"});
-				if (mode != "displacement" && mode != "shuttle" && mode != "boarding_torpedo")
-					invalid(id, "unknown transport mode");
-				if (mode != "displacement")
-				{
-					const auto craft = transport.value("craft", std::string{});
-					if (!catalog.entities.contains(craft) ||
-					    catalog.entities.at(craft).value("motion_model", std::string{}) != "inertial")
-						invalid(id, "craft transport requires an inertial-flight entity");
-					const auto layout = compile_controllable_layout(catalog, craft);
-					bool guidance = false;
-					for (const auto &controller : layout.controllers)
-						for (const auto &channel : controller.commands)
-							if (channel.action == OperatingAction::FollowContact &&
-							    (controller.tree.empty() ||
-							     (catalog.tree_programs.at(controller.tree).states.size() == 1 &&
-							      catalog.tree_programs.at(controller.tree).states[0].entry.empty() &&
-							      catalog.tree_programs.at(controller.tree).states[0].running.empty() &&
-							      catalog.tree_programs.at(controller.tree).states[0].exit.empty() &&
-							      catalog.tree_programs.at(controller.tree).states[0].transitions.empty())))
-								guidance = true;
-					if (!guidance)
-						invalid(id, "craft requires a dedicated AI follow-contact Controller");
-					integer(transport, "count", id, 1, 16);
-					integer(transport, "arrival_distance_mm", id, 1, 1000000000);
-					integer(transport, "arrival_speed_mm_s", id, 1, 1000000000);
-					integer(transport, "cruise_speed_mm_s", id, 1, 1000000000);
-					for (const auto &[k, s] : catalog.entities.at(craft).at("systems").items())
-						if (s.value("kind", k) == "transport" || s.value("kind", k) == "displacement")
-							invalid(id, "carried craft cannot carry nested transports");
-				}
-			}
 	}
 	for (const auto &[id, console] : catalog.consoles)
 	{
@@ -1004,6 +969,7 @@ void verify_prepared_catalog(const Catalog &catalog)
 }
 void prepare_catalog(Catalog &catalog)
 {
+	expand_transport_fittings(catalog);
 	expand_combat_policies(catalog);
 	expand_officer_policies(catalog);
 	catalog.tree_programs.clear();

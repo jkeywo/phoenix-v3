@@ -1822,7 +1822,7 @@ int main(int argc, char **argv)
 		world.tick();
 
 		const auto saved = world.save();
-		require(saved.at("schema") == 14, "Controller continuation has an explicit new save schema");
+		require(saved.at("schema") == 15, "Controller continuation has an explicit new save schema");
 		World resumed;
 		resumed.restore(content, saved);
 		for (int tick = 0; tick < 12; ++tick)
@@ -3276,8 +3276,10 @@ int main(int argc, char **argv)
 			auto fixture = controller_model_fixture();
 			fixture["maps"][0] = controller_session_fixture()["maps"][0];
 			fixture["entities"][0]["systems"]["steering"] = {{"kind", "steering"}, {"turn_mdeg_s", 90000}};
+			// Both peers must load identical bytes, including the ZIP entry timestamps.
+			const auto packed = archive(fixture);
 			auto model_host = make_host_world();
-			model_host->add_pack(archive(fixture));
+			model_host->add_pack(packed);
 			model_host->start_server(setup);
 			GameExecution committed(model_host, {{"server", "test.slot"}});
 			const auto ship = *model_host->authoritative_world().ship_for_slot("test.slot");
@@ -3297,7 +3299,7 @@ int main(int argc, char **argv)
 			require(committed.apply("server", {{"kind", "tick"}, {"tick", 1}}),
 			        "committed model decision executes on normal tick");
 			auto replica = make_host_world();
-			replica->add_pack(archive(fixture));
+			replica->add_pack(packed);
 			replica->start_server(setup);
 			GameExecution replayed(replica, {{"server", "test.slot"}});
 			require(replayed.apply("server", assignment) && replayed.apply("server", decision) &&

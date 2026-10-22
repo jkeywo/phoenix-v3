@@ -202,10 +202,12 @@ void resolve_lost_parties()
 		const bool lost_transport =
 		    m.aboard_craft && transport &&
 		    (combat_dead(entities.at(transport)) || entities.at(transport).get<CraftState>().phase == CraftPhase::Lost);
-		if (!ship || m.phase == AwayPhase::Lost || craft_passengers_extracted(m) ||
+		if (!ship || m.phase == AwayPhase::Lost ||
+		    (m.phase == AwayPhase::Inbound && m.aboard_craft && !lost_transport) ||
 		    (!truly_destroyed(d.target) && !lost_transport))
 			continue;
-		if ((m.deployed() && truly_destroyed(d.target)) || lost_transport)
+		if ((m.deployed() && truly_destroyed(d.target)) || lost_transport ||
+		    (m.aboard_craft && transport && torpedo_launched(entities.at(transport)) && truly_destroyed(d.target)))
 		{
 			for (const auto &[slot, a] : m.assignments)
 			{
@@ -232,6 +234,20 @@ void resolve_lost_parties()
 				}
 			++personnel.revision;
 			refresh_personnel_bonuses(personnel, p);
+			if (transport && transport != ship)
+			{
+				auto &craft = entities.at(transport).get_mut<CraftState>();
+				craft.mission.clear();
+				if (torpedo_launched(entities.at(transport)) && craft.phase != CraftPhase::Lost)
+				{
+					craft.phase = CraftPhase::Consumed;
+					craft.order = "idle";
+					craft.pending_order.clear();
+					craft.pending_target = 0;
+					craft.progress = 0;
+					set_craft_active(entities.at(transport), false);
+				}
+			}
 			m.care.clear();
 			m.assignments.clear();
 			m.accompanying.clear();
@@ -247,11 +263,6 @@ void resolve_lost_parties()
 			if (m.aboard_craft && transport)
 			{
 				request_craft_pickup(transport);
-				continue;
-			}
-			if (m.craft)
-			{
-				cancel_craft_transfer(i);
 				continue;
 			}
 			m.phase = AwayPhase::Open;

@@ -104,6 +104,39 @@ export function canvasPoint(rect, width, height, rotated, clientX, clientY) {
 export function menuMotion(width) {
 	return { logoWidth: Math.min(300, Math.max(180, width - 740)), logoDuration: 3 };
 }
+// A spinner shows activity; only real stage/download changes reset the wait clock.
+export function loadingFeedback(
+	paint,
+	clock = {
+		now: () => Date.now(),
+		setInterval: (callback, delay) => globalThis.setInterval(callback, delay),
+		clearInterval: (timer) => globalThis.clearInterval(timer),
+	},
+) {
+	let timer, started, updated, current;
+	const tick = () =>
+		paint({
+			...current,
+			elapsed: Math.floor((clock.now() - started) / 1000),
+			idle: Math.floor((clock.now() - updated) / 1000),
+		});
+	return {
+		update(phase, received, total) {
+			const next = { phase, received, total };
+			if (!current) {
+				started = clock.now();
+				timer = clock.setInterval(tick, 1000);
+			}
+			if (!current || JSON.stringify(next) !== JSON.stringify(current)) updated = clock.now();
+			current = next;
+			tick();
+		},
+		stop() {
+			clock.clearInterval(timer);
+			current = undefined;
+		},
+	};
+}
 if (typeof document !== "undefined") {
 	const fit = () => {
 		const v = viewportLayout(window.innerWidth, window.innerHeight, document.body.classList.contains("running"));
@@ -557,6 +590,7 @@ async function boot() {
 		menuAmbient,
 		db,
 		busy = false,
+		loading = true,
 		started = false,
 		failed = false,
 		returning = false,
@@ -585,6 +619,40 @@ async function boot() {
 			report(error);
 		}
 	};
+	let loadingActive = false;
+	const feedback = loadingFeedback(({ phase, received, total, elapsed, idle }) => {
+		$("startup-loading").hidden = false;
+		$("startup-phase").textContent = phase;
+		$("startup-time").textContent = `${t("Elapsed")}: ${elapsed}s`;
+		if (received !== undefined) {
+			const mb = (value) => (value / (1024 * 1024)).toFixed(1);
+			$("startup-time").textContent += ` · ${mb(received)} MB` + (total > 0 ? ` / ${mb(total)} MB` : "");
+		}
+		$("startup-wait").textContent =
+			idle >= 20
+				? t("Waiting for the next update.") +
+					` ${idle}s. ` +
+					t(
+						"Downloads and content checks can take longer on phones. If this does not change, reload and try again.",
+					)
+				: t("Preparing your mods and levels. First loads may take longer.");
+		$("startup-reload").hidden = idle < 30;
+		const bar = $("startup-progress");
+		if (total > 0 && received !== undefined) {
+			bar.max = total;
+			bar.value = received;
+		} else bar.removeAttribute("value");
+	});
+	const loadingStage = (message, received, total, detail = "") => {
+		loadingActive = true;
+		feedback.update(t(message) + (detail ? " " + detail : ""), received, total);
+	};
+	const finishLoading = () => {
+		loadingActive = false;
+		feedback.stop();
+		$("startup-loading").hidden = true;
+	};
+	$("startup-reload").onclick = () => location.reload();
 	const menuAudio = (() => {
 		let context, gain, decoded;
 		const active = new Set();
@@ -655,7 +723,7 @@ async function boot() {
 		const el = element("button", text, parent);
 		el.type = "button";
 		el.className = "skin" + (selected ? " selected" : "");
-		el.disabled = busy;
+		el.disabled = busy || loading;
 		if (selected) el.setAttribute("aria-pressed", "true");
 		el.onclick = run(fn);
 		return el;
@@ -718,17 +786,20 @@ async function boot() {
 			throw error;
 		}
 	}
-	async function fetchFile(url, limit = 32 * 1024 * 1024, cache = "default") {
+	async function fetchFile(url, limit = 32 * 1024 * 1024, cache = "default", onProgress) {
 		const response = await fetch(url, { cache });
 		if (!response.ok) throw Error("Could not load " + url);
 		if (+response.headers.get("content-length") > limit) throw Error("Download exceeds size limit.");
 		const reader = response.body.getReader(),
 			chunks = [];
 		let size = 0;
+		const total = Number(response.headers.get("content-length")) || undefined;
+		onProgress?.(0, total);
 		for (;;) {
 			const { value, done } = await reader.read();
 			if (done) break;
 			size += value.length;
+			onProgress?.(size, total);
 			if (size > limit) {
 				await reader.cancel();
 				throw Error("Download exceeds size limit.");
@@ -938,6 +1009,8 @@ async function boot() {
 	}
 	function render() {
 		updateProfile();
+		$("columns").setAttribute("aria-busy", String(loading));
+		for (const id of ["settings", "packs", "profile-crt"]) $(id).disabled = busy || loading;
 		document.body.classList.toggle("cascading", branch !== "root");
 		for (const input of $("columns").querySelectorAll("input[name]")) draftFields.set(input.name, input.value);
 		if (branch === "ships" && !scenarios().some((scene) => scene.id === scenario)) {
@@ -1004,7 +1077,12 @@ async function boot() {
 				if (scenarios().length !== 1) {
 					const maps = column("Scenarios");
 					element("h2", "Scenarios", maps);
-					if (!scenarios().length) element("p", "Enable mod packs to choose a scenario.", maps);
+					if (!scenarios().length)
+						element(
+							"p",
+							loading ? "Loading mods and levels…" : "Enable mod packs to choose a scenario.",
+							maps,
+						);
 					for (const scene of scenarios())
 						button(maps, scene.name || scene.id, () => choose("ships", scene.id), scene.id === scenario);
 				}
@@ -1155,6 +1233,10 @@ async function boot() {
 
 	function packs() {
 		const popup = dialog("Mod Packs");
+		if (loading) {
+			element("p", "Reading installed mod packs…", popup);
+			return;
+		}
 		element(
 			"p",
 			"Pack choices are verified by C++ when entering the lobby. Active sessions retain their exact content.",
@@ -1247,8 +1329,11 @@ async function boot() {
 		for (const pack of library.packs)
 			if ((pack.enabled || all) && !files.has(`packs/${pack.hash}.zip`)) {
 				if (!pack.url) throw Error("Installed pack archive is missing: " + pack.id);
-				status(t("Downloading content...") + " " + pack.id);
-				const bytes = await fetchFile(pack.url, undefined, "no-cache");
+				loadingStage("Downloading mod pack:", undefined, undefined, pack.id);
+				const bytes = await fetchFile(pack.url, undefined, "no-cache", (received, total) =>
+					loadingStage("Downloading mod pack:", received, total, pack.id),
+				);
+				loadingStage("Checking mod pack:", undefined, undefined, pack.id);
 				if (hex(await crypto.subtle.digest("SHA-256", bytes)) !== pack.hash)
 					throw Error("Published content changed. Reload the menu.");
 				await write([[`packs/${pack.hash}.zip`, bytes]]);
@@ -1328,14 +1413,18 @@ async function boot() {
 		if (started || busy) return;
 		busy = true;
 		render();
+		$("startup-title").textContent = t(o.action === "workshop" ? "Opening Workshop" : "Loading your game");
+		loadingStage("Preparing selected mod packs…");
 		$("settings").disabled = $("packs").disabled = true;
 		try {
-			if (true) await ensurePacks(o.action === "workshop");
+			await ensurePacks(o.action === "workshop");
+			loadingStage("Saving your setup…");
 			await remember();
 			let tabStorage;
 			try {
 				tabStorage = window.sessionStorage;
 			} catch {}
+			loadingStage("Preparing your player profile…");
 			profileLease = await acquireSessionProfile(o.profile, {
 				locks: navigator.locks,
 				storage: tabStorage,
@@ -1360,10 +1449,7 @@ async function boot() {
 			window.dispatchEvent(new Event("resize"));
 			nebulaFlashes?.sync();
 			menuAmbient?.sync();
-			status(t("Loading application..."));
-			$("startup-loading").hidden = false;
-			$("startup-loading").querySelector("h1").textContent = t("Loading application...");
-			$("startup-progress").removeAttribute("value");
+			loadingStage("Downloading game files…");
 			window.Module = {
 				canvas: $("canvas"),
 				phoenixConsoleOnly: o.type === "client",
@@ -1391,6 +1477,7 @@ async function boot() {
 
 				preRun: [
 					() => {
+						loadingStage("Preparing game content and saved games…");
 						const fs = window.Module.FS;
 						fs.mkdirTree("/launcher/menu/packs");
 						fs.mkdirTree("/launcher/menu/saves");
@@ -1404,7 +1491,7 @@ async function boot() {
 				postRun: [
 					() => {
 						if (!failed) {
-							$("startup-loading").hidden = true;
+							finishLoading();
 							status("");
 							$("canvas").focus();
 						}
@@ -1412,14 +1499,16 @@ async function boot() {
 				],
 				onAbort: (reason) => launchError("Startup failed: " + String(reason || "Unknown runtime error")),
 				setStatus: (message) => {
-					if (!failed && message) {
-						status(t("Loading application...") + " " + message);
+					if (!failed && loadingActive) {
 						const match = /\((\d+(?:\.\d+)?)\/(\d+)\)/.exec(message);
-						const bar = $("startup-progress");
-						if (match && Number(match[2]) > 0) {
-							bar.max = Number(match[2]);
-							bar.value = Number(match[1]);
-						} else bar.removeAttribute("value");
+						if (match && Number(match[2]) > 0)
+							loadingStage("Downloading game files…", Number(match[1]), Number(match[2]));
+						else
+							loadingStage(
+								/download/i.test(message)
+									? "Downloading game files…"
+									: "Starting the game and loading levels…",
+							);
 					}
 				},
 				phoenixPersistMenu: () => {
@@ -1441,6 +1530,7 @@ async function boot() {
 			script.onerror = () => launchError("Build files unavailable. Build and serve the web output first.");
 			document.body.append(script);
 		} catch (error) {
+			finishLoading();
 			profileLease?.release();
 			busy = false;
 			started = false;
@@ -1455,7 +1545,7 @@ async function boot() {
 		}
 	}
 	function launchError(message) {
-		$("startup-loading").hidden = true;
+		finishLoading();
 		failed = true;
 		document.documentElement.classList.remove("direct-launch");
 		$("runtime").hidden = true;
@@ -1690,7 +1780,12 @@ async function boot() {
 		render();
 		popupFocus?.focus();
 	};
+	// Paint the shell before storage, archive downloads and WASM verification.
+	// Entry stays disabled until the scoped library is ready.
 	try {
+		render();
+		$("startup-title").textContent = t("Preparing main menu");
+		loadingStage("Reading saved settings and mod packs…");
 		baseUrl = new URL(new URLSearchParams(location.search).get("base") ?? "base.zip", location.href).href;
 		const opening = indexedDB.open("phoenix-v3-menu", 1);
 		opening.onupgradeneeded = () => opening.result.createObjectStore("files");
@@ -1716,6 +1811,7 @@ async function boot() {
 			report(error);
 		}
 		if (routes) $("menu").hidden = true;
+		loadingStage("Loading menu artwork and language…");
 		const data = await Promise.all([
 			fetch("assets/locales.json").then((r) => r.json()),
 			...["button-generic-9slice", "helm-background-9slice"].map((name) =>
@@ -1739,8 +1835,16 @@ async function boot() {
 			style.setProperty(prefix === "button" ? "--slice" : "--panel-slice", properties.slices);
 			style.setProperty(`--${prefix}-edge`, properties.edges);
 		}
-		launchBaseBytes = await fetchFile(baseUrl, undefined, "no-cache");
-		launchBase = menuPreview(await verifyLaunchBase(launchBaseBytes));
+		loadingStage("Downloading base mod and levels…");
+		launchBaseBytes = await fetchFile(baseUrl, undefined, "no-cache", (received, total) =>
+			loadingStage("Downloading base mod and levels…", received, total),
+		);
+		loadingStage("Checking base mod and reading levels…");
+		launchBase = menuPreview(
+			await verifyLaunchBase(launchBaseBytes, undefined, ({ phase, received, total }) =>
+				loadingStage(phase, received, total),
+			),
+		);
 		if (!launchBase.base || launchBase.parent || launchBase.dependencies.length)
 			throw Error("Launch base must be an independent root.");
 		if (!/^[a-z0-9._-]{1,128}$/.test(launchBase.id)) throw Error("Invalid base identity.");
@@ -1748,6 +1852,7 @@ async function boot() {
 			style = launchBase.base?.interface_style || "current";
 		if (!["sprites", "models"].includes(mode) || style !== "current") throw Error("Unsupported base presentation.");
 		const localProfile = routes?.profile || new URLSearchParams(location.search).get("profile") || "default";
+		loadingStage("Restoring your mod selection and profile…");
 		if (!/^[\w.-]{1,64}$/.test(localProfile))
 			throw Error("Use letters, numbers, dots, underscores or hyphens in the local profile.");
 		scopeKey = localProfile + "/" + launchBase.id;
@@ -1783,6 +1888,7 @@ async function boot() {
 			await remember();
 		}
 		for (const pack of library.packs) {
+			loadingStage("Reading levels from mod pack:", undefined, undefined, pack.id);
 			const cached = files.get(`preview/${pack.hash}.json`);
 			if (cached) previews.set(pack.hash, menuPreview(JSON.parse(decoder.decode(cached))));
 			else if (files.has(`packs/${pack.hash}.zip`)) {
@@ -1792,17 +1898,20 @@ async function boot() {
 			}
 		}
 
+		loading = false;
 		if (routes) {
 			await start(routes, true);
 			return;
 		}
 		render();
+		finishLoading();
 		if (!$("status").textContent || $("status").textContent === "Loading menu…") status("");
 	} catch (error) {
+		finishLoading();
 		document.documentElement.classList.remove("direct-launch");
-		$("menu").hidden = !launchBase;
+		$("menu").hidden = false;
 		report(error);
-		if (launchBase) render();
+		render();
 	}
 }
 if (typeof document !== "undefined") boot();

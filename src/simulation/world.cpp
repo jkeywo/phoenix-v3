@@ -545,12 +545,6 @@ struct World::Impl
 				{
 					DisplacementDefinition t{s.at("compartment"), s.at("range_mm"), s.at("capacity"),
 					                         s.at("transfer_ticks")};
-					t.mode = s.value("mode", std::string{"displacement"});
-					t.craft = s.value("craft", std::string{});
-					t.count = s.value("count", 1);
-					t.arrival_distance = s.value("arrival_distance_mm", 5000);
-					t.arrival_speed = s.value("arrival_speed_mm_s", 1000);
-					t.cruise_speed = s.value("cruise_speed_mm_s", 10000);
 					result.displacements[key] = t;
 				}
 			for (const auto &console : resolve_consoles(content, name))
@@ -1603,13 +1597,15 @@ struct World::Impl
 		{
 			const auto &fit = child.get<Equipment>();
 			const auto radar = child.try_get<Radar>();
-			request_system_resource(
-			    ship.get_mut<ShipResources>(), child.get<ResourceBinding>().slot,
-			    fit.enabled && !structurally_disabled(ship, fit.id) && (!radar || radar->enabled) &&
-			            fit.kind != OperatingSystem::Psychic &&
-			            (fit.kind != OperatingSystem::Displacement || away_transport_requested(id, fit.id))
-			        ? 1000
-			        : 0);
+			request_system_resource(ship.get_mut<ShipResources>(), child.get<ResourceBinding>().slot,
+			                        fit.enabled && !structurally_disabled(ship, fit.id) && (!radar || radar->enabled) &&
+			                                fit.kind != OperatingSystem::Psychic &&
+			                                ((fit.kind != OperatingSystem::Displacement &&
+			                                  !(fit.kind == OperatingSystem::ShuttleBay &&
+			                                    definition(id).craft_bays.at(fit.id).legacy_transport)) ||
+			                                 away_transport_requested(id, fit.id))
+			                            ? 1000
+			                            : 0);
 		}
 	}
 	void reserve_paid_modifiers(flecs::entity ship, FlightRestrictions restrictions)
@@ -2039,7 +2035,6 @@ struct World::Impl
 #include "conversations.hpp"
 #include "away.hpp"
 #include "boarding.hpp"
-#include "craft_transport.hpp"
 #include "craft.hpp"
 #include "ftl.hpp"
 #include "missions.hpp"
@@ -2251,7 +2246,6 @@ void World::load(const Catalog &source, const std::string &map, const std::map<s
 	     !candidate->scenario->runtime().definition().reports.empty()))
 		candidate->conversation_instance = candidate->scenario->runtime().create_instance("world-events");
 	candidate->away_missions.resize(candidate->away_definitions.size());
-	candidate->refresh_carried_craft();
 	candidate->refresh_boarding_templates();
 	candidate->refresh_comms();
 	candidate->update_craft_reports();
@@ -2268,7 +2262,7 @@ std::vector<ConsoleSpec> World::consoles(EntityId ship) const
 }
 bool World::can_claim(std::uint64_t console, EntityId ship, const std::string &name, bool sidebar) const
 {
-	if (impl_->transport_craft(ship))
+	if (impl_->entities.contains(ship) && impl_->entities.at(ship).has<CraftState>())
 		return false;
 	if (!console || impl_->claims.contains(console) || !impl_->entities.contains(ship))
 		return false;
@@ -2296,7 +2290,7 @@ std::vector<EntityId> World::operational_fleet(EntityId origin) const
 		return out;
 	for (const auto &[id, ship] : impl_->entities)
 		if ((id == origin || impl_->captured_by.contains(id)) && impl_->operational_owner(id) == origin &&
-		    !impl_->transport_craft(id))
+		    !ship.has<CraftState>())
 			out.push_back(id);
 	return out;
 }
@@ -2501,7 +2495,6 @@ void World::tick()
 				if (!impl_->brain_snapshots.contains(address))
 					impl_->brain_snapshots.emplace(address, impl_->knowledge.project(address));
 			}
-	impl_->guide_carried_craft();
 	impl_->step_starts.clear();
 	impl_->bodies.each(
 	    [&](const StableId &id, const Definition &, const Pose &pose, const Motion &)
@@ -2565,7 +2558,6 @@ void World::tick()
 	++impl_->environment_tick;
 	impl_->knowledge.tick(ticks());
 	impl_->refresh_comms();
-	impl_->refresh_carried_craft();
 	impl_->refresh_boarding_templates();
 	impl_->update_craft_reports();
 	impl_->conversation_scenarios();
@@ -3523,7 +3515,7 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 14},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 15},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
 	if (impl_->display_revision)
 	{
@@ -3629,7 +3621,6 @@ Json World::save() const
 	result["conversations"] = impl_->conversations.save();
 	result["away_missions"] = impl_->save_away();
 	result["captured_by"] = impl_->captured_by;
-	result["carried_craft"] = impl_->carried_craft;
 	result["craft"] = impl_->save_craft();
 	result["mission_ledger"] = impl_->mission_ledger;
 	result["sensors"] = impl_->save_sensors();
@@ -3648,11 +3639,17 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if ((saved.at("schema") != 13 && saved.at("schema") != 14) || saved.at("packs") != Json(content.ordered_packs))
-		throw std::runtime_error("Saved state schema/content identity mismatch; Controller runtime requires schema 13 "
-		                         "or 14; start a new session");
+	if ((saved.at("schema") != 13 && saved.at("schema") != 14 && saved.at("schema") != 15) ||
+	    saved.at("packs") != Json(content.ordered_packs))
+		throw std::runtime_error("Saved state schema/content identity mismatch; Controller runtime requires schema 13, "
+		                         "14 or 15; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))
 		throw std::runtime_error("Legacy authority fields are not Controller continuation");
+	if (!saved.value("carried_craft", Json::array()).empty())
+		throw std::runtime_error("Legacy physical-craft save requires a new game");
+	for (const auto &mission : saved.at("away_missions"))
+		if (mission.value("craft", EntityId{0}) || mission.value("returning_without_delivery", false))
+			throw std::runtime_error("Legacy physical-craft commitment requires a new game");
 	World candidate;
 	candidate.load(content, saved.at("map"), saved.at("ships").get<std::map<std::string, std::string>>());
 	for (auto &[id, rock] : candidate.impl_->field_rocks)
@@ -3688,7 +3685,6 @@ void World::restore(const Catalog &content, const Json &source_saved)
 		     candidate.impl_->next_entity <= candidate.impl_->entities.rbegin()->first))
 			throw std::runtime_error("Saved entity allocator overlaps roster");
 	}
-	candidate.impl_->restore_craft_roster(saved.value("carried_craft", Json::array()));
 	candidate.impl_->refresh_boarding_templates();
 	candidate.impl_->captured_by = saved.value("captured_by", std::map<EntityId, EntityId>{});
 	if (!saved.at("bodies").is_array() || saved.at("bodies").size() != candidate.impl_->entities.size())
@@ -3710,9 +3706,9 @@ void World::restore(const Catalog &content, const Json &source_saved)
 			candidate.impl_->factions.validate(value.at("faction"));
 			entity.set<FactionMembership>({value.at("faction")});
 		}
-		for (const auto &craft : candidate.impl_->carried_craft)
-			if (craft.id == restored.id && candidate.impl_->captured_by.contains(craft.carrier))
-				entity.set<FactionMembership>(candidate.impl_->entities.at(craft.carrier).get<FactionMembership>());
+		if (const auto *craft = entity.try_get<CraftState>();
+		    craft && candidate.impl_->captured_by.contains(craft->home))
+			entity.set<FactionMembership>(candidate.impl_->entities.at(craft->home).get<FactionMembership>());
 		if (value.value("faction", std::string{}) !=
 		    (entity.try_get<FactionMembership>() ? entity.get<FactionMembership>().id : std::string{}))
 			throw std::runtime_error("Saved faction differs from fixed map membership");
@@ -3736,8 +3732,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 			candidate.impl_->restore_bridge(restored.id, value.at("bridge"));
 		if (entity.has<EntityControls>())
 		{
-			if ((saved.at("schema") != 13 && saved.at("schema") != 14))
-				throw std::runtime_error("Controller state requires schema 13 or 14; start a new session");
+			if ((saved.at("schema") != 13 && saved.at("schema") != 14 && saved.at("schema") != 15))
+				throw std::runtime_error("Controller state requires schema 13, 14 or 15; start a new session");
 			candidate.impl_->restore_controllers(entity, value.at("console_controllers"));
 		}
 		else if (value.contains("console_controllers"))
@@ -3921,7 +3917,6 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	candidate.impl_->conversations.restore(saved.at("conversations"));
 	candidate.impl_->restore_craft(saved.value("craft", Json()));
 	candidate.impl_->restore_away(saved.value("away_missions", Json::array()));
-	candidate.impl_->validate_craft_missions();
 	for (const auto &[target, origin] : candidate.impl_->captured_by)
 	{
 		bool receipt = false;

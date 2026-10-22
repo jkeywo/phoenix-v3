@@ -7,13 +7,15 @@ enum class CraftPhase
 	Launching,
 	Flying,
 	Recovering,
-	Lost
+	Lost,
+	Consumed
 };
 NLOHMANN_JSON_SERIALIZE_ENUM(CraftPhase, {{CraftPhase::Docked, "docked"},
                                           {CraftPhase::Launching, "launching"},
                                           {CraftPhase::Flying, "flying"},
                                           {CraftPhase::Recovering, "recovering"},
-                                          {CraftPhase::Lost, "lost"}})
+                                          {CraftPhase::Lost, "lost"},
+                                          {CraftPhase::Consumed, "consumed"}})
 struct CraftReport
 {
 	CraftPhase phase = CraftPhase::Docked;
