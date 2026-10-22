@@ -308,6 +308,12 @@ constexpr std::string_view radar_icon_name(RadarIcon icon)
 {
 	return radar_icon_names[static_cast<std::size_t>(icon)];
 }
+struct BearingContactView
+{
+	EntityId id;
+	std::int64_t bearing_mdeg;
+	std::uint64_t observed_tick;
+};
 struct BodyView
 {
 	EntityId id;
@@ -380,6 +386,7 @@ struct Observation
 {
 	BodyView own;
 	std::vector<BodyView> contacts;
+	std::vector<BearingContactView> bearing_contacts;
 	std::int64_t requested_speed = 0, requested_heading = 0;
 	bool engine_enabled = true, radar_enabled = true;
 	std::string console;

@@ -537,12 +537,15 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	{
 		ControllerContactRead read{binding};
 		std::size_t i = 0;
-		for (const auto *field :
-		     {"available", "id", "x", "y", "vx", "vy", "heading", "speed", "observed_tick", "uncertainty"})
-			read.fields.values.at(i++) = add({binding.name + "." + field,
-			                                  std::string_view(field) == "available" ? Type::Boolean : Type::Integer,
-			                                  4,
-			                                  {}});
+		for (const auto *field : {"available", "id", "x", "y", "vx", "vy", "heading", "speed", "observed_tick",
+		                          "uncertainty", "bearing_available", "bearing_mdeg"})
+			read.fields.values.at(i++) =
+			    add({binding.name + "." + field,
+			         (std::string_view(field) == "available" || std::string_view(field) == "bearing_available")
+			             ? Type::Boolean
+			             : Type::Integer,
+			         4,
+			         {}});
 		result.contacts.push_back(std::move(read));
 	}
 	std::size_t result_index = 0;

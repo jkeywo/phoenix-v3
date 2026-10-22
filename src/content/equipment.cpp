@@ -252,7 +252,15 @@ void validate_equipment_spec(const Catalog &catalog, const Json &spec, const std
 	if (kind == "steering")
 		required_positive("turn_mdeg_s", 360000);
 	if (kind == "radar")
+	{
 		required_positive("range_mm", 1000000000);
+		if (spec.contains("long_range_mm"))
+		{
+			required_positive("long_range_mm", 1000000000);
+			if (spec.at("long_range_mm") <= spec.at("range_mm"))
+				composition_error(path + ".long_range_mm", "must exceed range_mm");
+		}
+	}
 	if (kind == "lateral" || kind == "engine" || kind == "steering" || kind == "boost" || kind == "impulse")
 	{
 		auto flight = spec;

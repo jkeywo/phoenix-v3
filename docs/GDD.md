@@ -229,6 +229,8 @@ Docking uses supported approach, physical mating and a short visible separation 
 
 ## 6. Sensing, investigation and evidence
 
+Radars may have an authored outer detection band that supplies bearing-only blips without range or new identity details. These contacts remain selectable for focused scanning and weapon assignment. Focused acquisition obeys the scanner's own range and coverage; weapons can fire along the observed bearing, with suitable missiles acquiring independently through their bounded seekers. Earlier findings remain dated evidence.
+
 Relevant operational radars show basic detected returns. Detection does not automatically establish identity, intentions, internal condition or a firing solution. Science supplies deeper interpretation. Captain learns from crew reports and deliberate Viewscreen publication, without a personal comprehensive map.
 
 Broad and focused sensing are separate Systems with separate power demands. Broad sensing performs routine progressive assessment where evidence permits; focused work investigates chosen subjects and optional supported questions. Fitting more capable equipment creates real capability, not a physics difference between Console complexity profiles.

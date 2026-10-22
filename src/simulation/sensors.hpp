@@ -20,13 +20,13 @@ fixed::Vec sensor_origin(EntityId ship, const SensorDefinition &d) const
 	const auto &m = instance(entity, d.turret)->entity.get<CombatMechanism>().definition;
 	return combat_world({m.x, m.y}, entity.get<Pose>());
 }
-bool sensor_covers(EntityId ship, const std::string &id, fixed::Vec target) const
+bool sensor_covers(EntityId ship, const std::string &id, fixed::Vec target, bool outer = false) const
 {
 	const auto &d = sensor_definition(ship, id);
 	const auto source = entities.at(ship);
 	if (!d.turret.empty() && (!instance(source, d.turret)->enabled || structurally_disabled(source, d.turret)))
 		return false;
-	const auto range = sensor_range(ship, id);
+	const auto range = sensor_range(ship, id, outer);
 	if (!range)
 		return false;
 	const auto origin = sensor_origin(ship, d);
@@ -64,12 +64,19 @@ bool sensor_target(EntityId ship, const std::string &id, std::int64_t value, boo
 	if (value)
 	{
 		const auto owner = system_owner(ship, id);
-		const auto contacts = capture_sensor_contacts(owner);
-		if (!state.tracks.contains(value) && std::none_of(contacts.begin(), contacts.end(),
-		                                                  [&](const auto &c)
-		                                                  {
-			                                                  return c.id == static_cast<EntityId>(value);
-		                                                  }))
+		const auto detected = capture_sensor_observation(owner);
+		const auto &contacts = detected.contacts;
+		if (!state.tracks.contains(value) && !state.bearings.contains(value) &&
+		    std::none_of(detected.bearing_contacts.begin(), detected.bearing_contacts.end(),
+		                 [&](const auto &b)
+		                 {
+			                 return b.id == static_cast<EntityId>(value);
+		                 }) &&
+		    std::none_of(contacts.begin(), contacts.end(),
+		                 [&](const auto &c)
+		                 {
+			                 return c.id == static_cast<EntityId>(value);
+		                 }))
 			return false;
 	}
 	if (execute)
@@ -168,6 +175,25 @@ void advance_sensors(bool acquire_timed = true)
 		const auto &id = child.get<Equipment>().id;
 		const auto &d = sensor_definition(ship, id);
 		auto &state = child.get_mut<SensorRuntime>();
+		if (sensor_range(ship, id) && d.long_range)
+			contact_index.each(Bounds::around(sensor_origin(ship, d), sensor_range(ship, id, true)),
+			                   [&](std::size_t row)
+			                   {
+				                   const auto &c = contact_rows[row];
+				                   const auto &tags = definition(c.id).tags;
+				                   const auto &shows = definition(ship).radar_shows.at(id);
+				                   if (c.id != ship && sensor_covers(ship, id, c.position, true) &&
+				                       distance_3d(ship, c.id) <= sensor_range(ship, id, true) &&
+				                       std::any_of(tags.begin(), tags.end(),
+				                                   [&](const auto &tag)
+				                                   {
+					                                   return std::find(shows.begin(), shows.end(), tag) != shows.end();
+				                                   }) &&
+				                       (state.bearings.contains(c.id) || state.bearings.size() < 256))
+					                   state.bearings[c.id] = {
+					                       c.id, combat_bearing(c.position - entities.at(ship).get<Pose>().position),
+					                       tick};
+			                   });
 		if (!sensor_powered(ship, id))
 			continue;
 		const auto origin = sensor_origin(ship, d);
@@ -267,6 +293,16 @@ std::optional<std::pair<fixed::Vec, std::int64_t>> sensor_aim(EntityId ship, con
 					track.y = contact.y;
 					return std::pair{fixed::Vec{contact.x, contact.y}, d.bearing};
 				}
+			for (const auto &b : console_detection(system_owner(ship, id), cache).bearing_contacts)
+				if (b.id == state.target && (state.bearings.contains(b.id) || state.bearings.size() < 256))
+					state.bearings[b.id] = b;
+			if (state.bearings.contains(state.target) &&
+			    (!state.tracks.contains(state.target) ||
+			     state.bearings.at(state.target).observed_tick >= state.tracks.at(state.target).seen))
+				return std::pair{sensor_origin(ship, d) +
+				                     fixed::scale(fixed::direction(state.bearings.at(state.target).bearing_mdeg),
+				                                  sensor_range(ship, id)),
+				                 d.bearing};
 			if (state.tracks.contains(state.target))
 			{
 				const auto &t = state.tracks.at(state.target);
@@ -410,13 +446,18 @@ Json save_sensors() const
 			for (auto child : entity.get<EquipmentIndex>().values)
 				if (const auto *s = child.try_get<SensorRuntime>())
 				{
+					Json bearings = Json::array();
+					for (const auto &[target, b] : s->bearings)
+						bearings.push_back(
+						    Json{{"id", target}, {"bearing_mdeg", b.bearing_mdeg}, {"observed_tick", b.observed_tick}});
 					Json tracks = Json::array();
 					for (const auto &[target, t] : s->tracks)
 						tracks.push_back(Json{{"target", target}, {"state", t}});
 					out.push_back({{"ship", ship},
 					               {"system", child.get<Equipment>().id},
 					               {"target", s->target},
-					               {"tracks", tracks}});
+					               {"tracks", tracks},
+					               {"bearings", bearings}});
 				}
 	return out;
 }
@@ -432,6 +473,18 @@ void restore_sensors(const Json &rows)
 		if (!entities.contains(ship) || !definition(ship).sensors.contains(id) || !seen.emplace(ship, id).second)
 			throw std::runtime_error("Invalid saved scanner");
 		SensorRuntime state;
+		const auto bearings = row.value("bearings", Json::array());
+		if (!bearings.is_array() || bearings.size() > 256)
+			throw std::runtime_error("Invalid saved bearings");
+		for (const auto &b : bearings)
+		{
+			BearingContactView value{b.at("id").get<EntityId>(),
+			                         checked_integer(b.at("bearing_mdeg"), 0, 359999, "sensor.bearing"),
+			                         b.at("observed_tick").get<std::uint64_t>()};
+			if (!value.id || value.id == ship || value.observed_tick > ecs.get<Clock>().tick ||
+			    !state.bearings.emplace(value.id, value).second)
+				throw std::runtime_error("Invalid saved bearing");
+		}
 		state.target = row.at("target");
 		if (state.target && (state.target == ship))
 			throw std::runtime_error("Invalid saved scan target");

@@ -45,6 +45,14 @@ void controller_decision_facts(const ConsoleControllerRuntime &controller, const
 				nearest = distance;
 			}
 		}
+	if (!target)
+		for (const auto &b : observed.bearing_contacts)
+			if (b.id == current)
+			{
+				facts[0] = b.id;
+				facts[1] = -1;
+				facts[2] = b.bearing_mdeg;
+			}
 	if (target)
 	{
 		facts[0] = target->id;
@@ -263,6 +271,11 @@ std::vector<state_tree::Value> action_observations(const ConsoleControllerRuntim
 		                      [&](const auto &body)
 		                      {
 			                      return body.id == *contact;
+		                      }) ||
+		          std::any_of(observed.bearing_contacts.begin(), observed.bearing_contacts.end(),
+		                      [&](const auto &b)
+		                      {
+			                      return b.id == *contact;
 		                      });
 	}
 	result.at(brain.action_base + 5) = state_tree::Value::boolean(visible);

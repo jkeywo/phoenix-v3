@@ -261,6 +261,19 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 		                                  });
 		const auto &fields = binding.fields;
 		values.at(fields[ControllerContactField::Available]) = Value::boolean(contact != observation.contacts.end());
+		const auto bearing = std::find_if(observation.bearing_contacts.begin(), observation.bearing_contacts.end(),
+		                                  [&](const auto &b)
+		                                  {
+			                                  return b.id == static_cast<EntityId>(selected);
+		                                  });
+		values.at(fields[ControllerContactField::BearingAvailable]) =
+		    Value::boolean(bearing != observation.bearing_contacts.end());
+		if (bearing != observation.bearing_contacts.end())
+		{
+			values.at(fields[ControllerContactField::Id]) = Value::integer(bearing->id);
+			values.at(fields[ControllerContactField::BearingMdeg]) = Value::integer(bearing->bearing_mdeg);
+			values.at(fields[ControllerContactField::ObservedTick]) = Value::integer(bearing->observed_tick);
+		}
 		if (contact == observation.contacts.end())
 			continue;
 		values.at(fields[ControllerContactField::Id]) = Value::integer(contact->id);

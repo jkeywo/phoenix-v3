@@ -298,6 +298,7 @@
 				},
 				"radar": {
 					"range_mm": 500000,
+					"long_range_mm": 1500000,
 					"capabilities": {
 						"basic_identity": 0,
 						"own_arcs": 0
@@ -5174,6 +5175,7 @@
 								"observation_console": "science",
 								"compartment": "sensors",
 								"range_mm": 2500000,
+								"long_range_mm": 7500000,
 								"shows": ["ship", "contact", "missile"],
 								"capabilities": {
 									"basic_identity": 0,
@@ -5195,6 +5197,7 @@
 						"systems": {
 							"radar": {
 								"range_mm": 2500000,
+								"long_range_mm": 7500000,
 								"observation_console": "tactical",
 								"compartment": "bridge",
 								"shows": ["ship", "contact", "missile"],
@@ -47451,6 +47454,7 @@
 			"id": "base.equipment.combat-radar",
 			"kind": "radar",
 			"range_mm": 350000,
+			"long_range_mm": 1050000,
 			"capabilities": {
 				"basic_identity": 0,
 				"own_arcs": 0

@@ -705,6 +705,16 @@ struct GameplayEditor
 		if (kind == "radar")
 		{
 			integer(spec, "range_mm");
+			bool long_range = spec.contains("long_range_mm");
+			if (ImGui::Checkbox(label("Long-range detection").c_str(), &long_range))
+			{
+				if (long_range)
+					spec["long_range_mm"] = spec.value("range_mm", 100000LL) * 3;
+				else
+					spec.erase("long_range_mm");
+			}
+			if (long_range)
+				integer(spec, "long_range_mm");
 			integer(spec, "arc_mdeg", 360000);
 			integer(spec, "bearing_mdeg");
 			optional_string(spec, "turret");

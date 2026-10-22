@@ -1281,14 +1281,15 @@ struct World::Impl
 #include "controller_actions.hpp"
 #include "controller_coordination.hpp"
 #include "controller_models.hpp"
-	std::int64_t sensor_range(EntityId ship, const std::string &name) const
+	std::int64_t sensor_range(EntityId ship, const std::string &name, bool outer = false) const
 	{
 		const auto entity = entities.at(ship);
 		const auto sensor = instance(entity, name);
 		if (!sensor || !sensor->radar || !sensor->enabled || !sensor->radar->enabled ||
 		    structurally_disabled(entity, name))
 			return 0;
-		auto range = sensor->radar->range;
+		auto range =
+		    outer ? std::max(sensor->radar->range, sensor_definition(ship, name).long_range) : sensor->radar->range;
 		if (auto systems = gameplay_systems(entity); systems && systems->power)
 		{
 			const auto index = sensor->entity.get<ResourceBinding>().slot;
@@ -2784,6 +2785,12 @@ Json World::public_board(EntityId entity) const
 			return board;
 		value["radar"] = display::radar_json(*sensor);
 		value["sweep"] = widget->value("sweep", Json::object());
+		value["bearing_contacts"] = Json::array();
+		if (sensor->enabled)
+			for (const auto &b : view.bearing_contacts)
+				if (std::find(sensor->contact_ids.begin(), sensor->contact_ids.end(), b.id) !=
+				    sensor->contact_ids.end())
+					value["bearing_contacts"].push_back(projection::bearing_json(b));
 		if (sensor->enabled)
 			for (const auto &contact : view.contacts)
 				if (std::find(sensor->contact_ids.begin(), sensor->contact_ids.end(), contact.id) !=
@@ -2968,6 +2975,9 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 						    channel.action == OperatingAction::SensorTarget)
 						{
 							for (const auto &contact : result.contacts)
+								if (contact.id <= 1000000000ULL)
+									choices.insert(static_cast<std::int64_t>(contact.id));
+							for (const auto &contact : result.bearing_contacts)
 								if (contact.id <= 1000000000ULL)
 									choices.insert(static_cast<std::int64_t>(contact.id));
 						}

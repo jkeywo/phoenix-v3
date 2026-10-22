@@ -841,7 +841,10 @@ struct GameScreen::State
 				{
 					Observation view{own, {}};
 					view.regions = shared.at("regions");
+					view.bearing_contacts = projection::read_bearings(shared.value("bearing_contacts", Json::array()));
 					auto sensor = display::read_radar(shared.at("radar"));
+					for (const auto &b : view.bearing_contacts)
+						sensor.contact_ids.push_back(b.id);
 					for (const auto &contact : shared.at("contacts"))
 					{
 						view.contacts.push_back(display::read_body(contact));
@@ -945,6 +948,8 @@ struct GameScreen::State
 						    },
 						    range / radius, &*sensor, centre, radius);
 					}
+					if (sensor != observation->systems.end())
+						draw_bearing_ring(*observation, *sensor, centre, radius);
 					for (const auto &contact : observation->contacts)
 					{
 						if (sensor == observation->systems.end() ||

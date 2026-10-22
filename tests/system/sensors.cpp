@@ -2,6 +2,8 @@
 #include "../support/combat_fixture.hpp"
 #include <iostream>
 import phoenix.simulation;
+import phoenix.console;
+import phoenix.session.execution;
 #include "../../src/network/projection.hpp"
 using namespace phoenix;
 using namespace phoenix::test;
@@ -360,6 +362,232 @@ int main(int argc, char **argv)
 					        "second scanner cannot pool first scanner exposure");
 			require(saved.at("bodies")[0].at("combat").at("systems").at("gun").at("target") == 0,
 			        "scan targeting leaves weapon target untouched");
+		}
+
+		{
+			auto source = fixture();
+			auto &systems = source["entities"][0]["systems"];
+			systems["radar"]["range_mm"] = 30000;
+			systems["radar"]["long_range_mm"] = 90000;
+			systems["scanner"]["range_mm"] = 40000;
+			const auto c = load(source);
+			World long_range;
+			long_range.load(c, "test.map");
+			require(long_range.claim(101, 1, "drive") && long_range.claim(102, 1, "observer"),
+			        "claim bearing consoles");
+			ticks(long_range, 1);
+			const auto observed = long_range.observe(101);
+			require(observed->contacts.empty() && observed->bearing_contacts.size() == 2,
+			        "outer band grants bearing only");
+			require(long_range.observe(102)->bearing_contacts.empty(), "unfed Console receives no bearings");
+			require(observed->bearing_contacts[0].id == 2 && observed->bearing_contacts[0].bearing_mdeg < 20 &&
+			            std::abs(observed->bearing_contacts[1].bearing_mdeg - 90000) < 20,
+			        "bearing geometry without range");
+			const auto encoded = network::observation_json(*observed);
+			for (const auto &b : encoded.at("bearing_contacts"))
+				require(b.size() == 3 && !b.contains("x") && !b.contains("definition"),
+				        "bearing wire allowlist excludes geometry and identity");
+			require(network::read_observation(encoded, c).bearing_contacts.size() == 2,
+			        "bearing projection round trip");
+
+			Json shared{{"revision", 1},
+			            {"console", "drive"},
+			            {"widget", "radar"},
+			            {"kind", "radar"},
+			            {"own", encoded.at("own")},
+			            {"camera", {0, 0, 1}},
+			            {"contacts", Json::array()},
+			            {"regions", Json::array()},
+			            {"waypoint", Json::object()},
+			            {"objectives", Json::array()},
+			            {"radar", display::radar_json(observed->systems[0])},
+			            {"bearing_contacts", encoded.at("bearing_contacts")}};
+			shared["bearing_contacts"][0]["x"] = 60000;
+			shared["bearing_contacts"][0]["definition"] = "private hull";
+			const auto published = display::sanitise(shared);
+			require(published.at("bearing_contacts")[0].size() == 3, "shared display strips hidden bearing fields");
+			auto bad_wire = encoded;
+			bad_wire["bearing_contacts"][0]["bearing_mdeg"] = 360000;
+			bool malformed = false;
+			try
+			{
+				network::read_observation(bad_wire, c);
+			}
+			catch (const std::exception &)
+			{
+				malformed = true;
+			}
+			require(malformed, "malformed bearing projection rejected");
+			command(long_range, "target", 3);
+			ticks(long_range, 30);
+			require(samples(long_range, 3).empty(), "aiming at an out-of-range blip earns no findings");
+			World resumed;
+			resumed.restore(c, long_range.save());
+			ticks(long_range, 5);
+			ticks(resumed, 5);
+			require(long_range.save() == resumed.save(), "bearing slew and history survive recovery");
+
+			auto fog = source;
+			fog["maps"][0]["regions"] =
+			    Json::array({{{"id", "cloud"},
+			                  {"shape", "circle"},
+			                  {"x_mm", 30000},
+			                  {"y_mm", 0},
+			                  {"radius_mm", 20000},
+			                  {"nebula", {{"density", 100}, {"sensor_factor", 100}, {"colour", {.2, .3, .4}}}}}});
+			World obscured;
+			obscured.load(load(fog), "test.map");
+			require(obscured.claim(101, 1, "drive"), "claim nebula test");
+			const auto fog_contacts = obscured.observe(101)->bearing_contacts;
+			require(std::none_of(fog_contacts.begin(), fog_contacts.end(),
+			                     [](const auto &b)
+			                     {
+				                     return b.id == 2;
+			                     }),
+			        "nebula attenuates outer band");
+
+			auto powered = source;
+			auto &ship = powered["entities"][0];
+			ship["systems"]["radar"]["long_range_mm"] = 200000;
+			ship["resources"] = {{"stores", Json::array({{{"id", "cell"},
+			                                              {"capacity", 1000},
+			                                              {"initial", 1000},
+			                                              {"charge_rate", 200},
+			                                              {"discharge_rate", 200}}})}};
+			ship["systems"]["radar"]["powerless_start"] = true;
+			ship["systems"]["radar"]["energy_per_second"] = 400;
+			ship["systems"]["radar"]["power_store"] = "cell";
+			World partial;
+			partial.load(load(powered), "test.map");
+			require(partial.claim(101, 1, "drive"), "claim partially powered outer radar");
+			ticks(partial, 1);
+			require(partial.observe(101)->bearing_contacts.size() == 2 && partial.observe(101)->contacts.empty(),
+			        "partial power scales outer reach without details");
+			const auto partial_view = partial.observe(101);
+			for (const auto &c : partial_view->gameplay.at("controllers"))
+				if (c.at("id") == "radar")
+					require(partial.submit(101, OperatingCommand{1, {}, 0, {}, "radar", "enabled", c.at("generation")}),
+					        "disable outer radar");
+			ticks(partial, 1);
+			require(partial.observe(101)->bearing_contacts.empty(), "disabled radar cannot track hidden targets");
+			auto invalid = source;
+			invalid["entities"][0]["systems"]["radar"]["long_range_mm"] = 30000;
+			bool rejected = false;
+			try
+			{
+				load(invalid);
+			}
+			catch (const std::exception &)
+			{
+				rejected = true;
+			}
+			require(rejected, "outer range must exceed normal range");
+			auto outside = source;
+			outside["maps"][0]["entities"][1]["x_mm"] = 90001;
+			World beyond;
+			beyond.load(load(outside), "test.map");
+			require(beyond.claim(101, 1, "drive"), "claim outer boundary");
+			require(beyond.observe(101)->bearing_contacts.size() == 1, "outside outer range is not detected");
+		}
+		{
+			auto source = fixture();
+			source["entities"][0]["systems"]["radar"]["range_mm"] = 30000;
+			source["entities"][0]["systems"]["radar"]["long_range_mm"] = 120000;
+			World focused;
+			focused.load(load(source), "test.map");
+			require(focused.claim(101, 1, "drive"), "claim bearing enquiry");
+			ticks(focused, 1);
+			require(focused.observe(101)->bearing_contacts.size() == 1, "focused scanner sees only actual beam");
+			command(focused, "target", 3);
+			ticks(focused, 40);
+			const auto promoted = focused.observe(101);
+			require(std::any_of(promoted->contacts.begin(), promoted->contacts.end(),
+			                    [](const auto &b)
+			                    {
+				                    return b.id == 3;
+			                    }) &&
+			            std::none_of(promoted->bearing_contacts.begin(), promoted->bearing_contacts.end(),
+			                         [](const auto &b)
+			                         {
+				                         return b.id == 3;
+			                         }),
+			        "scanner promotes same target without duplicate blip");
+			require(!samples(focused, 3).at("compartment_condition").at("data").is_null(),
+			        "focused scanner acquires from bearing designation");
+			command(focused, "enabled", 0);
+			ticks(focused, 2);
+			const auto demoted = focused.observe(101);
+			require(demoted->contacts.empty() && demoted->bearing_contacts.size() == 2,
+			        "loss of resolving scanner restores bearing-only contacts");
+			for (const auto &row : demoted->gameplay.at("sensors").at("contacts"))
+				for (const auto &[cap, f] : row.at("findings").items())
+					require(!f.at("live").get<bool>(), "outer return never refreshes retained details");
+		}
+
+		{
+			auto source = fixture();
+			source["entities"][0]["systems"]["radar"]["range_mm"] = 30000;
+			source["entities"][0]["systems"]["radar"]["long_range_mm"] = 120000;
+			auto &ship = source["entities"][0];
+			ship["systems"]["drive-engine"] = {
+			    {"kind", "engine"}, {"max_speed_mm_s", 10000}, {"acceleration_mm_s2", 10000}, {"compartment", "fore"}};
+			ship["systems"]["drive-steering"] = {{"kind", "steering"}, {"turn_mdeg_s", 90000}, {"compartment", "fore"}};
+			ship["stations"][0]["consoles"][0]["feeds"].push_back("drive-engine");
+			ship["stations"][0]["consoles"][0]["feeds"].push_back("drive-steering");
+			ship["control_layout"]["controllers"].push_back(
+			    {{"id", "flight"},
+			     {"console", "drive"},
+			     {"fallback", "hold"},
+			     {"commands",
+			      Json::array({{{"id", "speed"}, {"action", "speed_mm_s"}, {"consumers", {"drive-engine"}}},
+			                   {{"id", "heading"}, {"action", "heading_mdeg"}, {"consumers", {"drive-steering"}}}})}});
+			ship["control_layout"]["profiles"][0]["consoles"]["drive"]["human"].push_back("flight");
+			source["maps"][0]["entities"].erase(0);
+			source["maps"][0]["ship_slots"] = Json::array({{{"id", "test.slot"},
+			                                                {"x_mm", 0},
+			                                                {"y_mm", 0},
+			                                                {"heading_mdeg", 0},
+			                                                {"allowed_ships", {"test.combat"}}}});
+			auto session = make_local_session();
+			session->add_pack(archive(source));
+			session->start({"test.map", {{"test.slot", "test.combat"}}, "test.slot", "drive"});
+			session->tick();
+			ConsoleModel model;
+			model.refresh(session);
+			const auto controls = model.gameplay_controls();
+			require(std::any_of(controls.begin(), controls.end(),
+			                    [](const auto &c)
+			                    {
+				                    return c.first == "game.sensor-contact/3" &&
+				                           c.second.find("Range unknown") != std::string::npos;
+			                    }),
+			        "accessible bearing selection exposes no range");
+			require(std::any_of(controls.begin(), controls.end(),
+			                    [](const auto &c)
+			                    {
+				                    return c.first == "game.combat-target/3";
+			                    }),
+			        "anonymous bearing is a weapon target choice");
+			bool weapon_button = false;
+			for (const auto &button : model.observation()->gameplay.at("controls"))
+				weapon_button |= button.value("combat_choice", "") == "weapon" && button.at("value") == 3;
+			require(weapon_button, "bearing designation has admitted weapon assignment buttons");
+			require(model.act("game.sensor-contact/3"), "semantic bearing selection");
+			bool scanning = false;
+			for (const auto &c : model.gameplay_controls())
+				if (c.second.ends_with("Scan target"))
+					scanning = model.act(c.first);
+			require(scanning, "accessible scan action accepts bearing selection");
+			for (int i = 0; i < 40; ++i)
+				session->tick();
+			model.refresh(session);
+			const auto &view = *model.observation();
+			require(std::any_of(view.contacts.begin(), view.contacts.end(),
+			                    [](const auto &b)
+			                    {
+				                    return b.id == 3;
+			                    }),
+			        "semantic scan produces positional contact through ordinary session");
 		}
 		if (argc > 1 && std::string(argv[1]) == "--trace")
 			std::cout << w.save().at("sensors").dump() << '\n';

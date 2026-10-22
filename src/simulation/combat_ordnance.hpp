@@ -281,7 +281,17 @@ void advance_ordnance(Projectile &p)
 			const auto target = entities.at(p.target).get<Pose>().position;
 			if (fixed::length(target - p.position) + std::abs(p.altitude - altitude(p.target)) <=
 			    p.definition.seeker_range)
+			{
 				desired = combat_bearing(target - p.position);
+				p.seeker_altitude = altitude(p.target);
+				if (p.bearing_launch && !p.seeker_acquired)
+				{
+					p.seeker_acquired = true;
+					p.arc_start_age = p.age;
+					p.launch_altitude = p.altitude;
+					p.initial_distance = std::max<std::int64_t>(1, fixed::length(target - p.position));
+				}
+			}
 		}
 		if (p.definition.guidance == "chaotic")
 		{
@@ -295,10 +305,12 @@ void advance_ordnance(Projectile &p)
 		p.turn_remainder %= rate;
 		p.heading = combat_angle(p.heading + std::clamp(combat_delta(desired, p.heading), -step, step));
 		p.velocity = fixed::scale(fixed::direction(p.heading), p.definition.speed);
-		const auto progress = std::clamp<std::int64_t>(
-		    p.age * p.definition.speed * 1000 / (std::max<std::int64_t>(1, p.initial_distance) * rate), 0, 1000);
+		const auto progress = std::clamp<std::int64_t>((p.age - p.arc_start_age) * p.definition.speed * 1000 /
+		                                                   (std::max<std::int64_t>(1, p.initial_distance) * rate),
+		                                               0, 1000);
 		const auto launch_altitude = p.launch_altitude;
-		const auto target_altitude = entities.contains(p.target) ? altitude(p.target) : 0;
+		const auto target_altitude =
+		    p.bearing_launch ? p.seeker_altitude : (entities.contains(p.target) ? altitude(p.target) : 0);
 		p.altitude = launch_altitude + (target_altitude - launch_altitude) * progress / 1000 +
 		             4 * p.definition.arc_height * progress * (1000 - progress) / 1000000;
 		p.vz = (p.altitude - old_z) * rate;

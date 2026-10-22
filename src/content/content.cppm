@@ -193,6 +193,8 @@ enum class ControllerContactField
 	Speed,
 	ObservedTick,
 	Uncertainty,
+	BearingAvailable,
+	BearingMdeg,
 	Count
 };
 enum class ControllerResultField
@@ -428,6 +430,7 @@ struct AwaySlot
 };
 struct SensorDefinition
 {
+	std::int64_t long_range = 0;
 	std::int64_t arc = 360000, bearing = 0;
 	std::string turret;
 	std::map<std::string, std::int64_t> capabilities;

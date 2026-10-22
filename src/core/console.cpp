@@ -370,6 +370,12 @@ std::vector<std::pair<std::string, std::string>> public_board_readouts(const Jso
 			rows.emplace_back("viewscreen.readout/omitted-contacts",
 			                  localise("Additional radar contacts omitted") + ": " +
 			                      std::to_string(d.at("omitted_contacts").get<int>()));
+		for (const auto &b : d.value("bearing_contacts", Json::array()))
+			rows.emplace_back("viewscreen.readout/contact/" + std::to_string(b.at("id").get<EntityId>()),
+			                  localise("Contact") + " " + std::to_string(b.at("id").get<EntityId>()) + "; " +
+			                      localise("Bearing") + " " +
+			                      std::to_string(b.at("bearing_mdeg").get<std::int64_t>() / 1000.0) + "; " +
+			                      localise("Range unknown"));
 		for (const auto &contact : d.at("contacts"))
 			rows.emplace_back("viewscreen.readout/contact/" + std::to_string(contact.at("id").get<EntityId>()),
 			                  localise("Contact") + " " + std::to_string(contact.at("id").get<EntityId>()) + "; X " +
@@ -1395,11 +1401,20 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 		result.emplace_back("game.sensor-contact/" + std::to_string(contact.id), localise("Inspect contact") + " " +
 		                                                                             localise(contact.definition) +
 		                                                                             " " + std::to_string(contact.id));
+	for (const auto &b : observation_->bearing_contacts)
+		result.emplace_back("game.sensor-contact/" + std::to_string(b.id),
+		                    localise("Inspect contact") + " " + std::to_string(b.id) + "; " + localise("Bearing") +
+		                        " " + std::to_string(b.bearing_mdeg / 1000) + "; " + localise("Range unknown"));
 	for (const auto &contact : sensors.value("contacts", Json::array()))
 		if (std::none_of(observation_->contacts.begin(), observation_->contacts.end(),
 		                 [&](const auto &c)
 		                 {
 			                 return c.id == contact.at("id").get<EntityId>();
+		                 }) &&
+		    std::none_of(observation_->bearing_contacts.begin(), observation_->bearing_contacts.end(),
+		                 [&](const auto &b)
+		                 {
+			                 return b.id == contact.at("id").get<EntityId>();
 		                 }))
 			result.emplace_back("game.sensor-contact/" + std::to_string(contact.at("id").get<EntityId>()),
 			                    localise("Last observed") + " " + std::to_string(contact.at("id").get<EntityId>()));
@@ -1423,6 +1438,12 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 				        localise(contact.faction_label.empty() ? "Unaffiliated" : contact.faction_label) + ", " +
 				        localise(contact.disposition) +
 				        (combat_target_ == static_cast<std::int64_t>(contact.id) ? " [*]" : ""));
+	if (weapons)
+		for (const auto &b : observation_->bearing_contacts)
+			result.emplace_back("game.combat-target/" + std::to_string(b.id),
+			                    localise("Select target") + " " + std::to_string(b.id) + "; " +
+			                        localise("Range unknown") +
+			                        (combat_target_ == static_cast<std::int64_t>(b.id) ? " [*]" : ""));
 	if (!selected_team_.empty())
 		result.emplace_back("game.teams-close", localise("Close team dispatch"));
 	for (const auto &team : observation_->gameplay.value("teams", Json::array()))
@@ -1591,6 +1612,11 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 	if (!status_system_.empty())
 		result.emplace_back("game.readout/system-details", system_details());
 	const auto sensors = observation_->gameplay.value("sensors", Json::object());
+	for (const auto &b : observation_->bearing_contacts)
+		if (b.id == static_cast<EntityId>(sensor_contact_))
+			result.emplace_back("game.scan-bearing/" + std::to_string(b.id),
+			                    localise("Contact") + " " + std::to_string(b.id) + "; " + localise("Bearing") + " " +
+			                        std::to_string(b.bearing_mdeg / 1000.0) + "; " + localise("Range unknown"));
 	for (const auto &scanner : sensors.value("scanners", Json::array()))
 	{
 		const auto key = scanner.at("id").get<std::string>();
@@ -1794,7 +1820,7 @@ std::string ConsoleModel::contacts_text() const
 	if (!observation_ || !(observation_->feeds & system_bit(OperatingSystem::Radar)))
 		return {};
 	std::ostringstream text;
-	text << "Radar: " << observation_->contacts.size() << " contacts.";
+	text << "Radar: " << (observation_->contacts.size() + observation_->bearing_contacts.size()) << " contacts.";
 	for (const auto &r : observation_->regions)
 		if (r.value("navigation", false) ||
 		    (r.value("radar", false) &&
@@ -1819,6 +1845,9 @@ std::string ConsoleModel::contacts_text() const
 			text << " " << sensor.id << ": " << localise("Sensor reach") << " " << *low / 1000 << "–" << *high / 1000
 			     << " m.";
 		}
+	for (const auto &b : observation_->bearing_contacts)
+		text << " " << localise("Contact") << " " << b.id << "; " << localise("Bearing") << " "
+		     << b.bearing_mdeg / 1000.0 << "; " << localise("Range unknown") << ".";
 	for (const auto &contact : observation_->contacts)
 	{
 		const double x = static_cast<double>(contact.x - observation_->own.x),

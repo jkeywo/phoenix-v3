@@ -44,7 +44,7 @@ The [comic renderer](docs/comic-rendering.md) uses calibrated sprite depth for l
 
 The [combat MVP](docs/combat-mvp.md) extends the [first combat stage](docs/combat-stage-one.md) with sustained beams, selectable ammunition, elevated homing/havok missiles, point defence, layered shields and fault-aware repairs in the asteroid duel. Verification and remaining platform acceptance are recorded separately.
 
-[Sensors and focused scanning](docs/sensors.md) adds capability-based radar, independently targeted sensor turrets, timed discoveries and retained observations. Courier Tactical combines broad identity/fire-arc coverage with a narrow scanner for shields, compartment condition and scenario findings.
+[Sensors and focused scanning](docs/sensors.md) adds capability-based radar, selectable bearing-only long-range contacts, independently targeted sensor turrets, timed discoveries and retained observations. Long-range blips can be assigned to scanners and weapons, including independent homing missiles. Courier Tactical combines broad identity/fire-arc coverage with a narrow scanner for shields, compartment condition and scenario findings.
 
 The [source guide](docs/source-guide.md) explains the inputs; the [prior setting agreement](docs/settled-dark-direction.md) preserves the earlier pivot decisions. The consolidated GDD incorporates those decisions and the subsequent V3 consolidation choices. Historical snapshots remain unchanged.
 

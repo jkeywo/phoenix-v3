@@ -182,6 +182,9 @@ static inline Json observation_json(const Observation &observation)
 	Json additional = Json::array();
 	for (const auto &console : observation.additional_consoles)
 		additional.push_back(observation_json(console));
+	Json bearings = Json::array();
+	for (const auto &b : observation.bearing_contacts)
+		bearings.push_back(projection::bearing_json(b));
 	Json contacts = Json::array();
 	for (const auto &contact : observation.contacts)
 		contacts.push_back(body_json(contact));
@@ -207,6 +210,7 @@ static inline Json observation_json(const Observation &observation)
 	}
 	return {{"own", body_json(observation.own)},
 	        {"contacts", contacts},
+	        {"bearing_contacts", bearings},
 	        {"observed_tick", observation.observed_tick},
 	        {"requested_speed", observation.requested_speed},
 	        {"requested_heading", observation.requested_heading},
@@ -238,6 +242,7 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 	if (!catalog.entities.contains(result.own.definition) || !value.at("contacts").is_array() ||
 	    value.at("contacts").size() > 4096)
 		throw std::runtime_error("Projected observation does not match verified content");
+	result.bearing_contacts = projection::read_bearings(value.value("bearing_contacts", Json::array()));
 	for (const auto &contact : value.at("contacts"))
 	{
 		auto body = read_body(contact);
@@ -249,6 +254,13 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 	     value.at("observed_tick") > ~std::uint64_t{0}))
 		throw std::runtime_error("Invalid observation tick");
 	result.observed_tick = value.value("observed_tick", std::uint64_t{0});
+	for (const auto &b : result.bearing_contacts)
+		if (b.observed_tick > result.observed_tick || std::any_of(result.contacts.begin(), result.contacts.end(),
+		                                                          [&](const auto &c)
+		                                                          {
+			                                                          return c.id == b.id;
+		                                                          }))
+			throw std::runtime_error("Invalid bearing observation");
 	result.requested_speed = value.at("requested_speed");
 	result.requested_heading = value.at("requested_heading");
 	result.engine_enabled = value.at("engine_enabled");
@@ -311,13 +323,19 @@ static inline Observation read_observation(const Json &value, const Catalog &cat
 		if (!entry.contains("contact_ids"))
 			for (const auto &body : result.contacts)
 				state.contact_ids.push_back(body.id);
-		if (state.shows.size() > 32 || state.contact_ids.size() > result.contacts.size())
+		if (state.shows.size() > 32 ||
+		    state.contact_ids.size() > result.contacts.size() + result.bearing_contacts.size())
 			throw std::runtime_error("Invalid radar tag projection");
 		for (const auto &tag : state.shows)
 			if (tag.empty() || tag.size() > 128)
 				throw std::runtime_error("Invalid radar tag");
 		for (const auto id : state.contact_ids)
 			if (std::none_of(result.contacts.begin(), result.contacts.end(),
+			                 [&](const auto &b)
+			                 {
+				                 return b.id == id;
+			                 }) &&
+			    std::none_of(result.bearing_contacts.begin(), result.bearing_contacts.end(),
 			                 [&](const auto &b)
 			                 {
 				                 return b.id == id;
