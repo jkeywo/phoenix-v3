@@ -62,6 +62,7 @@ void cruiser_transport(phoenix::Catalog catalog)
 		until("available");
 		order(901, "dispatch", "open");
 		order(902, "repair-1", "assign", "repair-team/team:repair-1");
+		order(903, "medical-1", "assign", "medical-team/team:medical-1");
 		for (const auto *shield : {"shield-fore", "shield-port", "shield-aft", "shield-starboard"})
 		{
 			const auto view = *world.observe(903);
@@ -89,15 +90,63 @@ void cruiser_transport(phoenix::Catalog catalog)
 		order(shuttle ? 904 : 903, shuttle ? "utility-bay" : "displacement", "transport",
 		      shuttle ? "craft:" + craft : "displacement");
 		advance(160);
+		for (int i = 0; i < 1000 && mission().at("blocker") == "Personnel moving to transport"; ++i)
+			world.tick();
 		order(901, "dispatch", "send");
+		world.release(904);
 		until("deployed");
 		const auto deployed = mission();
+		bool treated = false;
+		Json patients;
+		bool answered = false;
+		for (int i = 0; i < 5000 && !treated; i += 10)
+		{
+			if (!answered)
+			{
+				const auto view = *world.observe(901);
+				for (const auto &thread : view.gameplay.at("conversations").at("threads"))
+					for (const auto &choice : thread.at("choices"))
+						if (choice.at("id") == "stabilise")
+						{
+							OperatingCommand c{ship, "comms.answer", thread.at("id")};
+							c.console = "comms";
+							c.controller = "external-comms";
+							c.text = "stabilise";
+							c.request_id = thread.at("prompt");
+							for (const auto &control : view.gameplay.at("controllers"))
+								if (control.at("id") == c.controller)
+									c.generation = control.at("generation");
+							answered = world.submit(901, c);
+						}
+			}
+			for (int j = 0; j < 10; ++j)
+				world.tick();
+			const auto saved = world.save();
+			if (i % 200 == 0)
+				std::ofstream("build/cruiser-transport-progress.json") << saved.dump(2);
+			for (const auto &body : saved.at("bodies"))
+				if (body["body"]["id"] == 1)
+				{
+					patients = body["personnel"]["officers"];
+					treated = true;
+					for (const auto &patient : patients)
+						treated &= patient["condition"] != "minor" &&
+						           (patient["condition"] != "severe" || patient["stabilised"] == true);
+				}
+		}
+		if (!treated)
+			throw std::runtime_error("Cruiser away Medical did not treat and stabilise casualty officers");
+		if (!answered)
+			throw std::runtime_error("Cruiser rescue Comms decision was not answered");
 		order(901, "dispatch", "recall");
 		until("recovered");
+		if (!world.claim(904, ship, "tactical"))
+			throw std::runtime_error("Tactical recovery observation unavailable");
 		receipt.push_back({{"transport", shuttle ? "shuttle" : "displacement"},
 		                   {"deployed", deployed},
 		                   {"recovered", mission()},
 		                   {"tick", world.ticks()},
+		                   {"treated_patients", patients},
 		                   {"craft", world.observe(904)->gameplay.at("craft")}});
 		std::ofstream("build/cruiser-transport.json") << receipt.dump(2);
 	}

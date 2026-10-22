@@ -13,6 +13,7 @@ import phoenix.session.local;
 import phoenix.presentation;
 using namespace phoenix;
 #include "cruiser_transport.hpp"
+#include "cruiser_departments.hpp"
 
 int main(int argc, char **argv)
 {
@@ -24,9 +25,20 @@ int main(int argc, char **argv)
 			throw std::runtime_error("Usage: phoenix_cruiser_smoke pack.zip [--headless] [maximum-ticks]");
 		const bool withdrawal = argc > 2 && std::string(argv[2]) == "--withdrawal";
 		const bool combat_frame = argc > 2 && std::string(argv[2]) == "--frame";
+		const bool powered_gallery = argc > 2 && std::string(argv[2]) == "--powered-gallery";
 		const bool headless = withdrawal || (argc > 2 && std::string(argv[2]) == "--headless");
 		const int maximum = argc > 3 ? std::stoi(argv[3]) : 12000;
 		const auto catalog = resolve_packs({read_pack(read_file(argv[1]))});
+		if (argc > 2 && std::string(argv[2]) == "--medical")
+		{
+			cruiser_medical(catalog);
+			return 0;
+		}
+		if (argc > 2 && std::string(argv[2]) == "--boarding")
+		{
+			cruiser_boarding(catalog);
+			return 0;
+		}
 		if (argc > 2 && std::string(argv[2]) == "--transport")
 		{
 			cruiser_transport(catalog);
@@ -141,11 +153,22 @@ int main(int argc, char **argv)
 			capture("lighting-port", true, 1.57, 45000);
 			capture("lighting-aft", true, 3.14, 90000);
 			capture("lighting-starboard", true, 4.71, 135000);
-			if (combat_frame)
+			if (combat_frame || powered_gallery)
 			{
 				if (!world.claim(909, ship, "helm"))
 					throw std::runtime_error("Helm pulse claim refused");
 				const auto helm = *world.observe(909);
+				for (const auto *engine : {"drive.engine", "wing.engine"})
+				{
+					OperatingCommand command{ship, "assisted", 0, "", engine, "assisted"};
+					command.console = "helm";
+					for (const auto &control : helm.gameplay.at("controllers"))
+						if (control.at("id") == engine)
+							command.generation = control.at("generation");
+					if (!world.submit(909, command))
+						throw std::runtime_error("Helm manual mode refused");
+				}
+				world.tick();
 				for (const auto *engine : {"drive.engine", "wing.engine"})
 				{
 					OperatingCommand command{ship, "longitudinal_thrust", 1000, "", engine, "longitudinal_thrust"};
@@ -162,7 +185,8 @@ int main(int argc, char **argv)
 					world.tick();
 				}
 				capture("engines", true);
-				capture("combat", false);
+				if (!powered_gallery)
+					capture("combat", false);
 				bool burning = false;
 				for (const auto &body : world.scene())
 					if (body.id == ship)
@@ -197,6 +221,8 @@ int main(int argc, char **argv)
 				craft_orders(false);
 			if (world.ticks() == 1200)
 				craft_orders(true);
+			if (world.ticks() % 400 == 0)
+				cruiser_combat_medical(world, ship, catalog, receipt);
 			if (world.ticks() == 600)
 			{
 				const auto saved = world.save();
@@ -304,10 +330,13 @@ int main(int argc, char **argv)
 	{
 		receipt["error"] = e.what();
 		const std::string mode = argc > 2 ? argv[2] : "";
-		std::ofstream(mode == "--transport"    ? "build/cruiser-transport-error.json"
-		              : mode == "--withdrawal" ? "build/cruiser-withdrawal.json"
-		              : mode == "--frame"      ? "build/cruiser-frame-error.json"
-		                                       : "build/cruiser-receipt.json")
+		std::ofstream(mode == "--transport"                                ? "build/cruiser-transport-error.json"
+		              : mode == "--medical"                                ? "build/cruiser-medical-error.json"
+		              : mode == "--boarding"                               ? "build/cruiser-boarding-error.json"
+		              : mode == "--withdrawal"                             ? "build/cruiser-withdrawal.json"
+		              : mode == "--frame"                                  ? "build/cruiser-frame-error.json"
+		              : mode == "--gallery" || mode == "--powered-gallery" ? "build/cruiser-gallery-error.json"
+		                                                                   : "build/cruiser-receipt.json")
 		    << receipt.dump(2);
 		if (window)
 			CloseWindow();

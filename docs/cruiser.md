@@ -42,6 +42,7 @@ The explicit `phoenix_cruiser_smoke` target loads production content, can render
 ```powershell
 ./scripts/build.ps1 -Target native -BuildTarget phoenix_cruiser_smoke
 ./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --gallery 0
+./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --powered-gallery 0
 ./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --headless 12000
 ./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --transport
 ./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --medical
@@ -52,6 +53,8 @@ The explicit `phoenix_cruiser_smoke` target loads production content, can render
 
 The transport exercise reuses the rescue operation with the Cruiser selected and the casualty placed 350 metres away for hull clearance. It checks separate shuttle and displacement deployment/recovery through four owning watches, including actual remote treatment by the contributed Medical team. The clinical exercise privately seeds onboard injuries, then checks treatment, stabilisation, infirmary recovery, injured Security treatment and continuation. The boarding exercise privately bounds encounter success/loss probabilities, then checks utility-shuttle insertion, Comms objectives, extraction and capture; it does not establish production boarding balance.
 
-Withdrawal and frame capture restore the combat run's `build/cruiser-midwave.json`, requiring the same exact pack. Frame capture requests a short manual Helm manoeuvre to expose actual engine effects. The combat journey launches six combat craft after the first wave arrives, then recalls them at sixty seconds through Tactical. The browser build of the explicit target provides `phoenix_cruiser_smoke.html` for the eight-bearing material gallery. The separate native `phoenix_cruiser_ui_smoke` target opens Science and Tactical, selects a clinical map order through the ordinary Console controls, and captures the resulting panels.
+Withdrawal and frame capture restore the combat run's `build/cruiser-midwave.json`, requiring the same exact pack. Frame capture requests a short manual Helm manoeuvre to expose actual engine effects. The combat journey launches six combat craft after the first wave arrives, then recalls them at sixty seconds through Tactical. The browser build of the explicit target provides `phoenix_cruiser_smoke.html` for the powered eight-bearing material gallery. The separate native `phoenix_cruiser_ui_smoke` target opens Science and Tactical, selects a clinical map order through the ordinary Console controls, and captures the resulting panels; run it from `build/native` with argument `base.zip`.
+
+See the [execution evidence and remaining acceptance limits](smoke/cruiser.md).
 
 Record actual execution results separately; successful loading or a screenshot does not establish a completed three-wave journey, screen-reader usability or physical six-display performance.
