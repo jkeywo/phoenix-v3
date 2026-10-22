@@ -63,6 +63,26 @@ int main(int argc, char **argv)
 		    "prefilled craft cannot exceed bay slots");
 		const auto catalog = load(input);
 		{
+			auto missing = armed_craft_fixture();
+			missing["entities"][0].erase("logistics");
+			rejected(
+			    [&]
+			    {
+				    load(missing);
+			    },
+			    "requires a magazine-bound logistics store");
+			auto incompatible = armed_craft_fixture();
+			for (auto &entity : incompatible["entities"])
+				if (entity.value("id", std::string{}) == "test.interceptor")
+					entity["logistics"]["materials"][0]["volume"] = 2;
+			rejects(
+			    [&]
+			    {
+				    load(incompatible);
+			    },
+			    "Serviced stores require compatible volume and capacity");
+		}
+		{
 			auto serial = armed_craft_fixture();
 			serial["entities"][0]["systems"]["bay"]["slots"] = 8;
 			serial["entities"][0]["systems"]["bay"]["initial"] =
@@ -287,40 +307,7 @@ int main(int argc, char **argv)
 			    invalid.restore(catalog, bad);
 		    },
 		    "craft-bearing saves require their roster");
-		// Own-ship transport never supplies flight orders and requires physical proximity.
-		auto manual = input;
-		manual["maps"][0]["away_missions"][0]["deployment_range_mm"] = 3000;
-		for (auto &c : manual["entities"][0]["control_layout"]["controllers"])
-			if (c.at("id") == "engine")
-				c["commands"].push_back(
-				    {{"id", "speed"}, {"action", "speed_mm_s"}, {"initial", 0}, {"consumers", {"engine"}}});
-		const auto manual_catalog = load(manual);
-		World own;
-		own.load(manual_catalog, "test.map", {{"crew", "test.away"}});
-		require(own.claim(101, *own.ship_for_slot("crew"), "drive") &&
-		            own.claim(102, *own.ship_for_slot("crew"), "observer"),
-		        "manual claims");
-		ticks(own, 4);
-		assign(own, "ship");
-		require(!own.submit(101, command(own, "away", "send", "job")), "own ship must be flown to mission");
-		require(own.observe(101)->own.x == 0, "selecting ship never flies it automatically");
-		OperatingCommand helm{*own.ship_for_slot("crew"), "speed_mm_s", 10000};
-		helm.console = "drive";
-		helm.controller = "engine";
-		helm.channel = "speed";
-		const auto helm_observation = *own.observe(101);
-		for (const auto &c : helm_observation.gameplay.at("controllers"))
-			if (c.at("id") == "engine")
-				helm.generation = c.at("generation");
-		require(own.submit(101, helm), "manual Helm flight");
-		for (int t = 0; t < 200 && own.observe(101)->own.x < 7500; ++t)
-			own.tick();
-		helm.value = 0;
-		require(own.submit(101, helm), "manual braking");
-		ticks(own, 1);
-		require(own.submit(101, command(own, "away", "send", "job")), "ship can deploy after manual approach");
-		ticks(own, 3);
-		require(missions(own)[0].at("phase") == "deployed", "ship deployment uses physical proximity");
+		// Large-ship delivery now requires an explicitly supported dock (system.docking).
 		bad = input;
 		bad["maps"][0]["away_missions"][0]["allow_ship_transport"] = false;
 		const auto restricted = load(bad);
@@ -368,6 +355,40 @@ int main(int argc, char **argv)
 				ferry.tick();
 			require(missions(ferry)[0].at("phase") == "recovered",
 			        "replacement shuttle physically recovers independent party");
+		}
+		{
+			auto source = armed_craft_fixture();
+			source["entities"][0]["logistics"]["stores"][0]["main"] = true;
+			for (auto &entity : source["entities"])
+				if (entity["systems"].contains("magazine"))
+					entity["systems"]["magazine"]["initial"] = 0;
+			const auto catalog = load(source);
+			World held;
+			held.load(catalog, "test.map", {{"crew", "test.away"}});
+			const auto home = *held.ship_for_slot("crew");
+			require(held.claim(101, home, "drive"), "Claim ammunition supply Controller");
+			auto stock_command = [&](const std::string &verb)
+			{
+				const auto observed = *held.observe(101);
+				OperatingCommand c{home, "logistics." + verb, observed.gameplay.at("logistics").at("revision"),
+				                   "ammunition"};
+				c.console = "drive";
+				c.controller = "engine";
+				for (const auto &ctrl : observed.gameplay.at("controllers"))
+					if (ctrl.at("id") == "engine")
+						c.generation = ctrl.at("generation");
+				return c;
+			};
+			require(held.submit(101, stock_command("hold")), "Hold ammunition before servicing dispatch");
+			ticks(held, 10);
+			require(held.observe(101)->gameplay.at("logistics").at("stores")[0].at("quantities").at("test.missile") ==
+			            20,
+			        "Held main stock cannot bypass logistics through craft servicing");
+			require(held.submit(101, stock_command("release")), "Release finite ammunition stock");
+			ticks(held, 30);
+			require(held.observe(101)->gameplay.at("logistics").at("stores")[0].at("quantities").at("test.missile") ==
+			            14,
+			        "Ordinary delivery refills both three-round combat magazines");
 		}
 		{
 			const auto armed = load(armed_craft_fixture());

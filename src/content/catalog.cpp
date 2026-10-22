@@ -665,7 +665,7 @@ void verify_prepared_catalog(const Catalog &catalog)
 			}
 			else if (kind != "generator" && kind != "storage" && kind != "distribution" && kind != "coolant" &&
 			         kind != "weapon" && kind != "turret" && kind != "magazine" && kind != "repair_team" &&
-			         kind != "team" && kind != "shield" && kind != "ftl")
+			         kind != "team" && kind != "shield" && kind != "ftl" && kind != "psychic")
 				invalid(field, "unsupported System capability");
 		}
 		if (!catalog.presentation)
@@ -694,6 +694,8 @@ void verify_prepared_catalog(const Catalog &catalog)
 		resolve_consoles(catalog, id);
 		verify_gameplay_fitting(catalog, id);
 		(void)compile_ftl(catalog, id);
+		(void)compile_logistics(catalog, id);
+		(void)compile_docking(catalog, id);
 		(void)compile_transport(catalog, id);
 		(void)compile_craft(catalog, id);
 		(void)compile_craft_bays(catalog, id);
@@ -724,6 +726,7 @@ void verify_prepared_catalog(const Catalog &catalog)
 	{
 		(void)compile_bridge(catalog, id);
 		(void)compile_personnel(catalog, id);
+		(void)compile_psychic(catalog, id);
 		(void)compile_boarding(catalog, id);
 	}
 	for (const auto &[id, console] : catalog.consoles)

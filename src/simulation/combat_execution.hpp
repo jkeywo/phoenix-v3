@@ -171,6 +171,11 @@ bool operate_combat(flecs::entity ship, flecs::entity child, OperatingRequest ou
 			                 [&](const auto &c)
 			                 {
 				                 return c.id == target;
+			                 }) &&
+			    std::none_of(observation.bearing_contacts.begin(), observation.bearing_contacts.end(),
+			                 [&](const auto &b)
+			                 {
+				                 return b.id == target;
 			                 }))
 				return false;
 		}
@@ -445,10 +450,12 @@ void penetrate(Projectile &p, flecs::entity ship, fixed::Vec start, fixed::Vec e
 	}
 }
 #include "combat_ordnance.hpp"
-std::pair<std::int64_t, std::int64_t> repair_route(const CombatStructure &s, std::size_t from, std::size_t to,
+std::pair<std::int64_t, std::int64_t> repair_route(flecs::entity ship, std::size_t from, std::size_t to,
                                                    std::int64_t *total_cost = nullptr) const
 {
-	return compartment_route(s.compartments.size(), s.definition.connections, from, to, total_cost);
+	const auto &s = ship.get<CombatStructure>();
+	return physical_route(ship.get<StableId>().id, s.compartments.size(), s.definition.connections, from, to,
+	                      total_cost);
 }
 
 using RepairFault = std::pair<std::string, std::size_t>;
@@ -496,6 +503,8 @@ bool advance_repair_team(flecs::entity ship, flecs::entity child)
 	auto &r = m.get<TeamState>();
 	if (r.travel > 0)
 	{
+		if (!physical_edge_open(ship.get<StableId>().id, r.location, r.edge_to))
+			return false;
 		if (--r.travel > 0)
 			return false;
 		r.location = r.edge_to;
@@ -513,13 +522,13 @@ bool advance_repair_team(flecs::entity ship, flecs::entity child)
 }
 void route_repair_team(flecs::entity ship, TeamState &r, std::size_t target)
 {
-	const auto route = repair_route(ship.get<CombatStructure>(), r.location, target);
+	const auto route = repair_route(ship, r.location, target);
 	r.edge_to = route.first;
 	r.travel = r.edge_total = route.second;
 }
 // Repair effort is milli-HP per second; compartment work carries sub-tick fractions.
 std::int64_t structural_repair_work(flecs::entity ship, std::vector<flecs::entity> teams,
-                                    std::int64_t specialist_bonus = 0) const
+                                    std::int64_t specialist_bonus = 0)
 {
 	std::erase_if(teams,
 	              [&](auto team)
@@ -544,10 +553,12 @@ std::int64_t structural_repair_work(flecs::entity ship, std::vector<flecs::entit
 		const auto &d = teams[rank].get<CombatMechanism>().definition;
 		if (!d.get<TeamDefinition>().capabilities.contains("repair"))
 			continue;
-		work += personnel_scale(d.get<TeamDefinition>().repair_rate * 1000000,
-		                        officer_bonus(ship.get<StableId>().id, d.id, "repair") + specialist_bonus) /
-		        (1000 + d.get<TeamDefinition>().stack_penalty * static_cast<std::int64_t>(rank)) *
-		        fault_effectiveness(ship, d.id) / 1000 * team_effectiveness(teams[rank].get<CombatMechanism>()) / 1000;
+		const auto contribution =
+		    personnel_scale(d.get<TeamDefinition>().repair_rate * 1000000,
+		                    officer_bonus(ship.get<StableId>().id, d.id, "repair") + specialist_bonus) /
+		    (1000 + d.get<TeamDefinition>().stack_penalty * static_cast<std::int64_t>(rank)) *
+		    fault_effectiveness(ship, d.id) / 1000 * team_effectiveness(teams[rank].get<CombatMechanism>()) / 1000;
+		work += paid_structural_work(ship.get<StableId>().id, d.id, contribution);
 	}
 	return work;
 }
@@ -578,8 +589,10 @@ void step_repairs()
 				    (!m->get<TeamState>().order.empty() && m->get<TeamState>().activity != "repair") ||
 				    away_reserved(id, "team:" + m->definition.id))
 					continue;
-				if (m->get<TeamState>().order.empty() ? !advance_repair_team(ship, child)
-				                                      : m->get<TeamState>().travel > 0)
+				if (m->get<TeamState>().order.empty()
+				        ? !advance_repair_team(ship, child)
+				        : m->get<TeamState>().travel > 0 || m->get<TeamState>().destination < 0 ||
+				              m->get<TeamState>().location != m->get<TeamState>().destination)
 					continue;
 				if (m->get<TeamState>().repair_auto)
 				{
@@ -589,7 +602,7 @@ void step_repairs()
 					for (std::size_t i = 0; i < s.compartments.size(); ++i)
 					{
 						std::int64_t travel_cost = 0;
-						const auto route = repair_route(s, m->get<TeamState>().location, i, &travel_cost);
+						const auto route = repair_route(ship, m->get<TeamState>().location, i, &travel_cost);
 						if (i != static_cast<std::size_t>(m->get<TeamState>().location) && route.first < 0)
 							continue;
 						const auto score = repair_candidate(ship, i, {}, claimed).score;
@@ -625,6 +638,8 @@ void step_repairs()
 					claimed.insert(*task);
 					auto &f = s.faults.at(task->first)[task->second];
 					const auto &d = s.definition.faults.at(task->first)[task->second];
+					if (!pay_material_work(id, m->definition.id, "repair", f.work > 0))
+						continue;
 					f.work += officer_value(ship.get<StableId>().id, m->definition.id, "repair",
 					                        m->definition.get<TeamDefinition>().repair_rate * 1000) *
 					          fault_effectiveness(ship, m->definition.id) / 1000;
@@ -842,6 +857,8 @@ Json save_combat(flecs::entity ship) const
 {
 	const auto &s = ship.get<CombatStructure>();
 	Json j = {{"random", s.random}, {"faults", s.faults}, {"compartments", Json::array()}, {"systems", Json::object()}};
+	j["closed_routes"] = s.closed_routes;
+	j["access_revision"] = s.access_revision;
 	for (const auto &c : s.compartments)
 		j["compartments"].push_back({{"hp", c.hp}, {"work", c.work}, {"disabled", c.disabled}});
 	for (auto child : ship.get<EquipmentIndex>().values)
@@ -862,6 +879,19 @@ Json save_combat(flecs::entity ship) const
 void restore_combat(flecs::entity ship, const Json &j)
 {
 	auto &s = ship.get_mut<CombatStructure>();
+	s.closed_routes = j.at("closed_routes").get<std::set<std::string>>();
+	s.access_revision = j.at("access_revision");
+	if (!s.access_revision || s.access_revision >= 9007199254740991ULL ||
+	    s.closed_routes.size() > s.definition.connections.size())
+		throw std::runtime_error("Invalid compartment access continuation");
+	for (const auto &key : s.closed_routes)
+	{
+		bool found = false;
+		for (const auto &edge : s.definition.connections)
+			found |= key == compartment_edge_key(edge.from, edge.to);
+		if (!found)
+			throw std::runtime_error("Unknown closed compartment route");
+	}
 	s.random = j.at("random");
 	s.faults = j.value("faults", Json(s.faults)).get<std::map<std::string, std::vector<FaultState>>>();
 	for (const auto &[id, defs] : s.definition.faults)
@@ -920,7 +950,7 @@ void restore_combat(flecs::entity ship, const Json &j)
 			case OperatingSystem::Weapon:
 			{
 				const auto &w = m->get<WeaponState>();
-				bounded("target", 0, 1000000000);
+				bounded("target", 0, 2000000000);
 				bounded("cooldown", 0, 1000000000);
 				bounded("shots", 0, 1000000000000LL);
 				bounded(
@@ -938,7 +968,7 @@ void restore_combat(flecs::entity ship, const Json &j)
 				break;
 			}
 			case OperatingSystem::Turret:
-				bounded("target", 0, 1000000000);
+				bounded("target", 0, 2000000000);
 				bounded("heading", 0, 359999);
 				bounded("turn_remainder", 0, rate - 1);
 				break;
@@ -1064,6 +1094,10 @@ Json save_projectiles() const
 		               {"target", p.target},
 		               {"altitude", p.altitude},
 		               {"launch_altitude", p.launch_altitude},
+		               {"bearing_launch", p.bearing_launch},
+		               {"seeker_acquired", p.seeker_acquired},
+		               {"arc_start_age", p.arc_start_age},
+		               {"seeker_altitude", p.seeker_altitude},
 		               {"vz", p.vz},
 		               {"z_remainder", p.z_remainder},
 		               {"durability", particle.get<Destructible>().durability},
@@ -1105,6 +1139,12 @@ void restore_projectiles(const Json &saved)
 		p.altitude = v.at("altitude").get<decltype(p.altitude)>();
 		p.launch_altitude =
 		    checked_integer(v.value("launch_altitude", Json(0)), -1000000, 1000000, "projectile.launch_altitude");
+		p.bearing_launch = v.value("bearing_launch", false);
+		p.seeker_acquired = v.value("seeker_acquired", false);
+		p.arc_start_age = checked_integer(v.value("arc_start_age", Json(0)), 0, v.at("age").get<std::int64_t>(),
+		                                  "projectile.arc_start_age");
+		p.seeker_altitude = checked_integer(v.value("seeker_altitude", Json(p.launch_altitude)), -1000000, 1000000,
+		                                    "projectile.seeker_altitude");
 		p.vz = v.at("vz").get<decltype(p.vz)>();
 		p.z_remainder = v.at("z_remainder").get<decltype(p.z_remainder)>();
 		const auto durability =

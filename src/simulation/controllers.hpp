@@ -31,6 +31,7 @@ struct ControllerBrain
 	state_tree::Program program;
 	std::string tree, model_context;
 	std::string ftl_system;
+	std::optional<std::size_t> logistics_revision, docking_revision;
 	std::string routine_stance = "routine";
 	std::size_t decision_base = 0, action_base = 0, coordination_base = 0;
 	ControllerDestinations<ControllerOwnField> own;

@@ -6,6 +6,11 @@ cd "$repo"
 ctest --test-dir build/linux --output-on-failure
 ./build/linux/native --build-check
 ./build/linux/phoenix_simulation_tests --trace > build/linux/continuation.trace
+for supply_case in logistics docking cargo; do
+    "./build/linux/phoenix_${supply_case}_tests" --trace > "build/linux/${supply_case}-continuation.trace"
+done
+
+./build/linux/phoenix_psychic_tests --trace > build/linux/psychic-continuation.trace
 node --test tests/system/web_launcher.mjs
 npm ci --prefix service --ignore-scripts --no-audit --no-fund
 # A fresh local CA exercises successful verified TLS and refusal of an untrusted CA.

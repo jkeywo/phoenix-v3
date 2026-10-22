@@ -135,15 +135,12 @@ int main(int argc, char **argv)
 			world.tick();
 			auto old = world.save();
 			old["schema"] = 13;
-			for (auto &body : old["bodies"])
-				if (body.contains("console_controllers"))
-					for (auto &c : body["console_controllers"]["controllers"])
-						c.erase("model");
-			old["knowledge"]["runtime"]["contract"]["schemas"].erase(
-			    old["knowledge"]["runtime"]["contract"]["schemas"].end() - 1);
-			World migrated;
-			migrated.restore(catalog, old);
-			require(migrated.controller_ai(1)[0].at("selected") == "tree", "schema 13 migrates to default state trees");
+			rejects(
+			    [&]
+			    {
+				    world.restore(catalog, old);
+			    },
+			    "Old World saves require a new session");
 			require(world.configure_controller_provider(address, "jev"), "Jev shares the same policy boundary");
 			snapshot = world.controller_decision_snapshot(address);
 			require(world.submit_controller_decision(
@@ -1822,7 +1819,7 @@ int main(int argc, char **argv)
 		world.tick();
 
 		const auto saved = world.save();
-		require(saved.at("schema") == 15, "Controller continuation has an explicit new save schema");
+		require(saved.at("schema") == 17, "Controller continuation has an explicit new save schema");
 		World resumed;
 		resumed.restore(content, saved);
 		for (int tick = 0; tick < 12; ++tick)

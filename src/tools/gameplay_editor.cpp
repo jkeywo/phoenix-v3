@@ -554,6 +554,19 @@ struct GameplayEditor
 				integer(spec, "cruise_speed_mm_s", 10000);
 			}
 		}
+		if (kind == "psychic")
+		{
+			integer(spec, "range_mm", 500000);
+			integer(spec, "arc_mdeg", 90000);
+			optional_string(spec, "planning_controller");
+			strings(spec, "powers");
+			records(spec, "seats", {{"duty", ""}, {"console", ""}, {"controller", ""}, {"enabled", ""}, {"target", ""}},
+			        [&](Json &s)
+			        {
+				        for (const auto *k : {"duty", "console", "controller", "enabled", "target"})
+					        string(s, k);
+			        });
+		}
 		if (kind == "shuttle_bay")
 		{
 			integer(spec, "slots", 4);
@@ -705,6 +718,16 @@ struct GameplayEditor
 		if (kind == "radar")
 		{
 			integer(spec, "range_mm");
+			bool long_range = spec.contains("long_range_mm");
+			if (ImGui::Checkbox(label("Long-range detection").c_str(), &long_range))
+			{
+				if (long_range)
+					spec["long_range_mm"] = spec.value("range_mm", 100000LL) * 3;
+				else
+					spec.erase("long_range_mm");
+			}
+			if (long_range)
+				integer(spec, "long_range_mm");
 			integer(spec, "arc_mdeg", 360000);
 			integer(spec, "bearing_mdeg");
 			optional_string(spec, "turret");
@@ -814,6 +837,7 @@ struct GameplayEditor
 		}
 		auto &c = (*ship)["combat"];
 		string(c, "repair_console");
+		optional_string(c, "access_controller");
 		integer(c, "collision_scale", 1);
 		integer(c, "collision_threshold_mm_s", 1000);
 		records(c, "decks", {{"id", "deck"}, {"weight", 1}, {"compartments", Json::array()}},
@@ -955,6 +979,7 @@ struct GameplayEditor
 			        optional_string(d, "controller");
 			        optional_string(d, "console");
 			        optional_string(d, "team");
+			        optional_string(d, "choir");
 			        choice(d, "required_trait", ids(p["traits"]), true);
 			        string(d, "compartment");
 			        auto &effects = d["effects"];
@@ -996,6 +1021,7 @@ struct GameplayEditor
 			        string(o, "id");
 			        string(o, "name");
 			        optional_string(o, "portrait");
+			        optional_string(o, "power");
 			        choice(o, "department", ids(p["departments"]));
 			        choice(o, "duty", ids(p["duties"]), true);
 			        string(o, "compartment");
@@ -1010,6 +1036,121 @@ struct GameplayEditor
 			return;
 		auto &ship = *selected;
 		personnel(ship);
+		{
+			ScopedTree panel("Storage and logistics");
+			if (panel)
+			{
+				if (!ship.contains("logistics") && button("Configure material stores"))
+					ship["logistics"] = {{"controller", ""},
+					                     {"materials", Json::array()},
+					                     {"stores", Json::array()},
+					                     {"consumers", Json::array()}};
+				if (ship.contains("logistics"))
+				{
+					auto &l = ship["logistics"];
+					string(l, "controller");
+					integer(l, "units_per_second", 20);
+					integer(l, "concurrency", 4);
+					integer(l, "batch_size", 10);
+					records(l, "materials", {{"id", "parts"}, {"volume", 1}},
+					        [&](Json &m)
+					        {
+						        string(m, "id");
+						        integer(m, "volume", 1);
+					        });
+					records(l, "stores",
+					        {{"id", "hold"},
+					         {"compartment", ""},
+					         {"capacity", 100},
+					         {"accepts", Json::array()},
+					         {"initial", Json::object()},
+					         {"targets", Json::object()}},
+					        [&](Json &m)
+					        {
+						        string(m, "id");
+						        string(m, "compartment");
+						        optional_string(m, "controller");
+						        optional_string(m, "system");
+						        integer(m, "capacity", 100);
+						        boolean(m, "main", false);
+						        strings(m, "accepts");
+						        structured_field(m, "initial");
+						        structured_field(m, "targets");
+					        });
+					records(l, "consumers", {{"system", ""}, {"store", ""}, {"costs", Json::object()}},
+					        [&](Json &m)
+					        {
+						        string(m, "system");
+						        string(m, "store");
+						        structured_field(m, "costs");
+					        });
+				}
+			}
+		}
+		{
+			ScopedTree panel("Docking ports");
+			if (panel)
+			{
+				if (!ship.contains("docking") && button("Configure docking ports"))
+					ship["docking"] = {{"ports", Json::array()}};
+				if (ship.contains("docking"))
+					records(ship["docking"], "ports",
+					        {{"id", "port"}, {"controller", ""}, {"compartment", ""}, {"compatibility", "standard"}},
+					        [&](Json &m)
+					        {
+						        string(m, "id");
+						        string(m, "controller");
+						        string(m, "compartment");
+						        string(m, "compatibility");
+						        integer(m, "x_mm", 0);
+						        integer(m, "y_mm", 0);
+						        integer(m, "z_mm", 0);
+						        integer(m, "heading_mdeg", 0);
+						        integer(m, "capture_range_mm", 1000);
+						        integer(m, "capture_speed_mm_s", 500);
+						        integer(m, "alignment_mdeg", 5000);
+						        integer(m, "mating_ticks", 20);
+						        integer(m, "separation_ticks", 20);
+						        integer(m, "units_per_second", 20);
+						        boolean(m, "auto_accept_allies", false);
+						        boolean(m, "supply", false);
+						        boolean(m, "emergency_release", false);
+						        integer(m, "emergency_damage", 0);
+					        });
+			}
+		}
+
+		{
+			ScopedTree panel("Psychic power profiles");
+			if (panel)
+			{
+				if (!ship.contains("psychic_powers"))
+					ship["psychic_powers"] = Json::object();
+				auto &powers = ship["psychic_powers"];
+				for (auto &[id, p] : powers.items())
+				{
+					ScopedTree profile(id.c_str());
+					if (!profile)
+						continue;
+					choice(p, "kind", {"cloak", "scramble", "ward"});
+					string(p, "label");
+					integer(p, "strength_permille", 700);
+					integer(p, "energy_per_second", 100);
+					integer(p, "recovery_ticks", 100);
+					if (p.value("kind", std::string{}) == "scramble")
+					{
+						optional_string(p, "apparent_class");
+						for (const auto *k :
+						     {"ghost_count", "offset_mm", "spacing_mm", "speed_mm_s", "acceleration_mm_s2",
+						      "turn_mdeg_s", "radius_mm", "scan_ticks", "fade_ticks"})
+							integer(p, k, p.value(k, 1LL));
+					}
+				}
+				if (button("Add psychic power"))
+					powers[fresh(powers, "power")] = {{"kind", "cloak"}, {"label", "Psychic power"}};
+			}
+		}
+
 		{
 			ScopedTree panel("Boarding missions");
 			if (panel)
@@ -1031,6 +1172,7 @@ struct GameplayEditor
 					    choice(m, "tree", document.definition_choices(WorkshopDefinitionKind::Tree));
 					    choice(m, "dialogue", document.definition_choices(WorkshopDefinitionKind::Tree));
 					    boolean(m, "retain_craft", true);
+					    strings(m, "docking_ports");
 					    records(m, "slots",
 					            {{"id", "security"}, {"kind", "team"}, {"capability", "security"}, {"required", true}},
 					            [&](Json &slot)
@@ -1182,9 +1324,10 @@ struct GameplayEditor
 				ImGui::TextUnformatted(selected_system.c_str());
 				choice(spec, "template", document.definition_choices(WorkshopDefinitionKind::Equipment), true);
 				choice(spec, "kind",
-				       {"engine",      "steering", "radar",   "generator",    "distribution", "coolant",  "storage",
-				        "lateral",     "boost",    "impulse", "weapon",       "turret",       "magazine", "team",
-				        "repair_team", "shield",   "comms",   "displacement", "transport",    "dispatch", "ftl"},
+				       {"engine",    "steering", "radar",       "generator", "distribution", "coolant",
+				        "storage",   "lateral",  "boost",       "impulse",   "weapon",       "turret",
+				        "magazine",  "team",     "repair_team", "shield",    "comms",        "displacement",
+				        "transport", "dispatch", "ftl",         "psychic"},
 				       true);
 				auto kind = equipment_kind(document, spec);
 				if (kind.empty())
@@ -2168,7 +2311,8 @@ struct GameplayEditor
 			        string(m, "reveal_event");
 			        boolean(m, "retain_craft", true);
 			        choice(m, "tree", document.definition_choices(WorkshopDefinitionKind::Tree));
-			        boolean(m, "allow_ship_transport", true);
+			        boolean(m, "allow_ship_transport", false);
+			        strings(m, "docking_ports");
 			        optional_string(m, "ship_transport_reason");
 			        integer(m, "deployment_range_mm", 20000);
 			        integer(m, "deployment_ticks", 20);

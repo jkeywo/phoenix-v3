@@ -257,8 +257,8 @@ public:
 		if (container.manifest.value("format", std::string{}) != "phoenix-runtime-save")
 			throw std::runtime_error("Select a Phoenix runtime save ZIP");
 		const auto data = parse_json(container.files.at("session.json"), "session.json");
-		if ((data.at("schema") != 13 && data.at("schema") != 14 && data.at("schema") != 15))
-			throw std::runtime_error("Saved state schema retired; start a new session (schema 13, 14 or 15 required)");
+		if (data.at("schema") != 17)
+			throw std::runtime_error("Saved state schema retired; start a new session (schema 17 required)");
 		if (!data.at("packs").is_array() || data.at("packs").empty() || data.at("packs").size() > 32)
 			throw std::runtime_error("Unsupported runtime save content roster");
 		LocalSession candidate;

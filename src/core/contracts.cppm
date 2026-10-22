@@ -86,7 +86,8 @@ enum class OperatingSystem
 	Displacement,
 	Dispatch,
 	Ftl,
-	ShuttleBay
+	ShuttleBay,
+	Psychic
 };
 using SystemMask = std::uint32_t;
 constexpr SystemMask system_bit(OperatingSystem system)
@@ -164,13 +165,13 @@ inline constexpr std::array operating_actions{
                         -1000000000000},
     OperatingActionSpec{OperatingAction::IntentBoolean, "intent_boolean", OperatingSystem::Engine, true, 1},
     OperatingActionSpec{OperatingAction::Waypoint, "waypoint", OperatingSystem::Engine, true, 1},
-    OperatingActionSpec{OperatingAction::WeaponTarget, "weapon_target", OperatingSystem::Weapon, false, 1000000000},
+    OperatingActionSpec{OperatingAction::WeaponTarget, "weapon_target", OperatingSystem::Weapon, false, 2000000000},
     OperatingActionSpec{OperatingAction::RepairCompartment, "repair_compartment", OperatingSystem::Team, false, 256},
     OperatingActionSpec{OperatingAction::MagazineSelect, "magazine_select", OperatingSystem::Weapon, false, 256},
     OperatingActionSpec{OperatingAction::WeaponMode, "weapon_mode", OperatingSystem::Weapon, false, 2},
     OperatingActionSpec{OperatingAction::RepairSystem, "repair_system", OperatingSystem::Team, false, 256},
     OperatingActionSpec{OperatingAction::ShieldDischarge, "shield_discharge", OperatingSystem::Shield, true, 1},
-    OperatingActionSpec{OperatingAction::SensorTarget, "sensor_target", OperatingSystem::Radar, false, 1000000000},
+    OperatingActionSpec{OperatingAction::SensorTarget, "sensor_target", OperatingSystem::Radar, false, 2000000000},
     OperatingActionSpec{OperatingAction::Altitude, "altitude_mm", OperatingSystem::Engine, false, 1000000, -1000000}};
 constexpr const OperatingActionSpec *operating_action(std::string_view name)
 {
@@ -248,6 +249,8 @@ constexpr std::string_view operating_system_name(OperatingSystem system)
 		return "dispatch";
 	case OperatingSystem::Ftl:
 		return "ftl";
+	case OperatingSystem::Psychic:
+		return "psychic";
 	case OperatingSystem::ShuttleBay:
 		return "shuttle_bay";
 	case OperatingSystem::Comms:
@@ -308,6 +311,12 @@ constexpr std::string_view radar_icon_name(RadarIcon icon)
 {
 	return radar_icon_names[static_cast<std::size_t>(icon)];
 }
+struct BearingContactView
+{
+	EntityId id;
+	std::int64_t bearing_mdeg;
+	std::uint64_t observed_tick;
+};
 struct BodyView
 {
 	EntityId id;
@@ -380,6 +389,7 @@ struct Observation
 {
 	BodyView own;
 	std::vector<BodyView> contacts;
+	std::vector<BearingContactView> bearing_contacts;
 	std::int64_t requested_speed = 0, requested_heading = 0;
 	bool engine_enabled = true, radar_enabled = true;
 	std::string console;

@@ -200,6 +200,9 @@ std::size_t away_origin(EntityId ship, const std::string &transport) const
 {
 	const auto &d = definition(ship);
 	const auto physical = away_transport_entity(ship, transport);
+	if (physical == ship)
+		if (const auto *dock = entities.at(ship).try_get<DockConnection>())
+			return d.combat->compartment_ids.at(d.docking.at(dock->port).compartment);
 	const auto &name = physical == ship ? d.transport.compartment
 	                   : physical       ? d.craft_bays.at(entities.at(physical).get<CraftState>().bay).compartment
 	                                    : d.displacements.at(transport).compartment;
@@ -256,6 +259,16 @@ std::int64_t away_transfer_ticks(const AwayDefinition &d, const AwayMission &m) 
 void mark_away_deployed(const AwayDefinition &definition, AwayMission &m)
 {
 	m.care.clear();
+	m.entry_compartment = 0;
+	if (m.transport == "ship")
+	{
+		const auto ship = away_ship(definition);
+		if (const auto *dock = entities.at(ship).try_get<DockConnection>())
+			m.entry_compartment =
+			    this->definition(definition.target)
+			        .combat->compartment_ids.at(
+			            this->definition(definition.target).docking.at(dock->remote_port).compartment);
+	}
 	if (definition.boarding)
 	{
 		m.boarding.location = definition.boarding->compartments.at(definition.boarding->entry);
@@ -385,8 +398,8 @@ std::string away_blocker(std::size_t index, bool power = true) const
 		if (m.assignments.size() + m.accompanying.size() >
 		    static_cast<std::size_t>(definition(transport).transport.capacity))
 			return "Transport capacity exceeded";
-		if (transport == ship && distance_3d(ship, d.target) > d.deployment_range)
-			return "Fly ship to deployment location";
+		if (transport == ship && !away_dock_ready(ship, d, m.transfer > 0))
+			return "Dock at a mission-compatible port";
 		return {};
 	}
 	const auto &t = definition(ship).displacements.at(m.transport);
@@ -712,7 +725,7 @@ void stage_away(EntityId ship, AwayMission &m)
 					auto &o = ps.officers[i];
 					if (o.remaining == 0 && o.location != target)
 					{
-						auto route = compartment_route(pd.compartments.size(), pd.links, o.location, target);
+						auto route = physical_route(ship, pd.compartments.size(), pd.links, o.location, target);
 						o.edge_to = route.first;
 						o.remaining = route.second;
 					}
@@ -845,7 +858,8 @@ void advance_away()
 			                       Value::string(answer),
 			                       Value::string(m.checkpoint)};
 			const bool present = !m.transport_released && transport && !combat_dead(entities.at(transport)) &&
-			                     distance_3d(transport, d.target) <= d.deployment_range &&
+			                     (transport == ship ? away_dock_ready(ship, d)
+			                                        : distance_3d(transport, d.target) <= d.deployment_range) &&
 			                     (transport == ship || !craft_dormant(entities.at(transport)));
 			obs.push_back(Value::boolean(present));
 			obs.push_back(Value::boolean(transport && !combat_dead(entities.at(transport)) &&
@@ -1031,7 +1045,7 @@ Json away_board(const ConsoleAddress &a) const
 			row["slots"].push_back(r);
 		}
 		row["labels"] = Json::object();
-		row["labels"]["ship"] = "Own ship (manual flight)";
+		row["labels"]["ship"] = "Own ship — docking";
 		for (const auto &[craft, e] : craft_rows())
 			if (e.get<CraftState>().home == a.ship)
 				row["labels"]["craft:" + std::to_string(craft)] =
@@ -1059,7 +1073,7 @@ Json save_away() const
 	for (std::size_t i = 0; i < away_missions.size(); ++i)
 	{
 		Json row = away_missions[i];
-		row["schema"] = 9;
+		row["schema"] = 10;
 		row["id"] = away_definitions[i].id;
 		row["continuation"] = state_tree::save(away_definitions[i].program, away_missions[i].continuation);
 		for (const auto &[team, care] : away_missions[i].care)
@@ -1101,7 +1115,7 @@ void restore_away(const Json &rows)
 		const auto &d = away_definitions[i];
 		const auto schema = rows[i].at("schema");
 		if ((schema != 1 && schema != 2 && schema != 3 && schema != 4 && schema != 5 && schema != 6 && schema != 7 &&
-		     schema != 8 && schema != 9) ||
+		     schema != 8 && schema != 9 && schema != 10) ||
 		    rows[i].at("id") != d.id)
 			throw std::runtime_error("Away mission identity mismatch");
 		auto record = rows[i];
@@ -1148,7 +1162,13 @@ void restore_away(const Json &rows)
 			record["aboard_craft"] = record.value("aboard_craft", false);
 			record["transport_released"] = record.value("transport_released", false);
 		}
+		if (schema < 10)
+			record["entry_compartment"] = 0;
 		auto m = record.get<AwayMission>();
+		if (m.entry_compartment < 0 ||
+		    (definition(d.target).combat &&
+		     m.entry_compartment >= static_cast<std::int64_t>(definition(d.target).combat->compartments.size())))
+			throw std::runtime_error("Invalid away entry compartment");
 		if ((schema == 1 && rows[i].at("deployed").get<bool>() != m.deployed()) ||
 		    (schema >= 2 && rows[i].contains("deployed")))
 			throw std::runtime_error("Inconsistent saved deployment");

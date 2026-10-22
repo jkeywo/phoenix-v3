@@ -31,6 +31,31 @@ inline std::string text(const Json &v, std::size_t limit = 256)
 		throw std::runtime_error("Invalid shared display text");
 	return v.get<std::string>();
 }
+inline Json bearing_json(const BearingContactView &b)
+{
+	return {{"id", b.id}, {"bearing_mdeg", b.bearing_mdeg}, {"observed_tick", b.observed_tick}};
+}
+inline BearingContactView read_bearing(const Json &v)
+{
+	return {static_cast<EntityId>(number(v.at("id"), 1, 9007199254740991LL)), number(v.at("bearing_mdeg"), 0, 359999),
+	        static_cast<std::uint64_t>(number(v.at("observed_tick"), 0, 9007199254740991LL))};
+}
+inline std::vector<BearingContactView> read_bearings(const Json &rows)
+{
+	if (!rows.is_array() || rows.size() > 4096)
+		throw std::runtime_error("Invalid bearing contact rows");
+	std::vector<BearingContactView> out;
+	std::vector<EntityId> ids;
+	for (const auto &row : rows)
+	{
+		auto b = read_bearing(row);
+		if (std::find(ids.begin(), ids.end(), b.id) != ids.end())
+			throw std::runtime_error("Duplicate bearing contact");
+		ids.push_back(b.id);
+		out.push_back(b);
+	}
+	return out;
+}
 enum class BodyReadPolicy
 {
 	SharedDisplay,

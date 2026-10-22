@@ -247,8 +247,7 @@ bool team_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 				return false;
 		}
 		const auto from = r.travel ? r.edge_to : r.location;
-		if (from != static_cast<std::int64_t>(target) &&
-		    repair_route(entities.at(a.ship).get<CombatStructure>(), from, target).first < 0)
+		if (from != static_cast<std::int64_t>(target) && repair_route(entities.at(a.ship), from, target).first < 0)
 			return false;
 	}
 	else if (c.action != "team.cancel" || !c.text.empty())
@@ -313,6 +312,8 @@ void treat_patient(EntityId origin, const CombatMechanism &team, EntityId target
 		auto &r = away_equipment(target, selected.team).get_mut<CombatMechanism>().get<TeamState>();
 		if (activity != "treat" || r.condition != "injured")
 			return;
+		if (!pay_material_work(origin, team.definition.id, "treat", r.treatment > 0))
+			return;
 		r.treatment += officer_value(origin, team.definition.id, "medical", 1000) * team_effectiveness(team) / 1000;
 		if (r.treatment >= team.definition.get<TeamDefinition>().treatment_ticks * 1000)
 		{
@@ -331,6 +332,9 @@ void treat_patient(EntityId origin, const CombatMechanism &team, EntityId target
 	if (o.condition == "severe" && o.stabilised)
 		return;
 	const auto ticks = o.condition == "severe" ? d.stabilise_ticks : d.treatment_ticks;
+	if (!pay_material_work(origin, team.definition.id, o.condition == "severe" ? "stabilise" : "treat",
+	                       o.treatment > 0))
+		return;
 	o.treatment += officer_value(origin, team.definition.id, "medical", 1000) * team_effectiveness(team) / 1000;
 	if (o.treatment < ticks * 1000)
 		return;
@@ -375,6 +379,8 @@ void step_medical_facilities()
 						const auto at = std::find(pd.compartments.begin(), pd.compartments.end(), f.compartment) -
 						                pd.compartments.begin();
 						if (ship.has<CombatStructure>() && ship.get<CombatStructure>().compartments.at(at).disabled)
+							continue;
+						if (!pay_material_work(id, f.id, "recover", o.recovery > 0))
 							continue;
 						o.recovery += 1000;
 						if (o.recovery >= f.recovery_ticks * 1000)
@@ -609,6 +615,7 @@ void advance_away_medical(std::size_t index)
 			auto &care = mission.care[mechanism.definition.id];
 			if (care.order.empty())
 			{
+				care.location = mission.entry_compartment;
 				const auto first = std::find_if(td.orders.begin(), td.orders.end(),
 				                                [](const auto &o)
 				                                {
@@ -624,6 +631,8 @@ void advance_away_medical(std::size_t index)
 			const auto *order = team_order_definition(mechanism, care.order);
 			if (!order)
 				continue; // Restore validates saved identities.
+			if (care.travel > 0 && !physical_edge_open(target, care.location, care.edge_to))
+				continue;
 			if (care.travel > 0 && --care.travel == 0)
 			{
 				care.location = care.edge_to;
@@ -656,7 +665,7 @@ void advance_away_medical(std::size_t index)
 			at = destination();
 			if (at && !care.travel && care.location != static_cast<std::int64_t>(*at))
 			{
-				const auto route = compartment_route(pd.compartments.size(), pd.links, care.location, *at);
+				const auto route = physical_route(target, pd.compartments.size(), pd.links, care.location, *at);
 				if (route.first >= 0)
 				{
 					care.edge_to = route.first;
@@ -726,7 +735,7 @@ void validate_medical_state() const
 
 bool duty_affects_system(EntityId id, const PersonnelDuty &duty, const std::string &system) const
 {
-	if (duty.team == system || duty.effects.contains(system))
+	if (duty.team == system || duty.choir == system || duty.effects.contains(system))
 		return true;
 	for (const auto &c : definition(id).layout->controllers)
 		if (c.console == duty.console && c.id == duty.controller)

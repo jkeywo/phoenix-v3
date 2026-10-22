@@ -166,6 +166,75 @@ Json missile_fixture(bool defence = false)
 }
 void ordnance_contracts()
 {
+	// Bearing launches use no hidden target range/altitude and acquire independently.
+	for (bool acquire : {false, true})
+	{
+		auto source = missile_fixture();
+		auto &systems = source["entities"][0]["systems"];
+		systems["radar"]["range_mm"] = 10000;
+		systems["radar"]["long_range_mm"] = 200000;
+		systems["missile-mag"]["projectile"]["arc_height_mm"] = 0;
+		systems["missile-mag"]["projectile"]["seeker_range_mm"] = acquire ? 30000 : 1;
+		// The target is outside physical weapon reach, which must not block a bearing shot.
+		systems["launcher"]["range_mm"] = 50000;
+		const auto c = load(source);
+		World bearing;
+		bearing.load(c, "test.map");
+		claim(bearing);
+		require(bearing.observe(101)->contacts.empty() && bearing.observe(101)->bearing_contacts.size() == 2,
+		        "missile Console has only bearings");
+		submit(bearing, 101, "launcher", "target", 2);
+		advance(bearing, 1);
+		const auto first = bearing.save().at("projectiles");
+		require(first.size() == 1 && first[0].at("bearing_launch") == true &&
+		            first[0].at("initial_distance") == 50000 && first[0].at("vz") == 0,
+		        "bearing launch uses nominal weapon range and launch altitude");
+		submit(bearing, 101, "radar", "enabled", 0);
+		advance(bearing, 10);
+		World resumed;
+		resumed.restore(c, bearing.save());
+		advance(bearing, 35);
+		advance(resumed, 35);
+		require(bearing.save() == resumed.save(), "independent bearing missile resumes identically after radar loss");
+		const auto flying = bearing.save().at("projectiles");
+		if (acquire)
+			require(!flying.empty() && flying[0].at("seeker_acquired") == true,
+			        "seeker acquires without launching radar");
+		else
+			require(!flying.empty() && flying[0].at("seeker_acquired") == false,
+			        "bounded seeker cannot acquire a distant target");
+	}
+
+	{
+		auto source = fixture();
+		auto &systems = source["entities"][0]["systems"];
+		systems["radar"]["range_mm"] = 10000;
+		systems["radar"]["long_range_mm"] = 200000;
+		systems["gun"]["range_mm"] = 40000;
+		World unguided;
+		unguided.load(load(source), "test.map");
+		claim(unguided);
+		submit(unguided, 101, "gun", "target", 2);
+		advance(unguided, 1);
+		const auto shots = unguided.save().at("projectiles");
+		require(shots.size() == 1 && shots[0].at("bearing_launch") == true &&
+		            shots[0].at("initial_distance") == 40000 && shots[0].at("vz") == 0,
+		        "unguided gun fires along bearing without a hidden range check or vertical lead");
+	}
+	{
+		auto source = powered_fixture();
+		add_beam(source);
+		auto &systems = source["entities"][0]["systems"];
+		systems["radar"]["range_mm"] = 10000;
+		systems["radar"]["long_range_mm"] = 200000;
+		World beam;
+		beam.load(load(source), "test.map");
+		claim(beam);
+		submit(beam, 101, "beam", "target", 2);
+		advance(beam, 10);
+		require(hp(beam) < 20000, "beam can physically hit along anonymous bearing");
+	}
+
 	{
 		auto s = missile_fixture();
 		auto obstacle = s["entities"][1];

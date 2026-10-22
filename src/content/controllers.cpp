@@ -112,7 +112,7 @@ CommandBounds fitted_commands(const FittedSystemSpec &fit, Json spec, const Ship
 	if (kind == OperatingSystem::Weapon || kind == OperatingSystem::Turret || kind == OperatingSystem::Magazine ||
 	    kind == OperatingSystem::Team || kind == OperatingSystem::Shield || kind == OperatingSystem::Comms ||
 	    kind == OperatingSystem::Displacement || kind == OperatingSystem::Dispatch || kind == OperatingSystem::Ftl ||
-	    kind == OperatingSystem::ShuttleBay)
+	    kind == OperatingSystem::ShuttleBay || kind == OperatingSystem::Psychic)
 	{
 		add(OperatingAction::SystemEnabled);
 		if (kind == OperatingSystem::Weapon)
@@ -483,7 +483,8 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 				    action.name.starts_with("action.") || action.name.starts_with("coordination."))
 					continue;
 				if (action.name.starts_with("away.") || action.name.starts_with("craft.") ||
-				    action.name.starts_with("team."))
+				    action.name.starts_with("team.") || action.name.starts_with("logistics.") ||
+				    action.name.starts_with("dock."))
 					continue;
 				if (action.name == "acknowledge_message" || action.name == "stop_publication" ||
 				    action.name == "withdraw_request")

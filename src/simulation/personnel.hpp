@@ -67,6 +67,8 @@ void advance_personnel(EntityId id)
 		}
 		if (o.remaining > 0)
 		{
+			if (!physical_edge_open(id, o.location, o.edge_to))
+				continue;
 			if (--o.remaining > 0)
 				continue;
 			o.location = static_cast<std::size_t>(o.edge_to);
@@ -82,8 +84,8 @@ void advance_personnel(EntityId id)
 			continue;
 		}
 		const auto route =
-		    compartment_route(d.compartments.size(), d.links, o.location,
-		                      target.remaining > 0 ? static_cast<std::size_t>(target.edge_to) : target.location);
+		    physical_route(id, d.compartments.size(), d.links, o.location,
+		                   target.remaining > 0 ? static_cast<std::size_t>(target.edge_to) : target.location);
 		if (route.first >= 0)
 		{
 			o.edge_to = route.first;
@@ -151,7 +153,7 @@ bool personnel_command(const ConsoleAddress &address, const OperatingCommand &co
 	}
 	else if (command.action == "personnel.assign" || command.action == "personnel.swap")
 	{
-		if (!duty || duty->department != it->department ||
+		if (!duty || !choir_assignment(address.ship, *it, duty) || duty->department != it->department ||
 		    (!duty->team.empty() && away_reserved(address.ship, "team:" + duty->team)) ||
 		    (!duty->required_trait.empty() &&
 		     std::find(it->traits.begin(), it->traits.end(), duty->required_trait) == it->traits.end()))
@@ -174,9 +176,10 @@ bool personnel_command(const ConsoleAddress &address, const OperatingCommand &co
 	if (command.action == "personnel.swap")
 	{
 		const auto *previous = personnel_duty(address.ship, state.officers[i].duty);
-		if (!previous || (!previous->required_trait.empty() &&
-		                  std::find(d.officers[occupied].traits.begin(), d.officers[occupied].traits.end(),
-		                            previous->required_trait) == d.officers[occupied].traits.end()))
+		if (!previous || !choir_assignment(address.ship, d.officers[occupied], previous) ||
+		    (!previous->required_trait.empty() &&
+		     std::find(d.officers[occupied].traits.begin(), d.officers[occupied].traits.end(),
+		               previous->required_trait) == d.officers[occupied].traits.end()))
 			return false;
 	}
 	if (duty)
@@ -185,7 +188,7 @@ bool personnel_command(const ConsoleAddress &address, const OperatingCommand &co
 		const auto target = personnel_destination(address.ship, *duty);
 		const auto from = o.remaining ? static_cast<std::size_t>(o.edge_to) : o.location;
 		if (from != target.location &&
-		    compartment_route(d.compartments.size(), d.links, from, target.location).first < 0)
+		    physical_route(address.ship, d.compartments.size(), d.links, from, target.location).first < 0)
 			return false;
 	}
 	if (execute)
@@ -202,6 +205,7 @@ bool personnel_command(const ConsoleAddress &address, const OperatingCommand &co
 					o.edge_to = at.edge_to;
 					o.remaining = at.remaining;
 				}
+			clear_choir_intent(address.ship, o.duty);
 			o.present = false;
 			o.duty = next;
 		};
@@ -283,6 +287,8 @@ Json personnel_board(const ConsoleAddress &address) const
 			                           {"remaining", r.remaining},
 			                           {"destination", r.edge_to < 0 ? std::string{} : d.compartments.at(r.edge_to)},
 			                           {"traits", traits}});
+			if (!o.power.empty())
+				out["officers"].back()["power"] = definition(address.ship).psychic.powers.at(o.power).label;
 		}
 	return out;
 }
@@ -330,6 +336,8 @@ void restore_personnel(EntityId id, const Json &saved)
 			    o.recovery >= f->recovery_ticks * 1000)
 				throw std::runtime_error("Invalid saved facility patient");
 		}
+		if (!choir_assignment(id, d.officers[i], duty))
+			throw std::runtime_error("Incompatible saved psychic assignment");
 		if (duty && !duty->required_trait.empty() &&
 		    std::find(d.officers[i].traits.begin(), d.officers[i].traits.end(), duty->required_trait) ==
 		        d.officers[i].traits.end())

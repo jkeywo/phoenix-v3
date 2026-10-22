@@ -183,6 +183,7 @@ class ConsoleSurface final : public Rml::EventListener
 #include "personnel.hpp"
 #include "away.hpp"
 #include "craft.hpp"
+#include "logistics.hpp"
 	void prepare_local_settings(Application &app, const ConsoleRegion &region)
 	{
 		local_settings_controls_.clear();
@@ -190,16 +191,23 @@ class ConsoleSurface final : public Rml::EventListener
 		std::string markup =
 		    "<div class=\"local-settings-card\"><div style=\"display:block;width:" + std::to_string(content_width) +
 		    "px;\"><h1>" + localise("Console settings") + "</h1><div>";
-		for (const auto &[tab, label] : std::vector<std::pair<std::string, std::string>>{{"away", "Away missions"},
-		                                                                                 {"craft", "Flight operations"},
-		                                                                                 {"personnel", "Personnel"},
-		                                                                                 {"display", "Display"},
-		                                                                                 {"language", "Language"},
-		                                                                                 {"audio", "Audio"},
-		                                                                                 {"session", "Session"}})
+		for (const auto &[tab, label] :
+		     std::vector<std::pair<std::string, std::string>>{{"logistics", "Stores and deliveries"},
+		                                                      {"docking", "Docking"},
+		                                                      {"away", "Away missions"},
+		                                                      {"craft", "Flight operations"},
+		                                                      {"personnel", "Personnel"},
+		                                                      {"display", "Display"},
+		                                                      {"language", "Language"},
+		                                                      {"audio", "Audio"},
+		                                                      {"session", "Session"}})
 			markup += settings_button("local-settings.tab/" + tab, label);
 		markup += "</div>";
-		if (local_settings_tab_ == "away")
+		if (local_settings_tab_ == "logistics")
+			markup += logistics_markup();
+		else if (local_settings_tab_ == "docking")
+			markup += docking_markup();
+		else if (local_settings_tab_ == "away")
 			markup += away_markup();
 		else if (local_settings_tab_ == "craft")
 			markup += craft_markup();
@@ -283,6 +291,12 @@ class ConsoleSurface final : public Rml::EventListener
 			}
 		if (local_settings_tab_ == "away")
 			for (const auto &[key, text] : away_readouts_)
+			{
+				app.screen_readouts.emplace_back(key, text);
+				place(app, region, key);
+			}
+		if (local_settings_tab_ == "logistics" || local_settings_tab_ == "docking")
+			for (const auto &[key, text] : supply_readouts_)
 			{
 				app.screen_readouts.emplace_back(key, text);
 				place(app, region, key);
@@ -660,6 +674,8 @@ button.on-screen-active .share-live {display:block;}
 			return false;
 		const auto action = name.substr(prefix.size());
 		if (app_ && app_->session && away_action(action))
+			return true;
+		if (app_ && app_->session && supply_action(action))
 			return true;
 		if (app_ && app_->session && craft_action(action))
 			return true;
@@ -1245,6 +1261,29 @@ button.on-screen-active .share-live {display:block;}
 						if (CheckCollisionPointRec({x, y}, {at.x, at.y, b->GetOffsetWidth(), b->GetOffsetHeight()}))
 							return false;
 					}
+		if (kind == DeviceEventKind::Down && model_.layout() && model_.observation())
+			for (const auto &w : model_.layout()->at("widgets"))
+				if (w.at("kind") == "radar")
+				{
+					const auto key = w.at("id").get<std::string>();
+					if (auto *dial = document_->GetElementById("dial/" + key))
+					{
+						const auto at = dial->GetAbsoluteOffset(Rml::BoxArea::Border);
+						const Vector2 centre{at.x + dial->GetOffsetWidth() / 2, at.y + dial->GetOffsetHeight() / 2};
+						const auto radius = std::min(dial->GetOffsetWidth(), dial->GetOffsetHeight()) * .33f;
+						const auto &view = *model_.observation();
+						const auto radar =
+						    select_system(view.systems, OperatingSystem::Radar, model_.widget_system(key), false);
+						for (const auto &sensor : view.systems)
+							if (radar && sensor.id == *radar && sensor.enabled)
+								for (const auto &b : view.bearing_contacts)
+									if (std::find(sensor.contact_ids.begin(), sensor.contact_ids.end(), b.id) !=
+									        sensor.contact_ids.end() &&
+									    CheckCollisionPointCircle(
+									        {x, y}, bearing_ring_point(centre, radius, b.bearing_mdeg), 14))
+										return action(id("game.sensor-contact/" + std::to_string(b.id)));
+					}
+				}
 		if (navigation_pointer(contact, x, y, kind))
 			return true;
 		if (model_.manual_active())

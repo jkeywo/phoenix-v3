@@ -30,7 +30,8 @@ struct CombatStructure
 {
 	CombatDefinition definition;
 	std::vector<CompartmentState> compartments;
-	std::uint64_t random = 1;
+	std::uint64_t random = 1, access_revision = 1;
+	std::set<std::string> closed_routes;
 	std::map<std::string, std::vector<FaultState>> faults;
 };
 struct WeaponState
@@ -101,6 +102,9 @@ struct Projectile
 	std::int64_t altitude = 0, vz = 0, z_remainder = 0, age = 0, initial_distance = 0, base_heading = 0;
 	std::int64_t turn_remainder = 0;
 	std::int64_t launch_altitude = 0;
+	bool bearing_launch = false, seeker_acquired = false;
+	std::int64_t arc_start_age = 0;
+	std::int64_t seeker_altitude = 0;
 	std::uint64_t random = 1;
 	bool continuous = false;
 	std::int64_t bypass_remainder = 0;

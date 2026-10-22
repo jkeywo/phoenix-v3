@@ -410,6 +410,10 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	result.own[ControllerOwnField::CraftArmed] = add({"craft.armed", Type::Boolean, 4, {}});
 	result.own[ControllerOwnField::CraftTargetPresent] = add({"craft.target_present", Type::Boolean, 4, {}});
 	const auto resolved = resolve_tree_definition(tree, catalog);
+	if (resolved.value("logistics_commands", false))
+		add({"logistics.revision", Type::Integer, 4, {}});
+	if (resolved.value("docking_commands", false))
+		add({"docking.revision", Type::Integer, 4, {}});
 	if (resolved.contains("ftl_system"))
 	{
 		result.ftl_system = resolved.at("ftl_system").get<std::string>();
@@ -481,6 +485,14 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 		registry.actions.push_back({"team.order", 4, {Type::Text, Type::Text, Type::Integer}, true});
 		registry.actions.push_back({"team.cancel", 4, {Type::Text, Type::Text, Type::Integer}, true});
 	}
+	if (resolved.value("logistics_commands", false))
+		for (const auto *name :
+		     {"target", "hold", "release", "cancel", "route", "transfer", "deliver", "craft_allow", "cargo_cancel"})
+			registry.actions.push_back(
+			    {std::string("logistics.") + name, 4, {Type::Text, Type::Text, Type::Integer}, true});
+	if (resolved.value("docking_commands", false))
+		for (const auto *name : {"accept", "reject", "supply", "connect", "assist", "cancel", "undock", "emergency"})
+			registry.actions.push_back({std::string("dock.") + name, 4, {Type::Text, Type::Text, Type::Integer}, true});
 	for (const auto &name : {"open", "assign", "withdraw", "transport", "send", "recall", "cancel"})
 		registry.actions.push_back({std::string("away.") + name, 4, {Type::Text, Type::Text, Type::Integer}, true});
 	for (const auto &name : {"defend", "escort", "bomb", "recall"})
@@ -537,12 +549,15 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	{
 		ControllerContactRead read{binding};
 		std::size_t i = 0;
-		for (const auto *field :
-		     {"available", "id", "x", "y", "vx", "vy", "heading", "speed", "observed_tick", "uncertainty"})
-			read.fields.values.at(i++) = add({binding.name + "." + field,
-			                                  std::string_view(field) == "available" ? Type::Boolean : Type::Integer,
-			                                  4,
-			                                  {}});
+		for (const auto *field : {"available", "id", "x", "y", "vx", "vy", "heading", "speed", "observed_tick",
+		                          "uncertainty", "bearing_available", "bearing_mdeg"})
+			read.fields.values.at(i++) =
+			    add({binding.name + "." + field,
+			         (std::string_view(field) == "available" || std::string_view(field) == "bearing_available")
+			             ? Type::Boolean
+			             : Type::Integer,
+			         4,
+			         {}});
 		result.contacts.push_back(std::move(read));
 	}
 	std::size_t result_index = 0;

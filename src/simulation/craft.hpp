@@ -2,7 +2,7 @@
 std::int64_t altitude(EntityId id) const
 {
 	const auto *v = entities.at(id).try_get<VerticalMotion>();
-	return v ? v->altitude : 0;
+	return v ? v->altitude : entities.at(id).get<Pose>().altitude;
 }
 std::int64_t craft_flight_band(EntityId id) const
 {
@@ -209,9 +209,9 @@ void release_away_transport(EntityId ship, AwayMission &m)
 bool craft_available(EntityId id, const std::string &mission = {}) const
 {
 	const auto &s = entities.at(id).get<CraftState>();
-	return !combat_dead(entities.at(id)) && s.phase == CraftPhase::Docked && s.order == "idle" &&
-	       s.pending_order.empty() && (s.mission.empty() || s.mission == mission) && bay_working(s.home, s.bay) &&
-	       !ftl_preparing(s.home);
+	return !cargo_committed(id) && !combat_dead(entities.at(id)) && s.phase == CraftPhase::Docked &&
+	       s.order == "idle" && s.pending_order.empty() && (s.mission.empty() || s.mission == mission) &&
+	       bay_working(s.home, s.bay) && !ftl_preparing(s.home);
 }
 void craft_return(flecs::entity e)
 {
@@ -391,7 +391,7 @@ bool craft_command(const ConsoleAddress &a, const OperatingCommand &c, bool exec
 		}
 		return true;
 	}
-	if (!s.mission.empty() || ftl_preparing(a.ship) || !bay_working(a.ship, s.bay) ||
+	if (cargo_committed(id) || !s.mission.empty() || ftl_preparing(a.ship) || !bay_working(a.ship, s.bay) ||
 	    !((s.phase == CraftPhase::Docked && craft_available(id)) || s.phase == CraftPhase::Flying))
 		return false;
 	if (!((action == "defend" && d.role == "interceptor") || (action == "escort" && d.role == "interceptor") ||
@@ -751,21 +751,21 @@ void service_craft()
 			for (std::size_t i = 0; i < d.ammunition.size(); ++i)
 			{
 				const auto &connection = d.ammunition[i];
-				const auto a = away_equipment(s.home, connection.source),
-				           b = away_equipment(other, connection.destination);
-				if (!b || !a.get<Equipment>().enabled || !b.get<Equipment>().enabled ||
-				    structurally_disabled(entities.at(s.home), connection.source) ||
-				    structurally_disabled(craft, connection.destination) ||
-				    !fault_effectiveness(entities.at(s.home), connection.source) ||
-				    !fault_effectiveness(craft, connection.destination))
+				const auto name = craft.get<Definition>().name;
+				const auto bound = connection.destination_stores.find(name);
+				if (bound == connection.destination_stores.end())
 					continue;
-				auto &from = a.get_mut<CombatMechanism>().get<MagazineState>();
-				auto &to = b.get_mut<CombatMechanism>().get<MagazineState>();
-				const auto capacity = b.get<CombatMechanism>().definition.reserve().capacity;
-				const auto amount = std::min({rounds[i], from.ammo, capacity - to.ammo - to.reserved_return});
-				from.ammo -= amount;
-				to.ammo += amount;
-				rounds[i] -= amount;
+				const auto to = bound->second;
+				const auto amount = std::min(
+				    rounds[i], std::max<std::int64_t>(
+				                   0, material_store(other, to).capacity /
+				                              definition(other).logistics.materials.at(connection.material).volume -
+				                          material_pending(other, to, connection.material)));
+				if (amount > 0)
+				{
+					request_material(s.home, connection.source_store, other, to, connection.material, amount, false);
+					rounds[i] -= amount;
+				}
 			}
 		}
 	}

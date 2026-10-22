@@ -172,6 +172,21 @@ inline Json armed_craft_fixture()
 			source["trees"].push_back(definition);
 		source["entities"].push_back(craft);
 	}
+	for (auto &entity : source["entities"])
+	{
+		const std::string system = entity["systems"].contains("supply") ? "supply" : "magazine";
+		if (!entity["systems"].contains(system))
+			continue;
+		const auto &mag = entity["systems"][system];
+		entity["logistics"] = {{"controller", system == "supply" ? "engine" : "flight"},
+		                       {"units_per_second", 100},
+		                       {"materials", Json::array({{{"id", "test.missile"}}})},
+		                       {"stores", Json::array({{{"id", "ammunition"},
+		                                                {"system", system},
+		                                                {"compartment", "bridge"},
+		                                                {"capacity", mag.at("capacity")},
+		                                                {"accepts", {"test.missile"}}}})}};
+	}
 	auto &map = source["maps"][0];
 	map["factions"] = Json::array({{{"id", "crew"}, {"label", "Crew"}}, {{"id", "enemy"}, {"label", "Enemy"}}});
 	map["relationships"] = Json::array({{{"a", "crew"}, {"b", "enemy"}, {"relation", "hostile"}}});

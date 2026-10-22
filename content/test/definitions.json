@@ -7010,6 +7010,54 @@
 						}
 					}
 				]
+			},
+			"logistics": {
+				"controller": "flight",
+				"materials": [
+					{
+						"id": "exercise.bomber"
+					},
+					{
+						"id": "exercise.interceptor"
+					},
+					{
+						"id": "medical"
+					},
+					{
+						"id": "parts"
+					}
+				],
+				"stores": [
+					{
+						"id": "cargo",
+						"controller": "flight",
+						"compartment": "hull",
+						"capacity": 200,
+						"main": true,
+						"accepts": ["exercise.bomber", "exercise.interceptor", "medical", "parts"]
+					}
+				]
+			},
+			"docking": {
+				"ports": [
+					{
+						"id": "service",
+						"controller": "flight",
+						"compartment": "hull",
+						"compatibility": "standard",
+						"x_mm": 6000,
+						"heading_mdeg": 0,
+						"capture_range_mm": 1500,
+						"capture_speed_mm_s": 1000,
+						"mating_ticks": 40,
+						"separation_ticks": 30,
+						"units_per_second": 40,
+						"auto_accept_allies": true,
+						"supply": true,
+						"emergency_release": true,
+						"emergency_damage": 20
+					}
+				]
 			}
 		},
 		{
@@ -7225,6 +7273,24 @@
 						}
 					}
 				]
+			},
+			"logistics": {
+				"controller": "flight",
+				"units_per_second": 20,
+				"materials": [
+					{
+						"id": "exercise.interceptor"
+					}
+				],
+				"stores": [
+					{
+						"id": "intercept-mag",
+						"system": "intercept-mag",
+						"compartment": "hull",
+						"capacity": 24,
+						"accepts": ["exercise.interceptor"]
+					}
+				]
 			}
 		},
 		{
@@ -7435,6 +7501,24 @@
 						}
 					}
 				]
+			},
+			"logistics": {
+				"controller": "flight",
+				"units_per_second": 20,
+				"materials": [
+					{
+						"id": "exercise.bomber"
+					}
+				],
+				"stores": [
+					{
+						"id": "bomb-mag",
+						"system": "bomb-mag",
+						"compartment": "hull",
+						"capacity": 4,
+						"accepts": ["exercise.bomber"]
+					}
+				]
 			}
 		},
 		{
@@ -7504,7 +7588,10 @@
 						"damage_per_m": 10
 					},
 					"compartment": "hull",
-					"observation_console": "support"
+					"observation_console": "support",
+					"reload": {
+						"strategy": "none"
+					}
 				},
 				"bomber-supply": {
 					"kind": "magazine",
@@ -7523,7 +7610,10 @@
 						"arc_height_mm": 12000
 					},
 					"compartment": "hull",
-					"observation_console": "support"
+					"observation_console": "support",
+					"reload": {
+						"strategy": "none"
+					}
 				},
 				"bay": {
 					"kind": "shuttle_bay",
@@ -7919,6 +8009,119 @@
 				"capability_systems": {
 					"repair_tools": ["team"]
 				}
+			},
+			"logistics": {
+				"controller": "supplies",
+				"materials": [
+					{
+						"id": "exercise.bomber"
+					},
+					{
+						"id": "exercise.interceptor"
+					},
+					{
+						"id": "medical"
+					},
+					{
+						"id": "parts"
+					}
+				],
+				"units_per_second": 100,
+				"concurrency": 8,
+				"batch_size": 20,
+				"stores": [
+					{
+						"id": "main-hold",
+						"controller": "supplies",
+						"compartment": "hull",
+						"capacity": 50000,
+						"main": true,
+						"accepts": ["exercise.bomber", "exercise.interceptor", "medical", "parts"],
+						"initial": {
+							"parts": 2000,
+							"medical": 200,
+							"exercise.interceptor": 400,
+							"exercise.bomber": 400
+						},
+						"targets": {
+							"parts": 2000,
+							"medical": 200,
+							"exercise.interceptor": 400,
+							"exercise.bomber": 400
+						}
+					},
+					{
+						"id": "team-kit",
+						"system": "team",
+						"controller": "team",
+						"compartment": "hull",
+						"capacity": 24,
+						"accepts": ["parts"],
+						"initial": {
+							"parts": 24
+						},
+						"targets": {
+							"parts": 24
+						}
+					},
+					{
+						"id": "interceptor-supply",
+						"system": "interceptor-supply",
+						"controller": "supplies",
+						"compartment": "hull",
+						"capacity": 200,
+						"accepts": ["exercise.interceptor"],
+						"targets": {
+							"exercise.interceptor": 200
+						}
+					},
+					{
+						"id": "bomber-supply",
+						"system": "bomber-supply",
+						"controller": "supplies",
+						"compartment": "hull",
+						"capacity": 200,
+						"accepts": ["exercise.bomber"],
+						"targets": {
+							"exercise.bomber": 200
+						}
+					}
+				],
+				"consumers": [
+					{
+						"system": "team",
+						"store": "team-kit",
+						"costs": {
+							"repair": {
+								"parts": 1
+							},
+							"structural": {
+								"parts": 1
+							}
+						}
+					}
+				]
+			},
+			"docking": {
+				"ports": [
+					{
+						"id": "service",
+						"controller": "navigation",
+						"compartment": "hull",
+						"compatibility": "standard",
+						"x_mm": 6000,
+						"heading_mdeg": 0,
+						"capture_range_mm": 1500,
+						"capture_speed_mm_s": 1000,
+						"mating_ticks": 40,
+						"separation_ticks": 30,
+						"units_per_second": 40,
+						"auto_accept_allies": true,
+						"supply": true,
+						"emergency_release": true,
+						"emergency_damage": 20
+					}
+				]
 			}
 		},
 		{
@@ -8060,6 +8263,60 @@
 								"ai": ["watch"]
 							}
 						}
+					}
+				]
+			},
+			"logistics": {
+				"controller": "watch",
+				"materials": [
+					{
+						"id": "exercise.bomber"
+					},
+					{
+						"id": "exercise.interceptor"
+					},
+					{
+						"id": "medical"
+					},
+					{
+						"id": "parts"
+					}
+				],
+				"stores": [
+					{
+						"id": "main-hold",
+						"controller": "watch",
+						"compartment": "hull",
+						"capacity": 5000,
+						"main": true,
+						"accepts": ["exercise.bomber", "exercise.interceptor", "medical", "parts"],
+						"initial": {
+							"exercise.bomber": 300,
+							"exercise.interceptor": 300,
+							"medical": 300,
+							"parts": 300
+						}
+					}
+				]
+			},
+			"docking": {
+				"ports": [
+					{
+						"id": "service",
+						"controller": "watch",
+						"compartment": "hull",
+						"compatibility": "standard",
+						"x_mm": -6000,
+						"heading_mdeg": 180000,
+						"capture_range_mm": 1500,
+						"capture_speed_mm_s": 1000,
+						"mating_ticks": 40,
+						"separation_ticks": 30,
+						"units_per_second": 40,
+						"auto_accept_allies": true,
+						"supply": true,
+						"emergency_release": true,
+						"emergency_damage": 20
 					}
 				]
 			}
@@ -8222,6 +8479,685 @@
 								"ai": ["watch"]
 							}
 						}
+					}
+				]
+			}
+		},
+		{
+			"id": "test.logistics.ship",
+			"extends": "test.courier",
+			"name": "Supply carrier",
+			"tags": ["ship"],
+			"motion_model": "inertial",
+			"half_height_mm": 2000,
+			"systems": {
+				"engine": {
+					"kind": "engine",
+					"max_speed_mm_s": 20000,
+					"acceleration_mm_s2": 8000,
+					"power_store": "cell",
+					"energy_per_second": 30,
+					"compartment": "hull"
+				},
+				"steering": {
+					"kind": "steering",
+					"turn_mdeg_s": 120000,
+					"compartment": "hull"
+				},
+				"radar": {
+					"kind": "radar",
+					"range_mm": 600000,
+					"shows": ["ship", "contact", "missile"],
+					"capabilities": {
+						"basic_identity": 0
+					},
+					"compartment": "hull"
+				},
+				"radio": {
+					"kind": "comms",
+					"range_mm": 600000,
+					"energy_per_second": 5,
+					"power_store": "cell",
+					"compartment": "hull"
+				},
+				"dispatch": {
+					"kind": "dispatch",
+					"compartment": "hull"
+				},
+				"team": {
+					"kind": "repair_team",
+					"hp_per_second": 15,
+					"compartment": "hull",
+					"observation_console": "support"
+				},
+				"reactor": {
+					"kind": "generator",
+					"generator": "reactor",
+					"power_store": "cell",
+					"compartment": "hull",
+					"observation_console": "support"
+				},
+				"interceptor-supply": {
+					"kind": "magazine",
+					"capacity": 200,
+					"ammunition_type": "exercise.interceptor",
+					"projectile": {
+						"visual": "test.beacon",
+						"speed_mm_s": 200000,
+						"lifetime_ticks": 60,
+						"damage": 10,
+						"penetration": 100,
+						"damage_per_m": 10
+					},
+					"compartment": "hull",
+					"observation_console": "support",
+					"reload": {
+						"strategy": "none"
+					},
+					"initial": 0
+				},
+				"bomber-supply": {
+					"kind": "magazine",
+					"capacity": 200,
+					"ammunition_type": "exercise.bomber",
+					"projectile": {
+						"visual": "test.beacon",
+						"speed_mm_s": 50000,
+						"lifetime_ticks": 300,
+						"guidance": "homing",
+						"durability": 10,
+						"radius_mm": 100,
+						"damage": 20,
+						"penetration": 100,
+						"damage_per_m": 10,
+						"arc_height_mm": 12000
+					},
+					"compartment": "hull",
+					"observation_console": "support",
+					"reload": {
+						"strategy": "none"
+					},
+					"initial": 0
+				},
+				"bay": {
+					"kind": "shuttle_bay",
+					"compartment": "hull",
+					"slots": 4,
+					"initial": [
+						"test.carrier.shuttle",
+						"test.carrier.shuttle",
+						"test.carrier.interceptor",
+						"test.carrier.bomber"
+					],
+					"transfer_ticks": 20,
+					"docking_range_mm": 15000,
+					"docking_speed_mm_s": 8000,
+					"power_store": "cell",
+					"charge_per_second": 2000,
+					"ammunition": [
+						{
+							"source": "interceptor-supply",
+							"destination": "intercept-mag",
+							"rounds_per_second": 4
+						},
+						{
+							"source": "bomber-supply",
+							"destination": "bomb-mag",
+							"rounds_per_second": 1
+						}
+					]
+				},
+				"jump": {
+					"kind": "ftl",
+					"enabled": false,
+					"power_store": "jump-cell",
+					"charge_per_second": 100,
+					"charging_loss_per_second": 20,
+					"ready_loss_per_second": 50,
+					"off_discharge_per_second": 83,
+					"compartment": "hull"
+				},
+				"medical": {
+					"kind": "team",
+					"type": "clinical",
+					"capabilities": ["medical"],
+					"compartment": "hull",
+					"treatment_ticks": 100,
+					"stabilise_ticks": 80,
+					"orders": [
+						{
+							"id": "treat",
+							"label": "Treat casualties",
+							"target": "patients",
+							"capability": "medical",
+							"tree": "test.logistics.treat"
+						}
+					]
+				}
+			},
+			"resources": {
+				"stores": [
+					{
+						"id": "cell",
+						"capacity": 1000000,
+						"initial": 1000000,
+						"charge_rate": 5000,
+						"discharge_rate": 5000
+					},
+					{
+						"id": "jump-cell",
+						"capacity": 2400,
+						"initial": 0,
+						"charge_rate": 100,
+						"discharge_rate": 100,
+						"operation_heat_ppm": 1000000
+					}
+				],
+				"generators": [
+					{
+						"id": "reactor",
+						"store": "cell",
+						"maximum_rate": 3000,
+						"response_rate": 3000,
+						"initial_output": 2000
+					}
+				],
+				"links": [
+					{
+						"id": "jump-feed",
+						"from": "cell",
+						"to": "jump-cell",
+						"capacity_rate": 100
+					}
+				]
+			},
+			"combat": {
+				"repair_console": "support",
+				"decks": [
+					{
+						"id": "deck",
+						"weight": 1,
+						"compartments": [
+							{
+								"id": "hull",
+								"x_mm": 0,
+								"y_mm": 0,
+								"half_width_mm": 4000,
+								"half_length_mm": 2000,
+								"hp": 500,
+								"resistance_per_m": 1,
+								"recovery_hp": 100
+							}
+						]
+					}
+				],
+				"connections": [],
+				"destruction": {}
+			},
+			"stations": [
+				{
+					"id": "helm",
+					"consoles": [
+						{
+							"id": "helm",
+							"definition": "test.carrier.console",
+							"systems": [],
+							"feeds": ["engine", "steering", "radar", "radio", "jump"]
+						}
+					]
+				},
+				{
+					"id": "engineering",
+					"consoles": [
+						{
+							"id": "support",
+							"definition": "test.carrier.support",
+							"systems": [],
+							"feeds": ["radar", "team", "reactor", "interceptor-supply", "bomber-supply", "medical"]
+						}
+					]
+				}
+			],
+			"control_layout": {
+				"schema": 1,
+				"controllers": [
+					{
+						"id": "navigation",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "speed_mm_s",
+								"action": "speed_mm_s",
+								"consumers": ["engine"],
+								"initial": 0
+							},
+							{
+								"id": "heading_mdeg",
+								"action": "heading_mdeg",
+								"consumers": ["steering"],
+								"initial": 0
+							}
+						],
+						"fallback": "hold"
+					},
+					{
+						"id": "sensors",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "radar",
+								"action": "system_enabled",
+								"consumers": ["radar"],
+								"initial": 1
+							}
+						],
+						"fallback": "hold"
+					},
+					{
+						"id": "radio",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "radio",
+								"action": "system_enabled",
+								"consumers": ["radio"],
+								"initial": 1
+							}
+						],
+						"fallback": "hold"
+					},
+					{
+						"id": "dispatch",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "dispatch",
+								"action": "system_enabled",
+								"consumers": ["dispatch"],
+								"initial": 1
+							}
+						],
+						"fallback": "hold"
+					},
+					{
+						"id": "flight-operations",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "bay",
+								"action": "system_enabled",
+								"consumers": ["bay"],
+								"initial": 1
+							}
+						],
+						"fallback": "hold"
+					},
+					{
+						"id": "team",
+						"console": "support",
+						"commands": [
+							{
+								"id": "team",
+								"action": "system_enabled",
+								"consumers": ["team"],
+								"initial": 1
+							}
+						],
+						"fallback": "hold"
+					},
+					{
+						"id": "supplies",
+						"console": "support",
+						"commands": [
+							{
+								"id": "reactor",
+								"action": "system_enabled",
+								"consumers": ["reactor"],
+								"initial": 1
+							},
+							{
+								"id": "interceptor-supply",
+								"action": "system_enabled",
+								"consumers": ["interceptor-supply"],
+								"initial": 1
+							},
+							{
+								"id": "bomber-supply",
+								"action": "system_enabled",
+								"consumers": ["bomber-supply"],
+								"initial": 1
+							}
+						],
+						"fallback": "hold"
+					},
+					{
+						"id": "departure",
+						"console": "helm",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 0,
+								"consumers": ["jump"]
+							}
+						]
+					},
+					{
+						"id": "medical",
+						"console": "support",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["medical"]
+							}
+						]
+					}
+				],
+				"default_profile": "watch",
+				"profiles": [
+					{
+						"id": "watch",
+						"consoles": {
+							"helm": {
+								"human": [
+									"navigation",
+									"sensors",
+									"radio",
+									"dispatch",
+									"flight-operations",
+									"departure"
+								]
+							},
+							"support": {
+								"human": ["team", "supplies", "medical"]
+							}
+						}
+					}
+				]
+			},
+			"personnel": {
+				"departments": [
+					{
+						"id": "navigation",
+						"label": "Navigation",
+						"station": "helm"
+					},
+					{
+						"id": "engineering",
+						"label": "Engineering",
+						"station": "engineering"
+					}
+				],
+				"traits": [
+					{
+						"id": "repair",
+						"label": "Repair expertise",
+						"bonuses": {
+							"repair": 100
+						}
+					}
+				],
+				"duties": [
+					{
+						"id": "navigation",
+						"label": "navigation",
+						"controller": "navigation",
+						"console": "helm",
+						"department": "navigation",
+						"compartment": "hull",
+						"effects": {}
+					},
+					{
+						"id": "sensors",
+						"label": "sensors",
+						"controller": "sensors",
+						"console": "helm",
+						"department": "navigation",
+						"compartment": "hull",
+						"effects": {}
+					},
+					{
+						"id": "radio",
+						"label": "radio",
+						"controller": "radio",
+						"console": "helm",
+						"department": "navigation",
+						"compartment": "hull",
+						"effects": {}
+					},
+					{
+						"id": "dispatch",
+						"label": "dispatch",
+						"controller": "dispatch",
+						"console": "helm",
+						"department": "navigation",
+						"compartment": "hull",
+						"effects": {}
+					},
+					{
+						"id": "flight-operations",
+						"label": "flight-operations",
+						"controller": "flight-operations",
+						"console": "helm",
+						"department": "navigation",
+						"compartment": "hull",
+						"effects": {}
+					},
+					{
+						"id": "team",
+						"label": "team",
+						"controller": "team",
+						"console": "support",
+						"department": "engineering",
+						"compartment": "hull",
+						"effects": {}
+					},
+					{
+						"id": "supplies",
+						"label": "supplies",
+						"controller": "supplies",
+						"console": "support",
+						"department": "engineering",
+						"compartment": "hull",
+						"effects": {}
+					},
+					{
+						"id": "departure",
+						"label": "Departure",
+						"controller": "departure",
+						"console": "helm",
+						"department": "navigation",
+						"compartment": "hull",
+						"effects": {}
+					},
+					{
+						"id": "repair-team",
+						"label": "Repair team",
+						"team": "team",
+						"department": "engineering",
+						"compartment": "hull",
+						"effects": {
+							"team": ["repair"]
+						}
+					},
+					{
+						"id": "clinical-team",
+						"label": "Clinical team",
+						"team": "medical",
+						"department": "engineering",
+						"compartment": "hull",
+						"effects": {}
+					},
+					{
+						"id": "medical-controller",
+						"label": "Medical coordination",
+						"controller": "medical",
+						"console": "support",
+						"department": "engineering",
+						"compartment": "hull",
+						"effects": {}
+					}
+				],
+				"officers": [
+					{
+						"id": "engineer",
+						"name": "Flight Engineer",
+						"department": "engineering",
+						"compartment": "hull",
+						"duty": "repair-team",
+						"traits": ["repair"],
+						"condition": "minor"
+					}
+				]
+			},
+			"transport": {
+				"capacity": 24,
+				"compartment": "hull",
+				"capabilities": ["shelter", "repair_tools"],
+				"capability_systems": {
+					"repair_tools": ["team"]
+				}
+			},
+			"logistics": {
+				"controller": "supplies",
+				"materials": [
+					{
+						"id": "exercise.bomber"
+					},
+					{
+						"id": "exercise.interceptor"
+					},
+					{
+						"id": "medical"
+					},
+					{
+						"id": "parts"
+					}
+				],
+				"units_per_second": 100,
+				"concurrency": 8,
+				"batch_size": 20,
+				"stores": [
+					{
+						"id": "main-hold",
+						"controller": "supplies",
+						"compartment": "hull",
+						"capacity": 50000,
+						"main": true,
+						"accepts": ["exercise.bomber", "exercise.interceptor", "medical", "parts"],
+						"initial": {
+							"parts": 0,
+							"medical": 0,
+							"exercise.interceptor": 0,
+							"exercise.bomber": 0
+						},
+						"targets": {
+							"parts": 2000,
+							"medical": 200,
+							"exercise.interceptor": 400,
+							"exercise.bomber": 400
+						}
+					},
+					{
+						"id": "team-kit",
+						"system": "team",
+						"controller": "team",
+						"compartment": "hull",
+						"capacity": 24,
+						"accepts": ["parts"],
+						"initial": {
+							"parts": 0
+						},
+						"targets": {
+							"parts": 24
+						}
+					},
+					{
+						"id": "interceptor-supply",
+						"system": "interceptor-supply",
+						"controller": "supplies",
+						"compartment": "hull",
+						"capacity": 200,
+						"accepts": ["exercise.interceptor"],
+						"targets": {
+							"exercise.interceptor": 200
+						}
+					},
+					{
+						"id": "bomber-supply",
+						"system": "bomber-supply",
+						"controller": "supplies",
+						"compartment": "hull",
+						"capacity": 200,
+						"accepts": ["exercise.bomber"],
+						"targets": {
+							"exercise.bomber": 200
+						}
+					},
+					{
+						"id": "medical-kit",
+						"system": "medical",
+						"controller": "medical",
+						"compartment": "hull",
+						"capacity": 12,
+						"accepts": ["medical"],
+						"initial": {
+							"medical": 0
+						},
+						"targets": {
+							"medical": 12
+						}
+					}
+				],
+				"consumers": [
+					{
+						"system": "team",
+						"store": "team-kit",
+						"costs": {
+							"repair": {
+								"parts": 1
+							},
+							"structural": {
+								"parts": 1
+							}
+						}
+					},
+					{
+						"system": "medical",
+						"store": "medical-kit",
+						"costs": {
+							"treat": {
+								"medical": 1
+							},
+							"stabilise": {
+								"medical": 2
+							}
+						}
+					}
+				]
+			},
+			"docking": {
+				"ports": [
+					{
+						"id": "service",
+						"controller": "navigation",
+						"compartment": "hull",
+						"compatibility": "standard",
+						"x_mm": 6000,
+						"heading_mdeg": 0,
+						"capture_range_mm": 1500,
+						"capture_speed_mm_s": 1000,
+						"mating_ticks": 40,
+						"separation_ticks": 30,
+						"units_per_second": 40,
+						"auto_accept_allies": true,
+						"supply": true,
+						"emergency_release": true,
+						"emergency_damage": 20
 					}
 				]
 			}
@@ -9183,7 +10119,7 @@
 					"ship_slot": "carrier",
 					"target_entity": 1,
 					"conversation": "rescue",
-					"reveal_event": "Please send a repair team. Use a shuttle, or bring your ship alongside.",
+					"reveal_event": "Please send a repair team. Use a shuttle, or dock your ship.",
 					"tree": "test.carrier.away",
 					"deployment_range_mm": 18000,
 					"deployment_ticks": 20,
@@ -9193,7 +10129,91 @@
 							"kind": "team",
 							"required": true
 						}
-					]
+					],
+					"allow_ship_transport": true,
+					"docking_ports": ["service"]
+				}
+			]
+		},
+		{
+			"id": "test.logistics.exercise",
+			"name": "Storage and supply",
+			"description": "Dock for finite ammunition, repair parts and medical supplies, send a cargo shuttle, and deliver a repair party through the dock.",
+			"entities": [
+				{
+					"id": 1,
+					"definition": "test.carrier.casualty",
+					"x_mm": 80000,
+					"y_mm": 30000,
+					"heading_mdeg": 0,
+					"faction": "crew"
+				}
+			],
+			"ship_slots": [
+				{
+					"id": "carrier",
+					"name": "Carrier",
+					"mandatory": true,
+					"allowed_ships": ["test.logistics.ship"],
+					"x_mm": 0,
+					"y_mm": 0,
+					"heading_mdeg": 0,
+					"faction": "crew"
+				}
+			],
+			"factions": [
+				{
+					"id": "crew",
+					"label": "Exercise crew"
+				},
+				{
+					"id": "opposition",
+					"label": "Exercise opposition"
+				}
+			],
+			"relationships": [
+				{
+					"a": "crew",
+					"b": "opposition",
+					"relation": "hostile"
+				}
+			],
+			"conversations": [
+				{
+					"id": "rescue",
+					"tree": "test.carrier.dialogue",
+					"bindings": {
+						"ship": {
+							"slot": "carrier"
+						},
+						"engineer": {
+							"entity": 1,
+							"character": "engineer"
+						}
+					},
+					"members": ["ship", "engineer"]
+				}
+			],
+			"away_missions": [
+				{
+					"id": "repair",
+					"title_key": "Restore the survey ship",
+					"ship_slot": "carrier",
+					"target_entity": 1,
+					"conversation": "rescue",
+					"reveal_event": "Please send a repair team. Use a shuttle, or dock your ship.",
+					"tree": "test.carrier.away",
+					"deployment_range_mm": 18000,
+					"deployment_ticks": 20,
+					"slots": [
+						{
+							"id": "engineers",
+							"kind": "team",
+							"required": true
+						}
+					],
+					"allow_ship_transport": true,
+					"docking_ports": ["service"]
 				}
 			]
 		}
@@ -16882,7 +17902,7 @@
 			"lines": {
 				"intro": {
 					"speaker": "engineer",
-					"text_key": "Please send a repair team. Use a shuttle, or bring your ship alongside.",
+					"text_key": "Please send a repair team. Use a shuttle, or dock your ship.",
 					"incoming_ticks": 20
 				},
 				"done": {
@@ -18393,6 +19413,43 @@
 				{
 					"id": "sortie",
 					"tree": "test.carrier.bomber-flight.execute"
+				}
+			]
+		},
+		{
+			"id": "test.logistics.treat",
+			"context": "team",
+			"initial": "care",
+			"states": [
+				{
+					"id": "care",
+					"running": [
+						{
+							"action": "treat"
+						}
+					],
+					"transitions": [
+						{
+							"target": "done",
+							"conditions": [
+								{
+									"left": {
+										"observation": "work_done"
+									},
+									"op": "eq",
+									"right": true
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "done",
+					"entry": [
+						{
+							"action": "complete"
+						}
+					]
 				}
 			]
 		}

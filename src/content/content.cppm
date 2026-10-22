@@ -193,6 +193,8 @@ enum class ControllerContactField
 	Speed,
 	ObservedTick,
 	Uncertainty,
+	BearingAvailable,
+	BearingMdeg,
 	Count
 };
 enum class ControllerResultField
@@ -428,6 +430,7 @@ struct AwaySlot
 };
 struct SensorDefinition
 {
+	std::int64_t long_range = 0;
 	std::int64_t arc = 360000, bearing = 0;
 	std::string turret;
 	std::map<std::string, std::int64_t> capabilities;
@@ -474,12 +477,48 @@ struct AwayDefinition
 	std::vector<AwaySlot> slots;
 	state_tree::Program program;
 	std::map<std::string, std::size_t> repair_compartments;
-	bool allow_ship_transport = true;
+	bool allow_ship_transport = false;
+	std::vector<std::string> docking_ports;
 	std::string ship_transport_reason;
 	std::int64_t deployment_range = 20000, deployment_ticks = 20;
 };
 state_tree::Registry away_registry(const Json &tree = Json::object());
 std::vector<AwayDefinition> compile_away(const Catalog &, const Json &);
+struct MaterialDefinition
+{
+	std::string id;
+	std::int64_t volume = 1;
+};
+struct MaterialStoreDefinition
+{
+	std::string id, compartment, system, controller;
+	std::int64_t capacity = 0;
+	bool main = false;
+	std::vector<std::string> accepts;
+	std::map<std::string, std::int64_t> initial, targets;
+};
+struct MaterialConsumerDefinition
+{
+	std::string system, store;
+	std::map<std::string, std::map<std::string, std::int64_t>> costs;
+};
+struct LogisticsDefinition
+{
+	std::string controller;
+	std::int64_t throughput = 20, concurrency = 4, batch_size = 10;
+	std::map<std::string, MaterialDefinition> materials;
+	std::vector<MaterialStoreDefinition> stores;
+	std::vector<MaterialConsumerDefinition> consumers;
+};
+LogisticsDefinition compile_logistics(const Catalog &, const std::string &);
+struct DockPortDefinition
+{
+	std::string id, controller, compartment, compatibility;
+	std::int64_t x = 0, y = 0, z = 0, heading = 0, capture_range = 1000, capture_speed = 500, alignment = 5000,
+	             mating_ticks = 20, separation_ticks = 20, throughput = 20, emergency_damage = 0;
+	bool auto_accept_allies = false, supply = false, emergency_release = false;
+};
+std::vector<DockPortDefinition> compile_docking(const Catalog &, const std::string &);
 struct TransportDefinition
 {
 	std::string compartment;
@@ -497,6 +536,9 @@ struct CraftSupplyDefinition
 {
 	std::string source, destination;
 	std::int64_t rate = 0;
+	std::size_t source_store = 0;
+	std::string material;
+	std::map<std::string, std::size_t> destination_stores;
 };
 struct CraftBayDefinition
 {
@@ -513,6 +555,33 @@ void expand_transport_fittings(Catalog &);
 TransportDefinition compile_transport(const Catalog &, const std::string &);
 std::optional<CraftDefinition> compile_craft(const Catalog &, const std::string &);
 std::map<std::string, CraftBayDefinition> compile_craft_bays(const Catalog &, const std::string &);
+struct PsychicPowerDefinition
+{
+	std::string id, kind, label, apparent_class = "Unidentified contact";
+	std::int64_t strength = 700, energy = 100, recovery_ticks = 100, ghosts = 3;
+	std::int64_t offset = 20000, spacing = 8000, speed = 10000, acceleration = 2000, turn_rate = 10000;
+	std::int64_t radius = 2000, scan_ticks = 100, fade_ticks = 20;
+};
+struct ChoirSeatDefinition
+{
+	std::string duty;
+	std::size_t controller = 0, enabled = 0, target = 0;
+	std::optional<std::size_t> planner;
+	std::size_t planning_enabled = 0, planning_target = 0;
+};
+struct ChoirDefinition
+{
+	std::string id, compartment, planning_controller;
+	std::set<std::string> powers;
+	std::int64_t range = 500000, arc = 90000;
+	std::vector<ChoirSeatDefinition> seats;
+};
+struct PsychicDefinition
+{
+	std::map<std::string, PsychicPowerDefinition> powers;
+	std::map<std::string, ChoirDefinition> choirs;
+};
+PsychicDefinition compile_psychic(const Catalog &, const std::string &);
 struct OfficerTrait
 {
 	std::string id, label;
@@ -524,13 +593,13 @@ struct PersonnelDepartment
 };
 struct PersonnelDuty
 {
-	std::string id, label, department, controller, team, compartment, console, required_trait;
+	std::string id, label, department, controller, team, compartment, console, required_trait, choir;
 	std::map<std::string, std::vector<std::string>> effects;
 };
 struct OfficerDefinition
 {
 	std::string id, name, portrait, department, duty, compartment;
-	std::string condition = "healthy";
+	std::string condition = "healthy", power;
 	std::vector<std::string> traits;
 	std::map<std::string, std::int64_t> bonuses;
 };
@@ -730,7 +799,7 @@ struct CombatDefinition
 	std::map<std::string, std::size_t> compartment_ids, system_ids;
 	std::map<std::string, std::string> equipment_compartments;
 	std::map<std::string, std::vector<FaultDefinition>> faults;
-	std::string repair_console;
+	std::string repair_console, access_controller;
 	std::int64_t collision_scale = 1, collision_threshold = 1000, half_height = 5000;
 	DestructionDefinition destruction;
 };

@@ -44,6 +44,8 @@ void refresh_boarding_templates()
 					d.target = target;
 					d.retain_craft = b.retain_craft;
 					d.boarding = b;
+					d.docking_ports = definition(target).boarding_docking_ports.at(b.id);
+					d.allow_ship_transport = !d.docking_ports.empty();
 					d.program = b.program;
 					d.slots = b.slots;
 					d.repair_compartments = b.compartments;
@@ -237,14 +239,14 @@ void advance_boarding(std::size_t index)
 		m.outcome = "fail:Boarding party lost";
 		return;
 	}
-	if (s.travel && --s.travel == 0)
+	if (s.travel && physical_edge_open(target, s.location, s.edge_to) && --s.travel == 0)
 	{
 		s.location = s.edge_to;
 		s.edge_to = -1;
 	}
 	if (s.destination >= 0 && s.location != s.destination && !s.travel)
 	{
-		const auto route = compartment_route(pd.compartments.size(), pd.links, s.location, s.destination);
+		const auto route = physical_route(target, pd.compartments.size(), pd.links, s.location, s.destination);
 		if (route.first < 0)
 		{
 			m.outcome = "fail:Boarding route unavailable";

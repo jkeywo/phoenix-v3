@@ -27,6 +27,13 @@ std::map<std::string, SensorDefinition> compile_sensors(const Catalog &catalog, 
 		{
 			const auto &j = hull.at("systems").at(fit.id);
 			SensorDefinition d;
+			if (j.contains("long_range_mm"))
+			{
+				sensor_require(j.at("long_range_mm").is_number_integer(), "long_range_mm must be an integer");
+				d.long_range = j.at("long_range_mm");
+				sensor_require(d.long_range > fit.maximum && d.long_range <= 1000000000,
+				               "long_range_mm must exceed range_mm and be within coordinate limits");
+			}
 			d.arc = j.value("arc_mdeg", 360000LL);
 			d.bearing = j.value("bearing_mdeg", 0LL);
 			d.turret = j.value("turret", std::string{});

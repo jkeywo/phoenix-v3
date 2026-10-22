@@ -11,7 +11,9 @@
 | Tactical    | Five kinetic turrets, eight flank PDCs, six four-tube missile banks, magazines, Flight operations and two Security teams |
 | Engineering | One reactor/core network, distribution, local reserves, cooling, finite craft ammunition supplies and four repair teams  |
 | Science     | Broad radar, focused scanners, four shield sectors, qualified displacement, two Medical teams and a four-place infirmary |
-| Comms       | Powered radio, conversations, away decisions and Dispatch                                                                |
+| Comms       | Powered radio, conversations, psychic choir, away decisions and Dispatch                                                 |
+
+Comms also owns the [psychic choir](psychic-choir.md): Thalia Venn sustains Veil, Severin Ash projects phantom ships and Mara Sable wards one ship. Their separate choir seats use ordinary personnel travel and Medical availability. A dedicated reserve, supply link and cooling link connect the apparatus to Engineering. Simple and Middle expose planning intent with ordinary AI execution; Detailed exposes each power directly.
 
 The auxiliary Navigator Console remains attached to Science and controls FTL mission departure. Each station keeps its ordinary complexity profiles, Controller authority, permitted observations and department-scoped duty officers. Simple delegates shields and routine repairs; deeper profiles expose their controls. Vacant stations use their ordinary Controller policies.
 
@@ -21,7 +23,7 @@ Two utility shuttles occupy the utility bay. Four interceptors and two bombers o
 
 The connected interior binds equipment and duties to engines, engineering, hangar, magazines, passage, Medical, sensors, bridge and weapons spaces. Science owns two Medical teams and their officers, with field treatment, stabilisation, escorted infirmary recovery and supported away contributions. Tactical owns two Security teams and their officers for away assignments and target-authored boarding. Damage can injure duty officers through the production casualty policy; ordinary repairs do not heal injuries or replace lost personnel.
 
-The Cruiser can select the existing **Boarding action** exercise, with collision-safe target placement. Its utility shuttles obey the same below-half-hull boarding insertion rule as the existing finite transports; recovery does not repeat that insertion restriction. The Cruiser itself authors bridge-seizure and reactor-occupation encounters defended by its actual Security teams. Dispatch and Comms retain manifest and objective decisions. Local jumps, psychic operations and the three introductory missions remain deferred.
+The Cruiser can select the existing **Boarding action** exercise, with collision-safe target placement. Its utility shuttles obey the same below-half-hull boarding insertion rule as the existing finite transports; recovery does not repeat that insertion restriction. The Cruiser itself authors bridge-seizure and reactor-occupation encounters defended by its actual Security teams. Dispatch and Comms retain manifest and objective decisions. Local jumps and the three introductory missions remain deferred.
 
 ## Combat test
 

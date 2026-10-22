@@ -32,9 +32,9 @@ Disabled or damaged bays pause operations. Deployed craft retain ordinary power,
 
 ## Away transport
 
-Away assignments offer displacement, available individual shuttles and **Own ship (manual flight)**. Ship transport is allowed by default. Missions can set `allow_ship_transport: false` and a `ship_transport_reason`, for example atmospheric access. `deployment_range_mm` defaults to 20000 and `deployment_ticks` to 20.
+Away assignments offer displacement, available individual shuttles and **Own ship — docking**. Large-ship transport requires `allow_ship_transport: true` and `docking_ports` naming acceptable ports on the target. Other missions leave it disabled and may supply a `ship_transport_reason`, for example atmospheric access. `deployment_range_mm` defaults to 20000 and `deployment_ticks` to 20.
 
-Selecting the ship never issues navigation commands. Helm must manually reach the deployment envelope before Send is accepted, and return there for pickup. Ship transport uses no bay slot. Shuttle passengers stage at the bay, embark, travel, disembark and are recovered only after collection and docking.
+Selecting the ship never issues navigation commands. Helm completes docking at a mission-compatible port before Send or pickup is accepted. Optional docking assistance and manual takeover use the ordinary flight Controllers. Ship transport uses no bay slot. See [Storage, logistics and docking](storage-logistics.md). Shuttle passengers stage at the bay, embark, travel, disembark and are recovered only after collection and docking.
 
 Entity `transport` metadata provides `capacity`, an optional personnel `compartment`, `capabilities` tags and `capability_systems` bindings from tags to required fitted Systems. Capacity counts teams, individual officers and accompanying officers, matching the displacement manifest convention.
 
@@ -44,7 +44,7 @@ Delivered shuttles remain committed by default. `release_transport("reason")` pe
 
 Human `craft.defend`, `craft.escort`, `craft.bomb` and `craft.recall` commands use the craft identity as `system`, observed revision as `value`, and normal Controller identity/generation. Targeted orders carry an entity ID as decimal `text`. AI actions take `(craft identity text, target text, revision integer)` through the same admission path. Existing away commands retain their interface; transport text is a displacement System ID, `ship` or `craft:<entity ID>`.
 
-World schema 15 stores craft continuation schema 2 and Away schema 9. Craft-bearing saves require matching identities, bay membership, orders, passenger commitments and servicing records. Older ordinary-craft/displacement saves retain supported migrations. Legacy physical-craft roster saves require a new game; legacy transport authoring is compiled into this shared runtime. Boarding torpedoes have a terminal `consumed` phase and require another method for party extraction.
+World schema 16 stores craft continuation schema 2 and Away schema 10. Craft-bearing saves require matching identities, bay membership, orders, passenger commitments and servicing records. Older ordinary-craft/displacement saves retain supported migrations. Legacy physical-craft roster saves require a new game; legacy transport authoring is compiled into this shared runtime. Boarding torpedoes have a terminal `consumed` phase and require another method for party extraction.
 
 ## Exercise and validation
 

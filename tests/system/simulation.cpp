@@ -206,7 +206,7 @@ int main(int argc, char **)
 			require(world.claim(1, 1, "helm") && world.observe(1)->requested_speed == 3000,
 			        "released System controller resumes independently");
 			auto saved = world.save();
-			require(saved["schema"] == 15, "explicit Stations use versioned save state");
+			require(saved["schema"] == 17, "explicit Stations use versioned save state");
 			World resumed;
 			resumed.restore(content, saved);
 			require(resumed.save() == saved, "Console claims and independent controllers survive round-trip");
@@ -314,7 +314,7 @@ int main(int argc, char **)
 			require(world.observe(3)->systems[0].requested == 1000,
 			        "the sibling's ordinary controller cannot write the human's instance");
 			auto saved = world.save();
-			require(saved["schema"] == 15 && saved["bodies"][0]["systems"]["starboard"]["speed"] == 3000,
+			require(saved["schema"] == 17 && saved["bodies"][0]["systems"]["starboard"]["speed"] == 3000,
 			        "instance save records preserve independently controlled machinery");
 			World resumed;
 			resumed.restore(data, saved);
@@ -655,7 +655,7 @@ int main(int argc, char **)
 				}
 				if (tick == 11)
 					world->release(77);
-				if (tick == 16)
+				if (tick == 17)
 					world->claim(88, 12);
 				if (tick == 21)
 					world->clear_claims();
@@ -666,7 +666,7 @@ int main(int argc, char **)
 			trace.push_back(ordered.save().at("bodies"));
 		}
 
-		for (int schema = 1; schema < 13; ++schema)
+		for (int schema = 1; schema < 17; ++schema)
 		{
 			auto legacy = ordered.save();
 			legacy["schema"] = schema;
@@ -680,7 +680,7 @@ int main(int argc, char **)
 			{
 				refused = true;
 			}
-			require(refused, "legacy authority saves require explicit migration");
+			require(refused, "retired World saves require a new session");
 		}
 		World mixed_resume;
 		mixed_resume.restore(mixed_content, ordered.save());

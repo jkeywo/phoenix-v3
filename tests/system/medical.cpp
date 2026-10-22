@@ -306,7 +306,7 @@ void clinical_execution_regressions(Json &trace)
 			migrated.restore(catalog, old);
 			const auto upgraded = migrated.save();
 			const auto &care = upgraded["away_missions"][0]["care"]["medical"];
-			require(upgraded["away_missions"][0]["schema"] == 9 &&
+			require(upgraded["away_missions"][0]["schema"] == 10 &&
 			            care["continuation"]["instance"]["initialised"] == false &&
 			            care["location"] == mission["care"]["medical"]["location"] &&
 			            care["travel"] == mission["care"]["medical"]["travel"] &&
@@ -459,6 +459,63 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		{
+			auto source = medical_fixture();
+			auto &ship = source["entities"][0];
+			for (auto &officer : ship["personnel"]["officers"])
+			{
+				officer["duty"] = "";
+				officer["compartment"] = "workshop";
+				officer["condition"] = "minor";
+			}
+			ship["logistics"] = Json::parse(R"({"controller":"medical","materials":[{"id":"medical"}],
+              "stores":[{"id":"kit","system":"medical","compartment":"workshop","capacity":2,"accepts":["medical"],"initial":{"medical":1}}],
+              "consumers":[{"system":"medical","store":"kit","costs":{"treat":{"medical":1},"stabilise":{"medical":1}}}]})");
+			const auto catalog = load(source);
+			World supplied;
+			supplied.load(catalog, "test.map", {{"crew", "test.away"}});
+			claim(supplied);
+			ticks(supplied, 3);
+			World resumed;
+			resumed.restore(catalog, supplied.save());
+			ticks(supplied, 20);
+			ticks(resumed, 20);
+			require(supplied.save() == resumed.save(), "Paid medical work resumes without charging twice");
+			const auto a = officer(supplied, 2, 0), b = officer(supplied, 2, 1);
+			require((a["condition"] == "healthy") != (b["condition"] == "healthy"),
+			        "One medical supply heals one patient and depletion blocks the next");
+		}
+		{
+			auto source = medical_fixture();
+			source["entities"][0]["logistics"] = Json::parse(
+			    R"({"controller":"medical","materials":[{"id":"medical"}],"stores":[{"id":"kit","system":"medical","compartment":"workshop","capacity":10,"accepts":["medical"]}]})");
+			const auto catalog = load(source);
+			World closed;
+			closed.load(catalog, "test.map", {{"crew", "test.away"}});
+			claim(closed);
+			require(closed.submit(102, command(closed, "order", "treat/bridge")), "Clinical order begins real travel");
+			ticks(closed, 1);
+			auto route = [&](const std::string &mode)
+			{
+				const auto o = *closed.observe(102);
+				OperatingCommand c{2, "logistics.route", o.gameplay.at("logistics").at("revision"), "bridge"};
+				c.console = "observer";
+				c.controller = "medical";
+				c.text = "workshop/" + mode;
+				for (const auto &ctrl : o.gameplay.at("controllers"))
+					if (ctrl.at("id") == "medical")
+						c.generation = ctrl.at("generation");
+				return c;
+			};
+			require(closed.submit(102, route("close")), "Close a route during clinical transit");
+			ticks(closed, 12);
+			require(officer(closed, 2, 0)["treatment"] == 0 && officer(closed, 2, 0)["condition"] == "minor",
+			        "Clinical teams cannot cross a deliberate delivery-route seal");
+			require(closed.submit(102, route("open")), "Authorise the shared route reopening");
+			ticks(closed, 20);
+			require(officer(closed, 2, 0)["condition"] == "healthy",
+			        "Clinical work resumes after authorised reopening");
+		}
 		Json trace = Json::array();
 		clinical_execution_regressions(trace);
 		patient_selection_regressions();

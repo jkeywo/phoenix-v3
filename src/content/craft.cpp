@@ -270,6 +270,23 @@ std::map<std::string, CraftBayDefinition> compile_craft_bays(const Catalog &cata
 			                        craft_number(s, "rounds_per_second", 1, 1, 1000000)};
 			const auto &source = e.at("systems").at(a.source);
 			craft_require(source.value("kind", a.source) == "magazine", "ammunition source must be a magazine");
+			auto binding = [&](const std::string &definition, const std::string &magazine)
+			{
+				const auto logistics = compile_logistics(catalog, definition);
+				for (std::size_t index = 0; index < logistics.stores.size(); ++index)
+					if (logistics.stores[index].system == magazine)
+						return std::pair{index, logistics.materials.at(logistics.stores[index].accepts.front())};
+				throw std::runtime_error(id + "." + key + ".ammunition: " + definition + "." + magazine +
+				                         " requires a magazine-bound logistics store");
+			};
+			MaterialDefinition material;
+			if (!catalog.presentation)
+			{
+				const auto bound = binding(id, a.source);
+				a.source_store = bound.first;
+				material = bound.second;
+				a.material = material.id;
+			}
 			bool recipient = false;
 			for (const auto &name : d.initial)
 			{
@@ -278,6 +295,13 @@ std::map<std::string, CraftBayDefinition> compile_craft_bays(const Catalog &cata
 					continue;
 				const auto &target = systems.at(a.destination);
 				recipient = true;
+				if (!catalog.presentation)
+				{
+					const auto bound = binding(name, a.destination);
+					craft_require(bound.second.id == material.id && bound.second.volume == material.volume,
+					              id + "." + key + ".ammunition: incompatible logistics materials for " + name);
+					a.destination_stores.emplace(name, bound.first);
+				}
 				craft_require(target.value("kind", a.destination) == "magazine",
 				              "ammunition destination must be a magazine");
 				craft_require(!source.value("ammunition_type", std::string{}).empty() &&

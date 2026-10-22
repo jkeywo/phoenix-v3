@@ -131,10 +131,14 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 		d.required_trait = v.value("required_trait", std::string{});
 		fail(d.required_trait.empty() || out.traits.contains(d.required_trait), "unknown required trait");
 		d.team = v.value("team", std::string{});
+		d.choir = v.value("choir", std::string{});
 		fail(duties.insert(d.id).second && departments.contains(d.department) &&
 		         std::find(out.compartments.begin(), out.compartments.end(), d.compartment) != out.compartments.end(),
 		     "invalid duty identity, department or compartment");
-		fail(d.controller.empty() != d.team.empty(), "duty requires exactly one Controller or team");
+		fail((!d.controller.empty()) + (!d.team.empty()) + (!d.choir.empty()) == 1,
+		     "duty requires exactly one Controller, team or choir");
+		if (!d.choir.empty())
+			fail(kinds.contains(d.choir) && kinds.at(d.choir) == OperatingSystem::Psychic, "unknown choir apparatus");
 		if (!d.controller.empty())
 		{
 			const auto c =
@@ -168,7 +172,7 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 			fail(seat != seats.end() && seat->station == dept->station,
 			     "Controller department belongs to another Station");
 		}
-		else
+		else if (!d.team.empty())
 			fail(kinds.contains(d.team) && kinds.at(d.team) == OperatingSystem::Team && teams.insert(d.team).second,
 			     "unknown or duplicate team duty");
 		if (!d.team.empty())
@@ -217,6 +221,7 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 		fail(o.name.size() <= 64, "officer name too long");
 		o.department = identifier(v.at("department"));
 		o.duty = v.value("duty", std::string{});
+		o.power = v.value("power", std::string{});
 		o.compartment = identifier(v.at("compartment"));
 		o.condition = v.value("condition", std::string{"healthy"});
 		fail(o.condition == "healthy" || o.condition == "minor" || o.condition == "severe",

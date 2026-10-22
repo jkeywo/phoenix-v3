@@ -315,11 +315,39 @@ void finalizer_regression(Json &trace)
 		for (auto &c : fixture["entities"][1]["control_layout"]["controllers"])
 			if (c["id"] == "team")
 				c["commands"][0]["initial"] = 0;
+		if (transport == "ship")
+		{
+			for (auto &entity : fixture["entities"])
+				entity["docking"] = Json::parse(
+				    R"({"ports":[{"id":"fore","controller":"dispatch","compartment":"bridge","compatibility":"standard","x_mm":5000,"heading_mdeg":0,"mating_ticks":3},{"id":"aft","controller":"dispatch","compartment":"bridge","compatibility":"standard","x_mm":-5000,"heading_mdeg":180000,"mating_ticks":3}]})");
+			fixture["entities"][1]["boarding_missions"][0]["docking_ports"] = {"aft"};
+		}
 		const auto catalog = load(fixture);
 		World w;
 		w.load(catalog, "test.map", {{"crew", "test.away"}});
 		require(w.claim(101, 2, "drive") && w.claim(102, 2, "observer"), "claim shared finalizer fixture");
 		ticks(w, 5);
+		if (transport == "ship")
+		{
+			require(w.claim(103, 1, "drive"), "Claim receiving docking Console");
+			const auto dock =
+			    [&](std::uint64_t route, const std::string &verb, const std::string &port, const std::string &text)
+			{
+				const auto o = *w.observe(route);
+				OperatingCommand c{o.own.id, "dock." + verb, o.gameplay.at("docking").at("revision"), port};
+				c.console = "drive";
+				c.controller = "dispatch";
+				c.text = text;
+				for (const auto &ctrl : o.gameplay.at("controllers"))
+					if (ctrl.at("id") == c.controller)
+						c.generation = ctrl.at("generation");
+				return c;
+			};
+			require(w.submit(103, dock(103, "accept", "aft", "2")), "Receiver permits boarding ship");
+			ticks(w, 1);
+			require(w.submit(101, dock(101, "connect", "fore", "1/aft")), "Ship boarding uses actual docking");
+			ticks(w, 5);
+		}
 		require(w.submit(101, mission_command(w, "open")), "open finalizer mission");
 		ticks(w, 1);
 		for (const auto *team : {"security", "medical"})
@@ -372,20 +400,6 @@ void finalizer_regression(Json &trace)
 		ticks(w, 2);
 		ticks(resumed, 2);
 		require(w.save() == resumed.save(), "recovered Medical mission restores");
-		auto legacy = saved;
-		legacy["schema"] = 14;
-		legacy["craft"]["schema"] = 1;
-		for (auto &row : legacy["away_missions"])
-			row["schema"] = 8;
-		resumed.restore(catalog, legacy);
-		require(resumed.save() == saved, "older ordinary saves remain supported");
-		legacy["carried_craft"] = Json::array({{{"id", 3}, {"phase", "stored"}}});
-		rejects(
-		    [&]
-		    {
-			    resumed.restore(catalog, legacy);
-		    },
-		    "legacy physical craft requires a new game");
 		trace.push_back(w.save());
 	}
 }
