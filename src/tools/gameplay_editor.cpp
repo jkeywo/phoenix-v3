@@ -1072,7 +1072,7 @@ struct GameplayEditor
 				if (ship.contains("craft"))
 				{
 					auto &c = ship["craft"];
-					choice(c, "role", {"shuttle", "interceptor", "bomber"});
+					choice(c, "role", {"shuttle", "interceptor", "bomber", "boarding_torpedo"});
 					integer(c, "vertical_speed_mm_s", 10000);
 					integer(c, "vertical_acceleration_mm_s2", 5000);
 					integer(c, "cruise_altitude_mm", 15000);

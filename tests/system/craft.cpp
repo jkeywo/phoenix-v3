@@ -360,6 +360,9 @@ int main(int argc, char **argv)
 			require(ferry.submit(101, command(ferry, "away", "transport", "job", "craft:" + second)),
 			        "select a different compatible pickup shuttle");
 			ticks(ferry, 1);
+			World rebound;
+			rebound.restore(release_catalog, ferry.save());
+			require(rebound.save() == ferry.save(), "replacement transport binding restores before pickup");
 			require(ferry.submit(101, command(ferry, "away", "recall", "job")), "dispatch replacement pickup");
 			for (int t = 0; t < 500 && missions(ferry)[0].at("phase") != "recovered"; ++t)
 				ferry.tick();

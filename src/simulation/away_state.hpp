@@ -5,8 +5,6 @@ struct DisplacementDefinition
 {
 	std::string compartment;
 	std::int64_t range = 0, capacity = 0, ticks = 0;
-	std::string mode = "displacement", craft;
-	std::int64_t count = 1, arrival_distance = 5000, arrival_speed = 1000, cruise_speed = 10000;
 };
 enum class AwayPhase
 {
@@ -67,17 +65,10 @@ struct BoardingState
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(BoardingState, location, destination, edge_to, travel, assessment, chance, defenders,
                                    encounter, encounter_done, encounter_success, assessed, reported, captured,
                                    prize_crew, outcomes, neutralised, factors, secured, assessment_message)
-struct CarriedCraft
-{
-	EntityId id = 0, carrier = 0;
-	std::string transport, phase = "stored", mission;
-};
-NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(CarriedCraft, id, carrier, transport, phase, mission)
 struct AwayMission
 {
 	std::map<std::string, AwayCare> care;
 	BoardingState boarding;
-	EntityId craft = 0;
 	AwayPhase phase = AwayPhase::Hidden;
 	std::string transport, checkpoint, outcome, work_key, repair_compartment;
 	std::map<std::string, std::string> assignments;
@@ -85,24 +76,23 @@ struct AwayMission
 	std::uint64_t revision = 1, sequence = 0;
 	std::int64_t transfer = 0, work = 0, progress = 0;
 	// Remains true during a queued redeployment, until the next successful delivery.
-	bool recovered = false, returning_without_delivery = false;
+	bool recovered = false;
 	bool ever_deployed = false;
 	bool aboard_craft = false, transport_released = false;
 	std::set<std::string> participants;
 	bool deployed() const
 	{
-		return (phase == AwayPhase::Deployed || phase == AwayPhase::Inbound) && !aboard_craft &&
-		       !returning_without_delivery;
+		return (phase == AwayPhase::Deployed || phase == AwayPhase::Inbound) && !aboard_craft;
 	}
 	bool absent() const
 	{
-		return deployed() || aboard_craft || (phase == AwayPhase::Outbound && craft);
+		return deployed() || aboard_craft;
 	}
 	state_tree::Instance continuation;
 	std::set<std::string> effects;
 };
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(AwayMission, phase, transport, checkpoint, outcome, work_key, repair_compartment,
                                    assignments, accompanying, revision, sequence, transfer, work, progress, recovered,
-                                   effects, ever_deployed, participants, care, boarding, craft,
-                                   returning_without_delivery, aboard_craft, transport_released)
+                                   effects, ever_deployed, participants, care, boarding, aboard_craft,
+                                   transport_released)
 } // namespace phoenix

@@ -70,6 +70,10 @@ int main(int argc, char **argv)
 		};
 		auto action = [&](const std::string &id)
 		{
+			if (app.focus_control)
+				app.focus_control(id);
+			frame();
+			frame();
 			for (const auto &control : app.screen_controls)
 				if (control.first == id)
 				{
@@ -77,6 +81,13 @@ int main(int argc, char **argv)
 					if (app.screen_action(copy))
 						return;
 				}
+			TakeScreenshot("boarding-ui-failure.png");
+			for (const auto &control : app.screen_controls)
+				if (control.first.find("away") != std::string::npos)
+					std::cerr << "Control: " << control.first << '\n';
+			const auto view = app.session->console_observation(1);
+			std::cerr << "Boarding missions: " << view->gameplay.value("away_missions", Json::array()).dump()
+			          << " Flight operations: " << view->gameplay.value("craft", Json::array()).dump() << '\n';
 			throw std::runtime_error("Missing/refused boarding UI action: " + id);
 		};
 		advance(20);
@@ -121,8 +132,8 @@ int main(int argc, char **argv)
 		{
 			const auto container = read_pack(app.session->save()).draft();
 			const auto state = parse_json(container.files.at("session.json"), "boarding diagnosis").at("state");
-			std::cerr << "Craft: " << state.at("carried_craft").dump()
-			          << " Missions: " << state.at("away_missions").dump() << '\n';
+			std::cerr << "Craft: " << state.at("craft").dump() << " Missions: " << state.at("away_missions").dump()
+			          << '\n';
 			for (const auto &body : state.at("bodies"))
 				std::cerr << "Body: " << body.at("body").dump() << '\n';
 			throw std::runtime_error("Physical boarding delivery did not finish");

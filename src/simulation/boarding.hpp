@@ -211,6 +211,20 @@ void boarding_field_care(EntityId origin, AwayMission &mission, bool can_work)
 		care.work_done = !triage_patient(origin, {}, order, care.activity, {}, {}, &party).has_value();
 	}
 }
+bool boarding_defender_available(EntityId ship, flecs::entity team) const
+{
+	const auto *m = team.try_get<CombatMechanism>();
+	if (!m || m->definition.kind != OperatingSystem::Team || !team.get<Equipment>().enabled ||
+	    !m->definition.get<TeamDefinition>().capabilities.contains("security") || !team_effectiveness(*m) ||
+	    m->get<TeamState>().detained)
+		return false;
+	for (std::size_t i = 0; i < away_missions.size(); ++i)
+		if (away_ship(away_definitions[i]) == ship)
+			for (const auto &[slot, asset] : away_missions[i].assignments)
+				if (asset == "team:" + m->definition.id)
+					return false;
+	return true;
+}
 void advance_boarding(std::size_t index)
 {
 	const auto &d = away_definitions[index];
@@ -253,15 +267,7 @@ void advance_boarding(std::size_t index)
 	for (const auto &key : e.defenders)
 	{
 		const auto team = away_equipment(target, key);
-		const auto &mech = team.get<CombatMechanism>();
-		if (!team.get<Equipment>().enabled || !team_effectiveness(mech))
-			continue;
-		bool elsewhere = false;
-		for (std::size_t i = 0; i < away_missions.size(); ++i)
-			if (away_ship(away_definitions[i]) == target)
-				for (const auto &[slot, asset] : away_missions[i].assignments)
-					elsewhere |= asset == "team:" + key;
-		if (elsewhere)
+		if (!boarding_defender_available(target, team))
 			continue;
 		auto &r = team.get_mut<CombatMechanism>().get<TeamState>();
 		if (!advance_repair_team(entities.at(target), team))
@@ -498,9 +504,9 @@ void capture_boarded_ship(std::size_t index, bool prize)
 	m.boarding.captured = true;
 	m.boarding.prize_crew = prize;
 	target.set<FactionMembership>({entities.at(origin).get<FactionMembership>().id});
-	for (const auto &c : carried_craft)
-		if (c.carrier == d.target)
-			entities.at(c.id).set<FactionMembership>(target.get<FactionMembership>());
+	for (const auto &[id, craft] : craft_rows())
+		if (craft.get<CraftState>().home == d.target)
+			craft.set<FactionMembership>(target.get<FactionMembership>());
 	std::vector<std::uint64_t> revoke;
 	for (const auto &[claim, address] : claims)
 		if (address.ship == d.target)
@@ -574,14 +580,12 @@ bool boarding_contested(std::size_t index, std::size_t location) const
 	const auto &d = away_definitions[index];
 	const auto &s = away_missions[index].boarding;
 	for (auto child : entities.at(d.target).get<EquipmentIndex>().values)
-		if (const auto *m = child.try_get<CombatMechanism>();
-		    m && m->definition.kind == OperatingSystem::Team &&
-		    m->definition.get<TeamDefinition>().capabilities.contains("security") && child.get<Equipment>().enabled &&
-		    team_effectiveness(*m))
+		if (boarding_defender_available(d.target, child))
 		{
-			const auto &r = m->get<TeamState>();
+			const auto &m = child.get<CombatMechanism>();
+			const auto &r = m.get<TeamState>();
 			if (r.location == static_cast<std::int64_t>(location) && !r.travel &&
-			    (!s.neutralised.contains(m->definition.id) || s.neutralised.at(m->definition.id) != r.revision))
+			    (!s.neutralised.contains(m.definition.id) || s.neutralised.at(m.definition.id) != r.revision))
 				return true;
 		}
 	return false;

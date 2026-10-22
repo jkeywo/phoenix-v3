@@ -206,7 +206,7 @@ int main(int argc, char **)
 			require(world.claim(1, 1, "helm") && world.observe(1)->requested_speed == 3000,
 			        "released System controller resumes independently");
 			auto saved = world.save();
-			require(saved["schema"] == 14, "explicit Stations use versioned save state");
+			require(saved["schema"] == 15, "explicit Stations use versioned save state");
 			World resumed;
 			resumed.restore(content, saved);
 			require(resumed.save() == saved, "Console claims and independent controllers survive round-trip");
@@ -314,7 +314,7 @@ int main(int argc, char **)
 			require(world.observe(3)->systems[0].requested == 1000,
 			        "the sibling's ordinary controller cannot write the human's instance");
 			auto saved = world.save();
-			require(saved["schema"] == 14 && saved["bodies"][0]["systems"]["starboard"]["speed"] == 3000,
+			require(saved["schema"] == 15 && saved["bodies"][0]["systems"]["starboard"]["speed"] == 3000,
 			        "instance save records preserve independently controlled machinery");
 			World resumed;
 			resumed.restore(data, saved);

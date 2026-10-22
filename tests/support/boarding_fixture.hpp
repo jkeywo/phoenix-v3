@@ -196,6 +196,8 @@ inline Json boarding_craft_fixture(const std::string &mode)
 	source["personnel"]["officers"].push_back(relief);
 	auto &bay = s["entities"][0]["systems"]["transport"];
 	bay["kind"] = "transport";
+	bay["observation_console"] = "observer";
+	source["stations"][1]["consoles"][0]["feeds"].push_back("transport");
 	bay["mode"] = mode;
 	bay["craft"] = "test.craft";
 	bay["count"] = 1;

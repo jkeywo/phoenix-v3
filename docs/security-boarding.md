@@ -9,10 +9,10 @@ A target hull authors `boarding_missions`. Dispatch discovers its templates when
 Transport uses existing manifest staging, capacity and transfer ordering:
 
 - Displacement retains its qualification, range, power and obstructing shield checks.
-- A `kind: "transport", mode: "shuttle"` bay permits boarding only when total target compartment HP is strictly below 50% of total maximum HP. Recovery does not reapply that insertion gate.
+- A `kind: "transport", mode: "shuttle"` bay permits boarding only when total target compartment HP is strictly below 50% of total maximum HP. Manually flown own-ship boarding uses the same health gate. Recovery does not reapply that insertion gate.
 - `mode: "boarding_torpedo"` bypasses the shield/HP insertion gates. The torpedo is spent once launched and never returns. Airborne cancellation is refused; after delivery the team must bind another transport for extraction.
 
-Physical bays author `craft`, finite `count`, `range_mm`, `capacity`, `transfer_ticks`, `compartment`, `arrival_distance_mm`, `arrival_speed_mm_s`, and `cruise_speed_mm_s`. Craft are ordinary inertial entities with real collision, flight Controllers, sensors, resources and optional combat structure. A dedicated AI follow-contact Controller must have an idle tree; transport guidance uses that existing command path. Actual proximity and relative speed are required before transfer finishes. Disabled or destroyed craft cannot teleport their passengers to the target. A destroyed occupied craft loses its manifest.
+Physical bays author `craft`, finite `count`, `range_mm`, `capacity`, `transfer_ticks`, `compartment`, `arrival_distance_mm`, `arrival_speed_mm_s`, and `cruise_speed_mm_s`. Craft are ordinary inertial entities with real collision, flight Controllers, sensors, resources and optional combat structure. Legacy fittings compile into ordinary craft/bay definitions. Their dedicated Follow command runs through an ordinary Controller policy using the shared target and altitude observations. Approach ports include hull clearance; authored arrival distance and speed still gate transfer and docking. Actual proximity and relative speed are required before transfer finishes. Disabled or destroyed craft cannot teleport their passengers to the target. A destroyed occupied craft loses its manifest.
 
 `retain_craft` defaults to true on missions/templates. A retained shuttle stays committed at the target for recovery. With false it physically returns empty after delivery. Binding a different extraction transport releases the retained craft to fly home; finishing mission work alone does not free a retained shuttle. Cancelled airborne shuttle insertion returns the passengers physically before releasing their reservation. Boarding torpedoes can be cancelled only while queued before launch; launched torpedoes cannot return or be reused.
 
@@ -48,7 +48,7 @@ Workshop exposes target templates, slot filters, encounters, objectives, craft f
 
 ## Persistence and verification
 
-Away save schema 8 preserves physical craft commitments and return state, boarding routes, assessments, encounter receipts, secured objectives, capture and individual-bay passenger state. Schemas 1–7 retain their prior migrations; missing bay passenger fields default to false. The enclosing World schema is 14, with optional capture receipts and a finite craft roster. Older content without boarding/craft remains supported. New team conditions and detention fields default compatibly on older saves.
+Away save schema 9 preserves physical craft commitments and return state, boarding routes, assessments, encounter receipts, secured objectives, capture and individual-bay passenger state. The enclosing World schema is 15 and ordinary craft continuation schema is 2. Older ordinary-craft and displacement saves retain their supported migrations. Saves containing the removed legacy physical-craft roster or commitments require a new game; they are rejected rather than resetting missions or replenishing torpedoes. Legacy transport content remains supported through compilation into ordinary craft and bays. New team conditions and detention fields default compatibly on older saves.
 
 The synthetic `security` integration case covers generic team treatment, permanent loss, target-authored capture, optional Medical, deterministic continuation, shuttle damage gating, physical delivery/return, and disposable torpedoes. The CI gate runs the same source natively and in WASM and compares continuation traces. These checks establish behavior, not production encounter balance. Native/browser UI smoke evidence and physical-device accessibility acceptance are recorded separately.
 
@@ -65,3 +65,16 @@ The graphical run used Linux, Xvfb, software OpenGL and two 1280 × 900 Console 
 cmake --build build/linux --target phoenix_boarding_smoke
 (cd build/linux && xvfb-run -a -s '-screen 0 2560x1080x24' ./phoenix_boarding_smoke .)
 ```
+
+Physical boarding transport now shares the ordinary craft roster, serial bay operations, flight, damage, radio reports, capture ownership and FTL handling. Boarding torpedoes use the `boarding_torpedo` craft role and terminal `consumed` phase. After physical launch, no return, pickup, cancellation or FTL recall can reuse them. Legacy fitting IDs remain admission aliases that select the lowest-ID available craft and bind its canonical identity.
+
+## Transport consolidation verification — 22 October 2026
+
+Legacy shuttle and torpedo fittings now compile to the ordinary craft roster, bay lifecycle and Controller execution. Their Follow command retains the existing flight implementation. All transports share mission deployment/recovery finalizers and boarding insertion checks; transport authority uses the existing System-enabled Controller owner rather than the telemetry reader. Clash resolution and objective contention share defender availability.
+
+- All 33 native integration cases and the native build check passed. Production verification passed for 30 entity definitions, 8 maps and 20 Consoles; the development pack passed for 18 entity definitions, 9 maps and 12 Consoles.
+- WASM Security, craft, away, Medical and Controller runtime cases passed. All five native/WASM continuation comparisons matched exactly. Synthetic peer/restore comparisons reuse identical fixture ZIP bytes so packaging timestamps cannot change content identity between participants.
+- The explicitly invoked native boarding journey, carrier shuttle/sortie journey and manually flown ship-transport journey passed using software OpenGL under Xvfb, with two 1280 × 900 Console regions. Prize and recovery captures were inspected. Boarding captures are under `build/linux/boarding-*.png`; carrier captures are under `build/linux/build/carrier-*.png`. These runs retain the balance, device, screen-reader and performance limits described above.
+- Changed C++ formatting, JSON/Markdown formatting and whitespace checks passed.
+
+Regression coverage includes legacy aliases and individual craft at the strict boarding-health boundary, own-ship boarding, retained Medical care and nonzero boarding entries across transports, queued cancellation, airborne torpedo refusal, consumed stock and target loss, alternate extraction, capture ownership, distinct telemetry readers and bay operators, absent defenders, supported older saves and explicit legacy-roster rejection. World schema 15, craft schema 2 and Away schema 9 preserve the unified continuation; legacy physical-craft saves require a new game.

@@ -504,9 +504,12 @@ struct CraftBayDefinition
 	std::int64_t slots = 0, transfer_ticks = 20, docking_range = 10000, docking_speed = 5000;
 	std::int64_t flight_spacing = 0;
 	std::int64_t charge_rate = 0;
+	bool legacy_transport = false;
+	std::int64_t transport_range = 0, transport_capacity = 0, arrival_distance = 0, arrival_speed = 0, cruise_speed = 0;
 	std::vector<std::string> initial;
 	std::vector<CraftSupplyDefinition> ammunition;
 };
+void expand_transport_fittings(Catalog &);
 TransportDefinition compile_transport(const Catalog &, const std::string &);
 std::optional<CraftDefinition> compile_craft(const Catalog &, const std::string &);
 std::map<std::string, CraftBayDefinition> compile_craft_bays(const Catalog &, const std::string &);

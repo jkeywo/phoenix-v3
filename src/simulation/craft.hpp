@@ -37,7 +37,8 @@ std::vector<std::pair<EntityId, flecs::entity>> craft_rows() const
 bool craft_dormant(flecs::entity e) const
 {
 	const auto *c = e.try_get<CraftState>();
-	return c && (c->phase == CraftPhase::Docked || c->phase == CraftPhase::Launching || c->phase == CraftPhase::Lost);
+	return c && (c->phase == CraftPhase::Docked || c->phase == CraftPhase::Launching || c->phase == CraftPhase::Lost ||
+	             c->phase == CraftPhase::Consumed);
 }
 bool bay_working(EntityId ship, const std::string &bay) const
 {
@@ -46,6 +47,16 @@ bool bay_working(EntityId ship, const std::string &bay) const
 	const auto equipment = away_equipment(ship, bay);
 	return equipment && equipment.get<Equipment>().enabled && !structurally_disabled(entities.at(ship), bay) &&
 	       fault_effectiveness(entities.at(ship), bay) > 0;
+}
+bool craft_docking_ready(EntityId id) const
+{
+	const auto e = entities.at(id);
+	const auto &s = e.get<CraftState>();
+	const auto &bay = definition(s.home).craft_bays.at(s.bay);
+	return bay_working(s.home, s.bay) && distance_3d(id, s.home) <= bay.docking_range &&
+	       (!bay.legacy_transport ||
+	        fixed::length(e.get<Pose>().position - entities.at(s.home).get<Pose>().position) <= bay.arrival_distance) &&
+	       fixed::length(e.get<Motion>().velocity - entities.at(s.home).get<Motion>().velocity) <= bay.docking_speed;
 }
 bool ftl_preparing(EntityId ship) const
 {
@@ -176,6 +187,25 @@ void restore_spawned_craft(const Json &saved)
 			}
 		}
 }
+bool torpedo_launched(flecs::entity e) const
+{
+	const auto &s = e.get<CraftState>();
+	return definition(e.get<StableId>().id).craft->role == "boarding_torpedo" && s.phase != CraftPhase::Docked &&
+	       s.phase != CraftPhase::Launching;
+}
+void release_away_transport(EntityId ship, AwayMission &m)
+{
+	const auto id = away_transport_entity(ship, m.transport);
+	if (id && id != ship)
+	{
+		auto e = entities.at(id);
+		auto &s = e.get_mut<CraftState>();
+		s.mission.clear();
+		if (s.phase != CraftPhase::Consumed && s.phase != CraftPhase::Lost)
+			craft_return(e);
+	}
+	m.transport_released = false;
+}
 bool craft_available(EntityId id, const std::string &mission = {}) const
 {
 	const auto &s = entities.at(id).get<CraftState>();
@@ -186,6 +216,8 @@ bool craft_available(EntityId id, const std::string &mission = {}) const
 void craft_return(flecs::entity e)
 {
 	auto &c = e.get_mut<CraftState>();
+	if (torpedo_launched(e))
+		return;
 	if (c.phase == CraftPhase::Docked || c.phase == CraftPhase::Launching)
 	{
 		c.phase = CraftPhase::Docked;
@@ -214,6 +246,8 @@ void request_craft_pickup(EntityId craft)
 {
 	auto e = entities.at(craft);
 	auto &s = e.get_mut<CraftState>();
+	if (torpedo_launched(e))
+		return;
 	for (std::size_t i = 0; i < away_missions.size(); ++i)
 	{
 		auto &m = away_missions[i];
@@ -264,11 +298,24 @@ void advance_craft_transport(std::size_t index, EntityId craft)
 		return;
 	const bool delivering = m.phase == AwayPhase::Outbound && m.aboard_craft;
 	const bool collecting = m.phase == AwayPhase::Inbound && !m.aboard_craft;
-	if ((!delivering && !collecting) || distance_3d(craft, d.target) > d.deployment_range)
+	const auto &bay = definition(s.home).craft_bays.at(s.bay);
+	bool arrived = distance_3d(craft, d.target) <= d.deployment_range;
+	if (bay.legacy_transport)
+	{
+		const auto clearance = definition(d.target).half_height + definition(craft).half_height + 1000;
+		const auto vertical = altitude(craft) - altitude(d.target) - clearance;
+		const auto velocity = e.get<Motion>().velocity - entities.at(d.target).get<Motion>().velocity;
+		const auto vertical_speed =
+		    e.get<Motion>().vertical_velocity - entities.at(d.target).get<Motion>().vertical_velocity;
+		arrived =
+		    fixed::length(e.get<Pose>().position - entities.at(d.target).get<Pose>().position) <=
+		        bay.arrival_distance &&
+		    std::abs(vertical) <= bay.arrival_distance &&
+		    fixed::dot(velocity, velocity) + vertical_speed * vertical_speed <= bay.arrival_speed * bay.arrival_speed;
+	}
+	if ((!delivering && !collecting) || !arrived || (delivering && !away_blocker(index, false).empty()))
 		return;
-	if (delivering && !shuttle_boarding_blocker(index).empty())
-		return;
-	if (++m.transfer < d.deployment_ticks)
+	if (++m.transfer < away_transfer_ticks(d, m))
 		return;
 	m.transfer = 0;
 	if (collecting)
@@ -280,9 +327,28 @@ void advance_craft_transport(std::size_t index, EntityId craft)
 	else
 	{
 		m.aboard_craft = false;
-		mark_away_deployed(m);
-		s.order = "hold";
-		++s.revision;
+		mark_away_deployed(d, m);
+		if (definition(craft).craft->role == "boarding_torpedo")
+		{
+			s.phase = CraftPhase::Consumed;
+			s.order = "idle";
+			s.mission.clear();
+			s.pending_order.clear();
+			s.pending_target = 0;
+			s.progress = 0;
+			m.transport_released = true;
+			set_craft_active(e, false);
+		}
+		else if (!d.retain_craft)
+		{
+			m.transport_released = true;
+			s.mission.clear();
+			craft_return(e);
+		}
+		else
+			s.order = "hold";
+		// Disabling a consumed craft moves its Flecs table; reacquire the component.
+		++e.get_mut<CraftState>().revision;
 	}
 }
 bool craft_command(const ConsoleAddress &a, const OperatingCommand &c, bool execute, bool ai = false)
@@ -299,7 +365,7 @@ bool craft_command(const ConsoleAddress &a, const OperatingCommand &c, bool exec
 	auto e = entities.at(id);
 	auto &s = e.get_mut<CraftState>();
 	if (s.home != a.ship || s.revision != static_cast<std::uint64_t>(c.value) || s.revision >= 9007199254740990ULL ||
-	    system_owner(a.ship, s.bay) != a || combat_dead(e))
+	    enabled_system_owner(a.ship, s.bay) != a || combat_dead(e))
 		return false;
 	bool authority = false;
 	for (const auto &ctrl : entities.at(a.ship).get<EntityControls>().controllers)
@@ -314,7 +380,8 @@ bool craft_command(const ConsoleAddress &a, const OperatingCommand &c, bool exec
 	const auto action = c.action.substr(6);
 	if (action == "recall")
 	{
-		if (!c.text.empty() || s.phase == CraftPhase::Lost || (s.phase == CraftPhase::Docked && s.mission.empty()))
+		if (!c.text.empty() || s.phase == CraftPhase::Lost || s.phase == CraftPhase::Consumed || torpedo_launched(e) ||
+		    (s.phase == CraftPhase::Docked && s.mission.empty()))
 			return false;
 		if (execute)
 		{
@@ -397,7 +464,7 @@ void prepare_craft()
 	{
 		{
 			auto &s = e.get_mut<CraftState>();
-			if (s.phase == CraftPhase::Lost)
+			if (s.phase == CraftPhase::Lost || s.phase == CraftPhase::Consumed)
 				continue;
 			if (combat_dead(e) || (craft_dormant(e) && (!entities.contains(s.home) ||
 			                                            (combat_dead(entities.at(s.home)) && !departed(s.home)))))
@@ -419,7 +486,7 @@ void prepare_craft()
 				set_craft_active(e, false);
 				continue;
 			}
-			if (ftl_recall_started(s.home) && !s.ftl_recalled)
+			if (ftl_recall_started(s.home) && !s.ftl_recalled && !torpedo_launched(e))
 			{
 				s.ftl_recalled = true;
 				s.pending_order = "return";
@@ -453,10 +520,7 @@ void prepare_craft()
 			{
 				if (bay_working(s.home, s.bay) && busy.emplace(s.home, s.bay).second)
 				{
-					if (s.phase == CraftPhase::Recovering &&
-					    (distance_3d(id, s.home) > bay.docking_range ||
-					     fixed::length(e.get<Motion>().velocity - entities.at(s.home).get<Motion>().velocity) >
-					         bay.docking_speed))
+					if (s.phase == CraftPhase::Recovering && !craft_docking_ready(id))
 					{
 						s.phase = CraftPhase::Flying;
 						s.progress = 0;
@@ -524,7 +588,7 @@ void prepare_craft()
 		{
 			destination = s.home;
 		}
-		else if (s.order == "transport" || s.order == "pickup")
+		else if (s.order == "transport" || s.order == "pickup" || s.order == "hold")
 			destination = s.target;
 		else if (s.order == "bomb" || s.order == "escort" || s.order == "defend")
 			destination = s.target;
@@ -544,12 +608,20 @@ void prepare_craft()
 					    contact.altitude + (s.order == "return" ? 0 : d.cruise_altitude + craft_flight_band(id));
 					target_velocity = {contact.vx, contact.vy};
 				}
+			if (bay.legacy_transport)
+			{
+				g.target = destination;
+				if (s.order != "return")
+					g.altitude =
+					    s.target_altitude + definition(destination).half_height + definition(id).half_height + 1000;
+			}
 			if (s.order == "return")
 			{
 				// Brake at a recovery point above the carrier, rather than
 				// pursuing its centre while descending through a large hull.
 				const auto outward = e.get<Pose>().position - g.destination;
-				const auto offset = std::min(fixed::length(outward), bay.docking_range * 3 / 4);
+				const auto offset =
+				    bay.legacy_transport ? 0 : std::min(fixed::length(outward), bay.docking_range * 3 / 4);
 				g.destination = g.destination + fixed::scale(fixed::normal(outward), offset);
 				const auto clearance = definition(s.home).half_height + definition(id).half_height + 1000;
 				const auto band_room = std::max<std::int64_t>(0, bay.docking_range / 2 - clearance);
@@ -565,6 +637,8 @@ void prepare_craft()
 					maximum = std::max(maximum, f->definition.maximum_speed);
 					acceleration = std::max(acceleration, f->definition.acceleration);
 				}
+			if (bay.legacy_transport)
+				maximum = std::min(maximum, bay.cruise_speed);
 			g.heading = distance > 100 ? combat_bearing(delta) : e.get<Pose>().heading;
 			const auto separation = s.order == "bomb" ? std::min<std::int64_t>(d.engagement_range / 2, 30000)
 			                                          : (s.order == "escort" || s.order == "defend" ? 10000 : 1000);
@@ -579,10 +653,7 @@ void prepare_craft()
 			g.speed = guidance.speed;
 			if (distance < bay.docking_range && s.order == "return")
 			{
-				if (s.phase == CraftPhase::Flying && bay_working(s.home, s.bay) &&
-				    distance_3d(id, s.home) <= bay.docking_range &&
-				    fixed::length(e.get<Motion>().velocity - entities.at(s.home).get<Motion>().velocity) <=
-				        bay.docking_speed)
+				if (s.phase == CraftPhase::Flying && craft_docking_ready(id))
 				{
 					s.phase = CraftPhase::Recovering;
 					s.progress = 0;
@@ -644,7 +715,8 @@ void service_craft()
 {
 	const auto rows = craft_rows();
 	for (const auto &[id, e] : rows)
-		if (craft_dormant(e) && e.get<CraftState>().phase != CraftPhase::Lost)
+		if (craft_dormant(e) && e.get<CraftState>().phase != CraftPhase::Lost &&
+		    e.get<CraftState>().phase != CraftPhase::Consumed)
 			if (auto *p = e.try_get_mut<ShipResources>())
 				p->network.dormant_tick();
 	std::set<std::pair<EntityId, std::string>> visited;
@@ -734,7 +806,7 @@ Json craft_board(const ConsoleAddress &a) const
 	for (const auto &[id, e] : craft_rows())
 	{
 		const auto &s = e.get<CraftState>();
-		if (s.home != a.ship || system_owner(a.ship, s.bay) != a)
+		if (s.home != a.ship || enabled_system_owner(a.ship, s.bay) != a)
 			continue;
 		const auto &r = s.report;
 		const auto blocker = !bay_working(s.home, s.bay) ? "Shuttle bay unavailable"
@@ -762,7 +834,7 @@ Json craft_board(const ConsoleAddress &a) const
 }
 Json save_craft() const
 {
-	Json out{{"schema", 1}, {"entities", Json::array()}, {"bays", Json::array()}};
+	Json out{{"schema", 2}, {"entities", Json::array()}, {"bays", Json::array()}};
 	std::set<std::pair<EntityId, std::string>> bays;
 	for (const auto &[id, e] : craft_rows())
 	{
@@ -780,12 +852,12 @@ void restore_craft(const Json &saved)
 	const auto initial = save_craft();
 	if (saved.is_null() && initial.at("entities").empty())
 		return;
-	if (!saved.is_object() || saved.at("schema") != 1 || !saved.at("entities").is_array() ||
-	    saved.at("entities").size() != initial.at("entities").size() || !saved.at("bays").is_array() ||
-	    saved.at("bays").size() != initial.at("bays").size())
+	if (!saved.is_object() || (saved.at("schema") != 1 && saved.at("schema") != 2) ||
+	    !saved.at("entities").is_array() || saved.at("entities").size() != initial.at("entities").size() ||
+	    !saved.at("bays").is_array() || saved.at("bays").size() != initial.at("bays").size())
 		throw std::runtime_error("Invalid saved craft roster");
 	std::set<EntityId> seen;
-	const std::set<std::string> phases{"docked", "launching", "flying", "recovering", "lost"};
+	const std::set<std::string> phases{"docked", "launching", "flying", "recovering", "lost", "consumed"};
 	const std::set<std::string> orders{"idle", "hold", "return", "defend", "escort", "bomb", "transport", "pickup"};
 	for (const auto &row : saved.at("entities"))
 	{
@@ -816,6 +888,17 @@ void restore_craft(const Json &saved)
 		    std::abs(v.desired) > 1000000 || std::abs(v.velocity) > 1000000 || std::abs(v.remainder) >= rate ||
 		    std::abs(v.acceleration_remainder) >= rate)
 			throw std::runtime_error("Invalid saved craft continuation");
+		if (saved.at("schema") == 1 && (s.phase == CraftPhase::Consumed || s.report.phase == CraftPhase::Consumed))
+			throw std::runtime_error("Consumed craft requires continuation schema 2");
+		if ((s.phase == CraftPhase::Consumed &&
+		     (definition(id).craft->role != "boarding_torpedo" || !s.mission.empty() || s.order != "idle" ||
+		      !s.pending_order.empty() || s.pending_target || s.progress)) ||
+		    (definition(id).craft->role == "boarding_torpedo" &&
+		     (s.phase == CraftPhase::Recovering || s.order == "return" || s.order == "pickup" ||
+		      (!s.pending_order.empty() &&
+		       (s.pending_order != "return" || (s.phase != CraftPhase::Docked && s.phase != CraftPhase::Launching) ||
+		        s.pending_target)))))
+			throw std::runtime_error("Invalid saved torpedo continuation");
 		if (!s.mission.empty() && std::none_of(away_definitions.begin(), away_definitions.end(),
 		                                       [&](const auto &d)
 		                                       {
@@ -866,8 +949,25 @@ void validate_craft_transports() const
 			const auto &s = entities.at(id).get<CraftState>();
 			if (s.mission != d.id ||
 			    (s.phase == CraftPhase::Docked && (m.aboard_craft || s.pending_order != "return")) ||
-			    s.phase == CraftPhase::Lost)
+			    s.phase == CraftPhase::Lost || s.phase == CraftPhase::Consumed)
 				throw std::runtime_error("Saved shuttle commitment mismatch");
 		}
+	}
+	for (const auto &[id, e] : craft_rows())
+	{
+		const auto &state = e.get<CraftState>();
+		if (state.mission.empty())
+			continue;
+		bool committed = false;
+		for (std::size_t i = 0; i < away_missions.size(); ++i)
+		{
+			const auto &mission = away_missions[i];
+			committed |= away_definitions[i].id == state.mission && away_ship(away_definitions[i]) == state.home &&
+			             mission.transport == "craft:" + std::to_string(id) && !mission.transport_released &&
+			             (mission.phase == AwayPhase::Outbound || mission.phase == AwayPhase::Inbound ||
+			              mission.phase == AwayPhase::Deployed);
+		}
+		if (!committed)
+			throw std::runtime_error("Orphaned saved craft commitment");
 	}
 }

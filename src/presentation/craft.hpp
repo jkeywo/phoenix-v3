@@ -39,7 +39,9 @@ std::string craft_markup()
 		{
 			return settings_button("craft/" + action + "/" + craft + "/" + target, label);
 		};
-		if (c.at("phase") != "docked" || !c.at("available").get<bool>())
+		if (c.at("phase") != "lost" && c.at("phase") != "consumed" &&
+		    (c.at("role") != "boarding_torpedo" || c.at("phase") == "launching") &&
+		    (c.at("phase") != "docked" || !c.at("available").get<bool>()))
 			html += button("recall", "", "Recall");
 		if (c.at("role") == "interceptor")
 		{

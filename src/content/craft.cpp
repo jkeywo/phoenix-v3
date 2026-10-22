@@ -29,6 +29,117 @@ void craft_key(const std::string &key)
 	              "invalid capability");
 }
 } // namespace
+// Compatibility is confined to authoring: legacy fittings compile to ordinary craft and bays.
+void expand_transport_fittings(Catalog &catalog)
+{
+	std::vector<std::pair<std::string, Json>> additions;
+	for (auto &[id, entity] : catalog.entities)
+		for (auto &[key, fitting] : entity.at("systems").items())
+		{
+			const auto kind = fitting.value("kind", key);
+			const auto mode = fitting.value("mode", std::string{"displacement"});
+			if ((kind != "transport" && kind != "displacement") || mode == "displacement")
+				continue;
+			craft_require(mode == "shuttle" || mode == "boarding_torpedo", id + ": unknown transport mode");
+			const auto original = fitting.at("craft").get<std::string>();
+			craft_require(catalog.entities.contains(original), id + ": missing transport craft");
+			auto craft = catalog.entities.at(original);
+			for (const auto &[child, spec] : craft.at("systems").items())
+			{
+				const auto type = spec.value("kind", child);
+				craft_require(type != "shuttle_bay" && type != "transport" && type != "displacement",
+				              id + "." + key + ": nested carried transports are unsupported");
+			}
+			const auto name = id + ".transport." + key;
+			craft_require(!catalog.entities.contains(name), "generated transport identity overlaps " + name);
+			craft_require(craft.value("motion_model", std::string{}) == "inertial",
+			              name + ": inertial flight required");
+			craft["id"] = name;
+			craft["craft"] = {{"role", mode}, {"cruise_altitude_mm", 0}, {"return_reserve_permille", 0}};
+			craft["transport"]["capacity"] = fitting.at("capacity");
+			bool guidance = false;
+			for (auto &controller : craft.at("control_layout").at("controllers"))
+			{
+				auto &commands = controller.at("commands");
+				for (std::size_t i = 0; i < commands.size(); ++i)
+					if (commands[i].value("action", std::string{}) == "follow_contact")
+					{
+						craft_require(!guidance, name + ": needs one dedicated follow-contact Controller");
+						if (controller.contains("tree"))
+						{
+							const auto tree = controller.at("tree").get<std::string>();
+							const auto bindings = compile_controller_bindings(catalog.trees.at(tree), catalog);
+							const auto program =
+							    state_tree::compile(catalog.trees.at(tree), bindings.registry, catalog.trees);
+							craft_require(program.states.size() == 1 && program.states[0].entry.empty() &&
+							                  program.states[0].running.empty() && program.states[0].exit.empty() &&
+							                  program.states[0].transitions.empty(),
+							              name + ": dedicated idle guidance required");
+						}
+						const auto consumers = commands[i].at("consumers");
+						std::string engine, steering;
+						for (const auto &consumer : consumers)
+						{
+							const auto system = consumer.get<std::string>();
+							const auto type = craft.at("systems").at(system).value("kind", system);
+							if (type == "engine")
+								engine = system;
+							if (type == "steering")
+								steering = system;
+						}
+						craft_require(!engine.empty() && !steering.empty(),
+						              name + ": guidance needs engine and steering");
+						const auto follow = commands[i].at("id").get<std::string>();
+						commands.push_back({{"id", "transport_altitude"},
+						                    {"action", "altitude_mm"},
+						                    {"initial", 0},
+						                    {"consumers", {engine}}});
+						Json bindings =
+						    Json::array({{{"channel", follow}, {"action", "follow_contact"}, {"type", "boolean"}},
+						                 {{"channel", "transport_altitude"}, {"action", "altitude_mm"}}});
+						Json work = Json::array(
+						    {{{"action", "write." + follow},
+						      {"arguments",
+						       Json::array({true,
+						                    {{"observation", "craft.target"}},
+						                    std::max<std::int64_t>(
+						                        1, fitting.at("arrival_distance_mm").get<std::int64_t>() / 2),
+						                    fitting.at("cruise_speed_mm_s")})}},
+						     {{"action", "write.transport_altitude"},
+						      {"arguments", Json::array({{{"observation", "craft.altitude"}}})}}});
+						const auto tree = name + ".guidance";
+						craft_require(!catalog.trees.contains(tree), "generated guidance identity overlaps " + tree);
+						catalog.trees[tree] = {{"id", tree},
+						                       {"context", "controller"},
+						                       {"command_bindings", bindings},
+						                       {"initial", "fly"},
+						                       {"states", Json::array({{{"id", "fly"}, {"running", work}}})}};
+						controller["tree"] = tree;
+						controller.erase("fallback");
+						guidance = true;
+						break;
+					}
+			}
+			craft_require(guidance, name + ": dedicated follow-contact Controller required");
+			additions.emplace_back(name, std::move(craft));
+			fitting["kind"] = "shuttle_bay";
+			fitting["legacy_transport"] = true;
+			fitting["slots"] = fitting.at("count");
+			const auto count = craft_number(fitting, "count", 1, 1, 16);
+			fitting["initial"] = std::vector<std::string>(count, name);
+			const auto height = [](const Json &e)
+			{
+				return e.value("half_height_mm",
+				               e.value("combat", Json::object()).value("half_height_mm", std::int64_t{5000}));
+			};
+			const auto clearance = height(entity) + height(catalog.entities.at(original)) + 1000;
+			fitting["docking_range_mm"] =
+			    std::max(craft_number(fitting, "arrival_distance_mm", 5000, 1, 1000000000), clearance * 2);
+			fitting["docking_speed_mm_s"] = fitting.at("arrival_speed_mm_s");
+		}
+	for (auto &[id, entity] : additions)
+		catalog.entities.emplace(id, std::move(entity));
+}
 TransportDefinition compile_transport(const Catalog &catalog, const std::string &id)
 {
 	const auto &e = catalog.entities.at(id);
@@ -81,7 +192,8 @@ std::optional<CraftDefinition> compile_craft(const Catalog &catalog, const std::
 	craft_require(j.is_object(), "craft must be an object");
 	CraftDefinition d;
 	d.role = j.value("role", std::string{"shuttle"});
-	craft_require(d.role == "shuttle" || d.role == "interceptor" || d.role == "bomber", "unknown craft role");
+	craft_require(d.role == "shuttle" || d.role == "interceptor" || d.role == "bomber" || d.role == "boarding_torpedo",
+	              "unknown craft role");
 	d.vertical_speed = craft_number(j, "vertical_speed_mm_s", 10000, 1, 1000000);
 	d.vertical_acceleration = craft_number(j, "vertical_acceleration_mm_s2", 5000, 1, 1000000);
 	d.cruise_altitude = craft_number(j, "cruise_altitude_mm", 15000, -1000000, 1000000);
@@ -113,10 +225,19 @@ std::map<std::string, CraftBayDefinition> compile_craft_bays(const Catalog &cata
 			continue;
 		CraftBayDefinition d;
 		d.compartment = j.at("compartment");
+		d.legacy_transport = j.value("legacy_transport", false);
+		if (d.legacy_transport)
+		{
+			d.transport_range = craft_number(j, "range_mm", 0, 1, 1000000000);
+			d.transport_capacity = craft_number(j, "capacity", 0, 1, 64);
+			d.arrival_distance = craft_number(j, "arrival_distance_mm", 5000, 1, 1000000000);
+			d.arrival_speed = craft_number(j, "arrival_speed_mm_s", 1000, 1, 1000000000);
+			d.cruise_speed = craft_number(j, "cruise_speed_mm_s", 10000, 1, 1000000000);
+		}
 		d.slots = craft_number(j, "slots", 0, 1, 32);
 		d.transfer_ticks = craft_number(j, "transfer_ticks", 20, 1, 36000);
-		d.docking_range = craft_number(j, "docking_range_mm", 10000, 1, 1000000);
-		d.docking_speed = craft_number(j, "docking_speed_mm_s", 5000, 1, 1000000);
+		d.docking_range = craft_number(j, "docking_range_mm", 10000, 1, d.legacy_transport ? 1000000000 : 1000000);
+		d.docking_speed = craft_number(j, "docking_speed_mm_s", 5000, 1, d.legacy_transport ? 1000000000 : 1000000);
 		d.flight_spacing = craft_number(j, "flight_spacing_mm", 0, 0, 1000000);
 		d.charge_rate = craft_number(j, "charge_per_second", 0, 0, 1000000000);
 		d.power_store = j.value("power_store", std::string{});
