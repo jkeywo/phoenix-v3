@@ -75,5 +75,6 @@ The cleanup shares batch-return eligibility, occupied-volume accounting and pend
 
 - All 35 native system cases outside the inference-adapter suite passed, including cancellation during physical delivery, simultaneous receiving reservations, stores-free compartment access, finite ammunition servicing, moving-receiver docking and passenger recovery.
 - Logistics, docking and cargo continuation traces matched between native and WASM.
+- All 11 affected WASM integration cases passed: logistics, docking, cargo, medical, craft, away, combat, security, conversations, Controller runtime and motion/radar/trees. Browser client, Workshop and server builds passed.
 - The native build check, production pack, development storage exercise pack and web-launcher tests passed.
 - `system.inference-adapters` could not open its localhost test server: the sandbox returned `PermissionError: [Errno 1] Operation not permitted`.
