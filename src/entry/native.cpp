@@ -97,6 +97,8 @@ try
 			inference_pair = argv[++i];
 		if (argument == "--ai-config-smoke")
 			ai_config_smoke = true;
+		if (argument == "--menu-intro-smoke")
+			menu_smoke.enabled = menu_smoke.intro = true;
 		if (argument == "--menu-smoke")
 			menu_smoke.enabled = true;
 		if (argument == "--menu-smoke-large")
@@ -787,7 +789,7 @@ try
 				phoenix::close_window();
 				return 1;
 			}
-			if (GetTime() - smoke_started > (menu_smoke.assign_displays ? 90 : 60))
+			if (GetTime() - smoke_started > (menu_smoke.intro ? 150 : menu_smoke.assign_displays ? 90 : 60))
 			{
 				std::cerr << "Menu smoke timed out at stage " << menu_smoke.stage << " / tick " << app.session->ticks()
 				          << '\n';

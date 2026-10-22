@@ -8,7 +8,7 @@ import { acquireSessionProfile } from "../../web/session-profile.mjs";
 import { deflateRawSync } from "node:zlib";
 import {
 	viewportLayout,
-	menuMotion,
+	introPlayback,
 	loadingFeedback,
 	canvasPoint,
 	launchOptions,
@@ -316,14 +316,44 @@ test("portrait and landscape viewport fitting preserves canvas pointer coordinat
 	}
 });
 
-test("title entrance finishes in three seconds on different viewports", () => {
-	for (const [width, height, period] of [
-		[1000, 600, 400],
-		[4000, 500, 900],
-	]) {
-		const motion = menuMotion(width, height, period);
-		assert.equal(motion.logoDuration, 3);
+test("opening crawl survives layout changes, pauses hidden and settles once", () => {
+	const config = { prose_seconds: 8, arrival_seconds: 2 };
+	const playback = introPlayback(config);
+	const layout = { height: 100, textHeight: 100 };
+	assert.equal(playback.frame(0, layout).proseY, 100);
+	const halfway = playback.frame(4, layout);
+	assert.equal(halfway.proseVisible, true);
+	assert.equal(halfway.proseY, 0);
+	assert.equal(playback.frame(100, { ...layout, hidden: true }).elapsed, 4);
+	const resized = playback.frame(0, { height: 120, textHeight: 120 });
+	assert.equal(resized.elapsed, 4);
+	assert.equal(resized.complete, false);
+	const arriving = playback.frame(5, layout);
+	assert.equal(arriving.proseVisible, false);
+	assert.equal(arriving.arrival, 0.5);
+	assert.equal(playback.frame(1, layout).complete, true);
+	assert.equal(playback.frame(10, layout).arrival, 1);
+	assert.equal(playback.frame(0, { height: 1000, textHeight: 2000 }).complete, true);
+});
+
+test("skip and reduced motion settle immediately without replay", () => {
+	for (const mode of ["skip", "reduced"]) {
+		const playback = introPlayback({ prose_seconds: 8, arrival_seconds: 2 });
+		if (mode === "skip") playback.finish();
+		const frame = playback.frame(0, { height: 100, textHeight: 100, reduced: mode === "reduced" });
+		assert.equal(frame.complete, true);
+		assert.equal(frame.proseVisible, false);
+		assert.equal(frame.arrival, 1);
+		assert.equal(playback.frame(1, { height: 200, textHeight: 200 }).complete, true);
 	}
+});
+
+test("long translated layouts extend the crawl rather than increase scroll speed", () => {
+	const config = { prose_seconds: 8, arrival_seconds: 2 };
+	const playback = introPlayback(config);
+	const frame = playback.frame(1, { height: 100, textHeight: 1000 });
+	assert.equal(frame.proseY, 68);
+	assert.equal(frame.complete, false);
 });
 
 test("launch base stays enabled while child branches follow their parents", () => {

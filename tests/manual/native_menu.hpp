@@ -2,7 +2,8 @@
 // Explicitly invoked framebuffer/keyboard journey; never part of automatic CI.
 struct NativeMenuSmoke
 {
-	bool enabled = false, large = false;
+	bool enabled = false, large = false, intro = false;
+	double intro_started = -1;
 	bool assign_displays = false;
 	bool virtual_displays = false;
 	bool display_transition_only = false;
@@ -59,6 +60,69 @@ struct NativeMenuSmoke
 	{
 		if (!enabled)
 			return false;
+		if (intro)
+		{
+			if (intro_started < 0)
+				intro_started = GetTime();
+			const double age = GetTime() - intro_started;
+			if (age > 150)
+				throw std::runtime_error("Opening crawl did not complete");
+			const auto has = [&](const std::string &id)
+			{
+				return std::any_of(app.screen_controls.begin(), app.screen_controls.end(),
+				                   [&](const auto &control)
+				                   {
+					                   return control.first == id;
+				                   });
+			};
+			if (stage == 0 && age >= 1)
+			{
+				if (!has("menu.skip-intro") || !has("menu.host"))
+					throw std::runtime_error("Crawl must leave the menu immediately usable");
+				TakeScreenshot("build/menu-native-intro-entry.png");
+				stage = 1;
+			}
+			if (stage == 1 && age >= 24)
+			{
+				TakeScreenshot("build/menu-native-intro-middle.png");
+				stage = 2;
+			}
+			if (stage == 2 && age >= 55 && has("menu.skip-intro") && GetTime() - changed > .5)
+			{
+				TakeScreenshot("build/menu-native-intro-arrival.png");
+				changed = GetTime();
+			}
+			if (stage == 2 && !has("menu.skip-intro"))
+			{
+				TakeScreenshot("build/menu-native-intro-settled.png");
+				action(app, "menu.read-intro");
+				stage = 3;
+				changed = GetTime();
+			}
+			else if (stage == 3 && GetTime() - changed > .5)
+			{
+				if (!has("menu.close-intro") || !std::any_of(app.screen_readouts.begin(), app.screen_readouts.end(),
+				                                             [](const auto &readout)
+				                                             {
+					                                             return readout.first == "intro-reading-4" &&
+					                                                    readout.second.ends_with("against the Stars.");
+				                                             }))
+					throw std::runtime_error("Static introduction needs readable semantics and a close action");
+				TakeScreenshot("build/menu-native-intro-reading.png");
+				action(app, "menu.close-intro");
+				stage = 4;
+				changed = GetTime();
+			}
+			else if (stage == 4 && GetTime() - changed > .5)
+			{
+				if (has("menu.skip-intro"))
+					throw std::runtime_error("Closing introduction replayed crawl");
+				std::cout
+				    << "Opening crawl, immediate menu access, static reading and no replay passed (manual smoke)\n";
+				return true;
+			}
+			return false;
+		}
 		if (std::any_of(app.screen_controls.begin(), app.screen_controls.end(),
 		                [](const auto &control)
 		                {

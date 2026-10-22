@@ -42,7 +42,11 @@ struct NativeMenuScreen::State
 	std::map<std::string, std::function<void()>> actions;
 	Bytes join_qr;
 	Texture2D panorama{}, debris{}, debris_light{};
-	double debris_phase = .12, logo_elapsed = 0;
+	double debris_phase = .12, intro_elapsed = 0;
+	double intro_prose_seconds = 56, intro_arrival_seconds = 4;
+	bool intro_complete = false, intro_reading = false;
+	std::vector<std::string> intro_paragraphs;
+	std::string intro_ending;
 	Texture2D flash_overlay{};
 	MenuFlash flash;
 	MenuAmbient ambient;
@@ -426,6 +430,7 @@ struct NativeMenuScreen::State
 		document.GetElementById("settings-panel")->SetProperty("display", "none");
 		if (!visible)
 		{
+			intro_complete = true;
 			ambient.update(0, false);
 			app.accessible_status.clear();
 			return false;
@@ -435,10 +440,12 @@ struct NativeMenuScreen::State
 		actions.clear();
 		auto branch = app.menu_branch;
 		const bool modal = app.packs_popup || app.screen == Screen::settings;
+		if (modal || app.screen != Screen::home || app.reduced_motion || intro_reading || !action_error.empty())
+			intro_complete = true;
 		ambient.update(GetFrameTime(), !app.reduced_motion && !modal && app.screen == Screen::home);
 		const bool playing = game_active(app);
 
-		button_enabled = !modal;
+		button_enabled = !modal && !intro_reading;
 		auto add = [&](const std::string &id, const std::string &text, std::function<void()> action)
 		{
 			return button(app, id, text, std::move(action));
@@ -496,7 +503,34 @@ struct NativeMenuScreen::State
 			       "</div>";
 		};
 		using Branch = Application::MenuBranch;
-		std::string markup = "<h1 id=\"menu-title\">Against the Stars</h1><div id=\"menu-frame\"></div>";
+		std::string prose;
+		for (std::size_t i = 0; i < intro_paragraphs.size(); ++i)
+			prose += "<p id=\"intro-line-" + std::to_string(i) + "\">" +
+			         Rml::StringUtilities::EncodeRml(localise(intro_paragraphs[i])) + "</p>";
+		std::string markup = "<div id=\"menu-intro\" aria-hidden=\"true\"><div id=\"menu-intro-plane\">"
+		                     "<div id=\"menu-intro-prose\">" +
+		                     prose +
+		                     "</div></div></div>"
+		                     "<h1 id=\"menu-title\">Against the Stars</h1><div id=\"menu-frame\"></div>";
+		if (app.screen == Screen::home && !modal)
+		{
+			markup += "<div id=\"menu-intro-actions\">";
+			if (!intro_complete)
+				markup += add("menu.skip-intro", "Skip intro",
+				              [&]
+				              {
+					              intro_complete = true;
+					              focus_next = "menu.read-intro";
+				              });
+			markup += add("menu.read-intro", "Read introduction",
+			              [&]
+			              {
+				              intro_complete = true;
+				              intro_reading = true;
+				              focus_next = "menu.close-intro";
+			              });
+			markup += "</div>";
+		}
 		if (!playing)
 		{
 			if (app.screen == Screen::home || modal)
@@ -929,6 +963,27 @@ struct NativeMenuScreen::State
 				              });
 			markup += "</div></div>";
 		}
+		if (intro_reading)
+		{
+			button_enabled = true;
+			markup += "<div class=\"modal-shade\"><div class=\"menu-dialog intro-reading\">" + heading("Introduction");
+			for (std::size_t i = 0; i < intro_paragraphs.size(); ++i)
+			{
+				auto text = localise(intro_paragraphs[i]);
+				if (i + 1 == intro_paragraphs.size())
+					text += " " + localise(intro_ending);
+				const auto id = "intro-reading-" + std::to_string(i);
+				app.screen_readouts.emplace_back(id, text);
+				markup += "<p id=\"" + id + "\">" + Rml::StringUtilities::EncodeRml(text) + "</p>";
+			}
+			markup += add("menu.close-intro", "Back",
+			              [&]
+			              {
+				              intro_reading = false;
+				              focus_next = "menu.read-intro";
+			              }) +
+			          "</div></div>";
+		}
 		markup += "<p id=\"menu-status\"></p>";
 		if (!action_error.empty())
 			markup += "<div id=\"menu-error\">" + heading("Unable to complete action") +
@@ -941,6 +996,12 @@ struct NativeMenuScreen::State
 			          "</div>";
 		app.screen_action = [this, &app](const std::string &id)
 		{
+			if (id == "menu.back" && intro_reading)
+			{
+				intro_reading = false;
+				focus_next = "menu.read-intro";
+				return true;
+			}
 			if (id == "menu.back" && (!game_active(app) || app.screen == Screen::settings))
 			{
 				back(app);
@@ -1031,22 +1092,45 @@ struct NativeMenuScreen::State
 			profile->SetProperty("height", std::to_string(profile_width * terminal_aspect) + "dp");
 			profile->SetProperty("font-size", compact ? "11dp" : "16dp");
 		}
+		// Measure the live localised layout; resizing preserves elapsed time.
+		auto *prose_element = document.GetElementById("menu-intro-prose");
+		const float prose_width = std::min(680.f, region.width * .7f);
+		prose_element->SetProperty("width", std::to_string(prose_width) + "dp");
+		prose_element->SetProperty("left", std::to_string((region.width - prose_width) / 2) + "dp");
+		document.GetContext()->Update();
+		const float prose_height = prose_element->GetOffsetHeight();
+		const double prose_seconds = std::max(intro_prose_seconds, (region.height + prose_height) / 32.);
+		const double arrival =
+		    intro_complete ? 1. : std::clamp((intro_elapsed - prose_seconds) / intro_arrival_seconds, 0., 1.);
+		if (arrival >= 1 && !intro_complete)
+		{
+			intro_complete = true;
+			if (focused == "menu.skip-intro")
+				focus_next = "menu.read-intro";
+		}
+		auto *intro = document.GetElementById("menu-intro");
+		intro->SetProperty("visibility", !intro_complete && intro_elapsed < prose_seconds ? "visible" : "hidden");
+		intro->SetProperty("perspective", std::to_string(region.height) + "dp");
+		const float prose_y =
+		    region.height - (region.height + prose_height) * std::min(1., intro_elapsed / prose_seconds);
+		prose_element->SetProperty("top", std::to_string(prose_y) + "dp");
+		for (std::size_t i = 0; i < intro_paragraphs.size(); ++i)
+			if (auto *line = document.GetElementById("intro-line-" + std::to_string(i)))
+				line->SetProperty("opacity",
+				                  std::to_string(std::clamp((prose_y + line->GetOffsetTop() + line->GetOffsetHeight()) /
+				                                                (region.height * .25f),
+				                                            0.f, 1.f)));
 		if (auto *title = document.GetElementById("menu-title"))
 		{
 			const float logo_width = std::min(300.f, std::max(180.f, region.width - 740.f));
-			const double target = (region.width - logo_width) / 2;
-			const double t = std::clamp(logo_elapsed / 3., 0., 1.);
-			const auto ease = [](double x)
-			{
-				return 1 - (1 - x) * (1 - x);
-			};
-			const double left = app.reduced_motion ? target
-			                    : t < .8           ? region.width + (target - 18 - region.width) * ease(t / .8)
-			                                       : target - 18 + 18 * ease((t - .8) / .2);
-			title->SetProperty("top", "0dp");
-			title->SetProperty("left", std::to_string(left) + "dp");
+			const double eased = 1 - (1 - arrival) * (1 - arrival);
+			title->SetProperty("visibility", arrival > 0 ? "visible" : "hidden");
+			title->SetProperty("top", std::to_string(region.height * (1 - eased)) + "dp");
+			title->SetProperty("left", std::to_string((region.width - logo_width) / 2) + "dp");
 			title->SetProperty("width", std::to_string(logo_width) + "dp");
 			title->SetProperty("height", std::to_string(logo_width * 2 / 3) + "dp");
+			title->SetProperty("transform", "perspective(" + std::to_string(region.height) + "dp) rotateX(" +
+			                                    std::to_string(35 * (1 - eased)) + "deg)");
 		}
 		// Keep every menu column outside the profile CRT, including the ship picker.
 		const float reserved_right = profile_width + 40.f;
@@ -1156,6 +1240,8 @@ void NativeMenuScreen::draw_backdrop(const Application &app, Rml::ElementDocumen
 		state_->flash.update(0, false);
 		return;
 	}
+	if (!state_->intro_complete && app.screen == Screen::home && IsWindowFocused() && !IsWindowMinimized())
+		state_->intro_elapsed += GetFrameTime();
 	const auto at = root->GetAbsoluteOffset(Rml::BoxArea::Content);
 	const float width = root->GetClientWidth(), height = root->GetClientHeight();
 	if (height <= 0 || width <= 0)
@@ -1164,7 +1250,6 @@ void NativeMenuScreen::draw_backdrop(const Application &app, Rml::ElementDocumen
 	{
 		state_->panorama_phase = std::fmod(state_->panorama_phase + GetFrameTime() / state_->panorama_period, 1.0);
 		state_->debris_phase = std::fmod(state_->debris_phase + GetFrameTime() * 1.5 / state_->panorama_period, 1.0);
-		state_->logo_elapsed += GetFrameTime();
 	}
 	const auto texture = state_->panorama;
 	const float tile = std::max(height * texture.width / texture.height, width / 2);
@@ -1277,6 +1362,15 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 	const auto panel = load("helm-background-9slice.sprite.json", .12f);
 	const auto lobby_panel = load("lobby-panel-9slice.sprite.json", .12f);
 	const auto scene = parse_json(read_file(asset_directory + "/menu/menu-scene.json", 64 * 1024), "menu scene");
+	const auto &intro = scene.at("intro");
+	state_->intro_paragraphs = intro.at("paragraphs").get<std::vector<std::string>>();
+	state_->intro_ending = intro.at("ending").get<std::string>();
+	state_->intro_prose_seconds = intro.at("prose_seconds").get<double>();
+	state_->intro_arrival_seconds = intro.at("arrival_seconds").get<double>();
+	if (state_->intro_paragraphs.empty() || !std::isfinite(state_->intro_prose_seconds) ||
+	    !std::isfinite(state_->intro_arrival_seconds) || state_->intro_prose_seconds <= 0 ||
+	    state_->intro_arrival_seconds <= 0)
+		throw std::runtime_error("Invalid menu introduction");
 	if (scene.at("schema") != 1 || scene.at("panorama").at("repeat") != "mirror-x")
 		throw std::runtime_error("Unsupported menu scene");
 	for (const auto *part : {"panorama", "foreground", "terminal", "flash", "scutter", "debris", "logotype"})
@@ -1365,12 +1459,12 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 	                     lobby_panel.sprite_sheet("lobby-card");
 	const auto display_styles = styles.size();
 	styles += "#native-menu { background:transparent; font-size:20dp; }\n";
-	styles += "#native-menu #menu-frame { position:absolute; left:0; top:0; width:100%; height:100%; "
+	styles += "#native-menu #menu-frame { z-index:0; position:absolute; left:0; top:0; width:100%; height:100%; "
 	          "pointer-events:none; background:transparent; decorator:image(menu/" +
 	          scene.at("foreground").at("file").get<std::string>() + " cover); }\n";
-	styles +=
-	    "#native-menu #menu-title { color:transparent; font-size:1px; pointer-events:none; decorator:image(menu/" +
-	    scene.at("logotype").at("file").get<std::string>() + " contain); }\n";
+	styles += "#native-menu #menu-title { z-index:-1; margin:0; color:transparent; font-size:1px; pointer-events:none; "
+	          "decorator:image(menu/" +
+	          scene.at("logotype").at("file").get<std::string>() + " contain); }\n";
 	styles += "#native-menu .lobby-card { decorator:" + lobby_panel.decorator("lobby-card") + "; }\n";
 	styles += ".menu-crt { decorator:image(menu/" + terminal.at("file").get<std::string>() + " contain); }\n";
 	styles += "#menu-scutter { position:absolute; pointer-events:none; decorator:image(menu/" +
@@ -1393,6 +1487,14 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
 	          std::to_string(std::max(skin.left, skin.right) * skin.scale + 8) + "px; }\n";
 	styles += R"(
     #native-menu { color:#fff0d4; clip:always; }
+    #native-menu #menu-intro { position:absolute; left:0; top:0; width:100%; height:100%; z-index:-1; pointer-events:none; clip:always; }
+    #native-menu #menu-intro-plane { position:absolute; left:0; top:0; width:100%; height:100%; transform:rotateX(35deg); transform-origin:50% 100%; }
+    #native-menu #menu-intro-prose { position:absolute; font-family:Comic Neue; font-size:28dp; line-height:42dp; text-align:center; }
+    #native-menu #menu-intro-prose p { margin:0 0 42dp; }
+    #native-menu #menu-intro-actions { position:absolute; left:24dp; bottom:72dp; z-index:2; display:flex; }
+    #native-menu #menu-intro-actions button { width:auto; min-height:32dp; padding:8dp 12dp; font-size:16dp; margin-right:12dp; }
+    #native-menu .intro-reading { font-family:Comic Neue; font-size:24dp; line-height:36dp; overflow:auto; }
+
     #native-menu h1 { color:#fff0d4; font-family:UnifrakturCook; font-weight:bold; font-size:56px; letter-spacing:0; }
     #native-menu h2 { color:#fff0d4; }
     #native-menu button.menu-skinned { position:relative; min-height:54px; line-height:22px; background:transparent; border:2px transparent; color:#fff4df; text-align:center; image-color:#ffffff; }

@@ -102,8 +102,33 @@ export function canvasPoint(rect, width, height, rotated, clientX, clientY) {
 		: [((clientX - rect.left) * width) / rect.width, ((clientY - rect.top) * height) / rect.height];
 }
 export function menuMotion(width) {
-	return { logoWidth: Math.min(300, Math.max(180, width - 740)), logoDuration: 3 };
+	return { logoWidth: Math.min(300, Math.max(180, width - 740)) };
 }
+// Elapsed time survives DOM rebuilds and layout changes. Hidden windows do not advance it.
+export function introPlayback(config) {
+	let elapsed = 0,
+		complete = false;
+	return {
+		finish() {
+			complete = true;
+		},
+		frame(delta, { height, textHeight, hidden = false, reduced = false }) {
+			if (reduced) complete = true;
+			if (!hidden && !complete) elapsed += Math.max(0, delta);
+			const proseSeconds = Math.max(config.prose_seconds, (height + textHeight) / 32);
+			const arrival = Math.max(0, Math.min(1, (elapsed - proseSeconds) / config.arrival_seconds));
+			if (arrival === 1) complete = true;
+			return {
+				elapsed,
+				complete,
+				proseVisible: !complete && elapsed < proseSeconds,
+				proseY: height - (height + textHeight) * Math.min(1, elapsed / proseSeconds),
+				arrival: complete ? 1 : arrival,
+			};
+		},
+	};
+}
+
 // A spinner shows activity; only real stage/download changes reset the wait clock.
 export function loadingFeedback(
 	paint,
@@ -165,7 +190,6 @@ if (typeof document !== "undefined") {
 			Number(getComputedStyle(document.documentElement).getPropertyValue("--pan-seconds")) || 720,
 		);
 		document.documentElement.style.setProperty("--logo-width", `${motion.logoWidth}px`);
-		document.documentElement.style.setProperty("--logo-duration", `${motion.logoDuration}s`);
 	};
 	window.addEventListener("resize", fit);
 	fit();
@@ -588,6 +612,7 @@ async function boot() {
 	let library = defaults(),
 		nebulaFlashes,
 		menuAmbient,
+		menuIntro,
 		db,
 		busy = false,
 		loading = true,
@@ -1020,6 +1045,7 @@ async function boot() {
 		document.body.classList.toggle("reduced-motion", library.reduced_motion);
 		nebulaFlashes?.sync();
 		menuAmbient?.sync();
+		menuIntro?.sync();
 		$("settings").querySelector("span").textContent = t("Settings");
 		$("packs").textContent = t("Mod Packs");
 		$("back").textContent = t("Back");
@@ -1124,6 +1150,7 @@ async function boot() {
 		columns.lastElementChild?.classList.add("active");
 	}
 	function dialog(title) {
+		menuIntro?.finish();
 		const popup = $("popup");
 		if (!popup.open) popupFocus = document.activeElement;
 		popup.replaceChildren();
@@ -1132,6 +1159,80 @@ async function boot() {
 		if (!popup.open) popup.showModal();
 		menuAmbient?.sync();
 		return popup;
+	}
+	function openingCrawl(config) {
+		const prose = $("intro-prose"),
+			title = $("title"),
+			skip = $("skip-intro"),
+			read = $("read-intro");
+		let textKey;
+		const localiseIntro = () => {
+			const paragraphs = config.paragraphs.map(t);
+			const key = paragraphs.join("\n");
+			if (key !== textKey) {
+				prose.replaceChildren();
+				for (const text of paragraphs) element("p", undefined, prose).textContent = text;
+				textKey = key;
+			}
+			read.textContent = t("Read introduction");
+			skip.textContent = t("Skip intro");
+			return paragraphs;
+		};
+		read.hidden = false;
+		const playback = introPlayback(config);
+		const preference = matchMedia("(prefers-reduced-motion: reduce)");
+		let last, request;
+		const paint = (delta = 0) => {
+			localiseIntro();
+			const height = $("menu").clientHeight;
+			const frame = playback.frame(delta, {
+				height,
+				textHeight: prose.offsetHeight,
+				hidden: document.hidden,
+				reduced: library.reduced_motion || preference.matches,
+			});
+			$("intro-viewport").style.visibility = frame.proseVisible ? "visible" : "hidden";
+			prose.style.top = `${frame.proseY}px`;
+			for (const paragraph of prose.children) {
+				const y = frame.proseY + paragraph.offsetTop;
+				paragraph.style.opacity = Math.max(0, Math.min(1, (y + paragraph.offsetHeight) / (height * 0.25)));
+			}
+			const eased = 1 - (1 - frame.arrival) ** 2;
+			title.style.visibility = frame.arrival > 0 ? "visible" : "hidden";
+			title.style.top = `${height * (1 - eased)}px`;
+			title.style.transform = `translateX(-50%) perspective(${height}px) rotateX(${35 * (1 - eased)}deg)`;
+			const skipFocused = document.activeElement === skip;
+			skip.hidden = frame.complete;
+			if (frame.complete && skipFocused) read.focus();
+			return frame.complete;
+		};
+		const tick = (now) => {
+			const done = paint(last === undefined ? 0 : (now - last) / 1000);
+			last = now;
+			if (!done) request = requestAnimationFrame(tick);
+		};
+		const finish = () => {
+			playback.finish();
+			cancelAnimationFrame(request);
+			paint();
+		};
+		skip.onclick = finish;
+		read.onclick = () => {
+			const popup = dialog("Introduction");
+			const text = element("div", undefined, popup);
+			text.id = "intro-reading";
+			for (const paragraph of localiseIntro()) element("p", undefined, text).textContent = paragraph;
+			text.lastElementChild.append(" " + t(config.ending));
+			button(popup, "Back", () => popup.close()).focus();
+		};
+		document.addEventListener("visibilitychange", () => {
+			last = undefined;
+		});
+		window.addEventListener("resize", () => paint());
+		preference.addEventListener("change", () => paint());
+		paint();
+		request = requestAnimationFrame(tick);
+		return { finish, sync: () => paint() };
 	}
 	let settingsTab = "audio";
 	function settings(page = settingsTab, focusId) {
@@ -1400,6 +1501,7 @@ async function boot() {
 		}
 	}
 	async function start(o, direct = false) {
+		menuIntro?.finish();
 		if (!launchBase) throw Error("A verified launch base is required.");
 		if (o.profile !== scopeKey.split("/")[0]) {
 			const query = new URLSearchParams(o);
@@ -1904,12 +2006,22 @@ async function boot() {
 			return;
 		}
 		render();
+		await document.fonts.load('28px "Comic Neue"');
+		await Promise.all(
+			["cockpit-frame.png", "menu-logotype.png", "space-panorama.png", "menu-debris.png"].map(async (name) => {
+				const image = new Image();
+				image.src = `assets/menu/${name}`;
+				await image.decode();
+			}),
+		);
 		finishLoading();
+		menuIntro = openingCrawl(data[3].intro);
 		if (!$("status").textContent || $("status").textContent === "Loading menu…") status("");
 	} catch (error) {
 		finishLoading();
 		document.documentElement.classList.remove("direct-launch");
 		$("menu").hidden = false;
+		$("title").style.visibility = "visible";
 		report(error);
 		render();
 	}

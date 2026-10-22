@@ -683,32 +683,15 @@ body.compact .avatar-choices {
 	background: var(--menu-logotype) center / contain no-repeat;
 	transform: translateX(-50%);
 	z-index: -1;
-	animation: title-arrival var(--logo-duration) ease-out both;
-}
-@keyframes title-arrival {
-	from {
-		transform: translateX(calc(var(--stage-width) / 2));
-	}
-	80% {
-		transform: translateX(calc(-50% - 18px));
-	}
-	to {
-		transform: translateX(-50%);
-	}
+	visibility: hidden;
 }
 #viewport {
 	top: 160px;
-}
-body.reduced-motion #title {
-	animation: none;
 }
 body.reduced-motion .debris-track i::before {
 	opacity: 0;
 }
 @media (prefers-reduced-motion: reduce) {
-	#title {
-		animation: none;
-	}
 	.debris-track i::before {
 		opacity: 0;
 	}
@@ -787,4 +770,72 @@ body.cascading:not(.compact) .column {
 	margin-bottom: 8px;
 	font-size: 16px;
 	line-height: 20px;
+}
+
+@font-face {
+	font-family: "Comic Neue";
+	src: url("assets/ComicNeue-Regular.ttf") format("truetype");
+	font-display: block;
+}
+#menu {
+	overflow: hidden;
+}
+#menu-space {
+	z-index: -4;
+}
+#menu-debris {
+	z-index: -3;
+}
+#title,
+#intro-viewport {
+	z-index: -2;
+}
+#intro-viewport {
+	position: absolute;
+	inset: 0;
+	overflow: hidden;
+	pointer-events: none;
+	perspective: var(--stage-height);
+}
+#intro-plane {
+	position: absolute;
+	inset: 0;
+	transform: rotateX(35deg);
+	transform-origin: center bottom;
+}
+#intro-prose {
+	position: absolute;
+	width: min(680px, 70%);
+	left: 50%;
+	top: 0;
+	transform: translateX(-50%);
+	font:
+		28px/1.5 "Comic Neue",
+		Lato,
+		sans-serif;
+	text-align: center;
+	color: #fff0d4;
+}
+#intro-prose p {
+	margin: 0 0 42px;
+}
+#intro-actions {
+	position: absolute;
+	left: 24px;
+	bottom: 72px;
+	z-index: 2;
+	display: flex;
+	gap: 12px;
+}
+#intro-actions button {
+	padding: 8px 12px;
+	background: #17120c;
+	border: 1px solid #a99875;
+	font-size: 16px;
+}
+#intro-reading {
+	font:
+		24px/1.5 "Comic Neue",
+		Lato,
+		sans-serif;
 }

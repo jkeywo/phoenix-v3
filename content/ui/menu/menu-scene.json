@@ -51,5 +51,17 @@
 	"logotype": {
 		"file": "menu-logotype.png",
 		"size": [1536, 1024]
+	},
+	"intro": {
+		"paragraphs": [
+			"The Conclave has ended.",
+			"Across the Settled Dark, its laws endure only where someone has the strength to enforce them. Old agreements unravel and ancient trade routes decay. Noble Houses that once answered to the Conclave\u2019s authority now regard one another with open hostility.",
+			"Far from the centres of power, on the fringes of settled space, news travels slowly. Ships go missing. Dark deals are made. A stranger arriving at the dock might bring supplies, a warning, or trouble enough for everyone.",
+			"Out here, the law was always distant. Still, you and your crew did your best to hold things together.",
+			"Now, with only your ship and each other, you are the last light standing"
+		],
+		"ending": "against the Stars.",
+		"prose_seconds": 56,
+		"arrival_seconds": 4
 	}
 }

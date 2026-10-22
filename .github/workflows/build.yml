@@ -104,7 +104,7 @@ jobs:
           New-Item -ItemType Directory -Path build/pages/assets | Out-Null
           Copy-Item -LiteralPath build/web/assets/menu -Destination build/pages/assets -Recurse
           Copy-Item -LiteralPath build/web/assets/audio -Destination build/pages/assets -Recurse
-          Copy-Item -LiteralPath build/web/assets/LatoLatin-Regular.ttf,build/web/assets/FONT-LICENSE.txt,build/web/assets/UnifrakturCook-Bold.ttf,build/web/assets/UnifrakturCook-OFL.txt,build/web/assets/locales.json -Destination build/pages/assets
+          Copy-Item -LiteralPath build/web/assets/LatoLatin-Regular.ttf,build/web/assets/FONT-LICENSE.txt,build/web/assets/UnifrakturCook-Bold.ttf,build/web/assets/UnifrakturCook-OFL.txt,build/web/assets/ComicNeue-Regular.ttf,build/web/assets/ComicNeue-OFL.txt,build/web/assets/locales.json -Destination build/pages/assets
           foreach ($role in @('server', 'client', 'workshop'))
           {
             foreach ($extension in @('js', 'wasm', 'data'))

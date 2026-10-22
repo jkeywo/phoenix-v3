@@ -12,6 +12,6 @@ The font is bundled locally, including in the WASM filesystem. The HTML menu use
 
 Space Mono Regular is sourced from the Google Fonts repository (`ofl/spacemono/SpaceMono-Regular.ttf`) and distributed under the SIL Open Font License in `SpaceMono-OFL.txt`. It supplies the mission report's terminal typography.
 
-# Message bubbles
+# Message bubbles and opening crawl
 
-Comic Neue Regular is the unmodified font from [Google Fonts](https://github.com/google/fonts/tree/main/ofl/comicneue), retrieved on 20 October 2026. Copyright 2014 The Comic Neue Project Authors. `ComicNeue-OFL.txt` accompanies native and browser distributions and explicitly permits bundling, embedding and redistribution. Komika Text's bundled licence could not be verified, so this is the agreed open-licensed fallback. Existing fallback fonts provide glyphs beyond its Latin coverage.
+Comic Neue Regular is the unmodified font from [Google Fonts](https://github.com/google/fonts/tree/main/ofl/comicneue), retrieved on 20 October 2026. Copyright 2014 The Comic Neue Project Authors. `ComicNeue-OFL.txt` accompanies native and browser distributions and explicitly permits bundling, embedding and redistribution. Komika Text's bundled licence could not be verified, so this is the agreed open-licensed fallback. Existing fallback fonts provide glyphs beyond its Latin coverage. The opening crawl also uses Comic Neue, with the same font and licence staged for the HTML menu.
