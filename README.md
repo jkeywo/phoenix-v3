@@ -2,7 +2,7 @@
 
 [Security and boarding](docs/security-boarding.md) adds target-authored encounters, finite transports and whole-ship capture.
 
-[The modern Cruiser](docs/cruiser.md) fits six watches, five kinetic turrets, eight PDCs, 24 missile tubes and eight carried craft, with a three-wave pirate combat test and calibrated sprite materials. Its fit excludes Medical.
+[The modern Cruiser](docs/cruiser.md) fits six watches, five kinetic turrets, eight PDCs, 24 missile tubes and eight carried craft, with Medical, Security, a three-wave pirate combat test and calibrated sprite materials.
 
 [Carried craft](docs/carried-craft.md) adds shuttle bays, interceptor/bomber sorties, docked servicing, shuttle away transport and manual delivery using the crew's ship.
 

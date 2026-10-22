@@ -5432,7 +5432,9 @@
 								"shield-starboard",
 								"scanner-fore",
 								"scanner-aft",
-								"displacement"
+								"displacement",
+								"medical-1",
+								"medical-2"
 							],
 							"id": "science",
 							"knowledge_producers": ["base.machinery"],
@@ -5524,7 +5526,9 @@
 								"pdc-starboard-4-mag",
 								"pdc-starboard-4",
 								"utility-bay",
-								"combat-bay"
+								"combat-bay",
+								"security-1",
+								"security-2"
 							],
 							"id": "tactical",
 							"knowledge_producers": ["base.machinery"],
@@ -8100,6 +8104,58 @@
 							}
 						],
 						"fallback": "hold"
+					},
+					{
+						"id": "medical-1",
+						"console": "science",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["medical-1"]
+							}
+						]
+					},
+					{
+						"id": "medical-2",
+						"console": "science",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["medical-2"]
+							}
+						]
+					},
+					{
+						"id": "security-1",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["security-1"]
+							}
+						]
+					},
+					{
+						"id": "security-2",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["security-2"]
+							}
+						]
 					}
 				],
 				"profiles": [
@@ -8207,7 +8263,14 @@
 								"ai": ["drive.boost", "drive.impulse", "wing.boost", "wing.impulse", "drive.lateral"]
 							},
 							"science": {
-								"human": ["sensors.radar", "scanner-fore", "scanner-aft", "displacement"],
+								"human": [
+									"sensors.radar",
+									"scanner-fore",
+									"scanner-aft",
+									"displacement",
+									"medical-1",
+									"medical-2"
+								],
 								"ai": ["shield-fore", "shield-port", "shield-aft", "shield-starboard"]
 							},
 							"tactical": {
@@ -8226,7 +8289,9 @@
 									"starboard-aft-bank",
 									"point-defence",
 									"utility-bay",
-									"combat-bay"
+									"combat-bay",
+									"security-1",
+									"security-2"
 								],
 								"ai": ["armament-services"]
 							},
@@ -8357,7 +8422,9 @@
 									"shield-starboard",
 									"scanner-fore",
 									"scanner-aft",
-									"displacement"
+									"displacement",
+									"medical-1",
+									"medical-2"
 								],
 								"ai": []
 							},
@@ -8378,7 +8445,9 @@
 									"point-defence",
 									"armament-services",
 									"utility-bay",
-									"combat-bay"
+									"combat-bay",
+									"security-1",
+									"security-2"
 								],
 								"ai": []
 							},
@@ -8509,7 +8578,9 @@
 									"shield-starboard",
 									"scanner-fore",
 									"scanner-aft",
-									"displacement"
+									"displacement",
+									"medical-1",
+									"medical-2"
 								],
 								"ai": []
 							},
@@ -8530,7 +8601,9 @@
 									"point-defence",
 									"armament-services",
 									"utility-bay",
-									"combat-bay"
+									"combat-bay",
+									"security-1",
+									"security-2"
 								],
 								"ai": []
 							},
@@ -8651,7 +8724,7 @@
 									"scanner-aft",
 									"displacement"
 								],
-								"human": []
+								"human": ["medical-1", "medical-2"]
 							},
 							"tactical": {
 								"ai": [
@@ -8671,7 +8744,8 @@
 									"armament-services",
 									"utility-bay",
 									"combat-bay"
-								]
+								],
+								"human": ["security-1", "security-2"]
 							},
 							"comms": {
 								"ai": ["communications.reserve", "external-comms", "dispatch"]
@@ -11916,6 +11990,76 @@
 					"compartment": "engineering",
 					"cooling_link": "services-cooling",
 					"observation_console": "engineering"
+				},
+				"medical-1": {
+					"kind": "team",
+					"type": "medical",
+					"capabilities": ["medical"],
+					"compartment": "medical",
+					"treatment_ticks": 400,
+					"stabilise_ticks": 200,
+					"orders": [
+						{
+							"id": "treat",
+							"label": "Treat casualties",
+							"icon": "medical",
+							"target": "patients",
+							"capability": "medical",
+							"tree": "base.team.treat",
+							"patient_states": ["minor", "severe"]
+						},
+						{
+							"id": "recover",
+							"label": "Transfer to medical facility",
+							"icon": "medical",
+							"target": "patients",
+							"capability": "medical",
+							"tree": "base.team.recover",
+							"patient_states": ["stabilised"]
+						}
+					]
+				},
+				"medical-2": {
+					"kind": "team",
+					"type": "medical",
+					"capabilities": ["medical"],
+					"compartment": "medical",
+					"treatment_ticks": 400,
+					"stabilise_ticks": 200,
+					"orders": [
+						{
+							"id": "treat",
+							"label": "Treat casualties",
+							"icon": "medical",
+							"target": "patients",
+							"capability": "medical",
+							"tree": "base.team.treat",
+							"patient_states": ["minor", "severe"]
+						},
+						{
+							"id": "recover",
+							"label": "Transfer to medical facility",
+							"icon": "medical",
+							"target": "patients",
+							"capability": "medical",
+							"tree": "base.team.recover",
+							"patient_states": ["stabilised"]
+						}
+					]
+				},
+				"security-1": {
+					"kind": "team",
+					"type": "security",
+					"capabilities": ["security"],
+					"compartment": "hangar",
+					"injured_effectiveness_permille": 500
+				},
+				"security-2": {
+					"kind": "team",
+					"type": "security",
+					"capabilities": ["security"],
+					"compartment": "weapons",
+					"injured_effectiveness_permille": 500
 				}
 			},
 			"comms": {
@@ -11968,6 +12112,11 @@
 					{
 						"id": "passage",
 						"label": "Guild passage",
+						"station": "science"
+					},
+					{
+						"id": "medical",
+						"label": "Medical",
 						"station": "science"
 					}
 				],
@@ -13177,6 +13326,78 @@
 						"effects": {
 							"repair-4": ["repair"]
 						}
+					},
+					{
+						"id": "medical-1.coordination",
+						"label": "Medical coordination",
+						"department": "medical",
+						"controller": "medical-1",
+						"console": "science",
+						"compartment": "medical",
+						"effects": {}
+					},
+					{
+						"id": "medical-1.team",
+						"label": "Medical team",
+						"department": "medical",
+						"team": "medical-1",
+						"compartment": "medical",
+						"effects": {
+							"medical-1": ["medical"]
+						}
+					},
+					{
+						"id": "medical-2.coordination",
+						"label": "Medical coordination",
+						"department": "medical",
+						"controller": "medical-2",
+						"console": "science",
+						"compartment": "medical",
+						"effects": {}
+					},
+					{
+						"id": "medical-2.team",
+						"label": "Medical team",
+						"department": "medical",
+						"team": "medical-2",
+						"compartment": "medical",
+						"effects": {
+							"medical-2": ["medical"]
+						}
+					},
+					{
+						"id": "security-1.coordination",
+						"label": "Security coordination",
+						"department": "tactical",
+						"controller": "security-1",
+						"console": "tactical",
+						"compartment": "hangar",
+						"effects": {}
+					},
+					{
+						"id": "security-1.team",
+						"label": "Security team",
+						"department": "tactical",
+						"team": "security-1",
+						"compartment": "hangar",
+						"effects": {}
+					},
+					{
+						"id": "security-2.coordination",
+						"label": "Security coordination",
+						"department": "tactical",
+						"controller": "security-2",
+						"console": "tactical",
+						"compartment": "weapons",
+						"effects": {}
+					},
+					{
+						"id": "security-2.team",
+						"label": "Security team",
+						"department": "tactical",
+						"team": "security-2",
+						"compartment": "weapons",
+						"effects": {}
 					}
 				],
 				"officers": [
@@ -13269,6 +13490,42 @@
 						"duty": "displacement",
 						"traits": ["navigator"],
 						"portrait": "phoenix-base:assets/personnel/officer-1.png"
+					},
+					{
+						"id": "medical-1.leader",
+						"name": "Edda Vale",
+						"department": "medical",
+						"duty": "medical-1.team",
+						"compartment": "medical",
+						"portrait": "phoenix-base:assets/personnel/officer-10.png",
+						"traits": ["medical"]
+					},
+					{
+						"id": "medical-2.leader",
+						"name": "Neri Shaw",
+						"department": "medical",
+						"duty": "medical-2.team",
+						"compartment": "medical",
+						"portrait": "phoenix-base:assets/personnel/officer-10.png",
+						"traits": ["medical"]
+					},
+					{
+						"id": "security-1.leader",
+						"name": "Lena Ash",
+						"department": "tactical",
+						"duty": "security-1.team",
+						"compartment": "hangar",
+						"portrait": "phoenix-base:assets/personnel/officer-3.png",
+						"traits": ["security"]
+					},
+					{
+						"id": "security-2.leader",
+						"name": "Oren Voss",
+						"department": "tactical",
+						"duty": "security-2.team",
+						"compartment": "weapons",
+						"portrait": "phoenix-base:assets/personnel/officer-4.png",
+						"traits": ["security"]
 					}
 				],
 				"casualties": {
@@ -13342,6 +13599,28 @@
 						"id": "navigator",
 						"label": "Guild navigator",
 						"bonuses": {}
+					},
+					{
+						"id": "medical",
+						"label": "Clinical specialist",
+						"bonuses": {
+							"medical": 250
+						}
+					},
+					{
+						"id": "security",
+						"label": "Boarding veteran",
+						"bonuses": {
+							"security": 200
+						}
+					}
+				],
+				"facilities": [
+					{
+						"id": "infirmary",
+						"compartment": "medical",
+						"capacity": 4,
+						"recovery_ticks": 1200
 					}
 				]
 			},
@@ -13629,7 +13908,70 @@
 				"capability_systems": {
 					"repair_tools": ["repair-1"]
 				}
-			}
+			},
+			"boarding_missions": [
+				{
+					"id": "cruiser-prize",
+					"title_key": "Board and secure the Cruiser",
+					"entry": "hangar",
+					"tree": "base.boarding-operation",
+					"dialogue": "base.boarding-dialogue",
+					"slots": [
+						{
+							"id": "security",
+							"kind": "team",
+							"capability": "security",
+							"required": true
+						},
+						{
+							"id": "medical",
+							"kind": "team",
+							"capability": "medical",
+							"required": false
+						}
+					],
+					"encounters": [
+						{
+							"id": "bridge-guards",
+							"compartment": "bridge",
+							"defenders": ["security-1", "security-2"],
+							"success_permille": 850,
+							"team_bonus_permille": 100,
+							"defender_penalty_permille": 150,
+							"injury_permille": 250,
+							"loss_permille": 50,
+							"medical_reduction_permille": 150,
+							"assessment_ticks": 100,
+							"report": "assessment"
+						},
+						{
+							"id": "reactor-guards",
+							"compartment": "engineering",
+							"defenders": ["security-1", "security-2"],
+							"success_permille": 850,
+							"team_bonus_permille": 100,
+							"defender_penalty_permille": 150,
+							"injury_permille": 250,
+							"loss_permille": 50,
+							"medical_reduction_permille": 150,
+							"assessment_ticks": 100,
+							"report": "assessment"
+						}
+					],
+					"objectives": {
+						"bridge": {
+							"kind": "bridge",
+							"compartment": "bridge",
+							"prize_crew": true
+						},
+						"reactor": {
+							"kind": "hold",
+							"compartment": "engineering",
+							"system": "core.generator"
+						}
+					}
+				}
+			]
 		},
 		{
 			"id": "base.courier-patrol-leader",
@@ -30495,7 +30837,7 @@
 				{
 					"id": 1,
 					"definition": "base.boarding-target",
-					"x_mm": 90000,
+					"x_mm": 350000,
 					"y_mm": 30000,
 					"heading_mdeg": 180000,
 					"faction": "corsair"
@@ -30506,7 +30848,7 @@
 					"id": "courier",
 					"name": "Rescue Courier",
 					"mandatory": true,
-					"allowed_ships": ["base.rescue-courier"],
+					"allowed_ships": ["base.rescue-courier", "base.cruiser"],
 					"x_mm": 0,
 					"y_mm": 0,
 					"heading_mdeg": 0,

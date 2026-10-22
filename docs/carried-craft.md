@@ -44,7 +44,7 @@ Delivered shuttles remain committed by default. `release_transport("reason")` pe
 
 Human `craft.defend`, `craft.escort`, `craft.bomb` and `craft.recall` commands use the craft identity as `system`, observed revision as `value`, and normal Controller identity/generation. Targeted orders carry an entity ID as decimal `text`. AI actions take `(craft identity text, target text, revision integer)` through the same admission path. Existing away commands retain their interface; transport text is a displacement System ID, `ship` or `craft:<entity ID>`.
 
-World schema 13 gains a versioned craft continuation and per-body vertical state. Craft-bearing saves require matching identities, bay membership, orders and servicing records. Away schema 4 adds passenger location and release state; schemas 1–3 migrate to displacement-era defaults.
+World schema 14 retains a versioned craft continuation and per-body vertical state. Craft-bearing saves require matching identities, bay membership, orders and servicing records. Away schema 8 combines passenger location/release state with clinical and boarding continuation. Earlier bay saves preserve their passenger fields while missing clinical/boarding state receives compatible defaults. Individual bay shuttles share the existing boarding insertion threshold with finite transport fittings; delivered parties can be recovered above that threshold.
 
 ## Exercise and validation
 

@@ -4,14 +4,14 @@
 
 ## Equipment and ownership
 
-| Watch       | Fitted responsibilities                                                                                                 |
-| ----------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Captain     | Alerts, Command stances and coordination                                                                                |
-| Helm        | Two drive assemblies, steering, lateral thrust, boost and impulse                                                       |
-| Tactical    | Five kinetic turrets, eight flank PDCs, six four-tube missile banks, magazines and Flight operations                    |
-| Engineering | One reactor/core network, distribution, local reserves, cooling, finite craft ammunition supplies and four repair teams |
-| Science     | Separate broad radar, forward/aft focused scanners, four overlapping shield sectors and qualified displacement          |
-| Comms       | Powered radio, conversations, away decisions and Dispatch                                                               |
+| Watch       | Fitted responsibilities                                                                                                  |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Captain     | Alerts, Command stances and coordination                                                                                 |
+| Helm        | Two drive assemblies, steering, lateral thrust, boost and impulse                                                        |
+| Tactical    | Five kinetic turrets, eight flank PDCs, six four-tube missile banks, magazines, Flight operations and two Security teams |
+| Engineering | One reactor/core network, distribution, local reserves, cooling, finite craft ammunition supplies and four repair teams  |
+| Science     | Broad radar, focused scanners, four shield sectors, qualified displacement, two Medical teams and a four-place infirmary |
+| Comms       | Powered radio, conversations, away decisions and Dispatch                                                                |
 
 The auxiliary Navigator Console remains attached to Science and controls FTL mission departure. Each station keeps its ordinary complexity profiles, Controller authority, permitted observations and department-scoped duty officers. Simple delegates shields and routine repairs; deeper profiles expose their controls. Vacant stations use their ordinary Controller policies.
 
@@ -19,7 +19,9 @@ Five main turrets share one material. Fore/aft dorsal and ventral mounts travers
 
 Two utility shuttles occupy the utility bay. Four interceptors and two bombers occupy the combat bay. These are production entities using the carried-craft runtime, with separate identities, saved condition, orders, charging and finite replenishment. Tactical owns both bays; Engineering owns the carrier supply magazines. Bay launch/recovery remains serial per bay, using the existing forward clearance point above the hull. Returns brake above the carrier before docking. Sprite bay markers are registration references rather than a new launch-geometry contract.
 
-The connected interior binds equipment and duties to engines, engineering, hangar, magazines, passage, sensors, bridge and weapons spaces. A Medical compartment is reserved, but Medical facilities, officers, teams, injuries and treatment are deliberately excluded pending that separate implementation. Local jumps, psychic operations and security encounters are also deferred.
+The connected interior binds equipment and duties to engines, engineering, hangar, magazines, passage, Medical, sensors, bridge and weapons spaces. Science owns two Medical teams and their officers, with field treatment, stabilisation, escorted infirmary recovery and supported away contributions. Tactical owns two Security teams and their officers for away assignments and target-authored boarding. Damage can injure duty officers through the production casualty policy; ordinary repairs do not heal injuries or replace lost personnel.
+
+The Cruiser can select the existing **Boarding action** exercise, with collision-safe target placement. Its utility shuttles obey the same below-half-hull boarding insertion rule as the existing finite transports; recovery does not repeat that insertion restriction. The Cruiser itself authors bridge-seizure and reactor-occupation encounters defended by its actual Security teams. Dispatch and Comms retain manifest and objective decisions. Local jumps, psychic operations and the three introductory missions remain deferred.
 
 ## Combat test
 
@@ -42,10 +44,14 @@ The explicit `phoenix_cruiser_smoke` target loads production content, can render
 ./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --gallery 0
 ./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --headless 12000
 ./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --transport
+./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --medical
+./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --boarding
 ./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --withdrawal 0
 ./build/native/Release/phoenix_cruiser_smoke.exe build/native/base.zip --frame 0
 ```
 
-The transport exercise reuses the rescue operation with the Cruiser selected and the casualty placed 350 metres away for hull clearance. It checks separate shuttle and displacement deployment/recovery through the four owning watches. Withdrawal and frame capture restore the combat run's `build/cruiser-midwave.json`, requiring the same exact pack. Frame capture also requests a short powered Helm manoeuvre to expose the engine effects. The combat journey launches six combat craft after the first wave arrives, then recalls them at sixty seconds through Tactical. The browser build of the explicit target provides `phoenix_cruiser_smoke.html` for the eight-bearing material gallery.
+The transport exercise reuses the rescue operation with the Cruiser selected and the casualty placed 350 metres away for hull clearance. It checks separate shuttle and displacement deployment/recovery through four owning watches, including actual remote treatment by the contributed Medical team. The clinical exercise privately seeds onboard injuries, then checks treatment, stabilisation, infirmary recovery, injured Security treatment and continuation. The boarding exercise privately bounds encounter success/loss probabilities, then checks utility-shuttle insertion, Comms objectives, extraction and capture; it does not establish production boarding balance.
+
+Withdrawal and frame capture restore the combat run's `build/cruiser-midwave.json`, requiring the same exact pack. Frame capture requests a short manual Helm manoeuvre to expose actual engine effects. The combat journey launches six combat craft after the first wave arrives, then recalls them at sixty seconds through Tactical. The browser build of the explicit target provides `phoenix_cruiser_smoke.html` for the eight-bearing material gallery. The separate native `phoenix_cruiser_ui_smoke` target opens Science and Tactical, selects a clinical map order through the ordinary Console controls, and captures the resulting panels.
 
 Record actual execution results separately; successful loading or a screenshot does not establish a completed three-wave journey, screen-reader usability or physical six-display performance.

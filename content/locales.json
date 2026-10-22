@@ -1161,7 +1161,11 @@
 			"power.limited": "power.limited",
 			"summary.level": "summary.level",
 			"thermal.stopped": "thermal.stopped",
-			"flight_spacing_mm": "Flight altitude spacing (mm)"
+			"flight_spacing_mm": "Flight altitude spacing (mm)",
+			"Board and secure the Cruiser": "Board and secure the Cruiser",
+			"Neri Shaw": "Neri Shaw",
+			"Lena Ash": "Lena Ash",
+			"Oren Voss": "Oren Voss"
 		}
 	}
 }
