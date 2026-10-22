@@ -64,6 +64,37 @@ int main()
 {
 	try
 	{
+		{
+			auto large = fixture();
+			auto &ship = large["entities"][0];
+			for (int i = 2; i < 129; ++i)
+			{
+				const auto id = "watch-" + std::to_string(i);
+				ship["systems"][id] = ship["systems"]["port"];
+				ship["control_layout"]["controllers"].push_back(
+				    {{"id", id},
+				     {"console", "drive"},
+				     {"fallback", "hold"},
+				     {"commands",
+				      Json::array(
+				          {{{"id", "speed"}, {"action", "speed_mm_s"}, {"initial", 0}, {"consumers", {id}}}})}});
+				for (auto &profile : ship["control_layout"]["profiles"])
+					profile["consoles"]["drive"][profile["id"] == "direct" ? "human" : "ai"].push_back(id);
+				ship["personnel"]["duties"].push_back({{"id", id},
+				                                       {"label", "Watch"},
+				                                       {"controller", id},
+				                                       {"department", "sailing"},
+				                                       {"compartment", "bridge"},
+				                                       {"effects", Json::object()}});
+			}
+			const auto content = load(large);
+			World large_watch;
+			large_watch.load(content, "test.map");
+			require(large_watch.claim(101, 1, "drive"), "claim large synthetic watch");
+			const auto roster = board(large_watch);
+			require(roster["duties"].size() == 129 && personnel_projection::board(roster) == roster,
+			        "large watch duties pass production loading and permitted network projection");
+		}
 		auto source = fixture();
 		const auto catalog = load(source);
 		World world;

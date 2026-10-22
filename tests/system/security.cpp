@@ -1,5 +1,6 @@
 #include "../support/assertions.hpp"
 #include "../support/boarding_fixture.hpp"
+#include "../support/craft_fixture.hpp"
 #include <iostream>
 #include <algorithm>
 import phoenix.simulation;
@@ -52,6 +53,64 @@ OperatingCommand mission_command(const World &w, const std::string &action, cons
 			return cmd;
 		}
 	throw std::runtime_error("No discovered boarding mission");
+}
+void bay_boarding_regression(Json &trace)
+{
+	auto fixture = boarding_mission_fixture();
+	const auto bays = craft_fixture();
+	fixture["entities"].push_back(bays["entities"].back());
+	for (const auto &tree : bays["trees"])
+		if (std::none_of(fixture["trees"].begin(), fixture["trees"].end(),
+		                 [&](const auto &t)
+		                 {
+			                 return t["id"] == tree["id"];
+		                 }))
+			fixture["trees"].push_back(tree);
+	auto &carrier = fixture["entities"][0];
+	carrier["systems"]["bay"] = bays["entities"][0]["systems"]["bay"];
+	carrier["control_layout"]["controllers"].push_back(bays["entities"][0]["control_layout"]["controllers"].back());
+	carrier["control_layout"]["profiles"][0]["consoles"]["drive"]["human"].push_back("bay");
+	carrier["personnel"]["duties"].push_back(bays["entities"][0]["personnel"]["duties"].back());
+	carrier["stations"][0]["consoles"][0]["feeds"].push_back("bay");
+	for (auto &control : fixture["entities"][1]["control_layout"]["controllers"])
+		if (control["id"] == "team")
+			control["commands"][0]["initial"] = 0;
+	fixture["entities"][1]["boarding_missions"][0]["entry"] = "workshop";
+	const auto catalog = load(fixture);
+	World w;
+	w.load(catalog, "test.map", {{"crew", "test.away"}});
+	require(w.claim(101, 2, "drive") && w.claim(102, 2, "observer"), "claim bay boarding fixture");
+	ticks(w, 5);
+	require(w.submit(101, mission_command(w, "open")), "open bay boarding");
+	ticks(w, 1);
+	require(w.submit(102, mission_command(w, "assign", "security/team:security", 102, "security")),
+	        "assign bay boarders");
+	ticks(w, 1);
+	const auto craft = w.observe(101)->gameplay["craft"][0]["id"].get<std::string>();
+	require(w.submit(101, mission_command(w, "transport", "craft:" + craft, 101, "bay")), "bind bay shuttle");
+	ticks(w, 7);
+	auto saved = w.save();
+	body(saved, 1)["combat"]["compartments"][0]["hp"] = 100;
+	body(saved, 1)["combat"]["compartments"][1]["hp"] = 0;
+	body(saved, 1)["combat"]["compartments"][1]["disabled"] = true;
+	w.restore(catalog, saved);
+	require(!w.submit(101, mission_command(w, "send")), "bay shuttle also blocks boarding at exactly half hull HP");
+	body(saved, 1)["combat"]["compartments"][0]["hp"] = 99;
+	w.restore(catalog, saved);
+	require(w.submit(101, mission_command(w, "send")), "bay shuttle admits insertion below half hull HP");
+	ticks(w, 2);
+	World resumed;
+	resumed.restore(catalog, w.save());
+	ticks(w, 500);
+	ticks(resumed, 500);
+	require(w.save() == resumed.save(), "individual bay boarding and entry routing continue exactly");
+	bool captured = false;
+	const auto final = w.save();
+	for (const auto &mission : final["away_missions"])
+		if (mission["id"].get<std::string>().starts_with("board."))
+			captured = mission["boarding"]["captured"];
+	require(captured, "individual bay shuttle physically delivers a successful boarding party");
+	trace.push_back(w.save());
 }
 void craft_regression(Json &trace)
 {
@@ -323,6 +382,7 @@ int main(int argc, char **argv)
 	{
 		Json trace = Json::array();
 		boarding_mission_regression(trace);
+		bay_boarding_regression(trace);
 		craft_regression(trace);
 		encounter_outcomes(trace);
 		const auto catalog = load(boarding_fixture());

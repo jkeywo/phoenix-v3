@@ -204,8 +204,8 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 		out.duty_indices.emplace(d.id, out.duties.size());
 		out.duties.push_back(d);
 	}
-	fail(out.duties.size() <= 128 && controllers.size() == layout.controllers.size(),
-	     "every Controller requires one duty (maximum 128)");
+	fail(out.duties.size() <= 256 && controllers.size() == layout.controllers.size(),
+	     "every Controller requires one duty (maximum 256)");
 	for (const auto &[id, kind] : kinds)
 		if (kind == OperatingSystem::Team)
 			fail(teams.contains(id), "every team requires a duty");

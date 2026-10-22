@@ -14,7 +14,7 @@ inline Json board(const Json &source)
 	for (const auto *key : {"departments", "duties", "officers"})
 	{
 		const auto &rows = source.at(key);
-		if (!rows.is_array() || rows.size() > 128)
+		if (!rows.is_array() || rows.size() > (std::string_view(key) == "duties" ? 256 : 128))
 			throw std::runtime_error("Invalid personnel list");
 		out[key] = Json::array();
 		for (const auto &row : rows)

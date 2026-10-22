@@ -266,6 +266,8 @@ void advance_craft_transport(std::size_t index, EntityId craft)
 	const bool collecting = m.phase == AwayPhase::Inbound && !m.aboard_craft;
 	if ((!delivering && !collecting) || distance_3d(craft, d.target) > d.deployment_range)
 		return;
+	if (delivering && !shuttle_boarding_blocker(index).empty())
+		return;
 	if (++m.transfer < d.deployment_ticks)
 		return;
 	m.transfer = 0;

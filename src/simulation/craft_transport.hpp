@@ -117,20 +117,9 @@ std::string craft_transport_blocker(std::size_t index) const
 	if (!m.craft &&
 	    fixed::length(entities.at(origin).get<Pose>().position - entities.at(d.target).get<Pose>().position) > t.range)
 		return "Out of transport range";
-	if (d.boarding &&
-	    (m.phase == AwayPhase::Open || m.phase == AwayPhase::Recovered || m.phase == AwayPhase::Outbound) &&
-	    t.mode == "shuttle")
-	{
-		const auto &structure = entities.at(d.target).get<CombatStructure>();
-		std::int64_t hp = 0, maximum = 0;
-		for (std::size_t i = 0; i < structure.compartments.size(); ++i)
-		{
-			hp += structure.compartments[i].hp;
-			maximum += structure.definition.compartments[i].maximum;
-		}
-		if (hp * 2 >= maximum)
-			return "Shuttle boarding requires hull below 50%";
-	}
+	if (t.mode == "shuttle")
+		if (const auto blocker = shuttle_boarding_blocker(index); !blocker.empty())
+			return blocker;
 	if (!m.craft)
 	{
 		bool available = false;

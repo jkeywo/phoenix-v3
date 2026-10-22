@@ -280,6 +280,22 @@ void finish_away_recovery(EntityId ship, AwayMission &m)
 	m.care.clear();
 	++m.revision;
 }
+std::string shuttle_boarding_blocker(std::size_t index) const
+{
+	const auto &d = away_definitions[index];
+	const auto &m = away_missions[index];
+	if (!d.boarding ||
+	    (m.phase != AwayPhase::Open && m.phase != AwayPhase::Recovered && m.phase != AwayPhase::Outbound))
+		return {};
+	const auto &structure = entities.at(d.target).get<CombatStructure>();
+	std::int64_t hp = 0, maximum = 0;
+	for (std::size_t i = 0; i < structure.compartments.size(); ++i)
+	{
+		hp += structure.compartments[i].hp;
+		maximum += structure.definition.compartments[i].maximum;
+	}
+	return hp * 2 >= maximum ? "Shuttle boarding requires hull below 50%" : "";
+}
 std::string away_blocker(std::size_t index, bool power = true) const
 {
 	const auto &d = away_definitions[index];
@@ -300,6 +316,8 @@ std::string away_blocker(std::size_t index, bool power = true) const
 			return "Transport capacity exceeded";
 		if (transport == ship && distance_3d(ship, d.target) > d.deployment_range)
 			return "Fly ship to deployment location";
+		if (transport != ship)
+			return shuttle_boarding_blocker(index);
 		return {};
 	}
 	const auto &t = definition(ship).displacements.at(m.transport);
