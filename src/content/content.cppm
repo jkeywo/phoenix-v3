@@ -510,6 +510,31 @@ struct CraftBayDefinition
 TransportDefinition compile_transport(const Catalog &, const std::string &);
 std::optional<CraftDefinition> compile_craft(const Catalog &, const std::string &);
 std::map<std::string, CraftBayDefinition> compile_craft_bays(const Catalog &, const std::string &);
+struct PsychicPowerDefinition
+{
+	std::string id, kind, label, apparent_class = "Unidentified contact";
+	std::int64_t strength = 700, energy = 100, recovery_ticks = 100, ghosts = 3;
+	std::int64_t offset = 20000, spacing = 8000, speed = 10000, acceleration = 2000, turn_rate = 10000;
+	std::int64_t radius = 2000, scan_ticks = 100, fade_ticks = 20;
+};
+struct ChoirSeatDefinition
+{
+	std::string duty;
+	std::size_t controller = 0, enabled = 0, target = 0;
+};
+struct ChoirDefinition
+{
+	std::string id, compartment, planning_controller;
+	std::set<std::string> powers;
+	std::int64_t range = 500000, arc = 90000;
+	std::vector<ChoirSeatDefinition> seats;
+};
+struct PsychicDefinition
+{
+	std::map<std::string, PsychicPowerDefinition> powers;
+	std::map<std::string, ChoirDefinition> choirs;
+};
+PsychicDefinition compile_psychic(const Catalog &, const std::string &);
 struct OfficerTrait
 {
 	std::string id, label;
@@ -521,13 +546,13 @@ struct PersonnelDepartment
 };
 struct PersonnelDuty
 {
-	std::string id, label, department, controller, team, compartment, console, required_trait;
+	std::string id, label, department, controller, team, compartment, console, required_trait, choir;
 	std::map<std::string, std::vector<std::string>> effects;
 };
 struct OfficerDefinition
 {
 	std::string id, name, portrait, department, duty, compartment;
-	std::string condition = "healthy";
+	std::string condition = "healthy", power;
 	std::vector<std::string> traits;
 	std::map<std::string, std::int64_t> bonuses;
 };

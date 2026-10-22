@@ -920,7 +920,7 @@ void restore_combat(flecs::entity ship, const Json &j)
 			case OperatingSystem::Weapon:
 			{
 				const auto &w = m->get<WeaponState>();
-				bounded("target", 0, 1000000000);
+				bounded("target", 0, 2000000000);
 				bounded("cooldown", 0, 1000000000);
 				bounded("shots", 0, 1000000000000LL);
 				bounded(
@@ -938,7 +938,7 @@ void restore_combat(flecs::entity ship, const Json &j)
 				break;
 			}
 			case OperatingSystem::Turret:
-				bounded("target", 0, 1000000000);
+				bounded("target", 0, 2000000000);
 				bounded("heading", 0, 359999);
 				bounded("turn_remainder", 0, rate - 1);
 				break;

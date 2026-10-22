@@ -335,6 +335,7 @@ void fire_weapons(flecs::entity ship)
 			    std::max<std::int64_t>(1, officer_value(ship.get<StableId>().id, d.id, "cycling", interval, true) *
 			                                  1000 / fault_effectiveness(ship, d.id));
 			++m->get<WeaponState>().shots;
+			psychic_weapon_emission(ship.get<StableId>().id);
 			auto &s = ship.get_mut<CombatStructure>();
 			s.random = s.random * 6364136223846793005ULL + 1;
 			auto payload = weapon_payload(ship, *m);

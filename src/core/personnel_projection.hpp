@@ -45,6 +45,8 @@ inline Json board(const Json &source)
 				{
 					for (const auto *field : {"name", "portrait", "duty", "destination"})
 						r[field] = text(row.at(field), 128);
+					if (row.contains("power"))
+						r["power"] = text(row.at("power"), 128);
 					const auto portrait = r.at("portrait").get<std::string>();
 					if (!portrait.empty() && !portrait.starts_with("console-assets:assets/comms/"))
 						throw std::runtime_error("Invalid officer portrait");

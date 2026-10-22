@@ -52,7 +52,7 @@ inline Json board(const Json &source)
 	if (!source.is_object() || source.dump().size() > 1024 * 1024 || source.at("scanners").size() > 128 ||
 	    source.at("contacts").size() > 512)
 		throw std::runtime_error("Invalid sensor projection bounds");
-	Json out{{"scanners", Json::array()}, {"contacts", Json::array()}};
+	Json out{{"scanners", Json::array()}, {"contacts", Json::array()}, {"tracks", Json::array()}};
 	for (const auto &s : source.at("scanners"))
 	{
 		Json r{{"id", projection::text(s.at("id"), 128)},
@@ -81,6 +81,16 @@ inline Json board(const Json &source)
 			                      {"observed", f.at("observed").get<std::uint64_t>()},
 			                      {"live", f.at("live").get<bool>()}};
 		out["contacts"].push_back(r);
+	}
+	if (source.contains("tracks"))
+	{
+		if (!source.at("tracks").is_array() || source.at("tracks").size() > 512)
+			throw std::runtime_error("Invalid retained sensor tracks");
+		for (const auto &t : source.at("tracks"))
+			out["tracks"].push_back({{"body", projection::body_json(projection::read_body(
+			                                      t.at("body"), projection::BodyReadPolicy::SharedDisplay))},
+			                         {"observed", projection::number(t.at("observed"), 0, 9007199254740991LL)},
+			                         {"uncertainty", projection::number(t.at("uncertainty"), 0, 1000000000)}});
 	}
 	return out;
 }

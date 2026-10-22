@@ -531,6 +531,8 @@ std::optional<ControllerProposal> controller_proposal(const ConsoleAddress &addr
 			    (!spec.choices.empty() && !spec.choices.contains(command.value)) ||
 			    !operating_arguments_valid(spec.action, command.value, command.arguments))
 				return {};
+			if (!psychic_channel_valid(address.ship, i, field, command.value))
+				return {};
 			const auto &state = controller.commands[field];
 			if (spec.semantics == CommandSemantics::Request)
 			{
@@ -575,6 +577,8 @@ bool commit_controller(const ControllerProposal &proposal)
 	if (controller.definition.console != proposal.address.console ||
 	    controller.definition.id != proposal.address.controller || controller.generation != proposal.generation ||
 	    controller.human != proposal.human || proposal.channel >= controller.commands.size())
+		return false;
+	if (!psychic_channel_valid(proposal.address.entity, proposal.controller, proposal.channel, proposal.value))
 		return false;
 	const auto &spec = controller.definition.commands[proposal.channel];
 	auto &state = controller.commands[proposal.channel];

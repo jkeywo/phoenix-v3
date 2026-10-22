@@ -29,7 +29,8 @@ void append_sensor_contacts(const ConsoleAddress &address, Observation &result,
 					                                                    tag) != sensor.shows.end();
 				                                   }) &&
 				                       sensor_covers(address.ship, sensor.id, contact.position) &&
-				                       distance_3d(address.ship, contact.id) <= sensor.effective_range)
+				                       distance_3d(address.ship, contact.id) <= sensor.effective_range &&
+				                       psychic_detects(address.ship, sensor.id, contact.id))
 				                   {
 					                   sensor.contact_ids.push_back(contact.id);
 					                   visible = true;
@@ -87,6 +88,7 @@ void append_sensor_contacts(const ConsoleAddress &address, Observation &result,
 				contact.disposition = data.at("disposition");
 			}
 		}
+	append_ghosts(address, result);
 	std::sort(result.contacts.begin(), result.contacts.end(),
 	          [](const auto &a, const auto &b)
 	          {
