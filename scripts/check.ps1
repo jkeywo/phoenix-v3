@@ -92,12 +92,15 @@ try
 			throw 'Native FTL continuation trace failed'
 		}
 		Set-Content -LiteralPath "$repo/build/native/ftl-continuation.trace" -Value $ftlNativeTrace -Encoding utf8
-        foreach ($supplyCaseName in @('logistics', 'docking', 'cargo'))
-        {
-            $supplyNativeTrace = & "$repo/build/native/Release/phoenix_${supplyCaseName}_tests.exe" --trace
-            if ($LASTEXITCODE) { throw "Native $supplyCaseName continuation failed" }
-            Set-Content -LiteralPath "$repo/build/native/$supplyCaseName-continuation.trace" -Value $supplyNativeTrace -Encoding utf8
-        }
+		foreach ($supplyCaseName in @('logistics', 'docking', 'cargo'))
+		{
+			$supplyNativeTrace = & "$repo/build/native/Release/phoenix_${supplyCaseName}_tests.exe" --trace
+			if ($LASTEXITCODE)
+			{
+				throw "Native $supplyCaseName continuation failed"
+			}
+			Set-Content -LiteralPath "$repo/build/native/$supplyCaseName-continuation.trace" -Value $supplyNativeTrace -Encoding utf8
+		}
 		& "$PSScriptRoot/check-network-service.ps1"
 		$psychicNativeTrace = & "$repo/build/native/Release/phoenix_psychic_tests.exe" --trace
 		if ($LASTEXITCODE)
@@ -180,9 +183,9 @@ try
 					'phoenix_workshop_test_tests.js',
 					'phoenix_personnel_tests.js',
 					'phoenix_medical_tests.js',
-                    'phoenix_logistics_tests.js',
-                    'phoenix_docking_tests.js',
-                    'phoenix_cargo_tests.js',
+					'phoenix_logistics_tests.js',
+					'phoenix_docking_tests.js',
+					'phoenix_cargo_tests.js',
 					'phoenix_security_tests.js',
 					'phoenix_away_tests.js',
 					'phoenix_craft_tests.js',
@@ -243,14 +246,16 @@ try
 				throw 'Native/WASM Medical continuation differs'
 			}
 			Write-Output 'PASS native/WASM Medical continuation'
-            foreach ($supplyCaseName in @('logistics', 'docking', 'cargo'))
-            {
-                $supplyNativeTrace = Get-Content -LiteralPath "$repo/build/native/$supplyCaseName-continuation.trace"
-                $supplyWebTrace = & $node "phoenix_${supplyCaseName}_tests.js" --trace
-                if ($LASTEXITCODE -or ($supplyNativeTrace -join "`n").Trim() -ne ($supplyWebTrace -join "`n").Trim())
-                { throw "Native/WASM $supplyCaseName continuation differs" }
-            }
-            Write-Output 'PASS native/WASM storage, docking and physical cargo continuation'
+			foreach ($supplyCaseName in @('logistics', 'docking', 'cargo'))
+			{
+				$supplyNativeTrace = Get-Content -LiteralPath "$repo/build/native/$supplyCaseName-continuation.trace"
+				$supplyWebTrace = & $node "phoenix_${supplyCaseName}_tests.js" --trace
+				if ($LASTEXITCODE -or ($supplyNativeTrace -join "`n").Trim() -ne ($supplyWebTrace -join "`n").Trim())
+				{
+					throw "Native/WASM $supplyCaseName continuation differs"
+				}
+			}
+			Write-Output 'PASS native/WASM storage, docking and physical cargo continuation'
 
 			$securityNativeTrace = Get-Content -LiteralPath "$repo/build/native/security-continuation.trace"
 			$securityWebTrace = & $node phoenix_security_tests.js --trace

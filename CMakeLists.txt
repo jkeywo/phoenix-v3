@@ -344,6 +344,9 @@ target_link_libraries(
 	PUBLIC phoenix_foundation phoenix_content
 	PRIVATE flecs_static phoenix_gameplay_runtime phoenix_scenario_bridge
 )
+if(MSVC)
+	target_compile_options(phoenix_simulation PRIVATE /bigobj)
+endif()
 add_library(phoenix_workshop_test_host STATIC src/simulation/workshop_test.cpp)
 target_sources(phoenix_workshop_test_host PUBLIC FILE_SET CXX_MODULES FILES src/simulation/workshop_test.cppm)
 target_link_libraries(phoenix_workshop_test_host PUBLIC phoenix_simulation)
