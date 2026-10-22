@@ -28,14 +28,15 @@ void append_sensor_contacts(const ConsoleAddress &address, Observation &result,
 				                    {
 					                    return std::find(sensor.shows.begin(), sensor.shows.end(), tag) !=
 					                           sensor.shows.end();
-				                    }) &&
-				        sensor_covers(address.ship, sensor.id, contact.position, true) &&
-				        distance_3d(address.ship, contact.id) <= sensor_range(address.ship, sensor.id, true))
+				                    }))
 				    {
+					    const auto detection = sensor_contact(address.ship, sensor.id, contact.position,
+					                                          distance_3d(address.ship, contact.id));
+					    if (detection == SensorContact::None)
+						    continue;
 					    sensor.contact_ids.push_back(contact.id);
 					    bearing_visible = true;
-					    visible |= sensor_covers(address.ship, sensor.id, contact.position) &&
-					               distance_3d(address.ship, contact.id) <= sensor.effective_range;
+					    visible |= detection == SensorContact::Position;
 				    }
 			    if (visible)
 				    result.contacts.push_back(view(contact.id, contact.entity.get<Definition>(),
@@ -53,16 +54,16 @@ void append_sensor_contacts(const ConsoleAddress &address, Observation &result,
 		const auto contact_id = 7000000000000000ULL + p.id;
 		for (auto &sensor : result.systems)
 			if (sensor.kind == OperatingSystem::Radar && sensor.enabled &&
-			    std::find(sensor.shows.begin(), sensor.shows.end(), "missile") != sensor.shows.end() &&
-			    sensor_covers(address.ship, sensor.id, p.position, true) &&
-			    fixed::length(p.position - own.position) + std::abs(p.altitude - altitude(address.ship)) <=
-			        sensor_range(address.ship, sensor.id, true))
+			    std::find(sensor.shows.begin(), sensor.shows.end(), "missile") != sensor.shows.end())
 			{
+				const auto detection = sensor_contact(address.ship, sensor.id, p.position,
+				                                      fixed::length(p.position - own.position) +
+				                                          std::abs(p.altitude - altitude(address.ship)));
+				if (detection == SensorContact::None)
+					continue;
 				sensor.contact_ids.push_back(contact_id);
 				bearing_visible = true;
-				visible |= sensor_covers(address.ship, sensor.id, p.position) &&
-				           fixed::length(p.position - own.position) + std::abs(p.altitude - altitude(address.ship)) <=
-				               sensor.effective_range;
+				visible |= detection == SensorContact::Position;
 			}
 		if (!visible && bearing_visible)
 			result.bearing_contacts.push_back(

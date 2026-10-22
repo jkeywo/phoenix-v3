@@ -8,6 +8,7 @@ module;
 #include <map>
 #include <optional>
 #include <sstream>
+#include <iomanip>
 #include <string>
 #include <utility>
 #include <tuple>
@@ -21,6 +22,13 @@ namespace phoenix
 {
 namespace
 {
+std::string bearing_readout(std::int64_t bearing)
+{
+	std::ostringstream text;
+	text << localise("Bearing") << " " << std::fixed << std::setprecision(1) << bearing / 1000.0 << "°; "
+	     << localise("Range unknown");
+	return text.str();
+}
 std::optional<std::int64_t> console_integer(const Json &value)
 {
 	if (!value.is_number_integer() ||
@@ -373,9 +381,7 @@ std::vector<std::pair<std::string, std::string>> public_board_readouts(const Jso
 		for (const auto &b : d.value("bearing_contacts", Json::array()))
 			rows.emplace_back("viewscreen.readout/contact/" + std::to_string(b.at("id").get<EntityId>()),
 			                  localise("Contact") + " " + std::to_string(b.at("id").get<EntityId>()) + "; " +
-			                      localise("Bearing") + " " +
-			                      std::to_string(b.at("bearing_mdeg").get<std::int64_t>() / 1000.0) + "; " +
-			                      localise("Range unknown"));
+			                      bearing_readout(b.at("bearing_mdeg").get<std::int64_t>()));
 		for (const auto &contact : d.at("contacts"))
 			rows.emplace_back("viewscreen.readout/contact/" + std::to_string(contact.at("id").get<EntityId>()),
 			                  localise("Contact") + " " + std::to_string(contact.at("id").get<EntityId>()) + "; X " +
@@ -1402,9 +1408,9 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 		                                                                             localise(contact.definition) +
 		                                                                             " " + std::to_string(contact.id));
 	for (const auto &b : observation_->bearing_contacts)
-		result.emplace_back("game.sensor-contact/" + std::to_string(b.id),
-		                    localise("Inspect contact") + " " + std::to_string(b.id) + "; " + localise("Bearing") +
-		                        " " + std::to_string(b.bearing_mdeg / 1000) + "; " + localise("Range unknown"));
+		result.emplace_back("game.sensor-contact/" + std::to_string(b.id), localise("Inspect contact") + " " +
+		                                                                       std::to_string(b.id) + "; " +
+		                                                                       bearing_readout(b.bearing_mdeg));
 	for (const auto &contact : sensors.value("contacts", Json::array()))
 		if (std::none_of(observation_->contacts.begin(), observation_->contacts.end(),
 		                 [&](const auto &c)
@@ -1614,9 +1620,9 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 	const auto sensors = observation_->gameplay.value("sensors", Json::object());
 	for (const auto &b : observation_->bearing_contacts)
 		if (b.id == static_cast<EntityId>(sensor_contact_))
-			result.emplace_back("game.scan-bearing/" + std::to_string(b.id),
-			                    localise("Contact") + " " + std::to_string(b.id) + "; " + localise("Bearing") + " " +
-			                        std::to_string(b.bearing_mdeg / 1000.0) + "; " + localise("Range unknown"));
+			result.emplace_back("game.scan-bearing/" + std::to_string(b.id), localise("Contact") + " " +
+			                                                                     std::to_string(b.id) + "; " +
+			                                                                     bearing_readout(b.bearing_mdeg));
 	for (const auto &scanner : sensors.value("scanners", Json::array()))
 	{
 		const auto key = scanner.at("id").get<std::string>();
@@ -1846,8 +1852,7 @@ std::string ConsoleModel::contacts_text() const
 			     << " m.";
 		}
 	for (const auto &b : observation_->bearing_contacts)
-		text << " " << localise("Contact") << " " << b.id << "; " << localise("Bearing") << " "
-		     << b.bearing_mdeg / 1000.0 << "; " << localise("Range unknown") << ".";
+		text << " " << localise("Contact") << " " << b.id << "; " << bearing_readout(b.bearing_mdeg) << ".";
 	for (const auto &contact : observation_->contacts)
 	{
 		const double x = static_cast<double>(contact.x - observation_->own.x),

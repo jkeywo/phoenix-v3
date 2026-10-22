@@ -61,6 +61,14 @@ void command(World &w, const std::string &channel, int value)
 		}
 	throw std::runtime_error("missing scanner");
 }
+Json scanner_state(const World &w)
+{
+	const auto saved = w.save();
+	for (const auto &row : saved.at("sensors"))
+		if (row.at("ship") == 1 && row.at("system") == "scanner")
+			return row;
+	throw std::runtime_error("missing saved scanner");
+}
 Json samples(const World &w, int target = 2)
 {
 	const auto saved = w.save();
@@ -421,11 +429,76 @@ int main(int argc, char **argv)
 			command(long_range, "target", 3);
 			ticks(long_range, 30);
 			require(samples(long_range, 3).empty(), "aiming at an out-of-range blip earns no findings");
+			const auto selected = scanner_state(long_range).at("last_bearing");
+			require(selected.at("id") == 3, "only selected scanner bearing is retained");
+			const auto snapshot = long_range.save();
+			for (const auto &row : snapshot.at("sensors"))
+				if (row.at("system") == "radar")
+					require(row.at("last_bearing").is_null() && !row.contains("bearings"),
+					        "broad radar keeps no bearing history");
+			auto legacy = snapshot;
+			for (auto &row : legacy["sensors"])
+			{
+				const auto bearing = row.at("last_bearing");
+				row.erase("last_bearing");
+				row["bearings"] =
+				    bearing.is_null()
+				        ? Json::array()
+				        : Json::array({bearing, Json{{"id", 2}, {"bearing_mdeg", 0}, {"observed_tick", 1}}});
+			}
+			World migrated;
+			migrated.restore(c, legacy);
+			require(migrated.save() == snapshot, "legacy bearing arrays retain only the selected target");
+			auto invalid_legacy = legacy;
+			for (auto &row : invalid_legacy["sensors"])
+				if (row.at("ship") == 1 && row.at("system") == "scanner")
+					row["bearings"][1]["bearing_mdeg"] = 360000;
+			rejects(
+			    [&]
+			    {
+				    World bad;
+				    bad.restore(c, invalid_legacy);
+			    },
+			    "unselected legacy bearings must still be validated");
+			auto no_history = snapshot;
+			for (auto &row : no_history["sensors"])
+				row.erase("last_bearing");
+			World older;
+			older.restore(c, no_history);
+			require(scanner_state(older).at("last_bearing").is_null(),
+			        "saves without bearing history remain supported");
+
 			World resumed;
 			resumed.restore(c, long_range.save());
 			ticks(long_range, 5);
 			ticks(resumed, 5);
 			require(long_range.save() == resumed.save(), "bearing slew and history survive recovery");
+			command(long_range, "target", 2);
+			ticks(long_range, 1);
+			require(scanner_state(long_range).at("last_bearing").at("id") == 2,
+			        "new target captures its own permitted bearing");
+			command(long_range, "target", 0);
+			ticks(long_range, 1);
+			require(scanner_state(long_range).at("last_bearing").is_null(), "clearing target clears retained bearing");
+			command(long_range, "target", 3);
+			ticks(long_range, 1);
+			const auto loss_view = long_range.observe(101);
+			for (const auto &controller : loss_view->gameplay.at("controllers"))
+				if (controller.at("id") == "radar")
+					require(long_range.submit(
+					            101, OperatingCommand{1, {}, 0, {}, "radar", "enabled", controller.at("generation")}),
+					        "disable broad radar for contact loss");
+			ticks(long_range, 1);
+			const auto lost = scanner_state(long_range).at("last_bearing");
+			ticks(long_range, 5);
+			require(long_range.observe(101)->bearing_contacts.empty() &&
+			            scanner_state(long_range).at("last_bearing") == lost,
+			        "contact loss retains bearing without refreshing its observation time");
+			World lost_resumed;
+			lost_resumed.restore(c, long_range.save());
+			ticks(long_range, 3);
+			ticks(lost_resumed, 3);
+			require(long_range.save() == lost_resumed.save(), "lost bearing aiming resumes identically");
 
 			auto fog = source;
 			fog["maps"][0]["regions"] =
@@ -445,6 +518,25 @@ int main(int argc, char **argv)
 				                     return b.id == 2;
 			                     }),
 			        "nebula attenuates outer band");
+
+			auto attenuated = fog;
+			attenuated["entities"][0]["systems"]["radar"]["range_mm"] = 70000;
+			attenuated["maps"][0]["regions"][0]["nebula"]["density"] = .01;
+			attenuated["maps"][0]["regions"][0]["nebula"]["sensor_factor"] = 1;
+			World faint;
+			faint.load(load(attenuated), "test.map");
+			require(faint.claim(101, 1, "drive"), "claim attenuated normal return");
+			const auto faint_view = faint.observe(101);
+			require(faint_view->bearing_contacts.size() == 1 && faint_view->bearing_contacts[0].id == 2,
+			        "normal attenuation failure can still produce an outer-band bearing");
+			auto narrow = source;
+			narrow["entities"][0]["systems"]["radar"]["arc_mdeg"] = 90000;
+			World directional;
+			directional.load(load(narrow), "test.map");
+			require(directional.claim(101, 1, "drive"), "claim directional outer radar");
+			require(directional.observe(101)->bearing_contacts.size() == 1 &&
+			            directional.observe(101)->bearing_contacts[0].id == 2,
+			        "outer band respects physical arcs");
 
 			auto powered = source;
 			auto &ship = powered["entities"][0];
@@ -572,7 +664,35 @@ int main(int argc, char **argv)
 			for (const auto &button : model.observation()->gameplay.at("controls"))
 				weapon_button |= button.value("combat_choice", "") == "weapon" && button.at("value") == 3;
 			require(weapon_button, "bearing designation has admitted weapon assignment buttons");
+			const std::string expected_bearing = "Bearing 90.0°; Range unknown";
+			for (const auto &[id, label] : controls)
+				if (id == "game.sensor-contact/3")
+					require(label.ends_with(expected_bearing), "selection uses one-decimal bearing and degree unit");
+			require(model.contacts_text().find(expected_bearing) != std::string::npos,
+			        "radar summary uses the same bearing formatter");
+			Json board;
+			board["display"] = {
+			    {"kind", "radar"},
+			    {"console", "drive"},
+			    {"contacts", Json::array()},
+			    {"regions", Json::array()},
+			    {"bearing_contacts", Json::array({{{"id", 3}, {"bearing_mdeg", 90000}, {"observed_tick", 1}}})}};
+			const auto public_rows = public_board_readouts(board, 1);
+			require(std::any_of(public_rows.begin(), public_rows.end(),
+			                    [&](const auto &r)
+			                    {
+				                    return r.first == "viewscreen.readout/contact/3" &&
+				                           r.second.ends_with(expected_bearing);
+			                    }),
+			        "shared display uses the same bearing formatter");
 			require(model.act("game.sensor-contact/3"), "semantic bearing selection");
+			const auto readouts = model.gameplay_readouts();
+			require(std::any_of(readouts.begin(), readouts.end(),
+			                    [&](const auto &r)
+			                    {
+				                    return r.first == "game.scan-bearing/3" && r.second.ends_with(expected_bearing);
+			                    }),
+			        "inspection uses the same bearing formatter");
 			bool scanning = false;
 			for (const auto &c : model.gameplay_controls())
 				if (c.second.ends_with("Scan target"))

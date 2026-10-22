@@ -35,6 +35,22 @@ bool sensor_covers(EntityId ship, const std::string &id, fixed::Vec target, bool
 	return d.arc == 360000 ||
 	       std::abs(combat_delta(combat_bearing(target - origin), sensor_heading(ship, d))) <= d.arc / 2;
 }
+enum class SensorContact
+{
+	None,
+	Bearing,
+	Position
+};
+SensorContact sensor_contact(EntityId ship, const std::string &id, fixed::Vec target, std::int64_t distance) const
+{
+	const auto normal = sensor_range(ship, id);
+	if (distance <= normal && sensor_covers(ship, id, target))
+		return SensorContact::Position;
+	const auto outer = sensor_range(ship, id, true);
+	if (outer > normal && distance <= outer && sensor_covers(ship, id, target, true))
+		return SensorContact::Bearing;
+	return SensorContact::None;
+}
 bool sensor_powered(EntityId ship, const std::string &id) const
 {
 	const auto fit = instance(entities.at(ship), id);
@@ -66,7 +82,8 @@ bool sensor_target(EntityId ship, const std::string &id, std::int64_t value, boo
 		const auto owner = system_owner(ship, id);
 		const auto detected = capture_sensor_observation(owner);
 		const auto &contacts = detected.contacts;
-		if (!state.tracks.contains(value) && !state.bearings.contains(value) &&
+		if (!state.tracks.contains(value) &&
+		    !(state.last_bearing && state.last_bearing->id == static_cast<EntityId>(value)) &&
 		    std::none_of(detected.bearing_contacts.begin(), detected.bearing_contacts.end(),
 		                 [&](const auto &b)
 		                 {
@@ -80,7 +97,11 @@ bool sensor_target(EntityId ship, const std::string &id, std::int64_t value, boo
 			return false;
 	}
 	if (execute)
+	{
+		if (!value || state.target != static_cast<EntityId>(value))
+			state.last_bearing.reset();
 		state.target = value;
+	}
 	return true;
 }
 bool finding_available(const SensorFinding &f) const
@@ -175,25 +196,6 @@ void advance_sensors(bool acquire_timed = true)
 		const auto &id = child.get<Equipment>().id;
 		const auto &d = sensor_definition(ship, id);
 		auto &state = child.get_mut<SensorRuntime>();
-		if (sensor_range(ship, id) && d.long_range)
-			contact_index.each(Bounds::around(sensor_origin(ship, d), sensor_range(ship, id, true)),
-			                   [&](std::size_t row)
-			                   {
-				                   const auto &c = contact_rows[row];
-				                   const auto &tags = definition(c.id).tags;
-				                   const auto &shows = definition(ship).radar_shows.at(id);
-				                   if (c.id != ship && sensor_covers(ship, id, c.position, true) &&
-				                       distance_3d(ship, c.id) <= sensor_range(ship, id, true) &&
-				                       std::any_of(tags.begin(), tags.end(),
-				                                   [&](const auto &tag)
-				                                   {
-					                                   return std::find(shows.begin(), shows.end(), tag) != shows.end();
-				                                   }) &&
-				                       (state.bearings.contains(c.id) || state.bearings.size() < 256))
-					                   state.bearings[c.id] = {
-					                       c.id, combat_bearing(c.position - entities.at(ship).get<Pose>().position),
-					                       tick};
-			                   });
 		if (!sensor_powered(ship, id))
 			continue;
 		const auto origin = sensor_origin(ship, d);
@@ -291,18 +293,18 @@ std::optional<std::pair<fixed::Vec, std::int64_t>> sensor_aim(EntityId ship, con
 					auto &track = state.tracks[contact.id];
 					track.x = contact.x;
 					track.y = contact.y;
+					state.last_bearing.reset();
 					return std::pair{fixed::Vec{contact.x, contact.y}, d.bearing};
 				}
 			for (const auto &b : console_detection(system_owner(ship, id), cache).bearing_contacts)
-				if (b.id == state.target && (state.bearings.contains(b.id) || state.bearings.size() < 256))
-					state.bearings[b.id] = b;
-			if (state.bearings.contains(state.target) &&
-			    (!state.tracks.contains(state.target) ||
-			     state.bearings.at(state.target).observed_tick >= state.tracks.at(state.target).seen))
-				return std::pair{sensor_origin(ship, d) +
-				                     fixed::scale(fixed::direction(state.bearings.at(state.target).bearing_mdeg),
-				                                  sensor_range(ship, id)),
-				                 d.bearing};
+				if (b.id == state.target)
+					state.last_bearing = b;
+			if (state.last_bearing && (!state.tracks.contains(state.target) ||
+			                           state.last_bearing->observed_tick >= state.tracks.at(state.target).seen))
+				return std::pair{
+				    sensor_origin(ship, d) +
+				        fixed::scale(fixed::direction(state.last_bearing->bearing_mdeg), sensor_range(ship, id)),
+				    d.bearing};
 			if (state.tracks.contains(state.target))
 			{
 				const auto &t = state.tracks.at(state.target);
@@ -446,10 +448,6 @@ Json save_sensors() const
 			for (auto child : entity.get<EquipmentIndex>().values)
 				if (const auto *s = child.try_get<SensorRuntime>())
 				{
-					Json bearings = Json::array();
-					for (const auto &[target, b] : s->bearings)
-						bearings.push_back(
-						    Json{{"id", target}, {"bearing_mdeg", b.bearing_mdeg}, {"observed_tick", b.observed_tick}});
 					Json tracks = Json::array();
 					for (const auto &[target, t] : s->tracks)
 						tracks.push_back(Json{{"target", target}, {"state", t}});
@@ -457,7 +455,8 @@ Json save_sensors() const
 					               {"system", child.get<Equipment>().id},
 					               {"target", s->target},
 					               {"tracks", tracks},
-					               {"bearings", bearings}});
+					               {"last_bearing",
+					                s->last_bearing ? projection::bearing_json(*s->last_bearing) : Json(nullptr)}});
 				}
 	return out;
 }
@@ -473,21 +472,40 @@ void restore_sensors(const Json &rows)
 		if (!entities.contains(ship) || !definition(ship).sensors.contains(id) || !seen.emplace(ship, id).second)
 			throw std::runtime_error("Invalid saved scanner");
 		SensorRuntime state;
-		const auto bearings = row.value("bearings", Json::array());
-		if (!bearings.is_array() || bearings.size() > 256)
-			throw std::runtime_error("Invalid saved bearings");
-		for (const auto &b : bearings)
+		state.target = row.at("target");
+		if (state.target == ship)
+			throw std::runtime_error("Invalid saved scan target");
+		auto read_bearing = [&](const Json &b)
 		{
+			if (!b.at("id").is_number_integer() || b.at("id") <= 0 || !b.at("observed_tick").is_number_integer() ||
+			    b.at("observed_tick") < 0)
+				throw std::runtime_error("Invalid saved bearing");
 			BearingContactView value{b.at("id").get<EntityId>(),
 			                         checked_integer(b.at("bearing_mdeg"), 0, 359999, "sensor.bearing"),
 			                         b.at("observed_tick").get<std::uint64_t>()};
-			if (!value.id || value.id == ship || value.observed_tick > ecs.get<Clock>().tick ||
-			    !state.bearings.emplace(value.id, value).second)
+			if (value.id == ship || value.observed_tick > ecs.get<Clock>().tick)
 				throw std::runtime_error("Invalid saved bearing");
+			return value;
+		};
+		const auto bearings = row.value("bearings", Json::array());
+		if (!bearings.is_array() || bearings.size() > 256)
+			throw std::runtime_error("Invalid saved bearings");
+		std::set<EntityId> bearing_ids;
+		for (const auto &b : bearings)
+		{
+			const auto value = read_bearing(b);
+			if (!bearing_ids.insert(value.id).second)
+				throw std::runtime_error("Duplicate saved bearing");
+			if (!row.contains("last_bearing") && value.id == state.target)
+				state.last_bearing = value;
 		}
-		state.target = row.at("target");
-		if (state.target && (state.target == ship))
-			throw std::runtime_error("Invalid saved scan target");
+		if (row.contains("last_bearing") && !row.at("last_bearing").is_null())
+		{
+			const auto value = read_bearing(row.at("last_bearing"));
+			if (value.id != state.target)
+				throw std::runtime_error("Saved bearing does not match scan target");
+			state.last_bearing = value;
+		}
 		if (row.at("tracks").size() > 256)
 			throw std::runtime_error("Too many saved sensor tracks");
 		for (const auto &entry : row.at("tracks"))

@@ -114,6 +114,14 @@ fixed::Vec weapon_lead(flecs::entity ship, const CombatMechanism &m, const Weapo
 	        std::clamp(target.body.y + (target.body.vy - ship.get<Motion>().velocity.y) * travel / 1000, -fixed::unit,
 	                   fixed::unit)};
 }
+bool weapon_covers(flecs::entity ship, const CombatMechanism &m, const WeaponAim &target, fixed::Vec origin,
+                   std::int64_t orientation, fixed::Vec lead) const
+{
+	return (target.bearing || fixed::length(fixed::Vec{target.body.x, target.body.y} - origin) +
+	                                  std::abs(target.altitude - altitude(ship.get<StableId>().id)) <=
+	                              m.definition.get<WeaponDefinition>().range) &&
+	       std::abs(combat_delta(combat_bearing(lead - origin), orientation)) <= m.definition.arc / 2;
+}
 std::uint64_t point_defence_target(flecs::entity ship, const CombatSystemDefinition &d,
                                    const std::vector<BodyView> &contacts) const
 {
@@ -269,10 +277,7 @@ void prepare_weapons(flecs::entity ship)
 			if (orientation < 0)
 				continue;
 			const auto lead = weapon_lead(ship, *m, *target, origin);
-			if ((!target->bearing && fixed::length(fixed::Vec{target->body.x, target->body.y} - origin) +
-			                                 std::abs(target->altitude - altitude(id)) >
-			                             d.get<WeaponDefinition>().range) ||
-			    std::abs(combat_delta(combat_bearing(lead - origin), orientation)) > d.arc / 2)
+			if (!weapon_covers(ship, *m, *target, origin, orientation, lead))
 				continue;
 			if (m->get<WeaponState>().unloading)
 				continue;
@@ -326,10 +331,7 @@ void fire_weapons(flecs::entity ship)
 			if (orientation < 0)
 				continue;
 			const auto lead = weapon_lead(ship, *m, *target, origin);
-			if ((!target->bearing && fixed::length(fixed::Vec{target->body.x, target->body.y} - origin) +
-			                                 std::abs(target->altitude - altitude(id)) >
-			                             d.get<WeaponDefinition>().range) ||
-			    std::abs(combat_delta(combat_bearing(lead - origin), orientation)) > d.arc / 2)
+			if (!weapon_covers(ship, *m, *target, origin, orientation, lead))
 				continue;
 			auto bearing = combat_bearing(lead - origin);
 			if (d.get<WeaponDefinition>().family == "beam")

@@ -19,7 +19,7 @@ struct SensorRuntime
 {
 	EntityId target = 0;
 	std::map<EntityId, SensorTrack> tracks;
-	std::map<EntityId, BearingContactView> bearings;
+	std::optional<BearingContactView> last_bearing;
 };
 
 } // namespace phoenix
