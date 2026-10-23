@@ -68,7 +68,7 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(TurretState, target, heading, turn_remainder)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MagazineState, ammo, refill, reserved_return)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(TeamState, location, destination, edge_to, travel, edge_total,
                                                 repair_system, repair_auto, revision, order, activity, patient,
-                                                work_done, condition, treatment, detained)
+                                                work_done, condition, treatment, detained, compartment_assignment)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ShieldState, strength, warmup, recharge_remainder, discharge_remainder,
                                    discharge_credit, discharge)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Destructible, definition, durability, destroyed_tick, processed)
@@ -1038,7 +1038,9 @@ struct World::Impl
 			EntityControls controls;
 			controls.layout = *data.layout;
 			for (const auto &console : data.consoles)
-				controls.profiles.emplace(console.id, data.layout->default_profile);
+				controls.profiles.emplace(console.id, data.layout->default_profiles.contains(console.id)
+				                                          ? data.layout->default_profiles.at(console.id)
+				                                          : data.layout->default_profile);
 			controls.controllers = data.controller_templates;
 			for (auto &controller : controls.controllers)
 				for (std::size_t i = 0; i < controller.commands.size(); ++i)
@@ -2212,6 +2214,7 @@ struct World::Impl
 #include "logistics.hpp"
 #include "docking.hpp"
 #include "cargo.hpp"
+#include "supply.hpp"
 #include "bridge.hpp"
 #include "conversations.hpp"
 #include "away.hpp"
@@ -2233,6 +2236,8 @@ struct World::Impl
 			return false;
 		if (command.action.starts_with("ftl."))
 			return ftl_command(address, command, execute);
+		if (command.action == "flight.impulse")
+			return coordinated_impulse(address, command, execute);
 		if (command.action.starts_with("away."))
 			return away_command(address, command, execute);
 		if (command.action.starts_with("dock."))
@@ -3158,6 +3163,36 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 				{
 					const auto &channel = controller.definition.commands[i];
 					const auto &state = controller.commands[i];
+					if (!channel.coordinated_group.empty())
+					{
+						const auto key = "flight.impulse." + channel.coordinated_group;
+						if (std::none_of(buttons.begin(), buttons.end(),
+						                 [&](const auto &b)
+						                 {
+							                 return b.at("id") == key + ".1";
+						                 }))
+						{
+							std::uint64_t next = 1;
+							for (const auto &peer : controls.controllers)
+								if (peer.definition.console == address.console)
+									for (std::size_t j = 0; j < peer.commands.size(); ++j)
+										if (peer.definition.commands[j].coordinated_group == channel.coordinated_group)
+											next = std::max(next, peer.commands[j].request_id + 1);
+							for (const auto value : {0, 1})
+							{
+								OperatingCommand c{address.ship, "flight.impulse", value, channel.coordinated_group};
+								c.generation = impl_->coordinated_generation(address, channel.coordinated_group);
+								c.request_id = next;
+								auto descriptor = encode_operating_command(c);
+								descriptor["id"] = key + "." + std::to_string(value);
+								descriptor["label_key"] = value ? "Start impulse" : "Cancel impulse";
+								descriptor["label"] = value ? "Start impulse" : "Cancel impulse";
+								buttons.push_back(std::move(descriptor));
+							}
+						}
+					}
+					if (impl_->station_stars(address) < channel.individual_stars)
+						continue;
 					if (impl_->psychic_controls(address, controller, i, buttons, psychic_contacts))
 						continue;
 					const auto scale = channel.action == OperatingAction::GroupAllocation
@@ -3187,6 +3222,8 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 							for (const auto &[equipment, compartment] :
 							     entity.get<CombatStructure>().definition.equipment_compartments)
 								labels.push_back(equipment);
+							if (channel.hull_priority)
+								labels.push_back("Compartment hull");
 						}
 						for (std::size_t choice = 0; choice < labels.size(); ++choice)
 						{
@@ -3751,7 +3788,7 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 19},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 20},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
 	result["shield_reactions"] = impl_->save_shield_reactions();
 	if (impl_->display_revision)
@@ -3892,8 +3929,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 19)
-		throw std::runtime_error("Saved state schema retired; start a new session (schema 19 required)");
+	if (saved.at("schema") != 20)
+		throw std::runtime_error("Saved state schema retired; start a new session (schema 20 required)");
 	if (saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error("Saved state content identity mismatch; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))

@@ -499,9 +499,24 @@ struct BoardingDefinition
 	std::map<std::string, BoardingObjective> objectives;
 };
 std::vector<BoardingDefinition> compile_boarding(const Catalog &, const std::string &entity);
+struct AwayCraftSlot
+{
+	std::string id, role, craft_role;
+	bool required = false;
+};
+struct SupplyOffer
+{
+	std::string provider_store, home_store, material, payment;
+	std::int64_t limit = 0, give = 1, pay = 0;
+};
 struct AwayDefinition
 {
 	std::string id, title, slot, conversation, reveal_event, tree;
+	// Empty retains the legacy unique/default Dispatch; explicit routes name fitted Systems.
+	std::string dispatch;
+	std::string hail_tree;
+	std::vector<AwayCraftSlot> craft_slots;
+	std::optional<SupplyOffer> supply;
 	EntityId target = 0, origin = 0;
 	bool retain_craft = true;
 	std::optional<BoardingDefinition> boarding;
@@ -776,6 +791,7 @@ struct MagazineDefinition
 };
 struct TeamDefinition
 {
+	bool local_repair_priority = false;
 	std::int64_t repair_rate = 0, stack_penalty = 500, treatment_ticks = 400, stabilise_ticks = 200,
 	             injured_effectiveness = 500;
 	std::string type = "engineering";
@@ -943,6 +959,9 @@ struct ControllerCommandSpec
 	std::string label_key;
 	std::map<std::int64_t, std::string> choices;
 	std::string shared_target_controller, shared_target_channel;
+	int individual_stars = 1;
+	bool hull_priority = false;
+	std::string coordinated_group;
 };
 struct ConsoleControllerSpec
 {
@@ -962,6 +981,8 @@ struct ControllableLayout
 	std::vector<ConsoleControllerSpec> controllers;
 	std::vector<ConsoleComplexitySpec> profiles;
 	std::map<std::string, std::string> complexity_groups;
+	std::map<std::string, std::map<std::string, int>> manual_workloads;
+	std::map<std::string, std::size_t> default_profiles;
 	std::size_t default_profile = 0;
 	bool converted = false;
 };

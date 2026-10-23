@@ -159,23 +159,74 @@ bool away_allowed(const Observation &view, const OperatingCommand &c)
 		return false;
 	const auto *owner = section(view, c.controller);
 	if (!owner ||
-	    (!owner->at("human").get<bool>() && !(owner->value("contribution_authority", false) &&
-	                                          (c.action == "away.assign" || c.action == "away.withdraw"))) ||
+	    (!owner->at("human").get<bool>() &&
+	     !(owner->value("contribution_authority", false) &&
+	       (c.action == "away.assign" || c.action == "away.withdraw" || c.action == "away.contribute")) &&
+	     !((c.action == "away.transport" || c.action == "away.escort") &&
+	       owner->value("transport_authority", false))) ||
 	    owner->at("generation") != c.generation)
 		return false;
 	for (const auto &m : view.gameplay.value("away_missions", Json::array()))
 		if (m.at("id") == c.system && m.at("revision") == c.value)
 		{
+			if (c.action == "away.quantity")
+			{
+				if (!m.contains("supply") || !m.at("dispatch").get<bool>() ||
+				    !m.at("supply").at("manual").get<bool>() ||
+				    !consumes(*owner, m.value("dispatch_system", std::string{})))
+					return false;
+				for (const auto &n : m.at("supply").at("quantities"))
+					if (std::to_string(n.get<std::int64_t>()) == c.text)
+						return true;
+				return false;
+			}
+			if (c.action == "away.contribute")
+				return owner->value("contribution_authority", false) && m.value("can_contribute", false) &&
+				       (c.text == "1" || c.text == "0");
+			if (c.action == "away.escort")
+			{
+				const auto slash = c.text.find('/');
+				if (slash == std::string::npos)
+					return false;
+				for (const auto &slot : m.value("craft_slots", Json::array()))
+					if (slot.at("id") == c.text.substr(0, slash))
+					{
+						const auto asset = c.text.substr(slash + 1).empty() ? slot.at("assigned").get<std::string>()
+						                                                    : c.text.substr(slash + 1);
+						bool authority = false;
+						for (const auto &craft : view.gameplay.value("craft", Json::array()))
+							authority |= asset == "craft:" + craft.at("id").get<std::string>() &&
+							             consumes(*owner, craft.at("bay"));
+						if (!authority)
+							return false;
+						return c.text.substr(slash + 1).empty()
+						           ? slot.at("owned").get<bool>() && m.value("can_contribute", false)
+						           : std::find(slot.at("choices").begin(), slot.at("choices").end(),
+						                       Json(c.text.substr(slash + 1))) != slot.at("choices").end();
+					}
+				return false;
+			}
 			if (c.action == "away.transport")
-				return (consumes(*owner, c.text) || (c.text == "ship" && m.at("dispatch").get<bool>() &&
-				                                     std::any_of(view.systems.begin(), view.systems.end(),
-				                                                 [&](const auto &system)
-				                                                 {
-					                                                 return system.kind == OperatingSystem::Dispatch &&
-					                                                        consumes(*owner, system.id);
-				                                                 }))) &&
+			{
+				const auto selection = c.text.empty() ? m.at("transport").get<std::string>() : c.text;
+				bool craft = false;
+				for (const auto &row : view.gameplay.value("craft", Json::array()))
+					craft |= "craft:" + row.at("id").get<std::string>() == selection && consumes(*owner, row.at("bay"));
+				if (c.text.empty())
+					return m.value("transport_owned", false) &&
+					       (craft || consumes(*owner, selection) ||
+					        (selection == "ship" && m.at("dispatch").get<bool>() &&
+					         consumes(*owner, m.value("dispatch_system", std::string{}))));
+				return (craft || consumes(*owner, c.text) ||
+				        (c.text == "ship" && m.at("dispatch").get<bool>() &&
+				         std::any_of(view.systems.begin(), view.systems.end(),
+				                     [&](const auto &system)
+				                     {
+					                     return system.kind == OperatingSystem::Dispatch && consumes(*owner, system.id);
+				                     }))) &&
 				       std::find(m.at("transports").begin(), m.at("transports").end(), c.text) !=
 				           m.at("transports").end();
+			}
 			if (c.action == "away.assign")
 			{
 				const auto slash = c.text.find('/');
@@ -204,11 +255,64 @@ bool away_allowed(const Observation &view, const OperatingCommand &c)
 			    (c.action != "away.open" && c.action != "away.send" && c.action != "away.recall" &&
 			     c.action != "away.cancel"))
 				return false;
+			if (m.contains("dispatch_system"))
+				return consumes(*owner, m.at("dispatch_system"));
 			for (const auto &system : view.systems)
 				if (system.kind == OperatingSystem::Dispatch &&
 				    (system.id == c.controller || consumes(*owner, system.id)))
 					return true;
 		}
+	return false;
+}
+bool craft_allowed(const Observation &view, const OperatingCommand &c)
+{
+	const auto *owner = section(view, c.controller);
+	if (!owner || (!owner->value("human", false) && !owner->value("craft_authority", false)) ||
+	    owner->at("generation") != c.generation || !c.channel.empty() || c.request_id || !c.arguments.empty())
+		return false;
+	for (const auto &craft : view.gameplay.value("craft", Json::array()))
+		if (craft.at("id") == c.system && craft.value("manual", true) && craft.at("revision") == c.value &&
+		    consumes(*owner, craft.at("bay")))
+		{
+			if (c.action == "craft.recall")
+				return c.text.empty();
+			if (c.action == "craft.defend")
+				return c.text.empty() && craft.at("role") == "interceptor";
+			if (c.action == "craft.escort" && craft.at("role") == "interceptor")
+			{
+				if (c.text == std::to_string(view.own.id))
+					return true;
+				for (const auto &contact : view.contacts)
+					if (c.text == std::to_string(contact.id))
+						return true;
+			}
+			if (c.action == "craft.bomb" && craft.at("role") == "bomber")
+				for (const auto &contact : view.contacts)
+					if (c.text == std::to_string(contact.id) && contact.disposition == "hostile")
+						return true;
+		}
+	return false;
+}
+bool logistics_allowed(const Observation &view, const OperatingCommand &c)
+{
+	const auto *owner = section(view, c.controller);
+	const auto board = view.gameplay.value("logistics", Json::object());
+	if (!owner || !owner->value("human", false) || board.empty() || !board.value("manual", true) ||
+	    owner->at("generation") != c.generation || board.at("revision") != c.value || !c.channel.empty() ||
+	    c.request_id || !c.arguments.empty())
+		return false;
+	if (c.action == "logistics.route")
+		return board.at("route_controller") == c.controller;
+	if (c.action == "logistics.craft_allow")
+		for (const auto &craft : view.gameplay.value("craft", Json::array()))
+			if (craft.at("id") == c.system && consumes(*owner, craft.at("bay")))
+				return c.text == "0" || c.text == "1";
+	if (c.action == "logistics.cancel" || c.action == "logistics.cargo_cancel" || c.action == "logistics.deliver")
+		return board.at("controller") == c.controller;
+	for (const auto &store : board.value("stores", Json::array()))
+		if (store.at("id") == c.system && store.at("controller") == c.controller)
+			return c.action == "logistics.target" || c.action == "logistics.hold" || c.action == "logistics.release" ||
+			       c.action == "logistics.transfer";
 	return false;
 }
 std::string manual_binding(const Observation &view, const Json &layout, const std::string &action,
@@ -275,6 +379,10 @@ std::optional<EligibleConsoleCommand> resolve(const Observation &view, const Jso
 		return personnel_allowed(view, command) ? std::optional<EligibleConsoleCommand>{{command, {}}} : std::nullopt;
 	if (command.action.starts_with("away."))
 		return away_allowed(view, command) ? std::optional<EligibleConsoleCommand>{{command, {}}} : std::nullopt;
+	if (command.action.starts_with("craft."))
+		return craft_allowed(view, command) ? std::optional<EligibleConsoleCommand>{{command, {}}} : std::nullopt;
+	if (command.action.starts_with("logistics."))
+		return logistics_allowed(view, command) ? std::optional<EligibleConsoleCommand>{{command, {}}} : std::nullopt;
 	Json matched;
 	bool projected = false;
 	for (const auto &descriptor : view.gameplay.value("controls", Json::array()))

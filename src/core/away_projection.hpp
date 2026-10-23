@@ -23,6 +23,46 @@ inline Json board(const Json &rows)
 			v["accompanying"].push_back(text(o, 64));
 		v["revision"] = revision;
 		v["dispatch"] = r.at("dispatch").get<bool>();
+		v["owner"] = text(r.value("owner", Json("")), 128);
+		v["dispatch_system"] = text(r.value("dispatch_system", Json("")), 128);
+		v["can_contribute"] = r.value("can_contribute", false);
+		v["contributing"] = r.value("contributing", false);
+		v["transport_owned"] = r.value("transport_owned", false);
+		v["craft_slots"] = Json::array();
+		const auto craft_slots = r.value("craft_slots", Json::array());
+		if (!craft_slots.is_array() || craft_slots.size() > 8)
+			throw std::runtime_error("Invalid mission craft slots");
+		for (const auto &slot : craft_slots)
+		{
+			Json s{{"id", text(slot.at("id"), 64)},
+			       {"role", text(slot.at("role"), 32)},
+			       {"assigned", text(slot.at("assigned"), 128)},
+			       {"required", slot.at("required").get<bool>()},
+			       {"owned", slot.at("owned").get<bool>()},
+			       {"choices", Json::array()}};
+			s["lost"] = slot.value("lost", false);
+			if (slot.at("choices").size() > 128)
+				throw std::runtime_error("Invalid mission craft choices");
+			for (const auto &choice : slot.at("choices"))
+				s["choices"].push_back(text(choice, 128));
+			v["craft_slots"].push_back(s);
+		}
+		if (r.contains("supply"))
+		{
+			const auto &s = r.at("supply");
+			Json q;
+			for (const auto *key : {"material", "payment", "phase"})
+				q[key] = text(s.at(key), 128);
+			for (const auto *key : {"give", "pay", "quantity", "payment_quantity", "delivered"})
+				q[key] = projection::number(s.at(key), 0, 1000000000);
+			q["manual"] = s.at("manual").get<bool>();
+			q["quantities"] = Json::array();
+			if (s.at("quantities").size() > 3)
+				throw std::runtime_error("Invalid supply quantity choices");
+			for (const auto &n : s.at("quantities"))
+				q["quantities"].push_back(projection::number(n, 0, 1000000000));
+			v["supply"] = q;
+		}
 		v["target"] = projection::number(r.value("target", Json(0)), 0, 1000000000);
 		v["ship_transport_reason"] = text(r.value("ship_transport_reason", Json("")), 256);
 		v["slots"] = Json::array();

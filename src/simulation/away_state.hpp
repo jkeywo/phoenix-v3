@@ -72,6 +72,10 @@ struct AwayMission
 	AwayPhase phase = AwayPhase::Hidden;
 	std::string transport, checkpoint, outcome, work_key, repair_compartment;
 	std::map<std::string, std::string> assignments;
+	std::map<std::string, EntityId> escorts;
+	std::set<std::string> authorised_departments;
+	std::int64_t supply_quantity = 0;
+	std::uint64_t supply_job = 0;
 	std::vector<std::string> accompanying;
 	std::uint64_t revision = 1, sequence = 0;
 	std::int64_t transfer = 0, work = 0, progress = 0, entry_compartment = 0;
@@ -86,7 +90,7 @@ struct AwayMission
 	}
 	bool absent() const
 	{
-		return deployed() || aboard_craft;
+		return deployed() || aboard_craft || (phase == AwayPhase::Lost && !assignments.empty());
 	}
 	state_tree::Instance continuation;
 	std::set<std::string> effects;
@@ -101,5 +105,6 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(AwayMission, phase, transport, c
                                                 transfer, work, progress, recovered, effects, ever_deployed,
                                                 participants, care, boarding, aboard_craft, transport_released,
                                                 entry_compartment, flags, saved_progress, timed_work, crew_deaths,
-                                                work_capability)
+                                                work_capability, escorts, authorised_departments, supply_quantity,
+                                                supply_job)
 } // namespace phoenix

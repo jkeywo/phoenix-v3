@@ -210,8 +210,8 @@ bool craft_available(EntityId id, const std::string &mission = {}) const
 {
 	const auto &s = entities.at(id).get<CraftState>();
 	return !cargo_committed(id) && !combat_dead(entities.at(id)) && s.phase == CraftPhase::Docked &&
-	       s.order == "idle" && s.pending_order.empty() && (s.mission.empty() || s.mission == mission) &&
-	       bay_working(s.home, s.bay) && !ftl_preparing(s.home);
+	       !away_craft_reserved(id, mission) && s.order == "idle" && s.pending_order.empty() &&
+	       (s.mission.empty() || s.mission == mission) && bay_working(s.home, s.bay) && !ftl_preparing(s.home);
 }
 void craft_return(flecs::entity e)
 {
@@ -236,7 +236,8 @@ void complete_craft_recovery(EntityId craft)
 	for (std::size_t i = 0; i < away_missions.size(); ++i)
 	{
 		auto &m = away_missions[i];
-		if (away_definitions[i].id != s.mission || away_ship(away_definitions[i]) != s.home || !m.aboard_craft)
+		if (away_definitions[i].id != s.mission || away_ship(away_definitions[i]) != s.home || !m.aboard_craft ||
+		    m.transport != "craft:" + std::to_string(craft) || m.supply_job)
 			continue;
 		finish_away_recovery(s.home, m);
 	}
@@ -248,6 +249,16 @@ void request_craft_pickup(EntityId craft)
 	auto &s = e.get_mut<CraftState>();
 	if (torpedo_launched(e))
 		return;
+	for (auto &m : away_missions)
+		for (auto at = m.escorts.begin(); at != m.escorts.end(); ++at)
+			if (at->second == craft)
+			{
+				m.escorts.erase(at);
+				++m.revision;
+				s.mission.clear();
+				craft_return(e);
+				return;
+			}
 	for (std::size_t i = 0; i < away_missions.size(); ++i)
 	{
 		auto &m = away_missions[i];
@@ -353,6 +364,8 @@ void advance_craft_transport(std::size_t index, EntityId craft)
 }
 bool craft_command(const ConsoleAddress &a, const OperatingCommand &c, bool execute, bool ai = false)
 {
+	if (!ai && !manual_workload(a, "craft"))
+		return false;
 	if (!c.channel.empty() || c.request_id || !c.arguments.empty() || !c.speaker_name.empty() ||
 	    !c.speaker_avatar.empty())
 		return false;
@@ -370,7 +383,7 @@ bool craft_command(const ConsoleAddress &a, const OperatingCommand &c, bool exec
 	bool authority = false;
 	for (const auto &ctrl : entities.at(a.ship).get<EntityControls>().controllers)
 		if (ctrl.definition.console == a.console && ctrl.definition.id == c.controller &&
-		    ctrl.generation == c.generation && ctrl.human != ai)
+		    ctrl.generation == c.generation && (ctrl.human != ai || (!ai && assisted_workload(a, "craft"))))
 			for (const auto &cmd : ctrl.definition.commands)
 				for (auto consumer : cmd.consumers)
 					authority |= definition(a.ship).fitted->values.at(consumer).id == s.bay;
@@ -432,6 +445,53 @@ void launch_craft(flecs::entity e)
 }
 void prepare_craft()
 {
+	// Assisted combat craft use ordinary admitted orders and the watch's evidence.
+	for (const auto &[id, e] : craft_rows())
+	{
+		const auto &s = e.get<CraftState>();
+		const auto owner = enabled_system_owner(s.home, s.bay);
+		const auto &workloads = entities.at(s.home).get<EntityControls>().layout.manual_workloads;
+		if (!workloads.contains(owner.console) || !workloads.at(owner.console).contains("craft") ||
+		    (console_operator(owner) != 0 && station_stars(owner) >= workloads.at(owner.console).at("craft")) ||
+		    !s.mission.empty() || away_craft_reserved(id) || cargo_committed(id) || !s.pending_order.empty())
+			continue;
+		const auto &role = definition(id).craft->role;
+		if (role != "interceptor" && role != "bomber")
+			continue;
+		EntityId target = 0;
+		for (const auto &controller : entities.at(s.home).get<EntityControls>().controllers)
+			if (controller.definition.console == owner.console)
+				for (std::size_t j = 0; j < controller.commands.size(); ++j)
+					if (controller.definition.commands[j].label_key == "Combat target")
+						target = controller.commands[j].value;
+		bool hostile = false, threat = false;
+		for (const auto &contact : capture_sensor_contacts(owner))
+		{
+			threat |= contact.disposition == "hostile";
+			hostile |= contact.id == target && contact.disposition == "hostile";
+		}
+		if (s.order == "return" || s.phase == CraftPhase::Recovering ||
+		    (s.phase == CraftPhase::Docked && (s.report.ammunition <= 0 || s.report.energy <= 0)))
+			continue;
+		const auto order = role == "interceptor" && threat                          ? std::string{"defend"}
+		                   : role == "bomber" && hostile && s.report.ammunition > 0 ? std::string{"bomb"}
+		                                                                            : std::string{"recall"};
+		if ((s.phase == CraftPhase::Docked && (!craft_available(id) || order == "recall")) ||
+		    (s.order == order && (order != "bomb" || s.target == target)))
+			continue;
+		for (const auto &controller : entities.at(s.home).get<EntityControls>().controllers)
+			if (controller.definition.console == owner.console)
+			{
+				OperatingCommand command{s.home, "craft." + order, static_cast<std::int64_t>(s.revision),
+				                         std::to_string(id)};
+				command.controller = controller.definition.id;
+				command.generation = controller.generation;
+				if (order == "bomb")
+					command.text = std::to_string(target);
+				if (craft_command(owner, command, true, !controller.human))
+					break;
+			}
+	}
 	// Released transports compete for actual free craft when departure preparation begins.
 	for (std::size_t i = 0; i < away_missions.size(); ++i)
 	{
@@ -829,6 +889,14 @@ Json craft_board(const ConsoleAddress &a) const
 		               {"condition", r.condition},
 		               {"maximum_condition", r.maximum_condition}});
 		out.back()["blocker"] = blocker;
+		bool manual = false;
+		for (const auto &controller : entities.at(a.ship).get<EntityControls>().controllers)
+			if (controller.definition.console == a.console)
+				for (const auto &command : controller.definition.commands)
+					for (const auto consumer : command.consumers)
+						if (definition(a.ship).fitted->values.at(consumer).id == s.bay)
+							manual |= controller.human || assisted_workload(a, "craft");
+		out.back()["manual"] = manual && manual_workload(a, "craft");
 	}
 	return out;
 }
@@ -932,13 +1000,16 @@ void restore_craft(const Json &saved)
 }
 void validate_craft_transports() const
 {
+	std::set<EntityId> reserved;
 	for (std::size_t i = 0; i < away_missions.size(); ++i)
 	{
 		const auto &m = away_missions[i];
 		const auto &d = away_definitions[i];
 		const auto home = away_ship(d);
 		const auto id = home ? away_transport_entity(home, m.transport) : 0;
-		if (m.aboard_craft && (!id || id == home || (m.phase != AwayPhase::Outbound && m.phase != AwayPhase::Inbound)))
+		if (m.aboard_craft &&
+		    (!id || id == home ||
+		     (m.phase != AwayPhase::Outbound && m.phase != AwayPhase::Inbound && m.phase != AwayPhase::Lost)))
 			throw std::runtime_error("Invalid saved passenger location");
 		if (m.transport_released && (!id || id == home || m.aboard_craft || m.phase != AwayPhase::Deployed))
 			throw std::runtime_error("Invalid saved shuttle release");
@@ -947,11 +1018,19 @@ void validate_craft_transports() const
 		     (m.phase == AwayPhase::Deployed && !m.transport_released)))
 		{
 			const auto &s = entities.at(id).get<CraftState>();
-			if (s.mission != d.id ||
-			    (s.phase == CraftPhase::Docked && (m.aboard_craft || s.pending_order != "return")) ||
+			if ((s.mission != d.id && !(m.supply_job && m.phase == AwayPhase::Inbound &&
+			                            s.phase == CraftPhase::Docked && s.mission.empty())) ||
+			    (s.phase == CraftPhase::Docked && !m.supply_job && m.escorts.empty() &&
+			     (m.aboard_craft || s.pending_order != "return")) ||
 			    s.phase == CraftPhase::Lost || s.phase == CraftPhase::Consumed)
 				throw std::runtime_error("Saved shuttle commitment mismatch");
 		}
+		if (id && id != home && !m.transport_released && m.phase != AwayPhase::Lost &&
+		    !(m.phase == AwayPhase::Recovered && !m.outcome.empty()) && !reserved.insert(id).second)
+			throw std::runtime_error("Duplicate saved mission transport");
+		for (const auto &[slot, escort] : m.escorts)
+			if (!reserved.insert(escort).second)
+				throw std::runtime_error("Duplicate saved mission escort");
 	}
 	for (const auto &[id, e] : craft_rows())
 	{
@@ -963,9 +1042,20 @@ void validate_craft_transports() const
 		{
 			const auto &mission = away_missions[i];
 			committed |= away_definitions[i].id == state.mission && away_ship(away_definitions[i]) == state.home &&
-			             mission.transport == "craft:" + std::to_string(id) && !mission.transport_released &&
+			             (mission.transport == "craft:" + std::to_string(id) ||
+			              std::any_of(mission.escorts.begin(), mission.escorts.end(),
+			                          [&](const auto &s)
+			                          {
+				                          return s.second == id;
+			                          })) &&
+			             (!mission.transport_released || std::any_of(mission.escorts.begin(), mission.escorts.end(),
+			                                                         [&](const auto &s)
+			                                                         {
+				                                                         return s.second == id;
+			                                                         })) &&
 			             (mission.phase == AwayPhase::Outbound || mission.phase == AwayPhase::Inbound ||
-			              mission.phase == AwayPhase::Deployed);
+			              mission.phase == AwayPhase::Deployed || mission.phase == AwayPhase::Recovered ||
+			              mission.phase == AwayPhase::Lost);
 		}
 		if (!committed)
 			throw std::runtime_error("Orphaned saved craft commitment");

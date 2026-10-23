@@ -317,9 +317,40 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 		capabilities.push_back(fitted_commands(systems[i], entity.at("systems").at(systems[i].id),
 		                                       resources ? &*resources : nullptr, i, advanced));
 	const auto &layout = entity.at("control_layout");
-	if (layout.value("station_complexity", false))
-		for (const auto &console : consoles)
+	const auto grouped = layout.value("station_complexity", Json(false));
+	control_require(grouped.is_boolean() || grouped.is_array(), path,
+	                "station_complexity expects boolean or Station IDs");
+	if (grouped.is_array())
+	{
+		std::set<std::string> unique;
+		for (const auto &station : grouped)
+			control_require(station.is_string() && unique.insert(station.get<std::string>()).second &&
+			                    std::any_of(consoles.begin(), consoles.end(),
+			                                [&](const auto &c)
+			                                {
+				                                return Json(c.station) == station;
+			                                }),
+			                path, "unknown or duplicate complexity Station");
+	}
+	for (const auto &console : consoles)
+		if ((grouped.is_boolean() && grouped.get<bool>()) ||
+		    (grouped.is_array() && std::find(grouped.begin(), grouped.end(), Json(console.station)) != grouped.end()))
 			result.complexity_groups.emplace(console.id, console.station);
+	const auto workloads = layout.value("manual_workloads", Json::object());
+	control_require(workloads.is_object() && workloads.size() <= consoles.size(), path, "invalid manual workloads");
+	for (const auto &[console, families] : workloads.items())
+	{
+		control_require(console_ids.contains(console) && result.complexity_groups.contains(console) &&
+		                    families.is_object(),
+		                path, "unknown workload Console or Station complexity disabled");
+		for (const auto &[family, stars] : families.items())
+		{
+			control_require((family == "craft" || family == "transport" || family == "logistics") &&
+			                    stars.is_number_integer() && stars >= 1 && stars <= 3,
+			                path, "invalid manual workload");
+			result.manual_workloads[console][family] = stars.get<int>();
+		}
+	}
 	control_require(layout.is_object() && layout.value("schema", 0) == 1, path,
 	                "unsupported layout schema (expected 1)");
 	control_require(!entity.contains("controller") && !entity.contains("controllers") && !entity.contains("presets"),
@@ -439,14 +470,26 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			                "request channels must start idle");
 
 			command.label_key = field.value("label_key", std::string{});
-			if (field.contains("shared_target"))
+			if (field.contains("shared_target") || field.contains("shared_command"))
 			{
-				control_require(command.action == OperatingAction::WeaponTarget, where,
-				                "shared target requires a weapon target channel");
-				command.shared_target_controller = control_name(field.at("shared_target"), "controller", where);
-				command.shared_target_channel = control_name(field.at("shared_target"), "channel", where);
+				control_require(
+				    command.semantics == CommandSemantics::Setting &&
+				        (!field.contains("shared_target") || command.action == OperatingAction::WeaponTarget),
+				    where, "shared commands require settings; shared targets require weapon targeting");
+				const auto &shared = field.at(field.contains("shared_target") ? "shared_target" : "shared_command");
+				command.shared_target_controller = control_name(shared, "controller", where);
+				command.shared_target_channel = control_name(shared, "channel", where);
 			}
 			control_require(command.label_key.size() <= 256, where, "command label too long");
+			command.individual_stars = field.value("individual_stars", 1);
+			command.hull_priority = field.value("hull_priority", false);
+			control_require(!command.hull_priority || command.action == OperatingAction::RepairSystem, where,
+			                "hull_priority requires repair_system");
+			command.coordinated_group = field.value("coordinated_group", std::string{});
+			control_require(command.individual_stars >= 1 && command.individual_stars <= 3 &&
+			                    command.coordinated_group.size() <= 64 &&
+			                    (command.coordinated_group.empty() || command.action == OperatingAction::Impulse),
+			                where, "invalid coordinated flight command");
 			if (field.contains("choices"))
 			{
 				const auto &choices = field.at("choices");
@@ -570,10 +613,11 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 				for (const auto &source : result.controllers)
 					if (source.console == controller.console && source.id == command.shared_target_controller)
 						for (const auto &channel : source.commands)
-							valid |= channel.id == command.shared_target_channel &&
-							         channel.shared_target_controller.empty() &&
-							         (channel.action == OperatingAction::SensorTarget ||
-							          channel.action == OperatingAction::WeaponTarget);
+							valid |=
+							    channel.id == command.shared_target_channel &&
+							    channel.shared_target_controller.empty() &&
+							    (channel.action == command.action || (command.action == OperatingAction::WeaponTarget &&
+							                                          channel.action == OperatingAction::SensorTarget));
 				control_require(valid, path,
 				                "shared target must name an independent target channel on the same Console");
 			}
@@ -658,6 +702,17 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 		result.profiles.push_back(std::move(profile));
 	}
 	control_require(profiles.contains(layout.value("default_profile", std::string{})), path, "unknown default profile");
+	const auto defaults = layout.value("default_profiles", Json::object());
+	control_require(defaults.is_object() && defaults.size() <= consoles.size(), path, "invalid default profiles");
+	for (const auto &[console, profile] : defaults.items())
+	{
+		control_require(console_ids.contains(console) && profile.is_string() &&
+		                    profiles.contains(profile.get<std::string>()),
+		                path, "unknown per-Console default profile");
+		for (std::size_t i = 0; i < result.profiles.size(); ++i)
+			if (result.profiles[i].id == profile.get<std::string>())
+				result.default_profiles[console] = i;
+	}
 	for (const auto &console : consoles)
 		if (!console.definition.empty())
 			for (const auto &widget : catalog.consoles.at(console.definition).at("widgets"))

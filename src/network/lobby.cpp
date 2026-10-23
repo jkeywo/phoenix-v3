@@ -246,7 +246,11 @@ class GameLobby final : public SessionPort
 							if (profile.stars)
 								stars[profile.id] = profile.stars;
 						}
-						auto selected = layout.profiles.at(layout.default_profile).id;
+						auto selected =
+						    layout.profiles
+						        .at(layout.default_profiles.contains(seat.id) ? layout.default_profiles.at(seat.id)
+						                                                      : layout.default_profile)
+						        .id;
 						if (selection_.console_profiles.contains(slot.id) &&
 						    selection_.console_profiles.at(slot.id).contains(seat.id))
 							selected = selection_.console_profiles.at(slot.id).at(seat.id);
@@ -510,10 +514,14 @@ class GameLobby final : public SessionPort
 				                 return profile.id == cmd.profile;
 			                 }))
 				return false;
-			const auto selected = selection_.console_profiles.contains(cmd.slot) &&
-			                              selection_.console_profiles.at(cmd.slot).contains(cmd.console)
-			                          ? selection_.console_profiles.at(cmd.slot).at(cmd.console)
-			                          : layout.profiles.at(layout.default_profile).id;
+			const auto selected =
+			    selection_.console_profiles.contains(cmd.slot) &&
+			            selection_.console_profiles.at(cmd.slot).contains(cmd.console)
+			        ? selection_.console_profiles.at(cmd.slot).at(cmd.console)
+			        : layout.profiles
+			              .at(layout.default_profiles.contains(cmd.console) ? layout.default_profiles.at(cmd.console)
+			                                                                : layout.default_profile)
+			              .id;
 			if (selected == cmd.profile)
 				return true;
 			selection_.console_profiles[cmd.slot][cmd.console] = cmd.profile;

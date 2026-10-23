@@ -92,6 +92,11 @@ bool dock_permitted(EntityId ship, std::size_t port, EntityId target, std::size_
 	const auto &s = entities.at(target).get<DockingState>().ports.at(remote);
 	if (s.permitted.contains(ship))
 		return true;
+	if (s.accepting && s.supply)
+		for (const auto &job : cargo_deliveries)
+			if (job.collection && !job.cancelled && job.carrier == ship && job.target == target &&
+			    job.phase != "complete" && job.phase != "lost")
+				return true;
 	// A target-authored boarding port can be forced only once the ordinary
 	// boarding insertion condition is met and the crew has opened that mission.
 	for (std::size_t i = 0; i < away_definitions.size(); ++i)
@@ -275,9 +280,18 @@ bool docking_command(const ConsoleAddress &a, const OperatingCommand &cmd, bool 
 	if (remote == definition(target).docking.size() || dock_port_busy(target, remote) ||
 	    !dock_permitted(a.ship, port, target, remote) || ftl_preparing(a.ship) || ftl_preparing(target))
 		return false;
-	if (const auto *craft = e.try_get<CraftState>();
-	    craft && (!craft->mission.empty() || craft->phase != CraftPhase::Flying))
-		return false;
+	if (const auto *craft = e.try_get<CraftState>())
+	{
+		const bool supply = ai && std::any_of(cargo_deliveries.begin(), cargo_deliveries.end(),
+		                                      [&](const auto &job)
+		                                      {
+			                                      return job.collection && !job.cancelled && job.carrier == a.ship &&
+			                                             job.target == target && job.mission == craft->mission &&
+			                                             job.phase == "outbound";
+		                                      });
+		if (craft->phase != CraftPhase::Flying || (!craft->mission.empty() && !supply))
+			return false;
+	}
 	DockConnection c;
 	c.parent = target;
 	c.port = port;

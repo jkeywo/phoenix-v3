@@ -1738,10 +1738,13 @@ void semantic_controls()
 }
 } // namespace
 
+#include "../support/coordinated_impulse_cases.hpp"
+
 int main()
 {
 	try
 	{
+		coordinated_impulse_cases();
 		launch_curve_and_linear_braking();
 		manual_and_conservation();
 		boost_and_impulse();

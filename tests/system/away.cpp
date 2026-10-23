@@ -41,6 +41,52 @@ int main(int argc, char **argv)
 	{
 		away_priority_cases();
 		away_medical_cases();
+		{
+			auto routed = away_fixture();
+			auto &hull = routed["entities"][0];
+			hull["systems"]["engineering-dispatch"] = {{"kind", "dispatch"}, {"compartment", "workshop"}};
+			hull["stations"][1]["consoles"][0]["feeds"].push_back("engineering-dispatch");
+			hull["control_layout"]["controllers"].push_back(
+			    {{"id", "engineering-dispatch"},
+			     {"console", "observer"},
+			     {"fallback", "hold"},
+			     {"commands", Json::array({{{"id", "enabled"},
+			                                {"action", "system_enabled"},
+			                                {"initial", 1},
+			                                {"consumers", {"engineering-dispatch"}}}})}});
+			hull["control_layout"]["profiles"][0]["consoles"]["observer"]["human"].push_back("engineering-dispatch");
+			hull["personnel"]["duties"].push_back({{"id", "engineering-dispatch"},
+			                                       {"label", "Engineering Dispatch"},
+			                                       {"controller", "engineering-dispatch"},
+			                                       {"console", "observer"},
+			                                       {"department", "engineering"},
+			                                       {"compartment", "workshop"}});
+			routed["maps"][0]["away_missions"][0]["dispatch"] = "engineering-dispatch";
+			World departments;
+			departments.load(load(routed), "test.map", {{"crew", "test.away"}});
+			const auto origin = *departments.ship_for_slot("crew");
+			require(departments.claim(101, origin, "drive") && departments.claim(102, origin, "observer"),
+			        "department claims");
+			ticks(departments, 4);
+			require(!board(departments, 101)[0]["dispatch"].get<bool>() &&
+			            board(departments, 102)[0]["dispatch"].get<bool>(),
+			        "mission lifecycle belongs to its routed Dispatch");
+			require(!departments.submit(101, order(departments, "open")), "other Dispatch cannot open routed mission");
+			auto command = order(departments, "open", "", 102);
+			command.controller = "engineering-dispatch";
+			const auto engineering = departments.observe(102);
+			for (const auto &controller : engineering->gameplay.at("controllers"))
+				if (controller.at("id") == command.controller)
+					command.generation = controller.at("generation");
+			require(departments.submit(102, command), "owning Engineering Dispatch opens mission");
+			ticks(departments, 1);
+			command.action = "away.cancel";
+			command.value = board(departments, 102)[0].at("revision");
+			require(departments.submit(102, command), "owning Dispatch cancels preparation");
+			ticks(departments, 1);
+			require(board(departments, 102)[0].at("phase") == "available",
+			        "cancelled preparation releases contributions");
+		}
 		// Support the save/resume contract at the shared effect-journal boundary.
 		std::set<std::string> receipts;
 		state_tree::Output effect;
@@ -122,7 +168,7 @@ int main(int argc, char **argv)
 		ticks(w, 1);
 		require(!w.submit(101, stale), "stale manifest rejected");
 		auto saved = w.save();
-		require(saved["away_missions"][0]["schema"] == 10 && !saved["away_missions"][0].contains("deployed"),
+		require(saved["away_missions"][0]["schema"] == 11 && !saved["away_missions"][0].contains("deployed"),
 		        "deployment is derived from the typed phase");
 		auto legacy = saved;
 		legacy["away_missions"][0]["schema"] = 1;

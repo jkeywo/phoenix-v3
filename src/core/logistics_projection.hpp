@@ -16,6 +16,7 @@ inline Json board(const Json &source)
 	if (!source.is_object() || source.dump().size() > 512 * 1024)
 		throw std::runtime_error("Invalid material projection");
 	Json out{{"revision", projection::number(source.at("revision"), 1, 9007199254740991LL)}};
+	out["manual"] = source.value("manual", true);
 	out["controller"] = projection::text(source.value("controller", Json("")), 64);
 	out["route_controller"] = projection::text(source.value("route_controller", Json("")), 64);
 	out["routes"] = Json::array();
@@ -53,6 +54,7 @@ inline Json board(const Json &source)
 			for (const auto *k : {"id", "source", "destination", "from", "to"})
 				v[k] = projection::number(r.at(k), 0, 9007199254740991LL);
 			v["material"] = projection::text(r.at("material"), 64);
+			v["cargo"] = projection::number(r.value("cargo", Json(0)), 0, 9007199254740991LL);
 			if (std::string(field) == "requests")
 			{
 				v["remaining"] = projection::number(r.at("remaining"), 1, 1000000000);

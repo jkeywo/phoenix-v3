@@ -1043,8 +1043,16 @@ bool ConsoleModel::flight_button(const std::string &action, std::int64_t value, 
 		                    })
 		            ? 0
 		            : 1;
-	for (const auto &descriptor : observation_->gameplay.value("controls", Json::array()))
-		if (descriptor.value("action", "") == action && descriptor.value("value", std::int64_t{0}) == value)
+	const auto descriptors = observation_->gameplay.value("controls", Json::array());
+	const bool coordinated = action == "impulse" && std::any_of(descriptors.begin(), descriptors.end(),
+	                                                            [](const auto &d)
+	                                                            {
+		                                                            return d.value("action", "") == "flight.impulse";
+	                                                            });
+	for (const auto &descriptor : descriptors)
+		if ((coordinated ? descriptor.value("action", "") == "flight.impulse"
+		                 : descriptor.value("action", "") == action) &&
+		    descriptor.value("value", std::int64_t{0}) == value)
 		{
 			const auto id = "game.control/" + console_encoded(descriptor.at("id").get<std::string>());
 			accepted |= action == "impulse" ? (pressed && act(id)) : pressed ? hold_control(id) : release_control(id);
@@ -1241,9 +1249,9 @@ bool ConsoleModel::craft_action(const std::string &action, const std::string &cr
 	if (!observation_)
 		return false;
 	for (const auto &c : craft())
-		if (c.at("id") == craft_id)
+		if (c.at("id") == craft_id && c.value("manual", true))
 			for (const auto &ctrl : observation_->gameplay.value("controllers", Json::array()))
-				if (ctrl.value("human", false))
+				if (ctrl.value("human", false) || ctrl.value("craft_authority", false))
 				{
 					OperatingCommand command{observation_->own.id, "craft." + action,
 					                         c.at("revision").get<std::int64_t>(), craft_id};
@@ -1265,7 +1273,9 @@ bool ConsoleModel::away_action(const std::string &action, const std::string &mis
 		if (m.at("id") == mission)
 			for (const auto &ctrl : observation_->gameplay.value("controllers", Json::array()))
 				if (ctrl.value("human", false) ||
-				    ((action == "assign" || action == "withdraw") && ctrl.value("contribution_authority", false)))
+				    ((action == "transport" || action == "escort") && ctrl.value("transport_authority", false)) ||
+				    ((action == "assign" || action == "withdraw" || action == "contribute") &&
+				     ctrl.value("contribution_authority", false)))
 				{
 					OperatingCommand c{observation_->own.id, "away." + action, m.at("revision").get<std::int64_t>(),
 					                   mission};
@@ -1301,6 +1311,20 @@ bool ConsoleModel::team_action(const std::string &action, const std::string &tea
 Json ConsoleModel::team_map() const
 {
 	if (!observation_)
+		return Json::array();
+	const auto teams = observation_->gameplay.value("teams", Json::array());
+	const auto controls = observation_->gameplay.value("controls", Json::array());
+	if (selected_team_.empty() && !teams.empty() &&
+	    std::none_of(teams.begin(), teams.end(),
+	                 [](const auto &team)
+	                 {
+		                 return team.value("manual", true);
+	                 }) &&
+	    std::none_of(controls.begin(), controls.end(),
+	                 [](const auto &c)
+	                 {
+		                 return c.value("action", "") == "repair_compartment";
+	                 }))
 		return Json::array();
 	auto compartments = observation_->gameplay.value("combat", Json::object()).value("compartments", Json::array());
 	for (auto &c : compartments)
@@ -1618,6 +1642,11 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 			continue;
 		result.emplace_back("game.control/" + console_encoded(id), std::move(label));
 	}
+	std::stable_partition(result.begin(), result.end(),
+	                      [](const auto &control)
+	                      {
+		                      return !control.first.starts_with("game.status/");
+	                      });
 	return result;
 }
 std::string ConsoleModel::system_details() const

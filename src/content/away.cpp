@@ -80,9 +80,73 @@ std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map
 		d.id = j.at("id");
 		d.title = j.at("title_key");
 		d.slot = j.at("ship_slot");
+		d.dispatch = j.value("dispatch", std::string{});
+		require(d.dispatch.size() <= 128, "invalid Dispatch route");
+		if (!d.dispatch.empty())
+		{
+			bool found = false;
+			for (const auto &slot : map.at("ship_slots"))
+				if (slot.at("id") == d.slot)
+					for (const auto &hull : slot.at("allowed_ships"))
+					{
+						bool fitted = false;
+						for (const auto &system : resolve_systems(catalog, hull.get<std::string>()))
+							fitted |= system.id == d.dispatch && system.kind == OperatingSystem::Dispatch;
+						require(fitted, "Dispatch route missing from allowed ship");
+						found = true;
+					}
+			require(found, "unknown fitted Dispatch route");
+		}
 		d.target = j.at("target_entity");
+		std::set<std::string> craft_slots;
+		int transports = 0;
+		for (const auto &slot : j.value("craft_slots", Json::array()))
+		{
+			AwayCraftSlot s{slot.at("id"), slot.at("role"), slot.value("craft_role", std::string{}),
+			                slot.value("required", false)};
+			require(!s.id.empty() && s.id.size() <= 64 && craft_slots.insert(s.id).second &&
+			            (s.role == "transport" || s.role == "escort") &&
+			            (s.craft_role.empty() || s.craft_role == "shuttle" || s.craft_role == "interceptor" ||
+			             s.craft_role == "boarding_torpedo"),
+			        "invalid craft slot");
+			if (s.role == "transport")
+			{
+				++transports;
+				require(s.required, "primary transport must be required");
+			}
+			else
+				require(s.craft_role == "interceptor", "escort must be an interceptor");
+			d.craft_slots.push_back(s);
+		}
+		require(d.craft_slots.size() <= 9 && (d.craft_slots.empty() || transports == 1),
+		        "expected one primary transport and up to eight escorts");
+		if (j.contains("supply"))
+		{
+			const auto &s = j.at("supply");
+			SupplyOffer offer{s.at("provider_store"),
+			                  s.value("home_store", std::string{"main-hold"}),
+			                  s.at("material"),
+			                  s.value("payment", std::string{}),
+			                  s.at("limit"),
+			                  s.value("give", std::int64_t{1}),
+			                  s.value("pay", std::int64_t{0})};
+			require(!offer.material.empty() && offer.limit > 0 && offer.limit <= 1000000000 && offer.give > 0 &&
+			            offer.give <= offer.limit && offer.pay >= 0 && offer.pay <= 1000000000 &&
+			            (offer.pay == 0) == offer.payment.empty() && offer.payment != offer.material,
+			        "invalid supply terms");
+			require(!d.craft_slots.empty() && std::any_of(d.craft_slots.begin(), d.craft_slots.end(),
+			                                              [](const auto &slot)
+			                                              {
+				                                              return slot.role == "transport" &&
+				                                                     slot.craft_role == "shuttle";
+			                                              }),
+			        "supply mission requires a shuttle transport slot");
+			d.supply = offer;
+		}
 		d.retain_craft = j.value("retain_craft", true);
-		d.conversation = j.at("conversation");
+		d.conversation = j.value("conversation", std::string{});
+		d.hail_tree = j.value("hail_tree", std::string{});
+		require(d.conversation.empty() != d.hail_tree.empty(), "choose conversation or hail_tree");
 		d.reveal_event = j.at("reveal_event");
 		d.tree = j.at("tree");
 		d.allow_ship_transport = j.value("allow_ship_transport", false);
@@ -112,6 +176,11 @@ std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map
 		d.program = catalog.tree_programs.at(d.tree);
 		bool target = false, conversation = false;
 		std::string dialogue, target_definition;
+		if (!d.hail_tree.empty())
+		{
+			conversation = catalog.conversation_programs.contains(d.hail_tree);
+			dialogue = d.hail_tree;
+		}
 		for (const auto &e : map.value("entities", Json::array()))
 			if (e.value("id", EntityId{}) == d.target)
 			{
@@ -125,7 +194,48 @@ std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map
 				dialogue = c.at("tree");
 			}
 		require(target && conversation, "unknown target or conversation");
+		if (d.supply)
+		{
+			require(!d.allow_ship_transport, "supply collection uses its shuttle slot");
+			const auto inventory = compile_logistics(catalog, target_definition);
+			const auto &offer = *d.supply;
+			const auto provider = std::find_if(inventory.stores.begin(), inventory.stores.end(),
+			                                   [&](const auto &s)
+			                                   {
+				                                   return s.id == offer.provider_store;
+			                                   });
+			require(provider != inventory.stores.end() &&
+			            std::find(provider->accepts.begin(), provider->accepts.end(), offer.material) !=
+			                provider->accepts.end() &&
+			            (offer.payment.empty() || std::find(provider->accepts.begin(), provider->accepts.end(),
+			                                                offer.payment) != provider->accepts.end()),
+			        "incompatible supply provider store");
+			for (const auto &slot : map.at("ship_slots"))
+				if (slot.at("id") == d.slot)
+					for (const auto &ship : slot.at("allowed_ships"))
+					{
+						const auto home = compile_logistics(catalog, ship.get<std::string>());
+						const auto store = std::find_if(home.stores.begin(), home.stores.end(),
+						                                [&](const auto &s)
+						                                {
+							                                return s.id == offer.home_store;
+						                                });
+						require(store != home.stores.end() &&
+						            std::find(store->accepts.begin(), store->accepts.end(), offer.material) !=
+						                store->accepts.end() &&
+						            (offer.payment.empty() || std::find(store->accepts.begin(), store->accepts.end(),
+						                                                offer.payment) != store->accepts.end()),
+						        "incompatible supply home store");
+					}
+		}
 		const auto ports = compile_docking(catalog, target_definition);
+		if (d.supply)
+			require(std::any_of(ports.begin(), ports.end(),
+			                    [](const auto &port)
+			                    {
+				                    return port.supply;
+			                    }),
+			        "supply provider requires a docking supply port");
 		std::set<std::string> docking_ports;
 		for (const auto &port : d.docking_ports)
 		{
@@ -188,7 +298,7 @@ std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map
 		};
 		validate(validate, d.program);
 		std::set<std::string> slots;
-		for (const auto &s : j.at("slots"))
+		for (const auto &s : j.value("slots", Json::array()))
 		{
 			AwaySlot v{s.at("id"), s.value("kind", std::string{"team"}), s.value("trait", std::string{}),
 			           s.value("required", true)};
@@ -205,7 +315,8 @@ std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map
 			        "invalid team slot filter");
 			d.slots.push_back(v);
 		}
-		require(!d.slots.empty() && d.slots.size() <= 16, "expected 1..16 slots");
+		require((!d.slots.empty() || !d.craft_slots.empty()) && d.slots.size() <= 16,
+		        "expected personnel or craft slots");
 		out.push_back(std::move(d));
 	}
 	return out;

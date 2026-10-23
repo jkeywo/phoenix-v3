@@ -78,7 +78,9 @@ std::int64_t material_pending(EntityId id, std::size_t store, const std::string 
 		if (b.destination == id && b.to == store && b.material == m)
 			pending += b.quantity;
 	for (const auto &job : cargo_deliveries)
-		if (job.target == id && job.to == store && job.material == m)
+		if (job.collection && job.source == id && job.from == store && job.material == m)
+			pending += job.reserved;
+		else if (job.target == id && job.to == store && job.material == m)
 		{
 			auto unrequested = job.reserved;
 			for (const auto &request : material_requests)
@@ -152,6 +154,40 @@ void request_material(EntityId source, std::size_t from, EntityId destination, s
 void step_logistics()
 {
 	const auto rows = inventory_rows();
+	for (const auto &[id, entity] : rows)
+	{
+		const auto *controls = entity.try_get<EntityControls>();
+		if (!controls)
+			continue;
+		for (const auto &controller : controls->controllers)
+		{
+			const ConsoleAddress owner{id, controller.definition.console};
+			if (controller.human || !controls->layout.manual_workloads.contains(owner.console) ||
+			    !controls->layout.manual_workloads.at(owner.console).contains("logistics") ||
+			    (console_operator(owner) != 0 && manual_workload(owner, "logistics")))
+				continue;
+			const auto &d = definition(id).logistics;
+			for (std::size_t i = 0; i < d.stores.size(); ++i)
+				if (d.stores[i].controller == controller.definition.id)
+				{
+					auto issue = [&](const std::string &verb, const std::string &text)
+					{
+						OperatingCommand c{id, "logistics." + verb,
+						                   static_cast<std::int64_t>(logistics_revision(entity)), d.stores[i].id};
+						c.controller = controller.definition.id;
+						c.generation = controller.generation;
+						c.text = text;
+						logistics_command(owner, c, true, true);
+					};
+					if (entity.get<MaterialInventory>().stores[i].held)
+						issue("release", "");
+					for (const auto &[material, target] : d.stores[i].targets)
+						if (!entity.get<MaterialInventory>().stores[i].targets.contains(material) ||
+						    entity.get<MaterialInventory>().stores[i].targets.at(material) != target)
+							issue("target", material + "/" + std::to_string(target));
+				}
+		}
+	}
 	for (const auto &[id, e] : rows)
 	{
 		if (combat_dead(e) || departed(id) || craft_dormant(e))
@@ -247,8 +283,19 @@ void step_logistics()
 			continue;
 		std::int64_t cargo_credit = 0;
 		for (const auto &job : cargo_deliveries)
-			if (job.id == r.cargo && r.source == job.carrier && r.destination == job.target)
-				cargo_credit = job.reserved;
+			if (job.id == r.cargo)
+			{
+				if (job.collection && r.destination == job.target && r.material == job.payment)
+				{
+					cargo_credit = job.payment_amount - job.paid;
+					for (const auto &batch : material_batches)
+						if (batch.cargo == job.id && batch.destination == job.target && batch.material == job.payment)
+							cargo_credit -= batch.quantity;
+				}
+				else if (job.collection ? r.destination == job.source && r.material == job.material
+				                        : r.source == job.carrier && r.destination == job.target)
+					cargo_credit = job.reserved;
+			}
 		if (r.source != r.destination)
 		{
 			const auto gateway = material_gateway(r.source, r.destination);
@@ -264,16 +311,25 @@ void step_logistics()
 		if (n <= 0)
 			continue;
 		material_add(r.source, r.from, r.material, -n);
+		for (auto &job : cargo_deliveries)
+			if (job.id == r.cargo && job.collection)
+			{
+				if (r.source == job.source && r.material == job.payment)
+					job.payment_taken += n;
+				if (r.source == job.target && r.material == job.material)
+					job.goods_taken += n;
+			}
 		r.remaining -= n;
 		if (cargo_credit)
 			for (auto &job : cargo_deliveries)
-				if (job.id == r.cargo)
+				if (job.id == r.cargo && (!job.collection || r.destination == job.source))
 					job.reserved -= n;
 		budgets[r.source] -= n;
 		if (r.source != r.destination)
 			budgets[r.destination] -= n;
 		material_batches.push_back(
 		    {next_material_batch++, r.id, r.source, r.destination, r.source, r.from, r.to, start, r.material, n});
+		material_batches.back().cargo = r.cargo;
 		++active[r.source];
 	}
 	std::erase_if(material_requests,
@@ -335,6 +391,16 @@ void step_logistics()
 		if (!material_store_working(b.destination, b.to))
 			continue;
 		material_add(b.destination, b.to, b.material, b.quantity);
+		for (auto &job : cargo_deliveries)
+			if (job.id == b.cargo && job.collection && !b.returning)
+			{
+				if (b.destination == job.target && b.material == job.payment)
+					job.paid += b.quantity;
+				if (b.destination == job.carrier && b.material == job.material)
+					job.collected += b.quantity;
+				if (b.destination == job.source && b.material == job.material)
+					job.delivered += b.quantity;
+			}
 		b.quantity = 0;
 	}
 
@@ -357,6 +423,8 @@ bool material_authority(const ConsoleAddress &a, const OperatingCommand &c, cons
 bool logistics_command(const ConsoleAddress &a, const OperatingCommand &c, bool execute, bool ai = false)
 {
 	const auto e = entities.at(a.ship);
+	if (!ai && !manual_workload(a, "logistics"))
+		return false;
 	if (c.channel != "" || c.request_id || !c.arguments.empty() || c.text.size() > 512 || !c.speaker_name.empty() ||
 	    !c.speaker_avatar.empty())
 		return false;
@@ -502,6 +570,7 @@ Json logistics_board(const ConsoleAddress &a) const
 	         {"route_controller", ""}};
 	const auto e = entities.at(a.ship);
 	out["revision"] = logistics_revision(e);
+	out["manual"] = manual_workload(a, "logistics");
 	auto visible = [&](const std::string &owner)
 	{
 		if (owner.empty() || !e.has<EntityControls>())
@@ -555,11 +624,12 @@ Json logistics_board(const ConsoleAddress &a) const
 				Json stores = Json::array();
 				for (const auto &store : definition(id).logistics.stores)
 					stores.push_back({{"id", store.id}, {"accepts", store.accepts}});
-				out["cargo_craft"].push_back({{"id", id},
-				                              {"authorised", state.authorised_craft.contains(id)},
-				                              {"controllable", enabled_system_owner(a.ship, bay) == a},
-				                              {"available", craft_available(id)},
-				                              {"stores", stores}});
+				out["cargo_craft"].push_back(
+				    {{"id", id},
+				     {"authorised", state.authorised_craft.contains(id)},
+				     {"controllable", manual_workload(a, "logistics") && enabled_system_owner(a.ship, bay) == a},
+				     {"available", craft_available(id)},
+				     {"stores", stores}});
 			}
 		}
 	if (main)

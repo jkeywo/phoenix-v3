@@ -1,7 +1,9 @@
 #include "../support/assertions.hpp"
 #include "../support/craft_fixture.hpp"
 #include <iostream>
+#include <set>
 import phoenix.simulation;
+#include "../../src/network/projection.hpp"
 using namespace phoenix;
 using namespace phoenix::test;
 namespace
@@ -61,10 +63,12 @@ OperatingCommand command(const World &w, std::uint64_t claim, const std::string 
 	return c;
 }
 } // namespace
+#include "../support/supply_cases.hpp"
 int main(int argc, char **argv)
 {
 	try
 	{
+		supply_cases();
 		const auto source = fixture();
 		const auto catalog = load(source);
 		World w;

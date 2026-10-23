@@ -592,6 +592,13 @@ std::optional<ControllerProposal> controller_proposal(const ConsoleAddress &addr
 			const auto &spec = controller.definition.commands[field];
 			if (spec.id != command.channel)
 				continue;
+			if (human && station_stars(address) < spec.individual_stars)
+				return {};
+			if (spec.action == OperatingAction::RepairSystem && !spec.hull_priority && entity.has<CombatStructure>() &&
+			    command.value ==
+			        static_cast<std::int64_t>(entity.get<CombatStructure>().definition.equipment_compartments.size()) +
+			            1)
+				return {};
 			if (!command.action.empty() && command.action != operating_action(spec.action).name)
 				return {};
 			if (command.value < spec.minimum || command.value > spec.maximum ||
@@ -683,6 +690,21 @@ bool commit_controller(const ControllerProposal &proposal)
 				if (const auto *weapon = child.try_get<CombatMechanism>();
 				    weapon && weapon->target() != static_cast<EntityId>(proposal.value))
 					same_effect = false;
+			}
+		if (spec.action == OperatingAction::RepairCompartment || spec.action == OperatingAction::RepairSystem)
+			for (const auto consumer : spec.consumers)
+			{
+				const auto &team =
+				    entity.get<EquipmentIndex>().values.at(consumer).get<CombatMechanism>().get<TeamState>();
+				if (spec.action == OperatingAction::RepairCompartment)
+					same_effect &= team.destination == proposal.value - 1;
+				else
+				{
+					const auto hull = static_cast<std::int64_t>(
+					                      entity.get<CombatStructure>().definition.equipment_compartments.size()) +
+					                  1;
+					same_effect &= team.repair_system == (proposal.value == hull ? -2 : proposal.value - 1);
+				}
 			}
 		if (same_effect)
 		{
@@ -791,6 +813,57 @@ void set_console_complexity(EntityControls &controls, const std::string &console
 		     controls.layout.complexity_groups.at(id) == group->second))
 			selected = profile;
 }
+std::uint64_t coordinated_generation(const ConsoleAddress &a, const std::string &group) const
+{
+	std::uint64_t generation = 0;
+	for (const auto &controller : entities.at(a.ship).get<EntityControls>().controllers)
+		if (controller.definition.console == a.console)
+			for (const auto &command : controller.definition.commands)
+				if (!command.coordinated_group.empty() && command.coordinated_group == group)
+					generation += controller.generation;
+	return generation;
+}
+bool coordinated_impulse(const ConsoleAddress &a, const OperatingCommand &c, bool execute)
+{
+	if (!c.controller.empty() || !c.channel.empty() || !c.arguments.empty() || !c.text.empty() ||
+	    !c.speaker_name.empty() || !c.speaker_avatar.empty() || !c.request_id || c.value < 0 || c.value > 1 ||
+	    c.request_id >= 9007199254740991ULL || c.generation != coordinated_generation(a, c.system))
+		return false;
+	const auto &controls = entities.at(a.ship).get<EntityControls>();
+	std::vector<ControllerProposal> proposals;
+	for (std::size_t i = 0; i < controls.controllers.size(); ++i)
+	{
+		const auto &controller = controls.controllers[i];
+		if (controller.definition.console != a.console)
+			continue;
+		for (std::size_t j = 0; j < controller.commands.size(); ++j)
+		{
+			const auto &spec = controller.definition.commands[j];
+			const auto &state = controller.commands[j];
+			if (spec.coordinated_group.empty() || spec.coordinated_group != c.system)
+				continue;
+			if (!controller.human || spec.action != OperatingAction::Impulse || c.request_id < state.request_id ||
+			    (c.request_id == state.request_id && c.value != state.value) ||
+			    (state.consumed < state.revision && c.request_id != state.request_id))
+				return false;
+			proposals.push_back({{a.ship, a.console, controller.definition.id},
+			                     i,
+			                     j,
+			                     c.value,
+			                     controller.generation,
+			                     c.request_id,
+			                     true,
+			                     {}});
+		}
+	}
+	if (proposals.empty())
+		return false;
+	if (execute)
+		for (const auto &proposal : proposals)
+			if (!commit_controller(proposal))
+				throw std::runtime_error("Coordinated impulse admission changed during execution");
+	return true;
+}
 bool controller_meta(const ConsoleAddress &address, const OperatingCommand &command, bool execute)
 {
 	if (!command.controller.empty() || !command.channel.empty() || command.generation || command.request_id ||
@@ -872,11 +945,13 @@ void consume_controller_commands(flecs::entity entity)
 				    source.definition.id == spec.shared_target_controller)
 					for (std::size_t j = 0; j < source.commands.size(); ++j)
 						if (source.definition.commands[j].id == spec.shared_target_channel &&
-						    state.value != source.commands[j].value)
+						    (state.value != source.commands[j].value ||
+						     state.arguments != source.commands[j].arguments))
 						{
 							if (state.revision == std::numeric_limits<std::uint64_t>::max())
 								throw std::runtime_error("Controller command revision exhausted");
 							state.value = source.commands[j].value;
+							state.arguments = source.commands[j].arguments;
 							++state.revision;
 						}
 		}
@@ -985,9 +1060,15 @@ Json project_controllers(const ConsoleAddress &address)
 		bool contributes = false;
 		for (const auto &command : controller.definition.commands)
 			for (auto consumer : command.consumers)
-				contributes |= definition(address.ship).fitted->values.at(consumer).kind == OperatingSystem::Team;
-		result.back()["contribution_authority"] =
-		    contributes && station_stars(address) < 3 && console_operator(address) != 0;
+				contributes |= definition(address.ship).fitted->values.at(consumer).kind == OperatingSystem::Team ||
+				               definition(address.ship).fitted->values.at(consumer).kind == OperatingSystem::ShuttleBay;
+		result.back()["contribution_authority"] = contributes && console_operator(address) != 0;
+		bool bay = false;
+		for (const auto &command : controller.definition.commands)
+			for (const auto consumer : command.consumers)
+				bay |= definition(address.ship).fitted->values.at(consumer).kind == OperatingSystem::ShuttleBay;
+		result.back()["craft_authority"] = bay && assisted_workload(address, "craft");
+		result.back()["transport_authority"] = bay && assisted_workload(address, "transport");
 		result.back()["action"] = {
 		    {"id", controller.action.id}, {"status", controller.action.status}, {"reason", controller.action.reason}};
 		auto &available = result.back()["actions"] = Json::array();

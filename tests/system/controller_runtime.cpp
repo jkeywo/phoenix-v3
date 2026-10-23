@@ -54,6 +54,48 @@ int main(int argc, char **argv)
 	try
 	{
 		{
+			auto source = controller_fixture(true);
+			auto &layout = source["entities"][0]["control_layout"];
+			layout["station_complexity"] = {"operations"};
+			layout["default_profiles"] = {{"drive", "automatic"}, {"observer", "automatic"}};
+			layout["profiles"][0]["stars"] = 3;
+			layout["profiles"][1]["stars"] = 1;
+			layout["profiles"][1]["consoles"]["drive"] = {{"human", {"port_drive"}}, {"ai", {"starboard_drive"}}};
+			layout["controllers"][1]["commands"][0]["shared_command"] = {{"controller", "port_drive"},
+			                                                             {"channel", "speed"}};
+			World paired;
+			const auto catalog = load(source);
+			paired.load(catalog, "test.map");
+			require(paired.claim(101, 1, "drive"), "Paired drive watch claimed");
+			require(controller(paired, 101, "port_drive")["human"] == true &&
+			            controller(paired, 101, "starboard_drive")["human"] == false,
+			        "Per-console default chooses an assisted workload");
+			require(paired.submit(101, speed(paired, 101, "port_drive", 4200)), "Coordinated speed admitted");
+			paired.tick();
+			require(controller(paired, 101, "starboard_drive")["commands"]["speed"]["value"] == 4200,
+			        "Assisted assembly follows shared command");
+			require(!paired.submit(101, speed(paired, 101, "starboard_drive", 7000)),
+			        "Low workload rejects individual assembly command");
+			require(paired.submit(101, {1, "preset", 0, {}}), "Full assembly control selected");
+			paired.tick();
+			require(paired.submit(101, speed(paired, 101, "starboard_drive", 7000)),
+			        "Individual assembly override admitted");
+			paired.tick();
+			require(paired.submit(101, speed(paired, 101, "port_drive", 3000)), "Shared source changes");
+			paired.tick();
+			require(controller(paired, 101, "starboard_drive")["commands"]["speed"]["value"] == 7000,
+			        "Full workload preserves individual override");
+			require(paired.submit(101, {1, "preset", 1, {}}), "Return to assisted assembly control");
+			paired.tick();
+			require(controller(paired, 101, "starboard_drive")["commands"]["speed"]["value"] == 3000,
+			        "Downgrade clears individual override");
+			World restored;
+			restored.restore(catalog, paired.save());
+			paired.tick();
+			restored.tick();
+			require(paired.save() == restored.save(), "Coordinated assembly state resumes exactly");
+		}
+		{
 			auto source = controller_fixture();
 			auto &layout = source["entities"][0]["control_layout"];
 			layout["controllers"].push_back({{"id", "manual"},
@@ -1918,7 +1960,7 @@ int main(int argc, char **argv)
 		world.tick();
 
 		const auto saved = world.save();
-		require(saved.at("schema") == 19, "Controller continuation has an explicit new save schema");
+		require(saved.at("schema") == 20, "Controller continuation has an explicit new save schema");
 		World resumed;
 		resumed.restore(content, saved);
 		for (int tick = 0; tick < 12; ++tick)

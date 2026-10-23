@@ -38,6 +38,24 @@ int station_stars(const ConsoleAddress &address) const
 		return 3;
 	return controls->layout.profiles.at(controls->profiles.at(address.console)).stars;
 }
+bool manual_workload(const ConsoleAddress &address, const std::string &family) const
+{
+	const auto *controls = entities.at(address.ship).try_get<EntityControls>();
+	if (!controls)
+		return true;
+	const auto &workloads = controls->layout.manual_workloads;
+	return !workloads.contains(address.console) || !workloads.at(address.console).contains(family) ||
+	       station_stars(address) >= workloads.at(address.console).at(family);
+}
+bool assisted_workload(const ConsoleAddress &address, const std::string &family) const
+{
+	const auto *controls = entities.at(address.ship).try_get<EntityControls>();
+	if (!controls)
+		return false;
+	const auto &workloads = controls->layout.manual_workloads;
+	return workloads.contains(address.console) && workloads.at(address.console).contains(family) &&
+	       manual_workload(address, family) && console_operator(address) != 0;
+}
 void advance_personnel(EntityId id)
 {
 	auto entity = entities.at(id);
@@ -49,7 +67,7 @@ void advance_personnel(EntityId id)
 			if (const auto *duty = personnel_duty(id, officer.duty))
 			{
 				const ConsoleAddress owner{id, duty->console};
-				if (station_stars(owner) < 3)
+				if (station_stars(owner) < 3 || console_operator(owner) == 0)
 					auto_assign_officer(owner, duty->id, false);
 			}
 	for (auto &o : state.officers)

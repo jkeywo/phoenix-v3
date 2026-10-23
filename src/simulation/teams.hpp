@@ -420,11 +420,13 @@ void step_teams()
 				continue;
 			auto &r = m->get<TeamState>();
 			const auto &d = m->definition.get<TeamDefinition>();
-			if (r.order.empty() && station_stars(enabled_system_owner(id, m->definition.id)) < 3)
+			if (r.order.empty() && !d.capabilities.contains("repair") &&
+			    station_stars(enabled_system_owner(id, m->definition.id)) < 3)
 				r.repair_auto = true;
 			// Use the first eligible authored order: treatment can be followed by
 			// recovery without leaving a stabilised patient awaiting manual dispatch.
-			if (r.order.empty() && r.repair_auto && !d.capabilities.contains("repair") && !d.orders.empty())
+			if (r.order.empty() && r.repair_auto && !d.capabilities.contains("repair") &&
+			    !d.capabilities.contains("security") && !d.orders.empty())
 			{
 				for (const auto &candidate : d.orders)
 				{

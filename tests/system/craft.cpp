@@ -47,10 +47,12 @@ void assign(World &w, const std::string &transport)
 	require(w.submit(101, command(w, "away", "transport", "job", transport)), "select transport");
 	ticks(w, 15);
 }
+#include "../support/escort_cases.hpp"
 int main(int argc, char **argv)
 {
 	try
 	{
+		escort_cases();
 		Json trace = Json::array();
 		auto input = craft_fixture();
 		auto bad = input;

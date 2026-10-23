@@ -66,6 +66,67 @@ void advance(World &w, int ticks)
 	for (int n = 0; n < ticks; ++n)
 		w.tick();
 }
+void repair_workload_contract()
+{
+	auto source = fixture();
+	auto &ship = source["entities"][0];
+	auto &layout = ship["control_layout"];
+	ship["systems"]["team-a"]["local_repair_priority"] = true;
+	layout["station_complexity"] = true;
+	layout["profiles"][0]["stars"] = 1;
+	for (auto &c : layout["controllers"])
+	{
+		if (c["id"] == "team-b")
+			c["commands"][0]["initial"] = 0;
+		if (c["id"] == "team-a")
+			c["commands"].push_back({{"id", "priority"},
+			                         {"action", "repair_system"},
+			                         {"consumers", {"team-a"}},
+			                         {"individual_stars", 2},
+			                         {"hull_priority", true}});
+	}
+	auto full = layout["profiles"][0];
+	full["id"] = "priorities";
+	full["stars"] = 2;
+	layout["profiles"].push_back(full);
+	ship["systems"]["gun"]["faults"] = Json::array({{{"id", "jam"},
+	                                                 {"symptom", "Jammed"},
+	                                                 {"diagnosis", "Feed jam"},
+	                                                 {"effect", "disabled"},
+	                                                 {"repair_work", 100}}});
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	claim(world);
+	auto saved = world.save();
+	saved["bodies"][0]["combat"]["compartments"][0]["hp"] = 40;
+	saved["bodies"][0]["combat"]["compartments"][1]["hp"] = 20;
+	world.restore(catalog, saved);
+	submit(world, 102, "team-a", "assignment", 2);
+	advance(world, 30);
+	require(state(world)["systems"]["team-a"]["destination"] == 1 && state(world)["compartments"][0]["hp"] == 40 &&
+	            state(world)["compartments"][1]["hp"] > 20,
+	        "One-star individual repair deployment persists while AI chooses local work");
+	require(!world.submit(102, command(world, 102, "team-a", "priority", 1)),
+	        "One star refuses detailed repair priority");
+	require(world.submit(102, {1, "preset", 1, {}}), "Two-star repair priorities selected");
+	world.tick();
+	submit(world, 102, "team-a", "assignment", 1);
+	world.tick();
+	saved = world.save();
+	saved["bodies"][0]["combat"]["faults"]["gun"][0]["active"] = true;
+	world.restore(catalog, saved);
+	submit(world, 102, "team-a", "priority", static_cast<std::int64_t>(ship["systems"].size()) + 1);
+	advance(world, 20);
+	require(state(world)["compartments"][0]["hp"] > 40 && state(world)["faults"]["gun"][0]["work"] == 0,
+	        "Hull priority repairs the assigned compartment before equipment faults");
+	saved = world.save();
+	saved["bodies"][0]["combat"]["compartments"][0]["hp"] = 99;
+	world.restore(catalog, saved);
+	advance(world, 5);
+	require(state(world)["compartments"][0]["hp"] == 100 && state(world)["faults"]["gun"][0]["work"] > 0,
+	        "Completed hull priority falls back to useful compartment work");
+}
 void add_fit(Json &source, const std::string &id, Json spec, std::vector<std::pair<std::string, std::string>> actions,
              const std::string &console = "drive")
 {
@@ -1142,6 +1203,7 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		repair_workload_contract();
 		{
 			auto source = fixture();
 			auto &ship = source["entities"][0];
@@ -1243,7 +1305,9 @@ int main(int argc, char **argv)
 			require(stacked, "Controller and team officer contributions sum once on physical team");
 			require(w.submit(102, command(w, 102, "team-a", "assignment", 2)), "move team with its officer");
 			for (int i = 0; i < 5; ++i)
+			{
 				w.tick();
+			}
 			require(w.observe(102)->gameplay.at("personnel").at("officers")[1].at("present").get<bool>(),
 			        "assigned officer accompanies travelling team");
 			World resumed;
