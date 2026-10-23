@@ -39,7 +39,9 @@ The native absorption implementation currently orders contributions by layer and
 
 ## Subsequent slices
 
-The second slice, [shared property effects and Duty Officer buffs](property-effects-migration-plan.md), is implemented, including existing fault and boost/impulse adapters on migrated properties. It replaces ordinary officer bonus paths and supports timed scenario and shield-reaction modifiers through shared preparation. See the [verification record](property-effects-evidence.md) for evidence and acceptance limits. Resource/store unification and directed-system/payload conversion are the recommended following stages.
+The second slice, [shared property effects and Duty Officer buffs](property-effects-migration-plan.md), is implemented, including existing fault and boost/impulse adapters on migrated properties. It replaces ordinary officer bonus paths and supports timed scenario and shield-reaction modifiers through shared preparation. See the [verification record](property-effects-evidence.md) for evidence and acceptance limits.
+
+The selected third slice is [resource, store and recipe unification](resource-store-migration-plan.md). It covers all existing material, magazine, energy and coolant stocks, single-type magazine restrictions, shared recipes/processors and existing supply/payment consumers. Implementation is pending. Directed systems and weapon payload effects remain the recommended following stage.
 
 Order later slices by the dependencies exposed by the shield implementation and the remaining existing systems. Each slice migrates its maintained definitions, production execution, observations, presentation and continuation together. A broad combat migration is not the prerequisite for proving the framework.
 

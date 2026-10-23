@@ -238,6 +238,8 @@ Burning ammunition supplies a Burning effect. Its gun supplies range, targeting 
 
 Stores share one mechanism across magazines, batteries, coolant tanks, parts stores and cargo holds. A store can accept mixed contents. Filters combine tags and explicit resource IDs using AND/OR; acceptance is separate from capacity.
 
+A store can optionally be restricted to one resource type. Magazines use this restriction: different ammunition choices occupy separate magazines. The allowed type can be a specific resource or chosen from a tag-filtered set. A chosen type remains fixed when the store becomes empty; changing it is deliberate and requires an empty store with no outstanding commitments, including loaded-round returns or incoming deliveries. General stores may retain mixed contents.
+
 A resource declares a size for each relevant tag. A store selects the tag by which it measures capacity.
 
 | Resource    | Size under ammo | Size under cargo |
