@@ -675,12 +675,13 @@ public:
 							if (download_offer_ == offer_id_ && !bytes->empty())
 								try
 								{
-									validate_ship_client(read_pack(*bytes), client_descriptor_);
 									std::map<std::string, Bytes> cache{
 									    {client_descriptor_.at("hash").get<std::string>(), std::move(*bytes)}};
 									auto candidate = std::make_unique<PackTransfer>(offer_, cache);
 									if (candidate->ready())
 									{
+										validate_ship_client(candidate->packs().at(0), candidate->catalog(),
+										                     client_descriptor_);
 										for (const auto &[hash, data] : cache)
 											jobs_.push_back({JobType::cache_write, hash, offer_id_,
 											                 std::make_shared<const Bytes>(data)});

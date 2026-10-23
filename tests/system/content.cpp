@@ -126,15 +126,26 @@ int main()
 				{
 					const auto client = read_pack(companions.at(descriptor.at("file").get<std::string>()));
 					validate_ship_client(client, descriptor);
-					auto stale = descriptor;
-					stale["sources"][0][1] = std::string(64, '0');
-					rejected(
-					    [&]
-					    {
-						    validate_ship_client(client, stale);
-					    },
-					    "does not match");
 					const auto visible = resolve_packs({client});
+					validate_ship_client(client, visible, descriptor);
+					for (const auto *field : {"sources", "ship", "hash"})
+					{
+						auto stale = descriptor;
+						if (std::string(field) == "sources")
+							stale["sources"][0][1] = std::string(64, '0');
+						else
+							stale[field] = "wrong";
+						for (const bool prepared : {false, true})
+							rejected(
+							    [&]
+							    {
+								    if (prepared)
+									    validate_ship_client(client, visible, stale);
+								    else
+									    validate_ship_client(client, stale);
+							    },
+							    "does not match");
+					}
 					require(client.hash() == descriptor.at("hash").get<std::string>() && client.archive()[0] == 'P',
 					        "client companion is a hash-verified DAT");
 					require(visible.maps.empty() && visible.trees.empty() && visible.entities.size() == 1,

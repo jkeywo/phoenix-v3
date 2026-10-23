@@ -424,6 +424,8 @@ std::string mission_briefing(const Json &map, const std::string &ship);
 Json pack_menu(const std::vector<Pack> &ordered);
 Catalog menu_catalog(const std::vector<Json> &menus);
 void validate_ship_client(const Pack &pack, const Json &descriptor);
+// The catalog must be the verified resolution of this pack.
+void validate_ship_client(const Pack &pack, const Catalog &catalog, const Json &descriptor);
 Pack ship_client_assets(const Catalog &catalog, const std::string &ship, const std::string &background = {});
 std::map<std::string, Bytes> pack_companions(const std::vector<Pack> &ordered, const std::string &filename);
 Json ship_client_descriptor(const Catalog &catalog, const std::string &ship, const std::string &hash,

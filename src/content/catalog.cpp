@@ -140,11 +140,12 @@ Json ship_client_descriptor(const Catalog &catalog, const std::string &ship, con
 	}
 	return result;
 }
-Json pack_menu(const std::vector<Pack> &ordered)
+namespace
+{
+Json pack_menu(const Catalog &catalog, const std::vector<Pack> &ordered)
 {
 	if (ordered.empty())
 		throw std::runtime_error("Menu requires a pack");
-	const auto catalog = resolve_packs(ordered);
 	const auto &pack = ordered.back();
 	const auto &manifest = pack.manifest();
 	auto result = launcher_catalog(catalog);
@@ -175,12 +176,19 @@ Json pack_menu(const std::vector<Pack> &ordered)
 	              });
 	return result;
 }
+} // namespace
+Json pack_menu(const std::vector<Pack> &ordered)
+{
+	if (ordered.empty())
+		throw std::runtime_error("Menu requires a pack");
+	return pack_menu(resolve_packs(ordered), ordered);
+}
 std::map<std::string, Bytes> pack_companions(const std::vector<Pack> &ordered, const std::string &filename)
 {
 	if (filename.empty() || filename.find_first_of("/\\:") != std::string::npos)
 		throw std::runtime_error("Companion archive name must be a filename");
 	const auto catalog = resolve_packs(ordered);
-	auto menu = pack_menu(ordered);
+	auto menu = pack_menu(catalog, ordered);
 	menu["clients"] = Json::array();
 	std::map<std::string, Bytes> files;
 	for (const auto &ship : menu.at("ships"))

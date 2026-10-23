@@ -18,6 +18,12 @@ Running hosts share the existing immutable `PackSource` and descriptor across cr
 
 Failed published-download descriptors now travel through the existing lobby-to-client `NetworkOptions`. Cache lookup remains first; an exact failed descriptor falls back to authenticated host transfer, while changed descriptors remain eligible for download. All three real loopback journeys passed with valid, missing and corrupt sidecars, including a regression that supplies an already-failed descriptor, requires a playable client and asserts zero repeated HTTP requests (`build/review-handoff-journeys.log`, three cases, 143.83 seconds total). All 27 launcher tests and formatting checks on changed files passed. These are automated checks; no new graphical or physical-device smoke run was performed for this follow-up.
 
+## Preparation reuse review — 23 October 2026
+
+Companion packaging now reuses its resolved catalogue when building menu metadata. Lobby DAT validation reuses the catalogue for its base check; published client downloads validate the pack and catalogue already prepared by `PackTransfer`. Descriptor hash, ship, source and presentation checks remain in place. An independent agent reviewed the changes and found no actionable gaps.
+
+Native content, menu and transfer integration passed. WebAssembly content and transfer checks passed, and the changed client/lobby libraries compiled. The valid, missing and corrupt published-sidecar loopback journeys all passed (`build/pack-reuse-network.log`). These are automated checks; no new graphical or physical-device run was performed.
+
 ## Manually triggered evidence
 
 Windows native, one 1280 × 720 window: `native.exe --local-only --capture-frames 1200 --data build/staged-smoke-native-long` reported the first menu frame at **0.941055 seconds** and verified content at **12.1146 seconds**. The window remained in the menu while verification completed (`build/staged-packs-native-smoke-long.log`). A separately copied root archive without any companions also opened successfully through the full-loader fallback (`build/staged-packs-native-missing.log`).

@@ -286,16 +286,19 @@ Pack ship_client_assets(const Catalog &catalog, const std::string &ship, const s
 	resolve_packs({pack});
 	return pack;
 }
-void validate_ship_client(const Pack &pack, const Json &descriptor)
+void validate_ship_client(const Pack &pack, const Catalog &catalog, const Json &descriptor)
 {
 	const auto &manifest = pack.manifest();
 	if (pack.hash() != descriptor.at("hash").get<std::string>() ||
 	    manifest.value("format", std::string{}) != "phoenix-console-assets" ||
 	    manifest.at("ship") != descriptor.at("ship") || manifest.at("source_packs") != descriptor.at("sources"))
 		throw std::runtime_error("Ship presentation does not match the host content");
-	const auto catalog = resolve_packs({pack});
 	if (!catalog.presentation || !catalog.maps.empty() || !catalog.trees.empty() || catalog.entities.size() != 1 ||
 	    !catalog.entities.contains(descriptor.at("ship").get<std::string>()))
 		throw std::runtime_error("Invalid ship presentation content");
+}
+void validate_ship_client(const Pack &pack, const Json &descriptor)
+{
+	validate_ship_client(pack, resolve_packs({pack}), descriptor);
 }
 } // namespace phoenix

@@ -79,8 +79,9 @@ class GameLobby final : public SessionPort
 		try
 		{
 			const auto pack = read_pack(bytes);
-			validate_ship_client(pack, configuration_.at("client"));
-			if (resolve_packs({pack}).base != options_.expected_base)
+			const auto catalog = resolve_packs({pack});
+			validate_ship_client(pack, catalog, configuration_.at("client"));
+			if (catalog.base != options_.expected_base)
 				return false;
 			options_.prepared_clients.clear();
 			options_.prepared_clients[pack.hash()] = bytes;
