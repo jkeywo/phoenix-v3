@@ -703,11 +703,6 @@ struct NativeMenuScreen::State
 							for (const auto &choice : slot.at("allowed_ships"))
 							{
 								const std::string ship = choice;
-								markup += paragraph(mission_briefing(
-								    ((app.content_loading || !app.content_error.empty()) ? *app.menu_catalog
-								                                                         : app.session->catalog())
-								        .maps.at(app.selected_scenario),
-								    ship));
 								markup +=
 								    add("menu.ship/" + slot_id + "/" + ship,
 								        ((app.content_loading || !app.content_error.empty()) ? *app.menu_catalog
@@ -1567,8 +1562,8 @@ std::string NativeMenuScreen::style_sheet(const std::string &asset_directory)
     #native-menu .lobby-heading { position:absolute; left:28px; top:22px; width:46%; }
     #native-menu .lobby-heading h2 { color:#fff0d4; font-family:UnifrakturCook; font-weight:bold; font-size:40px; line-height:40px; letter-spacing:0; margin:0 0 6px; }
     #native-menu .lobby-heading p { font-size:18px; margin:0; }
-    #native-menu .lobby-briefing { position:absolute; box-sizing:border-box; padding:12px; overflow:auto; background:#10191cee; border:1px #746249; }
-    #native-menu .lobby-briefing p { font-size:16px; line-height:22px; margin:0; }
+    #native-menu .lobby-briefing { position:absolute; box-sizing:border-box; padding:12px; background:#10191cee; border:1px #746249; }
+    #native-menu .lobby-briefing p { font-size:15px; line-height:20px; margin:0; }
     #native-menu .lobby-code { position:absolute; top:20px; right:24px; display:block; text-align:center; }
     #native-menu .lobby-code #menu-join-qr { width:88px; height:88px; flex-shrink:0; margin-right:14px; }
     #native-menu .lobby-code button.lobby-qr { width:100%; min-height:0; padding:0; margin:0 0 8px; border:0px; background:#ffffff; flex-shrink:0; }

@@ -26,7 +26,7 @@ Departure freezes both the rescue result and a separate delivery assessment. A s
 
 ## Authoring and continuation
 
-`ship_briefings` maps selectable ship definitions to briefing text or localisation keys; `briefing_key` provides a reusable fallback. The production catalogue, native menu, browser launcher and lobby resolve the selected ship. Remote crew receive the selected briefing in the lobby projection. Workshop exposes both authoring fields.
+`ship_briefings` maps selectable ship definitions to briefing text or localisation keys; `briefing_key` provides a reusable fallback. The production catalogue and launcher carry this metadata into the lobby. Only the selected ship's compact briefing is shown, alongside its stations, without a briefing scrollbar. Remote crew receive the same selected briefing in the lobby projection. Workshop exposes both authoring fields.
 
 Scenario facts support the selected entity definition, active simulation tick, a named store/material quantity, and an objective's completion tick. An objective completion remains latched; report `assessments` evaluate separately from the primary rescue grade. Conversation `cancel_events` suppress both future starts and already queued, undelivered lines. These fields and scenario continuation use the ordinary save and content-identity checks. See [mission objectives](mission-objectives.md) for the generic contracts.
 

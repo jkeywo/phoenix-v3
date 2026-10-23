@@ -1217,7 +1217,6 @@ async function boot() {
 					for (const slot of scene?.slots || []) {
 						element("h2", slot.id, ships);
 						for (const ship of slot.ships) {
-							if (ship.briefing) element("p", ship.briefing, ships);
 							button(ships, ship.name || ship.id, () =>
 								start(
 									options({ type: "server", action: "host", scenario, slot: slot.id, ship: ship.id }),
