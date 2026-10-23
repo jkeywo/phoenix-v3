@@ -19508,14 +19508,14 @@
 							"pivot": [259.19, 373.58],
 							"azimuth": 0,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 1.413043,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 256,
 									"y": 244,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -19525,14 +19525,14 @@
 							"pivot": [306.33, 370.61],
 							"azimuth": 45,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 1.157392,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 72,
 									"y": 250,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -19542,14 +19542,14 @@
 							"pivot": [328.49, 371.91],
 							"azimuth": 90,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 0.826087,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 22,
 									"y": 230,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -19559,14 +19559,14 @@
 							"pivot": [310.71, 373.55],
 							"azimuth": 135,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 1.157392,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 68,
 									"y": 194,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -19576,14 +19576,14 @@
 							"pivot": [259.34, 374.63],
 							"azimuth": 180,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 1.413043,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 259,
 									"y": 235,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -19593,14 +19593,14 @@
 							"pivot": [310.71, 373.55],
 							"azimuth": 225,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 1.157392,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 68,
 									"y": 194,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -19610,14 +19610,14 @@
 							"pivot": [328.49, 371.91],
 							"azimuth": 270,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 0.826087,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 22,
 									"y": 230,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -19627,18 +19627,20 @@
 							"pivot": [306.33, 370.61],
 							"azimuth": 315,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 1.157392,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 72,
 									"y": 250,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						}
-					]
+					],
+					"normal": "phoenix-base:assets/combat/courier-turret-normal.png",
+					"depth": "phoenix-base:assets/combat/courier-turret-depth.png"
 				}
 			},
 			"collision": {
@@ -19662,14 +19664,14 @@
 							"pivot": [236, 483],
 							"azimuth": 0,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 1.521739,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 231,
 									"y": 350,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -19679,14 +19681,14 @@
 							"pivot": [315, 490],
 							"azimuth": 45,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 1.279196,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 55,
 									"y": 256,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -19696,14 +19698,14 @@
 							"pivot": [398, 388],
 							"azimuth": 90,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 0.978261,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 28,
 									"y": 223,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -19713,14 +19715,14 @@
 							"pivot": [205, 398],
 							"azimuth": 135,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 1.279196,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 6,
 									"y": 150,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -19730,14 +19732,14 @@
 							"pivot": [229, 416],
 							"azimuth": 180,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 1.521739,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 229,
 									"y": 220,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -19747,14 +19749,14 @@
 							"pivot": [205, 398],
 							"azimuth": 225,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 1.279196,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 6,
 									"y": 150,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -19764,14 +19766,14 @@
 							"pivot": [398, 388],
 							"azimuth": 270,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 0.978261,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 28,
 									"y": 223,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -19781,18 +19783,20 @@
 							"pivot": [315, 490],
 							"azimuth": 315,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 1.279196,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 55,
 									"y": 256,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						}
-					]
+					],
+					"normal": "phoenix-base:assets/combat/pirate-turret-normal.png",
+					"depth": "phoenix-base:assets/combat/pirate-turret-depth.png"
 				}
 			},
 			"collision": {
@@ -19819,32 +19823,32 @@
 							"pivot": [769.37, 405.57],
 							"azimuth": 0,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 2.5,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_top": {
 									"x": 769.37,
 									"y": 258.88,
 									"layer": -1,
-									"depth_offset": 0
+									"depth_offset": -1.725021
 								},
 								"turret_bottom": {
 									"x": 769.37,
 									"y": 558.74,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"muzzle": {
 									"x": 769,
 									"y": 416,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"sensor_starboard": {
 									"x": 814,
 									"y": 391,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -19854,32 +19858,32 @@
 							"pivot": [815.52, 402.77],
 							"azimuth": 45,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 1.861776,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_top": {
 									"x": 861.71,
 									"y": 304.6,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_bottom": {
 									"x": 890.58,
 									"y": 560.41,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"muzzle": {
 									"x": 345,
 									"y": 414,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"sensor_starboard": {
 									"x": 376.82,
 									"y": 389,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -19889,32 +19893,32 @@
 							"pivot": [859.76, 417.39],
 							"azimuth": 90,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 0.826087,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_top": {
 									"x": 884.8,
 									"y": 289.67,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_bottom": {
 									"x": 884.8,
 									"y": 555.13,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"muzzle": {
 									"x": 150,
 									"y": 385,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"sensor_starboard": {
 									"x": 150,
 									"y": 360,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -19924,32 +19928,32 @@
 							"pivot": [791.65, 395.46],
 							"azimuth": 135,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 1.861776,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_top": {
 									"x": 763,
 									"y": 266.51,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_bottom": {
 									"x": 717.15,
 									"y": 515.82,
 									"layer": -1,
-									"depth_offset": 0
+									"depth_offset": -0.733702
 								},
 								"muzzle": {
 									"x": 400,
 									"y": 280,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"sensor_starboard": {
 									"x": 368.18,
 									"y": 255,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -19959,32 +19963,32 @@
 							"pivot": [768.44, 413.75],
 							"azimuth": 180,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 2.5,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_top": {
 									"x": 768.44,
 									"y": 308.28,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_bottom": {
 									"x": 768.44,
 									"y": 559.77,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"muzzle": {
 									"x": 768,
 									"y": 300,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"sensor_starboard": {
 									"x": 723,
 									"y": 275,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -19994,32 +19998,32 @@
 							"pivot": [791.65, 395.46],
 							"azimuth": 225,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 1.861776,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_top": {
 									"x": 763,
 									"y": 266.51,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_bottom": {
 									"x": 717.15,
 									"y": 515.82,
 									"layer": -1,
-									"depth_offset": 0
+									"depth_offset": -0.733702
 								},
 								"muzzle": {
 									"x": 400,
 									"y": 280,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"sensor_starboard": {
 									"x": 368.18,
 									"y": 255,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -20029,32 +20033,32 @@
 							"pivot": [859.76, 417.39],
 							"azimuth": 270,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 0.826087,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_top": {
 									"x": 884.8,
 									"y": 289.67,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_bottom": {
 									"x": 884.8,
 									"y": 555.13,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"muzzle": {
 									"x": 150,
 									"y": 385,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"sensor_starboard": {
 									"x": 150,
 									"y": 360,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -20064,37 +20068,39 @@
 							"pivot": [815.52, 402.77],
 							"azimuth": 315,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 1.861776,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_top": {
 									"x": 861.71,
 									"y": 304.6,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_bottom": {
 									"x": 890.58,
 									"y": 560.41,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"muzzle": {
 									"x": 345,
 									"y": 414,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"sensor_starboard": {
 									"x": 376.82,
 									"y": 389,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						}
 					],
-					"radar_icon": "ship"
+					"radar_icon": "ship",
+					"normal": "phoenix-base:assets/combat/courier-hull-normal.png",
+					"depth": "phoenix-base:assets/combat/courier-hull-depth.png"
 				},
 				"radar_icon": "ship"
 			},
@@ -21987,20 +21993,20 @@
 							"pivot": [351, 230],
 							"azimuth": 0,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 3.043478,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_forward": {
 									"x": 351,
 									"y": 78,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_aft": {
 									"x": 351,
 									"y": 21,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -22010,20 +22016,20 @@
 							"pivot": [420, 230],
 							"azimuth": 45,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 2.51766,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_forward": {
 									"x": 240,
 									"y": 100,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_aft": {
 									"x": 280,
 									"y": 48,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -22033,20 +22039,20 @@
 							"pivot": [460, 180],
 							"azimuth": 90,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 1.847826,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_forward": {
 									"x": 317,
 									"y": 56,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_aft": {
 									"x": 577,
 									"y": 37,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -22056,20 +22062,20 @@
 							"pivot": [310, 190],
 							"azimuth": 135,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 2.51766,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_forward": {
 									"x": 212,
 									"y": 42,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_aft": {
 									"x": 326,
 									"y": 18,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -22079,20 +22085,20 @@
 							"pivot": [368, 190],
 							"azimuth": 180,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 3.043478,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_forward": {
 									"x": 368,
 									"y": 10,
 									"layer": -1,
-									"depth_offset": 0
+									"depth_offset": -0.963467
 								},
 								"turret_aft": {
 									"x": 368,
 									"y": 10,
 									"layer": -1,
-									"depth_offset": 0
+									"depth_offset": -0.963467
 								}
 							}
 						},
@@ -22102,20 +22108,20 @@
 							"pivot": [310, 190],
 							"azimuth": 225,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 2.51766,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_forward": {
 									"x": 212,
 									"y": 42,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_aft": {
 									"x": 326,
 									"y": 18,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -22125,20 +22131,20 @@
 							"pivot": [460, 180],
 							"azimuth": 270,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 1.847826,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_forward": {
 									"x": 317,
 									"y": 56,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_aft": {
 									"x": 577,
 									"y": 37,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -22148,25 +22154,27 @@
 							"pivot": [420, 230],
 							"azimuth": 315,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 2.51766,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_forward": {
 									"x": 240,
 									"y": 100,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_aft": {
 									"x": 280,
 									"y": 48,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						}
 					],
-					"radar_icon": "ship"
+					"radar_icon": "ship",
+					"normal": "phoenix-base:assets/combat/pirate-hull-normal.png",
+					"depth": "phoenix-base:assets/combat/pirate-hull-depth.png"
 				},
 				"radar_icon": "ship"
 			},
@@ -23624,7 +23632,7 @@
 							"azimuth": 0,
 							"forward": [0, -1],
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 2.717391,
 							"depth_offset": 0
 						},
 						{
@@ -23634,7 +23642,7 @@
 							"azimuth": 45,
 							"forward": [-1, -0.08],
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 1.97605,
 							"depth_offset": 0
 						},
 						{
@@ -23644,7 +23652,7 @@
 							"azimuth": 90,
 							"forward": [-1, 0],
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 0.652174,
 							"depth_offset": 0
 						},
 						{
@@ -23654,7 +23662,7 @@
 							"azimuth": 135,
 							"forward": [-1, 0.16],
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 1.97605,
 							"depth_offset": 0
 						},
 						{
@@ -23664,7 +23672,7 @@
 							"azimuth": 180,
 							"forward": [0, 1],
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 2.717391,
 							"depth_offset": 0
 						},
 						{
@@ -23674,7 +23682,7 @@
 							"azimuth": 225,
 							"forward": [1, 0.16],
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 1.97605,
 							"depth_offset": 0
 						},
 						{
@@ -23684,7 +23692,7 @@
 							"azimuth": 270,
 							"forward": [1, 0],
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 0.652174,
 							"depth_offset": 0
 						},
 						{
@@ -23694,10 +23702,12 @@
 							"azimuth": 315,
 							"forward": [1, -0.08],
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 1.97605,
 							"depth_offset": 0
 						}
-					]
+					],
+					"normal": "phoenix-base:assets/combat/missile-normal.png",
+					"depth": "phoenix-base:assets/combat/missile-depth.png"
 				}
 			},
 			"collision": {
@@ -25727,32 +25737,32 @@
 							"pivot": [769.37, 405.57],
 							"azimuth": 0,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 2.5,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_top": {
 									"x": 769.37,
 									"y": 258.88,
 									"layer": -1,
-									"depth_offset": 0
+									"depth_offset": -1.725021
 								},
 								"turret_bottom": {
 									"x": 769.37,
 									"y": 558.74,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"muzzle": {
 									"x": 769,
 									"y": 416,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"sensor_starboard": {
 									"x": 814,
 									"y": 391,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -25762,32 +25772,32 @@
 							"pivot": [815.52, 402.77],
 							"azimuth": 45,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 1.861776,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_top": {
 									"x": 861.71,
 									"y": 304.6,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_bottom": {
 									"x": 890.58,
 									"y": 560.41,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"muzzle": {
 									"x": 345,
 									"y": 414,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"sensor_starboard": {
 									"x": 376.82,
 									"y": 389,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -25797,32 +25807,32 @@
 							"pivot": [859.76, 417.39],
 							"azimuth": 90,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 0.826087,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_top": {
 									"x": 884.8,
 									"y": 289.67,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_bottom": {
 									"x": 884.8,
 									"y": 555.13,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"muzzle": {
 									"x": 150,
 									"y": 385,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"sensor_starboard": {
 									"x": 150,
 									"y": 360,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -25832,32 +25842,32 @@
 							"pivot": [791.65, 395.46],
 							"azimuth": 135,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 1.861776,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_top": {
 									"x": 763,
 									"y": 266.51,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_bottom": {
 									"x": 717.15,
 									"y": 515.82,
 									"layer": -1,
-									"depth_offset": 0
+									"depth_offset": -0.733702
 								},
 								"muzzle": {
 									"x": 400,
 									"y": 280,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"sensor_starboard": {
 									"x": 368.18,
 									"y": 255,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -25867,32 +25877,32 @@
 							"pivot": [768.44, 413.75],
 							"azimuth": 180,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 2.5,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_top": {
 									"x": 768.44,
 									"y": 308.28,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_bottom": {
 									"x": 768.44,
 									"y": 559.77,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"muzzle": {
 									"x": 768,
 									"y": 300,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"sensor_starboard": {
 									"x": 723,
 									"y": 275,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -25902,32 +25912,32 @@
 							"pivot": [791.65, 395.46],
 							"azimuth": 225,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 1.861776,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_top": {
 									"x": 763,
 									"y": 266.51,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_bottom": {
 									"x": 717.15,
 									"y": 515.82,
 									"layer": -1,
-									"depth_offset": 0
+									"depth_offset": -0.733702
 								},
 								"muzzle": {
 									"x": 400,
 									"y": 280,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"sensor_starboard": {
 									"x": 368.18,
 									"y": 255,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -25937,32 +25947,32 @@
 							"pivot": [859.76, 417.39],
 							"azimuth": 270,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 0.826087,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_top": {
 									"x": 884.8,
 									"y": 289.67,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_bottom": {
 									"x": 884.8,
 									"y": 555.13,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"muzzle": {
 									"x": 150,
 									"y": 385,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"sensor_starboard": {
 									"x": 150,
 									"y": 360,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -25972,37 +25982,39 @@
 							"pivot": [815.52, 402.77],
 							"azimuth": 315,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 1.861776,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_top": {
 									"x": 861.71,
 									"y": 304.6,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_bottom": {
 									"x": 890.58,
 									"y": 560.41,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"muzzle": {
 									"x": 345,
 									"y": 414,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"sensor_starboard": {
 									"x": 376.82,
 									"y": 389,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						}
 					],
-					"radar_icon": "ship"
+					"radar_icon": "ship",
+					"normal": "phoenix-base:assets/combat/courier-hull-normal.png",
+					"depth": "phoenix-base:assets/combat/courier-hull-depth.png"
 				},
 				"radar_icon": "ship"
 			},
@@ -28936,26 +28948,26 @@
 							"pivot": [769.37, 405.57],
 							"azimuth": 0,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 2.5,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_top": {
 									"x": 769.37,
 									"y": 258.88,
 									"layer": -1,
-									"depth_offset": 0
+									"depth_offset": -1.725021
 								},
 								"turret_bottom": {
 									"x": 769.37,
 									"y": 558.74,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"muzzle": {
 									"x": 769,
 									"y": 416,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -28965,26 +28977,26 @@
 							"pivot": [815.52, 402.77],
 							"azimuth": 45,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 1.861776,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_top": {
 									"x": 861.71,
 									"y": 304.6,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_bottom": {
 									"x": 890.58,
 									"y": 560.41,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"muzzle": {
 									"x": 345,
 									"y": 414,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -28994,26 +29006,26 @@
 							"pivot": [859.76, 417.39],
 							"azimuth": 90,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 0.826087,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_top": {
 									"x": 884.8,
 									"y": 289.67,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_bottom": {
 									"x": 884.8,
 									"y": 555.13,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"muzzle": {
 									"x": 150,
 									"y": 385,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -29023,26 +29035,26 @@
 							"pivot": [791.65, 395.46],
 							"azimuth": 135,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 1.861776,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_top": {
 									"x": 763,
 									"y": 266.51,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_bottom": {
 									"x": 717.15,
 									"y": 515.82,
 									"layer": -1,
-									"depth_offset": 0
+									"depth_offset": -0.733702
 								},
 								"muzzle": {
 									"x": 400,
 									"y": 280,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -29052,26 +29064,26 @@
 							"pivot": [768.44, 413.75],
 							"azimuth": 180,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 2.5,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_top": {
 									"x": 768.44,
 									"y": 308.28,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_bottom": {
 									"x": 768.44,
 									"y": 559.77,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"muzzle": {
 									"x": 768,
 									"y": 300,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -29081,26 +29093,26 @@
 							"pivot": [791.65, 395.46],
 							"azimuth": 225,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 1.861776,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_top": {
 									"x": 763,
 									"y": 266.51,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_bottom": {
 									"x": 717.15,
 									"y": 515.82,
 									"layer": -1,
-									"depth_offset": 0
+									"depth_offset": -0.733702
 								},
 								"muzzle": {
 									"x": 400,
 									"y": 280,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -29110,26 +29122,26 @@
 							"pivot": [859.76, 417.39],
 							"azimuth": 270,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 0.826087,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_top": {
 									"x": 884.8,
 									"y": 289.67,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_bottom": {
 									"x": 884.8,
 									"y": 555.13,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"muzzle": {
 									"x": 150,
 									"y": 385,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -29139,31 +29151,33 @@
 							"pivot": [815.52, 402.77],
 							"azimuth": 315,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 1.861776,
 							"depth_offset": 0,
 							"attachments": {
 								"turret_top": {
 									"x": 861.71,
 									"y": 304.6,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"turret_bottom": {
 									"x": 890.58,
 									"y": 560.41,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								},
 								"muzzle": {
 									"x": 345,
 									"y": 414,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						}
 					],
-					"radar_icon": "ship"
+					"radar_icon": "ship",
+					"normal": "phoenix-base:assets/combat/courier-hull-normal.png",
+					"depth": "phoenix-base:assets/combat/courier-hull-depth.png"
 				},
 				"radar_icon": "ship"
 			},
@@ -31537,14 +31551,14 @@
 							"pivot": [288, 190],
 							"azimuth": 0,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 3.043478,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 59,
 									"y": 185,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -31554,14 +31568,14 @@
 							"pivot": [380, 155],
 							"azimuth": 45,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 2.441421,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 76,
 									"y": 148,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -31571,14 +31585,14 @@
 							"pivot": [385, 140],
 							"azimuth": 90,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 1.630435,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 76,
 									"y": 146,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -31588,14 +31602,14 @@
 							"pivot": [360, 145],
 							"azimuth": 135,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 2.441421,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 72,
 									"y": 146,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -31605,14 +31619,14 @@
 							"pivot": [246, 160],
 							"azimuth": 180,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 3.043478,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 49,
 									"y": 159,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -31622,14 +31636,14 @@
 							"pivot": [360, 145],
 							"azimuth": 225,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 2.441421,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 72,
 									"y": 146,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -31639,14 +31653,14 @@
 							"pivot": [385, 140],
 							"azimuth": 270,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 1.630435,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 76,
 									"y": 146,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -31656,18 +31670,20 @@
 							"pivot": [380, 155],
 							"azimuth": 315,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 2.441421,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 76,
 									"y": 148,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						}
-					]
+					],
+					"normal": "phoenix-base:assets/cruiser/shuttle-normal.png",
+					"depth": "phoenix-base:assets/cruiser/shuttle-depth.png"
 				},
 				"radar_sprite": "phoenix-base:assets/radar/ship.png"
 			},
@@ -31983,14 +31999,14 @@
 							"pivot": [255, 205],
 							"azimuth": 0,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 3.586957,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 52,
 									"y": 179,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -32000,14 +32016,14 @@
 							"pivot": [400, 150],
 							"azimuth": 45,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 2.786088,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 78,
 									"y": 146,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -32017,14 +32033,14 @@
 							"pivot": [490, 150],
 							"azimuth": 90,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 1.630435,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 92,
 									"y": 148,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -32034,14 +32050,14 @@
 							"pivot": [300, 160],
 							"azimuth": 135,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 2.786088,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 61,
 									"y": 151,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -32051,14 +32067,14 @@
 							"pivot": [265, 175],
 							"azimuth": 180,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 3.586957,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 53,
 									"y": 174,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -32068,14 +32084,14 @@
 							"pivot": [300, 160],
 							"azimuth": 225,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 2.786088,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 61,
 									"y": 151,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -32085,14 +32101,14 @@
 							"pivot": [490, 150],
 							"azimuth": 270,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 1.630435,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 92,
 									"y": 148,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -32102,18 +32118,20 @@
 							"pivot": [400, 150],
 							"azimuth": 315,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 2.786088,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 78,
 									"y": 146,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						}
-					]
+					],
+					"normal": "phoenix-base:assets/cruiser/interceptor-normal.png",
+					"depth": "phoenix-base:assets/cruiser/interceptor-depth.png"
 				},
 				"radar_sprite": "phoenix-base:assets/radar/ship.png"
 			},
@@ -32437,14 +32455,14 @@
 							"pivot": [315, 180],
 							"azimuth": 0,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 3.152174,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 63,
 									"y": 169,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -32454,14 +32472,14 @@
 							"pivot": [400, 140],
 							"azimuth": 45,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 2.583666,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 81,
 									"y": 138,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -32471,14 +32489,14 @@
 							"pivot": [415, 150],
 							"azimuth": 90,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 1.847826,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 84,
 									"y": 151,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -32488,14 +32506,14 @@
 							"pivot": [340, 160],
 							"azimuth": 135,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 2.583666,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 68,
 									"y": 156,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -32505,14 +32523,14 @@
 							"pivot": [315, 160],
 							"azimuth": 180,
 							"mirror_x": false,
-							"depth_scale": 0,
+							"depth_scale": 3.152174,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 63,
 									"y": 161,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -32522,14 +32540,14 @@
 							"pivot": [340, 160],
 							"azimuth": 225,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 2.583666,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 68,
 									"y": 156,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -32539,14 +32557,14 @@
 							"pivot": [415, 150],
 							"azimuth": 270,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 1.847826,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 84,
 									"y": 151,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						},
@@ -32556,18 +32574,20 @@
 							"pivot": [400, 140],
 							"azimuth": 315,
 							"mirror_x": true,
-							"depth_scale": 0,
+							"depth_scale": 2.583666,
 							"depth_offset": 0,
 							"attachments": {
 								"muzzle": {
 									"x": 81,
 									"y": 138,
 									"layer": 1,
-									"depth_offset": 0
+									"depth_offset": 0.015
 								}
 							}
 						}
-					]
+					],
+					"normal": "phoenix-base:assets/cruiser/bomber-normal.png",
+					"depth": "phoenix-base:assets/cruiser/bomber-depth.png"
 				},
 				"radar_sprite": "phoenix-base:assets/radar/ship.png"
 			},
@@ -33713,11 +33733,13 @@
 							"rect": [0, 0, 1774, 887],
 							"pivot": [887.0, 443.5],
 							"azimuth": 0,
-							"depth_scale": 0,
+							"depth_scale": 2.173913,
 							"depth_offset": 0,
 							"attachments": {}
 						}
-					]
+					],
+					"normal": "phoenix-base:assets/rescue/starbase-normal.png",
+					"depth": "phoenix-base:assets/rescue/starbase-depth.png"
 				}
 			},
 			"collision": {
@@ -33862,11 +33884,13 @@
 							"rect": [0, 0, 1254, 1254],
 							"pivot": [627.0, 627.0],
 							"azimuth": 0,
-							"depth_scale": 0,
+							"depth_scale": 0.944369,
 							"depth_offset": 0,
 							"attachments": {}
 						}
-					]
+					],
+					"normal": "phoenix-base:assets/rescue/planet-normal.png",
+					"depth": "phoenix-base:assets/rescue/planet-depth.png"
 				}
 			},
 			"systems": {},

@@ -1,0 +1,143 @@
+{
+	"albedo": "phoenix-base:assets/combat/courier-turret.png",
+	"frames": [
+		{
+			"name": "bow",
+			"rect": [0, 0, 512, 512],
+			"pivot": [259.19, 373.58],
+			"azimuth": 0,
+			"mirror_x": false,
+			"depth_scale": 1.413043,
+			"depth_offset": 0,
+			"attachments": {
+				"muzzle": {
+					"x": 256,
+					"y": 244,
+					"layer": 1,
+					"depth_offset": 0.015
+				}
+			}
+		},
+		{
+			"name": "bow_port",
+			"rect": [512, 0, 512, 512],
+			"pivot": [306.33, 370.61],
+			"azimuth": 45,
+			"mirror_x": false,
+			"depth_scale": 1.157392,
+			"depth_offset": 0,
+			"attachments": {
+				"muzzle": {
+					"x": 72,
+					"y": 250,
+					"layer": 1,
+					"depth_offset": 0.015
+				}
+			}
+		},
+		{
+			"name": "port",
+			"rect": [1024, 0, 512, 512],
+			"pivot": [328.49, 371.91],
+			"azimuth": 90,
+			"mirror_x": false,
+			"depth_scale": 0.826087,
+			"depth_offset": 0,
+			"attachments": {
+				"muzzle": {
+					"x": 22,
+					"y": 230,
+					"layer": 1,
+					"depth_offset": 0.015
+				}
+			}
+		},
+		{
+			"name": "stern_port",
+			"rect": [1536, 0, 512, 512],
+			"pivot": [310.71, 373.55],
+			"azimuth": 135,
+			"mirror_x": false,
+			"depth_scale": 1.157392,
+			"depth_offset": 0,
+			"attachments": {
+				"muzzle": {
+					"x": 68,
+					"y": 194,
+					"layer": 1,
+					"depth_offset": 0.015
+				}
+			}
+		},
+		{
+			"name": "stern",
+			"rect": [2048, 0, 512, 512],
+			"pivot": [259.34, 374.63],
+			"azimuth": 180,
+			"mirror_x": false,
+			"depth_scale": 1.413043,
+			"depth_offset": 0,
+			"attachments": {
+				"muzzle": {
+					"x": 259,
+					"y": 235,
+					"layer": 1,
+					"depth_offset": 0.015
+				}
+			}
+		},
+		{
+			"name": "stern_starboard",
+			"rect": [1536, 0, 512, 512],
+			"pivot": [310.71, 373.55],
+			"azimuth": 225,
+			"mirror_x": true,
+			"depth_scale": 1.157392,
+			"depth_offset": 0,
+			"attachments": {
+				"muzzle": {
+					"x": 68,
+					"y": 194,
+					"layer": 1,
+					"depth_offset": 0.015
+				}
+			}
+		},
+		{
+			"name": "starboard",
+			"rect": [1024, 0, 512, 512],
+			"pivot": [328.49, 371.91],
+			"azimuth": 270,
+			"mirror_x": true,
+			"depth_scale": 0.826087,
+			"depth_offset": 0,
+			"attachments": {
+				"muzzle": {
+					"x": 22,
+					"y": 230,
+					"layer": 1,
+					"depth_offset": 0.015
+				}
+			}
+		},
+		{
+			"name": "bow_starboard",
+			"rect": [512, 0, 512, 512],
+			"pivot": [306.33, 370.61],
+			"azimuth": 315,
+			"mirror_x": true,
+			"depth_scale": 1.157392,
+			"depth_offset": 0,
+			"attachments": {
+				"muzzle": {
+					"x": 72,
+					"y": 250,
+					"layer": 1,
+					"depth_offset": 0.015
+				}
+			}
+		}
+	],
+	"normal": "phoenix-base:assets/combat/courier-turret-normal.png",
+	"depth": "phoenix-base:assets/combat/courier-turret-depth.png"
+}

@@ -1,0 +1,16 @@
+{
+	"albedo": "phoenix-base:assets/rescue/starbase.png",
+	"frames": [
+		{
+			"name": "starbase",
+			"rect": [0, 0, 1774, 887],
+			"pivot": [887.0, 443.5],
+			"azimuth": 0,
+			"depth_scale": 2.173913,
+			"depth_offset": 0,
+			"attachments": {}
+		}
+	],
+	"normal": "phoenix-base:assets/rescue/starbase-normal.png",
+	"depth": "phoenix-base:assets/rescue/starbase-depth.png"
+}

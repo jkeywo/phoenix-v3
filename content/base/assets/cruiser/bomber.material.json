@@ -7,14 +7,14 @@
 			"pivot": [315, 180],
 			"azimuth": 0,
 			"mirror_x": false,
-			"depth_scale": 0,
+			"depth_scale": 3.152174,
 			"depth_offset": 0,
 			"attachments": {
 				"muzzle": {
 					"x": 63,
 					"y": 169,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.015
 				}
 			}
 		},
@@ -24,14 +24,14 @@
 			"pivot": [400, 140],
 			"azimuth": 45,
 			"mirror_x": false,
-			"depth_scale": 0,
+			"depth_scale": 2.583666,
 			"depth_offset": 0,
 			"attachments": {
 				"muzzle": {
 					"x": 81,
 					"y": 138,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.015
 				}
 			}
 		},
@@ -41,14 +41,14 @@
 			"pivot": [415, 150],
 			"azimuth": 90,
 			"mirror_x": false,
-			"depth_scale": 0,
+			"depth_scale": 1.847826,
 			"depth_offset": 0,
 			"attachments": {
 				"muzzle": {
 					"x": 84,
 					"y": 151,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.015
 				}
 			}
 		},
@@ -58,14 +58,14 @@
 			"pivot": [340, 160],
 			"azimuth": 135,
 			"mirror_x": false,
-			"depth_scale": 0,
+			"depth_scale": 2.583666,
 			"depth_offset": 0,
 			"attachments": {
 				"muzzle": {
 					"x": 68,
 					"y": 156,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.015
 				}
 			}
 		},
@@ -75,14 +75,14 @@
 			"pivot": [315, 160],
 			"azimuth": 180,
 			"mirror_x": false,
-			"depth_scale": 0,
+			"depth_scale": 3.152174,
 			"depth_offset": 0,
 			"attachments": {
 				"muzzle": {
 					"x": 63,
 					"y": 161,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.015
 				}
 			}
 		},
@@ -92,14 +92,14 @@
 			"pivot": [340, 160],
 			"azimuth": 225,
 			"mirror_x": true,
-			"depth_scale": 0,
+			"depth_scale": 2.583666,
 			"depth_offset": 0,
 			"attachments": {
 				"muzzle": {
 					"x": 68,
 					"y": 156,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.015
 				}
 			}
 		},
@@ -109,14 +109,14 @@
 			"pivot": [415, 150],
 			"azimuth": 270,
 			"mirror_x": true,
-			"depth_scale": 0,
+			"depth_scale": 1.847826,
 			"depth_offset": 0,
 			"attachments": {
 				"muzzle": {
 					"x": 84,
 					"y": 151,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.015
 				}
 			}
 		},
@@ -126,16 +126,18 @@
 			"pivot": [400, 140],
 			"azimuth": 315,
 			"mirror_x": true,
-			"depth_scale": 0,
+			"depth_scale": 2.583666,
 			"depth_offset": 0,
 			"attachments": {
 				"muzzle": {
 					"x": 81,
 					"y": 138,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.015
 				}
 			}
 		}
-	]
+	],
+	"normal": "phoenix-base:assets/cruiser/bomber-normal.png",
+	"depth": "phoenix-base:assets/cruiser/bomber-depth.png"
 }

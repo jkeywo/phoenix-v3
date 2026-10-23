@@ -7,14 +7,14 @@
 			"pivot": [255, 205],
 			"azimuth": 0,
 			"mirror_x": false,
-			"depth_scale": 0,
+			"depth_scale": 3.586957,
 			"depth_offset": 0,
 			"attachments": {
 				"muzzle": {
 					"x": 52,
 					"y": 179,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.015
 				}
 			}
 		},
@@ -24,14 +24,14 @@
 			"pivot": [400, 150],
 			"azimuth": 45,
 			"mirror_x": false,
-			"depth_scale": 0,
+			"depth_scale": 2.786088,
 			"depth_offset": 0,
 			"attachments": {
 				"muzzle": {
 					"x": 78,
 					"y": 146,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.015
 				}
 			}
 		},
@@ -41,14 +41,14 @@
 			"pivot": [490, 150],
 			"azimuth": 90,
 			"mirror_x": false,
-			"depth_scale": 0,
+			"depth_scale": 1.630435,
 			"depth_offset": 0,
 			"attachments": {
 				"muzzle": {
 					"x": 92,
 					"y": 148,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.015
 				}
 			}
 		},
@@ -58,14 +58,14 @@
 			"pivot": [300, 160],
 			"azimuth": 135,
 			"mirror_x": false,
-			"depth_scale": 0,
+			"depth_scale": 2.786088,
 			"depth_offset": 0,
 			"attachments": {
 				"muzzle": {
 					"x": 61,
 					"y": 151,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.015
 				}
 			}
 		},
@@ -75,14 +75,14 @@
 			"pivot": [265, 175],
 			"azimuth": 180,
 			"mirror_x": false,
-			"depth_scale": 0,
+			"depth_scale": 3.586957,
 			"depth_offset": 0,
 			"attachments": {
 				"muzzle": {
 					"x": 53,
 					"y": 174,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.015
 				}
 			}
 		},
@@ -92,14 +92,14 @@
 			"pivot": [300, 160],
 			"azimuth": 225,
 			"mirror_x": true,
-			"depth_scale": 0,
+			"depth_scale": 2.786088,
 			"depth_offset": 0,
 			"attachments": {
 				"muzzle": {
 					"x": 61,
 					"y": 151,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.015
 				}
 			}
 		},
@@ -109,14 +109,14 @@
 			"pivot": [490, 150],
 			"azimuth": 270,
 			"mirror_x": true,
-			"depth_scale": 0,
+			"depth_scale": 1.630435,
 			"depth_offset": 0,
 			"attachments": {
 				"muzzle": {
 					"x": 92,
 					"y": 148,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.015
 				}
 			}
 		},
@@ -126,16 +126,18 @@
 			"pivot": [400, 150],
 			"azimuth": 315,
 			"mirror_x": true,
-			"depth_scale": 0,
+			"depth_scale": 2.786088,
 			"depth_offset": 0,
 			"attachments": {
 				"muzzle": {
 					"x": 78,
 					"y": 146,
 					"layer": 1,
-					"depth_offset": 0
+					"depth_offset": 0.015
 				}
 			}
 		}
-	]
+	],
+	"normal": "phoenix-base:assets/cruiser/interceptor-normal.png",
+	"depth": "phoenix-base:assets/cruiser/interceptor-depth.png"
 }

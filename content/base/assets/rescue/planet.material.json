@@ -1,0 +1,16 @@
+{
+	"albedo": "phoenix-base:assets/rescue/planet.png",
+	"frames": [
+		{
+			"name": "planet",
+			"rect": [0, 0, 1254, 1254],
+			"pivot": [627.0, 627.0],
+			"azimuth": 0,
+			"depth_scale": 0.944369,
+			"depth_offset": 0,
+			"attachments": {}
+		}
+	],
+	"normal": "phoenix-base:assets/rescue/planet-normal.png",
+	"depth": "phoenix-base:assets/rescue/planet-depth.png"
+}

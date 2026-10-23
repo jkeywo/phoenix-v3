@@ -1,0 +1,143 @@
+{
+	"albedo": "phoenix-base:assets/combat/pirate-turret.png",
+	"frames": [
+		{
+			"name": "bow",
+			"rect": [0, 0, 455, 550],
+			"pivot": [236, 483],
+			"azimuth": 0,
+			"mirror_x": false,
+			"depth_scale": 1.521739,
+			"depth_offset": 0,
+			"attachments": {
+				"muzzle": {
+					"x": 231,
+					"y": 350,
+					"layer": 1,
+					"depth_offset": 0.015
+				}
+			}
+		},
+		{
+			"name": "bow_port",
+			"rect": [455, 0, 569, 550],
+			"pivot": [315, 490],
+			"azimuth": 45,
+			"mirror_x": false,
+			"depth_scale": 1.279196,
+			"depth_offset": 0,
+			"attachments": {
+				"muzzle": {
+					"x": 55,
+					"y": 256,
+					"layer": 1,
+					"depth_offset": 0.015
+				}
+			}
+		},
+		{
+			"name": "port",
+			"rect": [0, 550, 620, 460],
+			"pivot": [398, 388],
+			"azimuth": 90,
+			"mirror_x": false,
+			"depth_scale": 0.978261,
+			"depth_offset": 0,
+			"attachments": {
+				"muzzle": {
+					"x": 28,
+					"y": 223,
+					"layer": 1,
+					"depth_offset": 0.015
+				}
+			}
+		},
+		{
+			"name": "stern_port",
+			"rect": [620, 550, 404, 460],
+			"pivot": [205, 398],
+			"azimuth": 135,
+			"mirror_x": false,
+			"depth_scale": 1.279196,
+			"depth_offset": 0,
+			"attachments": {
+				"muzzle": {
+					"x": 6,
+					"y": 150,
+					"layer": 1,
+					"depth_offset": 0.015
+				}
+			}
+		},
+		{
+			"name": "stern",
+			"rect": [0, 1010, 460, 526],
+			"pivot": [229, 416],
+			"azimuth": 180,
+			"mirror_x": false,
+			"depth_scale": 1.521739,
+			"depth_offset": 0,
+			"attachments": {
+				"muzzle": {
+					"x": 229,
+					"y": 220,
+					"layer": 1,
+					"depth_offset": 0.015
+				}
+			}
+		},
+		{
+			"name": "stern_starboard",
+			"rect": [620, 550, 404, 460],
+			"pivot": [205, 398],
+			"azimuth": 225,
+			"mirror_x": true,
+			"depth_scale": 1.279196,
+			"depth_offset": 0,
+			"attachments": {
+				"muzzle": {
+					"x": 6,
+					"y": 150,
+					"layer": 1,
+					"depth_offset": 0.015
+				}
+			}
+		},
+		{
+			"name": "starboard",
+			"rect": [0, 550, 620, 460],
+			"pivot": [398, 388],
+			"azimuth": 270,
+			"mirror_x": true,
+			"depth_scale": 0.978261,
+			"depth_offset": 0,
+			"attachments": {
+				"muzzle": {
+					"x": 28,
+					"y": 223,
+					"layer": 1,
+					"depth_offset": 0.015
+				}
+			}
+		},
+		{
+			"name": "bow_starboard",
+			"rect": [455, 0, 569, 550],
+			"pivot": [315, 490],
+			"azimuth": 315,
+			"mirror_x": true,
+			"depth_scale": 1.279196,
+			"depth_offset": 0,
+			"attachments": {
+				"muzzle": {
+					"x": 55,
+					"y": 256,
+					"layer": 1,
+					"depth_offset": 0.015
+				}
+			}
+		}
+	],
+	"normal": "phoenix-base:assets/combat/pirate-turret-normal.png",
+	"depth": "phoenix-base:assets/combat/pirate-turret-depth.png"
+}

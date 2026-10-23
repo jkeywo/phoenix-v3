@@ -1,0 +1,200 @@
+{
+	"id": "courier-hull",
+	"image_size": [7680, 768],
+	"files": {
+		"sprite": "courier-hull.png",
+		"normal": "courier-hull-normal.png",
+		"depth": "courier-hull-depth.png"
+	},
+	"billboard_mode": "eight",
+	"render_scale": 15,
+	"depth_encoding": {
+		"channel": "r",
+		"color_space": "linear",
+		"white": "near",
+		"quality": "yawed_geometric_proxy"
+	},
+	"normal_encoding": {
+		"space": "view",
+		"x": "right",
+		"y": "up",
+		"z": "toward_viewer",
+		"quality": "derived_from_calibrated_depth"
+	},
+	"sprite_sheet": {
+		"kind": "directions",
+		"frames": [
+			{
+				"name": "bow",
+				"rect": [0, 0, 1536, 768],
+				"pivot": [769.37, 405.57],
+				"camera_azimuth_degrees": 0,
+				"mirror_x": false,
+				"depth_scale": 2.5,
+				"depth_offset": 0,
+				"markers": {
+					"turret_top": [769.37, 258.88, -1],
+					"turret_bottom": [769.37, 558.74, 1],
+					"muzzle": [769, 416, 1],
+					"sensor_starboard": [814, 391, 1]
+				},
+				"attachment_depth_offsets": {
+					"turret_top": -1.725021,
+					"turret_bottom": 0.015,
+					"muzzle": 0.015,
+					"sensor_starboard": 0.015
+				}
+			},
+			{
+				"name": "bow_port",
+				"rect": [1536, 0, 1536, 768],
+				"pivot": [815.52, 402.77],
+				"camera_azimuth_degrees": 45,
+				"mirror_x": false,
+				"depth_scale": 1.861776,
+				"depth_offset": 0,
+				"markers": {
+					"turret_top": [861.71, 304.6, 1],
+					"turret_bottom": [890.58, 560.41, 1],
+					"muzzle": [345, 414, 1],
+					"sensor_starboard": [376.82, 389, 1]
+				},
+				"attachment_depth_offsets": {
+					"turret_top": 0.015,
+					"turret_bottom": 0.015,
+					"muzzle": 0.015,
+					"sensor_starboard": 0.015
+				}
+			},
+			{
+				"name": "port",
+				"rect": [3072, 0, 1536, 768],
+				"pivot": [859.76, 417.39],
+				"camera_azimuth_degrees": 90,
+				"mirror_x": false,
+				"depth_scale": 0.826087,
+				"depth_offset": 0,
+				"markers": {
+					"turret_top": [884.8, 289.67, 1],
+					"turret_bottom": [884.8, 555.13, 1],
+					"muzzle": [150, 385, 1],
+					"sensor_starboard": [150, 360, 1]
+				},
+				"attachment_depth_offsets": {
+					"turret_top": 0.015,
+					"turret_bottom": 0.015,
+					"muzzle": 0.015,
+					"sensor_starboard": 0.015
+				}
+			},
+			{
+				"name": "stern_port",
+				"rect": [4608, 0, 1536, 768],
+				"pivot": [791.65, 395.46],
+				"camera_azimuth_degrees": 135,
+				"mirror_x": false,
+				"depth_scale": 1.861776,
+				"depth_offset": 0,
+				"markers": {
+					"turret_top": [763, 266.51, 1],
+					"turret_bottom": [717.15, 515.82, -1],
+					"muzzle": [400, 280, 1],
+					"sensor_starboard": [368.18, 255, 1]
+				},
+				"attachment_depth_offsets": {
+					"turret_top": 0.015,
+					"turret_bottom": -0.733702,
+					"muzzle": 0.015,
+					"sensor_starboard": 0.015
+				}
+			},
+			{
+				"name": "stern",
+				"rect": [6144, 0, 1536, 768],
+				"pivot": [768.44, 413.75],
+				"camera_azimuth_degrees": 180,
+				"mirror_x": false,
+				"depth_scale": 2.5,
+				"depth_offset": 0,
+				"markers": {
+					"turret_top": [768.44, 308.28, 1],
+					"turret_bottom": [768.44, 559.77, 1],
+					"muzzle": [768, 300, 1],
+					"sensor_starboard": [723, 275, 1]
+				},
+				"attachment_depth_offsets": {
+					"turret_top": 0.015,
+					"turret_bottom": 0.015,
+					"muzzle": 0.015,
+					"sensor_starboard": 0.015
+				}
+			},
+			{
+				"name": "stern_starboard",
+				"rect": [4608, 0, 1536, 768],
+				"pivot": [791.65, 395.46],
+				"camera_azimuth_degrees": 225,
+				"mirror_x": true,
+				"depth_scale": 1.861776,
+				"depth_offset": 0,
+				"markers": {
+					"turret_top": [763, 266.51, 1],
+					"turret_bottom": [717.15, 515.82, -1],
+					"muzzle": [400, 280, 1],
+					"sensor_starboard": [368.18, 255, 1]
+				},
+				"attachment_depth_offsets": {
+					"turret_top": 0.015,
+					"turret_bottom": -0.733702,
+					"muzzle": 0.015,
+					"sensor_starboard": 0.015
+				}
+			},
+			{
+				"name": "starboard",
+				"rect": [3072, 0, 1536, 768],
+				"pivot": [859.76, 417.39],
+				"camera_azimuth_degrees": 270,
+				"mirror_x": true,
+				"depth_scale": 0.826087,
+				"depth_offset": 0,
+				"markers": {
+					"turret_top": [884.8, 289.67, 1],
+					"turret_bottom": [884.8, 555.13, 1],
+					"muzzle": [150, 385, 1],
+					"sensor_starboard": [150, 360, 1]
+				},
+				"attachment_depth_offsets": {
+					"turret_top": 0.015,
+					"turret_bottom": 0.015,
+					"muzzle": 0.015,
+					"sensor_starboard": 0.015
+				}
+			},
+			{
+				"name": "bow_starboard",
+				"rect": [1536, 0, 1536, 768],
+				"pivot": [815.52, 402.77],
+				"camera_azimuth_degrees": 315,
+				"mirror_x": true,
+				"depth_scale": 1.861776,
+				"depth_offset": 0,
+				"markers": {
+					"turret_top": [861.71, 304.6, 1],
+					"turret_bottom": [890.58, 560.41, 1],
+					"muzzle": [345, 414, 1],
+					"sensor_starboard": [376.82, 389, 1]
+				},
+				"attachment_depth_offsets": {
+					"turret_top": 0.015,
+					"turret_bottom": 0.015,
+					"muzzle": 0.015,
+					"sensor_starboard": 0.015
+				}
+			}
+		]
+	},
+	"schema_version": 1,
+	"coordinate_system": "frame_pixels_top_left_y_down",
+	"radar_icon": "ship"
+}
