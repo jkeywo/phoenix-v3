@@ -60,7 +60,7 @@ Recommendations below remain proposals unless explicitly marked agreed.
 
 For the smallest slice, freeze arc geometry, layer, reserve capacity, initial strength and energy-conversion parameters for a grant's lifetime, while supporting the chosen live operating-rate modifiers. If live capacity or conversion changes are required immediately, specify clamping, retained strength, fractional credit and restore bounds before implementation; those are observable accounting changes, not just field setters.
 
-**Decision needed.** The initial modifiable property list and whether the additive modifier change applies to shields immediately. Applying it immediately through a shield-only bridge best matches the agreed staged replacement.
+**Agreed, 23 October 2026.** The first slice supports live modifiers for recharge/off-state recharge rates, sustain energy cost on the granting process, discharge rate and available protection. Existing officer/fault effects feed those explicit properties using the additive rule once; structural disablement remains an operating condition. Capacity, initial strength, arc geometry, layer, warmup duration and energy-conversion values remain fixed per grant in the first slice. Later support for changing them requires explicit accounting rules. This scope is recorded in the migration notes rather than imposed as a permanent limit on the target design.
 
 ### 6. Define the first damage-hook contract at the mutation point
 

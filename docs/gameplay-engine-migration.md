@@ -31,6 +31,8 @@ Existing shield dependencies include energy funding, warmup, recharge/discharge,
 
 Retain the equipment power adapter for the first slice and use an explicitly cost-free temporary grant as the second source. This exercises source-independent shield contributions without requiring general dynamic resource consumers first. The target model permits other grants to declare their own costs and dependencies.
 
+The first slice supports live modifiers for recharge and off-state recharge rates, sustain energy cost on the granting process, discharge rate and available protection. Existing officer/fault facts feed these named properties through the new additive-percentage rule once; structural disablement remains an operating condition. Capacity, initial strength, arc geometry, layer, warmup duration and energy-conversion values remain fixed for each grant in this slice. Live changes to those values require later accounting contracts; this is a delivery limit, not a permanent restriction on the target architecture.
+
 The native absorption implementation currently orders contributions by layer and identity. The agreed design's equal-layer sharing is an explicit change to implement and verify, not behaviour already established by that code. Further shield-specific resolution follows the domain implementation unless a separate design decision changes it.
 
 ## Subsequent slices
