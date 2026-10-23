@@ -1,3 +1,4 @@
 Courier and pirate sprites: existing project imagegen art kits, promoted from raw.
+Torpedo atlas: generated with the built-in image tool on 23 October 2026; five near-level facings with baked exhaust, derived from the previous project torpedo design. Prompt and integration notes: docs/torpedo-sprites.md.
 Explosion billboard: copied unchanged from Project Phoenix V2 assets/pfx/explosion/explosion_puff.png.
 Projectile marker and explosion sound: original procedural assets created for Phoenix V3.

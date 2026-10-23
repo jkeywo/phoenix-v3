@@ -23613,79 +23613,87 @@
 			"id": "base.combat-missile",
 			"render": {
 				"mode": "eight",
-				"scale": 5,
+				"scale": 1,
 				"sprite": {
 					"albedo": "phoenix-base:assets/combat/missile-atlas.png",
 					"frames": [
 						{
 							"name": "0",
-							"rect": [64, 0, 175, 627],
-							"pivot": [87.5, 382],
+							"rect": [0, 0, 1024, 330],
+							"pivot": [512, 205],
 							"azimuth": 0,
 							"forward": [0, -1],
+							"mirror_x": false,
 							"depth_scale": 0,
 							"depth_offset": 0
 						},
 						{
 							"name": "1",
-							"rect": [324, 0, 276, 627],
-							"pivot": [138, 395],
+							"rect": [0, 330, 1024, 300],
+							"pivot": [516, 157],
 							"azimuth": 45,
-							"forward": [-0.8, -0.6],
+							"forward": [-1, -0.08],
+							"mirror_x": false,
 							"depth_scale": 0,
 							"depth_offset": 0
 						},
 						{
 							"name": "2",
-							"rect": [625, 0, 321, 627],
-							"pivot": [160.5, 416.5],
+							"rect": [0, 620, 1024, 300],
+							"pivot": [460, 160],
 							"azimuth": 90,
 							"forward": [-1, 0],
+							"mirror_x": false,
 							"depth_scale": 0,
 							"depth_offset": 0
 						},
 						{
 							"name": "3",
-							"rect": [997, 0, 228, 627],
-							"pivot": [114, 426],
+							"rect": [0, 920, 1024, 288],
+							"pivot": [485, 135],
 							"azimuth": 135,
-							"forward": [-0.8, 0.6],
+							"forward": [-1, 0.16],
+							"mirror_x": false,
 							"depth_scale": 0,
 							"depth_offset": 0
 						},
 						{
 							"name": "4",
-							"rect": [43, 627, 234, 627],
-							"pivot": [117, 274.5],
+							"rect": [0, 1208, 1024, 328],
+							"pivot": [512, 158],
 							"azimuth": 180,
 							"forward": [0, 1],
+							"mirror_x": false,
 							"depth_scale": 0,
 							"depth_offset": 0
 						},
 						{
 							"name": "5",
-							"rect": [316, 627, 269, 627],
-							"pivot": [134.5, 298],
+							"rect": [0, 920, 1024, 288],
+							"pivot": [485, 135],
 							"azimuth": 225,
-							"forward": [0.8, 0.6],
+							"forward": [1, 0.16],
+							"mirror_x": true,
 							"depth_scale": 0,
 							"depth_offset": 0
 						},
 						{
 							"name": "6",
-							"rect": [633, 627, 322, 627],
-							"pivot": [161, 298.5],
+							"rect": [0, 620, 1024, 300],
+							"pivot": [460, 160],
 							"azimuth": 270,
 							"forward": [1, 0],
+							"mirror_x": true,
 							"depth_scale": 0,
 							"depth_offset": 0
 						},
 						{
 							"name": "7",
-							"rect": [966, 627, 250, 627],
-							"pivot": [125, 276],
+							"rect": [0, 330, 1024, 300],
+							"pivot": [516, 157],
 							"azimuth": 315,
-							"forward": [0.8, -0.6],
+							"forward": [1, -0.08],
+							"mirror_x": true,
 							"depth_scale": 0,
 							"depth_offset": 0
 						}
