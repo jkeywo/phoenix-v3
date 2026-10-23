@@ -1,12 +1,14 @@
 # Phoenix V3
 
+[Cruiser Science, Comms and Captain](docs/cruiser-science-comms-captain.md) completes the station workloads, psychic relocation and Captain Objectives controls.
+
 [Cruiser station complexity](docs/cruiser-complexity.md) defines the Helm, Tactical and Engineering workloads, department-owned Dispatch, utility shuttles and physical gift/barter supply missions.
 
 [Courier station complexity](docs/courier-complexity.md) defines the common Courier fitting and its one-, two- and three-star Helm and Support workloads.
 
 [Storage, logistics and docking](docs/storage-logistics.md) adds finite supplies, automatic replenishment, docked transfers, cargo shuttles and docking-supported away delivery.
 
-[Psychic choir](docs/psychic-choir.md) adds multiple psychic Duty Officer seats, sustained cloaking, moving ghost contacts and wards under Comms.
+[Psychic choir](docs/psychic-choir.md) adds multiple psychic Duty Officer seats, sustained cloaking, moving ghost contacts and wards under Cruiser Science, with Veil on Courier Support.
 
 [Security and boarding](docs/security-boarding.md) adds target-authored encounters, finite transports and whole-ship capture.
 

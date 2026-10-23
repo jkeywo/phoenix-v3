@@ -242,6 +242,9 @@ class GameLobby final : public SessionPort
 						Json stars = Json::object();
 						for (const auto &profile : layout.profiles)
 						{
+							if (layout.fixed_profiles.contains(seat.id) &&
+							    layout.profiles.at(layout.fixed_profiles.at(seat.id)).id != profile.id)
+								continue;
 							choices.push_back(profile.id);
 							if (profile.stars)
 								stars[profile.id] = profile.stars;
@@ -508,6 +511,9 @@ class GameLobby final : public SessionPort
 			                 }))
 				return false;
 			const auto &layout = controller_layout(ship);
+			if (layout.fixed_profiles.contains(cmd.console) &&
+			    layout.profiles.at(layout.fixed_profiles.at(cmd.console)).id != cmd.profile)
+				return false;
 			if (std::none_of(layout.profiles.begin(), layout.profiles.end(),
 			                 [&](const auto &profile)
 			                 {

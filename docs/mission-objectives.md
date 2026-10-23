@@ -4,9 +4,9 @@ Scenario objectives can describe a region crossing or a verified world condition
 
 ## Authoring
 
-### Planned Captain Objectives list and priority
+### Captain Objectives list and priority
 
-The [Captain design agreement](bridge-command.md#captain-design-agreement--23-october-2026) adds a new Objectives list GUI element over the ship's published objective list on its entity blackboard. Captain may select one active priority objective whenever any Controller aboard is effectively AI-operated, including delegated Controllers on a human-operated Console. The accepted selection belongs to that same ship-scoped objective list; Controller AI reads it and considers it only where relevant and feasible. It neither changes objective completion nor grants machinery authority or access to private scenario facts. The GUI, priority state and policy integration are planned, not implemented by the objective/debrief work described here.
+The [Captain design agreement](bridge-command.md#captain-design-agreement--23-october-2026) adds a new Objectives list GUI element over the ship's published objective list on its entity blackboard. Captain may select one active priority objective whenever any Controller aboard is effectively AI-operated, including delegated Controllers on a human-operated Console. The accepted selection belongs to that same ship-scoped objective list; Controller AI reads it and considers it only where relevant and feasible. It neither changes objective completion nor grants machinery authority or access to private scenario facts. The [remaining Cruiser station increment](cruiser-science-comms-captain.md) supplies the GUI, priority state and navigation-first policy integration.
 
 ### Scenario objective definitions
 

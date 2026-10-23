@@ -478,6 +478,7 @@ body {width:100%;height:100%;font-family:LatoLatin;font-size:20px;color:#e5e4ca;
 .stance-state {pointer-events:none;display:block;font-size:12px;margin-top:8px;color:#ffd082;}
 .stance-button:focus .stance-state {background:#fff3d9;color:#101b1c;}
 .command-card h2 {margin:0 8px 10px;color:#ffbd76;}
+.objective-card {max-width:none;}
 #gameplay-controls .stance-button {vertical-align:top;width:46%;max-width:144px;min-width:72px;min-height:100px;margin:2px;padding:14px 6px;font-size:.75em;background:#20292b;decorator:image(BUTTON_SPRITE);border:2px transparent;}
 #gameplay-controls .stance-button.selected {image-color:#ffb668;border-color:#efb66b;color:#ffe2a5;}
 #gameplay-controls .stance-button:hover,#gameplay-controls .stance-button:focus {image-color:#ffe1b8;border-color:#fff3d9;color:#ffffff;}
@@ -2179,7 +2180,7 @@ button.on-screen-active .share-live {display:block;}
 			                              descriptor.at("channel").get<std::string>();
 			return dial_bindings.contains({action, target}) ? ControlDestination::dial : ControlDestination::general;
 		};
-		std::set<std::string> specialised_controls, stance_controls, sensor_actions;
+		std::set<std::string> specialised_controls, stance_controls, sensor_actions, objective_controls;
 		std::vector<StanceChoice> choices;
 		if (!pregame && model_.observation() && model_.observation()->gameplay.contains("controls"))
 			for (const auto &descriptor : model_.observation()->gameplay.at("controls"))
@@ -2187,6 +2188,8 @@ button.on-screen-active .share-live {display:block;}
 				const auto action = descriptor_action(descriptor.at("id"));
 				if (descriptor.value("action", "") == "sensor_target")
 					sensor_actions.insert(action);
+				if (descriptor.value("action", "") == "objective.priority")
+					objective_controls.insert(action);
 				switch (destination(descriptor))
 				{
 				case ControlDestination::general:
@@ -2477,7 +2480,22 @@ button.on-screen-active .share-live {display:block;}
 			command_choices_ = std::move(choices);
 			command_language_ = command_language;
 		}
-		const auto gameplay_signature = gameplay_identity.dump() + command_markup_;
+		std::string objective_markup;
+		if (model_.observation() && model_.observation()->gameplay.contains("objective_board"))
+		{
+			objective_markup = "<div class=\"command-card objective-card\"><h2>" +
+			                   Rml::StringUtilities::EncodeRml(localise("Objectives")) + "</h2>";
+			for (const auto &[name, text] : gameplay_readouts)
+				if (name.starts_with("game.objective/"))
+					objective_markup += "<p id=\"" + Rml::StringUtilities::EncodeRml(id(name)) + "\">" +
+					                    Rml::StringUtilities::EncodeRml(text) + "</p>";
+			for (const auto &[name, label] : gameplay_controls)
+				if (objective_controls.contains(name))
+					objective_markup += "<button id=\"" + Rml::StringUtilities::EncodeRml(id(name)) + "\">" +
+					                    Rml::StringUtilities::EncodeRml(label) + "</button>";
+			objective_markup += "</div>";
+		}
+		const auto gameplay_signature = gameplay_identity.dump() + command_markup_ + objective_markup;
 		if (gameplay_signature_ != gameplay_signature)
 		{
 			const auto focused = context_->GetFocusElement() ? context_->GetFocusElement()->GetId() : std::string{};
@@ -2485,7 +2503,7 @@ button.on-screen-active .share-live {display:block;}
 			for (const auto &held : held_clicks_)
 				model_.release_control(held.substr(id("").size()));
 			held_clicks_.clear();
-			std::string markup = command_markup_;
+			std::string markup = objective_markup + command_markup_;
 			if (team_dispatch)
 			{
 				markup += "<h2>" + Rml::StringUtilities::EncodeRml(localise("Team dispatch")) + "</h2>";
@@ -2548,7 +2566,8 @@ button.on-screen-active .share-live {display:block;}
 
 			for (const auto &[name, label] : gameplay_controls)
 				if (!stance_controls.contains(name) && !engineering_controls.contains(name) &&
-				    !name.starts_with("game.compartment/") && name != "game.status-close" &&
+				    !objective_controls.contains(name) && !name.starts_with("game.compartment/") &&
+				    name != "game.status-close" &&
 				    !(team_dispatch && (name.starts_with("game.team-order/") || name == "game.teams-close")) &&
 				    !sensor_controls.contains(name))
 				{
@@ -2597,6 +2616,8 @@ button.on-screen-active .share-live {display:block;}
 			std::string markup, sensor_readouts;
 			for (const auto &[name, text] : gameplay_readouts)
 			{
+				if (name.starts_with("game.objective/"))
+					continue;
 				(name.starts_with("game.scan-") ? sensor_readouts : markup) +=
 				    "<p id=\"" + Rml::StringUtilities::EncodeRml(id(name)) + "\"></p>";
 				displayed_values_.erase(name);

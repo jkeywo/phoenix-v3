@@ -9,6 +9,7 @@
 #include "../core/docking_projection.hpp"
 #include "../core/sensor_projection.hpp"
 #include "../core/ftl_projection.hpp"
+#include "../core/objective_projection.hpp"
 namespace phoenix::network
 {
 static inline Json alert_json(const Json &source)
@@ -47,6 +48,8 @@ static inline Json bounded_gameplay(const Json &source)
 	const char *categories[] = {"controls", "notifications", "controllers", "objectives",
 	                            "shared",   "records",       "messages"};
 	Json result = source;
+	if (source.contains("objective_board"))
+		result["objective_board"] = objective_projection::board(source.at("objective_board"));
 	if (source.contains("ftl"))
 		result["ftl"] = ftl_projection::board(source.at("ftl"));
 	if (source.contains("mission_report"))
@@ -160,6 +163,8 @@ static inline Json public_board_json(const Json &source)
 	}
 	if (source.contains("display"))
 		selected["display"] = display::sanitise(source.at("display"));
+	if (source.contains("objective_board"))
+		selected["objective_board"] = source.at("objective_board");
 	if (source.contains("alert") && !source.at("alert").empty())
 		selected["alert"] = alert_json(source.at("alert"));
 	if (source.contains("navigation"))

@@ -140,6 +140,70 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		{
+			auto assisted = fixture();
+			auto &layout = assisted["entities"][0]["control_layout"];
+			layout["station_complexity"] = true;
+			for (auto &c : layout["controllers"])
+				if (c["id"] == "choir")
+				{
+					c.erase("fallback");
+					c["tree"] = "test.protective-choir";
+					c["commands"][0]["individual_stars"] = 3;
+				}
+			auto manual = layout["profiles"][0];
+			manual["stars"] = 2;
+			auto full = manual;
+			full["id"] = "full";
+			full["stars"] = 3;
+			auto simple = manual;
+			simple["id"] = "simple";
+			simple["stars"] = 1;
+			std::erase_if(simple["consoles"]["drive"]["human"].get_ref<Json::array_t &>(),
+			              [](const auto &id)
+			              {
+				              return id == "choir";
+			              });
+			simple["consoles"]["drive"]["ai"] = {"choir"};
+			layout["profiles"] = Json::array({simple, manual, full});
+			layout["default_profile"] = "simple";
+			assisted["trees"].push_back(Json::parse(R"json({"id":"test.protective-choir","context":"controller",
+ "command_bindings":[{"channel":"apparatus","type":"boolean"},{"channel":"ward-enabled","type":"boolean"},{"channel":"ward-target"},{"channel":"scramble-enabled","type":"boolean"},{"channel":"cloak-enabled","type":"boolean"}],
+ "initial":"protect","states":[{"id":"protect","running":[
+ {"action":"write.apparatus","arguments":[true]}, {"action":"write.ward-enabled","arguments":[true]},
+ {"action":"write.ward-target","arguments":[{"observation":"own.id"}]},
+ {"action":"write.scramble-enabled","arguments":[false]}, {"action":"write.cloak-enabled","arguments":[false]}]}]})json"));
+			const auto fitted = load(assisted);
+			World ship;
+			ship.load(fitted, "test.map");
+			claim(ship);
+			ticks(ship, 3);
+			const auto value = [&](const std::string &field)
+			{
+				const auto observation = ship.observe(101);
+				for (const auto &c : observation->gameplay.at("controllers"))
+					if (c.at("id") == "choir")
+						return c.at("commands").at(field).at("value").get<std::int64_t>();
+				return std::int64_t{-1};
+			};
+			require(value("ward-target") == 1 && value("ward-enabled") == 1 && value("scramble-enabled") == 0,
+			        "one-star protective policy wards self without offensive power");
+			require(ship.submit(101, {1, "preset", 1}), "take two-star psychic control");
+			ticks(ship);
+			command(ship, 101, 1, "choir", "ward-enabled", 0);
+			ticks(ship);
+			require(value("ward-enabled") == 0, "two-star player psychic choice persists");
+			require(ship.submit(101, {1, "preset", 2}), "take full apparatus control");
+			ticks(ship);
+			command(ship, 101, 1, "choir", "apparatus", 0);
+			ticks(ship);
+			require(ship.submit(101, {1, "preset", 1}), "return apparatus to assistance");
+			ticks(ship);
+			require(value("apparatus") == 1, "hidden apparatus override resets on downgrade");
+			require(ship.submit(101, {1, "preset", 0}), "return to protective policy");
+			ticks(ship, 3);
+			require(value("ward-target") == 1 && value("ward-enabled") == 1, "downgrade restores self-ward");
+		}
 		const auto source = fixture();
 		const auto catalog = load(source);
 		World w;

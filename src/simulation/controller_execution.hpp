@@ -36,6 +36,7 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 		    Value::integer(controls.layout.profiles.at(controls.profiles.at(address.console)).stars);
 	}
 	values[brain.own[ControllerOwnField::Entity]] = Value::reference(Type::Entity, id);
+	values[brain.own[ControllerOwnField::OwnIdentity]] = Value::integer(id);
 	values[brain.own[ControllerOwnField::Console]] = Value::reference(Type::Console, knowledge.console_id(address));
 	values[brain.own[ControllerOwnField::Tick]] = Value::integer(ecs.get<Clock>().tick);
 	EntityId scan_objective = 0;
@@ -48,6 +49,7 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 		}
 	values[brain.own[ControllerOwnField::ObjectiveTarget]] = Value::integer(scan_objective);
 	const auto &bridge = entities.at(id).get<BridgeBlackboard>();
+	values[brain.own[ControllerOwnField::PriorityObjective]] = Value::integer(bridge.priority_objective);
 	const auto &bridge_spec = definition(id);
 	if (!bridge_spec.bridge.conditions.empty())
 	{
@@ -160,6 +162,19 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 				                                 return record.value.schema == binding.schema;
 			                                 });
 			subject = latest == records.rend() ? 0 : latest->value.subject;
+			if (binding.priority && bridge.priority_objective)
+			{
+				// A condition objective has no destination; it must not invent a navigation order.
+				const auto destination = knowledge.definition().field(binding.schema, "destination_x");
+				for (auto record = records.rbegin(); record != records.rend(); ++record)
+					if (record->value.schema == binding.schema && record->value.subject == bridge.priority_objective)
+					{
+						if (!record->value.withdrawn && !knowledge.stale(*record, ecs.get<Clock>().tick) &&
+						    record->value.fields.contains(destination))
+							subject = bridge.priority_objective;
+						break;
+					}
+			}
 		}
 		std::set<std::pair<KnowledgeId, KnowledgeId>> seen;
 		for (auto record = records.rbegin(); record != records.rend(); ++record)
@@ -734,6 +749,21 @@ void refresh_controllers(EntityId id, bool validate = false)
 		const auto claimant = console_operator(address);
 		const bool present = claimant != 0;
 		const bool human = present && controls.layout.profiles.at(controls.profiles.at(address.console)).human.at(i);
+		// A lower workload relinquishes settings whose individual controls are no longer available.
+		if (human && !validate)
+			for (std::size_t j = 0; j < controller.commands.size(); ++j)
+			{
+				const auto &spec = controller.definition.commands[j];
+				auto &state = controller.commands[j];
+				if (spec.semantics == CommandSemantics::Setting && station_stars(address) < spec.individual_stars &&
+				    (state.value != spec.initial || state.arguments != spec.initial_arguments))
+				{
+					state.value = spec.initial;
+					state.arguments = spec.initial_arguments;
+					state.target_override = false;
+					++state.revision;
+				}
+			}
 		if (validate && human != controller.human)
 			throw std::runtime_error("Saved Controller operator differs from profile/claims");
 		if (validate)
@@ -811,7 +841,7 @@ void set_console_complexity(EntityControls &controls, const std::string &console
 		if (id == console ||
 		    (group != controls.layout.complexity_groups.end() && controls.layout.complexity_groups.contains(id) &&
 		     controls.layout.complexity_groups.at(id) == group->second))
-			selected = profile;
+			selected = controls.layout.fixed_profiles.contains(id) ? controls.layout.fixed_profiles.at(id) : profile;
 }
 std::uint64_t coordinated_generation(const ConsoleAddress &a, const std::string &group) const
 {
@@ -884,6 +914,9 @@ bool controller_meta(const ConsoleAddress &address, const OperatingCommand &comm
 	if (command.action == "preset")
 	{
 		if (command.value < 0 || static_cast<std::size_t>(command.value) >= controls.layout.profiles.size())
+			return false;
+		if (controls.layout.fixed_profiles.contains(address.console) &&
+		    controls.layout.fixed_profiles.at(address.console) != static_cast<std::size_t>(command.value))
 			return false;
 		if (execute)
 		{
@@ -1161,6 +1194,8 @@ void restore_controllers(flecs::entity entity, const Json &saved)
 	fail(profiles.size() == controls.profiles.size());
 	for (const auto &[console, profile] : profiles)
 		fail(controls.profiles.contains(console) && profile < controls.layout.profiles.size());
+	for (const auto &[console, profile] : controls.layout.fixed_profiles)
+		fail(profiles.at(console) == profile);
 	for (const auto &[console, group] : controls.layout.complexity_groups)
 		for (const auto &[other, other_group] : controls.layout.complexity_groups)
 			if (group == other_group)

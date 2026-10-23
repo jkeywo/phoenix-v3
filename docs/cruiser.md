@@ -4,18 +4,18 @@
 
 ## Equipment and ownership
 
-| Watch       | Fitted responsibilities                                                                                                            |
-| ----------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Captain     | One-star design: alerts, eligible AI Console stances and an Objectives list with advisory priority selection (new GUI pending)     |
-| Helm        | Two drive assemblies, steering, lateral thrust, boost and impulse                                                                  |
-| Tactical    | Five kinetic turrets, eight flank PDCs, six four-tube missile banks, local magazines, combat craft, Security and general Dispatch  |
-| Engineering | Reactor/core network, distribution, reserves, cooling, main supplies, four repair teams, utility shuttles and Engineering Dispatch |
-| Science     | Broad radar, focused scanners, four shield sectors, qualified displacement, two Medical teams and a four-place infirmary           |
-| Comms       | Powered radio, conversations, psychic choir, away dialogue and disclosure of station supply offers                                 |
+| Watch       | Fitted responsibilities                                                                                                                  |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Captain     | One-star design: alerts, eligible AI Console stances and an Objectives list with advisory priority selection                             |
+| Helm        | Two drive assemblies, steering, lateral thrust, boost and impulse                                                                        |
+| Tactical    | Five kinetic turrets, eight flank PDCs, six four-tube missile banks, local magazines, combat craft, Security and general Dispatch        |
+| Engineering | Reactor/core network, distribution, reserves, cooling, main supplies, four repair teams, utility shuttles and Engineering Dispatch       |
+| Science     | Broad radar, focused scanners, four shield sectors, qualified displacement, two Medical teams, infirmary, Phantom choir and Psychic ward |
+| Comms       | Powered radio, conversations, away dialogue and disclosure of station supply offers                                                      |
 
-Comms also owns the [psychic choir](psychic-choir.md): Thalia Venn sustains Veil, Severin Ash projects phantom ships and Mara Sable wards one ship. Their separate choir seats use ordinary personnel travel and Medical availability. A dedicated reserve, supply link and cooling link connect the apparatus to Engineering. Simple and Middle expose planning intent with ordinary AI execution; Detailed exposes each power directly.
+Science owns Phantom choir and Psychic ward, with separate specialist seats and Engineering supply/cooling. One star automatically wards the Cruiser; two stars permits direct power choices and targeting. Veil belongs to Courier Support.
 
-The auxiliary Navigator Console remains attached to Science and controls FTL mission departure. Captain's [revised design](bridge-command.md#captain-design-agreement--23-october-2026) has one star, no machinery reserve and no Command Duty Officer roster; the Objectives GUI, priority integration and obsolete-fitting removal remain pending. Helm, Tactical and Engineering use the [three-star workloads](cruiser-complexity.md), defaulting to one star. Engineering assigns individual repair compartments from one star; Science retains its existing shield and Medical allocation. Vacant stations use their ordinary Controller policies.
+The auxiliary Navigator remains attached to Science. Science defaults to one star; Comms and Captain have fixed one-star workloads. Captain operates alerts, eligible AI stances and its Objectives list with advisory navigation priority. It has no machinery reserve or Command Duty Officers. See the [complete remaining-station contract](cruiser-science-comms-captain.md) and [Helm, Tactical and Engineering workloads](cruiser-complexity.md).
 
 Five main turrets share one material. Fore/aft dorsal and ventral mounts traverse 270 degrees; the central dorsal mount traverses 360 degrees. Main-gun and PDC ammunition is finite. Each four-tube missile bank selects between its own finite homing and havok magazines. Main weapons and PDC standby draw actual local power. The encounter injects no ammunition or resources between waves; ordinary finite onboard servicing continues.
 

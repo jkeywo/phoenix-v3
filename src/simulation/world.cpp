@@ -68,7 +68,8 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(TurretState, target, heading, turn_remainder)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(MagazineState, ammo, refill, reserved_return)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(TeamState, location, destination, edge_to, travel, edge_total,
                                                 repair_system, repair_auto, revision, order, activity, patient,
-                                                work_done, condition, treatment, detained, compartment_assignment)
+                                                work_done, condition, treatment, detained, compartment_assignment,
+                                                medical_compartment)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ShieldState, strength, warmup, recharge_remainder, discharge_remainder,
                                    discharge_credit, discharge)
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(Destructible, definition, durability, destroyed_tick, processed)
@@ -710,7 +711,8 @@ struct World::Impl
 								read.shared = binding.scope == GameplayTreeRecordScope::Ship;
 								read.schema = content.knowledge_definition.schema(binding.schema);
 								read.field = content.knowledge_definition.field(read.schema, binding.field);
-								read.latest = binding.subject_parameter == "latest";
+								read.priority = binding.subject_parameter == "priority_or_latest";
+								read.latest = binding.subject_parameter == "latest" || read.priority;
 								if (!binding.subject_parameter.empty() && !read.latest)
 									read.subject = std::stoull(binding.subject_parameter);
 								controller.brain->reads.push_back(read);
@@ -2250,7 +2252,7 @@ struct World::Impl
 			return craft_command(address, command, execute);
 		if (command.action.starts_with("personnel."))
 			return personnel_command(address, command, execute);
-		if (command.action == "alert.set" || command.action == "stance.set")
+		if (command.action == "alert.set" || command.action == "stance.set" || command.action == "objective.priority")
 			return bridge_command(address, command, execute);
 		if (command.action.starts_with("comms."))
 			return comms_command(address, command, execute);
@@ -2497,6 +2499,9 @@ bool World::prepare_console_profile(const ConsoleAddress &address, const std::st
 	for (std::size_t i = 0; i < controls.layout.profiles.size(); ++i)
 		if (controls.layout.profiles[i].id == profile)
 		{
+			if (controls.layout.fixed_profiles.contains(address.console) &&
+			    controls.layout.fixed_profiles.at(address.console) != i)
+				return false;
 			impl_->set_console_complexity(controls, address.console, i);
 			impl_->refresh_controllers(address.ship);
 			return true;
@@ -2668,6 +2673,7 @@ void World::tick()
 	for (const auto &[id, entity] : impl_->entities)
 		if (entity.has<EntityControls>())
 		{
+			impl_->reconcile_objective_priority(id);
 			auto &snapshot = impl_->command_snapshots[id];
 			for (const auto &controller : entity.get<EntityControls>().controllers)
 			{
@@ -2767,6 +2773,9 @@ void World::tick()
 	++impl_->ecs.get_mut<Clock>().tick;
 	++impl_->environment_tick;
 	impl_->knowledge.tick(ticks());
+	for (const auto &[id, entity] : impl_->entities)
+		if (entity.has<BridgeBlackboard>())
+			impl_->reconcile_objective_priority(id);
 	impl_->refresh_comms();
 	impl_->refresh_boarding_templates();
 	impl_->update_craft_reports();
@@ -2958,6 +2967,7 @@ Json World::public_board(EntityId entity) const
 	auto board = impl_->knowledge.public_board(entity);
 	board["alert"] = impl_->alert_board(entity);
 	board["navigation"] = impl_->navigation_board(entity);
+	board["objective_board"] = impl_->objectives_board(entity);
 
 	if (impl_->combat_duel && impl_->duel_ended())
 	{
@@ -3084,6 +3094,8 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 	result.gameplay["alert"] = impl_->alert_board(address.ship);
 	result.gameplay["navigation"] = impl_->navigation_board(address.ship);
 	result.gameplay["stance"] = impl_->stance_board(address);
+	if (impl_->definition(address.ship).console_bridge.at(address.console).objectives)
+		result.gameplay["objective_board"] = impl_->objectives_board(address.ship);
 	result.gameplay["personnel"] = impl_->personnel_board(address);
 	result.gameplay["psychic"] = impl_->psychic_board(address);
 	result.gameplay["teams"] = impl_->team_board(address);
@@ -3151,6 +3163,8 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 			result.gameplay["profile_stars"] = Json::object();
 			for (std::size_t i = 0; i < controls.layout.profiles.size(); ++i)
 			{
+				if (controls.layout.fixed_profiles.contains(seat.id) && controls.layout.fixed_profiles.at(seat.id) != i)
+					continue;
 				if (controls.layout.profiles[i].stars)
 					result.gameplay["profile_stars"][controls.layout.profiles[i].id] =
 					    controls.layout.profiles[i].stars;
@@ -3291,8 +3305,13 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 										    target.shared_target_controller == controller.definition.id &&
 										    target.shared_target_channel == channel.id)
 										{
-											descriptor["shared_combat_target"] = true;
-											descriptor["combat_choice"] = "weapon";
+											if (target.action == OperatingAction::WeaponTarget)
+											{
+												descriptor["shared_combat_target"] = true;
+												descriptor["combat_choice"] = "weapon";
+											}
+											else if (target.action == OperatingAction::SensorTarget)
+												descriptor["shared_scan_target"] = true;
 										}
 								descriptor["label"] = channel.label_key.empty()
 								                          ? (choice ? "Scan target" : "Clear scan target")
@@ -3788,7 +3807,7 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 20},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 21},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
 	result["shield_reactions"] = impl_->save_shield_reactions();
 	if (impl_->display_revision)
@@ -3889,7 +3908,9 @@ Json World::save() const
 			                                     {"revision", bridge->revision},
 			                                     {"stances", bridge->stances},
 			                                     {"epochs", bridge->epochs},
-			                                     {"navigation", impl_->navigation_board(id)}};
+			                                     {"navigation", impl_->navigation_board(id)},
+			                                     {"priority_objective", bridge->priority_objective},
+			                                     {"priority_revision", bridge->priority_revision}};
 	}
 	if (impl_->gameplay)
 	{
@@ -3929,8 +3950,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 20)
-		throw std::runtime_error("Saved state schema retired; start a new session (schema 20 required)");
+	if (saved.at("schema") != 21)
+		throw std::runtime_error("Saved state schema retired; start a new session (schema 21 required)");
 	if (saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error("Saved state content identity mismatch; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))
@@ -4256,6 +4277,9 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	candidate.impl_->refresh_comms(false);
 	candidate.impl_->validate_mission_ledger();
 	candidate.impl_->validate_medical_state();
+	for (const auto &[id, entity] : candidate.impl_->entities)
+		if (entity.has<BridgeBlackboard>())
+			candidate.impl_->reconcile_objective_priority(id);
 	impl_ = std::move(candidate.impl_);
 }
 } // namespace phoenix

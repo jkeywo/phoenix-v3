@@ -14,6 +14,10 @@ inline Json board(const Json &source)
 		Json t;
 		if (team.contains("manual"))
 			t["manual"] = team.at("manual").get<bool>();
+		if (team.contains("patient_control"))
+			t["patient_control"] = team.at("patient_control").get<bool>();
+		if (team.contains("assigned_compartment"))
+			t["assigned_compartment"] = number(team.at("assigned_compartment"), -1, 255);
 		for (const auto *key : {"id", "type", "order", "activity", "condition"})
 			t[key] = text(team.at(key), 64);
 		t["revision"] = number(team.at("revision"), 1, 9007199254740991LL);

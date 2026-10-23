@@ -59,6 +59,7 @@ struct TeamState
 	std::int64_t location = 0, destination = -1, edge_to = -1, travel = 0, edge_total = 0, repair_system = -1;
 	bool repair_auto = true, detained = false;
 	bool compartment_assignment = false;
+	std::int64_t medical_compartment = -1;
 	std::uint64_t revision = 1;
 	std::string order, activity, patient, condition = "healthy";
 	std::int64_t treatment = 0;

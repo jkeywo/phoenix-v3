@@ -224,13 +224,16 @@ bool team_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 	const TeamOrderDefinition *order = nullptr;
 	std::size_t target = 0;
 	std::string patient;
+	const bool clinical = m.definition.get<TeamDefinition>().capabilities.contains("medical");
+	bool assignment = false;
 	if (c.action == "team.order")
 	{
 		const auto slash = c.text.find('/');
 		if (slash == std::string::npos)
 			return false;
+		assignment = clinical && c.text.substr(0, slash) == "auto";
 		order = team_order_definition(m, c.text.substr(0, slash));
-		if (!order)
+		if ((!order && !assignment) || (!ai && clinical && !assignment && !manual_workload(a, "medical")))
 			return false;
 		const auto next = c.text.find('/', slash + 1);
 		const auto compartment =
@@ -240,10 +243,12 @@ bool team_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 		if (at == pd.compartments.end())
 			return false;
 		target = at - pd.compartments.begin();
-		if (!team_target_eligible(a.ship, *order, target))
+		if (!assignment && !team_target_eligible(a.ship, *order, target))
 			return false;
 		if (next != std::string::npos)
 		{
+			if (assignment)
+				return false;
 			patient = c.text.substr(next + 1);
 			const auto ps = clinical_patients(a.ship);
 			bool found = false;
@@ -271,10 +276,17 @@ bool team_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 			o.remaining = 0;
 		}
 	r.order = order ? order->id : std::string{};
+	if (clinical)
+	{
+		const auto &workloads = entities.at(a.ship).get<EntityControls>().layout.manual_workloads;
+		if (assignment || r.medical_compartment >= 0 ||
+		    (workloads.contains(a.console) && workloads.at(a.console).contains("medical")))
+			r.medical_compartment = c.action == "team.order" ? static_cast<std::int64_t>(target) : -1;
+	}
 	r.patient = patient;
 	r.activity.clear();
 	r.work_done = false;
-	r.destination = order ? static_cast<std::int64_t>(target) : -1;
+	r.destination = order || assignment ? static_cast<std::int64_t>(target) : -1;
 	r.repair_system = -1;
 	r.repair_auto = !order;
 	r.continuation = {};
@@ -420,9 +432,16 @@ void step_teams()
 				continue;
 			auto &r = m->get<TeamState>();
 			const auto &d = m->definition.get<TeamDefinition>();
+			if (!manual_workload(enabled_system_owner(id, m->definition.id), "medical"))
+				r.patient.clear();
 			if (r.order.empty() && !d.capabilities.contains("repair") &&
 			    station_stars(enabled_system_owner(id, m->definition.id)) < 3)
 				r.repair_auto = true;
+			if (r.order.empty() && r.medical_compartment >= 0)
+			{
+				r.destination = r.medical_compartment;
+				advance_repair_team(ship, child);
+			}
 			// Use the first eligible authored order: treatment can be followed by
 			// recovery without leaving a stabilised patient awaiting manual dispatch.
 			if (r.order.empty() && r.repair_auto && !d.capabilities.contains("repair") &&
@@ -434,10 +453,11 @@ void step_teams()
 						break;
 					if (&candidate != &d.orders.front() &&
 					    (candidate.target != "patients" ||
-					     station_stars(enabled_system_owner(id, m->definition.id)) >= 3))
+					     (r.medical_compartment < 0 && station_stars(enabled_system_owner(id, m->definition.id)) >= 3)))
 						continue;
 					for (std::size_t c = 0; c < definition(id).personnel.compartments.size(); ++c)
-						if (team_target_eligible(id, candidate, c))
+						if ((r.medical_compartment < 0 || c == static_cast<std::size_t>(r.medical_compartment)) &&
+						    team_target_eligible(id, candidate, c))
 						{
 							r.order = candidate.id;
 							r.destination = c;
@@ -589,8 +609,23 @@ Json team_board(const ConsoleAddress &a) const
 						for (auto consumer : command.consumers)
 							manual |= definition(a.ship).fitted->values.at(consumer).id == m->definition.id;
 		row["manual"] = manual;
+		row["patient_control"] = manual_workload(a, "medical");
+		row["assigned_compartment"] = r.medical_compartment;
+		if (d.capabilities.contains("medical"))
+		{
+			Json assignment{{"id", "auto"},
+			                {"label", "Assign medical team"},
+			                {"icon", "medical"},
+			                {"target", "compartment"},
+			                {"targets", Json::array()}};
+			for (std::size_t i = 0; i < pd.compartments.size(); ++i)
+				assignment["targets"].push_back(i + 1);
+			row["orders"].push_back(std::move(assignment));
+		}
 		for (const auto &o : d.orders)
 		{
+			if (d.capabilities.contains("medical") && !manual_workload(a, "medical"))
+				continue;
 			Json order{
 			    {"id", o.id}, {"label", o.label}, {"icon", o.icon}, {"target", o.target}, {"targets", Json::array()}};
 			for (std::size_t i = 0; i < pd.compartments.size(); ++i)
@@ -751,6 +786,9 @@ void validate_medical_state() const
 				if (const auto *m = child.try_get<CombatMechanism>(); m && m->definition.kind == OperatingSystem::Team)
 				{
 					const auto &r = m->get<TeamState>();
+					if (r.medical_compartment < -1 ||
+					    r.medical_compartment >= static_cast<std::int64_t>(pd.compartments.size()))
+						throw std::runtime_error("Invalid assigned medical compartment");
 					const auto patients = clinical_patients(id);
 					if (!r.patient.empty() && std::none_of(patients.begin(), patients.end(),
 					                                       [&](const auto &o)

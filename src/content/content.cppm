@@ -142,6 +142,8 @@ enum class ControllerOwnField
 	CraftArmed,
 	CraftTargetPresent,
 	ObjectiveTarget,
+	PriorityObjective,
+	OwnIdentity,
 	Count
 };
 enum class ControllerRecordField
@@ -719,7 +721,7 @@ struct ConsoleBridgeDefinition
 {
 	std::vector<BridgeChoice> stances;
 	std::size_t initial = 0;
-	bool command = false, auto_hide = false, viewscreen = false;
+	bool command = false, auto_hide = false, viewscreen = false, objectives = false;
 	Json compact;
 };
 BridgeDefinition compile_bridge(const Catalog &, const std::string &entity);
@@ -983,6 +985,7 @@ struct ControllableLayout
 	std::map<std::string, std::string> complexity_groups;
 	std::map<std::string, std::map<std::string, int>> manual_workloads;
 	std::map<std::string, std::size_t> default_profiles;
+	std::map<std::string, std::size_t> fixed_profiles;
 	std::size_t default_profile = 0;
 	bool converted = false;
 };

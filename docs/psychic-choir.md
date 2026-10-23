@@ -1,6 +1,8 @@
 # Psychic choir
 
-The Cruiser's Comms Station owns a fitted psychic choir, including protection. Science retains conventional scans and shields. House-trained psychic specialists are separate from Guild navigators.
+The current ship fitting places Phantom choir and Psychic ward on Cruiser Science and Veil on Courier Support. See [station ownership and workloads](cruiser-science-comms-captain.md). Earlier Comms examples below describe the shared authoring machinery, not current station ownership.
+
+The Cruiser's Science Station owns Phantom choir and Psychic ward alongside conventional scans and shields. Veil is fitted to Courier Support. House-trained psychic specialists are separate from Guild navigators.
 
 Each healthy, present officer supplies one authored power. Several officers can serve a choir concurrently. Choir seats are personnel duties, with one officer per seat; assignment, travel, department ownership, injury and treatment use the existing Personnel and Medical rules. Removing an officer clears that seat's execution and planning intent. Other duties remain functional without named officers; psychic capability requires its specialist.
 

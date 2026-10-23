@@ -47,3 +47,7 @@ Validation uses independent synthetic Controller, personnel, Medical, conversati
 Native verification on 23 October 2026 passed the application build check and the Controller runtime, personnel, Medical, conversation, away, security, content and fleet-setup cases. The explicit lobby smoke passed at its authored landscape/portrait sizes and with a separate local console region. Its captures show the standard Courier's one-star defaults and distinct read-only/server versus clickable/console star backgrounds. Builds used `build/courier-native` and `build/courier-web` to avoid sharing generated outputs with concurrent work.
 
 The browser server, client and Workshop builds also passed. WebAssembly passed the Controller runtime, personnel, Medical, conversation, away and security cases; Controller, Medical and security continuation traces matched native exactly. These are compilation and synthetic execution checks, not a claim of browser touch or screen-reader acceptance.
+
+## Veil completion
+
+The [remaining Cruiser station revision](cruiser-science-comms-captain.md) moves Veil to the standard Courier Support fit. One star operates it automatically; two stars adds enable/disable; three stars adds specialist reassignment and machinery settings. The apparatus uses a real local reserve, supply and cooling, and existing emission rules determine its concealment.

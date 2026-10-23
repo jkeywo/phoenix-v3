@@ -582,6 +582,51 @@ int main(int argc, char **argv)
 		property_work_regressions();
 		{
 			auto source = medical_fixture();
+			auto &ship = source["entities"][0];
+			ship["systems"]["medical"]["orders"][0]["patient_states"] = {"minor", "severe"};
+			ship["systems"]["medical"]["orders"][1]["patient_states"] = {"stabilised"};
+			ship["control_layout"]["station_complexity"] = true;
+			ship["control_layout"]["manual_workloads"] = {{"observer", {{"medical", 2}}}};
+			ship["personnel"]["officers"][1]["compartment"] = "bridge";
+			ship["personnel"]["officers"][1]["duty"] = "";
+			ship["control_layout"]["profiles"][0]["stars"] = 1;
+			auto detailed = ship["control_layout"]["profiles"][0];
+			detailed["id"] = "clinical";
+			detailed["stars"] = 2;
+			ship["control_layout"]["profiles"].push_back(detailed);
+			const auto clinical = ship["control_layout"]["profiles"].size() - 1;
+			const auto catalog = load(source);
+			World assigned;
+			assigned.load(catalog, "test.map", {{"crew", "test.away"}});
+			claim(assigned);
+			require(assigned.submit(102, command(assigned, "order", "auto/workshop")),
+			        "One-star compartment assignment admitted");
+			ticks(assigned, 30);
+			require(officer(assigned, 2, 1)["condition"] == "severe" &&
+			            !officer(assigned, 2, 1)["stabilised"].get<bool>(),
+			        "Assigned Medical does not leave its compartment for another casualty");
+			require(!assigned.submit(102, command(assigned, "order", "treat/bridge")),
+			        "One star rejects direct clinical orders despite team authority");
+			require(assigned.submit(102, command(assigned, "order", "auto/bridge")),
+			        "Reassign Medical to the casualty compartment");
+			ticks(assigned, 20);
+			World resumed;
+			resumed.restore(catalog, assigned.save());
+			ticks(assigned, 180);
+			ticks(resumed, 180);
+			require(assigned.save() == resumed.save(), "Assigned clinical care survives continuation");
+			require(officer(assigned, 2, 1)["condition"] == "healthy",
+			        "Assigned Medical chooses treatment then recovery");
+			require(assigned.observe(102)->gameplay.at("teams")[0].at("assigned_compartment") == 0,
+			        "Clinical assignment survives the recovery trip");
+			require(assigned.submit(102, {2, "preset", static_cast<std::int64_t>(clinical)}),
+			        "Select two-star clinical workload");
+			ticks(assigned, 1);
+			require(assigned.observe(102)->gameplay.at("teams")[0].at("patient_control") == true,
+			        "Two stars exposes clinical orders and patient priorities");
+		}
+		{
+			auto source = medical_fixture();
 			source["entities"][0]["systems"]["medical"]["orders"][0]["patient_states"] = {"minor", "severe"};
 			source["entities"][0]["systems"]["medical"]["orders"][1]["patient_states"] = {"stabilised"};
 			auto &layout = source["entities"][0]["control_layout"];

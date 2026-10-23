@@ -5233,30 +5233,6 @@
 					}
 				},
 				{
-					"assembly": "base.assembly.console-service",
-					"bindings": {
-						"coolant": "core.coolant",
-						"power": "core.power"
-					},
-					"id": "command",
-					"overrides": {
-						"systems": {
-							"cooling": {
-								"observation_console": "engineering",
-								"compartment": "bridge"
-							},
-							"distribution": {
-								"observation_console": "engineering",
-								"compartment": "bridge"
-							},
-							"reserve": {
-								"observation_console": "captain",
-								"compartment": "bridge"
-							}
-						}
-					}
-				},
-				{
 					"id": "ftl",
 					"assembly": "base.assembly.ftl",
 					"bindings": {
@@ -5388,8 +5364,6 @@
 								"tactical.cooling",
 								"communications.distribution",
 								"communications.cooling",
-								"command.distribution",
-								"command.cooling",
 								"ftl.supply",
 								"ftl.cooling",
 								"repair-1",
@@ -5431,7 +5405,8 @@
 								"scanner-aft",
 								"displacement",
 								"medical-1",
-								"medical-2"
+								"medical-2",
+								"psychic-choir"
 							],
 							"id": "science",
 							"knowledge_producers": ["base.machinery"],
@@ -5540,7 +5515,7 @@
 					"consoles": [
 						{
 							"definition": "base.console.cruiser-comms",
-							"feeds": ["communications.reserve", "comms-radio", "sensors.radar", "psychic-choir"],
+							"feeds": ["communications.reserve", "comms-radio", "sensors.radar"],
 							"id": "comms",
 							"knowledge_producers": ["base.machinery"],
 							"knowledge_roles": ["base.crew", "base.comms"],
@@ -5553,7 +5528,7 @@
 					"consoles": [
 						{
 							"definition": "base.console.cruiser-captain",
-							"feeds": ["command.reserve"],
+							"feeds": [],
 							"id": "captain",
 							"knowledge_producers": ["base.machinery"],
 							"knowledge_roles": ["base.crew", "base.captain"],
@@ -5572,105 +5547,6 @@
 			"control_layout": {
 				"schema": 1,
 				"controllers": [
-					{
-						"id": "command.cooling.orders",
-						"console": "engineering",
-						"commands": [
-							{
-								"id": "level",
-								"action": "intent_integer",
-								"minimum": 0,
-								"maximum": 100,
-								"initial": 100,
-								"consumers": []
-							}
-						],
-						"tree": "base.cruiser.assist.command.cooling.orders"
-					},
-					{
-						"id": "command.cooling",
-						"console": "engineering",
-						"tree": "base.control.cruiser.command.cooling",
-						"commands": [
-							{
-								"id": "system_enabled",
-								"action": "system_enabled",
-								"initial": 1,
-								"consumers": ["command.cooling"]
-							},
-							{
-								"id": "cooling_allocation",
-								"action": "cooling_allocation",
-								"initial": 100,
-								"consumers": ["command.cooling"]
-							}
-						]
-					},
-					{
-						"id": "command.distribution.orders",
-						"console": "engineering",
-						"commands": [
-							{
-								"id": "level",
-								"action": "intent_integer",
-								"minimum": 0,
-								"maximum": 1000,
-								"initial": 1000,
-								"consumers": []
-							}
-						],
-						"tree": "base.cruiser.assist.command.distribution.orders"
-					},
-					{
-						"id": "command.distribution",
-						"console": "engineering",
-						"tree": "base.control.cruiser.command.distribution",
-						"commands": [
-							{
-								"id": "group_allocation",
-								"action": "group_allocation",
-								"initial": 1000,
-								"consumers": ["command.distribution"]
-							}
-						]
-					},
-					{
-						"id": "command.reserve",
-						"console": "captain",
-						"tree": "base.ai.standby",
-						"commands": [
-							{
-								"id": "system_enabled",
-								"action": "system_enabled",
-								"initial": 1,
-								"consumers": ["command.reserve"]
-							},
-							{
-								"id": "charge_limit",
-								"action": "charge_limit",
-								"initial": 1000,
-								"consumers": ["command.reserve"]
-							},
-							{
-								"id": "discharge_limit",
-								"action": "discharge_limit",
-								"initial": 10000,
-								"consumers": ["command.reserve"]
-							},
-							{
-								"id": "overdrive",
-								"action": "overdrive",
-								"initial": 0,
-								"consumers": ["command.reserve"]
-							},
-							{
-								"id": "thermal_override",
-								"action": "thermal_override",
-								"initial": 0,
-								"consumers": ["command.reserve"]
-							}
-						]
-					},
 					{
 						"id": "communications.cooling.orders",
 						"console": "engineering",
@@ -6991,7 +6867,8 @@
 								"initial": 1,
 								"consumers": ["comms-radio"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.ready"
 					},
 					{
 						"id": "ftl.drive",
@@ -7290,114 +7167,86 @@
 						"console": "science",
 						"commands": [
 							{
-								"id": "system_enabled",
+								"id": "enabled",
 								"action": "system_enabled",
 								"initial": 1,
 								"consumers": ["shield-fore"]
-							},
-							{
-								"id": "discharge",
-								"action": "shield_discharge",
-								"initial": 0,
-								"consumers": ["shield-fore"]
 							}
 						],
-						"tree": "base.policy.maintain-shield-distribution"
+						"tree": "base.courier.assist.ready"
 					},
 					{
 						"id": "shield-port",
 						"console": "science",
 						"commands": [
 							{
-								"id": "system_enabled",
+								"id": "enabled",
 								"action": "system_enabled",
 								"initial": 1,
 								"consumers": ["shield-port"]
-							},
-							{
-								"id": "discharge",
-								"action": "shield_discharge",
-								"initial": 0,
-								"consumers": ["shield-port"]
 							}
 						],
-						"tree": "base.policy.maintain-shield-distribution"
+						"tree": "base.courier.assist.ready"
 					},
 					{
 						"id": "shield-aft",
 						"console": "science",
 						"commands": [
 							{
-								"id": "system_enabled",
+								"id": "enabled",
 								"action": "system_enabled",
 								"initial": 1,
 								"consumers": ["shield-aft"]
-							},
-							{
-								"id": "discharge",
-								"action": "shield_discharge",
-								"initial": 0,
-								"consumers": ["shield-aft"]
 							}
 						],
-						"tree": "base.policy.maintain-shield-distribution"
+						"tree": "base.courier.assist.ready"
 					},
 					{
 						"id": "shield-starboard",
 						"console": "science",
 						"commands": [
 							{
-								"id": "system_enabled",
+								"id": "enabled",
 								"action": "system_enabled",
 								"initial": 1,
 								"consumers": ["shield-starboard"]
-							},
-							{
-								"id": "discharge",
-								"action": "shield_discharge",
-								"initial": 0,
-								"consumers": ["shield-starboard"]
 							}
 						],
-						"tree": "base.policy.maintain-shield-distribution"
+						"tree": "base.courier.assist.ready"
 					},
 					{
 						"id": "scanner-fore",
 						"console": "science",
 						"commands": [
 							{
-								"id": "system_enabled",
-								"action": "system_enabled",
-								"initial": 1,
-								"consumers": ["scanner-fore"]
-							},
-							{
 								"id": "target",
 								"action": "sensor_target",
 								"initial": 0,
-								"consumers": ["scanner-fore"]
+								"consumers": ["scanner-fore"],
+								"shared_command": {
+									"controller": "scan-target",
+									"channel": "target"
+								}
 							}
 						],
-						"tree": "base.cruiser.scan"
+						"fallback": "hold"
 					},
 					{
 						"id": "scanner-aft",
 						"console": "science",
 						"commands": [
 							{
-								"id": "system_enabled",
-								"action": "system_enabled",
-								"initial": 1,
-								"consumers": ["scanner-aft"]
-							},
-							{
 								"id": "target",
 								"action": "sensor_target",
 								"initial": 0,
-								"consumers": ["scanner-aft"]
+								"consumers": ["scanner-aft"],
+								"shared_command": {
+									"controller": "scan-target",
+									"channel": "target"
+								}
 							}
 						],
-						"tree": "base.cruiser.scan"
+						"fallback": "hold"
 					},
 					{
 						"id": "repair-1",
@@ -7616,7 +7465,8 @@
 								"id": "enabled",
 								"action": "system_enabled",
 								"initial": 1,
-								"consumers": ["medical-1"]
+								"consumers": ["medical-1"],
+								"individual_stars": 3
 							}
 						]
 					},
@@ -7629,7 +7479,8 @@
 								"id": "enabled",
 								"action": "system_enabled",
 								"initial": 1,
-								"consumers": ["medical-2"]
+								"consumers": ["medical-2"],
+								"individual_stars": 3
 							}
 						]
 					},
@@ -7687,77 +7538,15 @@
 					},
 					{
 						"id": "psychic-choir",
-						"console": "comms",
-						"tree": "base.psychic.execute",
+						"console": "science",
+						"tree": "base.cruiser.assist.psychic",
 						"commands": [
 							{
 								"id": "apparatus",
 								"action": "system_enabled",
 								"initial": 1,
-								"consumers": ["psychic-choir"]
-							},
-							{
-								"id": "veil-enabled",
-								"action": "intent_boolean",
-								"initial": 0,
-								"consumers": []
-							},
-							{
-								"id": "veil-target",
-								"action": "intent_integer",
-								"initial": 0,
-								"consumers": [],
-								"minimum": 0,
-								"maximum": 1000000000
-							},
-							{
-								"id": "phantoms-enabled",
-								"action": "intent_boolean",
-								"initial": 0,
-								"consumers": []
-							},
-							{
-								"id": "phantoms-target",
-								"action": "intent_integer",
-								"initial": 0,
-								"consumers": [],
-								"minimum": 0,
-								"maximum": 1000000000
-							},
-							{
-								"id": "ward-enabled",
-								"action": "intent_boolean",
-								"initial": 0,
-								"consumers": []
-							},
-							{
-								"id": "ward-target",
-								"action": "intent_integer",
-								"initial": 0,
-								"consumers": [],
-								"minimum": 0,
-								"maximum": 1000000000
-							}
-						]
-					},
-					{
-						"id": "psychic-orders",
-						"console": "comms",
-						"fallback": "hold",
-						"commands": [
-							{
-								"id": "veil-enabled",
-								"action": "intent_boolean",
-								"initial": 0,
-								"consumers": []
-							},
-							{
-								"id": "veil-target",
-								"action": "intent_integer",
-								"initial": 0,
-								"consumers": [],
-								"minimum": 0,
-								"maximum": 1000000000
+								"consumers": ["psychic-choir"],
+								"individual_stars": 3
 							},
 							{
 								"id": "phantoms-enabled",
@@ -8756,6 +8545,134 @@
 							}
 						],
 						"tree": "base.cruiser.assist.combat-target"
+					},
+					{
+						"id": "shield-priority",
+						"console": "science",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "priority",
+								"action": "intent_integer",
+								"initial": 0,
+								"minimum": 0,
+								"maximum": 4,
+								"choices": [
+									{
+										"value": 0,
+										"label_key": "Balanced"
+									},
+									{
+										"value": 1,
+										"label_key": "Fore priority"
+									},
+									{
+										"value": 2,
+										"label_key": "Aft priority"
+									},
+									{
+										"value": 3,
+										"label_key": "Port priority"
+									},
+									{
+										"value": 4,
+										"label_key": "Starboard priority"
+									}
+								],
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "shield-fore.distribution",
+						"console": "science",
+						"commands": [
+							{
+								"id": "discharge",
+								"action": "shield_discharge",
+								"initial": 0,
+								"consumers": ["shield-fore"]
+							}
+						],
+						"tree": "base.cruiser.assist.shield-fore.distribution"
+					},
+					{
+						"id": "shield-aft.distribution",
+						"console": "science",
+						"commands": [
+							{
+								"id": "discharge",
+								"action": "shield_discharge",
+								"initial": 0,
+								"consumers": ["shield-aft"]
+							}
+						],
+						"tree": "base.cruiser.assist.shield-aft.distribution"
+					},
+					{
+						"id": "shield-port.distribution",
+						"console": "science",
+						"commands": [
+							{
+								"id": "discharge",
+								"action": "shield_discharge",
+								"initial": 0,
+								"consumers": ["shield-port"]
+							}
+						],
+						"tree": "base.cruiser.assist.shield-port.distribution"
+					},
+					{
+						"id": "shield-starboard.distribution",
+						"console": "science",
+						"commands": [
+							{
+								"id": "discharge",
+								"action": "shield_discharge",
+								"initial": 0,
+								"consumers": ["shield-starboard"]
+							}
+						],
+						"tree": "base.cruiser.assist.shield-starboard.distribution"
+					},
+					{
+						"id": "scan-target",
+						"console": "science",
+						"commands": [
+							{
+								"id": "target",
+								"action": "sensor_target",
+								"consumers": ["sensors.radar"],
+								"label_key": "Science target"
+							}
+						],
+						"fallback": "hold"
+					},
+					{
+						"id": "scanner-fore.readiness",
+						"console": "science",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["scanner-fore"]
+							}
+						],
+						"tree": "base.courier.assist.ready"
+					},
+					{
+						"id": "scanner-aft.readiness",
+						"console": "science",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["scanner-aft"]
+							}
+						],
+						"tree": "base.courier.assist.ready"
 					}
 				],
 				"profiles": [
@@ -8763,20 +8680,16 @@
 						"id": "simple",
 						"consoles": {
 							"captain": {
-								"human": ["command.reserve"],
+								"human": [],
 								"ai": []
 							},
 							"comms": {
-								"human": ["communications.reserve", "external-comms", "psychic-orders"],
-								"ai": ["psychic-choir"]
+								"human": [],
+								"ai": ["communications.reserve", "external-comms"]
 							},
 							"engineering": {
 								"human": ["repair-1", "repair-2", "repair-3", "repair-4", "engineering-dispatch"],
 								"ai": [
-									"command.cooling.orders",
-									"command.cooling",
-									"command.distribution.orders",
-									"command.distribution",
 									"communications.cooling.orders",
 									"communications.cooling",
 									"communications.distribution.orders",
@@ -8901,14 +8814,28 @@
 							},
 							"science": {
 								"human": [
+									"shield-fore",
+									"shield-port",
+									"shield-aft",
+									"shield-starboard",
+									"medical-1",
+									"medical-2",
+									"shield-priority",
+									"scan-target"
+								],
+								"ai": [
 									"sensors.radar",
 									"scanner-fore",
 									"scanner-aft",
 									"displacement",
-									"medical-1",
-									"medical-2"
-								],
-								"ai": ["shield-fore", "shield-port", "shield-aft", "shield-starboard"]
+									"psychic-choir",
+									"shield-fore.distribution",
+									"shield-aft.distribution",
+									"shield-port.distribution",
+									"shield-starboard.distribution",
+									"scanner-fore.readiness",
+									"scanner-aft.readiness"
+								]
 							},
 							"tactical": {
 								"human": [
@@ -8964,16 +8891,15 @@
 						"id": "middle",
 						"consoles": {
 							"captain": {
-								"human": ["command.reserve"],
+								"human": [],
 								"ai": []
 							},
 							"comms": {
-								"human": ["communications.reserve", "external-comms", "psychic-orders"],
-								"ai": ["psychic-choir"]
+								"human": [],
+								"ai": ["communications.reserve", "external-comms"]
 							},
 							"engineering": {
 								"human": [
-									"command.distribution",
 									"communications.distribution",
 									"core.distribution",
 									"core.generator",
@@ -8992,9 +8918,6 @@
 									"repair-4.priority"
 								],
 								"ai": [
-									"command.cooling.orders",
-									"command.cooling",
-									"command.distribution.orders",
 									"communications.cooling.orders",
 									"communications.cooling",
 									"communications.distribution.orders",
@@ -9108,18 +9031,28 @@
 							},
 							"science": {
 								"human": [
-									"sensors.radar",
 									"shield-fore",
 									"shield-port",
 									"shield-aft",
 									"shield-starboard",
 									"scanner-fore",
 									"scanner-aft",
-									"displacement",
 									"medical-1",
-									"medical-2"
+									"medical-2",
+									"psychic-choir",
+									"shield-priority",
+									"scan-target"
 								],
-								"ai": []
+								"ai": [
+									"sensors.radar",
+									"displacement",
+									"shield-fore.distribution",
+									"shield-aft.distribution",
+									"shield-port.distribution",
+									"shield-starboard.distribution",
+									"scanner-fore.readiness",
+									"scanner-aft.readiness"
+								]
 							},
 							"tactical": {
 								"human": [
@@ -9175,17 +9108,15 @@
 						"id": "detailed",
 						"consoles": {
 							"captain": {
-								"human": ["command.reserve"],
+								"human": [],
 								"ai": []
 							},
 							"comms": {
-								"human": ["communications.reserve", "external-comms", "psychic-choir"],
-								"ai": ["psychic-orders"]
+								"human": [],
+								"ai": ["communications.reserve", "external-comms"]
 							},
 							"engineering": {
 								"human": [
-									"command.cooling",
-									"command.distribution",
 									"communications.cooling",
 									"communications.distribution",
 									"core.distribution",
@@ -9249,8 +9180,6 @@
 									"repair-4.readiness"
 								],
 								"ai": [
-									"command.cooling.orders",
-									"command.distribution.orders",
 									"communications.cooling.orders",
 									"communications.distribution.orders",
 									"core.distribution.orders",
@@ -9327,7 +9256,16 @@
 									"scanner-aft",
 									"displacement",
 									"medical-1",
-									"medical-2"
+									"medical-2",
+									"psychic-choir",
+									"shield-priority",
+									"shield-fore.distribution",
+									"shield-aft.distribution",
+									"shield-port.distribution",
+									"shield-starboard.distribution",
+									"scan-target",
+									"scanner-fore.readiness",
+									"scanner-aft.readiness"
 								],
 								"ai": []
 							},
@@ -9418,10 +9356,6 @@
 							"engineering": {
 								"human": [],
 								"ai": [
-									"command.cooling.orders",
-									"command.cooling",
-									"command.distribution.orders",
-									"command.distribution",
 									"communications.cooling.orders",
 									"communications.cooling",
 									"communications.distribution.orders",
@@ -9517,6 +9451,7 @@
 								]
 							},
 							"science": {
+								"human": [],
 								"ai": [
 									"sensors.radar",
 									"shield-fore",
@@ -9525,9 +9460,19 @@
 									"shield-starboard",
 									"scanner-fore",
 									"scanner-aft",
-									"displacement"
-								],
-								"human": ["medical-1", "medical-2"]
+									"displacement",
+									"medical-1",
+									"medical-2",
+									"psychic-choir",
+									"shield-priority",
+									"shield-fore.distribution",
+									"shield-aft.distribution",
+									"shield-port.distribution",
+									"shield-starboard.distribution",
+									"scan-target",
+									"scanner-fore.readiness",
+									"scanner-aft.readiness"
+								]
 							},
 							"tactical": {
 								"human": [],
@@ -9572,12 +9517,12 @@
 								]
 							},
 							"comms": {
-								"ai": ["communications.reserve", "external-comms", "psychic-choir", "psychic-orders"],
-								"human": []
+								"human": [],
+								"ai": ["communications.reserve", "external-comms"]
 							},
 							"captain": {
-								"ai": ["command.reserve"],
-								"human": []
+								"human": [],
+								"ai": []
 							},
 							"navigator": {
 								"human": ["ftl.drive"],
@@ -9588,11 +9533,16 @@
 					}
 				],
 				"default_profile": "middle",
-				"station_complexity": ["helm", "tactical", "engineering"],
+				"station_complexity": ["helm", "tactical", "engineering", "science", "comms", "captain"],
 				"default_profiles": {
 					"helm": "simple",
 					"tactical": "simple",
-					"engineering": "simple"
+					"engineering": "simple",
+					"science": "simple",
+					"navigator": "simple",
+					"comms": "simple",
+					"captain": "simple",
+					"command": "simple"
 				},
 				"manual_workloads": {
 					"tactical": {
@@ -9607,7 +9557,16 @@
 					},
 					"helm": {
 						"logistics": 3
+					},
+					"science": {
+						"logistics": 3,
+						"medical": 2
 					}
+				},
+				"fixed_profiles": {
+					"comms": "simple",
+					"captain": "simple",
+					"command": "simple"
 				}
 			},
 			"bridge": {
@@ -12566,7 +12525,7 @@
 					"kind": "radar",
 					"compartment": "sensors",
 					"range_mm": 2200000,
-					"arc_mdeg": 60000,
+					"arc_mdeg": 360000,
 					"bearing_mdeg": 0,
 					"shows": ["ship"],
 					"power_store": "sensors.cell",
@@ -12582,7 +12541,7 @@
 					"kind": "radar",
 					"compartment": "sensors",
 					"range_mm": 2200000,
-					"arc_mdeg": 60000,
+					"arc_mdeg": 360000,
 					"bearing_mdeg": 180000,
 					"shows": ["ship"],
 					"power_store": "sensors.cell",
@@ -12925,27 +12884,19 @@
 					"power_store": "psychic-cell",
 					"range_mm": 2500000,
 					"arc_mdeg": 60000,
-					"powers": ["veil", "phantoms", "ward"],
-					"planning_controller": "psychic-orders",
+					"powers": ["phantoms", "ward"],
 					"seats": [
-						{
-							"duty": "choir-veil",
-							"controller": "psychic-choir",
-							"console": "comms",
-							"enabled": "veil-enabled",
-							"target": "veil-target"
-						},
 						{
 							"duty": "choir-phantoms",
 							"controller": "psychic-choir",
-							"console": "comms",
+							"console": "science",
 							"enabled": "phantoms-enabled",
 							"target": "phantoms-target"
 						},
 						{
 							"duty": "choir-ward",
 							"controller": "psychic-choir",
-							"console": "comms",
+							"console": "science",
 							"enabled": "ward-enabled",
 							"target": "ward-target"
 						}
@@ -12985,11 +12936,6 @@
 			"personnel": {
 				"departments": [
 					{
-						"id": "command",
-						"label": "Command",
-						"station": "captain"
-					},
-					{
 						"id": "sailing",
 						"label": "Sailing",
 						"station": "helm"
@@ -13026,51 +12972,6 @@
 					}
 				],
 				"duties": [
-					{
-						"id": "command.cooling.orders",
-						"label": "Command Cooling Orders",
-						"controller": "command.cooling.orders",
-						"console": "engineering",
-						"department": "engineering",
-						"compartment": "engineering",
-						"bindings": {}
-					},
-					{
-						"id": "command.cooling",
-						"label": "Command Cooling",
-						"controller": "command.cooling",
-						"console": "engineering",
-						"department": "engineering",
-						"compartment": "bridge",
-						"bindings": {}
-					},
-					{
-						"id": "command.distribution.orders",
-						"label": "Command Distribution Orders",
-						"controller": "command.distribution.orders",
-						"console": "engineering",
-						"department": "engineering",
-						"compartment": "engineering",
-						"bindings": {}
-					},
-					{
-						"id": "command.distribution",
-						"label": "Command Distribution",
-						"controller": "command.distribution",
-						"console": "engineering",
-						"department": "engineering",
-						"compartment": "bridge",
-						"bindings": {}
-					},
-					{
-						"id": "command.reserve",
-						"label": "Command Reserve",
-						"controller": "command.reserve",
-						"console": "captain",
-						"department": "command",
-						"compartment": "bridge",
-						"bindings": {}
-					},
 					{
 						"id": "communications.cooling.orders",
 						"label": "Communications Cooling Orders",
@@ -14305,17 +14206,9 @@
 						"bindings": {}
 					},
 					{
-						"id": "choir-veil",
-						"label": "veil",
-						"department": "signals",
-						"compartment": "bridge",
-						"choir": "psychic-choir",
-						"bindings": {}
-					},
-					{
 						"id": "choir-phantoms",
 						"label": "phantoms",
-						"department": "signals",
+						"department": "sciences",
 						"compartment": "bridge",
 						"choir": "psychic-choir",
 						"bindings": {}
@@ -14323,7 +14216,7 @@
 					{
 						"id": "choir-ward",
 						"label": "ward",
-						"department": "signals",
+						"department": "sciences",
 						"compartment": "bridge",
 						"choir": "psychic-choir",
 						"bindings": {}
@@ -14349,19 +14242,10 @@
 					{
 						"id": "psychic-choir",
 						"label": "Psychic choir",
-						"department": "signals",
+						"department": "sciences",
 						"compartment": "bridge",
 						"controller": "psychic-choir",
-						"console": "comms",
-						"bindings": {}
-					},
-					{
-						"id": "psychic-orders",
-						"label": "Psychic intent",
-						"department": "signals",
-						"compartment": "bridge",
-						"controller": "psychic-orders",
-						"console": "comms",
+						"console": "science",
 						"bindings": {}
 					},
 					{
@@ -14795,18 +14679,81 @@
 						"department": "tactical",
 						"compartment": "bridge",
 						"bindings": {}
+					},
+					{
+						"id": "shield-priority",
+						"label": "shield-priority",
+						"department": "sciences",
+						"controller": "shield-priority",
+						"console": "science",
+						"compartment": "sensors",
+						"bindings": {}
+					},
+					{
+						"id": "shield-fore.distribution",
+						"label": "shield-fore.distribution",
+						"department": "sciences",
+						"controller": "shield-fore.distribution",
+						"console": "science",
+						"compartment": "sensors",
+						"bindings": {}
+					},
+					{
+						"id": "shield-aft.distribution",
+						"label": "shield-aft.distribution",
+						"department": "sciences",
+						"controller": "shield-aft.distribution",
+						"console": "science",
+						"compartment": "sensors",
+						"bindings": {}
+					},
+					{
+						"id": "shield-port.distribution",
+						"label": "shield-port.distribution",
+						"department": "sciences",
+						"controller": "shield-port.distribution",
+						"console": "science",
+						"compartment": "sensors",
+						"bindings": {}
+					},
+					{
+						"id": "shield-starboard.distribution",
+						"label": "shield-starboard.distribution",
+						"department": "sciences",
+						"controller": "shield-starboard.distribution",
+						"console": "science",
+						"compartment": "sensors",
+						"bindings": {}
+					},
+					{
+						"id": "scan-target",
+						"label": "scan-target",
+						"department": "sciences",
+						"controller": "scan-target",
+						"console": "science",
+						"compartment": "sensors",
+						"bindings": {}
+					},
+					{
+						"id": "scanner-fore.readiness",
+						"label": "scanner-fore.readiness",
+						"department": "sciences",
+						"controller": "scanner-fore.readiness",
+						"console": "science",
+						"compartment": "sensors",
+						"bindings": {}
+					},
+					{
+						"id": "scanner-aft.readiness",
+						"label": "scanner-aft.readiness",
+						"department": "sciences",
+						"controller": "scanner-aft.readiness",
+						"console": "science",
+						"compartment": "sensors",
+						"bindings": {}
 					}
 				],
 				"officers": [
-					{
-						"id": "officer-1",
-						"name": "Mara Venn",
-						"portrait": "phoenix-base:assets/personnel/officer-1.png",
-						"department": "command",
-						"duty": "command.reserve",
-						"compartment": "bridge",
-						"traits": ["sensors"]
-					},
 					{
 						"id": "officer-2",
 						"name": "Idris Holt",
@@ -14833,24 +14780,6 @@
 						"duty": "tactical.radar",
 						"compartment": "bridge",
 						"traits": ["sensors"]
-					},
-					{
-						"id": "officer-5",
-						"name": "Nadia Keene",
-						"portrait": "phoenix-base:assets/personnel/officer-5.png",
-						"department": "engineering",
-						"duty": "command.cooling.orders",
-						"compartment": "engineering",
-						"traits": ["repair", "quartermaster"]
-					},
-					{
-						"id": "officer-6",
-						"name": "Jonas Pell",
-						"portrait": "phoenix-base:assets/personnel/officer-6.png",
-						"department": "engineering",
-						"duty": "command.cooling",
-						"compartment": "bridge",
-						"traits": ["repair"]
 					},
 					{
 						"id": "officer-7",
@@ -14925,20 +14854,10 @@
 						"traits": ["security"]
 					},
 					{
-						"id": "choir-veil",
-						"name": "Thalia Venn",
-						"portrait": "phoenix-base:assets/personnel/officer-10.png",
-						"department": "signals",
-						"duty": "choir-veil",
-						"compartment": "bridge",
-						"power": "veil",
-						"traits": []
-					},
-					{
 						"id": "choir-phantoms",
 						"name": "Severin Ash",
 						"portrait": "phoenix-base:assets/personnel/officer-11.png",
-						"department": "signals",
+						"department": "sciences",
 						"duty": "choir-phantoms",
 						"compartment": "bridge",
 						"power": "phantoms",
@@ -14948,7 +14867,7 @@
 						"id": "choir-ward",
 						"name": "Mara Sable",
 						"portrait": "phoenix-base:assets/personnel/officer-12.png",
-						"department": "signals",
+						"department": "sciences",
 						"duty": "choir-ward",
 						"compartment": "bridge",
 						"power": "ward",
@@ -16032,12 +15951,6 @@
 				]
 			},
 			"psychic_powers": {
-				"veil": {
-					"kind": "cloak",
-					"label": "Veil",
-					"strength_permille": 850,
-					"energy_per_second": 800
-				},
 				"phantoms": {
 					"kind": "scramble",
 					"label": "Phantom choir",
@@ -26607,6 +26520,35 @@
 					"capabilities": ["security"],
 					"compartment": "bow-starboard",
 					"injured_effectiveness_permille": 500
+				},
+				"veil": {
+					"kind": "psychic",
+					"compartment": "mid-port",
+					"power_store": "veil-cell",
+					"range_mm": 2500000,
+					"arc_mdeg": 360000,
+					"powers": ["veil"],
+					"seats": [
+						{
+							"duty": "choir-veil",
+							"controller": "veil",
+							"console": "support",
+							"enabled": "veil-enabled",
+							"target": "veil-target"
+						}
+					]
+				},
+				"veil-supply": {
+					"kind": "distribution",
+					"compartment": "mid-port",
+					"conduit": "veil-feed",
+					"observation_console": "support"
+				},
+				"veil-cooling": {
+					"kind": "coolant",
+					"compartment": "mid-port",
+					"cooling_link": "veil-cooling",
+					"observation_console": "support"
 				}
 			},
 			"stations": [
@@ -26710,7 +26652,10 @@
 								"pdc",
 								"ftl.supply",
 								"ftl.cooling",
-								"medical-team"
+								"medical-team",
+								"veil",
+								"veil-supply",
+								"veil-cooling"
 							],
 							"shield_feed": true
 						},
@@ -27634,6 +27579,61 @@
 							}
 						],
 						"tree": "base.courier.assist.shield-aft.distribution"
+					},
+					{
+						"id": "veil",
+						"console": "support",
+						"tree": "base.courier.assist.veil",
+						"commands": [
+							{
+								"id": "apparatus",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["veil"],
+								"individual_stars": 3
+							},
+							{
+								"id": "veil-enabled",
+								"action": "intent_boolean",
+								"initial": 0,
+								"consumers": []
+							},
+							{
+								"id": "veil-target",
+								"action": "intent_integer",
+								"initial": 0,
+								"minimum": 0,
+								"maximum": 0,
+								"consumers": [],
+								"individual_stars": 3
+							}
+						]
+					},
+					{
+						"id": "veil-supply",
+						"console": "support",
+						"tree": "base.courier.assist.veil-supply",
+						"commands": [
+							{
+								"id": "isolate",
+								"action": "link_isolated",
+								"initial": 0,
+								"consumers": ["veil-supply"]
+							}
+						]
+					},
+					{
+						"id": "veil-cooling",
+						"console": "support",
+						"tree": "base.courier.assist.veil-cooling",
+						"commands": [
+							{
+								"id": "allocation",
+								"action": "cooling_allocation",
+								"initial": 120,
+								"consumers": ["veil-cooling"]
+							}
+						]
 					}
 				],
 				"default_profile": "simple",
@@ -27662,7 +27662,10 @@
 									"medical-team",
 									"shield-priority",
 									"shield-fore.distribution",
-									"shield-aft.distribution"
+									"shield-aft.distribution",
+									"veil",
+									"veil-supply",
+									"veil-cooling"
 								]
 							},
 							"tactical": {
@@ -27718,7 +27721,14 @@
 								"ai": []
 							},
 							"support": {
-								"human": ["reactor", "shield-fore", "shield-aft", "repair-priority", "shield-priority"],
+								"human": [
+									"reactor",
+									"shield-fore",
+									"shield-aft",
+									"repair-priority",
+									"shield-priority",
+									"veil"
+								],
 								"ai": [
 									"radar",
 									"team-1",
@@ -27729,7 +27739,9 @@
 									"ftl.cooling",
 									"medical-team",
 									"shield-fore.distribution",
-									"shield-aft.distribution"
+									"shield-aft.distribution",
+									"veil-supply",
+									"veil-cooling"
 								]
 							},
 							"tactical": {
@@ -27797,7 +27809,10 @@
 									"ftl.cooling",
 									"medical-team",
 									"shield-fore.distribution",
-									"shield-aft.distribution"
+									"shield-aft.distribution",
+									"veil",
+									"veil-supply",
+									"veil-cooling"
 								],
 								"ai": ["radar", "repair-priority", "shield-priority"]
 							},
@@ -28631,6 +28646,41 @@
 						"console": "support",
 						"compartment": "mid-port",
 						"bindings": {}
+					},
+					{
+						"id": "veil-supply",
+						"label": "veil-supply",
+						"department": "engineering",
+						"controller": "veil-supply",
+						"console": "support",
+						"compartment": "mid-port",
+						"bindings": {}
+					},
+					{
+						"id": "veil-cooling",
+						"label": "veil-cooling",
+						"department": "engineering",
+						"controller": "veil-cooling",
+						"console": "support",
+						"compartment": "mid-port",
+						"bindings": {}
+					},
+					{
+						"id": "veil",
+						"label": "veil",
+						"department": "sciences",
+						"controller": "veil",
+						"console": "support",
+						"compartment": "mid-port",
+						"bindings": {}
+					},
+					{
+						"id": "choir-veil",
+						"label": "Veil",
+						"department": "sciences",
+						"compartment": "mid-port",
+						"choir": "veil",
+						"bindings": {}
 					}
 				],
 				"officers": [
@@ -28732,6 +28782,16 @@
 						"compartment": "stern-starboard",
 						"portrait": "phoenix-base:assets/personnel/officer-10.png",
 						"traits": ["medical"]
+					},
+					{
+						"id": "choir-veil",
+						"name": "Thalia Venn",
+						"portrait": "phoenix-base:assets/personnel/officer-10.png",
+						"department": "sciences",
+						"duty": "choir-veil",
+						"compartment": "mid-port",
+						"power": "veil",
+						"traits": []
 					}
 				],
 				"casualties": {
@@ -28799,6 +28859,54 @@
 						"supply": true,
 						"emergency_release": true,
 						"emergency_damage": 20
+					}
+				]
+			},
+			"psychic_powers": {
+				"veil": {
+					"kind": "cloak",
+					"label": "Veil",
+					"strength_permille": 850,
+					"energy_per_second": 800
+				}
+			},
+			"resources": {
+				"stores": [
+					{
+						"id": "veil-cell",
+						"capacity": 12000,
+						"initial": 6000,
+						"charge_rate": 800,
+						"discharge_rate": 1000,
+						"operation_heat_ppm": 150000,
+						"passive_cooling": 20,
+						"stop_heat": 5000,
+						"recover_heat": 1500
+					}
+				],
+				"links": [
+					{
+						"id": "veil-feed",
+						"from": "combat-power.main",
+						"to": "veil-cell",
+						"capacity_rate": 800
+					}
+				],
+				"coolant_sources": [
+					{
+						"id": "veil-coolant",
+						"initial": 20000,
+						"removal_rate": 200,
+						"coolant_per_heat_ppm": 100000
+					}
+				],
+				"cooling_links": [
+					{
+						"id": "veil-cooling",
+						"source": "veil-coolant",
+						"store": "veil-cell",
+						"capacity_rate": 200,
+						"allocation_rate": 120
 					}
 				]
 			}
@@ -33319,8 +33427,6 @@
 								"tactical.cooling",
 								"communications.distribution",
 								"communications.cooling",
-								"command.distribution",
-								"command.cooling",
 								"ftl.supply",
 								"ftl.cooling",
 								"repair-1",
@@ -33337,7 +33443,8 @@
 								"services-cooling",
 								"psychic-supply",
 								"psychic-cooling",
-								"sensors.radar"
+								"utility-bay",
+								"engineering-dispatch"
 							],
 							"id": "engineering",
 							"knowledge_producers": ["base.machinery"],
@@ -33361,12 +33468,14 @@
 								"scanner-aft",
 								"displacement",
 								"medical-1",
-								"medical-2"
+								"medical-2",
+								"psychic-choir"
 							],
 							"id": "science",
 							"knowledge_producers": ["base.machinery"],
 							"knowledge_roles": ["base.crew", "base.science"],
-							"systems": []
+							"systems": [],
+							"shield_feed": true
 						},
 						{
 							"id": "navigator",
@@ -33452,10 +33561,10 @@
 								"pdc-starboard-3",
 								"pdc-starboard-4-mag",
 								"pdc-starboard-4",
-								"utility-bay",
 								"combat-bay",
 								"security-1",
-								"security-2"
+								"security-2",
+								"dispatch"
 							],
 							"id": "tactical",
 							"knowledge_producers": ["base.machinery"],
@@ -33469,13 +33578,7 @@
 					"consoles": [
 						{
 							"definition": "base.console.cruiser-comms",
-							"feeds": [
-								"communications.reserve",
-								"comms-radio",
-								"sensors.radar",
-								"dispatch",
-								"psychic-choir"
-							],
+							"feeds": ["communications.reserve", "comms-radio", "sensors.radar"],
 							"id": "comms",
 							"knowledge_producers": ["base.machinery"],
 							"knowledge_roles": ["base.crew", "base.comms"],
@@ -33488,7 +33591,7 @@
 					"consoles": [
 						{
 							"definition": "base.console.cruiser-captain",
-							"feeds": ["command.reserve"],
+							"feeds": [],
 							"id": "captain",
 							"knowledge_producers": ["base.machinery"],
 							"knowledge_roles": ["base.crew", "base.captain"],
@@ -35552,7 +35655,10 @@
 				"y": 0,
 				"width": 1,
 				"height": 1
-			}
+			},
+			"objectives": true,
+			"command": true,
+			"human_seeking": false
 		},
 		{
 			"id": "base.console.cruiser-comms",
@@ -37514,7 +37620,7 @@
 					"scope": "ship",
 					"schema": "phoenix.objective",
 					"field": "status",
-					"subject": "latest",
+					"subject": "priority_or_latest",
 					"type": "text"
 				},
 				{
@@ -37522,7 +37628,7 @@
 					"scope": "ship",
 					"schema": "phoenix.objective",
 					"field": "destination_x",
-					"subject": "latest",
+					"subject": "priority_or_latest",
 					"type": "integer"
 				},
 				{
@@ -37530,7 +37636,7 @@
 					"scope": "ship",
 					"schema": "phoenix.objective",
 					"field": "destination_y",
-					"subject": "latest",
+					"subject": "priority_or_latest",
 					"type": "integer"
 				}
 			],
@@ -38886,7 +38992,7 @@
 					"scope": "ship",
 					"schema": "phoenix.objective",
 					"field": "status",
-					"subject": "latest",
+					"subject": "priority_or_latest",
 					"type": "text"
 				},
 				{
@@ -38894,7 +39000,7 @@
 					"scope": "ship",
 					"schema": "phoenix.objective",
 					"field": "destination_x",
-					"subject": "latest",
+					"subject": "priority_or_latest",
 					"type": "integer"
 				},
 				{
@@ -38902,7 +39008,7 @@
 					"scope": "ship",
 					"schema": "phoenix.objective",
 					"field": "destination_y",
-					"subject": "latest",
+					"subject": "priority_or_latest",
 					"type": "integer"
 				}
 			],
@@ -42291,7 +42397,7 @@
 					"scope": "ship",
 					"schema": "phoenix.objective",
 					"field": "status",
-					"subject": "latest",
+					"subject": "priority_or_latest",
 					"type": "text"
 				},
 				{
@@ -42299,7 +42405,7 @@
 					"scope": "ship",
 					"schema": "phoenix.objective",
 					"field": "destination_x",
-					"subject": "latest",
+					"subject": "priority_or_latest",
 					"type": "integer"
 				},
 				{
@@ -42307,7 +42413,7 @@
 					"scope": "ship",
 					"schema": "phoenix.objective",
 					"field": "destination_y",
-					"subject": "latest",
+					"subject": "priority_or_latest",
 					"type": "integer"
 				}
 			],
@@ -44317,7 +44423,7 @@
 					"scope": "ship",
 					"schema": "phoenix.objective",
 					"field": "status",
-					"subject": "latest",
+					"subject": "priority_or_latest",
 					"type": "text"
 				},
 				{
@@ -44325,7 +44431,7 @@
 					"scope": "ship",
 					"schema": "phoenix.objective",
 					"field": "destination_x",
-					"subject": "latest",
+					"subject": "priority_or_latest",
 					"type": "integer"
 				},
 				{
@@ -44333,7 +44439,7 @@
 					"scope": "ship",
 					"schema": "phoenix.objective",
 					"field": "destination_y",
-					"subject": "latest",
+					"subject": "priority_or_latest",
 					"type": "integer"
 				},
 				{
@@ -44742,7 +44848,7 @@
 					"scope": "ship",
 					"schema": "phoenix.objective",
 					"field": "status",
-					"subject": "latest",
+					"subject": "priority_or_latest",
 					"type": "text"
 				},
 				{
@@ -44750,7 +44856,7 @@
 					"scope": "ship",
 					"schema": "phoenix.objective",
 					"field": "destination_x",
-					"subject": "latest",
+					"subject": "priority_or_latest",
 					"type": "integer"
 				},
 				{
@@ -44758,7 +44864,7 @@
 					"scope": "ship",
 					"schema": "phoenix.objective",
 					"field": "destination_y",
-					"subject": "latest",
+					"subject": "priority_or_latest",
 					"type": "integer"
 				},
 				{
@@ -56558,6 +56664,882 @@
 					"running": [
 						{
 							"action": "move"
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.shield-fore.distribution",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "discharge",
+					"type": "boolean"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "duty",
+					"tree": "base.action.maintain-shield-distribution"
+				}
+			],
+			"initial": "hold",
+			"states": [
+				{
+					"id": "hold",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", false]
+						}
+					],
+					"transitions": [
+						{
+							"target": "prioritise",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "ne",
+									"right": 1
+								},
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "ne",
+									"right": 0
+								}
+							]
+						},
+						{
+							"target": "share",
+							"conditions": [
+								{
+									"left": {
+										"observation": "shield.lowest"
+									},
+									"op": "lt",
+									"right": 500
+								},
+								{
+									"left": {
+										"observation": "shield.difference"
+									},
+									"op": "gt",
+									"right": 250
+								},
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "ne",
+									"right": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "share",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", true]
+						}
+					],
+					"transitions": [
+						{
+							"target": "prioritise",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "ne",
+									"right": 1
+								},
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "ne",
+									"right": 0
+								}
+							]
+						},
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "shield.lowest"
+									},
+									"op": "ge",
+									"right": 650
+								}
+							]
+						},
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "shield.difference"
+									},
+									"op": "le",
+									"right": 100
+								}
+							]
+						},
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "eq",
+									"right": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "prioritise",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", true]
+						}
+					],
+					"transitions": [
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "eq",
+									"right": 1
+								}
+							]
+						},
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "eq",
+									"right": 0
+								}
+							]
+						}
+					]
+				}
+			],
+			"command_reads": [
+				{
+					"name": "protection.priority",
+					"controller": "shield-priority",
+					"channel": "priority",
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.shield-aft.distribution",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "discharge",
+					"type": "boolean"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "duty",
+					"tree": "base.action.maintain-shield-distribution"
+				}
+			],
+			"initial": "hold",
+			"states": [
+				{
+					"id": "hold",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", false]
+						}
+					],
+					"transitions": [
+						{
+							"target": "prioritise",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "ne",
+									"right": 2
+								},
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "ne",
+									"right": 0
+								}
+							]
+						},
+						{
+							"target": "share",
+							"conditions": [
+								{
+									"left": {
+										"observation": "shield.lowest"
+									},
+									"op": "lt",
+									"right": 500
+								},
+								{
+									"left": {
+										"observation": "shield.difference"
+									},
+									"op": "gt",
+									"right": 250
+								},
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "ne",
+									"right": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "share",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", true]
+						}
+					],
+					"transitions": [
+						{
+							"target": "prioritise",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "ne",
+									"right": 2
+								},
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "ne",
+									"right": 0
+								}
+							]
+						},
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "shield.lowest"
+									},
+									"op": "ge",
+									"right": 650
+								}
+							]
+						},
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "shield.difference"
+									},
+									"op": "le",
+									"right": 100
+								}
+							]
+						},
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "eq",
+									"right": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "prioritise",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", true]
+						}
+					],
+					"transitions": [
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "eq",
+									"right": 2
+								}
+							]
+						},
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "eq",
+									"right": 0
+								}
+							]
+						}
+					]
+				}
+			],
+			"command_reads": [
+				{
+					"name": "protection.priority",
+					"controller": "shield-priority",
+					"channel": "priority",
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.shield-port.distribution",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "discharge",
+					"type": "boolean"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "duty",
+					"tree": "base.action.maintain-shield-distribution"
+				}
+			],
+			"initial": "hold",
+			"states": [
+				{
+					"id": "hold",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", false]
+						}
+					],
+					"transitions": [
+						{
+							"target": "prioritise",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "ne",
+									"right": 3
+								},
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "ne",
+									"right": 0
+								}
+							]
+						},
+						{
+							"target": "share",
+							"conditions": [
+								{
+									"left": {
+										"observation": "shield.lowest"
+									},
+									"op": "lt",
+									"right": 500
+								},
+								{
+									"left": {
+										"observation": "shield.difference"
+									},
+									"op": "gt",
+									"right": 250
+								},
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "ne",
+									"right": 3
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "share",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", true]
+						}
+					],
+					"transitions": [
+						{
+							"target": "prioritise",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "ne",
+									"right": 3
+								},
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "ne",
+									"right": 0
+								}
+							]
+						},
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "shield.lowest"
+									},
+									"op": "ge",
+									"right": 650
+								}
+							]
+						},
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "shield.difference"
+									},
+									"op": "le",
+									"right": 100
+								}
+							]
+						},
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "eq",
+									"right": 3
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "prioritise",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", true]
+						}
+					],
+					"transitions": [
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "eq",
+									"right": 3
+								}
+							]
+						},
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "eq",
+									"right": 0
+								}
+							]
+						}
+					]
+				}
+			],
+			"command_reads": [
+				{
+					"name": "protection.priority",
+					"controller": "shield-priority",
+					"channel": "priority",
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.shield-starboard.distribution",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "discharge",
+					"type": "boolean"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "duty",
+					"tree": "base.action.maintain-shield-distribution"
+				}
+			],
+			"initial": "hold",
+			"states": [
+				{
+					"id": "hold",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", false]
+						}
+					],
+					"transitions": [
+						{
+							"target": "prioritise",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "ne",
+									"right": 4
+								},
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "ne",
+									"right": 0
+								}
+							]
+						},
+						{
+							"target": "share",
+							"conditions": [
+								{
+									"left": {
+										"observation": "shield.lowest"
+									},
+									"op": "lt",
+									"right": 500
+								},
+								{
+									"left": {
+										"observation": "shield.difference"
+									},
+									"op": "gt",
+									"right": 250
+								},
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "ne",
+									"right": 4
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "share",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", true]
+						}
+					],
+					"transitions": [
+						{
+							"target": "prioritise",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "ne",
+									"right": 4
+								},
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "ne",
+									"right": 0
+								}
+							]
+						},
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "shield.lowest"
+									},
+									"op": "ge",
+									"right": 650
+								}
+							]
+						},
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "shield.difference"
+									},
+									"op": "le",
+									"right": 100
+								}
+							]
+						},
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "eq",
+									"right": 4
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "prioritise",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", true]
+						}
+					],
+					"transitions": [
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "eq",
+									"right": 4
+								}
+							]
+						},
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "eq",
+									"right": 0
+								}
+							]
+						}
+					]
+				}
+			],
+			"command_reads": [
+				{
+					"name": "protection.priority",
+					"controller": "shield-priority",
+					"channel": "priority",
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"id": "base.cruiser.assist.psychic",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "apparatus",
+					"type": "boolean"
+				},
+				{
+					"channel": "phantoms-enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "phantoms-target",
+					"type": "integer"
+				},
+				{
+					"channel": "ward-enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "ward-target",
+					"type": "integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.apparatus",
+							"arguments": [true]
+						},
+						{
+							"action": "write.phantoms-enabled",
+							"arguments": [false]
+						},
+						{
+							"action": "write.phantoms-target",
+							"arguments": [0]
+						},
+						{
+							"action": "write.ward-enabled",
+							"arguments": [true]
+						},
+						{
+							"action": "write.ward-target",
+							"arguments": [
+								{
+									"observation": "own.id"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.courier.assist.veil",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "apparatus",
+					"type": "boolean"
+				},
+				{
+					"channel": "veil-enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "veil-target",
+					"type": "integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.apparatus",
+							"arguments": [true]
+						},
+						{
+							"action": "write.veil-enabled",
+							"arguments": [true]
+						},
+						{
+							"action": "write.veil-target",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.courier.assist.veil-supply",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "isolate",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.isolate",
+							"arguments": [false]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.courier.assist.veil-cooling",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "allocation",
+					"type": "integer"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.allocation",
+							"arguments": [120]
 						}
 					]
 				}

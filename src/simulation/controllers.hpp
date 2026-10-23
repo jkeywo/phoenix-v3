@@ -4,7 +4,7 @@ namespace phoenix
 {
 struct RecordReadBinding
 {
-	bool shared = false, latest = false;
+	bool shared = false, latest = false, priority = false;
 	KnowledgeKey schema = 0, field = 0;
 	KnowledgeId subject = 0;
 };
@@ -137,6 +137,7 @@ struct BridgeBlackboard
 	std::map<std::string, std::size_t> stances;
 	std::map<std::string, std::uint64_t> epochs;
 	NavigationEvidence navigation;
+	std::uint64_t priority_objective = 0, priority_revision = 0;
 };
 struct ControllerProposal
 {

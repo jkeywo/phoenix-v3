@@ -128,6 +128,8 @@ bool team_allowed(const Observation &view, const OperatingCommand &c)
 			if (slash == std::string::npos)
 				return false;
 			const auto next = c.text.find('/', slash + 1);
+			if (next != std::string::npos && (!t.value("patient_control", true) || c.text.substr(0, slash) == "auto"))
+				return false;
 			if (next != std::string::npos && c.text.find('/', next + 1) != std::string::npos)
 				return false;
 			const auto compartment =

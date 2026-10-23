@@ -59,6 +59,7 @@ ConsoleBridgeDefinition compile_console_bridge(const Json &source, const std::st
 	result.command = source.value("command", false);
 	result.auto_hide = source.value("hide_without_ai", false);
 	result.viewscreen = source.value("viewscreen", false);
+	result.objectives = source.value("objectives", false);
 	bridge_require(!result.auto_hide || result.command, path, "hide_without_ai requires Command");
 	if (result.viewscreen)
 	{

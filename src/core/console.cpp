@@ -592,6 +592,10 @@ bool ConsoleModel::act(const std::string &id)
 	if (id.starts_with("game.sensor-contact/"))
 	{
 		sensor_contact_ = std::stoll(id.substr(20));
+		if (observation_)
+			for (const auto &control : observation_->gameplay.value("controls", Json::array()))
+				if (control.value("shared_scan_target", false) && control.at("value") == sensor_contact_)
+					return submit(decode_operating_command(control));
 		return true;
 	}
 	if (id == "game.fire-arcs")
@@ -696,9 +700,10 @@ bool ConsoleModel::act(const std::string &id)
 			return held_controls_.contains(id) ? release_control(id) : hold_control(id);
 		if (!console_string(*selected, "controller").empty())
 			return submit(decode_operating_command(*selected));
-		if (console_string(*selected, "action") == "stance.set")
+		if (console_string(*selected, "action") == "stance.set" ||
+		    console_string(*selected, "action") == "objective.priority")
 		{
-			OperatingCommand intent{observation_->own.id, "stance.set", selected->at("value"),
+			OperatingCommand intent{observation_->own.id, console_string(*selected, "action"), selected->at("value"),
 			                        console_string(*selected, "system")};
 			intent.generation = selected->value("generation", std::uint64_t{0});
 			return submit(std::move(intent));
@@ -1550,10 +1555,10 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 			    team.at("id").get<std::string>() + " (" + localise(team.value("condition", "healthy")) +
 			        "): " + localise(order.at("label")) +
 			        (team.at("id") == selected_team_ && order.at("id") == selected_team_order_ ? " [*]" : ""));
-		if (team.at("order") != "")
+		if (team.at("order") != "" || team.value("assigned_compartment", -1) >= 0)
 			result.emplace_back("game.team-cancel/" + team.at("id").get<std::string>(),
 			                    localise("Cancel team order") + " " + team.at("id").get<std::string>());
-		if (team.at("id") == selected_team_)
+		if (team.at("id") == selected_team_ && team.value("patient_control", true) && selected_team_order_ != "auto")
 			for (const auto &p : team.at("patients"))
 				if (p.at("condition") == "minor" || p.at("condition") == "severe")
 					result.emplace_back("game.team-patient/" + p.at("id").get<std::string>(),
@@ -1641,7 +1646,7 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 			else
 				label += " " + std::to_string(value);
 		}
-		label = descriptor.value("label_prefix", std::string{}) + label;
+		label = localise(descriptor.value("label_prefix", std::string{})) + label;
 		if (descriptor.value("selected", false))
 			label += " (" + localise("Selected") + ")";
 		if (label.empty())
@@ -1696,6 +1701,28 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 	std::vector<std::pair<std::string, std::string>> result;
 	if (!observation_)
 		return result;
+	if (observation_->gameplay.contains("objective_board"))
+	{
+		const auto &board = observation_->gameplay.at("objective_board");
+		if (board.at("objectives").empty())
+			result.emplace_back("game.objective/empty", localise("No published objectives"));
+		for (const auto &objective : board.at("objectives"))
+		{
+			std::string text = objective.value("priority", false) ? localise("Priority objective") + ": " : "";
+			text += localise(objective.at("title")) + " — " + console_objective_status(objective.at("status"));
+			if (!objective.value("description", std::string{}).empty())
+				text += ". " + localise(objective.at("description"));
+			if (objective.contains("destination_x") && objective.contains("destination_y"))
+				text += ". " + localise("Destination") + ": " +
+				        std::to_string(objective.at("destination_x").get<std::int64_t>()) + ", " +
+				        std::to_string(objective.at("destination_y").get<std::int64_t>());
+			result.emplace_back("game.objective/" + std::to_string(objective.at("id").get<std::uint64_t>()),
+			                    std::move(text));
+		}
+		if (!board.at("can_select").get<bool>())
+			result.emplace_back("game.objective/authority",
+			                    localise("Priority selection requires an AI-operated Controller"));
+	}
 	for (const auto &ftl : observation_->gameplay.value("ftl", Json::array()))
 	{
 		const auto capacity = ftl.at("capacity").get<std::int64_t>();
@@ -1928,7 +1955,8 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_readouts
 		                        std::to_string(t.at("observed").get<std::uint64_t>()));
 	}
 	for (auto row : board_readouts(observation_->gameplay, now))
-		result.push_back(std::move(row));
+		if (!observation_->gameplay.contains("objective_board"))
+			result.push_back(std::move(row));
 	const auto marker = waypoint();
 	if (marker.value("active", false))
 	{

@@ -985,8 +985,9 @@ void restore_combat(flecs::entity ship, const Json &j)
 					    if constexpr (std::is_same_v<State, TeamState>)
 					    {
 						    actual.erase("order_continuation");
-						    for (const auto *key : {"revision", "order", "activity", "patient", "work_done",
-						                            "condition", "treatment", "detained", "compartment_assignment"})
+						    for (const auto *key :
+						         {"revision", "order", "activity", "patient", "work_done", "condition", "treatment",
+						          "detained", "compartment_assignment", "medical_compartment"})
 							    if (!actual.contains(key))
 								    actual[key] = expected.at(key);
 					    }

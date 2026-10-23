@@ -4,7 +4,7 @@
 
 The Cruiser Captain has one one-star profile: alert selection, supported stances for fully AI-operated Consoles, and an **Objectives list**. Captain has no shared-report/display dashboard, machinery reserve or Command Duty Officer roster. Crew coordination takes place through player conversation.
 
-The Objectives list is a **new GUI element, planned and not yet implemented**. It shows objectives already published to this ship's objective list on its entity blackboard, including their titles, current known status and any published destination. It does not expose private scenario facts or other Consoles' records. It remains available when every Controller is human-operated.
+The Objectives list is a dedicated GUI element. It shows objectives already published to this ship's objective list on its entity blackboard, including their titles, current known status and any published destination. It does not expose private scenario facts or other Consoles' records. It remains available when every Controller is human-operated.
 
 When the ship has any effectively AI-operated Controller, Captain can select one active objective as the **priority objective**, replace it or clear the selection. This includes delegated Controllers within a human-operated Console, as well as wholly AI-operated Consoles. This condition is broader than the existing stance controls, which still require the target Console to be fully AI-operated.
 
@@ -12,7 +12,7 @@ The accepted priority is stored with the ship's objective list on the entity bla
 
 Only a currently published active objective can be selected. Completion, failure, cancellation or withdrawal of that objective clears its priority; no replacement is chosen silently. Handover, reconnect and save/resume retain a still-valid selection. With no AI-operated Controllers, the list remains readable and priority selection is unavailable. The list and priority marker require equivalent labelled keyboard, touch/gamepad and screen-reader actions, localisation and non-colour-only selected state.
 
-Delivery remains pending: implement the list widget, admitted priority selection, blackboard projection and relevant Controller policy reads; remove the obsolete Captain machinery/personnel fittings. Verify partial-AI eligibility, ship-scoped knowledge, lifecycle/continuation and advisory authority through production paths. Rendered and actual accessibility acceptance remain separate. Existing verification records below do not establish delivery of this agreement.
+The [Science, Comms and Captain increment](cruiser-science-comms-captain.md) implements the list, admitted priority selection, blackboard projection and navigation policy reads, and removes the obsolete Captain machinery/personnel fittings. Other AI can read the priority but has no new objective-driven behaviour in this increment. Rendered and physical accessibility acceptance remain separate from automated verification.
 
 ## Alert conditions
 

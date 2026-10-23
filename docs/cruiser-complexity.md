@@ -1,6 +1,6 @@
 # Cruiser station complexity
 
-Agreed implementation contract, 23 October 2026. This increment covers Helm, Tactical and Engineering. Science, Comms and Captain retain their previous workloads. The three revised stations default to one star independently, including in the lobby. Vacant or Away stations use ordinary AI control independently of their selected stars.
+Agreed implementation contract, 23 October 2026. This increment covers Helm, Tactical and Engineering. [Science, Comms and Captain](cruiser-science-comms-captain.md) complete the remaining station revision. The three revised stations default to one star independently, including in the lobby. Vacant or Away stations use ordinary AI control independently of their selected stars.
 
 ## Workloads
 
@@ -51,6 +51,6 @@ Setting channels may use `shared_command` with `controller` and `channel` to fol
 
 Repair teams opt into compartment-local preferences with `local_repair_priority`. Their `repair_system` channel can declare `hull_priority` to expose the compartment-hull choice, and `individual_stars` gates detailed priorities independently of compartment deployment. Existing teams keep their previous assignment semantics unless they opt in.
 
-World continuation is schema **20**, with mission continuation schema **11**. Older World saves require a new session. Current-format saves retain mission routes, department authorizations, escort assignments, supply manifests, cargo reservations and actual transfer receipts. Older authored single-Dispatch/single-transport missions remain supported.
+World continuation is schema **21**, with mission continuation schema **11**. Older World saves require a new session. Current-format saves retain mission routes, department authorizations, escort assignments, supply manifests, cargo reservations and actual transfer receipts. Older authored single-Dispatch/single-transport missions remain supported.
 
 Native and WebAssembly builds, system suites, cross-platform continuation checks and the explicitly invoked combat, supply and console journeys passed. See the [verification receipt](smoke/cruiser-workloads.md) for commands, scope and local artifacts. Physical screen-reader, touch/gamepad and six-display acceptance require separate device runs.

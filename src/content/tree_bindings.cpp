@@ -111,9 +111,10 @@ std::string binding_subject(const Json &binding, const std::string &path)
 	if (value.is_string())
 	{
 		const auto name = value.get<std::string>();
-		binding_require(name.empty() || name == "self" || name == "selected_contact" || name == "latest",
-		                path + ".subject", "supported names are self, selected_contact and latest");
-		return name == "selected_contact" || name == "latest" ? name : std::string{};
+		binding_require(name.empty() || name == "self" || name == "selected_contact" || name == "latest" ||
+		                    name == "priority_or_latest",
+		                path + ".subject", "supported names are self, selected_contact, latest and priority_or_latest");
+		return name == "selected_contact" || name == "latest" || name == "priority_or_latest" ? name : std::string{};
 	}
 	binding_require(value.is_number_integer(), path + ".subject",
 	                "expected self, selected_contact, or a positive integer entity identity");
@@ -188,6 +189,10 @@ std::vector<GameplayTreeRecordBinding> gameplay_record_bindings(const Json &tree
 		}
 		binding.subject_parameter = binding_subject(value, field_path);
 		binding.contexts = static_cast<std::uint8_t>(*inherited.context);
+		binding_require(binding.subject_parameter != "priority_or_latest" ||
+		                    (inherited.context == state_tree::Context::Controller &&
+		                     binding.schema == "phoenix.objective" && binding.scope == GameplayTreeRecordScope::Ship),
+		                field_path + ".subject", "priority_or_latest requires a ship objective Controller read");
 		binding_require(binding.subject_parameter != "latest" || inherited.context == state_tree::Context::Controller,
 		                field_path + ".subject", "latest requires a Controller context");
 		binding_require(binding.subject_parameter != "selected_contact" ||
@@ -410,6 +415,8 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	result.own[ControllerOwnField::CraftArmed] = add({"craft.armed", Type::Boolean, 4, {}});
 	result.own[ControllerOwnField::CraftTargetPresent] = add({"craft.target_present", Type::Boolean, 4, {}});
 	result.own[ControllerOwnField::ObjectiveTarget] = add({"objective.target", Type::Integer, 4, {}});
+	result.own[ControllerOwnField::PriorityObjective] = add({"objective.priority", Type::Integer, 4, {}});
+	result.own[ControllerOwnField::OwnIdentity] = add({"own.id", Type::Integer, 4, {}});
 	const auto resolved = resolve_tree_definition(tree, catalog);
 	if (resolved.value("complexity_observation", false))
 		add({"console.stars", Type::Integer, 4, {}});

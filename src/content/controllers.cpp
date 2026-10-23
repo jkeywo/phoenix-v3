@@ -345,9 +345,10 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 		                path, "unknown workload Console or Station complexity disabled");
 		for (const auto &[family, stars] : families.items())
 		{
-			control_require((family == "craft" || family == "transport" || family == "logistics") &&
-			                    stars.is_number_integer() && stars >= 1 && stars <= 3,
-			                path, "invalid manual workload");
+			control_require(
+			    (family == "craft" || family == "transport" || family == "logistics" || family == "medical") &&
+			        stars.is_number_integer() && stars >= 1 && stars <= 3,
+			    path, "invalid manual workload");
 			result.manual_workloads[console][family] = stars.get<int>();
 		}
 	}
@@ -712,6 +713,20 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 		for (std::size_t i = 0; i < result.profiles.size(); ++i)
 			if (result.profiles[i].id == profile.get<std::string>())
 				result.default_profiles[console] = i;
+	}
+	const auto fixed = layout.value("fixed_profiles", Json::object());
+	control_require(fixed.is_object() && fixed.size() <= consoles.size(), path, "invalid fixed profiles");
+	for (const auto &[console, profile] : fixed.items())
+	{
+		control_require(console_ids.contains(console) && profile.is_string() &&
+		                    profiles.contains(profile.get<std::string>()),
+		                path, "unknown fixed Console profile");
+		for (std::size_t i = 0; i < result.profiles.size(); ++i)
+			if (result.profiles[i].id == profile.get<std::string>())
+			{
+				result.fixed_profiles[console] = i;
+				result.default_profiles[console] = i;
+			}
 	}
 	for (const auto &console : consoles)
 		if (!console.definition.empty())

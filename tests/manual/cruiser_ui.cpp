@@ -19,6 +19,7 @@ int main(int argc, char **argv)
 		if (argc < 2)
 			throw std::runtime_error("Usage: phoenix_cruiser_ui_smoke pack.zip");
 		const bool workloads = argc > 3 && std::string(argv[3]) == "--workloads";
+		const bool remaining = argc > 3 && std::string(argv[3]) == "--remaining-stations";
 		auto draft = read_pack(read_file(argv[1])).draft();
 		auto definitions = parse_json(draft.files.at("definitions.json"), "Cruiser clinical UI variant");
 		for (auto &entity : definitions["entities"])
@@ -50,6 +51,34 @@ int main(int argc, char **argv)
 						map.erase("scenario");
 				child.files["definitions.json"] = json_bytes(data);
 			}
+			if (remaining)
+			{
+				auto data = parse_json(child.files.at("definitions.json"), "Station Objectives UI scene");
+				data["trees"].push_back(
+				    Json::parse(R"json({"id":"base.smoke.station-objectives","context":"scenario","initial":"show",
+ "states":[{"id":"show","entry":[{"action":"add_objective","arguments":["destination",{"observation":"self.entity"},"destination"]}]}]})json"));
+				for (auto &map : data["maps"])
+					if (map["id"] == "base.free-flight")
+					{
+						map["regions"] = Json::array({{{"id", "destination"},
+						                               {"shape", "circle"},
+						                               {"x_mm", 3000000},
+						                               {"y_mm", 3000000},
+						                               {"radius_mm", 10000}}});
+						map["scenario"] = {
+						    {"tree", "base.smoke.station-objectives"},
+						    {"bindings", {{"actor", {{"slot", "base.player"}}}}},
+						    {"objectives",
+						     Json::array({{{"id", "destination"},
+						                   {"type", "reach_region"},
+						                   {"region", "destination"},
+						                   {"actor", {{"slot", "base.player"}}},
+						                   {"recipients", {{"ship", {{"slot", "base.player"}}}}},
+						                   {"title_key", "Reach the rendezvous"},
+						                   {"description_key", "Bring the ship to the marked destination."}}})}};
+					}
+				child.files["definitions.json"] = json_bytes(data);
+			}
 			app.session->add_pack(write_pack(child));
 		}
 		const auto slot = workloads ? "cruiser" : "base.player";
@@ -65,8 +94,8 @@ int main(int argc, char **argv)
 		app.screen = Screen::console;
 		open_window();
 		opened = true;
-		SetWindowSize(workloads ? 1920 : 2560, workloads ? 1080 : 900);
-		if (workloads)
+		SetWindowSize(workloads || remaining ? 1920 : 2560, workloads || remaining ? 1080 : 900);
+		if (workloads || remaining)
 			app.console_regions = {{1, 0, 0, 1920, 1080}};
 		else
 			app.console_regions = {{1, 0, 0, 1280, 900}, {2, 1280, 0, 1280, 900}};
@@ -122,6 +151,43 @@ int main(int argc, char **argv)
 			if (!app.screen_action(copy))
 				throw std::runtime_error("Cruiser UI action refused: " + id);
 		};
+		if (remaining)
+		{
+			if (!app.session->claim_console(3, {ship, "captain"}) || !app.session->claim_console(4, {ship, "comms"}))
+				throw std::runtime_error("Remaining Cruiser station claim refused");
+			for (int level = 0; level < 3; ++level)
+			{
+				if (!app.session->console_command(1, {ship, "preset", level}))
+					throw std::runtime_error("Science workload refused");
+				advance(4);
+				const auto file = "build/station-work/science-" + std::to_string(level + 1) + ".png";
+				frame(file.c_str());
+			}
+			for (std::uint64_t route : {3, 4})
+			{
+				app.console_regions = {{route, 0, 0, 1920, 1080}};
+				advance(3);
+				if (route == 3)
+				{
+					const auto observed = app.session->console_observation(route);
+					bool selected = false;
+					for (const auto &c : observed->gameplay.at("controls"))
+						if (c.at("action") == "objective.priority" && c.at("value") != 0)
+						{
+							OperatingCommand choose{ship, "objective.priority", c.at("value")};
+							choose.generation = c.at("generation");
+							selected = app.session->console_command(route, choose);
+							break;
+						}
+					if (!selected)
+						throw std::runtime_error("Captain priority control absent");
+					advance(3);
+				}
+				frame(route == 3 ? "build/station-work/captain.png" : "build/station-work/comms.png");
+			}
+			close_window();
+			return 0;
+		}
 		if (workloads)
 		{
 			for (int level = 0; level < 3; ++level)
