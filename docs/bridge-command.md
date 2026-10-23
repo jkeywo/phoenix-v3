@@ -1,5 +1,21 @@
 # Alert conditions, Command and the Viewscreen sidebar
 
+## Captain design agreement — 23 October 2026
+
+The Cruiser Captain has one one-star profile: alert selection, supported stances for fully AI-operated Consoles, and an **Objectives list**. Captain has no shared-report/display dashboard, machinery reserve or Command Duty Officer roster. Crew coordination takes place through player conversation.
+
+The Objectives list is a **new GUI element, planned and not yet implemented**. It shows objectives already published to this ship's objective list on its entity blackboard, including their titles, current known status and any published destination. It does not expose private scenario facts or other Consoles' records. It remains available when every Controller is human-operated.
+
+When the ship has any effectively AI-operated Controller, Captain can select one active objective as the **priority objective**, replace it or clear the selection. This includes delegated Controllers within a human-operated Console, as well as wholly AI-operated Consoles. This condition is broader than the existing stance controls, which still require the target Console to be fully AI-operated.
+
+The accepted priority is stored with the ship's objective list on the entity blackboard, using the objective's stable identity. The GUI and Controller AIs read the same published list and priority. Ordinary AI considers that priority where relevant to its own work, permitted information and available capabilities. It is advisory: selecting a travel objective does not itself engage Helm, start a mission, commit supplies or override another operator. Explicit orders, existing commitments and physical constraints retain their authority. Unrelated AI work continues normally.
+
+Only a currently published active objective can be selected. Completion, failure, cancellation or withdrawal of that objective clears its priority; no replacement is chosen silently. Handover, reconnect and save/resume retain a still-valid selection. With no AI-operated Controllers, the list remains readable and priority selection is unavailable. The list and priority marker require equivalent labelled keyboard, touch/gamepad and screen-reader actions, localisation and non-colour-only selected state.
+
+Delivery remains pending: implement the list widget, admitted priority selection, blackboard projection and relevant Controller policy reads; remove the obsolete Captain machinery/personnel fittings. Verify partial-AI eligibility, ship-scoped knowledge, lifecycle/continuation and advisory authority through production paths. Rendered and actual accessibility acceptance remain separate. Existing verification records below do not establish delivery of this agreement.
+
+## Alert conditions
+
 Ships author `bridge.conditions` as an ordered list, from least to most severe. Each condition has an `id`, localised `label`, optional `description`, `colour` in `#RRGGBB`, `glow`, and optional pack-qualified OGG `siren` and `music` references. There is no fixed five-condition rule. `bridge.initial` selects the initial ID; omitting it selects the first condition. `bridge.alert_console` identifies the Console authorised to set the condition.
 
 The base ships have conditions 5 through 1, starting at 5. Condition 1 uses the V2 siren. Courier Engineering/Support owns alert selection; the Cruiser Captain owns it. Alert selection is independent of Command.

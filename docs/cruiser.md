@@ -6,7 +6,7 @@
 
 | Watch       | Fitted responsibilities                                                                                                  |
 | ----------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Captain     | Alerts, Command stances and coordination                                                                                 |
+| Captain     | One-star design: alerts, eligible AI Console stances and an Objectives list with advisory priority selection (new GUI pending) |
 | Helm        | Two drive assemblies, steering, lateral thrust, boost and impulse                                                        |
 | Tactical    | Five kinetic turrets, eight flank PDCs, six four-tube missile banks, magazines, Flight operations and two Security teams |
 | Engineering | One reactor/core network, distribution, local reserves, cooling, finite craft ammunition supplies and four repair teams  |
@@ -15,7 +15,7 @@
 
 Comms also owns the [psychic choir](psychic-choir.md): Thalia Venn sustains Veil, Severin Ash projects phantom ships and Mara Sable wards one ship. Their separate choir seats use ordinary personnel travel and Medical availability. A dedicated reserve, supply link and cooling link connect the apparatus to Engineering. Simple and Middle expose planning intent with ordinary AI execution; Detailed exposes each power directly.
 
-The auxiliary Navigator Console remains attached to Science and controls FTL mission departure. Each station keeps its ordinary complexity profiles, Controller authority, permitted observations and department-scoped duty officers. Simple delegates shields and routine repairs; deeper profiles expose their controls. Vacant stations use their ordinary Controller policies.
+The auxiliary Navigator Console remains attached to Science and controls FTL mission departure. Captain's [revised design](bridge-command.md#captain-design-agreement--23-october-2026) has one star, no machinery reserve and no Command Duty Officer roster; the Objectives GUI, priority integration and obsolete-fitting removal remain pending. Other stations keep their ordinary complexity profiles, Controller authority, permitted observations and department-scoped duty officers. Simple delegates shields and routine repairs; deeper profiles expose their controls. Vacant stations use their ordinary Controller policies.
 
 Five main turrets share one material. Fore/aft dorsal and ventral mounts traverse 270 degrees; the central dorsal mount traverses 360 degrees. Main-gun and PDC ammunition is finite. Each four-tube missile bank selects between its own finite homing and havok magazines. Main weapons and PDC standby draw actual local power. The encounter injects no ammunition or resources between waves; ordinary finite onboard servicing continues.
 
