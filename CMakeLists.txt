@@ -293,6 +293,7 @@ add_library(
 	src/content/controller_actions.cpp
 	src/content/personnel.cpp
 	src/content/away.cpp
+	src/content/interdictions.cpp
 	src/content/craft.cpp
 	src/content/logistics.cpp
 	src/content/docking.cpp
@@ -1001,8 +1002,12 @@ phoenix_fixture(phoenix_camera_tests)
 add_executable(phoenix_missions_tests tests/system/missions.cpp)
 target_link_libraries(phoenix_missions_tests PRIVATE phoenix_simulation phoenix_core)
 phoenix_fixture(phoenix_missions_tests)
+add_executable(phoenix_interdictions_tests tests/system/interdictions.cpp)
+target_link_libraries(phoenix_interdictions_tests PRIVATE phoenix_simulation phoenix_core)
+phoenix_fixture(phoenix_interdictions_tests)
 if(NOT EMSCRIPTEN)
 	add_test(NAME system.missions COMMAND phoenix_missions_tests)
+	add_test(NAME system.interdictions COMMAND phoenix_interdictions_tests)
 endif()
 add_executable(phoenix_sensors_smoke EXCLUDE_FROM_ALL tests/manual/sensors_ui.cpp)
 target_link_libraries(phoenix_sensors_smoke PRIVATE phoenix_session phoenix_presentation)

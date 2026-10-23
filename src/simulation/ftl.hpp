@@ -1,7 +1,94 @@
 // World::Impl FTL mechanism and per-crew departure boundary.
+std::map<EntityId, std::set<EntityId>> departure_groups;
+bool departure_member_authorised(EntityId leader, EntityId member) const
+{
+	if (operational_owner(leader) == operational_owner(member))
+		return true;
+	for (std::size_t i = 0; i < interdictions.size(); ++i)
+	{
+		const auto &operation = interdictions[i];
+		const auto target = interdiction_definitions[i].target;
+		const auto pirate = [&](EntityId id)
+		{
+			return std::find(operation.ships.begin(), operation.ships.end(), id) != operation.ships.end();
+		};
+		if (operation.captured && pirate(operational_owner(target)) && (leader == target || pirate(leader)) &&
+		    (member == target || pirate(member)))
+			return true;
+	}
+	return false;
+}
+void assign_departure_group(EntityId leader, const std::set<EntityId> &members)
+{
+	for (auto it = departure_groups.begin(); it != departure_groups.end();)
+		if (std::any_of(members.begin(), members.end(),
+		                [&](auto id)
+		                {
+			                return it->second.contains(id);
+		                }))
+			it = departure_groups.erase(it);
+		else
+			++it;
+	departure_groups[leader] = members;
+}
+void prune_departure_groups()
+{
+	std::map<EntityId, std::set<EntityId>> next;
+	for (const auto &[original, members] : departure_groups)
+	{
+		auto leader = original;
+		auto group = members;
+		std::erase_if(group,
+		              [&](EntityId id)
+		              {
+			              return truly_destroyed(id) || departed(id) ||
+			                     entities.at(id).get<FactionMembership>().id !=
+			                         entities.at(leader).get<FactionMembership>().id;
+		              });
+		if (group.empty())
+			continue;
+		if (!group.contains(leader))
+			leader = *group.begin();
+		next[leader] = std::move(group);
+	}
+	departure_groups = std::move(next);
+}
+EntityId departure_leader(EntityId member) const
+{
+	for (const auto &[leader, group] : departure_groups)
+		if (group.contains(member) && !truly_destroyed(leader) && !departed(leader))
+			return leader;
+	return member;
+}
+flecs::entity departure_drive(EntityId ship) const
+{
+	for (auto child : entities.at(ship).get<EquipmentIndex>().values)
+		if (child.has<FtlReserve>())
+			return child;
+	return {};
+}
+std::string departure_group_blocker(EntityId ship) const
+{
+	const auto leader = departure_leader(ship);
+	if (!departure_groups.contains(leader))
+		return {};
+	for (const auto member : departure_groups.at(leader))
+		if (!truly_destroyed(member) && !departed(member))
+		{
+			if (!departure_member_authorised(leader, member))
+				return "Departure group ownership changed";
+			if (member != leader && ftl_local_facts(member).second)
+				return "Friendly visitors await recovery";
+			const auto drive = departure_drive(member);
+			if (!drive || !ftl_blocker(member, drive).empty())
+				return "Departure group not ready";
+		}
+	return {};
+}
 bool departed(EntityId id) const
 {
-	return entities.contains(id) && entities.at(id).has<MissionDeparture>();
+	return entities.contains(id) && entities.at(id).has<MissionDeparture>() &&
+	       entities.at(id).get<MissionDeparture>().report.value("reason", "ftl") == "ftl";
 }
 ConsoleAddress ftl_owner(EntityId id, const std::string &system) const
 {
@@ -28,7 +115,7 @@ std::vector<std::string> ftl_left_behind(EntityId id) const
 {
 	std::vector<std::string> names;
 	for (const auto &[asset, disposition] : personnel_dispositions(id))
-		if (disposition == "deployed")
+		if (disposition == "deployed" || disposition == "freed")
 			names.push_back(away_asset_label(id, asset));
 	for (const auto &[craft, e] : craft_rows())
 		if (e.get<CraftState>().home == id && !craft_dormant(e))
@@ -107,7 +194,7 @@ std::pair<bool, std::int64_t> ftl_local_facts(EntityId id) const
 		{
 			const auto &m = away_missions[i];
 			completed |= m.outcome.starts_with("complete:");
-			if (m.deployed())
+			if (m.deployed() && !m.boarding.prize_crew)
 				visitors += m.assignments.size() + m.accompanying.size();
 			if (m.phase == AwayPhase::Outbound || m.phase == AwayPhase::Inbound)
 				++visitors;
@@ -123,7 +210,9 @@ Json ftl_board(const ConsoleAddress &a) const
 		{
 			const auto &p = ship.get<ShipResources>();
 			const auto &s = p.network.stores().at(ftl->definition.store);
-			const auto blocker = ftl_blocker(a.ship, child);
+			auto blocker = ftl_blocker(a.ship, child);
+			if (blocker.empty())
+				blocker = departure_group_blocker(a.ship);
 			rows.push_back({{"system", child.get<Equipment>().id},
 			                {"energy", s.energy},
 			                {"capacity", p.definition.network.stores.at(ftl->definition.store).capacity},
@@ -158,7 +247,8 @@ bool ftl_command(const ConsoleAddress &a, const OperatingCommand &c, bool execut
 	for (auto child : ship.get<EquipmentIndex>().values)
 		if (child.has<FtlReserve>() && child.get<Equipment>().id == c.system)
 		{
-			if (!ftl_blocker(a.ship, child).empty())
+			if (!ftl_blocker(a.ship, child).empty() || !departure_group_blocker(a.ship).empty() ||
+			    departure_leader(a.ship) != a.ship)
 				return false;
 			if (!execute)
 				return true;
@@ -187,6 +277,18 @@ void commit_departures()
 		}
 	if (accepted.empty())
 		return;
+	// Readiness and ownership are rechecked as one batch before any member leaves.
+	const auto leaders = accepted;
+	for (const auto &[a, command] : leaders)
+		if (departure_groups.contains(a.ship))
+			for (auto member : departure_groups.at(a.ship))
+				if (member != a.ship && !truly_destroyed(member) && !departed(member) && !seen.contains(member))
+				{
+					const auto drive = departure_drive(member);
+					OperatingCommand companion{member, "ftl.depart", 0, drive.get<Equipment>().id};
+					accepted.emplace_back(ftl_owner(member, companion.system), companion);
+					seen.insert(member);
+				}
 	for (const auto &[a, c] : accepted)
 	{
 		auto ship = entities.at(a.ship);

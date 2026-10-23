@@ -44,6 +44,12 @@ try
 			throw "Native mission continuation failed"
 		}
 		Set-Content -LiteralPath "$repo/build/native/mission-continuation.trace" -Value $missionNativeTrace -Encoding utf8
+		$interdictionTrace = & ./build/native/Release/phoenix_interdictions_tests.exe --trace
+		if ($LASTEXITCODE)
+		{
+			throw 'Native interdiction continuation failed'
+		}
+		Set-Content -LiteralPath "$repo/build/native/interdiction-continuation.trace" -Value $interdictionTrace -Encoding utf8
 		$combatNativeTrace = & "$repo/build/native/Release/phoenix_combat_tests.exe" --trace
 		if ($LASTEXITCODE)
 		{
@@ -191,6 +197,7 @@ try
 					'phoenix_craft_tests.js',
 					'phoenix_ftl_tests.js',
 					'phoenix_missions_tests.js',
+					'phoenix_interdictions_tests.js',
 					'phoenix_sensors_tests.js',
 					'phoenix_psychic_tests.js',
 					'phoenix_controller_runtime_tests.js',
@@ -292,6 +299,13 @@ try
 				throw 'Native/WASM mission continuation differs'
 			}
 			Write-Output 'PASS native/WASM objectives, events, losses and frozen reports continuation'
+			$interdictionNativeTrace = Get-Content -LiteralPath "$repo/build/native/interdiction-continuation.trace"
+			$interdictionWebTrace = & $node phoenix_interdictions_tests.js --trace
+			if ($LASTEXITCODE -or ($interdictionNativeTrace -join "`n").Trim() -ne ($interdictionWebTrace -join "`n").Trim())
+			{
+				throw 'Native/WASM interdiction continuation differs'
+			}
+			Write-Output 'PASS native/WASM coordinated takeover, custody and group departure continuation'
 			$wasmTrace = & $node phoenix_simulation_check.js --trace
 			if ($LASTEXITCODE)
 			{

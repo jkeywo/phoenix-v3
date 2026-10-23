@@ -1634,6 +1634,11 @@ struct GameplayEditor
 			return ids(vocabulary.at(context).at(kind));
 		return {};
 	}
+	std::string authoring_context(const Json &definition) const
+	{
+		return definition.value("interdiction", false) ? "interdiction"
+		                                               : definition.value("context", std::string("system"));
+	}
 	Json action_signature(const std::string &context, const std::string &name) const
 	{
 		if (vocabulary.contains(context) && vocabulary.at(context).contains("actions"))
@@ -1702,7 +1707,7 @@ struct GameplayEditor
 				for (const auto &row : definition.at("memory"))
 					options.push_back(row.value("name", std::string{}));
 			if (mode == "observation")
-				options = vocabulary_ids(definition.value("context", std::string("system")), "observations");
+				options = vocabulary_ids(authoring_context(definition), "observations");
 			if (mode == "observation" && definition.contains("record_bindings"))
 				for (const auto &field : definition.at("record_bindings"))
 					options.push_back(field.at("name").get<std::string>());
@@ -1712,7 +1717,7 @@ struct GameplayEditor
 			if (mode == "argument")
 				options = {"amount", "flag", "detail"};
 			if (mode == "intent")
-				options = vocabulary_ids(definition.value("context", std::string("system")), "intents");
+				options = vocabulary_ids(authoring_context(definition), "intents");
 			if (parent.contains(key))
 			{
 				if (!options.empty())
@@ -1790,7 +1795,7 @@ struct GameplayEditor
 				ImGui::Text("%zu", i + 1);
 				if (task.contains("action"))
 				{
-					const auto actions = vocabulary_ids(definition.value("context", std::string("system")), "actions");
+					const auto actions = vocabulary_ids(authoring_context(definition), "actions");
 					if (!actions.empty())
 						choice(task, "action", actions);
 					else
@@ -1800,8 +1805,8 @@ struct GameplayEditor
 						     "unsupported names.");
 					}
 					boolean(task, "once", true);
-					const auto signature = action_signature(definition.value("context", std::string("system")),
-					                                        task.at("action").get<std::string>());
+					const auto signature =
+					    action_signature(authoring_context(definition), task.at("action").get<std::string>());
 					if (signature.contains("arguments"))
 					{
 						text("Expected arguments in order");
@@ -2068,6 +2073,8 @@ struct GameplayEditor
 					strings(definition, "team_capabilities");
 					strings(definition, "events");
 				}
+				if (context.at("context") == "scenario")
+					boolean(definition, "interdiction", false);
 				strings(definition, "transport_capabilities");
 				if (context.at("context") == "conversation")
 				{
@@ -2293,6 +2300,38 @@ struct GameplayEditor
 			        optional_string(f, "discovery_event");
 			        optional_string(f, "tag");
 			        optional_string(f, "destination_station");
+		        });
+		records(map, "interdictions",
+		        {{"id", "encounter"},
+		         {"player_slot", ""},
+		         {"target_entity", 1},
+		         {"start_event", ""},
+		         {"tree", ""},
+		         {"dialogue", ""},
+		         {"threat_radius_mm", 600000},
+		         {"clearance_radius_mm", 750000},
+		         {"engagement_radius_mm", 2500000},
+		         {"formation_radius_mm", 800000},
+		         {"takeover_ticks", 2400},
+		         {"variants", Json::object()},
+		         {"pleas", Json::array()},
+		         {"occupation_teams", Json::array()}},
+		        [&](Json &m)
+		        {
+			        string(m, "id");
+			        string(m, "player_slot");
+			        integer(m, "target_entity", 1);
+			        string(m, "start_event");
+			        optional_string(m, "target_character");
+			        choice(m, "tree", document.definition_choices(WorkshopDefinitionKind::Tree));
+			        choice(m, "dialogue", document.definition_choices(WorkshopDefinitionKind::Tree));
+			        for (auto key :
+			             {"threat_radius_mm", "clearance_radius_mm", "engagement_radius_mm", "formation_radius_mm",
+			              "takeover_ticks", "combat_standoff_mm", "cruise_speed_mm_s"})
+				        integer(m, key, 1);
+			        strings(m, "occupation_teams");
+			        structured_field(m, "variants");
+			        structured_field(m, "pleas");
 		        });
 		records(map, "away_missions",
 		        {{"id", "mission"},
@@ -3579,6 +3618,17 @@ void set_gameplay_authoring_vocabulary(const Json &vocabulary)
 		    {{"id", a.name},
 		     {"name", a.name},
 		     {"arguments", Json::array({{{"name", "value"}, {"type", a.name == "work" ? "integer" : "text"}}})},
+		     {"effect", true}});
+	const auto encounter = interdiction_registry();
+	contexts["interdiction"] = {{"observations", Json::array()}, {"actions", Json::array()}};
+	for (const auto &f : encounter.observations)
+		contexts["interdiction"]["observations"].push_back(
+		    {{"id", f.name}, {"name", f.name}, {"type", f.type == state_tree::Type::Text ? "text" : "boolean"}});
+	for (const auto &a : encounter.actions)
+		contexts["interdiction"]["actions"].push_back(
+		    {{"id", a.name},
+		     {"name", a.name},
+		     {"arguments", Json::array({{{"name", "value"}, {"type", "text"}}})},
 		     {"effect", true}});
 	gameplay_editor.vocabulary = std::move(contexts);
 }

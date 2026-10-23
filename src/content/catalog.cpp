@@ -1193,6 +1193,8 @@ void prepare_catalog(Catalog &catalog)
 				catalog.tree_programs.emplace(id, program.tree);
 				catalog.conversation_programs.emplace(id, std::move(program));
 			}
+			else if (state_tree::resolve_definition(tree, catalog.trees).value("interdiction", false))
+				catalog.tree_programs.emplace(id, state_tree::compile(tree, interdiction_registry(), catalog.trees));
 			else if (*context == state_tree::Context::Team)
 				catalog.tree_programs.emplace(id, state_tree::compile(tree, team_registry(), catalog.trees));
 			else if (*context == state_tree::Context::Away)
@@ -1215,6 +1217,7 @@ void prepare_catalog(Catalog &catalog)
 	{
 		verify_scenario_authoring(catalog, map);
 		(void)compile_away(catalog, map);
+		(void)compile_interdictions(catalog, map);
 		(void)compile_sensor_findings(catalog, map);
 	}
 	verify_conversation_authoring(catalog);

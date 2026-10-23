@@ -489,6 +489,7 @@ struct BoardingObjective
 {
 	std::string compartment, kind, system, fault;
 	bool prize_crew = true;
+	std::string prize_capability;
 };
 struct BoardingDefinition
 {
@@ -532,6 +533,24 @@ struct AwayDefinition
 };
 state_tree::Registry away_registry(const Json &tree = Json::object());
 std::vector<AwayDefinition> compile_away(const Catalog &, const Json &);
+struct InterdictionShip
+{
+	std::string definition;
+	std::int64_t x = 0, y = 0, heading = 0, formation_bearing = 0;
+};
+struct InterdictionDefinition
+{
+	std::string id, slot, start_event, tree, dialogue, target_character;
+	EntityId target = 0;
+	std::int64_t threat = 0, clearance = 0, engagement = 0, formation = 0, takeover_ticks = 0;
+	std::int64_t combat_standoff = 10000, cruise_speed = 20000;
+	std::map<std::string, std::vector<InterdictionShip>> variants;
+	std::vector<std::pair<std::int64_t, std::string>> pleas;
+	std::vector<std::string> occupation_teams;
+	state_tree::Program program;
+};
+state_tree::Registry interdiction_registry();
+std::vector<InterdictionDefinition> compile_interdictions(const Catalog &, const Json &);
 struct MaterialDefinition
 {
 	std::string id;

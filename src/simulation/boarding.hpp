@@ -415,7 +415,13 @@ bool boarding_action(std::size_t index, const std::string &action, const std::st
 	}
 	if (s.secured.contains(key))
 	{
-		capture_boarded_ship(index, o.prize_crew);
+		if (o.prize_crew && !o.prize_capability.empty())
+		{
+			claim_away_target(index, o.prize_capability);
+			m.boarding.captured = true;
+		}
+		else
+			capture_boarded_ship(index, o.prize_crew);
 	}
 	return true;
 }
@@ -493,59 +499,10 @@ void capture_boarded_ship(std::size_t index, bool prize)
 		m.outcome = "complete:Ship already secured";
 		return;
 	}
-	captured_by[d.target] = operational_owner(origin);
+	set_operational_owner(d.target, origin);
 	m.boarding.captured = true;
 	m.boarding.prize_crew = prize;
-	target.set<FactionMembership>({entities.at(origin).get<FactionMembership>().id});
-	for (const auto &[id, craft] : craft_rows())
-		if (craft.get<CraftState>().home == d.target)
-			craft.set<FactionMembership>(target.get<FactionMembership>());
-	std::vector<std::uint64_t> revoke;
-	for (const auto &[claim, address] : claims)
-		if (address.ship == d.target)
-			revoke.push_back(claim);
-	for (auto claim : revoke)
-		claims.erase(claim);
-	if (target.has<EntityControls>())
-		refresh_controllers(d.target);
-	prune_displays();
-	if (target.has<EntityControls>())
-		for (auto &controller : target.get_mut<EntityControls>().controllers)
-		{
-			++controller.generation;
-			controller.human = false;
-			controller.operator_claimant = 0;
-			controller.action = {};
-			controller.incoming_requests.clear();
-			controller.outgoing_requests.clear();
-			for (auto &command : controller.commands)
-			{
-				command.request_id = 0;
-				command.consumed = command.revision;
-			}
-			if (controller.brain)
-				controller.brain->continuation = {};
-		}
-	for (auto child : target.get<EquipmentIndex>().values)
-		if (auto *mechanism = child.try_get_mut<CombatMechanism>();
-		    mechanism && (mechanism->definition.kind == OperatingSystem::Weapon ||
-		                  mechanism->definition.kind == OperatingSystem::Turret))
-			mechanism->target() = 0;
-	// Original personnel are not automatically recruited into the prize crew.
-	for (auto child : target.get<EquipmentIndex>().values)
-		if (auto *mechanism = child.try_get_mut<CombatMechanism>();
-		    mechanism && mechanism->definition.kind == OperatingSystem::Team)
-			mechanism->get<TeamState>().detained = true;
-	if (target.has<PersonnelState>())
-	{
-		for (auto &officer : target.get_mut<PersonnelState>().officers)
-		{
-			officer.duty.clear();
-			officer.present = false;
-			officer.detained = true;
-		}
-		personnel_changed(d.target);
-	}
+	free_captives(d.target, operational_owner(origin));
 }
 bool boarding_inhibited(EntityId target, const std::string &system) const
 {

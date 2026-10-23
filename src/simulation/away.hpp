@@ -65,6 +65,8 @@ const PersonnelDuty *away_team_duty(EntityId ship, const std::string &key) const
 }
 std::string away_officer_location(EntityId ship, const std::string &officer) const
 {
+	if (personnel_postings.contains(ship) && personnel_postings.at(ship).contains("officer:" + officer))
+		return personnel_postings.at(ship).at("officer:" + officer).status;
 	if (mission_ledger.lost.contains(ship) && mission_ledger.lost.at(ship).contains("officer:" + officer))
 		return "Lost";
 	for (std::size_t i = 0; i < away_missions.size(); ++i)
@@ -81,6 +83,9 @@ std::string away_officer_location(EntityId ship, const std::string &officer) con
 }
 bool away_reserved(EntityId ship, const std::string &asset) const
 {
+	if (personnel_postings.contains(ship) && personnel_postings.at(ship).contains(asset) &&
+	    personnel_postings.at(ship).at(asset).status == "prize_crew")
+		return true;
 	if (boarding_defender_reserved(ship, asset))
 		return true;
 	if (mission_ledger.lost.contains(ship) && mission_ledger.lost.at(ship).contains(asset))
@@ -224,7 +229,21 @@ bool away_has_capability(EntityId ship, const AwayMission &m, const std::string 
 			    !team.get<CombatMechanism>().get<TeamState>().detained &&
 			    team.get<CombatMechanism>().get<TeamState>().condition != "lost" &&
 			    team.get<CombatMechanism>().definition.get<TeamDefinition>().capabilities.contains(capability))
-				return true;
+			{
+				const auto &properties = modifier_properties();
+				if (std::any_of(properties.begin(), properties.end(),
+				                [&](const auto &p)
+				                {
+					                return p.id == capability;
+				                }))
+				{
+					if (team_work(entities.at(ship), team.get<CombatMechanism>(), capability, 1000) > 0)
+						return true;
+				}
+				else if (team.get<CombatMechanism>().get<TeamState>().condition != "injured" ||
+				         team.get<CombatMechanism>().definition.get<TeamDefinition>().injured_effectiveness > 0)
+					return true;
+			}
 	return false;
 }
 bool away_asset_healthy(EntityId ship, const std::string &asset) const
@@ -365,6 +384,10 @@ void mark_away_deployed(const AwayDefinition &definition, AwayMission &m)
 }
 void finish_away_recovery(EntityId ship, AwayMission &m)
 {
+	for (const auto &[slot, asset] : m.assignments)
+		personnel_postings[ship].erase(asset);
+	for (const auto &officer : m.accompanying)
+		personnel_postings[ship].erase("officer:" + officer);
 	const auto location = away_origin(ship, m.transport);
 	for (const auto &[slot, asset] : m.assignments)
 		if (asset.starts_with("team:"))
@@ -1147,7 +1170,7 @@ void advance_away()
 		auto &m = away_missions[i];
 		const auto &d = away_definitions[i];
 		const auto ship = away_ship(d);
-		if (!ship || (departed(ship) && !m.absent()) || m.phase == AwayPhase::Lost)
+		if (!ship || (departed(ship) && !m.absent()) || m.phase == AwayPhase::Lost || m.phase == AwayPhase::Captured)
 			continue;
 		const auto cid = away_conversation(d);
 		for (auto at = m.escorts.begin(); at != m.escorts.end();)
@@ -1249,7 +1272,9 @@ void advance_away()
 		                {
 			                return entities.at(s.second).template get<CraftState>().phase == CraftPhase::Flying;
 		                }))
+		{
 			launch_craft(entities.at(transport));
+		}
 		if (transport && transport != ship && !m.transport_released &&
 		    (m.phase == AwayPhase::Outbound || m.phase == AwayPhase::Inbound || m.phase == AwayPhase::Deployed) &&
 		    entities.at(transport).get<CraftState>().phase == CraftPhase::Lost)
@@ -1259,12 +1284,17 @@ void advance_away()
 			return_away_escorts(m);
 			++m.revision;
 		}
+		if (transport && transport != ship && m.phase == AwayPhase::Outbound &&
+		    entities.at(transport).get<CraftState>().phase == CraftPhase::Flying)
+			record_interdiction_insertion(ship, d.target);
 		if (transport && transport != ship)
 			advance_craft_transport(i, transport);
 		else if ((m.phase == AwayPhase::Outbound || m.phase == AwayPhase::Inbound) &&
 		         active.at({ship, m.transport}) == i && away_blocker(i).empty() &&
 		         (m.deployed() || away_staged(ship, m)))
 		{
+			if (m.phase == AwayPhase::Outbound)
+				record_interdiction_insertion(ship, d.target);
 			if (++m.transfer >= away_transfer_ticks(d, m))
 			{
 				if (m.phase == AwayPhase::Inbound)
@@ -1439,6 +1469,8 @@ void advance_away()
 				}
 				else if (name == "mark")
 					m.flags.insert(arg.text);
+				else if (name == "claim")
+					claim_away_target(i, arg.text);
 				else if (name == "require_team")
 					m.work_capability = arg.text;
 				else if (name == "crew_deaths")

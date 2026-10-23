@@ -36,6 +36,7 @@ import phoenix.gameplay_scenario;
 #include "personnel_state.hpp"
 #include "away_state.hpp"
 #include "mission_state.hpp"
+#include "interdiction_state.hpp"
 #include "sensors_state.hpp"
 #include "psychic_state.hpp"
 #include "../core/display_projection.hpp"
@@ -2220,10 +2221,12 @@ struct World::Impl
 #include "bridge.hpp"
 #include "conversations.hpp"
 #include "away.hpp"
+#include "ownership.hpp"
 #include "boarding.hpp"
 #include "craft.hpp"
 #include "ftl.hpp"
 #include "missions.hpp"
+#include "interdictions.hpp"
 #include "sensors.hpp"
 	bool meta(std::uint64_t claimant, const OperatingCommand &command, bool execute)
 	{
@@ -2429,6 +2432,8 @@ void World::load(const Catalog &source, const std::string &map, const std::map<s
 	candidate->conversations.programs = content.conversation_programs;
 	candidate->compile_conversation_starts(data);
 	candidate->away_definitions = compile_away(content, data);
+	candidate->interdiction_definitions = compile_interdictions(content, data);
+	candidate->interdictions.resize(candidate->interdiction_definitions.size());
 	candidate->sensor_findings = compile_sensor_findings(content, data);
 	if (candidate->scenario && !candidate->sensor_findings.empty() && !candidate->conversation_instance)
 		candidate->conversation_instance = candidate->scenario->runtime().create_instance("sensor-events");
@@ -2717,6 +2722,7 @@ void World::tick()
 			impl_->run_console_controllers(entity);
 	for (const auto &[claim, command] : departures)
 		impl_->meta(claim, command, true);
+	impl_->apply_interdiction_orders();
 	impl_->commit_departures();
 	impl_->apply_structural_disablement();
 	impl_->capture_dock_propulsion();
@@ -2784,9 +2790,11 @@ void World::tick()
 	impl_->conversation_scenarios();
 	impl_->conversations.advance(ticks());
 	impl_->advance_away();
+	impl_->advance_interdictions();
 	impl_->advance_psychic();
 	impl_->advance_sensors();
 	impl_->update_mission_facts();
+	impl_->finalise_destroyed_missions();
 	impl_->prune_property_targets();
 	impl_->observation_snapshots.clear();
 	impl_->command_snapshots.clear();
@@ -3926,6 +3934,9 @@ Json World::save() const
 	result["conversations"] = impl_->conversations.save();
 	result["away_missions"] = impl_->save_away();
 	result["captured_by"] = impl_->captured_by;
+	result["personnel_postings"] = impl_->personnel_postings;
+	result["interdictions"] = impl_->save_interdictions();
+	result["departure_groups"] = impl_->departure_groups;
 	result["logistics"] = {{"requests", impl_->material_requests},
 	                       {"batches", impl_->material_batches},
 	                       {"next_request", impl_->next_material_request},
@@ -3980,6 +3991,7 @@ void World::restore(const Catalog &content, const Json &source_saved)
 				candidate.impl_->create(id, definition, {{"x_mm", 0}, {"y_mm", 0}, {"heading_mdeg", 0}});
 		candidate.impl_->restore_spawned_craft(saved.value("craft", Json()));
 	}
+	candidate.impl_->restore_interdiction_ships(saved.value("interdictions", Json::array()), saved.at("bodies"));
 	{
 		const auto &value = saved.at("next_entity");
 		if (!value.is_number_integer() || (!value.is_number_unsigned() && value.get<std::int64_t>() < 1))
@@ -4216,6 +4228,22 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	candidate.impl_->conversations.restore(saved.at("conversations"));
 	candidate.impl_->restore_craft(saved.value("craft", Json()));
 	candidate.impl_->restore_away(saved.value("away_missions", Json::array()));
+	candidate.impl_->personnel_postings =
+	    saved.value("personnel_postings", decltype(candidate.impl_->personnel_postings){});
+	candidate.impl_->restore_interdictions(saved.value("interdictions", Json::array()));
+	candidate.impl_->departure_groups = saved.value("departure_groups", decltype(candidate.impl_->departure_groups){});
+	std::set<EntityId> grouped_members;
+	for (const auto &[leader, group] : candidate.impl_->departure_groups)
+	{
+		if (!candidate.impl_->entities.contains(leader) || !group.contains(leader) || group.size() > 32)
+			throw std::runtime_error("Invalid departure group");
+		for (auto member : group)
+			if (!candidate.impl_->entities.contains(member) || !grouped_members.insert(member).second ||
+			    !candidate.impl_->departure_member_authorised(leader, member))
+				throw std::runtime_error("Unknown or duplicate departure member");
+	}
+	candidate.impl_->validate_personnel_postings();
+
 	for (const auto &[target, origin] : candidate.impl_->captured_by)
 	{
 		bool receipt = false;
@@ -4226,7 +4254,20 @@ void World::restore(const Catalog &content, const Json &source_saved)
 			        candidate.impl_->operational_owner(origin) &&
 			    candidate.impl_->away_missions[i].boarding.captured;
 		if (!receipt)
-			throw std::runtime_error("Capture without boarding receipt");
+			for (const auto &[ship, postings] : candidate.impl_->personnel_postings)
+				for (const auto &[asset, posting] : postings)
+					receipt |= posting.target == target && posting.status == "prize_crew" &&
+					           candidate.impl_->operational_owner(ship) == candidate.impl_->operational_owner(origin);
+		if (!receipt)
+			for (std::size_t n = 0; n < candidate.impl_->interdictions.size(); ++n)
+				receipt |= candidate.impl_->interdiction_definitions[n].target == target &&
+				           candidate.impl_->interdictions[n].captured &&
+				           std::find(candidate.impl_->interdictions[n].ships.begin(),
+				                     candidate.impl_->interdictions[n].ships.end(),
+				                     candidate.impl_->operational_owner(origin)) !=
+				               candidate.impl_->interdictions[n].ships.end();
+		if (!receipt)
+			throw std::runtime_error("Capture without ownership receipt");
 		(void)candidate.impl_->operational_owner(target);
 	}
 	for (const auto &[id, entity] : candidate.impl_->entities)
@@ -4234,17 +4275,23 @@ void World::restore(const Catalog &content, const Json &source_saved)
 		{
 			if (entity.has<PersonnelState>())
 				for (const auto &o : entity.get<PersonnelState>().officers)
-					if (o.detained)
+					if (o.detained &&
+					    !candidate.impl_->captured_posting(
+					        id, "officer:" + candidate.impl_->definition(id)
+					                             .personnel.officers[&o - entity.get<PersonnelState>().officers.data()]
+					                             .id))
 						throw std::runtime_error("Detention without capture");
 			if (entity.has<EquipmentIndex>())
 				for (auto child : entity.get<EquipmentIndex>().values)
 					if (const auto *mechanism = child.try_get<CombatMechanism>();
 					    mechanism && mechanism->definition.kind == OperatingSystem::Team &&
-					    mechanism->get<TeamState>().detained)
+					    mechanism->get<TeamState>().detained &&
+					    !candidate.impl_->captured_posting(id, "team:" + child.get<Equipment>().id))
 						throw std::runtime_error("Team detention without capture");
 		}
 	candidate.impl_->validate_craft_transports();
 	candidate.impl_->restore_docking(saved);
+	candidate.impl_->validate_interdiction_physics();
 	candidate.impl_->restore_logistics(saved);
 	candidate.impl_->mission_ledger = saved.value("mission_ledger", MissionLedger{});
 	std::map<EntityId, Json> departure_reports;
@@ -4254,7 +4301,9 @@ void World::restore(const Catalog &content, const Json &source_saved)
 		{
 			const auto id = value.at("body").at("id").get<EntityId>();
 			const auto report = ftl_projection::report(value.at("mission_report"));
-			if (report.is_null() || report.at("tick") > saved.at("tick") || candidate.impl_->definition(id).ftl.empty())
+			if (report.is_null() || report.at("tick") > saved.at("tick") ||
+			    (report.at("reason") == "ftl" ? candidate.impl_->definition(id).ftl.empty()
+			                                  : !candidate.impl_->truly_destroyed(id)))
 				throw std::runtime_error("Invalid saved departure");
 			departure_reports.emplace(id, report);
 			departed_ships.insert(id);
@@ -4271,7 +4320,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	for (const auto &[id, report] : departure_reports)
 	{
 		candidate.impl_->entities.at(id).set<MissionDeparture>({report});
-		candidate.impl_->retire_departed(id);
+		if (report.at("reason") == "ftl")
+			candidate.impl_->retire_departed(id);
 	}
 	candidate.impl_->index_contacts.run();
 	candidate.impl_->refresh_comms(false);

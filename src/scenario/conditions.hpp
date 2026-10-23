@@ -75,8 +75,10 @@ void compile_fact_bindings(const Json &source, ScenarioDefinition &out)
 			b.subject = actor(v.at("subject"));
 		if (b.kind == "entity")
 		{
-			require(b.field == "lifecycle" || b.field == "definition", "unknown entity fact");
-			b.type = state_tree::Type::Text;
+			require(b.field == "lifecycle" || b.field == "definition" || b.field == "owner_faction" ||
+			            b.field == "captured",
+			        "unknown entity fact");
+			b.type = b.field == "captured" ? state_tree::Type::Boolean : state_tree::Type::Text;
 		}
 		else if (b.kind == "clock")
 		{
@@ -112,7 +114,9 @@ void compile_fact_bindings(const Json &source, ScenarioDefinition &out)
 		}
 		else if (b.kind == "personnel")
 		{
-			require(b.field == "deployed" || b.field == "lost" || b.field == "recovered", "unknown personnel fact");
+			require(b.field == "deployed" || b.field == "lost" || b.field == "recovered" || b.field == "captured" ||
+			            b.field == "freed" || b.field == "prize_crew",
+			        "unknown personnel fact");
 			b.type = state_tree::Type::Integer;
 		}
 		else
@@ -123,9 +127,10 @@ void compile_fact_bindings(const Json &source, ScenarioDefinition &out)
 void compile_mission_reports(const Json &source, ScenarioDefinition &out)
 {
 	const std::set<std::string> kinds{
-	    "ftl.ready",           "away.deployed",    "away.work_completed", "away.completed",     "away.failed",
-	    "away.available",      "away.recovered",   "personnel.lost",      "entity.destroyed",   "entity.departed",
-	    "objective.completed", "objective.failed", "objective.active",    "objective.cancelled"};
+	    "ftl.ready",           "away.deployed",      "away.work_completed", "away.completed",      "away.failed",
+	    "away.available",      "away.recovered",     "personnel.lost",      "entity.destroyed",    "entity.departed",
+	    "objective.completed", "objective.failed",   "objective.active",    "objective.cancelled", "ship.claimed",
+	    "ship.taken",          "personnel.captured", "personnel.freed",     "prize.assigned"};
 	for (const auto &v : list(source, "event_bindings", 128))
 	{
 		ScenarioEventBinding b;

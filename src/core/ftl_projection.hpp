@@ -6,10 +6,11 @@ inline Json report(const Json &v)
 {
 	if (v.is_null())
 		return nullptr;
-	if (!v.is_object() || v.value("reason", "") != "ftl" || !v.at("objectives").is_array() ||
-	    v.at("objectives").size() > 256 || !v.at("left_behind").is_array() || v.at("left_behind").size() > 256)
+	if (!v.is_object() || (v.value("reason", "") != "ftl" && v.value("reason", "") != "destroyed") ||
+	    !v.at("objectives").is_array() || v.at("objectives").size() > 256 || !v.at("left_behind").is_array() ||
+	    v.at("left_behind").size() > 256)
 		throw std::runtime_error("Invalid mission departure report");
-	Json out{{"reason", "ftl"},
+	Json out{{"reason", v.at("reason")},
 	         {"tick", projection::number(v.at("tick"), 0, 9007199254740991LL)},
 	         {"objectives", Json::array()},
 	         {"left_behind", Json::array()}};
@@ -86,9 +87,12 @@ inline Json report(const Json &v)
 		for (const auto &p : v.at("personnel"))
 		{
 			const auto status = projection::text(p.at("status"), 32);
-			if (status != "lost" && status != "deployed" && status != "recovered" && status != "dead")
+			if (status != "lost" && status != "deployed" && status != "recovered" && status != "dead" &&
+			    status != "captured" && status != "freed" && status != "prize_crew")
 				throw std::runtime_error("Invalid debrief personnel");
 			out["personnel"].push_back({{"name", projection::text(p.at("name"), 256)}, {"status", status}});
+			if (p.contains("location"))
+				out["personnel"].back()["location"] = projection::text(p.at("location"), 256);
 		}
 		for (std::size_t i = 0; i < out["objectives"].size(); ++i)
 		{

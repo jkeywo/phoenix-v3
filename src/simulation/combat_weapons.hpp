@@ -335,6 +335,7 @@ void fire_weapons(flecs::entity ship)
 			auto bearing = combat_bearing(lead - origin);
 			if (d.get<WeaponDefinition>().family == "beam")
 			{
+				record_interdiction_attack(id, m->target());
 				fire_beam(ship, child, origin, bearing);
 				continue;
 			}
@@ -358,6 +359,7 @@ void fire_weapons(flecs::entity ship)
 			m->get<WeaponState>().cooldown =
 			    std::max<std::int64_t>(1, interval * 1000 / effective_property(ship, d.id, "cycling", 1000));
 			++m->get<WeaponState>().shots;
+			record_interdiction_attack(ship.get<StableId>().id, m->target());
 			psychic_weapon_emission(ship.get<StableId>().id);
 			auto &s = ship.get_mut<CombatStructure>();
 			s.random = s.random * 6364136223846793005ULL + 1;

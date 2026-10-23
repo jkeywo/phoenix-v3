@@ -48,7 +48,7 @@ state_tree::Registry away_registry(const Json &tree)
 	}
 	for (const auto &name :
 	     {"report", "checkpoint", "emit", "complete", "fail", "restore_compartment", "release_transport", "offer",
-	      "say", "mark", "pause", "log", "injure_duty", "kill_duty", "require_team"})
+	      "say", "mark", "pause", "log", "injure_duty", "kill_duty", "require_team", "claim"})
 		r.actions.push_back({name, 16, {Type::Text}, true});
 	r.actions.push_back({"work", 16, {Type::Integer}, true});
 	r.actions.push_back({"timed_work", 16, {Type::Integer}, true});
@@ -280,7 +280,8 @@ std::vector<AwayDefinition> compile_away(const Catalog &catalog, const Json &map
 								require(cp.prompts.contains(t.arguments[0].literal.text), "unknown away prompt");
 							if (p.registry.actions.at(t.target).name == "say")
 								require(cp.lines.contains(t.arguments[0].literal.text), "unknown away line");
-							if (p.registry.actions.at(t.target).name == "require_team")
+							if (p.registry.actions.at(t.target).name == "require_team" ||
+							    p.registry.actions.at(t.target).name == "claim")
 								require(std::any_of(p.registry.observations.begin(), p.registry.observations.end(),
 								                    [&](const auto &o)
 								                    {
@@ -436,8 +437,12 @@ std::vector<BoardingDefinition> compile_boarding(const Catalog &catalog, const s
 		}
 		for (const auto &[key, o] : j.at("objectives").items())
 		{
-			BoardingObjective v{o.at("compartment"), o.at("kind"), o.value("system", std::string{}),
-			                    o.value("fault", std::string{}), o.value("prize_crew", true)};
+			BoardingObjective v{o.at("compartment"),
+			                    o.at("kind"),
+			                    o.value("system", std::string{}),
+			                    o.value("fault", std::string{}),
+			                    o.value("prize_crew", true),
+			                    o.value("prize_capability", std::string{})};
 			fail(d.compartments.contains(v.compartment) &&
 			         (v.kind == "bridge" || v.kind == "hold" || v.kind == "sabotage"),
 			     "invalid objective");

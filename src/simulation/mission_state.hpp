@@ -1,6 +1,12 @@
 #pragma once
 namespace phoenix
 {
+struct PersonnelPosting
+{
+	EntityId target = 0;
+	std::string status;
+};
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PersonnelPosting, target, status)
 struct MissionTransition
 {
 	std::uint64_t id = 0, tick = 0;

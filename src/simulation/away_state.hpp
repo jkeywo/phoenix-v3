@@ -15,13 +15,15 @@ enum class AwayPhase
 	Deployed,
 	Inbound,
 	Recovered,
-	Lost
+	Lost,
+	Captured
 };
 inline constexpr std::array away_phases{
     std::pair{AwayPhase::Hidden, "hidden"},       std::pair{AwayPhase::Available, "available"},
     std::pair{AwayPhase::Open, "open"},           std::pair{AwayPhase::Outbound, "outbound"},
     std::pair{AwayPhase::Deployed, "deployed"},   std::pair{AwayPhase::Inbound, "inbound"},
-    std::pair{AwayPhase::Recovered, "recovered"}, std::pair{AwayPhase::Lost, "lost"}};
+    std::pair{AwayPhase::Recovered, "recovered"}, std::pair{AwayPhase::Lost, "lost"},
+    std::pair{AwayPhase::Captured, "captured"}};
 inline void to_json(Json &json, AwayPhase phase)
 {
 	for (const auto &[value, name] : away_phases)
@@ -90,7 +92,8 @@ struct AwayMission
 	}
 	bool absent() const
 	{
-		return deployed() || aboard_craft || (phase == AwayPhase::Lost && !assignments.empty());
+		return deployed() || aboard_craft || phase == AwayPhase::Captured ||
+		       (phase == AwayPhase::Lost && !assignments.empty());
 	}
 	state_tree::Instance continuation;
 	std::set<std::string> effects;

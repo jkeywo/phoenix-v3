@@ -90,6 +90,8 @@ bool dock_permitted(EntityId ship, std::size_t port, EntityId target, std::size_
 	if (a.compatibility != b.compatibility || !dock_port_working(ship, port) || !dock_port_working(target, remote))
 		return false;
 	const auto &s = entities.at(target).get<DockingState>().ports.at(remote);
+	if (interdiction_docking_permission(ship, target))
+		return true;
 	if (s.permitted.contains(ship))
 		return true;
 	if (s.accepting && s.supply)
@@ -118,6 +120,8 @@ bool dock_permitted(EntityId ship, std::size_t port, EntityId target, std::size_
 }
 bool dock_known(const ConsoleAddress &a, EntityId target) const
 {
+	if (interdiction_docking_permission(a.ship, target))
+		return true;
 	for (const auto &contact : capture_sensor_contacts(a))
 		if (contact.id == target)
 			return true;

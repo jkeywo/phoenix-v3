@@ -265,7 +265,8 @@ void prepare_navigation(Application &app, const ConsoleRegion &region, bool preg
 				line(localise(f.at("label")) + ": " + value);
 			}
 			for (const auto &p : report.at("personnel"))
-				line(localise(p.at("name")) + ": " + localise(p.at("status")));
+				line(localise(p.at("name")) + ": " + localise(p.at("status")) +
+				     (p.value("location", "").empty() ? "" : " — " + localise(p.at("location"))));
 		}
 		if (!report.is_null() && report.value("version", 1) == 1)
 			for (const auto &name : report.at("left_behind"))

@@ -579,6 +579,14 @@ void apply_structural_repair(CombatStructure &s, std::size_t index, std::int64_t
 	if (c.disabled && c.hp >= s.definition.compartments[index].recovery)
 		c.disabled = false;
 }
+void finish_fault_repair(CombatStructure &structure, const std::string &system, std::size_t index)
+{
+	if (structure.definition.faults.at(system).at(index).destroys)
+		return;
+	auto &fault = structure.faults.at(system).at(index);
+	fault.active = false;
+	fault.work = 0;
+}
 void step_repairs()
 {
 	if (duel_ended())
@@ -658,8 +666,7 @@ void step_repairs()
 					f.work += work;
 					if (f.work >= d.repair_work * rate * 1000)
 					{
-						f.active = false;
-						f.work = 0;
+						finish_fault_repair(s, task->first, task->second);
 					}
 				}
 				else if (candidate.score > 0)

@@ -47,11 +47,14 @@ std::map<std::string, std::string> personnel_dispositions(EntityId ship) const
 			if (m.absent())
 			{
 				for (const auto &[slot, asset] : m.assignments)
-					dispositions[asset] = "deployed";
+					dispositions[asset] = m.boarding.prize_crew ? "prize_crew" : "deployed";
 				for (const auto &officer : m.accompanying)
-					dispositions["officer:" + officer] = "deployed";
+					dispositions["officer:" + officer] = m.boarding.prize_crew ? "prize_crew" : "deployed";
 			}
 		}
+	if (personnel_postings.contains(ship))
+		for (const auto &[asset, posting] : personnel_postings.at(ship))
+			dispositions[asset] = posting.status;
 	// Loss is permanent and takes precedence over history or a current manifest.
 	if (auto lost = mission_ledger.lost.find(ship); lost != mission_ledger.lost.end())
 		for (const auto &asset : lost->second)
@@ -100,7 +103,13 @@ state_tree::Value mission_fact(ScenarioId instance_id, const ScenarioFactBinding
 		return latest ? Value::string(objective_status_name(latest->status)) : Value{};
 	}
 	if (b.kind == "entity")
+	{
+		if (b.field == "captured")
+			return Value::boolean(captured_by.contains(id));
+		if (b.field == "owner_faction")
+			return Value::string(entities.at(id).get<FactionMembership>().id);
 		return Value::string(b.field == "definition" ? entities.at(id).get<Definition>().name : lifecycle(id));
+	}
 	if (b.kind == "inventory")
 	{
 		const auto &d = definition(id).logistics;
@@ -215,6 +224,19 @@ void mission_change(const std::string &key, const std::string &value, const std:
 }
 void resolve_lost_parties()
 {
+	for (auto &[ship, postings] : personnel_postings)
+		for (auto it = postings.begin(); it != postings.end();)
+			if (truly_destroyed(it->second.target))
+			{
+				mission_ledger.lost[ship].insert(it->first);
+				detained_asset(ship, it->first, false);
+				if (it->first.starts_with("team:"))
+					away_equipment(ship, it->first.substr(5)).get_mut<CombatMechanism>().get<TeamState>().condition =
+					    "lost";
+				it = postings.erase(it);
+			}
+			else
+				++it;
 	for (std::size_t i = 0; i < away_missions.size(); ++i)
 	{
 		auto &m = away_missions[i];
@@ -228,7 +250,7 @@ void resolve_lost_parties()
 		    (m.phase == AwayPhase::Inbound && m.aboard_craft && !lost_transport) ||
 		    (!truly_destroyed(d.target) && !lost_transport))
 			continue;
-		if ((m.deployed() && truly_destroyed(d.target)) || lost_transport ||
+		if (((m.deployed() || m.phase == AwayPhase::Captured) && truly_destroyed(d.target)) || lost_transport ||
 		    (m.aboard_craft && transport && torpedo_launched(entities.at(transport)) && truly_destroyed(d.target)))
 		{
 			for (const auto &[slot, a] : m.assignments)
@@ -450,10 +472,33 @@ Json authoritative_report(EntityId ship, Json legacy) const
 			legacy["facts"].push_back({{"label", label}, {"value", value}});
 		}
 		for (const auto &[asset, disposition] : personnel_dispositions(ship))
-			legacy["personnel"].push_back({{"name", away_asset_label(ship, asset)}, {"status", disposition}});
+		{
+			Json row{{"name", away_asset_label(ship, asset)}, {"status", disposition}};
+			if (personnel_postings.contains(ship) && personnel_postings.at(ship).contains(asset))
+			{
+				const auto target = personnel_postings.at(ship).at(asset).target;
+				const auto participant = "ship:" + std::to_string(target);
+				row["location"] = conversations.participants.contains(participant)
+				                      ? conversations.participants.at(participant).name
+				                      : entities.at(target).get<Definition>().name;
+			}
+			legacy["personnel"].push_back(std::move(row));
+		}
 		return legacy;
 	}
 	return legacy;
+}
+void finalise_destroyed_missions()
+{
+	for (const auto &[slot, ship] : slot_entities)
+		if (truly_destroyed(ship) && !entities.at(ship).has<MissionDeparture>())
+		{
+			Json report{{"reason", "destroyed"},
+			            {"tick", ecs.get<Clock>().tick},
+			            {"objectives", Json::array()},
+			            {"left_behind", ftl_left_behind(ship)}};
+			entities.at(ship).set<MissionDeparture>({ftl_projection::report(authoritative_report(ship, report))});
+		}
 }
 
 void validate_mission_ledger() const
