@@ -6,6 +6,8 @@ The [system design](gameplay-engine-design.md) describes the finished architectu
 
 The [shield migration review](gameplay-engine-shield-review.md) compares that design with the current code and separates first-slice decisions from required integration work. Its recommendations remain proposals until resolved.
 
+The [shield implementation plan](shield-migration-plan.md) records the agreed first-slice contracts, staged changes and acceptance gates. Implementation has not started as part of this design work.
+
 ## Scope and replacement strategy
 
 Migrate existing gameplay in verified stages. Planned GDD systems inform extensibility but do not become additional implementation commitments in this overhaul. Remove each superseded runtime path when its replacement is usable; the final architecture has one gameplay model.
@@ -43,7 +45,7 @@ The coverage table in the system design is the inventory to reconcile against de
 
 ## Implementation contracts to specify
 
-The shield interview has settled lifetime versus operation, named independent contributions, funding/dependencies, control/visibility, the first live-modifier set and per-contribution hook scope. Hooks run only when damage reaches their layer. The remaining design choice before this slice is the first-slice pre-hook operation and secondary-reaction contract, including cancellation semantics, described in the review. The remaining items below are implementation specifications; they do not require reopening settled high-level choices.
+The shield interview has settled lifetime versus operation, named independent contributions, funding/dependencies, control/visibility, the first live-modifier set and damage hooks. Hooks run only when damage reaches their layer. First-slice pre-hooks change or negate assigned damage; secondary effects run as independently committed reactions and secondary damage uses a scheduled phase. The shield implementation plan covers these contracts. The remaining items below concern implementation specifications and later framework slices; they do not require reopening settled high-level choices or completing the entire framework before shields.
 
 The high-level design is settled sufficiently to describe the target system. These details belong in implementation specifications before the affected slice is built:
 

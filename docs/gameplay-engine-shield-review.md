@@ -72,7 +72,7 @@ For the smallest slice, freeze arc geometry, layer, reserve capacity, initial st
 
 **Agreed, 23 October 2026 — hook scope.** Shield hooks run per affected contribution and only when damage reaches its shield layer. Earlier protection stopping the hit prevents hooks on later layers. Native geometry, layering and sharing determine presented damage; pre-hooks precede absorption and post-hooks receive its actual outcome. Context retains original-hit and contribution identities. This is incorporated into the target design.
 
-**Decision still needed — first-slice hook operations.** Specify the permitted pre-hook operations, what cancellation means for the assigned damage and when secondary effects execute. The recommended first-slice contract lets pre-hooks change or negate the damage assigned to that contribution; negated damage is removed, not passed onward as bypass. Secondary effects execute as separate reactions after the native operation, with secondary damage queued for the documented reaction phase rather than recursively resolving inside the active hit. Reactions retain independent cost/failure semantics. This is a proposed first-slice limit on the broader target design's pre-hook operation vocabulary. If arbitrary pre-hook operations are required immediately, their validation, cost reservation and commit boundaries must be specified before implementation.
+**Agreed, 23 October 2026 — first-slice hook operations.** Pre-hooks can change or negate the damage assigned to that contribution. Negated damage is removed, not passed onward as bypass. Secondary effects execute as separate reactions after the native operation, with secondary damage queued for the documented reaction phase rather than recursively resolving inside the active hit. Reactions retain independent cost/failure semantics. This is a first-slice limit on the broader target design's pre-hook operation vocabulary. The [implementation plan](shield-migration-plan.md) carries the agreed contracts into staged work.
 
 ## Required integration work, not additional gameplay decisions
 
@@ -125,6 +125,6 @@ Select cases appropriate to the agreed first-slice scope. Continue production co
 
 ## Recommended starting boundary
 
-Resolve the six contracts above, then implement only the catalogue/runtime support required by a native shield grant and its minimal apply/remove route. Preserve current resource allocation through an equipment adapter, migrate all shield readers, and prove an explicitly cost-free independent source. Carry unrelated systems through their existing paths until their own migration slices.
+The six contracts above are now resolved. Implement only the catalogue/runtime support required by a native shield grant and its minimal apply/remove route, following the linked implementation plan. Preserve current resource allocation through an equipment adapter, migrate all shield readers, and prove an explicitly cost-free independent source. Carry unrelated systems through their existing paths until their own migration slices.
 
 The resources/recipes overhaul, paid arbitrary-source consumers, full generic expression vocabulary and all compartment/System hooks need not precede this slice. Their interfaces must remain compatible with the target design, and unsupported first-slice cases must be rejected explicitly rather than appearing to work.

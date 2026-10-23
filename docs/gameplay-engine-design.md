@@ -222,6 +222,8 @@ Pre-damage effects can modify or explicitly cancel the pending hit and perform s
 
 Shield hooks run per affected contribution, and only when damage reaches its shield layer. Contributions in later layers receive no hooks when earlier protection has already stopped the damage. Native arc, layer and sharing rules determine the damage presented to each contribution; its pre-hooks run before absorption and its post-hooks receive the actual absorption, remaining damage and resulting shield state. Hook context identifies both the original hit and the affected contribution.
 
+The first shield migration restricts pre-hooks to changing or negating the damage assigned to that contribution. Negated damage is removed; it does not bypass the shield or continue to later layers. Secondary effects execute as separate reactions after the native damage operation. Secondary damage enters a scheduled reaction phase rather than recursively resolving inside the current hit. Each reaction commits its own costs and required effects; its failure leaves the original damage result intact. This delivery scope is detailed in the [shield implementation plan](shield-migration-plan.md); broader supported pre-hook operations remain part of the target framework.
+
 These are extension points around the physical damage mechanisms. The framework does not require every part of penetration, shield absorption or fault selection to be expressed as generic authored rules.
 
 ## Resources, stores and recipes
