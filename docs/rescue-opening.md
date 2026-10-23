@@ -10,13 +10,15 @@ The Courier carries 100 units of routine station supplies. Helm approaches Cairn
 
 The Cruiser carries 100 units of perishable essentials. Tactical authorises a utility shuttle's cargo use; Engineering orders the delivery in **Stores and deliveries**. One shuttle holds the entire consignment. The Cruiser can divert while the shuttle works, or Helm can dock the Cruiser and Engineering can unload directly. No shuttle launches automatically.
 
+This mission's Cruiser fit also carries expanded, finite repair-team kits for detached work. Each kit starts with 2,000 parts; the ordinary Cruiser's smaller kits and other scenarios are unchanged. Deployed teams consume their carried parts and cannot refill from the parent ship while away.
+
 Only physical cargo in Receiving counts. Dispatch, docking, proximity and return flight do not award delivery credit. A partial transfer remains physical progress. Full receipt fixes the grade on that simulation tick:
 
-| Cruiser receipt time from arrival | Delivery grade |
-| --- | --- |
-| Through 10 minutes | Prompt, full credit |
-| After 10 through 20 minutes | Late, reduced credit |
-| After 20 minutes | Expired, no delivery credit |
+| Cruiser receipt time from arrival | Delivery grade              |
+| --------------------------------- | --------------------------- |
+| Through 10 minutes                | Prompt, full credit         |
+| After 10 through 20 minutes       | Late, reduced credit        |
+| After 20 minutes                  | Expired, no delivery credit |
 
 Outstanding Cruiser deliveries receive station reminders at 5, 8, 15 and 18 minutes. Completion is acknowledged; expiry is announced. Queued obsolete calls are cancelled when either terminal result occurs. Expired essentials remain in the physical inventory and can still be transferred.
 
@@ -37,3 +39,5 @@ The station approach region is authored at half the initial player-to-station di
 Synthetic production-loader fixtures cover swept approach crossings, exclusion of other entities, receipt and partial unloading, deadline boundaries, expiry, latched completion, independent rescue/delivery grades, and saved continuation. Conversation checks cover cancellation while Comms delivery is delayed. Native/WASM mission, cargo and conversation traces match exactly. Launcher and native/remote lobby checks cover briefing propagation.
 
 The explicitly invoked graphical walkthrough is `phoenix_mission_smoke <pack-directory> delivery-courier` or `delivery-cruiser`. It uses ordinary Helm, Tactical, Engineering, Comms and transport commands and the real Console renderer. Browser builds accept `?mode=delivery-courier` or `?mode=delivery-cruiser` on `phoenix_mission_smoke.html`. Graphical evidence is recorded separately in the smoke receipt; successful automated checks alone do not establish graphical acceptance.
+
+`preview-cruiser` renders only the opening consoles, planet/station view and star view. Native full journeys write an arrival checkpoint before repair deployment; pass that archive as the optional third argument to exercise ordinary saved continuation. Browser capture occurs before yielding the WebGL drawing buffer.

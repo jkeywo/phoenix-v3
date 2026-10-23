@@ -31492,13 +31492,13 @@
 						"system": "repair-1",
 						"controller": "repair-1",
 						"compartment": "engineering",
-						"capacity": 24,
+						"capacity": 2000,
 						"accepts": ["parts"],
 						"initial": {
-							"parts": 24
+							"parts": 2000
 						},
 						"targets": {
-							"parts": 24
+							"parts": 2000
 						}
 					},
 					{
@@ -31506,13 +31506,13 @@
 						"system": "repair-2",
 						"controller": "repair-2",
 						"compartment": "engineering",
-						"capacity": 24,
+						"capacity": 2000,
 						"accepts": ["parts"],
 						"initial": {
-							"parts": 24
+							"parts": 2000
 						},
 						"targets": {
-							"parts": 24
+							"parts": 2000
 						}
 					},
 					{
@@ -31520,13 +31520,13 @@
 						"system": "repair-3",
 						"controller": "repair-3",
 						"compartment": "engineering",
-						"capacity": 24,
+						"capacity": 2000,
 						"accepts": ["parts"],
 						"initial": {
-							"parts": 24
+							"parts": 2000
 						},
 						"targets": {
-							"parts": 24
+							"parts": 2000
 						}
 					},
 					{
@@ -31534,13 +31534,13 @@
 						"system": "repair-4",
 						"controller": "repair-4",
 						"compartment": "engineering",
-						"capacity": 24,
+						"capacity": 2000,
 						"accepts": ["parts"],
 						"initial": {
-							"parts": 24
+							"parts": 2000
 						},
 						"targets": {
-							"parts": 24
+							"parts": 2000
 						}
 					},
 					{
