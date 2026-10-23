@@ -293,6 +293,14 @@ int main()
 			    decode_asset_image(invalid_pixels);
 		    },
 		    "dimensions");
+		rejected(
+		    [&]
+		    {
+			    PackDraft invalid{compiled_pack.manifest(), compiled_pack.files()};
+			    invalid.files["assets/pixel.png"] = invalid_pixels;
+			    write_pack(invalid, PackEncoding::Dat);
+		    },
+		    "dimensions");
 		{
 			const auto directory = std::filesystem::temp_directory_path() / "phoenix-content-source-loading-fixture";
 			std::filesystem::create_directories(directory / "assets");

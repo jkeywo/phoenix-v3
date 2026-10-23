@@ -10,6 +10,14 @@ The production root retains ships and Rescue under threat. Test Missions is a di
 - Three real loopback pre-game/client journeys passed with valid, missing and corrupt published ship DATs (`build/staged-packs-network3.log`, 150.39 seconds total). They exercise authenticated lobby launch, downloaded/cached content, host fallback and Console changes. The sandboxed loopback attempt could not complete its handshake; the normal local execution passed.
 - Production packaging verified the root and dependent child, and deployment validation passed on `build/staged-deployment-final`. The root menu exposes only Rescue; the child exposes seven missions. Deployment checks archive/metadata/DAT hashes and exact source identities and excludes independent development roots.
 
+## Review follow-up verification
+
+The packaging path now constructs the final whole-ship draft before writing its DAT. DAT exports validate and retain compiled image records; editable ZIP exports still restore PNGs. Native and WASM content checks passed, including exact decoded pixels, preserved compiled bytes and rejection of corrupt compiled dimensions (`build/review-validation-native.log`, `build/review-validation-web.log`).
+
+Running hosts share the existing immutable `PackSource` and descriptor across crew using the same ship. The cache is scoped to the current world and cleared through content refresh and session reset. Native and WASM transfer checks and the WASM fleet setup check passed. WASM client, host and lobby libraries compiled successfully (`build/review-host-web.log`, `build/review-handoff-web.log`).
+
+Failed published-download descriptors now travel through the existing lobby-to-client `NetworkOptions`. Cache lookup remains first; an exact failed descriptor falls back to authenticated host transfer, while changed descriptors remain eligible for download. All three real loopback journeys passed with valid, missing and corrupt sidecars, including a regression that supplies an already-failed descriptor, requires a playable client and asserts zero repeated HTTP requests (`build/review-handoff-journeys.log`, three cases, 143.83 seconds total). All 27 launcher tests and formatting checks on changed files passed. These are automated checks; no new graphical or physical-device smoke run was performed for this follow-up.
+
 ## Manually triggered evidence
 
 Windows native, one 1280 × 720 window: `native.exe --local-only --capture-frames 1200 --data build/staged-smoke-native-long` reported the first menu frame at **0.941055 seconds** and verified content at **12.1146 seconds**. The window remained in the menu while verification completed (`build/staged-packs-native-smoke-long.log`). A separately copied root archive without any companions also opened successfully through the full-loader fallback (`build/staged-packs-native-missing.log`).
