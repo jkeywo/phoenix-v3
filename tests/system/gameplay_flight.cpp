@@ -234,6 +234,92 @@ Json targeted_fixture()
 	systems["side"]["lateral_direction"] = "port";
 	return source;
 }
+void zero_propulsion_modifier()
+{
+	auto source = targeted_fixture();
+	source["effects"] = Json::parse(R"json([{"id":"test.engine-stop","kind":"modifier","duration_ticks":3,
+      "contributions":{"stop":{"property":"propulsion","delta_permille":-1000}}}])json");
+	source["maps"][0]["scenario"] = {{"tree", "test.engine-stop-tree"}, {"bindings", {{"actor", {{"entity", 1}}}}}};
+	source["trees"] =
+	    Json::array({Json::parse(R"json({"id":"test.engine-stop-tree","context":"scenario","initial":"stop",
+      "states":[{"id":"stop","entry":[{"action":"apply_modifier_effect","arguments":[{"observation":"self.entity"},"drive","test.engine-stop","stop"]}]}]})json")});
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	claim(world);
+	command(world, "speed_mm_s", 10000, "drive");
+	for (int i = 0; i < 3; ++i)
+		world.tick();
+	require(body(world).vx == 0, "zero propulsion pauses acceleration without a launch-curve minimum leak");
+	World resumed;
+	resumed.restore(catalog, world.save());
+	world.tick();
+	resumed.tick();
+	require(body(world).vx > 0 && world.save() == resumed.save(),
+	        "expired propulsion modifier restores actual motion with deterministic continuation");
+}
+void bounded_propulsion_modifier()
+{
+	auto source = fixture();
+	source["maps"][0]["entities"].erase(1);
+	source["entities"][0]["systems"]["drive"]["max_speed_mm_s"] = 1000000000;
+	source["entities"][0]["systems"]["drive"]["acceleration_mm_s2"] = 1000000000;
+	const auto ordinary_catalog = load(source);
+	source["effects"] = Json::parse(R"json([{"id":"test.engine-upper-bound","kind":"modifier",
+      "contributions":{"acceleration":{"property":"propulsion","delta_permille":100000},
+                       "speed":{"property":"speed","delta_permille":100000}}}])json");
+	source["maps"][0]["scenario"] = {{"tree", "test.engine-bound-tree"}, {"bindings", {{"actor", {{"entity", 1}}}}}};
+	source["trees"] =
+	    Json::array({Json::parse(R"json({"id":"test.engine-bound-tree","context":"scenario","initial":"apply",
+      "states":[{"id":"apply","entry":[{"action":"apply_modifier_effect","arguments":[{"observation":"self.entity"},"drive","test.engine-upper-bound","large"]}]}]})json")});
+	World ordinary, modified;
+	ordinary.load(ordinary_catalog, "test.map");
+	modified.load(load(source), "test.map");
+	for (auto *world : {&ordinary, &modified})
+	{
+		claim(*world);
+		command(*world, "speed_mm_s", 1000000000, "drive");
+		world->tick();
+	}
+	require(body(modified).vx > 0 && body(modified).vx == body(ordinary).vx && body(modified).x == body(ordinary).x,
+	        "large property bonuses saturate at native physical rate bounds before flight arithmetic");
+}
+void speed_modifier_funding()
+{
+	for (const int reserve : {0, 1})
+	{
+		auto source = targeted_fixture();
+		source["maps"][0]["entities"].erase(1);
+		source["entities"][0]["resources"]["stores"][0]["initial"] = reserve;
+		for (auto &spec : source["entities"][0]["systems"])
+			if (spec.contains("power_store"))
+				spec["powerless_start"] = true;
+		source["effects"] = Json::parse(R"json([{"id":"test.cruise-speed","kind":"modifier","duration_ticks":5,
+          "contributions":{"speed":{"property":"speed","delta_permille":1000}}}])json");
+		source["maps"][0]["scenario"] = {{"tree", "test.cruise-tree"}, {"bindings", {{"actor", {{"entity", 1}}}}}};
+		source["trees"] =
+		    Json::array({Json::parse(R"json({"id":"test.cruise-tree","context":"scenario","initial":"apply",
+          "states":[{"id":"apply","entry":[{"action":"apply_modifier_effect","arguments":[{"observation":"self.entity"},"drive","test.cruise-speed","speed"]}]}]})json")});
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map");
+		auto cruising = world.save();
+		cruising["bodies"][0]["body"]["velocity"]["x"] = 10000;
+		world.restore(catalog, cruising);
+		claim(world);
+		command(world, "speed_mm_s", 10000, "drive");
+		world.tick();
+		require(telemetry(world, "drive", "supply_permille") == (reserve ? 100 : 0) &&
+		            telemetry(world, "drive", "stored_energy") == 0,
+		        "speed modifier quotes its new cruise demand before allocating scarce energy");
+		require(reserve ? body(world).vx > 10000 : body(world).vx == 10000,
+		        "only funded movement accelerates beyond the old authored cruise cap");
+		const auto exhausted_velocity = body(world).vx;
+		world.tick();
+		require(body(world).vx == exhausted_velocity,
+		        "exhausted speed modifier cannot obtain free acceleration from an old zero-duty quote");
+	}
+}
 void targeted_modifiers()
 {
 	const auto catalog = load(targeted_fixture());
@@ -327,11 +413,13 @@ void targeted_modifiers()
 		refused = true;
 	}
 	require(refused, "minimum starting reserve must fit the connected local battery");
-	// Both fittings spend their own energy; only the strongest paid effect wins.
+	// Both fittings spend their own energy and their paid percentage deltas add.
 	auto stacked_source = targeted_fixture(), strongest_source = targeted_fixture();
 	for (auto &binding : strongest_source["entities"][0]["systems"]["boost"]["targets"])
 		binding["multiplier_permille"] = 3000;
 	stacked_source["entities"][0]["systems"]["boost2"] = strongest_source["entities"][0]["systems"]["boost"];
+	for (auto &binding : strongest_source["entities"][0]["systems"]["boost"]["targets"])
+		binding["multiplier_permille"] = 4000;
 	stacked_source["entities"][0]["stations"][0]["consoles"][0]["systems"].push_back("boost2");
 	World stacked, strongest;
 	stacked.load(load(stacked_source), "test.map");
@@ -347,7 +435,7 @@ void targeted_modifiers()
 	stacked.tick();
 	strongest.tick();
 	require(body(stacked).vx == body(strongest).vx,
-	        "multiple paid boosts use the strongest property bonus without multiplying");
+	        "multiple paid boosts add +100% and +200% to match one +300% modifier");
 	auto limited_source = targeted_fixture();
 	limited_source["entities"][0]["resources"]["stores"][0]["initial"] = 15;
 	World limited;
@@ -1657,6 +1745,9 @@ int main()
 		launch_curve_and_linear_braking();
 		manual_and_conservation();
 		boost_and_impulse();
+		zero_propulsion_modifier();
+		bounded_propulsion_modifier();
+		speed_modifier_funding();
 		targeted_modifiers();
 		impulse_interruptions();
 		paid_overdrive();

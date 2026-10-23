@@ -7902,9 +7902,7 @@
 					{
 						"id": "repair",
 						"label": "Repair expertise",
-						"bonuses": {
-							"repair": 100
-						}
+						"effects": ["test.modifier.repair.p100"]
 					}
 				],
 				"duties": [
@@ -7915,7 +7913,7 @@
 						"console": "helm",
 						"department": "navigation",
 						"compartment": "hull",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors",
@@ -7924,7 +7922,7 @@
 						"console": "helm",
 						"department": "navigation",
 						"compartment": "hull",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "radio",
@@ -7933,7 +7931,7 @@
 						"console": "helm",
 						"department": "navigation",
 						"compartment": "hull",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "dispatch",
@@ -7942,7 +7940,7 @@
 						"console": "helm",
 						"department": "navigation",
 						"compartment": "hull",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "flight-operations",
@@ -7951,7 +7949,7 @@
 						"console": "helm",
 						"department": "navigation",
 						"compartment": "hull",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "team",
@@ -7960,7 +7958,7 @@
 						"console": "support",
 						"department": "engineering",
 						"compartment": "hull",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "supplies",
@@ -7969,7 +7967,7 @@
 						"console": "support",
 						"department": "engineering",
 						"compartment": "hull",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "departure",
@@ -7978,7 +7976,7 @@
 						"console": "helm",
 						"department": "navigation",
 						"compartment": "hull",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "repair-team",
@@ -7986,7 +7984,7 @@
 						"team": "team",
 						"department": "engineering",
 						"compartment": "hull",
-						"effects": {
+						"bindings": {
 							"team": ["repair"]
 						}
 					}
@@ -8896,9 +8894,7 @@
 					{
 						"id": "repair",
 						"label": "Repair expertise",
-						"bonuses": {
-							"repair": 100
-						}
+						"effects": ["test.modifier.repair.p100"]
 					}
 				],
 				"duties": [
@@ -8909,7 +8905,7 @@
 						"console": "helm",
 						"department": "navigation",
 						"compartment": "hull",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors",
@@ -8918,7 +8914,7 @@
 						"console": "helm",
 						"department": "navigation",
 						"compartment": "hull",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "radio",
@@ -8927,7 +8923,7 @@
 						"console": "helm",
 						"department": "navigation",
 						"compartment": "hull",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "dispatch",
@@ -8936,7 +8932,7 @@
 						"console": "helm",
 						"department": "navigation",
 						"compartment": "hull",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "flight-operations",
@@ -8945,7 +8941,7 @@
 						"console": "helm",
 						"department": "navigation",
 						"compartment": "hull",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "team",
@@ -8954,7 +8950,7 @@
 						"console": "support",
 						"department": "engineering",
 						"compartment": "hull",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "supplies",
@@ -8963,7 +8959,7 @@
 						"console": "support",
 						"department": "engineering",
 						"compartment": "hull",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "departure",
@@ -8972,7 +8968,7 @@
 						"console": "helm",
 						"department": "navigation",
 						"compartment": "hull",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "repair-team",
@@ -8980,7 +8976,7 @@
 						"team": "team",
 						"department": "engineering",
 						"compartment": "hull",
-						"effects": {
+						"bindings": {
 							"team": ["repair"]
 						}
 					},
@@ -8990,7 +8986,7 @@
 						"team": "medical",
 						"department": "engineering",
 						"compartment": "hull",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "medical-controller",
@@ -8999,7 +8995,7 @@
 						"console": "support",
 						"department": "engineering",
 						"compartment": "hull",
-						"effects": {}
+						"bindings": {}
 					}
 				],
 				"officers": [
@@ -20569,6 +20565,18 @@
 				}
 			},
 			"parameters": {}
+		}
+	],
+	"effects": [
+		{
+			"id": "test.modifier.repair.p100",
+			"kind": "modifier",
+			"contributions": {
+				"main": {
+					"property": "repair",
+					"delta_permille": 100
+				}
+			}
 		}
 	]
 }

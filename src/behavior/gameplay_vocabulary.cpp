@@ -500,6 +500,21 @@ const std::vector<ActionDefinition> &action_definitions()
 	     "remove_shield_effect",
 	     scenario_context,
 	     {{"ship", Type::Entity}, {"grant", Type::Text}},
+	     true},
+	    {GameplayTreeAction::ApplyModifierEffect,
+	     "apply_modifier_effect",
+	     scenario_context,
+	     {{"ship", Type::Entity}, {"equipment", Type::Text}, {"definition", Type::Text}, {"grant", Type::Text}},
+	     true},
+	    {GameplayTreeAction::RefreshModifierEffect,
+	     "refresh_modifier_effect",
+	     scenario_context,
+	     {{"ship", Type::Entity}, {"equipment", Type::Text}, {"grant", Type::Text}},
+	     true},
+	    {GameplayTreeAction::RemoveModifierEffect,
+	     "remove_modifier_effect",
+	     scenario_context,
+	     {{"ship", Type::Entity}, {"equipment", Type::Text}, {"grant", Type::Text}},
 	     true}};
 	return result;
 }

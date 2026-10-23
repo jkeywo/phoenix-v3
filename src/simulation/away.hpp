@@ -174,7 +174,7 @@ bool away_asset_healthy(EntityId ship, const std::string &asset) const
 	if (asset.starts_with("team:"))
 	{
 		const auto team = away_equipment(ship, asset.substr(5));
-		if (!team || !team_effectiveness(team.get<CombatMechanism>()))
+		if (!team || !team_available(team.get<CombatMechanism>()))
 			return false;
 	}
 	if (asset.starts_with("team:"))
@@ -721,7 +721,6 @@ bool away_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 						ps.officers[i].duty.clear();
 						ps.officers[i].present = false;
 					}
-			refresh_personnel_bonuses(ps, pd);
 			++ps.revision;
 			++m.revision;
 			if (!assisted)
@@ -896,7 +895,7 @@ void advance_away()
 			if (m.deployed() && work_ready && m.work > 0 && !m.timed_work)
 			{
 				std::vector<flecs::entity> teams;
-				std::int64_t specialist_bonus = 0, officer_work = 0;
+				std::int64_t officer_work = 0;
 				for (const auto &[slot, asset] : m.assignments)
 					if (asset.starts_with("team:"))
 					{
@@ -911,12 +910,10 @@ void advance_away()
 							    officer_healthy(entities.at(ship).get<PersonnelState>().officers.at(
 							        &officer - definition(ship).personnel.officers.data())))
 							{
-								const auto bonus =
-								    officer.bonuses.contains("repair") ? officer.bonuses.at("repair") : 0;
-								specialist_bonus += bonus;
-								officer_work += personnel_scale(1000, bonus);
+								officer_work += effective_property(
+								    entities.at(ship), "away:" + d.id + ":officer:" + officer.id, "repair", 1000);
 							}
-				const auto effort = structural_repair_work(entities.at(ship), teams, specialist_bonus);
+				const auto effort = structural_repair_work(entities.at(ship), teams);
 				// Standalone officers can perform generic work, but structural repair needs a team.
 				const auto progress = teams.empty() ? officer_work : effort / rate;
 				m.progress = std::min(m.work, m.progress + progress);

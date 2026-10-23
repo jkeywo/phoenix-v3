@@ -8,9 +8,9 @@ std::string personnel_markup(Application &app)
 	{
 		return Rml::StringUtilities::EncodeRml(s);
 	};
-	auto paragraph = [&](const std::string &text)
+	auto paragraph = [&](const std::string &text, const std::string &identity)
 	{
-		const auto key = id("personnel/readout/" + std::to_string(personnel_readouts_.size()));
+		const auto key = id("personnel/readout/" + identity);
 		personnel_readouts_.emplace_back(key, text);
 		return "<p id=\"" + key + "\">" + esc(text) + "</p>";
 	};
@@ -55,9 +55,11 @@ std::string personnel_markup(Application &app)
 				for (const auto &t : o.at("traits"))
 				{
 					std::string description = localise(t.at("label"));
-					for (const auto &[slot, b] : t.at("bonuses").items())
-						description += " / " + localise(slot) + " " + std::to_string(b.get<std::int64_t>() / 10) + "%";
-					html += paragraph(description);
+					for (const auto &c : t.at("contributions"))
+						description += " / " + localise(c.at("property")) + " " +
+						               std::to_string(c.at("delta_permille").get<std::int64_t>() / 10) + "%";
+					html += paragraph(description, "officer/" + o.at("id").get<std::string>() + "/trait/" +
+					                                   t.at("id").get<std::string>());
 				}
 				html += "</div>";
 			}
@@ -74,10 +76,14 @@ std::string personnel_markup(Application &app)
 					}
 				if (!occupied)
 					label += " - " + localise("No officer");
-				html += paragraph(label);
+				html += paragraph(label, "duty/" + d.at("id").get<std::string>());
 				for (const auto &effect : d.at("effects"))
-					html += paragraph(effect.at("system").get<std::string>() + ": " + localise(effect.at("slot")) +
-					                  " " + std::to_string(effect.at("multiplier").get<std::int64_t>() / 10) + "%");
+					html += paragraph(effect.at("system").get<std::string>() + ": " + localise(effect.at("property")) +
+					                      " " + std::to_string(effect.at("multiplier").get<std::int64_t>() / 10) + "%",
+					                  "duty/" + d.at("id").get<std::string>() + "/effect/" +
+					                      effect.at("system").get<std::string>() + "/" +
+					                      effect.at("slot").get<std::string>() + "/" +
+					                      effect.at("property").get<std::string>());
 				if (board.value("manual", true) && selected &&
 				    (selected->at("condition") == "healthy" || selected->at("condition") == "minor") &&
 				    selected->at("duty") != d.at("id"))
@@ -87,11 +93,14 @@ std::string personnel_markup(Application &app)
 						for (const auto &effect : d.at("effects"))
 						{
 							const auto slot = effect.at("slot").get<std::string>();
-							if (t.at("bonuses").contains(slot))
-								applicable += localise(t.at("label")) + ": " + localise(slot) + " " +
-								              std::to_string(t.at("bonuses").at(slot).get<std::int64_t>() / 10) + "%; ";
+							for (const auto &c : t.at("contributions"))
+								if (c.at("role") == slot && c.at("property") == effect.at("property"))
+									applicable += localise(t.at("label")) + ": " + localise(c.at("property")) + " " +
+									              std::to_string(c.at("delta_permille").get<std::int64_t>() / 10) +
+									              "%; ";
 						}
-					html += paragraph(applicable.empty() ? localise("No applicable bonus") : applicable);
+					html += paragraph(applicable.empty() ? localise("No applicable bonus") : applicable,
+					                  "duty/" + d.at("id").get<std::string>() + "/applicable");
 					html += settings_button("personnel/assign/" + d.at("id").get<std::string>(),
 					                        localise("Assign") + " " + selected->at("name").get<std::string>() +
 					                            (occupied ? " (" + localise("relieve current officer") + ")" : ""));

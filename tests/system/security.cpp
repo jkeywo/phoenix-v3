@@ -7,6 +7,7 @@ import phoenix.simulation;
 import phoenix.session.execution;
 using namespace phoenix;
 using namespace phoenix::test;
+#include "../../src/core/away_projection.hpp"
 namespace
 {
 Json &body(Json &save, EntityId id)
@@ -607,6 +608,70 @@ void encounter_outcomes(Json &trace)
 		trace.push_back(w.save());
 	}
 }
+void high_security_properties(Json &trace)
+{
+	auto fixture = boarding_mission_fixture();
+	Json contributions = Json::object();
+	for (int i = 0; i < 64; ++i)
+		contributions["training-" + std::to_string(i)] = {{"property", "security"}, {"delta_permille", 100000}};
+	fixture["effects"] =
+	    Json::array({{{"id", "test.high-security"}, {"kind", "modifier"}, {"contributions", contributions}}});
+	for (auto &ship : fixture["entities"])
+	{
+		ship["personnel"]["traits"].push_back(
+		    {{"id", "security-expert"}, {"label", "Security expert"}, {"effects", {"test.high-security"}}});
+		for (auto &duty : ship["personnel"]["duties"])
+			if (duty["id"] == "team-security")
+				duty["effects"] = {{"security", {"security"}}};
+		ship["personnel"]["officers"].push_back({{"id", "security-leader"},
+		                                         {"name", "Security leader"},
+		                                         {"department", "engineering"},
+		                                         {"duty", "team-security"},
+		                                         {"compartment", "workshop"},
+		                                         {"traits", {"security-expert"}}});
+	}
+	auto &encounter = fixture["entities"][1]["boarding_missions"][0]["encounters"][0];
+	encounter["team_bonus_permille"] = 1000;
+	encounter["defender_penalty_permille"] = 1000;
+	encounter["assessment_ticks"] = 100;
+	const auto catalog = load(fixture);
+	World world;
+	world.load(catalog, "test.map", {{"crew", "test.away"}});
+	require(world.claim(101, 2, "drive") && world.claim(102, 2, "observer"), "claim high security fixture");
+	ticks(world, 5);
+	require(world.submit(101, mission_command(world, "open")), "open high security boarding");
+	world.tick();
+	require(world.submit(102, mission_command(world, "assign", "security/team:security", 102, "security")),
+	        "assign high security team and accompanying source");
+	world.tick();
+	require(world.submit(101, mission_command(world, "transport", "transport", 101, "transport")),
+	        "bind high security transport");
+	ticks(world, 7);
+	require(world.submit(101, mission_command(world, "send")), "send high security boarding party");
+	bool observed = false;
+	for (int i = 0; i < 60 && !observed; ++i)
+	{
+		world.tick();
+		const auto rows = world.observe(101)->gameplay.at("away_missions");
+		for (const auto &row : rows)
+			if (row.contains("boarding_check"))
+			{
+				const auto &factors = row.at("boarding_check").at("factors");
+				require(factors.at("Security support") == 6400000 && factors.at("Defending teams") == -6401000,
+				        "physical security effects produce large signed assessment factors");
+				require(away_projection::board(rows) == rows,
+				        "large signed boarding factors survive the permitted network projection");
+				observed = true;
+			}
+	}
+	require(observed, "high security assessment reaches the authorised Console");
+	World resumed;
+	resumed.restore(catalog, world.save());
+	ticks(world, 4);
+	ticks(resumed, 4);
+	require(world.save() == resumed.save(), "large signed boarding factors restore and continue exactly");
+	trace.push_back(world.save());
+}
 void boarding_mission_regression(Json &trace)
 {
 	for (bool medical : {false, true})
@@ -693,6 +758,7 @@ int main(int argc, char **argv)
 	try
 	{
 		Json trace = Json::array();
+		high_security_properties(trace);
 		boarding_mission_regression(trace);
 		bay_boarding_regression(trace);
 		craft_regression(trace);

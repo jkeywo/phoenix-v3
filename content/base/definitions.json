@@ -507,58 +507,42 @@
 					{
 						"id": "propulsion",
 						"label": "Drive specialist",
-						"bonuses": {
-							"propulsion": 200
-						}
+						"effects": ["base.modifier.propulsion.p200"]
 					},
 					{
 						"id": "sensors",
 						"label": "Keen observer",
-						"bonuses": {
-							"sensors": 200
-						}
+						"effects": ["base.modifier.sensors.p200"]
 					},
 					{
 						"id": "cycling",
 						"label": "Gunnery drill",
-						"bonuses": {
-							"cycling": 150
-						}
+						"effects": ["base.modifier.cycling.p150"]
 					},
 					{
 						"id": "traverse",
 						"label": "Steady tracking",
-						"bonuses": {
-							"traverse": 200
-						}
+						"effects": ["base.modifier.traverse.p200"]
 					},
 					{
 						"id": "reload",
 						"label": "Magazine discipline",
-						"bonuses": {
-							"reload": 150
-						}
+						"effects": ["base.modifier.reload.p150"]
 					},
 					{
 						"id": "recharge",
 						"label": "Field specialist",
-						"bonuses": {
-							"recharge": 200
-						}
+						"effects": ["base.modifier.recharge.p200"]
 					},
 					{
 						"id": "repair",
 						"label": "Damage control veteran",
-						"bonuses": {
-							"repair": 200
-						}
+						"effects": ["base.modifier.repair.p200"]
 					},
 					{
 						"id": "comms",
 						"label": "Signal clarity",
-						"bonuses": {
-							"comms": 200
-						}
+						"effects": ["base.modifier.comms.p200"]
 					}
 				],
 				"duties": [
@@ -568,7 +552,7 @@
 						"department": "sailing",
 						"controller": "navigation",
 						"compartment": "bridge",
-						"effects": {
+						"bindings": {
 							"engine": ["propulsion"]
 						}
 					},
@@ -578,7 +562,7 @@
 						"department": "sciences",
 						"controller": "sensors",
 						"compartment": "bridge",
-						"effects": {
+						"bindings": {
 							"radar": ["sensors"]
 						}
 					},
@@ -588,7 +572,7 @@
 						"department": "passage",
 						"controller": "ftl.drive",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "ftl.supply",
@@ -596,7 +580,7 @@
 						"department": "passage",
 						"controller": "ftl.supply",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "ftl.cooling",
@@ -604,7 +588,7 @@
 						"department": "passage",
 						"controller": "ftl.cooling",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "passage-power.reactor",
@@ -612,7 +596,7 @@
 						"department": "passage",
 						"controller": "passage-power.reactor",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					}
 				],
 				"officers": [
@@ -2321,7 +2305,7 @@
 						"department": "engineering",
 						"controller": "core.distribution.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.distribution",
@@ -2329,7 +2313,7 @@
 						"department": "engineering",
 						"controller": "core.distribution",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.generator.orders",
@@ -2337,7 +2321,7 @@
 						"department": "engineering",
 						"controller": "core.generator.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.generator",
@@ -2345,7 +2329,7 @@
 						"department": "engineering",
 						"controller": "core.generator",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.pump",
@@ -2353,7 +2337,7 @@
 						"department": "engineering",
 						"controller": "core.pump",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.reactor-cooling.orders",
@@ -2361,7 +2345,7 @@
 						"department": "engineering",
 						"controller": "core.reactor-cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.reactor-cooling",
@@ -2369,7 +2353,7 @@
 						"department": "engineering",
 						"controller": "core.reactor-cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.reserve",
@@ -2377,7 +2361,7 @@
 						"department": "engineering",
 						"controller": "core.reserve",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.boost",
@@ -2385,7 +2369,7 @@
 						"department": "sailing",
 						"controller": "drive.boost",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.boost-cooling.orders",
@@ -2393,7 +2377,7 @@
 						"department": "engineering",
 						"controller": "drive.boost-cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.boost-cooling",
@@ -2401,7 +2385,7 @@
 						"department": "engineering",
 						"controller": "drive.boost-cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.boost-supply.orders",
@@ -2409,7 +2393,7 @@
 						"department": "engineering",
 						"controller": "drive.boost-supply.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.boost-supply",
@@ -2417,7 +2401,7 @@
 						"department": "engineering",
 						"controller": "drive.boost-supply",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.distribution.orders",
@@ -2425,7 +2409,7 @@
 						"department": "engineering",
 						"controller": "drive.distribution.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.distribution",
@@ -2433,7 +2417,7 @@
 						"department": "engineering",
 						"controller": "drive.distribution",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.engine",
@@ -2441,7 +2425,7 @@
 						"department": "sailing",
 						"controller": "drive.engine",
 						"compartment": "bridge",
-						"effects": {
+						"bindings": {
 							"drive.engine": ["propulsion"]
 						}
 					},
@@ -2451,7 +2435,7 @@
 						"department": "engineering",
 						"controller": "drive.engine-cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.engine-cooling",
@@ -2459,7 +2443,7 @@
 						"department": "engineering",
 						"controller": "drive.engine-cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.engine-supply.orders",
@@ -2467,7 +2451,7 @@
 						"department": "engineering",
 						"controller": "drive.engine-supply.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.engine-supply",
@@ -2475,7 +2459,7 @@
 						"department": "engineering",
 						"controller": "drive.engine-supply",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.impulse",
@@ -2483,7 +2467,7 @@
 						"department": "sailing",
 						"controller": "drive.impulse",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.impulse-cooling.orders",
@@ -2491,7 +2475,7 @@
 						"department": "engineering",
 						"controller": "drive.impulse-cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.impulse-cooling",
@@ -2499,7 +2483,7 @@
 						"department": "engineering",
 						"controller": "drive.impulse-cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.impulse-supply.orders",
@@ -2507,7 +2491,7 @@
 						"department": "engineering",
 						"controller": "drive.impulse-supply.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.impulse-supply",
@@ -2515,7 +2499,7 @@
 						"department": "engineering",
 						"controller": "drive.impulse-supply",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.lateral",
@@ -2523,7 +2507,7 @@
 						"department": "sailing",
 						"controller": "drive.lateral",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.lateral-cooling.orders",
@@ -2531,7 +2515,7 @@
 						"department": "engineering",
 						"controller": "drive.lateral-cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.lateral-cooling",
@@ -2539,7 +2523,7 @@
 						"department": "engineering",
 						"controller": "drive.lateral-cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.lateral-supply.orders",
@@ -2547,7 +2531,7 @@
 						"department": "engineering",
 						"controller": "drive.lateral-supply.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.lateral-supply",
@@ -2555,7 +2539,7 @@
 						"department": "engineering",
 						"controller": "drive.lateral-supply",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.steering",
@@ -2563,7 +2547,7 @@
 						"department": "sailing",
 						"controller": "drive.steering",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.steering-cooling.orders",
@@ -2571,7 +2555,7 @@
 						"department": "engineering",
 						"controller": "drive.steering-cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.steering-cooling",
@@ -2579,7 +2563,7 @@
 						"department": "engineering",
 						"controller": "drive.steering-cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.steering-supply.orders",
@@ -2587,7 +2571,7 @@
 						"department": "engineering",
 						"controller": "drive.steering-supply.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.steering-supply",
@@ -2595,7 +2579,7 @@
 						"department": "engineering",
 						"controller": "drive.steering-supply",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors.cooling.orders",
@@ -2603,7 +2587,7 @@
 						"department": "engineering",
 						"controller": "sensors.cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors.cooling",
@@ -2611,7 +2595,7 @@
 						"department": "engineering",
 						"controller": "sensors.cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors.distribution.orders",
@@ -2619,7 +2603,7 @@
 						"department": "engineering",
 						"controller": "sensors.distribution.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors.distribution",
@@ -2627,7 +2611,7 @@
 						"department": "engineering",
 						"controller": "sensors.distribution",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors.radar",
@@ -2635,7 +2619,7 @@
 						"department": "sciences",
 						"controller": "sensors.radar",
 						"compartment": "bridge",
-						"effects": {
+						"bindings": {
 							"sensors.radar": ["sensors"]
 						}
 					},
@@ -2645,7 +2629,7 @@
 						"department": "passage",
 						"controller": "ftl.drive",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "ftl.supply",
@@ -2653,7 +2637,7 @@
 						"department": "passage",
 						"controller": "ftl.supply",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "ftl.cooling",
@@ -2661,7 +2645,7 @@
 						"department": "passage",
 						"controller": "ftl.cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					}
 				],
 				"officers": [
@@ -12320,7 +12304,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "command.cooling",
@@ -12329,7 +12313,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "command.distribution.orders",
@@ -12338,7 +12322,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "command.distribution",
@@ -12347,7 +12331,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "command.reserve",
@@ -12356,7 +12340,7 @@
 						"console": "captain",
 						"department": "command",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "communications.cooling.orders",
@@ -12365,7 +12349,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "communications.cooling",
@@ -12374,7 +12358,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "communications.distribution.orders",
@@ -12383,7 +12367,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "communications.distribution",
@@ -12392,7 +12376,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "communications.reserve",
@@ -12401,7 +12385,7 @@
 						"console": "comms",
 						"department": "signals",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.distribution.orders",
@@ -12410,7 +12394,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.distribution",
@@ -12419,7 +12403,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.generator.orders",
@@ -12428,7 +12412,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.generator",
@@ -12437,7 +12421,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.pump",
@@ -12446,7 +12430,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.reactor-cooling.orders",
@@ -12455,7 +12439,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.reactor-cooling",
@@ -12464,7 +12448,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.reserve",
@@ -12473,7 +12457,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.boost",
@@ -12482,7 +12466,7 @@
 						"console": "helm",
 						"department": "sailing",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.boost-cooling.orders",
@@ -12491,7 +12475,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.boost-cooling",
@@ -12500,7 +12484,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.boost-supply.orders",
@@ -12509,7 +12493,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.boost-supply",
@@ -12518,7 +12502,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.distribution.orders",
@@ -12527,7 +12511,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.distribution",
@@ -12536,7 +12520,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.engine",
@@ -12545,7 +12529,7 @@
 						"console": "helm",
 						"department": "sailing",
 						"compartment": "engines",
-						"effects": {
+						"bindings": {
 							"drive.engine": ["propulsion"]
 						}
 					},
@@ -12556,7 +12540,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.engine-cooling",
@@ -12565,7 +12549,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.engine-supply.orders",
@@ -12574,7 +12558,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.engine-supply",
@@ -12583,7 +12567,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.impulse",
@@ -12592,7 +12576,7 @@
 						"console": "helm",
 						"department": "sailing",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.impulse-cooling.orders",
@@ -12601,7 +12585,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.impulse-cooling",
@@ -12610,7 +12594,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.impulse-supply.orders",
@@ -12619,7 +12603,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.impulse-supply",
@@ -12628,7 +12612,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.lateral",
@@ -12637,7 +12621,7 @@
 						"console": "helm",
 						"department": "sailing",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.lateral-cooling.orders",
@@ -12646,7 +12630,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.lateral-cooling",
@@ -12655,7 +12639,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.lateral-supply.orders",
@@ -12664,7 +12648,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.lateral-supply",
@@ -12673,7 +12657,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.steering",
@@ -12682,7 +12666,7 @@
 						"console": "helm",
 						"department": "sailing",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.steering-cooling.orders",
@@ -12691,7 +12675,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.steering-cooling",
@@ -12700,7 +12684,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.steering-supply.orders",
@@ -12709,7 +12693,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.steering-supply",
@@ -12718,7 +12702,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors.cooling.orders",
@@ -12727,7 +12711,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors.cooling",
@@ -12736,7 +12720,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "sensors",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors.distribution.orders",
@@ -12745,7 +12729,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors.distribution",
@@ -12754,7 +12738,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "sensors",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors.radar",
@@ -12763,7 +12747,7 @@
 						"console": "science",
 						"department": "sciences",
 						"compartment": "sensors",
-						"effects": {
+						"bindings": {
 							"sensors.radar": ["sensors"]
 						}
 					},
@@ -12774,7 +12758,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "tactical.cooling",
@@ -12783,7 +12767,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "tactical.distribution.orders",
@@ -12792,7 +12776,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "tactical.distribution",
@@ -12801,7 +12785,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "tactical.radar",
@@ -12810,7 +12794,7 @@
 						"console": "tactical",
 						"department": "tactical",
 						"compartment": "bridge",
-						"effects": {
+						"bindings": {
 							"tactical.radar": ["sensors"]
 						}
 					},
@@ -12821,7 +12805,7 @@
 						"console": "helm",
 						"department": "sailing",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "wing.boost-cooling.orders",
@@ -12830,7 +12814,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "wing.boost-cooling",
@@ -12839,7 +12823,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "wing.boost-supply.orders",
@@ -12848,7 +12832,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "wing.boost-supply",
@@ -12857,7 +12841,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "wing.distribution.orders",
@@ -12866,7 +12850,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "wing.distribution",
@@ -12875,7 +12859,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "wing.engine",
@@ -12884,7 +12868,7 @@
 						"console": "helm",
 						"department": "sailing",
 						"compartment": "engines",
-						"effects": {
+						"bindings": {
 							"wing.engine": ["propulsion"]
 						}
 					},
@@ -12895,7 +12879,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "wing.engine-cooling",
@@ -12904,7 +12888,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "wing.engine-supply.orders",
@@ -12913,7 +12897,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "wing.engine-supply",
@@ -12922,7 +12906,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "wing.impulse",
@@ -12931,7 +12915,7 @@
 						"console": "helm",
 						"department": "sailing",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "wing.impulse-cooling.orders",
@@ -12940,7 +12924,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "wing.impulse-cooling",
@@ -12949,7 +12933,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "wing.impulse-supply.orders",
@@ -12958,7 +12942,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "wing.impulse-supply",
@@ -12967,7 +12951,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "wing.lateral-cooling.orders",
@@ -12976,7 +12960,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "wing.lateral-cooling",
@@ -12985,7 +12969,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "wing.lateral-supply.orders",
@@ -12994,7 +12978,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "wing.lateral-supply",
@@ -13003,7 +12987,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "wing.steering",
@@ -13012,7 +12996,7 @@
 						"console": "helm",
 						"department": "sailing",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "wing.steering-cooling.orders",
@@ -13021,7 +13005,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "wing.steering-cooling",
@@ -13030,7 +13014,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "wing.steering-supply.orders",
@@ -13039,7 +13023,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "wing.steering-supply",
@@ -13048,7 +13032,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "external-comms",
@@ -13057,7 +13041,7 @@
 						"console": "comms",
 						"department": "signals",
 						"compartment": "bridge",
-						"effects": {
+						"bindings": {
 							"comms-radio": ["comms"]
 						}
 					},
@@ -13068,7 +13052,7 @@
 						"console": "navigator",
 						"department": "passage",
 						"compartment": "passage",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "ftl.supply",
@@ -13077,7 +13061,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "passage",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "ftl.cooling",
@@ -13086,7 +13070,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "passage",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "fore-dorsal-gun",
@@ -13095,7 +13079,7 @@
 						"console": "tactical",
 						"department": "tactical",
 						"compartment": "weapons",
-						"effects": {
+						"bindings": {
 							"fore-dorsal-gun": ["cycling"]
 						}
 					},
@@ -13106,7 +13090,7 @@
 						"console": "tactical",
 						"department": "tactical",
 						"compartment": "weapons",
-						"effects": {
+						"bindings": {
 							"fore-ventral-gun": ["cycling"]
 						}
 					},
@@ -13117,7 +13101,7 @@
 						"console": "tactical",
 						"department": "tactical",
 						"compartment": "engineering",
-						"effects": {
+						"bindings": {
 							"aft-dorsal-gun": ["cycling"]
 						}
 					},
@@ -13128,7 +13112,7 @@
 						"console": "tactical",
 						"department": "tactical",
 						"compartment": "engineering",
-						"effects": {
+						"bindings": {
 							"aft-ventral-gun": ["cycling"]
 						}
 					},
@@ -13139,7 +13123,7 @@
 						"console": "tactical",
 						"department": "tactical",
 						"compartment": "magazines",
-						"effects": {
+						"bindings": {
 							"mid-dorsal-gun": ["cycling"]
 						}
 					},
@@ -13150,7 +13134,7 @@
 						"console": "tactical",
 						"department": "tactical",
 						"compartment": "weapons",
-						"effects": {
+						"bindings": {
 							"bow-port-tube-1": ["cycling"],
 							"bow-port-tube-2": ["cycling"],
 							"bow-port-tube-3": ["cycling"],
@@ -13164,7 +13148,7 @@
 						"console": "tactical",
 						"department": "tactical",
 						"compartment": "weapons",
-						"effects": {
+						"bindings": {
 							"bow-starboard-tube-1": ["cycling"],
 							"bow-starboard-tube-2": ["cycling"],
 							"bow-starboard-tube-3": ["cycling"],
@@ -13178,7 +13162,7 @@
 						"console": "tactical",
 						"department": "tactical",
 						"compartment": "weapons",
-						"effects": {
+						"bindings": {
 							"port-fore-tube-1": ["cycling"],
 							"port-fore-tube-2": ["cycling"],
 							"port-fore-tube-3": ["cycling"],
@@ -13192,7 +13176,7 @@
 						"console": "tactical",
 						"department": "tactical",
 						"compartment": "magazines",
-						"effects": {
+						"bindings": {
 							"port-aft-tube-1": ["cycling"],
 							"port-aft-tube-2": ["cycling"],
 							"port-aft-tube-3": ["cycling"],
@@ -13206,7 +13190,7 @@
 						"console": "tactical",
 						"department": "tactical",
 						"compartment": "weapons",
-						"effects": {
+						"bindings": {
 							"starboard-fore-tube-1": ["cycling"],
 							"starboard-fore-tube-2": ["cycling"],
 							"starboard-fore-tube-3": ["cycling"],
@@ -13220,7 +13204,7 @@
 						"console": "tactical",
 						"department": "tactical",
 						"compartment": "magazines",
-						"effects": {
+						"bindings": {
 							"starboard-aft-tube-1": ["cycling"],
 							"starboard-aft-tube-2": ["cycling"],
 							"starboard-aft-tube-3": ["cycling"],
@@ -13234,7 +13218,7 @@
 						"console": "tactical",
 						"department": "tactical",
 						"compartment": "magazines",
-						"effects": {
+						"bindings": {
 							"pdc-port-1": ["cycling"],
 							"pdc-port-2": ["cycling"],
 							"pdc-port-3": ["cycling"],
@@ -13252,7 +13236,7 @@
 						"console": "tactical",
 						"department": "tactical",
 						"compartment": "weapons",
-						"effects": {
+						"bindings": {
 							"fore-dorsal": ["traverse"],
 							"fore-ventral": ["traverse"],
 							"aft-dorsal": ["traverse"],
@@ -13267,7 +13251,7 @@
 						"console": "science",
 						"department": "sciences",
 						"compartment": "weapons",
-						"effects": {
+						"bindings": {
 							"shield-fore": ["recharge"]
 						}
 					},
@@ -13278,7 +13262,7 @@
 						"console": "science",
 						"department": "sciences",
 						"compartment": "magazines",
-						"effects": {
+						"bindings": {
 							"shield-port": ["recharge"]
 						}
 					},
@@ -13289,7 +13273,7 @@
 						"console": "science",
 						"department": "sciences",
 						"compartment": "engineering",
-						"effects": {
+						"bindings": {
 							"shield-aft": ["recharge"]
 						}
 					},
@@ -13300,7 +13284,7 @@
 						"console": "science",
 						"department": "sciences",
 						"compartment": "passage",
-						"effects": {
+						"bindings": {
 							"shield-starboard": ["recharge"]
 						}
 					},
@@ -13311,7 +13295,7 @@
 						"console": "science",
 						"department": "sciences",
 						"compartment": "sensors",
-						"effects": {
+						"bindings": {
 							"scanner-fore": ["sensors"]
 						}
 					},
@@ -13322,7 +13306,7 @@
 						"console": "science",
 						"department": "sciences",
 						"compartment": "sensors",
-						"effects": {
+						"bindings": {
 							"scanner-aft": ["sensors"]
 						}
 					},
@@ -13333,7 +13317,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {
+						"bindings": {
 							"repair-1": ["repair"]
 						}
 					},
@@ -13344,7 +13328,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {
+						"bindings": {
 							"repair-2": ["repair"]
 						}
 					},
@@ -13355,7 +13339,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {
+						"bindings": {
 							"repair-3": ["repair"]
 						}
 					},
@@ -13366,7 +13350,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {
+						"bindings": {
 							"repair-4": ["repair"]
 						}
 					},
@@ -13377,8 +13361,8 @@
 						"console": "science",
 						"department": "passage",
 						"compartment": "passage",
-						"effects": {},
-						"required_trait": "navigator"
+						"required_trait": "navigator",
+						"bindings": {}
 					},
 					{
 						"id": "dispatch",
@@ -13387,7 +13371,7 @@
 						"console": "comms",
 						"department": "signals",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "interceptor-supply",
@@ -13396,7 +13380,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "magazines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "bomber-supply",
@@ -13405,7 +13389,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "magazines",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "utility-bay",
@@ -13414,7 +13398,7 @@
 						"console": "tactical",
 						"department": "tactical",
 						"compartment": "hangar",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "combat-bay",
@@ -13423,7 +13407,7 @@
 						"console": "tactical",
 						"department": "tactical",
 						"compartment": "hangar",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "weapons-supply",
@@ -13432,7 +13416,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "weapons-cooling",
@@ -13441,7 +13425,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "shields-supply",
@@ -13450,7 +13434,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "shields-cooling",
@@ -13459,7 +13443,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "services-supply",
@@ -13468,7 +13452,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "services-cooling",
@@ -13477,7 +13461,7 @@
 						"console": "engineering",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "repair-team-1",
@@ -13485,7 +13469,7 @@
 						"team": "repair-1",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {
+						"bindings": {
 							"repair-1": ["repair"]
 						}
 					},
@@ -13495,7 +13479,7 @@
 						"team": "repair-2",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {
+						"bindings": {
 							"repair-2": ["repair"]
 						}
 					},
@@ -13505,7 +13489,7 @@
 						"team": "repair-3",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {
+						"bindings": {
 							"repair-3": ["repair"]
 						}
 					},
@@ -13515,7 +13499,7 @@
 						"team": "repair-4",
 						"department": "engineering",
 						"compartment": "engineering",
-						"effects": {
+						"bindings": {
 							"repair-4": ["repair"]
 						}
 					},
@@ -13526,7 +13510,7 @@
 						"controller": "medical-1",
 						"console": "science",
 						"compartment": "medical",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "medical-1.team",
@@ -13534,7 +13518,7 @@
 						"department": "medical",
 						"team": "medical-1",
 						"compartment": "medical",
-						"effects": {
+						"bindings": {
 							"medical-1": ["medical"]
 						}
 					},
@@ -13545,7 +13529,7 @@
 						"controller": "medical-2",
 						"console": "science",
 						"compartment": "medical",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "medical-2.team",
@@ -13553,7 +13537,7 @@
 						"department": "medical",
 						"team": "medical-2",
 						"compartment": "medical",
-						"effects": {
+						"bindings": {
 							"medical-2": ["medical"]
 						}
 					},
@@ -13564,7 +13548,7 @@
 						"controller": "security-1",
 						"console": "tactical",
 						"compartment": "hangar",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "security-1.team",
@@ -13572,7 +13556,7 @@
 						"department": "tactical",
 						"team": "security-1",
 						"compartment": "hangar",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "security-2.coordination",
@@ -13581,7 +13565,7 @@
 						"controller": "security-2",
 						"console": "tactical",
 						"compartment": "weapons",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "security-2.team",
@@ -13589,7 +13573,7 @@
 						"department": "tactical",
 						"team": "security-2",
 						"compartment": "weapons",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "choir-veil",
@@ -13817,77 +13801,57 @@
 					{
 						"id": "propulsion",
 						"label": "Drive specialist",
-						"bonuses": {
-							"propulsion": 200
-						}
+						"effects": ["base.modifier.propulsion.p200"]
 					},
 					{
 						"id": "sensors",
 						"label": "Keen observer",
-						"bonuses": {
-							"sensors": 200
-						}
+						"effects": ["base.modifier.sensors.p200"]
 					},
 					{
 						"id": "cycling",
 						"label": "Gunnery drill",
-						"bonuses": {
-							"cycling": 150
-						}
+						"effects": ["base.modifier.cycling.p150"]
 					},
 					{
 						"id": "traverse",
 						"label": "Steady tracking",
-						"bonuses": {
-							"traverse": 200
-						}
+						"effects": ["base.modifier.traverse.p200"]
 					},
 					{
 						"id": "reload",
 						"label": "Magazine discipline",
-						"bonuses": {
-							"reload": 150
-						}
+						"effects": ["base.modifier.reload.p150"]
 					},
 					{
 						"id": "recharge",
 						"label": "Field specialist",
-						"bonuses": {
-							"recharge": 200
-						}
+						"effects": ["base.modifier.recharge.p200"]
 					},
 					{
 						"id": "repair",
 						"label": "Damage control veteran",
-						"bonuses": {
-							"repair": 200
-						}
+						"effects": ["base.modifier.repair.p200"]
 					},
 					{
 						"id": "comms",
 						"label": "Signal clarity",
-						"bonuses": {
-							"comms": 200
-						}
+						"effects": ["base.modifier.comms.p200"]
 					},
 					{
 						"id": "navigator",
 						"label": "Guild navigator",
-						"bonuses": {}
+						"effects": []
 					},
 					{
 						"id": "medical",
 						"label": "Clinical specialist",
-						"bonuses": {
-							"medical": 250
-						}
+						"effects": ["base.modifier.medical.p250"]
 					},
 					{
 						"id": "security",
 						"label": "Boarding veteran",
-						"bonuses": {
-							"security": 200
-						}
+						"effects": ["base.modifier.security.p200"]
 					}
 				],
 				"facilities": [
@@ -16022,7 +15986,7 @@
 						"department": "engineering",
 						"controller": "core.distribution.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.distribution",
@@ -16030,7 +15994,7 @@
 						"department": "engineering",
 						"controller": "core.distribution",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.generator.orders",
@@ -16038,7 +16002,7 @@
 						"department": "engineering",
 						"controller": "core.generator.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.generator",
@@ -16046,7 +16010,7 @@
 						"department": "engineering",
 						"controller": "core.generator",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.pump",
@@ -16054,7 +16018,7 @@
 						"department": "engineering",
 						"controller": "core.pump",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.reactor-cooling.orders",
@@ -16062,7 +16026,7 @@
 						"department": "engineering",
 						"controller": "core.reactor-cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.reactor-cooling",
@@ -16070,7 +16034,7 @@
 						"department": "engineering",
 						"controller": "core.reactor-cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.reserve",
@@ -16078,7 +16042,7 @@
 						"department": "engineering",
 						"controller": "core.reserve",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.boost",
@@ -16086,7 +16050,7 @@
 						"department": "sailing",
 						"controller": "drive.boost",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.boost-cooling.orders",
@@ -16094,7 +16058,7 @@
 						"department": "engineering",
 						"controller": "drive.boost-cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.boost-cooling",
@@ -16102,7 +16066,7 @@
 						"department": "engineering",
 						"controller": "drive.boost-cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.boost-supply.orders",
@@ -16110,7 +16074,7 @@
 						"department": "engineering",
 						"controller": "drive.boost-supply.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.boost-supply",
@@ -16118,7 +16082,7 @@
 						"department": "engineering",
 						"controller": "drive.boost-supply",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.distribution.orders",
@@ -16126,7 +16090,7 @@
 						"department": "engineering",
 						"controller": "drive.distribution.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.distribution",
@@ -16134,7 +16098,7 @@
 						"department": "engineering",
 						"controller": "drive.distribution",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.engine",
@@ -16142,7 +16106,7 @@
 						"department": "sailing",
 						"controller": "drive.engine",
 						"compartment": "bridge",
-						"effects": {
+						"bindings": {
 							"drive.engine": ["propulsion"]
 						}
 					},
@@ -16152,7 +16116,7 @@
 						"department": "engineering",
 						"controller": "drive.engine-cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.engine-cooling",
@@ -16160,7 +16124,7 @@
 						"department": "engineering",
 						"controller": "drive.engine-cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.engine-supply.orders",
@@ -16168,7 +16132,7 @@
 						"department": "engineering",
 						"controller": "drive.engine-supply.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.engine-supply",
@@ -16176,7 +16140,7 @@
 						"department": "engineering",
 						"controller": "drive.engine-supply",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.impulse",
@@ -16184,7 +16148,7 @@
 						"department": "sailing",
 						"controller": "drive.impulse",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.impulse-cooling.orders",
@@ -16192,7 +16156,7 @@
 						"department": "engineering",
 						"controller": "drive.impulse-cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.impulse-cooling",
@@ -16200,7 +16164,7 @@
 						"department": "engineering",
 						"controller": "drive.impulse-cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.impulse-supply.orders",
@@ -16208,7 +16172,7 @@
 						"department": "engineering",
 						"controller": "drive.impulse-supply.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.impulse-supply",
@@ -16216,7 +16180,7 @@
 						"department": "engineering",
 						"controller": "drive.impulse-supply",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.lateral",
@@ -16224,7 +16188,7 @@
 						"department": "sailing",
 						"controller": "drive.lateral",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.lateral-cooling.orders",
@@ -16232,7 +16196,7 @@
 						"department": "engineering",
 						"controller": "drive.lateral-cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.lateral-cooling",
@@ -16240,7 +16204,7 @@
 						"department": "engineering",
 						"controller": "drive.lateral-cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.lateral-supply.orders",
@@ -16248,7 +16212,7 @@
 						"department": "engineering",
 						"controller": "drive.lateral-supply.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.lateral-supply",
@@ -16256,7 +16220,7 @@
 						"department": "engineering",
 						"controller": "drive.lateral-supply",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.steering",
@@ -16264,7 +16228,7 @@
 						"department": "sailing",
 						"controller": "drive.steering",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.steering-cooling.orders",
@@ -16272,7 +16236,7 @@
 						"department": "engineering",
 						"controller": "drive.steering-cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.steering-cooling",
@@ -16280,7 +16244,7 @@
 						"department": "engineering",
 						"controller": "drive.steering-cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.steering-supply.orders",
@@ -16288,7 +16252,7 @@
 						"department": "engineering",
 						"controller": "drive.steering-supply.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.steering-supply",
@@ -16296,7 +16260,7 @@
 						"department": "engineering",
 						"controller": "drive.steering-supply",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors.cooling.orders",
@@ -16304,7 +16268,7 @@
 						"department": "engineering",
 						"controller": "sensors.cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors.cooling",
@@ -16312,7 +16276,7 @@
 						"department": "engineering",
 						"controller": "sensors.cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors.distribution.orders",
@@ -16320,7 +16284,7 @@
 						"department": "engineering",
 						"controller": "sensors.distribution.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors.distribution",
@@ -16328,7 +16292,7 @@
 						"department": "engineering",
 						"controller": "sensors.distribution",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors.radar",
@@ -16336,7 +16300,7 @@
 						"department": "sciences",
 						"controller": "sensors.radar",
 						"compartment": "bridge",
-						"effects": {
+						"bindings": {
 							"sensors.radar": ["sensors"]
 						}
 					}
@@ -17740,7 +17704,7 @@
 						"department": "engineering",
 						"controller": "core.distribution.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.distribution",
@@ -17748,7 +17712,7 @@
 						"department": "engineering",
 						"controller": "core.distribution",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.generator.orders",
@@ -17756,7 +17720,7 @@
 						"department": "engineering",
 						"controller": "core.generator.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.generator",
@@ -17764,7 +17728,7 @@
 						"department": "engineering",
 						"controller": "core.generator",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.pump",
@@ -17772,7 +17736,7 @@
 						"department": "engineering",
 						"controller": "core.pump",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.reactor-cooling.orders",
@@ -17780,7 +17744,7 @@
 						"department": "engineering",
 						"controller": "core.reactor-cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.reactor-cooling",
@@ -17788,7 +17752,7 @@
 						"department": "engineering",
 						"controller": "core.reactor-cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.reserve",
@@ -17796,7 +17760,7 @@
 						"department": "engineering",
 						"controller": "core.reserve",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.boost",
@@ -17804,7 +17768,7 @@
 						"department": "sailing",
 						"controller": "drive.boost",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.boost-cooling.orders",
@@ -17812,7 +17776,7 @@
 						"department": "engineering",
 						"controller": "drive.boost-cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.boost-cooling",
@@ -17820,7 +17784,7 @@
 						"department": "engineering",
 						"controller": "drive.boost-cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.boost-supply.orders",
@@ -17828,7 +17792,7 @@
 						"department": "engineering",
 						"controller": "drive.boost-supply.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.boost-supply",
@@ -17836,7 +17800,7 @@
 						"department": "engineering",
 						"controller": "drive.boost-supply",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.distribution.orders",
@@ -17844,7 +17808,7 @@
 						"department": "engineering",
 						"controller": "drive.distribution.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.distribution",
@@ -17852,7 +17816,7 @@
 						"department": "engineering",
 						"controller": "drive.distribution",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.engine",
@@ -17860,7 +17824,7 @@
 						"department": "sailing",
 						"controller": "drive.engine",
 						"compartment": "bridge",
-						"effects": {
+						"bindings": {
 							"drive.engine": ["propulsion"]
 						}
 					},
@@ -17870,7 +17834,7 @@
 						"department": "engineering",
 						"controller": "drive.engine-cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.engine-cooling",
@@ -17878,7 +17842,7 @@
 						"department": "engineering",
 						"controller": "drive.engine-cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.engine-supply.orders",
@@ -17886,7 +17850,7 @@
 						"department": "engineering",
 						"controller": "drive.engine-supply.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.engine-supply",
@@ -17894,7 +17858,7 @@
 						"department": "engineering",
 						"controller": "drive.engine-supply",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.impulse",
@@ -17902,7 +17866,7 @@
 						"department": "sailing",
 						"controller": "drive.impulse",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.impulse-cooling.orders",
@@ -17910,7 +17874,7 @@
 						"department": "engineering",
 						"controller": "drive.impulse-cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.impulse-cooling",
@@ -17918,7 +17882,7 @@
 						"department": "engineering",
 						"controller": "drive.impulse-cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.impulse-supply.orders",
@@ -17926,7 +17890,7 @@
 						"department": "engineering",
 						"controller": "drive.impulse-supply.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.impulse-supply",
@@ -17934,7 +17898,7 @@
 						"department": "engineering",
 						"controller": "drive.impulse-supply",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.lateral",
@@ -17942,7 +17906,7 @@
 						"department": "sailing",
 						"controller": "drive.lateral",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.lateral-cooling.orders",
@@ -17950,7 +17914,7 @@
 						"department": "engineering",
 						"controller": "drive.lateral-cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.lateral-cooling",
@@ -17958,7 +17922,7 @@
 						"department": "engineering",
 						"controller": "drive.lateral-cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.lateral-supply.orders",
@@ -17966,7 +17930,7 @@
 						"department": "engineering",
 						"controller": "drive.lateral-supply.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.lateral-supply",
@@ -17974,7 +17938,7 @@
 						"department": "engineering",
 						"controller": "drive.lateral-supply",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.steering",
@@ -17982,7 +17946,7 @@
 						"department": "sailing",
 						"controller": "drive.steering",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.steering-cooling.orders",
@@ -17990,7 +17954,7 @@
 						"department": "engineering",
 						"controller": "drive.steering-cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.steering-cooling",
@@ -17998,7 +17962,7 @@
 						"department": "engineering",
 						"controller": "drive.steering-cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.steering-supply.orders",
@@ -18006,7 +17970,7 @@
 						"department": "engineering",
 						"controller": "drive.steering-supply.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.steering-supply",
@@ -18014,7 +17978,7 @@
 						"department": "engineering",
 						"controller": "drive.steering-supply",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors.cooling.orders",
@@ -18022,7 +17986,7 @@
 						"department": "engineering",
 						"controller": "sensors.cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors.cooling",
@@ -18030,7 +17994,7 @@
 						"department": "engineering",
 						"controller": "sensors.cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors.distribution.orders",
@@ -18038,7 +18002,7 @@
 						"department": "engineering",
 						"controller": "sensors.distribution.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors.distribution",
@@ -18046,7 +18010,7 @@
 						"department": "engineering",
 						"controller": "sensors.distribution",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors.radar",
@@ -18054,7 +18018,7 @@
 						"department": "sciences",
 						"controller": "sensors.radar",
 						"compartment": "bridge",
-						"effects": {
+						"bindings": {
 							"sensors.radar": ["sensors"]
 						}
 					},
@@ -18064,7 +18028,7 @@
 						"department": "command",
 						"controller": "navigation.orders",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "ftl.drive",
@@ -18072,7 +18036,7 @@
 						"department": "passage",
 						"controller": "ftl.drive",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "ftl.supply",
@@ -18080,7 +18044,7 @@
 						"department": "passage",
 						"controller": "ftl.supply",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "ftl.cooling",
@@ -18088,7 +18052,7 @@
 						"department": "passage",
 						"controller": "ftl.cooling",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					}
 				],
 				"officers": [
@@ -20450,58 +20414,42 @@
 					{
 						"id": "propulsion",
 						"label": "Drive specialist",
-						"bonuses": {
-							"propulsion": 200
-						}
+						"effects": ["base.modifier.propulsion.p200"]
 					},
 					{
 						"id": "sensors",
 						"label": "Keen observer",
-						"bonuses": {
-							"sensors": 200
-						}
+						"effects": ["base.modifier.sensors.p200"]
 					},
 					{
 						"id": "cycling",
 						"label": "Gunnery drill",
-						"bonuses": {
-							"cycling": 150
-						}
+						"effects": ["base.modifier.cycling.p150"]
 					},
 					{
 						"id": "traverse",
 						"label": "Steady tracking",
-						"bonuses": {
-							"traverse": 200
-						}
+						"effects": ["base.modifier.traverse.p200"]
 					},
 					{
 						"id": "reload",
 						"label": "Magazine discipline",
-						"bonuses": {
-							"reload": 150
-						}
+						"effects": ["base.modifier.reload.p150"]
 					},
 					{
 						"id": "recharge",
 						"label": "Field specialist",
-						"bonuses": {
-							"recharge": 200
-						}
+						"effects": ["base.modifier.recharge.p200"]
 					},
 					{
 						"id": "repair",
 						"label": "Damage control veteran",
-						"bonuses": {
-							"repair": 200
-						}
+						"effects": ["base.modifier.repair.p200"]
 					},
 					{
 						"id": "comms",
 						"label": "Signal clarity",
-						"bonuses": {
-							"comms": 200
-						}
+						"effects": ["base.modifier.comms.p200"]
 					}
 				],
 				"duties": [
@@ -20511,7 +20459,7 @@
 						"department": "sailing",
 						"controller": "drive",
 						"compartment": "stern-port",
-						"effects": {
+						"bindings": {
 							"drive": ["propulsion"]
 						}
 					},
@@ -20521,7 +20469,7 @@
 						"department": "sailing",
 						"controller": "helm",
 						"compartment": "bow-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "radar",
@@ -20529,7 +20477,7 @@
 						"department": "sciences",
 						"controller": "radar",
 						"compartment": "bow-starboard",
-						"effects": {
+						"bindings": {
 							"radar": ["sensors"]
 						}
 					},
@@ -20539,7 +20487,7 @@
 						"department": "tactical",
 						"controller": "top",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"top": ["traverse"]
 						}
 					},
@@ -20549,7 +20497,7 @@
 						"department": "tactical",
 						"controller": "top-mag",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"top-mag": ["reload"]
 						}
 					},
@@ -20559,7 +20507,7 @@
 						"department": "tactical",
 						"controller": "top-gun",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"top-gun": ["cycling"]
 						}
 					},
@@ -20569,7 +20517,7 @@
 						"department": "tactical",
 						"controller": "bottom",
 						"compartment": "mid-starboard",
-						"effects": {
+						"bindings": {
 							"bottom": ["traverse"]
 						}
 					},
@@ -20579,7 +20527,7 @@
 						"department": "tactical",
 						"controller": "bottom-mag",
 						"compartment": "mid-starboard",
-						"effects": {
+						"bindings": {
 							"bottom-mag": ["reload"]
 						}
 					},
@@ -20589,7 +20537,7 @@
 						"department": "tactical",
 						"controller": "bottom-gun",
 						"compartment": "mid-starboard",
-						"effects": {
+						"bindings": {
 							"bottom-gun": ["cycling"]
 						}
 					},
@@ -20599,7 +20547,7 @@
 						"department": "tactical",
 						"controller": "forward-mag",
 						"compartment": "bow-port",
-						"effects": {
+						"bindings": {
 							"forward-mag": ["reload"]
 						}
 					},
@@ -20609,7 +20557,7 @@
 						"department": "tactical",
 						"controller": "forward-gun",
 						"compartment": "bow-port",
-						"effects": {
+						"bindings": {
 							"forward-gun": ["cycling"]
 						}
 					},
@@ -20619,7 +20567,7 @@
 						"department": "engineering",
 						"controller": "team-1",
 						"compartment": "stern-starboard",
-						"effects": {
+						"bindings": {
 							"team-1": ["repair"]
 						}
 					},
@@ -20629,7 +20577,7 @@
 						"department": "engineering",
 						"controller": "team-2",
 						"compartment": "stern-starboard",
-						"effects": {
+						"bindings": {
 							"team-2": ["repair"]
 						}
 					},
@@ -20639,7 +20587,7 @@
 						"department": "engineering",
 						"controller": "reactor",
 						"compartment": "mid-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "weapon-cell",
@@ -20647,7 +20595,7 @@
 						"department": "engineering",
 						"controller": "weapon-cell",
 						"compartment": "mid-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "shield-cell",
@@ -20655,7 +20603,7 @@
 						"department": "engineering",
 						"controller": "shield-cell",
 						"compartment": "mid-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "beam",
@@ -20663,7 +20611,7 @@
 						"department": "tactical",
 						"controller": "beam",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"beam": ["cycling"]
 						}
 					},
@@ -20673,7 +20621,7 @@
 						"department": "sciences",
 						"controller": "shield-fore",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"shield-fore": ["recharge"]
 						}
 					},
@@ -20683,7 +20631,7 @@
 						"department": "sciences",
 						"controller": "shield-aft",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"shield-aft": ["recharge"]
 						}
 					},
@@ -20693,7 +20641,7 @@
 						"department": "tactical",
 						"controller": "homing-mag",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"homing-mag": ["reload"]
 						}
 					},
@@ -20703,7 +20651,7 @@
 						"department": "tactical",
 						"controller": "havok-mag",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"havok-mag": ["reload"]
 						}
 					},
@@ -20713,7 +20661,7 @@
 						"department": "tactical",
 						"controller": "missile-launcher",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"missile-launcher": ["cycling"]
 						}
 					},
@@ -20723,7 +20671,7 @@
 						"department": "tactical",
 						"controller": "pdc-mag",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"pdc-mag": ["reload"]
 						}
 					},
@@ -20733,7 +20681,7 @@
 						"department": "tactical",
 						"controller": "pdc",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"pdc": ["cycling"]
 						}
 					},
@@ -20743,7 +20691,7 @@
 						"department": "signals",
 						"controller": "external-comms",
 						"compartment": "bow-port",
-						"effects": {
+						"bindings": {
 							"comms-radio": ["comms"]
 						}
 					},
@@ -20753,7 +20701,7 @@
 						"department": "engineering",
 						"team": "team-1",
 						"compartment": "stern-starboard",
-						"effects": {
+						"bindings": {
 							"team-1": ["repair"]
 						}
 					},
@@ -20763,7 +20711,7 @@
 						"department": "engineering",
 						"team": "team-2",
 						"compartment": "stern-starboard",
-						"effects": {
+						"bindings": {
 							"team-2": ["repair"]
 						}
 					},
@@ -20773,7 +20721,7 @@
 						"department": "tactical",
 						"controller": "scanner",
 						"compartment": "bow-starboard",
-						"effects": {
+						"bindings": {
 							"focused-scanner": ["sensors"],
 							"sensor-turret": ["traverse"]
 						}
@@ -20784,7 +20732,7 @@
 						"department": "passage",
 						"controller": "ftl.drive",
 						"compartment": "stern-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "ftl.supply",
@@ -20792,7 +20740,7 @@
 						"department": "passage",
 						"controller": "ftl.supply",
 						"compartment": "stern-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "ftl.cooling",
@@ -20800,7 +20748,7 @@
 						"department": "passage",
 						"controller": "ftl.cooling",
 						"compartment": "stern-port",
-						"effects": {}
+						"bindings": {}
 					}
 				],
 				"officers": [
@@ -22180,58 +22128,42 @@
 					{
 						"id": "propulsion",
 						"label": "Drive specialist",
-						"bonuses": {
-							"propulsion": 200
-						}
+						"effects": ["base.modifier.propulsion.p200"]
 					},
 					{
 						"id": "sensors",
 						"label": "Keen observer",
-						"bonuses": {
-							"sensors": 200
-						}
+						"effects": ["base.modifier.sensors.p200"]
 					},
 					{
 						"id": "cycling",
 						"label": "Gunnery drill",
-						"bonuses": {
-							"cycling": 150
-						}
+						"effects": ["base.modifier.cycling.p150"]
 					},
 					{
 						"id": "traverse",
 						"label": "Steady tracking",
-						"bonuses": {
-							"traverse": 200
-						}
+						"effects": ["base.modifier.traverse.p200"]
 					},
 					{
 						"id": "reload",
 						"label": "Magazine discipline",
-						"bonuses": {
-							"reload": 150
-						}
+						"effects": ["base.modifier.reload.p150"]
 					},
 					{
 						"id": "recharge",
 						"label": "Field specialist",
-						"bonuses": {
-							"recharge": 200
-						}
+						"effects": ["base.modifier.recharge.p200"]
 					},
 					{
 						"id": "repair",
 						"label": "Damage control veteran",
-						"bonuses": {
-							"repair": 200
-						}
+						"effects": ["base.modifier.repair.p200"]
 					},
 					{
 						"id": "comms",
 						"label": "Signal clarity",
-						"bonuses": {
-							"comms": 200
-						}
+						"effects": ["base.modifier.comms.p200"]
 					}
 				],
 				"duties": [
@@ -22241,7 +22173,7 @@
 						"department": "sailing",
 						"controller": "drive",
 						"compartment": "stern-port",
-						"effects": {
+						"bindings": {
 							"drive": ["propulsion"]
 						}
 					},
@@ -22251,7 +22183,7 @@
 						"department": "sailing",
 						"controller": "helm",
 						"compartment": "bow-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "radar",
@@ -22259,7 +22191,7 @@
 						"department": "sciences",
 						"controller": "radar",
 						"compartment": "bow-starboard",
-						"effects": {
+						"bindings": {
 							"radar": ["sensors"]
 						}
 					},
@@ -22269,7 +22201,7 @@
 						"department": "tactical",
 						"controller": "top",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"top": ["traverse"]
 						}
 					},
@@ -22279,7 +22211,7 @@
 						"department": "tactical",
 						"controller": "top-mag",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"top-mag": ["reload"]
 						}
 					},
@@ -22289,7 +22221,7 @@
 						"department": "tactical",
 						"controller": "top-gun",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"top-gun": ["cycling"]
 						}
 					},
@@ -22299,7 +22231,7 @@
 						"department": "tactical",
 						"controller": "bottom",
 						"compartment": "mid-starboard",
-						"effects": {
+						"bindings": {
 							"bottom": ["traverse"]
 						}
 					},
@@ -22309,7 +22241,7 @@
 						"department": "tactical",
 						"controller": "bottom-mag",
 						"compartment": "mid-starboard",
-						"effects": {
+						"bindings": {
 							"bottom-mag": ["reload"]
 						}
 					},
@@ -22319,7 +22251,7 @@
 						"department": "tactical",
 						"controller": "bottom-gun",
 						"compartment": "mid-starboard",
-						"effects": {
+						"bindings": {
 							"bottom-gun": ["cycling"]
 						}
 					},
@@ -22329,7 +22261,7 @@
 						"department": "engineering",
 						"controller": "team-1",
 						"compartment": "stern-starboard",
-						"effects": {
+						"bindings": {
 							"team-1": ["repair"]
 						}
 					},
@@ -22339,7 +22271,7 @@
 						"department": "engineering",
 						"controller": "team-2",
 						"compartment": "stern-starboard",
-						"effects": {
+						"bindings": {
 							"team-2": ["repair"]
 						}
 					},
@@ -22349,7 +22281,7 @@
 						"department": "engineering",
 						"controller": "reactor",
 						"compartment": "mid-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "weapon-cell",
@@ -22357,7 +22289,7 @@
 						"department": "engineering",
 						"controller": "weapon-cell",
 						"compartment": "mid-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "shield-cell",
@@ -22365,7 +22297,7 @@
 						"department": "engineering",
 						"controller": "shield-cell",
 						"compartment": "mid-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "beam",
@@ -22373,7 +22305,7 @@
 						"department": "tactical",
 						"controller": "beam",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"beam": ["cycling"]
 						}
 					},
@@ -22383,7 +22315,7 @@
 						"department": "sciences",
 						"controller": "shield-fore",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"shield-fore": ["recharge"]
 						}
 					},
@@ -22393,7 +22325,7 @@
 						"department": "sciences",
 						"controller": "shield-aft",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"shield-aft": ["recharge"]
 						}
 					},
@@ -22403,7 +22335,7 @@
 						"department": "tactical",
 						"controller": "homing-mag",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"homing-mag": ["reload"]
 						}
 					},
@@ -22413,7 +22345,7 @@
 						"department": "tactical",
 						"controller": "havok-mag",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"havok-mag": ["reload"]
 						}
 					},
@@ -22423,7 +22355,7 @@
 						"department": "tactical",
 						"controller": "missile-launcher",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"missile-launcher": ["cycling"]
 						}
 					},
@@ -22433,7 +22365,7 @@
 						"department": "tactical",
 						"controller": "pdc-mag",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"pdc-mag": ["reload"]
 						}
 					},
@@ -22443,7 +22375,7 @@
 						"department": "tactical",
 						"controller": "pdc",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"pdc": ["cycling"]
 						}
 					},
@@ -22453,7 +22385,7 @@
 						"department": "engineering",
 						"team": "team-1",
 						"compartment": "stern-starboard",
-						"effects": {
+						"bindings": {
 							"team-1": ["repair"]
 						}
 					},
@@ -22463,7 +22395,7 @@
 						"department": "engineering",
 						"team": "team-2",
 						"compartment": "stern-starboard",
-						"effects": {
+						"bindings": {
 							"team-2": ["repair"]
 						}
 					}
@@ -24213,7 +24145,7 @@
 						"department": "engineering",
 						"controller": "core.distribution.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.distribution",
@@ -24221,7 +24153,7 @@
 						"department": "engineering",
 						"controller": "core.distribution",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.generator.orders",
@@ -24229,7 +24161,7 @@
 						"department": "engineering",
 						"controller": "core.generator.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.generator",
@@ -24237,7 +24169,7 @@
 						"department": "engineering",
 						"controller": "core.generator",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.pump",
@@ -24245,7 +24177,7 @@
 						"department": "engineering",
 						"controller": "core.pump",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.reactor-cooling.orders",
@@ -24253,7 +24185,7 @@
 						"department": "engineering",
 						"controller": "core.reactor-cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.reactor-cooling",
@@ -24261,7 +24193,7 @@
 						"department": "engineering",
 						"controller": "core.reactor-cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "core.reserve",
@@ -24269,7 +24201,7 @@
 						"department": "engineering",
 						"controller": "core.reserve",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.boost",
@@ -24277,7 +24209,7 @@
 						"department": "sailing",
 						"controller": "drive.boost",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.boost-cooling.orders",
@@ -24285,7 +24217,7 @@
 						"department": "engineering",
 						"controller": "drive.boost-cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.boost-cooling",
@@ -24293,7 +24225,7 @@
 						"department": "engineering",
 						"controller": "drive.boost-cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.boost-supply.orders",
@@ -24301,7 +24233,7 @@
 						"department": "engineering",
 						"controller": "drive.boost-supply.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.boost-supply",
@@ -24309,7 +24241,7 @@
 						"department": "engineering",
 						"controller": "drive.boost-supply",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.distribution.orders",
@@ -24317,7 +24249,7 @@
 						"department": "engineering",
 						"controller": "drive.distribution.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.distribution",
@@ -24325,7 +24257,7 @@
 						"department": "engineering",
 						"controller": "drive.distribution",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.engine",
@@ -24333,7 +24265,7 @@
 						"department": "sailing",
 						"controller": "drive.engine",
 						"compartment": "bridge",
-						"effects": {
+						"bindings": {
 							"drive.engine": ["propulsion"]
 						}
 					},
@@ -24343,7 +24275,7 @@
 						"department": "engineering",
 						"controller": "drive.engine-cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.engine-cooling",
@@ -24351,7 +24283,7 @@
 						"department": "engineering",
 						"controller": "drive.engine-cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.engine-supply.orders",
@@ -24359,7 +24291,7 @@
 						"department": "engineering",
 						"controller": "drive.engine-supply.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.engine-supply",
@@ -24367,7 +24299,7 @@
 						"department": "engineering",
 						"controller": "drive.engine-supply",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.impulse",
@@ -24375,7 +24307,7 @@
 						"department": "sailing",
 						"controller": "drive.impulse",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.impulse-cooling.orders",
@@ -24383,7 +24315,7 @@
 						"department": "engineering",
 						"controller": "drive.impulse-cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.impulse-cooling",
@@ -24391,7 +24323,7 @@
 						"department": "engineering",
 						"controller": "drive.impulse-cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.impulse-supply.orders",
@@ -24399,7 +24331,7 @@
 						"department": "engineering",
 						"controller": "drive.impulse-supply.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.impulse-supply",
@@ -24407,7 +24339,7 @@
 						"department": "engineering",
 						"controller": "drive.impulse-supply",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.lateral",
@@ -24415,7 +24347,7 @@
 						"department": "sailing",
 						"controller": "drive.lateral",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.lateral-cooling.orders",
@@ -24423,7 +24355,7 @@
 						"department": "engineering",
 						"controller": "drive.lateral-cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.lateral-cooling",
@@ -24431,7 +24363,7 @@
 						"department": "engineering",
 						"controller": "drive.lateral-cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.lateral-supply.orders",
@@ -24439,7 +24371,7 @@
 						"department": "engineering",
 						"controller": "drive.lateral-supply.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.lateral-supply",
@@ -24447,7 +24379,7 @@
 						"department": "engineering",
 						"controller": "drive.lateral-supply",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.steering",
@@ -24455,7 +24387,7 @@
 						"department": "sailing",
 						"controller": "drive.steering",
 						"compartment": "bridge",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.steering-cooling.orders",
@@ -24463,7 +24395,7 @@
 						"department": "engineering",
 						"controller": "drive.steering-cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.steering-cooling",
@@ -24471,7 +24403,7 @@
 						"department": "engineering",
 						"controller": "drive.steering-cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.steering-supply.orders",
@@ -24479,7 +24411,7 @@
 						"department": "engineering",
 						"controller": "drive.steering-supply.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.steering-supply",
@@ -24487,7 +24419,7 @@
 						"department": "engineering",
 						"controller": "drive.steering-supply",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors.cooling.orders",
@@ -24495,7 +24427,7 @@
 						"department": "engineering",
 						"controller": "sensors.cooling.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors.cooling",
@@ -24503,7 +24435,7 @@
 						"department": "engineering",
 						"controller": "sensors.cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors.distribution.orders",
@@ -24511,7 +24443,7 @@
 						"department": "engineering",
 						"controller": "sensors.distribution.orders",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors.distribution",
@@ -24519,7 +24451,7 @@
 						"department": "engineering",
 						"controller": "sensors.distribution",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "sensors.radar",
@@ -24527,7 +24459,7 @@
 						"department": "sciences",
 						"controller": "sensors.radar",
 						"compartment": "bridge",
-						"effects": {
+						"bindings": {
 							"sensors.radar": ["sensors"]
 						}
 					},
@@ -24537,7 +24469,7 @@
 						"department": "signals",
 						"controller": "external-comms",
 						"compartment": "bridge",
-						"effects": {
+						"bindings": {
 							"comms-radio": ["comms"]
 						}
 					},
@@ -24547,7 +24479,7 @@
 						"department": "passage",
 						"controller": "ftl.drive",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "ftl.supply",
@@ -24555,7 +24487,7 @@
 						"department": "passage",
 						"controller": "ftl.supply",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "ftl.cooling",
@@ -24563,7 +24495,7 @@
 						"department": "passage",
 						"controller": "ftl.cooling",
 						"compartment": "engineering",
-						"effects": {}
+						"bindings": {}
 					}
 				],
 				"officers": [
@@ -26958,77 +26890,57 @@
 					{
 						"id": "propulsion",
 						"label": "Drive specialist",
-						"bonuses": {
-							"propulsion": 200
-						}
+						"effects": ["base.modifier.propulsion.p200"]
 					},
 					{
 						"id": "sensors",
 						"label": "Keen observer",
-						"bonuses": {
-							"sensors": 200
-						}
+						"effects": ["base.modifier.sensors.p200"]
 					},
 					{
 						"id": "cycling",
 						"label": "Gunnery drill",
-						"bonuses": {
-							"cycling": 150
-						}
+						"effects": ["base.modifier.cycling.p150"]
 					},
 					{
 						"id": "traverse",
 						"label": "Steady tracking",
-						"bonuses": {
-							"traverse": 200
-						}
+						"effects": ["base.modifier.traverse.p200"]
 					},
 					{
 						"id": "reload",
 						"label": "Magazine discipline",
-						"bonuses": {
-							"reload": 150
-						}
+						"effects": ["base.modifier.reload.p150"]
 					},
 					{
 						"id": "recharge",
 						"label": "Field specialist",
-						"bonuses": {
-							"recharge": 200
-						}
+						"effects": ["base.modifier.recharge.p200"]
 					},
 					{
 						"id": "repair",
 						"label": "Damage control veteran",
-						"bonuses": {
-							"repair": 200
-						}
+						"effects": ["base.modifier.repair.p200"]
 					},
 					{
 						"id": "comms",
 						"label": "Signal clarity",
-						"bonuses": {
-							"comms": 200
-						}
+						"effects": ["base.modifier.comms.p200"]
 					},
 					{
 						"id": "navigator",
 						"label": "Guild navigator",
-						"bonuses": {}
+						"effects": []
 					},
 					{
 						"id": "medical",
 						"label": "Clinical specialist",
-						"bonuses": {
-							"medical": 250
-						}
+						"effects": ["base.modifier.medical.p250"]
 					},
 					{
 						"id": "security",
 						"label": "Boarding veteran",
-						"bonuses": {
-							"security": 200
-						}
+						"effects": ["base.modifier.security.p200"]
 					}
 				],
 				"duties": [
@@ -27038,7 +26950,7 @@
 						"department": "sailing",
 						"controller": "drive",
 						"compartment": "stern-port",
-						"effects": {
+						"bindings": {
 							"drive": ["propulsion"]
 						}
 					},
@@ -27048,7 +26960,7 @@
 						"department": "sailing",
 						"controller": "helm",
 						"compartment": "bow-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "radar",
@@ -27056,7 +26968,7 @@
 						"department": "sciences",
 						"controller": "radar",
 						"compartment": "bow-starboard",
-						"effects": {
+						"bindings": {
 							"radar": ["sensors"]
 						}
 					},
@@ -27066,7 +26978,7 @@
 						"department": "tactical",
 						"controller": "top",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"top": ["traverse"]
 						}
 					},
@@ -27076,7 +26988,7 @@
 						"department": "tactical",
 						"controller": "top-mag",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"top-mag": ["reload"]
 						}
 					},
@@ -27086,7 +26998,7 @@
 						"department": "tactical",
 						"controller": "top-gun",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"top-gun": ["cycling"]
 						}
 					},
@@ -27096,7 +27008,7 @@
 						"department": "tactical",
 						"controller": "bottom",
 						"compartment": "mid-starboard",
-						"effects": {
+						"bindings": {
 							"bottom": ["traverse"]
 						}
 					},
@@ -27106,7 +27018,7 @@
 						"department": "tactical",
 						"controller": "bottom-mag",
 						"compartment": "mid-starboard",
-						"effects": {
+						"bindings": {
 							"bottom-mag": ["reload"]
 						}
 					},
@@ -27116,7 +27028,7 @@
 						"department": "tactical",
 						"controller": "bottom-gun",
 						"compartment": "mid-starboard",
-						"effects": {
+						"bindings": {
 							"bottom-gun": ["cycling"]
 						}
 					},
@@ -27126,7 +27038,7 @@
 						"department": "tactical",
 						"controller": "forward-mag",
 						"compartment": "bow-port",
-						"effects": {
+						"bindings": {
 							"forward-mag": ["reload"]
 						}
 					},
@@ -27136,7 +27048,7 @@
 						"department": "tactical",
 						"controller": "forward-gun",
 						"compartment": "bow-port",
-						"effects": {
+						"bindings": {
 							"forward-gun": ["cycling"]
 						}
 					},
@@ -27146,7 +27058,7 @@
 						"department": "engineering",
 						"controller": "team-1",
 						"compartment": "stern-starboard",
-						"effects": {
+						"bindings": {
 							"team-1": ["repair"]
 						}
 					},
@@ -27156,7 +27068,7 @@
 						"department": "engineering",
 						"controller": "team-2",
 						"compartment": "stern-starboard",
-						"effects": {
+						"bindings": {
 							"team-2": ["repair"]
 						}
 					},
@@ -27166,7 +27078,7 @@
 						"department": "engineering",
 						"controller": "reactor",
 						"compartment": "mid-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "weapon-cell",
@@ -27174,7 +27086,7 @@
 						"department": "engineering",
 						"controller": "weapon-cell",
 						"compartment": "mid-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "shield-cell",
@@ -27182,7 +27094,7 @@
 						"department": "engineering",
 						"controller": "shield-cell",
 						"compartment": "mid-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "beam",
@@ -27190,7 +27102,7 @@
 						"department": "tactical",
 						"controller": "beam",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"beam": ["cycling"]
 						}
 					},
@@ -27200,7 +27112,7 @@
 						"department": "sciences",
 						"controller": "shield-fore",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"shield-fore": ["recharge"]
 						}
 					},
@@ -27210,7 +27122,7 @@
 						"department": "sciences",
 						"controller": "shield-aft",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"shield-aft": ["recharge"]
 						}
 					},
@@ -27220,7 +27132,7 @@
 						"department": "tactical",
 						"controller": "homing-mag",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"homing-mag": ["reload"]
 						}
 					},
@@ -27230,7 +27142,7 @@
 						"department": "tactical",
 						"controller": "havok-mag",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"havok-mag": ["reload"]
 						}
 					},
@@ -27240,7 +27152,7 @@
 						"department": "tactical",
 						"controller": "missile-launcher",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"missile-launcher": ["cycling"]
 						}
 					},
@@ -27250,7 +27162,7 @@
 						"department": "tactical",
 						"controller": "pdc-mag",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"pdc-mag": ["reload"]
 						}
 					},
@@ -27260,7 +27172,7 @@
 						"department": "tactical",
 						"controller": "pdc",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"pdc": ["cycling"]
 						}
 					},
@@ -27270,7 +27182,7 @@
 						"department": "signals",
 						"controller": "external-comms",
 						"compartment": "bow-port",
-						"effects": {
+						"bindings": {
 							"comms-radio": ["comms"]
 						}
 					},
@@ -27280,7 +27192,7 @@
 						"department": "engineering",
 						"team": "team-1",
 						"compartment": "stern-starboard",
-						"effects": {
+						"bindings": {
 							"team-1": ["repair"]
 						}
 					},
@@ -27290,7 +27202,7 @@
 						"department": "engineering",
 						"team": "team-2",
 						"compartment": "stern-starboard",
-						"effects": {
+						"bindings": {
 							"team-2": ["repair"]
 						}
 					},
@@ -27301,7 +27213,7 @@
 						"controller": "dispatch",
 						"console": "helm",
 						"compartment": "bow-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "scanner",
@@ -27309,7 +27221,7 @@
 						"department": "tactical",
 						"controller": "scanner",
 						"compartment": "bow-starboard",
-						"effects": {
+						"bindings": {
 							"focused-scanner": ["sensors"],
 							"sensor-turret": ["traverse"]
 						}
@@ -27320,7 +27232,7 @@
 						"department": "passage",
 						"controller": "ftl.drive",
 						"compartment": "stern-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "ftl.supply",
@@ -27328,7 +27240,7 @@
 						"department": "passage",
 						"controller": "ftl.supply",
 						"compartment": "stern-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "ftl.cooling",
@@ -27336,7 +27248,7 @@
 						"department": "passage",
 						"controller": "ftl.cooling",
 						"compartment": "stern-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "medical-controller",
@@ -27345,7 +27257,7 @@
 						"controller": "medical-team",
 						"console": "support",
 						"compartment": "stern-starboard",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "team.medical",
@@ -27353,7 +27265,7 @@
 						"department": "medical",
 						"team": "medical-team",
 						"compartment": "stern-starboard",
-						"effects": {
+						"bindings": {
 							"medical-team": ["medical"]
 						}
 					},
@@ -27364,7 +27276,7 @@
 						"controller": "security-team",
 						"console": "tactical",
 						"compartment": "bow-starboard",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "team.security",
@@ -27372,7 +27284,7 @@
 						"department": "tactical",
 						"team": "security-team",
 						"compartment": "bow-starboard",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "navigation.orders",
@@ -27381,7 +27293,7 @@
 						"controller": "navigation.orders",
 						"console": "navigation",
 						"compartment": "bow-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "drive.direct",
@@ -27390,7 +27302,7 @@
 						"controller": "drive.direct",
 						"console": "helm",
 						"compartment": "stern-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "helm.direct",
@@ -27399,7 +27311,7 @@
 						"controller": "helm.direct",
 						"console": "helm",
 						"compartment": "bow-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "scanner.ready",
@@ -27408,7 +27320,7 @@
 						"controller": "scanner.ready",
 						"console": "tactical",
 						"compartment": "bow-starboard",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "top-gun.settings",
@@ -27417,7 +27329,7 @@
 						"controller": "top-gun.settings",
 						"console": "tactical",
 						"compartment": "mid-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "bottom-gun.settings",
@@ -27426,7 +27338,7 @@
 						"controller": "bottom-gun.settings",
 						"console": "tactical",
 						"compartment": "mid-starboard",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "forward-gun.settings",
@@ -27435,7 +27347,7 @@
 						"controller": "forward-gun.settings",
 						"console": "tactical",
 						"compartment": "bow-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "beam.settings",
@@ -27444,7 +27356,7 @@
 						"controller": "beam.settings",
 						"console": "tactical",
 						"compartment": "mid-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "missile-launcher.settings",
@@ -27453,7 +27365,7 @@
 						"controller": "missile-launcher.settings",
 						"console": "tactical",
 						"compartment": "mid-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "missile-launcher.ammo",
@@ -27462,7 +27374,7 @@
 						"controller": "missile-launcher.ammo",
 						"console": "tactical",
 						"compartment": "mid-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "pdc.settings",
@@ -27471,7 +27383,7 @@
 						"controller": "pdc.settings",
 						"console": "tactical",
 						"compartment": "mid-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "repair-priority",
@@ -27480,7 +27392,7 @@
 						"controller": "repair-priority",
 						"console": "support",
 						"compartment": "mid-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "shield-priority",
@@ -27489,7 +27401,7 @@
 						"controller": "shield-priority",
 						"console": "support",
 						"compartment": "mid-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "shield-fore.distribution",
@@ -27498,7 +27410,7 @@
 						"controller": "shield-fore.distribution",
 						"console": "support",
 						"compartment": "mid-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "shield-aft.distribution",
@@ -27507,7 +27419,7 @@
 						"controller": "shield-aft.distribution",
 						"console": "support",
 						"compartment": "mid-port",
-						"effects": {}
+						"bindings": {}
 					}
 				],
 				"officers": [
@@ -29315,58 +29227,42 @@
 					{
 						"id": "propulsion",
 						"label": "Drive specialist",
-						"bonuses": {
-							"propulsion": 200
-						}
+						"effects": ["base.modifier.propulsion.p200"]
 					},
 					{
 						"id": "sensors",
 						"label": "Keen observer",
-						"bonuses": {
-							"sensors": 200
-						}
+						"effects": ["base.modifier.sensors.p200"]
 					},
 					{
 						"id": "cycling",
 						"label": "Gunnery drill",
-						"bonuses": {
-							"cycling": 150
-						}
+						"effects": ["base.modifier.cycling.p150"]
 					},
 					{
 						"id": "traverse",
 						"label": "Steady tracking",
-						"bonuses": {
-							"traverse": 200
-						}
+						"effects": ["base.modifier.traverse.p200"]
 					},
 					{
 						"id": "reload",
 						"label": "Magazine discipline",
-						"bonuses": {
-							"reload": 150
-						}
+						"effects": ["base.modifier.reload.p150"]
 					},
 					{
 						"id": "recharge",
 						"label": "Field specialist",
-						"bonuses": {
-							"recharge": 200
-						}
+						"effects": ["base.modifier.recharge.p200"]
 					},
 					{
 						"id": "repair",
 						"label": "Damage control veteran",
-						"bonuses": {
-							"repair": 200
-						}
+						"effects": ["base.modifier.repair.p200"]
 					},
 					{
 						"id": "comms",
 						"label": "Signal clarity",
-						"bonuses": {
-							"comms": 200
-						}
+						"effects": ["base.modifier.comms.p200"]
 					}
 				],
 				"duties": [
@@ -29376,7 +29272,7 @@
 						"department": "sailing",
 						"controller": "drive",
 						"compartment": "stern-port",
-						"effects": {
+						"bindings": {
 							"drive": ["propulsion"]
 						}
 					},
@@ -29386,7 +29282,7 @@
 						"department": "sailing",
 						"controller": "helm",
 						"compartment": "bow-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "radar",
@@ -29394,7 +29290,7 @@
 						"department": "sciences",
 						"controller": "radar",
 						"compartment": "bow-starboard",
-						"effects": {
+						"bindings": {
 							"radar": ["sensors"]
 						}
 					},
@@ -29404,7 +29300,7 @@
 						"department": "tactical",
 						"controller": "top",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"top": ["traverse"]
 						}
 					},
@@ -29414,7 +29310,7 @@
 						"department": "tactical",
 						"controller": "top-mag",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"top-mag": ["reload"]
 						}
 					},
@@ -29424,7 +29320,7 @@
 						"department": "tactical",
 						"controller": "top-gun",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"top-gun": ["cycling"]
 						}
 					},
@@ -29434,7 +29330,7 @@
 						"department": "tactical",
 						"controller": "bottom",
 						"compartment": "mid-starboard",
-						"effects": {
+						"bindings": {
 							"bottom": ["traverse"]
 						}
 					},
@@ -29444,7 +29340,7 @@
 						"department": "tactical",
 						"controller": "bottom-mag",
 						"compartment": "mid-starboard",
-						"effects": {
+						"bindings": {
 							"bottom-mag": ["reload"]
 						}
 					},
@@ -29454,7 +29350,7 @@
 						"department": "tactical",
 						"controller": "bottom-gun",
 						"compartment": "mid-starboard",
-						"effects": {
+						"bindings": {
 							"bottom-gun": ["cycling"]
 						}
 					},
@@ -29464,7 +29360,7 @@
 						"department": "tactical",
 						"controller": "forward-mag",
 						"compartment": "bow-port",
-						"effects": {
+						"bindings": {
 							"forward-mag": ["reload"]
 						}
 					},
@@ -29474,7 +29370,7 @@
 						"department": "tactical",
 						"controller": "forward-gun",
 						"compartment": "bow-port",
-						"effects": {
+						"bindings": {
 							"forward-gun": ["cycling"]
 						}
 					},
@@ -29484,7 +29380,7 @@
 						"department": "engineering",
 						"controller": "team-1",
 						"compartment": "stern-starboard",
-						"effects": {
+						"bindings": {
 							"team-1": ["repair"]
 						}
 					},
@@ -29494,7 +29390,7 @@
 						"department": "engineering",
 						"controller": "team-2",
 						"compartment": "stern-starboard",
-						"effects": {
+						"bindings": {
 							"team-2": ["repair"]
 						}
 					},
@@ -29504,7 +29400,7 @@
 						"department": "engineering",
 						"controller": "reactor",
 						"compartment": "mid-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "weapon-cell",
@@ -29512,7 +29408,7 @@
 						"department": "engineering",
 						"controller": "weapon-cell",
 						"compartment": "mid-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "shield-cell",
@@ -29520,7 +29416,7 @@
 						"department": "engineering",
 						"controller": "shield-cell",
 						"compartment": "mid-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "beam",
@@ -29528,7 +29424,7 @@
 						"department": "tactical",
 						"controller": "beam",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"beam": ["cycling"]
 						}
 					},
@@ -29538,7 +29434,7 @@
 						"department": "sciences",
 						"controller": "shield-fore",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"shield-fore": ["recharge"]
 						}
 					},
@@ -29548,7 +29444,7 @@
 						"department": "sciences",
 						"controller": "shield-aft",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"shield-aft": ["recharge"]
 						}
 					},
@@ -29558,7 +29454,7 @@
 						"department": "tactical",
 						"controller": "homing-mag",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"homing-mag": ["reload"]
 						}
 					},
@@ -29568,7 +29464,7 @@
 						"department": "tactical",
 						"controller": "havok-mag",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"havok-mag": ["reload"]
 						}
 					},
@@ -29578,7 +29474,7 @@
 						"department": "tactical",
 						"controller": "missile-launcher",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"missile-launcher": ["cycling"]
 						}
 					},
@@ -29588,7 +29484,7 @@
 						"department": "tactical",
 						"controller": "pdc-mag",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"pdc-mag": ["reload"]
 						}
 					},
@@ -29598,7 +29494,7 @@
 						"department": "tactical",
 						"controller": "pdc",
 						"compartment": "mid-port",
-						"effects": {
+						"bindings": {
 							"pdc": ["cycling"]
 						}
 					},
@@ -29608,7 +29504,7 @@
 						"department": "signals",
 						"controller": "external-comms",
 						"compartment": "bow-port",
-						"effects": {
+						"bindings": {
 							"comms-radio": ["comms"]
 						}
 					},
@@ -29618,7 +29514,7 @@
 						"department": "engineering",
 						"team": "team-1",
 						"compartment": "stern-starboard",
-						"effects": {
+						"bindings": {
 							"team-1": ["repair"]
 						}
 					},
@@ -29628,7 +29524,7 @@
 						"department": "engineering",
 						"team": "team-2",
 						"compartment": "stern-starboard",
-						"effects": {
+						"bindings": {
 							"team-2": ["repair"]
 						}
 					},
@@ -29638,7 +29534,7 @@
 						"department": "passage",
 						"controller": "ftl.drive",
 						"compartment": "stern-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "ftl.supply",
@@ -29646,7 +29542,7 @@
 						"department": "passage",
 						"controller": "ftl.supply",
 						"compartment": "stern-port",
-						"effects": {}
+						"bindings": {}
 					},
 					{
 						"id": "ftl.cooling",
@@ -29654,7 +29550,7 @@
 						"department": "passage",
 						"controller": "ftl.cooling",
 						"compartment": "stern-port",
-						"effects": {}
+						"bindings": {}
 					}
 				],
 				"officers": [
@@ -53372,6 +53268,111 @@
 					"warmup_ticks": 40,
 					"discharge_per_second": 100,
 					"discharge_efficiency_permille": 900
+				}
+			}
+		},
+		{
+			"id": "base.modifier.comms.p200",
+			"kind": "modifier",
+			"contributions": {
+				"main": {
+					"property": "comms",
+					"delta_permille": 200
+				}
+			}
+		},
+		{
+			"id": "base.modifier.cycling.p150",
+			"kind": "modifier",
+			"contributions": {
+				"main": {
+					"property": "cycling",
+					"delta_permille": 150
+				}
+			}
+		},
+		{
+			"id": "base.modifier.medical.p250",
+			"kind": "modifier",
+			"contributions": {
+				"main": {
+					"property": "medical",
+					"delta_permille": 250
+				}
+			}
+		},
+		{
+			"id": "base.modifier.propulsion.p200",
+			"kind": "modifier",
+			"contributions": {
+				"main": {
+					"property": "propulsion",
+					"delta_permille": 200
+				}
+			}
+		},
+		{
+			"id": "base.modifier.recharge.p200",
+			"kind": "modifier",
+			"contributions": {
+				"main": {
+					"property": "recharge",
+					"delta_permille": 200
+				},
+				"off": {
+					"property": "off_recharge",
+					"role": "recharge",
+					"delta_permille": 200
+				}
+			}
+		},
+		{
+			"id": "base.modifier.reload.p150",
+			"kind": "modifier",
+			"contributions": {
+				"main": {
+					"property": "reload",
+					"delta_permille": 150
+				}
+			}
+		},
+		{
+			"id": "base.modifier.repair.p200",
+			"kind": "modifier",
+			"contributions": {
+				"main": {
+					"property": "repair",
+					"delta_permille": 200
+				}
+			}
+		},
+		{
+			"id": "base.modifier.security.p200",
+			"kind": "modifier",
+			"contributions": {
+				"main": {
+					"property": "security",
+					"delta_permille": 200
+				}
+			}
+		},
+		{
+			"id": "base.modifier.sensors.p200",
+			"kind": "modifier",
+			"contributions": {
+				"main": {
+					"property": "sensors",
+					"delta_permille": 200
+				}
+			}
+		},
+		{
+			"id": "base.modifier.traverse.p200",
+			"kind": "modifier",
+			"contributions": {
+				"main": {
+					"property": "traverse",
+					"delta_permille": 200
 				}
 			}
 		}

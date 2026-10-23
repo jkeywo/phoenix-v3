@@ -1,6 +1,6 @@
 # Shared property effects and Duty Officer migration
 
-23 October 2026 · planned; implementation and acceptance pending
+23 October 2026 · implemented; automated evidence and remaining acceptance limits are recorded in the [implementation record](property-effects-evidence.md).
 
 This is the second slice of the [shared gameplay engine](gameplay-engine-design.md), following the [shield migration](shield-migration-evidence.md). The selected scope is shared property effects and all existing Duty Officer bonuses, including adapters for existing faults and boost/impulse modifiers where they affect the same properties. The [migration notes](gameplay-engine-migration.md) retain the wider conversion sequence.
 
@@ -111,7 +111,7 @@ Persist independent applications, source keys, targets, captured values, expirie
 
 ## Implementation sequence
 
-Each stage is a verified logical commit. All stages are pending.
+The stages below retain the implementation and acceptance contract. Delivery and verification results are recorded in the [implementation record](property-effects-evidence.md).
 
 ### 1. Freeze the property and authoring contracts
 
@@ -163,12 +163,12 @@ Required cross-cutting cases are additive positive/negative composition, zero-ba
 
 ## Completion
 
-- [ ] All ordinary officer bonuses use reusable shared effects and typed property bindings.
-- [ ] Every migrated property has one combination path, including applicable native-source adapters.
-- [ ] Independent scenario and shield-reaction applications use the same lifecycle and prepared execution.
-- [ ] Physical consumers, Personnel/Controller views, Workshop and maintained content are migrated together.
-- [ ] Old officer scaling/direct bonus reads are removed; remaining unmigrated mechanisms are documented.
-- [ ] Persistence, native/WASM parity and independent review have recorded evidence.
-- [ ] Manual acceptance and remaining wider-framework work are recorded separately.
+- [x] All ordinary officer bonuses use reusable shared effects and typed property bindings.
+- [x] Every migrated property has one combination path, including applicable native-source adapters.
+- [x] Independent scenario and shield-reaction applications use the same lifecycle and prepared execution.
+- [x] Physical consumers, Personnel/Controller views, Workshop and maintained content are migrated together.
+- [x] Old officer scaling/direct bonus reads are removed; remaining unmigrated mechanisms are documented.
+- [x] Persistence, native/WASM parity and independent review have recorded evidence.
+- [x] Manual acceptance and remaining wider-framework work are recorded separately.
 
 The recommended following stage is resource/store unification, then directed systems and weapon payload effects. This plan does not establish implementation or approval of those later stages.

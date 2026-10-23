@@ -37,9 +37,10 @@ inline Json board(const Json &source)
 						throw std::runtime_error("Invalid personnel effects");
 					for (const auto &e : effects)
 					{
-						auto n = number(e.at("multiplier"), 0, 30000000);
+						auto n = number(e.at("multiplier"), 0, 1000000001000LL);
 						r["effects"].push_back({{"system", text(e.at("system"), 64)},
 						                        {"slot", text(e.at("slot"), 64)},
+						                        {"property", text(e.at("property"), 64)},
 						                        {"multiplier", n}});
 					}
 				}
@@ -70,17 +71,19 @@ inline Json board(const Json &source)
 						throw std::runtime_error("Invalid traits");
 					for (const auto &t : traits)
 					{
-						Json bonuses = Json::object();
-						if (!t.at("bonuses").is_object() || t.at("bonuses").size() > 16)
-							throw std::runtime_error("Invalid bonuses");
-						for (const auto &[slot, b] : t.at("bonuses").items())
-						{
-							auto v = number(b, -10000, 10000);
-							if (slot.size() > 32)
-								throw std::runtime_error("Invalid trait modifier");
-							bonuses[slot] = v;
-						}
-						r["traits"].push_back({{"label", text(t.at("label"), 128)}, {"bonuses", bonuses}});
+						Json contributions = Json::array();
+						if (!t.at("contributions").is_array() || t.at("contributions").size() > 256)
+							throw std::runtime_error("Invalid trait contributions");
+						for (const auto &c : t.at("contributions"))
+							contributions.push_back(
+							    {{"effect", text(c.at("effect"), 128)},
+							     {"name", text(c.at("name"), 64)},
+							     {"role", text(c.at("role"), 64)},
+							     {"property", text(c.at("property"), 64)},
+							     {"delta_permille", number(c.at("delta_permille"), -100000, 100000)}});
+						r["traits"].push_back({{"id", text(t.at("id"), 64)},
+						                       {"label", text(t.at("label"), 128)},
+						                       {"contributions", contributions}});
 					}
 				}
 			}

@@ -6,11 +6,104 @@ module;
 #include <optional>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <nlohmann/json.hpp>
 module phoenix.content;
 namespace phoenix
 {
+const std::vector<ModifierPropertyDescriptor> &modifier_properties()
+{
+	static const std::vector<ModifierPropertyDescriptor> properties{
+	    {"propulsion",
+	     "mm_per_second_squared",
+	     {OperatingSystem::Engine, OperatingSystem::Lateral, OperatingSystem::Boost, OperatingSystem::Impulse}},
+	    {"speed", "mm_per_second", {OperatingSystem::Engine, OperatingSystem::Boost, OperatingSystem::Impulse}},
+	    {"turn", "mdeg_per_second", {OperatingSystem::Steering, OperatingSystem::Engine}, 360000},
+	    {"sensors", "mm", {OperatingSystem::Radar}},
+	    {"cycling", "relative_permille", {OperatingSystem::Weapon}},
+	    {"traverse", "mdeg_per_second", {OperatingSystem::Turret}, 360000},
+	    {"reload", "relative_permille", {OperatingSystem::Magazine}},
+	    {"recharge", "milli_strength_per_second", {OperatingSystem::Shield}},
+	    {"off_recharge", "milli_strength_per_second", {OperatingSystem::Shield}},
+	    {"sustain", "energy_per_second", {OperatingSystem::Shield}},
+	    {"discharge", "strength_per_second", {OperatingSystem::Shield}, 1000000},
+	    {"protection", "relative_permille", {OperatingSystem::Shield}, 1000},
+	    {"repair", "native_work_units", {OperatingSystem::Team}, 1000000000000000000LL},
+	    {"medical", "relative_permille", {OperatingSystem::Team}},
+	    {"security", "relative_permille", {OperatingSystem::Team}},
+	    {"comms", "mm", {OperatingSystem::Comms}}};
+	return properties;
+}
+bool known_modifier_property(std::string_view property)
+{
+	return std::any_of(modifier_properties().begin(), modifier_properties().end(),
+	                   [&](const auto &d)
+	                   {
+		                   return d.id == property;
+	                   });
+}
+bool property_compatible(std::string_view property, OperatingSystem kind)
+{
+	for (const auto &d : modifier_properties())
+		if (d.id == property)
+			return std::find(d.owners.begin(), d.owners.end(), kind) != d.owners.end();
+	return false;
+}
+std::string modifier_property_role(std::string_view property)
+{
+	return std::string(property);
+}
+ModifierEffectDefinition compile_modifier_effect(const Catalog &catalog, const std::string &id)
+{
+	const auto path = "effects." + id;
+	const auto found = catalog.effects.find(id);
+	if (found == catalog.effects.end())
+		throw std::runtime_error(path + ": unknown modifier effect");
+	const auto &effect = found->second;
+	if (effect.value("kind", std::string{}) != "modifier")
+		throw std::runtime_error(path + ".kind: expected modifier effect");
+	for (const auto &[key, value] : effect.items())
+		if (key != "id" && key != "kind" && key != "contributions" && key != "extends" && key != "name" &&
+		    key != "duration_ticks")
+			throw std::runtime_error(path + "." + key + ": unsupported effect field");
+	const auto duration = effect.value("duration_ticks", Json(0));
+	if (!duration.is_number_integer() || duration < 0 || duration > 1000000)
+		throw std::runtime_error(path + ".duration_ticks: expected bounded nonnegative integer");
+	if (!effect.contains("contributions") || !effect.at("contributions").is_object() ||
+	    effect.at("contributions").empty() || effect.at("contributions").size() > 64)
+		throw std::runtime_error(path + ".contributions: expected 1..64 named contributions");
+	ModifierEffectDefinition result{id, duration.get<std::int64_t>(), {}};
+	for (const auto &[name, value] : effect.at("contributions").items())
+	{
+		const auto at = path + ".contributions." + name;
+		if (!valid_identifier(name) || !value.is_object())
+			throw std::runtime_error(at + ": invalid named contribution");
+		for (const auto &[key, item] : value.items())
+			if (key != "property" && key != "role" && key != "delta_permille")
+				throw std::runtime_error(at + "." + key + ": unsupported modifier field");
+		ModifierContributionDefinition c;
+		c.name = name;
+		c.property = value.value("property", std::string{});
+		c.role = value.value("role", modifier_property_role(c.property));
+		const auto delta = value.value("delta_permille", Json());
+		if (!known_modifier_property(c.property) || !valid_identifier(c.role))
+			throw std::runtime_error(at + ": unknown property or invalid target role");
+		if (!delta.is_number_integer() || delta < -100000 || delta > 100000)
+			throw std::runtime_error(at + ".delta_permille: expected integer in -100000..100000");
+		c.delta_permille = delta.get<std::int64_t>();
+		result.contributions.push_back(std::move(c));
+	}
+	return result;
+}
+void compile_effect(const Catalog &catalog, const std::string &id)
+{
+	const auto &effect = catalog.effects.at(id);
+	if (effect.value("kind", std::string{}) == "modifier")
+		(void)compile_modifier_effect(catalog, id);
+	else
+		(void)compile_shield_effect(catalog, id);
+}
 ShieldEffectDefinition compile_shield_effect(const Catalog &catalog, const std::string &id)
 {
 	const auto path = "effects." + id;
@@ -122,7 +215,8 @@ ShieldEffectDefinition compile_shield_effect(const Catalog &catalog, const std::
 					if (!operation.is_object())
 						throw std::runtime_error(at + ".reactions.operations: expected object");
 					for (const auto &[key, field] : operation.items())
-						if (key != "kind" && key != "target" && key != "damage" && key != "effect" && key != "grant")
+						if (key != "kind" && key != "target" && key != "damage" && key != "effect" && key != "grant" &&
+						    key != "equipment")
 							throw std::runtime_error(at + ".reactions.operations: unsupported field " + key);
 					ShieldReactionOperation op;
 					op.target = operation.value("target", std::string("attacker"));
@@ -132,7 +226,7 @@ ShieldEffectDefinition compile_shield_effect(const Catalog &catalog, const std::
 					for (const auto &[key, field] : operation.items())
 						if (key != "kind" && key != "target" &&
 						    !((kind == "damage" && key == "damage") ||
-						      (kind == "apply" && (key == "effect" || key == "grant")) ||
+						      (kind == "apply" && (key == "effect" || key == "grant" || key == "equipment")) ||
 						      (kind == "remove" && key == "grant")))
 							throw std::runtime_error(at + ".reactions.operations: unsupported field for " + kind +
 							                         ": " + key);
@@ -159,6 +253,13 @@ ShieldEffectDefinition compile_shield_effect(const Catalog &catalog, const std::
 							op.effect = operation.value("effect", std::string{});
 							if (!catalog.effects.contains(op.effect))
 								throw std::runtime_error(at + ".reactions.effect: unknown effect");
+							op.equipment = operation.value("equipment", std::string{});
+							const bool modifier =
+							    catalog.effects.at(op.effect).value("kind", std::string{}) == "modifier";
+							if (modifier ? !valid_identifier(op.equipment) : !op.equipment.empty())
+								throw std::runtime_error(
+								    at +
+								    ".reactions.equipment: modifier requires equipment binding; shield must omit it");
 						}
 					}
 					else
@@ -174,7 +275,7 @@ ShieldEffectDefinition compile_shield_effect(const Catalog &catalog, const std::
 		{
 			// Keep shorthand last: existing saves identify this group after authored reactions.
 			ShieldReactionDefinition reaction;
-			reaction.operations.push_back({ShieldReactionKind::Damage, "attacker", {}, {}, damage});
+			reaction.operations.push_back({ShieldReactionKind::Damage, "attacker", {}, {}, {}, damage});
 			d.reactions.push_back(std::move(reaction));
 		}
 		d.reserve.capacity = n("capacity", 1, 1, 1000000);

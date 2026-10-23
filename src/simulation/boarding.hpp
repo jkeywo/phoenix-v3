@@ -100,7 +100,7 @@ std::vector<flecs::entity> boarding_party_teams(EntityId origin, const AwayMissi
 		{
 			const auto team = away_equipment(origin, asset.substr(5));
 			const auto &mechanism = team.get<CombatMechanism>();
-			if (team.get<Equipment>().enabled && team_effectiveness(mechanism) &&
+			if (team.get<Equipment>().enabled && team_available(mechanism) &&
 			    (capability.empty() || mechanism.definition.get<TeamDefinition>().capabilities.contains(capability)))
 				out.push_back(team);
 		}
@@ -217,7 +217,7 @@ bool boarding_defender_available(EntityId ship, flecs::entity team) const
 {
 	const auto *m = team.try_get<CombatMechanism>();
 	if (!m || m->definition.kind != OperatingSystem::Team || !team.get<Equipment>().enabled ||
-	    !m->definition.get<TeamDefinition>().capabilities.contains("security") || !team_effectiveness(*m) ||
+	    !m->definition.get<TeamDefinition>().capabilities.contains("security") || !team_available(*m) ||
 	    m->get<TeamState>().detained)
 		return false;
 	for (std::size_t i = 0; i < away_missions.size(); ++i)
@@ -286,25 +286,15 @@ void advance_boarding(std::size_t index)
 		const auto attackers = boarding_party_teams(origin, m, "security");
 		std::int64_t strength = 0;
 		for (auto a : attackers)
-		{
-			std::int64_t bonus = 0;
-			const auto &officers = entities.at(origin).get<PersonnelState>().officers;
-			const auto &people = definition(origin).personnel;
-			for (std::size_t i = 0; i < officers.size(); ++i)
-				if (officer_healthy(officers[i]))
-					if (const auto *duty = personnel_duty(origin, officers[i].duty);
-					    duty && duty->team == a.get<Equipment>().id)
-						if (people.officers[i].bonuses.contains("security"))
-							bonus += people.officers[i].bonuses.at("security");
-			strength += personnel_scale(1000, bonus) * team_effectiveness(a.get<CombatMechanism>()) / 1000;
-		}
+			strength += team_work(entities.at(origin), a.get<CombatMechanism>(), "security", 1000);
 		s.factors = {{"Base chance", e.success},
 		             {"Security support", (strength - 1000) * e.team_bonus / 1000},
 		             {"Defending teams", 0}};
 		s.chance = e.success + s.factors.at("Security support");
 		for (auto defender : defenders)
 		{
-			const auto penalty = e.defender_penalty * team_effectiveness(defender.get<CombatMechanism>()) / 1000;
+			const auto penalty =
+			    team_work(entities.at(target), defender.get<CombatMechanism>(), "security", e.defender_penalty);
 			s.chance -= penalty;
 			s.factors["Defending teams"] -= penalty;
 		}
@@ -353,7 +343,7 @@ void advance_boarding(std::size_t index)
 		if (const auto *mechanism = child.try_get<CombatMechanism>();
 		    mechanism && mechanism->definition.kind == OperatingSystem::Team &&
 		    mechanism->definition.get<TeamDefinition>().capabilities.contains("medical") &&
-		    team_effectiveness(*mechanism) && child.get<Equipment>().enabled &&
+		    team_available(*mechanism) && child.get<Equipment>().enabled &&
 		    mechanism->get<TeamState>().location == s.location && !mechanism->get<TeamState>().travel &&
 		    !away_reserved(target, "team:" + mechanism->definition.id))
 			defending_medical = true;
@@ -460,8 +450,9 @@ void validate_boarding_state(const AwayDefinition &d, const AwayMission &m) cons
 		throw std::runtime_error("Unknown boarding encounter");
 	if (s.factors.size() > 35 || s.neutralised.size() > 128)
 		throw std::runtime_error("Invalid boarding assessment");
+	// Matches the permitted projection: 128 defenders at the native 1e9 security output cap.
 	for (const auto &[key, value] : s.factors)
-		if (key.size() > 64 || value < -1000000 || value > 1000000)
+		if (key.size() > 64 || value < -128000000000LL || value > 128000000000LL)
 			throw std::runtime_error("Invalid boarding factor");
 	for (const auto &[key, revision] : s.neutralised)
 	{

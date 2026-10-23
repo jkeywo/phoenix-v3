@@ -5,6 +5,7 @@ module;
 #include <set>
 #include <stdexcept>
 #include <string>
+#include <tuple>
 #include <vector>
 module phoenix.content;
 namespace phoenix
@@ -101,20 +102,28 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 	     "invalid compartments");
 	for (const auto &link : out.links)
 		fail(link.ticks > 0 && link.ticks <= 36000, "personnel travel link outside supported duration");
-	const std::map<std::string, OperatingSystem> slots{
-	    {"propulsion", OperatingSystem::Engine}, {"sensors", OperatingSystem::Radar},
-	    {"cycling", OperatingSystem::Weapon},    {"traverse", OperatingSystem::Turret},
-	    {"reload", OperatingSystem::Magazine},   {"recharge", OperatingSystem::Shield},
-	    {"security", OperatingSystem::Team},     {"medical", OperatingSystem::Team},
-	    {"repair", OperatingSystem::Team},       {"comms", OperatingSystem::Comms}};
+	std::map<std::string, std::set<std::string>> role_properties;
+	for (const auto &property : modifier_properties())
+		role_properties[property.id].insert(property.id);
 	for (const auto &v : data.at("traits"))
 	{
 		OfficerTrait t{identifier(v.at("id")), text(v.at("label")), {}};
-		for (const auto &[slot, bonus] : v.at("bonuses").items())
+		fail(!v.contains("bonuses"), "trait bonuses are replaced by effect references");
+		const auto refs = v.value("effects", Json::array());
+		fail(refs.is_array() && refs.size() <= 64, "invalid trait effect references");
+		std::set<std::string> unique;
+		std::size_t contribution_count = 0;
+		for (const auto &ref : refs)
 		{
-			auto b = bonus.get<std::int64_t>();
-			fail(slots.contains(slot) && b >= -10000 && b <= 10000, "unsupported modifier slot or magnitude");
-			t.bonuses.emplace(slot, b);
+			const auto id = identifier(ref);
+			fail(unique.insert(id).second, "duplicate trait effect reference");
+			auto effect = compile_modifier_effect(catalog, id);
+			fail(effect.duration_ticks == 0, "officer effects are maintained and cannot declare a duration");
+			contribution_count += effect.contributions.size();
+			fail(contribution_count <= 256, "trait exceeds 256 modifier contributions");
+			for (const auto &contribution : effect.contributions)
+				role_properties[contribution.role].insert(contribution.property);
+			t.effects.push_back(std::move(effect));
 		}
 		fail(out.traits.emplace(t.id, t).second, "duplicate trait");
 	}
@@ -186,25 +195,54 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 			fail(team != combat->systems.end() && team->compartment == d.compartment,
 			     "team duty must start in its physical compartment");
 		}
-		const auto effects = v.value("effects", Json::object());
+		fail(!v.contains("effects"), "duty effects are replaced by target bindings");
+		const auto effects = v.value("bindings", Json::object());
 		fail(effects.is_object() && effects.size() <= 256, "too many effect targets");
 		for (const auto &[system, values] : effects.items())
 		{
 			fail(kinds.contains(system) && (d.team.empty() || system == d.team), "invalid effect target " + system);
+			fail(values.is_array() && values.size() <= 64, "target binding roles must be a bounded array");
 			std::set<std::string> unique;
 			for (const auto &slot : values)
 			{
 				auto key = slot.get<std::string>();
-				fail(slots.contains(key) && slots.at(key) == kinds.at(system) && unique.insert(key).second,
-				     "incompatible or duplicate effect slot");
+				fail(role_properties.contains(key) && unique.insert(key).second, "unknown or duplicate target role");
+				for (const auto &property : role_properties.at(key))
+					fail(property_compatible(property, kinds.at(system)), "incompatible property target " + property);
 				if (kinds.at(system) == OperatingSystem::Team)
 				{
 					const auto &team = combat->systems.at(combat->system_ids.at(system)).get<TeamDefinition>();
-					fail(team.capabilities.contains(key), "officer effect requires matching team capability");
+					for (const auto &property : role_properties.at(key))
+						fail(team.capabilities.contains(property), "officer effect requires matching team capability");
 				}
 				d.effects[system].push_back(key);
 			}
 		}
+		// A multi-property application may be entirely inapplicable to this duty,
+		// but cannot silently apply only some of its required target roles.
+		std::set<std::string> bound_roles;
+		for (const auto &[system, roles] : d.effects)
+			bound_roles.insert(roles.begin(), roles.end());
+		for (const auto &[trait_id, trait] : out.traits)
+			for (const auto &effect : trait.effects)
+			{
+				bool any = false, all = true;
+				for (const auto &contribution : effect.contributions)
+				{
+					any |= bound_roles.contains(contribution.role);
+					all &= bound_roles.contains(contribution.role);
+				}
+				fail(!any || all, "partially bound modifier effect " + effect.id);
+			}
+		std::set<std::tuple<std::string, std::string, std::string>> rows;
+		for (const auto &[system, roles] : d.effects)
+			for (const auto &role : roles)
+				for (const auto &[trait_id, trait] : out.traits)
+					for (const auto &effect : trait.effects)
+						for (const auto &c : effect.contributions)
+							if (c.role == role)
+								rows.emplace(system, role, c.property);
+		fail(rows.size() <= 256, "duty exceeds 256 bound property rows");
 		out.duty_indices.emplace(d.id, out.duties.size());
 		out.duties.push_back(d);
 	}
@@ -255,8 +293,6 @@ PersonnelDefinition compile_personnel(const Catalog &catalog, const std::string 
 			auto id = t.get<std::string>();
 			fail(out.traits.contains(id) && unique.insert(id).second, "unknown or duplicate trait");
 			o.traits.push_back(id);
-			for (const auto &[slot, bonus] : out.traits.at(id).bonuses)
-				o.bonuses[slot] += bonus;
 		}
 		fail(o.traits.size() <= 16, "too many officer traits");
 		out.officers.push_back(o);

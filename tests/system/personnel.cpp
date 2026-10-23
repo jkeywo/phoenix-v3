@@ -117,6 +117,98 @@ int main()
 			require(roster["duties"].size() == 129 && personnel_projection::board(roster) == roster,
 			        "large watch duties pass production loading and permitted network projection");
 		}
+		{
+			auto high = fixture();
+			high["effects"] = Json::array();
+			auto &traits = high["entities"][0]["personnel"]["traits"];
+			for (auto &trait : traits)
+			{
+				trait.erase("bonuses");
+				trait["effects"] = Json::array();
+			}
+			for (int effect = 0; effect < 6; ++effect)
+			{
+				const auto id = "test.high-" + std::to_string(effect);
+				Json contributions = Json::object();
+				for (int n = 0; n < 64; ++n)
+					contributions["part-" + std::to_string(n)] = {{"property", "propulsion"},
+					                                              {"delta_permille", 100000}};
+				high["effects"].push_back({{"id", id}, {"kind", "modifier"}, {"contributions", contributions}});
+				traits[effect / 3]["effects"].push_back(id);
+			}
+			high["effects"].push_back(
+			    {{"id", "test.low"},
+			     {"kind", "modifier"},
+			     {"contributions", {{"penalty", {{"property", "propulsion"}, {"delta_permille", -100000}}}}}});
+			traits[2]["effects"].push_back("test.low");
+			World legal_bounds;
+			legal_bounds.load(load(high), "test.map");
+			require(legal_bounds.claim(101, 1, "drive"), "claim legal property bound fixture");
+			const auto roster = board(legal_bounds);
+			require(roster["duties"][0]["effects"][0]["multiplier"] == 38401000 &&
+			            roster["duties"][1]["effects"][0]["multiplier"] == 0 &&
+			            personnel_projection::board(roster) == roster,
+			        "Personnel projection preserves legal signed contribution bounds and large additive totals");
+
+			auto &ship = high["entities"][0];
+			ship["systems"]["port"]["max_speed_mm_s"] = 1000000000;
+			ship["control_layout"]["controllers"][0]["commands"][0]["initial"] = 1000000000;
+			ship["control_layout"]["controllers"][1]["commands"][0]["initial"] = 0;
+			// Independent source identities all bind one engine; separate Stations
+			// keep each permitted roster within the ordinary projection byte budget.
+			for (int i = 1; i < 32; ++i)
+			{
+				const auto id = "source-" + std::to_string(i);
+				const auto station = "ward-" + std::to_string((i - 1) / 2);
+				ship["systems"][id] = {{"kind", "engine"}, {"max_speed_mm_s", 17000}, {"acceleration_mm_s2", 1}};
+				if (i % 2)
+				{
+					ship["stations"].push_back({{"id", station},
+					                            {"consoles", Json::array({{{"id", station},
+					                                                       {"definition", "test.console"},
+					                                                       {"systems", Json::array()}}})}});
+					ship["personnel"]["departments"].push_back(
+					    {{"id", station}, {"label", station}, {"station", station}});
+				}
+				ship["control_layout"]["controllers"].push_back(
+				    {{"id", id},
+				     {"console", station},
+				     {"fallback", "hold"},
+				     {"commands",
+				      Json::array(
+				          {{{"id", "speed"}, {"action", "speed_mm_s"}, {"initial", 0}, {"consumers", {id}}}})}});
+				for (auto &profile : ship["control_layout"]["profiles"])
+					profile["consoles"][station]["human"].push_back(id);
+				ship["personnel"]["duties"].push_back({{"id", id},
+				                                       {"label", id},
+				                                       {"controller", id},
+				                                       {"department", station},
+				                                       {"compartment", "bridge"},
+				                                       {"effects", {{"port", {"propulsion"}}}}});
+				ship["personnel"]["officers"].push_back({{"id", id},
+				                                         {"name", id},
+				                                         {"department", station},
+				                                         {"duty", id},
+				                                         {"compartment", "bridge"},
+				                                         {"traits", {"expert", "steady"}}});
+			}
+			World many_sources;
+			many_sources.load(load(high), "test.map");
+			require(many_sources.claim(101, 1, "drive"), "claim large aggregate officer fixture");
+			const auto many_roster = board(many_sources);
+			require(many_roster["duties"][0]["effects"][0]["multiplier"] == 1228801000 &&
+			            personnel_projection::board(many_roster) == many_roster,
+			        "legal roster aggregate above one billion retains its requested factor in Personnel");
+			auto capped = high;
+			capped["entities"][0]["personnel"]["officers"] = Json::array();
+			capped["entities"][0]["systems"]["port"]["acceleration_mm_s2"] = 1000000000;
+			World native_limit;
+			native_limit.load(load(capped), "test.map");
+			many_sources.tick();
+			native_limit.tick();
+			require(many_sources.inspect()[0].vx > 0 && many_sources.inspect()[0].vx == native_limit.inspect()[0].vx,
+			        "large additive aggregates saturate at the native physical acceleration limit without overflow");
+		}
 		auto source = fixture();
 		const auto catalog = load(source);
 		World world;
@@ -124,8 +216,8 @@ int main()
 		require(world.claim(101, 1, "drive") && world.claim(102, 1, "outsider"), "claim owning and foreign Stations");
 		require(board(world)["duties"][0]["effects"][0]["multiplier"] == 1500,
 		        "positive contributions sum before multiplying");
-		require(board(world)["duties"][1]["effects"][0]["multiplier"] == 500,
-		        "negative contributions remain reciprocal and positive");
+		require(board(world)["duties"][1]["effects"][0]["multiplier"] == 0,
+		        "negative contributions add and can stop work");
 		require(board(world, 102)["officers"].empty(), "foreign Station cannot see roster");
 		const auto projected = board(world);
 		require(personnel_projection::board(projected) == projected, "personnel projection preserves permitted roster");
@@ -137,7 +229,7 @@ int main()
 			if (std::string(field) == "remaining")
 				invalid["officers"][0]["remaining"] = 0.5;
 			if (std::string(field) == "bonus")
-				invalid["officers"][0]["traits"][0]["bonuses"]["propulsion"] = 250.5;
+				invalid["officers"][0]["traits"][0]["contributions"][0]["delta_permille"] = 250.5;
 			bool rejected = false;
 			try
 			{

@@ -169,6 +169,7 @@ void step_shield_reactions()
 			shield_reaction_results.erase(shield_reaction_results.begin());
 		// Prepare complete component and payer candidates before publishing any writes.
 		std::map<EntityId, ShieldComponent> staged;
+		std::map<EntityId, PropertyEffects> staged_properties;
 		std::vector<std::pair<EntityId, std::int64_t>> damages;
 		bool valid = true;
 		for (const auto &operation : r.execution.operations)
@@ -187,44 +188,34 @@ void step_shield_reactions()
 				damages.emplace_back(target, operation.damage);
 				continue;
 			}
-			if (!ship.has<ShieldComponent>())
-			{
-				shield_reaction_results[r.id] = "failed: incompatible grant target";
-				valid = false;
-				break;
-			}
-			auto [entry, inserted] = staged.try_emplace(target, ship.get<ShieldComponent>());
-			auto &owner = entry->second;
-			const auto key = "reaction." + std::to_string(r.protected_ship) + "." + r.source + "." + operation.grant;
-			if (key.size() > 512)
-			{
-				valid = false;
-				break;
-			}
-			auto matches = [&](const auto &c)
-			{
-				return c.equipment.empty() && c.source == key;
-			};
-			if (operation.kind == ShieldReactionKind::Remove)
-			{
-				std::erase_if(owner.contributions, matches);
-				continue;
-			}
-			const auto definition = shield_templates.find(operation.effect);
-			if (definition == shield_templates.end() ||
-			    std::any_of(owner.contributions.begin(), owner.contributions.end(), matches))
-			{
-				shield_reaction_results[r.id] = "failed: unavailable or duplicate grant";
-				valid = false;
-				break;
-			}
-			const auto duration = definition->second.duration_ticks;
 			try
 			{
-				install_shield_grant(owner, definition->second, key, {}, operation.effect,
-				                     duration > 0 ? static_cast<std::int64_t>(ecs.get<Clock>().tick) + duration : -1);
+				const auto kind =
+				    operation.equipment.empty() ? EffectApplicationKind::Shield : EffectApplicationKind::Modifier;
+				ShieldComponent *shields = nullptr;
+				PropertyEffects *properties = nullptr;
+				if (kind == EffectApplicationKind::Shield)
+				{
+					if (!ship.has<ShieldComponent>())
+						throw std::runtime_error("Incompatible shield owner");
+					shields = &staged.try_emplace(target, ship.get<ShieldComponent>()).first->second;
+				}
+				else
+				{
+					if (!ship.has<PropertyEffects>())
+						throw std::runtime_error("Incompatible modifier owner");
+					properties = &staged_properties.try_emplace(target, ship.get<PropertyEffects>()).first->second;
+				}
+				prepare_effect_application(
+				    ship,
+				    {kind,
+				     operation.kind == ShieldReactionKind::Remove ? EffectApplicationOperation::Remove
+				                                                  : EffectApplicationOperation::Apply,
+				     effect_source(EffectSourceKind::Reaction, r.protected_ship, operation.grant, r.source),
+				     operation.equipment, operation.effect},
+				    shields, properties, ecs.get<Clock>().tick);
 			}
-			catch (const std::runtime_error &error)
+			catch (const std::exception &error)
 			{
 				shield_reaction_results[r.id] = std::string("failed: ") + error.what();
 				valid = false;
@@ -292,6 +283,8 @@ void step_shield_reactions()
 			payer->second.get_mut<ShipResources>().network = std::move(*payment);
 		for (auto &[id, owner] : staged)
 			entities.at(id).set<ShieldComponent>(std::move(owner));
+		for (auto &[id, owner] : staged_properties)
+			entities.at(id).set<PropertyEffects>(std::move(owner));
 		for (const auto &[id, amount] : damages)
 		{
 			auto ship = entities.at(id);

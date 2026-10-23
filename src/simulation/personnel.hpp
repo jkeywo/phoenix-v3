@@ -107,22 +107,82 @@ void advance_personnel(EntityId id)
 			o.remaining = route.second;
 		}
 	}
-	if (arrived)
-		refresh_personnel_bonuses(state, d);
+	(void)arrived;
 }
-std::int64_t officer_bonus(EntityId id, const std::string &system, const std::string &slot) const
+// Maintained applications are derived from current facts, never saved or accumulated.
+// Deployed accompaniment binds only to its actual team; standalone specialists bind to
+// the deployed repair teams or their own logical work participant.
+std::vector<PropertyContribution> collect_personnel_properties(flecs::entity ship) const
 {
-	const auto entity = entities.at(id);
-	const auto *state = entity.try_get<PersonnelState>();
+	std::vector<PropertyContribution> out;
+	const auto *state = ship.try_get<PersonnelState>();
 	if (!state)
-		return 0;
-	const auto b = state->bonuses.find({system, slot});
-	return b == state->bonuses.end() ? 0 : b->second;
-}
-std::int64_t officer_value(EntityId id, const std::string &system, const std::string &slot, std::int64_t base,
-                           bool inverse = false) const
-{
-	return personnel_scale(base, officer_bonus(id, system, slot), inverse);
+		return out;
+	const auto id = ship.get<StableId>().id;
+	const auto &d = definition(id).personnel;
+	std::set<std::tuple<std::string, std::string, std::string, std::string>> seen;
+	auto add = [&](std::size_t i, const std::string &target, const std::string &role,
+	               const std::string &property = std::string{})
+	{
+		for (const auto &trait : d.officers[i].traits)
+			for (const auto &effect : d.traits.at(trait).effects)
+				for (const auto &c : effect.contributions)
+					if ((role.empty() || c.role == role) && (property.empty() || c.property == property))
+					{
+						const auto source = "officer:" + std::to_string(id) + ":" + d.officers[i].id + ":" + trait;
+						if (!seen.emplace(source, effect.id, c.name, target).second)
+							continue;
+						PropertyContribution contribution;
+						contribution.source = source;
+						contribution.definition = effect.id;
+						contribution.name = c.name;
+						contribution.equipment = target;
+						contribution.property = c.property;
+						contribution.delta_permille = c.delta_permille;
+						contribution.maintained = true;
+						out.push_back(std::move(contribution));
+					}
+	};
+	for (std::size_t i = 0; i < state->officers.size(); ++i)
+	{
+		const auto &o = state->officers[i];
+		if (!officer_healthy(o))
+			continue;
+		const auto *duty = personnel_duty(id, o.duty);
+		const bool absent = !away_officer_location(id, d.officers[i].id).empty();
+		if (o.present && duty && !absent)
+			for (const auto &[system, roles] : duty->effects)
+				for (const auto &role : roles)
+					add(i, system, role);
+		for (std::size_t mission = 0; mission < away_missions.size(); ++mission)
+		{
+			const auto &m = away_missions[mission];
+			if (away_ship(away_definitions[mission]) != id || !m.deployed())
+				continue;
+			if (duty && !duty->team.empty() &&
+			    std::find(m.accompanying.begin(), m.accompanying.end(), d.officers[i].id) != m.accompanying.end())
+				for (const auto &[slot, asset] : m.assignments)
+					if (asset == "team:" + duty->team)
+						if (const auto bindings = duty->effects.find(duty->team); bindings != duty->effects.end())
+							for (const auto &role : bindings->second)
+								add(i, duty->team, role);
+			for (const auto &[slot, asset] : m.assignments)
+				if (asset == "officer:" + d.officers[i].id)
+				{
+					add(i, "away:" + away_definitions[mission].id + ":officer:" + d.officers[i].id, {}, "repair");
+					for (const auto &[team_slot, team_asset] : m.assignments)
+						if (team_asset.starts_with("team:"))
+						{
+							const auto team = away_equipment(id, team_asset.substr(5));
+							if (team &&
+							    team.get<CombatMechanism>().definition.get<TeamDefinition>().capabilities.contains(
+							        "repair"))
+								add(i, team_asset.substr(5), {}, "repair");
+						}
+				}
+		}
+	}
+	return out;
 }
 std::pair<std::string, std::string> officer_speaker(EntityId id, const std::string &console,
                                                     const std::string &controller) const
@@ -162,10 +222,11 @@ bool auto_assign_officer(const ConsoleAddress &address, const std::string &duty_
 			continue;
 		std::int64_t score = state.officers[i].duty.empty() ? 1 : 0;
 		for (const auto &trait : officer.traits)
-			for (const auto &[system, effects] : duty->effects)
-				for (const auto &effect : effects)
-					if (definition.traits.at(trait).bonuses.contains(effect))
-						score += definition.traits.at(trait).bonuses.at(effect);
+			for (const auto &effect : definition.traits.at(trait).effects)
+				for (const auto &c : effect.contributions)
+					for (const auto &[system, roles] : duty->effects)
+						if (std::find(roles.begin(), roles.end(), c.role) != roles.end())
+							score += c.delta_permille;
 		if (score > best_score)
 		{
 			best_score = score;
@@ -267,7 +328,6 @@ bool personnel_command(const ConsoleAddress &address, const OperatingCommand &co
 			detach(occupied, command.action == "personnel.swap" ? old : std::string{});
 		detach(i, duty ? duty->id : std::string{});
 		++state.revision;
-		refresh_personnel_bonuses(state, d);
 	}
 	return true;
 }
@@ -301,11 +361,24 @@ Json personnel_board(const ConsoleAddress &address) const
 		if (personnel_owns(address, duty.department))
 		{
 			Json effects = Json::array();
-			for (const auto &[system, slots] : duty.effects)
-				for (const auto &slot : slots)
-					effects.push_back({{"system", system},
-					                   {"slot", slot},
-					                   {"multiplier", officer_value(address.ship, system, slot, 1000)}});
+			std::set<std::tuple<std::string, std::string, std::string>> shown;
+			for (const auto &[system, roles] : duty.effects)
+				for (const auto &role : roles)
+					for (const auto &[trait_id, trait] : d.traits)
+						for (const auto &effect : trait.effects)
+							for (const auto &c : effect.contributions)
+								if (c.role == role && shown.emplace(system, role, c.property).second)
+									effects.push_back(
+									    {{"system", system},
+									     {"slot", role},
+									     {"property", c.property},
+									     // This readout is the requested relative factor; physical owners apply their own output caps.
+									     {"multiplier",
+									      apply_property_delta(
+									          1000,
+									          property_delta(entities.at(address.ship), system, c.property) +
+									              property_fault_delta(entities.at(address.ship), system, c.property),
+									          1000000001000LL)}});
 			const auto at = personnel_destination(address.ship, duty);
 			out["duties"].push_back({{"id", duty.id},
 			                         {"label", duty.label},
@@ -322,7 +395,15 @@ Json personnel_board(const ConsoleAddress &address) const
 			for (const auto &key : o.traits)
 			{
 				const auto &t = d.traits.at(key);
-				traits.push_back({{"label", t.label}, {"bonuses", t.bonuses}});
+				Json contributions = Json::array();
+				for (const auto &effect : t.effects)
+					for (const auto &c : effect.contributions)
+						contributions.push_back({{"effect", effect.id},
+						                         {"name", c.name},
+						                         {"role", c.role},
+						                         {"property", c.property},
+						                         {"delta_permille", c.delta_permille}});
+				traits.push_back({{"id", key}, {"label", t.label}, {"contributions", contributions}});
 			}
 			out["officers"].push_back({{"id", o.id},
 			                           {"name", o.name},
@@ -423,6 +504,5 @@ void restore_personnel(EntityId id, const Json &saved)
 			                  return o.facility == f.id;
 		                  }) > f.capacity)
 			throw std::runtime_error("Facility over capacity");
-	refresh_personnel_bonuses(state, d);
 	entities.at(id).set<PersonnelState>(state);
 }

@@ -250,8 +250,7 @@ void prepare_weapons(flecs::entity ship)
 			const auto offset = std::clamp(combat_delta(aim - pose.heading, d.bearing), -d.arc / 2, d.arc / 2);
 			const auto desired = combat_angle(d.bearing + offset);
 			m->get<TurretState>().turn_remainder +=
-			    officer_value(ship.get<StableId>().id, d.id, "traverse", d.get<TurretDefinition>().traverse) *
-			    fault_effectiveness(ship, d.id) / 1000;
+			    effective_property(ship, d.id, "traverse", d.get<TurretDefinition>().traverse);
 			const auto step = m->get<TurretState>().turn_remainder / rate;
 			m->get<TurretState>().turn_remainder %= rate;
 			const auto current = combat_delta(m->get<TurretState>().heading, d.bearing);
@@ -267,7 +266,7 @@ void prepare_weapons(flecs::entity ship)
 		{
 			const auto &d = m->definition;
 			if (m->get<WeaponState>().cooldown || !child.get<Equipment>().enabled ||
-			    structurally_disabled(ship, d.id) ||
+			    effective_property(ship, d.id, "cycling", 1000) == 0 || structurally_disabled(ship, d.id) ||
 			    (d.get<WeaponDefinition>().point_defence && !m->get<WeaponState>().mode))
 				continue;
 			const auto target = weapon_contact(ship, *m, contacts_by_console);
@@ -357,8 +356,7 @@ void fire_weapons(flecs::entity ship)
 			const auto interval =
 			    a.definition.ammunition().interval ? a.definition.ammunition().interval : d.ammunition().interval;
 			m->get<WeaponState>().cooldown =
-			    std::max<std::int64_t>(1, officer_value(ship.get<StableId>().id, d.id, "cycling", interval, true) *
-			                                  1000 / fault_effectiveness(ship, d.id));
+			    std::max<std::int64_t>(1, interval * 1000 / effective_property(ship, d.id, "cycling", 1000));
 			++m->get<WeaponState>().shots;
 			psychic_weapon_emission(ship.get<StableId>().id);
 			auto &s = ship.get_mut<CombatStructure>();

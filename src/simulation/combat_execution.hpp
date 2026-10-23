@@ -54,10 +54,10 @@ bool structurally_disabled(flecs::entity ship, const std::string &equipment) con
 	if (!s)
 		return false;
 	if (auto fit = instance(ship, equipment); fit && fit->kind == OperatingSystem::Team)
-		return combat_dead(ship);
+		return combat_dead(ship) || hard_fault_disabled(ship, equipment);
 	if (combat_dead(ship))
 		return true;
-	if (!fault_effectiveness(ship, equipment))
+	if (hard_fault_disabled(ship, equipment))
 		return true;
 	const auto at = s->definition.equipment_compartments.find(equipment);
 	return at != s->definition.equipment_compartments.end() &&
@@ -280,7 +280,8 @@ void combat_telemetry(flecs::entity ship, flecs::entity child, std::map<std::str
 		case OperatingSystem::Magazine:
 			v["ammo"] = m->get<MagazineState>().ammo;
 			v["capacity"] = m->definition.reserve().capacity;
-			v["reload_progress"] = m->get<MagazineState>().refill;
+			v["reload_progress"] = m->get<MagazineState>().refill / 1000;
+			v["reload_rate_permille"] = effective_property(ship, fit.id, "reload", 1000);
 			v["reload_ticks"] = m->definition.get<MagazineDefinition>().refill_ticks;
 			break;
 		case OperatingSystem::Team:
@@ -337,7 +338,8 @@ void request_combat_resources(flecs::entity ship)
 			const auto index = child.get<ResourceBinding>().slot;
 			if (d.kind == OperatingSystem::Magazine)
 				request_system_resource(*power, index, 0, false,
-				                        enabled && d.get<MagazineDefinition>().reload == "energy" &&
+				                        enabled && effective_property(ship, d.id, "reload", 1000) > 0 &&
+				                                d.get<MagazineDefinition>().reload == "energy" &&
 				                                m->get<MagazineState>().ammo + m->get<MagazineState>().reserved_return <
 				                                    d.reserve().capacity
 				                            ? d.get<MagazineDefinition>().reload_energy
@@ -376,15 +378,19 @@ void actuate_combat(flecs::entity ship)
 					if (const auto *p = ship.try_get<ShipResources>())
 						paid = p->grants.at(child.get<ResourceBinding>().slot).supply_permille == 1000 &&
 						       !p->grants.at(child.get<ResourceBinding>().slot).blocked;
-				if (paid &&
-				    ++m->get<MagazineState>().refill >=
-				        std::max<std::int64_t>(
-				            1, officer_value(id, d.id, "reload", d.get<MagazineDefinition>().refill_ticks, true)))
+				if (paid)
 				{
-					m->get<MagazineState>().ammo =
-					    std::min(d.reserve().capacity - m->get<MagazineState>().reserved_return,
-					             m->get<MagazineState>().ammo + d.get<MagazineDefinition>().refill_amount);
-					m->get<MagazineState>().refill = 0;
+					auto &state = m->get<MagazineState>();
+					const auto progress = effective_property(ship, d.id, "reload", 1000);
+					const auto threshold = d.get<MagazineDefinition>().refill_ticks * 1000;
+					state.refill += progress;
+					const auto batches = state.refill / threshold;
+					if (batches)
+					{
+						state.ammo = std::min(d.reserve().capacity - state.reserved_return,
+						                      state.ammo + batches * d.get<MagazineDefinition>().refill_amount);
+						state.refill %= threshold;
+					}
 				}
 			}
 		}
@@ -499,8 +505,8 @@ bool advance_repair_team(flecs::entity ship, flecs::entity child)
 {
 	auto &s = ship.get_mut<CombatStructure>();
 	auto &m = child.get_mut<CombatMechanism>();
-	if (combat_dead(ship) || !child.get<Equipment>().enabled || !fault_effectiveness(ship, m.definition.id) ||
-	    !team_effectiveness(m))
+	if (combat_dead(ship) || !child.get<Equipment>().enabled || structurally_disabled(ship, m.definition.id) ||
+	    !team_available(m))
 		return false;
 	auto &r = m.get<TeamState>();
 	if (r.travel > 0)
@@ -529,15 +535,13 @@ void route_repair_team(flecs::entity ship, TeamState &r, std::size_t target)
 	r.travel = r.edge_total = route.second;
 }
 // Repair effort is milli-HP per second; compartment work carries sub-tick fractions.
-std::int64_t structural_repair_work(flecs::entity ship, std::vector<flecs::entity> teams,
-                                    std::int64_t specialist_bonus = 0)
+std::int64_t structural_repair_work(flecs::entity ship, std::vector<flecs::entity> teams)
 {
 	std::erase_if(teams,
 	              [&](auto team)
 	              {
 		              return !team.template get<Equipment>().enabled ||
-		                     !fault_effectiveness(ship, team.template get<Equipment>().id) ||
-		                     !team_effectiveness(team.template get<CombatMechanism>());
+		                     team_work(ship, team.template get<CombatMechanism>(), "repair", 1000) <= 0;
 	              });
 	std::sort(teams.begin(), teams.end(),
 	          [](auto a, auto b)
@@ -555,11 +559,9 @@ std::int64_t structural_repair_work(flecs::entity ship, std::vector<flecs::entit
 		const auto &d = teams[rank].get<CombatMechanism>().definition;
 		if (!d.get<TeamDefinition>().capabilities.contains("repair"))
 			continue;
-		const auto contribution =
-		    personnel_scale(d.get<TeamDefinition>().repair_rate * 1000000,
-		                    officer_bonus(ship.get<StableId>().id, d.id, "repair") + specialist_bonus) /
-		    (1000 + d.get<TeamDefinition>().stack_penalty * static_cast<std::int64_t>(rank)) *
-		    fault_effectiveness(ship, d.id) / 1000 * team_effectiveness(teams[rank].get<CombatMechanism>()) / 1000;
+		const auto contribution = team_work(ship, teams[rank].get<CombatMechanism>(), "repair",
+		                                    d.get<TeamDefinition>().repair_rate * 1000000) /
+		                          (1000 + d.get<TeamDefinition>().stack_penalty * static_cast<std::int64_t>(rank));
 		work += paid_structural_work(ship.get<StableId>().id, d.id, contribution);
 	}
 	return work;
@@ -640,11 +642,11 @@ void step_repairs()
 					claimed.insert(*task);
 					auto &f = s.faults.at(task->first)[task->second];
 					const auto &d = s.definition.faults.at(task->first)[task->second];
-					if (!pay_material_work(id, m->definition.id, "repair", f.work > 0))
+					const auto work =
+					    team_work(ship, *m, "repair", m->definition.get<TeamDefinition>().repair_rate * 1000);
+					if (work <= 0 || !pay_material_work(id, m->definition.id, "repair", f.work > 0))
 						continue;
-					f.work += officer_value(ship.get<StableId>().id, m->definition.id, "repair",
-					                        m->definition.get<TeamDefinition>().repair_rate * 1000) *
-					          fault_effectiveness(ship, m->definition.id) / 1000;
+					f.work += work;
 					if (f.work >= d.repair_work * rate * 1000)
 					{
 						f.active = false;
@@ -1019,17 +1021,7 @@ void restore_combat(flecs::entity ship, const Json &j)
 			{
 				const auto &a = m->get<MagazineState>();
 				bounded("ammo", 0, m->definition.reserve().capacity);
-				std::int64_t worst_bonus = 0;
-				const auto &personnel = definition(ship.get<StableId>().id).personnel;
-				for (const auto &officer : personnel.officers)
-					for (const auto &trait : officer.traits)
-					{
-						const auto &bonuses = personnel.traits.at(trait).bonuses;
-						if (bonuses.contains("reload"))
-							worst_bonus += std::min<std::int64_t>(0, bonuses.at("reload"));
-					}
-				bounded("refill", 0,
-				        personnel_scale(m->definition.get<MagazineDefinition>().refill_ticks, worst_bonus, true) - 1);
+				bounded("refill", 0, m->definition.get<MagazineDefinition>().refill_ticks * 1000 - 1);
 				bounded("reserved_return", 0, m->definition.reserve().capacity);
 				if (a.ammo + a.reserved_return > m->definition.reserve().capacity)
 					throw std::runtime_error("Invalid magazine reservation");

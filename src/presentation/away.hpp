@@ -45,16 +45,16 @@ std::string away_markup()
 		if (m.contains("boarding_check"))
 		{
 			const auto &c = m.at("boarding_check");
-			const auto percent = [](int value)
+			const auto percent = [](std::int64_t value)
 			{
-				const auto magnitude = std::abs(value);
+				const auto magnitude = value < 0 ? -value : value;
 				return std::string(value < 0 ? "-" : "") + std::to_string(magnitude / 10) +
 				       (magnitude % 10 ? "." + std::to_string(magnitude % 10) : "") + "%";
 			};
 			html += line(localise("Encounter chance") + ": " + percent(c.at("chance_permille").get<int>()) + " / " +
 			             localise("Defending teams") + ": " + std::to_string(c.at("defenders").get<int>()));
 			for (const auto &[key, value] : c.at("factors").items())
-				html += line(localise(key) + ": " + percent(value.get<int>()));
+				html += line(localise(key) + ": " + percent(value.get<std::int64_t>()));
 		}
 		html += line(localise("Transport") + ": " + label(m.at("transport").get<std::string>()));
 		html += line(localise("Destination contact") + " #" + std::to_string(m.value("target", std::uint64_t{0})));

@@ -41,6 +41,19 @@ struct ScenarioShieldEffectRequest
 	EntityId target = 0;
 	std::string definition, grant;
 };
+enum class ScenarioModifierEffectOperation
+{
+	Apply,
+	Refresh,
+	Remove
+};
+struct ScenarioModifierEffectRequest
+{
+	ScenarioActionToken token;
+	ScenarioModifierEffectOperation operation = ScenarioModifierEffectOperation::Apply;
+	EntityId target = 0;
+	std::string equipment, definition, grant;
+};
 struct ScenarioTreeReceipt
 {
 	ScenarioActionToken token;
@@ -88,6 +101,8 @@ public:
 	std::optional<ScenarioTreeReceipt> receipt(ScenarioActionToken token) const;
 	std::vector<ScenarioShieldEffectRequest> pending_shield_effects() const;
 	void confirm_shield_effect(ScenarioActionToken token, std::string failure = {});
+	std::vector<ScenarioModifierEffectRequest> pending_modifier_effects() const;
+	void confirm_modifier_effect(ScenarioActionToken token, std::string failure = {});
 	std::vector<ScenarioSpawnRequest> pending_spawns() const;
 	void confirm_spawn(ScenarioId request, std::span<const EntityId> ids, std::string failure = {});
 	std::vector<ScenarioMotionSegment> sample_motion(std::span<const BodyView> bodies) const;
@@ -110,6 +125,7 @@ private:
 	std::map<ScenarioId, ScenarioTreeController> controllers_;
 	std::map<ScenarioActionToken, ScenarioTreeReceipt> receipts_;
 	std::map<ScenarioActionToken, ScenarioShieldEffectRequest> shield_requests_;
+	std::map<ScenarioActionToken, ScenarioModifierEffectRequest> modifier_requests_;
 	std::map<EntityId, BodyView> bodies_;
 	CompiledKnowledge knowledge_;
 	std::map<std::string, std::vector<GameplayTreeRecordBinding>> record_bindings_;

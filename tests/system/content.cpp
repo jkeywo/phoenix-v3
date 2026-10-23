@@ -1,6 +1,7 @@
 #include "../support/assertions.hpp"
 #include "../support/fixtures.hpp"
 #include "../support/model_fixture.hpp"
+#include "../support/controller_fixture.hpp"
 #include <iostream>
 #include <array>
 #include <filesystem>
@@ -110,6 +111,117 @@ int main()
 					    compile_shield_effect(invalid, "test.shield-effect");
 				    },
 				    "outside supported bounds");
+			}
+		}
+
+		{
+			auto definitions = phoenix::test::controller_fixture();
+			definitions["schema"] = 4;
+			definitions["effects"] = Json::parse(R"json([
+			 {"id":"test.drive-effect","kind":"modifier","contributions":{
+			   "thrust":{"property":"propulsion","role":"drive","delta_permille":250},
+			   "speed":{"property":"speed","role":"drive","delta_permille":100}}},
+			 {"id":"test.drive-child","extends":"test.drive-effect","contributions":{
+			   "thrust":{"delta_permille":500}}}])json");
+			definitions["entities"][0]["personnel"] = Json::parse(R"json({
+			 "departments":[{"id":"sailing","label":"Sailing","station":"operations"}],
+			 "compartments":["bridge"],"connections":[],
+			 "traits":[{"id":"expert","label":"Expert","effects":["test.drive-child"]}],
+			 "duties":[{"id":"drive","label":"Drive","controller":"propulsion","department":"sailing",
+			 "compartment":"bridge","bindings":{"port":["drive"],"starboard":["drive"]}}],
+			 "officers":[{"id":"a","name":"A","department":"sailing","compartment":"bridge",
+			 "duty":"drive","traits":["expert"]}]})json");
+			const auto original = phoenix::test::archive(definitions);
+			auto effects = resolve_packs({read_pack(original)});
+			auto people = compile_personnel(effects, "test.controllable");
+			require(people.traits.at("expert").effects.at(0).contributions.size() == 2 &&
+			            people.duties.at(0).effects.at("port") == std::vector<std::string>{"drive"},
+			        "compiled trait references bind a multi-property role once per equipment");
+			PackDraft patch;
+			patch.manifest = {{"schema", 1},
+			                  {"id", "property-mod"},
+			                  {"dependencies", {"test-core"}},
+			                  {"overrides", {"test.drive-effect"}}};
+			auto replacement = definitions["effects"][0];
+			replacement["contributions"]["speed"]["delta_permille"] = -250;
+			patch.files["definitions.json"] = json_bytes({{"schema", 4}, {"effects", Json::array({replacement})}});
+			effects = resolve_packs({read_pack(original), read_pack(write_pack(patch))});
+			require(compile_modifier_effect(effects, "test.drive-child").contributions.front().delta_permille == -250,
+			        "shared modifier overrides reach inherited trait effects");
+			WorkshopDocument document;
+			document.load_dependency(original);
+			document.load_pack(write_pack(patch));
+			WorkshopDocument reopened;
+			reopened.load_dependency(original);
+			reopened.load_pack(document.export_pack());
+			require(
+			    compile_modifier_effect(reopened.verify(), "test.drive-child").contributions.front().delta_permille ==
+			        -250,
+			    "modifier references and overrides survive Workshop export and reload");
+			for (const auto &property : {std::string("capacity"), std::string("unknown")})
+			{
+				auto invalid = effects;
+				invalid.effects["test.drive-effect"]["contributions"]["speed"]["property"] = property;
+				rejected(
+				    [&]
+				    {
+					    compile_modifier_effect(invalid, "test.drive-effect");
+				    },
+				    "unknown property");
+			}
+			{
+				auto invalid = effects;
+				invalid.effects["test.drive-child"]["contributions"]["speed"]["role"] = "other";
+				rejected(
+				    [&]
+				    {
+					    compile_personnel(invalid, "test.controllable");
+				    },
+				    "partially bound");
+			}
+			{
+				auto invalid = effects;
+				invalid.effects["test.drive-child"]["contributions"]["speed"]["property"] = "recharge";
+				rejected(
+				    [&]
+				    {
+					    compile_personnel(invalid, "test.controllable");
+				    },
+				    "incompatible property target");
+			}
+			{
+				auto invalid = effects;
+				invalid.entities["test.controllable"]["personnel"]["duties"][0]["bindings"]["port"] = {"drive",
+				                                                                                       "drive"};
+				rejected(
+				    [&]
+				    {
+					    compile_personnel(invalid, "test.controllable");
+				    },
+				    "duplicate target role");
+				invalid = effects;
+				invalid.entities["test.controllable"]["personnel"]["traits"][0]["bonuses"] = {{"propulsion", 100}};
+				rejected(
+				    [&]
+				    {
+					    compile_personnel(invalid, "test.controllable");
+				    },
+				    "replaced by effect references");
+				invalid = effects;
+				invalid.effects["test.drive-effect"]["contributions"]["speed"]["delta_permille"] = 100001;
+				rejected(
+				    [&]
+				    {
+					    compile_modifier_effect(invalid, "test.drive-effect");
+				    },
+				    "-100000..100000");
+				invalid.effects["test.drive-effect"]["contributions"]["speed"]["delta_permille"] = 1.5;
+				rejected(
+				    [&]
+				    {
+					    compile_modifier_effect(invalid, "test.drive-effect");
+				    },
+				    "-100000..100000");
 			}
 		}
 

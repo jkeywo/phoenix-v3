@@ -418,6 +418,126 @@ void patient_selection_regressions()
 	require(officer(triage, 2, 1)["stabilised"] == true && officer(triage, 2, 2)["treatment"] == 0,
 	        "severe triage precedes individual minor priority");
 }
+void property_work_regressions()
+{
+	for (const auto delta : {1000, -250})
+	{
+		auto source = medical_fixture();
+		auto &ship = source["entities"][0];
+		ship["systems"]["medical"]["injured_effectiveness_permille"] = 250;
+		ship["systems"]["medical"]["treatment_ticks"] = 30;
+		auto &people = ship["personnel"];
+		people["officers"][0]["duty"] = "";
+		people["officers"][0]["compartment"] = "workshop";
+		people["officers"][1]["condition"] = "healthy";
+		people["traits"][2]["bonuses"]["medical"] = delta;
+		people["officers"].push_back({{"id", "medic"},
+		                              {"name", "Medic"},
+		                              {"department", "engineering"},
+		                              {"duty", "medical-team"},
+		                              {"compartment", "workshop"},
+		                              {"traits", {"medical"}}});
+		ship["logistics"] = Json::parse(R"({"controller":"medical","materials":[{"id":"medical"}],
+          "stores":[{"id":"kit","system":"medical","compartment":"workshop","capacity":2,"accepts":["medical"],"initial":{"medical":1}}],
+          "consumers":[{"system":"medical","store":"kit","costs":{"treat":{"medical":1}}}]})");
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map", {{"crew", "test.away"}});
+		claim(world);
+		auto saved = world.save();
+		saved_body(saved, 2)["combat"]["systems"]["medical"]["condition"] = "injured";
+		world.restore(catalog, saved);
+		require(world.submit(102, command(world, "order", "treat/workshop/nav")), "order additive clinical work");
+		world.tick();
+		if (delta > 0)
+		{
+			for (int i = 0; i < 10 && officer(world, 2, 0)["treatment"] == 0; ++i)
+				world.tick();
+			require(officer(world, 2, 0)["treatment"] == 1250,
+			        "officer effect and team injury combine additively at physical treatment");
+			World resumed;
+			resumed.restore(catalog, world.save());
+			ticks(world, 4);
+			ticks(resumed, 4);
+			require(world.save() == resumed.save(),
+			        "paid additive treatment continues with derived officer effects once");
+		}
+		else
+		{
+			ticks(world, 8);
+			require(officer(world, 2, 0)["treatment"] == 0 &&
+			            world.observe(102)->gameplay.at("logistics").at("stores")[0].at("quantities").at("medical") ==
+			                1,
+			        "zero clinical work neither advances nor pays a new indivisible treatment");
+			saved = world.save();
+			saved_body(saved, 2)["combat"]["systems"]["medical"]["condition"] = "healthy";
+			world.restore(catalog, saved);
+			world.tick();
+			require(officer(world, 2, 0)["treatment"] == 750 &&
+			            world.observe(102)->gameplay.at("logistics").at("stores")[0].at("quantities").at("medical") ==
+			                0,
+			        "recovery resumes the existing task and pays its first work once");
+		}
+	}
+}
+void property_continuation_trace(Json &trace)
+{
+	auto source = medical_fixture();
+	auto &ship = source["entities"][0];
+	auto &people = ship["personnel"];
+	people["officers"][0]["duty"] = "";
+	people["officers"][0]["compartment"] = "workshop";
+	people["officers"][1]["condition"] = "healthy";
+	people["officers"].push_back({{"id", "medic"},
+	                              {"name", "Medic"},
+	                              {"department", "engineering"},
+	                              {"duty", "medical-team"},
+	                              {"compartment", "workshop"},
+	                              {"traits", {"medical"}}});
+	ship["systems"]["medical"]["treatment_ticks"] = 200;
+	source["effects"] = Json::parse(R"json([{"id":"test.clinical-aid","kind":"modifier","duration_ticks":40,
+      "contributions":{"clinical":{"property":"medical","delta_permille":250}}}])json");
+	source["trees"].push_back(Json::parse(R"json({"id":"test.clinical-aid-tree","context":"scenario","initial":"apply",
+      "states":[{"id":"apply","entry":[{"action":"apply_modifier_effect",
+        "arguments":[{"observation":"self.entity"},"medical","test.clinical-aid","aid"]}]}]})json"));
+	source["maps"][0]["scenario"] = {{"tree", "test.clinical-aid-tree"}, {"bindings", {{"actor", {{"slot", "crew"}}}}}};
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map", {{"crew", "test.away"}});
+	claim(world);
+	require(world.submit(102, command(world, "order", "treat/workshop/nav")), "order timed-effect clinical work");
+	world.tick();
+	for (int i = 0; i < 10 && officer(world, 2, 0)["treatment"] == 0; ++i)
+		world.tick();
+	const auto before = officer(world, 2, 0)["treatment"].get<std::int64_t>();
+	world.tick();
+	require(officer(world, 2, 0)["treatment"] == before + 2250,
+	        "scenario and maintained officer effects combine on actual clinical work");
+	trace.push_back(world.save());
+	World resumed;
+	resumed.restore(catalog, world.save());
+	for (auto *current : {&world, &resumed})
+	{
+		OperatingCommand relieve{2, "personnel.relieve", 0, "medic"};
+		relieve.generation = current->observe(102)->gameplay.at("personnel").at("revision");
+		require(current->submit(102, relieve), "relieve clinical maintained source during timed effect");
+		current->tick();
+	}
+	const auto relieved = officer(world, 2, 0)["treatment"].get<std::int64_t>();
+	world.tick();
+	resumed.tick();
+	require(officer(world, 2, 0)["treatment"] == relieved + 1250 && world.save() == resumed.save(),
+	        "relief removes only maintained work contribution across exact continuation");
+	trace.push_back(world.save());
+	ticks(world, 45);
+	ticks(resumed, 45);
+	const auto expired = officer(world, 2, 0)["treatment"].get<std::int64_t>();
+	world.tick();
+	resumed.tick();
+	require(officer(world, 2, 0)["treatment"] == expired + 1000 && world.save() == resumed.save(),
+	        "timed clinical effect expires while preserving completed work and continuation");
+	trace.push_back(world.save());
+}
 void system_casualty_regressions()
 {
 	for (const auto *system : {"radar", "team-a"})
@@ -459,6 +579,7 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		property_work_regressions();
 		{
 			auto source = medical_fixture();
 			source["entities"][0]["systems"]["medical"]["orders"][0]["patient_states"] = {"minor", "severe"};
@@ -543,6 +664,7 @@ int main(int argc, char **argv)
 			        "Clinical work resumes after authorised reopening");
 		}
 		Json trace = Json::array();
+		property_continuation_trace(trace);
 		clinical_execution_regressions(trace);
 		patient_selection_regressions();
 		system_casualty_regressions();

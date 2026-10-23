@@ -154,6 +154,43 @@ Pre-damage modification uses `pre_damage_permille` (0..1000, 1000 by default; ze
 
 Station Console instances opt into component observations with `shield_feed: true`. This exposes permitted shield contributions independently of equipment feeds and grants no commands. Maintained shield-operating Consoles declare this explicitly; presentation companions preserve the flag.
 
-A contribution can declare `reactions`, an array of atomic groups. Each group contains `operations` and optionally `payer` (a fitted equipment ID) with `energy` (a nonnegative cost). Operation `kind` is `damage`, `apply` or `remove`; `target` is `attacker` or `protected`. Damage requires positive `damage`; apply requires catalogue `effect` and stable local `grant`; remove addresses `grant`. Unsupported operations fail validation. Reactions execute after the original damage, and failure cannot rewind it.
+A contribution can declare `reactions`, an array of atomic groups. Each group contains `operations` and optionally `payer` (a fitted equipment ID) with `energy` (a nonnegative cost). Operation `kind` is `damage`, `apply` or `remove`; `target` is `attacker` or `protected`. Damage requires positive `damage`; apply requires catalogue `effect` and stable local `grant`; remove addresses `grant`. Applying a modifier effect also requires `equipment`, an explicit compatible fitted System ID on the chosen target ship. Shield-grant applications omit `equipment`. Unsupported operations fail validation. Reactions execute after the original damage, and failure cannot rewind it.
 
 Grant changes must precede damage operations inside a group. They are prepared together with the payment, then damage resolves against the prepared grant state. Secondary damage executes in the next tick's reaction phase, before ordinary ordnance and destruction processing. Events created during that phase wait for a later phase; they cannot recursively drain the current queue. Bounded execution results retain success/failure diagnostics. See the [shield implementation record](shield-migration-evidence.md) for coverage and limits.
+
+## Modifier effect catalogue
+
+The same top-level `effects` array accepts `kind: "modifier"`. Its `contributions` object contains 1–64 stable names; each value declares a supported native `property`, signed integer `delta_permille` in -100000..100000, and optional `role` (defaults to the property ID). Unknown properties and fields fail verification. `duration_ticks` is an integer in 0..1000000; omitted/zero means indefinite. Definitions participate in normal inheritance, explicit overrides, dependency closure and Workshop export/reload.
+
+```json
+{
+  "id": "example.field-expertise",
+  "kind": "modifier",
+  "contributions": {
+    "active": {"property": "recharge", "role": "field", "delta_permille": 250},
+    "inactive": {"property": "off_recharge", "role": "field", "delta_permille": 250}
+  }
+}
+```
+
+Reference this definition from a Personnel trait with `"effects": ["example.field-expertise"]`. A duty binds its role using `"bindings": {"fore-shield": ["field"]}`. This applies both named contributions to that fitted shield. Distinct equipment can share a role. Repeated role entries on the same target are invalid. An effect group must have all required roles bound or none; an inapplicable trait is valid. Team bindings require the corresponding repair, Medical or security capability. Production authoring no longer accepts trait `bonuses` or duty `effects` maps. Trait identity remains available for qualification independently of its effect list.
+
+| Property                             | Compatible native owner and physical meaning                                  |
+| ------------------------------------ | ----------------------------------------------------------------------------- |
+| `propulsion`                         | Engine, lateral thrust, boost or impulse acceleration.                        |
+| `speed`                              | Engine, boost or impulse speed.                                               |
+| `turn`                               | Steering or an engine's integrated turn rate.                                 |
+| `sensors`                            | Radar equipment range, including long-range and directed scanner acquisition. |
+| `cycling`                            | Weapon cycle rate, not projectile damage.                                     |
+| `traverse`                           | Turret angular traversal rate.                                                |
+| `reload`                             | Magazine replenishment work, not logistics delivery or weapon loading.        |
+| `recharge`, `off_recharge`           | Shield strength recharge in the corresponding operating state.                |
+| `sustain`, `discharge`, `protection` | Shield sustain energy rate, discharge rate and available protection.          |
+| `repair`, `medical`, `security`      | Matching team work or the eligible deployed participant's native work.        |
+| `comms`                              | Radio range.                                                                  |
+
+Property deltas add against the unmodified base, including officer, scenario and applicable native-source adapters. A nonnegative property with a total delta at or below -1000 becomes zero. Zero bases remain zero. The shared integer calculation checks its aggregate delta within ±1000000000000, above the bounded roster and application-store maximum, and saturates against the property's limit before multiplication can overflow. Stored quantities, shield capacity/geometry/layers, warmup and conversion ratios are not live modifier properties. Native descriptors record the evaluation units and upper limits: acceleration, speed, range, sustain and relative work/cycle rates cap at 1000000000; turn/traverse at 360000 millidegrees per second; recharge at 1000000000 milli-strength per second; discharge at 1000000 strength per second; protection at 1000 permille; and high-resolution repair at 1000000000000000000 native work units. The repair/recharge units preserve intermediate progress precision; these limits are representational bounds, not shipped tuning targets. Personnel's percentage factor is shown before this native physical clamp.
+
+Scenario tree actions are `apply_modifier_effect(ship, equipment, definition, grant)`, `refresh_modifier_effect(ship, equipment, grant)` and `remove_modifier_effect(ship, equipment, grant)`. Each application binds the complete effect to one compatible target; duties provide the multi-role equipment mapping for officer-maintained applications. Reapplying the same source/grant, definition and target refreshes without stacking or shortening expiry. Independent sources add. Refresh requires an existing grant. Removal is selective and never reverses completed physical work. Deferred shield reactions use the same prepared application lifecycle and next-tick queue.
+
+Modifiers keep stable source, definition, application, target and contribution identities in saved state; derived totals are reconstructed. Officer contributions are maintained from current assignment, travel, health and deployment facts, rather than restored as independent copies. Effect definitions remain private in presentation-only client packs. See [Duty officers](duty-officers.md) and the [property-effect migration plan](property-effects-migration-plan.md) for integration boundaries.

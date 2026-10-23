@@ -16,8 +16,6 @@ struct PersonnelState
 {
 	std::uint64_t revision = 1;
 	std::vector<OfficerState> officers;
-	// Derived from assignments/presence; rebuilt on changes and restore, never saved.
-	std::map<std::pair<std::string, std::string>, std::int64_t> bonuses;
 };
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(OfficerState, duty, location, edge_to, remaining, present, condition,
                                                 facility, escort, stabilised, stun_until, treatment, recovery,
@@ -31,20 +29,17 @@ inline bool officer_mobile(const OfficerState &o)
 	return !o.detained && (o.condition == "healthy" || o.condition == "minor");
 }
 NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(PersonnelState, revision, officers)
-inline void refresh_personnel_bonuses(PersonnelState &state, const PersonnelDefinition &d)
+// Compiled effect definitions also supply assignment preference and deployed work adapters.
+inline std::int64_t officer_property_delta(const PersonnelDefinition &d, const OfficerDefinition &officer,
+                                           std::string_view property, std::string_view role = {})
 {
-	state.bonuses.clear();
-	for (std::size_t i = 0; i < state.officers.size(); ++i)
-	{
-		const auto &o = state.officers[i];
-		if (!o.present || !officer_healthy(o))
-			continue;
-		const auto &duty = d.duties.at(d.duty_indices.at(o.duty));
-		for (const auto &[system, slots] : duty.effects)
-			for (const auto &slot : slots)
-				if (const auto b = d.officers[i].bonuses.find(slot); b != d.officers[i].bonuses.end())
-					state.bonuses[{system, slot}] += b->second;
-	}
+	std::int64_t delta = 0;
+	for (const auto &trait : officer.traits)
+		for (const auto &effect : d.traits.at(trait).effects)
+			for (const auto &c : effect.contributions)
+				if (c.property == property && (role.empty() || c.role == role))
+					delta += c.delta_permille;
+	return delta;
 }
 inline PersonnelState initial_personnel(const PersonnelDefinition &d)
 {
@@ -55,20 +50,12 @@ inline PersonnelState initial_personnel(const PersonnelDefinition &d)
 		     static_cast<std::size_t>(std::find(d.compartments.begin(), d.compartments.end(), o.compartment) -
 		                              d.compartments.begin()),
 		     -1, 0, !o.duty.empty()});
-	refresh_personnel_bonuses(state, d);
 	for (std::size_t i = 0; i < d.officers.size(); ++i)
 	{
 		state.officers[i].condition = d.officers[i].condition;
 		if (!officer_mobile(state.officers[i]))
 			state.officers[i].present = false;
 	}
-	refresh_personnel_bonuses(state, d);
 	return state;
-}
-inline std::int64_t personnel_scale(std::int64_t value, std::int64_t bonus, bool inverse = false)
-{
-	const auto numerator = bonus >= 0 ? 1000 + bonus : 1000;
-	const auto denominator = bonus >= 0 ? 1000 : 1000 - bonus;
-	return inverse ? value * denominator / numerator : value * numerator / denominator;
 }
 } // namespace phoenix

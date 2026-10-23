@@ -8,6 +8,7 @@ module;
 #include <nlohmann/json.hpp>
 #include <span>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <variant>
 
@@ -612,10 +613,33 @@ struct PsychicDefinition
 	std::map<std::string, ChoirDefinition> choirs;
 };
 PsychicDefinition compile_psychic(const Catalog &, const std::string &);
+struct ModifierContributionDefinition
+{
+	std::string name, role, property;
+	std::int64_t delta_permille = 0;
+};
+struct ModifierEffectDefinition
+{
+	std::string id;
+	std::int64_t duration_ticks = 0;
+	std::vector<ModifierContributionDefinition> contributions;
+};
+struct ModifierPropertyDescriptor
+{
+	std::string id, unit;
+	std::vector<OperatingSystem> owners;
+	std::int64_t maximum = 1000000000;
+};
+const std::vector<ModifierPropertyDescriptor> &modifier_properties();
+bool known_modifier_property(std::string_view);
+bool property_compatible(std::string_view, OperatingSystem);
+std::string modifier_property_role(std::string_view);
+ModifierEffectDefinition compile_modifier_effect(const Catalog &, const std::string &);
+void compile_effect(const Catalog &, const std::string &);
 struct OfficerTrait
 {
 	std::string id, label;
-	std::map<std::string, std::int64_t> bonuses;
+	std::vector<ModifierEffectDefinition> effects;
 };
 struct PersonnelDepartment
 {
@@ -631,7 +655,6 @@ struct OfficerDefinition
 	std::string id, name, portrait, department, duty, compartment;
 	std::string condition = "healthy", power;
 	std::vector<std::string> traits;
-	std::map<std::string, std::int64_t> bonuses;
 };
 struct MedicalFacility
 {
@@ -769,6 +792,7 @@ struct ShieldReactionOperation
 {
 	ShieldReactionKind kind = ShieldReactionKind::Damage;
 	std::string target = "attacker", effect, grant;
+	std::string equipment;
 	std::int64_t damage = 0;
 };
 struct ShieldReactionDefinition

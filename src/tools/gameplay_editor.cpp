@@ -946,14 +946,12 @@ struct GameplayEditor
 			        string(c, "to");
 			        integer(c, "ticks", 40);
 		        });
-		records(p, "traits", {{"id", "trait"}, {"label", "Expertise"}, {"bonuses", Json::object()}},
+		records(p, "traits", {{"id", "trait"}, {"label", "Expertise"}, {"effects", Json::array()}},
 		        [&](Json &t)
 		        {
 			        string(t, "id");
 			        string(t, "label");
-			        for (const auto *slot :
-			             {"propulsion", "sensors", "cycling", "traverse", "reload", "recharge", "repair", "comms"})
-				        integer(t["bonuses"], slot, 0);
+			        strings(t, "effects");
 		        });
 		records(p, "duties",
 		        {{"id", "duty"},
@@ -961,7 +959,7 @@ struct GameplayEditor
 		         {"department", ""},
 		         {"controller", ""},
 		         {"compartment", ""},
-		         {"effects", Json::object()}},
+		         {"bindings", Json::object()}},
 		        [&](Json &d)
 		        {
 			        string(d, "id");
@@ -973,7 +971,7 @@ struct GameplayEditor
 			        optional_string(d, "choir");
 			        choice(d, "required_trait", ids(p["traits"]), true);
 			        string(d, "compartment");
-			        auto &effects = d["effects"];
+			        auto &effects = d["bindings"];
 			        if (effects.is_null())
 				        effects = Json::object();
 			        std::string old_target, new_target;
@@ -987,7 +985,7 @@ struct GameplayEditor
 					        new_target = target;
 				        }
 				        strings(effects, it.key().c_str());
-				        if (button("Remove effect target"))
+				        if (button("Remove target binding"))
 					        it = effects.erase(it);
 				        else
 					        ++it;
@@ -998,7 +996,7 @@ struct GameplayEditor
 				        effects[new_target] = effects.at(old_target);
 				        effects.erase(old_target);
 			        }
-			        if (button("Add effect target"))
+			        if (button("Add target binding"))
 				        effects[fresh(effects, "system")] = Json::array();
 		        });
 		records(p, "officers",
@@ -2658,7 +2656,23 @@ struct GameplayEditor
 		        [&](Json &effect)
 		        {
 			        string(effect, "id");
+			        choice(effect, "kind", {"shield", "modifier"}, true);
 			        choice(effect, "extends", document.definition_choices(WorkshopDefinitionKind::Effect), true);
+			        auto kind = effect.value("kind", std::string{});
+			        if (kind.empty() && effect.contains("extends"))
+			        {
+				        try
+				        {
+					        kind = document
+					                   .preview_definition(WorkshopDefinitionKind::Effect,
+					                                       effect.at("extends").get<std::string>())
+					                   .value("kind", std::string{});
+				        }
+				        catch (const std::exception &)
+				        {
+				        }
+			        }
+			        const bool modifier = kind == "modifier";
 			        integer(effect, "duration_ticks");
 			        if (button("Add contribution"))
 			        {
@@ -2669,7 +2683,8 @@ struct GameplayEditor
 				        unsigned index = 1;
 				        while (contributions.contains(name))
 					        name = "arc" + std::to_string(index++);
-				        contributions[name] = {{"capacity", 100}};
+				        contributions[name] = modifier ? Json{{"property", "recharge"}, {"delta_permille", 100}}
+				                                       : Json{{"capacity", 100}};
 			        }
 			        std::string remove;
 			        if (effect.contains("contributions") && effect.at("contributions").is_object())
@@ -2677,6 +2692,18 @@ struct GameplayEditor
 				        {
 					        ScopedId scope(name.c_str());
 					        heading(name.c_str());
+					        if (modifier)
+					        {
+						        std::vector<std::string> properties;
+						        for (const auto &property : modifier_properties())
+							        properties.push_back(property.id);
+						        choice(arc, "property", properties);
+						        optional_string(arc, "role");
+						        integer(arc, "delta_permille");
+						        if (button("Remove contribution"))
+							        remove = name;
+						        continue;
+					        }
 					        for (const char *key : {"capacity", "initial", "bearing_mdeg", "arc_mdeg", "layer",
 					                                "sustain_energy_per_second", "energy_per_strength",
 					                                "recharge_per_second", "off_recharge_per_second", "warmup_ticks",
@@ -2702,10 +2729,13 @@ struct GameplayEditor
 							                        else
 							                        {
 								                        string(operation, "grant");
+								                        optional_string(operation, "equipment");
 								                        if (kind == "apply")
+								                        {
 									                        choice(operation, "effect",
 									                               document.definition_choices(
 									                                   WorkshopDefinitionKind::Effect));
+								                        }
 							                        }
 						                        });
 					                });

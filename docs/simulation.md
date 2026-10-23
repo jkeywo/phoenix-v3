@@ -6,6 +6,8 @@ The [shield migration](shield-migration-evidence.md) moves shield reserves and t
 
 ## Entities, equipment and Controllers
 
+Shared property effects supply typed additive values to native mechanisms. Independent applications expire before operation; officer contributions are derived from current assignment, presence, health and deployment facts. Scenario and deferred reaction applications use the shared effect preparation path. A modifier survives loss of its source, while removal of its actual shield target reconciles attached contributions before the tick completes. World/session schema 19 persists independent applications and milli-tick magazine progress. See the [implementation record](property-effects-evidence.md) for boundaries and evidence.
+
 Flecs owns physical entities with stable identity, pose, motion and collider components. Fitted Systems are child entities with applicable engine, steering, radar, paid-flight and thermal state. Their parent relationship is authoritative. `EquipmentIndex` is a derived ordered handle lookup rebuilt on load/restore; it neither duplicates ownership nor drives global simulation iteration. Equipment handles stay private and do not create scene bodies or radar contacts.
 
 Console-owned Controllers hold command sections, operator generations, AI trees/private memory and effect receipts. They do not mutate physical components. Human and AI commands pass the same admission and tick-boundary commit, then physical subscribers consume changed settings or single-executor requests. Resource networks remain entity-owned typed arrays. Physical Systems and reporters continue operating regardless of human or AI control.

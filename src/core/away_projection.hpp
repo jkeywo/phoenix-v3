@@ -58,8 +58,10 @@ inline Json board(const Json &rows)
 			                       {"factors", Json::object()}};
 			if (!c.at("factors").is_object() || c.at("factors").size() > 35)
 				throw std::runtime_error("Invalid boarding factors");
+			// At most 128 defenders, each capped at 1e9 security output; attacker slots are capped at 16.
 			for (const auto &[key, value] : c.at("factors").items())
-				v["boarding_check"]["factors"][text(Json(key), 64)] = projection::number(value, -1000000, 1000000);
+				v["boarding_check"]["factors"][text(Json(key), 64)] =
+				    projection::number(value, -128000000000LL, 128000000000LL);
 		}
 		out.push_back(v);
 	}

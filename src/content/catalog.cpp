@@ -438,7 +438,7 @@ Catalog resolve(const std::vector<PackView> &ordered)
 		result.trees[name] = std::move(tree);
 	inherit_definitions(result.effects, "effects");
 	for (const auto &[id, effect] : result.effects)
-		compile_shield_effect(result, id);
+		compile_effect(result, id);
 	inherit_definitions(result.equipment, "equipment");
 	inherit_definitions(result.assemblies, "assemblies");
 	resolve_equipment(result);
@@ -663,7 +663,7 @@ namespace
 void verify_prepared_catalog(const Catalog &catalog)
 {
 	for (const auto &[id, effect] : catalog.effects)
-		compile_shield_effect(catalog, id);
+		compile_effect(catalog, id);
 	SpriteCompiler sprites(catalog);
 	if (catalog.presentation &&
 	    (!catalog.maps.empty() || !catalog.trees.empty() || !catalog.equipment.empty() || !catalog.assemblies.empty() ||

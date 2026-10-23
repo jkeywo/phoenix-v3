@@ -1,6 +1,6 @@
 # Foundation implementation plan
 
-Planned property-effect migration, 23 October 2026: the [second gameplay-engine slice](property-effects-migration-plan.md) covers shared named-property effects, all ordinary Duty Officer bonuses and existing fault/boost adapters on those properties. Timed scenario and deferred shield-reaction applications provide independent sources. Implementation and acceptance are pending.
+Property-effect migration, 23 October 2026: the [second gameplay-engine slice](property-effects-migration-plan.md) implements shared named-property effects, ordinary Duty Officer contributions and existing fault/boost adapters on those properties. Timed scenario and deferred shield-reaction applications share preparation and lifetime handling. Personnel, Workshop, maintained content and schema 19 continuation are migrated. Independent review corrections, automated results and remaining manual acceptance are recorded in the [implementation record](property-effects-evidence.md).
 
 Shield migration, 23 October 2026: reusable shield effects, ship-owned named contributions, equipment and independent scenario grants, explicit observation feeds, property modifiers, reached-layer damage hooks and atomic deferred reactions are implemented. Agent review corrections and automated verification are recorded in the [implementation record](shield-migration-evidence.md); the [migration plan](shield-migration-plan.md) retains the acceptance contract. Graphical, screen-reader, physical-device and performance evidence remains separate.
 

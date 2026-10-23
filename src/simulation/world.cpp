@@ -32,6 +32,7 @@ import phoenix.gameplay_scenario;
 #include "combat.hpp"
 #include "logistics_state.hpp"
 #include "docking_state.hpp"
+#include "property_effects_state.hpp"
 #include "personnel_state.hpp"
 #include "away_state.hpp"
 #include "mission_state.hpp"
@@ -246,6 +247,7 @@ struct World::Impl
 	std::map<std::string, CompiledDefinition> definitions;
 	std::map<std::string, Json> console_layouts;
 	std::map<std::string, ShieldEffectDefinition> shield_templates;
+	std::map<std::string, ModifierEffectDefinition> modifier_templates;
 	std::vector<ShieldReaction> shield_reactions;
 	std::map<std::uint64_t, std::string> shield_reaction_results;
 	std::uint64_t next_shield_hit = 1, next_shield_reaction = 1;
@@ -544,7 +546,10 @@ struct World::Impl
 		const auto content = convert_controller_content(source);
 		console_layouts = content.consoles;
 		for (const auto &[id, effect] : content.effects)
-			shield_templates.emplace(id, compile_shield_effect(content, id));
+			if (effect.at("kind") == "modifier")
+				modifier_templates.emplace(id, compile_modifier_effect(content, id));
+			else
+				shield_templates.emplace(id, compile_shield_effect(content, id));
 		packs = content.ordered_packs;
 		camera_widgets.clear();
 		for (const auto &[name, layout] : content.consoles)
@@ -998,6 +1003,7 @@ struct World::Impl
 			}
 		}
 		entity.set<EquipmentIndex>(std::move(index));
+		entity.set<PropertyEffects>({});
 		if (entity.has<ShieldComponent>())
 			for (auto child : entity.get<EquipmentIndex>().values)
 				if (const auto *m = child.try_get<CombatMechanism>();
@@ -1384,6 +1390,7 @@ struct World::Impl
 			return 0;
 		auto range =
 		    outer ? std::max(sensor->radar->range, sensor_definition(ship, name).long_range) : sensor->radar->range;
+		range = effective_property(entity, name, "sensors", range);
 		if (auto systems = gameplay_systems(entity); systems && systems->power)
 		{
 			const auto index = sensor->entity.get<ResourceBinding>().slot;
@@ -1397,7 +1404,7 @@ struct World::Impl
 			}
 			range = range * power.grants[index].supply_permille / 1000;
 		}
-		return officer_value(ship, name, "sensors", range) * fault_effectiveness(entity, name) / 1000;
+		return range;
 	}
 #include "sensor_profile.hpp"
 
@@ -1574,17 +1581,31 @@ struct World::Impl
 		for (auto child : ordered_equipment(steering_query))
 			if (auto ship = child.parent(); ship.has<Movable>() && !dock_attached(ship.get<StableId>().id) &&
 			                                !structurally_disabled(ship, child.get<Equipment>().id))
-				step_basic_steering(ship.get_mut<Pose>(), child.get_mut<Steering>(),
-				                    fault_effectiveness(ship, child.get<Equipment>().id));
+			{
+				auto &native = child.get_mut<Steering>();
+				auto effective = native;
+				effective.rate = effective_property(ship, child.get<Equipment>().id, "turn", native.rate);
+				step_basic_steering(ship.get_mut<Pose>(), effective, 1000);
+				native.remainder = effective.remainder;
+			}
 	}
 	void run_basic_engines()
 	{
 		for (auto child : ordered_equipment(engine_query))
 			if (auto ship = child.parent(); ship.has<Movable>() && !dock_attached(ship.get<StableId>().id) &&
 			                                !structurally_disabled(ship, child.get<Equipment>().id))
-				step_basic_engine(ship.get<Pose>(), ship.get_mut<Motion>(), child.get_mut<Engine>(),
-				                  officer_value(ship.get<StableId>().id, child.get<Equipment>().id, "propulsion",
-				                                fault_effectiveness(ship, child.get<Equipment>().id)));
+			{
+				auto &native = child.get_mut<Engine>();
+				auto effective = native;
+				const auto &equipment = child.get<Equipment>().id;
+				effective.acceleration = effective_property(ship, equipment, "propulsion", native.acceleration);
+				effective.max_speed = effective_property(ship, equipment, "speed", native.max_speed);
+				effective.speed = native.speed == native.max_speed ? effective.max_speed
+				                                                   : std::min(native.speed, effective.max_speed);
+				step_basic_engine(ship.get<Pose>(), ship.get_mut<Motion>(), effective, 1000);
+				native.remainder = effective.remainder;
+				native.forward_output = effective.forward_output;
+			}
 	}
 	struct FlightRestrictions
 	{
@@ -1617,6 +1638,54 @@ struct World::Impl
 		}
 		return result;
 	}
+	FlightDefinition effective_flight_definition(flecs::entity child, FlightRestrictions restrictions,
+	                                             std::int64_t speed = 0, std::int64_t acceleration = 0,
+	                                             std::int64_t turn = 0, std::int64_t paid = 1000) const
+	{
+		const auto &flight = child.get<FlightRuntime>();
+		auto definition = flight.definition;
+		const auto ship = child.parent();
+		const auto &equipment = child.get<Equipment>().id;
+		// Legacy self-contained boost/impulse processes keep their own funding and
+		// controls, but their output joins the same sum as external target bindings.
+		if (definition.targets.empty())
+		{
+			if (flight.state.impulse == ImpulsePhase::Active)
+			{
+				speed += (definition.impulse_speed_multiplier - 1000) * paid / 1000;
+				acceleration += (definition.impulse_acceleration_multiplier - 1000) * paid / 1000;
+			}
+			else if (flight.state.boost && !restrictions.impulse)
+			{
+				speed += (definition.boost_speed_multiplier - 1000) * paid / 1000;
+				acceleration += (definition.boost_acceleration_multiplier - 1000) * paid / 1000;
+			}
+		}
+		definition.boost_speed_multiplier = definition.boost_acceleration_multiplier = 1000;
+		definition.impulse_speed_multiplier = definition.impulse_acceleration_multiplier = 1000;
+		definition.maximum_speed = effective_property(ship, equipment, "speed", definition.maximum_speed, speed);
+		definition.acceleration =
+		    effective_property(ship, equipment, "propulsion", definition.acceleration, acceleration);
+		definition.lateral_acceleration =
+		    effective_property(ship, equipment, "propulsion", definition.lateral_acceleration, acceleration);
+		definition.turn_rate = effective_property(ship, equipment, "turn", definition.turn_rate, turn);
+		return definition;
+	}
+	FlightState effective_flight_state(flecs::entity child, const FlightDefinition &definition,
+	                                   FlightRestrictions restrictions) const
+	{
+		const auto &flight = child.get<FlightRuntime>();
+		auto state = flight.state;
+		state.steering_limit_permille = restrictions.steering_limit;
+		if (structurally_disabled(child.parent(), child.get<Equipment>().id))
+			state.enabled = false;
+		if (restrictions.impulse)
+			state.boost = false;
+		state.desired_speed = state.desired_speed == flight.definition.maximum_speed
+		                          ? definition.maximum_speed
+		                          : std::min(state.desired_speed, definition.maximum_speed);
+		return state;
+	}
 	void request_flight_resources(flecs::entity ship, FlightRestrictions restrictions)
 	{
 		const auto id = ship.get<StableId>().id;
@@ -1645,12 +1714,9 @@ struct World::Impl
 				}
 			observe_flight(flight.definition, flight.state, tick, observed);
 			guide_follow(flight.definition, flight.state, pose, motion, observed);
-			auto requested = flight.state;
-			if (structurally_disabled(ship, child.get<Equipment>().id))
-				requested.enabled = false;
-			if (restrictions.impulse)
-				requested.boost = false;
-			flight.demand = flight_demand(flight.definition, requested, pose, motion);
+			const auto effective = effective_flight_definition(child, restrictions);
+			const auto requested = effective_flight_state(child, effective, restrictions);
+			flight.demand = flight_demand(effective, requested, pose, motion);
 			if (const auto *v = ship.try_get<VerticalMotion>(); v && requested.enabled &&
 			                                                    flight.definition.kind == FlightKind::Engine &&
 			                                                    (v->desired != v->altitude || v->velocity))
@@ -1745,41 +1811,34 @@ struct World::Impl
 		{
 			auto &flight = target.get_mut<FlightRuntime>();
 			auto definition = flight.definition;
-			std::int64_t speed = 1000, acceleration = 1000, turn = 1000;
+			std::int64_t speed = 0, acceleration = 0, turn = 0;
 			for (auto source : fittings)
 			{
 				auto &modifier = source.get_mut<FlightRuntime>();
 				const bool impulse = modifier.state.impulse == ImpulsePhase::Active;
-				if (!modifier.state.enabled || !(impulse || (modifier.state.boost && !restrictions.impulse)))
+				if (!modifier.state.enabled || structurally_disabled(ship, source.get<Equipment>().id) ||
+				    !(impulse || (modifier.state.boost && !restrictions.impulse)))
 					continue;
 				const auto paid =
 				    allocation ? allocation->grants()[source.get<ResourceBinding>().slot].supply_permille : 1000;
 				for (const auto &binding : modifier.definition.targets)
 					if (binding.index == target.get<Equipment>().ordinal)
 					{
-						const auto bonus = 1000 + (binding.multiplier - 1000) * paid / 1000;
+						const auto bonus = (binding.multiplier - 1000) * paid / 1000;
 						auto &value = binding.property == FlightProperty::Speed          ? speed
 						              : binding.property == FlightProperty::Acceleration ? acceleration
 						                                                                 : turn;
-						value = std::max(value, bonus);
+						value += bonus;
 						if (!impulse)
 							modifier.state.effective_boost = paid;
 						if (impulse && definition.kind == FlightKind::Engine)
 							flight.state.external_impulse = true;
 					}
 			}
-			definition.maximum_speed = definition.maximum_speed * speed / 1000;
-			definition.acceleration = officer_value(id, target.get<Equipment>().id, "propulsion",
-			                                        definition.acceleration * acceleration / 1000);
-			definition.turn_rate = definition.turn_rate * turn / 1000;
-			auto state = flight.state;
-			if (structurally_disabled(ship, target.get<Equipment>().id))
-				state.enabled = false;
-			state.steering_limit_permille = restrictions.steering_limit;
-			if (restrictions.impulse)
-				state.boost = false;
-			if (state.desired_speed == flight.definition.maximum_speed)
-				state.desired_speed = definition.maximum_speed;
+			const auto paid =
+			    allocation ? allocation->grants()[target.get<ResourceBinding>().slot].supply_permille : 1000;
+			definition = effective_flight_definition(target, restrictions, speed, acceleration, turn, paid);
+			const auto state = effective_flight_state(target, definition, restrictions);
 			flight.demand = flight_demand(definition, state, ship.get<Pose>(), ship.get<Motion>());
 		}
 	}
@@ -1789,8 +1848,7 @@ struct World::Impl
 		auto ship = child.parent();
 		auto power = ship.try_get_mut<ShipResources>();
 		const auto slot = power ? child.get<ResourceBinding>().slot : 0;
-		int paid = (power ? power->grants[slot].supply_permille : 1000) *
-		           fault_effectiveness(ship, child.get<Equipment>().id) / 1000;
+		int paid = power ? power->grants[slot].supply_permille : 1000;
 		if (flight.state.impulse == ImpulsePhase::Charging && flight.definition.impulse_charge_energy)
 		{
 			const auto &grant = power->grants[slot];
@@ -1866,6 +1924,8 @@ struct World::Impl
 	}
 
 #include "combat_execution.hpp"
+#include "property_effects.hpp"
+#include "effect_application.hpp"
 #include "shield_reactions.hpp"
 	void run_advanced_equipment()
 	{
@@ -1921,37 +1981,23 @@ struct World::Impl
 			try
 			{
 				const auto target = entities.find(request.target);
-				if (target == entities.end() || !target->second.has<ShieldComponent>() || combat_dead(target->second))
+				if (target == entities.end() || !target->second.has<ShieldComponent>())
 					throw std::runtime_error("Shield target unavailable or incompatible");
 				auto ship = target->second;
-				auto &owner = ship.get_mut<ShieldComponent>();
-				const auto key = "scenario." + std::to_string(request.token.instance) + "." + request.grant;
-				const auto matches = [&](const auto &c)
-				{
-					return c.equipment.empty() && c.source == key;
-				};
-				auto found = std::find_if(owner.contributions.begin(), owner.contributions.end(), matches);
-				if (request.operation == ScenarioShieldEffectOperation::Remove)
-					std::erase_if(owner.contributions, matches);
-				else if (request.operation == ScenarioShieldEffectOperation::Refresh)
-				{
-					if (found == owner.contributions.end())
-						throw std::runtime_error("Shield grant unavailable for refresh");
-					const auto duration = shield_templates.at(found->definition_id).duration_ticks;
-					for (auto &c : owner.contributions)
-						if (matches(c) && duration > 0)
-							c.expiry = std::max(c.expiry, static_cast<std::int64_t>(ecs.get<Clock>().tick) + duration);
-				}
-				else
-				{
-					if (found != owner.contributions.end())
-						throw std::runtime_error("Shield grant name already active; refresh it explicitly");
-					const auto &d = shield_templates.at(request.definition);
-					const auto duration = d.duration_ticks;
-					install_shield_grant(owner, d, key, {}, request.definition,
-					                     duration > 0 ? static_cast<std::int64_t>(ecs.get<Clock>().tick) + duration
-					                                  : -1);
-				}
+				auto prepared = ship.get<ShieldComponent>();
+				const auto operation =
+				    request.operation == ScenarioShieldEffectOperation::Remove    ? EffectApplicationOperation::Remove
+				    : request.operation == ScenarioShieldEffectOperation::Refresh ? EffectApplicationOperation::Refresh
+				                                                                  : EffectApplicationOperation::Apply;
+				prepare_effect_application(
+				    ship,
+				    {EffectApplicationKind::Shield,
+				     operation,
+				     effect_source(EffectSourceKind::Scenario, request.token.instance, request.grant),
+				     {},
+				     request.definition},
+				    &prepared, nullptr, ecs.get<Clock>().tick);
+				ship.set<ShieldComponent>(std::move(prepared));
 			}
 			catch (const std::exception &error)
 			{
@@ -2578,6 +2624,7 @@ void World::tick()
 		}
 	impl_->controller_pending.clear();
 	impl_->step_shield_effects();
+	impl_->step_property_effects();
 	if (impl_->scenario)
 	{
 		auto bodies = inspect();
@@ -2603,6 +2650,7 @@ void World::tick()
 		impl_->scenario->step();
 		impl_->scenario_spawns();
 		impl_->scenario_shield_effects();
+		impl_->scenario_modifier_effects();
 		impl_->scenario_publications();
 	}
 	impl_->brain_snapshots.clear();
@@ -2724,6 +2772,7 @@ void World::tick()
 	impl_->advance_psychic();
 	impl_->advance_sensors();
 	impl_->update_mission_facts();
+	impl_->prune_property_targets();
 	impl_->observation_snapshots.clear();
 	impl_->command_snapshots.clear();
 	impl_->controller_inboxes.clear();
@@ -3701,7 +3750,7 @@ Json World::save() const
 {
 	if (!impl_->meta_pending.empty() || !impl_->controller_pending.empty())
 		throw std::runtime_error("Save at a tick boundary after admitted commands execute");
-	Json result{{"schema", 18},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
+	Json result{{"schema", 19},          {"tick", ticks()},         {"map", impl_->map},      {"ships", impl_->ships},
 	            {"packs", impl_->packs}, {"claims", impl_->claims}, {"bodies", Json::array()}};
 	result["shield_reactions"] = impl_->save_shield_reactions();
 	if (impl_->display_revision)
@@ -3791,6 +3840,8 @@ Json World::save() const
 			result["bodies"].back()["combat"] = impl_->save_combat(entity);
 		if (entity.has<ShieldComponent>())
 			result["bodies"].back()["shields"] = impl_->save_shields(entity);
+		if (entity.has<PropertyEffects>())
+			result["bodies"].back()["property_effects"] = impl_->save_property_effects(entity);
 		if (const auto *d = entity.try_get<Destructible>())
 			result["bodies"].back()["destructible"] = *d;
 		if (entity.has<EntityControls>())
@@ -3840,8 +3891,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 	if (!saved.at("tick").is_number_integer() || saved.at("tick") < 0 ||
 	    saved.at("tick") > std::numeric_limits<std::int64_t>::max())
 		throw std::runtime_error("Saved state invalid tick");
-	if (saved.at("schema") != 18)
-		throw std::runtime_error("Saved state schema retired; start a new session (schema 18 required)");
+	if (saved.at("schema") != 19)
+		throw std::runtime_error("Saved state schema retired; start a new session (schema 19 required)");
 	if (saved.at("packs") != Json(content.ordered_packs))
 		throw std::runtime_error("Saved state content identity mismatch; start a new session");
 	if (saved.contains("delegated") || saved.contains("preset"))
@@ -3921,6 +3972,8 @@ void World::restore(const Catalog &content, const Json &source_saved)
 			candidate.impl_->restore_combat(entity, value.at("combat"));
 		if (entity.has<ShieldComponent>())
 			candidate.impl_->restore_shields(entity, value.at("shields"));
+		if (entity.has<PropertyEffects>())
+			candidate.impl_->restore_property_effects(entity, value.at("property_effects"));
 		if (!candidate.impl_->definition(restored.id).personnel.officers.empty() && !value.contains("personnel"))
 			throw std::runtime_error("Missing saved personnel");
 		if (value.contains("personnel"))

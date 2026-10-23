@@ -306,6 +306,15 @@ void verify_scenario_authoring(const Catalog &catalog, const Json &map)
 					if (action == GameplayTreeAction::RefreshShieldEffect ||
 					    action == GameplayTreeAction::RemoveShieldEffect)
 						valid_handle(1);
+					if (action == GameplayTreeAction::ApplyModifierEffect)
+					{
+						valid_handle(3);
+						if (task.arguments.at(2).source == state_tree::Source::Literal)
+							compile_modifier_effect(catalog, task.arguments.at(2).literal.text);
+					}
+					if (action == GameplayTreeAction::RefreshModifierEffect ||
+					    action == GameplayTreeAction::RemoveModifierEffect)
+						valid_handle(2);
 					if (action == GameplayTreeAction::SpawnEntity)
 					{
 						valid_handle(5);

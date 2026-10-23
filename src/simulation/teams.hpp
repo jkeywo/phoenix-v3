@@ -22,7 +22,6 @@ void personnel_changed(EntityId ship)
 {
 	auto &ps = entities.at(ship).get_mut<PersonnelState>();
 	++ps.revision;
-	refresh_personnel_bonuses(ps, definition(ship).personnel);
 }
 void personnel_casualties(flecs::entity ship, std::size_t compartment, std::int64_t damage)
 {
@@ -103,14 +102,23 @@ void personnel_casualties(flecs::entity ship, std::size_t compartment, std::int6
 		personnel_changed(id);
 	}
 }
-std::int64_t team_effectiveness(const CombatMechanism &m) const
+bool team_available(const CombatMechanism &m) const
 {
 	const auto &r = m.get<TeamState>();
-	if (r.detained)
+	return !r.detained && r.condition != "lost";
+}
+// Injury output joins other comparable modifiers. Loss/detention remain hard eligibility.
+std::int64_t team_work(flecs::entity ship, const CombatMechanism &team, const std::string &property,
+                       std::int64_t base) const
+{
+	const auto &state = team.get<TeamState>();
+	const auto equipment = away_equipment(ship.get<StableId>().id, team.definition.id);
+	if (state.detained || state.condition == "lost" || !equipment || !equipment.get<Equipment>().enabled ||
+	    structurally_disabled(ship, team.definition.id))
 		return 0;
-	return r.condition == "lost"      ? 0
-	       : r.condition == "injured" ? m.definition.get<TeamDefinition>().injured_effectiveness
-	                                  : 1000;
+	const auto injury =
+	    state.condition == "injured" ? team.definition.get<TeamDefinition>().injured_effectiveness - 1000 : 0;
+	return effective_property(ship, team.definition.id, property, base, injury);
 }
 struct ClinicalPatient
 {
@@ -210,7 +218,7 @@ bool team_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 		return false;
 	auto &m = fit->entity.get_mut<CombatMechanism>();
 	auto &r = m.get<TeamState>();
-	if (!team_effectiveness(m) || c.value < 1 || static_cast<std::uint64_t>(c.value) != r.revision ||
+	if (!team_available(m) || c.value < 1 || static_cast<std::uint64_t>(c.value) != r.revision ||
 	    r.revision >= 9007199254740991ULL)
 		return false;
 	const TeamOrderDefinition *order = nullptr;
@@ -305,6 +313,9 @@ std::optional<std::size_t> triage_patient(EntityId target, std::optional<std::si
 void treat_patient(EntityId origin, const CombatMechanism &team, EntityId target, std::size_t patient,
                    const std::string &activity)
 {
+	const auto work = team_work(entities.at(origin), team, "medical", 1000);
+	if (work <= 0)
+		return;
 	const auto patients = clinical_patients(target);
 	const auto &selected = patients.at(patient);
 	if (!selected.team.empty())
@@ -314,7 +325,7 @@ void treat_patient(EntityId origin, const CombatMechanism &team, EntityId target
 			return;
 		if (!pay_material_work(origin, team.definition.id, "treat", r.treatment > 0))
 			return;
-		r.treatment += officer_value(origin, team.definition.id, "medical", 1000) * team_effectiveness(team) / 1000;
+		r.treatment += work;
 		if (r.treatment >= team.definition.get<TeamDefinition>().treatment_ticks * 1000)
 		{
 			r.condition = "healthy";
@@ -335,7 +346,7 @@ void treat_patient(EntityId origin, const CombatMechanism &team, EntityId target
 	if (!pay_material_work(origin, team.definition.id, o.condition == "severe" ? "stabilise" : "treat",
 	                       o.treatment > 0))
 		return;
-	o.treatment += officer_value(origin, team.definition.id, "medical", 1000) * team_effectiveness(team) / 1000;
+	o.treatment += work;
 	if (o.treatment < ticks * 1000)
 		return;
 	o.treatment = 0;
@@ -405,8 +416,7 @@ void step_teams()
 		{
 			auto *m = child.try_get_mut<CombatMechanism>();
 			if (!m || m->definition.kind != OperatingSystem::Team || away_reserved(id, "team:" + m->definition.id) ||
-			    !child.get<Equipment>().enabled || !fault_effectiveness(ship, m->definition.id) ||
-			    !team_effectiveness(*m))
+			    !child.get<Equipment>().enabled || structurally_disabled(ship, m->definition.id) || !team_available(*m))
 				continue;
 			auto &r = m->get<TeamState>();
 			const auto &d = m->definition.get<TeamDefinition>();
@@ -630,8 +640,7 @@ void advance_away_medical(std::size_t index)
 			const auto team = away_equipment(origin, asset.substr(5));
 			const auto &mechanism = team.get<CombatMechanism>();
 			const auto &td = mechanism.definition.get<TeamDefinition>();
-			if (!team.get<Equipment>().enabled || !team_effectiveness(mechanism) ||
-			    !td.capabilities.contains("medical"))
+			if (!team.get<Equipment>().enabled || !team_available(mechanism) || !td.capabilities.contains("medical"))
 				continue;
 			auto &care = mission.care[mechanism.definition.id];
 			if (care.order.empty())

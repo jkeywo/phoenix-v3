@@ -923,6 +923,250 @@ void shield_action_receipts()
 	check(committed.receipt(refresh)->result.status == ScenarioActionStatus::Failed,
 	      "Physical failure was not retained");
 }
+void independent_modifier_world()
+{
+	auto data = phoenix::test::combat_fixture();
+	data["effects"] = Json::parse(R"json([
+ {"id":"test.range","kind":"modifier","duration_ticks":5,
+  "contributions":{"range":{"property":"sensors","delta_permille":250}}},
+ {"id":"test.incompatible","kind":"modifier","duration_ticks":5,
+  "contributions":{"range":{"property":"sensors","delta_permille":1000},
+                   "cycle":{"property":"cycling","delta_permille":1000}}}])json");
+	data["maps"][0]["scenario"] = {{"tree", "test.modifier-tree"}, {"bindings", {{"actor", {{"entity", 1}}}}}};
+	data["trees"].push_back(Json::parse(R"json({"id":"test.modifier-tree","context":"scenario","initial":"apply",
+  "states":[{"id":"apply","entry":[
+    {"action":"apply_modifier_effect","arguments":[{"observation":"self.entity"},"radar","test.range","first"]},
+    {"action":"apply_modifier_effect","arguments":[{"observation":"self.entity"},"radar","test.range","first"]},
+    {"action":"apply_modifier_effect","arguments":[{"observation":"self.entity"},"radar","test.range","second"]},
+    {"action":"apply_modifier_effect","arguments":[{"observation":"self.entity"},"radar","test.incompatible","bad"]}],
+    "transitions":[{"target":"refresh","conditions":[{"left":{"observation":"tick"},"op":"ge","right":2}]}]},
+   {"id":"refresh","entry":[
+    {"action":"apply_modifier_effect","arguments":[{"observation":"self.entity"},"radar","test.range","first"]},
+    {"action":"refresh_modifier_effect","arguments":[{"observation":"self.entity"},"radar","first"]}],
+    "transitions":[{"target":"remove","conditions":[{"left":{"observation":"tick"},"op":"ge","right":4}]}]},
+   {"id":"remove","entry":[{"action":"remove_modifier_effect","arguments":[{"observation":"self.entity"},"radar","second"]}]}]})json"));
+	const auto catalog = load_fixture(data);
+	World world;
+	world.load(catalog, "test.map", {});
+	check(world.claim(900, 1, "drive"), "Cannot claim modifier test ship");
+	const auto range = [](const World &current)
+	{
+		const auto view = current.observe(900);
+		const auto radar = std::find_if(view->systems.begin(), view->systems.end(),
+		                                [](const auto &system)
+		                                {
+			                                return system.kind == OperatingSystem::Radar;
+		                                });
+		check(radar != view->systems.end(), "Modifier test radar projection missing");
+		return radar->effective_range;
+	};
+	world.tick();
+	check(range(world) == 300000,
+	      "Scenario modifiers did not add once, or failed multi-property apply partially committed");
+	const auto saved = world.save();
+	World resumed;
+	resumed.restore(catalog, saved);
+	// Claims are part of this saved world. Keep the same control history on both
+	// sides; clearing only the restored claims introduces a Controller transition.
+	check(resumed.observe(900).has_value(), "Restored modifier test ship lost its saved claim");
+	for (int i = 0; i < 2; ++i)
+	{
+		world.tick();
+		resumed.tick();
+	}
+	check(range(resumed) == 300000, "Same-source modifier refresh stacked a second copy");
+	for (int i = 0; i < 2; ++i)
+	{
+		world.tick();
+		resumed.tick();
+	}
+	check(range(resumed) == 250000, "Selective modifier removal removed an independent source");
+	world.tick();
+	resumed.tick();
+	check(range(resumed) == 250000, "Modifier refresh failed to extend the original expiry");
+	for (int i = 0; i < 3; ++i)
+	{
+		world.tick();
+		resumed.tick();
+	}
+	check(range(resumed) == 200000, "Timed modifier did not expire at its extended deadline");
+	if (world.save() != resumed.save())
+		throw std::runtime_error("Timed modifier continuation diverged or replayed after restore: " +
+		                         Json::diff(world.save(), resumed.save()).dump());
+}
+void modifier_target_lifetime()
+{
+	auto data = phoenix::test::combat_fixture();
+	data["effects"] = Json::parse(R"json([
+ {"id":"test.short-shield","kind":"shield","duration_ticks":3,
+  "contributions":{"bubble":{"capacity":10,"initial":4,"recharge_per_second":0,
+     "off_recharge_per_second":0,"sustain_energy_per_second":0,"warmup_ticks":1}}},
+ {"id":"test.long-modifier","kind":"modifier","duration_ticks":20,
+  "contributions":{"recharge":{"property":"recharge","delta_permille":250}}}])json");
+	data["maps"][0]["scenario"] = {{"tree", "test.target-lifetime"}, {"bindings", {{"actor", {{"entity", 1}}}}}};
+	data["trees"].push_back(Json::parse(R"json({"id":"test.target-lifetime","context":"scenario","initial":"apply",
+  "states":[{"id":"apply","entry":[
+    {"action":"apply_shield_effect","arguments":[{"observation":"self.entity"},"test.short-shield","first"]},
+    {"action":"apply_shield_effect","arguments":[{"observation":"self.entity"},"test.short-shield","second"]},
+    {"action":"apply_modifier_effect","arguments":[{"observation":"self.entity"},"effect:1:bubble","test.long-modifier","first"]},
+    {"action":"apply_modifier_effect","arguments":[{"observation":"self.entity"},"effect:2:bubble","test.long-modifier","second"]}],
+    "transitions":[{"target":"remove","conditions":[{"left":{"observation":"tick"},"op":"ge","right":1}]}]},
+   {"id":"remove","entry":[{"action":"remove_shield_effect","arguments":[{"observation":"self.entity"},"first"]}]}]})json"));
+	const auto catalog = load_fixture(data);
+	World world;
+	world.load(catalog, "test.map", {});
+	world.tick();
+	const auto granted = world.save();
+	check(granted["bodies"][0]["property_effects"]["contributions"].size() == 2,
+	      "Modifier could not bind to independently granted shield contributions");
+	world.tick();
+	const auto removed = world.save();
+	check(removed["bodies"][0]["shields"]["contributions"].size() == 1 &&
+	          removed["bodies"][0]["property_effects"]["contributions"].size() == 1 &&
+	          removed["bodies"][0]["property_effects"]["contributions"][0]["equipment"] == "effect:2:bubble",
+	      "Removing a shield left an orphan modifier or removed an unrelated target");
+	World resumed;
+	resumed.restore(catalog, removed);
+	for (int i = 0; i < 2; ++i)
+	{
+		world.tick();
+		resumed.tick();
+	}
+	const auto expired = world.save();
+	check(expired["bodies"][0]["shields"]["contributions"].empty() &&
+	          expired["bodies"][0]["property_effects"]["contributions"].empty(),
+	      "Shield expiry left an orphan property target before the modifier deadline");
+	check(expired == resumed.save(), "Shield-target expiry diverged after selective-removal restore");
+	World after_expiry;
+	after_expiry.restore(catalog, expired);
+	world.tick();
+	after_expiry.tick();
+	check(world.save() == after_expiry.save(), "Expired shield modifier target prevented faithful restoration");
+}
+void combined_shield_properties()
+{
+	auto data = phoenix::test::combat_fixture();
+	data["effects"] = Json::parse(R"json([
+ {"id":"test.shield","kind":"shield","contributions":{"main":{"capacity":100,"initial":0,
+    "recharge_per_second":20,"off_recharge_per_second":0,"sustain_energy_per_second":0,"warmup_ticks":1}}},
+ {"id":"test.officer-recharge","kind":"modifier",
+  "contributions":{"recharge":{"property":"recharge","delta_permille":250}}},
+ {"id":"test.timed-recharge","kind":"modifier","duration_ticks":4,
+  "contributions":{"recharge":{"property":"recharge","delta_permille":250}}}])json");
+	auto &ship = data["entities"][0];
+	ship["resources"] = {{"stores", Json::array({{{"id", "cell"},
+	                                              {"capacity", 100000},
+	                                              {"initial", 100000},
+	                                              {"charge_rate", 100000},
+	                                              {"discharge_rate", 100000}}})}};
+	ship["systems"]["shield"] = {{"kind", "shield"},
+	                             {"compartment", "fore"},
+	                             {"shield_effect", "test.shield"},
+	                             {"power_store", "cell"},
+	                             {"faults", Json::array({{{"id", "output"},
+	                                                      {"symptom", "Slow recharge"},
+	                                                      {"diagnosis", "Output damaged"},
+	                                                      {"chance_permille", 1000},
+	                                                      {"damage_threshold", 1},
+	                                                      {"effectiveness_permille", 500},
+	                                                      {"repair_work", 100}}})}};
+	ship["control_layout"]["controllers"].push_back(
+	    {{"id", "shield"},
+	     {"console", "drive"},
+	     {"fallback", "hold"},
+	     {"commands",
+	      Json::array(
+	          {{{"id", "enabled"}, {"action", "system_enabled"}, {"initial", 1}, {"consumers", {"shield"}}}})}});
+	ship["control_layout"]["profiles"][0]["consoles"]["drive"]["human"].push_back("shield");
+	ship["stations"][0]["consoles"][0]["feeds"].push_back("shield");
+	ship["personnel"] = Json::parse(R"json({
+ "departments":[{"id":"engineering","label":"Engineering","station":"operations"}],
+ "traits":[{"id":"engineer","label":"Engineer","effects":["test.officer-recharge"]}],
+ "duties":[{"id":"shield-watch","label":"Shield watch","department":"engineering","compartment":"fore",
+   "controller":"shield","bindings":{"shield":["recharge"]}}],
+ "officers":[{"id":"engineer","name":"Engineer","department":"engineering","compartment":"fore",
+   "duty":"shield-watch","traits":["engineer"]}]})json");
+	for (const auto &controller : ship["control_layout"]["controllers"])
+		if (controller["id"] != "shield")
+			ship["personnel"]["duties"].push_back({{"id", controller["id"]},
+			                                       {"label", controller["id"]},
+			                                       {"department", "engineering"},
+			                                       {"compartment", "fore"},
+			                                       {"controller", controller["id"]},
+			                                       {"console", controller["console"]}});
+	for (const auto &[id, system] : ship["systems"].items())
+		if (system.value("kind", std::string{}) == "repair_team")
+			ship["personnel"]["duties"].push_back({{"id", id + "-specialist"},
+			                                       {"label", id + " specialist"},
+			                                       {"department", "engineering"},
+			                                       {"compartment", system["compartment"]},
+			                                       {"team", id}});
+	data["maps"][0]["scenario"] = {{"tree", "test.combine-shield"}, {"bindings", {{"actor", {{"entity", 1}}}}}};
+	data["trees"].push_back(Json::parse(R"json({"id":"test.combine-shield","context":"scenario","initial":"apply",
+ "states":[{"id":"apply","entry":[{"action":"apply_modifier_effect",
+  "arguments":[{"observation":"self.entity"},"shield","test.timed-recharge","boost"]}]}]})json"));
+	const auto catalog = load_fixture(data);
+	World initial;
+	initial.load(catalog, "test.map", {});
+	auto checkpoint = initial.save();
+	checkpoint["bodies"][0]["combat"]["faults"]["shield"][0]["active"] = true;
+	World world;
+	world.restore(catalog, checkpoint);
+	check(world.claim(900, 1, "drive"), "Cannot claim combined shield-property test");
+	world.tick();
+	const auto combined = world.save();
+	check(combined["bodies"][0]["shields"]["contributions"][0]["quoted_rate"] == 20000,
+	      "Officer +25%, scenario +25% and fault -50% did not combine against shield recharge base once");
+	const auto effect_id = combined["bodies"][0]["shields"]["contributions"][0]["effect_id"];
+	World resumed;
+	resumed.restore(catalog, combined);
+	for (int i = 0; i < 5; ++i)
+	{
+		world.tick();
+		resumed.tick();
+	}
+	const auto after = world.save();
+	check(after["bodies"][0]["shields"]["contributions"][0]["quoted_rate"] == 15000 &&
+	          after["bodies"][0]["shields"]["contributions"][0]["effect_id"] == effect_id &&
+	          after["bodies"][0]["shields"]["contributions"][0]["state"]["strength"].get<int>() > 0,
+	      "Scenario expiry failed to preserve the officer/fault contributions and native shield reserve");
+	check(after == resumed.save(), "Combined shield property continuation diverged after restore");
+}
+void modifier_action_receipts()
+{
+	const auto catalog = fixture();
+	GameplayScenarioBridge bridge;
+	bridge.load(catalog, "test.map");
+	const auto instance = bridge.controllers().begin()->first;
+	const ScenarioActionToken token{instance, 500, 0};
+	std::vector<state_tree::Value> args{{state_tree::Type::Entity, 1, {}},
+	                                    {state_tree::Type::Text, 0, "radar"},
+	                                    {state_tree::Type::Text, 0, "test.temporary-modifier"},
+	                                    {state_tree::Type::Text, 0, "blessing"}};
+	const auto receipt = bridge.execute(token, GameplayTreeAction::ApplyModifierEffect, args);
+	check(receipt.result.status == ScenarioActionStatus::Pending && bridge.pending_modifier_effects().size() == 1,
+	      "Scenario modifier action did not produce physical pending work");
+	bridge.execute(token, GameplayTreeAction::ApplyModifierEffect, args);
+	check(bridge.pending_modifier_effects().size() == 1, "Replay duplicated pending modifier work");
+	GameplayScenarioBridge resumed;
+	resumed.restore(catalog, "test.map", bridge.save());
+	check(resumed.pending_modifier_effects().size() == 1, "Pending modifier request lost across resume");
+	resumed.confirm_modifier_effect(token);
+	check(resumed.receipt(token)->result.status == ScenarioActionStatus::Succeeded,
+	      "Physical grant confirmation missing");
+	GameplayScenarioBridge committed;
+	committed.restore(catalog, "test.map", resumed.save());
+	committed.execute(token, GameplayTreeAction::ApplyModifierEffect, args);
+	check(committed.pending_modifier_effects().empty(), "Committed modifier creation replayed on resume");
+	const ScenarioActionToken refresh{instance, 501, 0};
+	committed.execute(refresh, GameplayTreeAction::RefreshModifierEffect,
+	                  {{state_tree::Type::Entity, 1, {}},
+	                   {state_tree::Type::Text, 0, "radar"},
+	                   {state_tree::Type::Text, 0, "blessing"}});
+	committed.confirm_modifier_effect(refresh, "target removed");
+	check(committed.receipt(refresh)->result.status == ScenarioActionStatus::Failed,
+	      "Physical failure was not retained");
+}
 std::vector<Json> objective_records(const Observation &observation)
 {
 	std::vector<Json> out;
@@ -945,6 +1189,10 @@ int main(int argc, char **argv)
 		if (argc == 5 && std::string(argv[1]) == "--smoke-pack")
 			return scenario_probe(argv[2], argv[3], std::stoi(argv[4]));
 		shield_action_receipts();
+		modifier_action_receipts();
+		independent_modifier_world();
+		modifier_target_lifetime();
+		combined_shield_properties();
 		independent_shield_world();
 		const auto catalog = fixture();
 		World original;

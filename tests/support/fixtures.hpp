@@ -12,9 +12,38 @@ inline PackDraft fixture_pack(const Bytes &definitions, const std::string &id)
 	// Materialise test builders' shorthand into the production effect catalogue.
 	// Runtime and production loaders accept only references.
 	auto authored = parse_json(definitions, "synthetic fixture");
-	std::size_t shield_index = 0;
+	std::size_t shield_index = 0, modifier_index = 0;
 	std::function<void(Json &)> materialise = [&](Json &value)
 	{
+		if (value.is_object() && value.contains("personnel") && value.at("personnel").is_object())
+		{
+			auto &personnel = value["personnel"];
+			for (auto &trait : personnel["traits"])
+				if (trait.contains("bonuses"))
+				{
+					trait["effects"] = Json::array();
+					for (const auto &[property, delta] : trait.at("bonuses").items())
+					{
+						const auto effect = "fixture.modifier." + std::to_string(++modifier_index);
+						if (!authored.contains("effects"))
+							authored["effects"] = Json::array();
+						Json contributions = {{"main", {{"property", property}, {"delta_permille", delta}}}};
+						if (property == "recharge")
+							contributions["off"] = {
+							    {"property", "off_recharge"}, {"role", "recharge"}, {"delta_permille", delta}};
+						authored["effects"].push_back(
+						    {{"id", effect}, {"kind", "modifier"}, {"contributions", contributions}});
+						trait["effects"].push_back(effect);
+					}
+					trait.erase("bonuses");
+				}
+			for (auto &duty : personnel["duties"])
+				if (duty.contains("effects"))
+				{
+					duty["bindings"] = duty.at("effects");
+					duty.erase("effects");
+				}
+		}
 		if (value.is_object() && value.value("kind", std::string{}) == "shield" && value.contains("capacity"))
 		{
 			Json contribution = Json::object();

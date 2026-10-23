@@ -408,10 +408,13 @@ void shield_reaction_contracts(Json *trace = nullptr)
             "sustain_energy_per_second":0,"warmup_ticks":1,"reactions":[{
               "payer":"shield","energy":7,"operations":[
                 {"kind":"apply","target":"protected","effect":"test.bubble","grant":"gift"},
+                {"kind":"apply","target":"protected","equipment":"radar","effect":"test.reaction-modifier","grant":"sensor-gift"},
                 {"kind":"damage","target":"attacker","damage":10}]}]}}},
           {"id":"test.bubble","kind":"shield","duration_ticks":20,"contributions":{"bubble":{
             "capacity":5,"initial":5,"recharge_per_second":0,"off_recharge_per_second":0,
-            "sustain_energy_per_second":0,"warmup_ticks":1}}}])json");
+            "sustain_energy_per_second":0,"warmup_ticks":1}}},
+          {"id":"test.reaction-modifier","kind":"modifier","duration_ticks":20,
+            "contributions":{"range":{"property":"sensors","delta_permille":500}}}])json");
 		source["effects"][0]["contributions"]["main"]["reactions"][0]["energy"] = cost;
 		add_fit(
 		    source, "shield",
@@ -453,6 +456,11 @@ void shield_reaction_contracts(Json *trace = nullptr)
 		}
 		if (cost == 7)
 		{
+			require(target.at("property_effects").at("contributions").size() == 1,
+			        "paid deferred reaction installs one timed property application");
+			World active;
+			active.restore(catalog, saved);
+			require(active.save() == saved, "active reaction modifier restores without duplication");
 			require(target.at("shields").at("contributions").size() == 2,
 			        ("paid reaction atomically applies reusable grant: " + saved.at("shield_reactions").dump() +
 			         " target " + target.at("resources").dump() + " shields " + target.at("shields").dump())
@@ -464,6 +472,8 @@ void shield_reaction_contracts(Json *trace = nullptr)
 		}
 		else
 		{
+			require(target.at("property_effects").at("contributions").empty(),
+			        "unaffordable reaction installs no partial modifier");
 			require(target.at("shields").at("contributions").size() == 1 &&
 			            target.at("shields").at("contributions")[0].at("state").at("strength") == 99,
 			        "failed reaction leaves original damage committed and applies no partial grant");
@@ -472,6 +482,61 @@ void shield_reaction_contracts(Json *trace = nullptr)
 			        "unaffordable reaction neither spends nor damages");
 		}
 	}
+}
+void property_rate_contracts()
+{
+	auto source = powered_fixture();
+	auto &magazine = source["entities"][0]["systems"]["mag"];
+	magazine["initial"] = 0;
+	magazine["power_store"] = "cell";
+	magazine["reload"] = {{"strategy", "energy"}, {"ticks", 2}, {"amount", 2}, {"energy_per_second", 40}};
+	source["effects"] = Json::parse(R"json([
+      {"id":"test.reload-pause","kind":"modifier","duration_ticks":3,
+       "contributions":{"pause":{"property":"reload","delta_permille":-1000}}},
+      {"id":"test.cycle-pause","kind":"modifier","duration_ticks":3,
+       "contributions":{"pause":{"property":"cycling","delta_permille":-1000}}}])json");
+	source["maps"][0]["scenario"] = {{"tree", "test.pause-work"}, {"bindings", {{"actor", {{"entity", 1}}}}}};
+	source["trees"].push_back(Json::parse(R"json({"id":"test.pause-work","context":"scenario","initial":"wait",
+      "states":[{"id":"wait","transitions":[{"target":"pause","conditions":[{"left":{"observation":"tick"},"op":"ge","right":1}]}]},
+      {"id":"pause","entry":[{"action":"apply_modifier_effect","arguments":[{"observation":"self.entity"},"mag","test.reload-pause","pause"]}]}]})json"));
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	claim(world);
+	world.tick();
+	require(state(world)["systems"]["mag"]["refill"] == 1000,
+	        "replenishment retains fixed-point partial work before a modifier changes its rate");
+	world.tick();
+	require(state(world)["systems"]["mag"]["refill"] == 1000 && state(world)["systems"]["mag"]["ammo"] == 0,
+	        "zero replenishment rate pauses existing work without manufacturing ammunition");
+	World resumed;
+	resumed.restore(catalog, world.save());
+	for (int i = 0; i < 2; ++i)
+	{
+		world.tick();
+		resumed.tick();
+		require(state(world)["systems"]["mag"]["refill"] == 1000,
+		        "zero replenishment rate preserves accumulated fractional work");
+	}
+	world.tick();
+	resumed.tick();
+	require(state(world)["systems"]["mag"]["ammo"] == 2 && state(world)["systems"]["mag"]["refill"] == 0,
+	        "expiry resumes the existing replenishment batch at its original work threshold");
+	require(world.save() == resumed.save(), "paused replenishment continuation differs after restore");
+
+	source["entities"][0]["systems"]["mag"]["initial"] = 3;
+	source["trees"].back() = Json::parse(R"json({"id":"test.pause-work","context":"scenario","initial":"pause",
+      "states":[{"id":"pause","entry":[{"action":"apply_modifier_effect","arguments":[{"observation":"self.entity"},"gun","test.cycle-pause","pause"]}]}]})json");
+	World firing;
+	firing.load(load(source), "test.map");
+	claim(firing);
+	submit(firing, 101, "gun", "target", 2);
+	advance(firing, 3);
+	require(state(firing)["systems"]["gun"]["shots"] == 0 && state(firing)["systems"]["mag"]["ammo"] == 3,
+	        "zero weapon cycle rate blocks a new shot before ammunition is spent");
+	firing.tick();
+	require(state(firing)["systems"]["gun"]["shots"] == 1 && state(firing)["systems"]["mag"]["ammo"] == 2,
+	        "positive cycle rate after expiry permits the next shot");
 }
 void effects_contracts()
 {
@@ -1719,6 +1784,7 @@ int main(int argc, char **argv)
 		extended_contracts();
 		review_contracts();
 		ordnance_contracts();
+		property_rate_contracts();
 		effects_contracts();
 		shield_reaction_contracts();
 		std::cout << "Combat system contracts passed\n";
