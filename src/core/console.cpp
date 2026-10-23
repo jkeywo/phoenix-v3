@@ -1634,7 +1634,13 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 		if (label.empty())
 			label = console_label(console_string(descriptor, "label"));
 		if (descriptor.value("label_value", Json(false)) == true)
-			label += " " + std::to_string(*console_integer(descriptor.at("value")));
+		{
+			const auto value = *console_integer(descriptor.at("value"));
+			if (descriptor.value("action", "") == "system_enabled")
+				label = localise(value ? "Enable" : "Disable") + " " + label;
+			else
+				label += " " + std::to_string(value);
+		}
 		label = descriptor.value("label_prefix", std::string{}) + label;
 		if (descriptor.value("selected", false))
 			label += " (" + localise("Selected") + ")";

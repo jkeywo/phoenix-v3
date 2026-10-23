@@ -25,8 +25,8 @@ else()
 	add_executable(phoenix_cruiser_ui_smoke EXCLUDE_FROM_ALL tests/manual/cruiser_ui.cpp)
 	set_property(TARGET phoenix_cruiser_ui_smoke PROPERTY CXX_SCAN_FOR_MODULES ON)
 	target_link_libraries(phoenix_cruiser_ui_smoke PRIVATE phoenix_session phoenix_presentation phoenix_core)
-	add_dependencies(phoenix_cruiser_ui_smoke base_pack)
-	add_dependencies(phoenix_cruiser_smoke base_pack)
+	add_dependencies(phoenix_cruiser_ui_smoke base_pack test_missions_pack)
+	add_dependencies(phoenix_cruiser_smoke base_pack test_missions_pack)
 	add_custom_command(
 		TARGET phoenix_cruiser_smoke
 		POST_BUILD

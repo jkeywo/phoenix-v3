@@ -44,6 +44,66 @@ int main(int argc, char **argv)
 		{
 			auto source = fixture();
 			auto &entity = source["entities"][0];
+			auto &layout = entity["control_layout"];
+			layout["station_complexity"] = true;
+			layout["manual_workloads"] = {{"observer", {{"logistics", 3}}}};
+			layout["controllers"].push_back({{"id", "logistics"},
+			                                 {"console", "observer"},
+			                                 {"fallback", "hold"},
+			                                 {"commands", Json::array({{{"id", "automatic"},
+			                                                            {"action", "intent_boolean"},
+			                                                            {"initial", 1},
+			                                                            {"consumers", Json::array()}}})}});
+			layout["profiles"][0]["stars"] = 1;
+			layout["profiles"][0]["consoles"]["observer"]["ai"].push_back("logistics");
+			auto full = layout["profiles"][0];
+			full["id"] = "stock";
+			full["stars"] = 3;
+			full["consoles"]["observer"]["ai"] = Json::array();
+			full["consoles"]["observer"]["human"].push_back("logistics");
+			const auto full_index = layout["profiles"].size();
+			layout["profiles"].push_back(full);
+			entity["logistics"]["controller"] = "logistics";
+			entity["logistics"]["stores"][0]["controller"] = "logistics";
+			World workload;
+			workload.load(load(source), "test.map");
+			require(workload.claim(101, 1, "observer"), "Claim repair and logistics workload");
+			auto command = [&](const std::string &controller, const std::string &action)
+			{
+				const auto view = *workload.observe(101);
+				OperatingCommand c{1, action, view.gameplay.at("logistics").at("revision"), "hold"};
+				c.controller = controller;
+				for (const auto &row : view.gameplay.at("controllers"))
+					if (row.at("id") == controller)
+						c.generation = row.at("generation");
+				return c;
+			};
+			auto repair = command("team-a", "");
+			repair.system.clear();
+			repair.channel = "assignment";
+			repair.value = 2;
+			require(workload.submit(101, repair), "One-star player retains individual repair deployment");
+			require(!workload.submit(101, command("team-a", "logistics.hold")) &&
+			            !workload.submit(101, command("logistics", "logistics.hold")),
+			        "Repair authority never grants one-star stock control");
+			require(workload.submit(101, {1, "preset", static_cast<std::int64_t>(full_index), {}}),
+			        "Select full stock workload");
+			workload.tick();
+			require(!workload.submit(101, command("team-a", "logistics.hold")) &&
+			            workload.submit(101, command("logistics", "logistics.hold")),
+			        "Three-star stock remains owned by its dedicated Controller");
+			workload.tick();
+			require(workload.observe(101)->gameplay.at("logistics").at("stores")[0].at("held") == true,
+			        "Full stock hold takes effect");
+			require(workload.submit(101, {1, "preset", 0, {}}), "Return stock management to assistance");
+			workload.tick();
+			workload.tick();
+			require(workload.observe(101)->gameplay.at("logistics").at("stores")[0].at("held") == false,
+			        "Downgrade resumes automatic stock assistance");
+		}
+		{
+			auto source = fixture();
+			auto &entity = source["entities"][0];
 			entity.erase("logistics");
 			entity["combat"]["access_controller"] = "team-a";
 			const auto catalog = load(source);

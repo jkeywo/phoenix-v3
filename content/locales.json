@@ -1314,7 +1314,20 @@
 			"Prepare the gift of parts.": "Prepare the gift of parts.",
 			"Prepare the medical barter.": "Prepare the medical barter.",
 			"Prepare both offers.": "Prepare both offers.",
-			"We do not need supplies.": "We do not need supplies."
+			"We do not need supplies.": "We do not need supplies.",
+			"Forward dorsal gun": "Forward dorsal gun",
+			"Forward ventral gun": "Forward ventral gun",
+			"Aft dorsal gun": "Aft dorsal gun",
+			"Aft ventral gun": "Aft ventral gun",
+			"Central dorsal gun": "Central dorsal gun",
+			"Bow port missile bank": "Bow port missile bank",
+			"Bow starboard missile bank": "Bow starboard missile bank",
+			"Port fore missile bank": "Port fore missile bank",
+			"Port aft missile bank": "Port aft missile bank",
+			"Starboard fore missile bank": "Starboard fore missile bank",
+			"Starboard aft missile bank": "Starboard aft missile bank",
+			"Enable": "Enable",
+			"Disable": "Disable"
 		}
 	}
 }

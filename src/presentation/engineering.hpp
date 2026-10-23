@@ -41,6 +41,7 @@ inline std::vector<std::string> command_consumers(const Observation &view, const
 inline std::vector<EngineeringCard> engineering_cards(const Observation &view)
 {
 	std::vector<EngineeringCard> result;
+	const bool assisted_stock = !view.gameplay.value("logistics", Json::object()).value("manual", true);
 	std::set<std::string> placed_controls;
 	for (const auto &system : view.systems)
 	{
@@ -112,7 +113,8 @@ inline std::vector<EngineeringCard> engineering_cards(const Observation &view)
 				label = localise("Shared control") + ": " + label;
 			card.controls.emplace_back(descriptor_action(d.at("id")), std::move(label));
 		}
-		result.push_back(std::move(card));
+		if (!assisted_stock || !card.controls.empty())
+			result.push_back(std::move(card));
 	}
 	return result;
 }

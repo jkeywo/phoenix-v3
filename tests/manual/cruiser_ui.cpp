@@ -17,6 +17,7 @@ int main(int argc, char **argv)
 	{
 		if (argc < 2)
 			throw std::runtime_error("Usage: phoenix_cruiser_ui_smoke pack.zip");
+		const bool workloads = argc > 3 && std::string(argv[3]) == "--workloads";
 		auto draft = read_pack(read_file(argv[1])).draft();
 		auto definitions = parse_json(draft.files.at("definitions.json"), "Cruiser clinical UI variant");
 		for (auto &entity : definitions["entities"])
@@ -27,15 +28,23 @@ int main(int argc, char **argv)
 		app.native_menu = false;
 		app.session = make_local_session();
 		app.session->add_pack(write_pack(draft));
-		app.session->start({"base.free-flight", {{"base.player", "base.cruiser"}}, "base.player", "science"});
+		if (argc > 2)
+			app.session->add_pack(read_file(argv[2]));
+		app.session->start(
+		    {"base.free-flight", {{"base.player", "base.cruiser"}}, "base.player", workloads ? "helm" : "science"});
 		const auto ship = app.session->observation()->own.id;
 		if (!app.session->claim_console(2, {ship, "tactical"}))
 			throw std::runtime_error("Cruiser Tactical claim refused");
+		if (workloads && !app.session->claim_console(3, {ship, "engineering"}))
+			throw std::runtime_error("Cruiser Engineering claim refused");
 		app.screen = Screen::console;
 		open_window();
 		opened = true;
-		SetWindowSize(2560, 900);
-		app.console_regions = {{1, 0, 0, 1280, 900}, {2, 1280, 0, 1280, 900}};
+		SetWindowSize(workloads ? 1920 : 2560, workloads ? 1080 : 900);
+		if (workloads)
+			app.console_regions = {{1, 0, 0, 1920, 1080}};
+		else
+			app.console_regions = {{1, 0, 0, 1280, 900}, {2, 1280, 0, 1280, 900}};
 		auto frame = [&](const char *capture = nullptr)
 		{
 			BeginDrawing();
@@ -58,6 +67,12 @@ int main(int argc, char **argv)
 			                    {
 				                    return c.first == "console/1/game.teams";
 			                    });
+			if (workloads)
+				ready = std::any_of(app.screen_controls.begin(), app.screen_controls.end(),
+				                    [](const auto &c)
+				                    {
+					                    return c.first.starts_with("console/1/");
+				                    });
 		}
 		if (!ready)
 			throw std::runtime_error("Cruiser Console graphics did not become ready");
@@ -82,6 +97,28 @@ int main(int argc, char **argv)
 			if (!app.screen_action(copy))
 				throw std::runtime_error("Cruiser UI action refused: " + id);
 		};
+		if (workloads)
+		{
+			for (int level = 0; level < 3; ++level)
+			{
+				for (std::uint64_t route : {1, 2, 3})
+					if (!app.session->console_command(route, {ship, "preset", level, {}}))
+						throw std::runtime_error("Workload selection refused");
+				for (std::uint64_t route : {1, 2, 3})
+				{
+					app.console_regions = {{route, 0, 0, 1920, 1080}};
+					advance(3);
+					const auto file =
+					    "build/cruiser-workloads-" + std::to_string(route) + "-" + std::to_string(level + 1) + ".png";
+					frame(file.c_str());
+				}
+			}
+			close_window();
+			opened = false;
+			std::cout << "PASS Cruiser Helm, Tactical and Engineering one/two/three-star console render and admitted "
+			             "profile changes\n";
+			return 0;
+		}
 		advance(2);
 		action("console/1/game.teams");
 		action("console/2/personnel");

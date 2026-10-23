@@ -7043,7 +7043,8 @@
 								"id": "system_enabled",
 								"action": "system_enabled",
 								"initial": 1,
-								"consumers": ["fore-dorsal-gun"]
+								"consumers": ["fore-dorsal-gun"],
+								"label_key": "Forward dorsal gun"
 							}
 						],
 						"tree": "base.cruiser.assist.fore-dorsal-gun"
@@ -7056,7 +7057,8 @@
 								"id": "system_enabled",
 								"action": "system_enabled",
 								"initial": 1,
-								"consumers": ["fore-ventral-gun"]
+								"consumers": ["fore-ventral-gun"],
+								"label_key": "Forward ventral gun"
 							}
 						],
 						"tree": "base.cruiser.assist.fore-ventral-gun"
@@ -7069,7 +7071,8 @@
 								"id": "system_enabled",
 								"action": "system_enabled",
 								"initial": 1,
-								"consumers": ["aft-dorsal-gun"]
+								"consumers": ["aft-dorsal-gun"],
+								"label_key": "Aft dorsal gun"
 							}
 						],
 						"tree": "base.cruiser.assist.aft-dorsal-gun"
@@ -7082,7 +7085,8 @@
 								"id": "system_enabled",
 								"action": "system_enabled",
 								"initial": 1,
-								"consumers": ["aft-ventral-gun"]
+								"consumers": ["aft-ventral-gun"],
+								"label_key": "Aft ventral gun"
 							}
 						],
 						"tree": "base.cruiser.assist.aft-ventral-gun"
@@ -7095,7 +7099,8 @@
 								"id": "system_enabled",
 								"action": "system_enabled",
 								"initial": 1,
-								"consumers": ["mid-dorsal-gun"]
+								"consumers": ["mid-dorsal-gun"],
+								"label_key": "Central dorsal gun"
 							}
 						],
 						"tree": "base.cruiser.assist.mid-dorsal-gun"
@@ -7113,7 +7118,8 @@
 									"bow-port-tube-2",
 									"bow-port-tube-3",
 									"bow-port-tube-4"
-								]
+								],
+								"label_key": "Bow port missile bank"
 							}
 						],
 						"tree": "base.cruiser.assist.bow-port-bank"
@@ -7131,7 +7137,8 @@
 									"bow-starboard-tube-2",
 									"bow-starboard-tube-3",
 									"bow-starboard-tube-4"
-								]
+								],
+								"label_key": "Bow starboard missile bank"
 							}
 						],
 						"tree": "base.cruiser.assist.bow-starboard-bank"
@@ -7149,7 +7156,8 @@
 									"port-fore-tube-2",
 									"port-fore-tube-3",
 									"port-fore-tube-4"
-								]
+								],
+								"label_key": "Port fore missile bank"
 							}
 						],
 						"tree": "base.cruiser.assist.port-fore-bank"
@@ -7167,7 +7175,8 @@
 									"port-aft-tube-2",
 									"port-aft-tube-3",
 									"port-aft-tube-4"
-								]
+								],
+								"label_key": "Port aft missile bank"
 							}
 						],
 						"tree": "base.cruiser.assist.port-aft-bank"
@@ -7185,7 +7194,8 @@
 									"starboard-fore-tube-2",
 									"starboard-fore-tube-3",
 									"starboard-fore-tube-4"
-								]
+								],
+								"label_key": "Starboard fore missile bank"
 							}
 						],
 						"tree": "base.cruiser.assist.starboard-fore-bank"
@@ -7203,7 +7213,8 @@
 									"starboard-aft-tube-2",
 									"starboard-aft-tube-3",
 									"starboard-aft-tube-4"
-								]
+								],
+								"label_key": "Starboard aft missile bank"
 							}
 						],
 						"tree": "base.cruiser.assist.starboard-aft-bank"
