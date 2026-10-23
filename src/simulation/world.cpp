@@ -635,6 +635,8 @@ struct World::Impl
 									brain.logistics_revision = field;
 								if (name == "docking.revision")
 									brain.docking_revision = field;
+								if (name == "console.stars")
+									brain.complexity_stars = field;
 							}
 							brain.ftl_system = bindings.ftl_system;
 							brain.inbox = bindings.inbox;
@@ -3196,7 +3198,18 @@ Observation World::observe_at(std::uint64_t console, const ConsoleAddress &addre
 							                                                                                : "repair";
 							if (channel.action == OperatingAction::SensorTarget)
 							{
-								descriptor["label"] = choice ? "Scan target" : "Clear scan target";
+								for (const auto &other : entity.get<EntityControls>().controllers)
+									for (const auto &target : other.definition.commands)
+										if (other.definition.console == address.console &&
+										    target.shared_target_controller == controller.definition.id &&
+										    target.shared_target_channel == channel.id)
+										{
+											descriptor["shared_combat_target"] = true;
+											descriptor["combat_choice"] = "weapon";
+										}
+								descriptor["label"] = channel.label_key.empty()
+								                          ? (choice ? "Scan target" : "Clear scan target")
+								                          : (choice ? channel.label_key : "Clear " + channel.label_key);
 								descriptor["label_prefix"] = controller.definition.id + ": ";
 							}
 							buttons.push_back(std::move(descriptor));

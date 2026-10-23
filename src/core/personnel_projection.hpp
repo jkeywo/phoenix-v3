@@ -7,6 +7,8 @@ inline Json board(const Json &source)
 	if (!source.is_object() || source.dump().size() > 256 * 1024)
 		throw std::runtime_error("Invalid personnel projection");
 	Json out{{"revision", source.at("revision")}};
+	if (source.contains("manual"))
+		out["manual"] = source.at("manual").get<bool>();
 	if (!out["revision"].is_number_unsigned() || out["revision"].get<std::uint64_t>() > 9007199254740991ULL)
 		throw std::runtime_error("Invalid personnel revision");
 	using projection::number;

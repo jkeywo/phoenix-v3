@@ -92,6 +92,21 @@ bool dock_permitted(EntityId ship, std::size_t port, EntityId target, std::size_
 	const auto &s = entities.at(target).get<DockingState>().ports.at(remote);
 	if (s.permitted.contains(ship))
 		return true;
+	// A target-authored boarding port can be forced only once the ordinary
+	// boarding insertion condition is met and the crew has opened that mission.
+	for (std::size_t i = 0; i < away_definitions.size(); ++i)
+	{
+		const auto &mission = away_definitions[i];
+		const auto phase = away_missions[i].phase;
+		if (mission.boarding && mission.allow_ship_transport && mission.target == target &&
+		    away_ship(mission) == ship &&
+		    (phase == AwayPhase::Open || phase == AwayPhase::Recovered || phase == AwayPhase::Outbound ||
+		     phase == AwayPhase::Deployed || phase == AwayPhase::Inbound) &&
+		    std::find(mission.docking_ports.begin(), mission.docking_ports.end(), b.id) !=
+		        mission.docking_ports.end() &&
+		    boarding_insertion_blocker(i, "ship").empty())
+			return true;
+	}
 	const auto *x = entities.at(ship).try_get<FactionMembership>(),
 	           *y = entities.at(target).try_get<FactionMembership>();
 	return s.accepting && x && y && factions.relationship(x->id, y->id) == "friendly";

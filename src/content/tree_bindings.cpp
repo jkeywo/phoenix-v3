@@ -410,6 +410,8 @@ ControllerTreeBindings compile_controller_bindings(const Json &tree, const Catal
 	result.own[ControllerOwnField::CraftArmed] = add({"craft.armed", Type::Boolean, 4, {}});
 	result.own[ControllerOwnField::CraftTargetPresent] = add({"craft.target_present", Type::Boolean, 4, {}});
 	const auto resolved = resolve_tree_definition(tree, catalog);
+	if (resolved.value("complexity_observation", false))
+		add({"console.stars", Type::Integer, 4, {}});
 	if (resolved.value("logistics_commands", false))
 		add({"logistics.revision", Type::Integer, 4, {}});
 	if (resolved.value("docking_commands", false))

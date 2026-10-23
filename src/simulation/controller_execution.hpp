@@ -29,6 +29,12 @@ std::vector<state_tree::Value> controller_observations(EntityId id, const Consol
 	const ConsoleAddress address{id, controller.definition.console};
 	const auto &brain = *controller.brain;
 	std::vector<Value> values(brain.program.registry.observations.size());
+	if (brain.complexity_stars)
+	{
+		const auto &controls = entities.at(id).get<EntityControls>();
+		values.at(*brain.complexity_stars) =
+		    Value::integer(controls.layout.profiles.at(controls.profiles.at(address.console)).stars);
+	}
 	values[brain.own[ControllerOwnField::Entity]] = Value::reference(Type::Entity, id);
 	values[brain.own[ControllerOwnField::Console]] = Value::reference(Type::Console, knowledge.console_id(address));
 	values[brain.own[ControllerOwnField::Tick]] = Value::integer(ecs.get<Clock>().tick);
@@ -670,13 +676,19 @@ bool commit_controller(const ControllerProposal &proposal)
 					same_effect = false;
 			}
 		if (same_effect)
+		{
+			if (proposal.human && !spec.shared_target_controller.empty())
+				state.target_override = true;
 			return true;
+		}
 	}
 	if (state.revision == std::numeric_limits<std::uint64_t>::max())
 		throw std::runtime_error("Controller command revision exhausted");
 	state.value = proposal.value;
 	state.arguments = proposal.arguments;
 	state.request_id = proposal.request_id;
+	if (proposal.human && !spec.shared_target_controller.empty())
+		state.target_override = true;
 	++state.revision;
 	return true;
 }
@@ -833,6 +845,32 @@ void run_console_controllers(flecs::entity entity)
 void consume_controller_commands(flecs::entity entity)
 {
 	auto &controls = entity.get_mut<EntityControls>();
+	// Shared targeting is an authored command relationship. Independent human
+	// orders persist until this channel returns to assisted operation.
+	for (auto &controller : controls.controllers)
+		for (std::size_t i = 0; i < controller.commands.size(); ++i)
+		{
+			const auto &spec = controller.definition.commands[i];
+			auto &state = controller.commands[i];
+			if (spec.shared_target_controller.empty())
+				continue;
+			if (!controller.human)
+				state.target_override = false;
+			if (state.target_override)
+				continue;
+			for (const auto &source : controls.controllers)
+				if (source.definition.console == controller.definition.console &&
+				    source.definition.id == spec.shared_target_controller)
+					for (std::size_t j = 0; j < source.commands.size(); ++j)
+						if (source.definition.commands[j].id == spec.shared_target_channel &&
+						    state.value != source.commands[j].value)
+						{
+							if (state.revision == std::numeric_limits<std::uint64_t>::max())
+								throw std::runtime_error("Controller command revision exhausted");
+							state.value = source.commands[j].value;
+							++state.revision;
+						}
+		}
 	std::set<std::size_t> destinations;
 	std::set<std::size_t> failed_actions;
 	// Consume changes, not repeated method calls: speed writes must not cancel Match Speed every tick.
@@ -933,6 +971,14 @@ Json project_controllers(const ConsoleAddress &address)
 		                  {"human", controller.human},
 		                  {"generation", controller.generation},
 		                  {"commands", commands}});
+		result.back()["conversation_authority"] =
+		    comms_controller(address.ship, controller.definition) && conversation_operator(address.ship, controller);
+		bool contributes = false;
+		for (const auto &command : controller.definition.commands)
+			for (auto consumer : command.consumers)
+				contributes |= definition(address.ship).fitted->values.at(consumer).kind == OperatingSystem::Team;
+		result.back()["contribution_authority"] =
+		    contributes && station_stars(address) < 3 && console_operator(address) != 0;
 		result.back()["action"] = {
 		    {"id", controller.action.id}, {"status", controller.action.status}, {"reason", controller.action.reason}};
 		auto &available = result.back()["actions"] = Json::array();
@@ -987,7 +1033,8 @@ Json save_controllers(flecs::entity entity) const
 			                           {"revision", command.revision},
 			                           {"consumed", command.consumed},
 			                           {"request_id", command.request_id},
-			                           {"accepted", command.accepted}});
+			                           {"accepted", command.accepted},
+			                           {"target_override", command.target_override}});
 		if (controller.brain)
 			row["brain"] = state_tree::save(controller.brain->program, controller.brain->continuation);
 
@@ -1066,6 +1113,8 @@ void restore_controllers(flecs::entity entity, const Json &saved)
 			     (spec.semantics == CommandSemantics::Request || state.request_id == 0));
 			fail(value.at("accepted").is_boolean());
 			state.accepted = value.at("accepted").get<bool>();
+			state.target_override = value.value("target_override", false);
+			fail(!state.target_override || !spec.shared_target_controller.empty());
 		}
 		fail(!row.contains("timed") && row.contains("brain") == controller.brain.has_value());
 		if (controller.brain)

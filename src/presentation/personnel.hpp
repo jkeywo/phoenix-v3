@@ -78,7 +78,8 @@ std::string personnel_markup(Application &app)
 				for (const auto &effect : d.at("effects"))
 					html += paragraph(effect.at("system").get<std::string>() + ": " + localise(effect.at("slot")) +
 					                  " " + std::to_string(effect.at("multiplier").get<std::int64_t>() / 10) + "%");
-				if (selected && (selected->at("condition") == "healthy" || selected->at("condition") == "minor") &&
+				if (board.value("manual", true) && selected &&
+				    (selected->at("condition") == "healthy" || selected->at("condition") == "minor") &&
 				    selected->at("duty") != d.at("id"))
 				{
 					std::string applicable;
@@ -98,7 +99,7 @@ std::string personnel_markup(Application &app)
 						html += settings_button("personnel/swap/" + d.at("id").get<std::string>(), "Swap duties");
 				}
 			}
-		if (selected && selected->at("duty") != "")
+		if (board.value("manual", true) && selected && selected->at("duty") != "")
 			html += settings_button("personnel/relieve", "Relieve selected officer");
 	}
 	return html;

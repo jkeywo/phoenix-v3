@@ -36,14 +36,14 @@ Below three stars, officer assignments for duties and authorised away contributi
 
 Implementation must reuse authored Controller profiles, ordinary trees and admitted commands. Hidden controls must also be refused authoritatively. Station-level profile changes are atomic and retain accepted physical work. AI uses permitted observations, finite resources, real travel and existing docking/mission rules.
 
-The initial changes add star metadata, star presentation and opt-in station-level profile propagation. They do **not** yet establish the standard Courier fit or its agreed automation.
+The implementation uses the common `base.rescue-courier` definition for playable Courier selections. `base.delivery-courier` remains an equipment-identical compatibility alias. Mission-specific objectives and initial cargo remain authored scenario data. NPC patrol definitions are unchanged.
 
-Still required before this increment is complete:
+The three profiles divide existing Controller command channels and reuse ordinary state trees. New runtime support covers shared combat targeting, split direct-flight bindings, department-scoped officer assistance, authorised team contributions while Medical is automatic, and conversation authority independent of radio readiness. Automatic Medical selects eligible authored patient orders and clears completed work when starting another order. FTL departure remains a deliberate player action.
 
-- Convert Courier mission selections, navigation dependencies, fit, docking and mission-target ports.
-- Author the three workload profiles and missing execution policies.
-- Enforce direct-flight, weapon, PDC, shield, Medical and personnel permissions.
-- Verify grouped profile handover/recovery and all workloads through independent synthetic fixtures.
-- Complete native/WASM validation and explicitly invoked graphical journeys; record physical-device and reader acceptance separately.
+Host command admission enforces the same permissions as the interface. An opened target-authored boarding mission can permit direct docking only at a compatible boarding port once its existing insertion condition is met. Officer and team travel, capacity, injury, resource costs and recovery continue through their existing physical paths.
 
-During implementation, an independent shield-effects refactor is modifying the shared content and simulation sources. Integrate against its finished definitions rather than treating intermediate build failures as validation of this increment.
+Validation uses independent synthetic Controller, personnel, Medical, conversation, away and boarding fixtures, plus verification of the actual base and test-mission packs. Graphical smoke checks are explicitly invoked evidence; physical touch/gamepad and screen-reader acceptance remain separate platform checks.
+
+Native verification on 23 October 2026 passed the application build check and the Controller runtime, personnel, Medical, conversation, away, security, content and fleet-setup cases. The explicit lobby smoke passed at its authored landscape/portrait sizes and with a separate local console region. Its captures show the standard Courier's one-star defaults and distinct read-only/server versus clickable/console star backgrounds. Builds used `build/courier-native` and `build/courier-web` to avoid sharing generated outputs with concurrent work.
+
+The browser server, client and Workshop builds also passed. WebAssembly passed the Controller runtime, personnel, Medical, conversation, away and security cases; Controller, Medical and security continuation traces matched native exactly. These are compilation and synthetic execution checks, not a claim of browser touch or screen-reader acceptance.

@@ -45,7 +45,8 @@ bool conversation_allowed(const Observation &view, const OperatingCommand &comma
 	    !command.arguments.empty() || command.text.size() > 4096 || !view.gameplay.contains("conversations"))
 		return false;
 	const auto *owner = section(view, command.controller);
-	if (!owner || !owner->at("human").get<bool>() || owner->at("generation") != command.generation)
+	if (!owner || (!owner->at("human").get<bool>() && !owner->value("conversation_authority", false)) ||
+	    owner->at("generation") != command.generation)
 		return false;
 	bool authority = false;
 	for (const auto &channel : owner->at("commands"))
@@ -88,7 +89,7 @@ bool personnel_allowed(const Observation &view, const OperatingCommand &c)
 	    !c.speaker_name.empty() || !c.speaker_avatar.empty())
 		return false;
 	const auto p = view.gameplay.value("personnel", Json::object());
-	if (p.empty() || p.at("revision") != c.generation)
+	if (p.empty() || !p.value("manual", true) || p.at("revision") != c.generation)
 		return false;
 	for (const auto &o : p.at("officers"))
 		if (o.at("id") == c.system)
@@ -157,14 +158,24 @@ bool away_allowed(const Observation &view, const OperatingCommand &c)
 	    !c.speaker_avatar.empty())
 		return false;
 	const auto *owner = section(view, c.controller);
-	if (!owner || !owner->at("human").get<bool>() || owner->at("generation") != c.generation)
+	if (!owner ||
+	    (!owner->at("human").get<bool>() && !(owner->value("contribution_authority", false) &&
+	                                          (c.action == "away.assign" || c.action == "away.withdraw"))) ||
+	    owner->at("generation") != c.generation)
 		return false;
 	for (const auto &m : view.gameplay.value("away_missions", Json::array()))
 		if (m.at("id") == c.system && m.at("revision") == c.value)
 		{
 			if (c.action == "away.transport")
-				return consumes(*owner, c.text) && std::find(m.at("transports").begin(), m.at("transports").end(),
-				                                             c.text) != m.at("transports").end();
+				return (consumes(*owner, c.text) || (c.text == "ship" && m.at("dispatch").get<bool>() &&
+				                                     std::any_of(view.systems.begin(), view.systems.end(),
+				                                                 [&](const auto &system)
+				                                                 {
+					                                                 return system.kind == OperatingSystem::Dispatch &&
+					                                                        consumes(*owner, system.id);
+				                                                 }))) &&
+				       std::find(m.at("transports").begin(), m.at("transports").end(), c.text) !=
+				           m.at("transports").end();
 			if (c.action == "away.assign")
 			{
 				const auto slash = c.text.find('/');
@@ -223,14 +234,19 @@ std::string manual_binding(const Observation &view, const Json &layout, const st
 	if (!anchor)
 		return {};
 	std::string result;
-	for (auto it = owner->at("commands").begin(); it != owner->at("commands").end(); ++it)
-		if (it.value().at("action") == action && it.value().at("semantics") == "setting" &&
-		    overlaps(*anchor, it.value()))
-		{
-			if (!result.empty())
-				return {};
-			result = binding(owner->at("id"), it.key());
-		}
+	for (const auto &candidate : view.gameplay.value("controllers", Json::array()))
+	{
+		if (!candidate.value("human", false))
+			continue;
+		for (auto it = candidate.at("commands").begin(); it != candidate.at("commands").end(); ++it)
+			if (it.value().at("action") == action && it.value().at("semantics") == "setting" &&
+			    overlaps(*anchor, it.value()))
+			{
+				if (!result.empty())
+					return {};
+				result = binding(candidate.at("id"), it.key());
+			}
+	}
 	return result;
 }
 std::optional<EligibleConsoleCommand> resolve(const Observation &view, const Json &layout, const Json &public_board,

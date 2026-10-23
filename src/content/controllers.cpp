@@ -439,6 +439,13 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 			                "request channels must start idle");
 
 			command.label_key = field.value("label_key", std::string{});
+			if (field.contains("shared_target"))
+			{
+				control_require(command.action == OperatingAction::WeaponTarget, where,
+				                "shared target requires a weapon target channel");
+				command.shared_target_controller = control_name(field.at("shared_target"), "controller", where);
+				command.shared_target_channel = control_name(field.at("shared_target"), "channel", where);
+			}
 			control_require(command.label_key.size() <= 256, where, "command label too long");
 			if (field.contains("choices"))
 			{
@@ -555,6 +562,21 @@ ControllableLayout compile_controllable_layout(const Catalog &catalog, const std
 		}
 		result.controllers.push_back(std::move(controller));
 	}
+	for (const auto &controller : result.controllers)
+		for (const auto &command : controller.commands)
+			if (!command.shared_target_controller.empty())
+			{
+				bool valid = false;
+				for (const auto &source : result.controllers)
+					if (source.console == controller.console && source.id == command.shared_target_controller)
+						for (const auto &channel : source.commands)
+							valid |= channel.id == command.shared_target_channel &&
+							         channel.shared_target_controller.empty() &&
+							         (channel.action == OperatingAction::SensorTarget ||
+							          channel.action == OperatingAction::WeaponTarget);
+				control_require(valid, path,
+				                "shared target must name an independent target channel on the same Console");
+			}
 	for (const auto &controller : result.controllers)
 		if (!controller.tree.empty() && catalog.tree_programs.contains(controller.tree))
 			for (const auto &binding : controller_command_reads(catalog.trees.at(controller.tree), catalog))

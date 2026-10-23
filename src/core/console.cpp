@@ -1264,7 +1264,8 @@ bool ConsoleModel::away_action(const std::string &action, const std::string &mis
 	for (const auto &m : away_missions())
 		if (m.at("id") == mission)
 			for (const auto &ctrl : observation_->gameplay.value("controllers", Json::array()))
-				if (ctrl.value("human", false))
+				if (ctrl.value("human", false) ||
+				    ((action == "assign" || action == "withdraw") && ctrl.value("contribution_authority", false)))
 				{
 					OperatingCommand c{observation_->own.id, "away." + action, m.at("revision").get<std::int64_t>(),
 					                   mission};
@@ -1350,7 +1351,7 @@ bool ConsoleModel::conversation_action(const std::string &action, std::uint64_t 
 		return false;
 	for (const auto &section : observation_->gameplay.value("controllers", Json::array()))
 	{
-		if (!section.value("human", false))
+		if (!section.value("human", false) && !section.value("conversation_authority", false))
 			continue;
 		bool owns = false;
 		for (const auto &command : section.at("commands"))
@@ -1496,7 +1497,8 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 		result.emplace_back("game.status-close", localise("Close system details"));
 	bool weapons = false;
 	for (const auto &descriptor : observation_->gameplay.value("controls", Json::array()))
-		weapons |= descriptor.value("action", std::string{}) == "weapon_target";
+		weapons |= descriptor.value("action", std::string{}) == "weapon_target" ||
+		           descriptor.value("shared_combat_target", false);
 	if (weapons)
 		for (const auto &contact : observation_->contacts)
 			if (contact.radar_icon == RadarIcon::ship)
@@ -1516,7 +1518,7 @@ std::vector<std::pair<std::string, std::string>> ConsoleModel::gameplay_controls
 		result.emplace_back("game.teams-close", localise("Close team dispatch"));
 	for (const auto &team : observation_->gameplay.value("teams", Json::array()))
 	{
-		if (team.at("reserved").get<bool>())
+		if (team.at("reserved").get<bool>() || !team.value("manual", true))
 			continue;
 		for (const auto &order : team.at("orders"))
 			result.emplace_back(

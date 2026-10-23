@@ -1,5 +1,7 @@
 # Phoenix V3
 
+[Courier station complexity](docs/courier-complexity.md) defines the common Courier fitting and its one-, two- and three-star Helm and Support workloads.
+
 [Storage, logistics and docking](docs/storage-logistics.md) adds finite supplies, automatic replenishment, docked transfers, cargo shuttles and docking-supported away delivery.
 
 [Psychic choir](docs/psychic-choir.md) adds multiple psychic Duty Officer seats, sustained cloaking, moving ghost contacts and wards under Comms.

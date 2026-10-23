@@ -12,6 +12,8 @@ inline Json board(const Json &source)
 	for (const auto &team : source)
 	{
 		Json t;
+		if (team.contains("manual"))
+			t["manual"] = team.at("manual").get<bool>();
 		for (const auto *key : {"id", "type", "order", "activity", "condition"})
 			t[key] = text(team.at(key), 64);
 		t["revision"] = number(team.at("revision"), 1, 9007199254740991LL);

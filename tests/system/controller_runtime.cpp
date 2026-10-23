@@ -1,5 +1,6 @@
 #include "../support/assertions.hpp"
 #include "../support/controller_fixture.hpp"
+#include "../support/combat_fixture.hpp"
 #include "../../src/presentation/navigation_camera.hpp"
 #include <algorithm>
 #include <iostream>
@@ -52,6 +53,76 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		{
+			auto source = controller_fixture();
+			auto &layout = source["entities"][0]["control_layout"];
+			layout["controllers"].push_back({{"id", "manual"},
+			                                 {"console", "drive"},
+			                                 {"fallback", "hold"},
+			                                 {"commands", Json::array({{{"id", "thrust"},
+			                                                            {"action", "longitudinal_thrust"},
+			                                                            {"consumers", {"port", "starboard"}}}})}});
+			layout["profiles"][0]["consoles"]["drive"]["human"].push_back("manual");
+			layout["profiles"][1]["consoles"]["drive"] = {{"human", {"propulsion"}}, {"ai", {"manual"}}};
+			World flight;
+			flight.load(load(source), "test.map");
+			require(flight.claim(101, 1, "drive"), "Split flight controls claimed");
+			const Json widgets = {
+			    {"widgets", Json::array({{{"kind", "throttle"}, {"controller", "propulsion"}, {"channel", "speed"}}})}};
+			require(manual_console_binding(*flight.observe(101), widgets, "longitudinal_thrust", "speed_mm_s") ==
+			            "controller/manual/thrust",
+			        "Direct input resolves a separate human Controller on the same engine");
+			require(flight.submit(101, {1, "preset", 1, {}}), "Select assisted flight workload");
+			flight.tick();
+			require(manual_console_binding(*flight.observe(101), widgets, "longitudinal_thrust", "speed_mm_s").empty(),
+			        "Direct input is unavailable while its Controller is AI operated");
+		}
+		{
+			auto source = combat_fixture();
+			auto &layout = source["entities"][0]["control_layout"];
+			for (auto &c : layout["controllers"])
+			{
+				if (c["id"] == "radar")
+					c["commands"].push_back({{"id", "target"}, {"action", "sensor_target"}, {"consumers", {"radar"}}});
+				if (c["id"] == "gun")
+					c["commands"][1]["shared_target"] = {{"controller", "radar"}, {"channel", "target"}};
+			}
+			auto low = layout["profiles"][0];
+			low["id"] = "assisted";
+			auto &human = low["consoles"]["drive"]["human"];
+			human.erase(std::find(human.begin(), human.end(), Json("gun")));
+			low["consoles"]["drive"]["ai"] = {"gun"};
+			layout["profiles"].push_back(low);
+			const auto catalog = load(source);
+			World shared;
+			shared.load(catalog, "test.map");
+			require(shared.claim(101, 1, "drive"), "Shared-target watch claimed");
+			auto target = [&](const std::string &owner, std::int64_t value)
+			{
+				OperatingCommand command{1, {}, value, {}};
+				command.controller = owner;
+				command.channel = "target";
+				command.generation = controller(shared, 101, owner).at("generation");
+				require(shared.submit(101, command), "Permitted target selection admitted");
+				shared.tick();
+			};
+			target("radar", 2);
+			require(controller(shared, 101, "gun")["commands"]["target"]["value"] == 2,
+			        "Weapon initially follows shared scanner/combat target");
+			target("gun", 3);
+			target("radar", 0);
+			require(controller(shared, 101, "gun")["commands"]["target"]["value"] == 3,
+			        "Explicit weapon override survives shared target changes");
+			World restored;
+			restored.restore(catalog, shared.save());
+			shared.tick();
+			restored.tick();
+			require(shared.save() == restored.save(), "Explicit target override survives recovery");
+			require(shared.submit(101, {1, "preset", 1, {}}), "Assistance selected");
+			shared.tick();
+			require(controller(shared, 101, "gun")["commands"]["target"]["value"] == 0,
+			        "Returning weapon to AI removes independent target override");
+		}
 		{
 			auto source = controller_fixture();
 			source["entities"][0]["control_layout"]["station_complexity"] = true;

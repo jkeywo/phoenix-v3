@@ -915,6 +915,7 @@ struct ControllerCommandSpec
 	std::int64_t arrival_radius = 5000;
 	std::string label_key;
 	std::map<std::int64_t, std::string> choices;
+	std::string shared_target_controller, shared_target_channel;
 };
 struct ConsoleControllerSpec
 {

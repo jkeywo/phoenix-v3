@@ -157,7 +157,7 @@ void craft_regression(Json &trace)
 			bool blocked = false;
 			for (const auto &m : view->gameplay["away_missions"])
 				if (m["id"].get<std::string>().starts_with("board."))
-					blocked = m["blocker"] == "Shuttle boarding requires hull below 50%";
+					blocked = m["blocker"] == "Boarding by shuttle or docking requires hull below 50%";
 			require(blocked, "shuttle threshold is strictly below half total HP");
 			require(!w.submit(101, mission_command(w, "send")), "legacy alias cannot bypass shuttle boarding gate");
 			const auto selected = saved["away_missions"].back()["transport"].get<std::string>();
@@ -297,6 +297,43 @@ void craft_regression(Json &trace)
 			require(recovered.save() == w.save(), "ordinary craft Medical recovery restores without orphaned care");
 		}
 		trace.push_back(w.save());
+	}
+}
+void forced_docking_regression()
+{
+	for (const auto hp : {100, 49})
+	{
+		auto source = boarding_mission_fixture();
+		for (auto &entity : source["entities"])
+			entity["docking"] = Json::parse(
+			    R"({"ports":[{"id":"fore","controller":"dispatch","compartment":"bridge","compatibility":"standard","x_mm":5000},{"id":"aft","controller":"dispatch","compartment":"bridge","compatibility":"standard","x_mm":-5000,"heading_mdeg":180000}]})");
+		auto &target = source["entities"][1];
+		target["boarding_missions"][0]["docking_ports"] = {"aft"};
+		for (auto &room : target["combat"]["decks"][0]["compartments"])
+			room["initial_hp"] = hp;
+		for (auto &c : target["control_layout"]["controllers"])
+			if (c["id"] == "team")
+				c["commands"][0]["initial"] = 0;
+		World world;
+		world.load(load(source), "test.map", {{"crew", "test.away"}});
+		require(world.claim(101, 2, "drive"), "Claim boarding approach");
+		ticks(world, 5);
+		auto connect = [&]
+		{
+			const auto view = *world.observe(101);
+			OperatingCommand c{2, "dock.connect", view.gameplay.at("docking").at("revision"), "fore"};
+			c.controller = "dispatch";
+			c.text = "1/aft";
+			for (const auto &ctrl : view.gameplay.at("controllers"))
+				if (ctrl.at("id") == c.controller)
+					c.generation = ctrl.at("generation");
+			return c;
+		};
+		require(!world.submit(101, connect()), "Forced docking requires an opened boarding mission");
+		require(world.submit(101, mission_command(world, "open")), "Open boarding approach mission");
+		ticks(world, 1);
+		require(world.submit(101, connect()) == (hp < 50),
+		        "Forced docking respects the existing hull eligibility threshold");
 	}
 }
 void finalizer_regression(Json &trace)
@@ -660,6 +697,7 @@ int main(int argc, char **argv)
 		bay_boarding_regression(trace);
 		craft_regression(trace);
 		finalizer_regression(trace);
+		forced_docking_regression();
 		defender_regression(trace);
 		captured_craft_regression(trace);
 		encounter_outcomes(trace);

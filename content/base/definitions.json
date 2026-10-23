@@ -25502,7 +25502,8 @@
 								"pdc",
 								"dispatch"
 							],
-							"shield_feed": true
+							"shield_feed": true,
+							"knowledge_roles": ["base.crew", "base.helm"]
 						},
 						{
 							"id": "tactical",
@@ -25603,7 +25604,6 @@
 					{
 						"id": "drive",
 						"console": "helm",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -25618,17 +25618,38 @@
 								"consumers": ["drive"]
 							},
 							{
-								"id": "assisted",
-								"action": "assisted",
-								"initial": 1,
+								"id": "selected_contact",
+								"action": "selected_contact",
+								"initial": 0,
+								"arguments": [],
+								"consumers": ["drive"]
+							},
+							{
+								"id": "destination",
+								"action": "destination",
+								"initial": 0,
+								"arguments": [0, 0],
+								"consumers": ["drive"]
+							},
+							{
+								"id": "follow_contact",
+								"action": "follow_contact",
+								"initial": 0,
+								"arguments": [0, 40000, 12000],
+								"consumers": ["drive"]
+							},
+							{
+								"id": "match_speed",
+								"action": "match_speed",
+								"initial": 0,
 								"consumers": ["drive"]
 							}
-						]
+						],
+						"tree": "base.ai.race.engine"
 					},
 					{
 						"id": "helm",
 						"console": "helm",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -25641,13 +25662,34 @@
 								"action": "heading_mdeg",
 								"initial": 0,
 								"consumers": ["helm"]
+							},
+							{
+								"id": "selected_contact",
+								"action": "selected_contact",
+								"initial": 0,
+								"arguments": [],
+								"consumers": ["helm"]
+							},
+							{
+								"id": "destination",
+								"action": "destination",
+								"initial": 0,
+								"arguments": [0, 0],
+								"consumers": ["helm"]
+							},
+							{
+								"id": "follow_contact",
+								"action": "follow_contact",
+								"initial": 0,
+								"arguments": [0, 40000, 12000],
+								"consumers": ["helm"]
 							}
-						]
+						],
+						"tree": "base.ai.race.steering"
 					},
 					{
 						"id": "radar",
 						"console": "support",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -25655,12 +25697,12 @@
 								"initial": 1,
 								"consumers": ["radar"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.system-ready"
 					},
 					{
 						"id": "top",
 						"console": "tactical",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -25668,12 +25710,12 @@
 								"initial": 1,
 								"consumers": ["top"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.system-ready"
 					},
 					{
 						"id": "top-mag",
 						"console": "tactical",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -25681,31 +25723,25 @@
 								"initial": 1,
 								"consumers": ["top-mag"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.system-ready"
 					},
 					{
 						"id": "top-gun",
 						"console": "tactical",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "system_enabled",
 								"action": "system_enabled",
 								"initial": 1,
 								"consumers": ["top-gun"]
-							},
-							{
-								"id": "weapon_target",
-								"action": "weapon_target",
-								"initial": 0,
-								"consumers": ["top-gun"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.system-ready"
 					},
 					{
 						"id": "bottom",
 						"console": "tactical",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -25713,12 +25749,12 @@
 								"initial": 1,
 								"consumers": ["bottom"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.system-ready"
 					},
 					{
 						"id": "bottom-mag",
 						"console": "tactical",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -25726,31 +25762,25 @@
 								"initial": 1,
 								"consumers": ["bottom-mag"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.system-ready"
 					},
 					{
 						"id": "bottom-gun",
 						"console": "tactical",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "system_enabled",
 								"action": "system_enabled",
 								"initial": 1,
 								"consumers": ["bottom-gun"]
-							},
-							{
-								"id": "weapon_target",
-								"action": "weapon_target",
-								"initial": 0,
-								"consumers": ["bottom-gun"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.system-ready"
 					},
 					{
 						"id": "forward-mag",
 						"console": "tactical",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -25758,31 +25788,25 @@
 								"initial": 1,
 								"consumers": ["forward-mag"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.system-ready"
 					},
 					{
 						"id": "forward-gun",
 						"console": "tactical",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "system_enabled",
 								"action": "system_enabled",
 								"initial": 1,
 								"consumers": ["forward-gun"]
-							},
-							{
-								"id": "weapon_target",
-								"action": "weapon_target",
-								"initial": 0,
-								"consumers": ["forward-gun"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.system-ready"
 					},
 					{
 						"id": "team-1",
 						"console": "support",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -25801,12 +25825,12 @@
 								"action": "repair_system",
 								"consumers": ["team-1"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.repair"
 					},
 					{
 						"id": "team-2",
 						"console": "support",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "system_enabled",
@@ -25825,12 +25849,12 @@
 								"action": "repair_system",
 								"consumers": ["team-2"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.repair"
 					},
 					{
 						"id": "reactor",
 						"console": "support",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "enabled",
@@ -25843,12 +25867,12 @@
 								"action": "generator_output",
 								"consumers": ["reactor"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.reactor"
 					},
 					{
 						"id": "weapon-cell",
 						"console": "support",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "enabled",
@@ -25856,12 +25880,12 @@
 								"initial": 1,
 								"consumers": ["weapon-cell"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.ready"
 					},
 					{
 						"id": "shield-cell",
 						"console": "support",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "enabled",
@@ -25869,66 +25893,51 @@
 								"initial": 1,
 								"consumers": ["shield-cell"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.ready"
 					},
 					{
 						"id": "beam",
 						"console": "tactical",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "enabled",
 								"action": "system_enabled",
 								"initial": 1,
 								"consumers": ["beam"]
-							},
-							{
-								"id": "target",
-								"action": "weapon_target",
-								"consumers": ["beam"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.ready"
 					},
 					{
 						"id": "shield-fore",
 						"console": "support",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "enabled",
 								"action": "system_enabled",
 								"initial": 1,
 								"consumers": ["shield-fore"]
-							},
-							{
-								"id": "discharge",
-								"action": "shield_discharge",
-								"consumers": ["shield-fore"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.ready"
 					},
 					{
 						"id": "shield-aft",
 						"console": "support",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "enabled",
 								"action": "system_enabled",
 								"initial": 1,
 								"consumers": ["shield-aft"]
-							},
-							{
-								"id": "discharge",
-								"action": "shield_discharge",
-								"consumers": ["shield-aft"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.ready"
 					},
 					{
 						"id": "homing-mag",
 						"console": "tactical",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "enabled",
@@ -25936,12 +25945,12 @@
 								"initial": 1,
 								"consumers": ["homing-mag"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.ready"
 					},
 					{
 						"id": "havok-mag",
 						"console": "tactical",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "enabled",
@@ -25949,35 +25958,25 @@
 								"initial": 1,
 								"consumers": ["havok-mag"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.ready"
 					},
 					{
 						"id": "missile-launcher",
 						"console": "tactical",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "enabled",
 								"action": "system_enabled",
 								"initial": 1,
 								"consumers": ["missile-launcher"]
-							},
-							{
-								"id": "target",
-								"action": "weapon_target",
-								"consumers": ["missile-launcher"]
-							},
-							{
-								"id": "magazine",
-								"action": "magazine_select",
-								"consumers": ["missile-launcher"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.ready"
 					},
 					{
 						"id": "pdc-mag",
 						"console": "tactical",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "enabled",
@@ -25985,35 +25984,25 @@
 								"initial": 1,
 								"consumers": ["pdc-mag"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.ready"
 					},
 					{
 						"id": "pdc",
 						"console": "tactical",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "enabled",
 								"action": "system_enabled",
 								"initial": 1,
 								"consumers": ["pdc"]
-							},
-							{
-								"id": "target",
-								"action": "weapon_target",
-								"consumers": ["pdc"]
-							},
-							{
-								"id": "mode",
-								"action": "weapon_mode",
-								"consumers": ["pdc"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.ready"
 					},
 					{
 						"id": "external-comms",
 						"console": "comms",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "enabled",
@@ -26021,7 +26010,8 @@
 								"initial": 1,
 								"consumers": ["comms-radio"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.ready"
 					},
 					{
 						"id": "dispatch",
@@ -26042,16 +26032,11 @@
 						"fallback": "hold",
 						"commands": [
 							{
-								"id": "enabled",
-								"action": "system_enabled",
-								"initial": 1,
-								"consumers": ["focused-scanner", "sensor-turret"]
-							},
-							{
 								"id": "target",
 								"action": "sensor_target",
 								"initial": 0,
-								"consumers": ["focused-scanner"]
+								"consumers": ["focused-scanner"],
+								"label_key": "Combat target"
 							}
 						]
 					},
@@ -26072,7 +26057,6 @@
 					{
 						"id": "ftl.supply",
 						"console": "support",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "isolated",
@@ -26081,12 +26065,12 @@
 								"consumers": ["ftl.supply"],
 								"label_key": "FTL power isolation"
 							}
-						]
+						],
+						"tree": "base.courier.assist.ftl.supply"
 					},
 					{
 						"id": "ftl.cooling",
 						"console": "support",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "allocation",
@@ -26095,12 +26079,12 @@
 								"consumers": ["ftl.cooling"],
 								"label_key": "FTL cooling"
 							}
-						]
+						],
+						"tree": "base.courier.assist.ftl.cooling"
 					},
 					{
 						"id": "medical-team",
 						"console": "support",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "enabled",
@@ -26108,12 +26092,12 @@
 								"initial": 1,
 								"consumers": ["medical-team"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.ready"
 					},
 					{
 						"id": "security-team",
 						"console": "tactical",
-						"fallback": "hold",
 						"commands": [
 							{
 								"id": "enabled",
@@ -26121,7 +26105,8 @@
 								"initial": 1,
 								"consumers": ["security-team"]
 							}
-						]
+						],
+						"tree": "base.courier.assist.ready"
 					},
 					{
 						"id": "navigation.orders",
@@ -26136,38 +26121,391 @@
 								"consumers": []
 							}
 						]
+					},
+					{
+						"id": "drive.direct",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "assisted",
+								"action": "assisted",
+								"initial": 1,
+								"consumers": ["drive"]
+							},
+							{
+								"id": "longitudinal_thrust",
+								"action": "longitudinal_thrust",
+								"initial": 0,
+								"consumers": ["drive"]
+							}
+						],
+						"tree": "base.courier.assist.drive.direct"
+					},
+					{
+						"id": "helm.direct",
+						"console": "helm",
+						"commands": [
+							{
+								"id": "assisted",
+								"action": "assisted",
+								"initial": 1,
+								"consumers": ["helm"]
+							},
+							{
+								"id": "manual_steering",
+								"action": "manual_steering",
+								"initial": 0,
+								"consumers": ["helm"]
+							}
+						],
+						"tree": "base.courier.assist.helm.direct"
+					},
+					{
+						"id": "scanner.ready",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "enabled",
+								"action": "system_enabled",
+								"initial": 1,
+								"consumers": ["focused-scanner", "sensor-turret"]
+							}
+						],
+						"tree": "base.courier.assist.ready"
+					},
+					{
+						"id": "top-gun.settings",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "weapon_target",
+								"action": "weapon_target",
+								"initial": 0,
+								"consumers": ["top-gun"],
+								"shared_target": {
+									"controller": "scanner",
+									"channel": "target"
+								}
+							}
+						]
+					},
+					{
+						"id": "bottom-gun.settings",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "weapon_target",
+								"action": "weapon_target",
+								"initial": 0,
+								"consumers": ["bottom-gun"],
+								"shared_target": {
+									"controller": "scanner",
+									"channel": "target"
+								}
+							}
+						]
+					},
+					{
+						"id": "forward-gun.settings",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "weapon_target",
+								"action": "weapon_target",
+								"initial": 0,
+								"consumers": ["forward-gun"],
+								"shared_target": {
+									"controller": "scanner",
+									"channel": "target"
+								}
+							}
+						]
+					},
+					{
+						"id": "beam.settings",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "target",
+								"action": "weapon_target",
+								"consumers": ["beam"],
+								"shared_target": {
+									"controller": "scanner",
+									"channel": "target"
+								}
+							}
+						]
+					},
+					{
+						"id": "missile-launcher.settings",
+						"console": "tactical",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "target",
+								"action": "weapon_target",
+								"consumers": ["missile-launcher"],
+								"shared_target": {
+									"controller": "scanner",
+									"channel": "target"
+								}
+							}
+						]
+					},
+					{
+						"id": "missile-launcher.ammo",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "magazine",
+								"action": "magazine_select",
+								"consumers": ["missile-launcher"]
+							}
+						],
+						"tree": "base.courier.assist.missile-launcher.ammo"
+					},
+					{
+						"id": "pdc.settings",
+						"console": "tactical",
+						"commands": [
+							{
+								"id": "target",
+								"action": "weapon_target",
+								"consumers": ["pdc"]
+							},
+							{
+								"id": "mode",
+								"action": "weapon_mode",
+								"consumers": ["pdc"]
+							}
+						],
+						"tree": "base.courier.assist.pdc.settings"
+					},
+					{
+						"id": "repair-priority",
+						"console": "support",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "system",
+								"action": "intent_integer",
+								"minimum": 0,
+								"maximum": 33,
+								"initial": 0,
+								"consumers": [],
+								"label_key": "Repair priority",
+								"choices": [
+									{
+										"value": 0,
+										"label_key": "Automatic repair priorities"
+									},
+									{
+										"value": 1,
+										"label_key": "beam"
+									},
+									{
+										"value": 2,
+										"label_key": "bottom"
+									},
+									{
+										"value": 3,
+										"label_key": "bottom-gun"
+									},
+									{
+										"value": 4,
+										"label_key": "bottom-mag"
+									},
+									{
+										"value": 5,
+										"label_key": "comms-radio"
+									},
+									{
+										"value": 6,
+										"label_key": "dispatch"
+									},
+									{
+										"value": 7,
+										"label_key": "drive"
+									},
+									{
+										"value": 8,
+										"label_key": "focused-scanner"
+									},
+									{
+										"value": 9,
+										"label_key": "forward-gun"
+									},
+									{
+										"value": 10,
+										"label_key": "forward-mag"
+									},
+									{
+										"value": 11,
+										"label_key": "ftl.cooling"
+									},
+									{
+										"value": 12,
+										"label_key": "ftl.drive"
+									},
+									{
+										"value": 13,
+										"label_key": "ftl.supply"
+									},
+									{
+										"value": 14,
+										"label_key": "havok-mag"
+									},
+									{
+										"value": 15,
+										"label_key": "helm"
+									},
+									{
+										"value": 16,
+										"label_key": "homing-mag"
+									},
+									{
+										"value": 17,
+										"label_key": "medical-team"
+									},
+									{
+										"value": 18,
+										"label_key": "missile-launcher"
+									},
+									{
+										"value": 19,
+										"label_key": "pdc"
+									},
+									{
+										"value": 20,
+										"label_key": "pdc-mag"
+									},
+									{
+										"value": 21,
+										"label_key": "radar"
+									},
+									{
+										"value": 22,
+										"label_key": "reactor"
+									},
+									{
+										"value": 23,
+										"label_key": "security-team"
+									},
+									{
+										"value": 24,
+										"label_key": "sensor-turret"
+									},
+									{
+										"value": 25,
+										"label_key": "shield-aft"
+									},
+									{
+										"value": 26,
+										"label_key": "shield-cell"
+									},
+									{
+										"value": 27,
+										"label_key": "shield-fore"
+									},
+									{
+										"value": 28,
+										"label_key": "team-1"
+									},
+									{
+										"value": 29,
+										"label_key": "team-2"
+									},
+									{
+										"value": 30,
+										"label_key": "top"
+									},
+									{
+										"value": 31,
+										"label_key": "top-gun"
+									},
+									{
+										"value": 32,
+										"label_key": "top-mag"
+									},
+									{
+										"value": 33,
+										"label_key": "weapon-cell"
+									}
+								]
+							}
+						]
+					},
+					{
+						"id": "shield-priority",
+						"console": "support",
+						"fallback": "hold",
+						"commands": [
+							{
+								"id": "priority",
+								"action": "intent_integer",
+								"initial": 0,
+								"minimum": 0,
+								"maximum": 2,
+								"choices": [
+									{
+										"value": 0,
+										"label_key": "Balanced"
+									},
+									{
+										"value": 1,
+										"label_key": "Fore priority"
+									},
+									{
+										"value": 2,
+										"label_key": "Aft priority"
+									}
+								],
+								"consumers": []
+							}
+						]
+					},
+					{
+						"id": "shield-fore.distribution",
+						"console": "support",
+						"commands": [
+							{
+								"id": "discharge",
+								"action": "shield_discharge",
+								"consumers": ["shield-fore"]
+							}
+						],
+						"tree": "base.courier.assist.shield-fore.distribution"
+					},
+					{
+						"id": "shield-aft.distribution",
+						"console": "support",
+						"commands": [
+							{
+								"id": "discharge",
+								"action": "shield_discharge",
+								"consumers": ["shield-aft"]
+							}
+						],
+						"tree": "base.courier.assist.shield-aft.distribution"
 					}
 				],
-				"default_profile": "direct",
+				"default_profile": "simple",
 				"profiles": [
 					{
-						"id": "direct",
+						"id": "simple",
+						"stars": 1,
 						"consoles": {
 							"helm": {
-								"human": ["drive", "helm", "dispatch"]
-							},
-							"tactical": {
-								"human": [
-									"top",
-									"top-mag",
-									"top-gun",
-									"bottom",
-									"bottom-mag",
-									"bottom-gun",
-									"forward-mag",
-									"forward-gun",
-									"beam",
-									"homing-mag",
-									"havok-mag",
-									"missile-launcher",
-									"pdc-mag",
-									"pdc",
-									"scanner",
-									"security-team"
-								]
+								"human": ["drive", "helm", "dispatch"],
+								"ai": ["drive.direct", "helm.direct"]
 							},
 							"support": {
-								"human": [
+								"human": ["repair-priority"],
+								"ai": [
 									"radar",
 									"team-1",
 									"team-2",
@@ -26178,29 +26516,150 @@
 									"shield-aft",
 									"ftl.supply",
 									"ftl.cooling",
-									"medical-team"
+									"medical-team",
+									"shield-priority",
+									"shield-fore.distribution",
+									"shield-aft.distribution"
+								]
+							},
+							"tactical": {
+								"human": [
+									"top-gun",
+									"bottom-gun",
+									"forward-gun",
+									"beam",
+									"missile-launcher",
+									"scanner"
+								],
+								"ai": [
+									"top",
+									"top-mag",
+									"bottom",
+									"bottom-mag",
+									"forward-mag",
+									"homing-mag",
+									"havok-mag",
+									"pdc-mag",
+									"pdc",
+									"security-team",
+									"scanner.ready",
+									"top-gun.settings",
+									"bottom-gun.settings",
+									"forward-gun.settings",
+									"beam.settings",
+									"missile-launcher.settings",
+									"missile-launcher.ammo",
+									"pdc.settings"
 								]
 							},
 							"comms": {
-								"human": ["external-comms"]
+								"human": [],
+								"ai": ["external-comms"]
 							},
 							"navigator": {
-								"human": ["ftl.drive"]
+								"human": ["ftl.drive"],
+								"ai": []
 							},
 							"navigation": {
-								"human": ["navigation.orders"]
+								"human": ["navigation.orders"],
+								"ai": []
 							}
-						},
-						"stars": 3
+						}
 					},
 					{
-						"id": "automatic",
+						"id": "middle",
+						"stars": 2,
 						"consoles": {
 							"helm": {
-								"ai": ["drive", "helm", "dispatch"]
+								"human": ["drive", "helm", "dispatch", "drive.direct", "helm.direct"],
+								"ai": []
+							},
+							"support": {
+								"human": ["reactor", "shield-fore", "shield-aft", "repair-priority", "shield-priority"],
+								"ai": [
+									"radar",
+									"team-1",
+									"team-2",
+									"weapon-cell",
+									"shield-cell",
+									"ftl.supply",
+									"ftl.cooling",
+									"medical-team",
+									"shield-fore.distribution",
+									"shield-aft.distribution"
+								]
 							},
 							"tactical": {
+								"human": [
+									"top-gun",
+									"bottom-gun",
+									"forward-gun",
+									"beam",
+									"missile-launcher",
+									"pdc",
+									"scanner"
+								],
 								"ai": [
+									"top",
+									"top-mag",
+									"bottom",
+									"bottom-mag",
+									"forward-mag",
+									"homing-mag",
+									"havok-mag",
+									"pdc-mag",
+									"security-team",
+									"scanner.ready",
+									"top-gun.settings",
+									"bottom-gun.settings",
+									"forward-gun.settings",
+									"beam.settings",
+									"missile-launcher.settings",
+									"missile-launcher.ammo",
+									"pdc.settings"
+								]
+							},
+							"comms": {
+								"human": [],
+								"ai": ["external-comms"]
+							},
+							"navigator": {
+								"human": ["ftl.drive"],
+								"ai": []
+							},
+							"navigation": {
+								"human": ["navigation.orders"],
+								"ai": []
+							}
+						}
+					},
+					{
+						"id": "detailed",
+						"stars": 3,
+						"consoles": {
+							"helm": {
+								"human": ["drive", "helm", "dispatch", "drive.direct", "helm.direct"],
+								"ai": []
+							},
+							"support": {
+								"human": [
+									"team-1",
+									"team-2",
+									"reactor",
+									"weapon-cell",
+									"shield-cell",
+									"shield-fore",
+									"shield-aft",
+									"ftl.supply",
+									"ftl.cooling",
+									"medical-team",
+									"shield-fore.distribution",
+									"shield-aft.distribution"
+								],
+								"ai": ["radar", "repair-priority", "shield-priority"]
+							},
+							"tactical": {
+								"human": [
 									"top",
 									"top-mag",
 									"top-gun",
@@ -26216,36 +26675,33 @@
 									"pdc-mag",
 									"pdc",
 									"scanner",
-									"security-team"
-								]
-							},
-							"support": {
-								"ai": [
-									"radar",
-									"team-1",
-									"team-2",
-									"reactor",
-									"weapon-cell",
-									"shield-cell",
-									"shield-fore",
-									"shield-aft",
-									"medical-team"
+									"security-team",
+									"top-gun.settings",
+									"bottom-gun.settings",
+									"forward-gun.settings",
+									"beam.settings",
+									"missile-launcher.settings",
+									"missile-launcher.ammo",
+									"pdc.settings"
 								],
-								"human": ["ftl.supply", "ftl.cooling"]
+								"ai": ["scanner.ready"]
 							},
 							"comms": {
+								"human": [],
 								"ai": ["external-comms"]
 							},
 							"navigator": {
-								"human": ["ftl.drive"]
+								"human": ["ftl.drive"],
+								"ai": []
 							},
 							"navigation": {
-								"human": ["navigation.orders"]
+								"human": ["navigation.orders"],
+								"ai": []
 							}
-						},
-						"stars": 0
+						}
 					}
-				]
+				],
+				"station_complexity": true
 			},
 			"combat": {
 				"repair_console": "support",
@@ -26925,6 +27381,132 @@
 						"controller": "navigation.orders",
 						"console": "navigation",
 						"compartment": "bow-port",
+						"effects": {}
+					},
+					{
+						"id": "drive.direct",
+						"label": "drive.direct",
+						"department": "sailing",
+						"controller": "drive.direct",
+						"console": "helm",
+						"compartment": "stern-port",
+						"effects": {}
+					},
+					{
+						"id": "helm.direct",
+						"label": "helm.direct",
+						"department": "sailing",
+						"controller": "helm.direct",
+						"console": "helm",
+						"compartment": "bow-port",
+						"effects": {}
+					},
+					{
+						"id": "scanner.ready",
+						"label": "scanner.ready",
+						"department": "tactical",
+						"controller": "scanner.ready",
+						"console": "tactical",
+						"compartment": "bow-starboard",
+						"effects": {}
+					},
+					{
+						"id": "top-gun.settings",
+						"label": "top-gun.settings",
+						"department": "tactical",
+						"controller": "top-gun.settings",
+						"console": "tactical",
+						"compartment": "mid-port",
+						"effects": {}
+					},
+					{
+						"id": "bottom-gun.settings",
+						"label": "bottom-gun.settings",
+						"department": "tactical",
+						"controller": "bottom-gun.settings",
+						"console": "tactical",
+						"compartment": "mid-starboard",
+						"effects": {}
+					},
+					{
+						"id": "forward-gun.settings",
+						"label": "forward-gun.settings",
+						"department": "tactical",
+						"controller": "forward-gun.settings",
+						"console": "tactical",
+						"compartment": "bow-port",
+						"effects": {}
+					},
+					{
+						"id": "beam.settings",
+						"label": "beam.settings",
+						"department": "tactical",
+						"controller": "beam.settings",
+						"console": "tactical",
+						"compartment": "mid-port",
+						"effects": {}
+					},
+					{
+						"id": "missile-launcher.settings",
+						"label": "missile-launcher.settings",
+						"department": "tactical",
+						"controller": "missile-launcher.settings",
+						"console": "tactical",
+						"compartment": "mid-port",
+						"effects": {}
+					},
+					{
+						"id": "missile-launcher.ammo",
+						"label": "missile-launcher.ammo",
+						"department": "tactical",
+						"controller": "missile-launcher.ammo",
+						"console": "tactical",
+						"compartment": "mid-port",
+						"effects": {}
+					},
+					{
+						"id": "pdc.settings",
+						"label": "pdc.settings",
+						"department": "tactical",
+						"controller": "pdc.settings",
+						"console": "tactical",
+						"compartment": "mid-port",
+						"effects": {}
+					},
+					{
+						"id": "repair-priority",
+						"label": "repair-priority",
+						"department": "engineering",
+						"controller": "repair-priority",
+						"console": "support",
+						"compartment": "mid-port",
+						"effects": {}
+					},
+					{
+						"id": "shield-priority",
+						"label": "shield-priority",
+						"department": "engineering",
+						"controller": "shield-priority",
+						"console": "support",
+						"compartment": "mid-port",
+						"effects": {}
+					},
+					{
+						"id": "shield-fore.distribution",
+						"label": "shield-fore.distribution",
+						"department": "sciences",
+						"controller": "shield-fore.distribution",
+						"console": "support",
+						"compartment": "mid-port",
+						"effects": {}
+					},
+					{
+						"id": "shield-aft.distribution",
+						"label": "shield-aft.distribution",
+						"department": "sciences",
+						"controller": "shield-aft.distribution",
+						"console": "support",
+						"compartment": "mid-port",
 						"effects": {}
 					}
 				],
@@ -49862,6 +50444,734 @@
 				}
 			],
 			"title_key": "Cairn Receiving — station delivery"
+		},
+		{
+			"id": "base.courier.assist.drive.direct",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "assisted",
+					"action": "assisted",
+					"type": "boolean"
+				},
+				{
+					"channel": "longitudinal_thrust",
+					"action": "longitudinal_thrust"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.assisted",
+							"arguments": [true]
+						},
+						{
+							"action": "write.longitudinal_thrust",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.courier.assist.helm.direct",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "assisted",
+					"action": "assisted",
+					"type": "boolean"
+				},
+				{
+					"channel": "manual_steering",
+					"action": "manual_steering"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.assisted",
+							"arguments": [true]
+						},
+						{
+							"action": "write.manual_steering",
+							"arguments": [0]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.courier.assist.ready",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.courier.assist.missile-launcher.ammo",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "magazine",
+					"action": "magazine_select"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.magazine",
+							"arguments": [
+								{
+									"observation": "tactical.magazine"
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.courier.assist.pdc.settings",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "target",
+					"action": "weapon_target"
+				},
+				{
+					"channel": "mode",
+					"action": "weapon_mode"
+				}
+			],
+			"initial": "defend",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.target",
+							"arguments": [
+								{
+									"observation": "combat.target"
+								}
+							]
+						},
+						{
+							"action": "write.mode",
+							"arguments": [2]
+						}
+					],
+					"transitions": [
+						{
+							"target": "defend",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tactical.intercept_target"
+									},
+									"op": "gt",
+									"right": 0
+								}
+							]
+						},
+						{
+							"target": "defend",
+							"conditions": [
+								{
+									"left": {
+										"observation": "console.stars"
+									},
+									"op": "lt",
+									"right": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "defend",
+					"running": [
+						{
+							"action": "write.mode",
+							"arguments": [1]
+						},
+						{
+							"action": "write.target",
+							"arguments": [0]
+						}
+					],
+					"transitions": [
+						{
+							"target": "operate",
+							"conditions": [
+								{
+									"left": {
+										"observation": "tactical.intercept_target"
+									},
+									"op": "eq",
+									"right": 0
+								},
+								{
+									"left": {
+										"observation": "console.stars"
+									},
+									"op": "ge",
+									"right": 2
+								}
+							]
+						}
+					]
+				}
+			],
+			"complexity_observation": true,
+			"command_reads": [
+				{
+					"name": "combat.target",
+					"controller": "scanner",
+					"channel": "target",
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"id": "base.courier.assist.repair",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "repair_compartment",
+					"action": "repair_compartment"
+				},
+				{
+					"channel": "system",
+					"action": "repair_system"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						},
+						{
+							"action": "write.repair_compartment",
+							"arguments": [0]
+						},
+						{
+							"action": "write.system",
+							"arguments": [
+								{
+									"observation": "priority.system"
+								}
+							]
+						}
+					]
+				}
+			],
+			"command_reads": [
+				{
+					"name": "priority.system",
+					"controller": "repair-priority",
+					"channel": "system",
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"id": "base.courier.assist.system-ready",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "system_enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.system_enabled",
+							"arguments": [true]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.courier.assist.reactor",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "enabled",
+					"action": "system_enabled",
+					"type": "boolean"
+				},
+				{
+					"channel": "output",
+					"action": "generator_output"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.enabled",
+							"arguments": [true]
+						},
+						{
+							"action": "write.output",
+							"arguments": [1600]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.courier.assist.ftl.supply",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "isolated",
+					"action": "link_isolated",
+					"type": "boolean"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.isolated",
+							"arguments": [false]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.courier.assist.ftl.cooling",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "allocation",
+					"action": "cooling_allocation"
+				}
+			],
+			"initial": "operate",
+			"states": [
+				{
+					"id": "operate",
+					"running": [
+						{
+							"action": "write.allocation",
+							"arguments": [300]
+						}
+					]
+				}
+			]
+		},
+		{
+			"id": "base.courier.assist.shield-fore.distribution",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "discharge",
+					"type": "boolean"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "duty",
+					"tree": "base.action.maintain-shield-distribution"
+				}
+			],
+			"initial": "hold",
+			"states": [
+				{
+					"id": "hold",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", false]
+						}
+					],
+					"transitions": [
+						{
+							"target": "prioritise",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "eq",
+									"right": 2
+								}
+							]
+						},
+						{
+							"target": "share",
+							"conditions": [
+								{
+									"left": {
+										"observation": "shield.lowest"
+									},
+									"op": "lt",
+									"right": 500
+								},
+								{
+									"left": {
+										"observation": "shield.difference"
+									},
+									"op": "gt",
+									"right": 250
+								},
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "ne",
+									"right": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "share",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", true]
+						}
+					],
+					"transitions": [
+						{
+							"target": "prioritise",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "eq",
+									"right": 2
+								}
+							]
+						},
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "shield.lowest"
+									},
+									"op": "ge",
+									"right": 650
+								}
+							]
+						},
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "shield.difference"
+									},
+									"op": "le",
+									"right": 100
+								}
+							]
+						},
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "eq",
+									"right": 1
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "prioritise",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", true]
+						}
+					],
+					"transitions": [
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "ne",
+									"right": 2
+								}
+							]
+						}
+					]
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Combat approach: hold mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised hold.",
+					"tasks": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", false]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Maintain shield distribution: share mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised share.",
+					"tasks": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", true]
+						}
+					]
+				}
+			],
+			"command_reads": [
+				{
+					"name": "protection.priority",
+					"controller": "shield-priority",
+					"channel": "priority",
+					"type": "integer"
+				}
+			]
+		},
+		{
+			"id": "base.courier.assist.shield-aft.distribution",
+			"context": "controller",
+			"command_bindings": [
+				{
+					"channel": "discharge",
+					"type": "boolean"
+				}
+			],
+			"action_bindings": [
+				{
+					"id": "duty",
+					"tree": "base.action.maintain-shield-distribution"
+				}
+			],
+			"initial": "hold",
+			"states": [
+				{
+					"id": "hold",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", false]
+						}
+					],
+					"transitions": [
+						{
+							"target": "prioritise",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "eq",
+									"right": 1
+								}
+							]
+						},
+						{
+							"target": "share",
+							"conditions": [
+								{
+									"left": {
+										"observation": "shield.lowest"
+									},
+									"op": "lt",
+									"right": 500
+								},
+								{
+									"left": {
+										"observation": "shield.difference"
+									},
+									"op": "gt",
+									"right": 250
+								},
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "ne",
+									"right": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "share",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", true]
+						}
+					],
+					"transitions": [
+						{
+							"target": "prioritise",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "eq",
+									"right": 1
+								}
+							]
+						},
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "shield.lowest"
+									},
+									"op": "ge",
+									"right": 650
+								}
+							]
+						},
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "shield.difference"
+									},
+									"op": "le",
+									"right": 100
+								}
+							]
+						},
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "eq",
+									"right": 2
+								}
+							]
+						}
+					]
+				},
+				{
+					"id": "prioritise",
+					"running": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", true]
+						}
+					],
+					"transitions": [
+						{
+							"target": "hold",
+							"conditions": [
+								{
+									"left": {
+										"observation": "protection.priority"
+									},
+									"op": "ne",
+									"right": 1
+								}
+							]
+						}
+					]
+				}
+			],
+			"decision_candidates": [
+				{
+					"id": "option-1",
+					"description": "Combat approach: hold mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised hold.",
+					"tasks": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", false]
+						}
+					]
+				},
+				{
+					"id": "option-2",
+					"description": "Maintain shield distribution: share mode. Use the prepared inputs shown for this action.",
+					"deviation": "Officer prioritised share.",
+					"tasks": [
+						{
+							"action": "select.duty",
+							"arguments": ["standing-duty", true]
+						}
+					]
+				}
+			],
+			"command_reads": [
+				{
+					"name": "protection.priority",
+					"controller": "shield-priority",
+					"channel": "priority",
+					"type": "integer"
+				}
+			]
 		}
 	],
 	"equipment": [

@@ -461,6 +461,32 @@ int main(int argc, char **argv)
 	{
 		{
 			auto source = medical_fixture();
+			source["entities"][0]["systems"]["medical"]["orders"][0]["patient_states"] = {"minor", "severe"};
+			source["entities"][0]["systems"]["medical"]["orders"][1]["patient_states"] = {"stabilised"};
+			auto &layout = source["entities"][0]["control_layout"];
+			layout["station_complexity"] = true;
+			layout["profiles"][0]["stars"] = 1;
+			auto &support = layout["profiles"][0]["consoles"]["observer"];
+			auto &human = support["human"];
+			human.erase(std::find(human.begin(), human.end(), Json("medical")));
+			support["ai"] = {"medical"};
+			World assisted;
+			assisted.load(load(source), "test.map", {{"crew", "test.away"}});
+			claim(assisted);
+			ticks(assisted, 5);
+			require(!assisted.submit(102, command(assisted, "order", "treat/bridge")),
+			        "One-star Medical refuses manual clinical orders");
+			ticks(assisted, 200);
+			require(officer(assisted, 2, 1)["condition"] == "healthy",
+			        "Assisted Medical treats and recovers a severe casualty automatically");
+			require(assisted.submit(101, away_order(assisted, "open")), "Open assisted away mission");
+			ticks(assisted, 1);
+			require(assisted.submit(102, away_order(assisted, "assign", "medical/team:medical", 102, "medical")),
+			        "Support authorises its AI-operated Medical team's away contribution");
+			ticks(assisted, 1);
+		}
+		{
+			auto source = medical_fixture();
 			auto &ship = source["entities"][0];
 			for (auto &officer : ship["personnel"]["officers"])
 			{

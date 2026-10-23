@@ -116,10 +116,6 @@ inline bool session_action(Application &app, const std::string &id)
 inline auto approvals(const Application &app)
 {
 	std::vector<std::pair<std::string, std::string>> result;
-	if (app.session && app.settings_tab == "session" && app.session->lobby().active && !app.session->lobby().launched)
-		for (const auto &[id, text] : app.session->lobby_controls())
-			if (id.starts_with("lobby.profile/"))
-				result.emplace_back(id, text);
 	if (game_active(app) && app.settings_tab == "session")
 		for (const auto &[id, text] : app.session->lobby_controls())
 			if (approval(id))
@@ -131,13 +127,6 @@ inline auto approvals(const Application &app)
 				if (control.value("action", "") == "away")
 					result.emplace_back(control.value("value", 0) ? "settings.away" : "settings.resume",
 					                    control.value("value", 0) ? "Away - hand control to AI" : "Resume control");
-				else if (control.value("action", "") == "preset")
-					result.emplace_back(
-					    "settings.profile/" + control.at("id").get<std::string>(),
-					    "Complexity: " + control.value("label", std::string{}) +
-					        (view->gameplay.value("profile", std::string{}) == control.value("label", std::string{})
-					             ? " (selected)"
-					             : ""));
 	return result;
 }
 } // namespace phoenix::settings_ui

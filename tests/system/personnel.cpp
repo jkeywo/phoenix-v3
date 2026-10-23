@@ -65,6 +65,28 @@ int main()
 	try
 	{
 		{
+			auto source = fixture();
+			auto &layout = source["entities"][0]["control_layout"];
+			layout["station_complexity"] = true;
+			layout["profiles"][0]["stars"] = 3;
+			auto low = layout["profiles"][0];
+			low["id"] = "assisted";
+			low["stars"] = 1;
+			layout["profiles"].push_back(low);
+			World watch;
+			watch.load(load(source), "test.map");
+			require(watch.claim(101, 1, "drive"), "Claim assisted personnel watch");
+			require(watch.submit(101, command(watch, "relieve", "a")), "Three stars admits officer reassignment");
+			watch.tick();
+			require(watch.submit(101, {1, "preset", 2, {}}), "Select one-star personnel assistance");
+			watch.tick();
+			require(!board(watch).at("manual").get<bool>() && !watch.submit(101, command(watch, "relieve", "a")),
+			        "One star hides and authoritatively refuses manual reassignment");
+			watch.tick();
+			require(board(watch).at("officers")[0].at("duty") == "port",
+			        "Assistance restores an available duty officer");
+		}
+		{
 			auto large = fixture();
 			auto &ship = large["entities"][0];
 			for (int i = 2; i < 129; ++i)

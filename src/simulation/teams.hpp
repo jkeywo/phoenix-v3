@@ -410,19 +410,32 @@ void step_teams()
 				continue;
 			auto &r = m->get<TeamState>();
 			const auto &d = m->definition.get<TeamDefinition>();
-			// Medical teams default to their first authored order, just as legacy teams default to repair.
+			if (r.order.empty() && station_stars(enabled_system_owner(id, m->definition.id)) < 3)
+				r.repair_auto = true;
+			// Use the first eligible authored order: treatment can be followed by
+			// recovery without leaving a stabilised patient awaiting manual dispatch.
 			if (r.order.empty() && r.repair_auto && !d.capabilities.contains("repair") && !d.orders.empty())
 			{
-				for (std::size_t c = 0; c < definition(id).personnel.compartments.size(); ++c)
-					if (team_target_eligible(id, d.orders.front(), c))
-					{
-						r.order = d.orders.front().id;
-						r.destination = c;
-						r.repair_auto = false;
-						r.continuation = state_tree::Instance{};
-						++r.revision;
+				for (const auto &candidate : d.orders)
+				{
+					if (!r.order.empty())
 						break;
-					}
+					if (&candidate != &d.orders.front() &&
+					    (candidate.target != "patients" ||
+					     station_stars(enabled_system_owner(id, m->definition.id)) >= 3))
+						continue;
+					for (std::size_t c = 0; c < definition(id).personnel.compartments.size(); ++c)
+						if (team_target_eligible(id, candidate, c))
+						{
+							r.order = candidate.id;
+							r.destination = c;
+							r.repair_auto = false;
+							r.work_done = false;
+							r.continuation = state_tree::Instance{};
+							++r.revision;
+							break;
+						}
+				}
 			}
 			const auto *order = team_order_definition(*m, r.order);
 			if (!order)
@@ -556,6 +569,14 @@ Json team_board(const ConsoleAddress &a) const
 		         {"location", r.location},
 		         {"destination", r.destination},
 		         {"orders", Json::array()}};
+		bool manual = false;
+		for (const auto &controller : ship.get<EntityControls>().controllers)
+			if (controller.human && controller.definition.console == a.console)
+				for (const auto &command : controller.definition.commands)
+					if (command.action == OperatingAction::SystemEnabled)
+						for (auto consumer : command.consumers)
+							manual |= definition(a.ship).fitted->values.at(consumer).id == m->definition.id;
+		row["manual"] = manual;
 		for (const auto &o : d.orders)
 		{
 			Json order{

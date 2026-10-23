@@ -80,6 +80,40 @@ int main(int argc, char **argv)
 	try
 	{
 		cancelled_station_traffic();
+		{
+			auto source = fixture();
+			auto &layout = source["entities"][0]["control_layout"];
+			layout["station_complexity"] = true;
+			layout["profiles"][0]["stars"] = 1;
+			auto &operators = layout["profiles"][0]["consoles"]["drive"];
+			auto &human = operators["human"];
+			human.erase(std::find(human.begin(), human.end(), Json("comms")));
+			operators["ai"].push_back("comms");
+			World assisted;
+			assisted.load(load(source), "test.map");
+			require(assisted.claim(1, 1, "drive"), "Assisted radio claim");
+			for (int i = 0; i < 5; ++i)
+				assisted.tick();
+			auto view = *assisted.observe(1);
+			OperatingCommand hail{1, "comms.hail", 0};
+			hail.console = "drive";
+			hail.controller = "comms";
+			hail.text = "ship:2/captain";
+			for (const auto &controller : view.gameplay.at("controllers"))
+				if (controller.at("id") == "comms")
+				{
+					require(!controller.at("human").get<bool>(), "Radio readiness stays automatic");
+					hail.generation = controller.at("generation");
+				}
+			require(projected_command(view, hail) && assisted.submit(1, hail),
+			        "Station operator retains conversations with automatic radio readiness");
+			OperatingCommand toggle{1, "system_enabled", 0};
+			toggle.console = "drive";
+			toggle.controller = "comms";
+			toggle.channel = "enabled";
+			toggle.generation = hail.generation;
+			require(!assisted.submit(1, toggle), "Conversation authority cannot switch the radio off");
+		}
 		for (const auto y : {0, 1})
 		{
 			auto boundary = fixture();

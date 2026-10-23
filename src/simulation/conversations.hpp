@@ -24,6 +24,12 @@ std::optional<ConsoleAddress> comms_owner(EntityId id) const
 					return ConsoleAddress{id, s.id};
 	return {};
 }
+bool conversation_operator(EntityId id, const ConsoleControllerRuntime &controller) const
+{
+	return controller.human ||
+	       (entities.at(id).get<EntityControls>().layout.complexity_groups.contains(controller.definition.console) &&
+	        console_operator({id, controller.definition.console}) != 0);
+}
 void register_comms(EntityId id, const std::string &definition)
 {
 	if (!comms_rosters.contains(definition))
@@ -50,7 +56,8 @@ void refresh_comms(bool disclose = true)
 		endpoint.altitude = altitude(id);
 		if (entity.has<EntityControls>())
 			for (const auto &c : entity.get<EntityControls>().controllers)
-				if (c.definition.console == owner->console && comms_controller(id, c.definition) && c.human)
+				if (c.definition.console == owner->console && comms_controller(id, c.definition) &&
+				    conversation_operator(id, c))
 					endpoint.human = true;
 		for (auto child : entity.get<EquipmentIndex>().values)
 		{
@@ -95,7 +102,7 @@ bool comms_command(const ConsoleAddress &address, const OperatingCommand &comman
 	                 {
 		                 return c.definition.console == address.console &&
 		                        comms_controller(address.ship, c.definition) && c.definition.id == command.controller &&
-		                        c.human && c.generation == command.generation;
+		                        conversation_operator(address.ship, c) && c.generation == command.generation;
 	                 }))
 		return false;
 	for (auto &[id, endpoint] : conversations.endpoints)
@@ -103,7 +110,7 @@ bool comms_command(const ConsoleAddress &address, const OperatingCommand &comman
 		endpoint.human = false;
 		if (entities.contains(id) && entities.at(id).has<EntityControls>())
 			for (const auto &c : entities.at(id).get<EntityControls>().controllers)
-				if (comms_controller(id, c.definition) && c.human)
+				if (comms_controller(id, c.definition) && conversation_operator(id, c))
 					endpoint.human = true;
 	}
 	bool accepted = false;

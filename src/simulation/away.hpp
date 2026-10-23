@@ -201,8 +201,12 @@ std::size_t away_origin(EntityId ship, const std::string &transport) const
 	const auto &d = definition(ship);
 	const auto physical = away_transport_entity(ship, transport);
 	if (physical == ship)
+	{
 		if (const auto *dock = entities.at(ship).try_get<DockConnection>())
 			return d.combat->compartment_ids.at(d.docking.at(dock->port).compartment);
+		if (!d.docking.empty())
+			return d.combat->compartment_ids.at(d.docking.front().compartment);
+	}
 	const auto &name = physical == ship ? d.transport.compartment
 	                   : physical       ? d.craft_bays.at(entities.at(physical).get<CraftState>().bay).compartment
 	                                    : d.displacements.at(transport).compartment;
@@ -299,7 +303,7 @@ void finish_away_recovery(EntityId ship, AwayMission &m)
 			r.activity.clear();
 			r.patient.clear();
 			r.continuation = {};
-			r.repair_auto = false;
+			r.repair_auto = station_stars(enabled_system_owner(ship, asset.substr(5))) < 3;
 			r.repair_system = -1;
 		}
 	auto &p = entities.at(ship).get_mut<PersonnelState>();
@@ -345,7 +349,7 @@ std::string boarding_insertion_blocker(std::size_t index, const std::string &tra
 			hp += structure.compartments[i].hp;
 			maximum += structure.definition.compartments[i].maximum;
 		}
-		return hp * 2 >= maximum ? "Shuttle boarding requires hull below 50%" : "";
+		return hp * 2 >= maximum ? "Boarding by shuttle or docking requires hull below 50%" : "";
 	}
 	for (auto id : {ship, d.target})
 		if (const auto *owner = entities.at(id).try_get<ShieldComponent>())
@@ -422,7 +426,40 @@ std::string away_blocker(std::size_t index, bool power = true) const
 	}
 	return {};
 }
-bool away_command(const ConsoleAddress &a, const OperatingCommand &c, bool execute, bool ai = false)
+void prepare_away_officers(const ConsoleAddress &address, std::size_t index)
+{
+	if (station_stars(address) >= 3)
+		return;
+	const auto &d = away_definitions.at(index);
+	for (const auto &slot : d.slots)
+		if (slot.kind == "officer" && !away_missions.at(index).assignments.contains(slot.id))
+			for (const auto &officer : definition(address.ship).personnel.officers)
+			{
+				const auto asset = "officer:" + officer.id;
+				if (!away_asset_owned(address, asset) || away_reserved(address.ship, asset) ||
+				    !away_asset_healthy(address.ship, asset) || !away_slot_accepts(address.ship, slot, asset))
+					continue;
+				bool assigned = false;
+				for (const auto &controller : entities.at(address.ship).get<EntityControls>().controllers)
+					if (controller.definition.console == address.console)
+					{
+						OperatingCommand command{address.ship, "away.assign",
+						                         static_cast<std::int64_t>(away_missions.at(index).revision), d.id};
+						command.text = slot.id + "/" + asset;
+						command.controller = controller.definition.id;
+						command.generation = controller.generation;
+						if (away_command(address, command, true, !controller.human, true))
+						{
+							assigned = true;
+							break;
+						}
+					}
+				if (assigned)
+					break;
+			}
+}
+bool away_command(const ConsoleAddress &a, const OperatingCommand &c, bool execute, bool ai = false,
+                  bool assisted = false)
 {
 	if (!c.channel.empty() || c.request_id || !c.arguments.empty() || !c.speaker_name.empty() ||
 	    !c.speaker_avatar.empty())
@@ -472,7 +509,9 @@ bool away_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 	}
 	bool authority = false;
 	for (const auto &ctrl : entities.at(a.ship).get<EntityControls>().controllers)
-		if (ctrl.definition.console == a.console && ctrl.definition.id == c.controller && ctrl.human != ai &&
+		if (ctrl.definition.console == a.console && ctrl.definition.id == c.controller &&
+		    (ctrl.human != ai || (!ai && station_stars(a) < 3 && !controlled_system.empty() &&
+		                          (c.action == "away.assign" || c.action == "away.withdraw"))) &&
 		    ctrl.generation == c.generation)
 		{
 			if (controlled_system.empty())
@@ -505,7 +544,10 @@ bool away_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 		if (execute)
 		{
 			m.phase = AwayPhase::Open;
+			if (station_stars(a) < 3 && d.allow_ship_transport)
+				m.transport = "ship";
 			++m.revision;
+			prepare_away_officers(a, index);
 		}
 		return true;
 	}
@@ -628,6 +670,8 @@ bool away_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 		if (separator == std::string::npos)
 			return false;
 		const auto slot = c.text.substr(0, separator), asset = c.text.substr(separator + 1);
+		if (!ai && !assisted && station_stars(a) < 3 && asset.starts_with("officer:"))
+			return false;
 		const auto s = std::find_if(d.slots.begin(), d.slots.end(),
 		                            [&](const auto &s)
 		                            {
@@ -642,6 +686,8 @@ bool away_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 		if (asset.starts_with("team:"))
 		{
 			const auto *duty = away_team_duty(a.ship, asset.substr(5));
+			if (execute && station_stars(a) < 3)
+				auto_assign_officer(a, duty->id, true);
 			for (std::size_t i = 0; i < pd.officers.size(); ++i)
 				if (ps.officers[i].duty == duty->id)
 				{
@@ -664,12 +710,16 @@ bool away_command(const ConsoleAddress &a, const OperatingCommand &c, bool execu
 			refresh_personnel_bonuses(ps, pd);
 			++ps.revision;
 			++m.revision;
+			if (!assisted)
+				prepare_away_officers(a, index);
 		}
 		return true;
 	}
 	if (action == "withdraw")
 	{
 		if (!m.assignments.contains(c.text) || !away_asset_owned(a, m.assignments.at(c.text)))
+			return false;
+		if (!ai && !assisted && station_stars(a) < 3 && m.assignments.at(c.text).starts_with("officer:"))
 			return false;
 		if (execute)
 		{
@@ -1018,7 +1068,8 @@ Json away_board(const ConsoleAddress &a) const
 			Json r{{"id", s.id},
 			       {"required", s.required},
 			       {"assigned", assigned},
-			       {"owned", !assigned.empty() && away_asset_owned(a, assigned)},
+			       {"owned", !assigned.empty() && away_asset_owned(a, assigned) &&
+			                     (station_stars(a) >= 3 || !assigned.starts_with("officer:"))},
 			       {"choices", Json::array()}};
 
 			if (m.outcome.empty() && (m.phase == AwayPhase::Open || m.phase == AwayPhase::Recovered))
@@ -1032,17 +1083,20 @@ Json away_board(const ConsoleAddress &a) const
 						    away_slot_accepts(a.ship, s, asset))
 							r["choices"].push_back(asset);
 					}
-				for (const auto &o : definition(a.ship).personnel.officers)
-				{
-					const auto asset = "officer:" + o.id;
-					if (away_asset_owned(a, asset) && !away_reserved(a.ship, asset) &&
-					    away_slot_accepts(a.ship, s, asset))
-						r["choices"].push_back(asset);
-				}
+				if (station_stars(a) >= 3)
+					for (const auto &o : definition(a.ship).personnel.officers)
+					{
+						const auto asset = "officer:" + o.id;
+						if (away_asset_owned(a, asset) && !away_reserved(a.ship, asset) &&
+						    away_slot_accepts(a.ship, s, asset))
+							r["choices"].push_back(asset);
+					}
 			}
 			row["slots"].push_back(r);
 		}
 		row["labels"] = Json::object();
+		if (station_stars(a) < 3)
+			row["transports"] = Json::array();
 		row["labels"]["ship"] = "Own ship — docking";
 		for (const auto &[craft, e] : craft_rows())
 			if (e.get<CraftState>().home == a.ship)

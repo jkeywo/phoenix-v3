@@ -31,12 +31,27 @@ bool personnel_owns(const ConsoleAddress &address, const std::string &department
 			return s && s->station == d.station;
 	return false;
 }
+int station_stars(const ConsoleAddress &address) const
+{
+	const auto *controls = entities.at(address.ship).try_get<EntityControls>();
+	if (!controls || !controls->layout.complexity_groups.contains(address.console))
+		return 3;
+	return controls->layout.profiles.at(controls->profiles.at(address.console)).stars;
+}
 void advance_personnel(EntityId id)
 {
 	auto entity = entities.at(id);
 	auto &state = entity.get_mut<PersonnelState>();
 	const auto &d = definition(id).personnel;
 	bool arrived = false;
+	for (const auto &officer : d.officers)
+		if (!officer.duty.empty())
+			if (const auto *duty = personnel_duty(id, officer.duty))
+			{
+				const ConsoleAddress owner{id, duty->console};
+				if (station_stars(owner) < 3)
+					auto_assign_officer(owner, duty->id, false);
+			}
 	for (auto &o : state.officers)
 	{
 		if (o.condition == "stunned" && o.stun_until <= static_cast<std::int64_t>(ecs.get<Clock>().tick))
@@ -123,8 +138,46 @@ std::pair<std::string, std::string> officer_speaker(EntityId id, const std::stri
 		}
 	return {controller, "generic-crew"};
 }
-bool personnel_command(const ConsoleAddress &address, const OperatingCommand &command, bool execute)
+bool auto_assign_officer(const ConsoleAddress &address, const std::string &duty_id, bool reassign)
 {
+	const auto *duty = personnel_duty(address.ship, duty_id);
+	if (!duty || !personnel_owns(address, duty->department))
+		return false;
+	const auto &definition = this->definition(address.ship).personnel;
+	const auto &state = entities.at(address.ship).get<PersonnelState>();
+	for (const auto &officer : state.officers)
+		if (officer.duty == duty_id && officer_mobile(officer))
+			return true;
+	std::optional<OperatingCommand> best;
+	std::int64_t best_score = -1;
+	for (std::size_t i = 0; i < definition.officers.size(); ++i)
+	{
+		const auto &officer = definition.officers[i];
+		if (!reassign && !state.officers[i].duty.empty())
+			continue;
+		OperatingCommand command{address.ship, "personnel.assign", 0, officer.id};
+		command.text = duty_id;
+		command.generation = state.revision;
+		if (!personnel_command(address, command, false, true))
+			continue;
+		std::int64_t score = state.officers[i].duty.empty() ? 1 : 0;
+		for (const auto &trait : officer.traits)
+			for (const auto &[system, effects] : duty->effects)
+				for (const auto &effect : effects)
+					if (definition.traits.at(trait).bonuses.contains(effect))
+						score += definition.traits.at(trait).bonuses.at(effect);
+		if (score > best_score)
+		{
+			best_score = score;
+			best = command;
+		}
+	}
+	return best && personnel_command(address, *best, true, true);
+}
+bool personnel_command(const ConsoleAddress &address, const OperatingCommand &command, bool execute, bool ai = false)
+{
+	if (!ai && station_stars(address) < 3)
+		return false;
 	if (!command.controller.empty() || !command.channel.empty() || command.request_id || !command.arguments.empty() ||
 	    command.value || !command.speaker_name.empty() || !command.speaker_avatar.empty())
 		return false;
@@ -237,6 +290,7 @@ Json personnel_board(const ConsoleAddress &address) const
 	const auto &d = definition(address.ship).personnel;
 	const auto state = personnel_snapshot(address.ship);
 	Json out{{"revision", state.revision},
+	         {"manual", station_stars(address) >= 3},
 	         {"departments", Json::array()},
 	         {"duties", Json::array()},
 	         {"officers", Json::array()}};
