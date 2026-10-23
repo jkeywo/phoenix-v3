@@ -6,7 +6,7 @@ The [system design](gameplay-engine-design.md) describes the finished architectu
 
 The [shield migration review](gameplay-engine-shield-review.md) compares that design with the current code and separates first-slice decisions from required integration work. Its recommendations remain proposals until resolved.
 
-The [shield implementation plan](shield-migration-plan.md) records the agreed first-slice contracts, staged changes and acceptance gates. Implementation has not started as part of this design work.
+The [shield implementation plan](shield-migration-plan.md) records the agreed first-slice contracts, staged changes and acceptance gates. The [implementation and verification record](shield-migration-evidence.md) tracks actual delivery and remaining evidence.
 
 ## Scope and replacement strategy
 

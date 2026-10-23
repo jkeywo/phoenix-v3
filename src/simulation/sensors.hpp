@@ -155,7 +155,7 @@ Json sensor_data(EntityId ship, EntityId target, const std::string &cap) const
 				                {"arc_mdeg", c.definition.arc},
 				                {"strength", c.state.strength},
 				                {"capacity", c.definition.reserve().capacity},
-				                {"enabled", c.operating && c.state.warmup > 0}});
+				                {"enabled", shield_available(entity, c) && c.state.warmup > 0}});
 	for (auto child : entity.get<EquipmentIndex>().values)
 		if (const auto *m = child.try_get<CombatMechanism>())
 		{

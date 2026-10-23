@@ -2,6 +2,8 @@
 
 The live runtime follows the [Console Controller architecture](controller-architecture.md). The [refactoring plan](controller-refactor-plan.md) records verified migration steps and remaining integration evidence.
 
+The [shield migration](shield-migration-evidence.md) moves shield reserves and transitions to a ship-owned component. Equipment supplies operating, funding and control bindings; authored scenario grants use the same native component. Due grants expire before scenario evaluation. Contribution damage hooks run inside native absorption; a world-owned queue executes due secondary reactions before ordinary ordnance and destruction processing, with newly generated work deferred to a later tick. Controller observation snapshots retain their existing boundary.
+
 ## Entities, equipment and Controllers
 
 Flecs owns physical entities with stable identity, pose, motion and collider components. Fitted Systems are child entities with applicable engine, steering, radar, paid-flight and thermal state. Their parent relationship is authoritative. `EquipmentIndex` is a derived ordered handle lookup rebuilt on load/restore; it neither duplicates ownership nor drives global simulation iteration. Equipment handles stay private and do not create scene bodies or radar contacts.

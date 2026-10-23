@@ -1,5 +1,7 @@
 # Remaining MVP combat
 
+The [shield migration implementation record](shield-migration-evidence.md) supersedes the fitted shield ownership and inline shield authoring described in this historical combat increment. Shields now use ship-owned named contributions and shared effect definitions; current saves use schema 18.
+
 This is the accepted follow-on plan to `codex/combat-cannons` (`d2e2f63`). It is an acceptance contract, not a completion claim. Build the existing Courier/pirate asteroid duel into the demonstration scenario; retain authored Console ownership and ordinary Controller AI.
 
 ## Accepted requirements

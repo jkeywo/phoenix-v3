@@ -233,6 +233,10 @@ void actuate_shields(flecs::entity ship)
 			}
 	}
 }
+bool shield_available(flecs::entity ship, const ShieldContribution &c) const
+{
+	return c.operating && (c.equipment.empty() || !structurally_disabled(ship, c.equipment));
+}
 std::int64_t absorb_shields(flecs::entity ship, std::int64_t heading, std::int64_t damage, std::int64_t bypass,
                             std::int64_t *carry = nullptr, EntityId source = 0)
 {
@@ -248,7 +252,7 @@ std::int64_t absorb_shields(flecs::entity ship, std::int64_t heading, std::int64
 		return damage;
 	std::vector<ShieldContribution *> layers;
 	for (auto &c : owner->contributions)
-		if (c.operating && c.state.warmup && c.state.strength &&
+		if (shield_available(ship, c) && c.state.warmup && c.state.strength &&
 		    std::abs(combat_delta(combat_angle(heading + 180000 - ship.get<Pose>().heading), c.definition.bearing)) <=
 		        c.definition.arc / 2)
 			layers.push_back(&c);
@@ -267,7 +271,11 @@ std::int64_t absorb_shields(flecs::entity ship, std::int64_t heading, std::int64
 		std::vector<std::int64_t> capacity(end - begin), absorbed(end - begin);
 		for (std::size_t i = begin; i < end; ++i)
 		{
-			const auto &c = *layers[i];
+			auto &c = *layers[i];
+			if (!c.equipment.empty())
+				c.protection = std::clamp<std::int64_t>(shield_modifier(ship, c.equipment, false) +
+				                                            c.definition.get<ShieldDefinition>().protection_modifier,
+				                                        0, 1000);
 			const auto &d = c.definition.get<ShieldDefinition>();
 			const auto usable =
 			    std::min(c.state.strength, c.state.strength * c.state.warmup / d.warmup_ticks * c.protection / 1000);

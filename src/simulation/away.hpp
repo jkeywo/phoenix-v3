@@ -350,7 +350,7 @@ std::string boarding_insertion_blocker(std::size_t index, const std::string &tra
 	for (auto id : {ship, d.target})
 		if (const auto *owner = entities.at(id).try_get<ShieldComponent>())
 			for (const auto &c : owner->contributions)
-				if (c.operating && c.state.warmup > 0 && c.state.strength > 0)
+				if (shield_available(entities.at(id), c) && c.state.warmup > 0 && c.state.strength > 0)
 				{
 					const auto &pose = entities.at(id).get<Pose>();
 					const auto other = entities.at(id == ship ? d.target : ship).get<Pose>().position;

@@ -366,6 +366,48 @@ int main(int argc, char **argv)
 		require(far.submit(101, order(far, "send")), "queue out-of-range transfer");
 		ticks(far, 5);
 		require(far.save()["away_missions"][0]["transfer"] == 0, "no out-of-range displacement");
+
+		{
+			auto protected_input = away_fixture();
+			protected_input["effects"] =
+			    Json::parse(R"json([{"id":"test.away-shield","kind":"shield","duration_ticks":30,
+              "contributions":{"bubble":{"capacity":10,"initial":10,"sustain_energy_per_second":0,
+                "recharge_per_second":0,"off_recharge_per_second":0,"warmup_ticks":1}}}])json");
+			protected_input["maps"][0]["scenario"] = {{"tree", "test.protect-away-target"},
+			                                          {"bindings", {{"actor", {{"entity", 1}}}}}};
+			protected_input["trees"].push_back(
+			    Json::parse(R"json({"id":"test.protect-away-target","context":"scenario","initial":"grant",
+              "states":[{"id":"grant","entry":[{"action":"apply_shield_effect","arguments":[{"observation":"self.entity"},"test.away-shield","barrier"]}]}]})json"));
+			const auto protected_catalog = load(protected_input);
+			World protected_world;
+			protected_world.load(protected_catalog, "test.map", {{"crew", "test.away"}});
+			const auto crew = *protected_world.ship_for_slot("crew");
+			require(protected_world.claim(101, crew, "drive") && protected_world.claim(102, crew, "observer"),
+			        "claim shield-blocked transport seats");
+			ticks(protected_world, 4);
+			require(protected_world.submit(101, order(protected_world, "open")), "open protected target mission");
+			ticks(protected_world, 1);
+			require(protected_world.submit(102, order(protected_world, "assign", "repair/team:team", 102)),
+			        "stage team for shield-blocked target");
+			ticks(protected_world, 1);
+			require(protected_world.submit(101, order(protected_world, "transport", "transport")),
+			        "select displacement transport");
+			ticks(protected_world, 12);
+			require(board(protected_world)[0]["blocker"] == "Lower shields for displacement",
+			        "non-equipment shield must block the ordinary displacement path");
+			require(!protected_world.submit(101, order(protected_world, "send")),
+			        "shielded target refuses normal displacement command");
+			require(protected_world.save()["away_missions"][0]["transfer"] == 0,
+			        "shielded target cannot advance displacement");
+			ticks(protected_world, 13);
+			require(board(protected_world)[0]["blocker"] == "",
+			        "expired scenario contribution releases displacement blocker");
+			require(protected_world.submit(101, order(protected_world, "send")),
+			        "normal displacement admitted after scenario shield expiry");
+			ticks(protected_world, 4);
+			require(protected_world.save()["away_missions"][0]["phase"] == "deployed",
+			        "ordinary displacement reaches target once its independent shield expires");
+		}
 		std::cout << "PASS away authority, staging, transport, Comms default, recovery and continuation\n";
 	}
 	catch (const std::exception &e)

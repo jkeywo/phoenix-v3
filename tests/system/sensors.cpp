@@ -79,6 +79,46 @@ Json samples(const World &w, int target = 2)
 					return t.at("state").at("samples");
 	return Json::object();
 }
+void independent_shield_scan()
+{
+	auto source = fixture();
+	source["effects"] = Json::parse(R"json([{"id":"test.remote-shield","kind":"shield","duration_ticks":20,
+  "contributions":{"bubble":{"capacity":12,"initial":9,"sustain_energy_per_second":0,
+   "recharge_per_second":0,"off_recharge_per_second":0,"warmup_ticks":1}}}])json");
+	source["maps"][0]["scenario"] = {{"tree", "test.remote-shield-tree"}, {"bindings", {{"actor", {{"entity", 2}}}}}};
+	source["trees"].push_back(
+	    Json::parse(R"json({"id":"test.remote-shield-tree","context":"scenario","initial":"apply",
+  "states":[{"id":"apply","entry":[{"action":"apply_shield_effect",
+   "arguments":[{"observation":"self.entity"},"test.remote-shield","blessing"]}]}]})json"));
+	const auto catalog = load(source);
+	World world;
+	world.load(catalog, "test.map");
+	require(world.claim(101, 1, "drive") && world.claim(102, 1, "observer"), "claim remote shield scan consoles");
+	ticks(world, 1);
+	command(world, "target", 2);
+	ticks(world, 4);
+	const auto acquired = samples(world).at("shield_sectors");
+	const auto sectors = acquired.at("data");
+	require(sectors.size() == 1 && sectors[0].at("contribution") == "bubble" && sectors[0].at("strength") == 9 &&
+	            sectors[0].at("id").get<std::string>().starts_with("effect:"),
+	        "Production scanner failed to acquire non-equipment shield contribution");
+	require(!sectors[0].contains("source") && !sectors[0].contains("definition"),
+	        "Remote shield scan disclosed private source metadata");
+	require(world.observe(102)->gameplay.at("sensors").at("contacts").empty(),
+	        "Unfed console acquired remote temporary shield finding");
+	command(world, "enabled", 0);
+	ticks(world, 20);
+	const auto expired = world.save();
+	for (const auto &body : expired.at("bodies"))
+		if (body.at("body").at("id") == 2)
+			require(body.at("shields").at("contributions").empty(), "Temporary scanned shield did not expire");
+	require(samples(world).at("shield_sectors") == acquired,
+	        "Expired remote shield rewrote a disabled scanner's retained finding");
+	command(world, "enabled", 1);
+	ticks(world, 1);
+	require(samples(world).at("shield_sectors").at("data").empty(),
+	        "Resumed scanner failed to replace stale shield finding through ordinary acquisition");
+}
 } // namespace
 int main(int argc, char **argv)
 {
@@ -744,6 +784,7 @@ int main(int argc, char **argv)
 			                    }),
 			        "semantic scan produces positional contact through ordinary session");
 		}
+		independent_shield_scan();
 		if (argc > 1 && std::string(argv[1]) == "--trace")
 			std::cout << w.save().at("sensors").dump() << '\n';
 		else

@@ -335,7 +335,7 @@ void ordnance_contracts()
 		require(state(idle)["systems"]["pdc"]["mode"] == 1, "cancel returns Manual to Auto");
 	}
 }
-void shield_reaction_contracts()
+void shield_reaction_contracts(Json *trace = nullptr)
 {
 	{
 		auto source = powered_fixture();
@@ -407,6 +407,15 @@ void shield_reaction_contracts()
 		const auto saved = world.save();
 		const auto &target = saved.at("bodies")[1];
 		const auto &attacker = saved.at("bodies")[0];
+		if (trace)
+		{
+			auto before = pending;
+			auto after = saved;
+			// Pack ZIP timestamps vary between independently built synthetic fixtures.
+			before.erase("packs");
+			after.erase("packs");
+			trace->push_back({{"pending", std::move(before)}, {"continued", std::move(after)}});
+		}
 		if (cost == 7)
 		{
 			require(target.at("shields").at("contributions").size() == 2,
@@ -1189,6 +1198,9 @@ int main(int argc, char **argv)
 			// above still validates the actual pack identity within each run.
 			continued.erase("packs");
 			std::cout << sha256(json_bytes(continued)) << '\n';
+			Json reactions = Json::array();
+			shield_reaction_contracts(&reactions);
+			std::cout << sha256(json_bytes(reactions)) << '\n';
 			return 0;
 		}
 

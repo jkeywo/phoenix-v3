@@ -1,8 +1,8 @@
 # Shield migration implementation plan
 
-23 October 2026 · planned; no implementation or acceptance claimed
+23 October 2026 · implementation and automated verification delivered; manual acceptance tracked separately
 
-This plan implements the first slice of the [shared gameplay engine](gameplay-engine-design.md), using the decisions resolved in the [shield review](gameplay-engine-shield-review.md). The [migration notes](gameplay-engine-migration.md) retain the wider overhaul boundary. All stages below are pending.
+This plan implements the first slice of the [shared gameplay engine](gameplay-engine-design.md), using the decisions resolved in the [shield review](gameplay-engine-shield-review.md). The [migration notes](gameplay-engine-migration.md) retain the wider overhaul boundary. See the [implementation and verification record](shield-migration-evidence.md) for delivered behaviour, agent review corrections and evidence; the stage gates below remain the acceptance contract.
 
 ## Deliverable and boundaries
 
@@ -184,13 +184,13 @@ Graphical journeys are separately and manually triggered: ordinary shield contro
 
 ## Completion checklist
 
-- [ ] Shared shield effect definitions resolve consistently in runtime, Workshop, export and selected mod packs.
-- [ ] Equipment and scenario grants use the same native component with independent named state.
-- [ ] Funding, lifecycle, modifiers and discharge obey the agreed accounting contracts.
-- [ ] Every physical reader and permitted projection includes contributions from all supported sources.
-- [ ] Reached-layer hooks and queued reactions obey cancellation, ordering and atomic failure semantics.
-- [ ] Dynamic continuation and native/WASM parity are verified without replay/refill.
-- [ ] Maintained content is migrated and old shield execution/lowering paths are removed.
-- [ ] Automatic gate evidence is recorded; manual acceptance is recorded separately with any remaining limits.
+- [x] Shared shield effect definitions resolve consistently in runtime, Workshop, export and selected mod packs.
+- [x] Equipment and scenario grants use the same native component with independent named state.
+- [x] Funding, lifecycle, modifiers and discharge obey the agreed accounting contracts.
+- [x] Every physical reader and permitted projection includes contributions from all supported sources.
+- [x] Reached-layer hooks and queued reactions obey cancellation, ordering and atomic failure semantics.
+- [x] Dynamic continuation and native/WASM parity are verified without replay/refill.
+- [x] Maintained content is migrated and old shield execution/lowering paths are removed.
+- [x] Automatic gate evidence is recorded; manual acceptance is recorded separately with any remaining limits.
 
-Commit each verified logical stage. No gameplay implementation is performed by writing or approving this plan, and no stage is complete until its gate has actual evidence.
+Commit each verified logical stage. Checked items record implementation and automated evidence in the linked receipt; graphical and physical acceptance remains separate.

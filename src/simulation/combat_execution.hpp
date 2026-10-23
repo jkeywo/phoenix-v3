@@ -1284,6 +1284,8 @@ void restore_shields(flecs::entity ship, const Json &value)
 			throw std::runtime_error("Invalid shield source identity");
 		c.expiry = checked_integer(v.at("expiry"), -1, 9007199254740991LL, "shield.expiry");
 		c.state = v.at("state").get<ShieldState>();
+		if (Json(c.state) != v.at("state"))
+			throw std::runtime_error("Unexpected shield state fields");
 		const auto &d = c.definition.get<ShieldDefinition>();
 		checked_integer(v.at("state").at("strength"), 0, d.reserve.capacity, "shield.strength");
 		checked_integer(v.at("state").at("warmup"), 0, d.warmup_ticks, "shield.warmup");
