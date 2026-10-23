@@ -11,7 +11,7 @@ module;
 module phoenix.content;
 namespace phoenix
 {
-std::vector<ShieldContributionDefinition> compile_shield_effect(const Catalog &catalog, const std::string &id)
+ShieldEffectDefinition compile_shield_effect(const Catalog &catalog, const std::string &id)
 {
 	const auto path = "effects." + id;
 	const auto found = catalog.effects.find(id);
@@ -30,7 +30,8 @@ std::vector<ShieldContributionDefinition> compile_shield_effect(const Catalog &c
 	if (!effect.contains("contributions") || !effect.at("contributions").is_object() ||
 	    effect.at("contributions").empty() || effect.at("contributions").size() > 64)
 		throw std::runtime_error(path + ".contributions: expected 1..64 named contributions");
-	std::vector<ShieldContributionDefinition> result;
+	ShieldEffectDefinition result;
+	result.duration_ticks = effect.value("duration_ticks", std::int64_t{0});
 	for (const auto &[name, value] : effect.at("contributions").items())
 	{
 		const auto at = path + ".contributions." + name;
@@ -169,7 +170,13 @@ std::vector<ShieldContributionDefinition> compile_shield_effect(const Catalog &c
 		}
 
 		d.pre_damage_permille = n("pre_damage_permille", 1000, 0, 1000);
-		d.post_damage = n("post_damage", 0, 0, 1000000);
+		if (const auto damage = n("post_damage", 0, 0, 1000000))
+		{
+			// Keep shorthand last: existing saves identify this group after authored reactions.
+			ShieldReactionDefinition reaction;
+			reaction.operations.push_back({ShieldReactionKind::Damage, "attacker", {}, {}, damage});
+			d.reactions.push_back(std::move(reaction));
+		}
 		d.reserve.capacity = n("capacity", 1, 1, 1000000);
 		d.reserve.initial = n("initial", d.reserve.capacity, 0, d.reserve.capacity);
 		d.sustain_energy = n("sustain_energy_per_second", 1, 0, 1000000000);
@@ -182,7 +189,7 @@ std::vector<ShieldContributionDefinition> compile_shield_effect(const Catalog &c
 		d.layer = n("layer", 0, 0, 1000000);
 		d.discharge_rate = n("discharge_per_second", 1, 0, 1000000);
 		d.discharge_efficiency = n("discharge_efficiency_permille", 1000, 1, 1000);
-		result.push_back(std::move(c));
+		result.contributions.push_back(std::move(c));
 	}
 	return result;
 }
@@ -434,10 +441,10 @@ std::optional<CombatDefinition> compile_combat(const Catalog &catalog, const std
 			if (v.contains("shield_effect"))
 			{
 				s.shield_effect = v.at("shield_effect").get<std::string>();
-				s.shield_contributions = compile_shield_effect(catalog, s.shield_effect);
-				s.get<ShieldDefinition>() = s.shield_contributions.front().shield;
-				s.bearing = s.shield_contributions.front().bearing;
-				s.arc = s.shield_contributions.front().arc;
+				s.shield_definition = compile_shield_effect(catalog, s.shield_effect);
+				s.get<ShieldDefinition>() = s.shield_definition.contributions.front().shield;
+				s.bearing = s.shield_definition.contributions.front().bearing;
+				s.arc = s.shield_definition.contributions.front().arc;
 			}
 			else
 				fail("shield requires catalogue shield_effect reference");

@@ -194,5 +194,7 @@ private:
 	std::uint64_t random_next();
 	bool operational(ResourceIndex store) const;
 	void add_heat(ResourceIndex store, ResourceAmount amount);
+	void debit_operation(ResourceIndex store, ResourceAmount amount, bool discrete);
+	void add_consumption_heat(ResourceIndex store, ResourceAmount consumed, ResourceAmount depleted);
 };
 } // namespace phoenix

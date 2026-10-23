@@ -73,8 +73,8 @@ struct ShieldState
 struct ShieldContribution
 {
 	std::uint64_t effect_id = 0;
-	std::string name, equipment, definition_id;
-	CombatSystemDefinition definition{OperatingSystem::Shield};
+	std::string source, equipment, definition_id;
+	ShieldContributionDefinition definition;
 	ShieldState state;
 	std::int64_t expiry = -1;
 	bool operating = true;

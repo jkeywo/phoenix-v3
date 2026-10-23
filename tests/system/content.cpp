@@ -49,7 +49,8 @@ int main()
 			source.files["definitions.json"] = json_bytes(definitions);
 			auto source_pack = read_pack(write_pack(source));
 			auto effects = resolve_packs({source_pack});
-			require(compile_shield_effect(effects, "test.shield-child").front().shield.reserve.initial == 25,
+			require(compile_shield_effect(effects, "test.shield-child").contributions.front().shield.reserve.initial ==
+			            25,
 			        "effect inheritance preserves explicit contribution specialisation");
 			PackDraft patch;
 			patch.manifest = {{"schema", 1},
@@ -60,7 +61,8 @@ int main()
 			replacement["contributions"]["fore"]["capacity"] = 200;
 			patch.files["definitions.json"] = json_bytes({{"schema", 4}, {"effects", Json::array({replacement})}});
 			effects = resolve_packs({source_pack, read_pack(write_pack(patch))});
-			require(compile_shield_effect(effects, "test.shield-child").front().shield.reserve.capacity == 200,
+			require(compile_shield_effect(effects, "test.shield-child").contributions.front().shield.reserve.capacity ==
+			            200,
 			        "shared effect overrides reach inherited consumers before compilation");
 			WorkshopDocument effect_document;
 			effect_document.load_pack(write_pack(source));

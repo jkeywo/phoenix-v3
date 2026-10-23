@@ -149,12 +149,12 @@ Json sensor_data(EntityId ship, EntityId target, const std::string &cap) const
 	if (cap == "shield_sectors")
 		if (const auto *owner = entity.try_get<ShieldComponent>())
 			for (const auto &c : owner->contributions)
-				data.push_back({{"id", "effect:" + std::to_string(c.effect_id) + ":" + c.name},
-				                {"contribution", c.name},
+				data.push_back({{"id", "effect:" + std::to_string(c.effect_id) + ":" + c.definition.name},
+				                {"contribution", c.definition.name},
 				                {"bearing_mdeg", combat_angle(entity.get<Pose>().heading + c.definition.bearing)},
 				                {"arc_mdeg", c.definition.arc},
 				                {"strength", c.state.strength},
-				                {"capacity", c.definition.reserve().capacity},
+				                {"capacity", c.definition.shield.reserve.capacity},
 				                {"enabled", shield_available(entity, c) && c.state.warmup > 0}});
 	for (auto child : entity.get<EquipmentIndex>().values)
 		if (const auto *m = child.try_get<CombatMechanism>())

@@ -42,6 +42,16 @@ The complete WebAssembly automatic gate passed, including content/transfer check
 
 The synthetic coverage includes template overrides/local specialisation, invalid definitions, duplicate JSON keys, contribution lifecycle, multi-arc funding, incomplete-save refusal, independent scenario grants, permitted observations, pre-negation and reached-layer behaviour, paid/unaffordable reaction groups and pending-reaction continuation.
 
+## Simplification follow-up
+
+The architecture review led to three changes:
+
+1. Equipment, scenario actions and staged reactions now share one grant constructor. Compiled effects and runtime contributions carry shield-specific definitions instead of copies of the general combat-system definition; duration lives alongside the compiled contributions.
+2. The compiler turns `post_damage` into the final ordinary reaction group. Authoring syntax and schema-18 group indices remain unchanged, and queueing, restoration and execution no longer need a shorthand-specific branch.
+3. Ordinary resource operation and late exact payment share debit and fractional heat arithmetic. Affordability, tick ordering, cooling, stress and thermal-stop checks retain their separate existing contracts.
+
+A fresh agent reviewed these changes for correctness, duplication and unnecessary abstractions and found no actionable gaps. Seven affected suites passed on both native and WebAssembly: content, gameplay foundations, flight, combat, scenario World, sensors and away. Native/WebAssembly combat continuation traces match exactly, including pending paid and unaffordable reaction groups. New synthetic checks cover mixed authored/shorthand reaction ordering across restore and equivalent fractional heat accounting for ordinary and late payments, including unaffordable-payment atomicity. This follow-up reran the affected suites rather than the complete network/platform gate; no manual smoke was performed.
+
 ## Manual evidence and limits
 
 No graphical, physical-device, screen-reader or performance smoke run was performed as part of this implementation pass. Existing player presentations consume the common observations, with unique contribution semantic identities; Workshop exposes the authored effect definitions and references. Actual graphical/accessibility/platform acceptance remains separately and manually triggered under the [testing policy](testing.md).

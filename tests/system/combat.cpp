@@ -339,6 +339,41 @@ void shield_reaction_contracts(Json *trace = nullptr)
 {
 	{
 		auto source = powered_fixture();
+		add_beam(source, 20);
+		source["effects"] = Json::parse(R"json([{"id":"test.mixed-reactions","kind":"shield","contributions":{"main":{
+          "capacity":100,"initial":100,"recharge_per_second":0,"off_recharge_per_second":0,
+          "sustain_energy_per_second":0,"warmup_ticks":1,"post_damage":3,
+          "reactions":[{"operations":[{"kind":"damage","target":"attacker","damage":4}]}]}}}])json");
+		add_fit(source, "shield",
+		        {{"kind", "shield"},
+		         {"compartment", "fore"},
+		         {"shield_effect", "test.mixed-reactions"},
+		         {"power_store", "cell"}},
+		        {});
+		const auto catalog = load(source);
+		World world;
+		world.load(catalog, "test.map");
+		claim(world);
+		world.tick();
+		submit(world, 101, "beam", "target", 2);
+		world.tick();
+		const auto saved = world.save();
+		const auto &pending = saved.at("shield_reactions").at("pending");
+		require(pending.size() == 2 && pending[0].at("group") == 0 && pending[1].at("group") == 1,
+		        "post_damage retains its saved group index after authored reactions");
+		World resumed;
+		resumed.restore(catalog, saved);
+		for (auto *w : {&world, &resumed})
+		{
+			submit(*w, 101, "beam", "target", 0);
+			w->tick();
+		}
+		require(world.save() == resumed.save() &&
+		            world.save().at("bodies")[0].at("shields").at("contributions")[0].at("state").at("strength") == 93,
+		        "authored and shorthand reactions both execute once after restoring their pending groups");
+	}
+	{
+		auto source = powered_fixture();
 		add_beam(source, 200);
 		source["effects"] = Json::parse(R"json([{"id":"test.negation","kind":"shield","contributions":{
           "outer":{"capacity":1,"initial":1,"recharge_per_second":0,"off_recharge_per_second":0,

@@ -395,6 +395,23 @@ ResourceAmount ResourceNetwork::receive_external(ResourceIndex i, ResourceAmount
 	add_heat(i, scaled(received, d.charge_heat_ppm, s.charge_heat_remainder));
 	return received;
 }
+void ResourceNetwork::debit_operation(ResourceIndex i, ResourceAmount amount, bool discrete)
+{
+	stores_[i].energy -= amount;
+	discharge_left_[i] -= amount;
+	telemetry_[i].consumed += amount;
+	telemetry_[i].discrete_paid |= discrete;
+}
+void ResourceNetwork::add_consumption_heat(ResourceIndex i, ResourceAmount consumed, ResourceAmount depleted)
+{
+	auto &s = stores_[i];
+	const auto &d = definition_.stores[i];
+	auto heat = scaled(consumed, d.operation_heat_ppm, s.operation_heat_remainder);
+	if (s.overdrive)
+		heat = divided(heat * d.overdrive_heat_permille, 1000, s.overdrive_heat_remainder);
+	add_heat(i, heat);
+	add_heat(i, scaled(depleted, d.depletion_heat_ppm, s.depletion_heat_remainder));
+}
 bool ResourceNetwork::spend_external(ResourceIndex i, ResourceAmount amount)
 {
 	bounded(amount, "external operating payment");
@@ -404,15 +421,8 @@ bool ResourceNetwork::spend_external(ResourceIndex i, ResourceAmount amount)
 		return false;
 	auto &s = stores_[i];
 	const auto &d = definition_.stores[i];
-	s.energy -= amount;
-	discharge_left_[i] -= amount;
-	telemetry_[i].consumed += amount;
-	telemetry_[i].discrete_paid = true;
-	auto heat = scaled(amount, d.operation_heat_ppm, s.operation_heat_remainder);
-	if (s.overdrive)
-		heat = divided(heat * d.overdrive_heat_permille, 1000, s.overdrive_heat_remainder);
-	add_heat(i, heat);
-	add_heat(i, scaled(amount, d.depletion_heat_ppm, s.depletion_heat_remainder));
+	debit_operation(i, amount, true);
+	add_consumption_heat(i, amount, amount);
 	if (d.stop_heat && s.heat >= d.stop_heat)
 		s.thermal_stop = true;
 	return true;
@@ -476,10 +486,8 @@ void ResourceNetwork::tick()
 		auto &s = stores_[i];
 		const auto continuous = std::max<ResourceAmount>(0, demand_[i] - (operational(i) ? s.discrete_request : 0));
 		const auto paid = std::min({continuous, s.energy, discharge_left_[i]});
-		s.energy -= paid;
-		discharge_left_[i] -= paid;
+		debit_operation(i, paid, false);
 		demand_[i] -= paid;
-		telemetry_[i].consumed = paid;
 	}
 	for (ResourceIndex i = 0; i < links_.size(); ++i)
 		link_left_[i] = links_[i].isolated ? 0 : per_tick(definition_.links[i].capacity_rate, links_[i].tick_remainder);
@@ -722,16 +730,9 @@ void ResourceNetwork::tick()
 		const auto discrete = operational(i) ? s.discrete_request : 0;
 		const auto continuous = std::max<ResourceAmount>(0, demand_[i] - discrete);
 		const auto paid = std::min({continuous, s.energy, discharge_left_[i]});
-		s.energy -= paid;
-		discharge_left_[i] -= paid;
-		telemetry_[i].consumed += paid;
+		debit_operation(i, paid, false);
 		if (discrete && s.energy >= discrete && discharge_left_[i] >= discrete)
-		{
-			s.energy -= discrete;
-			discharge_left_[i] -= discrete;
-			telemetry_[i].consumed += discrete;
-			telemetry_[i].discrete_paid = true;
-		}
+			debit_operation(i, discrete, true);
 		telemetry_[i].limited = telemetry_[i].consumed < telemetry_[i].requested;
 		const auto paid_continuous = telemetry_[i].consumed - (telemetry_[i].discrete_paid ? discrete : 0);
 		const auto available_work = s.work_credit + paid_continuous * resource_work_unit;
@@ -746,12 +747,8 @@ void ResourceNetwork::tick()
 		const auto &d = definition_.stores[i];
 		const auto incoming = telemetry_[i].accepted_incoming + telemetry_[i].generated;
 		add_heat(i, scaled(incoming, d.charge_heat_ppm, s.charge_heat_remainder));
-		auto operating_heat = scaled(telemetry_[i].consumed, d.operation_heat_ppm, s.operation_heat_remainder);
-		if (s.overdrive)
-			operating_heat = divided(operating_heat * d.overdrive_heat_permille, 1000, s.overdrive_heat_remainder);
-		add_heat(i, operating_heat);
-		add_heat(i, scaled(telemetry_[i].consumed + telemetry_[i].outgoing + telemetry_[i].lost, d.depletion_heat_ppm,
-		                   s.depletion_heat_remainder));
+		add_consumption_heat(i, telemetry_[i].consumed,
+		                     telemetry_[i].consumed + telemetry_[i].outgoing + telemetry_[i].lost);
 		if (operational(i) &&
 		    (telemetry_[i].work_funded > 0 || telemetry_[i].generated > 0 || telemetry_[i].discrete_paid))
 		{

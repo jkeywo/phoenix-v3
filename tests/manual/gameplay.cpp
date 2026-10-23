@@ -357,6 +357,34 @@ void generation_and_thermal_recovery()
 }
 void resource_forecasts_and_fractional_overdrive()
 {
+	{
+		auto input = fixture();
+		input["entities"][0]["resources"] = Json::parse(R"json({"stores":[{
+		 "id":"cell","capacity":100,"initial":100,"charge_rate":100,"discharge_rate":100,
+		 "operation_heat_ppm":333333,"depletion_heat_ppm":250000,"overdrive_heat_permille":1500}]})json");
+		const auto content = load(input);
+		const auto &spec = content.resource_definitions.at("test.ship");
+		ResourceNetwork ordinary(spec), late(spec);
+		ordinary.set_overdrive(0, true);
+		late.set_overdrive(0, true);
+		for (int tick = 0; tick < 4; ++tick)
+		{
+			ordinary.request_operation(0, 0, 3);
+			ordinary.tick();
+			late.tick();
+			require(late.spend_external(0, 3), "late exact payment uses the current discharge allowance");
+			const auto before = late.save();
+			require(!late.spend_external(0, 3) && late.save() == before,
+			        "unaffordable late payment cannot partially debit or change heat fractions");
+			require(late.save().at("stores") == ordinary.save().at("stores"),
+			        "ordinary and late debits retain identical energy and fractional heat accounting");
+			ResourceNetwork resumed(spec);
+			resumed.restore(late.save());
+			require(resumed.save() == late.save(), "late payment fractions and telemetry survive recovery");
+		}
+		require(late.stores()[0].energy == 88 && late.stores()[0].heat == 7,
+		        "twelve paid units produce three operating heat, four after overdrive, plus three depletion heat");
+	}
 	auto source = fixture();
 	source["entities"][0]["resources"] = Json::parse(R"json({
 		"stores":[{"id":"cell","capacity":100,"initial":50,"charge_rate":100,"discharge_rate":100,

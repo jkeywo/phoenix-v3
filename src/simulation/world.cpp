@@ -245,8 +245,7 @@ struct World::Impl
 	std::vector<std::pair<std::string, std::string>> packs;
 	std::map<std::string, CompiledDefinition> definitions;
 	std::map<std::string, Json> console_layouts;
-	std::map<std::string, CombatSystemDefinition> shield_templates;
-	std::map<std::string, std::int64_t> shield_durations;
+	std::map<std::string, ShieldEffectDefinition> shield_templates;
 	std::vector<ShieldReaction> shield_reactions;
 	std::map<std::uint64_t, std::string> shield_reaction_results;
 	std::uint64_t next_shield_hit = 1, next_shield_reaction = 1;
@@ -545,13 +544,7 @@ struct World::Impl
 		const auto content = convert_controller_content(source);
 		console_layouts = content.consoles;
 		for (const auto &[id, effect] : content.effects)
-		{
-			CombatSystemDefinition d(OperatingSystem::Shield);
-			d.shield_effect = id;
-			d.shield_contributions = compile_shield_effect(content, id);
-			shield_templates.emplace(id, std::move(d));
-			shield_durations.emplace(id, effect.value("duration_ticks", std::int64_t{0}));
-		}
+			shield_templates.emplace(id, compile_shield_effect(content, id));
 		packs = content.ordered_packs;
 		camera_widgets.clear();
 		for (const auto &[name, layout] : content.consoles)
@@ -1007,7 +1000,8 @@ struct World::Impl
 			for (auto child : entity.get<EquipmentIndex>().values)
 				if (const auto *m = child.try_get<CombatMechanism>();
 				    m && m->definition.kind == OperatingSystem::Shield)
-					install_shield_grant(entity, m->definition, m->definition.id, m->definition.shield_effect);
+					install_shield_grant(entity.get_mut<ShieldComponent>(), m->definition.shield_definition,
+					                     m->definition.id, m->definition.id, m->definition.shield_effect);
 		if (!entities.emplace(id, entity).second)
 			throw std::runtime_error("duplicate entity identity");
 		construction.registry = &entities;
@@ -1932,7 +1926,7 @@ struct World::Impl
 				const auto key = "scenario." + std::to_string(request.token.instance) + "." + request.grant;
 				const auto matches = [&](const auto &c)
 				{
-					return c.equipment.empty() && c.definition.id == key;
+					return c.equipment.empty() && c.source == key;
 				};
 				auto found = std::find_if(owner.contributions.begin(), owner.contributions.end(), matches);
 				if (request.operation == ScenarioShieldEffectOperation::Remove)
@@ -1941,7 +1935,7 @@ struct World::Impl
 				{
 					if (found == owner.contributions.end())
 						throw std::runtime_error("Shield grant unavailable for refresh");
-					const auto duration = shield_durations.at(found->definition_id);
+					const auto duration = shield_templates.at(found->definition_id).duration_ticks;
 					for (auto &c : owner.contributions)
 						if (matches(c) && duration > 0)
 							c.expiry = std::max(c.expiry, static_cast<std::int64_t>(ecs.get<Clock>().tick) + duration);
@@ -1950,10 +1944,9 @@ struct World::Impl
 				{
 					if (found != owner.contributions.end())
 						throw std::runtime_error("Shield grant name already active; refresh it explicitly");
-					auto d = shield_templates.at(request.definition);
-					d.id = key;
-					const auto duration = shield_durations.at(request.definition);
-					install_shield_grant(ship, d, {}, request.definition,
+					const auto &d = shield_templates.at(request.definition);
+					const auto duration = d.duration_ticks;
+					install_shield_grant(owner, d, key, {}, request.definition,
 					                     duration > 0 ? static_cast<std::int64_t>(ecs.get<Clock>().tick) + duration
 					                                  : -1);
 				}

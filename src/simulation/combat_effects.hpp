@@ -52,40 +52,42 @@ void damage_faults(flecs::entity ship, std::size_t compartment, std::int64_t dam
 		}
 	}
 }
-std::uint64_t install_shield_grant(flecs::entity ship, const CombatSystemDefinition &definition,
-                                   const std::string &equipment, const std::string &definition_id,
-                                   std::int64_t expiry = -1)
+const ShieldContributionDefinition &shield_contribution(const ShieldEffectDefinition &definition,
+                                                        const std::string &name) const
 {
-	auto &owner = ship.get_mut<ShieldComponent>();
-	const auto count = std::max<std::size_t>(1, definition.shield_contributions.size());
+	const auto entry = std::find_if(definition.contributions.begin(), definition.contributions.end(),
+	                                [&](const auto &d)
+	                                {
+		                                return d.name == name;
+	                                });
+	if (entry == definition.contributions.end())
+		throw std::runtime_error("Unknown shield contribution");
+	return *entry;
+}
+std::uint64_t install_shield_grant(ShieldComponent &owner, const ShieldEffectDefinition &definition,
+                                   const std::string &source, const std::string &equipment,
+                                   const std::string &definition_id, std::int64_t expiry = -1)
+{
+	const auto count = definition.contributions.size();
+	if (!count)
+		throw std::runtime_error("Shield grant has no compiled contributions");
 	if (owner.contributions.size() + count > 8192 || owner.next_effect >= 9007199254740991ULL)
 		throw std::runtime_error("Shield grant capacity exhausted");
 	const auto id = owner.next_effect;
 	std::vector<ShieldContribution> prepared;
-	const auto add = [&](const std::string &name, const CombatSystemDefinition &d)
+	prepared.reserve(count);
+	for (const auto &entry : definition.contributions)
 	{
 		ShieldContribution c;
 		c.effect_id = id;
-		c.name = name;
+		c.source = source;
 		c.equipment = equipment;
 		c.definition_id = definition_id;
-		c.definition = d;
-		c.state.strength = d.reserve().initial;
+		c.definition = entry;
+		c.state.strength = entry.shield.reserve.initial;
 		c.expiry = expiry;
 		prepared.push_back(std::move(c));
-	};
-	if (definition.shield_contributions.empty())
-		throw std::runtime_error("Shield grant has no compiled contributions");
-	else
-		for (const auto &entry : definition.shield_contributions)
-		{
-			auto d = definition;
-			d.bearing = entry.bearing;
-			d.arc = entry.arc;
-			d.details = entry.shield;
-			d.shield_contributions.clear();
-			add(entry.name, d);
-		}
+	}
 	owner.contributions.reserve(owner.contributions.size() + prepared.size());
 	for (auto &c : prepared)
 		owner.contributions.push_back(std::move(c));
@@ -133,7 +135,7 @@ void request_shields(flecs::entity ship)
 			for (auto &c : owner->contributions)
 				if (c.equipment == m->definition.id)
 				{
-					const auto &d = c.definition.get<ShieldDefinition>();
+					const auto &d = c.definition.shield;
 					c.operating = !duel_ended() && !structurally_disabled(ship, c.equipment) &&
 					              shield_modifier(ship, c.equipment, false) > 0;
 					const auto base = child.get<Equipment>().enabled ? d.recharge_rate : d.off_recharge_rate;
@@ -160,7 +162,7 @@ void actuate_shields(flecs::entity ship)
 	for (auto &c : owner->contributions)
 		if (c.equipment.empty())
 		{
-			const auto &d = c.definition.get<ShieldDefinition>();
+			const auto &d = c.definition.shield;
 			c.quoted_rate = d.recharge_rate * std::max<std::int64_t>(0, 1000 + d.recharge_modifier);
 			c.quoted_sustain = 0;   // Independent scenario grants explicitly use the cost-free process.
 			c.quoted_discharge = 0; // No authored discharge destination exists for this process.
@@ -172,7 +174,7 @@ void actuate_shields(flecs::entity ship)
 		if (!c.equipment.empty())
 		{
 			const auto child = instance(ship, c.equipment)->entity;
-			const auto &d = c.definition.get<ShieldDefinition>();
+			const auto &d = c.definition.shield;
 			if (c.operating)
 			{
 				budgets[c.equipment] += (child.get<Equipment>().enabled ? c.quoted_sustain : 0) +
@@ -192,7 +194,7 @@ void actuate_shields(flecs::entity ship)
 	for (auto &c : owner->contributions)
 	{
 		auto &s = c.state;
-		const auto &d = c.definition.get<ShieldDefinition>();
+		const auto &d = c.definition.shield;
 		const bool independent = c.equipment.empty();
 		const bool enabled = independent || instance(ship, c.equipment)->entity.get<Equipment>().enabled;
 		const bool paid = c.operating && (independent || paid_equipment[c.equipment]);
@@ -259,24 +261,22 @@ std::int64_t absorb_shields(flecs::entity ship, std::int64_t heading, std::int64
 	std::sort(layers.begin(), layers.end(),
 	          [](auto a, auto b)
 	          {
-		          return std::tuple{a->definition.template get<ShieldDefinition>().layer, a->effect_id, a->name} <
-		                 std::tuple{b->definition.template get<ShieldDefinition>().layer, b->effect_id, b->name};
+		          return std::tuple{a->definition.shield.layer, a->effect_id, a->definition.name} <
+		                 std::tuple{b->definition.shield.layer, b->effect_id, b->definition.name};
 	          });
 	for (std::size_t begin = 0; begin < layers.size() && remaining;)
 	{
 		auto end = begin + 1;
-		while (end < layers.size() && layers[end]->definition.get<ShieldDefinition>().layer ==
-		                                  layers[begin]->definition.get<ShieldDefinition>().layer)
+		while (end < layers.size() && layers[end]->definition.shield.layer == layers[begin]->definition.shield.layer)
 			++end;
 		std::vector<std::int64_t> capacity(end - begin), absorbed(end - begin);
 		for (std::size_t i = begin; i < end; ++i)
 		{
 			auto &c = *layers[i];
 			if (!c.equipment.empty())
-				c.protection = std::clamp<std::int64_t>(shield_modifier(ship, c.equipment, false) +
-				                                            c.definition.get<ShieldDefinition>().protection_modifier,
-				                                        0, 1000);
-			const auto &d = c.definition.get<ShieldDefinition>();
+				c.protection = std::clamp<std::int64_t>(
+				    shield_modifier(ship, c.equipment, false) + c.definition.shield.protection_modifier, 0, 1000);
+			const auto &d = c.definition.shield;
 			const auto usable =
 			    std::min(c.state.strength, c.state.strength * c.state.warmup / d.warmup_ticks * c.protection / 1000);
 			// Allocate incoming damage, then transform it once. Cancellation can remove an entire share even from a weak reserve.
@@ -310,7 +310,7 @@ std::int64_t absorb_shields(flecs::entity ship, std::int64_t heading, std::int64
 		{
 			auto &c = *layers[i];
 			const auto assigned = absorbed[i - begin];
-			const auto &definition = c.definition.get<ShieldDefinition>();
+			const auto &definition = c.definition.shield;
 			const auto stopped = assigned * definition.pre_damage_permille / 1000;
 			c.state.strength -= stopped;
 			if (assigned)

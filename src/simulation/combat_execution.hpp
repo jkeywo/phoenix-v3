@@ -869,18 +869,19 @@ void project_combat(const ConsoleAddress &address, Observation &result) const
 			if (shield_feed ||
 			    (!c.equipment.empty() && std::find(feeds.begin(), feeds.end(), c.equipment) != feeds.end()))
 				output["shields"].push_back(
-				    {{"id", c.equipment.empty() ? "effect:" + std::to_string(c.effect_id) + ":" + c.name : c.equipment},
-				     {"contribution", c.name},
+				    {{"id", c.equipment.empty() ? "effect:" + std::to_string(c.effect_id) + ":" + c.definition.name
+				                                : c.equipment},
+				     {"contribution", c.definition.name},
 				     {"effect_id", c.effect_id},
-				     {"component_id", "effect:" + std::to_string(c.effect_id) + ":" + c.name},
+				     {"component_id", "effect:" + std::to_string(c.effect_id) + ":" + c.definition.name},
 				     {"controllable", can_control_shield(c.equipment)},
 				     {"strength", c.state.strength},
-				     {"capacity", c.definition.reserve().capacity},
+				     {"capacity", c.definition.shield.reserve.capacity},
 				     {"warmup", c.state.warmup},
-				     {"warmup_ticks", c.definition.get<ShieldDefinition>().warmup_ticks},
+				     {"warmup_ticks", c.definition.shield.warmup_ticks},
 				     {"arc_mdeg", c.definition.arc},
 				     {"bearing_mdeg", combat_angle(ship.get<Pose>().heading + c.definition.bearing)},
-				     {"layer", c.definition.get<ShieldDefinition>().layer},
+				     {"layer", c.definition.shield.layer},
 				     {"discharging", c.state.discharge}});
 	result.gameplay["combat"] = std::move(output);
 }
@@ -1218,10 +1219,10 @@ Json save_shields(flecs::entity ship) const
 	Json result = {{"next_effect", owner.next_effect}, {"contributions", Json::array()}};
 	for (const auto &c : owner.contributions)
 		result["contributions"].push_back({{"effect_id", c.effect_id},
-		                                   {"name", c.name},
+		                                   {"name", c.definition.name},
 		                                   {"equipment", c.equipment},
 		                                   {"definition", c.definition_id},
-		                                   {"source", c.definition.id},
+		                                   {"source", c.source},
 		                                   {"expiry", c.expiry},
 		                                   {"state", c.state},
 		                                   {"operating", c.operating},
@@ -1243,20 +1244,21 @@ void restore_shields(flecs::entity ship, const Json &value)
 		ShieldContribution c;
 		c.effect_id = checked_integer(v.at("effect_id"), 1, static_cast<std::int64_t>(restored.next_effect) - 1,
 		                              "shield.effect_id");
-		c.name = v.at("name").get<std::string>();
+		c.definition.name = v.at("name").get<std::string>();
 		c.equipment = v.at("equipment").get<std::string>();
 		c.definition_id = v.at("definition").get<std::string>();
-		if (!identities.emplace(c.effect_id, c.name).second)
+		if (!identities.emplace(c.effect_id, c.definition.name).second)
 			throw std::runtime_error("Duplicate shield contribution");
-		const CombatSystemDefinition *base = nullptr;
+		const ShieldEffectDefinition *base = nullptr;
 		if (!c.equipment.empty())
 		{
 			const auto fitted = instance(ship, c.equipment);
 			if (!fitted || !fitted->entity.has<CombatMechanism>())
 				throw std::runtime_error("Unknown shield equipment binding");
-			base = &fitted->entity.get<CombatMechanism>().definition;
-			if (base->kind != OperatingSystem::Shield || base->shield_effect != c.definition_id)
+			const auto &equipment = fitted->entity.get<CombatMechanism>().definition;
+			if (equipment.kind != OperatingSystem::Shield || equipment.shield_effect != c.definition_id)
 				throw std::runtime_error("Invalid shield definition binding");
+			base = &equipment.shield_definition;
 		}
 		else
 		{
@@ -1265,28 +1267,17 @@ void restore_shields(flecs::entity ship, const Json &value)
 				throw std::runtime_error("Unknown saved shield effect");
 			base = &at->second;
 		}
-		c.definition = *base;
-		const auto entry = std::find_if(base->shield_contributions.begin(), base->shield_contributions.end(),
-		                                [&](const auto &d)
-		                                {
-			                                return d.name == c.name;
-		                                });
-		if (entry == base->shield_contributions.end())
-			throw std::runtime_error("Unknown saved shield contribution");
-		c.definition.bearing = entry->bearing;
-		c.definition.arc = entry->arc;
-		c.definition.details = entry->shield;
-		c.definition.shield_contributions.clear();
-		c.definition.id = v.at("source").get<std::string>();
-		if (!c.equipment.empty() && c.definition.id != c.equipment)
+		c.definition = shield_contribution(*base, c.definition.name);
+		c.source = v.at("source").get<std::string>();
+		if (!c.equipment.empty() && c.source != c.equipment)
 			throw std::runtime_error("Invalid shield equipment source");
-		if (c.definition.id.empty() || c.definition.id.size() > 512)
+		if (c.source.empty() || c.source.size() > 512)
 			throw std::runtime_error("Invalid shield source identity");
 		c.expiry = checked_integer(v.at("expiry"), -1, 9007199254740991LL, "shield.expiry");
 		c.state = v.at("state").get<ShieldState>();
 		if (Json(c.state) != v.at("state"))
 			throw std::runtime_error("Unexpected shield state fields");
-		const auto &d = c.definition.get<ShieldDefinition>();
+		const auto &d = c.definition.shield;
 		checked_integer(v.at("state").at("strength"), 0, d.reserve.capacity, "shield.strength");
 		checked_integer(v.at("state").at("warmup"), 0, d.warmup_ticks, "shield.warmup");
 		checked_integer(v.at("state").at("recharge_remainder"), 0, rate * 1000 - 1, "shield.recharge_remainder");
@@ -1315,14 +1306,15 @@ void restore_shields(flecs::entity ship, const Json &value)
 	for (const auto &[id, group] : groups)
 	{
 		const auto &first = *group.front();
-		const auto &base = first.equipment.empty()
-		                       ? shield_templates.at(first.definition_id)
-		                       : instance(ship, first.equipment)->entity.get<CombatMechanism>().definition;
-		if (group.size() != base.shield_contributions.size())
+		const auto &base =
+		    first.equipment.empty()
+		        ? shield_templates.at(first.definition_id)
+		        : instance(ship, first.equipment)->entity.get<CombatMechanism>().definition.shield_definition;
+		if (group.size() != base.contributions.size())
 			throw std::runtime_error("Incomplete shield effect group");
 		for (const auto *c : group)
 			if (c->equipment != first.equipment || c->definition_id != first.definition_id ||
-			    c->definition.id != first.definition.id || c->expiry != first.expiry)
+			    c->source != first.source || c->expiry != first.expiry)
 				throw std::runtime_error("Inconsistent shield effect group");
 	}
 	for (auto child : ship.get<EquipmentIndex>().values)

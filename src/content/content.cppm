@@ -777,7 +777,7 @@ struct ShieldReactionDefinition
 struct ShieldDefinition
 {
 	std::vector<ShieldReactionDefinition> reactions;
-	std::int64_t pre_damage_permille = 1000, post_damage = 0;
+	std::int64_t pre_damage_permille = 1000;
 	std::int64_t recharge_modifier = 0, sustain_modifier = 0, discharge_modifier = 0, protection_modifier = 0;
 	ReserveDefinition reserve;
 	std::int64_t sustain_energy = 0, recharge_energy = 1, recharge_rate = 0, off_recharge_rate = 0;
@@ -789,11 +789,16 @@ struct ShieldContributionDefinition
 	std::int64_t bearing = 0, arc = 360000;
 	ShieldDefinition shield;
 };
-std::vector<ShieldContributionDefinition> compile_shield_effect(const Catalog &, const std::string &);
+struct ShieldEffectDefinition
+{
+	std::int64_t duration_ticks = 0;
+	std::vector<ShieldContributionDefinition> contributions;
+};
+ShieldEffectDefinition compile_shield_effect(const Catalog &, const std::string &);
 struct CombatSystemDefinition
 {
 	std::string shield_effect;
-	std::vector<ShieldContributionDefinition> shield_contributions;
+	ShieldEffectDefinition shield_definition;
 	std::string id, compartment;
 	OperatingSystem kind = OperatingSystem::Weapon;
 	std::int64_t x = 0, y = 0, bearing = 0, arc = 360000;

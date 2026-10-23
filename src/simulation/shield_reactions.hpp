@@ -5,8 +5,8 @@ void ensure_shield_reaction_capacity(flecs::entity ship) const
 	if (const auto *owner = ship.try_get<ShieldComponent>())
 		for (const auto &c : owner->contributions)
 		{
-			const auto &d = c.definition.get<ShieldDefinition>();
-			possible += d.reactions.size() + (d.post_damage ? 1 : 0);
+			const auto &d = c.definition.shield;
+			possible += d.reactions.size();
 		}
 	if (shield_reactions.size() + possible > 8192 || next_shield_hit >= 9007199254740991ULL ||
 	    next_shield_reaction + possible >= 9007199254740991ULL)
@@ -16,8 +16,8 @@ void queue_shield_reactions(flecs::entity ship, const ShieldContribution &c, std
                             std::int64_t presented, std::int64_t modified, std::int64_t negated, std::int64_t absorbed,
                             std::int64_t residual)
 {
-	const auto &d = c.definition.get<ShieldDefinition>();
-	auto append = [&](ShieldReactionDefinition execution, std::size_t group)
+	const auto &d = c.definition.shield;
+	for (std::size_t group = 0; group < d.reactions.size(); ++group)
 	{
 		ShieldReaction r;
 		r.id = next_shield_reaction++;
@@ -26,8 +26,8 @@ void queue_shield_reactions(flecs::entity ship, const ShieldContribution &c, std
 		r.effect = c.effect_id;
 		r.attacker = attacker;
 		r.protected_ship = ship.get<StableId>().id;
-		r.contribution = c.name;
-		r.source = c.definition.id;
+		r.contribution = c.definition.name;
+		r.source = c.source;
 		r.definition = c.definition_id;
 		r.group = group;
 		r.presented = presented;
@@ -36,20 +36,8 @@ void queue_shield_reactions(flecs::entity ship, const ShieldContribution &c, std
 		r.absorbed = absorbed;
 		r.residual = residual;
 		r.strength = c.state.strength;
-		r.execution = std::move(execution);
+		r.execution = d.reactions[group];
 		shield_reactions.push_back(std::move(r));
-	};
-	for (std::size_t i = 0; i < d.reactions.size(); ++i)
-		append(d.reactions[i], i);
-	if (d.post_damage)
-	{
-		ShieldReactionDefinition legacy;
-		ShieldReactionOperation operation;
-		operation.kind = ShieldReactionKind::Damage;
-		operation.target = "attacker";
-		operation.damage = d.post_damage;
-		legacy.operations.push_back(operation);
-		append(std::move(legacy), d.reactions.size());
 	}
 }
 Json save_shield_reactions() const
@@ -117,27 +105,10 @@ void restore_shield_reactions(const Json &value)
 		const auto at = shield_templates.find(r.definition);
 		if (at == shield_templates.end() || r.source.empty() || r.source.size() > 512)
 			throw std::runtime_error("Invalid queued shield origin");
-		const auto &contributions = at->second.shield_contributions;
-		const auto c = std::find_if(contributions.begin(), contributions.end(),
-		                            [&](const auto &d)
-		                            {
-			                            return d.name == r.contribution;
-		                            });
-		if (c == contributions.end())
-			throw std::runtime_error("Unknown queued shield contribution");
-		r.group = checked_integer(v.at("group"), 0, c->shield.reactions.size(), "reaction.group");
-		if (r.group < c->shield.reactions.size())
-			r.execution = c->shield.reactions[r.group];
-		else
-		{
-			if (!c->shield.post_damage)
-				throw std::runtime_error("Unknown queued shield reaction");
-			ShieldReactionOperation operation;
-			operation.kind = ShieldReactionKind::Damage;
-			operation.target = "attacker";
-			operation.damage = c->shield.post_damage;
-			r.execution.operations.push_back(operation);
-		}
+		const auto *c = &shield_contribution(at->second, r.contribution);
+		r.group = checked_integer(v.at("group"), 0, static_cast<std::int64_t>(c->shield.reactions.size()) - 1,
+		                          "reaction.group");
+		r.execution = c->shield.reactions[r.group];
 		r.presented = checked_integer(v.at("presented"), 0, 1000000000000LL, "reaction.presented");
 		r.modified = checked_integer(v.at("modified"), 0, 100000000000000LL, "reaction.modified");
 		r.negated = checked_integer(v.at("negated"), 0, r.presented, "reaction.negated");
@@ -154,13 +125,8 @@ void restore_shield_reactions(const Json &value)
 	for (const auto &[key, indices] : groups)
 	{
 		const auto &first = restored[indices.front()];
-		const auto &definitions = shield_templates.at(first.definition).shield_contributions;
-		const auto c = std::find_if(definitions.begin(), definitions.end(),
-		                            [&](const auto &d)
-		                            {
-			                            return d.name == first.contribution;
-		                            });
-		if (indices.size() != c->shield.reactions.size() + (c->shield.post_damage ? 1 : 0))
+		const auto &c = shield_contribution(shield_templates.at(first.definition), first.contribution);
+		if (indices.size() != c.shield.reactions.size())
 			throw std::runtime_error("Incomplete queued shield reaction groups");
 		for (const auto index : indices)
 		{
@@ -237,7 +203,7 @@ void step_shield_reactions()
 			}
 			auto matches = [&](const auto &c)
 			{
-				return c.equipment.empty() && c.definition.id == key;
+				return c.equipment.empty() && c.source == key;
 			};
 			if (operation.kind == ShieldReactionKind::Remove)
 			{
@@ -246,31 +212,23 @@ void step_shield_reactions()
 			}
 			const auto definition = shield_templates.find(operation.effect);
 			if (definition == shield_templates.end() ||
-			    std::any_of(owner.contributions.begin(), owner.contributions.end(), matches) ||
-			    owner.contributions.size() + definition->second.shield_contributions.size() > 8192 ||
-			    owner.next_effect >= 9007199254740991ULL)
+			    std::any_of(owner.contributions.begin(), owner.contributions.end(), matches))
 			{
 				shield_reaction_results[r.id] = "failed: unavailable or duplicate grant";
 				valid = false;
 				break;
 			}
-			const auto effect = owner.next_effect++;
-			const auto duration = shield_durations.at(operation.effect);
-			for (const auto &d : definition->second.shield_contributions)
+			const auto duration = definition->second.duration_ticks;
+			try
 			{
-				ShieldContribution c;
-				c.effect_id = effect;
-				c.name = d.name;
-				c.definition_id = operation.effect;
-				c.definition = definition->second;
-				c.definition.id = key;
-				c.definition.bearing = d.bearing;
-				c.definition.arc = d.arc;
-				c.definition.details = d.shield;
-				c.definition.shield_contributions.clear();
-				c.state.strength = d.shield.reserve.initial;
-				c.expiry = duration > 0 ? static_cast<std::int64_t>(ecs.get<Clock>().tick) + duration : -1;
-				owner.contributions.push_back(std::move(c));
+				install_shield_grant(owner, definition->second, key, {}, operation.effect,
+				                     duration > 0 ? static_cast<std::int64_t>(ecs.get<Clock>().tick) + duration : -1);
+			}
+			catch (const std::runtime_error &error)
+			{
+				shield_reaction_results[r.id] = std::string("failed: ") + error.what();
+				valid = false;
+				break;
 			}
 		}
 		if (!valid)
@@ -282,8 +240,8 @@ void step_shield_reactions()
 			const auto &owner = staged.contains(id) ? staged.at(id) : entities.at(id).get<ShieldComponent>();
 			for (const auto &c : owner.contributions)
 			{
-				const auto &d = c.definition.get<ShieldDefinition>();
-				reserve += d.reactions.size() + (d.post_damage ? 1 : 0);
+				const auto &d = c.definition.shield;
+				reserve += d.reactions.size();
 			}
 		}
 		if (shield_reactions.size() + reserve > 8192 || next_shield_reaction + reserve >= 9007199254740991ULL ||
