@@ -43,6 +43,8 @@ The coverage table in the system design is the inventory to reconcile against de
 
 ## Implementation contracts to specify
 
+The shield interview has settled lifetime versus operation, named independent contributions, funding/dependencies, control/visibility, the first live-modifier set and per-contribution hook scope. Hooks run only when damage reaches their layer. The remaining design choice before this slice is the first-slice pre-hook operation and secondary-reaction contract, including cancellation semantics, described in the review. The remaining items below are implementation specifications; they do not require reopening settled high-level choices.
+
 The high-level design is settled sufficiently to describe the target system. These details belong in implementation specifications before the affected slice is built:
 
 - Concrete definition schemas, parameter bindings and compiled interfaces for rules, effects, contributions, processes, abilities and modes.

@@ -220,6 +220,8 @@ pending hit -> pre-damage effects -> native damage resolution -> post-damage eff
 
 Pre-damage effects can modify or explicitly cancel the pending hit and perform supported operations. Native resolution applies the resulting damage. Post-damage effects receive the actual result, such as absorbed energy, inflicted damage and resulting faults.
 
+Shield hooks run per affected contribution, and only when damage reaches its shield layer. Contributions in later layers receive no hooks when earlier protection has already stopped the damage. Native arc, layer and sharing rules determine the damage presented to each contribution; its pre-hooks run before absorption and its post-hooks receive the actual absorption, remaining damage and resulting shield state. Hook context identifies both the original hit and the affected contribution.
+
 These are extension points around the physical damage mechanisms. The framework does not require every part of penetration, shield absorption or fault selection to be expressed as generic authored rules.
 
 ## Resources, stores and recipes
